@@ -229,16 +229,16 @@ export function GalleryPost({
               onEdit={handleEditPressed}
               mode="await-trigger"
               trigger={
-                <Button.Frame
-                  // with padding, this Button is larger than the row displayed
-                  // for file uploads, causing unsightly overlaps
-                  padding={0}
-                  borderWidth="unset"
-                  onPress={handleOverflowPress}
+                <Button
+                  icon="Overflow"
+                  fill="ghost"
+                  type="secondary"
+                  size="small"
+                  width={32}
+                  height={32}
+                  borderRadius="$m"
                   testID="MessageActionsTrigger"
-                >
-                  <Icon type="Overflow" />
-                </Button.Frame>
+                />
               }
             />
           </Pressable>
@@ -376,7 +376,10 @@ export function GalleryPostDetailView({
     (src: string) => {
       logger.log('Detail view: Image pressed, navigating to', src);
       try {
-        navigation.navigate('ImageViewer', { uri: src });
+        navigation.navigate('MediaViewer', {
+          mediaType: 'image',
+          uri: src,
+        });
       } catch (error) {
         logger.log('Navigation error:', error);
         // Try the fallback if direct navigation fails
@@ -427,6 +430,7 @@ export function GalleryPostDetailView({
       <View gap="$2xl" padding="$xl">
         <DetailViewAuthorRow
           authorId={post.authorId}
+          isBot={post.isBot ?? undefined}
           sent={post.sentAt}
           color="$primaryText"
           showSentAt={true}
@@ -640,7 +644,16 @@ const LargeContentRenderer = createContentRenderer({
     },
     video: {
       borderRadius: 0,
-      ...noWrapperPadding,
+      maxHeight: 300,
+      alignSelf: 'center',
+      wrapperProps: {
+        padding: 0,
+        width: '100%',
+        minHeight: 300,
+        backgroundColor: '$secondaryBackground',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
     },
     code: {
       borderRadius: 0,
@@ -690,6 +703,8 @@ const SmallContentRenderer = createContentRenderer({
     },
     video: {
       height: '100%',
+      borderRadius: 0,
+      contentFit: 'cover',
       ...noWrapperPadding,
     },
     reference: {
@@ -785,8 +800,6 @@ function usePreviewContent(content: BlockData[]): BlockData[] {
 function firstBlockIsPreviewable(content: BlockData[]): boolean {
   return (
     content.length > 0 &&
-    (content[0].type === 'image' ||
-      content[0].type === 'video' ||
-      content[0].type === 'reference')
+    ['image', 'video', 'reference', 'file'].includes(content[0].type)
   );
 }

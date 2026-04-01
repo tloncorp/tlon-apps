@@ -41,7 +41,7 @@ export function ChannelEditFormLayout({
         showSubtitle={!!channel?.title && !!group?.title}
         backgroundColor="$secondaryBackground"
         backAction={onGoBack}
-        isLoading={isLoading}
+        loadingSubtitle={isLoading ? 'Loading…' : null}
         useHorizontalTitleLayout={!isWindowNarrow}
         rightControls={rightControls}
       />

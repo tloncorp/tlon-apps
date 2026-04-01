@@ -6,6 +6,13 @@ import {
   SENTRY_DSN,
 } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
+import { setDebugBuildInfo } from '@tloncorp/shared';
+import * as Application from 'expo-application';
+import { Platform } from 'react-native';
+
+setDebugBuildInfo(
+  `${Platform.OS}:${Application.nativeBuildVersion ?? 'unknown'}`
+);
 
 Sentry.init({
   // Only enable Sentry in production builds

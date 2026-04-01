@@ -13,6 +13,7 @@ import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
+import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
@@ -27,7 +28,7 @@ import ChatListScreen from '../features/top/ChatListScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
-import ImageViewerScreen from '../features/top/ImageViewerScreen';
+import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import PostScreen from '../features/top/PostScreen';
 import { PostUsingContentConfigurationScreen } from '../features/top/PostUsingContentConfigurationScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
@@ -96,8 +97,8 @@ export function RootStack() {
       <Root.Screen name="Post" component={PostScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen
-        name="ImageViewer"
-        component={ImageViewerScreen}
+        name="MediaViewer"
+        component={MediaViewerScreen}
         options={{ animation: 'fade' }}
       />
       <Root.Screen name="ChatDetails" component={ChatDetailsScreen} />
@@ -105,6 +106,11 @@ export function RootStack() {
       <Root.Screen
         name="ManageAccount"
         component={ManageAccountScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotSettings"
+        component={BotSettingsScreen}
         options={{ gestureEnabled: false }}
       />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />

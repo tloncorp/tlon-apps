@@ -92,7 +92,6 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
         <ScreenHeader
           backgroundColor="$secondaryBackground"
           title="Notifications"
-          showSessionStatus={false}
         />
         <YStack
           flex={1}

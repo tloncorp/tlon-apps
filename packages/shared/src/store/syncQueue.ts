@@ -113,6 +113,15 @@ class SyncQueue {
       const loadStartTime = Date.now();
       const nextOperation = this.queue.shift()!;
       const { ctx, label, action, resolve, reject, addedAt } = nextOperation;
+      const waitTime = loadStartTime - addedAt;
+      if (waitTime > 1000) {
+        logger.trackEvent('syncQueue job delayed', {
+          label,
+          waitTime,
+          priority: ctx.priority,
+          queueLength: this.queue.length,
+        });
+      }
       const retryOptions = getRetryConfig(ctx.retry);
       const execAction = retryOptions
         ? () => withRetry(action, retryOptions)

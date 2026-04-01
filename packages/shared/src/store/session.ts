@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { ChannelStatus } from '../http-api';
+import { ChannelStatus } from '@tloncorp/api/http-api';
 
 export type SyncPhase = 'init' | 'high' | 'low' | 'ready';
 

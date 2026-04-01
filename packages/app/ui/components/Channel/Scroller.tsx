@@ -98,6 +98,8 @@ const Scroller = forwardRef(
       setActiveMessage,
       isLoading,
       onPressScrollToBottom,
+      listHeaderComponent,
+      highlightPostId,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -122,11 +124,19 @@ const Scroller = forwardRef(
       hasNewerPosts?: boolean;
       activeMessage: db.Post | null;
       setActiveMessage: (post: db.Post | null) => void;
-      ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
+      ref?: RefObject<{
+        scrollToIndex: (params: {
+          index: number;
+          animated?: boolean;
+          viewPosition?: number;
+        }) => void;
+      }>;
       isLoading?: boolean;
       // Unused
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
+      listHeaderComponent?: React.ReactElement;
+      highlightPostId?: string | null;
     },
     ref
   ) => {
@@ -170,21 +180,28 @@ const Scroller = forwardRef(
     const listRef = useRef<PostListMethods>(null);
 
     useImperativeHandle(ref, () => ({
-      scrollToIndex: (params: { index: number; animated?: boolean }) =>
-        listRef.current?.scrollToIndex(params),
+      scrollToIndex: (params: {
+        index: number;
+        animated?: boolean;
+        viewPosition?: number;
+      }) => listRef.current?.scrollToIndex(params),
       scrollToStart: (params: { animated?: boolean }) =>
         listRef.current?.scrollToStart(params),
+      scrollToEnd: (params: { animated?: boolean }) =>
+        listRef.current?.scrollToEnd(params),
     }));
 
     const pressedGoToBottom = () => {
       setHasPressedGoToBottom(true);
       onPressScrollToBottom?.();
 
-      // Only scroll if we're not loading and have a valid ref
       if (listRef.current && !isLoading) {
-        // Use a small timeout to ensure state updates have processed
         requestAnimationFrame(() => {
-          listRef.current?.scrollToStart({ animated: true });
+          if (inverted) {
+            listRef.current?.scrollToStart({ animated: true });
+          } else {
+            listRef.current?.scrollToEnd({ animated: true });
+          }
         });
       }
     };
@@ -233,10 +250,9 @@ const Scroller = forwardRef(
     }, [theme.background.val]);
 
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
-      ({
-        item: { post, newer: nextItem, older: previousItem, ...rest },
-        index,
-      }) => {
+      ({ item: { post, newer, older, ...rest }, index }) => {
+        const previousItem = inverted ? older : newer;
+        const nextItem = inverted ? newer : older;
         const isFirstPostOfDay = !isSameDay(
           post.receivedAt ?? 0,
           previousItem?.receivedAt ?? 0
@@ -253,10 +269,10 @@ const Scroller = forwardRef(
           previousItem?.type === 'notice' ||
           previousItem?.isDeleted === true ||
           isFirstPostOfDay;
-        const isSelected =
-          anchor?.type === 'selected' && anchor.postId === post.id;
-
         const isFirstUnread = post.id === firstUnreadId;
+        const isSelected =
+          (anchor?.type === 'selected' && anchor.postId === post.id) ||
+          highlightPostId === post.id;
 
         return (
           <ScrollerItem
@@ -301,7 +317,9 @@ const Scroller = forwardRef(
       [
         anchor?.type,
         anchor?.postId,
+        highlightPostId,
         firstUnreadId,
+        inverted,
         renderItem,
         unreadCount,
         showReplies,
@@ -324,11 +342,22 @@ const Scroller = forwardRef(
     );
 
     const insets = useSafeAreaInsets();
+    const rootVerticalPadding = getTokens().space.l.val;
 
     const contentContainerStyle = useStyle(
       useMemo(() => {
         if (!posts?.length) {
-          return { flex: 1 };
+          if (
+            collectionLayoutType === 'comfy-list-top-to-bottom' ||
+            collectionLayoutType === 'grid'
+          ) {
+            return {
+              flexGrow: 1,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
+            };
+          }
+          return { flexGrow: 1 };
         }
 
         switch (collectionLayoutType) {
@@ -342,7 +371,8 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingBottom: insets.bottom,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
             };
           }
 
@@ -350,11 +380,17 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               gap: '$l',
-              paddingBottom: insets.bottom,
+              paddingTop: rootVerticalPadding,
+              paddingBottom: insets.bottom + rootVerticalPadding,
             };
           }
         }
-      }, [insets, posts?.length, collectionLayoutType])
+      }, [
+        insets.bottom,
+        posts?.length,
+        collectionLayoutType,
+        rootVerticalPadding,
+      ])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(
@@ -419,10 +455,12 @@ const Scroller = forwardRef(
 
       const shouldShowForUnreads =
         collectionLayoutType === 'compact-list-bottom-to-top' &&
+        inverted &&
         unreadCount &&
         !isAtBottom;
       const shouldShowForScroll =
         collectionLayoutType === 'compact-list-bottom-to-top' &&
+        inverted &&
         !isAtBottom &&
         (!hasPressedGoToBottom || isLoading || hasNewerPosts);
 
@@ -431,6 +469,7 @@ const Scroller = forwardRef(
       isAtBottom,
       hasPressedGoToBottom,
       collectionLayoutType,
+      inverted,
       unreadCount,
       isLoading,
       hasNewerPosts,
@@ -495,6 +534,7 @@ const Scroller = forwardRef(
             // input while they're typing.
             scrollEnabled={!editingPost}
             style={style}
+            listHeaderComponent={listHeaderComponent}
           />
         )}
         {activeMessage !== null && !emojiPickerOpen && (
@@ -747,6 +787,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const isIndexEqual = prev.index === next.index;
 
   const areOtherPropsEqual =
+    prev.isSelected === next.isSelected &&
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

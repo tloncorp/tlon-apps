@@ -1,7 +1,7 @@
 import { QueryKey, useQuery } from '@tanstack/react-query';
 
-import { queryClient } from '../api';
 import { createDevLogger } from '../debug';
+import { queryClient } from '../store/reactQuery';
 import { Stringified } from '../utils';
 import { getStorageMethods } from './getStorageMethods';
 
@@ -144,10 +144,12 @@ export const createStorageItem = <T>(config: StorageItemConfig<T>) => {
   }
 
   function useStorageItem() {
-    const { data: value, isLoading } = useQuery({
+    const { data: value, isLoading: queryIsLoading } = useQuery({
       queryKey: [key],
       queryFn: () => getValue(),
     });
+    // Treat undefined data as still loading to prevent brief flashes of default value
+    const isLoading = queryIsLoading || value === undefined;
     return {
       value: value === undefined ? defaultValue : value,
       isLoading,

@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { preSig } from '@tloncorp/shared/urbit';
+import { preSig } from '@tloncorp/api/urbit';
 import * as Application from 'expo-application';
 import { useEffect, useState } from 'react';
 import { useCallback } from 'react';

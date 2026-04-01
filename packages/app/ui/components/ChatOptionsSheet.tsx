@@ -1,8 +1,8 @@
 import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/shared/urbit';
-import { Icon, useIsWindowNarrow, useToast } from '@tloncorp/ui';
+import * as ub from '@tloncorp/api/urbit';
+import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import React, {
@@ -16,7 +16,6 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { useCurrentUserId } from '../contexts';
 import { useChatOptions } from '../contexts/chatOptions';
 import * as utils from '../utils';
@@ -347,6 +346,7 @@ export function GroupOptionsSheetContent({
                 title: 'Invite people',
                 action: wrappedInviteAction,
                 endIcon: 'ChevronRight',
+                testID: 'GroupOptionsInvitePeopleButton',
               }
             : {
                 accent: 'disabled',
@@ -357,6 +357,7 @@ export function GroupOptionsSheetContent({
             title: 'Group info & settings',
             action: wrappedAction.bind(null, handlePressChatDetails, false),
             endIcon: 'ChevronRight',
+            testID: 'GroupOptionsGroupInfoButton',
           },
         ],
         // this is CYA in case the group somehow looks joined but isn't
@@ -470,6 +471,7 @@ function EditGroupSheetContent({
           description: 'Change name, description, and image',
           action: wrappedAction.bind(null, onPressGroupMeta, false),
           endIcon: 'ChevronRight',
+          testID: 'GroupOptionsEditGroupInfoButton',
         },
         {
           title: 'Manage channels',
@@ -653,7 +655,6 @@ export function ChannelOptionsSheetContent({
     markChannelRead,
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
-  const [aiSummarizationEnabled] = useFeatureFlag('aiSummarization');
 
   const currentUserId = useCurrentUserId();
   const currentUserIsAdmin = utils.useIsAdmin(
@@ -667,7 +668,6 @@ export function ChannelOptionsSheetContent({
   const canMarkRead = !(channel.unread?.count === 0);
   const enableCustomChannels = useCustomChannelsEnabled();
   const baseVolumeLevel = store.useBaseVolumeLevel();
-  const showToast = useToast();
 
   const handlePressGroupDetails = useCallback(() => {
     if (!group) {
@@ -677,62 +677,12 @@ export function ChannelOptionsSheetContent({
   }, [group, onPressChatDetails]);
 
   const handlePressChannelDetails = useCallback(() => {
-    onPressChatDetails({ type: 'channel', id: channel.id, groupId: channel.groupId ?? undefined });
+    onPressChatDetails({
+      type: 'channel',
+      id: channel.id,
+      groupId: channel.groupId ?? undefined,
+    });
   }, [channel.id, channel.groupId, onPressChatDetails]);
-
-  const handleSummarizeChannel = useCallback(
-    async (timeRange: 'day' | 'week') => {
-      const now = Date.now();
-      const msPerDay = 24 * 60 * 60 * 1000;
-      const timeLabel = timeRange === 'day' ? 'last 24 hours' : 'last week';
-
-      showToast({
-        message: `Summarizing ${timeLabel}...`,
-        duration: 2000,
-      });
-
-      try {
-        await store.summarizeMessages({
-          channelId: channel.id,
-          startTime: timeRange === 'day' ? now - msPerDay : now - 7 * msPerDay,
-          channelTitle: chatTitle,
-          timeLabel,
-          currentUserId,
-        });
-
-        showToast({
-          message: 'Summary sent to your DMs',
-          duration: 2000,
-        });
-      } catch (error) {
-        console.error('Error summarizing channel:', error);
-        let message: string;
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-
-        if (errorMessage === 'No messages found in time range') {
-          message = `No messages found in ${timeLabel}`;
-        } else if (
-          errorMessage ===
-          'AI provider is rate-limited. Please try again in a few moments.'
-        ) {
-          message = errorMessage;
-        } else if (errorMessage.includes('OPENROUTER_API_KEY')) {
-          message = 'AI summarization not configured';
-        } else if (errorMessage.includes('OpenRouter API error')) {
-          // Extract just the error part without the full technical details
-          message = 'AI service error. Please try again.';
-        } else {
-          message = `Failed to summarize: ${errorMessage}`;
-        }
-        showToast({
-          message,
-          duration: 4000,
-        });
-      }
-    },
-    [channel.id, chatTitle, currentUserId, showToast]
-  );
 
   const wrappedAction = useCallback(
     (action: () => void, clearChat = true) => {
@@ -770,23 +720,6 @@ export function ChannelOptionsSheetContent({
             ),
           },
         ],
-        aiSummarizationEnabled && [
-          'neutral',
-          {
-            title: 'Summarize last 24 hours',
-            description: 'Get AI summary of recent messages',
-            action: wrappedAction.bind(null, () =>
-              handleSummarizeChannel('day')
-            ),
-          },
-          {
-            title: 'Summarize last week',
-            description: 'Get AI summary of the past week',
-            action: wrappedAction.bind(null, () =>
-              handleSummarizeChannel('week')
-            ),
-          },
-        ],
         channel.type === 'groupDm' && [
           'neutral',
           {
@@ -811,6 +744,7 @@ export function ChannelOptionsSheetContent({
             title: 'Group info & settings',
             action: wrappedAction.bind(null, handlePressGroupDetails, false),
             endIcon: 'ChevronRight',
+            testID: 'GroupOptionsGroupInfoButton',
           },
           currentUserIsAdmin &&
             enableCustomChannels && {
@@ -855,8 +789,6 @@ export function ChannelOptionsSheetContent({
       togglePinned,
       canMarkRead,
       markChannelRead,
-      aiSummarizationEnabled,
-      handleSummarizeChannel,
       onPressChannelMeta,
       onPressChannelMembers,
       group,

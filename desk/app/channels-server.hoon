@@ -3,7 +3,7 @@
 ::    this is the server-side from which /app/channels gets its data.
 ::
 /-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid, em=emojimart
+/+  ccv=channel-conv, utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -52,7 +52,7 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.channels^%3 ~ ~]
+      [~.channels^%4 ~ ~]
     (my %groups^[~.groups^%2 ~ ~] ~)
 %-  agent:dbug
 %^  verb  |  %warn
@@ -62,8 +62,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
-        =v-channels:v9:cv
+    $:  %14
+        =v-channels:v10:cv
         =hooks:h
         =pimp:imp
     ==
@@ -75,7 +75,7 @@
   +*  this  .
       def   ~(. (default-agent this %|) bowl)
       log   ~(. logs [our.bowl /logs])
-      cor   ~(. +> [bowl ~])
+      cor   ~(. +> [bowl ~ ~])
   ++  on-init
     ^-  (quip card _this)
     =^  cards  state
@@ -128,11 +128,13 @@
     [cards this]
   --
 ::
-|_  [=bowl:gall cards=(list card)]
-++  abet  [(flop cards) state]
+|_  [=bowl:gall cards=(list card) cards-late=(list card)]
+++  abet  [(weld (flop cards) (flop cards-late)) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
+++  emit-late  |=(=card cor(cards-late [card cards-late]))
+++  emil-late  |=(caz=(list card) cor(cards-late (welp (flop caz) cards-late)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  log   ~(. logs [our.bowl /logs])
 ++  safe-watch
@@ -160,12 +162,14 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -180,7 +184,13 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13
+    $:  %13
+        =v-channels:v9:cv
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -211,6 +221,15 @@
     $:  %6
       =v-channels:v7:cv
       =pimp:imp
+    ==
+  ::
+  ++  state-13-to-14
+    |=  =state-13
+    ~>  %spin.['state-13-to-14']
+    ^-  state-14
+    %=  state-13
+      -  %14
+      v-channels  (~(run by v-channels.state-13) v10:v-channel:v9:ccv)
     ==
   ::
   ++  state-12-to-13
@@ -1007,7 +1026,7 @@
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
-      ?>  |(=(src.bowl our.bowl) =(src.bowl author.essay.c-post))
+      ?>  |(=(src.bowl our.bowl) =(src.bowl (get-author-ship:utils author.essay.c-post)))
       ?>  =(kind.nest -.kind.essay.c-post)
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  id=id-post:c
@@ -1029,12 +1048,12 @@
       ca-core(posts.channel (put:on-v-posts:c posts.channel id &+new))
     ::
         %edit
-      ?>  |(=(src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.essay.c-post)) (is-admin:ca-perms src.bowl))
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %edit +.u.post essay.c-post]
         (run-hooks event nest 'edit blocked')
@@ -1052,7 +1071,7 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl author.u.post) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %del +.u.post]
         (run-hooks event nest 'delete blocked')
@@ -1152,15 +1171,15 @@
     =*  replies  replies.parent
     ?-    -.c-reply
         %add
-      ?>  =(src.bowl author.memo.c-reply)
-      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
+      ?>  =(src.bowl (get-author-ship:utils author.reply-essay.c-reply))
+      ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
         =/  reply  (get:on-v-replies:c replies now.bowl)
         ?~  reply  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  reply-seal=v-reply-seal:c  [id ~]
-      =/  new=v-reply:c  [reply-seal 0 memo.c-reply]
+      =/  new=v-reply:c  [reply-seal 0 reply-essay.c-reply]
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %add parent new]
         (run-hooks event nest 'reply blocked')
@@ -1176,18 +1195,18 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  =(src.bowl author.u.reply)
-      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
+      ?>  =(src.bowl (get-author-ship:utils author.u.reply))
+      ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
+        =/  =event:h  [%on-reply %edit parent +.u.reply reply-essay.c-reply]
         (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
-      =/  =memo:c
+      =/  =reply-essay:c
         ?>  ?=([%on-reply %edit *] p.result)
-        memo.p.result
+        reply-essay.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
-      =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) memo]
+      =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) reply-essay]
       :-  `[%reply id.c-reply %set &+new]
       (put:on-v-replies:c replies id.c-reply &+new)
     ::
@@ -1195,7 +1214,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply  `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  |(=(src.bowl author.u.reply) (is-admin:ca-perms src.bowl))
+      ?>  |(=(src.bowl (get-author-ship:utils author.u.reply)) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %del parent +.u.reply]
         (run-hooks event nest 'delete blocked')
@@ -1623,8 +1642,10 @@
     $(effects t.effects)
   ?-  -.effect
       %channels
-    =/  =cage  channel-action+!>(a-channels.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+    ::  Run channel effects after normal cards in the same event so the
+    ::  originating post update has time to commit/propagate first.
+    =/  =cage  channel-action-2+!>(`a-channels:v10:cv`a-channels.effect)
+    (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
     =/  =cage  group-action-4+!>(`a-groups:v7:gv`a-groups.effect)

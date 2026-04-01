@@ -1,15 +1,16 @@
+import * as api from '@tloncorp/api';
+import { GetChangedPostsOptions } from '@tloncorp/api';
+import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
+import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as api from '../api';
-import { GetChangedPostsOptions } from '../api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
-import { extractClientVolumes } from '../logic/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -22,28 +23,15 @@ import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
+import { queryClient } from './reactQuery';
 import { getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
+import { getSystemContacts } from './systemContactsApi';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
 
 const logger = createDevLogger('sync', false);
-
-// Used to track latest post we've seen for each channel.
-// Updated when:
-// - We load channel heads
-// - We create a new post locally
-// - We receive a new post from a subscription
-export const channelCursors = new Map<string, string>();
-export function updateChannelCursor(channelId: string, cursor: string) {
-  if (
-    !channelCursors.has(channelId) ||
-    cursor > channelCursors.get(channelId)!
-  ) {
-    channelCursors.set(channelId, cursor);
-  }
-}
 
 // Update the last activity timestamp when we receive new data
 export function updateLastActivityTime() {
@@ -71,6 +59,9 @@ export const syncInitData = async (
     await db
       .insertGroups({ groups: initData.groups }, queryCtx)
       .then(() => logger.crumb('inserted groups'));
+    await db
+      .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
+      .then(() => logger.crumb('set left groups'));
     await db
       .insertUnjoinedGroups(initData.unjoinedGroups, queryCtx)
       .then(() => logger.crumb('inserted unjoined groups'));
@@ -106,9 +97,6 @@ export const syncInitData = async (
     await db
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
-    await db
-      .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
-      .then(() => logger.crumb('set left groups'));
     await db
       .setLeftGroupChannels(
         { joinedChannelIds: initData.joinedChannels },
@@ -186,32 +174,97 @@ export const syncSince = async ({
   since?: number;
 } = {}) => {
   logger.log(`syncing since...`);
+  const startedAt = Date.now();
+  let result: 'success' | 'error' = 'success';
+  let hadChanges: boolean | null = null;
+  let unreadTargets: {
+    channelUnreadCounts: Record<string, number>;
+    groupUnreadCounts: Record<string, number>;
+  } | null = null;
+  let nodeBusyStatus: string | null = null;
+  let postsCount: number | null = null;
+  let neededToSyncLatestPosts = false;
   try {
     await (queryCtx
-      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx })
+      ? syncLatestChanges({ since, syncCtx, queryCtx, callCtx }).then(
+          (summary) => {
+            hadChanges = summary.hadChanges;
+            unreadTargets = summary.unreadTargets;
+            nodeBusyStatus = summary.nodeBusyStatus;
+            postsCount = summary.postsCount;
+          }
+        )
       : batchEffects('syncSince', async (batchCtx) => {
-          await syncLatestChanges({
+          const summary = await syncLatestChanges({
             since,
             syncCtx,
             queryCtx: batchCtx,
             callCtx,
           });
+          hadChanges = summary.hadChanges;
+          unreadTargets = summary.unreadTargets;
+          nodeBusyStatus = summary.nodeBusyStatus;
+          postsCount = summary.postsCount;
 
           // make sure we attempt to get latest posts if we haven't succeeded yet
-          const lastSyncedAt = await db.changesSyncedAt.getValue();
-          if (!lastSyncedAt) {
+          const latestPostsSyncedAt = await db.headsSyncedAt.getValue();
+          if (!latestPostsSyncedAt) {
+            neededToSyncLatestPosts = true;
             await syncLatestPosts();
           }
         }));
   } catch (e) {
+    result = 'error';
     logger.trackError('sync since failed', {
       error: e,
       ...callCtx,
+    });
+  } finally {
+    notifySyncSinceCompletion({
+      cause: callCtx.cause,
+      result,
+      durationMs: Date.now() - startedAt,
+      hadChanges,
+      unreadTargets,
+      nodeBusyStatus,
+      postsCount,
+      neededToSyncLatestPosts,
     });
   }
   logger.log(`sync since complete`);
   updateSession({ isSyncing: false });
 };
+
+type SyncSinceCompletion = {
+  cause?: string;
+  result: 'success' | 'error';
+  durationMs: number;
+  hadChanges: boolean | null;
+  nodeBusyStatus: string | null;
+  postsCount: number | null;
+  neededToSyncLatestPosts: boolean;
+  unreadTargets: {
+    channelUnreadCounts: Record<string, number>;
+    groupUnreadCounts: Record<string, number>;
+  } | null;
+};
+
+const syncSinceCompletionObservers = new Set<
+  (event: SyncSinceCompletion) => void
+>();
+
+function notifySyncSinceCompletion(event: SyncSinceCompletion) {
+  syncSinceCompletionObservers.forEach((observer) => observer(event));
+}
+
+export function observeSyncSinceCompletion(
+  observer: (event: SyncSinceCompletion) => void
+) {
+  syncSinceCompletionObservers.add(observer);
+  return () => {
+    syncSinceCompletionObservers.delete(observer);
+  };
+}
 
 export const syncLatestChanges = async ({
   syncCtx,
@@ -224,7 +277,15 @@ export const syncLatestChanges = async ({
   callCtx?: { cause?: string };
   since?: number;
   yieldWriter?: boolean;
-}): Promise<void> => {
+}): Promise<{
+  hadChanges: boolean;
+  nodeBusyStatus: string | null;
+  postsCount: number | null;
+  unreadTargets: {
+    channelUnreadCounts: Record<string, number>;
+    groupUnreadCounts: Record<string, number>;
+  } | null;
+}> => {
   const start = Date.now();
   let syncFrom = (await db.changesSyncedAt.getValue()) ?? start;
   if (since) {
@@ -240,11 +301,16 @@ export const syncLatestChanges = async ({
     } catch (e) {
       logger.trackError('Failed latest changes fallback', e);
     }
-    return;
+    return {
+      hadChanges: true,
+      nodeBusyStatus: null,
+      postsCount: null,
+      unreadTargets: null,
+    };
   }
 
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
-    return api.fetchChangesSince(syncFrom);
+    return fetchChangesSince(syncFrom);
   });
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
@@ -254,7 +320,23 @@ export const syncLatestChanges = async ({
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
+  const topLevelPosts = result.posts.filter(
+    (post) =>
+      !post.parentId && post.type !== 'reply' && post.sequenceNum != null
+  );
+  // before we insert the changes, confirm they're not stale from a delayed bg sync
+  // or previous app open. Use time since method began as delayed bg sync or previous
+  // app open. Use time since method began as a heuristic
+  const FRESHNESS_THRESHOLD = 2 * 60 * 1000; // 2 minutes
+  const runningForMs = Date.now() - start;
+  if (runningForMs > FRESHNESS_THRESHOLD) {
+    throw new Error(
+      `discarded fetched data, had been running for ${runningForMs}ms`
+    );
+  }
+
   await db.insertChanges(result, queryCtx);
+  notifyChannelPostListenersFromLatestChanges(topLevelPosts);
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -280,7 +362,46 @@ export const syncLatestChanges = async ({
     msToFetch,
     msToWrite,
   });
+  const hadChanges =
+    result.posts.length > 0 ||
+    result.groups.length > 0 ||
+    result.contacts.length > 0 ||
+    result.deletedChannelIds.length > 0 ||
+    result.unreads.channelUnreads.length > 0 ||
+    result.unreads.groupUnreads.length > 0 ||
+    result.unreads.threadActivity.length > 0 ||
+    !!result.unreads.baseUnread;
+  const channelUnreadCounts = Object.fromEntries(
+    result.unreads.channelUnreads.map((u) => [u.channelId, u.count ?? 0])
+  );
+  const groupUnreadCounts = Object.fromEntries(
+    result.unreads.groupUnreads.map((u) => [u.groupId, u.count ?? 0])
+  );
+  return {
+    hadChanges,
+    nodeBusyStatus: result.nodeBusyStatus ?? null,
+    postsCount: result.posts.length,
+    unreadTargets: {
+      channelUnreadCounts,
+      groupUnreadCounts,
+    },
+  };
 };
+
+function notifyChannelPostListenersFromLatestChanges(posts: db.Post[]) {
+  if (!posts.length) {
+    return;
+  }
+
+  const seenIds = new Set<string>();
+  for (const post of posts) {
+    if (seenIds.has(post.id)) {
+      continue;
+    }
+    seenIds.add(post.id);
+    addToChannelPosts(post);
+  }
+}
 
 export const syncCachedChanges = async (input: {
   begin: number;
@@ -312,7 +433,6 @@ export const syncLatestPosts = async (
     logger.crumb('got latest posts from api');
     const allPosts = result.map((p) => p.latestPost);
     const writer = async (): Promise<void> => {
-      allPosts.forEach((p) => updateChannelCursor(p.channelId, p.id));
       await db.insertLatestPosts(allPosts, queryCtx);
       await db.headsSyncedAt.setValue(Date.now());
       updateLastActivityTime();
@@ -337,6 +457,9 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   const result = await syncQueue.add('settings', ctx, () => api.getSettings());
   logger.log('got settings from api', result);
   await db.insertSettings(result.settings);
+  await db.dismissedPinnedPostBannerIds.setValue(
+    result.dismissedPinnedPostBannerIds
+  );
 
   if (result.pendingMemberDismissals?.length) {
     await db.insertPendingMemberDismissals({
@@ -359,7 +482,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {
-  const systemContacts = await api.getSystemContacts();
+  const systemContacts = await getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
@@ -397,7 +520,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
     });
     return;
   }
-  const systemContacts = await api.getSystemContacts();
+  const systemContacts = await getSystemContacts();
   const phoneNumbers = systemContacts
     .map((contact) => contact.phoneNumber)
     .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
@@ -769,6 +892,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
   let group: db.Group | null | undefined;
+  const currentUserId = api.getCurrentUserId();
 
   switch (update.type) {
     case 'addGroup':
@@ -811,7 +935,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'banGroupMembers':
+    case 'banGroupMembers': {
       await db.addGroupMemberBans(
         {
           groupId: update.groupId,
@@ -826,7 +950,14 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         },
         ctx
       );
+      if (update.ships.includes(currentUserId)) {
+        await db.updateGroup(
+          { id: update.groupId, currentUserIsMember: false },
+          ctx
+        );
+      }
       break;
+    }
     case 'unbanGroupMembers':
       await db.deleteGroupMemberBans(
         {
@@ -901,7 +1032,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'removeGroupMembers':
+    case 'removeGroupMembers': {
       await db.removeChatMembers(
         {
           chatId: update.groupId,
@@ -909,7 +1040,14 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         },
         ctx
       );
+      if (update.ships.includes(currentUserId)) {
+        await db.updateGroup(
+          { id: update.groupId, currentUserIsMember: false },
+          ctx
+        );
+      }
       break;
+    }
     case 'addRole':
       await db.addRole(
         {
@@ -1147,7 +1285,7 @@ const handleActivityUpdate = async (
   // if we inserted new activity, invalidate the activity page
   // data loader
   if (activitySnapshot.activityEvents.length > 0) {
-    api.queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
       refetchType: 'active',
     });
@@ -1263,6 +1401,17 @@ export const handleSettingsUpdate = async (
         ctx
       );
       break;
+    case 'dismissPinnedPostBanner':
+      await db.dismissedPinnedPostBannerIds.setValue((current) => {
+        if (update.dismissed) {
+          if (current.includes(update.postId)) {
+            return current;
+          }
+          return [...current, update.postId];
+        }
+        return current.filter((postId) => postId !== update.postId);
+      });
+      break;
   }
 };
 
@@ -1296,6 +1445,22 @@ export const handleChannelsUpdate = async (
         },
         ctx
       );
+      // When a post is pinned (or re-pinned), clear its dismissal so the
+      // banner shows again.
+      {
+        const newPinnedPostId = update.order?.[0];
+        if (newPinnedPostId) {
+          const dismissedIds = await db.dismissedPinnedPostBannerIds.getValue();
+          if (dismissedIds.includes(newPinnedPostId)) {
+            await db.dismissedPinnedPostBannerIds.setValue(
+              dismissedIds.filter((id) => id !== newPinnedPostId)
+            );
+            const settingKey =
+              api.getDismissedPinnedPostBannerKey(newPinnedPostId);
+            api.setSetting(settingKey, false).catch(() => {});
+          }
+        }
+      }
       break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);
@@ -1513,9 +1678,7 @@ export async function handleAddPost(
       ctx
     );
   } else {
-    const older = channelCursors.get(post.channelId);
-    addToChannelPosts(post, older);
-    updateChannelCursor(post.channelId, post.id);
+    addToChannelPosts(post);
     await db.insertChannelPosts(
       {
         posts: [post],
@@ -1759,8 +1922,9 @@ export const clearSyncQueue = () => {
 */
 export const handleDiscontinuity = async (config: {
   retainChannelStatus?: boolean;
+  context?: string;
 }) => {
-  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity);
+  logger.trackEvent(AnalyticsEvent.SyncDiscontinuity, config);
   if (isSyncing) {
     // we probably don't want to do this while we're already syncing
     return;
@@ -1772,9 +1936,6 @@ export const handleDiscontinuity = async (config: {
   } else {
     updateSession(null);
   }
-
-  // drop potentially outdated newest post markers
-  channelCursors.clear();
 
   // clear any existing channel queries
   clearChannelPostsQueries();
@@ -1842,22 +2003,40 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
-  if (!alreadySubscribed) {
-    await db.headsSyncedAt.resetValue();
-  }
-
   try {
     let didLoadCachedContacts = false;
 
+    // it's important that this isn't within the main batchEffects block. If we're
+    // returning from a cold open, we don't want to wait for all of High Priority sync
+    // to complete before showing changes
+    syncSince({
+      syncCtx: { priority: SyncPriority.High },
+      callCtx: { cause: 'sync-start' },
+    }).catch((error) =>
+      logger.trackError('sync start: changes sync failed', { error })
+    );
+
+    // brief delay to let syncSince queue first (it requires a storage item read before
+    // it hits the sync queue)
+    const isE2eRun = (globalThis as any).TLON_IS_E2E === true;
+    if (!isE2eRun) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    // if running while already subscribed, execute the sync with lower priority. It's
+    // needed for correctness, but expensive and usually inconsequential
+    const syncStartPriority = {
+      high: alreadySubscribed ? SyncPriority.Medium : SyncPriority.High,
+      low: alreadySubscribed ? SyncPriority.Low : SyncPriority.Medium,
+    };
+
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
-        await syncSince({ queryCtx, callCtx: { cause: 'sync-start' } });
-
         // this allows us to run the api calls first in parallel but handle
         // writing the data in a specific order
         const yieldWriter = true;
         const highPrioritySyncCtx = {
-          priority: SyncPriority.High,
+          priority: syncStartPriority.high,
           retry: true,
         };
 
@@ -1875,7 +2054,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         const subsPromise = alreadySubscribed
           ? Promise.resolve()
           : setupHighPrioritySubscriptions({
-              priority: SyncPriority.High - 1,
+              priority: syncStartPriority.high - 1,
             }).then(() => logger.crumb('subscribed high priority'));
 
         didLoadCachedContacts = await LocalCache.loadCachedContacts();
@@ -1944,36 +2123,39 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       alreadySubscribed
         ? Promise.resolve()
         : setupLowPrioritySubscriptions({
-            priority: SyncPriority.Medium,
+            priority: syncStartPriority.low,
           }).then(() => logger.crumb('subscribed low priority')),
-      resetActivity({ priority: SyncPriority.Medium + 1, retry: true }).then(
+      resetActivity({ priority: syncStartPriority.low + 1, retry: true }).then(
         () => logger.crumb(`finished resetting activity`)
       ),
       // if we had cached contacts, we refresh them here with low priority
       didLoadCachedContacts
-        ? syncContacts({ priority: SyncPriority.Medium + 1, retry: true }).then(
-            () => logger.crumb(`finished syncing contacts`)
-          )
+        ? syncContacts({
+            priority: syncStartPriority.low + 1,
+            retry: true,
+          }).then(() => logger.crumb(`finished syncing contacts`))
         : Promise.resolve(),
-      syncSettings({ priority: SyncPriority.Medium }).then(() =>
+      syncSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished syncing settings`)
       ),
-      syncVolumeSettings({ priority: SyncPriority.Low }).then(() =>
+      syncVolumeSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished syncing volume settings`)
       ),
-      syncStorageSettings({ priority: SyncPriority.Low }).then(() =>
+      syncStorageSettings({ priority: syncStartPriority.low + 1 }).then(() =>
         logger.crumb(`finished initializing storage`)
       ),
-      syncPushNotificationsSetting({ priority: SyncPriority.Low }).then(() =>
+      syncPushNotificationsSetting({
+        priority: syncStartPriority.low + 1,
+      }).then(() =>
         logger.crumb(`finished syncing push notifications setting`)
       ),
-      syncAppInfo({ priority: SyncPriority.Low }).then(() => {
+      syncAppInfo({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing app info`);
       }),
-      syncSystemContacts({ priority: SyncPriority.Low }).then(() => {
+      syncSystemContacts({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),
-      syncContactDiscovery({ priority: SyncPriority.Low }).then(() => {
+      syncContactDiscovery({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing contact discovery`);
       }),
     ];

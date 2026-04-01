@@ -12,7 +12,7 @@ import {
   allCollectionRenderers,
   allContentRenderers,
   allDraftInputs,
-} from '@tloncorp/shared/api';
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
 import { Button, Icon, IconButton, Text } from '@tloncorp/ui';

@@ -115,7 +115,13 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
-apply from: new File(["node", "--print", "require.resolve('@sentry/react-native/package.json')"].execute().text.trim(), "../sentry.gradle")
+def hasSentryAuthToken = System.getenv("SENTRY_AUTH_TOKEN")
+def hasSentryProperties = file("$rootDir/sentry.properties").exists() || file("$projectDir/sentry.properties").exists()
+if (hasSentryAuthToken || hasSentryProperties) {
+    apply from: new File(["node", "--print", "require.resolve('@sentry/react-native/package.json')"].execute().text.trim(), "../sentry.gradle")
+} else {
+    logger.lifecycle("Skipping Sentry source map upload (no SENTRY_AUTH_TOKEN or sentry.properties found)")
+}
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -125,7 +131,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "8.1.5"
+        versionName "8.2.1"
     }
     signingConfigs {
         debug {

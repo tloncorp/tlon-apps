@@ -1,14 +1,11 @@
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Icon, IconButton, Pressable, Text } from '@tloncorp/ui';
+import { useCallback, useMemo } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Platform, Switch } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
-import { ActionSheet } from '../ActionSheet';
-import { RadioControl, TextInput } from '../Form';
-import { ListItem } from '../ListItem';
+import { RadioControl } from '../Form';
 import {
   ChannelPrivacyFormSchema,
   MEMBERS_MARKER,
@@ -39,10 +36,9 @@ export function PrivateChannelToggle({
       pointerEvents="auto"
     >
       <YStack gap="$xl" flex={1} pointerEvents="auto">
-        <Text size="$label/l">Private Channel</Text>
+        <Text size="$label/l">Custom Permissions</Text>
         <Text size="$label/s" color="$tertiaryText">
-          By making a channel private, only select members and roles will be
-          able to view this channel.
+          Only selected roles will be able to view or write to this channel.
         </Text>
       </YStack>
       {Platform.OS === 'android' ? (
@@ -100,7 +96,8 @@ export function RoleChip({
   );
 }
 
-const checkboxColumnWidth = 100;
+const checkboxColumnWidth = 75;
+const actionsColumnWidth = 75;
 
 export function PermissionTable({
   groupRoles,
@@ -113,21 +110,20 @@ export function PermissionTable({
   const writers = watch('writers');
 
   const displayedRoles = useMemo(() => {
-    // Get all group roles that are in the readers list
+    // Use the union of readers and writers so writer-only roles remain visible
+    const allRelevantIds = [...new Set([...readers, ...writers])];
     const regularRoles = groupRolesToOptions(groupRoles).filter((role) =>
-      readers.includes(role.value)
+      allRelevantIds.includes(role.value)
     );
 
-    // Always show Members option if it's in readers
-    const hasMembersInReaders = readers.includes(MEMBERS_MARKER);
+    const hasMembersInRelevant = allRelevantIds.includes(MEMBERS_MARKER);
 
-    // Build the final list: Members first (if present), then regular roles
-    const roles = hasMembersInReaders
-      ? [MEMBER_ROLE_OPTION, ...regularRoles]
+    const roles = hasMembersInRelevant
+      ? [...regularRoles, MEMBER_ROLE_OPTION]
       : regularRoles;
 
     return roles;
-  }, [groupRoles, readers]);
+  }, [groupRoles, readers, writers]);
 
   const handleToggleWriter = useCallback(
     (roleId: string) => {
@@ -135,18 +131,20 @@ export function PermissionTable({
       const isCurrentlyReader = readers.includes(roleId);
 
       if (isCurrentlyWriter) {
-        // Remove from writers
+        // Remove from writers; add to readers if not already there so the role
+        // stays visible as read-only instead of vanishing
         setValue(
           'writers',
           writers.filter((w) => w !== roleId),
           { shouldDirty: true }
         );
+        if (!isCurrentlyReader) {
+          setValue('readers', [...readers, roleId], { shouldDirty: true });
+        }
       } else {
-        // Add to writers
+        // Add to writers; write implies read
         setValue('writers', [...writers, roleId], { shouldDirty: true });
-
-        // For Members marker, also ensure it's in readers when enabling write
-        if (roleId === MEMBERS_MARKER && !isCurrentlyReader) {
+        if (!isCurrentlyReader) {
           setValue('readers', [...readers, roleId], { shouldDirty: true });
         }
       }
@@ -156,26 +154,40 @@ export function PermissionTable({
 
   const handleToggleReader = useCallback(
     (roleId: string) => {
-      // For Members marker, toggle it in/out of readers
-      if (roleId === MEMBERS_MARKER) {
-        const isCurrentlyReader = readers.includes(roleId);
-        if (isCurrentlyReader) {
-          // Remove from both readers and writers
-          setValue(
-            'readers',
-            readers.filter((r) => r !== roleId),
-            { shouldDirty: true }
-          );
-          setValue(
-            'writers',
-            writers.filter((w) => w !== roleId),
-            { shouldDirty: true }
-          );
-        } else {
-          // Add to readers
-          setValue('readers', [...readers, roleId], { shouldDirty: true });
-        }
+      const isCurrentlyReader = readers.includes(roleId);
+      if (isCurrentlyReader) {
+        // Remove from both readers and writers (no read implies no write)
+        setValue(
+          'readers',
+          readers.filter((r) => r !== roleId),
+          { shouldDirty: true }
+        );
+        setValue(
+          'writers',
+          writers.filter((w) => w !== roleId),
+          { shouldDirty: true }
+        );
+      } else {
+        // Add to readers
+        setValue('readers', [...readers, roleId], { shouldDirty: true });
       }
+    },
+    [readers, writers, setValue]
+  );
+
+  const handleDeleteRole = useCallback(
+    (roleId: string) => {
+      if (roleId === 'admin') return;
+      setValue(
+        'readers',
+        readers.filter((readerId) => readerId !== roleId),
+        { shouldDirty: true }
+      );
+      setValue(
+        'writers',
+        writers.filter((writerId) => writerId !== roleId),
+        { shouldDirty: true }
+      );
     },
     [readers, writers, setValue]
   );
@@ -202,6 +214,9 @@ export function PermissionTable({
         </Text>
         <PermissionTableHeaderCell>Read</PermissionTableHeaderCell>
         <PermissionTableHeaderCell>Write</PermissionTableHeaderCell>
+        <PermissionTableHeaderCell width={actionsColumnWidth}>
+          Remove
+        </PermissionTableHeaderCell>
       </XStack>
       <YStack>
         {displayedRoles.map((role, index) => (
@@ -218,6 +233,7 @@ export function PermissionTable({
               canWrite={writers.includes(role.value)}
               onToggleRead={() => handleToggleReader(role.value)}
               onToggleWrite={() => handleToggleWriter(role.value)}
+              onDeleteRole={() => handleDeleteRole(role.value)}
             />
           </YStack>
         ))}
@@ -228,12 +244,14 @@ export function PermissionTable({
 
 function PermissionTableHeaderCell({
   children,
+  width = checkboxColumnWidth,
 }: {
   children: React.ReactNode;
+  width?: number;
 }) {
   return (
     <XStack
-      width={checkboxColumnWidth}
+      width={width}
       alignItems="center"
       justifyContent="center"
       borderLeftWidth={1}
@@ -252,12 +270,14 @@ function PermissionTableRow({
   canWrite,
   onToggleRead,
   onToggleWrite,
+  onDeleteRole,
 }: {
   role: RoleOption;
   canRead: boolean;
   canWrite: boolean;
   onToggleRead: () => void;
   onToggleWrite: () => void;
+  onDeleteRole: () => void;
 }) {
   const isAdmin = role.value === 'admin';
   const isMember = role.value === MEMBERS_MARKER;
@@ -294,18 +314,30 @@ function PermissionTableRow({
           </Pressable>
         )}
       </PermissionTableControlCell>
+      <PermissionTableControlCell width={actionsColumnWidth}>
+        {role.value !== 'admin' ? (
+          <IconButton
+            onPress={onDeleteRole}
+            testID={`RemoveRole-${role.label}`}
+          >
+            <Icon type="Close" size="$m" />
+          </IconButton>
+        ) : null}
+      </PermissionTableControlCell>
     </XStack>
   );
 }
 
 function PermissionTableControlCell({
   children,
+  width = checkboxColumnWidth,
 }: {
   children: React.ReactNode;
+  width?: number;
 }) {
   return (
     <XStack
-      width={checkboxColumnWidth}
+      width={width}
       justifyContent="center"
       alignItems="center"
       borderLeftWidth={1}
@@ -314,162 +346,5 @@ function PermissionTableControlCell({
     >
       {children}
     </XStack>
-  );
-}
-
-export function RoleSelectionSheet({
-  open,
-  onOpenChange,
-  allRoles,
-  selectedRoleIds,
-  onSave,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  allRoles: RoleOption[];
-  selectedRoleIds: string[];
-  onSave: (roleIds: string[]) => void;
-}) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tempSelectedRoleIds, setTempSelectedRoleIds] =
-    useState<string[]>(selectedRoleIds);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    if (open) {
-      setTempSelectedRoleIds(selectedRoleIds);
-      setSearchQuery('');
-      setIsScrolling(false);
-    } else {
-      setIsScrolling(false);
-    }
-  }, [open, selectedRoleIds]);
-
-  const filteredRoles = useMemo(() => {
-    const nonAdminRoles = allRoles.filter((role) => role.value !== 'admin');
-    const rolesWithMembers = [MEMBER_ROLE_OPTION, ...nonAdminRoles];
-    if (!searchQuery.trim()) {
-      return rolesWithMembers;
-    }
-    const query = searchQuery.toLowerCase();
-    return rolesWithMembers.filter((role) =>
-      role.label.toLowerCase().includes(query)
-    );
-  }, [allRoles, searchQuery]);
-
-  const handleToggleRole = useCallback((roleId: string) => {
-    setTempSelectedRoleIds((prev) => {
-      if (prev.includes(roleId)) {
-        return prev.filter((id) => id !== roleId);
-      }
-      return [...prev, roleId];
-    });
-  }, []);
-
-  const handleSave = useCallback(() => {
-    onSave(tempSelectedRoleIds);
-    onOpenChange(false);
-  }, [tempSelectedRoleIds, onSave, onOpenChange]);
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPoints={[85]}
-      snapPointsMode="percent"
-      disableDrag={isScrolling}
-      modal
-    >
-      <ActionSheet.SimpleHeader
-        title="Search and add roles"
-        subtitle="Select roles for this channel"
-      />
-      <ActionSheet.Content
-        paddingHorizontal="$l"
-        paddingTop="$xl"
-        paddingBottom={0}
-      >
-        <TextInput
-          icon="Search"
-          placeholder="Search roles"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          testID="RoleSearchInput"
-        />
-      </ActionSheet.Content>
-      <ActionSheet.ScrollableContent
-        paddingHorizontal="$l"
-        onScrollBeginDrag={() => setIsScrolling(true)}
-        onScrollEndDrag={() => setIsScrolling(false)}
-      >
-        <YStack gap="$m" paddingTop="$m" paddingHorizontal="$l">
-          {filteredRoles.map((role) => (
-            <SelectableRoleListItem
-              key={role.value}
-              role={role}
-              isSelected={tempSelectedRoleIds.includes(role.value)}
-              onPress={() => handleToggleRole(role.value)}
-            />
-          ))}
-          {filteredRoles.length === 0 && (
-            <View paddingVertical="$2xl" alignItems="center">
-              <Text color="$tertiaryText">No roles found</Text>
-            </View>
-          )}
-        </YStack>
-        <View
-          paddingHorizontal="$l"
-          paddingTop="$m"
-          paddingBottom={insets.bottom}
-          backgroundColor="$background"
-          borderTopWidth={1}
-          borderTopColor="$border"
-        >
-          <Button
-            preset="hero"
-            label="Save"
-            onPress={handleSave}
-            testID="RoleSelectionSaveButton"
-          />
-        </View>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
-  );
-}
-
-function SelectableRoleListItem({
-  role,
-  isSelected,
-  onPress,
-}: {
-  role: RoleOption;
-  isSelected: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress}>
-      <ListItem
-        {...(isSelected
-          ? { backgroundColor: '$secondaryBackground' }
-          : { borderColor: '$secondaryBorder', borderWidth: 1 })}
-        borderRadius="$xl"
-        height={130}
-        paddingLeft="$3xl"
-        paddingRight="$2xl"
-        alignItems="center"
-      >
-        <ListItem.MainContent alignItems="center" justifyContent="center">
-          <XStack
-            justifyContent="space-between"
-            alignItems="center"
-            width="100%"
-          >
-            <ListItem.Title>{role.label}</ListItem.Title>
-            <RadioControl checked={isSelected} />
-          </XStack>
-        </ListItem.MainContent>
-      </ListItem>
-    </Pressable>
   );
 }

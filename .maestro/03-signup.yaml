@@ -100,17 +100,25 @@ onFlowComplete:
 - assertVisible: Let's get started
 - tapOn: Let's get started
 
-- assertVisible: Got it
-- tapOn: Got it
+- assertVisible:
+    id: got-it
+- tapOn:
+    id: got-it
 
-- assertVisible: One quick thing
-- tapOn: One quick thing
+- assertVisible:
+    id: one-quick-thing
+- tapOn:
+    id: one-quick-thing
 
-- assertVisible: Invite friends
-- tapOn: Invite friends
+- assertVisible:
+    id: invite-friends
+- tapOn:
+    id: invite-friends
 
-- assertVisible: Invite your friends
-- tapOn: Next
+- assertVisible:
+    id: finish-invites
+- tapOn:
+    id: finish-invites
 
 # allow 7 seconds before checking metadata has loaded
 - extendedWaitUntil:

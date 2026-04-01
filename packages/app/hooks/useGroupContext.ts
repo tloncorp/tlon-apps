@@ -371,6 +371,18 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     return group.bannedMembers ?? [];
   }, [group]);
 
+  const revokeInvite = useCallback(
+    async (contactId: string) => {
+      if (group) {
+        await store.revokeGroupMemberInvites({
+          groupId: group.id,
+          contactIds: [contactId],
+        });
+      }
+    },
+    [group]
+  );
+
   const kickUser = useCallback(
     async (contactId: string) => {
       if (group) {
@@ -428,6 +440,7 @@ export const useGroupContext = ({ groupId }: { groupId: string }) => {
     unbanUser,
     bannedUsers,
     kickUser,
+    revokeInvite,
     setUserRoles,
     acceptUserJoin,
     rejectUserJoin,

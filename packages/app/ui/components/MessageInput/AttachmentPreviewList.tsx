@@ -1,6 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as domain from '@tloncorp/shared/domain';
-import { fileFromPath } from '@tloncorp/shared/utils';
+import { makePrettyDurationFromSeconds } from '@tloncorp/shared/logic';
+import { filenameFromPath } from '@tloncorp/shared/utils';
 import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
@@ -29,7 +30,7 @@ export const AttachmentPreviewList = () => {
         .filter((a) => a.type !== 'text')
         .map((attachment, i) => {
           const hasError =
-            attachment.type === 'image' &&
+            (attachment.type === 'image' || attachment.type === 'video') &&
             attachment.uploadState?.status === 'error';
           return (
             <AttachmentPreview
@@ -83,9 +84,9 @@ export function AttachmentPreview({
             width="100%"
             height="100%"
             alignItems="center"
-            backgroundColor="$translucentBlack"
+            backgroundColor="$secondaryBackground"
           >
-            <Spinner size="large" color="$primaryText" />
+            <Spinner size="small" color="$primaryText" />
           </View>
         )}
       </View>
@@ -143,6 +144,48 @@ export function AttachmentPreview({
       );
     }
 
+    case 'video': {
+      const posterUri = domain.videoPosterUri(attachment);
+      const durationLabel = makePrettyDurationFromSeconds(attachment.duration);
+      if (!posterUri) {
+        return (
+          <Container showSpinner={uploading}>
+            <View
+              backgroundColor="$secondaryBackground"
+              position="absolute"
+              top={0}
+              left={0}
+              width="100%"
+              height="100%"
+              justifyContent="center"
+              alignItems="center"
+            >
+              <Icon type="Play" color="$tertiaryText" size="$xl" />
+            </View>
+            <VideoPreviewOverlay durationLabel={durationLabel} />
+          </Container>
+        );
+      }
+      return (
+        <Container showSpinner={uploading || isLoading}>
+          <Image
+            backgroundColor="transparent"
+            position="absolute"
+            top={0}
+            left={0}
+            width="100%"
+            height="100%"
+            onLoad={handleLoad}
+            onLoadStart={() => setIsLoading(true)}
+            onError={() => setIsLoading(false)}
+            source={{ uri: posterUri }}
+            contentFit="cover"
+          />
+          <VideoPreviewOverlay durationLabel={durationLabel} />
+        </Container>
+      );
+    }
+
     case 'reference': {
       return (
         <Container showSpinner={uploading}>
@@ -174,9 +217,31 @@ export function AttachmentPreview({
             {attachment.name ??
               (attachment.localFile instanceof File
                 ? attachment.localFile.name
-                : fileFromPath(attachment.localFile, { decodeURI: true })) ??
+                : filenameFromPath(attachment.localFile, {
+                    decodeURI: true,
+                  })) ??
               'Attachment'}
           </Text>
+        </Container>
+      );
+    }
+
+    case 'voicememo': {
+      return (
+        <Container showSpinner={uploading}>
+          <View backgroundColor="$secondaryBackground" flex={1}>
+            <Text style={{ padding: 12 }}>Voice Memo</Text>
+            {attachment.transcription && (
+              <Text
+                flex={1}
+                style={{ padding: 12, flex: 1 }}
+                numberOfLines={3}
+                color="$secondaryText"
+              >
+                &quot;{attachment.transcription}&quot;
+              </Text>
+            )}
+          </View>
         </Container>
       );
     }
@@ -192,6 +257,29 @@ export function AttachmentPreview({
       );
     }
   }
+}
+
+function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
+  return (
+    <XStack
+      position="absolute"
+      left={8}
+      right={8}
+      bottom={8}
+      alignItems="center"
+      justifyContent="space-between"
+      pointerEvents="none"
+    >
+      <Icon type="Play" color="$white" size="$s" />
+      {durationLabel ? (
+        <Text color="$white" fontSize="$s" fontWeight="$xl">
+          {durationLabel}
+        </Text>
+      ) : (
+        <View />
+      )}
+    </XStack>
+  );
 }
 
 const RemoveAttachmentButton = ({

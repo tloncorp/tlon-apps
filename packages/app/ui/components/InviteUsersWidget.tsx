@@ -1,3 +1,4 @@
+import * as store from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
 import React from 'react';
@@ -18,6 +19,7 @@ const InviteUsersWidgetComponent = ({
 }) => {
   const { loading, invitees, setInvitees, handleInvite, buttonText } =
     useInviteGroupMembers(group.id, onInviteComplete);
+  const disabledIds = store.useGroupsNegotiationClashes();
 
   return (
     <>
@@ -31,6 +33,8 @@ const InviteUsersWidgetComponent = ({
           searchPlaceholder="Filter by nickname, @p"
           onSelectedChange={setInvitees}
           onScrollChange={onScrollChange}
+          disabledIds={disabledIds}
+          disabledReason="App version mismatch"
         />
       </ActionSheet.ContentBlock>
       <ActionSheet.ContentBlock>

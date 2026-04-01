@@ -34,7 +34,6 @@ export const SetTelemetryScreen = () => {
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         title="Usage Statistics"
-        showSessionStatus={false}
         rightControls={
           <ScreenHeader.TextButton onPress={handleNext}>
             Next

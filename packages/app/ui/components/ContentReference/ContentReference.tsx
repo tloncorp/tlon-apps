@@ -1,7 +1,7 @@
 // tamagui-ignore
 import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
-import { getChannelType } from '@tloncorp/shared/urbit';
+import { getChannelType } from '@tloncorp/api/urbit';
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import React, { createContext } from 'react';

@@ -105,7 +105,7 @@ const ReferenceHeader = styled(XStack, {
   name: 'ReferenceHeader',
   paddingLeft: '$l',
   paddingRight: '$l',
-  paddingVertical: '$s',
+  paddingVertical: '$l',
   justifyContent: 'space-between',
   borderBottomColor: '$border',
   borderBottomWidth: 1,

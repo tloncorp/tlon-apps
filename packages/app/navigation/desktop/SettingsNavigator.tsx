@@ -3,9 +3,10 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { getVariableValue, useTheme } from '@tamagui/core';
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
@@ -31,6 +32,9 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const isHostedUser = getCurrentUserIsHosted();
+  const botEnabled = isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {
@@ -48,6 +52,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const onManageAccountPressed = useCallback(() => {
     navigate('ManageAccount');
   }, [navigate]);
+
+  const onBotSettingsPressed = useCallback(() => {
+    Linking.openURL('https://tlon.network/tlawnbot');
+  }, []);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigate('FeatureFlags');
@@ -75,11 +83,13 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onNotificationSettingsPressed={onPushNotifPressed}
       onBlockedUsersPressed={onBlockedUsersPressed}
       onManageAccountPressed={onManageAccountPressed}
+      onBotSettingsPressed={onBotSettingsPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
       dmLink={dmLink}
       focusedRouteName={focusedRoute.name}
+      botEnabled={botEnabled}
     />
   );
 }

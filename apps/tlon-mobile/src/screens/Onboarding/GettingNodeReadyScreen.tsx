@@ -127,7 +127,9 @@ export function GettingNodeReadyScreen({
         updateProgress(3);
         // Important! Always close the sheet before navigating
         setPermSheetOpen(false);
-        setTimeout(() => {
+        setTimeout(async () => {
+          await db.hostedAccountIsInitialized.setValue(true);
+          await db.hostedNodeIsRunning.setValue(true);
           setShip(shipInfo);
           if (shipInfo.needsSplashSequence) {
             logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
@@ -196,7 +198,6 @@ export function GettingNodeReadyScreen({
               Log out
             </ScreenHeader.TextButton>
           }
-          showSessionStatus={false}
         />
         <YStack
           flex={1}

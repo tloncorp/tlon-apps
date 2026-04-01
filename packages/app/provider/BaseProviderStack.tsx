@@ -1,5 +1,5 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { QueryClientProvider, queryClient } from '@tloncorp/shared/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { ToastProvider } from '@tloncorp/ui';
 import { PropsWithChildren } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
 import { LoadingSpinner, PortalProvider, StoreProvider, View } from '../ui';
+import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
 import { Provider as TamaguiProvider } from './';
 import { TelemetryProvider } from './TelemetryProvider';
 
@@ -46,9 +47,11 @@ function AppProviderStack({
   migrationState: MigrationState;
 }>) {
   return (
-    <ToastProvider>
-      <MigrationCheck {...migrationState}>{children}</MigrationCheck>
-    </ToastProvider>
+    <NowPlayingProvider>
+      <ToastProvider>
+        <MigrationCheck {...migrationState}>{children}</MigrationCheck>
+      </ToastProvider>
+    </NowPlayingProvider>
   );
 }
 

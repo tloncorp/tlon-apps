@@ -1,7 +1,7 @@
 // Shared components for ChatDetailsScreen and ChannelDetailsScreen
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/shared/urbit';
+import * as ub from '@tloncorp/api/urbit';
 import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
@@ -163,7 +163,14 @@ export function MembersList({
         </TlonText.Text>
         <YStack>
           {canInvite ? (
-            <Pressable onPress={onPressInvite}>
+            <Pressable
+              onPress={onPressInvite}
+              testID={
+                entityType === 'group'
+                  ? 'GroupMembersInvitePeopleButton'
+                  : 'ChannelMembersInvitePeopleButton'
+              }
+            >
               <XStack gap="$l" alignItems="center" height="$4xl">
                 <View
                   width="$3xl"
@@ -363,7 +370,7 @@ export function SettingsSection({
         },
         {
           title: 'Roles',
-          endValue: `${groupRoles?.length ?? 0}`,
+          endValue: `${(groupRoles?.length ?? 0) + 1}`,
           testID: 'GroupRoles',
           disabled: !actionsEnabled,
           onPress: handlePressRoles,
@@ -385,8 +392,8 @@ export function SettingsSection({
         (channel.writerRoles?.length ?? 0) > 0;
       return [
         {
-          title: 'Privacy',
-          endValue: isPrivate ? 'Private' : 'Public',
+          title: 'Permissions',
+          endValue: isPrivate ? 'Custom' : 'Public',
           testID: 'ChannelPrivacy',
           disabled: !actionsEnabled,
           onPress: handlePressEditChannelPrivacy,

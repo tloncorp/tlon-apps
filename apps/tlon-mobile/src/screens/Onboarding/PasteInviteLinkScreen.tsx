@@ -131,7 +131,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backgroundColor="$secondaryBackground"
-        showSessionStatus={false}
         backAction={() => navigation.goBack()}
         rightControls={
           <ScreenHeader.TextButton

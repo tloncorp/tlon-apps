@@ -39,15 +39,19 @@ export type RootStackParamList = {
     channelId: string;
     authorId: string;
     groupId?: string;
+    selectedPostId?: string | null;
   };
-  ImageViewer: {
+  MediaViewer: {
+    mediaType: 'image' | 'video';
     uri?: string;
+    posterUri?: string;
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
   Theme: undefined;
   FeatureFlags: undefined;
   ManageAccount: undefined;
+  BotSettings: undefined;
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -126,12 +130,12 @@ export type HomeDrawerParamList = Pick<
 > & {
   MainContent: undefined;
   Channel:
-  | NavigatorScreenParams<ChannelStackParamList>
-  | RootStackParamList['Channel'];
+    | NavigatorScreenParams<ChannelStackParamList>
+    | RootStackParamList['Channel'];
   DM: NavigatorScreenParams<ChannelStackParamList> | RootStackParamList['DM'];
   GroupDM:
-  | NavigatorScreenParams<ChannelStackParamList>
-  | RootStackParamList['GroupDM'];
+    | NavigatorScreenParams<ChannelStackParamList>
+    | RootStackParamList['GroupDM'];
   ChatDetails: RootStackParamList['ChatDetails'];
   ChatVolume: RootStackParamList['ChatVolume'];
 };
@@ -159,7 +163,7 @@ export type ChannelStackParamList = {
   GroupSettings: RootStackParamList['GroupSettings'];
   ChannelSearch: RootStackParamList['ChannelSearch'];
   Post: RootStackParamList['Post'];
-  ImageViewer: RootStackParamList['ImageViewer'];
+  MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
   ChannelMembers: RootStackParamList['ChannelMembers'];
@@ -171,7 +175,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'GroupSettings'
   | 'ChannelSearch'
   | 'Post'
-  | 'ImageViewer'
+  | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'
   | 'ChannelMembers'

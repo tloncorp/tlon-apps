@@ -614,11 +614,15 @@
       =/  who=@p   (slav %p i.t.wire)
       =*  service  i.t.t.wire
       ::
+      ~|  sign=[- +<]:sign-arvo
       ?>  ?=(%iris -.sign-arvo)
       ?>  ?=(%http-response +<.sign-arvo)
+      ~|  resp=-.client-response.sign-arvo
       ?>  ?=(%finished -.client-response.sign-arvo)
+      ~|  code=status-code.response-header.client-response.sign-arvo
       ?>  ?=(^ full-file.client-response.sign-arvo)
       =/  =mime-data:iris  u.full-file.client-response.sign-arvo
+      ~|  mime=type.mime-data
       ?>  =('application/json' type.mime-data)
       =/  jon=json
         (fall (de:json:html (@t q.data.mime-data)) *json)

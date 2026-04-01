@@ -13,10 +13,14 @@ function ActivityHeaderRaw({
   activeTab,
   onTabPress,
   markAllRead,
+  subtitle,
+  loadingSubtitle,
 }: {
   activeTab: db.ActivityBucket;
   onTabPress: (tab: db.ActivityBucket) => void;
   markAllRead: () => Promise<void>;
+  subtitle?: string;
+  loadingSubtitle?: string | null;
 }) {
   const [overflowOpen, setOverflowOpen] = React.useState(false);
   const onOverflowOpenChange = useCallback((open: boolean) => {
@@ -27,7 +31,11 @@ function ActivityHeaderRaw({
   return (
     <View>
       <View width="100%">
-        <ScreenHeader title="Activity">
+        <ScreenHeader
+          title="Activity"
+          subtitle={subtitle}
+          loadingSubtitle={loadingSubtitle}
+        >
           <ScreenHeader.Controls side="right">
             <ActivityOverflowMenu
               open={overflowOpen}

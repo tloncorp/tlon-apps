@@ -1,13 +1,16 @@
 import {
   Attachment,
   createDevLogger,
+  markdownToStory,
+  storyToContent,
+  storyToMarkdown,
   tiptap,
   uploadAsset as uploadAssetToStorage,
   waitForUploads,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { constructStory } from '@tloncorp/shared/urbit';
+import { Block, Inline, constructStory } from '@tloncorp/api/urbit';
 import {
   Button,
   Icon,
@@ -17,14 +20,20 @@ import {
   useIsWindowNarrow,
   useToast,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  TouchableOpacity,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
+import { useFeatureFlag } from '../../lib/featureFlags';
 import { useAttachmentContext } from '../contexts';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
+import { MarkdownEditor } from './MarkdownEditor';
 import { MessageInput } from './MessageInput';
 import { InputToolbar } from './MessageInput/InputToolbar';
 import { MessageInputProps } from './MessageInput/MessageInputBase';
@@ -37,6 +46,119 @@ import { ScreenHeader } from './ScreenHeader';
 
 const logger = createDevLogger('BigInput', false);
 
+/**
+ * Manages markdown-mode state and the conversions between markdown text and
+ * the rich-text (TipTap) editor.  Extracted so BigInput can stay focused on
+ * layout / send / attachment concerns.
+ */
+function useMarkdownMode({
+  editingPost,
+  markdownNotebooksEnabled,
+  editorRef,
+  showToast,
+}: {
+  editingPost?: db.Post;
+  markdownNotebooksEnabled: boolean;
+  editorRef: RefObject<{ editor: TlonEditorBridge | null }>;
+  showToast: (opts: { message: string; duration: number }) => void;
+}) {
+  // Default to markdown mode if feature flag is enabled and this is a new post
+  const [isMarkdownMode, setIsMarkdownMode] = useState(
+    markdownNotebooksEnabled && !editingPost
+  );
+  const [markdownContent, setMarkdownContent] = useState('');
+  // When switching back from Markdown mode the TipTap editor may not be
+  // mounted yet.  We park the converted content here and apply it as soon as
+  // the editor reports ready via handleEditorStateChange.
+  const [pendingEditorContent, setPendingEditorContent] = useState<
+    object | null
+  >(null);
+
+  const handleEditorStateChange = useCallback(
+    (state: { isReady: boolean }) => {
+      if (state.isReady && pendingEditorContent && editorRef.current?.editor) {
+        logger.log(
+          'Editor ready, setting pending content from Markdown conversion'
+        );
+        // @ts-expect-error setContent does accept JSONContent
+        editorRef.current.editor.setContent(pendingEditorContent);
+        setPendingEditorContent(null);
+      }
+    },
+    [pendingEditorContent, editorRef]
+  );
+
+  const handleMarkdownToggle = useCallback(async () => {
+    if (!isMarkdownMode) {
+      // Switching TO Markdown mode: convert rich text to Markdown
+      try {
+        let story = null;
+
+        // First, try to get content from the Tiptap editor
+        if (editorRef.current?.editor) {
+          const json = await editorRef.current.editor.getJSON();
+          if (!contentIsEmpty(json)) {
+            // Use codeWithLang=true to properly handle code blocks as Block types
+            // and limitNewlines=false to preserve paragraph structure
+            const inlines = tiptap.JSONToInlines(json, false, true);
+            story = constructStory(inlines);
+          }
+        }
+
+        // If editor is empty and we're editing an existing post, use the post's content
+        if (!story && editingPost?.content) {
+          const postContent = editingPost.content as { story?: any };
+          if (postContent.story && Array.isArray(postContent.story)) {
+            story = postContent.story;
+          }
+        }
+
+        // Convert story to markdown if we have content
+        const markdown = story ? storyToMarkdown(story) : '';
+        setMarkdownContent(markdown);
+        setIsMarkdownMode(true);
+      } catch (error) {
+        logger.error('Failed to convert to Markdown:', error);
+        showToast({
+          message: 'Failed to convert content to Markdown',
+          duration: 2000,
+        });
+      }
+    } else {
+      // Switching FROM Markdown mode: convert Markdown to rich text
+      try {
+        if (markdownContent) {
+          const story = markdownToStory(markdownContent);
+          const tiptapContent = tiptap.diaryMixedToJSON(story);
+          // Store the content to be set when editor becomes ready
+          setPendingEditorContent(tiptapContent);
+        }
+        setIsMarkdownMode(false);
+      } catch (error) {
+        logger.error('Failed to convert from Markdown:', error);
+        showToast({
+          message: 'Failed to convert Markdown to rich text',
+          duration: 2000,
+        });
+      }
+    }
+  }, [isMarkdownMode, markdownContent, showToast, editingPost, editorRef]);
+
+  const reset = useCallback(() => {
+    setMarkdownContent('');
+    setIsMarkdownMode(false);
+  }, []);
+
+  return {
+    isMarkdownMode,
+    markdownContent,
+    setMarkdownContent,
+    handleMarkdownToggle,
+    handleEditorStateChange,
+    reset,
+  };
+}
+
 export function BigInput({
   sendPostFromDraft,
   channelId,
@@ -44,6 +166,7 @@ export function BigInput({
   editingPost,
   setShowBigInput,
   clearDraft,
+  setShouldBlur,
   ...props
 }: MessageInputProps & {
   channelId: string;
@@ -65,11 +188,28 @@ export function BigInput({
   const [isButtonEnabled, setIsButtonEnabled] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
+  const inlineImageSelectionRef = useRef<{ from: number; to: number } | null>(
+    null
+  );
   const isMountedRef = useRef(true);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
+  const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
+  const {
+    isMarkdownMode,
+    markdownContent,
+    setMarkdownContent,
+    handleMarkdownToggle,
+    handleEditorStateChange,
+    reset: resetMarkdownMode,
+  } = useMarkdownMode({
+    editingPost,
+    markdownNotebooksEnabled,
+    editorRef,
+    showToast,
+  });
   const { attachments, clearAttachments } = useAttachmentContext();
 
   const handleEditorContentChanged = useCallback(
@@ -101,6 +241,23 @@ export function BigInput({
     setHasImageChanges(imageUri !== editingPost?.image);
   }, [title, imageUri, editingPost]);
 
+  // Update isEmpty state when in Markdown mode
+  useEffect(() => {
+    if (isMarkdownMode) {
+      const markdownIsEmpty = !markdownContent || markdownContent.trim() === '';
+      setIsEmpty(markdownIsEmpty);
+      // Also update hasContentChanges for editing mode
+      if (editingPost?.content) {
+        const originalContent = editingPost.content as { story?: any };
+        const hasOriginalContent =
+          originalContent.story && Array.isArray(originalContent.story);
+        setHasContentChanges(hasOriginalContent ? !markdownIsEmpty : false);
+      } else {
+        setHasContentChanges(!markdownIsEmpty);
+      }
+    }
+  }, [isMarkdownMode, markdownContent, editingPost?.content]);
+
   // Determine if the post/save button should be enabled - with direct content check
   useEffect(() => {
     let enabled = false;
@@ -127,14 +284,36 @@ export function BigInput({
   // Handle sending/editing the post
   const handleSend = useCallback(async () => {
     setIsSending(true);
-    if (!editorRef.current?.editor) return;
 
-    const json = await editorRef.current.editor.getJSON();
-    const inlines = tiptap.JSONToInlines(json);
+    let content: (Inline | Block)[];
+
+    if (isMarkdownMode) {
+      // Convert Markdown content to Story, then extract inlines and blocks
+      try {
+        const story = markdownToStory(markdownContent);
+        content = storyToContent(story);
+      } catch (error) {
+        logger.error('Failed to convert Markdown for send:', error);
+        showToast({
+          message: 'Failed to process Markdown content',
+          duration: 2000,
+        });
+        setIsSending(false);
+        return;
+      }
+    } else {
+      // Rich text mode: get content from Tiptap editor
+      if (!editorRef.current?.editor) {
+        setIsSending(false);
+        return;
+      }
+      const json = await editorRef.current.editor.getJSON();
+      content = tiptap.JSONToInlines(json);
+    }
 
     const draft: domain.PostDataDraft = {
       channelId,
-      content: inlines,
+      content,
       attachments,
       title,
       image: imageUri ?? undefined,
@@ -151,8 +330,31 @@ export function BigInput({
     try {
       // Store the channel type for later use after async operations
       const currentChannelType = channelType;
+      const isGalleryText = currentChannelType === 'gallery';
 
-      await sendPostFromDraft(draft);
+      const sendOperation = sendPostFromDraft(draft);
+
+      // Clear the draft immediately so it doesn't persist if the user
+      // navigates away while the send is in flight
+      if (!editingPost && clearDraft) {
+        try {
+          logger.log(
+            `Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`
+          );
+
+          if (isGalleryText) {
+            await clearDraft('text');
+            await clearDraft(undefined);
+          } else {
+            await clearDraft(undefined);
+          }
+          logger.log('Draft cleared successfully');
+        } catch (e) {
+          logger.error('Error clearing draft:', e);
+        }
+      }
+
+      await sendOperation;
 
       logger.log(
         `Post/save successful for channel type: ${currentChannelType}`
@@ -167,6 +369,7 @@ export function BigInput({
       setShowFormatMenu(false);
       setShowBigInput?.(false);
       clearAttachments();
+      resetMarkdownMode();
 
       // For notebook posts, don't clear editor content since the component unmounts anyway
       // This prevents triggering _onContentUpdate which could save a draft after publish
@@ -174,39 +377,8 @@ export function BigInput({
         logger.log('Clearing editor content after save');
         editorRef.current.editor.setContent('');
       }
-
-      const isGalleryText = currentChannelType === 'gallery';
-
-      // Clear the draft after successful save for all channel types
-      if (!editingPost && clearDraft) {
-        try {
-          logger.log(
-            `Clearing draft for ${isGalleryText ? 'gallery text' : currentChannelType}`
-          );
-
-          if (isGalleryText) {
-            // For Gallery text posts, explicitly clear 'text' drafts
-            await clearDraft('text');
-
-            // If the gallery text draft persists, try calling with undefined as well
-            setTimeout(async () => {
-              if (clearDraft) {
-                logger.log('Additional gallery draft clearing attempt');
-                await clearDraft(undefined);
-              }
-            }, 100);
-          } else {
-            // For other channel types, don't specify to clear all drafts
-            await clearDraft(undefined);
-          }
-          logger.log('Draft cleared successfully');
-        } catch (e) {
-          logger.error('Error clearing draft:', e);
-        }
-      }
     } catch (error) {
       logger.error('Failed to save post:', error);
-      // Don't clear draft if save failed
     } finally {
       setIsSending(false);
     }
@@ -222,6 +394,9 @@ export function BigInput({
     setShowFormatMenu,
     clearAttachments,
     attachments,
+    isMarkdownMode,
+    markdownContent,
+    showToast,
   ]);
 
   // Register the "Post" button in the header
@@ -292,9 +467,19 @@ export function BigInput({
           const uploadState = uploadStates[asset.uri];
 
           if (uploadState?.status === 'success' && editorRef.current?.editor) {
+            const savedSelection = inlineImageSelectionRef.current;
+            if (savedSelection) {
+              editorRef.current.editor.focus();
+              editorRef.current.editor.setSelection(
+                savedSelection.from,
+                savedSelection.to
+              );
+            }
+
             // Insert the S3 URL into the editor
             const s3Url = uploadState.remoteUri;
             (editorRef.current.editor as any).setImage(s3Url);
+            inlineImageSelectionRef.current = null;
           } else if (isMountedRef.current) {
             logger.trackError('notebook:inline-image:upload-failure', {
               uploadState,
@@ -305,6 +490,7 @@ export function BigInput({
             });
           }
         } catch (error) {
+          inlineImageSelectionRef.current = null;
           if (isMountedRef.current) {
             logger.trackError('notebook:inline-image:upload-error', error);
             showToast({
@@ -342,17 +528,42 @@ export function BigInput({
 
   const toolbarItems = useMemo((): ToolbarItem[] => {
     const imageButton: ToolbarItem = {
-      onPress: () => () => setShowInlineImageSheet(true),
+      onPress:
+        ({ editorState }) =>
+        () => {
+          inlineImageSelectionRef.current = {
+            from: editorState.selection.from,
+            to: editorState.selection.to,
+          };
+          setShouldBlur(true);
+          setShowInlineImageSheet(true);
+        },
       active: () => false,
       disabled: () => false,
       icon: 'Camera',
     };
 
+    const markdownToggle: ToolbarItem = {
+      onPress: () => () => handleMarkdownToggle(),
+      active: () => isMarkdownMode,
+      disabled: () => false,
+      icon: 'Markdown',
+    };
+
     const items = [...DEFAULT_TOOLBAR_ITEMS];
     // Between the Heading and Code buttons
     items.splice(5, 0, imageButton);
+    // Add Markdown toggle at the beginning if feature flag is enabled
+    if (markdownNotebooksEnabled) {
+      items.unshift(markdownToggle);
+    }
     return items;
-  }, []);
+  }, [
+    isMarkdownMode,
+    handleMarkdownToggle,
+    markdownNotebooksEnabled,
+    setShouldBlur,
+  ]);
 
   return (
     <KeyboardAvoidingView
@@ -418,46 +629,86 @@ export function BigInput({
           </>
         )}
 
-        <View>
-          {!isWindowNarrow &&
-            editorRef.current?.editor &&
-            channelType === 'notebook' && (
-              <InputToolbar
-                editor={editorRef.current?.editor}
-                hidden={false}
-                items={toolbarItems}
-                style={{
-                  borderWidth: 0,
-                  borderTopWidth: 0,
-                  borderBottomWidth: 1,
-                  borderRadius: 0,
-                  backgroundColor: theme.background.val,
-                }}
-              />
-            )}
-          <MessageInput
-            ref={editorRef}
-            sendPostFromDraft={sendPostFromDraft}
-            channelId={channelId}
-            channelType={channelType}
-            editingPost={editingPost}
-            {...props}
-            clearDraft={clearDraft}
-            frameless={true}
-            bigInput={true}
-            shouldAutoFocus={true}
-            showInlineAttachments={channelType === 'gallery'}
-            onEditorContentChange={handleEditorContentChanged}
-            title={title}
-            image={
-              imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined
-            }
-            paddingHorizontal="$l"
-          />
+        <View flex={1}>
+          {!isWindowNarrow && channelType === 'notebook' && (
+            <>
+              {isMarkdownMode && markdownNotebooksEnabled ? (
+                <XStack
+                  paddingHorizontal="$m"
+                  paddingVertical="$s"
+                  borderBottomWidth={1}
+                  borderBottomColor="$border"
+                  backgroundColor="$background"
+                >
+                  <TouchableOpacity onPress={handleMarkdownToggle}>
+                    <XStack alignItems="center" gap="$s" padding="$s">
+                      <Icon
+                        type="Markdown"
+                        size="$m"
+                        color={
+                          isMarkdownMode
+                            ? '$positiveActionText'
+                            : '$primaryText'
+                        }
+                      />
+                      <Text size="$label/s" color="$secondaryText">
+                        Switch to Rich Text
+                      </Text>
+                    </XStack>
+                  </TouchableOpacity>
+                </XStack>
+              ) : (
+                editorRef.current?.editor && (
+                  <InputToolbar
+                    editor={editorRef.current.editor}
+                    hidden={false}
+                    items={toolbarItems}
+                    style={{
+                      borderWidth: 0,
+                      borderTopWidth: 0,
+                      borderBottomWidth: 1,
+                      borderRadius: 0,
+                      backgroundColor: theme.background.val,
+                    }}
+                  />
+                )
+              )}
+            </>
+          )}
+          {isMarkdownMode ? (
+            <MarkdownEditor
+              value={markdownContent}
+              onChange={setMarkdownContent}
+              placeholder="Write your content in Markdown..."
+              testID="BigInputMarkdownEditor"
+            />
+          ) : (
+            <MessageInput
+              ref={editorRef}
+              sendPostFromDraft={sendPostFromDraft}
+              channelId={channelId}
+              channelType={channelType}
+              editingPost={editingPost}
+              setShouldBlur={setShouldBlur}
+              {...props}
+              clearDraft={clearDraft}
+              frameless={true}
+              bigInput={true}
+              shouldAutoFocus={true}
+              showInlineAttachments={channelType === 'gallery'}
+              onEditorContentChange={handleEditorContentChanged}
+              onEditorStateChange={handleEditorStateChange}
+              title={title}
+              image={
+                imageUri ? { uri: imageUri, height: 0, width: 0 } : undefined
+              }
+              paddingHorizontal="$l"
+            />
+          )}
         </View>
       </View>
 
-      {channelType === 'notebook' && editorRef.current?.editor && (
+      {channelType === 'notebook' && (
         <>
           {isWindowNarrow && showFormatMenu && (
             <View
@@ -465,7 +716,7 @@ export function BigInput({
               bottom={insets.bottom + 16}
               right={64}
               zIndex={1000}
-              width={310}
+              width={isMarkdownMode ? 180 : 310}
               shadowColor={theme.primaryText.val}
               shadowOffset={{ width: 0, height: 2 }}
               shadowOpacity={0.1}
@@ -475,21 +726,43 @@ export function BigInput({
               borderWidth={1}
               borderRadius={getTokenValue('$l', 'radius')}
             >
-              <InputToolbar
-                editor={editorRef.current?.editor}
-                hidden={false}
-                items={toolbarItems}
-                style={{
-                  borderWidth: 0,
-                  borderTopWidth: 0,
-                  borderBottomWidth: 0,
-                  borderRadius: getTokenValue('$l', 'radius'),
-                  backgroundColor: theme.background.val,
-                }}
-              />
+              {isMarkdownMode && markdownNotebooksEnabled ? (
+                <TouchableOpacity onPress={handleMarkdownToggle}>
+                  <XStack
+                    alignItems="center"
+                    gap="$s"
+                    padding="$m"
+                    justifyContent="center"
+                  >
+                    <Icon
+                      type="Markdown"
+                      size="$m"
+                      color="$positiveActionText"
+                    />
+                    <Text size="$label/s" color="$secondaryText">
+                      Switch to Rich Text
+                    </Text>
+                  </XStack>
+                </TouchableOpacity>
+              ) : (
+                editorRef.current?.editor && (
+                  <InputToolbar
+                    editor={editorRef.current.editor}
+                    hidden={false}
+                    items={toolbarItems}
+                    style={{
+                      borderWidth: 0,
+                      borderTopWidth: 0,
+                      borderBottomWidth: 0,
+                      borderRadius: getTokenValue('$l', 'radius'),
+                      backgroundColor: theme.background.val,
+                    }}
+                  />
+                )
+              )}
             </View>
           )}
-          {isWindowNarrow && (
+          {isWindowNarrow && (editorRef.current?.editor || isMarkdownMode) && (
             <Button.Frame
               position="absolute"
               bottom={insets.bottom + 16}

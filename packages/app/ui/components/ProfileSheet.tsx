@@ -85,6 +85,7 @@ export function ProfileSheet({
   onPressBan,
   onPressUnban,
   onPressKick,
+  onPressRevokeInvite,
   onPressAsignRole,
   onPressRemoveRole,
   roles,
@@ -99,6 +100,7 @@ export function ProfileSheet({
   userIsBanned?: boolean;
   userIsInvited?: boolean;
   onPressKick?: () => void;
+  onPressRevokeInvite?: () => void;
   onPressBan?: () => void;
   onPressUnban?: () => void;
   onPressGoToProfile?: () => void;
@@ -151,6 +153,11 @@ export function ProfileSheet({
 
   const isAdminnable = currentUserIsAdmin;
 
+  const handleRevokeInvite = useCallback(() => {
+    onPressRevokeInvite?.();
+    onOpenChange(false);
+  }, [onPressRevokeInvite, onOpenChange]);
+
   const actions: ActionGroup[] = createActionGroups(
     isAdminnable &&
       !userIsInvited &&
@@ -198,6 +205,15 @@ export function ProfileSheet({
                 action: onPressBan,
               }
           : null,
+      ],
+    isAdminnable &&
+      userIsInvited &&
+      onPressRevokeInvite && [
+        'neutral',
+        {
+          title: 'Revoke Invite',
+          action: handleRevokeInvite,
+        },
       ],
     currentUserId !== contactId && [
       'negative',

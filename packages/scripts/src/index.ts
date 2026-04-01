@@ -1,12 +1,12 @@
-import { parseContactUpdateEvent } from '@tloncorp/shared/api';
-import { getTextContent } from '@tloncorp/shared/logic';
-import type * as ub from '@tloncorp/shared/urbit';
+import { parseContactUpdateEvent } from '@tloncorp/api/client/activityApi';
+import { getTextContent } from '@tloncorp/api/lib/postContent';
+import type * as ub from '@tloncorp/api/urbit';
 import {
   ActivityIncomingEvent,
   getIdParts,
   getSourceForEvent,
   sourceToString,
-} from '@tloncorp/shared/urbit/activity';
+} from '@tloncorp/api/urbit/activity';
 import { render, da } from '@urbit/aura';
 
 type PreviewContentNode =

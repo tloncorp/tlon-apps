@@ -57,7 +57,7 @@ export function PostUsingContentConfigurationScreen({
                     channel.contentConfiguration
                   ).configuration,
             editingPost: undefined,
-            goToImageViewer: noop,
+            goToMediaViewer: noop,
             goToPost: noop,
             hasNewerPosts: false,
             hasOlderPosts: false,

@@ -89,6 +89,7 @@ export function ChannelHeader({
   goToChatDetails,
   goToProfile,
   showSpinner,
+  loadingSubtitle = 'Loading messages…',
   showSearchButton = false,
   showEditButton = false,
   post,
@@ -104,6 +105,7 @@ export function ChannelHeader({
   goToChatDetails?: () => void;
   goToProfile?: () => void;
   showSpinner?: boolean;
+  loadingSubtitle?: string;
   showSearchButton?: boolean;
   showEditButton?: boolean;
   post?: db.Post;
@@ -236,26 +238,11 @@ export function ChannelHeader({
 
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
-
-  const facePileContacts = useMemo(() => {
-    if (!channel?.members) return [];
-
-    // For DMs and group DMs, show all members
-    if (channel.type === 'dm' || channel.type === 'groupDm') {
-      return channel.members
-        .map((member) => member.contact)
-        .filter(Boolean) as db.Contact[];
-    }
-
-    // For single-channel groups, show group members
-    if (channel.type === 'chat' && group?.members) {
-      return group.members
-        .map((member) => member.contact)
-        .filter(Boolean) as db.Contact[];
-    }
-
-    return [];
-  }, [channel, group]);
+  const headerLoadingSubtitle = showSpinner
+    ? loadingSubtitle
+    : connectionStatus !== 'Connected'
+      ? subtitleText
+      : null;
 
   const avatarElement = useMemo(() => {
     // For DMs, show the other user's avatar
@@ -326,44 +313,41 @@ export function ChannelHeader({
   }, [channel.type, goToProfile, goToChatDetails]);
 
   return (
-    <>
-      <ScreenHeader
-        title={displayTitle}
-        titleIcon={avatarElement || titleIcon}
-        subtitle={displaySubtitle}
-        testID="ChannelHeaderTitle"
-        showSessionStatus
-        showSubtitle
-        borderBottom
-        isLoading={showSpinner}
-        onTitlePress={handleTitlePress}
-        useHorizontalTitleLayout={!isWindowNarrow}
-        leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
-        rightControls={
-          <>
-            {channelHost && !isWindowNarrow && (
-              <ConnectionStatus
-                contactId={channelHost}
-                type="indicator-with-text"
-              />
-            )}
-            {showSearchButton && (
-              <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
-            )}
-            {/* this fragment/map is necessary to be able to provide a key to the items */}
-            {contextItems.map((item, index) => (
-              <Fragment key={index}>{item}</Fragment>
-            ))}
-            {showEditButton && (
-              <ScreenHeader.IconButton
-                onPress={goToEdit}
-                testID="ChannelHeaderEditButton"
-                type="Draw"
-              />
-            )}
-          </>
-        }
-      />
-    </>
+    <ScreenHeader
+      title={displayTitle}
+      titleIcon={avatarElement || titleIcon}
+      subtitle={displaySubtitle}
+      testID="ChannelHeaderTitle"
+      showSubtitle
+      borderBottom
+      loadingSubtitle={headerLoadingSubtitle}
+      onTitlePress={handleTitlePress}
+      useHorizontalTitleLayout={!isWindowNarrow}
+      leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
+      rightControls={
+        <>
+          {channelHost && !isWindowNarrow && (
+            <ConnectionStatus
+              contactId={channelHost}
+              type="indicator-with-text"
+            />
+          )}
+          {showSearchButton && (
+            <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
+          )}
+          {/* this fragment/map is necessary to be able to provide a key to the items */}
+          {contextItems.map((item, index) => (
+            <Fragment key={index}>{item}</Fragment>
+          ))}
+          {showEditButton && (
+            <ScreenHeader.IconButton
+              onPress={goToEdit}
+              testID="ChannelHeaderEditButton"
+              type="Settings"
+            />
+          )}
+        </>
+      }
+    />
   );
 }

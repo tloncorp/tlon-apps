@@ -970,9 +970,11 @@
     [[reads updates] cor]
   =*  source  i.sources
   =*  continue  $(sources t.sources)
-  ::  we +got:by here because we don't want reading random sources to
-  ::  inject themselves into the activity summary.
-  =/  =index:a  (~(got by indices) source)
+  ::  avoid crashing if we don't have the source yet.
+  ::  this can happen when messaging someone for the first time.
+  ::
+  ?~  dex=(~(get by indices) source)  continue
+  =*  index  u.dex
   ?-  -.action
       %event  ~&("read %event unsupported" !!)
       %item   ~&("read %item unsupported" !!)
@@ -1380,7 +1382,7 @@
     %-  some
     %+  murn
       (tab:on-replies:v8:cv replies.u.u.post `(sub id 1) count)
-    |=  [=time reply=(unit reply:c)]
+    |=  [=time reply=(unit reply:v8:cv)]
     ^-  (unit [^time incoming-event:a])
     ?~  reply  ~
     %-  some

@@ -39,6 +39,8 @@ export default ({ mode }: { mode: string }) => {
     process.env.VITE_SHIP_URL2 ||
     'http://localhost:8080';
   console.log(SHIP_URL2);
+  const shouldUploadSourcemaps =
+    process.env.CI === 'true' && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
   // eslint-disable-next-line
   const base = (mode: string) => {
@@ -143,7 +145,7 @@ export default ({ mode }: { mode: string }) => {
         org: process.env.SENTRY_ORG,
         project: process.env.SENTRY_WEB_PROJECT,
         authToken: process.env.SENTRY_AUTH_TOKEN,
-        disable: !process.env.CI,
+        disable: !shouldUploadSourcemaps,
         release: process.env.VITE_GIT_HASH
           ? { name: process.env.VITE_GIT_HASH }
           : undefined,
@@ -220,6 +222,8 @@ export default ({ mode }: { mode: string }) => {
         },
         '^.*//.*': {
           target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
           rewrite: (path) => path.replaceAll('//', '/@@@/'),
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyReq) => {
@@ -232,8 +236,8 @@ export default ({ mode }: { mode: string }) => {
     build:
       mode !== 'profile'
         ? {
-            // Only generate sourcemaps in CI for Sentry upload (avoids noisy warnings locally)
-            sourcemap: process.env.CI ? 'hidden' : false,
+            // Generate sourcemaps only when CI can upload them to Sentry.
+            sourcemap: shouldUploadSourcemaps ? 'hidden' : false,
             rollupOptions,
             target: 'esnext',
           }
@@ -258,6 +262,7 @@ export default ({ mode }: { mode: string }) => {
     },
     plugins: plugins(mode),
     resolve: {
+      conditions: ['source'],
       dedupe: ['@tanstack/react-query'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

@@ -3,7 +3,7 @@
 import { useBootSequence } from '@tloncorp/app/hooks/useBootSequence';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import { createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
+import * as api from '@tloncorp/api';
 import { didSignUp, signupData } from '@tloncorp/shared/db';
 import {
   AnalyticsEvent,

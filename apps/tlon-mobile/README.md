@@ -90,16 +90,17 @@ pnpm bundler --dev-client --scheme io.tlon.groups.preview
 
 #### Troubleshooting
 
-If you see this while trying to run on an Android device
-
-```
-INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package io.tlon.groups signatures do not match the previously installed version; ignoring!
-```
-
-you first need to uninstall the existing app from the device using `adb`:
-
+##### `run android`: `INSTALL_FAILED_UPDATE_INCOMPATIBLE: Package io.tlon.groups signatures do not match the previously installed version; ignoring!`
+Uninstall the existing app from the device using `adb`:
 ```sh
 adb uninstall io.tlon.groups
+```
+
+##### `run android`: `Resolved '<dependency>' which is not part of the dependency lock state`
+You are trying to upgrade an Android native dependency, and you need to regenerate the `gradle.lockfile`:
+```sh
+cd tlon-mobile
+pnpm run android:update-lockfile
 ```
 
 ## Debugging
@@ -144,6 +145,23 @@ Update environment variables to disable the React Cosmos `NativeFixtureLoader` w
 
 ```
 IGNORE_COSMOS=true
+```
+
+## Testing Background Sync (Android)
+
+The `DebugBgSyncReceiver` (debug builds only) lets you trigger background sync via ADB. Background the app first, then send the broadcast:
+
+```sh
+# Production flavor (io.tlon.groups)
+adb shell am broadcast \
+  -a io.tlon.landscape.DEBUG_BG_SYNC \
+  -n io.tlon.groups/io.tlon.landscape.DebugBgSyncReceiver
+```
+
+Watch logs with:
+
+```sh
+adb logcat -s ReactNativeJS DebugBgSyncReceiver BackgroundTaskScheduler
 ```
 
 ## Deployment

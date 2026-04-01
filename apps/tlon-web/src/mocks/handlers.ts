@@ -16,8 +16,8 @@ import {
   DMWhom,
   DmRsvp,
   WritDiff,
-} from '@tloncorp/shared/urbit/dms';
-import { GroupActionV4 } from '@tloncorp/shared/urbit/groups';
+} from '@tloncorp/api/urbit/dms';
+import { GroupActionV4 } from '@tloncorp/api/urbit/groups';
 import { decToUd, udToDec, unixToDa } from '@urbit/api';
 import bigInt from 'big-integer';
 import _ from 'lodash';
@@ -424,7 +424,7 @@ const dms: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'chat-dm-action',
+    mark: 'chat-dm-action-2',
     returnSubscription: dmSub,
     initialResponder: (
       req: Message & Poke<{ ship: string; diff: WritDiff }>,
@@ -557,7 +557,7 @@ const clubHandlers: Handler[] = [
   {
     action: 'poke',
     app: 'chat',
-    mark: 'chat-club-action',
+    mark: 'chat-club-action-2',
     returnSubscription: (req: Message & Poke<ClubAction>) =>
       'writ' in req.json.diff.delta ? clubWritsSub : clubSub,
     dataResponder: (req: Message & Poke<ClubAction>) =>

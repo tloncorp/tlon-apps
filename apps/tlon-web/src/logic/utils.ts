@@ -5,7 +5,7 @@ import {
   Verse,
   VerseBlock,
   VerseInline,
-} from '@tloncorp/shared/urbit/channel';
+} from '@tloncorp/api/urbit/channel';
 import {
   Bold,
   Cite,
@@ -13,7 +13,7 @@ import {
   Italics,
   Listing,
   Strikethrough,
-} from '@tloncorp/shared/urbit/content';
+} from '@tloncorp/api/urbit/content';
 import {
   Cabals,
   ChannelPrivacyType,
@@ -25,7 +25,7 @@ import {
   PrivacyType,
   Rank,
   Saga,
-} from '@tloncorp/shared/urbit/groups';
+} from '@tloncorp/api/urbit/groups';
 import {
   BigIntOrderedMap,
   Docket,
@@ -830,7 +830,9 @@ const groups = [
 ];
 const chat = [
   'chat-dm-action',
+  'chat-dm-action-2',
   'chat-club-action-0',
+  'chat-club-action-2',
   'chat-dm-archive',
   'chat-dm-unarchive',
   'chat-dm-rsvp',
@@ -842,6 +844,7 @@ const chat = [
 ];
 const channels = [
   'channel-action',
+  'channel-action-2',
   'leave',
   'add-writers',
   'del-writers',

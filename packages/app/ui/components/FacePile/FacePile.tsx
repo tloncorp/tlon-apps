@@ -11,6 +11,7 @@ export interface FacePileProps {
   grid?: boolean;
   /** Total count of contacts (use when contactIds is a sample) */
   totalCount?: number;
+  gridDensity?: 'default' | 'compact';
 }
 
 export const FacePile = React.memo(function FacePileComponent({
@@ -18,6 +19,7 @@ export const FacePile = React.memo(function FacePileComponent({
   maxVisible = 4,
   grid = false,
   totalCount,
+  gridDensity = 'default',
 }: FacePileProps) {
   const effectiveMaxVisible = grid ? Math.min(maxVisible, 4) : maxVisible;
   const visibleContactIds = useMemo(
@@ -32,14 +34,16 @@ export const FacePile = React.memo(function FacePileComponent({
   );
 
   if (grid) {
+    const isCompactGrid = gridDensity === 'compact';
+
     return (
-      <YStack gap={'$xs'}>
-        <XStack gap={'$xs'}>
+      <YStack gap={isCompactGrid ? '$2xs' : '$xs'} padding={isCompactGrid ? 1 : 0}>
+        <XStack gap={isCompactGrid ? '$2xs' : '$xs'}>
           {visibleContactIds.slice(0, 2).map((contactId) => (
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}
         </XStack>
-        <XStack gap={'$xs'}>
+        <XStack gap={isCompactGrid ? '$2xs' : '$xs'}>
           {visibleContactIds.slice(2, 4).map((contactId) => (
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />
           ))}

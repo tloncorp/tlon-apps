@@ -4,7 +4,7 @@
 // which isn't made for web.
 import { createDevLogger } from '@tloncorp/shared';
 import { clearAuthInfo, isElectronEnv } from '@tloncorp/shared';
-import * as api from '@tloncorp/shared/api';
+import { queryClient } from '@tloncorp/shared';
 import { clearSessionStorageItems } from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
@@ -19,7 +19,7 @@ export function useHandleLogout({ resetDb }: { resetDb?: () => void }) {
 
   const handleLogout = useCallback(async () => {
     logger.info('Logging out');
-    api.queryClient.clear();
+    queryClient.clear();
     store.removeClient();
     clearShip();
     clearSessionStorageItems();

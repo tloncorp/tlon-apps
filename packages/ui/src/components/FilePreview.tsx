@@ -1,12 +1,16 @@
 import { useMemo } from 'react';
 
-import FileAttachmentIcon from '../assets/file_attachment.svg';
+import fileAttachmentPng from '../assets/file_attachment.png';
 import { ForwardingProps } from '../utils';
+import { Image } from './Image';
 import { Text } from './TextV2';
 import { View } from './View';
 
-// pixel-perfect height taken from `file_attachment.svg`
-const iconSize = 47;
+// this won't visually match the width of the icon because:
+// - we're using a raster with a baked-in shadow (Android doesn't like SVG shadows)
+// - the shadow is asymmetrical (wider on the right due to page curl)
+// - we want to center the icon, so the raster has extra padding on the left to center
+const ICON_CONTAINER_BASE_WIDTH = 47;
 
 export function FilePreview({
   fileExtensionLabel,
@@ -35,21 +39,14 @@ export function FilePreview({
     // use one wrapper view so we can safely use position="relative" on the inner one
     <View {...passedProps}>
       <View position="relative">
-        <View
+        <Image
+          source={fileAttachmentPng}
+          width={ICON_CONTAINER_BASE_WIDTH * scale}
+          aspectRatio={1}
           style={{
-            // `file_attachment.svg` has internal shadow, but it doesn't appear to work on iOS.
-            // Adding a shadow here to match the design more closely.
-            shadowColor: '#000',
-            shadowOffset: { width: 0 * scale, height: 0.68 * scale },
-            shadowOpacity: 0.25,
-            shadowRadius: 1.37 * scale,
+            resizeMode: 'contain',
           }}
-        >
-          <FileAttachmentIcon
-            height={iconSize * scale}
-            width={iconSize * scale}
-          />
-        </View>
+        />
         {formattedFileExtensionLabel && (
           <Text
             position="absolute"

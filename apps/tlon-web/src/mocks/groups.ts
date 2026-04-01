@@ -8,7 +8,7 @@ import {
   GroupPreview,
   PrivacyType,
   Vessel,
-} from '@tloncorp/shared/urbit/groups';
+} from '@tloncorp/api/urbit/groups';
 
 import { AUTHORS } from '@/constants';
 import { randomElement } from '@/logic/utils';

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
+    "@tloncorp/api": "workspace:*",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
@@ -24,14 +25,19 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
+    "expo-audio": "*",
     "expo-document-picker": "*",
+    "expo-file-system": "*",
+    "expo-video": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
+    "@shopify/react-native-skia": "*",
     "expo-blur": "*",
     "expo-constants": "*",
     "expo-notifications": "*",
     "expo-splash-screen": "*",
     "lodash": "^4.17.21",
+    "@simform_solutions/react-native-audio-waveform": "*",
     "react-native-device-info": "*",
     "react-native-email-link": "*",
     "react-native-fetch-api": "*",

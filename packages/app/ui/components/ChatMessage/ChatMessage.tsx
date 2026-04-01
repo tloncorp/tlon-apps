@@ -5,6 +5,7 @@ import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -19,6 +20,7 @@ import {
 import { PostErrorMessage } from '../PostErrorMessage';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
+import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
@@ -196,10 +198,8 @@ const ChatMessage = ({
       cursor="default"
       testID="Post"
     >
-      <YStack
-        backgroundColor={isHighlighted ? '$secondaryBackground' : undefined}
-        key={post.id}
-      >
+      <YStack key={post.id}>
+        {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
         {showAuthor ? (
           <AuthorRow
             padding="$l"
@@ -208,6 +208,7 @@ const ChatMessage = ({
             authorId={post.authorId}
             sent={post.sentAt ?? 0}
             type={post.type}
+            isBot={post.isBot ?? undefined}
             disabled={hideProfilePreview}
             deliveryStatus={deliveryFailed ? undefined : post.deliveryStatus}
             editStatus={post.editStatus}
@@ -332,6 +333,12 @@ const WebChatImageRenderer: DefaultRendererProps['image'] = {
   },
 };
 
+const WebChatVideoRenderer: DefaultRendererProps['video'] = {
+  alignItems: 'flex-start',
+  maxWidth: 600,
+  maxHeight: 400,
+};
+
 const ChatContentRenderer = createContentRenderer({
   blockSettings: {
     blockWrapper: {
@@ -339,18 +346,25 @@ const ChatContentRenderer = createContentRenderer({
     },
     reference: {
       contentSize: '$l',
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
     image: isWeb ? WebChatImageRenderer : undefined,
+    video: isWeb ? WebChatVideoRenderer : undefined,
     link: {
       renderDescription: true,
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
       imageProps: {
         aspectRatio: 2,
       },
     },
     code: {
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    },
+    file: {
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    },
+    voicememo: {
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
   },
 });
@@ -359,6 +373,7 @@ export default memo(ChatMessage, (prev, next) => {
   const isPostEqual = isEqual(prev.post, next.post);
 
   const areOtherPropsEqual =
+    prev.isHighlighted === next.isHighlighted &&
     prev.showAuthor === next.showAuthor &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

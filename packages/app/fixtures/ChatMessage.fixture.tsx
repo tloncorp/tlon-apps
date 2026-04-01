@@ -20,6 +20,7 @@ import {
   View,
 } from '../ui';
 import { PostBlockSeparator } from '../ui/components/Channel/Scroller';
+import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
 import {
@@ -43,6 +44,8 @@ import {
   postWithSingleEmoji,
   postWithText,
   postWithVideo,
+  postWithVoiceMemo,
+  postWithVoiceMemoWithoutTranscription,
   useChannel,
   useGroup,
   usePostReference,
@@ -174,24 +177,26 @@ function ChatMessageFixtureWrapper({
       innerBackgroundColor={backgroundColor}
       backgroundColor={backgroundColor}
     >
-      <AppDataContextProvider contacts={Object.values(exampleContacts)}>
-        {/* @ts-expect-error don't care */}
-        <RequestsProvider
-          useChannel={useChannel}
-          useGroup={useGroup}
-          usePostReference={usePostReference}
-        >
-          <ScrollView
-            flex={1}
-            contentContainerStyle={{
-              paddingTop: insets.top,
-              paddingHorizontal: '$m',
-            }}
+      <NowPlayingProvider>
+        <AppDataContextProvider contacts={Object.values(exampleContacts)}>
+          {/* @ts-expect-error don't care */}
+          <RequestsProvider
+            useChannel={useChannel}
+            useGroup={useGroup}
+            usePostReference={usePostReference}
           >
-            {children}
-          </ScrollView>
-        </RequestsProvider>
-      </AppDataContextProvider>
+            <ScrollView
+              flex={1}
+              contentContainerStyle={{
+                paddingTop: insets.top,
+                paddingHorizontal: '$m',
+              }}
+            >
+              {children}
+            </ScrollView>
+          </RequestsProvider>
+        </AppDataContextProvider>
+      </NowPlayingProvider>
     </FixtureWrapper>
   );
 }
@@ -448,5 +453,16 @@ export default {
   Emoji: <SinglePostFixture post={postWithEmoji} />,
   SingleEmoji: <SinglePostFixture post={postWithSingleEmoji} />,
   Deleted: <SinglePostFixture post={postWithDeleted} />,
+  VoiceMemo() {
+    const [hasTranscription] = useValue('Has transcription', {
+      defaultValue: true,
+    });
+    const post = useMemo(() => {
+      return hasTranscription
+        ? postWithVoiceMemo
+        : postWithVoiceMemoWithoutTranscription;
+    }, [hasTranscription]);
+    return <SinglePostFixture post={post} />;
+  },
   Hidden: <SinglePostFixture post={postWithHidden} />,
 };

@@ -38,7 +38,6 @@ export * from './components/GalleryPost';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';
 export * from './components/GroupPreviewSheet';
-export * from './components/ImageViewerScreenView';
 export * from './components/InviteUsersSheet';
 export * from './components/InviteUsersWidget';
 export * from './components/ListItem';

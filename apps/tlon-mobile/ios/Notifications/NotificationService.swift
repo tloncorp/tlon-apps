@@ -1,6 +1,7 @@
 import Intents
 import UserNotifications
 import JavaScriptCore
+import Foundation
 
 class NotificationService: UNNotificationServiceExtension {
     var contentHandler: ((UNNotificationContent) -> Void)?
@@ -137,7 +138,7 @@ class NotificationService: UNNotificationServiceExtension {
       // use the provided timeslice as an opportunity to cache fresh /changes data
       Task {
           do {
-              try await ChangesLoader.sync()
+              try await ChangesLoader.sync(notificationReceivedAt: Date())
           } catch {
               // TODO: we should be logging this via telemetry
               print("[NotificationService] Failed to sync changes: \(error)")

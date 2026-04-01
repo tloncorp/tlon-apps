@@ -1,6 +1,6 @@
 import { AnalyticsEvent, AppInvite, createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
-import * as hostingApi from '@tloncorp/shared/api';
+import * as hostingApi from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 

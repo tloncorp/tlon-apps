@@ -4,7 +4,7 @@ import {
   SubscriptionHandler,
 } from '@tloncorp/mock-http-api';
 import { DraftInputId, PostContentRendererId } from '@tloncorp/shared';
-import { Channels, Perm, Posts } from '@tloncorp/shared/urbit/channel';
+import { Channels, Perm, Posts } from '@tloncorp/api/urbit/channel';
 import { subMinutes } from 'date-fns';
 
 const unixTime = subMinutes(new Date(), 1).getTime();

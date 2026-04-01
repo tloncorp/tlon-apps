@@ -1,16 +1,82 @@
+import { contentReferenceToCite } from '@tloncorp/api';
+import { citeToPath } from '@tloncorp/api/urbit';
 import { EditorBridge } from '@10play/tentap-editor';
 import { Editor } from '@tiptap/react';
-import { createDevLogger, tiptap } from '@tloncorp/shared';
+import {
+  createDevLogger,
+  extractContentTypesFromPost,
+  tiptap,
+} from '@tloncorp/shared';
 import { Attachment } from '@tloncorp/shared/domain';
+import * as db from '@tloncorp/shared/db';
 import {
   Block,
   Inline,
   JSONContent,
   constructStory,
   isInline,
-} from '@tloncorp/shared/urbit';
+} from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('processReference', true);
+
+type EditPostHydrationMode = 'references-only' | 'references-media';
+
+export function hydrateEditPost(
+  editingPost: db.Post,
+  mode: EditPostHydrationMode
+): {
+  story: ReturnType<typeof extractContentTypesFromPost>['story'];
+  attachments: Attachment[];
+  isEmpty: boolean;
+} {
+  const {
+    story,
+    references: postReferences,
+    blocks,
+  } = extractContentTypesFromPost(editingPost);
+
+  const attachments: Attachment[] = [];
+
+  postReferences.forEach((reference) => {
+    const cite = contentReferenceToCite(reference);
+    const path = citeToPath(cite);
+    attachments.push({
+      type: 'reference',
+      reference,
+      path,
+    });
+  });
+
+  if (mode === 'references-media') {
+    blocks.forEach((block) => {
+      if ('image' in block) {
+        attachments.push({
+          type: 'image',
+          file: {
+            uri: block.image.src,
+            height: block.image.height,
+            width: block.image.width,
+          },
+        });
+      }
+      if ('link' in block) {
+        attachments.push({
+          type: 'link',
+          url: block.link.url,
+          resourceType: 'page',
+          ...block.link.meta,
+        });
+      }
+    });
+  }
+
+  return {
+    story,
+    attachments,
+    isEmpty:
+      story === null && postReferences.length === 0 && blocks.length === 0,
+  };
+}
 
 export async function processReferenceAndUpdateEditor({
   editor,

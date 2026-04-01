@@ -16,7 +16,7 @@ import {
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/shared/api';
+import { HostingError } from '@tloncorp/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
@@ -249,10 +249,9 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         title={mode === 'login' ? 'Tlon Login' : 'Confirm Code'}
+        loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backgroundColor="$secondaryBackground"
-        showSessionStatus={false}
         backAction={() => navigation.goBack()}
-        isLoading={isSubmitting}
       />
       <YStack padding="$2xl" gap="$6xl">
         <OTPInput

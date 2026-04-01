@@ -1,4 +1,16 @@
 import {
+  ACTIVITY_SOURCE_PAGESIZE,
+  ChannelInit,
+  getCurrentUserId,
+} from '@tloncorp/api';
+import { parseGroupId } from '@tloncorp/api';
+import {
+  SourceActivityEvents,
+  interleaveActivityEvents,
+  toSourceActivityEvents,
+} from '@tloncorp/api/lib/activity';
+import { Rank } from '@tloncorp/api/urbit';
+import {
   AnyColumn,
   Column,
   SQLChunk,
@@ -27,22 +39,10 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import {
-  ACTIVITY_SOURCE_PAGESIZE,
-  ChannelInit,
-  getCurrentUserId,
-} from '../api';
-import { parseGroupId } from '../api/apiUtils';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
-import {
-  SourceActivityEvents,
-  interleaveActivityEvents,
-  toSourceActivityEvents,
-} from '../logic/activity';
 import { Session } from '../store';
-import { Rank } from '../urbit';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
@@ -782,7 +782,7 @@ export const getMentionCandidates = createReadQuery(
   async (
     {
       chatId,
-      limit = 4,
+      limit = 8,
       query,
     }: { chatId: string; limit?: number; query: string },
     ctx: QueryCtx
@@ -790,7 +790,7 @@ export const getMentionCandidates = createReadQuery(
     if (!(query = query.trim())) return [];
 
     const idSearchTerm = `~${query.toLowerCase()}%`;
-    const searchTerm = `${query.toLowerCase()}%`;
+    const searchTerm = `%${query.toLowerCase()}%`;
 
     const $candidates = ctx.db
       .select({
@@ -805,12 +805,16 @@ export const getMentionCandidates = createReadQuery(
         membershipType: $chatMembers.membershipType,
         joinedAt: $chatMembers.joinedAt,
         isBlocked: $contacts.isBlocked,
-        // Priority: 1 = group members, 2 = other contacts, 3 = other group members
+        // Priority: nickname matches rank higher than ship-id-only matches
+        // Within each match type: channel members > contacts > others
         priority: sql<number>`
           CASE 
-            WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
-            WHEN ${$contacts.isContact} = true THEN 2
-            ELSE 3
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} AND ${$chatMembers.chatId} = ${chatId} THEN 1
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} AND ${$contacts.isContact} = true THEN 2
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} THEN 3
+            WHEN ${$chatMembers.chatId} = ${chatId} THEN 4
+            WHEN ${$contacts.isContact} = true THEN 5
+            ELSE 6
           END
         `.as('priority'),
       })
@@ -854,6 +858,7 @@ export const getMentionCandidates = createReadQuery(
         .from($candidates)
         // This call to sql is only necessary because of a drizzle type inference issue
         .groupBy(sql`${$candidates.id}`)
+        .orderBy(sql`priority ASC`, ascNullsLast($candidates.nickname))
         .limit(limit)
     );
   },
@@ -1071,7 +1076,8 @@ export const insertGroups = createWriteQuery(
                 $channels.addedToGroupAt,
                 $channels.type,
                 $channels.isPendingChannel,
-                $channels.contentConfiguration
+                $channels.contentConfiguration,
+                $channels.currentUserIsHost
               ),
             });
 
@@ -2190,18 +2196,26 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
     channels.map((c) => c.id)
   );
 
-  await ctx.db
-    .insert($channels)
-    .values(channels)
-    .onConflictDoUpdate({
-      target: $channels.id,
-      set: conflictUpdateSetAll($channels, [
-        'lastPostId',
-        'lastPostAt',
-        'lastPostSequenceNum',
-        'currentUserIsMember',
-      ]),
-    });
+  const batchSize = 200;
+  for (let i = 0; i < channels.length; i += batchSize) {
+    const batch = channels.slice(i, i + batchSize);
+    if (batch.length === 0) {
+      continue;
+    }
+
+    await ctx.db
+      .insert($channels)
+      .values(batch)
+      .onConflictDoUpdate({
+        target: $channels.id,
+        set: conflictUpdateSetAll($channels, [
+          'lastPostId',
+          'lastPostAt',
+          'lastPostSequenceNum',
+          'currentUserIsMember',
+        ]),
+      });
+  }
 
   for (const channel of channels) {
     logger.log('insertChannels: members', channel.id, channel.members);
@@ -2541,9 +2555,14 @@ export const setJoinedGroupChannels = createWriteQuery(
       return await ctx.db
         .update($channels)
         .set({
-          currentUserIsMember: inArray($channels.id, channelsWhereMember),
+          currentUserIsMember: true,
         })
-        .where(isNotNull($channels.groupId));
+        .where(
+          and(
+            inArray($channels.id, channelsWhereMember),
+            isNotNull($channels.groupId)
+          )
+        );
     }
   },
   ['channels']
@@ -2600,7 +2619,17 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    if (joinedChannelIds.length === 0) return;
+    if (joinedChannelIds.length === 0) {
+      return await ctx.db
+        .update($channels)
+        .set({ currentUserIsMember: false })
+        .where(
+          and(
+            isNotNull($channels.groupId),
+            eq($channels.currentUserIsMember, true)
+          )
+        );
+    }
     return await ctx.db
       .update($channels)
       .set({
@@ -2620,7 +2649,12 @@ export const setLeftGroupChannels = createWriteQuery(
 export const setLeftGroups = createWriteQuery(
   'setLeftGroups',
   async ({ joinedGroupIds }: { joinedGroupIds: string[] }, ctx: QueryCtx) => {
-    if (joinedGroupIds.length === 0) return;
+    if (joinedGroupIds.length === 0) {
+      return await ctx.db
+        .update($groups)
+        .set({ currentUserIsMember: false })
+        .where(eq($groups.currentUserIsMember, true));
+    }
     return await ctx.db
       .update($groups)
       .set({
@@ -2720,6 +2754,36 @@ export const getLatestChannelSequenceNum = createReadQuery(
     });
 
     return channel?.lastPostSequenceNum ?? null;
+  },
+  ['channels']
+);
+
+export const getLatestChannelSequenceNums = createReadQuery(
+  'getLatestChannelSequenceNums',
+  async (
+    options: { channelIds: string[] },
+    ctx: QueryCtx
+  ): Promise<Map<string, number | null>> => {
+    const result = new Map<string, number | null>(
+      options.channelIds.map((channelId) => [channelId, null])
+    );
+    if (!options.channelIds.length) {
+      return result;
+    }
+
+    const channels = await ctx.db.query.channels.findMany({
+      where: inArray($channels.id, options.channelIds),
+      columns: {
+        id: true,
+        lastPostSequenceNum: true,
+      },
+    });
+
+    channels.forEach((channel) => {
+      result.set(channel.id, channel.lastPostSequenceNum ?? null);
+    });
+
+    return result;
   },
   ['channels']
 );
@@ -3154,7 +3218,7 @@ export const insertChanges = createWriteQuery(
       throw e;
     }
   },
-  []
+  ['channels']
 );
 
 export const insertChannelPosts = createWriteQuery(
@@ -3196,7 +3260,7 @@ export const insertLatestPosts = createWriteQuery(
       await insertPosts(posts, txCtx);
     });
   },
-  ['posts']
+  ['posts', 'channels']
 );
 
 const insertPostsBatchSize = 300;
@@ -3326,6 +3390,8 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
 
   // Combine channel and group updates in a single transaction
   // Update channels
+  // lastPostId/lastPostAt: point to the newest *previewable* post (not deleted)
+  // lastPostSequenceNum: always the newest post for syncing (even if deleted)
   await ctx.db
     .update($channels)
     .set({
@@ -3333,7 +3399,11 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         .select({ id: $posts.id })
         .from($posts)
         .where(
-          and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+          and(
+            eq($posts.channelId, $channels.id),
+            not(eq($posts.type, 'reply')),
+            or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          )
         )
         .orderBy(desc($posts.receivedAt))
         .limit(1)}`,
@@ -3341,7 +3411,11 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         .select({ receivedAt: $posts.receivedAt })
         .from($posts)
         .where(
-          and(eq($posts.channelId, $channels.id), not(eq($posts.type, 'reply')))
+          and(
+            eq($posts.channelId, $channels.id),
+            not(eq($posts.type, 'reply')),
+            or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          )
         )
         .orderBy(desc($posts.receivedAt))
         .limit(1)}`,
@@ -5028,29 +5102,6 @@ function conflictUpdateSet(...columns: Column[]) {
     })
   );
 }
-
-export const getChannelPostsByTimeRange = createReadQuery(
-  'getChannelPostsByTimeRange',
-  async (
-    {
-      channelId,
-      startTime,
-      limit = 500,
-    }: { channelId: string; startTime: number; limit?: number },
-    ctx: QueryCtx
-  ) => {
-    return ctx.db.query.posts.findMany({
-      where: and(
-        eq($posts.channelId, channelId),
-        gte($posts.sentAt, startTime),
-        isNull($posts.deliveryStatus)
-      ),
-      orderBy: [asc($posts.sentAt)],
-      limit,
-    });
-  },
-  ['posts']
-);
 
 function getColumnTsName(c: Column) {
   const name = Object.keys(c.table).find(

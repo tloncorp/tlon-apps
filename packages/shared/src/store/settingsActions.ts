@@ -1,14 +1,11 @@
-import { ThemeName } from 'tamagui';
-
-import * as api from '../api';
+import * as api from '@tloncorp/api';
+import type { AppTheme } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
-import { TalkSidebarFilter } from '../urbit';
-
-export type AppTheme = ThemeName | 'auto';
+import type { TalkSidebarFilter } from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('SettingsActions', false);
 
@@ -203,5 +200,30 @@ export async function updatePendingMemberDismissal(
         pendingMembersDismissedAt: existing.pendingMembersDismissedAt,
       });
     }
+  }
+}
+
+export async function dismissPinnedPostBanner(postId: string) {
+  const existingDismissedIds = await db.dismissedPinnedPostBannerIds.getValue();
+  if (existingDismissedIds.includes(postId)) {
+    return;
+  }
+
+  // optimistic local update
+  await db.dismissedPinnedPostBannerIds.setValue([
+    ...existingDismissedIds,
+    postId,
+  ]);
+
+  try {
+    const settingKey = api.getDismissedPinnedPostBannerKey(postId);
+    await api.setSetting(settingKey, Date.now());
+  } catch (e) {
+    logger.trackError('failed to dismiss pinned post banner', {
+      postId,
+      errorMessage: e instanceof Error ? e.message : String(e),
+    });
+    // rollback optimistic update
+    await db.dismissedPinnedPostBannerIds.setValue(existingDismissedIds);
   }
 }

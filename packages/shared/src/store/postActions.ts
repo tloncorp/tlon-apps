@@ -1,11 +1,13 @@
-import * as api from '../api';
-import { toPostContent } from '../api';
+import * as api from '@tloncorp/api';
+import { toPostContent } from '@tloncorp/api';
+import * as urbit from '@tloncorp/api/urbit';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import type * as domain from '../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
 import * as logic from '../logic';
-import * as urbit from '../urbit';
+import * as Transcription from '../transcription';
 import { sessionActionQueue } from './SessionActionQueue';
 import {
   clearUploadState,
@@ -40,6 +42,20 @@ export async function finalizePostDraft(
 export async function finalizePostDraft(
   draft: domain.PostDataDraft
 ): Promise<domain.PostDataFinalized> {
+  // Before finalizing other attachments, set up transcription if needed. This
+  // ensures we show dialogs ASAP after user taps send.
+  let canTranscribe = false;
+  const needsTranscription = draft.attachments.some(
+    (att) =>
+      att.type === 'voicememo' &&
+      att.localUri != null &&
+      att.transcription == null
+  );
+  if (needsTranscription) {
+    const setupResult = await Transcription.setupTranscriptionIfNeeded();
+    canTranscribe = setupResult.canTranscribe;
+  }
+
   const attachments = await finalizeAttachments(draft.attachments);
 
   // Remove non-header images from notebook posts - these are "inlined":
@@ -51,6 +67,29 @@ export async function finalizePostDraft(
         att.type === 'image' && att.file.uri !== draft.image;
       if (isNonheaderImage) {
         attachments.splice(i, 1);
+      }
+    }
+  }
+
+  if (canTranscribe) {
+    for (const att of attachments) {
+      if (
+        att.type === 'voicememo' &&
+        att.localUri != null &&
+        att.transcription == null
+      ) {
+        try {
+          const transcriptionText =
+            await Transcription.transcribeAudioFileWithGlobalCache(
+              att.localUri
+            );
+          att.transcription = transcriptionText ?? undefined;
+        } catch (err) {
+          console.warn(
+            'Failed to transcribe audio file, proceeding without transcription',
+            err
+          );
+        }
       }
     }
   }
@@ -228,7 +267,10 @@ async function _sendPost({
       optimisticPostData.replyToPostId != null
         ? AnalyticsEvent.ActionSendReply
         : AnalyticsEvent.ActionSendPost,
-      logic.getModelAnalytics({ post: cachePost, channel, group })
+      {
+        ...logic.getModelAnalytics({ post: cachePost, channel, group }),
+        isBotDm: logic.isBotDmChannel({ post: cachePost, channel }),
+      }
     );
 
     logger.crumb('insert channel posts');
@@ -247,6 +289,7 @@ async function _sendPost({
     await sessionActionQueue.add(async () => {
       logger.crumb('finalizing post');
       const finalizedPostData = await finalizedPostDataPromise;
+
       logger.crumb('updating post in db with finalized data');
       await db.updatePost({
         id: cachePost.id,
@@ -278,6 +321,7 @@ async function _sendPost({
           parentAuthor: parentPost.authorId,
           authorId,
           content: finalizedPostData.content,
+          blob: finalizedPostData.blob,
           sentAt: cachePost.sentAt,
         });
       } else {
@@ -918,211 +962,5 @@ export async function removePostReaction(post: db.Post, currentUserId: string) {
         ],
       });
     }
-  }
-}
-
-/**
- * Summarizes messages and sends the summary as a DM to the current user.
- *
- * For thread summarization: provide postId
- * For channel time range summarization: provide channelId + startTime
- */
-export async function summarizeMessages({
-  postId,
-  channelId,
-  startTime,
-  channelTitle,
-  timeLabel,
-  currentUserId,
-  limit = 500,
-  maxChars = 10000,
-}: {
-  postId?: string;
-  channelId?: string;
-  startTime?: number;
-  channelTitle?: string;
-  timeLabel?: string;
-  currentUserId: string;
-  limit?: number;
-  maxChars?: number;
-}): Promise<void> {
-  logger.crumb('summarizeMessages starting', {
-    postId,
-    channelId,
-    startTime,
-    limit,
-    maxChars,
-  });
-
-  try {
-    let combinedText: string;
-    let summaryPrefix: string;
-
-    // Reduce character limit for channel summaries to avoid overwhelming model
-    const effectiveMaxChars = channelId ? Math.min(maxChars, 6000) : maxChars;
-
-    // Thread summarization
-    if (postId) {
-      logger.crumb('thread summarization mode', { postId });
-      const post = await db.getPost({ postId });
-      if (!post || !post.textContent) {
-        const error = new Error('Post not found or has no text content');
-        logger.trackError('summarizeMessages: post fetch failed', {
-          postId,
-          postFound: !!post,
-          hasTextContent: post?.textContent ? 'yes' : 'no',
-        });
-        throw error;
-      }
-
-      const hasReplies = post.replyCount && post.replyCount > 0;
-      if (!hasReplies) {
-        combinedText = post.textContent;
-        logger.crumb('single post, no replies', {
-          textLength: combinedText.length,
-        });
-      } else {
-        try {
-          const replies = await db.getThreadPosts({ parentId: post.id });
-          logger.crumb('fetched thread replies', { count: replies.length });
-          const allMessages = [
-            `${post.authorId}: ${post.textContent}`,
-            ...replies
-              .filter((reply) => reply.textContent)
-              .map((reply) => `${reply.authorId}: ${reply.textContent}`),
-          ];
-          combinedText = allMessages.join('\n\n');
-          logger.crumb('combined thread messages', {
-            totalMessages: allMessages.length,
-            textLength: combinedText.length,
-          });
-        } catch (error) {
-          logger.trackError('Error fetching thread for summarization', error);
-          combinedText = post.textContent;
-        }
-      }
-      summaryPrefix = 'AI Summary:';
-    }
-    // Channel time range summarization
-    else if (channelId && startTime !== undefined) {
-      logger.crumb('channel time range summarization mode', {
-        channelId,
-        startTime,
-        limit,
-      });
-      const posts = await db.getChannelPostsByTimeRange({
-        channelId,
-        startTime,
-        limit,
-      });
-
-      logger.crumb('fetched channel posts', { count: posts.length });
-
-      if (posts.length === 0) {
-        const error = new Error('No messages found in time range');
-        logger.trackError('summarizeMessages: no posts in time range', {
-          channelId,
-          startTime,
-          limit,
-        });
-        throw error;
-      }
-
-      const allMessages = posts
-        .filter((post: db.Post) => post.textContent)
-        .map((post: db.Post) => {
-          return `${post.authorId}: ${post.textContent}`;
-        });
-
-      combinedText = allMessages.join('\n\n');
-      summaryPrefix = `AI Summary of ${channelTitle || 'channel'}${timeLabel ? ` (${timeLabel})` : ''}:`;
-
-      logger.crumb('combined channel messages', {
-        totalMessages: allMessages.length,
-        textLength: combinedText.length,
-      });
-    } else {
-      const error = new Error(
-        'Must provide either postId or (channelId + startTime)'
-      );
-      logger.trackError('summarizeMessages: invalid parameters', {
-        hasPostId: !!postId,
-        hasChannelId: !!channelId,
-        hasStartTime: startTime !== undefined,
-      });
-      throw error;
-    }
-
-    // Apply character limit
-    const originalLength = combinedText.length;
-    if (combinedText.length > effectiveMaxChars) {
-      combinedText =
-        combinedText.substring(0, effectiveMaxChars) +
-        '\n\n[... conversation truncated ...]';
-      logger.crumb('text truncated', {
-        originalLength,
-        truncatedLength: combinedText.length,
-        effectiveMaxChars,
-      });
-    }
-
-    // Call AI API
-    logger.crumb('calling AI API for summarization', {
-      textLength: combinedText.length,
-    });
-    const response = await api.summarizeMessage({ messageText: combinedText });
-
-    logger.crumb('AI API response received', {
-      hasError: !!response.error,
-      hasSummary: !!response.summary,
-      summaryLength: response.summary?.length,
-    });
-
-    if (response.error || !response.summary) {
-      const errorMessage = response.error || 'No summary returned';
-      logger.trackError('summarizeMessages: AI API returned error', {
-        error: errorMessage,
-        responseError: response.error,
-        hasSummary: !!response.summary,
-        // Include full error details from OpenRouter API
-        errorDetails: response.errorDetails,
-        responseStatus: response.errorDetails?.responseStatus,
-        responseData: response.errorDetails?.responseData,
-        responseHeaders: response.errorDetails?.responseHeaders,
-      });
-      throw new Error(errorMessage);
-    }
-
-    // Send DM to self
-    logger.crumb('sending summary DM', {
-      summaryLength: response.summary.length,
-      currentUserId,
-    });
-    await api.sendPost({
-      channelId: currentUserId,
-      authorId: currentUserId,
-      sentAt: Date.now(),
-      content: [
-        {
-          inline: [`${summaryPrefix}\n\n${response.summary}`],
-        },
-      ],
-    });
-
-    logger.crumb('summarizeMessages completed successfully');
-  } catch (error) {
-    logger.trackError('summarizeMessages failed', {
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
-      errorType: error?.constructor?.name,
-      errorStack: error instanceof Error ? error.stack : undefined,
-      postId,
-      channelId,
-      startTime,
-    });
-    logger.error('summarizeMessages error', {
-      error,
-      message: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
   }
 }

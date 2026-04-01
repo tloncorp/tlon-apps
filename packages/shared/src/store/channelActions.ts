@@ -1,15 +1,15 @@
-import * as api from '../api';
+import * as api from '@tloncorp/api';
 import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
-} from '../api/channelContentConfig';
-import { TimeoutError } from '../api/urbit';
+} from '@tloncorp/api';
+import { TimeoutError } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { GroupChannelV7, getChannelKindFromType } from '../urbit';
+import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -56,6 +56,7 @@ export async function createChannel({
     groupId,
     addedToGroupAt: Date.now(),
     currentUserIsMember: true,
+    currentUserIsHost: true,
     contentConfiguration:
       contentConfiguration ??
       channelContentConfigurationForChannelType(channelType),
@@ -267,6 +268,72 @@ export async function updateChannel({
   } catch (e) {
     console.error('Failed to update channel', e);
     await db.updateChannel(channel);
+  }
+}
+
+export async function pinPostToChannel({
+  channel,
+  postId,
+}: {
+  channel: db.Channel;
+  postId: string;
+}) {
+  if (!channel.groupId) {
+    throw new Error('Cannot pin posts in DM channels');
+  }
+
+  const previousOrder = channel.order ?? [];
+  const nextOrder = [postId, ...previousOrder.filter((id) => id !== postId)];
+
+  // Optimistic local update
+  await db.updateChannel({
+    id: channel.id,
+    order: nextOrder,
+  });
+
+  try {
+    await api.setOrder(channel.id, nextOrder);
+  } catch (e) {
+    console.error('Failed to pin post', e);
+    // Rollback optimistic update
+    await db.updateChannel({
+      id: channel.id,
+      order: previousOrder,
+    });
+  }
+}
+
+export async function unpinPostFromChannel({
+  channel,
+}: {
+  channel: db.Channel;
+}) {
+  if (!channel.groupId) {
+    throw new Error('Cannot unpin posts in DM channels');
+  }
+
+  const previousOrder = channel.order ?? [];
+  const previousPinnedPostId = logic.getPinnedPostId(channel);
+  if (!previousPinnedPostId) {
+    return;
+  }
+  const nextOrder = previousOrder.filter((id) => id !== previousPinnedPostId);
+
+  // Optimistic local update
+  await db.updateChannel({
+    id: channel.id,
+    order: nextOrder,
+  });
+
+  try {
+    await api.setOrder(channel.id, nextOrder);
+  } catch (e) {
+    console.error('Failed to unpin post', e);
+    // Rollback optimistic update
+    await db.updateChannel({
+      id: channel.id,
+      order: previousOrder,
+    });
   }
 }
 

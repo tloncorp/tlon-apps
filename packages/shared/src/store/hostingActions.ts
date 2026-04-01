@@ -1,4 +1,15 @@
-import * as api from '../api';
+import {
+  getLandscapeAuthCookie,
+  HostingError,
+  checkPhoneVerify as checkPhoneVerifyApi,
+  clearShipRevivalStatus as clearHostedShipRevivalStatus,
+  getHostingUser,
+  getNodeStatus,
+  getShipAccessCode,
+  logInHostingUser,
+  requestPhoneVerify as requestPhoneVerifyApi,
+  signUpHostingUser,
+} from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
@@ -27,7 +38,7 @@ export async function signUpHostedUser(params: {
   };
 }): Promise<HostingAccountIssue | undefined> {
   try {
-    const user = await api.signUpHostingUser({
+    const user = await signUpHostingUser({
       ...params,
       lure: params.inviteId,
       recaptchaToken: params.recaptcha.token,
@@ -38,7 +49,7 @@ export async function signUpHostedUser(params: {
       return HostingAccountIssue.RequiresVerification;
     }
   } catch (err) {
-    if (err instanceof api.HostingError) {
+    if (err instanceof HostingError) {
       if (err.details.status === 409) {
         // we don't gracefully handle no inventory this far in the flow,
         // but we should track it
@@ -62,7 +73,7 @@ export async function requestPhoneVerify(phoneNumber: string): Promise<void> {
     throw new Error('Cannot request phone verify, no user ID found');
   }
 
-  await api.requestPhoneVerify(userId, phoneNumber);
+  await requestPhoneVerifyApi(userId, phoneNumber);
 }
 
 export async function checkPhoneVerify(code: string) {
@@ -74,7 +85,7 @@ export async function checkPhoneVerify(code: string) {
     throw new Error('Cannot check phone verify, no user ID found');
   }
 
-  await api.checkPhoneVerify(userId, code);
+  await checkPhoneVerifyApi(userId, code);
 }
 
 export async function checkAccountStatus(): Promise<HostingAccountIssue | null> {
@@ -86,7 +97,7 @@ export async function checkAccountStatus(): Promise<HostingAccountIssue | null> 
     throw new Error('Cannot check account status, no user ID found');
   }
 
-  const user = await api.getHostingUser(userId);
+  const user = await getHostingUser(userId);
 
   if (user.requirePhoneNumberVerification && !user.phoneNumberVerifiedAt) {
     logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
@@ -125,7 +136,7 @@ export async function logInHostedUser({
   }
 
   logger.log('logging in hosted user', { email, phoneNumber, otp, password });
-  const user = await api.logInHostingUser({
+  const user = await logInHostingUser({
     otp,
     password,
     email,
@@ -173,7 +184,7 @@ export async function checkHostingNodeStatus(
 
   try {
     const { status: nodeStatus, showWayfinding } =
-      await api.getNodeStatus(nodeId);
+      await getNodeStatus(nodeId);
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
     }
@@ -223,7 +234,7 @@ export async function authenticateWithReadyNode(
   let accessCode = preloadedCode;
   if (!accessCode) {
     try {
-      const result = await api.getShipAccessCode(nodeId);
+      const result = await getShipAccessCode(nodeId);
       accessCode = result.code;
     } catch (e) {
       logger.trackError(AnalyticsEvent.LoginDebug, {
@@ -238,7 +249,7 @@ export async function authenticateWithReadyNode(
   let authCookie = null;
   try {
     authCookie = await withRetry(
-      () => api.getLandscapeAuthCookie(nodeUrl, accessCode),
+      () => getLandscapeAuthCookie(nodeUrl, accessCode),
       { numOfAttempts: 5 }
     );
   } catch (e) {
@@ -283,5 +294,5 @@ export async function clearShipRevivalStatus() {
 
   // note: the Hosting api only lets us blindly toggle the revival status,
   // not explicitly clear it
-  await api.clearShipRevivalStatus(nodeId);
+  await clearHostedShipRevivalStatus(nodeId);
 }

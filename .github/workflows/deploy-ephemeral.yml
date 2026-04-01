@@ -28,6 +28,8 @@ jobs:
 
       - name: Build packages
         run: pnpm build:all
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
 
       - working-directory: ./apps/tlon-web
         run: pnpm build

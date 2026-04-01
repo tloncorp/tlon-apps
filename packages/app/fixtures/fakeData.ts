@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { PlaintextPreviewConfig, getTextContent } from '@tloncorp/shared/logic';
-import type { Story } from '@tloncorp/shared/urbit';
+import type { Story } from '@tloncorp/api/urbit';
 import { render, da } from '@urbit/aura';
 import seedrandom from 'seedrandom';
 

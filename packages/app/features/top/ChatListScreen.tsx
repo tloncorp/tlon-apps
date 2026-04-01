@@ -5,7 +5,7 @@ import {
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { markInvitesRead } from '@tloncorp/shared/api';
+import { markInvitesRead } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -14,12 +14,14 @@ import { Keyboard } from 'react-native';
 import { ColorTokens, Text, YStack, useTheme } from 'tamagui';
 
 import { TLON_EMPLOYEE_GROUP } from '../../constants';
+import { useChatListSettleTelemetry } from '../../hooks/useChatListSettleTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { TabName } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { reportChatListFirstPaint } from '../../lib/chatListSettleTelemetry';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -110,29 +112,19 @@ export function ChatListScreenView({
   );
 
   const connStatus = store.useConnectionStatus();
-  const isSyncing = store.useIsSyncing();
-  const notReadyMessage: string | null = useMemo(() => {
-    // if not fully connected yet, show status
-    // if (connStatus !== 'Connected') {
-    //   return `${connStatus}...`;
-    // }
 
-    if (isSyncing) {
-      return 'Syncing...';
-    }
-
-    // if still loading the screen data, show loading
+  const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
+    useSyncStatus();
+  const loadingSubtitle = useMemo(() => {
+    const haveChats = !!chats?.pinned.length || !!chats?.unpinned.length;
     if (
-      !chats ||
-      (!chats.unpinned.length && !chats.pinned.length && !chats.pending.length)
+      syncLoadingSubtitle &&
+      (!haveChats || syncLoadingSubtitle?.toLowerCase().includes('sync'))
     ) {
-      return 'Loading...';
+      return syncLoadingSubtitle;
     }
-
-    return null;
-  }, [isSyncing, chats]);
-
-  const { subtitle: syncSubtitle } = useSyncStatus();
+    return chats ? null : 'Loading...';
+  }, [syncLoadingSubtitle, chats]);
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
   const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -220,9 +212,19 @@ export function ChatListScreenView({
 
   useEffect(() => {
     if (isFocused) {
-      markInvitesRead();
+      setTimeout(() => {
+        store.syncQueue.add(
+          'markInvitesRead',
+          { priority: store.SyncPriority.Medium },
+          async () => {
+            markInvitesRead();
+          }
+        );
+      }, 1000);
     }
   }, [isFocused]);
+
+  useChatListSettleTelemetry({ chats, isFocused });
 
   useEffect(() => {
     if (isTlonEmployee && TLON_EMPLOYEE_GROUP !== '') {
@@ -277,6 +279,11 @@ export function ChatListScreenView({
     searchQuery,
     activeTab,
   });
+  const handleChatListLoad = useCallback(() => {
+    if (chats) {
+      reportChatListFirstPaint();
+    }
+  }, [chats]);
 
   return (
     <RequestsProvider
@@ -295,6 +302,7 @@ export function ChatListScreenView({
             <ScreenHeader
               title="Home"
               subtitle={syncSubtitle}
+              loadingSubtitle={loadingSubtitle}
               showSubtitle={true}
               leftControls={
                 personalInvite ? (
@@ -346,7 +354,11 @@ export function ChatListScreenView({
                     onPressTryAll={handlePressTryAll}
                   />
                 ) : (
-                  <ChatList data={displayData} onPressItem={onPressChat} />
+                  <ChatList
+                    data={displayData}
+                    onPressItem={onPressChat}
+                    onLoad={handleChatListLoad}
+                  />
                 )}
               </>
             ) : null}

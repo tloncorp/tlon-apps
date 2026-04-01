@@ -129,16 +129,19 @@ const reactNativeWeb =
 
       if (code.includes('@flow')) code = flowRemoveTypes(code).toString();
 
-      return (
-        await transformWithEsbuild(code, id, {
-          loader: loader['.js'],
-          tsconfigRaw: {
-            compilerOptions: {
-              jsx: 'react-jsx',
-            },
+      const transformed = await transformWithEsbuild(code, id, {
+        loader: loader['.js'],
+        tsconfigRaw: {
+          compilerOptions: {
+            jsx: 'react-jsx',
           },
-        })
-      ).code;
+        },
+      });
+
+      return {
+        code: transformed.code,
+        map: transformed.map ?? null,
+      };
     },
   });
 

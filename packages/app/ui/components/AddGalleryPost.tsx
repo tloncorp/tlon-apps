@@ -1,7 +1,9 @@
 import { Attachment } from '@tloncorp/shared/domain';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { useCallback } from 'react';
+import { isWeb } from 'tamagui';
 
+import { pickFile } from '../../utils/filepicker';
+import { useAttachmentContext } from '../contexts';
 import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import { GalleryRoute } from './draftInputs/shared';
@@ -9,21 +11,34 @@ import { GalleryRoute } from './draftInputs/shared';
 export default function AddGalleryPost({
   route,
   setRoute,
-  onSetImage,
+  onSetMedia,
 }: {
   route: GalleryRoute;
   setRoute: (route: GalleryRoute) => void;
-  onSetImage: (assets: ImagePickerAsset[]) => void;
+  onSetMedia: (assets: Attachment.UploadIntent[]) => void;
 }) {
+  const { attachAssets } = useAttachmentContext();
+
+  const openWebFilePicker = useCallback(async () => {
+    setRoute('gallery');
+    const { uploadIntents } = await pickFile();
+    if (uploadIntents.length > 0) {
+      attachAssets(uploadIntents);
+      onSetMedia(uploadIntents);
+    }
+  }, [setRoute, attachAssets, onSetMedia]);
+
   const actions: Action[] = [
     {
-      title: 'Image',
-      action: () => {
-        setRoute('gallery');
-        setTimeout(() => {
-          setRoute('add-attachment');
-        }, 300);
-      },
+      title: 'Media or File',
+      action: isWeb
+        ? openWebFilePicker
+        : () => {
+            setRoute('gallery');
+            setTimeout(() => {
+              setRoute('add-attachment');
+            }, 300);
+          },
       testID: 'AddGalleryPostImage',
     },
     {
@@ -42,11 +57,11 @@ export default function AddGalleryPost({
     },
   ];
 
-  const handleImageSet = useCallback(
+  const handleAttachmentSet = useCallback(
     (assets: Attachment.UploadIntent[]) => {
-      onSetImage(Attachment.UploadIntent.extractImagePickerAssets(assets));
+      onSetMedia(assets);
     },
-    [onSetImage]
+    [onSetMedia]
   );
 
   const onClose = useCallback(
@@ -65,12 +80,16 @@ export default function AddGalleryPost({
         onOpenChange={onClose}
         actions={actions}
       />
-      <AttachmentSheet
-        isOpen={route === 'add-attachment'}
-        onOpenChange={onClose}
-        onAttach={handleImageSet}
-        mediaType="image"
-      />
+      {/* On web, "Media or File" opens the system file picker directly,
+          so AttachmentSheet is only needed on mobile. */}
+      {!isWeb && (
+        <AttachmentSheet
+          isOpen={route === 'add-attachment'}
+          onOpenChange={onClose}
+          onAttach={handleAttachmentSet}
+          mediaType="all"
+        />
+      )}
     </>
   );
 }

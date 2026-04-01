@@ -2,16 +2,17 @@ import * as db from '@tloncorp/shared/db';
 import React, { useEffect } from 'react';
 import { useValue } from 'react-cosmos/client';
 
-import {
-  SplashSequence,
-  WelcomePane,
-  GroupsPane,
-  ChannelsPane,
-  PrivacyPane,
-  InvitePane,
-  InviteContactsContent,
-} from '../ui/components/Wayfinding/SplashSequence';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
+import {
+  ChannelsPane,
+  GroupsPane,
+  InviteContactsContent,
+  InvitePane,
+  PrivacyPane,
+  SplashSequence,
+  TlonBotPane,
+  WelcomePane,
+} from '../ui/components/Wayfinding/SplashSequence';
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialSystemContacts } from './fakeData';
 
@@ -20,11 +21,15 @@ function SplashSequenceFixture() {
     console.log('Splash sequence completed');
   }, []);
 
+  const [hostingBotEnabled] = useValue('Enable Hosting Bot', {
+    defaultValue: true,
+  });
+
   return (
     <FixtureWrapper fillWidth fillHeight>
       <SplashSequence
         onCompleted={handleCompleted}
-        systemContacts={initialSystemContacts}
+        hostingBotEnabled={hostingBotEnabled}
       />
     </FixtureWrapper>
   );
@@ -44,7 +49,9 @@ function InviteContactsFixture() {
     if (isLoading) {
       db.personalInviteLink.setValue(null);
     } else {
-      db.personalInviteLink.setValue('https://join.tlon.io/example-invite-link');
+      db.personalInviteLink.setValue(
+        'https://join.tlon.io/example-invite-link'
+      );
     }
   }, [isLoading]);
 
@@ -60,20 +67,21 @@ function InviteContactsFixture() {
   );
 }
 
-const mockDeviceSize = {
-  isTiny: false,
-  isSmall: false,
-  height: 800,
-};
-
 function WelcomePaneFixture() {
   const handleAction = React.useCallback(() => {
     console.log('Welcome pane action pressed');
   }, []);
 
+  const [hostingBotEnabled] = useValue('Enable Hosting Bot', {
+    defaultValue: true,
+  });
+
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <WelcomePane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+      <WelcomePane
+        onActionPress={handleAction}
+        hostingBotEnabled={hostingBotEnabled}
+      />
     </FixtureWrapper>
   );
 }
@@ -85,7 +93,7 @@ function GroupsPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <GroupsPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+      <GroupsPane onActionPress={handleAction} hostingBotEnabled />
     </FixtureWrapper>
   );
 }
@@ -97,7 +105,7 @@ function ChannelsPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <ChannelsPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+      <ChannelsPane onActionPress={handleAction} hostingBotEnabled />
     </FixtureWrapper>
   );
 }
@@ -109,7 +117,19 @@ function PrivacyPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <PrivacyPane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+      <PrivacyPane onActionPress={handleAction} />
+    </FixtureWrapper>
+  );
+}
+
+function TlonBotPaneFixture() {
+  const handleAction = React.useCallback(() => {
+    console.log('TlonBot pane action pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <TlonBotPane onActionPress={handleAction} />
     </FixtureWrapper>
   );
 }
@@ -121,7 +141,7 @@ function InvitePaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <InvitePane onActionPress={handleAction} deviceSize={mockDeviceSize} />
+      <InvitePane onActionPress={handleAction} />
     </FixtureWrapper>
   );
 }
@@ -143,6 +163,7 @@ export default {
   'Groups Pane': <GroupsPaneFixture />,
   'Channels Pane': <ChannelsPaneFixture />,
   'Privacy Pane': <PrivacyPaneFixture />,
+  'TlonBot Pane': <TlonBotPaneFixture />,
   'Invite Pane': <InvitePaneFixture />,
   'Splash Modal': <SplashModalFixture />,
 };

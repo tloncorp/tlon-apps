@@ -1,15 +1,18 @@
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGroup } from '@tloncorp/shared';
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, YStack } from 'tamagui';
 
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { TextInput } from '../../ui/components/Form';
 import { ListItem } from '../../ui/components/ListItem';
-import { groupRolesToOptions } from '../../ui/components/ManageChannels/channelFormUtils';
+import {
+  MEMBER_ROLE_OPTION,
+  groupRolesToOptions,
+} from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
 
 export function SelectChannelRolesScreen() {
@@ -24,8 +27,11 @@ export function SelectChannelRolesScreen() {
     useRoute<RouteProp<GroupSettingsStackParamList, 'SelectChannelRoles'>>();
   const insets = useSafeAreaInsets();
 
-  const { groupId, selectedRoleIds: initialRoleIds, createdRoleId } =
-    route.params;
+  const {
+    groupId,
+    selectedRoleIds: initialRoleIds,
+    createdRoleId,
+  } = route.params;
 
   const [selectedRoleIds, setSelectedRoleIds] =
     useState<string[]>(initialRoleIds);
@@ -41,10 +47,12 @@ export function SelectChannelRolesScreen() {
   const { data: group } = useGroup({ id: groupId });
 
   const allRoles = useMemo(
-    () =>
-      groupRolesToOptions(group?.roles ?? []).filter(
+    () => [
+      ...groupRolesToOptions(group?.roles ?? []).filter(
         (role) => role.value !== 'admin'
       ),
+      MEMBER_ROLE_OPTION,
+    ],
     [group?.roles]
   );
 
@@ -53,9 +61,7 @@ export function SelectChannelRolesScreen() {
       return allRoles;
     }
     const query = searchQuery.toLowerCase();
-    return allRoles.filter((role) =>
-      role.label.toLowerCase().includes(query)
-    );
+    return allRoles.filter((role) => role.label.toLowerCase().includes(query));
   }, [allRoles, searchQuery]);
 
   const handleToggleRole = useCallback((roleId: string) => {
@@ -116,6 +122,15 @@ export function SelectChannelRolesScreen() {
       <ScreenHeader
         title="Select roles"
         backAction={() => navigation.goBack()}
+        rightControls={
+          <ScreenHeader.TextButton
+            onPress={handleSave}
+            color="$positiveActionText"
+            testID="RoleSelectionSaveButton"
+          >
+            Save
+          </ScreenHeader.TextButton>
+        }
       />
       <YStack flex={1} padding="$xl" gap="$xl">
         <TextInput
@@ -137,6 +152,7 @@ export function SelectChannelRolesScreen() {
                   key={role.value}
                   onPress={() => handleToggleRole(role.value)}
                   borderRadius="$xl"
+                  testID={`RoleOption-${role.label}`}
                 >
                   <ListItem
                     backgroundColor={
@@ -168,12 +184,7 @@ export function SelectChannelRolesScreen() {
           </YStack>
         </ScrollView>
         <YStack gap="$m" paddingBottom={insets.bottom}>
-          <Button
-            preset="secondary"
-            onPress={handleCreateRole}
-            label="Create new role"
-          />
-          <Button preset="primary" onPress={handleSave} label="Save" testID="RoleSelectionSaveButton" />
+          <Button onPress={handleCreateRole} label="Create new role" />
         </YStack>
       </YStack>
     </View>

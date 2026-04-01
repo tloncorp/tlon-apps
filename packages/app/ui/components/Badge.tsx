@@ -1,8 +1,9 @@
 import { Pressable } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
-import { ColorTokens, SizableText, View } from 'tamagui';
+import { ColorTokens, SizableText, SizeTokens, View } from 'tamagui';
 
 export type BadgeType = 'positive' | 'warning' | 'neutral' | 'tertiary';
+export type BadgeSize = 'default' | 'micro';
 
 const badgeBackground: Record<BadgeType, ColorTokens | 'unset'> = {
   positive: '$positiveBackground',
@@ -18,21 +19,33 @@ const badgeText: Record<BadgeType, ColorTokens> = {
   tertiary: '$secondaryText',
 };
 
+const badgePaddingVertical: Record<BadgeSize, SizeTokens> = {
+  default: '$xs',
+  micro: '$2xs',
+};
+
+const badgePaddingHorizontal: Record<BadgeSize, SizeTokens> = {
+  default: '$l',
+  micro: '$m',
+};
+
 export function Badge({
   text,
   type = 'positive',
+  size = 'default',
   onPress,
   ...props
 }: {
   text: string;
   type?: BadgeType;
+  size?: BadgeSize;
   onPress?: (e: React.MouseEvent | React.TouchEvent) => void;
 } & ComponentProps<typeof View>) {
   const content = (
     <View
       backgroundColor={badgeBackground[type]}
-      paddingVertical="$xs"
-      paddingHorizontal="$l"
+      paddingVertical={badgePaddingVertical[size]}
+      paddingHorizontal={badgePaddingHorizontal[size]}
       borderRadius="$xl"
       {...props}
     >

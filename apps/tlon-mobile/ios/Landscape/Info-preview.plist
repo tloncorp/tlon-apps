@@ -91,6 +91,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We need permission to transcribe voice memos in your messages</string>
 	<key>branch_key</key>
 	<dict>
 		<key>live</key>

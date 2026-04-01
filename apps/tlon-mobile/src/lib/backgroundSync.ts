@@ -1,6 +1,11 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { runMigrations, setupDb } from '@tloncorp/app/lib/nativeDb';
-import { createDevLogger, syncSince } from '@tloncorp/shared';
+import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import {
+  SyncPriority,
+  createDevLogger,
+  flushErrorLogger,
+  syncSince,
+} from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
@@ -12,8 +17,7 @@ import { refreshHostingAuth } from './hostingAuth';
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
-  await setupDb();
-  await runMigrations();
+  await ensureDbReady();
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {
@@ -47,20 +51,29 @@ async function performSync() {
     authType: shipInfo.authType,
   });
 
+  let didSucceed = false;
+
   try {
-    // use the background task as an opportunity to refresh hosting auth
-    const authPromise = refreshHostingAuth()
-      .then(() => logger.trackEvent('Background task: refreshed hosting auth'))
-      .catch((err) =>
-        logger.trackError('Background task: failed to refresh hosting auth', {
-          error: err,
-        })
-      );
+    // TODO: re-enable when confirmed not causing hangs on Android
+    // // use the background task as an opportunity to refresh hosting auth
+    // const authPromise = refreshHostingAuth().catch((err) =>
+    //   logger.trackError('Background task: failed to refresh hosting auth', {
+    //     error: err,
+    //   })
+    // );
+
     const changesStart = Date.now();
-    await syncSince({ callCtx: { cause: 'background-sync' } });
+    await syncSince({
+      callCtx: { cause: 'background-sync' },
+      syncCtx: {
+        priority: SyncPriority.High,
+      },
+    });
     timings.changesDuration = Date.now() - changesStart;
     logger.trackEvent('Background sync complete', { taskExecutionId });
-    await authPromise;
+    didSucceed = true;
+
+    // await authPromise;
   } catch (err) {
     logger.trackError('Background sync failed', {
       error: err instanceof Error ? err : undefined,
@@ -71,7 +84,13 @@ async function performSync() {
       duration: Date.now() - timings.start,
       changesDuration: timings.changesDuration,
       taskExecutionId,
+      didSucceed,
     });
+    // flush telemetry so events are sent now, not deferred until next foreground
+    await Promise.race([
+      flushErrorLogger(),
+      new Promise<void>((resolve) => setTimeout(resolve, 500)),
+    ]).catch(() => {});
   }
 }
 

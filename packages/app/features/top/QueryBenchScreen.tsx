@@ -1,6 +1,6 @@
-import { toContactsData, toInitData } from '@tloncorp/shared/api';
+import { toContactsData, toInitData } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import type * as ub from '@tloncorp/shared/urbit';
+import type * as ub from '@tloncorp/api/urbit';
 import { Button, Text, View } from '@tloncorp/ui';
 import { useMemo, useState } from 'react';
 import { ScrollView } from 'react-native';

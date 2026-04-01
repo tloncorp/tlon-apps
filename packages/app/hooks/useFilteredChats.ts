@@ -1,10 +1,18 @@
 import { configurationFromChannel, useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { TalkSidebarFilter } from '@tloncorp/shared/urbit';
+import { TalkSidebarFilter } from '@tloncorp/api/urbit';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 
+import {
+  ChatSearchCandidate,
+  ChatSearchFuzzyScore,
+  hasAllChatSearchTokens,
+  normalizeChatSearchString,
+  rankChatSearchCandidates,
+  tokenizeChatSearchQuery,
+} from './chatSearchRanking';
 import { useCalm } from '../ui';
 import { getChannelTitle, getGroupTitle } from '../ui';
 
@@ -20,6 +28,10 @@ export type SectionedChatData = {
   title: string;
   data: db.Chat[];
 }[];
+
+type ChatSearchDoc = ChatSearchCandidate & {
+  chat: db.Chat;
+};
 
 function getAllSectionHeader(
   activeTab: TabName,
@@ -49,18 +61,60 @@ export function useFilteredChats({
   searchQuery: string;
   activeTab: TabName;
 }): SectionedChatData {
-  const performSearch = useChatSearch({ pinned, unpinned, pending });
-  const debouncedQuery = useDebouncedValue(searchQuery, 200);
-  const searchResults = useMemo(
-    () => performSearch(debouncedQuery),
-    [debouncedQuery, performSearch]
-  );
-
+  const { disableNicknames } = useCalm();
   const { data } = useMessagesFilter();
   const talkFilter = useMemo(
     () =>
       activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages',
     [data, activeTab]
+  );
+  const chats = useMemo(() => [...pinned, ...unpinned, ...pending], [
+    pinned,
+    unpinned,
+    pending,
+  ]);
+  const searchableChats = useMemo(
+    () => filterChats(chats, activeTab, talkFilter),
+    [chats, activeTab, talkFilter]
+  );
+  const getSearchTitle = useCallback(
+    (chat: db.Chat) => getChatTitle(chat, disableNicknames),
+    [disableNicknames]
+  );
+  const getSearchGroupTitle = useCallback(
+    (chat: db.Chat) => {
+      if (chat.type !== 'channel' || !chat.channel.group) {
+        return '';
+      }
+
+      return getGroupTitle(chat.channel.group, disableNicknames);
+    },
+    [disableNicknames]
+  );
+  const searchDocs = useMemo(
+    () =>
+      buildChatSearchDocs({
+        chats: searchableChats,
+        getChatTitle: getSearchTitle,
+        getGroupTitleForChat: getSearchGroupTitle,
+      }),
+    [searchableChats, getSearchTitle, getSearchGroupTitle]
+  );
+  const searchFuse = useMemo(() => createChatSearchFuse(searchDocs), [searchDocs]);
+  const performSearch = useCallback(
+    (query: string) => {
+      return searchChatDocs({
+        docs: searchDocs,
+        fuse: searchFuse,
+        query,
+      });
+    },
+    [searchDocs, searchFuse]
+  );
+  const debouncedQuery = useDebouncedValue(searchQuery, 200);
+  const searchResults = useMemo(
+    () => performSearch(debouncedQuery),
+    [debouncedQuery, performSearch]
   );
 
   return useMemo(() => {
@@ -81,7 +135,7 @@ export function useFilteredChats({
       return [
         {
           title: 'Search results',
-          data: filterChats(searchResults, activeTab, talkFilter),
+          data: searchResults,
         },
       ];
     }
@@ -96,58 +150,90 @@ export function useFilteredChats({
   ]);
 }
 
-function useChatSearch({
-  pinned,
-  unpinned,
-  pending,
+function buildChatSearchDocs({
+  chats,
+  getChatTitle,
+  getGroupTitleForChat,
 }: {
-  pinned: db.Chat[];
-  unpinned: db.Chat[];
-  pending: db.Chat[];
-}) {
-  const { disableNicknames } = useCalm();
+  chats: db.Chat[];
+  getChatTitle: (chat: db.Chat) => string;
+  getGroupTitleForChat: (chat: db.Chat) => string;
+}): ChatSearchDoc[] {
+  return chats.map((chat) => {
+    const title = normalizeChatSearchString(getChatTitle(chat));
+    const groupTitle = normalizeChatSearchString(getGroupTitleForChat(chat));
+    const id = normalizeChatSearchString(chat.id);
 
-  const fuse = useMemo(() => {
-    const allData = [...pinned, ...unpinned, ...pending];
-    return new Fuse(allData, {
-      keys: [
-        {
-          name: 'title',
-          getFn: (chat: db.Chat) => {
-            const title = getChatTitle(chat, disableNicknames);
-            return Array.isArray(title)
-              ? title.map(normalizeString)
-              : normalizeString(title);
-          },
-        },
-        {
-          name: 'id',
-          getFn: (chat: db.Chat) => {
-            if (chat.type === 'channel') {
-              return normalizeString(chat.channel.id);
-            }
-            return normalizeString(chat.group.id);
-          },
-        },
-      ],
-    });
-  }, [pinned, unpinned, pending, disableNicknames]);
+    return {
+      chat,
+      id,
+      title,
+      groupTitle,
+      combined: `${title} ${groupTitle} ${id}`.trim(),
+      timestamp: chat.timestamp,
+    };
+  });
+}
 
-  function normalizeString(str: string) {
-    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function createChatSearchFuse(docs: ChatSearchDoc[]) {
+  return new Fuse(docs, {
+    includeScore: true,
+    ignoreLocation: true,
+    threshold: 0.45,
+    keys: [
+      { name: 'combined', weight: 0.75 },
+      { name: 'title', weight: 0.15 },
+      { name: 'groupTitle', weight: 0.08 },
+      { name: 'id', weight: 0.02 },
+    ],
+  });
+}
+
+function searchChatDocs({
+  docs,
+  fuse,
+  query,
+}: {
+  docs: ChatSearchDoc[];
+  fuse: Fuse<ChatSearchDoc>;
+  query: string;
+}): db.Chat[] {
+  const normalizedQuery = normalizeChatSearchString(query);
+  if (!normalizedQuery) {
+    return [];
   }
 
-  const performSearch = useCallback(
-    (query: string) => {
-      // necessary for web, otherwise fuse.search will throw
-      // an error
-      if (!query) return [];
-      return fuse.search(query).map((result) => result.item);
-    },
-    [fuse]
+  const tokens = tokenizeChatSearchQuery(query);
+  const fuzzyResults = fuse.search(normalizedQuery);
+
+  if (!tokens.length) {
+    return fuzzyResults.map((result) => result.item.chat);
+  }
+
+  const tokenMatchedCandidates = docs.filter((candidate) =>
+    hasAllChatSearchTokens(candidate, tokens)
   );
 
-  return performSearch;
+  if (!tokenMatchedCandidates.length) {
+    return fuzzyResults.map((result) => result.item.chat);
+  }
+
+  const fuzzyScores = new Map<string, ChatSearchFuzzyScore>(
+    fuzzyResults.map((result, rank) => [
+      result.item.id,
+      {
+        rank,
+        score: result.score ?? Number.POSITIVE_INFINITY,
+      },
+    ])
+  );
+
+  return rankChatSearchCandidates(
+    tokenMatchedCandidates,
+    tokens,
+    normalizedQuery,
+    fuzzyScores
+  ).map((candidate) => candidate.chat);
 }
 
 function filterChats(

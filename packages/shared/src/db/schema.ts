@@ -8,8 +8,23 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
-import { ChannelContentConfiguration } from '../api';
-import { ExtendedEventType, NotificationLevel, Rank } from '../urbit';
+import { ChannelContentConfiguration } from '@tloncorp/api';
+import {
+  BASE_UNREADS_SINGLETON_KEY as API_BASE_UNREADS_SINGLETON_KEY,
+  SETTINGS_SINGLETON_KEY as API_SETTINGS_SINGLETON_KEY,
+} from '@tloncorp/api/types/models';
+import type {
+  ActivityBucket as ApiActivityBucket,
+  AttestationDiscoverability as ApiAttestationDiscoverability,
+  AttestationStatus as ApiAttestationStatus,
+  AttestationType as ApiAttestationType,
+  ChannelType as ApiChannelType,
+  GroupJoinStatus as ApiGroupJoinStatus,
+  GroupPrivacy as ApiGroupPrivacy,
+  PinType as ApiPinType,
+  PostDeliveryStatus as ApiPostDeliveryStatus,
+} from '@tloncorp/api/types/models';
+import { ExtendedEventType, NotificationLevel, Rank } from '@tloncorp/api/urbit';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
@@ -28,7 +43,7 @@ const metaFields = {
   description: text('description'),
 };
 
-export const SETTINGS_SINGLETON_KEY = 'settings';
+export const SETTINGS_SINGLETON_KEY = API_SETTINGS_SINGLETON_KEY;
 export const settings = sqliteTable('settings', {
   id: text('id').primaryKey().default(SETTINGS_SINGLETON_KEY),
   theme: text('theme'),
@@ -238,9 +253,9 @@ export const contactAttestationRelations = relations(
   })
 );
 
-export type AttestationType = 'phone' | 'node' | 'twitter' | 'dummy';
-export type AttestationDiscoverability = 'public' | 'verified' | 'hidden';
-export type AttestationStatus = 'waiting' | 'pending' | 'verified';
+export type AttestationType = ApiAttestationType;
+export type AttestationDiscoverability = ApiAttestationDiscoverability;
+export type AttestationStatus = ApiAttestationStatus;
 export const attestations = sqliteTable(
   'attestations',
   {
@@ -348,7 +363,7 @@ export const groupUnreadsRelations = relations(groupUnreads, ({ one }) => ({
   }),
 }));
 
-export const BASE_UNREADS_SINGLETON_KEY = 'base_unreads';
+export const BASE_UNREADS_SINGLETON_KEY = API_BASE_UNREADS_SINGLETON_KEY;
 export const baseUnreads = sqliteTable('base_unreads', {
   id: text('id').primaryKey().default(BASE_UNREADS_SINGLETON_KEY),
   notify: boolean('notify'),
@@ -358,7 +373,7 @@ export const baseUnreads = sqliteTable('base_unreads', {
   notifTimestamp: text('notif_timestamp'), // used for ordering against notification identifiers (uid)
 });
 
-export type ActivityBucket = 'all' | 'mentions' | 'replies';
+export type ActivityBucket = ApiActivityBucket;
 export const activityEvents = sqliteTable(
   'activity_events',
   {
@@ -457,7 +472,7 @@ export const activityRelations = relations(activityEvents, ({ one, many }) => ({
   contactUpdateGroups: many(activityEventContactGroups),
 }));
 
-export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
+export type PinType = ApiPinType;
 export const pins = sqliteTable(
   'pins',
   {
@@ -483,8 +498,8 @@ export const pinRelations = relations(pins, ({ one }) => ({
   }),
 }));
 
-export type GroupJoinStatus = 'joining' | 'errored';
-export type GroupPrivacy = 'public' | 'private' | 'secret';
+export type GroupJoinStatus = ApiGroupJoinStatus;
+export type GroupPrivacy = ApiGroupPrivacy;
 
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
@@ -979,7 +994,7 @@ export const volumeSettings = sqliteTable(
   }
 );
 
-export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
+export type ChannelType = ApiChannelType;
 
 export const channels = sqliteTable(
   'channels',
@@ -1065,12 +1080,7 @@ export const channelRelations = relations(channels, ({ one, many }) => ({
   }),
 }));
 
-export type PostDeliveryStatus =
-  | 'enqueued'
-  | 'pending'
-  | 'sent'
-  | 'failed'
-  | 'needs_verification';
+export type PostDeliveryStatus = ApiPostDeliveryStatus;
 
 export const posts = sqliteTable(
   'posts',
@@ -1105,6 +1115,7 @@ export const posts = sqliteTable(
     hidden: boolean('hidden').default(false),
     isEdited: boolean('is_edited'),
     isDeleted: boolean('is_deleted'),
+    isBot: boolean('is_bot').default(false),
     isSequenceStub: boolean('is_sequence_stub').default(false),
     deletedAt: timestamp('deleted_at'),
     deliveryStatus: text('delivery_status').$type<PostDeliveryStatus>(),

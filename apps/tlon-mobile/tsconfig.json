@@ -6,7 +6,8 @@
     "tamagui.config.ts",
     "tamagui.d.ts",
     "index.js",
-    "svg.d.ts",
+    "assets.d.ts",
+    "svg.d.ts"
   ],
   "exclude": ["src/App.cosmos.tsx"],
   "compilerOptions": {

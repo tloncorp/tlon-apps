@@ -13,6 +13,7 @@ vi.mock('../reactQuery', () => ({
   queryClient: {
     invalidateQueries: vi.fn(),
   },
+  QueryClientProvider: ({ children }: { children: unknown }) => children,
 }));
 
 describe('blockingLogic', () => {

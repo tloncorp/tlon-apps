@@ -14,7 +14,7 @@ import {
   usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/store';
-import { Story } from '@tloncorp/shared/urbit';
+import { Story } from '@tloncorp/api/urbit';
 import React, {
   useCallback,
   useEffect,
@@ -24,6 +24,7 @@ import React, {
 } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import type { RootStackParamList } from '../../navigation/types';
@@ -234,6 +235,13 @@ export default function ChannelScreen(props: Props) {
       channel?.type !== 'chat' ? posts?.filter((p) => !p.isDeleted) : posts,
     [posts, channel]
   );
+  usePushNotifTapTelemetry({
+    channelId: currentChannelId,
+    posts: filteredPosts,
+    isFocused,
+    cursorPostId: cursor || null,
+    channelMode: cursor && !clearedCursor ? 'around' : 'newest',
+  });
 
   const handleDeletePost = useCallback(
     async (post: db.Post) => {
@@ -429,7 +437,7 @@ export default function ChannelScreen(props: Props) {
           selectedPostId={selectedPostId}
           goBack={navigationRef.current.goBack}
           goToPost={navigateToPost}
-          goToImageViewer={navigateToImage}
+          goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
           goToDm={handleGoToDm}

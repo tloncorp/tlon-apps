@@ -20,6 +20,29 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   ignorePatterns: ['dist', 'node_modules', '*.md'],
+  overrides: [
+    {
+      files: ['packages/api/src/**/*.{ts,tsx}'],
+      excludedFiles: [
+        'packages/api/src/**/__tests__/**',
+        'packages/api/src/**/test/**',
+      ],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: [
+              {
+                group: ['@tloncorp/shared', '@tloncorp/shared/*'],
+                message:
+                  'API package boundaries: imports from @tloncorp/shared are not allowed.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
   rules: {
     '@typescript-eslint/consistent-type-imports': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
@@ -71,11 +94,6 @@ module.exports = {
           'ImportSpecifier[imported.name="reset"][parent.parent.source.value="@react-navigation/native"]',
         message:
           'Please use the useTypedReset() hook instead of importing reset from @react-navigation/native for type safety.',
-      },
-      {
-        selector: 'ImportDeclaration > Literal[value=/^packages/]',
-        message:
-          'Do not import directly from the "packages" directory. Use the package name (or relative path, if within the same package) instead.',
       },
     ],
   },

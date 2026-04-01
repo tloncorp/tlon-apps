@@ -15,6 +15,7 @@ import { useFilteredChats } from '../../hooks/useFilteredChats';
 import { useGroupActions } from '../../hooks/useGroupActions';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useResolvedChats } from '../../hooks/useResolvedChats';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
 import {
   ChatOptionsProvider,
   GroupPreviewAction,
@@ -50,21 +51,18 @@ export const MessagesSidebar = memo(
 
     const { data: chats } = store.useCurrentChats();
     const { performGroupAction } = useGroupActions();
+    const { loadingSubtitle: syncLoadingSubtitle } = useSyncStatus();
 
     const connStatus = store.useConnectionStatus();
-    const notReadyMessage: string | null = useMemo(() => {
-      // if not fully connected yet, show status
-      if (connStatus !== 'Connected') {
-        return `${connStatus}...`;
+    const loadingSubtitle = useMemo(() => {
+      if (syncLoadingSubtitle) {
+        return syncLoadingSubtitle;
       }
-
-      // if still loading the screen data, show loading
       if (!chats || (!chats.unpinned.length && !chats.pinned.length)) {
         return 'Loading...';
       }
-
       return null;
-    }, [connStatus, chats]);
+    }, [syncLoadingSubtitle, chats]);
 
     /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
     const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -117,10 +115,6 @@ export const MessagesSidebar = memo(
       },
       [navigateToGroup, navigateToChannel]
     );
-
-    const handlePressAddChat = useCallback(() => {
-      createChatSheetRef.current?.open();
-    }, []);
 
     const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
       if (!open) {
@@ -186,7 +180,8 @@ export const MessagesSidebar = memo(
           <NavigationProvider focusedChannelId={focusedChannelId}>
             <View userSelect="none" flex={1}>
               <ScreenHeader
-                title={notReadyMessage ?? screenTitle}
+                title={screenTitle}
+                loadingSubtitle={loadingSubtitle}
                 leftControls={
                   <MessagesFilterMenu>
                     <ScreenHeader.IconButton type="Filter" />

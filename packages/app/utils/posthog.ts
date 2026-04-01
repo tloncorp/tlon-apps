@@ -58,6 +58,7 @@ posthogAsync?.then((client) => {
         sentryLogger.capture(event, data);
       }
     },
+    flush: async () => client.flush(),
   };
 
   useDebugStore.getState().initializeErrorLogger(compositeLogger);

@@ -1,7 +1,7 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
+import { JSONContent, Story } from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
-import { JSONContent, Story } from '@tloncorp/shared/urbit';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import { memo } from 'react';
@@ -20,7 +20,7 @@ import { useAttachmentContext } from '../../contexts/attachment';
 import { MentionOption } from '../BareChatInput/useMentions';
 import { MentionPopupRef } from '../MentionPopup';
 import Notices from '../Wayfinding/Notices';
-import { GalleryDraftType } from '../draftInputs/shared';
+import { GalleryDraftType, useDraftInputContext } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
 
@@ -173,7 +173,6 @@ export const MessageInputContainer = memo(
               <AttachmentButtonContainer>
                 <AttachmentButton
                   setShouldBlur={setShouldBlur}
-                  mediaType="all"
                 />
               </AttachmentButtonContainer>
             ) : null}

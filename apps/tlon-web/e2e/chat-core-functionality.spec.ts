@@ -96,6 +96,7 @@ test('should test comprehensive chat functionality', async ({
   // Mention a user in a message
   await zodPage.getByTestId('MessageInput').click();
   await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @ten');
+  await expect(zodPage.getByTestId('~ten-contact')).toBeVisible();
   await zodPage.getByTestId('~ten-contact').click();
   await zodPage.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
@@ -106,6 +107,7 @@ test('should test comprehensive chat functionality', async ({
   // Mention all in a message
   await zodPage.getByTestId('MessageInput').click();
   await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @all');
+  await expect(zodPage.getByTestId('-all--group')).toBeVisible();
   await zodPage.getByTestId('-all--group').click();
   await zodPage.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
@@ -116,10 +118,10 @@ test('should test comprehensive chat functionality', async ({
   // Mention a role in a message
   await zodPage.getByTestId('MessageInput').click();
   await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @admin');
+  await expect(zodPage.getByTestId('admin-group')).toBeVisible();
   await zodPage.getByTestId('admin-group').click();
   await zodPage.getByTestId('MessageInputSendButton').click();
   // Wait for message to appear
-  await zodPage.waitForTimeout(1000);
   await expect(
     zodPage.getByTestId('Post').getByText('mentioning @admin')
   ).toBeVisible();

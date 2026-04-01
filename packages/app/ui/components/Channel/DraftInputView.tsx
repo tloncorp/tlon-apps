@@ -1,7 +1,8 @@
-import { DraftInputId } from '@tloncorp/shared/api';
+import { DraftInputId } from '@tloncorp/api';
 
 import { useComponentsKitContext } from '../../contexts/componentsKits';
 import { DraftInputContext } from '../draftInputs';
+import { DraftInputContextProvider } from '../draftInputs/shared';
 
 export function DraftInputView(props: {
   draftInputContext: DraftInputContext;
@@ -10,6 +11,10 @@ export function DraftInputView(props: {
   const { inputs } = useComponentsKitContext();
   const InputComponent = inputs[props.type];
   if (InputComponent) {
-    return <InputComponent draftInputContext={props.draftInputContext} />;
+    return (
+      <DraftInputContextProvider value={props.draftInputContext}>
+        <InputComponent draftInputContext={props.draftInputContext} />
+      </DraftInputContextProvider>
+    );
   }
 }

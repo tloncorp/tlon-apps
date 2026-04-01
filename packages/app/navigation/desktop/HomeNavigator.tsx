@@ -18,7 +18,7 @@ import { ChatDetailsScreen } from '../../features/top/ChatDetailsScreen';
 import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { HomeEmptyState } from '../../features/top/DesktopEmptyStates';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
-import ImageViewerScreen from '../../features/top/ImageViewerScreen';
+import MediaViewerScreen from '../../features/top/MediaViewerScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
@@ -153,18 +153,21 @@ function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
   const navKey = () => {
-    if (props.route.params && 'channelId' in props.route.params) {
-      return props.route.params.channelId;
+    let channelId = 'none';
+    let selectedPostId = '';
+    const params = props.route.params;
+    if (params && 'channelId' in params) {
+      channelId = String(params.channelId ?? 'none');
+      if ('selectedPostId' in params && params.selectedPostId) {
+        selectedPostId = String(params.selectedPostId);
+      }
+    } else if (params?.params && 'channelId' in params.params) {
+      channelId = String(params.params.channelId ?? 'none');
+      if ('selectedPostId' in params.params && params.params.selectedPostId) {
+        selectedPostId = String(params.params.selectedPostId);
+      }
     }
-    if (
-      props.route.params &&
-      props.route.params.params &&
-      'channelId' in props.route.params.params
-    ) {
-      return props.route.params.params.channelId;
-    }
-
-    return 'none';
+    return selectedPostId ? `${channelId}:${selectedPostId}` : channelId;
   };
 
   return (
@@ -194,8 +197,8 @@ function ChannelStack(
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen
-          name="ImageViewer"
-          component={ImageViewerScreen}
+          name="MediaViewer"
+          component={MediaViewerScreen}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"

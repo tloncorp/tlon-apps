@@ -49,8 +49,8 @@ export const ItalicText = styled(RawText, {
 
 export const HighlightedText = styled(RawText, {
   name: 'HighlightedText',
-  backgroundColor: '$yellowSoft',
-  color: '$primaryText',
+  backgroundColor: '$positiveBackground',
+  color: '$positiveActionText',
 });
 
 export const MentionText = styled(Text, {

@@ -2,16 +2,16 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { render, da } from '@urbit/aura';
 //REVIEW  why doesn't this work here?
-// import { desig } from '@tloncorp/shared/urbit';
-import { desig } from '../../urbit';
+// import { desig } from '@tloncorp/api/urbit';
+import { desig } from '@tloncorp/api/urbit';
 import * as FileSystem from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
-import { RNFile, getCurrentUserId } from '../../api';
+import { RNFile, getCurrentUserId } from '@tloncorp/api';
+import { Attachment } from '@tloncorp/api/types/attachment';
 import * as db from '../../db';
 import { createDevLogger, escapeLog } from '../../debug';
 import { AnalyticsEvent } from '../../domain';
-import { Attachment } from '../../domain/attachment';
 import { setUploadState } from './storageUploadState';
 import {
   getExtensionFromMimeType,
@@ -23,6 +23,45 @@ import {
 const logger = createDevLogger('storageActions', false);
 
 export const PLACEHOLDER_ASSET_URI = 'placeholder-asset-id';
+
+function getVideoPosterMimeType(posterUri: string): string {
+  const normalizedUri = posterUri.toLowerCase();
+  if (normalizedUri.endsWith('.png')) {
+    return 'image/png';
+  }
+  if (normalizedUri.endsWith('.webp')) {
+    return 'image/webp';
+  }
+  return 'image/jpeg';
+}
+
+async function uploadVideoPoster(
+  posterUri: string | undefined,
+  isWeb: boolean
+): Promise<string | undefined> {
+  if (!posterUri) {
+    return undefined;
+  }
+  if (Attachment.isRemoteUri(posterUri)) {
+    return posterUri;
+  }
+  try {
+    return await performUpload(
+      {
+        uri: posterUri,
+        mimeType: getVideoPosterMimeType(posterUri),
+      },
+      isWeb
+    );
+  } catch (error) {
+    logger.trackError('video poster upload failed', {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      isWeb,
+    });
+    return undefined;
+  }
+}
 
 function getSaveFormat(mimeType?: string): SaveFormat {
   if (!mimeType) {
@@ -86,23 +125,35 @@ async function uploadAssetWithLifecycle(
   }
 ) {
   const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
+  const { isVideo, posterUri: localPosterUri } =
+    Attachment.UploadIntent.getVideoUploadMetadata(uploadIntent);
   callbacks.willUpload?.();
 
   setUploadState(uploadKey, {
     status: 'uploading',
     localUri: Attachment.UploadIntent.createLocalUri(uploadIntent),
   });
+  if (isVideo) {
+    logger.trackEvent(AnalyticsEvent.VideoUploadStarted, {
+      uploadKey,
+      isWeb,
+    });
+  }
   try {
-    const remoteUri = await performUpload(
-      await callbacks.prepareAsset(),
-      isWeb
-    );
+    const remoteUri = await performUpload(await callbacks.prepareAsset(), isWeb);
+    const posterUri = isVideo
+      ? await uploadVideoPoster(localPosterUri, isWeb)
+      : undefined;
     logger.crumb('upload succeeded');
     logger.trackEvent(AnalyticsEvent.AttachmentUploadSuccess, {
       remoteUri,
       isWeb,
     });
-    setUploadState(uploadKey, { status: 'success', remoteUri });
+    setUploadState(uploadKey, {
+      status: 'success',
+      remoteUri,
+      posterUri,
+    });
   } catch (e) {
     logger.trackError('upload failed', {
       error: e,
@@ -111,7 +162,17 @@ async function uploadAssetWithLifecycle(
       isWeb,
     });
     console.error(e);
-    setUploadState(uploadKey, { status: 'error', errorMessage: e.message });
+    setUploadState(uploadKey, {
+      status: 'error',
+      errorMessage: e.message,
+    });
+    if (isVideo) {
+      logger.trackEvent(AnalyticsEvent.VideoUploadFailed, {
+        uploadKey,
+        isWeb,
+        error: e.message,
+      });
+    }
   }
 }
 
@@ -234,13 +295,9 @@ export const performUpload = async (
     );
     return hostedUrl;
   } else if (hasCustomS3Creds(config, credentials)) {
-    const endpoint = new URL(prefixEndpoint(credentials.endpoint));
+    const endpointUrl = prefixEndpoint(credentials.endpoint);
     const client = new S3Client({
-      endpoint: {
-        protocol: endpoint.protocol.slice(0, -1),
-        hostname: endpoint.host,
-        path: endpoint.pathname || '/',
-      },
+      endpoint: endpointUrl,
       // us-east-1 is necessary for compatibility with other S3 providers (i.e., filebase)
       region: config.region || 'us-east-1',
       credentials,

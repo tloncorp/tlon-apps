@@ -1,6 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import { createDevLogger } from '@tloncorp/shared';
-import { markInvitesRead } from '@tloncorp/shared/api';
+import { markInvitesRead } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
@@ -123,7 +123,15 @@ export const HomeSidebar = memo(
     const isFocused = useIsFocused();
     useEffect(() => {
       if (isFocused) {
-        markInvitesRead();
+        setTimeout(() => {
+          store.syncQueue.add(
+            'markInvitesRead',
+            { priority: store.SyncPriority.Medium },
+            async () => {
+              markInvitesRead();
+            }
+          );
+        }, 1000);
       }
     }, [isFocused]);
 
@@ -132,10 +140,6 @@ export const HomeSidebar = memo(
         setSelectedGroupId(previewGroupId);
       }
     }, [previewGroupId]);
-
-    const handlePressAddChat = useCallback(() => {
-      createChatSheetRef.current?.open();
-    }, []);
 
     const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
       if (!open) {
@@ -149,7 +153,14 @@ export const HomeSidebar = memo(
       }
     }, []);
 
-    const { subtitle: syncSubtitle } = useSyncStatus();
+    const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
+      useSyncStatus();
+    const loadingSubtitle = useMemo(() => {
+      if (syncLoadingSubtitle) {
+        return syncLoadingSubtitle;
+      }
+      return chats ? null : 'Loading...';
+    }, [syncLoadingSubtitle, chats]);
 
     const isTlonEmployee = useMemo(() => {
       const allChats = [...resolvedChats.pinned, ...resolvedChats.unpinned];
@@ -207,6 +218,7 @@ export const HomeSidebar = memo(
               <ScreenHeader
                 title={'Home'}
                 subtitle={syncSubtitle}
+                loadingSubtitle={loadingSubtitle}
                 showSubtitle={true}
                 testID="HomeSidebarHeader"
                 rightControls={

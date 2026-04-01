@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getChannelIdType } from '../api/apiUtils';
+import { getChannelIdType } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -15,6 +15,7 @@ import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
+import { useDetectSequenceRegression } from './useDetectSequenceRegression';
 import { mergePendingPosts } from './useMergePendingPosts';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -33,7 +34,7 @@ type UseChannelPostsPageParams = db.GetSequencedPostsOptions & {
 };
 type PageParam = UseChannelPostsPageParams;
 type PostQueryData = InfiniteData<PostQueryPage, unknown>;
-type SubscriptionPost = [db.Post, string | undefined];
+type SubscriptionPost = db.Post;
 
 type UseChannelPostsParams = UseChannelPostsPageParams & {
   enabled: boolean;
@@ -192,6 +193,21 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const pendingPosts = usePendingPostsInChannel(options.channelId);
   const deletedPosts = useDeletedPosts(options.channelId);
 
+  // Track whether we've ever been at the newest position for this channel.
+  // Prevents hasNewest from regressing to false due to sequence gaps from
+  // race conditions, which would cause mergePendingPosts to clip newPosts.
+  const wasAtNewestRef = useRef(false);
+  if (!query.hasPreviousPage) {
+    wasAtNewestRef.current = true;
+  }
+  useEffect(() => {
+    wasAtNewestRef.current = false;
+  }, [options.channelId]);
+
+  const hasNewest =
+    !query.hasPreviousPage ||
+    (wasAtNewestRef.current && newPosts.length > 0);
+
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? [];
     return mergePendingPosts({
@@ -200,11 +216,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       existingPosts: queryPosts,
       deletedPosts,
       filterDeleted: options.filterDeleted,
-      hasNewest: !query.hasPreviousPage,
+      hasNewest,
     });
   }, [
     query.data?.pages,
-    query.hasPreviousPage,
+    hasNewest,
     newPosts,
     pendingPosts,
     deletedPosts,
@@ -226,6 +242,12 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 
   useTrackReady(posts, query, options.channelId);
+  useDetectSequenceRegression(
+    posts,
+    options.channelId,
+    options.mode,
+    options.cursorPostId
+  );
 
   return useMemo(
     () => ({ posts, query, loadOlder, loadNewer, isLoading }),
@@ -553,7 +575,7 @@ function useLoadActionsWithPendingHandlers(
 // Used to proxy events from post subscription to the hook,
 // allowing us to manually add new posts to the query data.
 
-type SubscriptionPostListener = (...args: SubscriptionPost) => void;
+type SubscriptionPostListener = (post: SubscriptionPost) => void;
 
 const newPostListeners: SubscriptionPostListener[] = [];
 
@@ -603,8 +625,8 @@ const useDeletedPosts = (channelId: string) => {
 /**
  * External interface for transmitting new post events to listener
  */
-export const addToChannelPosts = (...args: SubscriptionPost) => {
-  newPostListeners.forEach((listener) => listener(...args));
+export const addToChannelPosts = (post: SubscriptionPost) => {
+  newPostListeners.forEach((listener) => listener(post));
 };
 
 export const deleteFromChannelPosts = (post: db.Post) => {

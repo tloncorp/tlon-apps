@@ -1,3 +1,5 @@
+import { toContentReference } from '@tloncorp/api';
+import { Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
   JSONToInlines,
@@ -6,17 +8,11 @@ import {
   TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
-  extractContentTypesFromPost,
   useDebouncedValue,
 } from '@tloncorp/shared';
-import {
-  contentReferenceToCite,
-  toContentReference,
-} from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import { Story, citeToPath, pathToCite } from '@tloncorp/shared/urbit';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
@@ -39,6 +35,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext, useStore } from '../../contexts';
+import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
 import { AttachmentPreviewList } from '../MessageInput/AttachmentPreviewList';
@@ -46,6 +43,7 @@ import {
   MessageInputContainer,
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
+import { hydrateEditPost } from '../MessageInput/helpers';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
@@ -102,28 +100,48 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
 
     const handlePaste = async (e: ClipboardEvent) => {
       const items = Array.from(e.clipboardData?.items || []);
-      const image = items.find((item) => item.type.includes('image'));
+      const media = items.find(
+        (item) => item.type.includes('image') || item.type.includes('video')
+      );
 
-      if (!image) return;
+      if (!media) return;
 
-      const file = image.getAsFile();
+      const file = media.getAsFile();
       if (!file) return;
 
-      const uri = URL.createObjectURL(file);
-      const img = new Image();
+      if (media.type.includes('image')) {
+        const uri = URL.createObjectURL(file);
+        const img = new Image();
 
-      img.onload = () => {
+        img.onload = () => {
+          addAttachment({
+            type: 'image',
+            file: {
+              uri,
+              height: img.height,
+              width: img.width,
+            },
+          });
+        };
+
+        img.src = uri;
+        return;
+      }
+
+      if (media.type.includes('video')) {
+        const previewData = await getVideoPreviewData({ file });
         addAttachment({
-          type: 'image',
-          file: {
-            uri,
-            height: img.height,
-            width: img.width,
-          },
+          type: 'video',
+          localFile: file,
+          size: file.size,
+          mimeType: file.type,
+          name: file.name,
+          width: previewData.width,
+          height: previewData.height,
+          duration: previewData.duration,
+          posterUri: previewData.posterUri,
         });
-      };
-
-      img.src = uri;
+      }
     };
 
     document.addEventListener('paste', handlePaste);
@@ -327,8 +345,10 @@ export default function BareChatInput({
       if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
         lastProcessedRef.current = newText;
         const textWithoutRefs = processReferences(newText);
+        const cursorPos = isWeb ? (inputRef.current as any)?.selectionStart : undefined;
+        const adjustedCursorPos = cursorPos != null ? Math.max(0, cursorPos - (newText.length - textWithoutRefs.length)) : undefined;
         setControlledText(textWithoutRefs);
-        handleMention(oldText, textWithoutRefs);
+        handleMention(oldText, textWithoutRefs, adjustedCursorPos);
 
         const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
@@ -345,8 +365,9 @@ export default function BareChatInput({
         }
       } else if (!REF_REGEX.test(newText)) {
         // if there's no reference to process, just update normally
+        const cursorPos = isWeb ? (inputRef.current as any)?.selectionStart : undefined;
         setControlledText(newText);
-        handleMention(oldText, newText);
+        handleMention(oldText, newText, cursorPos);
 
         const jsonContent = textAndMentionsToContent(newText, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
@@ -425,7 +446,11 @@ export default function BareChatInput({
       setEditingPost?.(undefined);
 
       try {
-        await sendPostFromDraft(draft);
+        bareChatInputLogger.log('sending message');
+        const sendOperation = sendPostFromDraft(draft);
+        bareChatInputLogger.log('clearing draft');
+        await clearDraft();
+        await sendOperation;
       } catch (e) {
         bareChatInputLogger.error('Error sending message', e);
         setSendError(true);
@@ -433,8 +458,6 @@ export default function BareChatInput({
         onSend?.();
         bareChatInputLogger.log('sent message');
         setMentions([]);
-        bareChatInputLogger.log('clearing draft');
-        await clearDraft();
         bareChatInputLogger.log('setting initial content');
         setHasSetInitialContent(false);
       }
@@ -515,7 +538,15 @@ export default function BareChatInput({
   // This effect watches for URL changes and updates link previews accordingly
   useEffect(() => {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const matches = debouncedText.match(urlRegex) || [];
+    // Strip backtick code spans/blocks (including unclosed ones) before
+    // scanning for URLs so that URLs inside code fences are not turned into
+    // link attachments. Triple-backtick alternation is listed first so that
+    // ``` is not accidentally consumed by the single-backtick branch.
+    const textOutsideCodeBlocks = debouncedText.replace(
+      /```[\s\S]*?(?:```|$)|`[^`]*(?:`|$)/g,
+      ''
+    );
+    const matches = textOutsideCodeBlocks.match(urlRegex) || [];
 
     // Normalize URLs (remove hash) and deduplicate
     const currentUrls = [
@@ -678,48 +709,15 @@ export default function BareChatInput({
           }
 
           if (editingPost && editingPost.content) {
-            const {
-              story,
-              references: postReferences,
-              blocks,
-            } = extractContentTypesFromPost(editingPost);
+            const { story, attachments, isEmpty } = hydrateEditPost(
+              editingPost,
+              'references-media'
+            );
 
-            if (story === null && !postReferences && blocks.length === 0) {
+            if (isEmpty) {
+              setHasSetInitialContent(true);
               return;
             }
-
-            const attachments: Attachment[] = [];
-
-            postReferences.forEach((p) => {
-              const cite = contentReferenceToCite(p);
-              const path = citeToPath(cite);
-              attachments.push({
-                type: 'reference',
-                reference: p,
-                path,
-              });
-            });
-
-            blocks.forEach((b) => {
-              if ('image' in b) {
-                attachments.push({
-                  type: 'image',
-                  file: {
-                    uri: b.image.src,
-                    height: b.image.height,
-                    width: b.image.width,
-                  },
-                });
-              }
-              if ('link' in b) {
-                attachments.push({
-                  type: 'link',
-                  url: b.link.url,
-                  resourceType: 'page',
-                  ...b.link.meta,
-                });
-              }
-            });
 
             resetAttachments(attachments);
             const jsonContent = diaryMixedToJSON(
@@ -902,63 +900,65 @@ export default function BareChatInput({
       >
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
-        <TextInput
-          testID="MessageInput"
-          ref={inputRef}
-          value={isWeb ? controlledText : undefined}
-          onChangeText={handleTextChange}
-          onChange={isWeb ? adjustTextInputSize : undefined}
-          onLayout={isWeb ? adjustTextInputSize : undefined}
-          onBlur={handleBlur}
-          onFocus={handleFocus}
-          onKeyPress={handleKeyPress}
-          multiline
-          placeholder={placeholder}
-          {...(!isWeb ? placeholderTextColor : {})}
-          style={{
-            backgroundColor: 'transparent',
-            minHeight: initialHeight,
-            height: isWeb ? inputHeight : undefined,
-            maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
-            paddingHorizontal: getTokenValue('$l', 'space'),
-            paddingTop: getTokenValue('$l', 'space'),
-            paddingBottom: getTokenValue('$l', 'space'),
-            fontSize: getFontSize('$m'),
-            verticalAlign: 'middle',
-            letterSpacing: -0.032,
-            color: inputTextColor,
-            ...(isWeb ? placeholderTextColor : {}),
-            ...(isWeb ? { outlineStyle: 'none' } : {}),
-          }}
-          // Hack to prevent @p's getting squiggled on web
-          spellCheck={!mentions.length}
-        >
-          {isWeb ? undefined : (
-            <TextWithMentions
-              text={controlledText}
-              mentions={mentions}
-              textColor="$primaryText"
-            />
-          )}
-        </TextInput>
-        {isWeb && !!controlledText && mentions.length > 0 && (
-          <View height={inputHeight} position="absolute" pointerEvents="none">
-            <RawText
-              paddingHorizontal="$l"
-              paddingTop={getTokenValue('$m', 'space') + 3}
-              fontSize="$m"
-              lineHeight={getFontSize('$m') * 1.2}
-              letterSpacing={-0.032}
-              color="$primaryText"
-            >
+        <View position="relative">
+          <TextInput
+            testID="MessageInput"
+            ref={inputRef}
+            value={isWeb ? controlledText : undefined}
+            onChangeText={handleTextChange}
+            onChange={isWeb ? adjustTextInputSize : undefined}
+            onLayout={isWeb ? adjustTextInputSize : undefined}
+            onBlur={handleBlur}
+            onFocus={handleFocus}
+            onKeyPress={handleKeyPress}
+            multiline
+            placeholder={placeholder}
+            {...(!isWeb ? placeholderTextColor : {})}
+            style={{
+              backgroundColor: 'transparent',
+              minHeight: initialHeight,
+              height: isWeb ? inputHeight : undefined,
+              maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
+              paddingHorizontal: getTokenValue('$l', 'space'),
+              paddingTop: getTokenValue('$l', 'space'),
+              paddingBottom: getTokenValue('$l', 'space'),
+              fontSize: getFontSize('$m'),
+              verticalAlign: 'middle',
+              letterSpacing: -0.032,
+              color: inputTextColor,
+              ...(isWeb ? placeholderTextColor : {}),
+              ...(isWeb ? { outlineStyle: 'none' } : {}),
+            }}
+            // Hack to prevent @p's getting squiggled on web
+            spellCheck={!mentions.length}
+          >
+            {isWeb ? undefined : (
               <TextWithMentions
                 text={controlledText}
                 mentions={mentions}
-                textColor="transparent"
+                textColor="$primaryText"
               />
-            </RawText>
-          </View>
-        )}
+            )}
+          </TextInput>
+          {isWeb && !!controlledText && mentions.length > 0 && (
+            <View height={inputHeight} position="absolute" top={0} left={0} right={0} pointerEvents="none">
+              <RawText
+                paddingHorizontal="$l"
+                paddingTop={getTokenValue('$m', 'space') + 3}
+                fontSize="$m"
+                lineHeight={getFontSize('$m') * 1.2}
+                letterSpacing={-0.032}
+                color="$primaryText"
+              >
+                <TextWithMentions
+                  text={controlledText}
+                  mentions={mentions}
+                  textColor="transparent"
+                />
+              </RawText>
+            </View>
+          )}
+        </View>
       </YStack>
     </MessageInputContainer>
   );

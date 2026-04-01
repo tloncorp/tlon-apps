@@ -37,13 +37,14 @@ COPY ../../../.nvmrc /workspace/
 COPY ../../../tsconfig* /workspace/
 
 # Create directory structure for packages
-RUN mkdir -p /workspace/packages/shared /workspace/packages/ui /workspace/packages/app /workspace/packages/editor
+RUN mkdir -p /workspace/packages/shared /workspace/packages/ui /workspace/packages/app /workspace/packages/editor /workspace/packages/api
 
 # Copy package.json files for all workspaces (more specific paths)
 COPY ../../../packages/shared/package.json /workspace/packages/shared/
 COPY ../../../packages/ui/package.json /workspace/packages/ui/
 COPY ../../../packages/app/package.json /workspace/packages/app/
 COPY ../../../packages/editor/package.json /workspace/packages/editor/
+COPY ../../../packages/api/package.json /workspace/packages/api/
 COPY ../../../apps/tlon-web/package.json /workspace/apps/tlon-web/
 COPY ../../../apps/tlon-mobile/package.json /workspace/apps/tlon-mobile/
 COPY ../../../apps/tlon-desktop/package.json /workspace/apps/tlon-desktop/
@@ -54,9 +55,12 @@ COPY ../../../patches/ /workspace/patches/
 # Copy .npmrc if it exists (for npm configurations)
 COPY ../../../.npmrc* /workspace/
 
-# Install dependencies (with cache mount for faster rebuilds)
+# Install dependencies (with cache mount for faster rebuilds).
+# Ignore lifecycle scripts in this dependency-only layer to avoid running
+# desktop postinstall hooks (electron native rebuilds) during web E2E image build.
+# Use copy import method to avoid hard-link collisions on layered container filesystems.
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --ignore-scripts --package-import-method=copy
 
 # Install Playwright browsers and dependencies (before source copy for better caching)
 WORKDIR /workspace/apps/tlon-web
@@ -102,13 +106,10 @@ RUN npm install -g typescript
 WORKDIR /workspace/apps/tlon-web
 RUN echo "Compiling rube scripts..." && \
     ls -la ./rube/ && \
-    tsc --isolatedModules --skipLibCheck ./rube/*.ts --outDir ./rube/dist && \
-    echo "Rube scripts compiled successfully" && \
+    bash ./rube/compile-rube.sh && \
     echo "Verifying compiled files..." && \
-    ls -la ./rube/dist/ && \
-    test -f ./rube/dist/index.js || (echo "ERROR: index.js not found after compilation!" && exit 1) && \
-    echo "Ensuring binaries and scripts are executable..." && \
-    chmod +x ./rube/click ./rube/click-format ./rube/*.sh ./*.sh 2>/dev/null || true
+    ls -la ./rube/dist/
+RUN chmod +x ./rube/click ./rube/click-format ./rube/*.sh ./*.sh 2>/dev/null || true
 
 # Set environment variables for testing
 ENV CI=true

@@ -1,4 +1,4 @@
-import { parseGroupId } from '@tloncorp/shared/api';
+import { parseGroupId } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { SectionListHeader } from '@tloncorp/ui';
 import Fuse from 'fuse.js';
@@ -26,6 +26,7 @@ export function GroupMembersScreenView({
   groupPrivacyType,
   currentUserId,
   onPressKick,
+  onPressRevokeInvite,
   onPressBan,
   onPressUnban,
   onPressAcceptJoinRequest,
@@ -43,6 +44,7 @@ export function GroupMembersScreenView({
   joinRequests: db.GroupJoinRequest[];
   groupPrivacyType: GroupPrivacy;
   onPressKick: (contactId: string) => void;
+  onPressRevokeInvite: (contactId: string) => void;
   onPressBan: (contactId: string) => void;
   onPressUnban: (contactId: string) => void;
   onPressAcceptJoinRequest: (contactId: string) => void;
@@ -210,7 +212,7 @@ export function GroupMembersScreenView({
           membersWithoutRoles.length > 0
             ? [
                 {
-                  title: 'Everyone Else',
+                  title: 'Members',
                   data: membersWithoutRoles,
                 },
               ]
@@ -323,6 +325,7 @@ export function GroupMembersScreenView({
           contactId={selectedContact}
           contact={contacts.find((c) => c.id === selectedContact)}
           onPressKick={() => onPressKick(selectedContact)}
+          onPressRevokeInvite={() => onPressRevokeInvite(selectedContact)}
           onPressBan={() => onPressBan(selectedContact)}
           onPressUnban={() => onPressUnban(selectedContact)}
           onPressGoToProfile={() => {

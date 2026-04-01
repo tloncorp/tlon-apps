@@ -9,5 +9,6 @@ export const TLON_APP_STORE_URL =
   'https://apps.apple.com/us/app/tlon-tlon-messenger/id6451392109?utm_source=webapp';
 export const TLON_PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=io.tlon.groups&utm_source=webapp';
+export const CHAT_REF_LIKE_MAX_WIDTH = 600;
 
 export * from './lib/envVars';

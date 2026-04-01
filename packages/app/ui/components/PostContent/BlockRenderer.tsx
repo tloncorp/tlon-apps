@@ -1,8 +1,7 @@
-import { isValidUrl } from '@tloncorp/shared';
+import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
-import { formatMemorySize } from '@tloncorp/shared/utils';
 import {
-  FilePreview,
+  ForwardingProps,
   Icon,
   Image,
   Pressable,
@@ -10,6 +9,7 @@ import {
   useCopy,
 } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
+import { clamp } from 'lodash';
 import React, {
   ComponentProps,
   ComponentType,
@@ -21,19 +21,26 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { LayoutRectangle, Linking, Platform } from 'react-native';
+import { ActivityIndicator, Linking, Platform } from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
+import { useNowPlayingController } from '../../contexts/nowPlaying';
+import { Waveform } from '../AudioRecorder/Waveform';
 import {
   ContentReferenceLoader,
   IsInsideReferenceContext,
   Reference,
 } from '../ContentReference';
 import { VideoEmbed } from '../Embed';
+import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
+
+const DUMMY_WAVEFORM_VALUES = [
+  1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
+];
 
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
@@ -214,150 +221,139 @@ export function ReferenceBlock({
   return <ContentReferenceLoader reference={block} {...props} />;
 }
 
-export function FileUploadBlock({
+export function VoiceMemoBlock({
   block,
-  fullbleed = false,
-}: {
-  block: cn.FileUploadBlockData;
-  fullbleed?: boolean;
-}) {
-  const { openExternalLink } = useNavigation();
-  const isUploading = useMemo(
-    () =>
-      block.file.fileUri.startsWith('file://') ||
-      block.file.fileUri.startsWith('blob:'),
-    [block.file.fileUri]
-  );
+  ...props
+}: { block: cn.VoiceMemoBlockData } & ComponentProps<
+  typeof Reference.Frame
+>) {
+  const { togglePlayback, progress, status, isThisSourceLoaded } =
+    useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
 
-  const formattedSize = useMemo(
-    () => formatMemorySize(block.file.size),
-    [block.file.size]
-  );
-
-  const fileTypeCode = useMemo(
-    () =>
-      FilePreview.fileExtensionFrom({
-        filename: block.file.name,
-        mimeType: block.file.mimeType,
-        uri: block.file.fileUri,
-      }),
-    [block.file]
-  );
-
-  const [containerLayout, setContainerLayout] =
-    useState<LayoutRectangle | null>(null);
-  // arbitrary number breakpoints for adjusting layout based on container height
-  // (smaller value => more compact layout)
-  const containerHeightBreakpoint = useMemo(() => {
-    const MEDIUM_HEIGHT = 70;
-    const LARGE_HEIGHT = 100;
-    return containerLayout == null
-      ? Infinity
-      : containerLayout.height < MEDIUM_HEIGHT
-        ? 1
-        : containerLayout.height < LARGE_HEIGHT
-          ? 2
-          : 3;
-  }, [containerLayout]);
-
-  const filePreview = useCallback(
-    () => (
-      <FilePreview
-        fileExtensionLabel={fileTypeCode ?? undefined}
-        size={containerHeightBreakpoint < 2 ? 's' : 'm'}
-      />
-    ),
-    [fileTypeCode, containerHeightBreakpoint]
-  );
-  const filenameView = useCallback(
-    ({
-      ...passed
-    }: Pick<
-      ComponentProps<typeof Text>,
-      'size' | 'numberOfLines' | 'textAlign'
-    >) => (
-      <Text
-        size="$label/xl"
-        ellipsizeMode={passed.numberOfLines === 1 ? 'middle' : 'tail'}
-        flexShrink={0}
-        {...passed}
-      >
-        {block.file.name}
-      </Text>
-    ),
-    [block.file.name]
-  );
-  const fileSizeView = useCallback(
-    ({ ...passed }: Pick<ComponentProps<typeof Text>, 'size'> = {}) => (
-      <Text size="$label/m" color="$secondaryText" {...passed}>
-        {formattedSize}
-      </Text>
-    ),
-    [formattedSize]
-  );
-
-  if (isUploading) {
-    return (
-      <YStack paddingLeft="$l">
-        <BlockquoteSideBorder />
-        <Text color="$tertiaryText">Uploading attachment...</Text>
-      </YStack>
+  const candlePlaybackPosition = useMemo(() => {
+    const candleCount = block.voiceMemo.waveformPreview
+      ? block.voiceMemo.waveformPreview.length
+      : DUMMY_WAVEFORM_VALUES.length;
+    if (
+      progress?.loadState !== 'loaded' ||
+      !isThisSourceLoaded ||
+      progress.duration === 0
+    ) {
+      return 0;
+    }
+    return clamp(
+      Math.floor((progress.currentTime / progress.duration) * candleCount),
+      0,
+      candleCount - 1
     );
-  }
-
-  if (fullbleed) {
-    return (
-      <Pressable
-        onLayout={(event) => setContainerLayout(event.nativeEvent.layout)}
-        alignItems="center"
-        justifyContent="center"
-        gap="$s"
-        padding="$2xs"
-        flex={1}
-        flexDirection="column"
-        onPress={() => {
-          openExternalLink(block.file.fileUri);
-        }}
-      >
-        {filePreview()}
-        {filenameView({
-          numberOfLines: containerHeightBreakpoint < 3 ? 1 : 2,
-          size: '$label/m',
-          textAlign: 'center',
-        })}
-        {containerHeightBreakpoint > 1 && fileSizeView({ size: '$label/s' })}
-      </Pressable>
-    );
-  }
+  }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
 
   return (
-    <Reference.Frame
-      onPress={() => {
-        openExternalLink(block.file.fileUri);
-      }}
-    >
-      <Reference.Header>
+    <Reference.Frame {...props}>
+      <Reference.Header alignItems="center">
         <Reference.Title>
-          <Icon
-            type="ChannelNote"
-            color="$tertiaryText"
-            customSize={['$l', '$l']}
-          />
-          <Reference.TitleText>File Upload</Reference.TitleText>
+          <Reference.TitleText>Voice Memo</Reference.TitleText>
         </Reference.Title>
-        <Reference.ActionIcon />
+
+        <Reference.TitleIcon type="Wave" color="$primaryText" />
       </Reference.Header>
-      <Reference.Body>
-        <XStack padding="$l" gap="$m">
-          {filePreview()}
-          <YStack gap="$xl" flex={1} justifyContent="center">
-            {filenameView({ numberOfLines: 1 })}
-            {fileSizeView()}
-          </YStack>
+
+      <Reference.Body
+        flexDirection="column"
+        alignItems="stretch"
+        gap="$l"
+        padding="$l"
+        // Reference.Body definition sets `pointerEvents: none`
+        pointerEvents="auto"
+      >
+        <XStack gap="$xl" alignItems="center">
+          <Pressable
+            backgroundColor="$background"
+            width="$4xl"
+            aspectRatio={1}
+            alignItems="center"
+            justifyContent="center"
+            borderRadius={8}
+            cursor="pointer"
+            hoverStyle={{ backgroundColor: '$positiveBackground' }}
+            pressStyle={{ opacity: 0.5 }}
+            onPress={togglePlayback}
+          >
+            {(() => {
+              switch (status) {
+                case null:
+                  return <Icon type={'Play'} color="$primaryText" />;
+                case 'loading':
+                  return <ActivityIndicator />;
+                case 'playing':
+                  return <Icon type={'Stop'} color="$primaryText" />;
+                case 'paused':
+                  return <Icon type={'Play'} color="$primaryText" />;
+              }
+            })()}
+          </Pressable>
+          <XStack flex={1} gap={9} alignItems="center">
+            <Waveform
+              candleWidth={3}
+              candleSpacing={1}
+              candlePlaybackPosition={candlePlaybackPosition}
+              values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
+              style={{ flex: 1, height: 22 }}
+            />
+            {block.voiceMemo.duration != null && (
+              <Text size="$label/s" color="$secondaryText">
+                {progress?.loadState === 'loaded'
+                  ? makePrettyTimeFromMs(progress.currentTime * 1000)
+                  : makePrettyTimeFromMs(block.voiceMemo.duration * 1000)}
+              </Text>
+            )}
+          </XStack>
         </XStack>
+
+        {block.voiceMemo.transcription && (
+          <VoiceMemoTranscription
+            transcription={block.voiceMemo.transcription}
+          />
+        )}
       </Reference.Body>
     </Reference.Frame>
   );
+}
+
+function VoiceMemoTranscription({ transcription }: { transcription: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <XStack gap="$s" alignItems="baseline">
+      <Text
+        flex={1}
+        size="$label/m"
+        numberOfLines={expanded ? undefined : 1}
+        ellipsizeMode="tail"
+        selectable
+      >
+        {transcription}
+      </Text>
+      {!expanded && (
+        <Pressable onPress={() => setExpanded(true)}>
+          <Text size="$label/m" color="$tertiaryText">
+            See more
+          </Text>
+        </Pressable>
+      )}
+    </XStack>
+  );
+}
+
+export function FileUploadBlock({
+  block,
+  ...passedProps
+}: ForwardingProps<
+  typeof FileUploadPreview,
+  { block: cn.FileUploadBlockData },
+  'file'
+>) {
+  return <FileUploadPreview file={block.file} {...passedProps} />;
 }
 
 export function BigEmojiBlock({
@@ -584,17 +580,6 @@ export function BlockquoteBlock({
   );
 }
 
-export const BlockquoteSideBorder = styled(View, {
-  name: 'BlockquoteSideBorder',
-  position: 'absolute',
-  top: 0,
-  bottom: 0,
-  width: 2,
-  borderRadius: 1,
-  left: -2,
-  backgroundColor: '$border',
-});
-
 export function HeaderBlock({
   block,
   ...props
@@ -670,6 +655,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   list: ListBlock,
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
+  voicememo: VoiceMemoBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -691,6 +677,7 @@ export type DefaultRendererProps = {
   list: BlockSettings<typeof ListBlock>;
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
+  voicememo: BlockSettings<typeof VoiceMemoBlock>;
 };
 
 interface BlockRendererContextValue {

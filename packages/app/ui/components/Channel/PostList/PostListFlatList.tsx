@@ -39,6 +39,7 @@ export const PostList: PostListComponent = React.forwardRef(
       onScrolledToBottom,
       onScrolledToBottomThreshold = 1,
       onScrolledAwayFromBottom,
+      listHeaderComponent,
     },
     forwardedRef
   ) => {
@@ -113,9 +114,14 @@ export const PostList: PostListComponent = React.forwardRef(
             });
           }
         },
-        scrollToIndex: ({ index, animated }) => {
+        scrollToEnd: (opts) => {
           if (listRef.current) {
-            listRef.current.scrollToIndex({ index, animated });
+            listRef.current.scrollToEnd({ animated: opts.animated });
+          }
+        },
+        scrollToIndex: ({ index, animated, viewPosition }) => {
+          if (listRef.current) {
+            listRef.current.scrollToIndex({ index, animated, viewPosition });
           }
         },
       })
@@ -124,6 +130,11 @@ export const PostList: PostListComponent = React.forwardRef(
     const listStyle = useMemo(() => {
       return [style, readyToDisplayPosts ? null : { opacity: 0 }];
     }, [readyToDisplayPosts, style]);
+
+    // https://github.com/facebook/react-native/issues/21196
+    // Disable `inverted` when list is empty to avoid RN rendering bugs.
+    const effectiveInverted =
+      (postsWithNeighbors?.length || 0) === 0 ? false : inverted;
 
     return (
       <Animated.FlatList<PostWithNeighbors>
@@ -142,12 +153,12 @@ export const PostList: PostListComponent = React.forwardRef(
             ? undefined
             : columnWrapperStyle
         }
-        inverted={
-          // https://github.com/facebook/react-native/issues/21196
-          // It looks like this bug has regressed a few times - to avoid
-          // our UI breaking when the bug is fixed, disable `inverted` when
-          // list is empty instead of adversarily transforming the empty component.
-          (postsWithNeighbors?.length || 0) === 0 ? false : inverted
+        inverted={effectiveInverted}
+        ListFooterComponent={
+          effectiveInverted ? listHeaderComponent : undefined
+        }
+        ListHeaderComponent={
+          effectiveInverted ? undefined : listHeaderComponent
         }
         maxToRenderPerBatch={15}
         windowSize={11}
