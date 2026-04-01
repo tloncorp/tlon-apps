@@ -10,6 +10,7 @@ type ForwardToChannelSheetProps = {
   onOpenChange: (open: boolean) => void;
   title: string;
   onChannelSelected: (channel: db.Channel) => void;
+  channelFilter?: (channel: db.Channel) => boolean;
   footerComponent?: ComponentProps<typeof ActionSheet>['footerComponent'];
 };
 
@@ -18,6 +19,7 @@ export function ForwardToChannelSheet({
   onOpenChange,
   title,
   onChannelSelected,
+  channelFilter,
   footerComponent,
 }: ForwardToChannelSheetProps) {
   return (
@@ -34,6 +36,7 @@ export function ForwardToChannelSheet({
           <ForwardChannelSelector
             isOpen={open}
             onChannelSelected={onChannelSelected}
+            channelFilter={channelFilter}
           />
         ) : null}
       </ActionSheet.Content>
