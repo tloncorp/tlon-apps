@@ -1,9 +1,12 @@
-import * as db from '@tloncorp/shared/db';
-import { type ShareIntent, type ShareIntentFile } from 'expo-share-intent';
+import type { ShareIntentFile as AppShareIntentFile } from '@tloncorp/app/types/shareIntent';
+import {
+  type ShareIntent,
+  type ShareIntentFile as ExpoShareIntentFile,
+} from 'expo-share-intent';
 
 const mapShareIntentFile = (
-  file: ShareIntentFile
-): db.PendingShareIntentFile | null => {
+  file: ExpoShareIntentFile
+): AppShareIntentFile | null => {
   if (!file.path) {
     return null;
   }
@@ -45,7 +48,7 @@ export const extractSharedText = (shareIntent: ShareIntent): string | null => {
 
 export const extractSharedFile = (
   files: ShareIntent['files']
-): db.PendingShareIntentFile | null => {
+): AppShareIntentFile | null => {
   if (!files?.length) {
     return null;
   }

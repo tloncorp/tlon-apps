@@ -40,7 +40,7 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
-import type { ChannelShareIntentParams } from '../../../navigation/types';
+import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import {
   ChannelProvider,
@@ -81,7 +81,7 @@ const IMAGE_FILE_EXTENSION_REGEX =
 const shareIntentLogger = createDevLogger('shareIntent', true);
 
 const isLikelyImageFile = (
-  file: NonNullable<ChannelShareIntentParams['file']>
+  file: NonNullable<ChannelShareIntent['file']>
 ) => {
   if (file.mimeType?.startsWith('image/')) {
     return true;
@@ -91,7 +91,7 @@ const isLikelyImageFile = (
 };
 
 const uploadIntentFromShareIntentFile = (
-  file: NonNullable<ChannelShareIntentParams['file']>
+  file: NonNullable<ChannelShareIntent['file']>
 ): Attachment.UploadIntent | null => {
   const localUri = file.path?.trim();
   if (!localUri) {
@@ -138,7 +138,7 @@ function usePrefillDraftFromShareIntent({
   const { pendingShareIntent, popShareIntent } = useChannelShareIntent();
   const { attachAssets } = useAttachmentContext();
   const processingShareIntentIdRef = useRef<number | null>(null);
-  const [activeShareIntent, setActiveShareIntent] = useState<ChannelShareIntentParams | null>(null);
+  const [activeShareIntent, setActiveShareIntent] = useState<ChannelShareIntent | null>(null);
 
   useEffect(() => {
     processingShareIntentIdRef.current = null;
@@ -170,7 +170,7 @@ function usePrefillDraftFromShareIntent({
 
   const processIntent = useCallback(
     async (
-      intent: ChannelShareIntentParams,
+      intent: ChannelShareIntent,
       signal: { cancelled: boolean }
     ) => {
       const rawUploadIntent = intent.file

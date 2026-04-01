@@ -3,13 +3,6 @@ import type {
   NavigatorScreenParams,
   RouteProp,
 } from '@react-navigation/native';
-import type * as db from '@tloncorp/shared/db';
-
-export type ChannelShareIntentParams = {
-  createdAt: number;
-  text?: string | null;
-  file?: db.PendingShareIntentFile | null;
-};
 
 export type RootStackParamList = {
   VerifierStub: undefined;

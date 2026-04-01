@@ -3,10 +3,8 @@ import {
   useChannelShareIntent,
   useForwardToChannelSheet,
 } from '@tloncorp/app/ui';
-import type {
-  ChannelShareIntentParams,
-  RootStackParamList,
-} from '@tloncorp/app/navigation/types';
+import type { RootStackParamList } from '@tloncorp/app/navigation/types';
+import type { ChannelShareIntent } from '@tloncorp/app/types/shareIntent';
 import { screenNameFromChannelId } from '@tloncorp/app/navigation/utils';
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { APP_SCHEME } from '@tloncorp/app/constants';
@@ -34,8 +32,7 @@ export function ShareIntentForwardSheetProvider({
 }: ShareIntentForwardSheetProviderProps) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [isOpen, setIsOpen] = useState(false);
-  const [pendingShare, setPendingShare] =
-    useState<ChannelShareIntentParams | null>(null);
+  const [pendingShare, setPendingShare] = useState<ChannelShareIntent | null>(null);
   const { pushShareIntent } = useChannelShareIntent();
   const lastHandledShareRef = useRef<string | null>(null);
   const { error, hasShareIntent, isReady, resetShareIntent, shareIntent } =
