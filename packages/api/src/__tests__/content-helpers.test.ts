@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   appendFileUploadToPostBlob,
   appendToPostBlob,
+  appendVideoToPostBlob,
   contentToTextAndMentions,
   parsePostBlob,
   textAndMentionsToContent,
@@ -77,20 +78,32 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
 
 describe('post blob helpers', () => {
   test('parsePostBlob parses registered blob entry types', () => {
-    const blob = appendToPostBlob(
-      appendFileUploadToPostBlob(undefined, {
-        fileUri: 'https://files.example/report.pdf',
-        mimeType: 'application/pdf',
-        name: 'report.pdf',
-        size: 2048,
-      }),
+    const blob = appendVideoToPostBlob(
+      appendToPostBlob(
+        appendFileUploadToPostBlob(undefined, {
+          fileUri: 'https://files.example/report.pdf',
+          mimeType: 'application/pdf',
+          name: 'report.pdf',
+          size: 2048,
+        }),
+        {
+          type: 'voicememo',
+          version: 1,
+          fileUri: 'https://files.example/memo.m4a',
+          size: 1024,
+          duration: 12,
+          waveformPreview: [0, 0.25, 1],
+        }
+      ),
       {
-        type: 'voicememo',
-        version: 1,
-        fileUri: 'https://files.example/memo.m4a',
-        size: 1024,
-        duration: 12,
-        waveformPreview: [0, 0.25, 1],
+        fileUri: 'https://cdn.example.com/video.mp4',
+        mimeType: 'video/mp4',
+        name: 'clip.mp4',
+        size: 12345,
+        width: 1920,
+        height: 1080,
+        duration: 7.2,
+        posterUri: 'https://cdn.example.com/video-poster.jpg',
       }
     );
 
@@ -111,11 +124,24 @@ describe('post blob helpers', () => {
         duration: 12,
         waveformPreview: [0, 0.25, 1],
       },
+      {
+        type: 'video',
+        version: 1,
+        fileUri: 'https://cdn.example.com/video.mp4',
+        mimeType: 'video/mp4',
+        name: 'clip.mp4',
+        size: 12345,
+        width: 1920,
+        height: 1080,
+        duration: 7.2,
+        posterUri: 'https://cdn.example.com/video-poster.jpg',
+      },
     ]);
   });
 
   test('parsePostBlob degrades gracefully for malformed or invalid payloads', () => {
     expect(parsePostBlob('not json')).toEqual([{ type: 'unknown' }]);
+    expect(parsePostBlob('{"type":"video"}')).toEqual([{ type: 'unknown' }]);
     expect(
       parsePostBlob(
         JSON.stringify([
@@ -187,6 +213,46 @@ describe('post blob helpers', () => {
         mimeType: 'application/pdf',
         name: 'report.pdf',
         size: 2048,
+      },
+    ]);
+  });
+
+  test('toPostData writes video attachments as typed video blob entries', () => {
+    const attachment: FinalizedAttachment = {
+      type: 'video',
+      localFile: 'file:///tmp/movie.mp4',
+      name: 'movie.mp4',
+      size: 777,
+      mimeType: 'video/mp4',
+      width: 640,
+      height: 360,
+      duration: 12.5,
+      posterUri: 'file:///tmp/movie-poster.jpg',
+      uploadState: {
+        status: 'success',
+        remoteUri: 'https://cdn.example.com/movie.mp4',
+      },
+    };
+
+    const out = toPostData({
+      content: ['hello'],
+      attachments: [attachment],
+      channelType: 'chat',
+    });
+
+    expect(out.blob).toBeTruthy();
+    expect(parsePostBlob(out.blob!)).toEqual([
+      {
+        type: 'video',
+        version: 1,
+        fileUri: 'https://cdn.example.com/movie.mp4',
+        mimeType: 'video/mp4',
+        name: 'movie.mp4',
+        size: 777,
+        width: 640,
+        height: 360,
+        duration: 12.5,
+        posterUri: 'file:///tmp/movie-poster.jpg',
       },
     ]);
   });
