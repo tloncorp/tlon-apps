@@ -41,6 +41,7 @@ export function ShareIntentForwardSheetProvider({
     });
   const resetShareIntentRef = useMutableRef(resetShareIntent);
 
+  // Surface share-extension read failures without interrupting app startup.
   useEffect(() => {
     if (!error) {
       return;
@@ -48,12 +49,14 @@ export function ShareIntentForwardSheetProvider({
     shareIntentLogger.error('Failed to read share intent', error);
   }, [error]);
 
+  // Allow the same shared content to be handled again after native state clears.
   useEffect(() => {
     if (!hasShareIntent) {
       lastHandledShareRef.current = null;
     }
   }, [hasShareIntent]);
 
+  // Translate the current native share into app state once, then consume it.
   useEffect(() => {
     if (!isReady || !hasShareIntent) {
       return;
@@ -93,6 +96,7 @@ export function ShareIntentForwardSheetProvider({
     }
   }, [hasShareIntent, isReady, resetShareIntentRef, shareIntent]);
 
+  // Open the channel picker as soon as there is a pending share to route.
   useEffect(() => {
     if (!pendingShare || !enabled || isOpen) {
       return;
