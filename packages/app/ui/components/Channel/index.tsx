@@ -1,5 +1,4 @@
 import { useIsFocused } from '@react-navigation/native';
-import type { ChannelShareIntentParams } from '../../../navigation/types';
 import {
   ChannelContentConfiguration,
   isDmChannelId,
@@ -41,11 +40,13 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
+import type { ChannelShareIntentParams } from '../../../navigation/types';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
 import {
   ChannelProvider,
   GroupsProvider,
   NavigationProvider,
+  useChannelShareIntent,
   useCurrentUserId,
 } from '../../contexts';
 import { useAttachmentContext } from '../../contexts/attachment';
@@ -75,10 +76,13 @@ import { ReadOnlyNotice } from './ReadOnlyNotice';
 const useApp = () => {};
 const HEADER_LOADING_SHOW_DELAY_MS = 180;
 const HEADER_LOADING_MIN_VISIBLE_MS = 420;
-const IMAGE_FILE_EXTENSION_REGEX = /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
+const IMAGE_FILE_EXTENSION_REGEX =
+  /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
 const shareIntentLogger = createDevLogger('shareIntent', true);
 
-const isLikelyImageFile = (file: NonNullable<ChannelShareIntentParams['file']>) => {
+const isLikelyImageFile = (
+  file: NonNullable<ChannelShareIntentParams['file']>
+) => {
   if (file.mimeType?.startsWith('image/')) {
     return true;
   }
@@ -116,6 +120,128 @@ const uploadIntentFromShareIntentFile = (
     voiceMemo: false,
   };
 };
+
+function usePrefillDraftFromShareIntent({
+  channel,
+  disabled,
+  openDraft,
+  storeDraft,
+}: {
+  channel: db.Channel;
+  disabled: boolean;
+  openDraft: () => void;
+  storeDraft: (
+    draft: JSONContent,
+    draftType?: GalleryDraftType
+  ) => Promise<void>;
+}) {
+  const { pendingShareIntent, popShareIntent } = useChannelShareIntent();
+  const { attachAssets } = useAttachmentContext();
+  const processingShareIntentIdRef = useRef<number | null>(null);
+  const [activeShareIntent, setActiveShareIntent] = useState<ChannelShareIntentParams | null>(null);
+
+  useEffect(() => {
+    processingShareIntentIdRef.current = null;
+    setActiveShareIntent(null);
+  }, [channel.id]);
+
+  // Claim the pending share into local state before popping it from context.
+  useEffect(() => {
+    if (disabled || activeShareIntent || pendingShareIntent?.channelId !== channel.id) {
+      return;
+    }
+
+    const nextShareIntent = popShareIntent(channel.id);
+    if (!nextShareIntent) return;
+
+    setActiveShareIntent(nextShareIntent.shareIntent);
+
+    if (nextShareIntent.startDraft) {
+      openDraft();
+    }
+  }, [
+    channel.id,
+    activeShareIntent,
+    disabled,
+    openDraft,
+    pendingShareIntent,
+    popShareIntent,
+  ]);
+
+  const processIntent = useCallback(
+    async (
+      intent: ChannelShareIntentParams,
+      signal: { cancelled: boolean }
+    ) => {
+      const rawUploadIntent = intent.file
+        ? uploadIntentFromShareIntentFile(intent.file)
+        : null;
+      const sharedText = intent.text?.trim() || null;
+
+      if (!rawUploadIntent && !sharedText) return;
+
+      const { uploadIntent, errorMessage } = rawUploadIntent
+        ? await normalizeUploadIntent(rawUploadIntent)
+        : { uploadIntent: null, errorMessage: null };
+
+      if (signal.cancelled) return;
+
+      if (errorMessage) {
+        shareIntentLogger.log(`Unable to attach shared file: ${errorMessage}`);
+      }
+
+      if (!uploadIntent && !sharedText) return;
+
+      if (sharedText) {
+        await storeDraft(
+          logic.textAndMentionsToContent(sharedText, []),
+          channel.type === 'gallery' ? 'caption' : undefined
+        );
+        if (signal.cancelled) return;
+      }
+
+      if (uploadIntent) {
+        attachAssets([uploadIntent]);
+      }
+
+      // Gallery attachments land directly in review mode — don't open
+      // the add-post chooser over the attachment preview.
+      if (!(channel.type === 'gallery' && uploadIntent)) {
+        openDraft();
+      }
+    },
+    [attachAssets, channel.type, openDraft, storeDraft]
+  );
+
+  // Process the active share from local state so popping context state can't interrupt it.
+  useEffect(() => {
+    if (disabled || !activeShareIntent) return;
+    if (processingShareIntentIdRef.current === activeShareIntent.createdAt) return;
+
+    processingShareIntentIdRef.current = activeShareIntent.createdAt;
+    const signal = { cancelled: false };
+
+    processIntent(activeShareIntent, signal)
+      .catch((err) => {
+        shareIntentLogger.error(
+          'Failed to prefill shared content in channel',
+          err
+        );
+      })
+      .then(() => {
+        if (!signal.cancelled) setActiveShareIntent(null);
+      })
+      .finally(() => {
+        if (processingShareIntentIdRef.current === activeShareIntent.createdAt) {
+          processingShareIntentIdRef.current = null;
+        }
+      });
+
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [activeShareIntent, disabled, processIntent]);
+}
 
 interface ChannelProps {
   channel: db.Channel;
@@ -161,8 +287,6 @@ interface ChannelProps {
   hasOlderPosts?: boolean;
   startDraft?: boolean;
   onPressScrollToBottom?: () => void;
-  onShareIntentConsumed?: (createdAt: number) => void;
-  shareIntent?: ChannelShareIntentParams;
 }
 
 interface ChannelMethods {
@@ -212,8 +336,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       hasOlderPosts,
       startDraft,
       onPressScrollToBottom,
-      onShareIntentConsumed,
-      shareIntent,
     },
     ref
   ) {
@@ -485,111 +607,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       draftInputRef.current?.startDraft?.();
     }, []);
 
-    const shareIntentInFlightRef = useRef<number | null>(null);
-    const consumedShareIntentRef = useRef<number | null>(null);
-
-    useEffect(() => {
-      let cancelled = false;
-
-      void (async () => {
-        if (!canWrite || !inView || !shareIntent) {
-          return;
-        }
-
-        const createdAt = shareIntent.createdAt;
-        if (
-          shareIntentInFlightRef.current === createdAt ||
-          consumedShareIntentRef.current === createdAt
-        ) {
-          return;
-        }
-
-        const rawUploadIntent = shareIntent.file
-          ? uploadIntentFromShareIntentFile(shareIntent.file)
-          : null;
-        const sharedText = shareIntent.text?.trim() ?? null;
-        const hasSharedText = Boolean(sharedText && sharedText.length > 0);
-        const consumeShareIntent = () => {
-          consumedShareIntentRef.current = createdAt;
-          onShareIntentConsumed?.(createdAt);
-        };
-
-        if (!rawUploadIntent && !hasSharedText) {
-          consumeShareIntent();
-          return;
-        }
-
-        if (cancelled) {
-          return;
-        }
-
-        shareIntentInFlightRef.current = createdAt;
-
-        try {
-          const { uploadIntent, errorMessage } = rawUploadIntent
-            ? await normalizeUploadIntent(rawUploadIntent)
-            : { uploadIntent: null, errorMessage: null };
-          const hasShareFile = Boolean(uploadIntent);
-
-          if (errorMessage) {
-            shareIntentLogger.log(`Unable to attach shared file: ${errorMessage}`);
-          }
-
-          if (!hasShareFile && !hasSharedText) {
-            consumeShareIntent();
-            return;
-          }
-
-          if (hasSharedText && sharedText) {
-            if (cancelled) {
-              return;
-            }
-            await storeDraft(
-              logic.textAndMentionsToContent(sharedText, []),
-              channel.type === 'gallery' ? 'caption' : undefined
-            );
-          }
-
-          if (uploadIntent) {
-            if (cancelled) {
-              return;
-            }
-            attachAssets([uploadIntent]);
-          }
-
-          if (cancelled) {
-            return;
-          }
-
-          // Gallery attachments should land directly in review mode. Calling
-          // `startDraft()` here would open the add-post chooser and cover the
-          // attachment preview we just attached.
-          if (!(channel.type === 'gallery' && uploadIntent)) {
-            handleOpenDraft();
-          }
-          consumeShareIntent();
-        } catch (err) {
-          shareIntentLogger.error('Failed to prefill shared content in channel', err);
-        } finally {
-          if (shareIntentInFlightRef.current === createdAt) {
-            shareIntentInFlightRef.current = null;
-          }
-        }
-      })();
-
-      return () => {
-        cancelled = true;
-      };
-    }, [
-      attachAssets,
-      canWrite,
-      channel.type,
-      handleOpenDraft,
-      inView,
-      onShareIntentConsumed,
-      shareIntent,
+    usePrefillDraftFromShareIntent({
+      channel,
+      disabled: !canWrite || !inView,
+      openDraft: handleOpenDraft,
       storeDraft,
-    ]);
+    });
 
     const isNarrow = useIsWindowNarrow();
 

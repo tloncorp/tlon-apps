@@ -46,13 +46,11 @@ export default function ChannelScreen(props: Props) {
     channelId,
     selectedPostId,
     startDraft,
-    shareIntent,
     groupId: routeGroupId,
   } = props.route.params ?? {
     channelId: '',
     selectedPostId: '',
     startDraft: false,
-    shareIntent: undefined,
     groupId: undefined,
   };
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
@@ -189,20 +187,6 @@ export default function ChannelScreen(props: Props) {
   const handleScrollToBottom = useCallback(() => {
     setClearedCursor(true);
   }, []);
-
-  const handleShareIntentConsumed = useCallback(
-    (createdAt: number) => {
-      if (shareIntent?.createdAt !== createdAt) {
-        return;
-      }
-
-      props.navigation.setParams({
-        shareIntent: undefined,
-        startDraft: undefined,
-      });
-    },
-    [props.navigation, shareIntent?.createdAt]
-  );
 
   const channelConfiguration = useMemo(
     () => configurationFromChannel(channel),
@@ -479,8 +463,6 @@ export default function ChannelScreen(props: Props) {
           setEditingPost={setEditingPost}
           negotiationMatch={negotiationStatus.matchedOrPending}
           startDraft={startDraft}
-          onShareIntentConsumed={handleShareIntentConsumed}
-          shareIntent={shareIntent}
           onPressScrollToBottom={handleScrollToBottom}
         />
       </AttachmentProvider>
