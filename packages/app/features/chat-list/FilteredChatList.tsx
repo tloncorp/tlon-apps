@@ -170,8 +170,6 @@ export const FilteredChatList = React.memo(
               // We're rendering the ChatListItem outside of the ChatOptionsProvider, so we need to disable the options
               disableOptions
               showGroupTitle={true}
-              borderWidth={'$2xs'}
-              marginHorizontal={-1}
               selected={selectedIndex === index}
             />
           );

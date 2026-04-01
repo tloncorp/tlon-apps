@@ -133,8 +133,8 @@ export function ChannelListItem({
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
-        borderWidth={selected ? 1 : 0}
-        borderColor={selected ? '$positiveBorder' : 'transparent'}
+        borderWidth={selected ? '$2xs' : 0}
+        borderColor={selected ? '$positiveBorder' : undefined}
         backgroundColor={
           selected
             ? '$positiveBackground'
