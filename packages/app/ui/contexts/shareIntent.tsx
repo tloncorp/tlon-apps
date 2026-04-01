@@ -7,11 +7,11 @@ import {
   useState,
 } from 'react';
 
-import type { ChannelShareIntentParams } from '../../navigation/types';
+import type { ChannelShareIntent } from '../../types/shareIntent';
 
 export type QueuedChannelShareIntent = {
   channelId: string;
-  shareIntent: ChannelShareIntentParams;
+  shareIntent: ChannelShareIntent;
   startDraft: boolean;
 };
 
