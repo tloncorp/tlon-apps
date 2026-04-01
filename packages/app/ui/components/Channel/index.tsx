@@ -41,6 +41,7 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
+import { normalizeUploadIntent } from '../../../utils/filepicker';
 import {
   ChannelProvider,
   GroupsProvider,
@@ -521,22 +522,18 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
           return;
         }
 
-        const uploadIntent = shareIntent.file
+        const rawUploadIntent = shareIntent.file
           ? uploadIntentFromShareIntentFile(shareIntent.file)
           : null;
         const sharedText = shareIntent.text?.trim() ?? null;
         const hasSharedText = Boolean(sharedText && sharedText.length > 0);
-        const hasShareFile = Boolean(uploadIntent);
-
-        if (channel.type === 'gallery' && uploadIntent?.type === 'fileUri') {
+        const consumeShareIntent = () => {
           consumedShareIntentRef.current = createdAt;
           onShareIntentConsumed?.(createdAt);
-          return;
-        }
+        };
 
-        if (!hasShareFile && !hasSharedText) {
-          consumedShareIntentRef.current = createdAt;
-          onShareIntentConsumed?.(createdAt);
+        if (!rawUploadIntent && !hasSharedText) {
+          consumeShareIntent();
           return;
         }
 
@@ -547,6 +544,20 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         shareIntentInFlightRef.current = createdAt;
 
         try {
+          const { uploadIntent, errorMessage } = rawUploadIntent
+            ? await normalizeUploadIntent(rawUploadIntent)
+            : { uploadIntent: null, errorMessage: null };
+          const hasShareFile = Boolean(uploadIntent);
+
+          if (errorMessage) {
+            shareIntentLogger.log(`Unable to attach shared file: ${errorMessage}`);
+          }
+
+          if (!hasShareFile && !hasSharedText) {
+            consumeShareIntent();
+            return;
+          }
+
           if (hasSharedText && sharedText) {
             if (cancelled) {
               return;
@@ -568,9 +579,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
             return;
           }
 
-          handleOpenDraft();
-          consumedShareIntentRef.current = createdAt;
-          onShareIntentConsumed?.(createdAt);
+          // Gallery attachments should land directly in review mode. Calling
+          // `startDraft()` here would open the add-post chooser and cover the
+          // attachment preview we just attached.
+          if (!(channel.type === 'gallery' && uploadIntent)) {
+            handleOpenDraft();
+          }
+          consumeShareIntent();
         } catch (err) {
           shareIntentLogger.error('Failed to prefill shared content in channel', err);
         } finally {
