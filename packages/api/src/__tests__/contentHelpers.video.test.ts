@@ -35,8 +35,8 @@ test('appendVideoToPostBlob + parsePostBlob round-trips video metadata', () => {
   ]);
 });
 
-test('parsePostBlob throws when blob is malformed JSON', () => {
-  expect(() => parsePostBlob('not-valid-json')).toThrow();
+test('parsePostBlob returns unknown entry when blob is malformed JSON', () => {
+  expect(parsePostBlob('not-valid-json')).toEqual([{ type: 'unknown' }]);
 });
 
 test('parsePostBlob returns unknown entry when blob JSON is not an array', () => {
