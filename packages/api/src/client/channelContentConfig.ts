@@ -1,5 +1,5 @@
 import type { JSONValue } from '../types/JSONValue';
-import { ValuesOf } from '../lib/utilityTypes';
+import type { ValuesOf } from '../lib/utilityTypes';
 
 interface BaseParameterSpec {
   displayName: string;
