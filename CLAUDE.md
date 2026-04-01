@@ -75,50 +75,45 @@ This is a monorepo for Tlon Messenger containing multiple applications and share
 **CRITICAL**: The app has completely different navigation implementations for mobile vs desktop/web. When making UI changes or adding testIDs for E2E tests, you MUST modify the correct platform-specific component.
 
 ### Navigation Entry Points
-
--   **Mobile**: Uses `packages/app/navigation/RootStack.tsx`
--   **Desktop/Web**: Uses `packages/app/navigation/desktop/TopLevelDrawer.tsx`
+- **Mobile**: Uses `packages/app/navigation/RootStack.tsx`
+- **Desktop/Web**: Uses `packages/app/navigation/desktop/TopLevelDrawer.tsx`
 
 The platform is determined by `BasePathNavigator` using the `isMobile` prop:
-
--   `isMobile={true}` → Renders `RootStack` (mobile navigation)
--   `isMobile={false}` → Renders `TopLevelDrawer` (desktop navigation)
+- `isMobile={true}` → Renders `RootStack` (mobile navigation)
+- `isMobile={false}` → Renders `TopLevelDrawer` (desktop navigation)
 
 ### Main Navigation Components
 
-| Screen       | Mobile Component                       | Desktop Component                          |
-| ------------ | -------------------------------------- | ------------------------------------------ |
-| **Contacts** | `features/top/ContactsScreen.tsx`      | `navigation/desktop/ProfileNavigator.tsx`  |
+| Screen | Mobile Component | Desktop Component |
+|---|---|---|
+| **Contacts** | `features/top/ContactsScreen.tsx` | `navigation/desktop/ProfileNavigator.tsx` |
 | **Settings** | `features/settings/SettingsScreen.tsx` | `navigation/desktop/SettingsNavigator.tsx` |
-| **Activity** | `features/top/ActivityScreen.tsx`      | `navigation/desktop/ActivityNavigator.tsx` |
-| **Messages** | `features/top/ChatListScreen.tsx`      | `navigation/desktop/MessagesNavigator.tsx` |
-| **Home**     | N/A (uses bottom tabs)                 | `navigation/desktop/HomeNavigator.tsx`     |
+| **Activity** | `features/top/ActivityScreen.tsx` | `navigation/desktop/ActivityNavigator.tsx` |
+| **Messages** | `features/top/ChatListScreen.tsx` | `navigation/desktop/MessagesNavigator.tsx` |
+| **Home** | N/A (uses bottom tabs) | `navigation/desktop/HomeNavigator.tsx` |
 
 ### E2E Testing Guidelines
 
 **Web E2E tests ALWAYS use desktop navigation components!**
 
 When adding testIDs for web E2E tests:
-
 1. Identify which main navigation component handles your screen (see table above)
 2. Add testID to the desktop component in `packages/app/navigation/desktop/`
 3. DO NOT modify the mobile component in `packages/app/features/`
 
 Example: To add a testID for the "Add Contact" button:
-
--   ❌ WRONG: Modify `packages/app/features/top/ContactsScreen.tsx`
--   ✅ CORRECT: Modify `packages/app/navigation/desktop/ProfileNavigator.tsx`
+- ❌ WRONG: Modify `packages/app/features/top/ContactsScreen.tsx`
+- ✅ CORRECT: Modify `packages/app/navigation/desktop/ProfileNavigator.tsx`
 
 ### Debugging Platform-Specific Issues
 
 To identify which component to modify:
-
 1. **Check the file path pattern**:
-    - `/features/` = Mobile component
-    - `/navigation/desktop/` = Desktop component
+   - `/features/` = Mobile component
+   - `/navigation/desktop/` = Desktop component
 2. **Find screen mappings**:
-    - Mobile: Check `packages/app/navigation/RootStack.tsx` for `<Root.Screen>` definitions
-    - Desktop: Check `packages/app/navigation/desktop/TopLevelDrawer.tsx` for `<Drawer.Screen>` definitions
+   - Mobile: Check `packages/app/navigation/RootStack.tsx` for `<Root.Screen>` definitions
+   - Desktop: Check `packages/app/navigation/desktop/TopLevelDrawer.tsx` for `<Drawer.Screen>` definitions
 3. **For testID issues**: Web builds render `testID` as `data-testid` in the DOM
 
 ## Key Technologies
@@ -156,7 +151,6 @@ To identify which component to modify:
 ### Shell Script Compatibility
 
 When writing or modifying bash scripts, ensure compatibility with both macOS and Linux:
-
 -   Use `#!/bin/bash` shebang (not `#!/bin/sh`) for consistent behavior
 -   Avoid bash-specific features that vary by version (e.g., associative arrays with `declare -A`)
 -   Handle differences between BSD (macOS) and GNU (Linux) tools, especially `tar`, `sed`, `grep`
@@ -297,10 +291,10 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 2. **If it passes, find the polluting test** - run subsets of tests alphabetically before the failing test
 3. **Check for missing cleanup** - look for tests that create contacts, profiles, or other persistent state
 4. **Common pollution sources**:
-    - `invite-service.spec.ts` - creates contacts via invite links
-    - Tests with profile editing - may leave custom nicknames
-    - Tests creating DMs - both ships must clean up
-    - Tests with group invites - may leave pending invitations
+   - `invite-service.spec.ts` - creates contacts via invite links
+   - Tests with profile editing - may leave custom nicknames
+   - Tests creating DMs - both ships must clean up
+   - Tests with group invites - may leave pending invitations
 
 **E2E Helper Function Design Principles:**
 
@@ -314,7 +308,6 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 ### E2E Test Infrastructure
 
 **Understanding the rube script:**
-
 -   `pnpm rube` or `pnpm e2e` runs the core test infrastructure
 -   Rube performs critical setup: nukes ship state, sets ~mug as reel provider, configures S3 storage (if env vars set), applies desk updates
 -   Ships are considered ready when rube outputs "SHIP_SETUP_COMPLETE" signal
@@ -322,7 +315,6 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Default timeout is 30 seconds (can be extended with FORCE_EXTRACTION=true environment variable)
 
 **S3 Storage Configuration for E2E Tests:**
-
 -   Optional: Image upload tests will be skipped if not configured
 -   Set these environment variables to enable image uploads in e2e tests:
     -   `E2E_S3_ENDPOINT` - S3 endpoint URL (e.g., `https://s3.amazonaws.com`)
@@ -334,7 +326,6 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Each test ship gets the same S3 configuration
 
 **Pier Archiving and Updates:**
-
 -   Test piers are pre-configured Urbit ships stored as archives in GCS
 -   Archives are referenced in `apps/tlon-web/e2e/shipManifest.json`
 -   To update pier archives: `./apps/tlon-web/rube/archive-piers.sh`
@@ -343,7 +334,6 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Archive naming convention: `rube-{ship}{version}.tgz` (e.g., `rube-zod15.tgz`)
 
 **Important Scripts:**
-
 -   `./start-playwright-dev.sh` - Starts ships in background, returns when ready
 -   `./stop-playwright-dev.sh` - Comprehensive cleanup of all e2e processes
 -   `./apps/tlon-web/rube-cleanup.sh` - Emergency cleanup when processes are stuck
@@ -352,20 +342,17 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   `pnpm e2e` - Full test suite (now properly handles Ctrl+C interruption)
 
 **Process Cleanup Improvements:**
-
 -   **Automatic cleanup**: Ctrl+C now properly cleans up all processes including Urbit serf sub-processes
 -   **Emergency cleanup**: Run `./apps/tlon-web/rube-cleanup.sh` if processes get stuck
 -   **Pattern-based killing**: Infrastructure uses pattern matching to find and kill all related processes
 
 **Common E2E Testing Pitfalls:**
-
 -   **Ship readiness**: Checking for `.http.ports` files doesn't mean ships are ready - wait for SHIP_SETUP_COMPLETE
 -   **Desk updates**: Applying desk updates can take 5-10 minutes, default timeouts may be too short
 -   **Process cleanup**: Now handled automatically, but use `rube-cleanup.sh` for emergency recovery
 -   **Manifest changes**: Always backup `shipManifest.json` before modifying - it's critical for e2e tests
 
 **GCP Integration for E2E Archives:**
-
 -   E2E test piers are stored in GCS: `gs://bootstrap.urbit.org/`
 -   GCP project: `tlon-groups-mobile` (hardcoded for security)
 -   Archives are publicly readable once uploaded
@@ -373,7 +360,6 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Verify access: `gsutil ls gs://bootstrap.urbit.org/`
 
 **Investigating CI E2E Failures:**
-
 -   The parallel E2E CI job runs tests in Docker containers across 4 shards. The main job log only shows container status polling and a summary (e.g., "Total tests: 71, Total failures: 1") — it does NOT contain the specific test failure details.
 -   To find the actual failing test, download the `e2e-test-results` artifact: `gh run download <run-id> --name e2e-test-results --dir /tmp/e2e-results`
 -   The artifact contains:
@@ -383,7 +369,6 @@ When using Claude Code with the Playwright MCP server for e2e testing:
 -   Common false positives: Cross-ship sync timeouts (e.g., waiting for reply counts to sync between ships) are a frequent source of flaky failures unrelated to code changes
 
 **Test State Persistence Issues:**
-
 -   Ship state is nuked between full test runs, but NOT between individual tests in the same run
 -   Contact relationships persist across tests within a run
 -   Profile modifications (nicknames, status, bio) persist
@@ -416,7 +401,7 @@ Uses Drizzle ORM with SQLite for local data storage:
 
 ## Adding a New Post Blob Entry Type
 
-Post blobs are the `blob` field on posts — a JSON-stringified array of typed, versioned entries that carry structured metadata the backend treats as opaque text. See `docs/post-blobs.md` for the full specification and callsite map.
+Post blobs are the `blob` field on posts: a JSON-stringified array of typed, versioned entries that carry structured metadata the backend treats as opaque text. See `docs/post-blobs.md` for the full specification.
 
 No backend (Hoon) changes are needed. The agents store and relay `blob` as `(unit @t)` without inspecting it.
 
@@ -424,38 +409,34 @@ No backend (Hoon) changes are needed. The agents store and relay `blob` as `(uni
 
 ### 1. Define the entry type
 
-Add a new named schema and inferred type in
-`packages/api/src/lib/content-helpers.ts`, then include that schema in
-`postBlobDataEntryDefinitions`:
+Add a new named schema and inferred type in `packages/api/src/lib/content-helpers.ts`, then include that schema in `postBlobDataEntryDefinitions`:
 
 ```ts
 const PostBlobDataEntryEtherscanTxSchema = definePostBlobDataEntrySchema(
-  'etherscan-tx',
-  1,
-  {
-  txHash: z.string().min(1),
-  chainId: z.number().int().nonnegative(),
-  from: z.string().min(1),
-  to: z.string().min(1),
-  /** in wei */
-  value: z.string().min(1),
-  status: z.enum(['success', 'failed', 'pending']),
-  }
+    'etherscan-tx',
+    1,
+    {
+        txHash: z.string().min(1),
+        chainId: z.number().int().nonnegative(),
+        from: z.string().min(1),
+        to: z.string().min(1),
+        /** in wei */
+        value: z.string().min(1),
+        status: z.enum(['success', 'failed', 'pending']),
+    }
 );
 
-type PostBlobDataEntryEtherscanTx = z.infer<
-  typeof PostBlobDataEntryEtherscanTxSchema
->;
+type PostBlobDataEntryEtherscanTx = z.infer<typeof PostBlobDataEntryEtherscanTxSchema>;
 
 const postBlobDataEntryDefinitions = [
-  PostBlobDataEntryFileSchema,
-  PostBlobDataEntryVoiceMemoSchema,
-  PostBlobDataEntryEtherscanTxSchema,
+    PostBlobDataEntryFileSchema,
+    PostBlobDataEntryVoiceMemoSchema,
+    PostBlobDataEntryVideoSchema,
+    PostBlobDataEntryEtherscanTxSchema,
 ] as const;
 ```
 
-`PostBlobDataEntry` is inferred from `PostBlobDataEntrySchema` automatically.
-You do not add a manual union branch elsewhere.
+`PostBlobDataEntry` is inferred from `PostBlobDataEntrySchema` automatically. You do not add a manual union branch elsewhere.
 
 ### 2. Add a convenience append function
 
@@ -463,21 +444,21 @@ In the same file, below the existing append helpers:
 
 ```ts
 export function appendEtherscanTxToPostBlob(
-  blob: string | undefined,
-  opts: {
-    txHash: string;
-    chainId: number;
-    from: string;
-    to: string;
-    value: string;
-    status: 'success' | 'failed' | 'pending';
-  }
+    blob: string | undefined,
+    opts: {
+        txHash: string;
+        chainId: number;
+        from: string;
+        to: string;
+        value: string;
+        status: 'success' | 'failed' | 'pending';
+    }
 ) {
-  return appendToPostBlob(blob, {
-    type: 'etherscan-tx',
-    version: 1,
-    ...opts,
-  });
+    return appendToPostBlob(blob, {
+        type: 'etherscan-tx',
+        version: 1,
+        ...opts,
+    });
 }
 ```
 
@@ -487,36 +468,33 @@ In `toPostData` in the same file, add a case for your new attachment type:
 
 ```ts
 case 'etherscan-tx': {
-  blob = appendEtherscanTxToPostBlob(blob, {
-    txHash: attachment.txHash,
-    chainId: attachment.chainId,
-    from: attachment.from,
-    to: attachment.to,
-    value: attachment.value,
-    status: attachment.status,
-  });
-  break;
+    blob = appendEtherscanTxToPostBlob(blob, {
+        txHash: attachment.txHash,
+        chainId: attachment.chainId,
+        from: attachment.from,
+        to: attachment.to,
+        value: attachment.value,
+        status: attachment.status,
+    });
+    break;
 }
 ```
 
 ### 4. Let the registry handle parsing
 
-No extra `parsePostBlob` branch is needed. Once the schema is in
-`postBlobDataEntryDefinitions`, both `appendToPostBlob` and `parsePostBlob`
-will validate against it automatically.
+No extra `parsePostBlob` branch is needed. Once the schema is in `postBlobDataEntryDefinitions`, both `appendToPostBlob` and `parsePostBlob` will validate against it automatically.
 
 ### 5. Map to a renderable block
 
-In `convertContent` in `packages/api/src/lib/postContent.ts`, add a case that
-maps the parsed entry to a `PostContent` block:
+In `convertContent` in `packages/api/src/lib/postContent.ts`, add a case that maps the parsed entry to a `PostContent` block:
 
 ```ts
 case 'etherscan-tx': {
-  out.push({
-    type: 'etherscan-tx',
-    tx: entry,
-  });
-  break;
+    out.push({
+        type: 'etherscan-tx',
+        tx: entry,
+    });
+    break;
 }
 ```
 
@@ -528,12 +506,12 @@ Create a renderer component for the new block type in `packages/ui` (or `package
 
 ### Checklist
 
--   [ ] New named schema and inferred type added for the blob entry
--   [ ] Schema added to `postBlobDataEntryDefinitions`
--   [ ] `appendXToPostBlob` convenience function added
--   [ ] `toPostData` case added for the new attachment type
--   [ ] No manual `parsePostBlob` branch added; the registry handles it
--   [ ] `convertContent` case added, mapping to a new `PostContent` block type
--   [ ] Tests added for valid and malformed blob payloads
--   [ ] Renderer component created
--   [ ] Older clients gracefully degrade (they will show "Upgrade your app" for unrecognized types — no extra work needed)
+- [ ] New named schema and inferred type added for the blob entry
+- [ ] Schema added to `postBlobDataEntryDefinitions`
+- [ ] `appendXToPostBlob` convenience function added
+- [ ] `toPostData` case added for the new attachment type
+- [ ] No manual `parsePostBlob` branch added; the registry handles it
+- [ ] `convertContent` case added, mapping to a new `PostContent` block type
+- [ ] Tests added for valid and malformed blob payloads
+- [ ] Renderer component created
+- [ ] Older clients gracefully degrade; unrecognized types render the "Upgrade your app" blockquote without extra work
