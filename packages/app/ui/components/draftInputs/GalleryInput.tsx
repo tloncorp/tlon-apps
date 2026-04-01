@@ -1,4 +1,7 @@
-import { extractContentTypesFromPost } from '@tloncorp/shared';
+import {
+  PLACEHOLDER_ASSET_URI,
+  extractContentTypesFromPost,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
@@ -28,6 +31,9 @@ import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { LinkInput, LinkInputSaveParams } from './LinkInput';
 import { DraftInputContext, GalleryRoute } from './shared';
 
+const isPlaceholderImageAttachment = (attachment: domain.Attachment) =>
+  attachment.type === 'image' && attachment.file.uri === PLACEHOLDER_ASSET_URI;
+
 export function GalleryInput({
   draftInputContext,
 }: {
@@ -48,9 +54,14 @@ export function GalleryInput({
   const safeAreaInsets = useSafeAreaInsets();
   const { attachments, resetAttachments, addAttachment, attachAssets } =
     useAttachmentContext();
+  // Attachment review is postable whenever there is a real attachment, but we
+  // still ignore the placeholder image we attach during media selection.
+  const hasRealAttachments = useMemo(
+    () => attachments.some((attachment) => !isPlaceholderImageAttachment(attachment)),
+    [attachments]
+  );
 
   const [route, setRoute] = useState<GalleryRoute>('gallery');
-  const [canPost, setCanPost] = useState(false);
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const isEditingPost = editingPost != null;
@@ -108,7 +119,6 @@ export function GalleryInput({
             mockAttachment.file
           ),
         ]);
-        setCanPost(true);
       } else if (blocks.length > 0 && 'link' in blocks[0]) {
         // This is a link gallery post
         const linkBlock = blocks[0].link as { url: string };
@@ -118,7 +128,6 @@ export function GalleryInput({
         };
         addAttachment(mockAttachment);
         setRoute('link');
-        setCanPost(true);
       } else {
         // This is a text gallery post (blocks with paragraphs, bullet points, etc.)
         // Use the BigInput for editing text gallery posts
@@ -133,7 +142,6 @@ export function GalleryInput({
 
   // Reset all gallery-related state
   const resetGalleryState = useCallback(() => {
-    setCanPost(false);
     setCaption('');
     clearDraft('caption');
     resetAttachments([]);
@@ -147,7 +155,6 @@ export function GalleryInput({
     (assets?: domain.Attachment.UploadIntent[] | null) => {
       const hasAssets = assets != null && assets.length > 0;
       setRoute(hasAssets ? 'review-attachment' : 'gallery');
-      setCanPost(hasAssets);
     },
     []
   );
@@ -174,7 +181,6 @@ export function GalleryInput({
 
     if (!hasAttachments && route === 'review-attachment') {
       setRoute('gallery');
-      setCanPost(false);
     }
   }, [attachments.length, editingPost, route]);
 
@@ -379,7 +385,7 @@ export function GalleryInput({
           caption={caption}
           setCaption={setCaption}
           onPostSent={onAttachmentPostSent}
-          canPost={canPost}
+          canPost={hasRealAttachments}
           flex={1}
           width={'100%'}
           bottom={safeAreaInsets.bottom}

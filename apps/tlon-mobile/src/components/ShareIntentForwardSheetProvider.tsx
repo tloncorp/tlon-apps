@@ -21,16 +21,7 @@ import {
   getShareIntentFingerprint,
 } from '../lib/shareIntent';
 
-const IMAGE_FILE_EXTENSION_REGEX = /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
 const shareIntentLogger = createDevLogger('shareIntent', true);
-
-const isLikelyImageFile = (file: NonNullable<ChannelShareIntentParams['file']>) => {
-  if (file.mimeType?.startsWith('image/')) {
-    return true;
-  }
-  const sourceName = file.fileName || file.path;
-  return IMAGE_FILE_EXTENSION_REGEX.test(sourceName);
-};
 
 type ShareIntentForwardSheetProviderProps = PropsWithChildren<{
   enabled?: boolean;
@@ -129,32 +120,31 @@ export function ShareIntentForwardSheetProvider({
         throw new Error('Missing pending share');
       }
 
-      if (
-        channel.type === 'gallery' &&
-        pendingShare.file &&
-        !isLikelyImageFile(pendingShare.file)
-      ) {
-        throw new Error('Gallery channels only support image shares');
-      }
-
       const screenName = screenNameFromChannelId(channel.id);
+      // Gallery attachments should open straight into review mode. Starting
+      // the draft would show the add-post chooser on top of the shared media.
+      const shouldStartDraft = !(
+        screenName === 'Channel' &&
+        channel.type === 'gallery' &&
+        pendingShare.file
+      );
       if (screenName === 'Channel') {
         navigation.navigate('Channel', {
           channelId: channel.id,
           groupId: channel.groupId ?? undefined,
-          startDraft: true,
+          startDraft: shouldStartDraft,
           shareIntent: pendingShare,
         });
       } else if (screenName === 'DM') {
         navigation.navigate('DM', {
           channelId: channel.id,
-          startDraft: true,
+          startDraft: shouldStartDraft,
           shareIntent: pendingShare,
         });
       } else {
         navigation.navigate('GroupDM', {
           channelId: channel.id,
-          startDraft: true,
+          startDraft: shouldStartDraft,
           shareIntent: pendingShare,
         });
       }
