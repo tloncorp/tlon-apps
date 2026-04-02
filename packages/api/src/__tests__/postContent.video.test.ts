@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { convertContent } from '../lib/postContent';
+import { convertContent } from '../client/postContent';
 
 test('convertContent keeps both blob and story videos when src matches', () => {
   const src = 'https://cdn.example.com/clip.mp4';
