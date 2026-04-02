@@ -5,9 +5,6 @@ type GestureTriggerProps = {
   id: string;
 };
 
-export function GestureTrigger({
-  children,
-  id: _id,
-}: GestureTriggerProps) {
+export function GestureTrigger({ children, id: _id }: GestureTriggerProps) {
   return <>{children}</>;
 }

@@ -6,9 +6,6 @@ type GestureTriggerProps = {
   id: string;
 };
 
-export function GestureTrigger({
-  children,
-  id,
-}: GestureTriggerProps) {
+export function GestureTrigger({ children, id }: GestureTriggerProps) {
   return <NativeGestureTrigger id={id}>{children}</NativeGestureTrigger>;
 }

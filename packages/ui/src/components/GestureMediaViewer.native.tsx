@@ -1,21 +1,21 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
   GestureViewer,
   useGestureViewerController,
   useGestureViewerEvent,
 } from 'react-native-gesture-image-viewer';
-import { FlatList } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
 import {
+  type GestureMediaViewerProps,
+  type GestureMediaViewerRenderContainer,
+  type GestureMediaViewerRenderItem,
   defaultGestureMediaViewerKeyExtractor,
   generateGestureMediaViewerId,
   getGestureMediaViewerIsZoomed,
   renderDefaultGestureMediaViewerItem,
-  type GestureMediaViewerProps,
-  type GestureMediaViewerRenderContainer,
-  type GestureMediaViewerRenderItem,
 } from './GestureMediaViewer.shared';
 
 type GestureViewerEventData = {
@@ -113,7 +113,7 @@ export function GestureMediaViewer({
     () =>
       !usesCustomTap
         ? renderContainer
-        : ((children, helpers) => {
+        : (((children, helpers) => {
             const tappableChildren = (
               <GestureDetector gesture={tapGesture}>{children}</GestureDetector>
             );
@@ -121,7 +121,7 @@ export function GestureMediaViewer({
             return renderContainer
               ? renderContainer(tappableChildren, helpers)
               : tappableChildren;
-          }) satisfies GestureMediaViewerRenderContainer,
+          }) satisfies GestureMediaViewerRenderContainer),
     [renderContainer, tapGesture, usesCustomTap]
   );
 
@@ -143,9 +143,7 @@ export function GestureMediaViewer({
       enableDismissGesture={enableDismissGesture}
       enableSwipeGesture={enableSwipeGesture}
       enableZoomGesture={enableZoomGesture}
-      enableDoubleTapGesture={
-        usesCustomTap ? false : enableDoubleTapGesture
-      }
+      enableDoubleTapGesture={usesCustomTap ? false : enableDoubleTapGesture}
       enableZoomPanGesture={enableZoomPanGesture}
       enableLoop={enableLoop}
       maxZoomScale={maxZoomScale}

@@ -23,8 +23,8 @@ import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
-import { mediaViewerScreenOptions } from '../utils';
 import { HomeDrawerParamList } from '../types';
+import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
 
 const HomeDrawer = createDrawerNavigator();

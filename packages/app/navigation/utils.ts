@@ -3,8 +3,8 @@ import {
   NavigationProp,
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
-import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import {
-  clampGestureMediaViewerIndex,
-  generateGestureMediaViewerId,
-  renderDefaultGestureMediaViewerItem,
   type GestureMediaViewerProps,
   type GestureMediaViewerRenderHelpers,
   type GestureMediaViewerRenderItem,
+  clampGestureMediaViewerIndex,
+  generateGestureMediaViewerId,
+  renderDefaultGestureMediaViewerItem,
 } from './GestureMediaViewer.shared';
 
 export * from './GestureMediaViewer.shared';

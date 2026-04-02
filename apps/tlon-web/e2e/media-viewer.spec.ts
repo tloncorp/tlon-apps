@@ -37,7 +37,10 @@ test('should open and close the gallery image media viewer on web', async ({
     timeout: 10000,
   });
 
-  const detailImage = page.getByTestId('GalleryPostContent').locator('img').first();
+  const detailImage = page
+    .getByTestId('GalleryPostContent')
+    .locator('img')
+    .first();
   await expect(detailImage).toBeVisible();
   await detailImage.click();
 

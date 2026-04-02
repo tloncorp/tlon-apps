@@ -93,8 +93,7 @@ function resolveVideoLayout({
   alignSelf: ComponentProps<typeof View>['alignSelf'];
   aspectRatio: number;
 }): VideoLayout {
-  const numericMaxWidth =
-    typeof maxWidth === 'number' ? maxWidth : undefined;
+  const numericMaxWidth = typeof maxWidth === 'number' ? maxWidth : undefined;
   const numericMaxHeight =
     typeof maxHeight === 'number' ? maxHeight : undefined;
 
@@ -131,7 +130,11 @@ function resolveVideoLayout({
   };
 }
 
-export default function VideoEmbed({ video, contentFit = 'contain', ...props }: VideoEmbedProps) {
+export default function VideoEmbed({
+  video,
+  contentFit = 'contain',
+  ...props
+}: VideoEmbedProps) {
   const {
     maxWidth,
     maxHeight,
@@ -165,12 +168,7 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
       posterUri: video.posterUri,
       viewerId,
     });
-  }, [
-    navigation,
-    video.posterUri,
-    video.src,
-    viewerId,
-  ]);
+  }, [navigation, video.posterUri, video.src, viewerId]);
 
   const content = (
     <Pressable
