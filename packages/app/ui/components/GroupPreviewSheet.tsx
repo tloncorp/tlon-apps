@@ -296,11 +296,20 @@ export function GroupPreviewPane({
                 case 'heroPositive':
                   return { fill: 'solid' as const, type: 'positive' as const };
                 case 'positive':
-                  return { fill: 'outline' as const, type: 'positive' as const };
+                  return {
+                    fill: 'outline' as const,
+                    type: 'positive' as const,
+                  };
                 case 'negative':
-                  return { fill: 'outline' as const, type: 'negative' as const };
+                  return {
+                    fill: 'outline' as const,
+                    type: 'negative' as const,
+                  };
                 case 'secondary':
-                  return { fill: 'outline' as const, type: 'secondary' as const };
+                  return {
+                    fill: 'outline' as const,
+                    type: 'secondary' as const,
+                  };
                 case 'minimal':
                   return { fill: 'text' as const, type: 'primary' as const };
                 default:

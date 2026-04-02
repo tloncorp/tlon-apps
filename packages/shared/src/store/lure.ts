@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
+import { getCurrentUserId, scry, subscribeOnce } from '@tloncorp/api';
+import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/lib/branch';
+import { asyncWithDefault } from '@tloncorp/api/lib/utils';
 import produce from 'immer';
 import { useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
-import { getCurrentUserId, scry, subscribeOnce } from '@tloncorp/api';
-import { DeepLinkMetadata, createDeepLink } from '@tloncorp/api/lib/branch';
-import { asyncWithDefault } from '@tloncorp/api/lib/utils';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';

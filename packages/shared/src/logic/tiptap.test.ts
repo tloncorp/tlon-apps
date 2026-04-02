@@ -1,6 +1,6 @@
-import { expect, test, describe } from 'vitest';
-
 import { Block, Inline, JSONContent } from '@tloncorp/api/urbit';
+import { describe, expect, test } from 'vitest';
+
 import { JSONToInlines } from './tiptap';
 
 test('tiptap: test mixed text, inline code and code block with langs', () => {
@@ -181,9 +181,7 @@ describe('JSONToInlines - links with marks', () => {
     const result = JSONToInlines(json);
     expect(result).toEqual([
       {
-        bold: [
-          { link: { href: 'https://example.com', content: 'bold link' } },
-        ],
+        bold: [{ link: { href: 'https://example.com', content: 'bold link' } }],
       },
       { break: null },
     ]);

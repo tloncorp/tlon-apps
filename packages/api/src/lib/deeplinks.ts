@@ -1,6 +1,6 @@
 import { createDevLogger } from '../client/logger';
-import type { ContentReference } from '../types/references';
 import { getConstants } from '../types/constants';
+import type { ContentReference } from '../types/references';
 import { citeToPath } from '../urbit';
 import { AppInvite, getBranchLinkMeta, isLureMeta } from './branch';
 import { normalizeUrbitColor } from './utils';

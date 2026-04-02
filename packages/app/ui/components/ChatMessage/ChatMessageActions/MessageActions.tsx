@@ -1,6 +1,6 @@
 import Clipboard from '@react-native-clipboard/clipboard';
-import { ChannelAction } from '@tloncorp/shared';
 import * as api from '@tloncorp/api';
+import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
@@ -118,11 +118,7 @@ const ConnectedAction = memo(function ConnectedAction({
         return post.authorId !== currentUserId;
       case 'pinPost':
         // only show for admins, top-level posts, and not already pinned
-        return (
-          currentUserIsAdmin &&
-          !post.parentId &&
-          pinnedPostId !== post.id
-        );
+        return currentUserIsAdmin && !post.parentId && pinnedPostId !== post.id;
       case 'unpinPost':
         // only show for admins on the currently pinned post
         return currentUserIsAdmin && pinnedPostId === post.id;

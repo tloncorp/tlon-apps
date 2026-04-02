@@ -3,10 +3,10 @@ import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
 
 import { TimeoutError } from '../client';
 import { createDevLogger } from '../client/logger';
-import { desig } from '../urbit';
+import { EventEmitter } from '../lib/EventEmitter';
 import { readArrayBufferFromBlob } from '../lib/blob';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
-import { EventEmitter } from '../lib/EventEmitter';
+import { desig } from '../urbit';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import {
   EventSourceMessage,

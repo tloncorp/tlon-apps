@@ -1,7 +1,10 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { expect, test, vi } from 'vitest';
 
-import { isLikelyVideoSource, validateVideoSource } from '../ui/contexts/attachmentRules';
+import {
+  isLikelyVideoSource,
+  validateVideoSource,
+} from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import {
   imagePickerAssetToUploadIntent,

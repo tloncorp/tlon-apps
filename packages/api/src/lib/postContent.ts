@@ -555,9 +555,7 @@ function convertBlock(block: ub.Block): BlockData {
       };
     }
     case is(block, 'cite'): {
-      return (
-        toContentReference(block.cite) ?? errorMessage('Failed to parse')
-      );
+      return toContentReference(block.cite) ?? errorMessage('Failed to parse');
     }
     case is(block, 'link'): {
       return {

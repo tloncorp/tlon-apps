@@ -1,6 +1,6 @@
 import { darken, hsla, lighten, parseToHsla, parseToRgba } from 'color2k';
-import { useTheme } from 'tamagui';
 import { useMemo } from 'react';
+import { useTheme } from 'tamagui';
 import { ThemeName, useThemeName } from 'tamagui';
 
 export const useSigilColors = (accentColor: string | null = '#000000') => {

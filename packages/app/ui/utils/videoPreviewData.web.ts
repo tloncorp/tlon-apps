@@ -22,7 +22,9 @@ export async function getVideoPreviewData(
 
     const width = video.videoWidth || undefined;
     const height = video.videoHeight || undefined;
-    const duration = Number.isFinite(video.duration) ? video.duration : undefined;
+    const duration = Number.isFinite(video.duration)
+      ? video.duration
+      : undefined;
     const posterUri = await capturePosterUri(video, width, height, duration);
 
     return {

@@ -1,9 +1,4 @@
-import {
-  render,
-  parse,
-  tryParse,
-  da
-} from '@urbit/aura';
+import { da, parse, render, tryParse } from '@urbit/aura';
 import bigInt from 'big-integer';
 
 import type * as db from '../types/models';
@@ -57,7 +52,8 @@ export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {
   };
 }
 
-export function formatUd(ud: string) {  //REVIEW
+export function formatUd(ud: string) {
+  //REVIEW
   return render('ud', BigInt(ud));
 }
 
@@ -161,7 +157,7 @@ export function getCanonicalPostId(inputId: string) {
   }
   // The id in group post ids doesn't come dot separated, so we format it
   if (id[3] !== '.') {
-    id = render('ud', BigInt(id));  //REVIEW  weird, and dot check is not ideal
+    id = render('ud', BigInt(id)); //REVIEW  weird, and dot check is not ideal
   }
   return id;
 }

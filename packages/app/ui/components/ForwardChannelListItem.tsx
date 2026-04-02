@@ -25,9 +25,7 @@ const FORWARD_CHANNEL_AVATAR = {
 function isNonDmGroupChannel(
   channel: db.Channel
 ): channel is db.Channel & { group: NonNullable<db.Channel['group']> } {
-  return (
-    channel.type !== 'dm' && channel.type !== 'groupDm' && !!channel.group
-  );
+  return channel.type !== 'dm' && channel.type !== 'groupDm' && !!channel.group;
 }
 
 function ForwardGroupChannelIcon({
@@ -35,8 +33,14 @@ function ForwardGroupChannelIcon({
 }: {
   channel: db.Channel & { group: NonNullable<db.Channel['group']> };
 }) {
-  const groupIconSize = getTokenValue(FORWARD_CHANNEL_AVATAR.groupSizeToken, 'size');
-  const channelTypeIconSize = getTokenValue(FORWARD_CHANNEL_AVATAR.iconSizeToken, 'size');
+  const groupIconSize = getTokenValue(
+    FORWARD_CHANNEL_AVATAR.groupSizeToken,
+    'size'
+  );
+  const channelTypeIconSize = getTokenValue(
+    FORWARD_CHANNEL_AVATAR.iconSizeToken,
+    'size'
+  );
   return (
     <View
       width={FORWARD_CHANNEL_AVATAR.footprint}

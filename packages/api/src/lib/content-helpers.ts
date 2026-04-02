@@ -1,7 +1,6 @@
-import type { ChannelType, PostMetadata } from '../types/models';
-import { createDevLogger } from '../client/logger';
 import isURL from 'validator/lib/isURL.js';
 
+import { createDevLogger } from '../client/logger';
 import {
   FinalizedAttachment,
   LinkAttachment,
@@ -11,6 +10,7 @@ import {
   UploadedVideoAttachment,
   uploadStateUri,
 } from '../types';
+import type { ChannelType, PostMetadata } from '../types/models';
 import {
   Block,
   Inline,

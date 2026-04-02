@@ -1,10 +1,10 @@
+import { scry } from '@tloncorp/api';
 import Database from 'better-sqlite3';
 import { BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import tmp from 'tmp';
 import { beforeAll, beforeEach, vi } from 'vitest';
 
-import { scry } from '@tloncorp/api';
 import { setClient } from '../db';
 import { AnySqliteDatabase } from '../db/client';
 import * as schema from '../db/schema';

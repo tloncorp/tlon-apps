@@ -1,5 +1,5 @@
-import type { Node } from 'unist';
 import type { PhrasingContent } from 'mdast';
+import type { Node } from 'unist';
 
 /**
  * Walk an mdast tree in reverse child order, calling visitor for every node

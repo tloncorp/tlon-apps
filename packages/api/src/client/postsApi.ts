@@ -1,15 +1,11 @@
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
-import type * as db from '../types/models';
-import { createDevLogger } from './logger';
+import { PlaintextPreviewConfig, getTextContent } from '../lib/postContent';
 import { IMAGE_URL_REGEX } from '../lib/utils';
-import {
-  PlaintextPreviewConfig,
-  getTextContent,
-} from '../lib/postContent';
-import * as ub from '../urbit';
+import type * as db from '../types/models';
 import { ContentReference } from '../types/references';
+import * as ub from '../urbit';
 import {
   ClubAction,
   DmAction,
@@ -29,6 +25,7 @@ import {
   whomIsDm,
 } from '../urbit';
 import {
+  type AuthorProfile,
   formatDateParam,
   formatScryPath,
   formatUd,
@@ -39,13 +36,13 @@ import {
   isGroupChannelId,
   isGroupDmChannelId,
   toAuthor,
-  type AuthorProfile,
   toPostEssay,
   udToDate,
   with404Handler,
 } from './apiUtils';
 import { channelAction } from './channelsApi';
 import { multiDmAction } from './chatApi';
+import { createDevLogger } from './logger';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);

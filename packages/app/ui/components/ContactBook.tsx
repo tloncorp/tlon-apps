@@ -112,7 +112,14 @@ export function ContactBook({
         onSelect?.(contactId);
       }
     },
-    [immutableSet, disabledSet, multiSelect, onSelect, onSelectedChange, selected]
+    [
+      immutableSet,
+      disabledSet,
+      multiSelect,
+      onSelect,
+      onSelectedChange,
+      selected,
+    ]
   );
 
   useEffect(() => {
@@ -142,7 +149,14 @@ export function ContactBook({
         />
       );
     },
-    [selected, immutableSet, disabledSet, disabledReason, multiSelect, handleSelect]
+    [
+      selected,
+      immutableSet,
+      disabledSet,
+      disabledReason,
+      multiSelect,
+      handleSelect,
+    ]
   );
 
   const onTouchStart = useCallback(() => {

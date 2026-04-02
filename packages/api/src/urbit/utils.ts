@@ -1,17 +1,17 @@
-import { render, valid, da } from '@urbit/aura';
+import { da, render, valid } from '@urbit/aura';
+import { Atom } from '@urbit/nockjs';
 
 import { PostContent } from '../client';
+import { createDevLogger } from '../client/logger';
 import type {
   ChannelType,
   GroupJoinStatus,
   GroupPrivacy,
 } from '../types/models';
-import { createDevLogger } from '../client/logger';
 import { ContentReference } from '../types/references';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubg from './groups';
-import { Atom } from '@urbit/nockjs';
 
 const logger = createDevLogger('urbitUtils', false);
 

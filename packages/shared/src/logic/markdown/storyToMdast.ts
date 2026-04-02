@@ -1,9 +1,47 @@
+import { Story, Verse, isBlockVerse } from '@tloncorp/api/urbit/channel';
+import {
+  Block,
+  Blockquote,
+  Bold,
+  Break,
+  Code,
+  Header,
+  Image,
+  Inline,
+  InlineCode,
+  Italics,
+  Link,
+  List,
+  ListItem,
+  Listing,
+  ListingBlock,
+  Rule,
+  Ship,
+  Strikethrough,
+  Task,
+  isBlockCode,
+  isBlockquote,
+  isBold,
+  isBreak,
+  isCode,
+  isHeader,
+  isImage,
+  isInlineCode,
+  isItalics,
+  isLink,
+  isList,
+  isListItem,
+  isListing,
+  isShip,
+  isStrikethrough,
+  isTask,
+} from '@tloncorp/api/urbit/content';
 import type {
-  Blockquote as MdastBlockquote,
-  Code as MdastCode,
   Delete,
   Emphasis,
   Heading,
+  Blockquote as MdastBlockquote,
+  Code as MdastCode,
   Image as MdastImage,
   InlineCode as MdastInlineCode,
   Link as MdastLink,
@@ -17,44 +55,6 @@ import type {
   ThematicBreak,
 } from 'mdast';
 
-import {
-  Block,
-  Inline,
-  isBold,
-  isItalics,
-  isStrikethrough,
-  isInlineCode,
-  isLink,
-  isShip,
-  isBreak,
-  isTask,
-  isBlockquote,
-  isBlockCode,
-  isCode,
-  isImage,
-  isHeader,
-  isListing,
-  isList,
-  isListItem,
-  Bold,
-  Italics,
-  Strikethrough,
-  InlineCode,
-  Link,
-  Ship,
-  Break,
-  Task,
-  Blockquote,
-  Code,
-  Image,
-  Header,
-  ListingBlock,
-  List,
-  ListItem,
-  Listing,
-  Rule,
-} from '@tloncorp/api/urbit/content';
-import { Story, Verse, isBlockVerse } from '@tloncorp/api/urbit/channel';
 import type { ShipMention } from './shipMentionPlugin';
 
 /**
@@ -208,7 +208,10 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
       const task = inline as Task;
       const checkbox = task.task.checked ? '[x]' : '[ ]';
       const content = inlinesToPhrasing(task.task.content);
-      result.push({ type: 'html', value: `${checkbox} ` } as unknown as PhrasingContent);
+      result.push({
+        type: 'html',
+        value: `${checkbox} `,
+      } as unknown as PhrasingContent);
       result.push(...content);
       continue;
     }
@@ -313,7 +316,9 @@ function phrasingToMarkdown(nodes: PhrasingContent[]): string {
           return (node as { value: string }).value;
         default:
           if ('children' in node) {
-            return phrasingToMarkdown((node as { children: PhrasingContent[] }).children);
+            return phrasingToMarkdown(
+              (node as { children: PhrasingContent[] }).children
+            );
           }
           return '';
       }
@@ -432,7 +437,13 @@ function listingsToListItems(
 function blockToMdast(block: Block): RootContent | null {
   if (isHeader(block)) {
     const header = block as Header;
-    const depth = parseInt(header.header.tag.charAt(1), 10) as 1 | 2 | 3 | 4 | 5 | 6;
+    const depth = parseInt(header.header.tag.charAt(1), 10) as
+      | 1
+      | 2
+      | 3
+      | 4
+      | 5
+      | 6;
     const children = inlinesToPhrasing(header.header.content);
     const heading: Heading = { type: 'heading', depth, children };
     return heading;
@@ -524,7 +535,11 @@ function verseInlineToMdast(inline: Inline[]): RootContent[] {
       result.push(blockquote);
     } else {
       // Skip breaks immediately before blockquotes (they're just separators)
-      if (isBreak(item) && i + 1 < inline.length && isBlockquote(inline[i + 1])) {
+      if (
+        isBreak(item) &&
+        i + 1 < inline.length &&
+        isBlockquote(inline[i + 1])
+      ) {
         continue;
       }
       currentSegment.push(item);

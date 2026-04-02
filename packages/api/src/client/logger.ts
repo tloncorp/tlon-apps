@@ -100,4 +100,5 @@ export const runIfDev = <TReturn>(fn: () => TReturn) => {
   }
 };
 
-export const escapeLog = (value: string) => runIfDev(() => value.replace(/"/g, '\\"'));
+export const escapeLog = (value: string) =>
+  runIfDev(() => value.replace(/"/g, '\\"'));

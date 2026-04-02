@@ -1,4 +1,3 @@
-import type * as db from '../types/models';
 import { render, valid } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import { differenceInDays, endOfToday, format } from 'date-fns';
@@ -13,6 +12,7 @@ import {
   isGroupDmChannelId,
 } from '../client/apiUtils';
 import * as domain from '../types';
+import type * as db from '../types/models';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';
 
