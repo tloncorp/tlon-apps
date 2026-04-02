@@ -196,22 +196,40 @@
 ~>  %slog.1^leaf+"{<num>} test {?:((gth num 1) "threads" "thread")} built"
 ~>  %slog.1^'Booting ships...'
 ;<  ~  bind:m  start-simple:ph-io
+::  test ships
+::
 ;<  ~  bind:m  (init-ship:ph-io ~zod &)
 ;<  ~  bind:m  (init-ship:ph-io ~bud &)
 ;<  ~  bind:m  (init-ship:ph-io ~nec &)
-::  a running ~dem is necessary to prevent aqua crashing on packets sent
-::  to the notify provider.
+::  provider ships
 ::
+::  bait provider
+;<  ~  bind:m  (init-ship:ph-io ~fen &)
+::  notify provider
 ;<  ~  bind:m  (init-ship:ph-io ~dem &)
-~>  %slog.1^(crip "Syncing {<q.byk>} desk to ships...")
-;<  ~  bind:m  (sync-desk ~zod %groups)
-;<  ~  bind:m  (sync-desk ~bud %groups)
-;<  ~  bind:m  (sync-desk ~nec %groups)
+::
+:: ~>  %slog.1^(crip "Syncing {<q.byk>} desk to ships...")
+:: ;<  ~  bind:m  (sync-desk ~zod %groups)
+:: ;<  ~  bind:m  (sync-desk ~bud %groups)
+:: ;<  ~  bind:m  (sync-desk ~nec %groups)
+:: ;<  ~  bind:m  (sync-desk ~fen %groups)
+:: ;<  ~  bind:m  (sync-desk ~dem %groups)
+::  setup bait provider
+::
+~>  %slog.1^(crip "Setting ~fen as lure provider...")
+;<  ~  bind:m  ph-test-init:ph-test
+;<  ~  bind:m  (poke-app:ph-test [~zod %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (poke-app:ph-test [~bud %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (poke-app:ph-test [~nec %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (poke-app:ph-test [~fen %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (poke-app:ph-test [~dem %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  ph-test-shut:ph-test
+::  TODO notify agent does not support swapping a provider
 ;<  =bowl:spider  bind:m  get-bowl
 =+  snap-id=(end 3^4 (sham eny.bowl))
 =+  snap=(cat 3 'aqua-tests-' (scot %uv snap-id))
 ~>  %slog.1^(crip "Taking snapshot...")
-;<  ~  bind:m  (send-events:ph-io [%snap-ships snap ~[~zod ~bud ~nec ~dem]]~)
+;<  ~  bind:m  (send-events:ph-io [%snap-ships snap ~[~zod ~bud ~nec ~fen ~dem]]~)
 ~>  %slog.1^'Running tests...'
 =/  n  (strand (list (pair path thread-result)))
 ;<  results=(list (pair path thread-result))  bind:m
@@ -222,11 +240,8 @@
   =*  test  i.tests
   =*  name  (rear path.test)
   ::  allow virtual vanes to run before we restore snapshot
-  ;<  ~  bind:n  (sleep ~s0)
+  ;<  ~  bind:n  (sleep ~s5)
   ;<  ~  bind:n  (send-events:ph-io [%restore-snap snap]~)
-  ;<  ~  bind:n  (sleep ~s0)  :: allow snap to be restored
-  ;<  ~  bind:n  (dojo:ph-io ~zod "~&(now now)")
-  ;<  ~  bind:n  (dojo:ph-io ~bud "~&(now now)")
   ;<  now-1=@da  bind:n  get-time
   ;<  =thread-result  bind:n  (await-test-thread test)
   ;<  now-2=@da  bind:n  get-time

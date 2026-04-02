@@ -71,6 +71,31 @@
       [%'invitedGroupIconImageUrl' 'https://zod.arvo.network/sunrise.jpg']
       [%'bite-type' '2']
   ==
+++  scry-reel-service
+  |=  =ship
+  =/  m  (strand @t)
+  ^-  form:m
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /i/(scot %p ship)/gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/service/noun/noun
+  =+  ;;  vic=(unit @t)
+    (scry-aqua:util noun our.bowl now.bowl aqua-pax)
+  (pure:m (need vic))
+::
+++  generate-lure-invite
+  =/  m  (strand @t)
+  ^-  form:m
+  =+  lure-path=(stab (cat 3 '/v1/id-link/' test-group-id))
+  ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] lure-path)
+  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[test-group-id lure-link-metadata])
+  ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
+  ;<  ~  bind:m  (leave-app /~zod/reel/v1/id-link [~zod %reel])
+  ?>  ?=(%json p.kag)
+  =+  !<(=json q.kag)
+  ?>  ?=(%s -.json)
+  ;<  vic=@t  bind:m  (scry-reel-service ~zod)
+  =/  lure-token=@t  (rsh [3 (met 3 vic)] p.json)
+  (pure:m lure-token)
 ::
 ++  ph-test-lure-link-creation
   =/  m  (strand ,~)
@@ -79,86 +104,45 @@
   ::
   ;<  ~  bind:m  create-test-group
   ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+test-group-id)
-  ::  generate a lure link and receive it
-  ::
-  =+  lure-path=(stab (cat 3 '/v1/id-link/' test-group-id))
-  ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] lure-path)
-  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[test-group-id lure-link-metadata])
-  ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
-  ?>  ?=(%json p.kag)
-  =+  !<(=json q.kag)
-  ~&  lure-link+json
+  ;<  token=@t  bind:m  generate-lure-invite
+  ?>  (gth (met 3 token) 0)
   (pure:m ~)
-::  +ph-test-lure-group-redemption
 ::
-:: ++  ph-test-lure-group-redemption
-::   =/  m  (strand ,~)
-::   ^-  form:m
-::   ::  host a group on ~zod and enable lure links
-::   ::
-::   ;<  ~  bind:m  create-test-group
-::   ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+test-group-id)
-::   ::  generate a lure link and receive it
-::   ::
-::   =+  lure-path=(stab (cat 3 '/v1/id-link/' test-group-id))
-::   ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] lure-path)
-::   ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[test-group-id lure-link-metadata)
-::   ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
-::   ?>  ?=(%json p.kag)
-::   =+  !<(=json q.kag)
-::   ~&  lure-link+json
-::   ::  ~bud redeems the link
-::   ::
-::   (pure:m ~)
-::  +ph-test-group-join: test group joins
-::
-::  scenario
-::
-::  ~zod hosts a group. ~bud joins the group. we verify
-::  that the subscription lifecycle follows through %watch, and then %done.
-::  finally, the group creation response is received.
-::
-++  ph-test-group-join
+++  ph-test-lure-group-redemption
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (watch-app /~zod/groups/v1/groups [~zod %groups] /v1/groups)
-  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
-  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
-  ::  ~zod hosts a group and invites ~bud
+  ::  host a group on ~zod and enables lure links
   ::
-  =/  =create-group:g
-    :*  %test-group-id
-        ['My Test Group' 'My testing group' '' '']
-        %secret
-        [~ ~]
-        (my ~bud^~ ~)
+  ;<  ~  bind:m  create-test-group
+  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+test-group-id)
+  ;<  token=@t  bind:m  generate-lure-invite
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
+  ::  ~bud onboards from hosting through the lure invite.
+  ::
+  =/  =request:http
+    :*  %'POST'
+        (cat 3 '/lure/' token)
+        ~
+        `(as-octs:mimes:html 'ship=%7Ebud')
     ==
-  ;<  ~  bind:m  (poke-app [~zod %groups] group-command+[%create create-group])
-  ::  ~bud joins the group using received invite token
+  =/  =task:eyre
+    :*  %request-local
+        secure=|
+        ipv4+.127.0.0.1
+        request
+    ==
+  =/  =aqua-event
+    [%event ~zod /e/aqua/eyre/request-local task]
+  ;<  ~  bind:m  (send-events ~[aqua-event])
+  ::  ~bud receives an dm invitation and a group invitation
   ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
+  ~&  p.kag
   ?>  =(%foreigns-1 p.kag)
-  =+  !<(=foreigns:v8:gv q.kag)
-  =+  foreign=(~(got by foreigns) test-flag)
-  ?>  ?=(^ invites.foreign)
-  =/  =a-foreigns:v8:gv
-    [%foreign test-flag %join token.i.invites.foreign]
-  ~&  %bud-join-test-group-id
-  ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
-  ::  wait for ~bud to complete the group join
-  ::
-  ~&  %bud-receive-connection-update
-  :: ;<  ~  bind:m  (ex-r-groups ~bud ~zod^%test-group-id [%connection &+%watch])
-  ~&  %bud-receive-connection-update-2
-  :: ;<  ~  bind:m  (ex-r-groups ~bud ~zod^%test-group-id [%connection &+%done])
-  ~&  %bud-receive-creation-update
-  ;<  ~  bind:m  (ex-r-groups-fact ~bud test-flag %create)
-  ;<  =bowl:strand  bind:m  get-bowl
-  :: =/  aqua-pax
-  ::   /i/~bud/gx/~bud/groups/(scot %da now.bowl)/v2/groups/noun/noun
-  :: =+  ;;  groups=(unit groups:v9:gv)
-  ::     (scry-aqua:util noun our.bowl now.bowl aqua-pax)
-  :: ~&  groups+groups
+  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
+  ~&  p.kag
+  ?>  =(%writ-response-4 p.kag)
   (pure:m ~)
 --
 

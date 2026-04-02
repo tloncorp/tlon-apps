@@ -2,11 +2,11 @@
 /+  *strandio, *ph-io, test
 =,  strand=strand:spider
 |%
-::  +ph-test-init: setup a test strand environment
+::  +ph-test-init: setup test strand environment
 ::
 ++  ph-test-init
   (watch-our /effect/unto %aqua /effect/unto)
-:: +ph-test-shut: teardown a test strand environment
+:: +ph-test-shut: teardown test strand environment
 ::
 ++  ph-test-shut
   (leave-our /effect/unto %aqua)
@@ -61,6 +61,17 @@
     (strand-fail %watch-ack u.p.sign)
   (pure:m ~)
 ::
+++  leave-app
+  |=  [=wire =dock]
+  =/  m  (strand ,~)
+  ^-  form:m
+  =/  =task:gall
+    [%deal [p.dock p.dock /aqua] q.dock %leave ~]
+  =/  =aqua-event
+    [%event p.dock [%g wire] task]
+  ;<  ~  bind:m  (send-events ~[aqua-event])
+  (pure:m ~)
+::
 ++  wait-for-app-fact
   |=  [=wire [our=ship dap=term]]
   =/  m  (strand cage)
@@ -71,6 +82,7 @@
   ?>  ?=(%aqua-effect p.cage)
   =+  !<(=aqua-effect q.cage)
   =/  [from=^ship =unix-effect]  aqua-effect
+  ~&  wait-for-app-fact+[from unix-effect]
   ?.  =(from our)  loop
   ?.  =(wire p.unix-effect)  loop
   ?.  ?=([%unto %raw-fact *] q.unix-effect)  loop
