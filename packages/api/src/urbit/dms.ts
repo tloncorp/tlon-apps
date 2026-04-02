@@ -3,7 +3,6 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
-import { parseIdNumber } from '../client/apiUtils';
 import {
   PostEssay,
   PostSeal,
@@ -13,6 +12,7 @@ import {
   ReplySeal,
 } from './channel';
 import { GroupMeta } from './groups';
+import { parseIdNumber } from './utils';
 
 export type Patda = string;
 export type Ship = string;
