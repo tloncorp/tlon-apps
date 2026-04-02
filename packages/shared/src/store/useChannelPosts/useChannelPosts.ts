@@ -6,16 +6,16 @@ import {
 import { getChannelIdType } from '@tloncorp/api';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import * as db from '../db';
-import { createDevLogger } from '../debug';
-import { AnalyticsEvent } from '../domain';
-import { useLiveRef, useOptimizedQueryResults } from '../logic/utilHooks';
-import { usePendingPostsInChannel } from './dbHooks';
-import { useCurrentSession } from './session';
-import * as sync from './sync';
-import { SyncPriority } from './syncQueue';
-import { useDetectSequenceRegression } from './useDetectSequenceRegression';
-import { mergePendingPosts } from './useMergePendingPosts';
+import * as db from '../../db';
+import { createDevLogger } from '../../debug';
+import { AnalyticsEvent } from '../../domain';
+import { useLiveRef, useOptimizedQueryResults } from '../../logic/utilHooks';
+import { usePendingPostsInChannel } from '../dbHooks';
+import { useCurrentSession } from '../session';
+import * as sync from '../sync';
+import { SyncPriority } from '../syncQueue';
+import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
+import { mergePendingPosts } from '../useMergePendingPosts';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
 
