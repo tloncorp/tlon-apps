@@ -1,4 +1,5 @@
 import type { Poke } from '../http-api';
+import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import type * as db from '../types/models';
 import type { GroupPrivacy } from '../types/models';
@@ -13,7 +14,6 @@ import {
 } from '../urbit';
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
-import { createDevLogger } from './logger';
 import {
   BadResponseError,
   getCurrentUserId,

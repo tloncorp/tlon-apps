@@ -1,11 +1,16 @@
 import { da } from '@urbit/aura';
 import _ from 'lodash';
 
-import { parseIdNumber } from '../client/apiUtils';
 import type { UnionToIntersection } from '../lib/utilityTypes';
 import { Kind, Story } from './channel';
 import { ContactBookProfile } from './contact';
-import { nestToFlag, whomIsDm, whomIsFlag, whomIsMultiDm } from './utils';
+import {
+  nestToFlag,
+  parseIdNumber,
+  whomIsDm,
+  whomIsFlag,
+  whomIsMultiDm,
+} from './utils';
 
 export type Whom = { ship: string } | { club: string };
 

@@ -1,4 +1,4 @@
-import * as urbit from '@tloncorp/api/urbit';
+import { desig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
 import { p } from '@urbit/aura';
 
@@ -17,10 +17,7 @@ export function formatUserId(
   const shortenedName = full ? userId : p.cite(userId);
   if (!shortenedName) return null;
 
-  const ariaLabel = urbit
-    .desig(shortenedName)
-    .split(USER_ID_SEPARATORS)
-    .join(' ');
+  const ariaLabel = desig(shortenedName).split(USER_ID_SEPARATORS).join(' ');
 
   return {
     display: shortenedName,

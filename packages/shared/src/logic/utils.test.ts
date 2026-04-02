@@ -2,8 +2,7 @@ import {
   getModelAnalytics,
   isBotDmChannel,
   normalizeUrbitColor,
-} from '@tloncorp/api/lib/utils';
-import { isPersonalGroup } from '@tloncorp/api/lib/wayfinding';
+} from '@tloncorp/api/client/utils';
 import { describe, expect, it } from 'vitest';
 
 import * as db from '../db';

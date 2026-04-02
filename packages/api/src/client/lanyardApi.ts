@@ -1,13 +1,13 @@
 import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
+import { createDevLogger } from '../lib/logger';
 import { Json, getFrondValue, getPatp } from '../lib/noun';
 import { simpleHash } from '../lib/utils';
 import { AnalyticsEvent } from '../types/analytics';
 import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { encodeString } from '../urbit';
-import { createDevLogger } from './logger';
 import * as NounParsers from './nounParsers';
 import {
   getCurrentUserId,

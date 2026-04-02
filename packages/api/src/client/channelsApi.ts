@@ -1,6 +1,7 @@
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
+import { createDevLogger } from '../lib/logger';
 import type { Stringified } from '../lib/utilityTypes';
 import type * as db from '../types/models';
 import * as ub from '../urbit';
@@ -11,7 +12,6 @@ import {
   getChannelIdType,
   isGroupChannelId,
 } from './apiUtils';
-import { createDevLogger } from './logger';
 import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
 import {
   poke,

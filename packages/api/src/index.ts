@@ -29,11 +29,8 @@ export type {
 } from './types/references';
 export {
   checkNest,
-  desig,
   getChannelType,
-  getTextContent,
   nestToFlag,
-  preSig,
   whomIsDm,
   whomIsMultiDm,
   type AppTheme,
@@ -63,5 +60,5 @@ export {
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
-} from './lib/content-helpers';
+} from './client/content-helpers';
 export * from './client';

@@ -1,32 +1,25 @@
 import { parse, render } from '@urbit/aura';
-import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
+import { Atom, Cell, Noun, dejs, jam } from '@urbit/nockjs';
 
-import { TimeoutError } from '../client';
-import { createDevLogger } from '../client/logger';
 import { EventEmitter } from '../lib/EventEmitter';
 import { readArrayBufferFromBlob } from '../lib/blob';
+import { createDevLogger } from '../lib/logger';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
-import { desig } from '../urbit';
+import { desig } from '../lib/urbit';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
-import {
-  EventSourceMessage,
-  FetchEventSourceInit,
-  fetchEventSource,
-} from './fetch-event-source';
+import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
   Ack,
   AuthError,
   AuthenticationInterface,
   FatalError,
   Message,
-  NounPoke,
   NounPokeInterface,
   PokeHandlers,
   PokeInterface,
   ReapError,
   SSEBadResponseError,
   SSEOptions,
-  SSETimeoutError,
   Scry,
   SubscriptionRequestInterface,
   Thread,
@@ -563,7 +556,7 @@ export class Urbit {
       }
     });
 
-    this.outstandingPokes.forEach((poke, id) => {
+    this.outstandingPokes.forEach((poke) => {
       poke.onError?.('Channel was reaped');
     });
     this.outstandingPokes = new Map();

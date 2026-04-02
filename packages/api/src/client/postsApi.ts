@@ -1,7 +1,7 @@
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
-import { PlaintextPreviewConfig, getTextContent } from '../lib/postContent';
+import { createDevLogger } from '../lib/logger';
 import { IMAGE_URL_REGEX } from '../lib/utils';
 import type * as db from '../types/models';
 import { ContentReference } from '../types/references';
@@ -42,7 +42,7 @@ import {
 } from './apiUtils';
 import { channelAction } from './channelsApi';
 import { multiDmAction } from './chatApi';
-import { createDevLogger } from './logger';
+import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);

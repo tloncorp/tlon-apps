@@ -1,10 +1,10 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { RNFile, getCurrentUserId } from '@tloncorp/api';
-import { Attachment } from '@tloncorp/api/types/attachment';
 //REVIEW  why doesn't this work here?
 // import { desig } from '@tloncorp/api/urbit';
-import { desig } from '@tloncorp/api/urbit';
+import { desig } from '@tloncorp/api/lib/urbit';
+import { Attachment } from '@tloncorp/api/types/attachment';
 import { da, render } from '@urbit/aura';
 import * as FileSystem from 'expo-file-system';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';

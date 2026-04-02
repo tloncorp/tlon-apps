@@ -1,3 +1,4 @@
+import { createDevLogger } from '../lib/logger';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
 import { toClientUnreads } from './activityApi';
@@ -8,7 +9,6 @@ import {
   toClientGroupsV7,
   toClientPinnedItems,
 } from './groupsApi';
-import { createDevLogger } from './logger';
 import { toClientHiddenPosts } from './postsApi';
 import { scry } from './urbit';
 
