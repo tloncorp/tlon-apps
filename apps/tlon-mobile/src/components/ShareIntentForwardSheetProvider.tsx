@@ -1,18 +1,24 @@
+import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { APP_SCHEME } from '@tloncorp/app/constants';
+import type { RootStackParamList } from '@tloncorp/app/navigation/types';
+import { screenNameFromChannelId } from '@tloncorp/app/navigation/utils';
+import type { ChannelShareIntent } from '@tloncorp/app/types/shareIntent';
 import {
   ForwardToChannelSheet,
   useChannelShareIntent,
   useForwardToChannelSheet,
 } from '@tloncorp/app/ui';
-import type { RootStackParamList } from '@tloncorp/app/navigation/types';
-import type { ChannelShareIntent } from '@tloncorp/app/types/shareIntent';
-import { screenNameFromChannelId } from '@tloncorp/app/navigation/utils';
-import { NavigationProp, useNavigation } from '@react-navigation/native';
-import { APP_SCHEME } from '@tloncorp/app/constants';
 import { createDevLogger } from '@tloncorp/shared';
-import { useMutableRef } from '@tloncorp/shared/logic';
 import * as db from '@tloncorp/shared/db';
+import { useMutableRef } from '@tloncorp/shared/logic';
 import { useShareIntent } from 'expo-share-intent';
-import { PropsWithChildren, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   extractSharedFile,
@@ -33,7 +39,9 @@ export function ShareIntentForwardSheetProvider({
 }: ShareIntentForwardSheetProviderProps) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [isOpen, setIsOpen] = useState(false);
-  const [pendingShare, setPendingShare] = useState<ChannelShareIntent | null>(null);
+  const [pendingShare, setPendingShare] = useState<ChannelShareIntent | null>(
+    null
+  );
   const { pushShareIntent } = useChannelShareIntent();
   const lastHandledShareRef = useRef<string | null>(null);
   const { error, hasShareIntent, isReady, resetShareIntent, shareIntent } =
@@ -86,7 +94,9 @@ export function ShareIntentForwardSheetProvider({
       }
 
       if (hasMoreThanOneFile) {
-        shareIntentLogger.log('Received multiple files; only the first will be used');
+        shareIntentLogger.log(
+          'Received multiple files; only the first will be used'
+        );
       }
 
       shareIntentLogger.log(
@@ -107,15 +117,12 @@ export function ShareIntentForwardSheetProvider({
     setIsOpen(true);
   }, [enabled, isOpen, pendingShare]);
 
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      setIsOpen(open);
-      if (!open) {
-        setPendingShare((current) => (current ? null : current));
-      }
-    },
-    []
-  );
+  const handleOpenChange = useCallback((open: boolean) => {
+    setIsOpen(open);
+    if (!open) {
+      setPendingShare((current) => (current ? null : current));
+    }
+  }, []);
 
   const handleNavigateToChannel = useCallback(
     async (channel: db.Channel) => {

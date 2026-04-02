@@ -61,7 +61,10 @@ export function GalleryInput({
   // Attachment review is postable whenever there is a real attachment, but we
   // still ignore the placeholder image we attach during media selection.
   const hasRealAttachments = useMemo(
-    () => attachments.some((attachment) => !isPlaceholderImageAttachment(attachment)),
+    () =>
+      attachments.some(
+        (attachment) => !isPlaceholderImageAttachment(attachment)
+      ),
     [attachments]
   );
 
