@@ -30,6 +30,12 @@ module.exports = {
   ignorePatterns: ['dist', 'node_modules', '*.md'],
   overrides: [
     {
+      files: ['**/*.test.{ts,tsx}'],
+      rules: {
+        'import-x/no-restricted-paths': 'off',
+      },
+    },
+    {
       files: ['packages/api/src/**/*.{ts,tsx}'],
       excludedFiles: [
         'packages/api/src/**/__tests__/**',
