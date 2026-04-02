@@ -2,25 +2,25 @@ import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 
-import * as db from '../db';
-import { createDevLogger } from '../debug';
-import type * as domain from '../domain';
-import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
-import * as logic from '../logic';
-import * as Transcription from '../transcription';
-import { sessionActionQueue } from './SessionActionQueue';
+import * as db from '../../db';
+import { createDevLogger } from '../../debug';
+import type * as domain from '../../domain';
+import { AnalyticsEvent, Attachment, PostDataDraft } from '../../domain';
+import * as logic from '../../logic';
+import * as Transcription from '../../transcription';
+import { sessionActionQueue } from '../SessionActionQueue';
 import {
   clearUploadState,
   finalizeAttachments,
   finalizeAttachmentsLocal,
   uploadAsset,
-} from './storage';
-import * as sync from './sync';
+} from '../storage';
+import * as sync from '../sync';
 import {
   clearChannelPostsQueries,
   deleteFromChannelPosts,
   rollbackDeletedChannelPost,
-} from './useChannelPosts';
+} from '../useChannelPosts';
 
 export const logger = createDevLogger('postActions', false);
 
