@@ -16,9 +16,15 @@ module.exports = {
     react: {
       version: 'detect',
     },
+    "import/parsers": {
+      "@typescript-eslint/parser": [".ts", ".tsx"],
+    },
+    "import/resolver": {
+      "typescript": true,
+    },
   },
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
+  plugins: ['@typescript-eslint', 'import'],
   ignorePatterns: ['dist', 'node_modules', '*.md'],
   overrides: [
     {
@@ -44,6 +50,7 @@ module.exports = {
     },
   ],
   rules: {
+    'import/no-cycle': 'error',
     '@typescript-eslint/consistent-type-imports': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-namespace': 'off',
