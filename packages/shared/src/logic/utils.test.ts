@@ -3,7 +3,6 @@ import {
   isBotDmChannel,
   normalizeUrbitColor,
 } from '@tloncorp/api/client/utils';
-import { isPersonalGroup } from '@tloncorp/api/lib/wayfinding';
 import { describe, expect, it } from 'vitest';
 
 import * as db from '../db';
