@@ -513,6 +513,7 @@ function ConnectedWebApp() {
             during: 'web start sequence',
             severity: AnalyticsSeverity.High,
           });
+          hasHandledWayfindingRef.current = true;
         }
       }
 
