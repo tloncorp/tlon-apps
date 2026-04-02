@@ -8,6 +8,7 @@ import _ from 'lodash';
 
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
+import { queryClient } from '../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
@@ -23,7 +24,6 @@ import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
-import { queryClient } from './reactQuery';
 import { getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
 import { getSystemContacts } from './systemContactsApi';

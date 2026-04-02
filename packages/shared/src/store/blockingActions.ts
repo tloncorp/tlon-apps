@@ -1,5 +1,5 @@
+import { queryClient } from '../db/reactQuery';
 import { blockUser, unblockUser } from './dmActions';
-import { queryClient } from './reactQuery';
 
 export async function handleBlockingAction(
   userId: string,

@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { queryClient } from '../../db';
 import {
   getConfirmationMessage,
   handleBlockingAction,
 } from '../blockingActions';
 import { blockUser, unblockUser } from '../dmActions';
-import { queryClient } from '../reactQuery';
 
 // Mock dependencies
 vi.mock('../dmActions');
