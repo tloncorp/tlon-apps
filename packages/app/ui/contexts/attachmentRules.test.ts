@@ -1,6 +1,5 @@
-import { expect, test } from 'vitest';
-
 import { Attachment } from '@tloncorp/shared';
+import { expect, test } from 'vitest';
 
 import {
   VIDEO_COMPOSITION_ERROR,

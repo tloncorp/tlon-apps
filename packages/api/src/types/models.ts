@@ -4,12 +4,11 @@
  * These are the API-owned structural contracts used across package boundaries.
  * DB-layer models are expected to be assignable to these shapes.
  */
-
 import type { ChannelContentConfiguration } from '../client/channelContentConfig';
 import type { ExtendedEventType, NotificationLevel } from '../urbit';
 import type {
-  GroupMemberInvite,
   GroupJoinStatus,
+  GroupMemberInvite,
   GroupPrivacy,
 } from './groups';
 import type { Post, ThreadUnreadState } from './post';
@@ -308,7 +307,9 @@ export function isGroupEvent(event: ActivityEvent): event is GroupEvent {
   );
 }
 
-export function isSystemContact(contact: Contact | SystemContact): contact is SystemContact {
+export function isSystemContact(
+  contact: Contact | SystemContact
+): contact is SystemContact {
   const hasPhone = 'phoneNumber' in contact;
   const hasEmail = 'email' in contact;
   return hasPhone || hasEmail;

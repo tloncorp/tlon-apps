@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { HostingError } from '@tloncorp/api';
 import {
   DEFAULT_ONBOARDING_PHONE_NUMBER,
   DEFAULT_ONBOARDING_TLON_EMAIL,
@@ -19,14 +20,13 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import { Button } from '@tloncorp/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/api';
+import { Button } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Platform } from 'react-native';

@@ -1,6 +1,6 @@
+import * as api from '@tloncorp/api';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as Contacts from 'expo-contacts';
 import * as Notifications from 'expo-notifications';

@@ -17,7 +17,12 @@ type Props = NativeStackScreenProps<
 >;
 
 export function SelectRoleMembersScreen({ navigation, route }: Props) {
-  const { groupId, roleId, selectedMembers: initialSelected, onSave } = route.params;
+  const {
+    groupId,
+    roleId,
+    selectedMembers: initialSelected,
+    onSave,
+  } = route.params;
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMembers, setSelectedMembers] =
     useState<string[]>(initialSelected);

@@ -2,7 +2,11 @@ import type { Attachment } from '@tloncorp/shared/domain';
 import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
-import { isLikelyVideoSource, VIDEO_VALIDATION_ERROR, validateVideoSource } from '../ui/contexts/attachmentRules';
+import {
+  VIDEO_VALIDATION_ERROR,
+  isLikelyVideoSource,
+  validateVideoSource,
+} from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import type { VideoPreviewData } from '../ui/utils/videoPreviewTypes';
 import { getAudioFileDurationSeconds, getFileSize } from './files';
@@ -21,7 +25,9 @@ function getAssetFile(asset: Pick<ImagePickerAsset, 'file'>): File | undefined {
   return asset.file instanceof File ? asset.file : undefined;
 }
 
-function positiveNumberOrUndefined(value: number | null | undefined): number | undefined {
+function positiveNumberOrUndefined(
+  value: number | null | undefined
+): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
     ? value
     : undefined;
@@ -35,9 +41,11 @@ function imagePickerAssetVideoMetadata(
   // provides duration directly from HTMLVideoElement.duration — already in seconds.
   // On native, duration is in milliseconds. Use assetFile as the signal.
   const durationSeconds =
-    asset.duration == null ? undefined
-    : assetFile ? asset.duration        // web: already seconds
-    : asset.duration / 1000;            // native: ms → seconds
+    asset.duration == null
+      ? undefined
+      : assetFile
+        ? asset.duration // web: already seconds
+        : asset.duration / 1000; // native: ms → seconds
 
   return {
     width: positiveNumberOrUndefined(asset.width),
@@ -108,7 +116,10 @@ export function imagePickerAssetToUploadIntent(
 
 export async function normalizeUploadIntent(
   uploadIntent: Attachment.UploadIntent
-): Promise<{ uploadIntent: Attachment.UploadIntent | null; errorMessage: string | null }> {
+): Promise<{
+  uploadIntent: Attachment.UploadIntent | null;
+  errorMessage: string | null;
+}> {
   if (uploadIntent.type === 'image') {
     return { uploadIntent, errorMessage: null };
   }
@@ -173,8 +184,7 @@ export async function normalizeUploadIntent(
     const localUri = isFileIntent
       ? URL.createObjectURL(uploadIntent.file)
       : uploadIntent.localUri;
-    const duration =
-      (await getAudioFileDurationSeconds(localUri)) ?? undefined;
+    const duration = (await getAudioFileDurationSeconds(localUri)) ?? undefined;
     return {
       uploadIntent: {
         type: 'fileUri',
@@ -216,7 +226,9 @@ export async function normalizeUploadIntent(
   if (needsPreviewData) {
     try {
       previewData = await getVideoPreviewData(
-        isFileIntent ? { file: uploadIntent.file } : { uri: uploadIntent.localUri }
+        isFileIntent
+          ? { file: uploadIntent.file }
+          : { uri: uploadIntent.localUri }
       );
     } catch {
       previewData = {};
@@ -252,7 +264,10 @@ export async function normalizeUploadIntent(
 
 export async function normalizeUploadIntents(
   uploadIntents: Attachment.UploadIntent[]
-): Promise<{ uploadIntents: Attachment.UploadIntent[]; errorMessage: string | null }> {
+): Promise<{
+  uploadIntents: Attachment.UploadIntent[];
+  errorMessage: string | null;
+}> {
   const normalized = await Promise.all(
     uploadIntents.map((uploadIntent) => normalizeUploadIntent(uploadIntent))
   );
@@ -266,9 +281,10 @@ export async function normalizeUploadIntents(
   };
 }
 
-export async function pickFile(
-  acceptedTypes: string[] = ['*/*']
-): Promise<{ uploadIntents: Attachment.UploadIntent[]; errorMessage: string | null }> {
+export async function pickFile(acceptedTypes: string[] = ['*/*']): Promise<{
+  uploadIntents: Attachment.UploadIntent[];
+  errorMessage: string | null;
+}> {
   const results = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
     multiple: false,

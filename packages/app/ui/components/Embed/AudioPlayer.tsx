@@ -1,4 +1,5 @@
 import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
+import { Icon, LoadingSpinner, Pressable } from '@tloncorp/ui';
 import {
   AVPlaybackStatus,
   Audio as ExpoAudio,
@@ -15,7 +16,6 @@ import {
 } from 'react';
 import { GestureResponderEvent } from 'react-native';
 import { Text, View } from 'tamagui';
-import { Icon, LoadingSpinner, Pressable} from '@tloncorp/ui'
 
 import { AudioPlayerHandle } from './AudioEmbedShared';
 

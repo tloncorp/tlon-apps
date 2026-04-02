@@ -8,5 +8,5 @@
 export {
   BottomSheetWrapper,
   BottomSheetScrollView,
-  BottomSheetTextInput
+  BottomSheetTextInput,
 } from './BottomSheetWrapper.web';

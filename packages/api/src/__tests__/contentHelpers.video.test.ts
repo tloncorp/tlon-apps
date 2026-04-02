@@ -5,9 +5,7 @@ import {
   parsePostBlob,
   toPostData,
 } from '../lib/content-helpers';
-import {
-  UploadedVideoAttachment,
-} from '../types/attachment';
+import { UploadedVideoAttachment } from '../types/attachment';
 
 test('appendVideoToPostBlob + parsePostBlob round-trips video metadata', () => {
   const blob = appendVideoToPostBlob(undefined, {

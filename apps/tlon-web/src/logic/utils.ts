@@ -33,7 +33,7 @@ import {
   Treaty,
   udToDec,
 } from '@urbit/api';
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import bigInt, { BigInteger } from 'big-integer';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';

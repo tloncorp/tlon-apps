@@ -7,19 +7,17 @@ import {
   ensureFileExtension,
 } from '@tloncorp/shared';
 import { Icon, Image, Pressable, Text, triggerHaptic } from '@tloncorp/ui';
-// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
-// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
-import {
-  VideoView,
-} from 'expo-video/build/VideoView';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
 import type {
   PlayingChangeEventPayload,
   StatusChangeEventPayload,
   TimeUpdateEventPayload,
 } from 'expo-video/build/VideoPlayerEvents.types';
-import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
+// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
+// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
+import { VideoView } from 'expo-video/build/VideoView';
 import {
   ElementRef,
   PropsWithChildren,
@@ -59,7 +57,11 @@ function MediaViewerModal({
   dismiss?: () => void;
 }>) {
   if (isWeb) {
-    return <Modal animationType="none" onRequestClose={dismiss}>{children}</Modal>;
+    return (
+      <Modal animationType="none" onRequestClose={dismiss}>
+        {children}
+      </Modal>
+    );
   }
 
   return <>{children}</>;
@@ -107,10 +109,7 @@ function VideoViewer({
   const [showOverlay, setShowOverlay] = useState(true);
   const [isBuffering, setIsBuffering] = useState(!!uri);
   const [isReady, setIsReady] = useState(!posterUri);
-  const videoSource = useMemo(
-    () => (uri ? { uri } : null),
-    [uri]
-  );
+  const videoSource = useMemo(() => (uri ? { uri } : null), [uri]);
   const player = useVideoPlayer(isWeb ? null : videoSource);
   const hasStartedPlaybackRef = useRef(false);
   const hasTrackedPlaybackStartRef = useRef(false);
@@ -342,12 +341,7 @@ function VideoViewer({
       <VideoLoadingOverlay visible={!!uri && (!isReady || isBuffering)} />
 
       {showOverlay ? (
-        <Pressable
-          onPress={goBack}
-          position="absolute"
-          top={top}
-          right="$xl"
-        >
+        <Pressable onPress={goBack} position="absolute" top={top} right="$xl">
           <OverlayIconButton icon="Close" />
         </Pressable>
       ) : null}
@@ -507,7 +501,7 @@ function ImageViewer(props: { uri?: string; goBack: () => void }) {
 
         try {
           const downloadResult = await FileSystem.downloadAsync(
-            props.uri, 
+            props.uri,
             localUri
           );
 

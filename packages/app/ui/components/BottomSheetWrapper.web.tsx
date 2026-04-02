@@ -45,7 +45,12 @@ export const BottomSheetWrapper = forwardRef<
         handleDisableScroll={handleDisableScroll}
         modal={modal}
       >
-        {showOverlay && <Sheet.Overlay animation={animation as any} opacity={overlayOpacity} />}
+        {showOverlay && (
+          <Sheet.Overlay
+            animation={animation as any}
+            opacity={overlayOpacity}
+          />
+        )}
         <Sheet.Frame style={frameStyle} pressStyle={{}}>
           {showHandle && <Sheet.Handle />}
           {children}
