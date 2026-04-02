@@ -24,7 +24,7 @@ import { updateChannelSections } from '../groupActions';
 import { verifyUserInviteLink } from '../inviteActions';
 import { discoverContacts } from '../lanyardActions';
 import { useLureState } from '../lure';
-import { failEnqueuedPosts, verifyPostDelivery } from '../postActions';
+import { verifyPostDelivery } from '../postActions';
 import { getSession, setSession, updateSession } from '../session';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
@@ -2108,3 +2108,12 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
     ]);
   });
 };
+
+async function failEnqueuedPosts() {
+  const enqueuedPosts = await db.getEnqueuedPosts();
+  await Promise.all(
+    enqueuedPosts.map(async (post) => {
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+    })
+  );
+}

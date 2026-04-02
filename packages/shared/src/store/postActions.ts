@@ -24,15 +24,6 @@ import {
 
 export const logger = createDevLogger('postActions', false);
 
-export async function failEnqueuedPosts() {
-  const enqueuedPosts = await db.getEnqueuedPosts();
-  await Promise.all(
-    enqueuedPosts.map(async (post) => {
-      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
-    })
-  );
-}
-
 export async function finalizePostDraft(
   draft: domain.PostDataDraftPost
 ): Promise<domain.PostDataFinalizedParent>;
