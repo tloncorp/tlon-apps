@@ -54,6 +54,7 @@ module.exports = {
     'import-x/no-restricted-paths': [
       'error',
       {
+        basePath: __dirname,
         zones: [
           // api/ submodules (top is forbidden from import from lower):
           // - lib
