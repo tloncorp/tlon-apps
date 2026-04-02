@@ -1,7 +1,7 @@
 import type { ShareIntentFile as AppShareIntentFile } from '@tloncorp/app/types/shareIntent';
 import {
-  type ShareIntent,
   type ShareIntentFile as ExpoShareIntentFile,
+  type ShareIntent,
 } from 'expo-share-intent';
 
 const mapShareIntentFile = (

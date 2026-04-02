@@ -6,17 +6,15 @@ class ShareExtensionPreprocessor {
     };
 
     // Get all meta elements
-    const metaElements = document.querySelectorAll("meta");
+    const metaElements = document.querySelectorAll('meta');
     for (const meta of metaElements) {
-      const name = meta.getAttribute("name") || meta.getAttribute("property");
-      const content = meta.getAttribute("content");
+      const name = meta.getAttribute('name') || meta.getAttribute('property');
+      const content = meta.getAttribute('content');
 
       if (name && content) {
         metas[name] = content;
       }
     }
-
-    
 
     // Call the completion function with the extracted data
     completionFunction({

@@ -80,9 +80,7 @@ const IMAGE_FILE_EXTENSION_REGEX =
   /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
 const shareIntentLogger = createDevLogger('shareIntent', true);
 
-const isLikelyImageFile = (
-  file: NonNullable<ChannelShareIntent['file']>
-) => {
+const isLikelyImageFile = (file: NonNullable<ChannelShareIntent['file']>) => {
   if (file.mimeType?.startsWith('image/')) {
     return true;
   }
@@ -145,7 +143,8 @@ function usePrefillDraftFromShareIntent({
   const { pendingShareIntent, popShareIntent } = useChannelShareIntent();
   const { attachAssets } = useAttachmentContext();
   const processingShareIntentIdRef = useRef<number | null>(null);
-  const [activeShareIntent, setActiveShareIntent] = useState<ChannelShareIntent | null>(null);
+  const [activeShareIntent, setActiveShareIntent] =
+    useState<ChannelShareIntent | null>(null);
 
   useEffect(() => {
     processingShareIntentIdRef.current = null;
@@ -154,7 +153,11 @@ function usePrefillDraftFromShareIntent({
 
   // Claim the pending share into local state before popping it from context.
   useEffect(() => {
-    if (disabled || activeShareIntent || pendingShareIntent?.channelId !== channel.id) {
+    if (
+      disabled ||
+      activeShareIntent ||
+      pendingShareIntent?.channelId !== channel.id
+    ) {
       return;
     }
 
@@ -177,10 +180,7 @@ function usePrefillDraftFromShareIntent({
   ]);
 
   const processIntent = useCallback(
-    async (
-      intent: ChannelShareIntent,
-      signal: { cancelled: boolean }
-    ) => {
+    async (intent: ChannelShareIntent, signal: { cancelled: boolean }) => {
       const rawUploadIntent = intent.file
         ? uploadIntentFromShareIntentFile(intent.file)
         : null;
@@ -227,7 +227,10 @@ function usePrefillDraftFromShareIntent({
             : 'text'
           : undefined;
 
-      await storeDraft(logic.textAndMentionsToContent(sharedText, []), draftType);
+      await storeDraft(
+        logic.textAndMentionsToContent(sharedText, []),
+        draftType
+      );
       if (signal.cancelled) return;
 
       openDraft(draftType);
@@ -238,7 +241,8 @@ function usePrefillDraftFromShareIntent({
   // Process the active share from local state so popping context state can't interrupt it.
   useEffect(() => {
     if (disabled || !activeShareIntent) return;
-    if (processingShareIntentIdRef.current === activeShareIntent.createdAt) return;
+    if (processingShareIntentIdRef.current === activeShareIntent.createdAt)
+      return;
 
     processingShareIntentIdRef.current = activeShareIntent.createdAt;
     const signal = { cancelled: false };
@@ -254,7 +258,9 @@ function usePrefillDraftFromShareIntent({
         if (!signal.cancelled) setActiveShareIntent(null);
       })
       .finally(() => {
-        if (processingShareIntentIdRef.current === activeShareIntent.createdAt) {
+        if (
+          processingShareIntentIdRef.current === activeShareIntent.createdAt
+        ) {
           processingShareIntentIdRef.current = null;
         }
       });
