@@ -31,7 +31,6 @@ export {
   checkNest,
   getChannelType,
   nestToFlag,
-  preSig,
   whomIsDm,
   whomIsMultiDm,
   type AppTheme,

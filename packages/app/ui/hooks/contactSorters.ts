@@ -1,4 +1,4 @@
-import { preSig } from '@tloncorp/api/urbit';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { createDevLogger, logSyncDuration } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { valid } from '@urbit/aura';

@@ -1,5 +1,5 @@
 import * as api from '@tloncorp/api';
-import { preSig } from '@tloncorp/api/urbit';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import {
   AnalyticsEvent,
   createDevLogger,

@@ -10,10 +10,10 @@ import {
   Urbit,
 } from '../http-api';
 import { createDevLogger, escapeLog, runIfDev } from '../lib/logger';
+import { preSig } from '../lib/urbit';
 import { AnalyticsEvent } from '../types/analytics';
 import { getConstants } from '../types/constants';
 import * as Hosting from '../types/hosting';
-import { preSig } from '../urbit';
 import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);

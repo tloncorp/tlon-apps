@@ -6,10 +6,11 @@ import {
 } from '@tiptap/core';
 import { JSONContent } from '@tiptap/react';
 import { desig } from '@tloncorp/api/lib/urbit';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { Story } from '@tloncorp/api/urbit/channel';
 import { Block, Cite, HeaderLevel, Listing } from '@tloncorp/api/urbit/content';
 import { Inline, InlineKey, Link, Task } from '@tloncorp/api/urbit/content';
-import { citeToPath, pathToCite, preSig } from '@tloncorp/api/urbit/utils';
+import { citeToPath, pathToCite } from '@tloncorp/api/urbit/utils';
 import { valid } from '@urbit/aura';
 import { isEqual, reduce } from 'lodash';
 

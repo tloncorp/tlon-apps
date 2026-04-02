@@ -41,18 +41,6 @@ export function nestToFlag(nest: string): [App, string] {
   return [app as App, rest.join('/')];
 }
 
-export function preSig(ship: string): string {
-  if (!ship) {
-    return '';
-  }
-
-  if (ship.trim().startsWith('~')) {
-    return ship.trim();
-  }
-
-  return '~'.concat(ship.trim());
-}
-
 export function getFirstInline(content: ub.Story) {
   const inlines = content.filter((v) => 'inline' in v) as ub.VerseInline[];
   if (inlines.length === 0) {
