@@ -10,7 +10,7 @@ import * as db from '../../db';
 import { QueryCtx, batchEffects } from '../../db/query';
 import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
-import { createDevLogger, runIfDev } from '../../debug';
+import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -32,15 +32,14 @@ import {
   addToChannelPosts,
   clearChannelPostsQueries,
 } from '../useChannelPosts';
+import { logger } from './logger';
+import { syncContacts } from './syncContacts';
+import { syncGroup } from './syncGroup';
+import { updateLastActivityTime } from './updateLastActivityTime';
 
+export { syncContacts } from './syncContacts';
+export { syncGroup } from './syncGroup';
 export { SyncPriority, syncQueue } from '../syncQueue';
-
-const logger = createDevLogger('sync', false);
-
-// Update the last activity timestamp when we receive new data
-export function updateLastActivityTime() {
-  db.lastActivityAt.setValue(Date.now());
-}
 
 // Used to keep track of which groups/channels we're a part of. If we
 // see something new, we refetch init data. Fallback in case we miss
@@ -597,33 +596,6 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   }
 };
 
-export const syncContacts = async (
-  ctx?: SyncCtx,
-  queryCtx?: QueryCtx,
-  yieldWriter?: boolean
-) => {
-  const contacts = await syncQueue.add('contacts', ctx, () =>
-    api.getContacts()
-  );
-  logger.log('got contacts from api', contacts.length, 'contacts');
-
-  const writer = async () => {
-    try {
-      await db.insertContacts(contacts, queryCtx);
-      LocalCache.cacheContacts(contacts);
-    } catch (e) {
-      logger.error('error inserting contacts', e);
-    }
-  };
-
-  if (yieldWriter) {
-    return writer;
-  } else {
-    await writer();
-    return () => Promise.resolve();
-  }
-};
-
 export const syncUserAttestations = async (ctx?: SyncCtx) => {
   logger.log('syncing verifications');
   try {
@@ -775,45 +747,6 @@ export async function syncThreadPosts(
     posts: [response, ...(response.replies ?? [])],
   });
   updateLastActivityTime();
-}
-
-const groupSyncsInProgress = new Set<string>();
-
-export async function syncGroup(
-  id: string,
-  ctx?: SyncCtx,
-  config?: { force?: boolean }
-) {
-  if (groupSyncsInProgress.has(id)) {
-    return;
-  }
-  groupSyncsInProgress.add(id);
-  try {
-    const group = await db.getGroup({ id });
-    const session = getSession();
-    if (
-      group &&
-      session &&
-      (session.startTime ?? 0) < (group.syncedAt ?? 0) &&
-      !config?.force
-    ) {
-      return;
-    }
-    const response = await syncQueue.add('syncGroup', ctx, () =>
-      api.getGroup(id)
-    );
-    await batchEffects('syncGroup', async (ctx) => {
-      await db.insertGroups({ groups: [response] }, ctx);
-      await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
-      updateLastActivityTime();
-    });
-  } catch (e) {
-    logger.trackError('group sync failed', e);
-    console.error(e);
-    throw e;
-  } finally {
-    groupSyncsInProgress.delete(id);
-  }
 }
 
 export const syncStorageSettings = (ctx?: SyncCtx) => {
