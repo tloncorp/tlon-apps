@@ -1,9 +1,9 @@
 import { AppInvite, getBranchLinkMeta, isLureMeta } from '../client/branch';
 import { createDevLogger } from '../lib/logger';
+import { normalizeUrbitColor } from '../lib/utils';
 import { getConstants } from '../types/constants';
 import type { ContentReference } from '../types/references';
 import { citeToPath } from '../urbit';
-import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('deeplinks', false);
 
