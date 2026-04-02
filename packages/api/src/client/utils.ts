@@ -8,13 +8,12 @@ import * as api from '../client';
 import {
   isBotUserId,
   isDmChannelId,
-  isGroupChannelId,
   isGroupDmChannelId,
 } from '../client/apiUtils';
+import type { Stringified } from '../lib/utilityTypes';
 import * as domain from '../types';
 import type * as db from '../types/models';
 import * as ub from '../urbit';
-import type { Stringified } from './utilityTypes';
 
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;

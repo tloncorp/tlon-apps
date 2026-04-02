@@ -2,7 +2,6 @@ import { da } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
 import { createDevLogger, runIfDev } from '../lib/logger';
-import { normalizeUrbitColor } from '../lib/utils';
 import type * as db from '../types/models';
 import { BASE_UNREADS_SINGLETON_KEY } from '../types/models';
 import * as ub from '../urbit';
@@ -15,6 +14,7 @@ import {
   udToDate,
 } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
+import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('activityApi', false);
 

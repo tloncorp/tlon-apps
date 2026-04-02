@@ -2,7 +2,6 @@ import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
 import { createDevLogger } from '../lib/logger';
-import { IMAGE_URL_REGEX } from '../lib/utils';
 import type * as db from '../types/models';
 import { ContentReference } from '../types/references';
 import * as ub from '../urbit';
@@ -47,6 +46,7 @@ import {
   getTextContent as getTextPreview,
 } from './postContent';
 import { poke, scry, subscribeOnce } from './urbit';
+import { IMAGE_URL_REGEX } from './utils';
 
 const logger = createDevLogger('postsApi', false);
 

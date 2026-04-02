@@ -2,7 +2,7 @@ import {
   getModelAnalytics,
   isBotDmChannel,
   normalizeUrbitColor,
-} from '@tloncorp/api/lib/utils';
+} from '@tloncorp/api/client/utils';
 import { isPersonalGroup } from '@tloncorp/api/lib/wayfinding';
 import { describe, expect, it } from 'vitest';
 
