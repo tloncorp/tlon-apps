@@ -260,7 +260,7 @@ clurd/
 /apps/tlon-web/**/.env.test
 /apps/tlon-web/**/merge.config.js
 # From packages/api/.gitignore
-/packages/api/**/dist/
+# /packages/api/**/dist/
 # From packages/app/.gitignore
 /packages/app/**/node_modules/
 /packages/app/**/.DS_Store
