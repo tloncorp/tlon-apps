@@ -3,6 +3,7 @@ import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
 import { createDevLogger } from '../lib/logger';
 import { Json, getFrondValue, getPatp } from '../lib/noun';
+import { simpleHash } from '../lib/utils';
 import { AnalyticsEvent } from '../types/analytics';
 import type * as db from '../types/models';
 import * as ub from '../urbit';
@@ -16,7 +17,6 @@ import {
   subscribeOnce,
   trackedPokeNoun,
 } from './urbit';
-import { simpleHash } from './utils';
 
 const logger = createDevLogger('lanyardApi', false);
 

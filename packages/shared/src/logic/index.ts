@@ -1,6 +1,7 @@
 export * from './utilHooks';
 export * from './embed';
 export * from '@tloncorp/api/lib/types';
+export * from '@tloncorp/api/lib/utils';
 export * as featureFlags from '@tloncorp/api/lib/featureFlags';
 export * from './tiptap';
 export * from '@tloncorp/api/lib/hosting';

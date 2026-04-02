@@ -3,9 +3,9 @@ import { Atom, Cell, Noun, cue, dwim, enjs, jam } from '@urbit/nockjs';
 import _ from 'lodash';
 
 import { getFrondValue, getPatp } from '../lib/noun';
+import { simpleHash } from '../lib/utils';
 import type * as db from '../types/models';
 import * as ub from '../urbit';
-import { simpleHash } from './utils';
 
 interface HalfSign {
   signType: 'half';

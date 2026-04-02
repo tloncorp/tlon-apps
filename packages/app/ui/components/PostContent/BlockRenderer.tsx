@@ -1,4 +1,4 @@
-import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/client/utils';
+import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,

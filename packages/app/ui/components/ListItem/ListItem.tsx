@@ -1,4 +1,4 @@
-import { utils } from '@tloncorp/shared';
+import * as utils from '@tloncorp/api/lib/utils';
 import * as db from '@tloncorp/shared/db';
 import { Icon, IconType, Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';

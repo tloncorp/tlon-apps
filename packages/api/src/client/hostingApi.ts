@@ -1,6 +1,7 @@
 import { Buffer } from 'buffer';
 
 import { createDevLogger } from '../lib/logger';
+import { withRetry } from '../lib/utils';
 import * as domain from '../types';
 import {
   AnalyticsEvent,
@@ -10,7 +11,6 @@ import {
   User,
   getConstants,
 } from '../types';
-import { withRetry } from './utils';
 
 const logger = createDevLogger('hostingApi', false);
 

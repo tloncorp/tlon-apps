@@ -1,8 +1,4 @@
 import { render, valid } from '@urbit/aura';
-import anyAscii from 'any-ascii';
-import { differenceInDays, endOfToday, format } from 'date-fns';
-import emojiRegex from 'emoji-regex';
-import { BackoffOptions, backOff } from 'exponential-backoff';
 
 import * as api from '../client';
 import {
@@ -11,18 +7,17 @@ import {
   isGroupDmChannelId,
 } from '../client/apiUtils';
 import type { Stringified } from '../lib/utilityTypes';
+import {
+  IMAGE_REGEX,
+  convertToAscii,
+  isValidUrl,
+  simpleHash,
+} from '../lib/utils';
 import * as domain from '../types';
 import type * as db from '../types/models';
 import * as ub from '../urbit';
 
-export const IMAGE_REGEX =
-  /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
-export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)(?:\?.*)?$/i;
-export const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv|\.webm)(?:\?.*)?$/i;
-export const URL_REGEX = /^https?:\/\/[^\s]+$/i;
 export const PATP_REGEX = /(~[a-z0-9-]+)/i;
-export const IMAGE_URL_REGEX =
-  /^(http(s?):)([/.\w\s-:]|%2*)*\.(?:jpg|img|png|gif|tiff|jpeg|webp|svg)(?:\?.*)?$/i;
 export const REF_REGEX = /\/1\/(chan|group|desk)\/[^\s]+/g;
 export const REF_URL_REGEX = /^\/1\/(chan|group|desk)\/[^\s]+/;
 // sig and hep explicitly left out
@@ -38,10 +33,6 @@ export const SIG_LIKES = [
   '\u2053', // ⁓ (swung dash)
   '\u2241', // ≁ (not tilde)
 ];
-
-export function isValidUrl(str?: string): boolean {
-  return str ? !!URL_REGEX.test(str) : false;
-}
 
 export type NicknameValidationErrorType =
   | 'confusable_characters'
@@ -133,18 +124,6 @@ export function getNicknameErrorMessage(
   }
 }
 
-export async function asyncWithDefault<T>(
-  cb: () => Promise<T>,
-  def: T
-): Promise<T> {
-  try {
-    return await cb();
-  } catch (error) {
-    console.error(error);
-    return def;
-  }
-}
-
 export function getFlagParts(flag: string) {
   const parts = flag.split('/');
 
@@ -178,192 +157,6 @@ export function getPrettyAppName(kind: 'chat' | 'diary' | 'heap') {
   }
 }
 
-export async function jsonFetch<T>(
-  info: RequestInfo,
-  init?: RequestInit
-): Promise<T> {
-  try {
-    const res = await fetch(info, init);
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
-
-    const data = await res.json();
-    return data as T;
-  } catch (error) {
-    if (error instanceof Error) {
-      console.error('jsonFetch error:', error.message);
-      throw error;
-    } else {
-      console.error('jsonFetch unknown error:', error);
-      throw new Error('Unknown error occurred during fetch');
-    }
-  }
-}
-
-const isFacebookGraphDependent = (url: string) => {
-  const caseDesensitizedURL = url.toLowerCase();
-  return (
-    caseDesensitizedURL.includes('facebook.com') ||
-    caseDesensitizedURL.includes('instagram.com')
-  );
-};
-
-export const validOembedCheck = (embed: any, url: string) => {
-  if (!isFacebookGraphDependent(url)) {
-    if (embed?.html) {
-      return true;
-    }
-  }
-  return false;
-};
-
-export function isImageUrl(url: string) {
-  return IMAGE_URL_REGEX.test(url);
-}
-
-export function makePrettyTime(date: Date) {
-  return format(date, 'HH:mm');
-}
-
-export function makePrettyTimeFromMs(ms: number) {
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000);
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-export function makePrettyDurationFromSeconds(seconds: number | undefined) {
-  if (seconds == null || !Number.isFinite(seconds)) {
-    return undefined;
-  }
-
-  const totalSeconds = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const remainingSeconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, '0')}:${String(
-      remainingSeconds
-    ).padStart(2, '0')}`;
-  }
-  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
-}
-
-export function makePrettyDay(date: Date) {
-  const diff = differenceInDays(endOfToday(), date);
-  switch (diff) {
-    case 0:
-      return 'Today';
-    case 1:
-      return 'Yesterday';
-    default:
-      return `${format(date, 'LLLL')} ${format(date, 'do')}`;
-  }
-}
-
-export function makePrettyDaysSince(date: Date) {
-  const diff = differenceInDays(endOfToday(), date);
-  switch (diff) {
-    case 0:
-      return 'Today';
-    case 1:
-      return 'Yesterday';
-    default:
-      return `${diff}d ago`;
-  }
-}
-
-export function makePrettyShortDate(date: Date) {
-  return format(date, `MMMM do, yyyy`);
-}
-
-export function makeShortDate(date: Date) {
-  return format(date, 'M/d/yy');
-}
-
-export interface DayTimeDisplay {
-  original: Date;
-  diff: number;
-  day: string;
-  time: string;
-  asString: string;
-}
-
-export function makePrettyDayAndTime(date: Date): DayTimeDisplay {
-  const diff = differenceInDays(endOfToday(), date);
-  const time = makePrettyTime(date);
-  let day = '';
-  switch (true) {
-    case diff === 0:
-      day = 'Today';
-      break;
-    case diff === 1:
-      day = 'Yesterday';
-      break;
-    case diff > 1 && diff < 8:
-      day = format(date, 'cccc');
-      break;
-    default:
-      day = `${format(date, 'LLLL')} ${format(date, 'do')}`;
-  }
-
-  return {
-    original: date,
-    diff,
-    time,
-    day,
-    asString: `${day} • ${time}`,
-  };
-}
-
-export interface DateDayTimeDisplay extends DayTimeDisplay {
-  fullDate: string;
-}
-
-export function makePrettyDayAndDateAndTime(date: Date): DateDayTimeDisplay {
-  const fullDate = `${format(date, 'LLLL')} ${format(date, 'do')}, ${format(
-    date,
-    'yyyy'
-  )}`;
-  const dayTime = makePrettyDayAndTime(date);
-
-  if (dayTime.diff >= 8) {
-    return {
-      ...dayTime,
-      fullDate,
-      asString: `${fullDate} • ${dayTime.time}`,
-    };
-  }
-
-  return {
-    ...dayTime,
-    fullDate,
-    asString: `${dayTime.asString} • ${fullDate}`,
-  };
-}
-
-const emojiTestRegex = emojiRegex();
-
-export function containsOnlyEmoji(input: string): boolean {
-  const normalized = input.trim();
-
-  if (normalized.length === 0) {
-    return false;
-  }
-
-  if (normalized.length > 10) {
-    return false;
-  }
-  // Lots of gotchas trying to figure out length of an emoji string. This is a
-  // reasonably reliable way to do it in hermes. Should keep an eye on perf.
-  // Some info here: https://stackoverflow.com/questions/54369513/how-to-count-the-correct-length-of-a-string-with-emojis-in-javascript
-  return [...normalized].every((char) => {
-    return !!char.match(emojiTestRegex);
-  });
-}
-
 export function normalizeUrbitColor(color?: string | null): string | null {
   if (!color) {
     return null;
@@ -379,40 +172,6 @@ export function normalizeUrbitColor(color?: string | null): string | null {
   return `#${lengthAdjustedColor}`;
 }
 
-/**
- * Generates a safe ID from a given text.
- * @param text The text to generate a safe ID from.
- * @param prefix Optional prefix for the ID, defaults to 'id'.
- * @returns A safe ID.
- */
-export const generateSafeId = (text: string, prefix: string = 'id') => {
-  if (!text.match(/[a-zA-Z0-9]/)) {
-    return `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
-  }
-  return text.toLowerCase().replace(/\s/g, '-');
-};
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const timezoneOffset = new Date().getTimezoneOffset() * 60 * 1000;
-
-/**
- * Returns true if the two dates happened on current calendar day, in local
- * timezone.
- *
- * TODO: Currently this calculation will be off by an hour when crossing
- * daylight savings time. We're doing it this way because date operations are
- * quite slow in RN/Hermes.
- */
-export const isSameDay = (a: number, b: number) => {
-  const dayA = Math.floor((a - timezoneOffset) / MS_PER_DAY);
-  const dayB = Math.floor((b - timezoneOffset) / MS_PER_DAY);
-  return dayA === dayB;
-};
-
-export const isToday = (date: number) => {
-  return isSameDay(date, Date.now());
-};
-
 export const appendContactIdToReplies = (
   existingReplies: string[],
   contactId: string
@@ -425,11 +184,6 @@ export const appendContactIdToReplies = (
   newArray.push(contactId);
   return newArray;
 };
-
-export function convertToAscii(str: string): string {
-  const ascii = anyAscii(str);
-  return ascii.toLowerCase().replaceAll(/[^a-zA-Z0-9-]/g, '-');
-}
 
 export const createShortCodeFromTitle = (title: string): string => {
   const shortCode = convertToAscii(title).replace(
@@ -593,7 +347,7 @@ export const textPostIsLink = (post: db.Post): boolean => {
     if (typeof first === 'object' && 'link' in first) {
       const link = first as ub.Link;
       const { href } = link.link;
-      const isLink = URL_REGEX.test(href);
+      const isLink = isValidUrl(href);
 
       return isLink;
     }
@@ -674,40 +428,12 @@ export const getCompositeGroups = (
   });
 };
 
-export type RetryConfig = Pick<
-  BackoffOptions,
-  'startingDelay' | 'numOfAttempts' | 'maxDelay'
->;
-
-export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
-  return backOff(fn, {
-    delayFirstAttempt: false,
-    startingDelay: config?.startingDelay ?? 1000,
-    numOfAttempts: config?.numOfAttempts ?? 4,
-    maxDelay: config?.maxDelay,
-  });
-};
-
 /**
  * Random id value for group or channel, 4 bits of entropy, eg 0v2a.lmibb -> v2almibb
  */
 export function getRandomId() {
   const id = render('uv', BigInt(Math.floor(Math.random() * 0xffffffff)));
   return id.replace(/\./g, '').slice(1);
-}
-
-/**
- * Simple one way transform for identifying distinct values while
- * obscuring sensitive information, eg ~latter-bolden/garden -> rfn4hj
- */
-export function simpleHash(input: string) {
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash).toString(36);
 }
 
 export function isBotDmChannel({
@@ -804,8 +530,4 @@ export function getModelAnalytics({
   }
 
   return details;
-}
-
-export function escapeRegExp(text: string): string {
-  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }

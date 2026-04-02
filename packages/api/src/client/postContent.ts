@@ -1,10 +1,10 @@
 import { formatUd } from '../client/apiUtils';
 import { PostBlobDataEntry, parsePostBlob } from '../client/content-helpers';
 import { assertNever } from '../lib/assertNever';
+import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
 import { PostContent as ApiPostContent } from './postsApi';
-import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
 // Inline types
 
