@@ -79,9 +79,7 @@ test('convertContent keeps distinct blob and story videos when src differs', () 
 
   const content = convertContent(story, blob);
   const videoSrcs = content
-    .flatMap((block) =>
-      block.type === 'video' ? [block.video.src] : []
-    )
+    .flatMap((block) => (block.type === 'video' ? [block.video.src] : []))
     .sort();
   expect(videoSrcs).toEqual([
     'https://cdn.example.com/blob.mp4',

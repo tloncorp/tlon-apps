@@ -587,11 +587,7 @@ function definePostBlobDataEntrySchema<
   Type extends string,
   Version extends number,
   Payload extends z.ZodRawShape,
->(
-  type: Type,
-  version: Version,
-  payload: Payload
-) {
+>(type: Type, version: Version, payload: Payload) {
   return z.object({
     type: z.literal(type),
     version: z.literal(version),
@@ -634,9 +630,7 @@ export const PostBlobDataEntryFileSchema = definePostBlobDataEntrySchema(
   }
 );
 
-export type PostBlobDataEntryFile = z.infer<
-  typeof PostBlobDataEntryFileSchema
->;
+export type PostBlobDataEntryFile = z.infer<typeof PostBlobDataEntryFileSchema>;
 
 export const PostBlobDataEntryVoiceMemoSchema = definePostBlobDataEntrySchema(
   'voicememo',
@@ -647,9 +641,7 @@ export const PostBlobDataEntryVoiceMemoSchema = definePostBlobDataEntrySchema(
     size: postBlobSizeSchema,
     transcription: z.string().optional(),
     /** waveform preview; values should be between 0 and 1 */
-    waveformPreview: z
-      .array(z.number().finite().min(0).max(1))
-      .optional(),
+    waveformPreview: z.array(z.number().finite().min(0).max(1)).optional(),
     /** in seconds */
     duration: z.number().finite().nonnegative().optional(),
   }
