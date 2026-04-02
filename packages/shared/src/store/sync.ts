@@ -16,6 +16,7 @@ import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
 } from '../store/useActivityFetchers';
+import { persistUnreads } from './activityActions';
 import { createBatchHandler, createHandler } from './bufferedSubscription';
 import * as LocalCache from './cachedData';
 import { addContacts, updateContactMetadata } from './contactActions';
@@ -821,37 +822,6 @@ export const syncStorageSettings = (ctx?: SyncCtx) => {
       .add('storageCredentials', ctx, () => api.getStorageCredentials())
       .then((creds) => db.storageCredentials.setValue(creds)),
   ]);
-};
-
-export const persistUnreads = async ({
-  unreads,
-  ctx,
-  includesAllUnreads,
-}: {
-  unreads: db.ActivityInit;
-  ctx?: QueryCtx;
-  includesAllUnreads?: boolean;
-}) => {
-  const { baseUnread, groupUnreads, channelUnreads, threadActivity } = unreads;
-  if (baseUnread) {
-    await db.insertBaseUnread(baseUnread, ctx);
-  }
-  await db.insertGroupUnreads(groupUnreads, ctx);
-  await db.insertChannelUnreads(channelUnreads, ctx);
-  await db.insertThreadUnreads(threadActivity, ctx);
-
-  // if we have all channel unreads, we should use that data to update which
-  // channels we're joined to
-  if (includesAllUnreads) {
-    await db.setJoinedGroupChannels(
-      {
-        channelIds: channelUnreads
-          .filter((u) => u.type === 'channel')
-          .map((u) => u.channelId),
-      },
-      ctx
-    );
-  }
 };
 
 export const resetActivity = async (syncCtx?: SyncCtx) => {
