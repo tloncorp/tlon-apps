@@ -1,7 +1,7 @@
 import { da, render, tryParse, valid } from '@urbit/aura';
 import { Atom } from '@urbit/nockjs';
 
-import { createDevLogger } from '../client/logger';
+import { createDevLogger } from '../lib/logger';
 import type {
   ChannelType,
   GroupJoinStatus,

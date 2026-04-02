@@ -9,12 +9,12 @@ import {
   Thread,
   Urbit,
 } from '../http-api';
+import { createDevLogger, escapeLog, runIfDev } from '../lib/logger';
 import { AnalyticsEvent } from '../types/analytics';
 import { getConstants } from '../types/constants';
 import * as Hosting from '../types/hosting';
 import { preSig } from '../urbit';
 import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
-import { createDevLogger, escapeLog, runIfDev } from './logger';
 
 const logger = createDevLogger('urbit', false);
 

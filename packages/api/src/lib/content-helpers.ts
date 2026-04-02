@@ -1,6 +1,6 @@
 import isURL from 'validator/lib/isURL.js';
 
-import { createDevLogger } from '../client/logger';
+import { createDevLogger } from '../lib/logger';
 import {
   FinalizedAttachment,
   LinkAttachment,

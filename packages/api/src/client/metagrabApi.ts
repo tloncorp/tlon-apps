@@ -1,10 +1,10 @@
 import { render } from '@urbit/aura';
 import { Atom } from '@urbit/nockjs';
 
+import { createDevLogger } from '../lib/logger';
 import * as domain from '../types';
 import { getConstants } from '../types';
 import * as ub from '../urbit';
-import { createDevLogger } from './logger';
 import { request } from './urbit';
 
 const logger = createDevLogger('metagrabApi', false);

@@ -1,6 +1,7 @@
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
+import { createDevLogger } from '../lib/logger';
 import {
   PlaintextPreviewConfig,
   getTextContent as getTextPreview,
@@ -45,7 +46,6 @@ import {
 } from './apiUtils';
 import { channelAction } from './channelsApi';
 import { multiDmAction } from './chatApi';
-import { createDevLogger } from './logger';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);

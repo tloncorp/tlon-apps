@@ -1,5 +1,6 @@
 import { Buffer } from 'buffer';
 
+import { createDevLogger } from '../lib/logger';
 import { withRetry } from '../lib/utils';
 import * as domain from '../types';
 import {
@@ -10,7 +11,6 @@ import {
   User,
   getConstants,
 } from '../types';
-import { createDevLogger } from './logger';
 
 const logger = createDevLogger('hostingApi', false);
 

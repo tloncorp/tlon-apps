@@ -1,4 +1,4 @@
-import { createDevLogger } from '../client/logger';
+import { createDevLogger } from '../lib/logger';
 import { getConstants } from '../types/constants';
 import type { ContentReference } from '../types/references';
 import { citeToPath } from '../urbit';

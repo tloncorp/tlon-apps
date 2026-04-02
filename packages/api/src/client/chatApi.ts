@@ -1,3 +1,4 @@
+import { createDevLogger } from '../lib/logger';
 import type * as db from '../types/models';
 import * as ub from '../urbit';
 import {
@@ -11,7 +12,6 @@ import {
   ChannelContentConfiguration,
   StructuredChannelDescriptionPayload,
 } from './channelContentConfig';
-import { createDevLogger } from './logger';
 import { toPostData, toPostReplyData, toReplyMeta } from './postsApi';
 import { getCurrentUserId, poke, scry, subscribe, trackedPoke } from './urbit';
 
