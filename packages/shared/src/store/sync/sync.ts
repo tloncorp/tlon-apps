@@ -28,10 +28,8 @@ import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { getSession, setSession, updateSession } from '../session';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
-import {
-  addToChannelPosts,
-  clearChannelPostsQueries,
-} from '../useChannelPosts';
+import { clearChannelPostsQueries } from '../useChannelPosts/queries';
+import { addToChannelPosts } from '../useChannelPosts/subscriptions';
 import { logger } from './logger';
 import { syncContacts } from './syncContacts';
 import { syncGroup } from './syncGroup';
