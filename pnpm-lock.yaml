@@ -120,6 +120,9 @@ importers:
       lint-staged:
         specifier: ^15.0.0
         version: 15.2.0
+      prettierignore-monorepo:
+        specifier: ^1.0.5
+        version: 1.0.5
       react-cosmos:
         specifier: 6.1.1
         version: 6.1.1(patch_hash=y5kop5rmmd7jprmzzewk4whiie)
@@ -6566,11 +6569,12 @@ packages:
   '@xmldom/xmldom@0.7.13':
     resolution: {integrity: sha512-lm2GW5PkosIzccsaZIz7tp8cPADSIlIHWDFTR1N0SzfinhhYgeIQjFMz4rYzanCScr3DqQLeomUDArp6MWKm+g==}
     engines: {node: '>=10.0.0'}
-    deprecated: this version is no longer supported, please update to at least 0.8.*
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xmldom/xmldom@0.8.10':
     resolution: {integrity: sha512-2WALfTl4xo2SkGCYRt6rDTFfk9R1czmBvUQy12gK2KuRKIpWEhcbbzy8EZXtz/jkRqHX8bFEc6FC1HjX4TUWYw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -9463,6 +9467,10 @@ packages:
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
 
+  ignore-walk@7.0.0:
+    resolution: {integrity: sha512-T4gbf83A4NH95zvhVYZc+qWocBBGlpzUXLPGurJggw/WIOwicfXJChLDP/iBZnN5WqROSu5Bm3hhle4z8a8YGQ==}
+    engines: {node: ^18.17.0 || >=20.5.0}
+
   ignore@3.3.10:
     resolution: {integrity: sha512-Pgs951kaMm5GXP7MOvxERINe3gsaVjUWFm+UZPSq9xYriQAksyhg0csnS0KXSNRD5NmNdapXEpjxG49+AKh/ug==}
 
@@ -11759,6 +11767,10 @@ packages:
   prettier@3.2.5:
     resolution: {integrity: sha512-3/GWa9aOC0YeD7LUfvOG2NiDyhOWRvt1k+rcKhOuYnMY24iiCphgneUfJDyFXd6rZCAnuLBv6UeAULtrhT/F4A==}
     engines: {node: '>=14'}
+    hasBin: true
+
+  prettierignore-monorepo@1.0.5:
+    resolution: {integrity: sha512-mObz+Ko3n56leNC0ArlZp8ms6q0FCPiT2qkGutcHAwXOd8ZChW+GP3B/6uGhJ3bhWTt6ZR85/VFMTKA7vSdC4Q==}
     hasBin: true
 
   pretty-bytes@5.6.0:
@@ -27138,6 +27150,10 @@ snapshots:
 
   ieee754@1.2.1: {}
 
+  ignore-walk@7.0.0:
+    dependencies:
+      minimatch: 9.0.4
+
   ignore@3.3.10: {}
 
   ignore@5.3.1: {}
@@ -30031,6 +30047,10 @@ snapshots:
       '@trivago/prettier-plugin-sort-imports': 4.3.0(prettier@3.2.5)
 
   prettier@3.2.5: {}
+
+  prettierignore-monorepo@1.0.5:
+    dependencies:
+      ignore-walk: 7.0.0
 
   pretty-bytes@5.6.0: {}
 
