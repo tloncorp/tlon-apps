@@ -8,7 +8,7 @@ import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
-} from '@tloncorp/api/lib/activity';
+} from '@tloncorp/api/client/activity';
 import { Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
