@@ -41,7 +41,6 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
-import { multiDmAction } from './chatApi';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { poke, scry, subscribeOnce } from './urbit';
 
@@ -1008,7 +1007,7 @@ export async function deletePost(
         del: null,
       })
     : isGroupDmChannelId(channelId)
-      ? multiDmAction(channelId, {
+      ? ub.multiDmAction(channelId, {
           writ: {
             id: `${authorId}/${postId}`,
             delta: {
@@ -1051,7 +1050,7 @@ export async function deleteReply(params: {
       }
     );
   } else if (isGroupDmChannelId(params.channelId)) {
-    action = multiDmAction(params.channelId, {
+    action = ub.multiDmAction(params.channelId, {
       writ: {
         id: `${params.parentAuthorId}/${params.parentId}`,
         delta: {
