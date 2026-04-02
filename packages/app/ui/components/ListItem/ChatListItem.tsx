@@ -44,6 +44,7 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
         onLongPress={handleLongPress}
         model={model.group}
         onLayout={onLayout}
+        selected={selected}
         {...props}
       />
     );
