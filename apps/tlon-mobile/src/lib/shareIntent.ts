@@ -32,18 +32,13 @@ export const getShareIntentFingerprint = (shareIntent: ShareIntent): string => {
 };
 
 export const extractSharedText = (shareIntent: ShareIntent): string | null => {
-  const text = shareIntent.text?.trim();
-  const webUrl = shareIntent.webUrl?.trim();
+  return shareIntent.text?.trim() || null;
+};
 
-  if (text && webUrl && text.includes(webUrl)) {
-    return text;
-  }
-
-  if (text && webUrl) {
-    return `${text}\n${webUrl}`;
-  }
-
-  return text || webUrl || null;
+export const extractSharedWebUrl = (
+  shareIntent: ShareIntent
+): string | null => {
+  return shareIntent.webUrl?.trim() || null;
 };
 
 export const extractSharedFile = (

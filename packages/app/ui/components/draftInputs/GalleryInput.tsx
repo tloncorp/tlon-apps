@@ -1,3 +1,4 @@
+import { JSONContent } from '@tloncorp/api/urbit';
 import {
   PLACEHOLDER_ASSET_URI,
   extractContentTypesFromPost,
@@ -34,6 +35,9 @@ import { DraftInputContext, GalleryRoute } from './shared';
 const isPlaceholderImageAttachment = (attachment: domain.Attachment) =>
   attachment.type === 'image' && attachment.file.uri === PLACEHOLDER_ASSET_URI;
 
+const getDraftText = (draft: JSONContent | null): string =>
+  draft?.content?.[0]?.content?.[0]?.text || '';
+
 export function GalleryInput({
   draftInputContext,
 }: {
@@ -63,6 +67,7 @@ export function GalleryInput({
 
   const [route, setRoute] = useState<GalleryRoute>('gallery');
   const [caption, setCaption] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const isEditingPost = editingPost != null;
 
@@ -143,7 +148,9 @@ export function GalleryInput({
   // Reset all gallery-related state
   const resetGalleryState = useCallback(() => {
     setCaption('');
+    setLinkUrl('');
     clearDraft('caption');
+    clearDraft('link');
     resetAttachments([]);
     setRoute('gallery');
     // Don't call setEditingPost here, as it's now handled in handlePost
@@ -189,11 +196,16 @@ export function GalleryInput({
     if (!(route === 'review-attachment' && !editingPost)) return;
 
     getDraft('caption').then((draft) => {
-      if (!draft || typeof draft !== 'object' || !('content' in draft)) return;
-
-      const text = draft.content?.[0]?.content?.[0]?.text || '';
-      setCaption(text);
+      setCaption(getDraftText(draft));
     });
+  }, [route, editingPost, getDraft]);
+
+  useEffect(() => {
+    if (route === 'link' && !editingPost) {
+      getDraft('link').then((draft) => {
+        setLinkUrl(getDraftText(draft));
+      });
+    }
   }, [route, editingPost, getDraft]);
 
   // Store caption in draft when it changes
@@ -328,7 +340,14 @@ export function GalleryInput({
         }
       },
       // startDraft: Called by parent when user wants to create a new gallery post
-      startDraft: () => setRoute('add-post'),
+      startDraft: (mode) => {
+        if (mode === 'text' || mode === 'link') {
+          setRoute(mode);
+          return;
+        }
+
+        setRoute('add-post');
+      },
     }),
     [
       resetGalleryState,
@@ -371,6 +390,7 @@ export function GalleryInput({
             ...draftInputContext,
             editingPost,
           }}
+          draftType="text"
           setShowBigInput={setShowBigInput}
           overrideChannelType="gallery"
         />
@@ -394,6 +414,7 @@ export function GalleryInput({
       {/* Link input - shown when creating/editing rich link posts that contain metadata */}
       {route === 'link' && (
         <LinkInput
+          initialUrl={linkUrl}
           isPosting={isPosting}
           editingPost={editingPost}
           onSave={handleLinkPost}
