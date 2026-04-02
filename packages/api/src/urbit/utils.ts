@@ -1,14 +1,12 @@
 import { da, render, tryParse, valid } from '@urbit/aura';
 import { Atom } from '@urbit/nockjs';
 
-import { PostContent } from '../client';
 import { createDevLogger } from '../client/logger';
 import type {
   ChannelType,
   GroupJoinStatus,
   GroupPrivacy,
 } from '../types/models';
-import { ContentReference } from '../types/references';
 import * as ub from './channel';
 import * as ubc from './content';
 import * as ubg from './groups';
@@ -177,34 +175,6 @@ export function getChannelKindFromType(
   } else {
     return 'chat';
   }
-}
-
-export function getTextContent(story: PostContent): string;
-export function getTextContent(story?: PostContent): string | undefined {
-  if (!story) {
-    return;
-  }
-  return story
-    .map((verse) => {
-      if (isReferenceVerse(verse)) {
-        return '';
-      } else if (ub.isBlockVerse(verse)) {
-        return getBlockContent(verse.block);
-      } else if ('inline' in verse) {
-        return getInlinesContent(verse.inline);
-      } else {
-        return '';
-      }
-    })
-    .filter((v) => !!v && v !== '')
-    .join(' ')
-    .trim();
-}
-
-function isReferenceVerse(
-  verse: ub.Verse | ContentReference
-): verse is ContentReference {
-  return 'type' in verse && verse.type === 'reference';
 }
 
 export function getBlockContent(block: ubc.Block) {

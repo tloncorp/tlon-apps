@@ -31,7 +31,6 @@ export {
   checkNest,
   desig,
   getChannelType,
-  getTextContent,
   nestToFlag,
   preSig,
   whomIsDm,

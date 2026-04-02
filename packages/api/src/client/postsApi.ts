@@ -1,7 +1,10 @@
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
-import { PlaintextPreviewConfig, getTextContent } from '../lib/postContent';
+import {
+  PlaintextPreviewConfig,
+  getTextContent as getTextPreview,
+} from '../lib/postContent';
 import { IMAGE_URL_REGEX } from '../lib/utils';
 import type * as db from '../types/models';
 import { ContentReference } from '../types/references';
@@ -1318,7 +1321,7 @@ export function toPostData(
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
       : JSON.stringify(content),
-    textContent: getTextContent(
+    textContent: getTextPreview(
       post?.essay.content,
       PlaintextPreviewConfig.inlineConfig
     ),
@@ -1680,4 +1683,32 @@ function formatCursor(cursor: Cursor) {
   } else {
     return formatDateParam(cursor);
   }
+}
+
+export function getTextContent(story: PostContent): string;
+export function getTextContent(story?: PostContent): string | undefined {
+  if (!story) {
+    return;
+  }
+  return story
+    .map((verse) => {
+      if (isReferenceVerse(verse)) {
+        return '';
+      } else if (ub.isBlockVerse(verse)) {
+        return ub.getBlockContent(verse.block);
+      } else if ('inline' in verse) {
+        return ub.getInlinesContent(verse.inline);
+      } else {
+        return '';
+      }
+    })
+    .filter((v) => !!v && v !== '')
+    .join(' ')
+    .trim();
+}
+
+function isReferenceVerse(
+  verse: ub.Verse | ContentReference
+): verse is ContentReference {
+  return 'type' in verse && verse.type === 'reference';
 }
