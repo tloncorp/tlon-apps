@@ -12,8 +12,7 @@ export async function handleBlockingAction(
   }
 
   queryClient.invalidateQueries({
-    predicate: (query) => 
-      query.queryKey.includes('contacts')
+    predicate: (query) => query.queryKey.includes('contacts'),
   });
 }
 

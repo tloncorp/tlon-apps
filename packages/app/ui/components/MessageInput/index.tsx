@@ -9,6 +9,9 @@ import {
   useEditorBridge,
   useEditorContent,
 } from '@10play/tentap-editor';
+import { toContentReference } from '@tloncorp/api';
+import * as ub from '@tloncorp/api/urbit';
+import { Inline, JSONContent, isInline, pathToCite } from '@tloncorp/api/urbit';
 //ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import {
@@ -17,17 +20,10 @@ import {
   MentionsBridge,
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
-import {
-  REF_REGEX,
-  createDevLogger,
-  tiptap,
-} from '@tloncorp/shared';
-import { toContentReference } from '@tloncorp/api';
+import { REF_REGEX, createDevLogger, tiptap } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import * as ub from '@tloncorp/api/urbit';
-import { Inline, JSONContent, isInline, pathToCite } from '@tloncorp/api/urbit';
 import { HEADER_HEIGHT } from '@tloncorp/ui';
 import {
   forwardRef,

@@ -1,8 +1,14 @@
-import type { ChannelType } from './models';
 import type { Block, Inline, Story } from '../urbit';
 import { Attachment } from './attachment';
+import type { ChannelType } from './models';
 
-export type PostType = 'block' | 'chat' | 'notice' | 'note' | 'reply' | 'delete';
+export type PostType =
+  | 'block'
+  | 'chat'
+  | 'notice'
+  | 'note'
+  | 'reply'
+  | 'delete';
 export type PostDeliveryStatus =
   | 'enqueued'
   | 'pending'
@@ -76,7 +82,10 @@ export type PostFlags = Pick<
   | 'hasLink'
 >;
 
-export type PostMetadata = Pick<Post, 'title' | 'image' | 'description' | 'cover'>;
+export type PostMetadata = Pick<
+  Post,
+  'title' | 'image' | 'description' | 'cover'
+>;
 
 export type ReplyMeta = {
   replyCount: number;

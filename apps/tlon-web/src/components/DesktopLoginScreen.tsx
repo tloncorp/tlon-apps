@@ -67,7 +67,7 @@ export const DesktopLoginScreen = ({
 
       if (authCookie) {
         const shipId = getShipFromCookie(authCookie);
-        
+
         // Store authentication info in Electron
         await setUrbitShip(shipUrl);
         try {
@@ -84,7 +84,7 @@ export const DesktopLoginScreen = ({
         } catch (error) {
           console.error('Error storing auth credentials:', error);
         }
-        
+
         // Set ship context
         setShip({
           ship: shipId,
@@ -92,7 +92,7 @@ export const DesktopLoginScreen = ({
           authCookie,
           authType: 'self',
         });
-        
+
         onLoginSuccess({
           ship: shipId,
           shipUrl,

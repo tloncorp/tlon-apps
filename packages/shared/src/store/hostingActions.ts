@@ -1,15 +1,16 @@
 import {
-  getLandscapeAuthCookie,
   HostingError,
   checkPhoneVerify as checkPhoneVerifyApi,
   clearShipRevivalStatus as clearHostedShipRevivalStatus,
   getHostingUser,
+  getLandscapeAuthCookie,
   getNodeStatus,
   getShipAccessCode,
   logInHostingUser,
   requestPhoneVerify as requestPhoneVerifyApi,
   signUpHostingUser,
 } from '@tloncorp/api';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
@@ -183,8 +184,7 @@ export async function checkHostingNodeStatus(
   }
 
   try {
-    const { status: nodeStatus, showWayfinding } =
-      await getNodeStatus(nodeId);
+    const { status: nodeStatus, showWayfinding } = await getNodeStatus(nodeId);
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
     }

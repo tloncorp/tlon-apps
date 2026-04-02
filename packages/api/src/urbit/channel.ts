@@ -11,8 +11,8 @@ import {
   Inline,
   isBlock,
   isBlockquote,
-  isImage,
   isBreak,
+  isImage,
 } from './content';
 import { Flag } from './hark';
 import { Metadata } from './meta';

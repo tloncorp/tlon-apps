@@ -19,7 +19,11 @@ function ChannelHeaderFixture({
 }) {
   return (
     <AppDataContextProvider currentUserId="~nibset-napwyn">
-      <FixtureWrapper fillWidth verticalAlign="top" backgroundColor="$background">
+      <FixtureWrapper
+        fillWidth
+        verticalAlign="top"
+        backgroundColor="$background"
+      >
         <ChannelHeader
           title={channelModel.title ?? ''}
           description={channelModel.description ?? ''}

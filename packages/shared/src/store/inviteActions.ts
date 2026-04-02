@@ -5,6 +5,8 @@ import {
   groupsDescribe,
 } from '@tloncorp/api';
 import * as api from '@tloncorp/api';
+import { desig } from '@tloncorp/api/urbit';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, getConstants } from '../domain';
@@ -17,7 +19,6 @@ import {
   getFlagParts,
   withRetry,
 } from '../logic';
-import { desig } from '@tloncorp/api/urbit';
 import { syncGroupPreviews } from './sync';
 
 const logger = createDevLogger('inviteActions', false);

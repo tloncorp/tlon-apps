@@ -16,10 +16,13 @@ test('video finalization preserves local poster during upload', () => {
     },
   };
 
-  const finalized = Attachment.UploadIntent.toFinalizedAttachment(uploadIntent, {
-    status: 'uploading',
-    localUri: 'file:///tmp/video.mp4',
-  });
+  const finalized = Attachment.UploadIntent.toFinalizedAttachment(
+    uploadIntent,
+    {
+      status: 'uploading',
+      localUri: 'file:///tmp/video.mp4',
+    }
+  );
 
   expect(finalized).toMatchObject({
     type: 'video',
@@ -42,11 +45,14 @@ test('video finalization prefers uploaded poster URI when available', () => {
     },
   };
 
-  const finalized = Attachment.UploadIntent.toFinalizedAttachment(uploadIntent, {
-    status: 'success',
-    remoteUri: 'https://cdn.example.com/video.mp4',
-    posterUri: 'https://cdn.example.com/video-poster.jpg',
-  });
+  const finalized = Attachment.UploadIntent.toFinalizedAttachment(
+    uploadIntent,
+    {
+      status: 'success',
+      remoteUri: 'https://cdn.example.com/video.mp4',
+      posterUri: 'https://cdn.example.com/video-poster.jpg',
+    }
+  );
 
   expect(finalized).toMatchObject({
     type: 'video',
@@ -70,10 +76,13 @@ test('video finalization drops local-only poster URI when upload succeeds withou
     },
   };
 
-  const finalized = Attachment.UploadIntent.toFinalizedAttachment(uploadIntent, {
-    status: 'success',
-    remoteUri: 'https://cdn.example.com/video.mp4',
-  });
+  const finalized = Attachment.UploadIntent.toFinalizedAttachment(
+    uploadIntent,
+    {
+      status: 'success',
+      remoteUri: 'https://cdn.example.com/video.mp4',
+    }
+  );
 
   expect(finalized).toMatchObject({
     type: 'video',
@@ -82,5 +91,7 @@ test('video finalization drops local-only poster URI when upload succeeds withou
       remoteUri: 'https://cdn.example.com/video.mp4',
     },
   });
-  expect((finalized as { posterUri?: string } | null)?.posterUri).toBeUndefined();
+  expect(
+    (finalized as { posterUri?: string } | null)?.posterUri
+  ).toBeUndefined();
 });

@@ -7,7 +7,7 @@ import {
   getSourceForEvent,
   sourceToString,
 } from '@tloncorp/api/urbit/activity';
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
@@ -71,7 +71,10 @@ namespace PreviewContentNode {
   export function foreignGroupTitle(groupId: string): PreviewContentNode {
     return { type: 'foreignGroupTitle', groupId };
   }
-  export function roleTitle(groupId: string, roleId: string): PreviewContentNode {
+  export function roleTitle(
+    groupId: string,
+    roleId: string
+  ): PreviewContentNode {
     return { type: 'roleTitle', groupId, roleId };
   }
 }

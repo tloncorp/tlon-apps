@@ -1,7 +1,7 @@
 // Shared components for ChatDetailsScreen and ChannelDetailsScreen
+import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/api/urbit';
 import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';

@@ -1,8 +1,6 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog, runIfDev } from './logger';
-import { getConstants } from '../types/constants';
 import {
   AuthError,
   ChannelStatus,
@@ -11,10 +9,12 @@ import {
   Thread,
   Urbit,
 } from '../http-api';
+import { AnalyticsEvent } from '../types/analytics';
+import { getConstants } from '../types/constants';
+import * as Hosting from '../types/hosting';
 import { preSig } from '../urbit';
 import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
-import { AnalyticsEvent } from '../types/analytics';
-import * as Hosting from '../types/hosting';
+import { createDevLogger, escapeLog, runIfDev } from './logger';
 
 const logger = createDevLogger('urbit', false);
 
@@ -163,7 +163,8 @@ export function internalConfigureClient({
   onChannelStatusChange,
   client: injectedClient,
 }: ClientParams) {
-  config.client = injectedClient || config.client || new Urbit(shipUrl, '', '', fetchFn);
+  config.client =
+    injectedClient || config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
   config.shipUrl = shipUrl;

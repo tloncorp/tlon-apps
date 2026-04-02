@@ -1,8 +1,7 @@
 import type { Poke } from '../http-api';
+import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import type * as db from '../types/models';
 import type { GroupPrivacy } from '../types/models';
-import { createDevLogger } from './logger';
-import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import { PersonalGroupSlugs } from '../types/wayfinding';
 import type * as ub from '../urbit';
 import {
@@ -14,6 +13,7 @@ import {
 } from '../urbit';
 import { parseGroupChannelId, parseGroupId, toClientMeta } from './apiUtils';
 import { StructuredChannelDescriptionPayload } from './channelContentConfig';
+import { createDevLogger } from './logger';
 import {
   BadResponseError,
   getCurrentUserId,
@@ -1710,8 +1710,7 @@ export function toClientGroupV7(
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
-    isPersonalGroup:
-      id === `${currentUserId}/${PersonalGroupSlugs.slug}`,
+    isPersonalGroup: id === `${currentUserId}/${PersonalGroupSlugs.slug}`,
     joinStatus: undefined, // v7 groups from init are already joined
     hostUserId,
     flaggedPosts,

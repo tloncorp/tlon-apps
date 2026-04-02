@@ -28,9 +28,7 @@ import {
   getFileSize,
   getMimeType,
 } from '../../utils/files';
-import {
-  normalizeImagePickerAssetForUpload,
-} from '../../utils/imagePickerAsset';
+import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -330,8 +328,7 @@ export default function AttachmentSheet({
 
         if (!result.canceled) {
           const realAsset = result.assets[0];
-          const normalizedAsset =
-            normalizeImagePickerAssetForUpload(realAsset);
+          const normalizedAsset = normalizeImagePickerAssetForUpload(realAsset);
 
           const { uploadIntents: normalizedUploadIntents, errorMessage } =
             await normalizeUploadIntents([
@@ -407,9 +404,7 @@ export default function AttachmentSheet({
           // The sheet is only shown on mobile — on web, AttachmentButton
           // skips straight to the system file picker.
           {
-            title: useVideoInMediaPicker
-              ? 'Media Library'
-              : 'Photo Library',
+            title: useVideoInMediaPicker ? 'Media Library' : 'Photo Library',
             description: useVideoInMediaPicker
               ? 'Choose a photo or video from your library'
               : 'Choose a photo from your library',

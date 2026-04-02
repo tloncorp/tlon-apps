@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Story } from '@tloncorp/api/urbit';
 import {
   configurationFromChannel,
   createDevLogger,
@@ -14,7 +15,6 @@ import {
   usePostReference,
   usePostWithRelations,
 } from '@tloncorp/shared/store';
-import { Story } from '@tloncorp/api/urbit';
 import React, {
   useCallback,
   useEffect,
@@ -24,9 +24,9 @@ import React, {
 } from 'react';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
-import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {

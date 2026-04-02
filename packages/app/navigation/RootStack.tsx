@@ -11,9 +11,9 @@ import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemCon
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
+import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
-import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';

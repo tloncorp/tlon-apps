@@ -7,7 +7,9 @@ import shipManifest from './e2e/shipManifest.json';
  */
 const isProductionMode = process.env.USE_PRODUCTION_BUILD === 'true';
 const shard = process.env.SHARD ? parseInt(process.env.SHARD, 10) : undefined;
-const totalShards = process.env.TOTAL_SHARDS ? parseInt(process.env.TOTAL_SHARDS, 10) : undefined;
+const totalShards = process.env.TOTAL_SHARDS
+  ? parseInt(process.env.TOTAL_SHARDS, 10)
+  : undefined;
 const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
 
 const webServers = Object.entries(shipManifest)
@@ -28,8 +30,7 @@ const webServers = Object.entries(shipManifest)
       reuseExistingServer: !process.env.CI,
       timeout: isProductionMode ? 180 * 1000 : 120 * 1000,
     };
-  }
-);
+  });
 
 export default defineConfig({
   testDir: './e2e',
@@ -52,22 +53,34 @@ export default defineConfig({
     ? [
         // Use blob reporter for sharded runs - generates intermediate reports that can be merged
         // Note: Docker volume mounts already provide shard isolation, no need for nested dirs
-        ['blob', {
-          outputDir: 'playwright-report'
-        }],
-        ['junit', {
-          outputFile: 'test-results/junit.xml'
-        }],
+        [
+          'blob',
+          {
+            outputDir: 'playwright-report',
+          },
+        ],
+        [
+          'junit',
+          {
+            outputFile: 'test-results/junit.xml',
+          },
+        ],
       ]
     : [
         // Use HTML reporter for non-sharded runs
-        ['html', {
-          outputFolder: 'playwright-report',
-          open: 'never'
-        }],
-        ['junit', {
-          outputFile: 'test-results/junit.xml'
-        }],
+        [
+          'html',
+          {
+            outputFolder: 'playwright-report',
+            open: 'never',
+          },
+        ],
+        [
+          'junit',
+          {
+            outputFile: 'test-results/junit.xml',
+          },
+        ],
       ],
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

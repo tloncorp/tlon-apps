@@ -1,7 +1,7 @@
 import { AUTOMATED_TEST } from '@tloncorp/app/lib/envVars';
 import {
-  ensureDbReady,
   REQUIRED_SENTINEL_TABLES,
+  ensureDbReady,
 } from '@tloncorp/app/lib/nativeDb';
 import { createDevLogger } from '@tloncorp/shared';
 import { client } from '@tloncorp/shared/db/client';

@@ -24,10 +24,8 @@ export function EditChannelMetaScreen(props: Props) {
     async (title: string, description?: string) => {
       if (channel) {
         // Keep existing reader/writer roles unchanged
-        const existingReaders =
-          channel.readerRoles?.map((r) => r.roleId) ?? [];
-        const existingWriters =
-          channel.writerRoles?.map((r) => r.roleId) ?? [];
+        const existingReaders = channel.readerRoles?.map((r) => r.roleId) ?? [];
+        const existingWriters = channel.writerRoles?.map((r) => r.roleId) ?? [];
 
         updateChannel(
           {

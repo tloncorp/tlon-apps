@@ -145,7 +145,8 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
   const isSmallSize = SMALL_AVATAR_SIZES.includes(
     (props.size ?? '$4xl') as (typeof SMALL_AVATAR_SIZES)[number]
   );
-  const facePileGridDensity = membersLayout === 'compact' ? 'compact' : 'default';
+  const facePileGridDensity =
+    membersLayout === 'compact' ? 'compact' : 'default';
 
   const textFallback = (
     <TextAvatar

@@ -20,12 +20,7 @@ export {
   type PokeHandlers,
   type Scry,
 } from './http-api';
-export type {
-  Contact,
-  Group,
-  Channel,
-  Post,
-} from './types/models';
+export type { Contact, Group, Channel, Post } from './types/models';
 export type {
   AppReference,
   ChannelReference,

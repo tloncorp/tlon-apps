@@ -34,11 +34,7 @@ export default function AttachmentButton({
 
   return (
     <>
-      <Button
-        preset="secondary"
-        icon="Add"
-        onPress={handlePress}
-      />
+      <Button preset="secondary" icon="Add" onPress={handlePress} />
       <AttachmentSheet
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}

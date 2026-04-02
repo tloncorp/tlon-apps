@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import * as api from '@tloncorp/api';
 import { useMemo } from 'react';
 
-import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';

@@ -1,5 +1,5 @@
-import { createDevLogger } from './logger';
 import { getCanonicalPostId } from './apiUtils';
+import { createDevLogger } from './logger';
 
 const logger = createDevLogger('harkApi', true);
 

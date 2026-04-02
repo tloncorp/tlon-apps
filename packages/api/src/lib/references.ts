@@ -1,6 +1,6 @@
+import { parseIdNumber } from '../client/apiUtils';
 import type * as db from '../types/models';
 import type { ContentReference } from '../types/references';
-import { parseIdNumber } from '../client/apiUtils';
 
 function formatId(id: string) {
   return parseIdNumber(id).toString();

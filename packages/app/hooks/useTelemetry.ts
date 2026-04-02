@@ -1,9 +1,9 @@
+import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
   createDevLogger,
   useCurrentSession,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import {
   didInitializeTelemetry,
   hasClearedLegacyWebTelemetry,
