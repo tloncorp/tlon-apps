@@ -6,31 +6,34 @@ import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as db from '../db';
-import { QueryCtx, batchEffects } from '../db/query';
-import { queryClient } from '../db/reactQuery';
-import { SETTINGS_SINGLETON_KEY } from '../db/schema';
-import { createDevLogger, runIfDev } from '../debug';
-import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
+import * as db from '../../db';
+import { QueryCtx, batchEffects } from '../../db/query';
+import { queryClient } from '../../db/reactQuery';
+import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
+import { createDevLogger, runIfDev } from '../../debug';
+import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
-} from '../store/useActivityFetchers';
-import { persistUnreads } from './activityActions';
-import { createBatchHandler, createHandler } from './bufferedSubscription';
-import * as LocalCache from './cachedData';
-import { addContacts, updateContactMetadata } from './contactActions';
-import { updateChannelSections } from './groupActions';
-import { verifyUserInviteLink } from './inviteActions';
-import { discoverContacts } from './lanyardActions';
-import { useLureState } from './lure';
-import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
-import { getSession, setSession, updateSession } from './session';
-import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
-import { getSystemContacts } from './systemContactsApi';
-import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
+} from '../../store/useActivityFetchers';
+import { persistUnreads } from '../activityActions';
+import { createBatchHandler, createHandler } from '../bufferedSubscription';
+import * as LocalCache from '../cachedData';
+import { addContacts, updateContactMetadata } from '../contactActions';
+import { updateChannelSections } from '../groupActions';
+import { verifyUserInviteLink } from '../inviteActions';
+import { discoverContacts } from '../lanyardActions';
+import { useLureState } from '../lure';
+import { failEnqueuedPosts, verifyPostDelivery } from '../postActions';
+import { getSession, setSession, updateSession } from '../session';
+import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
+import { getSystemContacts } from '../systemContactsApi';
+import {
+  addToChannelPosts,
+  clearChannelPostsQueries,
+} from '../useChannelPosts';
 
-export { SyncPriority, syncQueue } from './syncQueue';
+export { SyncPriority, syncQueue } from '../syncQueue';
 
 const logger = createDevLogger('sync', false);
 

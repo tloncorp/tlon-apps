@@ -23,22 +23,22 @@ import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
 
-import rawChannelPostWithRepliesData from '../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
-import rawChannelPostsData from '../../../api/src/__tests__/fixtures/channelPosts.json';
-import * as db from '../db';
-import rawNewestPostData from '../test/channelNewestPost.json';
-import rawAfterNewestPostData from '../test/channelPostsAfterNewest.json';
-import rawContactsData from '../test/contacts.json';
-import rawGroupsData from '../test/groups.json';
-import rawGroupsInitData from '../test/groupsInit.json';
-import rawHeadsData from '../test/heads.json';
+import rawChannelPostWithRepliesData from '../../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
+import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelPosts.json';
+import * as db from '../../db';
+import rawNewestPostData from '../../test/channelNewestPost.json';
+import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
+import rawContactsData from '../../test/contacts.json';
+import rawGroupsData from '../../test/groups.json';
+import rawGroupsInitData from '../../test/groupsInit.json';
+import rawHeadsData from '../../test/heads.json';
 import {
   getClient,
   setScryOutput,
   setScryOutputs,
   setupDatabaseTestSuite,
-} from '../test/helpers';
-import rawGroupsInit2 from '../test/init.json';
+} from '../../test/helpers';
+import rawGroupsInit2 from '../../test/init.json';
 import {
   syncContacts,
   syncDms,
