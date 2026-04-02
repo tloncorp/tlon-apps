@@ -24,7 +24,7 @@ import { updateChannelSections } from '../groupActions';
 import { verifyUserInviteLink } from '../inviteActions';
 import { discoverContacts } from '../lanyardActions';
 import { useLureState } from '../lure';
-import { verifyPostDelivery } from '../postActions';
+import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { getSession, setSession, updateSession } from '../session';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
