@@ -1,9 +1,5 @@
-import {
-  AppThemeName,
-  StorageConfiguration,
-  StorageCredentials,
-  StorageService,
-} from '@tloncorp/api';
+import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
+import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
 import * as ub from '@tloncorp/api/urbit';
 
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';

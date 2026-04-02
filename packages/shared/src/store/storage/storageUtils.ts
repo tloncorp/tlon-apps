@@ -1,6 +1,6 @@
 import * as api from '@tloncorp/api';
-import { StorageConfiguration, StorageCredentials, scry } from '@tloncorp/api';
-import { desig } from '@tloncorp/api/urbit';
+import { StorageConfiguration, scry } from '@tloncorp/api';
+import { StorageCredentials, desig } from '@tloncorp/api/urbit';
 
 import * as db from '../../db';
 import { createDevLogger } from '../../debug';
