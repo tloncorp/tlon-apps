@@ -196,6 +196,7 @@ export const FilteredChatList = React.memo(
           <FlashList
             ref={listRef}
             data={listItems}
+            extraData={selectedIndex}
             contentContainerStyle={contentContainerStyle}
             keyExtractor={getChatKey}
             renderItem={renderItem}
