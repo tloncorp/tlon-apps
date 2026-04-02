@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   contentToTextAndMentions,
   textAndMentionsToContent,
-} from '../lib/content-helpers';
+} from '../client/content-helpers';
 
 describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () => {
   test('mention + link text survives round-trip without corruption', () => {

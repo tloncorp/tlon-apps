@@ -1,7 +1,7 @@
 import {
   Mention,
   textAndMentionsToContent,
-} from '@tloncorp/api/lib/content-helpers';
+} from '@tloncorp/api/client/content-helpers';
 import { expect, test } from 'vitest';
 
 test('textAndMentionsToContent: multiline mentions', () => {

@@ -1,9 +1,9 @@
 import type * as api from '../client';
 import { formatUd } from '../client/apiUtils';
+import { PostBlobDataEntry, parsePostBlob } from '../client/content-helpers';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
 import { assertNever } from './assertNever';
-import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
 import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
 
 // Inline types

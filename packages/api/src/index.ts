@@ -61,5 +61,5 @@ export {
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
-} from './lib/content-helpers';
+} from './client/content-helpers';
 export * from './client';
