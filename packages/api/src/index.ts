@@ -57,4 +57,16 @@ export {
   type WritDelta,
   type WritDiff,
 } from './urbit';
+export {
+  appendFileUploadToPostBlob,
+  appendToPostBlob,
+  appendVideoToPostBlob,
+  contentToTextAndMentions,
+  parsePostBlob,
+  textAndMentionsToContent,
+  toPostData as toContentHelpersPostData,
+  type ClientPostBlobData,
+  type Mention,
+  type PostBlobDataEntry,
+} from './lib/content-helpers';
 export * from './client';

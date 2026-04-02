@@ -1,4 +1,4 @@
-import { Stringified } from '../lib/utilityTypes';
+import type { Stringified } from '../lib/utilityTypes';
 import { DisplayMode, SortMode } from './channel';
 
 export type AppThemeName =

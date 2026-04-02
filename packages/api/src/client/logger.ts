@@ -1,7 +1,5 @@
 /* eslint-disable no-console */
 
-declare const __DEV__: boolean | undefined;
-
 type ApiLogger = Console & {
   crumb: (...args: unknown[]) => void;
   sensitiveCrumb: (...args: unknown[]) => void;

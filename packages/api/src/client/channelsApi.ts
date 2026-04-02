@@ -6,7 +6,7 @@ import { createDevLogger } from './logger';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
 import { encodeString } from '../urbit/utils';
-import { Stringified } from '../lib/utilityTypes';
+import type { Stringified } from '../lib/utilityTypes';
 import {
   getCanonicalPostId,
   getChannelIdType,

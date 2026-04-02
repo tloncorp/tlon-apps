@@ -4,7 +4,7 @@ import _ from 'lodash';
 import BTree from 'sorted-btree';
 
 import { parseIdNumber } from '../client/apiUtils';
-import { Stringified } from '../lib/utilityTypes';
+import type { Stringified } from '../lib/utilityTypes';
 import {
   Block,
   Image,
