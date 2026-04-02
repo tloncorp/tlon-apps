@@ -1,6 +1,6 @@
 import { render, valid } from '@urbit/aura';
 
-import * as api from '../client';
+import type * as api from '../client';
 import {
   isBotUserId,
   isDmChannelId,
