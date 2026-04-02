@@ -40,7 +40,6 @@ import {
 } from '../../test/helpers';
 import rawGroupsInit2 from '../../test/init.json';
 import {
-  syncContacts,
   syncDms,
   syncGroups,
   syncInitData,
@@ -49,6 +48,7 @@ import {
   syncPosts,
   syncThreadPosts,
 } from './sync';
+import { syncContacts } from './syncContacts';
 
 const rawContactsData2 = {};
 const rawContactSuggestionsData: string[] = [];

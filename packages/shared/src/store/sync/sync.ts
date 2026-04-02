@@ -37,10 +37,6 @@ import { syncContacts } from './syncContacts';
 import { syncGroup } from './syncGroup';
 import { updateLastActivityTime } from './updateLastActivityTime';
 
-export { syncContacts } from './syncContacts';
-export { syncGroup } from './syncGroup';
-export { SyncPriority, syncQueue } from '../syncQueue';
-
 // Used to keep track of which groups/channels we're a part of. If we
 // see something new, we refetch init data. Fallback in case we miss
 // something over %channels or %groups
