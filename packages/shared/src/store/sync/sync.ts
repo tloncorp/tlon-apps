@@ -1715,21 +1715,6 @@ export async function syncPosts(
   return response;
 }
 
-export async function syncGroupPreviews(groupIds: string[]) {
-  const promises = groupIds.map(async (groupId) => {
-    const group = await db.getGroup({ id: groupId });
-    if (group?.currentUserIsMember) {
-      return group;
-    }
-
-    const groupPreview = await api.getGroupPreview(groupId);
-    await db.insertUnjoinedGroups([groupPreview]);
-    return groupPreview;
-  });
-
-  return Promise.all(promises);
-}
-
 export async function syncChannelPreivews(channelIds: string[]) {
   const promises = channelIds.map(async (channelId) => {
     const channel = await db.getChannelWithRelations({ id: channelId });
