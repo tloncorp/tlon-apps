@@ -6,7 +6,7 @@ import { EventEmitter } from '../lib/EventEmitter';
 import { readArrayBufferFromBlob } from '../lib/blob';
 import { createDevLogger } from '../lib/logger';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
-import { desig } from '../urbit';
+import { desig } from '../lib/urbit';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
 import {
   EventSourceMessage,

@@ -29,7 +29,6 @@ export type {
 } from './types/references';
 export {
   checkNest,
-  desig,
   getChannelType,
   nestToFlag,
   preSig,

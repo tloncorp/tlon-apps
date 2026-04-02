@@ -3,7 +3,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { da, render } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
-import { StorageCredentials, desig } from '../urbit';
+import { desig } from '../lib/urbit';
+import { StorageCredentials } from '../urbit';
 import * as ub from '../urbit';
 import { StorageConfiguration } from './upload';
 import {

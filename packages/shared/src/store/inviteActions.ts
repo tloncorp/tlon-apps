@@ -5,7 +5,7 @@ import {
   groupsDescribe,
 } from '@tloncorp/api';
 import * as api from '@tloncorp/api';
-import { desig } from '@tloncorp/api/urbit';
+import { desig } from '@tloncorp/api/lib/urbit';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
