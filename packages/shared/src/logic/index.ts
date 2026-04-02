@@ -1,6 +1,5 @@
 export * from './utilHooks';
 export * from '@tloncorp/api/lib/utils';
-export * from '@tloncorp/api/lib/references';
 export * from './embed';
 export * from '@tloncorp/api/lib/types';
 export * as featureFlags from '@tloncorp/api/lib/featureFlags';
@@ -15,3 +14,4 @@ export * from '@tloncorp/api/client/branch';
 export * from '@tloncorp/api/client/content-helpers';
 export * from '@tloncorp/api/client/deeplinks';
 export * from '@tloncorp/api/client/postContent';
+export * from '@tloncorp/api/client/references';
