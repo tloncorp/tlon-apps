@@ -71,6 +71,19 @@ module.exports = {
               'urbit': { forbidImportFrom: ['client'] },
             },
           }),
+          // shared/ submodules (top is forbidden from import from lower):
+          // - utils
+          // - logic
+          // - db
+          // - store
+          ...importBoundaries({
+            basePath: './packages/shared/src',
+            zones: {
+              'utils': { forbidImportFrom: ['logic', 'db', 'store'] },
+              'logic': { forbidImportFrom: ['db', 'store'] },
+              'db': { forbidImportFrom: ['store'] },
+            },
+          }),
         ],
       },
     ],
