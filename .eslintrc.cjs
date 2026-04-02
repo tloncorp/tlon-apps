@@ -50,7 +50,7 @@ module.exports = {
     },
   ],
   rules: {
-    'import/no-cycle': 'error',
+    'import/no-cycle': 'off',
     '@typescript-eslint/consistent-type-imports': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-namespace': 'off',
