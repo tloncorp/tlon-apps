@@ -1,3 +1,5 @@
+const path = require('path');
+
 /* eslint-env node */
 module.exports = {
   root: true,
@@ -61,36 +63,14 @@ module.exports = {
           // - http-api
           // - urbit
           // - client
-          {
-            target: './packages/api/src/lib',
-            from: './packages/api/src/http-api',
-            message: 'lib cannot import from http-api (hierarchy: lib -> http-api -> urbit -> client)',
-          },
-          {
-            target: './packages/api/src/lib',
-            from: './packages/api/src/urbit',
-            message: 'lib cannot import from urbit (hierarchy: lib -> http-api -> urbit -> client)',
-          },
-          {
-            target: './packages/api/src/lib',
-            from: './packages/api/src/client',
-            message: 'lib cannot import from client (hierarchy: lib -> http-api -> urbit -> client)',
-          },
-          {
-            target: './packages/api/src/http-api',
-            from: './packages/api/src/urbit',
-            message: 'http-api cannot import from urbit (hierarchy: lib -> http-api -> urbit -> client)',
-          },
-          {
-            target: './packages/api/src/http-api',
-            from: './packages/api/src/client',
-            message: 'http-api cannot import from client (hierarchy: lib -> http-api -> urbit -> client)',
-          },
-          {
-            target: './packages/api/src/urbit',
-            from: './packages/api/src/client',
-            message: 'urbit cannot import from client (hierarchy: lib -> http-api -> urbit -> client)',
-          },
+          ...importBoundaries({
+            basePath: './packages/api/src',
+            zones: {
+              'lib': { forbidImportFrom: ['http-api', 'urbit', 'client'] },
+              'http-api': { forbidImportFrom: ['urbit', 'client'] },
+              'urbit': { forbidImportFrom: ['client'] },
+            },
+          }),
         ],
       },
     ],
@@ -148,3 +128,22 @@ module.exports = {
     ],
   },
 };
+
+/**
+ * @param opts An object containing the options for the import boundaries.
+ * @param opts.basePath The base path to resolve the target and from paths against.
+ * @param opts.zones An object where the keys are target paths and the values are objects with a forbidImportFrom array of paths that cannot import from the target.
+ * @returns An array of rules for the import-x/no-restricted-paths rule.
+ */
+function importBoundaries(opts) {
+  const rules = [];
+  for (const [target, { forbidImportFrom }] of Object.entries(opts.zones)) {
+    for (const from of forbidImportFrom) {
+      rules.push({
+        target: path.resolve(opts.basePath, target),
+        from: path.resolve(opts.basePath, from),
+      });
+    }
+  }
+  return rules;
+}
