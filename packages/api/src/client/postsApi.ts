@@ -42,10 +42,7 @@ import {
 } from './apiUtils';
 import { channelAction } from './channelsApi';
 import { multiDmAction } from './chatApi';
-import {
-  PlaintextPreviewConfig,
-  getTextContent as getTextPreview,
-} from './postContent';
+import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -1321,7 +1318,7 @@ export function toPostData(
     content: galleryImageLink
       ? JSON.stringify(galleryImageLinkContent)
       : JSON.stringify(content),
-    textContent: getTextPreview(
+    textContent: getTextContent(
       post?.essay.content,
       PlaintextPreviewConfig.inlineConfig
     ),
@@ -1683,32 +1680,4 @@ function formatCursor(cursor: Cursor) {
   } else {
     return formatDateParam(cursor);
   }
-}
-
-export function getTextContent(story: PostContent): string;
-export function getTextContent(story?: PostContent): string | undefined {
-  if (!story) {
-    return;
-  }
-  return story
-    .map((verse) => {
-      if (isReferenceVerse(verse)) {
-        return '';
-      } else if (ub.isBlockVerse(verse)) {
-        return ub.getBlockContent(verse.block);
-      } else if ('inline' in verse) {
-        return ub.getInlinesContent(verse.inline);
-      } else {
-        return '';
-      }
-    })
-    .filter((v) => !!v && v !== '')
-    .join(' ')
-    .trim();
-}
-
-function isReferenceVerse(
-  verse: ub.Verse | ContentReference
-): verse is ContentReference {
-  return 'type' in verse && verse.type === 'reference';
 }
