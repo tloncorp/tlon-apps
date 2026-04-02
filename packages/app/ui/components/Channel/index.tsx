@@ -90,6 +90,13 @@ const isLikelyImageFile = (
   return IMAGE_FILE_EXTENSION_REGEX.test(sourceName);
 };
 
+function combineSharedText(intent: ChannelShareIntent): string | null {
+  const text = intent.text?.trim() || null;
+  const url = intent.webUrl?.trim() || null;
+  if (!text) return url;
+  return url && !text.includes(url) ? `${text}\n${url}` : text;
+}
+
 const uploadIntentFromShareIntentFile = (
   file: NonNullable<ChannelShareIntent['file']>
 ): Attachment.UploadIntent | null => {
@@ -129,7 +136,7 @@ function usePrefillDraftFromShareIntent({
 }: {
   channel: db.Channel;
   disabled: boolean;
-  openDraft: () => void;
+  openDraft: (mode?: 'text' | 'link') => void;
   storeDraft: (
     draft: JSONContent,
     draftType?: GalleryDraftType
@@ -154,13 +161,14 @@ function usePrefillDraftFromShareIntent({
     const nextShareIntent = popShareIntent(channel.id);
     if (!nextShareIntent) return;
 
-    setActiveShareIntent(nextShareIntent.shareIntent);
+    setActiveShareIntent(nextShareIntent);
 
-    if (nextShareIntent.startDraft) {
+    if (channel.type !== 'gallery') {
       openDraft();
     }
   }, [
     channel.id,
+    channel.type,
     activeShareIntent,
     disabled,
     openDraft,
@@ -176,7 +184,9 @@ function usePrefillDraftFromShareIntent({
       const rawUploadIntent = intent.file
         ? uploadIntentFromShareIntentFile(intent.file)
         : null;
-      const sharedText = intent.text?.trim() || null;
+      const sharedText = combineSharedText(intent);
+      const text = intent.text?.trim() || null;
+      const url = intent.webUrl?.trim() || null;
 
       if (!rawUploadIntent && !sharedText) return;
 
@@ -192,23 +202,35 @@ function usePrefillDraftFromShareIntent({
 
       if (!uploadIntent && !sharedText) return;
 
-      if (sharedText) {
-        await storeDraft(
-          logic.textAndMentionsToContent(sharedText, []),
-          channel.type === 'gallery' ? 'caption' : undefined
-        );
-        if (signal.cancelled) return;
-      }
-
       if (uploadIntent) {
+        if (sharedText) {
+          await storeDraft(
+            logic.textAndMentionsToContent(sharedText, []),
+            channel.type === 'gallery' ? 'caption' : undefined
+          );
+          if (signal.cancelled) return;
+        }
+
         attachAssets([uploadIntent]);
+        if (channel.type !== 'gallery') {
+          openDraft();
+        }
+        return;
       }
 
-      // Gallery attachments land directly in review mode — don't open
-      // the add-post chooser over the attachment preview.
-      if (!(channel.type === 'gallery' && uploadIntent)) {
-        openDraft();
-      }
+      if (sharedText == null) return;
+
+      const draftType =
+        channel.type === 'gallery'
+          ? !!url && (!text || text === url)
+            ? 'link'
+            : 'text'
+          : undefined;
+
+      await storeDraft(logic.textAndMentionsToContent(sharedText, []), draftType);
+      if (signal.cancelled) return;
+
+      openDraft(draftType);
     },
     [attachAssets, channel.type, openDraft, storeDraft]
   );
@@ -603,8 +625,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       }
     }, [startDraft]);
 
-    const handleOpenDraft = useCallback(() => {
-      draftInputRef.current?.startDraft?.();
+    const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
+      draftInputRef.current?.startDraft?.(mode);
     }, []);
 
     usePrefillDraftFromShareIntent({

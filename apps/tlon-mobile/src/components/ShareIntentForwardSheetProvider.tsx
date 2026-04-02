@@ -17,6 +17,7 @@ import { PropsWithChildren, useCallback, useEffect, useRef, useState } from 'rea
 import {
   extractSharedFile,
   extractSharedText,
+  extractSharedWebUrl,
   getShareIntentFingerprint,
 } from '../lib/shareIntent';
 
@@ -71,13 +72,15 @@ export function ShareIntentForwardSheetProvider({
 
     try {
       const sharedText = extractSharedText(shareIntent);
+      const sharedWebUrl = extractSharedWebUrl(shareIntent);
       const sharedFile = extractSharedFile(shareIntent.files);
       const hasMoreThanOneFile = (shareIntent.files?.length ?? 0) > 1;
 
-      if (sharedText || sharedFile) {
+      if (sharedText || sharedWebUrl || sharedFile) {
         setPendingShare({
           createdAt: Date.now(),
           text: sharedText,
+          webUrl: sharedWebUrl,
           file: sharedFile,
         });
       }
@@ -124,17 +127,9 @@ export function ShareIntentForwardSheetProvider({
       }
 
       const screenName = screenNameFromChannelId(channel.id);
-      // Gallery attachments should open straight into review mode. Starting
-      // the draft would show the add-post chooser on top of the shared media.
-      const shouldStartDraft = !(
-        screenName === 'Channel' &&
-        channel.type === 'gallery' &&
-        pendingShare.file
-      );
       pushShareIntent({
         channelId: channel.id,
         shareIntent: pendingShare,
-        startDraft: shouldStartDraft,
       });
       if (screenName === 'Channel') {
         navigation.navigate('Channel', {

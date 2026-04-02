@@ -12,15 +12,12 @@ import type { ChannelShareIntent } from '../../types/shareIntent';
 export type QueuedChannelShareIntent = {
   channelId: string;
   shareIntent: ChannelShareIntent;
-  startDraft: boolean;
 };
 
 type ChannelShareIntentContextValue = {
   pendingShareIntent: QueuedChannelShareIntent | null;
   pushShareIntent: (shareIntent: QueuedChannelShareIntent) => void;
-  popShareIntent: (
-    channelId: string
-  ) => Pick<QueuedChannelShareIntent, 'shareIntent' | 'startDraft'> | null;
+  popShareIntent: (channelId: string) => ChannelShareIntent | null;
 };
 
 const Context = createContext<ChannelShareIntentContextValue>({
@@ -59,10 +56,7 @@ export function ChannelShareIntentProvider({
     pendingShareIntentRef.current = null;
     setPendingShareIntent(null);
 
-    return {
-      shareIntent: pendingShare.shareIntent,
-      startDraft: pendingShare.startDraft,
-    };
+    return pendingShare.shareIntent;
   }, []);
 
   const value = useMemo(

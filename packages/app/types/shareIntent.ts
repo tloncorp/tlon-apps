@@ -11,5 +11,6 @@ export type ShareIntentFile = {
 export type ChannelShareIntent = {
   createdAt: number;
   text?: string | null;
+  webUrl?: string | null;
   file?: ShareIntentFile | null;
 };
