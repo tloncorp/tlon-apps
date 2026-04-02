@@ -16,8 +16,6 @@ import type * as db from '../types/models';
 import * as ub from '../urbit';
 import type { Stringified } from './utilityTypes';
 
-export { isBotUserId, isDmChannelId, isGroupChannelId, isGroupDmChannelId };
-
 export const IMAGE_REGEX =
   /(\.jpg|\.img|\.png|\.gif|\.tiff|\.jpeg|\.webp|\.svg)(?:\?.*)?$/i;
 export const AUDIO_REGEX = /(\.mp3|\.wav|\.ogg|\.m4a)(?:\?.*)?$/i;
