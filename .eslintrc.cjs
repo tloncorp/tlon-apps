@@ -16,15 +16,15 @@ module.exports = {
     react: {
       version: 'detect',
     },
-    "import/parsers": {
+    "import-x/parsers": {
       "@typescript-eslint/parser": [".ts", ".tsx"],
     },
-    "import/resolver": {
+    "import-x/resolver": {
       "typescript": true,
     },
   },
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint', 'import'],
+  plugins: ['@typescript-eslint', 'import-x'],
   ignorePatterns: ['dist', 'node_modules', '*.md'],
   overrides: [
     {
@@ -50,8 +50,8 @@ module.exports = {
     },
   ],
   rules: {
-    'import/no-cycle': 'off',
-    'import/no-restricted-paths': [
+    'import-x/no-cycle': 'off',
+    'import-x/no-restricted-paths': [
       'error',
       {
         zones: [
