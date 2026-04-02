@@ -20,6 +20,7 @@ import {
   WritDeltaAddReact,
   WritDeltaDelReact,
   WritDiff,
+  channelAction,
   checkNest,
   getChannelType,
   whomIsDm,
@@ -40,7 +41,6 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
-import { channelAction } from './channelsApi';
 import { multiDmAction } from './chatApi';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { poke, scry, subscribeOnce } from './urbit';
