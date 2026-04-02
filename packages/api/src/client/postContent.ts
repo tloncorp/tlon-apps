@@ -4,7 +4,7 @@ import { assertNever } from '../lib/assertNever';
 import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
-import { PostContent as ApiPostContent } from './postsApi';
+import type { PostContent as ApiPostContent } from './postsApi';
 
 // Inline types
 
