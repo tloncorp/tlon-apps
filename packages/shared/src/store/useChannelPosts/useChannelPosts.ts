@@ -16,6 +16,7 @@ import * as sync from '../sync';
 import { SyncPriority } from '../syncQueue';
 import { useDetectSequenceRegression } from '../useDetectSequenceRegression';
 import { mergePendingPosts } from '../useMergePendingPosts';
+import { queryKeyPrefix } from './queries';
 import { useDeletedPosts, useNewPostListener } from './subscriptions';
 
 const postsLogger = createDevLogger('useChannelPosts', false);
@@ -41,10 +42,6 @@ type UseChannelPostsParams = UseChannelPostsPageParams & {
   filterDeleted?: boolean;
 };
 
-export const clearChannelPostsQueries = () => {
-  db.queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
-};
-
 export const useChannelPosts = (options: UseChannelPostsParams) => {
   const mountTime = useMemo(() => {
     return Date.now();
@@ -55,7 +52,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   const queryKey = useMemo(
     () => [
       [
-        'channelPosts',
+        ...queryKeyPrefix,
         options.channelId,
         options.cursorPostId,
         options.filterDeleted,

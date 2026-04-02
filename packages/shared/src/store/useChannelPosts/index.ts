@@ -4,3 +4,4 @@ export {
   deleteFromChannelPosts,
   rollbackDeletedChannelPost,
 } from './subscriptions';
+export { clearChannelPostsQueries } from './queries';
