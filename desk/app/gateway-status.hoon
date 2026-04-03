@@ -87,7 +87,7 @@
   (emit %pass /dm/send %agent [our.bowl %chat] %poke %chat-dm-action-2 !>(action))
 ::
 ++  status-update
-  |=  [sts=?(%unknown %up %stopping %down) lut=(unit @da)]
+  |=  [sts=?(%unknown %up %down) lut=(unit @da)]
   ^+  cor
   (give %fact ~[/v1] %gateway-status-update-1 !>(`update-1:gs`[%status sts lut]))
 ::
@@ -132,7 +132,7 @@
 ++  handle-gateway-start
   |=  [bid=@t lut=@da]
   ^+  cor
-  =/  who  (need owner)
+  =/  owner-guard  (need owner)  ::  crash if owner not configured
   =/  should-notify  ?&(pending-restart-notice (is-owner-recently-active now.bowl))
   =.  cor  cancel-lease-timer
   =.  status  %up
@@ -148,21 +148,25 @@
 ++  handle-gateway-heartbeat
   |=  [bid=@t lut=@da]
   ^+  cor
-  =/  who  (need owner)
+  =/  owner-guard  (need owner)  ::  crash if owner not configured
   ?.  =(boot-id `bid)  cor
   =.  cor  cancel-lease-timer
+  =.  status  %up
+  =.  pending-restart-notice  %.n
   =.  lease-until  `lut
   =.  last-heartbeat-at  `now.bowl
   =.  cor  (emit %pass /lease-check %arvo %b %wait lut)
   (status-update status lease-until)
 ::
 ++  handle-gateway-stop
-  |=  reason=@t
+  |=  [bid=@t reason=@t]
   ^+  cor
-  =/  who  (need owner)
+  =/  owner-guard  (need owner)  ::  crash if owner not configured
+  ?.  =(boot-id `bid)  cor
   =/  should-notify  (is-owner-recently-active now.bowl)
   =.  cor  cancel-lease-timer
   =.  status  %down
+  =.  boot-id  ~
   =.  last-stop-at  `now.bowl
   =.  pending-restart-notice  %.y
   =?  cor  should-notify

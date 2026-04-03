@@ -22,6 +22,7 @@ export interface GatewayStatusHeartbeat {
 
 export interface GatewayStatusStop {
   'gateway-stop': {
+    'boot-id': string;
     reason: string;
   };
 }

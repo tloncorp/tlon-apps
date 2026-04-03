@@ -49,10 +49,10 @@ test('gatewayStatusAction wraps gateway-start action', () => {
 
 test('gatewayStatusAction wraps gateway-stop action', () => {
   const result = gatewayStatusAction({
-    'gateway-stop': { reason: 'shutting down' },
+    'gateway-stop': { 'boot-id': 'boot-xyz', reason: 'shutting down' },
   });
   expect(result.json).toStrictEqual({
-    'gateway-stop': { reason: 'shutting down' },
+    'gateway-stop': { 'boot-id': 'boot-xyz', reason: 'shutting down' },
   });
 });
 
@@ -105,13 +105,13 @@ test('gatewayHeartbeat converts Unix millis to @da and pokes', async () => {
   });
 });
 
-test('gatewayStop pokes with reason string', async () => {
-  await gatewayStop('maintenance window');
+test('gatewayStop pokes with boot-id and reason', async () => {
+  await gatewayStop({ bootId: 'boot-abc', reason: 'maintenance window' });
   expect(poke).toHaveBeenCalledWith({
     app: 'gateway-status',
     mark: 'gateway-status-action-1',
     json: {
-      'gateway-stop': { reason: 'maintenance window' },
+      'gateway-stop': { 'boot-id': 'boot-abc', reason: 'maintenance window' },
     },
   });
 });

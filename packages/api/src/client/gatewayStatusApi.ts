@@ -80,11 +80,12 @@ export async function gatewayHeartbeat(params: {
 
 /**
  * Signal that a gateway instance has stopped.
- * @param reason - human-readable reason for stopping
+ * @param params.bootId - must match the current boot-id; stale stops are ignored
+ * @param params.reason - human-readable reason for stopping
  */
-export async function gatewayStop(reason: string) {
+export async function gatewayStop(params: { bootId: string; reason: string }) {
   const action = gatewayStatusAction({
-    'gateway-stop': { reason },
+    'gateway-stop': { 'boot-id': params.bootId, reason: params.reason },
   });
   return poke(action);
 }

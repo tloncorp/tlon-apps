@@ -167,7 +167,7 @@
   ;<  ~  bind:m  configure
   =/  lease-time  (add ~2024.1.1 ~m2)
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-start 'boot-1' lease-time]))
-  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-stop 'test']))
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/state)
   =/  st  !<(state-0:gs q.res)
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%down))
@@ -181,7 +181,7 @@
   ;<  ~  bind:m  configure
   =/  lease-time  (add ~2024.1.1 ~m2)
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-start 'boot-1' lease-time]))
-  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-stop 'test']))
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-stop 'boot-1' 'test']))
   ::  verify pending-restart-notice was set by stop
   ;<  res=cage  bind:m  (got-peek /x/state)
   =/  st  !<(state-0:gs q.res)
@@ -211,7 +211,6 @@
   ::  verifies gateway-start leaves pending-restart-notice as %.n,
   ::  confirming that a subsequent lease-expiry transition would be
   ::  the only path that sets it to %.y in the crash scenario.
-  ::  the actual post-wake state change is verified on the live ship.
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -223,4 +222,63 @@
   =/  st  !<(state-0:gs q.res)
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%up))
   (ex-equal !>(pending-restart-notice.st) !>(%.n))
+::
+++  test-heartbeat-restores-up-after-expiry
+  ::  after lease expiry (crash path), a valid heartbeat restores %up
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  configure
+  =/  lease-time  (add ~2024.1.1 ~s90)
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-start 'boot-1' lease-time]))
+  ::  advance past lease and fire wake
+  ;<  ~  bind:m  (wait ~s91)
+  ;<  *  bind:m  (do-arvo /lease-check [%behn %wake ~])
+  ::  deliver valid heartbeat with new lease
+  =/  new-lease  (add ~2024.1.1 ~m5)
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-heartbeat 'boot-1' new-lease]))
+  ;<  res=cage  bind:m  (got-peek /x/state)
+  =/  st  !<(state-0:gs q.res)
+  ;<  ~  bind:m  (ex-equal !>(status.st) !>(%up))
+  ;<  ~  bind:m  (ex-equal !>(pending-restart-notice.st) !>(%.n))
+  (ex-equal !>(lease-until.st) !>(`new-lease))
+::
+++  test-stale-stop-ignored
+  ::  stop with wrong boot-id is ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  configure
+  =/  lease-time  (add ~2024.1.1 ~m2)
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-start 'boot-1' lease-time]))
+  ::  stop with wrong boot-id
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-stop 'boot-old' 'stale']))
+  ;<  res=cage  bind:m  (got-peek /x/state)
+  =/  st  !<(state-0:gs q.res)
+  ;<  ~  bind:m  (ex-equal !>(status.st) !>(%up))
+  ;<  ~  bind:m  (ex-equal !>(boot-id.st) !>(`'boot-1'))
+  (ex-equal !>(pending-restart-notice.st) !>(%.n))
+::
+++  test-delayed-heartbeat-after-stop-ignored
+  ::  after graceful stop, delayed heartbeat from same instance cannot
+  ::  revive the agent because stop clears boot-id
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  configure
+  =/  lease-time  (add ~2024.1.1 ~m2)
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-start 'boot-1' lease-time]))
+  ::  graceful stop (clears boot-id)
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-stop 'boot-1' 'shutdown']))
+  ::  delayed heartbeat from same instance
+  =/  new-lease  (add ~2024.1.1 ~m5)
+  ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action-1:gs`[%gateway-heartbeat 'boot-1' new-lease]))
+  ;<  res=cage  bind:m  (got-peek /x/state)
+  =/  st  !<(state-0:gs q.res)
+  ;<  ~  bind:m  (ex-equal !>(status.st) !>(%down))
+  ;<  ~  bind:m  (ex-equal !>(boot-id.st) !>(~))
+  (ex-equal !>(pending-restart-notice.st) !>(%.y))
 --

@@ -29,7 +29,7 @@
       ==
         %gateway-stop
       %-  frond  :-  'gateway-stop'
-      (pairs ~[['reason' s+reason.action-1]])
+      (pairs ~[['boot-id' s+boot-id.action-1] ['reason' s+reason.action-1]])
     ==
   --
 ++  grab
@@ -41,7 +41,7 @@
     =,  dejs:format
     %.  jon
     %-  of
-    :~  [%gateway-stop (ot ~[reason+so])]
+    :~  [%gateway-stop (ot ~[boot-id+so reason+so])]
         [%gateway-start (ot ~[boot-id+so lease-until+(se %da)])]
         [%gateway-heartbeat (ot ~[boot-id+so lease-until+(se %da)])]
         [%configure (ot ~[owner+(se %p) active-window+(se %dr) offline-reply-cooldown+(se %dr)])]
