@@ -3,7 +3,6 @@ import { da, dr, render } from '@urbit/aura';
 import type * as ub from '../urbit';
 import { poke } from './urbit';
 
-
 /**
  * Build a raw poke payload for the %gateway-status agent.
  * Temporal fields must already be in @da/@dr string format.
