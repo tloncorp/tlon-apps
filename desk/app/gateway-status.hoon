@@ -142,7 +142,7 @@
   =.  pending-restart-notice  %.n
   =.  cor  (emit %pass /lease-check %arvo %b %wait lut)
   =?  cor  should-notify
-    (send-dm 'Your Tlon bot is back online.')
+    (send-dm 'Your Tlon bot is back online and ready to chat again. ✅')
   (status-update status lease-until)
 ::
 ++  handle-gateway-heartbeat
@@ -170,7 +170,7 @@
   =.  last-stop-at  `now.bowl
   =.  pending-restart-notice  %.y
   =?  cor  should-notify
-    (send-dm 'Your Tlon bot is restarting on this ship. Replies may pause briefly.')
+    (send-dm 'Your Tlon bot is restarting. I should be back shortly. 🔧')
   (status-update status lease-until)
 ::
 ++  agnt
@@ -219,7 +219,7 @@
   =?  last-offline-auto-reply-to  should-reply  `u.mkey
   =.  cor  (give %fact ~[/v1] %gateway-status-update-1 !>(`update-1:gs`[%owner-activity now.bowl]))
   ?.  should-reply  cor
-  =.  cor  (send-dm 'Your Tlon bot is temporarily unavailable on this ship right now. It should come back shortly.')
+  =.  cor  (send-dm (rap 3 'Your Tlon bot is offline right now, so replies are paused. I' '\'' 'll let you know when I' '\'' 'm back. 🛰️' ~))
   (give %fact ~[/v1] %gateway-status-update-1 !>(`update-1:gs`[%auto-reply who now.bowl]))
 ::
 ++  arvo
