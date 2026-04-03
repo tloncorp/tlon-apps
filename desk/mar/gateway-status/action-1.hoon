@@ -1,3 +1,5 @@
+::  gateway-status-action-1: mark for gateway-status inbound actions
+::
 /-  gs=gateway-status
 |_  =action-1:gs
 ++  grad  %noun

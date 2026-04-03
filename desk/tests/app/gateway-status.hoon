@@ -1,3 +1,5 @@
+::  tests for %gateway-status agent
+::
 /-  gs=gateway-status, a=activity
 /+  *test-agent
 /=  agent  /app/gateway-status

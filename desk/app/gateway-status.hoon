@@ -1,3 +1,5 @@
+::  gateway-status: offline-reply and liveness agent for openclaw gateway
+::
 /-  gs=gateway-status, a=activity, c=chat, s=story
 /+  default-agent, verb, dbug
 |%
@@ -219,7 +221,7 @@
   =?  last-offline-auto-reply-to  should-reply  `u.mkey
   =.  cor  (give %fact ~[/v1] %gateway-status-update-1 !>(`update-1:gs`[%owner-activity now.bowl]))
   ?.  should-reply  cor
-  =.  cor  (send-dm (rap 3 'Your Tlon bot is offline right now, so replies are paused. I' '\'' 'll let you know when I' '\'' 'm back. 🛰️' ~))
+  =.  cor  (send-dm 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
   (give %fact ~[/v1] %gateway-status-update-1 !>(`update-1:gs`[%auto-reply who now.bowl]))
 ::
 ++  arvo
