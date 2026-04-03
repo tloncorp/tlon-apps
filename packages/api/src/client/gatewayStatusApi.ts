@@ -1,10 +1,8 @@
 import { da, dr, render } from '@urbit/aura';
 
 import type * as ub from '../urbit';
-import { createDevLogger } from './logger';
 import { poke } from './urbit';
 
-const logger = createDevLogger('gatewayStatusApi', false);
 
 /**
  * Build a raw poke payload for the %gateway-status agent.
@@ -42,7 +40,6 @@ export async function configureGatewayStatus(params: {
       ),
     },
   });
-  logger.log('configuring gateway status', action);
   return poke(action);
 }
 
@@ -61,7 +58,6 @@ export async function gatewayStart(params: {
       'lease-until': render('da', da.fromUnix(params.leaseUntil)),
     },
   });
-  logger.log('gateway start', action);
   return poke(action);
 }
 
@@ -80,7 +76,6 @@ export async function gatewayHeartbeat(params: {
       'lease-until': render('da', da.fromUnix(params.leaseUntil)),
     },
   });
-  logger.log('gateway heartbeat', action);
   return poke(action);
 }
 
@@ -92,6 +87,5 @@ export async function gatewayStop(reason: string) {
   const action = gatewayStatusAction({
     'gateway-stop': { reason },
   });
-  logger.log('gateway stop', action);
   return poke(action);
 }
