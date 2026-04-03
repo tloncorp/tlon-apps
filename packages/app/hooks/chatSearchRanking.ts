@@ -41,7 +41,7 @@ export function hasAllChatSearchTokens(
   );
 }
 
-function tokenPresenceScore(
+export function tokenPresenceScore(
   value: string,
   token: string,
   weights: {
