@@ -41,11 +41,16 @@ export function SearchBar({
         // if value was cleared, update immediately
         debouncedOnChangeQuery.cancel();
         onChangeQuery('');
+      } else if (debounceTime <= 0) {
+        // Some callers, like the forward sheet picker, want truly immediate
+        // search updates rather than going through the debounce wrapper.
+        debouncedOnChangeQuery.cancel();
+        onChangeQuery(newValue);
       } else {
         debouncedOnChangeQuery(newValue);
       }
     },
-    [debouncedOnChangeQuery, onChangeQuery]
+    [debounceTime, debouncedOnChangeQuery, onChangeQuery]
   );
 
   return (
