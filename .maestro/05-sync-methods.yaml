@@ -4,6 +4,15 @@ appId: io.tlon.groups
 - runFlow: subflows/login-e2e-node.yaml
 - assertVisible: 'Home'
 - openLink: 'io.tlon.groups://e2e/sync'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - assertVisible:
     id: 'e2e-sync-test-screen'
 - assertVisible:
