@@ -1,7 +1,3 @@
-import * as $ from 'drizzle-orm';
-import { pick } from 'lodash';
-import { expect, test, vi } from 'vitest';
-
 import {
   StructuredChannelDescriptionPayload,
   toClientGroupV7,
@@ -12,10 +8,25 @@ import {
   DraftInputId,
   PostContentRendererId,
 } from '@tloncorp/api';
-import * as db from '../db';
-import rawNewestPostData from '../test/channelNewestPost.json';
+import {
+  CombinedHeads,
+  GroupsInit6,
+  PagedPosts,
+  PostDataResponse,
+} from '@tloncorp/api/urbit';
+import {
+  ContactBookScryResult1,
+  Contact as UrbitContact,
+} from '@tloncorp/api/urbit/contact';
+import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
+import * as $ from 'drizzle-orm';
+import { pick } from 'lodash';
+import { expect, test, vi } from 'vitest';
+
 import rawChannelPostWithRepliesData from '../../../api/src/__tests__/fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from '../../../api/src/__tests__/fixtures/channelPosts.json';
+import * as db from '../db';
+import rawNewestPostData from '../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../test/channelPostsAfterNewest.json';
 import rawContactsData from '../test/contacts.json';
 import rawGroupsData from '../test/groups.json';
@@ -28,17 +39,6 @@ import {
   setupDatabaseTestSuite,
 } from '../test/helpers';
 import rawGroupsInit2 from '../test/init.json';
-import {
-  CombinedHeads,
-  GroupsInit6,
-  PagedPosts,
-  PostDataResponse,
-} from '@tloncorp/api/urbit';
-import {
-  ContactBookScryResult1,
-  Contact as UrbitContact,
-} from '@tloncorp/api/urbit/contact';
-import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
 import {
   syncContacts,
   syncDms,

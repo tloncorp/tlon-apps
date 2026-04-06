@@ -9,8 +9,8 @@ import {
   XStack,
   YStack,
 } from '@tloncorp/app/ui';
-import { Button } from '@tloncorp/ui';
 import { createDevLogger } from '@tloncorp/shared';
+import { Button } from '@tloncorp/ui';
 import { useState } from 'react';
 import { Image } from 'react-native';
 
@@ -125,7 +125,12 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
           </YStack>
         </XStack>
 
-        <Button onPress={checkAvailability} disabled={isChecking} label="Get Started" centered />
+        <Button
+          onPress={checkAvailability}
+          disabled={isChecking}
+          label="Get Started"
+          centered
+        />
       </YStack>
     </View>
   );

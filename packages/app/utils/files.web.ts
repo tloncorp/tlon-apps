@@ -7,7 +7,33 @@ export function getFileSize(_uri: string): number | null {
 }
 
 export async function getAudioFileDurationSeconds(
-  _uri: string
+  uri: string
 ): Promise<number | null> {
-  return null;
+  return new Promise<number | null>((resolve) => {
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    const cleanup = () => {
+      audio.src = '';
+    };
+
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 10_000);
+
+    audio.addEventListener('loadedmetadata', () => {
+      clearTimeout(timeoutId);
+      const duration = isFinite(audio.duration) ? audio.duration : null;
+      cleanup();
+      resolve(duration);
+    });
+
+    audio.addEventListener('error', () => {
+      clearTimeout(timeoutId);
+      cleanup();
+      resolve(null);
+    });
+
+    audio.src = uri;
+  });
 }

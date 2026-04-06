@@ -1,3 +1,4 @@
+import { Story } from '@tloncorp/api/urbit';
 import {
   CollectionRendererId,
   DraftInputId,
@@ -5,7 +6,6 @@ import {
   PostContentRendererId,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Story } from '@tloncorp/api/urbit';
 import { ReactElement, createContext, useContext } from 'react';
 import { Text } from 'react-native';
 

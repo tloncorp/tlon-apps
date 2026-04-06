@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { addUserToWaitlist } from '@tloncorp/api';
 import { EMAIL_REGEX } from '@tloncorp/app/constants';
 import {
   Field,
@@ -10,7 +11,6 @@ import {
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
-import { addUserToWaitlist } from '@tloncorp/api';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert } from 'react-native';

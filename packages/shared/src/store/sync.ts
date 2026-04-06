@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
-import { extractClientVolumes } from '@tloncorp/api/lib/activity';
+import { extractClientVolumes } from '@tloncorp/api/client/activity';
+import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
@@ -59,6 +60,9 @@ export const syncInitData = async (
       .insertGroups({ groups: initData.groups }, queryCtx)
       .then(() => logger.crumb('inserted groups'));
     await db
+      .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
+      .then(() => logger.crumb('set left groups'));
+    await db
       .insertUnjoinedGroups(initData.unjoinedGroups, queryCtx)
       .then(() => logger.crumb('inserted unjoined groups'));
 
@@ -93,9 +97,6 @@ export const syncInitData = async (
     await db
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
-    await db
-      .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
-      .then(() => logger.crumb('set left groups'));
     await db
       .setLeftGroupChannels(
         { joinedChannelIds: initData.joinedChannels },
@@ -309,7 +310,7 @@ export const syncLatestChanges = async ({
   }
 
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
-    return api.fetchChangesSince(syncFrom);
+    return fetchChangesSince(syncFrom);
   });
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
@@ -891,6 +892,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
   let group: db.Group | null | undefined;
+  const currentUserId = api.getCurrentUserId();
 
   switch (update.type) {
     case 'addGroup':
@@ -933,7 +935,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'banGroupMembers':
+    case 'banGroupMembers': {
       await db.addGroupMemberBans(
         {
           groupId: update.groupId,
@@ -948,7 +950,14 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         },
         ctx
       );
+      if (update.ships.includes(currentUserId)) {
+        await db.updateGroup(
+          { id: update.groupId, currentUserIsMember: false },
+          ctx
+        );
+      }
       break;
+    }
     case 'unbanGroupMembers':
       await db.deleteGroupMemberBans(
         {
@@ -1023,7 +1032,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'removeGroupMembers':
+    case 'removeGroupMembers': {
       await db.removeChatMembers(
         {
           chatId: update.groupId,
@@ -1031,7 +1040,14 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         },
         ctx
       );
+      if (update.ships.includes(currentUserId)) {
+        await db.updateGroup(
+          { id: update.groupId, currentUserIsMember: false },
+          ctx
+        );
+      }
       break;
+    }
     case 'addRole':
       await db.addRole(
         {

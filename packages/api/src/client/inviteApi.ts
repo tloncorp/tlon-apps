@@ -1,5 +1,5 @@
-import type * as db from '../types/models';
 import { InviteLinkMetadata } from '../types/invite.types';
+import type * as db from '../types/models';
 import { GroupMeta } from '../urbit';
 import { getCurrentUserId, poke, subscribeOnce } from './urbit';
 

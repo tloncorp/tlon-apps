@@ -169,7 +169,7 @@ export function AttachmentPreview({
       return (
         <Container showSpinner={uploading || isLoading}>
           <Image
-            backgroundColor={'$secondaryBackground'}
+            backgroundColor="transparent"
             position="absolute"
             top={0}
             left={0}

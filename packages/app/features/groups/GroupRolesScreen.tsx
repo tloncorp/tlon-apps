@@ -164,10 +164,7 @@ function GroupRolesScreenView({
               gap="$xl"
               alignItems="center"
             >
-              <ListItem.Count
-                notified={false}
-                count={groupMembers.length}
-              />
+              <ListItem.Count notified={false} count={groupMembers.length} />
             </ListItem.EndContent>
           </ListItem>
         </ActionSheet.ActionGroup>

@@ -39,6 +39,7 @@ export type RootStackParamList = {
     channelId: string;
     authorId: string;
     groupId?: string;
+    selectedPostId?: string | null;
   };
   MediaViewer: {
     mediaType: 'image' | 'video';
@@ -129,12 +130,12 @@ export type HomeDrawerParamList = Pick<
 > & {
   MainContent: undefined;
   Channel:
-  | NavigatorScreenParams<ChannelStackParamList>
-  | RootStackParamList['Channel'];
+    | NavigatorScreenParams<ChannelStackParamList>
+    | RootStackParamList['Channel'];
   DM: NavigatorScreenParams<ChannelStackParamList> | RootStackParamList['DM'];
   GroupDM:
-  | NavigatorScreenParams<ChannelStackParamList>
-  | RootStackParamList['GroupDM'];
+    | NavigatorScreenParams<ChannelStackParamList>
+    | RootStackParamList['GroupDM'];
   ChatDetails: RootStackParamList['ChatDetails'];
   ChatVolume: RootStackParamList['ChatVolume'];
 };

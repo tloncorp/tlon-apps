@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { preSig } from '@tloncorp/api/urbit';
 import * as Application from 'expo-application';
 import { useEffect, useState } from 'react';
 import { useCallback } from 'react';
@@ -189,7 +189,11 @@ export function AppInfoScreen(props: Props) {
 
           {enabled && logs.length > 0 && (
             <Stack>
-              <Button preset="outline" onPress={onUploadLogs} label={`Upload logs (${logs.length})`} />
+              <Button
+                preset="outline"
+                onPress={onUploadLogs}
+                label={`Upload logs (${logs.length})`}
+              />
             </Stack>
           )}
           {enabled && logId && !hasClients && (

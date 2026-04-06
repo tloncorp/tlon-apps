@@ -3,7 +3,7 @@
 /=  channels-agent  /app/channels
 |%
 +$  current-state
-  $:  %16
+  $:  %17
       =v-channels:c
       voc=(map [nest:c plan:c] (unit said:c))
       hidden-posts=(set id-post:c)
@@ -113,10 +113,10 @@
   ;<  *  bind:m  (do-init %channels channels-agent)
   ;<  *  bind:m
     %+  do-poke  %channel-action-1
-    !>  ^-  a-channels:c
+    !>  ^-  a-channels:v9:cv
     [%create %chat %test *flag:gv:c 'title' 'desc' ~ ~ ~]
   ;<  save-1=vase  bind:m  get-save
-  =/  send=a-channels:c
+  =/  send=a-channels:v9:cv
     =;  =essay:c
       [%channel [%chat ~zod %test] %post %add essay]
     [[*story:c ~zod sent=~2025.8.7] /chat ~ ~]
@@ -124,7 +124,7 @@
   ::  give facts, update state.
   ::
   ;<  caz=(list card)  bind:m  (do-poke %channel-action-1 !>(send))
-  ;<  ~  bind:m  (ex-cards caz [. . . . . ~]:|=(* ~))
+  ;<  ~  bind:m  (ex-cards caz [. . . . . . ~]:|=(* ~))
   ;<  save-2=vase  bind:m  get-save
   ;<  ~  bind:m
     ^-  form:m
@@ -204,7 +204,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  bad 7->8 migration in old code had dropped the tombstone
@@ -241,7 +241,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         sequence-fix-test-channel
       ::  missing message will not have magically recovered,
@@ -310,7 +310,7 @@
     =/  m  (mare ,~)
     =/  bad-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       ::  client had just bunted tombstones
@@ -364,7 +364,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%16 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
+        [%17 chans ~ ~ ~ ~ ~ *^subs:s *pimp:imp]
       =/  chan=v-channel:c
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)

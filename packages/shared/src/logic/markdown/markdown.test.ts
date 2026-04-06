@@ -1,6 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+
 import { markdownToStory } from './parse';
-import { storyToMarkdown, inlinesToMarkdown, blockToMarkdown } from './serialize';
+import {
+  blockToMarkdown,
+  inlinesToMarkdown,
+  storyToMarkdown,
+} from './serialize';
 import { parseShipMentions } from './shipMentionPlugin';
 
 describe('parseShipMentions', () => {
@@ -29,7 +34,10 @@ describe('parseShipMentions', () => {
   it('parses moon names', () => {
     const result = parseShipMentions('~dozzod-dozzod-sampel-palnet');
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ type: 'shipMention', value: 'dozzod-dozzod-sampel-palnet' });
+    expect(result[0]).toEqual({
+      type: 'shipMention',
+      value: 'dozzod-dozzod-sampel-palnet',
+    });
   });
 
   it('returns text node for text without ships', () => {
@@ -134,11 +142,7 @@ describe('markdownToStory', () => {
         {
           inline: [
             {
-              italics: [
-                'italic ',
-                { bold: ['bold'] },
-                ' text',
-              ],
+              italics: ['italic ', { bold: ['bold'] }, ' text'],
             },
           ],
         },
@@ -164,19 +168,16 @@ describe('markdownToStory', () => {
 
     it('handles moon names', () => {
       const result = markdownToStory('~dozzod-dozzod-sampel-palnet');
-      expect(result).toEqual([{ inline: [{ ship: 'dozzod-dozzod-sampel-palnet' }] }]);
+      expect(result).toEqual([
+        { inline: [{ ship: 'dozzod-dozzod-sampel-palnet' }] },
+      ]);
     });
 
     it('handles multiple ship mentions', () => {
       const result = markdownToStory('~zod and ~bus are ships');
       expect(result).toEqual([
         {
-          inline: [
-            { ship: 'zod' },
-            ' and ',
-            { ship: 'bus' },
-            ' are ships',
-          ],
+          inline: [{ ship: 'zod' }, ' and ', { ship: 'bus' }, ' are ships'],
         },
       ]);
     });
@@ -185,11 +186,7 @@ describe('markdownToStory', () => {
       const result = markdownToStory('Hello **~sampel-palnet**!');
       expect(result).toEqual([
         {
-          inline: [
-            'Hello ',
-            { bold: [{ ship: 'sampel-palnet' }] },
-            '!',
-          ],
+          inline: ['Hello ', { bold: [{ ship: 'sampel-palnet' }] }, '!'],
         },
       ]);
     });
@@ -215,7 +212,11 @@ describe('markdownToStory', () => {
     it('preserves formatting in headers', () => {
       const result = markdownToStory('# **Bold** Header');
       expect(result).toEqual([
-        { block: { header: { tag: 'h1', content: [{ bold: ['Bold'] }, ' Header'] } } },
+        {
+          block: {
+            header: { tag: 'h1', content: [{ bold: ['Bold'] }, ' Header'] },
+          },
+        },
       ]);
     });
   });
@@ -223,12 +224,16 @@ describe('markdownToStory', () => {
   describe('code block conversion', () => {
     it('converts fenced code block to VerseBlock with language', () => {
       const result = markdownToStory('```js\nconst x = 1;\n```');
-      expect(result).toEqual([{ block: { code: { code: 'const x = 1;', lang: 'js' } } }]);
+      expect(result).toEqual([
+        { block: { code: { code: 'const x = 1;', lang: 'js' } } },
+      ]);
     });
 
     it('handles code block without language (defaults to text)', () => {
       const result = markdownToStory('```\nplain code\n```');
-      expect(result).toEqual([{ block: { code: { code: 'plain code', lang: 'text' } } }]);
+      expect(result).toEqual([
+        { block: { code: { code: 'plain code', lang: 'text' } } },
+      ]);
     });
   });
 
@@ -243,7 +248,11 @@ describe('markdownToStory', () => {
     it('converts standalone image to VerseBlock', () => {
       const result = markdownToStory('![alt text](image.png)');
       expect(result).toEqual([
-        { block: { image: { src: 'image.png', alt: 'alt text', height: 0, width: 0 } } },
+        {
+          block: {
+            image: { src: 'image.png', alt: 'alt text', height: 0, width: 0 },
+          },
+        },
       ]);
     });
   });
@@ -321,9 +330,7 @@ describe('markdownToStory', () => {
   describe('table conversion', () => {
     it('converts table to VerseInline with text representation', () => {
       const result = markdownToStory('| A | B |\n|---|---|\n| 1 | 2 |');
-      expect(result).toEqual([
-        { inline: ['| A | B |\n| 1 | 2 |'] },
-      ]);
+      expect(result).toEqual([{ inline: ['| A | B |\n| 1 | 2 |'] }]);
     });
   });
 
@@ -363,15 +370,21 @@ describe('storyToMarkdown', () => {
   });
 
   it('converts single VerseInline', () => {
-    expect(storyToMarkdown([{ inline: ['Hello, world!'] }])).toBe('Hello, world!');
+    expect(storyToMarkdown([{ inline: ['Hello, world!'] }])).toBe(
+      'Hello, world!'
+    );
   });
 
   it('converts Bold to **text**', () => {
-    expect(storyToMarkdown([{ inline: [{ bold: ['bold text'] }] }])).toBe('**bold text**');
+    expect(storyToMarkdown([{ inline: [{ bold: ['bold text'] }] }])).toBe(
+      '**bold text**'
+    );
   });
 
   it('converts Italics to *text*', () => {
-    expect(storyToMarkdown([{ inline: [{ italics: ['italic text'] }] }])).toBe('*italic text*');
+    expect(storyToMarkdown([{ inline: [{ italics: ['italic text'] }] }])).toBe(
+      '*italic text*'
+    );
   });
 
   it('converts ship mention', () => {
@@ -395,11 +408,15 @@ describe('inlinesToMarkdown', () => {
 
 describe('blockToMarkdown', () => {
   it('converts Header h1', () => {
-    expect(blockToMarkdown({ header: { tag: 'h1', content: ['Heading 1'] } })).toBe('# Heading 1');
+    expect(
+      blockToMarkdown({ header: { tag: 'h1', content: ['Heading 1'] } })
+    ).toBe('# Heading 1');
   });
 
   it('converts Code block', () => {
-    expect(blockToMarkdown({ code: { code: 'const x = 1;', lang: 'js' } })).toBe('```js\nconst x = 1;\n```');
+    expect(
+      blockToMarkdown({ code: { code: 'const x = 1;', lang: 'js' } })
+    ).toBe('```js\nconst x = 1;\n```');
   });
 
   it('converts Rule', () => {

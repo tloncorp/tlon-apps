@@ -14,10 +14,10 @@ import { Spinner, View } from 'tamagui';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { FileUploadLockup } from '../FileUploadPreview';
 
-function isPlaceholderImageAttachment(
-  attachment: Attachment
-) {
-  return attachment.type === 'image' && attachment.file.uri === PLACEHOLDER_ASSET_URI;
+function isPlaceholderImageAttachment(attachment: Attachment) {
+  return (
+    attachment.type === 'image' && attachment.file.uri === PLACEHOLDER_ASSET_URI
+  );
 }
 
 function AttachmentPreview() {

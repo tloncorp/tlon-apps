@@ -1,5 +1,5 @@
+import { createDevLogger } from '../lib/logger';
 import type * as db from '../types/models';
-import { createDevLogger } from './logger';
 import * as ub from '../urbit';
 import {
   deriveFullWrit,
@@ -79,7 +79,7 @@ export const updateDMMeta = async ({
 }) => {
   return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
     multiDmAction(channelId, { meta: fromClientMeta(meta) }),
-    { app: 'chat', path: '/' },
+    { app: 'chat', path: '/v4' },
     (event) => {
       if (!('diff' in event)) {
         return false;
@@ -108,7 +108,7 @@ export function subscribeToChatUpdates(
   subscribe(
     {
       app: 'chat',
-      path: '/v3',
+      path: '/v4',
     },
     (event: ub.WritResponse | ub.ClubAction | string[]) => {
       logger.log('raw chat sub event', event);
@@ -172,7 +172,7 @@ export function subscribeToChatUpdates(
       if ('add-react' in delta) {
         logger.log('add react', id, delta);
         const addReact = delta['add-react'];
-        
+
         // Check if this is a shortcode reaction from chat/DM
         if (/^:[a-zA-Z0-9_+-]+:?$/.test(addReact.react)) {
           logger.trackError('Shortcode reaction from chat/DM server', {
@@ -180,10 +180,10 @@ export function subscribeToChatUpdates(
             channelId,
             userId: addReact.author,
             react: addReact.react,
-            context: 'chat_dm_reaction'
+            context: 'chat_dm_reaction',
           });
         }
-        
+
         return eventHandler({
           type: 'addReaction',
           postId: id,
@@ -230,7 +230,7 @@ export function subscribeToChatUpdates(
         if ('add-react' in replyDelta) {
           logger.log('add react reply', id, delta);
           const addReact = replyDelta['add-react'];
-          
+
           // Check if this is a shortcode reaction from chat/DM reply
           if (/^:[a-zA-Z0-9_+-]+:?$/.test(addReact.react)) {
             logger.trackError('Shortcode reaction from chat/DM reply server', {
@@ -239,10 +239,10 @@ export function subscribeToChatUpdates(
               channelId,
               userId: addReact.author,
               react: addReact.react,
-              context: 'chat_dm_reply_reaction'
+              context: 'chat_dm_reply_reaction',
             });
           }
-          
+
           return eventHandler({
             type: 'addReaction',
             postId: replyId,
@@ -288,11 +288,11 @@ export function unblockUser(userId: string) {
 export function multiDmAction(id: string, delta: ub.ClubDelta) {
   return {
     app: 'chat',
-    mark: 'chat-club-action-0',
+    mark: 'chat-club-action-2',
     json: {
       id,
       diff: {
-        uid: '0v3',
+        uid: '0v4',
         delta,
       },
     },

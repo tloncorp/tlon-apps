@@ -1,8 +1,5 @@
-import {
-  configurationFromChannel,
-  isDmChannelId,
-  isGroupDmChannelId,
-} from '@tloncorp/shared';
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
+import { configurationFromChannel } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import { useMemberRoles } from '@tloncorp/shared/store';
 import type { IconType } from '@tloncorp/ui';

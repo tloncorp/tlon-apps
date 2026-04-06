@@ -5,16 +5,43 @@ appId: io.tlon.groups
 - assertVisible: 'Home'
 - openLink: 'io.tlon.groups://e2e/db?op=assert-table-present&table=groups'
 - extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
+- extendedWaitUntil:
     visible: 'PASS: groups is present'
     timeout: 5000
 - tapOn: 'OK'
 # Corrupt a sentinel table through the automated-test-only deep link command.
 - openLink: 'io.tlon.groups://e2e/db?op=drop-table&table=groups'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - waitForAnimationToEnd:
     timeout: 5000
 - waitForAnimationToEnd:
     timeout: 5000
 - openLink: 'io.tlon.groups://e2e/db?op=assert-table-missing&table=groups'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - extendedWaitUntil:
     visible: 'PASS: groups is missing'
     timeout: 5000
@@ -38,6 +65,15 @@ appId: io.tlon.groups
 - assertNotVisible: 'Something went wrong'
 - assertVisible: 'Home'
 - openLink: 'io.tlon.groups://e2e/db?op=assert-table-present&table=groups'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - extendedWaitUntil:
     visible: 'PASS: groups is present'
     timeout: 5000

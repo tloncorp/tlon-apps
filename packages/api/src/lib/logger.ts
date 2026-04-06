@@ -1,7 +1,5 @@
 /* eslint-disable no-console */
 
-declare const __DEV__: boolean | undefined;
-
 type ApiLogger = Console & {
   crumb: (...args: unknown[]) => void;
   sensitiveCrumb: (...args: unknown[]) => void;
@@ -102,4 +100,5 @@ export const runIfDev = <TReturn>(fn: () => TReturn) => {
   }
 };
 
-export const escapeLog = (value: string) => runIfDev(() => value.replace(/"/g, '\\"'));
+export const escapeLog = (value: string) =>
+  runIfDev(() => value.replace(/"/g, '\\"'));

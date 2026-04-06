@@ -1,13 +1,13 @@
-import { unified } from 'unified';
-import remarkStringify from 'remark-stringify';
-import remarkGfm from 'remark-gfm';
-import type { Root, RootContent, PhrasingContent, Node } from 'mdast';
-
 import { Story } from '@tloncorp/api/urbit/channel';
 import { Block, Inline } from '@tloncorp/api/urbit/content';
-import { storyToMdast, inlinesToPhrasing } from './storyToMdast';
-import type { ShipMention } from './shipMentionPlugin';
+import type { Node, PhrasingContent, Root, RootContent } from 'mdast';
+import remarkGfm from 'remark-gfm';
+import remarkStringify from 'remark-stringify';
+import { unified } from 'unified';
+
 import { visit, visitAll } from './astUtils';
+import type { ShipMention } from './shipMentionPlugin';
+import { inlinesToPhrasing, storyToMdast } from './storyToMdast';
 
 /**
  * Transform ship mention nodes to html nodes before serialization.
