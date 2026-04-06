@@ -344,7 +344,11 @@ export function ChannelHeader({
             <ScreenHeader.TextButton
               onPress={goToEdit}
               testID="ChannelHeaderEditButton"
-              color="$positiveActionText"
+              color={
+                post?.authorId && post.authorId !== currentUserId
+                  ? '$positiveActionText'
+                  : '$primaryText'
+              }
             >
               Edit
             </ScreenHeader.TextButton>
