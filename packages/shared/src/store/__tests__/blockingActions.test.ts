@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { queryClient } from '../../db';
+import { queryClient } from '../../db/reactQuery';
 import {
   getConfirmationMessage,
   handleBlockingAction,
@@ -9,7 +9,7 @@ import { blockUser, unblockUser } from '../dmActions';
 
 // Mock dependencies
 vi.mock('../dmActions');
-vi.mock('../reactQuery', () => ({
+vi.mock('../../db/reactQuery', () => ({
   queryClient: {
     invalidateQueries: vi.fn(),
   },

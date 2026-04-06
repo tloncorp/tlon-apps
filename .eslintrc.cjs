@@ -159,8 +159,8 @@ function importBoundaries(opts) {
   for (const [target, { forbidImportFrom }] of Object.entries(opts.zones)) {
     for (const from of forbidImportFrom) {
       rules.push({
-        target: path.resolve(opts.basePath, target),
-        from: path.resolve(opts.basePath, from),
+        target: path.join(opts.basePath, target),
+        from: path.join(opts.basePath, from),
       });
     }
   }
