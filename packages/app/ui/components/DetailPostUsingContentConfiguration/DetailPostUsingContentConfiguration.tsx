@@ -96,23 +96,31 @@ export function DetailPostView({
         <FlatList
           ref={listRef}
           data={listData}
-          renderItem={({ item }) => (
-            <ContextGestureListener
-              presentationCandidate={{
-                post: item.post,
-                postActionIds: ['delete', 'edit'],
-              }}
-              menuApi={postContextMenu}
-            >
-              {({ present }) => (
-                <PostView
-                  post={item.post}
-                  showReplies={item.type !== 'op'}
-                  onLongPress={present}
-                />
-              )}
-            </ContextGestureListener>
-          )}
+          renderItem={({ item, index }) => {
+            const previousItem = index > 0 ? listData[index - 1] : undefined;
+            const showAuthor =
+              !previousItem ||
+              previousItem.post.authorId !== item.post.authorId;
+            return (
+              <ContextGestureListener
+                presentationCandidate={{
+                  post: item.post,
+                  postActionIds: ['delete', 'edit'],
+                }}
+                menuApi={postContextMenu}
+              >
+                {({ present }) => (
+                  <PostView
+                    post={item.post}
+                    showAuthor={showAuthor}
+                    showReplies={item.type !== 'op'}
+                    onLongPress={present}
+                  />
+                )}
+              </ContextGestureListener>
+            );
+          }}
+          keyExtractor={(item) => item.post.id}
           contentInsetAdjustmentBehavior="scrollableAxes"
         />
 
