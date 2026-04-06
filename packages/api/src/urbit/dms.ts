@@ -1,4 +1,5 @@
-import bigInt, { BigInteger } from 'big-integer';  //REVIEW  non-native!
+import bigInt, { BigInteger } from 'big-integer';
+//REVIEW  non-native!
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
@@ -11,7 +12,7 @@ import {
   ReplySeal,
 } from './channel';
 import { GroupMeta } from './groups';
-import { parseIdNumber } from '../client/apiUtils';
+import { parseIdNumber } from './utils';
 
 export type Patda = string;
 export type Ship = string;

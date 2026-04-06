@@ -1,7 +1,7 @@
 import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
+import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
-import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';

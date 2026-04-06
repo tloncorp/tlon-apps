@@ -3,9 +3,9 @@ import {
   UseInfiniteQueryResult,
   useInfiniteQuery,
 } from '@tanstack/react-query';
+import { getChannelIdType } from '@tloncorp/api';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getChannelIdType } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -205,8 +205,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   }, [options.channelId]);
 
   const hasNewest =
-    !query.hasPreviousPage ||
-    (wasAtNewestRef.current && newPosts.length > 0);
+    !query.hasPreviousPage || (wasAtNewestRef.current && newPosts.length > 0);
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? [];

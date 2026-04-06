@@ -1,9 +1,9 @@
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import type { Root } from 'mdast';
-
 import { Story } from '@tloncorp/api/urbit/channel';
+import type { Root } from 'mdast';
+import remarkGfm from 'remark-gfm';
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
+
 import { mdastToStory } from './mdastToStory';
 import { remarkShipMentions } from './shipMentionPlugin';
 

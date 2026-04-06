@@ -2,9 +2,15 @@ import type { Attachment } from '@tloncorp/shared/domain';
 import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
-import { isLikelyVideoSource, VIDEO_VALIDATION_ERROR, validateVideoSource } from '../ui/contexts/attachmentRules';
+import {
+  VIDEO_VALIDATION_ERROR,
+  isLikelyVideoSource,
+  validateVideoSource,
+} from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
-import { getFileSize } from './files';
+import type { VideoPreviewData } from '../ui/utils/videoPreviewTypes';
+import { getAudioFileDurationSeconds, getFileSize } from './files';
+import { imageSize } from './images';
 
 type UploadIntentVideoMetadata = Exclude<
   Extract<Attachment.UploadIntent, { type: 'file' | 'fileUri' }>['video'],
@@ -19,7 +25,9 @@ function getAssetFile(asset: Pick<ImagePickerAsset, 'file'>): File | undefined {
   return asset.file instanceof File ? asset.file : undefined;
 }
 
-function positiveNumberOrUndefined(value: number | null | undefined): number | undefined {
+function positiveNumberOrUndefined(
+  value: number | null | undefined
+): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
     ? value
     : undefined;
@@ -33,9 +41,11 @@ function imagePickerAssetVideoMetadata(
   // provides duration directly from HTMLVideoElement.duration — already in seconds.
   // On native, duration is in milliseconds. Use assetFile as the signal.
   const durationSeconds =
-    asset.duration == null ? undefined
-    : assetFile ? asset.duration        // web: already seconds
-    : asset.duration / 1000;            // native: ms → seconds
+    asset.duration == null
+      ? undefined
+      : assetFile
+        ? asset.duration // web: already seconds
+        : asset.duration / 1000; // native: ms → seconds
 
   return {
     width: positiveNumberOrUndefined(asset.width),
@@ -106,7 +116,10 @@ export function imagePickerAssetToUploadIntent(
 
 export async function normalizeUploadIntent(
   uploadIntent: Attachment.UploadIntent
-): Promise<{ uploadIntent: Attachment.UploadIntent | null; errorMessage: string | null }> {
+): Promise<{
+  uploadIntent: Attachment.UploadIntent | null;
+  errorMessage: string | null;
+}> {
   if (uploadIntent.type === 'image') {
     return { uploadIntent, errorMessage: null };
   }
@@ -134,6 +147,61 @@ export async function normalizeUploadIntent(
         size: resolveVideoSize(uploadIntent.size, uploadIntent.localUri),
       };
 
+  // Promote image/* files to ImageUploadIntent so they go through the
+  // standard image pipeline and get proper dimensions.
+  if (mimeType?.startsWith('image/')) {
+    let localUri: string | undefined;
+    try {
+      localUri = isFileIntent
+        ? URL.createObjectURL(uploadIntent.file)
+        : uploadIntent.localUri;
+      const [width, height] = await imageSize(localUri);
+      return {
+        uploadIntent: {
+          type: 'image',
+          asset: {
+            uri: localUri,
+            width,
+            height,
+            fileSize: size,
+            mimeType,
+          },
+        },
+        errorMessage: null,
+      };
+    } catch {
+      // If we can't resolve dimensions, fall through and keep as file.
+      // Revoke the blob URL we created so it doesn't leak.
+      if (isFileIntent && localUri) {
+        URL.revokeObjectURL(localUri);
+      }
+    }
+  }
+
+  // Promote audio/* files to voicememo so they render with the audio player
+  // instead of a generic file download card.
+  if (mimeType?.startsWith('audio/')) {
+    const localUri = isFileIntent
+      ? URL.createObjectURL(uploadIntent.file)
+      : uploadIntent.localUri;
+    const duration = (await getAudioFileDurationSeconds(localUri)) ?? undefined;
+    return {
+      uploadIntent: {
+        type: 'fileUri',
+        localUri,
+        name,
+        size: size ?? -1,
+        mimeType,
+        voiceMemo: {
+          duration,
+          transcription: undefined,
+          waveformPreview: undefined,
+        },
+      },
+      errorMessage: null,
+    };
+  }
+
   if (!isLikelyVideoSource({ mimeType, name, uri })) {
     return { uploadIntent, errorMessage: null };
   }
@@ -154,11 +222,13 @@ export async function normalizeUploadIntent(
     existingHeight == null ||
     existingDuration == null ||
     !existingVideo?.posterUri;
-  let previewData: Awaited<ReturnType<typeof getVideoPreviewData>> = {};
+  let previewData: VideoPreviewData = {};
   if (needsPreviewData) {
     try {
       previewData = await getVideoPreviewData(
-        isFileIntent ? { file: uploadIntent.file } : { uri: uploadIntent.localUri }
+        isFileIntent
+          ? { file: uploadIntent.file }
+          : { uri: uploadIntent.localUri }
       );
     } catch {
       previewData = {};
@@ -194,7 +264,10 @@ export async function normalizeUploadIntent(
 
 export async function normalizeUploadIntents(
   uploadIntents: Attachment.UploadIntent[]
-): Promise<{ uploadIntents: Attachment.UploadIntent[]; errorMessage: string | null }> {
+): Promise<{
+  uploadIntents: Attachment.UploadIntent[];
+  errorMessage: string | null;
+}> {
   const normalized = await Promise.all(
     uploadIntents.map((uploadIntent) => normalizeUploadIntent(uploadIntent))
   );
@@ -208,18 +281,21 @@ export async function normalizeUploadIntents(
   };
 }
 
-export async function pickFile(): Promise<Attachment.UploadIntent[]> {
+export async function pickFile(acceptedTypes: string[] = ['*/*']): Promise<{
+  uploadIntents: Attachment.UploadIntent[];
+  errorMessage: string | null;
+}> {
   const results = await DocumentPicker.getDocumentAsync({
     copyToCacheDirectory: true,
     multiple: false,
-    type: ['*/*'],
+    type: acceptedTypes,
   });
 
   if (results.assets == null) {
-    return [];
+    return { uploadIntents: [], errorMessage: null };
   }
 
-  return results.assets?.map(
+  const raw: Attachment.UploadIntent[] = results.assets.map(
     (res): Attachment.UploadIntent =>
       res.file == null
         ? {
@@ -234,4 +310,6 @@ export async function pickFile(): Promise<Attachment.UploadIntent[]> {
             file: res.file,
           }
   );
+
+  return normalizeUploadIntents(raw);
 }

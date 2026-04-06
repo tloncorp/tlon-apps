@@ -1,10 +1,12 @@
+import { TalkSidebarFilter } from '@tloncorp/api/urbit';
 import { configurationFromChannel, useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { TalkSidebarFilter } from '@tloncorp/api/urbit';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 
+import { useCalm } from '../ui';
+import { getChannelTitle, getGroupTitle } from '../ui';
 import {
   ChatSearchCandidate,
   ChatSearchFuzzyScore,
@@ -13,8 +15,6 @@ import {
   rankChatSearchCandidates,
   tokenizeChatSearchQuery,
 } from './chatSearchRanking';
-import { useCalm } from '../ui';
-import { getChannelTitle, getGroupTitle } from '../ui';
 
 export type TabName =
   | 'all'
@@ -68,11 +68,10 @@ export function useFilteredChats({
       activeTab === 'talk' ? data ?? 'Direct Messages' : 'Direct Messages',
     [data, activeTab]
   );
-  const chats = useMemo(() => [...pinned, ...unpinned, ...pending], [
-    pinned,
-    unpinned,
-    pending,
-  ]);
+  const chats = useMemo(
+    () => [...pinned, ...unpinned, ...pending],
+    [pinned, unpinned, pending]
+  );
   const searchableChats = useMemo(
     () => filterChats(chats, activeTab, talkFilter),
     [chats, activeTab, talkFilter]
@@ -100,7 +99,10 @@ export function useFilteredChats({
       }),
     [searchableChats, getSearchTitle, getSearchGroupTitle]
   );
-  const searchFuse = useMemo(() => createChatSearchFuse(searchDocs), [searchDocs]);
+  const searchFuse = useMemo(
+    () => createChatSearchFuse(searchDocs),
+    [searchDocs]
+  );
   const performSearch = useCallback(
     (query: string) => {
       return searchChatDocs({

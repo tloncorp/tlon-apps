@@ -60,7 +60,14 @@ export function useChannelEditScreen(params: UseChannelEditScreenParams) {
     } else {
       navigation.goBack();
     }
-  }, [fromChannelInfo, navigation, isWindowNarrow, navigateToChatDetails, channel?.id, groupId]);
+  }, [
+    fromChannelInfo,
+    navigation,
+    isWindowNarrow,
+    navigateToChatDetails,
+    channel?.id,
+    groupId,
+  ]);
 
   return {
     channel,

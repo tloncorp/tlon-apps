@@ -48,7 +48,9 @@ test('should handle group privacy and role management', async ({ zodPage }) => {
 
   // Verify role was created by navigating to roles and checking for it
   await page.getByTestId('GroupRoles').click();
-  await expect(page.getByTestId('GroupRole-Testing role')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByTestId('GroupRole-Testing role')).toBeVisible({
+    timeout: 5000,
+  });
 
   // Edit existing role
   await page.getByTestId('GroupRole-Testing role').click();

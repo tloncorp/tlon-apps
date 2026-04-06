@@ -314,9 +314,7 @@ const ChatMessage = ({
             onEdit={handleEditPressed}
             onViewReactions={setViewReactionsPost}
             onShowEmojiPicker={handleEmojiPickerPressed}
-            trigger={
-              <OverflowTriggerButton testID="MessageActionsTrigger" />
-            }
+            trigger={<OverflowTriggerButton testID="MessageActionsTrigger" />}
             mode="await-trigger"
           />
         </View>

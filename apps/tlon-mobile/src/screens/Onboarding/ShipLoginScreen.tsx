@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getLandscapeAuthCookie } from '@tloncorp/api';
 import {
   ACCESS_CODE_REGEX,
   DEFAULT_SHIP_LOGIN_ACCESS_CODE,
@@ -18,7 +19,6 @@ import {
 import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import { getLandscapeAuthCookie } from '@tloncorp/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';

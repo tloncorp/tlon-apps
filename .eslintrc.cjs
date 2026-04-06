@@ -16,9 +16,15 @@ module.exports = {
     react: {
       version: 'detect',
     },
+    "import-x/parsers": {
+      "@typescript-eslint/parser": [".ts", ".tsx"],
+    },
+    "import-x/resolver": {
+      "typescript": true,
+    },
   },
   parser: '@typescript-eslint/parser',
-  plugins: ['@typescript-eslint'],
+  plugins: ['@typescript-eslint', 'import-x'],
   ignorePatterns: ['dist', 'node_modules', '*.md'],
   overrides: [
     {
@@ -44,6 +50,50 @@ module.exports = {
     },
   ],
   rules: {
+    'import-x/no-cycle': 'off',
+    'import-x/no-restricted-paths': [
+      'error',
+      {
+        basePath: __dirname,
+        zones: [
+          // api/ submodules (top is forbidden from import from lower):
+          // - lib
+          // - http-api
+          // - urbit
+          // - client
+          {
+            target: './packages/api/src/lib',
+            from: './packages/api/src/http-api',
+            message: 'lib cannot import from http-api (hierarchy: lib -> http-api -> urbit -> client)',
+          },
+          {
+            target: './packages/api/src/lib',
+            from: './packages/api/src/urbit',
+            message: 'lib cannot import from urbit (hierarchy: lib -> http-api -> urbit -> client)',
+          },
+          {
+            target: './packages/api/src/lib',
+            from: './packages/api/src/client',
+            message: 'lib cannot import from client (hierarchy: lib -> http-api -> urbit -> client)',
+          },
+          {
+            target: './packages/api/src/http-api',
+            from: './packages/api/src/urbit',
+            message: 'http-api cannot import from urbit (hierarchy: lib -> http-api -> urbit -> client)',
+          },
+          {
+            target: './packages/api/src/http-api',
+            from: './packages/api/src/client',
+            message: 'http-api cannot import from client (hierarchy: lib -> http-api -> urbit -> client)',
+          },
+          {
+            target: './packages/api/src/urbit',
+            from: './packages/api/src/client',
+            message: 'urbit cannot import from client (hierarchy: lib -> http-api -> urbit -> client)',
+          },
+        ],
+      },
+    ],
     '@typescript-eslint/consistent-type-imports': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/no-namespace': 'off',

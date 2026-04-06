@@ -164,7 +164,9 @@ export function GalleryInput({
 
     if (
       hasAttachments &&
-      (route === 'gallery' || route === 'add-post' || route === 'add-attachment')
+      (route === 'gallery' ||
+        route === 'add-post' ||
+        route === 'add-attachment')
     ) {
       setRoute('review-attachment');
       return;

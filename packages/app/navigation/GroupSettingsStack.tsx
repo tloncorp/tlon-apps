@@ -4,6 +4,7 @@ import {
   createNativeStackNavigator,
 } from '@react-navigation/native-stack';
 
+import { ChannelInfoScreen } from '../features/groups/ChannelInfoScreen';
 import { CreateChannelPermissionsScreen } from '../features/groups/CreateChannelPermissionsScreen';
 import { EditChannelMetaScreen } from '../features/groups/EditChannelMetaScreen';
 import { EditChannelPrivacyScreen } from '../features/groups/EditChannelPrivacyScreen';
@@ -15,7 +16,6 @@ import { ManageChannelsScreen } from '../features/groups/ManageChannelsScreen';
 import { RoleFormScreen } from '../features/groups/RoleFormScreen';
 import { SelectChannelRolesScreen } from '../features/groups/SelectChannelRolesScreen';
 import { SelectRoleMembersScreen } from '../features/groups/SelectRoleMembersScreen';
-import { ChannelInfoScreen } from '../features/groups/ChannelInfoScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import { GroupSettingsStackParamList } from './types';
 
@@ -52,10 +52,7 @@ export function GroupSettingsStack({
           <GroupMetaScreen {...props} navigateToHome={navigateToHome} />
         )}
       </GroupSettings.Screen>
-      <GroupSettings.Screen
-        name="ChannelInfo"
-        component={ChannelInfoScreen}
-      />
+      <GroupSettings.Screen name="ChannelInfo" component={ChannelInfoScreen} />
       <GroupSettings.Screen
         name="GroupMembers"
         component={GroupMembersScreen}
