@@ -596,6 +596,15 @@
       ~(tap by activity)
     |=  [=source:a as=activity-summary:a]
     (gte newest.as since)
+  ::
+      ::  deprecated
+      [%x %volume-settings ~]
+    $(+< [%v4 pole])
+  ::
+      ::  deprecated
+      [%x %notifications-allowed ~]
+    $(+< [%v4 pole])
+
   ==
 ::
 ++  feed
