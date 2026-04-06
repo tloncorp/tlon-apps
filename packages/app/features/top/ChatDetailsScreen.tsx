@@ -218,7 +218,7 @@ function ChatDetailsScreenView() {
             <ScreenHeader.TextButton
               onPress={!actionsEnabled ? undefined : handlePressEdit}
               disabled={!actionsEnabled}
-              color="$positiveActionText"
+              color={actionsEnabled ? '$positiveActionText' : undefined}
               testID="DetailsEditButton"
             >
               Rename
