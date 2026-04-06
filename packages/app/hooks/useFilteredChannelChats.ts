@@ -60,7 +60,11 @@ export function useFilteredChannelChats({
     [channelChats, disableNicknames]
   );
 
-  const { isSearching, results: searchResults, allChats } = useChatSearch({
+  const {
+    isSearching,
+    results: searchResults,
+    allChats,
+  } = useChatSearch({
     chats: channelChats,
     searchQuery,
     debounceMs: 0,

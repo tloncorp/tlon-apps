@@ -99,7 +99,14 @@ export function useFilteredChats({
         data: searchResults,
       },
     ];
-  }, [activeTab, allChats, pinnedChats, searchQuery, searchResults, talkFilter]);
+  }, [
+    activeTab,
+    allChats,
+    pinnedChats,
+    searchQuery,
+    searchResults,
+    talkFilter,
+  ]);
 }
 
 function filterChats(

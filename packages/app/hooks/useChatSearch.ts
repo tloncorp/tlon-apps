@@ -36,9 +36,7 @@ function buildChatSearchDoc(
   chat: db.Chat,
   disableNicknames: boolean
 ): ChatSearchDoc {
-  const title = normalizeChatSearchString(
-    getChatTitle(chat, disableNicknames)
-  );
+  const title = normalizeChatSearchString(getChatTitle(chat, disableNicknames));
   const groupTitle = normalizeChatSearchString(
     chat.type === 'channel' && chat.channel.group
       ? getGroupTitle(chat.channel.group, disableNicknames)
