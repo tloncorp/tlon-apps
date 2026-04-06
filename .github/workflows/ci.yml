@@ -26,7 +26,7 @@ jobs:
         run: |
           pnpm run prettier:rebuild-monorepo-ignore
           git diff --exit-code .prettierignore || \
-            (echo ".prettierignore is out of date. Run 'pnpm run prettier:rebuild-monorepo-ignore' and commit the result." && exit 1)
+            (printf "\n⚠️ .prettierignore is out of date. Run 'pnpm run prettier:rebuild-monorepo-ignore' and commit the result." && exit 1)
 
       - name: Check Prettier
         run: pnpm prettier --check '**/*.{ts,tsx}'
