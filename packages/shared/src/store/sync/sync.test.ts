@@ -71,7 +71,7 @@ const inputData = [
   '~nibset-napwyn/tlon',
 ];
 
-vi.mock('./lure', () => ({
+vi.mock('../lure', () => ({
   useLureState: {
     getState: () => ({
       start: () => ({}),
