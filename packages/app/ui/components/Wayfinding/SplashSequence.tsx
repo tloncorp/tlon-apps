@@ -53,7 +53,6 @@ enum SplashPane {
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
-  systemContacts?: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
   hostingBotEnabled?: boolean;
 }) {
@@ -105,7 +104,6 @@ function SplashSequenceComponent(props: {
       {currentPane === 'Invite' && (
         <InvitePane
           onActionPress={handleSplashCompleted}
-          systemContacts={props.systemContacts}
           inviteSystemContacts={props.inviteSystemContacts}
         />
       )}
@@ -414,7 +412,7 @@ const INVITE_EXPLANATION_TEXT =
 
 export function InviteContactsContent(props: {
   onComplete: () => void;
-  systemContacts?: db.SystemContact[];
+  systemContacts: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
 }) {
   const inviteLink = db.personalInviteLink.useValue();
@@ -422,13 +420,11 @@ export function InviteContactsContent(props: {
     props.inviteSystemContacts,
     inviteLink
   );
-  const { data: storeSystemContacts } = store.useSystemContacts();
-  const systemContacts = props.systemContacts ?? storeSystemContacts;
   const isReady = !!inviteLink;
-  const hasContacts = systemContacts && systemContacts.length > 0;
+  const hasContacts = props.systemContacts && props.systemContacts.length > 0;
 
   const { displayContacts, handleSearch } = useSystemContactSearch(
-    systemContacts ?? []
+    props.systemContacts ?? []
   );
 
   return (
@@ -624,27 +620,22 @@ function ConnectContactBookContent(props: {
 
 export function InvitePane(props: {
   onActionPress: () => void;
-  systemContacts?: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
 }) {
   const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
+  const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
-  const hasProvidedContacts = !!props.systemContacts?.length;
 
   const processContacts = useCallback(async () => {
-    if (hasProvidedContacts) {
-      setShowInviteContacts(true);
-      return;
-    }
-
     try {
       setIsProcessing(true);
       await storeContext.syncSystemContacts();
       // Log analytics if no contacts were found
       const syncedContacts = await db.getSystemContacts();
+      setSysContacts(syncedContacts);
       if (!syncedContacts || syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
           reason: 'no_contacts_synced',
@@ -656,12 +647,11 @@ export function InvitePane(props: {
       setIsProcessing(false);
       setShowInviteContacts(true);
     }
-  }, [hasProvidedContacts, storeContext]);
+  }, [storeContext]);
 
   useEffect(() => {
     if (
       !isWeb &&
-      !hasProvidedContacts &&
       perms.hasPermission &&
       !perms.isLoading &&
       !hasAutoProcessed.current
@@ -669,19 +659,9 @@ export function InvitePane(props: {
       hasAutoProcessed.current = true;
       processContacts();
     }
-  }, [
-    perms.hasPermission,
-    perms.isLoading,
-    hasProvidedContacts,
-    processContacts,
-  ]);
+  }, [perms.hasPermission, perms.isLoading, processContacts]);
 
   const handleConnectContacts = async () => {
-    if (hasProvidedContacts) {
-      await processContacts();
-      return;
-    }
-
     try {
       if (perms.canAskPermission) {
         const status = await perms.requestPermissions();
@@ -711,7 +691,7 @@ export function InvitePane(props: {
     return (
       <InviteContactsContent
         onComplete={props.onActionPress}
-        systemContacts={props.systemContacts}
+        systemContacts={sysContacts}
         inviteSystemContacts={props.inviteSystemContacts}
       />
     );
@@ -722,7 +702,6 @@ export function InvitePane(props: {
       onConnectContacts={handleConnectContacts}
       onSkip={handleSkip}
       isProcessing={isProcessing}
-      forceShowConnect={hasProvidedContacts}
     />
   );
 }

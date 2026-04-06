@@ -1,0 +1,22 @@
+diff --git a/android/src/main/java/expo/modules/imagepicker/ImagePickerModule.kt b/android/src/main/java/expo/modules/imagepicker/ImagePickerModule.kt
+index ba07483..6a12753 100644
+--- a/android/src/main/java/expo/modules/imagepicker/ImagePickerModule.kt
++++ b/android/src/main/java/expo/modules/imagepicker/ImagePickerModule.kt
+@@ -271,6 +271,17 @@ class ImagePickerModule : Module() {
+   private suspend fun ensureCameraPermissionsAreGranted(): Unit = suspendCancellableCoroutine { continuation ->
+     val permissions = appContext.permissions ?: throw ModuleNotFoundException("Permissions")
+ 
++    // Android 16 can hang here when camera access is already granted.
++    // Remove this once we upgrade to Expo 54.
++    val cameraGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
++    val storageGranted = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ||
++      ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
++
++    if (cameraGranted && storageGranted) {
++      continuation.resume(Unit)
++      return@suspendCancellableCoroutine
++    }
++
+     permissions.askForPermissions(
+       { permissionsResponse ->
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

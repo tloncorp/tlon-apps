@@ -1,8 +1,8 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
+import * as api from '@tloncorp/api';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import { signupData } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
 import { SignupParams } from '@tloncorp/shared/domain';

@@ -1,10 +1,11 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { Pressable, Text } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -17,6 +18,7 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { PostErrorMessage } from '../PostErrorMessage';
+import { SentTimeText } from '../SentTimeText';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
@@ -72,6 +74,7 @@ const ChatMessage = ({
 
   const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
     useBlockedAuthor(post);
+  const [showHiddenContent, setShowHiddenContent] = useState(false);
 
   const isNotice = post.type === 'notice';
 
@@ -83,8 +86,6 @@ const ChatMessage = ({
     post.deliveryStatus === 'failed' ||
     post.editStatus === 'failed' ||
     post.deleteStatus === 'failed';
-
-  const isWindowNarrow = useIsWindowNarrow();
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -144,28 +145,17 @@ const ChatMessage = ({
     return null;
   }
 
-  // const roles = useMemo(
-  // () =>
-  // group.members
-  // ?.find((m) => m.contactId === post.author.id)
-  // ?.roles.map((r) => r.roleId),
-  // [group, post.author]
-  // );
-
-  // const prettyDay = useMemo(() => {
-  // const date = new Date(post.sentAt ?? '');
-  // return utils.makePrettyDay(date);
-  // }, [post.sentAt]);
-
   if (post.isDeleted) {
     return (
       <PostErrorMessage testID="MessageDeleted" message="Message deleted" />
     );
-  } else if (post.hidden) {
+  } else if (post.hidden && !showHiddenContent) {
     return (
       <PostErrorMessage
         testID="MessageHidden"
-        message="Message hidden or flagged"
+        message="Message hidden or flagged."
+        actionLabel="Show anyway"
+        onAction={() => setShowHiddenContent(true)}
       />
     );
   } else if (isAuthorBlocked && !showBlockedContent) {
@@ -196,6 +186,11 @@ const ChatMessage = ({
       pressStyle="unset"
       cursor="default"
       testID="Post"
+      borderRadius={'$m'}
+      overflow="hidden"
+      backgroundColor={
+        isWeb && isHovered ? '$secondaryBackground' : 'transparent'
+      }
     >
       <YStack key={post.id}>
         {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
@@ -209,20 +204,23 @@ const ChatMessage = ({
             type={post.type}
             isBot={post.isBot ?? undefined}
             disabled={hideProfilePreview}
-            deliveryStatus={deliveryFailed ? undefined : post.deliveryStatus}
             editStatus={post.editStatus}
             deleteStatus={post.deleteStatus}
             showEditedIndicator={!!post.isEdited}
           />
         ) : null}
 
-        {/** we need to show delivery status even if showAuthor is false
-           previously we were only showing delivery status if showAuthor was true
-           (i.e., on the first of a series of messages)
-        */}
-        {!showAuthor &&
-        !!post.deliveryStatus &&
-        post.deliveryStatus !== 'failed' ? (
+        {!hideOverflowMenu && isHovered && !showAuthor && (
+          <SentTimeText
+            sentAt={post.sentAt}
+            color="$tertiaryText"
+            position="absolute"
+            top={12}
+            left={5}
+          />
+        )}
+
+        {!!post.deliveryStatus && post.deliveryStatus !== 'failed' ? (
           <View
             pointerEvents="none"
             position="absolute"
@@ -232,24 +230,6 @@ const ChatMessage = ({
           >
             <ChatMessageDeliveryStatus status={post.deliveryStatus} />
           </View>
-        ) : null}
-
-        {deliveryFailed ? (
-          <Pressable
-            onPress={handleRetryPressed}
-            position="absolute"
-            right={12}
-            top={8}
-            zIndex={199}
-            backgroundColor="$negativeBackground"
-            padding={'$s'}
-            borderRadius={'$xs'}
-          >
-            <Text size="$label/m" color="$negativeActionText">
-              {isWindowNarrow ? 'Tap ' : 'Click '}
-              to retry send
-            </Text>
-          </Pressable>
         ) : null}
 
         <View paddingLeft={!isNotice ? '$4xl' : undefined}>
@@ -289,18 +269,20 @@ const ChatMessage = ({
           </View>
         )}
 
-        {shouldRenderReplySummary ? (
+        {shouldRenderReplySummary || deliveryFailed ? (
           <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
             <ChatMessageReplySummary
               post={post}
               onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
               showEditedIndicator={!showAuthor && !!post.isEdited}
+              deliveryFailed={deliveryFailed}
+              onPressRetry={handleRetryPressed}
             />
           </XStack>
         ) : null}
       </YStack>
       {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
-        <View position="absolute" top={8} right={12}>
+        <View position="absolute" top={showAuthor ? 8 : 2} right={12}>
           <ChatMessageActions
             post={post}
             postActionIds={postActionIds}
@@ -313,9 +295,7 @@ const ChatMessage = ({
             onEdit={handleEditPressed}
             onViewReactions={setViewReactionsPost}
             onShowEmojiPicker={handleEmojiPickerPressed}
-            trigger={
-              <OverflowTriggerButton testID="MessageActionsTrigger" />
-            }
+            trigger={<OverflowTriggerButton testID="MessageActionsTrigger" />}
             mode="await-trigger"
           />
         </View>
@@ -345,19 +325,25 @@ const ChatContentRenderer = createContentRenderer({
     },
     reference: {
       contentSize: '$l',
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
     image: isWeb ? WebChatImageRenderer : undefined,
     video: isWeb ? WebChatVideoRenderer : undefined,
     link: {
       renderDescription: true,
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
       imageProps: {
         aspectRatio: 2,
       },
     },
     code: {
-      maxWidth: 600,
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    },
+    file: {
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
+    },
+    voicememo: {
+      maxWidth: CHAT_REF_LIKE_MAX_WIDTH,
     },
   },
 });

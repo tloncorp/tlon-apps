@@ -12,4 +12,53 @@ export {
   signUpHostingUser,
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
+export {
+  AuthError,
+  Urbit,
+  type ChannelStatus,
+  type Poke,
+  type PokeHandlers,
+  type Scry,
+} from './http-api';
+export type { Contact, Group, Channel, Post } from './types/models';
+export type {
+  AppReference,
+  ChannelReference,
+  ContentReference,
+  GroupReference,
+} from './types/references';
+export {
+  checkNest,
+  getChannelType,
+  nestToFlag,
+  whomIsDm,
+  whomIsMultiDm,
+  type AppTheme,
+  type AppThemeName,
+  type Story,
+  type Memo,
+  type PostEssay,
+  type Author,
+  type BotProfile,
+  type Ship,
+  type Response as ChannelResponse,
+  type PostResponse,
+  type ReplyResponse,
+  type WritResponse,
+  type WritResponseDelta,
+  type WritDelta,
+  type WritDiff,
+} from './urbit';
+export {
+  appendFileUploadToPostBlob,
+  appendToPostBlob,
+  appendVideoToPostBlob,
+  contentToTextAndMentions,
+  parsePostBlob,
+  textAndMentionsToContent,
+  toPostData as toContentHelpersPostData,
+  type ClientPostBlobData,
+  type Mention,
+  type PostBlobDataEntry,
+} from './client/content-helpers';
 export * from './client';

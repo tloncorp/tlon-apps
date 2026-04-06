@@ -1,14 +1,12 @@
-import { ThemeName } from 'tamagui';
-
 import * as api from '@tloncorp/api';
+import type { AppTheme } from '@tloncorp/api';
+import type { TalkSidebarFilter } from '@tloncorp/api/urbit';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
-import { TalkSidebarFilter } from '@tloncorp/api/urbit';
-
-export type AppTheme = ThemeName | 'auto';
 
 const logger = createDevLogger('SettingsActions', false);
 

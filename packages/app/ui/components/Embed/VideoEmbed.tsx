@@ -92,8 +92,7 @@ function resolveVideoLayout({
   alignSelf: ComponentProps<typeof View>['alignSelf'];
   aspectRatio: number;
 }): VideoLayout {
-  const numericMaxWidth =
-    typeof maxWidth === 'number' ? maxWidth : undefined;
+  const numericMaxWidth = typeof maxWidth === 'number' ? maxWidth : undefined;
   const numericMaxHeight =
     typeof maxHeight === 'number' ? maxHeight : undefined;
 
@@ -130,7 +129,11 @@ function resolveVideoLayout({
   };
 }
 
-export default function VideoEmbed({ video, contentFit = 'contain', ...props }: VideoEmbedProps) {
+export default function VideoEmbed({
+  video,
+  contentFit = 'contain',
+  ...props
+}: VideoEmbedProps) {
   const {
     maxWidth,
     maxHeight,
@@ -162,11 +165,7 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
       uri: video.src,
       posterUri: video.posterUri,
     });
-  }, [
-    navigation,
-    video.posterUri,
-    video.src,
-  ]);
+  }, [navigation, video.posterUri, video.src]);
 
   return (
     <Pressable
@@ -174,7 +173,7 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
       group="button"
       borderRadius="$m"
       overflow="hidden"
-      backgroundColor="$secondaryBackground"
+      backgroundColor={video.posterUri ? 'transparent' : '$secondaryBackground'}
       alignSelf={layout.alignSelf}
       maxWidth={maxWidth}
       width={layout.width}
@@ -192,7 +191,7 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
           source={{ uri: video.posterUri }}
           width="100%"
           {...mediaSizeProps}
-          backgroundColor="$secondaryBackground"
+          backgroundColor="transparent"
           contentFit={contentFit}
           alt={video.alt}
         />

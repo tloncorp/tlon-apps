@@ -69,32 +69,32 @@ export function usePoorUxShakeReport() {
         if (appStateRef.current !== 'active') {
           return;
         }
-      if (now < ignoreShakesUntilRef.current) {
-        return;
-      }
-      if (now < cooldownUntil) {
-        return;
-      }
+        if (now < ignoreShakesUntilRef.current) {
+          return;
+        }
+        if (now < cooldownUntil) {
+          return;
+        }
 
-      const magnitude = Math.sqrt(x * x + y * y + z * z);
-      const delta = Math.abs(magnitude - lastMagnitude);
-      lastMagnitude = magnitude;
+        const magnitude = Math.sqrt(x * x + y * y + z * z);
+        const delta = Math.abs(magnitude - lastMagnitude);
+        lastMagnitude = magnitude;
 
-      if (delta < SHAKE_DELTA_THRESHOLD) {
-        return;
-      }
+        if (delta < SHAKE_DELTA_THRESHOLD) {
+          return;
+        }
 
-      if (now - lastHitAt > SHAKE_HITS_WINDOW_MS) {
-        shakeHits = 0;
-      }
-      lastHitAt = now;
-      shakeHits += 1;
+        if (now - lastHitAt > SHAKE_HITS_WINDOW_MS) {
+          shakeHits = 0;
+        }
+        lastHitAt = now;
+        shakeHits += 1;
 
-      if (shakeHits >= SHAKE_HITS_REQUIRED) {
-        cooldownUntil = now + SHAKE_COOLDOWN_MS;
-        shakeHits = 0;
-        setVisible((prev) => (prev ? prev : true));
-      }
+        if (shakeHits >= SHAKE_HITS_REQUIRED) {
+          cooldownUntil = now + SHAKE_COOLDOWN_MS;
+          shakeHits = 0;
+          setVisible((prev) => (prev ? prev : true));
+        }
       }
     );
 
@@ -173,7 +173,8 @@ export function usePoorUxShakeReport() {
                 onChangeText={setDetails}
               />
               <Text fontSize="$xs" color="$tertiaryText">
-                sync: {session?.phase ?? 'n/a'} | changes: {session?.isSyncing ? 'syncing' : 'idle'}
+                sync: {session?.phase ?? 'n/a'} | changes:{' '}
+                {session?.isSyncing ? 'syncing' : 'idle'}
               </Text>
               <XStack justifyContent="flex-end" gap="$s" paddingVertical="$m">
                 <Button

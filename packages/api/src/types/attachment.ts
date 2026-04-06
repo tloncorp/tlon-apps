@@ -1,8 +1,9 @@
-import { ImagePickerAsset } from 'expo-image-picker';
-import { memoize, uniqueId } from 'lodash';
+import _ from 'lodash';
 
 import { ContentReference } from './references';
 import { UploadState } from './uploads';
+
+const { memoize, uniqueId } = _;
 
 export type LinkMetadata = PageMetadata | FileMetadata;
 
@@ -45,15 +46,23 @@ export type ReferenceAttachment = {
   path: string;
 };
 
+export interface ImageAsset {
+  uri: string;
+  width: number;
+  height: number;
+  fileSize?: number;
+  mimeType?: string;
+}
+
 export type ImageAttachment = {
   type: 'image';
-  file: ImagePickerAsset;
+  file: ImageAsset;
   uploadState?: UploadState;
 };
 
 export type UploadedImageAttachment = {
   type: 'image';
-  file: ImagePickerAsset;
+  file: ImageAsset;
   uploadState: Extract<UploadState, { status: 'success' | 'uploading' }>;
 };
 
@@ -178,10 +187,7 @@ export type FinalizedAttachment =
 export namespace Attachment {
   type ImageUploadIntent = {
     type: 'image';
-    asset: Pick<
-      ImagePickerAsset,
-      'uri' | 'width' | 'height' | 'fileSize' | 'mimeType'
-    >;
+    asset: ImageAsset;
   };
   export type UploadIntent =
     | ImageUploadIntent
@@ -207,8 +213,8 @@ export namespace Attachment {
     /** Branded type to avoid using wrong keys downstream */
     export type Key = string & { __brand: 'Attachment.UploadIntent.Key' };
 
-    export function fromImagePickerAsset(
-      asset: ImagePickerAsset
+    export function fromImagePickerAsset<T extends ImageAsset>(
+      asset: T
     ): UploadIntent {
       return {
         type: 'image',
@@ -236,9 +242,10 @@ export namespace Attachment {
       }
     }
 
-    export function getVideoUploadMetadata(
-      uploadIntent: UploadIntent
-    ): { isVideo: boolean; posterUri?: string } {
+    export function getVideoUploadMetadata(uploadIntent: UploadIntent): {
+      isVideo: boolean;
+      posterUri?: string;
+    } {
       const videoMetadata =
         uploadIntent.type === 'file' || uploadIntent.type === 'fileUri'
           ? uploadIntent.video
@@ -253,7 +260,8 @@ export namespace Attachment {
           return { isVideo: false };
         case 'file':
           return {
-            isVideo: !!videoMetadata || uploadIntent.file.type.startsWith('video/'),
+            isVideo:
+              !!videoMetadata || uploadIntent.file.type.startsWith('video/'),
             posterUri,
           };
         case 'fileUri':
@@ -267,9 +275,7 @@ export namespace Attachment {
       }
     }
 
-    export function extractImagePickerAssets(
-      xs: UploadIntent[]
-    ): ImagePickerAsset[] {
+    export function extractImagePickerAssets(xs: UploadIntent[]): ImageAsset[] {
       return xs
         .filter((x): x is ImageUploadIntent => x.type === 'image')
         .map((x) => x.asset);
@@ -706,7 +712,8 @@ function withUploadState(
     (attachment.posterUri && Attachment.isRemoteUri(attachment.posterUri)
       ? attachment.posterUri
       : undefined);
-  const { posterUri: _ignoredPosterUri, ...attachmentWithoutPoster } = attachment;
+  const { posterUri: _ignoredPosterUri, ...attachmentWithoutPoster } =
+    attachment;
 
   return {
     ...attachmentWithoutPoster,

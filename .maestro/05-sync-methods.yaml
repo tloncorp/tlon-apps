@@ -1,0 +1,42 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/login-e2e-node.yaml
+- assertVisible: 'Home'
+- openLink: 'io.tlon.groups://e2e/sync'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
+- assertVisible:
+    id: 'e2e-sync-test-screen'
+- assertVisible:
+    id: 'e2e-sync-test-overall-status'
+- extendedWaitUntil:
+    visible:
+      id: 'e2e-sync-test-status-syncLatestChanges'
+      text: 'PASS'
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: 'e2e-sync-test-status-syncLatestPosts'
+      text: 'PASS'
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: 'e2e-sync-test-status-syncInitData'
+      text: 'PASS'
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: 'e2e-sync-test-status-syncInitialPosts'
+      text: 'PASS'
+    timeout: 60000
+- assertVisible:
+    id: 'e2e-sync-test-overall-status'
+    text: 'PASS'

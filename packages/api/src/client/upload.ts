@@ -1,6 +1,7 @@
 import type { S3Client } from '@aws-sdk/client-s3';
-import * as ImagePicker from 'expo-image-picker';
-import type { GetState, SetState } from 'zustand';
+
+import type { ImageAsset } from '../types/attachment';
+import type { StorageCredentials, StorageService } from '../urbit';
 
 export type RNFile = {
   blob: Blob;
@@ -11,7 +12,7 @@ export type RNFile = {
   width?: number;
 };
 
-export type MessageAttachments = ImagePicker.ImagePickerAsset[];
+export type MessageAttachments = ImageAsset[];
 
 export interface FileStoreFile {
   key: string;
@@ -101,8 +102,6 @@ export interface FileStore {
   getMostRecent: (uploader: string) => Upload | null;
 }
 
-export type StorageService = 'presigned-url' | 'credentials';
-
 export interface StorageConfiguration {
   buckets: string[];
   currentBucket: string;
@@ -110,12 +109,6 @@ export interface StorageConfiguration {
   publicUrlBase: string;
   presignedUrl: string;
   service: StorageService;
-}
-
-export interface StorageCredentials {
-  endpoint: string;
-  accessKeyId: string;
-  secretAccessKey: string;
 }
 
 export interface StorageState {
@@ -129,6 +122,13 @@ export interface StorageState {
   start: () => Promise<void>;
   getCredentials: () => Promise<StorageCredentials> | undefined;
   getConfiguration: () => Promise<StorageConfiguration> | undefined;
-  set: SetState<StorageState>;
-  get: GetState<StorageState>;
+  set: StorageStateSetter<StorageState>;
+  get: StorageStateGetter<StorageState>;
 }
+
+export type StorageStateGetter<T> = () => T;
+
+export type StorageStateSetter<T> = (
+  partial: T | Partial<T> | ((state: T) => T | Partial<T>),
+  replace?: boolean
+) => void;

@@ -33,7 +33,7 @@ export * from './logic';
 export * from './store';
 export * from './domain';
 export * as sync from './store/sync';
-export * as utils from '@tloncorp/api/lib/utils';
+export * as utils from '@tloncorp/api/client/utils';
 export * as tiptap from './logic/tiptap';
 export * as utilHooks from './logic/utilHooks';
 export * from './debug';

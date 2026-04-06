@@ -129,9 +129,163 @@ function getShips(): Record<string, Ship> {
 const ships = getShips();
 const SHIP_NAMES = Object.keys(ships) as Array<keyof typeof ships>;
 type ShipName = (typeof SHIP_NAMES)[number];
+const shipProcesses: Partial<Record<ShipName, childProcess.ChildProcess>> = {};
 
 const targetShip = process.env.SHIP_NAME;
 const forceExtraction = process.env.FORCE_EXTRACTION === 'true';
+
+const SHIP_REQUEST_RETRY_CODES = new Set([
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'EPIPE',
+  'ETIMEDOUT',
+  'ECONNABORTED',
+]);
+
+class ShipUnavailableError extends Error {
+  ship: ShipName;
+
+  context: string;
+
+  url: string;
+
+  code?: string;
+
+  constructor(
+    ship: ShipName,
+    context: string,
+    url: string,
+    options: { code?: string; cause?: unknown; details?: string } = {}
+  ) {
+    const message = [
+      `Ship ~${ship} became unreachable during ${context}.`,
+      `Request: ${url}`,
+      options.details || 'The ship may have crashed or restarted unexpectedly.',
+    ].join(' ');
+    super(message);
+    this.name = 'ShipUnavailableError';
+    this.ship = ship;
+    this.context = context;
+    this.url = url;
+    this.code = options.code;
+    if (options.cause !== undefined) {
+      (this as Error & { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const getShipProcess = (ship: ShipName) => shipProcesses[ship];
+
+const getShipLauncherState = (ship: ShipName) => {
+  const proc = getShipProcess(ship);
+  return {
+    pid: proc?.pid ?? null,
+    exitCode: proc?.exitCode ?? null,
+    signalCode: proc?.signalCode ?? null,
+    killed: proc?.killed ?? null,
+  };
+};
+
+const hasShipLauncherFailure = (ship: ShipName) => {
+  const proc = getShipProcess(ship);
+  if (!proc) {
+    return false;
+  }
+
+  if (proc.signalCode) {
+    return true;
+  }
+
+  return proc.exitCode !== null && proc.exitCode !== 0;
+};
+
+const getErrorCode = (error: unknown): string | undefined => {
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const err = error as {
+    code?: string;
+    errno?: string;
+    type?: string;
+    message?: string;
+  };
+
+  return err.code || err.errno || err.type;
+};
+
+const isRetryableShipError = (error: unknown) => {
+  const code = getErrorCode(error);
+  if (code && SHIP_REQUEST_RETRY_CODES.has(code)) {
+    return true;
+  }
+
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const message = (error as { message?: string }).message || '';
+  return (
+    message.includes('ECONNRESET') ||
+    message.includes('ECONNREFUSED') ||
+    message.includes('socket hang up') ||
+    message.includes('network timeout')
+  );
+};
+
+const getRetryDetails = (error: unknown, ship: ShipName) => {
+  const code = getErrorCode(error) || 'UNKNOWN';
+  const launcherState = getShipLauncherState(ship);
+
+  if (launcherState.signalCode || launcherState.exitCode) {
+    return `Last error code: ${code}. Launcher state: ${JSON.stringify(launcherState)}.`;
+  }
+
+  return `Last error code: ${code}.`;
+};
+
+const fetchForShip = async (
+  ship: ShipName,
+  url: string,
+  options: Parameters<typeof fetch>[1],
+  context: string,
+  retryConfig: { maxAttempts?: number; initialDelayMs?: number } = {}
+) => {
+  const maxAttempts = retryConfig.maxAttempts ?? 4;
+  const initialDelayMs = retryConfig.initialDelayMs ?? 500;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetch(url, options);
+    } catch (error) {
+      const shouldRetry = isRetryableShipError(error) && attempt < maxAttempts;
+
+      if (shouldRetry) {
+        const delayMs = initialDelayMs * attempt;
+        console.warn(
+          `Retrying ${context} for ~${ship} after ${getErrorCode(error) || 'network error'} (attempt ${attempt}/${maxAttempts})`
+        );
+        await sleep(delayMs);
+        continue;
+      }
+
+      throw new ShipUnavailableError(ship, context, url, {
+        code: getErrorCode(error),
+        cause: error,
+        details: getRetryDetails(error, ship),
+      });
+    }
+  }
+
+  throw new ShipUnavailableError(ship, context, url, {
+    details: 'Retry budget exhausted before the request completed.',
+  });
+};
 
 const getUrbitBinaryUrlByPlatformAndArch = () => {
   const platform = os.platform();
@@ -419,6 +573,7 @@ const bootShip = (
   ]);
 
   spawnedProcesses.push(urbitProcess);
+  shipProcesses[ship] = urbitProcess;
 
   if (urbitProcess.stdout) {
     urbitProcess.stdout.on('data', (data) => {
@@ -432,8 +587,16 @@ const bootShip = (
     });
   }
 
-  urbitProcess.on('close', (code) => {
-    console.log(`Urbit process exited with code ${code}`);
+  urbitProcess.on('exit', (code, signal) => {
+    console.log(
+      `[Urbit EXIT (${ship})]: code=${code ?? 'null'} signal=${signal ?? 'null'}`
+    );
+  });
+
+  urbitProcess.on('close', (code, signal) => {
+    console.log(
+      `[Urbit CLOSE (${ship})]: code=${code ?? 'null'} signal=${signal ?? 'null'}`
+    );
   });
 
   urbitProcess.on('error', (err) => {
@@ -498,6 +661,7 @@ const bootAllShips = () => {
 };
 
 const postToUrbit = async (
+  ship: ShipName,
   url: string,
   source: string,
   sink: { app: string }
@@ -507,13 +671,18 @@ const postToUrbit = async (
     sink,
   };
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await fetchForShip(
+    ship,
+    url,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
+    `hood command ${source}`
+  );
 
   if (!response.ok) {
     throw new Error(`Urbit command failed: ${response.status}`);
@@ -528,7 +697,7 @@ const hoodCommand = async (ship: ShipName, command: string, port: string) => {
   }
   console.log(`Running ${command} on ${ship}`);
 
-  await postToUrbit(`http://localhost:${port}`, `+hood/${command}`, {
+  await postToUrbit(ship, `http://localhost:${port}`, `+hood/${command}`, {
     app: 'hood',
   });
 };
@@ -652,6 +821,10 @@ const commitDesks = async (shipsNeedingUpdates: string[]) => {
         `commit %groups`,
         ship.loopbackPort
       );
+      await assertShipHealthy(
+        ship.ship as ShipName,
+        'post-commit ship health check'
+      );
     }
   }
 };
@@ -700,10 +873,15 @@ const login = async () => {
       continue;
     }
 
-    const response = await fetch(`http://localhost:${ship.httpPort}/~/login`, {
-      method: 'POST',
-      body: `password=${ship.code}`,
-    });
+    const response = await fetchForShip(
+      ship.ship as ShipName,
+      `http://localhost:${ship.httpPort}/~/login`,
+      {
+        method: 'POST',
+        body: `password=${ship.code}`,
+      },
+      'ship login'
+    );
 
     if (!response.ok) {
       throw new Error(
@@ -732,18 +910,35 @@ const getCookiesForShip = (ship: ShipName): string | null => {
   return null;
 };
 
-const makeRequestWithCookies = async (ship: ShipName, url: string) => {
+const makeRequestWithCookies = async (
+  ship: ShipName,
+  url: string,
+  options: {
+    context?: string;
+    maxAttempts?: number;
+    initialDelayMs?: number;
+  } = {}
+) => {
   const cookies = getCookiesForShip(ship);
 
   if (!cookies) {
     throw new Error(`No cookies found for ship ~${ship}`);
   }
 
-  const response = await fetch(url, {
-    headers: {
-      Cookie: cookies,
+  const response = await fetchForShip(
+    ship,
+    url,
+    {
+      headers: {
+        Cookie: cookies,
+      },
     },
-  });
+    options.context || 'authenticated ship request',
+    {
+      maxAttempts: options.maxAttempts,
+      initialDelayMs: options.initialDelayMs,
+    }
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -755,6 +950,31 @@ const makeRequestWithCookies = async (ship: ShipName, url: string) => {
   return responseBody;
 };
 
+const assertShipHealthy = async (
+  ship: ShipName,
+  context: string,
+  options: { maxAttempts?: number } = {}
+) => {
+  try {
+    await makeRequestWithCookies(
+      ship,
+      `http://localhost:${ships[ship].httpPort}/~/scry/hood/kiln/pikes.json`,
+      {
+        context,
+        maxAttempts: options.maxAttempts ?? 3,
+      }
+    );
+  } catch (error) {
+    if (error instanceof ShipUnavailableError) {
+      console.error(`[Ship State (${ship})]:`, {
+        ...getShipLauncherState(ship),
+        context,
+      });
+    }
+    throw error;
+  }
+};
+
 const getStartHashes = async () => {
   for (const ship of Object.values(ships) as Ship[]) {
     if (targetShip && targetShip !== ship.ship) {
@@ -763,7 +983,10 @@ const getStartHashes = async () => {
 
     const response = await makeRequestWithCookies(
       ship.ship as ShipName,
-      `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`
+      `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`,
+      {
+        context: 'initial kiln hash fetch',
+      }
     );
 
     const json = JSON.parse(response);
@@ -779,11 +1002,22 @@ const checkGroupsAppHealth = async (ship: Ship): Promise<boolean> => {
   try {
     const response = await makeRequestWithCookies(
       ship.ship as ShipName,
-      `http://localhost:${ship.httpPort}/~/scry/groups/groups/light.json`
+      `http://localhost:${ship.httpPort}/~/scry/groups/groups/light.json`,
+      {
+        context: 'groups app health check',
+        maxAttempts: 2,
+        initialDelayMs: 250,
+      }
     );
     JSON.parse(response); // Verify it's valid JSON
     return true;
   } catch (error) {
+    if (
+      error instanceof ShipUnavailableError &&
+      hasShipLauncherFailure(ship.ship as ShipName)
+    ) {
+      throw error;
+    }
     return false;
   }
 };
@@ -811,10 +1045,27 @@ const shipsAreReadyForTests = async (shipsNeedingUpdates: string[]) => {
         return true;
       }
 
-      const response = await makeRequestWithCookies(
-        ship.ship as ShipName,
-        `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`
-      );
+      let response: string;
+      try {
+        response = await makeRequestWithCookies(
+          ship.ship as ShipName,
+          `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`,
+          {
+            context: 'test readiness kiln hash fetch',
+            maxAttempts: 2,
+            initialDelayMs: 250,
+          }
+        );
+      } catch (error) {
+        if (
+          error instanceof ShipUnavailableError &&
+          hasShipLauncherFailure(ship.ship as ShipName)
+        ) {
+          throw error;
+        }
+        console.warn(`~${ship.ship} readiness check failed, retrying`, error);
+        return false;
+      }
 
       const json = JSON.parse(response);
 

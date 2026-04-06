@@ -1,10 +1,11 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import * as api from '@tloncorp/api';
 import { useMemo } from 'react';
 
-import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
+import { queryClient } from './reactQuery';
 import * as sync from './sync';
 
 const logger = createDevLogger('useInfiniteBucketedActivity', false);
@@ -28,14 +29,14 @@ export function resetActivityFetchers() {
   logger.log('resetting activity fetchers');
   const fetchers = ['all', 'mentions', 'replies'];
   for (const fetcher in fetchers) {
-    api.queryClient.setQueryData([INFINITE_ACTIVITY_QUERY_KEY, fetcher], () => {
+    queryClient.setQueryData([INFINITE_ACTIVITY_QUERY_KEY, fetcher], () => {
       return {
         pages: [],
         pageParams: [],
       };
     });
   }
-  api.queryClient.invalidateQueries({
+  queryClient.invalidateQueries({
     queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
   });
 }

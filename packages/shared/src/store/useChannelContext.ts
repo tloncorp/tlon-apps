@@ -1,7 +1,7 @@
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { useEffect, useMemo, useState } from 'react';
 
 import type { Post } from '../db';
-import { isDmChannelId, isGroupDmChannelId } from '../logic';
 import * as dbHooks from './dbHooks';
 import { SyncPriority, syncGroup } from './sync';
 import { useNegotiate, useNegotiateMulti } from './useNegotiation';

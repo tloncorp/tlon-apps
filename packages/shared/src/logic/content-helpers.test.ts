@@ -1,9 +1,8 @@
-import { expect, test } from 'vitest';
-
 import {
   Mention,
   textAndMentionsToContent,
-} from '@tloncorp/api/lib/content-helpers';
+} from '@tloncorp/api/client/content-helpers';
+import { expect, test } from 'vitest';
 
 test('textAndMentionsToContent: multiline mentions', () => {
   const text = "User One Hello, world! here's more to the message.\nUser Two";

@@ -31,7 +31,7 @@ export const groupTemplates = [
       {
         type: 'gallery',
         title: 'Now reading',
-        description: 'Share what you\'re currently reading',
+        description: "Share what you're currently reading",
       },
       {
         type: 'notebook',
@@ -79,7 +79,7 @@ export const groupTemplates = [
       {
         type: 'gallery',
         title: 'Now listening',
-        description: 'Share what you\'re listening to',
+        description: "Share what you're listening to",
       },
       {
         type: 'notebook',
@@ -127,7 +127,7 @@ export const groupTemplates = [
       {
         type: 'gallery',
         title: 'Now watching',
-        description: 'Share what you\'re currently watching',
+        description: "Share what you're currently watching",
       },
       {
         type: 'notebook',
@@ -188,7 +188,9 @@ export const basicGroupTemplate = {
   ],
 } as const satisfies GroupTemplate;
 
-export type GroupTemplateId = (typeof groupTemplates)[number]['id'] | typeof basicGroupTemplate.id;
+export type GroupTemplateId =
+  | (typeof groupTemplates)[number]['id']
+  | typeof basicGroupTemplate.id;
 
 const allTemplates = [...groupTemplates, basicGroupTemplate];
 

@@ -1,15 +1,15 @@
 import { expect, test } from 'vitest';
 
-import type { ActivityEvent } from '@tloncorp/shared/db/types';
+import {
+  fromFeedToActivityEvents,
+  fromInitFeedToBucketedActivityEvents,
+} from '../client/activityApi';
+import type { ActivityEvent } from '../types/models';
 import dmFeed from './fixtures/activityDmFeed.json';
 import dmReplyFeed from './fixtures/activityDmReplyFeed.json';
 import initActivityFeeds from './fixtures/activityInitFeeds.json';
 import channelPostFeed from './fixtures/activityPostFeed.json';
 import replyPostFeed from './fixtures/activityReplyPostFeed.json';
-import {
-  fromFeedToActivityEvents,
-  fromInitFeedToBucketedActivityEvents,
-} from '../client/activityApi';
 
 const expectedDmEvent: ActivityEvent = {
   id: '170.141.184.506.853.323.579.606.989.072.752.443.392',

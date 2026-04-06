@@ -1,6 +1,111 @@
-import type { ChannelType, PostMetadata } from '@tloncorp/shared/db/types';
-import { Block, Inline, Story } from '../urbit';
+import type { Block, Inline, Story } from '../urbit';
 import { Attachment } from './attachment';
+import type { ChannelType } from './models';
+
+export type PostType =
+  | 'block'
+  | 'chat'
+  | 'notice'
+  | 'note'
+  | 'reply'
+  | 'delete';
+export type PostDeliveryStatus =
+  | 'enqueued'
+  | 'pending'
+  | 'sent'
+  | 'failed'
+  | 'needs_verification';
+
+export interface ThreadUnreadState {
+  channelId?: string | null;
+  threadId?: string | null;
+  updatedAt: number;
+  count?: number | null;
+  notify?: boolean | null;
+  firstUnreadPostId?: string | null;
+  firstUnreadPostReceivedAt?: number | null;
+}
+
+export interface Post {
+  id: string;
+  type: PostType;
+  channelId: string;
+  authorId: string;
+  sentAt: number;
+  receivedAt: number;
+  groupId?: string | null;
+  parentId?: string | null;
+  title?: string | null;
+  image?: string | null;
+  description?: string | null;
+  cover?: string | null;
+  content?: unknown;
+  replyCount?: number | null;
+  replyTime?: number | null;
+  replyContactIds?: string[] | null;
+  textContent?: string | null;
+  hasAppReference?: boolean | null;
+  hasChannelReference?: boolean | null;
+  hasGroupReference?: boolean | null;
+  hasLink?: boolean | null;
+  hasImage?: boolean | null;
+  hidden?: boolean | null;
+  isEdited?: boolean | null;
+  isDeleted?: boolean | null;
+  isBot?: boolean | null;
+  isSequenceStub?: boolean | null;
+  deletedAt?: number | null;
+  deliveryStatus?: PostDeliveryStatus | null;
+  editStatus?: PostDeliveryStatus | null;
+  deleteStatus?: PostDeliveryStatus | null;
+  lastEditContent?: unknown;
+  lastEditTitle?: string | null;
+  lastEditImage?: string | null;
+  sequenceNum?: number | null;
+  syncedAt?: number | null;
+  backendTime?: string | null;
+  blob?: string | null;
+  draft?: unknown;
+  author?: any;
+  images?: any[] | null;
+  reactions?: any[] | null;
+  replies?: any[] | null;
+  threadUnread?: ThreadUnreadState | null;
+}
+
+export type PostFlags = Pick<
+  Post,
+  | 'hasAppReference'
+  | 'hasGroupReference'
+  | 'hasChannelReference'
+  | 'hasImage'
+  | 'hasLink'
+>;
+
+export type PostMetadata = Pick<
+  Post,
+  'title' | 'image' | 'description' | 'cover'
+>;
+
+export type ReplyMeta = {
+  replyCount: number;
+  replyTime: number | null;
+  replyContactIds: string[];
+};
+
+export interface PostImage {
+  postId: string;
+  src: string;
+  height: number;
+  width: number;
+  alt?: string;
+}
+
+export interface Reaction {
+  contactId: string;
+  postId: string;
+  value: string;
+}
 
 interface _PostDataDraftBase {
   channelId: string;

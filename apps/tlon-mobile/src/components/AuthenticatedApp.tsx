@@ -12,6 +12,7 @@ import {
   markChatListSyncSinceComplete,
   startChatListSettleMeasurement,
 } from '@tloncorp/app/lib/chatListSettleTelemetry';
+import { AUTOMATED_TEST } from '@tloncorp/app/lib/envVars';
 import { useUpdatePresentedNotifications } from '@tloncorp/app/lib/notifications';
 import {
   markPushNotifTapMeasurementAbandoned,
@@ -34,6 +35,7 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
+import { useAutomatedTestDbCommands } from '../hooks/useAutomatedTestDbCommands';
 import { useCachedChanges } from '../hooks/useBackgroundData';
 import { useCheckNodeStopped } from '../hooks/useCheckNodeStopped';
 import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
@@ -42,6 +44,7 @@ import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
+import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
 
@@ -51,6 +54,7 @@ function AuthenticatedApp() {
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
+  useAutomatedTestDbCommands();
   useNetworkLogger();
   useCheckAppUpdated();
   useFindSuggestedContacts();
@@ -135,6 +139,7 @@ function AuthenticatedApp() {
   return (
     <ZStack flex={1}>
       <RootStack />
+      {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {poorUxReportModal}
     </ZStack>
   );

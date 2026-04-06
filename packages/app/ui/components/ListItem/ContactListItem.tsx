@@ -69,7 +69,11 @@ export const ContactListItem = ({
           </ListItem.Title>
           {showUserId && showNickname ? (
             <ListItem.Subtitle>
-              <ContactNameV2 contactId={contactId} mode="contactId" expandLongIds />
+              <ContactNameV2
+                contactId={contactId}
+                mode="contactId"
+                expandLongIds
+              />
             </ListItem.Subtitle>
           ) : null}
           {subtitle && <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>}

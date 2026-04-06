@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { ScrollView, View, YStack } from 'tamagui';
 
@@ -48,22 +48,26 @@ export function EditChannelPrivacyScreen(props: Props) {
   });
 
   const isPrivate = form.watch('isPrivate');
+  const { isDirty } = form.formState;
+  const channelIdRef = useRef(channel?.id);
 
-  // Reset form when channel data loads
+  // Reset form when channel data loads or channel changes, but not when
+  // background DB updates arrive while the user has unsaved edits.
+  // Skip when selectedRoleIds is present — the dedicated selectedRoleIds
+  // effect below handles that case. Running both effects would overwrite
+  // writers with stale defaults from the (not-yet-saved) channel data.
   useEffect(() => {
-    if (!channel) return;
-    const defaults = getChannelPrivacyDefaults(channel);
-    if (!selectedRoleIds) {
+    if (!channel || selectedRoleIds) return;
+    if (channel.id !== channelIdRef.current || !isDirty) {
+      channelIdRef.current = channel.id;
+      const defaults = getChannelPrivacyDefaults(channel);
       form.reset({
         isPrivate: defaults.isPrivate,
         readers: defaults.readers,
         writers: defaults.writers,
       });
-    } else {
-      form.setValue('isPrivate', true);
-      form.setValue('writers', defaults.writers);
     }
-  }, [channel, selectedRoleIds, form]);
+  }, [channel, selectedRoleIds, form, isDirty]);
 
   // Handle newly created role returned from AddRole screen
   useEffect(() => {
@@ -92,13 +96,17 @@ export function EditChannelPrivacyScreen(props: Props) {
 
   const handleTogglePrivate = useCallback(
     (value: boolean) => {
-      form.setValue('isPrivate', value);
+      form.setValue('isPrivate', value, { shouldDirty: true });
       if (value) {
-        form.setValue('readers', ['admin', MEMBERS_MARKER]);
-        form.setValue('writers', ['admin', MEMBERS_MARKER]);
+        form.setValue('readers', ['admin', MEMBERS_MARKER], {
+          shouldDirty: true,
+        });
+        form.setValue('writers', ['admin', MEMBERS_MARKER], {
+          shouldDirty: true,
+        });
       } else {
-        form.setValue('readers', []);
-        form.setValue('writers', []);
+        form.setValue('readers', [], { shouldDirty: true });
+        form.setValue('writers', [], { shouldDirty: true });
       }
     },
     [form]
@@ -106,9 +114,13 @@ export function EditChannelPrivacyScreen(props: Props) {
 
   const handleSelectRoles = useCallback(() => {
     const currentReaders = form.getValues('readers');
+    const currentWriters = form.getValues('writers');
+    // Pass the union of readers and writers so writer-only roles
+    // are pre-selected in the picker and don't get dropped.
+    const allRoleIds = [...new Set([...currentReaders, ...currentWriters])];
     navigation.navigate('SelectChannelRoles', {
       groupId,
-      selectedRoleIds: currentReaders,
+      selectedRoleIds: allRoleIds,
       returnScreen: 'EditChannelPrivacy',
       returnParams: {
         groupId,

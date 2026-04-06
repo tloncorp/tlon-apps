@@ -42,6 +42,20 @@ export async function finalizePostDraft(
 export async function finalizePostDraft(
   draft: domain.PostDataDraft
 ): Promise<domain.PostDataFinalized> {
+  // Before finalizing other attachments, set up transcription if needed. This
+  // ensures we show dialogs ASAP after user taps send.
+  let canTranscribe = false;
+  const needsTranscription = draft.attachments.some(
+    (att) =>
+      att.type === 'voicememo' &&
+      att.localUri != null &&
+      att.transcription == null
+  );
+  if (needsTranscription) {
+    const setupResult = await Transcription.setupTranscriptionIfNeeded();
+    canTranscribe = setupResult.canTranscribe;
+  }
+
   const attachments = await finalizeAttachments(draft.attachments);
 
   // Remove non-header images from notebook posts - these are "inlined":
@@ -57,35 +71,25 @@ export async function finalizePostDraft(
     }
   }
 
-  let permissionStatus: 'granted' | 'not-granted' | 'unavailable' | 'unknown' =
-    'unknown';
-  transcribeAll: for (const att of attachments) {
-    if (
-      att.type === 'voicememo' &&
-      att.localUri != null &&
-      att.transcription == null
-    ) {
-      // we only want to request permissions when there's a voicememo
-      // attachment, and if the user declines, we want to bail out of the outer
-      // loop.
-      if (permissionStatus === 'unknown') {
-        permissionStatus = (
-          await Transcription.requestTranscriptionPermissionsIfNeeded()
-        ).status;
-        if (permissionStatus !== 'granted') {
-          break transcribeAll;
+  if (canTranscribe) {
+    for (const att of attachments) {
+      if (
+        att.type === 'voicememo' &&
+        att.localUri != null &&
+        att.transcription == null
+      ) {
+        try {
+          const transcriptionText =
+            await Transcription.transcribeAudioFileWithGlobalCache(
+              att.localUri
+            );
+          att.transcription = transcriptionText ?? undefined;
+        } catch (err) {
+          console.warn(
+            'Failed to transcribe audio file, proceeding without transcription',
+            err
+          );
         }
-      }
-
-      try {
-        const transcriptionText =
-          await Transcription.transcribeAudioFileWithGlobalCache(att.localUri);
-        att.transcription = transcriptionText ?? undefined;
-      } catch (err) {
-        console.warn(
-          'Failed to transcribe audio file, proceeding without transcription',
-          err
-        );
       }
     }
   }
@@ -263,7 +267,10 @@ async function _sendPost({
       optimisticPostData.replyToPostId != null
         ? AnalyticsEvent.ActionSendReply
         : AnalyticsEvent.ActionSendPost,
-      logic.getModelAnalytics({ post: cachePost, channel, group })
+      {
+        ...logic.getModelAnalytics({ post: cachePost, channel, group }),
+        isBotDm: logic.isBotDmChannel({ post: cachePost, channel }),
+      }
     );
 
     logger.crumb('insert channel posts');
@@ -314,6 +321,7 @@ async function _sendPost({
           parentAuthor: parentPost.authorId,
           authorId,
           content: finalizedPostData.content,
+          blob: finalizedPostData.blob,
           sentAt: cachePost.sentAt,
         });
       } else {

@@ -1,13 +1,9 @@
-import { ThemeName } from 'tamagui';
+import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
+import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
+import * as ub from '@tloncorp/api/urbit';
 
-import {
-  StorageConfiguration,
-  StorageCredentials,
-  StorageService,
-} from '@tloncorp/api';
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
-import * as ub from '@tloncorp/api/urbit';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =
@@ -184,7 +180,7 @@ export const lastVisitedChannelId = (groupId: string) => {
   });
 };
 
-export const themeSettings = createStorageItem<ThemeName | null>({
+export const themeSettings = createStorageItem<AppThemeName | null>({
   key: '@user_theme',
   defaultValue: null,
 });
@@ -370,6 +366,17 @@ export const sqliteContent = createStorageItem<ArrayBuffer | null>({
   isLarge: true,
 });
 
+/**
+ * Contains locale codes (e.g. `en-US`) that we've already prompted the user to
+ * download for offline use, so we don't repeatedly nag them about it.
+ */
+export const alreadyPromptedLocaleDownloads = createStorageItem<Set<string>>({
+  key: 'alreadyPromptedLocaleDownloads',
+  defaultValue: new Set(),
+  serialize: (value) => JSON.stringify(Array.from(value)),
+  deserialize: (str) => new Set(JSON.parse(str)),
+});
+
 function stringToArrayBuffer(str: string) {
   const buf = new ArrayBuffer(str.length);
   const bufView = new Uint8Array(buf);
@@ -401,20 +408,26 @@ const defaultNagState: NagState = {
 
 // Cache nag storage items to avoid creating new instances on every render
 // This prevents race conditions from multiple updateLock instances
-const nagStorageItemCache = new Map<string, ReturnType<typeof createStorageItem<NagState>>>();
+const nagStorageItemCache = new Map<
+  string,
+  ReturnType<typeof createStorageItem<NagState>>
+>();
 
-export const createNagStorageItem = (key: string, persistAfterLogout = true) => {
+export const createNagStorageItem = (
+  key: string,
+  persistAfterLogout = true
+) => {
   const cached = nagStorageItemCache.get(key);
   if (cached) {
     return cached;
   }
-  
+
   const storageItem = createStorageItem<NagState>({
     key: `nag:${key}`,
     defaultValue: defaultNagState,
     persistAfterLogout,
   });
-  
+
   nagStorageItemCache.set(key, storageItem);
   return storageItem;
 };

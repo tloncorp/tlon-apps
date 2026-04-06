@@ -1,4 +1,4 @@
-import { createDevLogger } from '@tloncorp/shared/debug';
+import { createDevLogger } from '../lib/logger';
 import { getCanonicalPostId } from './apiUtils';
 
 const logger = createDevLogger('harkApi', true);

@@ -18,7 +18,10 @@ test.describe('Scroll position preservation', () => {
 
     // Send enough messages to create scrollable content
     for (let i = 0; i < 25; i++) {
-      await helpers.sendMessage(page, `ProfileScrollMsg-${i.toString().padStart(2, '0')}`);
+      await helpers.sendMessage(
+        page,
+        `ProfileScrollMsg-${i.toString().padStart(2, '0')}`
+      );
     }
 
     await expect(
@@ -26,7 +29,9 @@ test.describe('Scroll position preservation', () => {
     ).toBeVisible();
 
     // Scroll up to show older messages
-    const messageElement = page.getByText('ProfileScrollMsg-24', { exact: true });
+    const messageElement = page.getByText('ProfileScrollMsg-24', {
+      exact: true,
+    });
     await messageElement.hover();
     for (let i = 0; i < 30; i++) {
       await page.mouse.wheel(0, -500);
@@ -76,7 +81,10 @@ test.describe('Scroll position preservation', () => {
 
     // Send messages and create a thread on an early one
     for (let i = 0; i < 15; i++) {
-      await helpers.sendMessage(page, `ThreadScrollMsg-${i.toString().padStart(2, '0')}`);
+      await helpers.sendMessage(
+        page,
+        `ThreadScrollMsg-${i.toString().padStart(2, '0')}`
+      );
     }
 
     await helpers.startThread(page, 'ThreadScrollMsg-02');
@@ -85,7 +93,10 @@ test.describe('Scroll position preservation', () => {
 
     // Send more messages to push the threaded message up
     for (let i = 15; i < 25; i++) {
-      await helpers.sendMessage(page, `ThreadScrollMsg-${i.toString().padStart(2, '0')}`);
+      await helpers.sendMessage(
+        page,
+        `ThreadScrollMsg-${i.toString().padStart(2, '0')}`
+      );
     }
 
     await expect(
@@ -93,7 +104,9 @@ test.describe('Scroll position preservation', () => {
     ).toBeVisible();
 
     // Scroll up to show the message with thread
-    const messageElement = page.getByText('ThreadScrollMsg-24', { exact: true });
+    const messageElement = page.getByText('ThreadScrollMsg-24', {
+      exact: true,
+    });
     await messageElement.hover();
     for (let i = 0; i < 30; i++) {
       await page.mouse.wheel(0, -500);

@@ -1,6 +1,6 @@
 import { ChannelContentConfiguration, CollectionRendererId } from '../client';
-import * as db from '@tloncorp/shared/db';
 import * as ChannelAction from './ChannelActions';
+import type * as db from './models';
 
 /**
  * How do we want to lay out a collection of posts, at a high level?

@@ -28,6 +28,7 @@ import {
   getFileSize,
   getMimeType,
 } from '../../utils/files';
+import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -156,7 +157,6 @@ export default function AttachmentSheet({
   }, [removeAttachment]);
 
   const useVideoInMediaPicker = allowVideoInMediaPicker ?? mediaType === 'all';
-  const showCameraAction = Platform.OS === 'ios';
   const pickerMediaTypes: ImagePicker.MediaType[] = useMemo(
     () => (useVideoInMediaPicker ? ['images', 'videos'] : ['images']),
     [useVideoInMediaPicker]
@@ -179,63 +179,71 @@ export default function AttachmentSheet({
     [attachAssets, onAttach]
   );
 
-  const takePicture = useCallback(() => {
-    // Close the sheet immediately
-    onOpenChange(false);
+  const takePicture = useCallback(
+    (cameraMediaTypes: ImagePicker.MediaType[] = pickerMediaTypes) => {
+      // Close the sheet immediately
+      onOpenChange(false);
 
-    // Then initiate the camera after a small delay to ensure sheet is closed
-    setTimeout(async () => {
-      try {
-        if (cameraPermissionStatus?.granted === false) {
-          const permissionResult = await requestCameraPermission();
-          if (!permissionResult.granted) {
-            return;
+      // Then initiate the camera after a small delay to ensure sheet is closed
+      setTimeout(async () => {
+        try {
+          if (cameraPermissionStatus?.granted === false) {
+            const permissionResult = await requestCameraPermission();
+            if (!permissionResult.granted) {
+              return;
+            }
           }
-        }
 
-        // Immediately set the placeholder attachment to show in the UI
-        // skip on web, the browser doesn't like trying to load a file that doesn't exist
-        if (Platform.OS !== 'web') {
-          attachAssets([placeholderUploadIntent]);
-        }
+          // Immediately set the placeholder attachment to show in the UI
+          // skip on web, the browser doesn't like trying to load a file that doesn't exist
+          if (Platform.OS !== 'web') {
+            attachAssets([placeholderUploadIntent]);
+          }
 
-        const result = await ImagePicker.launchCameraAsync({
-          mediaTypes: pickerMediaTypes,
-          allowsEditing: false,
-          quality: 0.5,
-          exif: false,
-        });
+          const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: cameraMediaTypes,
+            allowsEditing: false,
+            quality: 0.5,
+            exif: false,
+          });
 
-        if (!result.canceled) {
-          // Replace the placeholder with the real image data
-          const realAsset = result.assets[0];
+          if (!result.canceled) {
+            // Replace the placeholder with the real image data
+            const realAsset = result.assets[0];
 
-          removePlaceholderAttachment();
-          await attachNormalizedUploadIntents([
-            imagePickerAssetToUploadIntent(realAsset),
-          ]);
-        } else {
-          // If user canceled, remove the placeholder
+            removePlaceholderAttachment();
+            await attachNormalizedUploadIntents([
+              imagePickerAssetToUploadIntent(
+                normalizeImagePickerAssetForUpload(realAsset)
+              ),
+            ]);
+          } else {
+            // If user canceled, remove the placeholder
+            clearAttachments();
+          }
+        } catch (e) {
+          console.error('Error taking picture', e);
+          logger.trackError('Error taking picture', e);
+          // In case of error, remove the placeholder
           clearAttachments();
         }
-      } catch (e) {
-        console.error('Error taking picture', e);
-        logger.trackError('Error taking picture', e);
-        // In case of error, remove the placeholder
-        clearAttachments();
-      }
-    }, 50); // Small delay to ensure the sheet closes first
-  }, [
-    attachAssets,
-    clearAttachments,
-    onOpenChange,
-    cameraPermissionStatus,
-    pickerMediaTypes,
-    requestCameraPermission,
-    placeholderUploadIntent,
-    attachNormalizedUploadIntents,
-    removePlaceholderAttachment,
-  ]);
+      }, 50); // Small delay to ensure the sheet closes first
+    },
+    [
+      attachAssets,
+      clearAttachments,
+      onOpenChange,
+      cameraPermissionStatus,
+      pickerMediaTypes,
+      requestCameraPermission,
+      placeholderUploadIntent,
+      attachNormalizedUploadIntents,
+      removePlaceholderAttachment,
+    ]
+  );
+
+  const takePhoto = useCallback(() => takePicture(['images']), [takePicture]);
+  const takeVideo = useCallback(() => takePicture(['videos']), [takePicture]);
 
   const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
@@ -320,10 +328,11 @@ export default function AttachmentSheet({
 
         if (!result.canceled) {
           const realAsset = result.assets[0];
+          const normalizedAsset = normalizeImagePickerAssetForUpload(realAsset);
 
           const { uploadIntents: normalizedUploadIntents, errorMessage } =
             await normalizeUploadIntents([
-              imagePickerAssetToUploadIntent(realAsset),
+              imagePickerAssetToUploadIntent(normalizedAsset),
             ]);
 
           // Remove placeholder before attaching the selected media so validation
@@ -379,7 +388,11 @@ export default function AttachmentSheet({
   const startFilePicker = useCallback(async () => {
     onOpenChange(false);
 
-    const uploadIntents = await pickFile();
+    const { uploadIntents, errorMessage } = await pickFile();
+    if (errorMessage) {
+      Alert.alert('Unable to attach', errorMessage);
+      return;
+    }
     await attachNormalizedUploadIntents(uploadIntents);
   }, [attachNormalizedUploadIntents, onOpenChange]);
 
@@ -388,32 +401,36 @@ export default function AttachmentSheet({
       createActionGroups(
         [
           'neutral',
+          // The sheet is only shown on mobile — on web, AttachmentButton
+          // skips straight to the system file picker.
           {
-            title: useVideoInMediaPicker
-              ? isWeb
-                ? 'Upload Media'
-                : 'Media Library'
-              : isWeb
-                ? 'Upload an Image'
-                : 'Photo Library',
-            description: isWeb
-              ? useVideoInMediaPicker
-                ? 'Upload an image or video from your computer'
-                : 'Upload an image from your computer'
-              : useVideoInMediaPicker
-                ? 'Choose a photo or video from your library'
-                : 'Choose a photo from your library',
+            title: useVideoInMediaPicker ? 'Media Library' : 'Photo Library',
+            description: useVideoInMediaPicker
+              ? 'Choose a photo or video from your library'
+              : 'Choose a photo from your library',
             action: pickImage,
           },
-          showCameraAction && {
-            title: useVideoInMediaPicker
-              ? 'Capture Photo or Video'
-              : 'Take a Photo',
-            description: useVideoInMediaPicker
-              ? 'Use your camera to capture a photo or video'
-              : 'Use your camera to take a photo',
-            action: takePicture,
+          !isWeb &&
+            Platform.OS !== 'android' && {
+              title: useVideoInMediaPicker
+                ? 'Capture Photo or Video'
+                : 'Take a Photo',
+              description: useVideoInMediaPicker
+                ? 'Use your camera to capture a photo or video'
+                : 'Use your camera to take a photo',
+              action: takePicture,
+            },
+          Platform.OS === 'android' && {
+            title: 'Capture photo',
+            description: 'Use your camera to capture a photo',
+            action: takePhoto,
           },
+          Platform.OS === 'android' &&
+            useVideoInMediaPicker && {
+              title: 'Capture video',
+              description: 'Use your camera to capture a video',
+              action: takeVideo,
+            },
           !isWeb &&
             hasClipboardImage && {
               title: 'Paste from Clipboard',
@@ -447,12 +464,13 @@ export default function AttachmentSheet({
       pickImage,
       startFilePicker,
       showClearOption,
+      takePhoto,
+      takeVideo,
       takePicture,
       hasClipboardImage,
       createAssetFromClipboard,
       mediaType,
       useVideoInMediaPicker,
-      showCameraAction,
     ]
   );
 

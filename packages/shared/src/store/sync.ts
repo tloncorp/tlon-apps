@@ -1,15 +1,16 @@
+import * as api from '@tloncorp/api';
+import { GetChangedPostsOptions } from '@tloncorp/api';
+import { extractClientVolumes } from '@tloncorp/api/client/activity';
+import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as api from '@tloncorp/api';
-import { GetChangedPostsOptions } from '@tloncorp/api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { SETTINGS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger, runIfDev } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
-import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -22,8 +23,10 @@ import { verifyUserInviteLink } from './inviteActions';
 import { discoverContacts } from './lanyardActions';
 import { useLureState } from './lure';
 import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
+import { queryClient } from './reactQuery';
 import { getSession, setSession, updateSession } from './session';
 import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
+import { getSystemContacts } from './systemContactsApi';
 import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
 
 export { SyncPriority, syncQueue } from './syncQueue';
@@ -56,6 +59,9 @@ export const syncInitData = async (
     await db
       .insertGroups({ groups: initData.groups }, queryCtx)
       .then(() => logger.crumb('inserted groups'));
+    await db
+      .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
+      .then(() => logger.crumb('set left groups'));
     await db
       .insertUnjoinedGroups(initData.unjoinedGroups, queryCtx)
       .then(() => logger.crumb('inserted unjoined groups'));
@@ -91,9 +97,6 @@ export const syncInitData = async (
     await db
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
-    await db
-      .setLeftGroups({ joinedGroupIds: initData.joinedGroups }, queryCtx)
-      .then(() => logger.crumb('set left groups'));
     await db
       .setLeftGroupChannels(
         { joinedChannelIds: initData.joinedChannels },
@@ -307,7 +310,7 @@ export const syncLatestChanges = async ({
   }
 
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
-    return api.fetchChangesSince(syncFrom);
+    return fetchChangesSince(syncFrom);
   });
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
@@ -479,7 +482,7 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {
-  const systemContacts = await api.getSystemContacts();
+  const systemContacts = await getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
@@ -517,7 +520,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
     });
     return;
   }
-  const systemContacts = await api.getSystemContacts();
+  const systemContacts = await getSystemContacts();
   const phoneNumbers = systemContacts
     .map((contact) => contact.phoneNumber)
     .filter((phoneNumber) => phoneNumber && phoneNumber.length > 0) as string[];
@@ -889,6 +892,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
 
   let channelNavSection: db.GroupNavSectionChannel | null | undefined;
   let group: db.Group | null | undefined;
+  const currentUserId = api.getCurrentUserId();
 
   switch (update.type) {
     case 'addGroup':
@@ -931,7 +935,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'banGroupMembers':
+    case 'banGroupMembers': {
       await db.addGroupMemberBans(
         {
           groupId: update.groupId,
@@ -946,7 +950,14 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         },
         ctx
       );
+      if (update.ships.includes(currentUserId)) {
+        await db.updateGroup(
+          { id: update.groupId, currentUserIsMember: false },
+          ctx
+        );
+      }
       break;
+    }
     case 'unbanGroupMembers':
       await db.deleteGroupMemberBans(
         {
@@ -1021,7 +1032,7 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         ctx
       );
       break;
-    case 'removeGroupMembers':
+    case 'removeGroupMembers': {
       await db.removeChatMembers(
         {
           chatId: update.groupId,
@@ -1029,7 +1040,14 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
         },
         ctx
       );
+      if (update.ships.includes(currentUserId)) {
+        await db.updateGroup(
+          { id: update.groupId, currentUserIsMember: false },
+          ctx
+        );
+      }
       break;
+    }
     case 'addRole':
       await db.addRole(
         {
@@ -1267,7 +1285,7 @@ const handleActivityUpdate = async (
   // if we inserted new activity, invalidate the activity page
   // data loader
   if (activitySnapshot.activityEvents.length > 0) {
-    api.queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: [INFINITE_ACTIVITY_QUERY_KEY],
       refetchType: 'active',
     });
@@ -1432,8 +1450,7 @@ export const handleChannelsUpdate = async (
       {
         const newPinnedPostId = update.order?.[0];
         if (newPinnedPostId) {
-          const dismissedIds =
-            await db.dismissedPinnedPostBannerIds.getValue();
+          const dismissedIds = await db.dismissedPinnedPostBannerIds.getValue();
           if (dismissedIds.includes(newPinnedPostId)) {
             await db.dismissedPinnedPostBannerIds.setValue(
               dismissedIds.filter((id) => id !== newPinnedPostId)

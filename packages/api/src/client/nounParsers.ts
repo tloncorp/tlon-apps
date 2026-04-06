@@ -1,10 +1,10 @@
-import { parse, render, da } from '@urbit/aura';
+import { da, parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, cue, dwim, enjs, jam } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import * as db from '@tloncorp/shared/db';
-import { simpleHash } from '../lib/utils';
 import { getFrondValue, getPatp } from '../lib/noun';
+import { simpleHash } from '../lib/utils';
+import type * as db from '../types/models';
 import * as ub from '../urbit';
 
 interface HalfSign {

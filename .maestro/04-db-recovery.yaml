@@ -1,0 +1,80 @@
+appId: io.tlon.groups
+---
+- runFlow: subflows/launch.yaml
+- runFlow: subflows/login-e2e-node.yaml
+- assertVisible: 'Home'
+- openLink: 'io.tlon.groups://e2e/db?op=assert-table-present&table=groups'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
+- extendedWaitUntil:
+    visible: 'PASS: groups is present'
+    timeout: 5000
+- tapOn: 'OK'
+# Corrupt a sentinel table through the automated-test-only deep link command.
+- openLink: 'io.tlon.groups://e2e/db?op=drop-table&table=groups'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
+- waitForAnimationToEnd:
+    timeout: 5000
+- waitForAnimationToEnd:
+    timeout: 5000
+- openLink: 'io.tlon.groups://e2e/db?op=assert-table-missing&table=groups'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
+- extendedWaitUntil:
+    visible: 'PASS: groups is missing'
+    timeout: 5000
+- tapOn: 'OK'
+
+- killApp
+- launchApp:
+    permissions:
+      notifications: allow
+      contacts: allow
+
+# Wait if we encounter the ship-restarting screen.
+- runFlow:
+    when:
+      visible: 'Notify me when.*'
+    commands:
+      - extendedWaitUntil:
+          notVisible: 'Notify me when.*'
+          timeout: 600000 # 10 minutes
+
+- assertNotVisible: 'Something went wrong'
+- assertVisible: 'Home'
+- openLink: 'io.tlon.groups://e2e/db?op=assert-table-present&table=groups'
+- extendedWaitUntil:
+    visible: 'Open'
+    optional: true
+    timeout: 3000
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
+- extendedWaitUntil:
+    visible: 'PASS: groups is present'
+    timeout: 5000
+- tapOn: 'OK'

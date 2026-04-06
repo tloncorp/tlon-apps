@@ -33,6 +33,8 @@ const MemoizedBackdrop = React.memo(
   } & any) => (
     <BottomSheetBackdrop
       {...props}
+      accessible={false}
+      accessibilityElementsHidden={true}
       disappearsOnIndex={-1}
       appearsOnIndex={0}
       opacity={overlayOpacity}
@@ -48,6 +50,12 @@ const MemoizedHandle = React.memo(() => <BottomSheetHandle />);
 
 MemoizedHandle.displayName = 'MemoizedHandle';
 
+const MemoizedBackground = React.memo(({ style }: { style: any }) => (
+  <View style={style} accessible={false} pointerEvents="none" />
+));
+
+MemoizedBackground.displayName = 'MemoizedBackground';
+
 const ModalChildrenWrapper = React.memo(
   ({
     useBottomSheetView,
@@ -59,9 +67,17 @@ const ModalChildrenWrapper = React.memo(
     children: React.ReactNode;
   }) => {
     if (useBottomSheetView) {
-      return <BottomSheetView style={style}>{children}</BottomSheetView>;
+      return (
+        <BottomSheetView style={style} accessible={false}>
+          {children}
+        </BottomSheetView>
+      );
     }
-    return <View style={style}>{children}</View>;
+    return (
+      <View style={style} accessible={false}>
+        {children}
+      </View>
+    );
   }
 );
 
@@ -78,9 +94,17 @@ const NonModalChildrenWrapper = React.memo(
     children: React.ReactNode;
   }) => {
     if (useBottomSheetView) {
-      return <BottomSheetView style={style}>{children}</BottomSheetView>;
+      return (
+        <BottomSheetView style={style} accessible={false}>
+          {children}
+        </BottomSheetView>
+      );
     }
-    return <View style={style}>{children}</View>;
+    return (
+      <View style={style} accessible={false}>
+        {children}
+      </View>
+    );
   }
 );
 
@@ -277,9 +301,16 @@ export const BottomSheetWrapper = forwardRef<
       () => (showHandle ? <MemoizedHandle /> : null),
       [showHandle]
     );
+    const renderBackground = useCallback(
+      (props: any) => <MemoizedBackground {...props} />,
+      []
+    );
 
     const commonProps = useMemo(
       () => ({
+        // Keep the sheet container itself out of the accessibility tree so
+        // nested actionable content remains discoverable.
+        accessible: false,
         enablePanDownToClose,
         enableDynamicSizing: resolvedEnableDynamicSizing,
         keyboardBehavior,
@@ -289,6 +320,7 @@ export const BottomSheetWrapper = forwardRef<
         onChange: handleSheetChanges,
         backdropComponent: renderBackdrop,
         handleComponent: renderHandle,
+        backgroundComponent: renderBackground,
         footerComponent,
         style: frameStyle,
         snapPointsMode,
@@ -310,6 +342,7 @@ export const BottomSheetWrapper = forwardRef<
         handleSheetChanges,
         renderBackdrop,
         renderHandle,
+        renderBackground,
         footerComponent,
         frameStyle,
         snapPointsMode,
@@ -347,6 +380,7 @@ export const BottomSheetWrapper = forwardRef<
       return (
         <BottomSheetModal
           ref={bottomSheetModalRef}
+          accessibilityViewIsModal={true}
           {...commonProps}
           {...commonOverrides}
         >
@@ -374,6 +408,7 @@ export const BottomSheetWrapper = forwardRef<
         bottom={0}
         zIndex={9999}
         pointerEvents="box-none"
+        accessible={false}
       >
         <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
           {/* BottomSheetView only for simple static content, not for layouts with footers */}

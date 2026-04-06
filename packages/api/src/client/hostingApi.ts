@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer';
 
-import * as db from '@tloncorp/shared/db';
-import { createDevLogger } from '@tloncorp/shared/debug';
+import { createDevLogger } from '../lib/logger';
+import { withRetry } from '../lib/utils';
 import * as domain from '../types';
 import {
   AnalyticsEvent,
@@ -11,9 +11,54 @@ import {
   User,
   getConstants,
 } from '../types';
-import { withRetry } from '../lib/utils';
 
 const logger = createDevLogger('hostingApi', false);
+
+interface StoredValue<T> {
+  getValue: () => Promise<T>;
+  setValue: (value: T) => Promise<void>;
+}
+
+interface HostingSessionStore {
+  authToken: StoredValue<string>;
+  userId: StoredValue<string>;
+  botEnabled: StoredValue<boolean>;
+}
+
+function createMemoryValue<T>(initialValue: T): StoredValue<T> {
+  let value = initialValue;
+
+  return {
+    async getValue() {
+      return value;
+    },
+    async setValue(next: T) {
+      value = next;
+    },
+  };
+}
+
+const sessionStore: HostingSessionStore = {
+  authToken: createMemoryValue(''),
+  userId: createMemoryValue(''),
+  botEnabled: createMemoryValue(false),
+};
+
+export function configureHostingSessionStore(
+  nextStore: Partial<HostingSessionStore>
+) {
+  if (nextStore.authToken) {
+    sessionStore.authToken = nextStore.authToken;
+  }
+
+  if (nextStore.userId) {
+    sessionStore.userId = nextStore.userId;
+  }
+
+  if (nextStore.botEnabled) {
+    sessionStore.botEnabled = nextStore.botEnabled;
+  }
+}
 
 interface HostingResponseErrorDetails {
   status: number | null;
@@ -65,7 +110,7 @@ const hostingFetchResponse = async (
     console.debug('Request:', path);
   }
 
-  const hostingCookie = await db.hostingAuthToken.getValue();
+  const hostingCookie = await sessionStore.authToken.getValue();
   const modifiedCookie = hostingCookie.replace(' HttpOnly;', '');
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15_000);
@@ -173,7 +218,7 @@ const rawHostingFetch = async (path: string, init?: RequestInit) => {
 
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
-  const userId = await db.hostingUserId.getValue();
+  const userId = await sessionStore.userId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
   try {
@@ -186,7 +231,7 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
           botEnabled: body.botEnabled,
         },
       });
-      await db.hostingBotEnabled.setValue(body.botEnabled);
+      await sessionStore.botEnabled.setValue(body.botEnabled);
     }
   } catch (e) {
     logger.trackError(
@@ -282,12 +327,12 @@ export const signUpHostingUser = async (params: {
 
   const setCookie = response.headers.get('Set-Cookie');
   if (setCookie) {
-    db.hostingAuthToken.setValue(setCookie);
+    sessionStore.authToken.setValue(setCookie);
   }
 
   const userId = 'id' in result && (result as User).id;
   if (userId) {
-    db.hostingUserId.setValue(userId);
+    sessionStore.userId.setValue(userId);
     if (result.botEnabled !== null && result.botEnabled !== undefined) {
       logger.trackEvent('Bot status set', {
         enabled: result.botEnabled,
@@ -295,7 +340,7 @@ export const signUpHostingUser = async (params: {
           botEnabled: result.botEnabled,
         },
       });
-      await db.hostingBotEnabled.setValue(result.botEnabled);
+      await sessionStore.botEnabled.setValue(result.botEnabled);
     }
   }
 
@@ -327,11 +372,11 @@ export const logInHostingUser = async (params: {
   const setCookie = response.headers.get('Set-Cookie');
   const user = 'id' in result && (result as User).id;
   if (setCookie) {
-    db.hostingAuthToken.setValue(setCookie);
+    sessionStore.authToken.setValue(setCookie);
   }
 
   if (user) {
-    db.hostingUserId.setValue(user);
+    sessionStore.userId.setValue(user);
     if (result.botEnabled !== null && result.botEnabled !== undefined) {
       logger.trackEvent('Bot status set', {
         enabled: result.botEnabled,
@@ -339,7 +384,7 @@ export const logInHostingUser = async (params: {
           botEnabled: result.botEnabled,
         },
       });
-      db.hostingBotEnabled.setValue(result.botEnabled);
+      sessionStore.botEnabled.setValue(result.botEnabled);
     }
   }
 
@@ -625,7 +670,7 @@ export const inviteShipWithLure = async (params: {
   });
 
 export const checkIfAccountDeleted = async (): Promise<boolean> => {
-  const hostingUserId = await db.hostingUserId.getValue();
+  const hostingUserId = await sessionStore.userId.getValue();
   if (hostingUserId) {
     try {
       const user = await withRetry(() => getHostingUser(hostingUserId), {

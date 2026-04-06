@@ -73,10 +73,10 @@ WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
-        "https://bootstrap.urbit.org/rube-zod23.tgz zod.tgz" \
+        "https://bootstrap.urbit.org/rube-zod24.tgz zod.tgz" \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
-        "https://bootstrap.urbit.org/rube-ten23.tgz ten.tgz" \
-        "https://bootstrap.urbit.org/rube-mug23.tgz mug.tgz" \
+        "https://bootstrap.urbit.org/rube-ten24.tgz ten.tgz" \
+        "https://bootstrap.urbit.org/rube-mug24.tgz mug.tgz" \
         "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \
@@ -106,13 +106,10 @@ RUN npm install -g typescript
 WORKDIR /workspace/apps/tlon-web
 RUN echo "Compiling rube scripts..." && \
     ls -la ./rube/ && \
-    tsc --isolatedModules --skipLibCheck ./rube/*.ts --outDir ./rube/dist && \
-    echo "Rube scripts compiled successfully" && \
+    bash ./rube/compile-rube.sh && \
     echo "Verifying compiled files..." && \
-    ls -la ./rube/dist/ && \
-    test -f ./rube/dist/index.js || (echo "ERROR: index.js not found after compilation!" && exit 1) && \
-    echo "Ensuring binaries and scripts are executable..." && \
-    chmod +x ./rube/click ./rube/click-format ./rube/*.sh ./*.sh 2>/dev/null || true
+    ls -la ./rube/dist/
+RUN chmod +x ./rube/click ./rube/click-format ./rube/*.sh ./*.sh 2>/dev/null || true
 
 # Set environment variables for testing
 ENV CI=true
