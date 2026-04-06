@@ -1,5 +1,5 @@
 diff --git a/lib/commonjs/assets/index.js b/lib/commonjs/assets/index.js
-index 7f1d49228a8540b3797daee2bcbfc4c88f5b7cbb..c15aca1052f351c1f72bb2e2fc4d5a3871142524 100644
+index 7f1d49228a..c15aca1052 100644
 --- a/lib/commonjs/assets/index.js
 +++ b/lib/commonjs/assets/index.js
 @@ -5,29 +5,6 @@ Object.defineProperty(exports, "__esModule", {
@@ -35,7 +35,7 @@ index 7f1d49228a8540b3797daee2bcbfc4c88f5b7cbb..c15aca1052f351c1f72bb2e2fc4d5a38
  //# sourceMappingURL=index.js.map
 \ No newline at end of file
 diff --git a/lib/commonjs/index.js b/lib/commonjs/index.js
-index 071b63d05bf746fa4ad0bb4d7996e73e764351aa..ef24460a9788922a7b2a6084643ba39f97e1d1bd 100644
+index 071b63d05b..ef24460a97 100644
 --- a/lib/commonjs/index.js
 +++ b/lib/commonjs/index.js
 @@ -22,12 +22,7 @@ Object.defineProperty(exports, "EditorHelper", {
@@ -61,7 +61,7 @@ index 071b63d05bf746fa4ad0bb4d7996e73e764351aa..ef24460a9788922a7b2a6084643ba39f
  var _editorHtml = require("./simpleWebEditor/build/editorHtml");
  function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 diff --git a/lib/module/assets/index.js b/lib/module/assets/index.js
-index da8a084ff551d9d3e391f4c8e8b6e376130a4904..152ab2aff5d48645fa67ceb8373bae2645c5b6a6 100644
+index da8a084ff5..152ab2aff5 100644
 --- a/lib/module/assets/index.js
 +++ b/lib/module/assets/index.js
 @@ -1,27 +1,4 @@
@@ -95,7 +95,7 @@ index da8a084ff551d9d3e391f4c8e8b6e376130a4904..152ab2aff5d48645fa67ceb8373bae26
  //# sourceMappingURL=index.js.map
 \ No newline at end of file
 diff --git a/lib/module/index.js b/lib/module/index.js
-index e23219ce2ee83e8ff94d291e2a9c49aa7deb0d3a..9b66fc508c41c61b55bfd371b26c634b7557bf08 100644
+index e23219ce2e..9b66fc508c 100644
 --- a/lib/module/index.js
 +++ b/lib/module/index.js
 @@ -25,7 +25,6 @@ export * from './bridges/core';
@@ -108,7 +108,7 @@ index e23219ce2ee83e8ff94d291e2a9c49aa7deb0d3a..9b66fc508c41c61b55bfd371b26c634b
  //# sourceMappingURL=index.js.map
 \ No newline at end of file
 diff --git a/src/assets/index.ts b/src/assets/index.ts
-index 858dd108b0e4643b46a94447f37f3a564c2435f4..f94d342bf997c1fb4b78c3eae15fa43319aef497 100644
+index 858dd108b0..f94d342bf9 100644
 --- a/src/assets/index.ts
 +++ b/src/assets/index.ts
 @@ -1,26 +1,3 @@
@@ -139,3 +139,31 @@ index 858dd108b0e4643b46a94447f37f3a564c2435f4..f94d342bf997c1fb4b78c3eae15fa433
 -  close: require('./close.png'),
 +
  };
+diff --git a/lib-web/index.mjs b/lib-web/index.mjs
+index 8c3dae2c12..bd99f3dcb5 100644
+--- a/lib-web/index.mjs
++++ b/lib-web/index.mjs
+@@ -13937,21 +13937,8 @@ const eg = se.create({
+   addPasteRules() {
+     return [
+       _e({
+-        find: (n, e) => {
+-          var t;
+-          const r = (t = e == null ? void 0 : e.clipboardData) === null || t === void 0 ? void 0 : t.getData("text/html"), i = [];
+-          if (r) {
+-            const s = new DOMParser().parseFromString(r, "text/html"), o = s.querySelectorAll("a");
+-            o.length && [...o].forEach((l) => i.push({
+-              text: l.innerText,
+-              data: {
+-                href: l.getAttribute("href")
+-              },
+-              // get the index of the anchor inside the text
+-              // and add the length of the anchor text
+-              index: s.body.innerText.indexOf(l.innerText) + l.innerText.length
+-            }));
+-          }
++        find: (n) => {
++          const i = [];
+           if (n) {
+             const s = ls(n).filter((o) => o.isLink);
+             s.length && s.forEach((o) => i.push({
