@@ -100,6 +100,8 @@ export function DetailPostView({
             const previousItem = index > 0 ? listData[index - 1] : undefined;
             const showAuthor =
               !previousItem ||
+              previousItem.post.isDeleted ||
+              previousItem.type === 'op' ||
               previousItem.post.authorId !== item.post.authorId;
             return (
               <ContextGestureListener
