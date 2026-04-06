@@ -44,3 +44,4 @@ export * from './store/dbHooks';
 export * from './utils';
 export * as Transcription from './transcription';
 export * from './md5';
+export { QueryClientProvider, queryClient } from './db';
