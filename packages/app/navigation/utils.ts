@@ -3,6 +3,7 @@ import {
   NavigationProp,
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -479,9 +480,9 @@ export async function getMainGroupRoute(
 }
 
 export function screenNameFromChannelId(channelId: string) {
-  return logic.isDmChannelId(channelId)
+  return isDmChannelId(channelId)
     ? 'DM'
-    : logic.isGroupDmChannelId(channelId)
+    : isGroupDmChannelId(channelId)
       ? 'GroupDM'
       : 'Channel';
 }

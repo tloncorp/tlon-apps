@@ -1,6 +1,11 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { LoadingSpinner, Pressable, triggerHaptic, useCopy } from '@tloncorp/ui';
+import {
+  LoadingSpinner,
+  Pressable,
+  triggerHaptic,
+  useCopy,
+} from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
 import { View, isWeb } from 'tamagui';
@@ -42,10 +47,7 @@ export function PersonalInviteButton() {
 
   return (
     <Pressable onPress={handleInviteButtonPress} disabled={isLoading}>
-      <ListItem
-        backgroundColor="$primaryText"
-        opacity={isLoading ? 0.6 : 1}
-      >
+      <ListItem backgroundColor="$primaryText" opacity={isLoading ? 0.6 : 1}>
         {isLoading ? (
           <View
             width="$4xl"

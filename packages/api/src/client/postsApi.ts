@@ -1,15 +1,11 @@
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
-import type * as db from '../types/models';
-import { createDevLogger } from './logger';
+import { createDevLogger } from '../lib/logger';
 import { IMAGE_URL_REGEX } from '../lib/utils';
-import {
-  PlaintextPreviewConfig,
-  getTextContent,
-} from '../lib/postContent';
-import * as ub from '../urbit';
+import type * as db from '../types/models';
 import { ContentReference } from '../types/references';
+import * as ub from '../urbit';
 import {
   ClubAction,
   DmAction,
@@ -29,22 +25,24 @@ import {
   whomIsDm,
 } from '../urbit';
 import {
+  type AuthorProfile,
   formatDateParam,
   formatScryPath,
   formatUd,
   getCanonicalPostId,
   getChannelIdType,
+  isBotUserId,
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
   toAuthor,
-  type AuthorProfile,
   toPostEssay,
   udToDate,
   with404Handler,
 } from './apiUtils';
 import { channelAction } from './channelsApi';
 import { multiDmAction } from './chatApi';
+import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -1197,7 +1195,7 @@ function isBotProfile(author: ub.Author): author is ub.BotProfile {
  * This ensures bot authors are consistently represented as BotProfile objects.
  */
 function normalizeAuthor(author: ub.Author): ub.Author {
-  if (typeof author === 'string' && author.startsWith('~pinser-botter-')) {
+  if (typeof author === 'string' && isBotUserId(author)) {
     return {
       ship: author,
       nickname: null,

@@ -1,5 +1,5 @@
+import { createDevLogger } from '../lib/logger';
 import type * as db from '../types/models';
-import { createDevLogger } from './logger';
 import * as ub from '../urbit';
 import {
   deriveFullWrit,
@@ -172,7 +172,7 @@ export function subscribeToChatUpdates(
       if ('add-react' in delta) {
         logger.log('add react', id, delta);
         const addReact = delta['add-react'];
-        
+
         // Check if this is a shortcode reaction from chat/DM
         if (/^:[a-zA-Z0-9_+-]+:?$/.test(addReact.react)) {
           logger.trackError('Shortcode reaction from chat/DM server', {
@@ -180,10 +180,10 @@ export function subscribeToChatUpdates(
             channelId,
             userId: addReact.author,
             react: addReact.react,
-            context: 'chat_dm_reaction'
+            context: 'chat_dm_reaction',
           });
         }
-        
+
         return eventHandler({
           type: 'addReaction',
           postId: id,
@@ -230,7 +230,7 @@ export function subscribeToChatUpdates(
         if ('add-react' in replyDelta) {
           logger.log('add react reply', id, delta);
           const addReact = replyDelta['add-react'];
-          
+
           // Check if this is a shortcode reaction from chat/DM reply
           if (/^:[a-zA-Z0-9_+-]+:?$/.test(addReact.react)) {
             logger.trackError('Shortcode reaction from chat/DM reply server', {
@@ -239,10 +239,10 @@ export function subscribeToChatUpdates(
               channelId,
               userId: addReact.author,
               react: addReact.react,
-              context: 'chat_dm_reply_reaction'
+              context: 'chat_dm_reply_reaction',
             });
           }
-          
+
           return eventHandler({
             type: 'addReaction',
             postId: replyId,

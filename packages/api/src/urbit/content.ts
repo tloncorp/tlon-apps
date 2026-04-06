@@ -1,4 +1,4 @@
-import { UnionToIntersection } from '../lib/utilityTypes';
+import type { UnionToIntersection } from '../lib/utilityTypes';
 
 type Flag = string;
 type Nest = string;

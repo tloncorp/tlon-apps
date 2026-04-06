@@ -3,19 +3,19 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
-import { parseIdNumber } from '../client/apiUtils';
-import { Stringified } from '../lib/utilityTypes';
+import type { Stringified } from '../lib/utilityTypes';
 import {
   Block,
   Image,
   Inline,
   isBlock,
   isBlockquote,
-  isImage,
   isBreak,
+  isImage,
 } from './content';
 import { Flag } from './hark';
 import { Metadata } from './meta';
+import { parseIdNumber } from './utils';
 
 export interface CacheId {
   author: string;

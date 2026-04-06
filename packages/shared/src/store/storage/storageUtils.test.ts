@@ -1,9 +1,6 @@
 import { expect, test } from 'vitest';
 
-import {
-  ensureFileExtension,
-  getExtensionFromMimeType,
-} from './storageUtils';
+import { ensureFileExtension, getExtensionFromMimeType } from './storageUtils';
 
 test('getExtensionFromMimeType supports quicktime videos', () => {
   expect(getExtensionFromMimeType('video/quicktime')).toBe('.mov');

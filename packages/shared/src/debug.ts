@@ -1,4 +1,4 @@
-import { configureLoggerFactory as configureApiLoggerFactory } from '@tloncorp/api/api/logger';
+import { configureLoggerFactory as configureApiLoggerFactory } from '@tloncorp/api/lib/logger';
 import { useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import create from 'zustand';

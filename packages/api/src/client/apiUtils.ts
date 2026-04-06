@@ -1,13 +1,9 @@
-import {
-  render,
-  parse,
-  tryParse,
-  da
-} from '@urbit/aura';
+import { da, parse, render, tryParse } from '@urbit/aura';
 import bigInt from 'big-integer';
 
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
+import { parseIdNumber } from '../urbit';
 import { BadResponseError } from './urbit';
 
 export function formatScryPath(
@@ -23,6 +19,7 @@ export function isColor(value: string) {
 // Limit max image string size since this isn't currently limited serverside +
 // it's possible for these to be massive and cause issues.
 const maxImageStringSize = 2048;
+const BOT_USER_ID_PREFIX = '~pinser-botter-';
 
 export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
   const iconImage = meta.image.length > maxImageStringSize ? '' : meta.image;
@@ -56,23 +53,13 @@ export function fromClientMeta(meta: db.ClientMeta): ub.GroupMeta {
   };
 }
 
-export function formatUd(ud: string) {  //REVIEW
+export function formatUd(ud: string) {
+  //REVIEW
   return render('ud', BigInt(ud));
 }
 
 export function udToDate(das: string) {
   return da.toUnix(parseIdNumber(das));
-}
-
-//  parses either a @ud-formatted string (dot-separated decimal) or a plain
-//  decimal number string (aka @ui without the prefix).
-//  we try both instead of being precise at the callsites, because historically
-//  we used a too-lenient @ud parser, which also accepted dotless
-//  representations, making it slightly unclear/ambiguous what we were actually
-//  *intending* to parse. the backend is wildly inconsistent, so this is easier
-//  and safer than figuring all that out. (we'll tighten things up Soon™.)
-export function parseIdNumber(id: string): bigint {
-  return tryParse('ud', id) || BigInt(id);
 }
 
 export function formatDateParam(date: Date) {
@@ -81,6 +68,10 @@ export function formatDateParam(date: Date) {
 
 export function isDmChannelId(channelId: string) {
   return channelId.startsWith('~');
+}
+
+export function isBotUserId(userId: string | null | undefined) {
+  return userId?.startsWith(BOT_USER_ID_PREFIX) ?? false;
 }
 
 export function isGroupDmChannelId(channelId: string) {
@@ -156,7 +147,7 @@ export function getCanonicalPostId(inputId: string) {
   }
   // The id in group post ids doesn't come dot separated, so we format it
   if (id[3] !== '.') {
-    id = render('ud', BigInt(id));  //REVIEW  weird, and dot check is not ideal
+    id = render('ud', BigInt(id)); //REVIEW  weird, and dot check is not ideal
   }
   return id;
 }

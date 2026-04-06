@@ -1,11 +1,11 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import * as api from '@tloncorp/api';
 import { useMemo } from 'react';
 
-import * as api from '@tloncorp/api';
 import * as db from '../db';
+import { queryClient } from '../db/reactQuery';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
-import { queryClient } from './reactQuery';
 import * as sync from './sync';
 
 const logger = createDevLogger('useInfiniteBucketedActivity', false);

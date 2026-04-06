@@ -1,10 +1,10 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as api from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useMemo, useState } from 'react';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, isWeb, useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
@@ -39,6 +39,12 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const { resetToDm } = useRootNavigation();
+
+  useEffect(() => {
+    if (userId && userId !== currentUserId) {
+      api.syncUserProfiles([userId]);
+    }
+  }, [userId, currentUserId]);
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {

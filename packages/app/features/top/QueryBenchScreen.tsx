@@ -1,6 +1,6 @@
 import { toContactsData, toInitData } from '@tloncorp/api';
-import * as db from '@tloncorp/shared/db';
 import type * as ub from '@tloncorp/api/urbit';
+import * as db from '@tloncorp/shared/db';
 import { Button, Text, View } from '@tloncorp/ui';
 import { useMemo, useState } from 'react';
 import { ScrollView } from 'react-native';
@@ -445,7 +445,12 @@ export function QueryBenchScreen() {
       <Text size="$label/xl">Query Benchmarks</Text>
 
       <View flexDirection="row" gap="$m" alignItems="center">
-        <Button preset="outline" disabled={isRunning || !benchmarkData} onPress={runBenchmarks} label={isRunning ? 'Running…' : 'Run all'} />
+        <Button
+          preset="outline"
+          disabled={isRunning || !benchmarkData}
+          onPress={runBenchmarks}
+          label={isRunning ? 'Running…' : 'Run all'}
+        />
         <Text color="$secondaryText" fontSize="$s">
           {iterations} iterations
         </Text>

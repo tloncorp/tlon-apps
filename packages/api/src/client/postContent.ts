@@ -1,10 +1,10 @@
-import type * as api from '../client';
 import { formatUd } from '../client/apiUtils';
+import { PostBlobDataEntry, parsePostBlob } from '../client/content-helpers';
+import { assertNever } from '../lib/assertNever';
+import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
-import { assertNever } from './assertNever';
-import { PostBlobDataEntry, parsePostBlob } from './content-helpers';
-import { VIDEO_REGEX, containsOnlyEmoji } from './utils';
+import { PostContent as ApiPostContent } from './postsApi';
 
 // Inline types
 
@@ -402,7 +402,7 @@ export function convertContent(
     return out;
   }
 
-  const story: api.PostContent =
+  const story: ApiPostContent =
     typeof input === 'string' ? JSON.parse(input) : input;
 
   if (!story) {
@@ -418,7 +418,7 @@ export function convertContent(
  * applies more type strictness at callsite.
  */
 export function convertContentSafe(
-  story: Exclude<api.PostContent, null>
+  story: Exclude<ApiPostContent, null>
 ): PostContent {
   const blocks: PostContent = [];
   for (const verse of story) {
@@ -555,9 +555,7 @@ function convertBlock(block: ub.Block): BlockData {
       };
     }
     case is(block, 'cite'): {
-      return (
-        toContentReference(block.cite) ?? errorMessage('Failed to parse')
-      );
+      return toContentReference(block.cite) ?? errorMessage('Failed to parse');
     }
     case is(block, 'link'): {
       return {
@@ -709,15 +707,15 @@ export function appendInline(
 }
 
 export function getTextContent(
-  postContent: Exclude<api.PostContent, null>,
+  postContent: Exclude<ApiPostContent, null>,
   config?: PlaintextPreviewConfig
 ): string;
 export function getTextContent(
-  postContent: api.PostContent,
+  postContent: ApiPostContent,
   config?: PlaintextPreviewConfig
 ): string | null;
 export function getTextContent(
-  postContent: api.PostContent,
+  postContent: ApiPostContent,
   config: PlaintextPreviewConfig = PlaintextPreviewConfig.defaultConfig
 ): string | null {
   return postContent == null

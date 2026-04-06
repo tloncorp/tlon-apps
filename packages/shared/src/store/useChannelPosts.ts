@@ -3,15 +3,14 @@ import {
   UseInfiniteQueryResult,
   useInfiniteQuery,
 } from '@tanstack/react-query';
+import { getChannelIdType } from '@tloncorp/api';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getChannelIdType } from '@tloncorp/api';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { useLiveRef, useOptimizedQueryResults } from '../logic/utilHooks';
 import { usePendingPostsInChannel } from './dbHooks';
-import { queryClient } from './reactQuery';
 import { useCurrentSession } from './session';
 import * as sync from './sync';
 import { SyncPriority } from './syncQueue';
@@ -43,7 +42,7 @@ type UseChannelPostsParams = UseChannelPostsPageParams & {
 };
 
 export const clearChannelPostsQueries = () => {
-  queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
+  db.queryClient.invalidateQueries({ queryKey: ['channelPosts'] });
 };
 
 export const useChannelPosts = (options: UseChannelPostsParams) => {
@@ -205,8 +204,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   }, [options.channelId]);
 
   const hasNewest =
-    !query.hasPreviousPage ||
-    (wasAtNewestRef.current && newPosts.length > 0);
+    !query.hasPreviousPage || (wasAtNewestRef.current && newPosts.length > 0);
 
   const rawPosts = useMemo<db.Post[] | null>(() => {
     const queryPosts = query.data?.pages.flatMap((p) => p.posts) ?? [];

@@ -224,9 +224,7 @@ export function ReferenceBlock({
 export function VoiceMemoBlock({
   block,
   ...props
-}: { block: cn.VoiceMemoBlockData } & ComponentProps<
-  typeof Reference.Frame
->) {
+}: { block: cn.VoiceMemoBlockData } & ComponentProps<typeof Reference.Frame>) {
   const { togglePlayback, progress, status, isThisSourceLoaded } =
     useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
 

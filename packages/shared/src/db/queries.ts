@@ -8,7 +8,7 @@ import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
-} from '@tloncorp/api/lib/activity';
+} from '@tloncorp/api/client/activity';
 import { Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
@@ -42,7 +42,6 @@ import {
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
-import { Session } from '../store';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {

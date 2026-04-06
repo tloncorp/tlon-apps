@@ -15,7 +15,10 @@ test('should display channel details screen with all expected elements', async (
   await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
 
   // Verify channel details screen elements are visible
   await expect(page.getByText('Channel info')).toBeVisible({
@@ -55,7 +58,10 @@ test('should navigate to channel edit settings from channel details', async ({
   await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Click on the header edit button to navigate to channel edit screen
@@ -82,7 +88,10 @@ test('should toggle pin/unpin from channel details', async ({ zodPage }) => {
   await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Verify Pin button is visible (channel is not pinned initially)
@@ -118,7 +127,10 @@ test('should navigate to channel privacy settings from channel details', async (
   await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Click on Privacy setting
@@ -149,7 +161,10 @@ test('channel privacy back button returns to channel details', async ({
   await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Verify sidebar shows group channels (not Home sidebar)
@@ -198,7 +213,10 @@ test('channel edit meta back button returns to channel details with sidebar cont
   await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Verify sidebar shows group channels (not Home sidebar)
@@ -313,14 +331,19 @@ test('multi-channel group: notifications back button returns to channel details'
   await helpers.setupMultiChannelGroup(page);
 
   // Click on channel header title to open channel details
-  await page.getByTestId('ChannelHeaderTitle').getByTestId('ScreenHeaderTitle').click();
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
   await expect(page.getByText('Channel info')).toBeVisible({ timeout: 5000 });
 
   // Click on Notifications setting
   await page.getByTestId('ChannelNotifications').click();
 
   // Verify we're on the notifications screen - use ScreenHeaderTitle to avoid strict mode violation
-  await expect(page.getByTestId('ScreenHeaderTitle').filter({ hasText: 'Notifications' })).toBeVisible({
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').filter({ hasText: 'Notifications' })
+  ).toBeVisible({
     timeout: 5000,
   });
   // Note: On desktop, the subtitle with channel name may not be visible in the header
@@ -366,7 +389,9 @@ test('single-channel group: notifications back button returns to group details',
   await page.getByTestId('GroupNotifications').click();
 
   // Verify we're on the notifications screen - use ScreenHeaderTitle to avoid strict mode violation
-  await expect(page.getByTestId('ScreenHeaderTitle').filter({ hasText: 'Notifications' })).toBeVisible({
+  await expect(
+    page.getByTestId('ScreenHeaderTitle').filter({ hasText: 'Notifications' })
+  ).toBeVisible({
     timeout: 5000,
   });
 

@@ -117,7 +117,9 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
           />
         );
       }
-      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId as string} />;
+      return (
+        <HomeSidebar focusedChannelId={focusedRouteParams.chatId as string} />
+      );
     } else if (focusedRouteParams.chatType === 'group') {
       return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
     }

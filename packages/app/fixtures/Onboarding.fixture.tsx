@@ -117,7 +117,10 @@ function OnboardingBenefitsSheetFixture() {
   return (
     <FixtureWrapper fillWidth fillHeight safeArea>
       <YStack flex={1} justifyContent="center" alignItems="center">
-        <OnboardingButton label="Open Benefits Sheet" onPress={() => setOpen(true)} />
+        <OnboardingButton
+          label="Open Benefits Sheet"
+          onPress={() => setOpen(true)}
+        />
       </YStack>
       <OnboardingBenefitsSheet open={open} onOpenChange={setOpen} />
     </FixtureWrapper>

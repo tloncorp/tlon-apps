@@ -267,7 +267,10 @@ async function _sendPost({
       optimisticPostData.replyToPostId != null
         ? AnalyticsEvent.ActionSendReply
         : AnalyticsEvent.ActionSendPost,
-      logic.getModelAnalytics({ post: cachePost, channel, group })
+      {
+        ...logic.getModelAnalytics({ post: cachePost, channel, group }),
+        isBotDm: logic.isBotDmChannel({ post: cachePost, channel }),
+      }
     );
 
     logger.crumb('insert channel posts');
