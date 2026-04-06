@@ -268,7 +268,10 @@ test('channel header title navigates to channel details with sidebar context', a
   });
 
   // Click the channel title to navigate to channel details
-  await page.getByTestId('ScreenHeaderTitle').click();
+  await page
+    .getByTestId('ChannelHeaderTitle')
+    .getByTestId('ScreenHeaderTitle')
+    .click();
 
   // Verify we're on channel details
   await expect(page.getByText('Channel info')).toBeVisible({
