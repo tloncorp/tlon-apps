@@ -1,9 +1,9 @@
 import { QueryKey, useQuery } from '@tanstack/react-query';
 
 import { createDevLogger } from '../debug';
-import { queryClient } from '../store/reactQuery';
 import { Stringified } from '../utils';
 import { getStorageMethods } from './getStorageMethods';
+import { queryClient } from './reactQuery';
 
 const logger = createDevLogger('keyValueStore', false);
 
