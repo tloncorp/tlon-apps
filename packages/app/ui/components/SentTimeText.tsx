@@ -1,4 +1,8 @@
-import { utils } from '@tloncorp/shared';
+import {
+  isToday,
+  makePrettyDayAndDateAndTime,
+  makePrettyTime,
+} from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { ColorTokens, View } from 'tamagui';
@@ -20,11 +24,11 @@ export function SentTimeText({
       return null;
     }
     const date = new Date(sentAt);
-    if (showFullDate && !utils.isToday(date.getTime())) {
-      const { asString } = utils.makePrettyDayAndDateAndTime(date);
+    if (showFullDate && !isToday(date.getTime())) {
+      const { asString } = makePrettyDayAndDateAndTime(date);
       return asString;
     }
-    return utils.makePrettyTime(date);
+    return makePrettyTime(date);
   }, [sentAt, showFullDate]);
 
   if (!timeDisplay) {
