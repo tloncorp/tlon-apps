@@ -2486,9 +2486,7 @@
     :*  %agent
         [our.bowl %contacts]
         %poke
-        ::  only meet authors who are persons
-        ::
-        contact-action-0+!>([%heed (murn authors get-person-ship:utils)])
+        contact-action-0+!>([%heed (turn authors get-author-ship:utils)])
     ==
   ++  ca-u-reply
     |=  [=id-post:c post=v-post:c =id-reply:c =u-reply:c]
