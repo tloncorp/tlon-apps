@@ -321,7 +321,7 @@
   ::  jael should have the pubkey. get it and validate.
   ::
   =+  .^([life =pass *] %j /(scot %p our.bowl)/deed/(scot %da now.bowl)/(scot %p who.sign)/(scot %ud lyf.sign))
-  (safe:as:(com:nu:crub:crypto pass) sig.sign (jam dat.sign))
+  (veri:ed:crypto sig.sign (jam dat.sign) sgn:ded:ex:(com:nu:cric:crypto pass))
 ::  +revoke: remove the .id registration from state
 ::
 ++  revoke
@@ -378,7 +378,7 @@
       [[%2 *] *]  [who.feed (rear kyz.feed)]
     ==
   ?>  =(who.seed our)
-  =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key.seed) (jam dat))
+  =/  sig=@ux  (sign-raw:ed:crypto (jam dat) [sgn:ded sgn:ven]:ex:(nol:nu:cric:crypto key.seed))
   [our lyf.seed dat sig]
 ::  +attest: sign both "full" and "half" attestations
 ::
