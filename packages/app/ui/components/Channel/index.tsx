@@ -241,6 +241,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       channel.id,
       group?.channels?.length,
     ]);
+
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
@@ -539,16 +540,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             channel.type === 'dm' ||
                             channel.type === 'groupDm'
                           }
-                          showEditButton={
-                            isGroupAdmin &&
-                            !isSingleChannelGroup &&
-                            !!channel.groupId &&
-                            (channel.type === 'chat' ||
-                              channel.type === 'notebook' ||
-                              channel.type === 'gallery') &&
-                            draftInputPresentationMode !== 'fullscreen'
-                          }
-                          goToEdit={handleGoToChannelDetails}
                         />
                         {shouldShowPinnedPostBanner && (
                           <PinnedPostBanner

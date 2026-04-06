@@ -67,8 +67,8 @@ export const ChatListSearch = React.memo(function ChatListSearchComponent({
       >
         <View paddingHorizontal="$l" paddingTop="$xl">
           <TextInput
-            icon="Search"
-            placeholder="Find by name"
+            icon="Filter"
+            placeholder="Filter by name"
             value={query}
             onChangeText={onQueryChange}
             spellCheck={false}
