@@ -1,3 +1,4 @@
+import { createDevLogger } from '../lib/logger';
 import * as ub from '../urbit';
 import {
   formatScryPath,
@@ -6,7 +7,6 @@ import {
   parseGroupChannelId,
   parseGroupId,
 } from './apiUtils';
-import { createDevLogger } from './logger';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('presenceApi', false);
@@ -214,7 +214,9 @@ export const subscribeToConversationPresenceUpdates = async (
     if (event.type === 'init') {
       handler({
         type: 'init',
-        states: event.states.filter((state) => state.contextId === conversationId),
+        states: event.states.filter(
+          (state) => state.contextId === conversationId
+        ),
       });
       return;
     }
@@ -295,7 +297,9 @@ export const toPresenceEvent = (
   };
 };
 
-function toWireDisplay(display?: PresenceDisplayInput): ub.PresenceActionDisplay {
+function toWireDisplay(
+  display?: PresenceDisplayInput
+): ub.PresenceActionDisplay {
   return {
     symbol: display?.icon ?? null,
     text: display?.text ?? null,
