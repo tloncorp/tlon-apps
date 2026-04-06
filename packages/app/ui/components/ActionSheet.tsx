@@ -154,7 +154,9 @@ const ActionSheetComponent = ({
     SheetProps &
     Pick<
       BottomSheetWrapperProps,
-      'enableContentPanningGesture' | 'hasScrollableContent'
+      | 'enableContentPanningGesture'
+      | 'hasScrollableContent'
+      | 'keyboardBehavior'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -362,6 +364,7 @@ const ActionSheetComponent = ({
       showOverlay={true}
       enablePanDownToClose={true}
       enableContentPanningGesture={props.enableContentPanningGesture}
+      keyboardBehavior={props.keyboardBehavior}
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}
       frameStyle={{}}

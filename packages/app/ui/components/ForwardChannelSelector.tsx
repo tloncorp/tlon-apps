@@ -35,7 +35,6 @@ export function ForwardChannelSelector({
     searchQuery: query,
     channelFilter,
   });
-
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
     // Reset any explicit row selection when the result set changes.
@@ -97,7 +96,7 @@ export function ForwardChannelSelector({
       </XStack>
 
       {isOpen ? (
-        <View flex={1}>
+        <View flex={1} minHeight={200}>
           {isSearching && channelChats.length === 0 ? (
             <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
               No results found
@@ -117,6 +116,7 @@ export function ForwardChannelSelector({
                   >)}
                 />
               )}
+              keyboardShouldPersistTaps="always"
             />
           )}
         </View>

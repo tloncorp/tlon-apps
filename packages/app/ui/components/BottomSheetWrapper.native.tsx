@@ -1,5 +1,7 @@
 import BottomSheet, {
   BottomSheetBackdrop,
+  BottomSheetFooter,
+  BottomSheetFooterProps,
   BottomSheetModal,
   BottomSheetView,
   BottomSheetScrollView as GorhomBottomSheetScrollView,
@@ -179,6 +181,21 @@ export const BottomSheetWrapper = forwardRef<
       [backgroundColor]
     );
 
+    const wrappedFooterComponent = useMemo(
+      () =>
+        footerComponent
+          ? (props: BottomSheetFooterProps) => {
+              const content = footerComponent(props);
+              return content ? (
+                <BottomSheetFooter {...props}>
+                  <View backgroundColor={backgroundColor}>{content}</View>
+                </BottomSheetFooter>
+              ) : null;
+            }
+          : undefined,
+      [backgroundColor, footerComponent]
+    );
+
     // Transform snapPoints based on snapPointsMode for compatibility with Tamagui Sheet API
     const transformedSnapPoints = useMemo(() => {
       if (!snapPoints) return snapPoints;
@@ -321,7 +338,7 @@ export const BottomSheetWrapper = forwardRef<
         backdropComponent: renderBackdrop,
         handleComponent: renderHandle,
         backgroundComponent: renderBackground,
-        footerComponent,
+        footerComponent: wrappedFooterComponent,
         style: frameStyle,
         snapPointsMode,
         snapPoints: transformedSnapPoints,
@@ -343,7 +360,7 @@ export const BottomSheetWrapper = forwardRef<
         renderBackdrop,
         renderHandle,
         renderBackground,
-        footerComponent,
+        wrappedFooterComponent,
         frameStyle,
         snapPointsMode,
         transformedSnapPoints,
