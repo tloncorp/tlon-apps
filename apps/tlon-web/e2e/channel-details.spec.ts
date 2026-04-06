@@ -251,7 +251,7 @@ test('channel edit meta back button returns to channel details with sidebar cont
   });
 });
 
-test('channel header edit button navigates to channel details with sidebar context', async ({
+test('channel header title navigates to channel details with sidebar context', async ({
   zodPage,
 }) => {
   const page = zodPage;
@@ -267,9 +267,8 @@ test('channel header edit button navigates to channel details with sidebar conte
     timeout: 5000,
   });
 
-  // Click the edit button (pen icon) in the channel header
-  // This button is visible for admins in multi-channel groups
-  await page.getByTestId('ChannelHeaderEditButton').click();
+  // Click the channel title to navigate to channel details
+  await page.getByTestId('ScreenHeaderTitle').click();
 
   // Verify we're on channel details
   await expect(page.getByText('Channel info')).toBeVisible({
