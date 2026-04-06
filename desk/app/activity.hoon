@@ -599,11 +599,11 @@
   ::
       ::  deprecated
       [%x %volume-settings ~]
-    $(+< [%v4 pole])
+    $(+< [%x %v4 +.pole])
   ::
       ::  deprecated
       [%x %notifications-allowed ~]
-    $(+< [%v4 pole])
+    $(+< `path`[%x %v4 +.pole])
 
   ==
 ::
