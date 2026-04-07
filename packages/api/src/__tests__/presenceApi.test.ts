@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'vitest';
 
-import type * as ub from '../urbit';
 import {
   conversationIdToPresenceContext,
   getPresenceContextIdFromKey,
@@ -8,6 +7,7 @@ import {
   toPresenceEvent,
   toPresenceStatuses,
 } from '../client/presenceApi';
+import type * as ub from '../urbit';
 
 const CURRENT_USER_ID = '~zod';
 

@@ -12,7 +12,9 @@ import {
 describe('computingStatus', () => {
   test('formats known and unknown tool labels', () => {
     expect(formatComputingToolCallLabel('web_fetch')).toBe('Checking the web');
-    expect(formatComputingToolCallLabel('custom_tool')).toBe('Using custom tool');
+    expect(formatComputingToolCallLabel('custom_tool')).toBe(
+      'Using custom tool'
+    );
     expect(formatComputingToolCallLabel()).toBe('Using a tool');
   });
 

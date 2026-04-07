@@ -50,7 +50,8 @@ export const createComputingStatus = ({
       return [
         {
           toolName,
-          label: toolCall.label?.trim() || formatComputingToolCallLabel(toolName),
+          label:
+            toolCall.label?.trim() || formatComputingToolCallLabel(toolName),
         },
       ];
     }),
