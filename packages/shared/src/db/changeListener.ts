@@ -1,5 +1,5 @@
+import { queryClient } from '../db/reactQuery';
 import { createDevLogger } from '../debug';
-import { queryClient } from '../store/reactQuery';
 
 const logger = createDevLogger('db:changeListener', false);
 

@@ -1407,6 +1407,7 @@ export function toPostReplyData(
   reply: ub.Reply | ub.WritReply | ub.PostTombstone
 ): db.Post {
   if (isPostTombstone(reply)) {
+    reply.author = normalizeAuthor(reply.author);
     return {
       id: getCanonicalPostId(reply.id),
       parentId: getCanonicalPostId(postId),
@@ -1415,6 +1416,7 @@ export function toPostReplyData(
       type: 'reply',
       sentAt: getReceivedAtFromId(reply.id),
       isDeleted: true,
+      isBot: isBotProfile(reply.author),
       deletedAt: reply['deleted-at'],
       receivedAt: getReceivedAtFromId(reply.id),
       sequenceNum: null,
@@ -1433,6 +1435,8 @@ export function toPostReplyData(
           ).memo,
           blob: null,
         };
+  replyEssay.author = normalizeAuthor(replyEssay.author);
+  const isBot = isBotProfile(replyEssay.author);
   const [content, flags] = toPostContent(replyEssay.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =
@@ -1445,6 +1449,7 @@ export function toPostReplyData(
     type: 'reply',
     authorId: getAuthorId(replyEssay.author),
     isEdited: !!reply.revision && reply.revision !== '0',
+    isBot,
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),

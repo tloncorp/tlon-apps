@@ -7,8 +7,8 @@ import {
 import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 
+import { queryClient } from '../db';
 import { createDevLogger } from '../debug';
-import { queryClient } from './reactQuery';
 
 const logger = createDevLogger('useNegotiation', false);
 
