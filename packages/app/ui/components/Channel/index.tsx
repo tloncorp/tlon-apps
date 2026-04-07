@@ -165,16 +165,10 @@ function usePrefillDraftFromShareIntent({
     if (!nextShareIntent) return;
 
     setActiveShareIntent(nextShareIntent);
-
-    if (channel.type !== 'gallery') {
-      openDraft();
-    }
   }, [
     channel.id,
-    channel.type,
     activeShareIntent,
     disabled,
-    openDraft,
     pendingShareIntent,
     popShareIntent,
   ]);
