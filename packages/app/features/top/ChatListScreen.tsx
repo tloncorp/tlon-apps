@@ -316,7 +316,7 @@ export function ChatListScreenView({
               rightControls={
                 <>
                   <ScreenHeader.IconButton
-                    type="Filter"
+                    type="Search"
                     onPress={handleSearchInputToggled}
                   />
                   {isWindowNarrow ? (
