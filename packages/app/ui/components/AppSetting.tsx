@@ -3,7 +3,7 @@ import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 
-import { ListItem } from './listItems';
+import { ListItem } from './ListItem';
 
 interface Props {
   title: string;

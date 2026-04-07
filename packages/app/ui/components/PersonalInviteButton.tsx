@@ -10,7 +10,7 @@ import { useCallback } from 'react';
 import { Share } from 'react-native';
 import { View, isWeb } from 'tamagui';
 
-import { ListItem } from './listItems';
+import { ListItem } from './ListItem';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 

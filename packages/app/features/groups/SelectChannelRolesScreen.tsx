@@ -8,12 +8,12 @@ import { ScrollView, View, YStack } from 'tamagui';
 
 import { GroupSettingsStackParamList } from '../../navigation/types';
 import { TextInput } from '../../ui/components/Form';
+import { ListItem } from '../../ui/components/ListItem';
 import {
   MEMBER_ROLE_OPTION,
   groupRolesToOptions,
 } from '../../ui/components/ManageChannels/channelFormUtils';
 import { ScreenHeader } from '../../ui/components/ScreenHeader';
-import { ListItem } from '../../ui/components/listItems';
 
 export function SelectChannelRolesScreen() {
   const navigation =

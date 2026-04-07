@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 
 import { ActionSheet, createActionGroups } from './ActionSheet';
 import { useContactName } from './ContactNameV2';
-import { ListItem } from './listItems';
+import { ListItem } from './ListItem';
 
 export function GroupJoinRequestSheet({
   contact,

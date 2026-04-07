@@ -11,7 +11,7 @@ import { ActionSheet } from './ActionSheet';
 import { Badge } from './Badge';
 import ConnectionStatus from './ConnectionStatus';
 import { ContactName as ContactNameV2 } from './ContactNameV2';
-import { ListItem } from './listItems';
+import { ListItem } from './ListItem';
 
 const logger = createDevLogger('GroupPreviewSheet', true);
 

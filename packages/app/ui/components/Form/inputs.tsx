@@ -41,7 +41,7 @@ import {
 } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
 import { BottomSheetTextInput } from '../BottomSheetWrapper';
-import { ListItem } from '../listItems';
+import { ListItem } from '../ListItem';
 import { useBoundHandler } from '../listItems/listItemUtils';
 import { FieldContext } from './Field';
 import {

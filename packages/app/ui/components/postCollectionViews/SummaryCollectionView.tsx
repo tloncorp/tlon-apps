@@ -8,7 +8,7 @@ import { View, getTokenValue } from 'tamagui';
 
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { useLivePost } from '../../contexts/requests';
-import { ListItem } from '../listItems';
+import { ListItem } from '../ListItem';
 import { IPostCollectionView } from './shared';
 
 export function BaseSummaryCollectionView({

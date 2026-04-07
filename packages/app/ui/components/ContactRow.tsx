@@ -7,7 +7,7 @@ import { Stack, View, XStack } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
 import { ContactName } from './ContactNameV2';
-import { ListItem } from './listItems';
+import { ListItem } from './ListItem';
 
 function ContactRowItemRaw({
   contact,

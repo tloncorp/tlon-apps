@@ -17,8 +17,8 @@ import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
-import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { ListItem, type ListItemProps } from '../ListItem';
+import { OverflowTriggerButton } from '../OverflowMenuButton';
 
 export function ChannelListItem({
   model,
