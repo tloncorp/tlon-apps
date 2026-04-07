@@ -23,7 +23,8 @@ import {
 import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useRootNavigation } from '../../navigation/utils';
-import { useChatOptions, useCurrentUserId } from '../contexts';
+import { useChatOptions } from '../contexts/chatOptions';
+import { useCurrentUserId } from '../contexts/appDataContext';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { GroupAvatar } from './Avatar';
 import { Badge } from './Badge';

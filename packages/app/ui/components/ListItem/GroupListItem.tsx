@@ -5,7 +5,8 @@ import { Pressable } from '@tloncorp/ui';
 import { View, isWeb } from 'tamagui';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useChatOptions, useContact } from '../../contexts';
+import { useContact } from '../../contexts/appDataContext';
+import { useChatOptions } from '../../contexts/chatOptions';
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
