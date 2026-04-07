@@ -2486,9 +2486,7 @@
     :*  %agent
         [our.bowl %contacts]
         %poke
-        ::  only meet authors who are persons
-        ::
-        contact-action-0+!>([%heed (murn authors get-person-ship:utils)])
+        contact-action-0+!>([%heed (turn authors get-author-ship:utils)])
     ==
   ++  ca-u-reply
     |=  [=id-post:c post=v-post:c =id-reply:c =u-reply:c]
@@ -2790,7 +2788,7 @@
           ?(%v0 %v1 %v2)  channel-scan+!>(`scan:v7:cv`(v7:scan:v10:ccv scan))
           %v3  channel-scan-2+!>(`scan:v8:cv`(v8:scan:v10:ccv scan))
           %v4  channel-scan-3+!>(`scan:v9:cv`(v9:scan:v10:ccv scan))
-          %v5  channel-scan-4+!>(`scan:v9:cv`(v9:scan:v10:ccv scan))
+          %v5  channel-scan-4+!>(`scan:v10:cv`scan)
         ==
       %^    mention:hits-bound:ca-search
           (slav %ud skip.pole)

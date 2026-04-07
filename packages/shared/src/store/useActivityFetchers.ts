@@ -6,7 +6,7 @@ import * as db from '../db';
 import { queryClient } from '../db/reactQuery';
 import { createDevLogger } from '../debug';
 import * as logic from '../logic';
-import * as sync from './sync';
+import { persistUnreads } from './activityActions';
 
 const logger = createDevLogger('useInfiniteBucketedActivity', false);
 
@@ -85,7 +85,7 @@ export function useInfiniteBucketedActivity(
       // if we got some stuff, insert it into the DB & update the cusor
       if (apiResponse.events.length > 0) {
         await db.insertActivityEvents(apiResponse.events);
-        await sync.persistUnreads({ unreads: apiResponse.relevantUnreads });
+        await persistUnreads({ unreads: apiResponse.relevantUnreads });
         const events = await db.getBucketedActivityPage({
           bucket,
           startCursor: cursor,

@@ -69,8 +69,7 @@ export function ConnectedPostView({
 
       ...overrides,
 
-      showAuthor: standardConfig?.showAuthor,
-      showReplies: standardConfig?.showReplies,
+      ...(standardConfig ?? {}),
     }),
     [ctx, livePost, overrides, standardConfig, editPost]
   );

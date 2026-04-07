@@ -58,7 +58,7 @@ module.exports = {
     },
   ],
   rules: {
-    'import-x/no-cycle': 'off',
+    'import-x/no-cycle': 'error',
     'import-x/no-restricted-paths': [
       'error',
       {

@@ -7,9 +7,9 @@ import type {
   GroupJoinStatus,
   GroupPrivacy,
 } from '../types/models';
-import * as ub from './channel';
+import type * as ub from './channel';
 import * as ubc from './content';
-import * as ubg from './groups';
+import type * as ubg from './groups';
 
 const logger = createDevLogger('urbitUtils', false);
 

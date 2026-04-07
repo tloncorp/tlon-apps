@@ -19,7 +19,7 @@ import {
   getFlagParts,
   withRetry,
 } from '../logic';
-import { syncGroupPreviews } from './sync';
+import { syncGroupPreviews } from './sync/syncGroupPreviews';
 
 const logger = createDevLogger('inviteActions', false);
 

@@ -387,3 +387,17 @@ export type ChatHead = {
 };
 
 export type ChatHeadsResponse = ChatHead[];
+
+export function multiDmAction(id: string, delta: ClubDelta) {
+  return {
+    app: 'chat',
+    mark: 'chat-club-action-2',
+    json: {
+      id,
+      diff: {
+        uid: '0v4',
+        delta,
+      },
+    },
+  };
+}

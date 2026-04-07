@@ -20,6 +20,7 @@ import {
   WritDeltaAddReact,
   WritDeltaDelReact,
   WritDiff,
+  channelAction,
   checkNest,
   getChannelType,
   whomIsDm,
@@ -40,8 +41,6 @@ import {
   udToDate,
   with404Handler,
 } from './apiUtils';
-import { channelAction } from './channelsApi';
-import { multiDmAction } from './chatApi';
 import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { poke, scry, subscribeOnce } from './urbit';
 
@@ -1008,7 +1007,7 @@ export async function deletePost(
         del: null,
       })
     : isGroupDmChannelId(channelId)
-      ? multiDmAction(channelId, {
+      ? ub.multiDmAction(channelId, {
           writ: {
             id: `${authorId}/${postId}`,
             delta: {
@@ -1051,7 +1050,7 @@ export async function deleteReply(params: {
       }
     );
   } else if (isGroupDmChannelId(params.channelId)) {
-    action = multiDmAction(params.channelId, {
+    action = ub.multiDmAction(params.channelId, {
       writ: {
         id: `${params.parentAuthorId}/${params.parentId}`,
         delta: {
@@ -1407,6 +1406,7 @@ export function toPostReplyData(
   reply: ub.Reply | ub.WritReply | ub.PostTombstone
 ): db.Post {
   if (isPostTombstone(reply)) {
+    reply.author = normalizeAuthor(reply.author);
     return {
       id: getCanonicalPostId(reply.id),
       parentId: getCanonicalPostId(postId),
@@ -1415,6 +1415,7 @@ export function toPostReplyData(
       type: 'reply',
       sentAt: getReceivedAtFromId(reply.id),
       isDeleted: true,
+      isBot: isBotProfile(reply.author),
       deletedAt: reply['deleted-at'],
       receivedAt: getReceivedAtFromId(reply.id),
       sequenceNum: null,
@@ -1433,6 +1434,8 @@ export function toPostReplyData(
           ).memo,
           blob: null,
         };
+  replyEssay.author = normalizeAuthor(replyEssay.author);
+  const isBot = isBotProfile(replyEssay.author);
   const [content, flags] = toPostContent(replyEssay.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =
@@ -1445,6 +1448,7 @@ export function toPostReplyData(
     type: 'reply',
     authorId: getAuthorId(replyEssay.author),
     isEdited: !!reply.revision && reply.revision !== '0',
+    isBot,
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),

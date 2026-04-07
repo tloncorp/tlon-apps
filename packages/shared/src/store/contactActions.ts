@@ -5,7 +5,8 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as GroupActions from './groupActions';
-import { syncContacts, syncGroup } from './sync';
+import { syncContacts } from './sync/syncContacts';
+import { syncGroup } from './sync/syncGroup';
 
 const logger = createDevLogger('ContactActions', false);
 

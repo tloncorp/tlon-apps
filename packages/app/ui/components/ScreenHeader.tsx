@@ -128,7 +128,6 @@ export const ScreenHeaderComponent = ({
       color="$secondaryText"
       size="$label/s"
       numberOfLines={1}
-      paddingTop={5}
       testID="ScreenHeaderSubtitle"
     >
       {resolvedSubtitle}
@@ -512,7 +511,9 @@ const HeaderTitleText = styled(Text, {
 
 const HeaderControls = styled(XStack, {
   position: 'absolute',
-  bottom: '$m',
+  bottom: 0,
+  height: '$4xl',
+  alignItems: 'center',
   gap: '$l',
   zIndex: 1,
   variants: {
