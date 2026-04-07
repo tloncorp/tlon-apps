@@ -4,7 +4,7 @@ import React, { ComponentProps } from 'react';
 
 import { AppDataContextProvider } from '../../contexts/appDataContext';
 import { getDisplayName } from '../../utils';
-import { ListItem } from '../ListItem';
+import { ListItem } from '../listItems';
 
 interface GroupShim {
   id: string;

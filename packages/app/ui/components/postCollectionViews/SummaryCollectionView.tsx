@@ -6,9 +6,9 @@ import { forwardRef, useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
-import { useLivePost } from '../../contexts/requests';
 import { usePostCollectionContext } from '../../contexts/postCollection';
-import { ListItem } from '../ListItem';
+import { useLivePost } from '../../contexts/requests';
+import { ListItem } from '../listItems';
 import { IPostCollectionView } from './shared';
 
 export function BaseSummaryCollectionView({

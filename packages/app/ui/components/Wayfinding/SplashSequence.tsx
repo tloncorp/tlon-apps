@@ -36,10 +36,10 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
+import { ListItem, SystemContactListItem } from '../listItems';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {

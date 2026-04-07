@@ -20,8 +20,8 @@ import { useGroups } from '../contexts/groups';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import * as Form from './Form';
 import { GroupSelector } from './GroupSelector';
-import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
+import { ListItem } from './listItems';
 
 const logger = createDevLogger('copy-channel-template', false);
 

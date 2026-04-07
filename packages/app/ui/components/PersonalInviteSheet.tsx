@@ -6,8 +6,8 @@ import { View, YStack, useTheme } from 'tamagui';
 
 import { useStore } from '../contexts/storeContext';
 import { ActionSheet } from './ActionSheet';
-import { ListItem } from './ListItem';
 import { PersonalInviteButton } from './PersonalInviteButton';
+import { ListItem } from './listItems';
 
 export function PersonalInviteSheet({
   open,

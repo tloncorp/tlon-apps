@@ -3,8 +3,8 @@ import * as domain from '@tloncorp/shared/domain';
 import { Pressable } from '@tloncorp/ui';
 
 import { Field } from '../Form';
-import { ListItem } from '../ListItem';
 import { WidgetPane } from '../WidgetPane';
+import { ListItem } from '../listItems';
 
 export function EditAttestationsDisplay(props: {
   attestations: db.Attestation[];

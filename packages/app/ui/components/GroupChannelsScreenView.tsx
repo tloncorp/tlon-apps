@@ -23,17 +23,17 @@ import {
 import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useRootNavigation } from '../../navigation/utils';
-import { useChatOptions } from '../contexts/chatOptions';
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { useChatOptions } from '../contexts/chatOptions';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { GroupAvatar } from './Avatar';
 import { Badge } from './Badge';
 import { ChatOptionsSheet } from './ChatOptionsSheet';
-import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
 import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
+import { ChannelListItem } from './listItems/ChannelListItem';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string; id: string };
 type ChannelListData = db.Channel | SectionHeaderData;

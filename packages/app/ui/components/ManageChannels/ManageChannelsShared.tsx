@@ -9,8 +9,8 @@ import { ScrollView, View, XStack, YStack } from 'tamagui';
 import { SortableSection } from '../../../hooks/useSortableChannelNav';
 import { capitalize } from '../../utils';
 import { SimpleActionSheet } from '../ActionSheet';
-import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
+import { ListItem } from '../listItems';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
 

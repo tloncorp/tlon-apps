@@ -9,9 +9,9 @@ import { PropsWithChildren, ReactElement } from 'react';
 import { Alert } from 'react-native';
 import { AlertDialog, ScrollView, View, XStack, YStack, isWeb } from 'tamagui';
 
-import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
 import { TlonLogo } from './TlonLogo';
+import { ListItem } from './listItems';
 
 interface Props {
   currentUserId: string;

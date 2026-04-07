@@ -14,9 +14,9 @@ import { useGroupTitle } from '../../utils';
 import { ContactAvatar, GroupAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
-import { ListItem } from '../ListItem';
-import { useBoundHandler } from '../ListItem/listItemUtils';
 import { PostContentRenderer } from '../PostContent/ContentRenderer';
+import { ListItem } from '../listItems';
+import { useBoundHandler } from '../listItems/listItemUtils';
 import {
   Reference,
   ReferenceContext,

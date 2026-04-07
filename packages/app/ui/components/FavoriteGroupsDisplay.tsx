@@ -6,8 +6,8 @@ import { SizableText, XStack } from 'tamagui';
 import { useGroups } from '../contexts/groups';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import { GroupSelectorSheet } from './GroupSelectorSheet';
-import { GroupListItem, ListItem } from './ListItem';
 import { WidgetPane } from './WidgetPane';
+import { GroupListItem, ListItem } from './listItems';
 
 export function FavoriteGroupsDisplay(props: {
   groups: db.Group[];

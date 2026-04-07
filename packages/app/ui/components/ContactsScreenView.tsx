@@ -8,7 +8,7 @@ import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
 import { Badge } from './Badge';
-import { ContactListItem, SystemContactListItem } from './ListItem';
+import { ContactListItem, SystemContactListItem } from './listItems';
 
 interface Props {
   contacts: db.Contact[];

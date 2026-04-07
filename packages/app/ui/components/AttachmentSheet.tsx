@@ -36,12 +36,12 @@ import {
 } from '../utils';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { AudioRecorder, AudioRecorderSheet } from './AudioRecorder';
-import { ListItem } from './ListItem';
 import {
   StorageQuotaIndicator,
   useStorageInfoQuery,
 } from './StorageQuotaIndicator';
 import { useDraftInputContext } from './draftInputs/shared';
+import { ListItem } from './listItems';
 
 const logger = createDevLogger('AttachmentSheet', true);
 

@@ -45,7 +45,7 @@ import {
   BottomSheetWrapper,
 } from './BottomSheetWrapper';
 import { BottomSheetWrapperProps } from './BottomSheetWrapper.types';
-import { ListItem } from './ListItem';
+import { ListItem } from './listItems';
 
 type Accent = 'positive' | 'negative' | 'neutral' | 'disabled';
 

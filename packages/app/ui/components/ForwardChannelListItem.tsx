@@ -4,8 +4,8 @@ import { ComponentProps } from 'react';
 import { View, getTokenValue } from 'tamagui';
 
 import { getChannelTypeIcon } from '../utils';
-import { ListItem } from './ListItem';
-import { ChannelListItem } from './ListItem/ChannelListItem';
+import { ListItem } from './listItems';
+import { ChannelListItem } from './listItems/ChannelListItem';
 
 type ForwardChannelListItemProps = {
   channel: db.Channel;
