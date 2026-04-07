@@ -13,9 +13,9 @@ import {
   useState,
 } from 'react';
 
-import { ChatOptionsSheet } from '../components/ChatOptionsSheet';
-import { InviteUsersSheet } from '../components/InviteUsersSheet';
-import { useChannelTitle } from '../utils';
+import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
+import { InviteUsersSheet } from '../../components/InviteUsersSheet';
+import { useChannelTitle } from '../../utils';
 
 export type ChatOptionsContextValue = {
   useGroup: typeof store.useGroup;
