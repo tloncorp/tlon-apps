@@ -7,7 +7,8 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
-import { useChannelContext, useCurrentUserId } from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useChannelContext } from '../../contexts/channel';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';

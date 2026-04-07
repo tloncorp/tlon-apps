@@ -11,7 +11,8 @@ import { Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
-import { useChannelContext, useCurrentUserId } from '../../../contexts';
+import { useCurrentUserId } from '../../../contexts/appDataContext';
+import { useChannelContext } from '../../../contexts/channel';
 import { useAttachmentContext } from '../../../contexts/attachment';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';

@@ -30,8 +30,8 @@ import {
 } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { useNavigation as useContextNavigation } from '../contexts';
-import { useContact, useCurrentUserId } from '../contexts';
+import { useNavigation as useContextNavigation } from '../contexts/navigation';
+import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar, GroupAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';

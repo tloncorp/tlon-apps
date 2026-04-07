@@ -3,7 +3,7 @@ import { ParentAgnosticKeyboardAvoidingView } from '@tloncorp/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isWeb } from 'tamagui';
 
-import { useStore } from '../../contexts';
+import { useStore } from '../../contexts/storeContext';
 import BareChatInput from '../BareChatInput';
 import { DraftInputContext } from './shared';
 

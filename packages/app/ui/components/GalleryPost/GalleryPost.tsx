@@ -29,11 +29,9 @@ import { View, XStack, styled } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
-import {
-  useChannelContext,
-  useCurrentUserId,
-  useRequests,
-} from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useChannelContext } from '../../contexts/channel';
+import { useRequests } from '../../contexts/requests';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';

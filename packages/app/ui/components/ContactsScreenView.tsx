@@ -4,7 +4,7 @@ import { useCallback, useMemo } from 'react';
 import { SectionList } from 'react-native';
 import { View, XStack, getTokenValue } from 'tamagui';
 
-import { useContact, useCurrentUserId } from '../contexts';
+import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useSortedContacts } from '../hooks/contactSorters';
 import { SystemIconAvatar } from './Avatar';
 import { Badge } from './Badge';

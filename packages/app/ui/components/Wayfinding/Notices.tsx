@@ -3,7 +3,7 @@ import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
-import { useStore } from '../../contexts';
+import { useStore } from '../../contexts/storeContext';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 const NoticeContainer = styled(YStack, {

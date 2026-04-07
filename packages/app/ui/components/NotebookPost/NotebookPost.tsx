@@ -24,7 +24,8 @@ import {
 } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
-import { useChannelContext, useCurrentUserId } from '../../contexts';
+import { useChannelContext } from '../../contexts/channel';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';

@@ -11,7 +11,7 @@ import React, { ComponentProps, useMemo, useState } from 'react';
 import { LayoutRectangle } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
-import { useNavigation } from '../contexts';
+import { useNavigation } from '../contexts/navigation';
 import { Reference } from './ContentReference';
 import { BlockquoteSideBorder } from './PostContent/BlockquoteSideBorder';
 

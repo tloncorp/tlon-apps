@@ -14,7 +14,7 @@ import {
   useStyle,
 } from 'tamagui';
 
-import { useCalm, useContact } from '../contexts';
+import { useCalm, useContact } from '../contexts/appDataContext';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';

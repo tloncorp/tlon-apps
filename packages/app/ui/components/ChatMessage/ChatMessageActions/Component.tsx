@@ -11,7 +11,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Popover, View, XStack, YStack } from 'tamagui';
 
-import { useCurrentUserId } from '../../../contexts';
+import { useCurrentUserId } from '../../../contexts/appDataContext';
 import { triggerHaptic } from '../../../utils';
 import { useCanWrite } from '../../../utils/channelUtils';
 import { EmojiToolbar } from './EmojiToolbar';

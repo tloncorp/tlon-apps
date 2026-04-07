@@ -38,7 +38,7 @@ import {
 import {
   useAttachmentContext,
   useMappedImageAttachments,
-} from '../../contexts';
+} from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
 import { BottomSheetTextInput } from '../BottomSheetWrapper';
 import { ListItem } from '../ListItem';

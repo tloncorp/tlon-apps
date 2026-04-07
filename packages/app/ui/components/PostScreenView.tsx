@@ -29,13 +29,11 @@ import { Text, View, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
-import {
-  ChannelProvider,
-  NavigationProvider,
-  useAttachmentContext,
-  useCurrentUserId,
-  useStore,
-} from '../contexts';
+import { useAttachmentContext } from '../contexts/attachment';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { ChannelProvider } from '../contexts/channel';
+import { NavigationProvider } from '../contexts/navigation';
+import { useStore } from '../contexts/storeContext';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';

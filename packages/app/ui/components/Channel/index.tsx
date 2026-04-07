@@ -39,12 +39,10 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
-import {
-  ChannelProvider,
-  GroupsProvider,
-  NavigationProvider,
-  useCurrentUserId,
-} from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { ChannelProvider } from '../../contexts/channel';
+import { GroupsProvider } from '../../contexts/groups';
+import { NavigationProvider } from '../../contexts/navigation';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';

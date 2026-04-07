@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { ComponentPropsWithoutRef, useCallback, useMemo } from 'react';
 
-import { useLivePost } from '../../contexts';
+import { useLivePost } from '../../contexts/requests';
 import { RenderItemType } from '../../contexts/componentsKits';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { PostView } from '../Channel/PostView';

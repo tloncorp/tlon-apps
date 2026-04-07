@@ -7,7 +7,7 @@ import { Text } from '@tloncorp/ui';
 import React, { PropsWithChildren, useCallback, useMemo } from 'react';
 import { XStack, YStack, styled } from 'tamagui';
 
-import { useCalm } from '../../contexts';
+import { useCalm } from '../../contexts/appDataContext';
 import { getGroupTitle, useChannelTitle, useGroupTitle } from '../../utils';
 import { ChannelAvatar, ContactAvatar, GroupAvatar } from '../Avatar';
 import { UnreadDot } from '../UnreadDot';
