@@ -159,12 +159,21 @@ export function ChatMessageActions({
       return (
         <>
           <Popover
+            {...(showDeleteConfirmation ? { open: true } : {})}
             onOpenChange={(open) => {
-              // When the delete confirmation dialog is open, block Popover dismissal.
-              // Real mouse clicks on the dialog land outside Popover content, triggering
-              // an outside-click close that would unmount ChatMessageActions (and the
-              // dialog's React tree) before the confirm callback can execute.
               if (!open && showDeleteConfirmation) {
+                // The Popover is trying to close while the dialog is
+                // active (Escape, Cancel click, overlay click all land
+                // here because they fire outside Popover.Content).
+                // Close the dialog but keep the Popover and action menu
+                // open — the controlled `open={true}` prop prevents
+                // the Popover from visually closing. Don't call
+                // onDismiss so the component stays mounted.
+                // Note: do NOT null confirmDeleteRef here — Tamagui
+                // fires outside-click on pointerdown (before click),
+                // so if the confirm button was clicked the ref must
+                // survive for the subsequent click event.
+                setShowDeleteConfirmation(false);
                 return;
               }
               if (!open) {

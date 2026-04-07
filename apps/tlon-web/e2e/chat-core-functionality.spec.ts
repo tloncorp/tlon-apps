@@ -149,11 +149,20 @@ test('should require confirmation before deleting a message (cancel prevents del
   await zodPage.getByText('Delete message').click();
 
   // Confirmation dialog should appear — click Cancel
-  await expect(zodPage.getByRole('dialog')).toBeVisible();
+  const cancelDialog = zodPage
+    .getByRole('dialog')
+    .filter({ hasText: 'Delete message?' });
+  await expect(cancelDialog).toBeVisible();
   await zodPage
     .getByRole('dialog')
     .getByText('Cancel', { exact: true })
     .click();
+
+  // Confirmation dialog should be dismissed
+  await expect(cancelDialog).not.toBeVisible();
+
+  // Action menu should still be visible (Cancel leaves menu open)
+  await expect(zodPage.getByTestId('ChatMessageActions')).toBeVisible();
 
   // Message should still be present
   await expect(
@@ -183,8 +192,14 @@ test('should require confirmation before deleting a message (escape prevents del
   await zodPage.getByText('Delete message').click();
 
   // Confirmation dialog should appear — press Escape
-  await expect(zodPage.getByRole('dialog')).toBeVisible();
+  const dialog = zodPage
+    .getByRole('dialog')
+    .filter({ hasText: 'Delete message?' });
+  await expect(dialog).toBeVisible();
   await zodPage.keyboard.press('Escape');
+
+  // Confirmation dialog should be dismissed
+  await expect(dialog).not.toBeVisible();
 
   // Message should still be present
   await expect(
@@ -214,8 +229,17 @@ test('should require confirmation before deleting a message (overlay click preve
   await zodPage.getByText('Delete message').click();
 
   // Confirmation dialog should appear — click the overlay (top-left corner)
-  await expect(zodPage.getByRole('dialog')).toBeVisible();
+  const overlayDialog = zodPage
+    .getByRole('dialog')
+    .filter({ hasText: 'Delete message?' });
+  await expect(overlayDialog).toBeVisible();
   await zodPage.mouse.click(10, 10);
+
+  // Confirmation dialog should be dismissed
+  await expect(overlayDialog).not.toBeVisible();
+
+  // Action menu should still be visible (overlay click leaves menu open)
+  await expect(zodPage.getByTestId('ChatMessageActions')).toBeVisible();
 
   // Message should still be present
   await expect(
@@ -265,15 +289,9 @@ test('should allow admin to delete another user message with confirmation', asyn
   // Click admin delete
   await zodPage.getByText('Admin: Delete message').click();
 
-  // Confirmation dialog should appear — confirm deletion using real mouse
-  // coordinates to exercise the Popover outside-click dismissal guard
+  // Confirmation dialog should appear — confirm deletion
   await expect(zodPage.getByRole('dialog')).toBeVisible();
-  const confirmBtn = zodPage
-    .getByRole('dialog')
-    .getByText('Delete message', { exact: true });
-  const box = await confirmBtn.boundingBox();
-  if (!box) throw new Error('Confirm button has no bounding box');
-  await zodPage.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await helpers.clickDialogButtonWithMouse(zodPage, 'Delete message');
 
   // Message should be deleted
   await expect(

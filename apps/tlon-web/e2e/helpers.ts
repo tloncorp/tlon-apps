@@ -1603,7 +1603,10 @@ export async function reportMessage(page: Page, messageText: string) {
  * path as a real browser click — ensuring the Popover dismissal guard in
  * Component.tsx is actually tested.
  */
-async function clickDialogButtonWithMouse(page: Page, buttonText: string) {
+export async function clickDialogButtonWithMouse(
+  page: Page,
+  buttonText: string
+) {
   const btn = page.getByRole('dialog').getByText(buttonText, { exact: true });
   await expect(btn).toBeVisible();
   const box = await btn.boundingBox();
