@@ -5,16 +5,16 @@ import { ComponentProps, ReactElement, useMemo } from 'react';
 import { ColorTokens, styled, withStaticProperties } from 'tamagui';
 import { Stack, View, XStack, YStack } from 'tamagui';
 
-import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
-import { numberWithMax } from '../../utils';
+import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
+import { numberWithMax } from '../utils';
 import {
   ChannelAvatar,
   ContactAvatar,
   GroupAvatar,
   ImageAvatar,
   SystemIconAvatar,
-} from '../Avatar';
-import ContactName from '../ContactName';
+} from './Avatar';
+import ContactName from './ContactName';
 
 export interface BaseListItemProps<T> {
   model: T;

@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 
 import { ChannelListItem } from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
-import { ListItemProps } from './ListItem';
+import { ListItemProps } from '../ListItem';
 
 export const ChatListItem = React.memo(function ChatListItemComponent({
   model,

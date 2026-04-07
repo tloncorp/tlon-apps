@@ -12,7 +12,7 @@ import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-import { ListItem, ListItemProps } from './ListItem';
+import { ListItem, ListItemProps } from '../ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 
 export const GroupListItem = ({

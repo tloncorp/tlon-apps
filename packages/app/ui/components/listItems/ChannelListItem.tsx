@@ -18,7 +18,7 @@ import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-import { ListItem, type ListItemProps } from './ListItem';
+import { ListItem, type ListItemProps } from '../ListItem';
 
 export function ChannelListItem({
   model,
