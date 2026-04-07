@@ -1,4 +1,5 @@
 import { createDevLogger } from '../lib/logger';
+import { preSig } from '../lib/urbit';
 import * as ub from '../urbit';
 import {
   formatScryPath,
@@ -313,7 +314,7 @@ function parsePresenceContext(context: string): ParsedPresenceContext | null {
   if (parts[0] === 'dm' && parts.length === 2) {
     return {
       type: 'dm',
-      ship: normalizeShip(parts[1]),
+      ship: preSig(parts[1]),
     };
   }
 
@@ -321,7 +322,7 @@ function parsePresenceContext(context: string): ParsedPresenceContext | null {
     return {
       type: 'channel',
       kind: parts[1] as ub.Kind,
-      host: normalizeShip(parts[2]),
+      host: preSig(parts[2]),
       name: parts[3],
     };
   }
@@ -329,14 +330,10 @@ function parsePresenceContext(context: string): ParsedPresenceContext | null {
   if (parts[0] === 'group' && parts.length === 3) {
     return {
       type: 'group',
-      host: normalizeShip(parts[1]),
+      host: preSig(parts[1]),
       name: parts[2],
     };
   }
 
   return null;
-}
-
-function normalizeShip(ship: string) {
-  return ship.startsWith('~') ? ship : `~${ship}`;
 }
