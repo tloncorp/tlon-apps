@@ -31,7 +31,7 @@ import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
-import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import type { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useRequests } from '../../contexts/requests';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';

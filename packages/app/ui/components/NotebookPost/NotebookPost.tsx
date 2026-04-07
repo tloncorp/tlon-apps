@@ -24,9 +24,9 @@ import {
 } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
-import { useChannelContext } from '../../contexts/channel';
 import { useCurrentUserId } from '../../contexts/appDataContext';
-import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useChannelContext } from '../../contexts/channel';
+import type { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';

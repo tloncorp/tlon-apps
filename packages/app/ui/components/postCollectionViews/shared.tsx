@@ -3,9 +3,9 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { ComponentPropsWithoutRef, useCallback, useMemo } from 'react';
 
-import { useLivePost } from '../../contexts/requests';
-import { RenderItemType } from '../../contexts/componentsKits';
+import type { RenderItemType } from '../../contexts/componentsKits';
 import { usePostCollectionContext } from '../../contexts/postCollection';
+import { useLivePost } from '../../contexts/requests';
 import { PostView } from '../Channel/PostView';
 
 export interface PostCollectionHandle {
