@@ -3,88 +3,15 @@ import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
-import {
-  ReactNode,
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { noop } from 'lodash';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ChatOptionsSheet } from '../../components/ChatOptionsSheet';
 import { InviteUsersSheet } from '../../components/InviteUsersSheet';
 import { useChannelTitle } from '../../utils';
+import { ChatOptionsContext, ChatOptionsContextValue } from './context';
 
-export type ChatOptionsContextValue = {
-  useGroup: typeof store.useGroup;
-  group?: db.Group | null;
-  channel?: db.Channel | null;
-  markGroupRead: () => void;
-  markChannelRead: (options?: { includeThreads?: boolean }) => void;
-  onPressGroupMeta: (fromBlankChannel?: boolean) => void;
-  onPressGroupMembers: () => void;
-  onPressManageChannels: () => void;
-  onPressInvite?: () => void;
-  onPressGroupPrivacy: () => void;
-  onPressRoles: () => void;
-  onPressChannelMembers: () => void;
-  onPressChannelMeta: () => void;
-  onPressChannelTemplate: () => void;
-  onPressChatDetails: (chat: {
-    type: 'group' | 'channel';
-    id: string;
-    groupId?: string;
-  }) => void;
-  togglePinned: () => void;
-  leaveGroup: () => Promise<void>;
-  leaveChannel: () => void;
-  updateVolume: (level: ub.NotificationLevel | null) => void;
-  setChannelSortPreference?: (sortBy: 'recency' | 'arranged') => void;
-  open: (chatId: string, chatType: 'group' | 'channel') => void;
-  setChat: (chat: { id: string; type: 'group' | 'channel' } | null) => void;
-} | null;
-
-const noop = () => {};
-const noopAsync = async () => {};
-const defaultValue: ChatOptionsContextValue = {
-  useGroup: store.useGroup,
-  group: null,
-  channel: null,
-  markGroupRead: noop,
-  markChannelRead: noop,
-  onPressGroupMeta: noop,
-  onPressGroupMembers: noop,
-  onPressManageChannels: noop,
-  onPressInvite: noop,
-  onPressGroupPrivacy: noop,
-  onPressRoles: noop,
-  onPressChannelMembers: noop,
-  onPressChannelMeta: noop,
-  onPressChannelTemplate: noop,
-  onPressChatDetails: noop,
-  togglePinned: noop,
-  leaveGroup: noopAsync,
-  leaveChannel: noop,
-  updateVolume: noop,
-  setChannelSortPreference: noop,
-  open: noop,
-  setChat: noop,
-};
-
-const ChatOptionsContext = createContext<ChatOptionsContextValue>(null);
-
-export const useChatOptions = (disabled = false) => {
-  const value = useContext(ChatOptionsContext);
-  if (disabled) {
-    return defaultValue;
-  }
-  if (!value) {
-    throw new Error('useChatOptions used outside of ChatOptions context');
-  }
-  return value;
-};
+export type { ChatOptionsContextValue };
 
 type ChatOptionsProviderProps = {
   children: ReactNode;

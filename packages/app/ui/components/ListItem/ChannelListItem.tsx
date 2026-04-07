@@ -11,7 +11,7 @@ import React, {
 } from 'react';
 import { View, isWeb } from 'tamagui';
 
-import { useChatOptions } from '../../contexts/chatOptions';
+import { useChatOptions } from '../../contexts/chatOptions/useChatOptions';
 import { useNavigation } from '../../contexts/navigation';
 import * as utils from '../../utils';
 import { Badge } from '../Badge';

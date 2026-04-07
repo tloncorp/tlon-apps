@@ -6,7 +6,7 @@ import { View, isWeb } from 'tamagui';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useContact } from '../../contexts/appDataContext';
-import { useChatOptions } from '../../contexts/chatOptions';
+import { useChatOptions } from '../../contexts/chatOptions/useChatOptions';
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
