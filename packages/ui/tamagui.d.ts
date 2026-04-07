@@ -1,6 +1,6 @@
-import { config } from './tamagui.config';
+import type { Conf } from './tamagui.config';
 
-export type Conf = typeof config;
+export type { Conf };
 
 // Sets up typing for tamagui so that theme variables autocomplete
 declare module 'tamagui' {

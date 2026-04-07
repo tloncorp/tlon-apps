@@ -2,36 +2,25 @@ import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 
-import * as db from '../db';
-import { createDevLogger } from '../debug';
-import type * as domain from '../domain';
-import { AnalyticsEvent, Attachment, PostDataDraft } from '../domain';
-import * as logic from '../logic';
-import * as Transcription from '../transcription';
-import { sessionActionQueue } from './SessionActionQueue';
+import * as db from '../../db';
+import type * as domain from '../../domain';
+import { AnalyticsEvent, Attachment, PostDataDraft } from '../../domain';
+import * as logic from '../../logic';
+import * as Transcription from '../../transcription';
+import { sessionActionQueue } from '../SessionActionQueue';
 import {
   clearUploadState,
   finalizeAttachments,
   finalizeAttachmentsLocal,
   uploadAsset,
-} from './storage';
-import * as sync from './sync';
+} from '../storage';
+import * as sync from '../sync';
 import {
   clearChannelPostsQueries,
   deleteFromChannelPosts,
   rollbackDeletedChannelPost,
-} from './useChannelPosts';
-
-export const logger = createDevLogger('postActions', false);
-
-export async function failEnqueuedPosts() {
-  const enqueuedPosts = await db.getEnqueuedPosts();
-  await Promise.all(
-    enqueuedPosts.map(async (post) => {
-      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
-    })
-  );
-}
+} from '../useChannelPosts';
+import { logger } from './logger';
 
 export async function finalizePostDraft(
   draft: domain.PostDataDraftPost
@@ -855,64 +844,6 @@ export async function addPostReaction(
     });
     // rollback optimistic update
     await db.deletePostReaction({ postId: post.id, contactId: currentUserId });
-  }
-}
-
-/**
- * Verifies whether a post was actually delivered to the server.
- * This is used for posts that are marked as 'needs_verification' due to
- * connection issues.
- *
- * Uses authorId and sentAt to find matching posts on the server.
- */
-export async function verifyPostDelivery(post: db.Post): Promise<boolean> {
-  logger.crumb('verifying post delivery', {
-    postId: post.id,
-    channelId: post.channelId,
-  });
-
-  if (post.deliveryStatus !== 'needs_verification') {
-    logger.crumb('post does not need verification', {
-      status: post.deliveryStatus,
-    });
-    return false;
-  }
-
-  try {
-    logger.trackEvent(`verifying post delivery for chan ${post.channelId}`);
-    const response = await api.getChannelPosts({
-      channelId: post.channelId,
-      mode: 'newest',
-      count: 30,
-    });
-
-    const matchingServerPost = response.posts.find((serverPost) => {
-      if (serverPost.authorId !== post.authorId) return false;
-
-      if (serverPost.sentAt !== post.sentAt) return false;
-
-      return true;
-    });
-
-    if (matchingServerPost) {
-      logger.crumb('post verified as delivered', {
-        postId: post.id,
-        matchedWithId: matchingServerPost.id,
-      });
-
-      await db.updatePost({ id: post.id, deliveryStatus: 'sent' });
-      return true;
-    } else {
-      logger.crumb('post verified as not delivered', { postId: post.id });
-      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
-      return false;
-    }
-  } catch (e) {
-    logger.crumb('post verification inconclusive', {
-      postId: post.id,
-      error: e.message,
-    });
-    return false;
   }
 }
 

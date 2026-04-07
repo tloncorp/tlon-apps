@@ -24,22 +24,6 @@ import {
 
 const logger = createDevLogger('channelsApi', false);
 
-export function channelAction(
-  channelId: string,
-  action: Action
-): Poke<ChannelsAction> {
-  return {
-    app: 'channels',
-    mark: 'channel-action-2',
-    json: {
-      channel: {
-        nest: channelId,
-        action,
-      },
-    },
-  };
-}
-
 export type AddPostUpdate = { type: 'addPost'; post: db.Post };
 export type PostReactionsUpdate = {
   type: 'updateReactions';
@@ -597,7 +581,7 @@ export async function addChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelAction(channelId, { 'add-writers': writers }));
+  return poke(ub.channelAction(channelId, { 'add-writers': writers }));
 }
 
 export async function removeChannelWriters({
@@ -607,5 +591,5 @@ export async function removeChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelAction(channelId, { 'del-writers': writers }));
+  return poke(ub.channelAction(channelId, { 'del-writers': writers }));
 }
