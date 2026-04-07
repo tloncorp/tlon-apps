@@ -26,6 +26,7 @@ export default function MessageActions({
   postActionIds,
   onEdit,
   onViewReactions,
+  onRequestDeleteConfirmation,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
@@ -33,6 +34,10 @@ export default function MessageActions({
   onViewReactions?: (post: db.Post) => void;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
+  onRequestDeleteConfirmation?: (
+    postTerm: string,
+    onConfirm: () => void
+  ) => void;
 }) {
   // arbitrary width that looks reasonable given labels
   const width = isWeb ? 'auto' : 220;
@@ -42,7 +47,15 @@ export default function MessageActions({
         <ConnectedAction
           key={actionId}
           last={index === list.length - 1 && !__DEV__}
-          {...{ dismiss, onReply, onEdit, onViewReactions, post, actionId }}
+          {...{
+            dismiss,
+            onReply,
+            onEdit,
+            onViewReactions,
+            post,
+            actionId,
+            onRequestDeleteConfirmation,
+          }}
         />
       ))}
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
@@ -58,6 +71,7 @@ const ConnectedAction = memo(function ConnectedAction({
   onReply,
   onViewReactions,
   post,
+  onRequestDeleteConfirmation,
 }: {
   actionId: ChannelAction.Id;
   post: db.Post;
@@ -66,6 +80,10 @@ const ConnectedAction = memo(function ConnectedAction({
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
+  onRequestDeleteConfirmation?: (
+    postTerm: string,
+    onConfirm: () => void
+  ) => void;
 }) {
   const currentUserId = useCurrentUserId();
   const connectionStatus = store.useConnectionStatus();
@@ -76,7 +94,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const showToast = useToast();
   const pinnedPostId = logic.getPinnedPostId(channel);
 
-  const { label } = useDisplaySpecForChannelActionId(actionId, {
+  const { label, postTerm } = useDisplaySpecForChannelActionId(actionId, {
     post,
     channel,
     currentUserId,
@@ -150,8 +168,8 @@ const ConnectedAction = memo(function ConnectedAction({
   return (
     <ActionList.Action
       height="auto"
-      onPress={() =>
-        handleAction({
+      onPress={() => {
+        const actionArgs = {
           id: actionId,
           post,
           userId: currentUserId,
@@ -164,8 +182,13 @@ const ConnectedAction = memo(function ConnectedAction({
           onViewReactions,
           addAttachment,
           showToast,
-        })
-      }
+        };
+        if (actionId === 'delete' && onRequestDeleteConfirmation) {
+          onRequestDeleteConfirmation(postTerm, () => handleAction(actionArgs));
+          return;
+        }
+        handleAction(actionArgs);
+      }}
       key={actionId}
       actionType={action.actionType}
       last={last}
@@ -306,6 +329,7 @@ export function useDisplaySpecForChannelActionId(
   }
 ): {
   label: string;
+  postTerm: string;
 } {
   const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
   const postTerm = useMemo(() => {
@@ -314,7 +338,7 @@ export function useDisplaySpecForChannelActionId(
       : 'post';
   }, [channel?.type]);
 
-  return useMemo(() => {
+  const spec = useMemo(() => {
     switch (id) {
       case 'debugJson':
         return { label: 'Toggle debug' };
@@ -399,4 +423,6 @@ export function useDisplaySpecForChannelActionId(
     isMuted,
     channel?.type,
   ]);
+
+  return { ...spec, postTerm };
 }

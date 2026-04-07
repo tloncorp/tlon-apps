@@ -1596,6 +1596,24 @@ export async function reportMessage(page: Page, messageText: string) {
 }
 
 /**
+ * Clicks a button inside a dialog using real mouse coordinates.
+ * Playwright's locator.click() dispatches synthetic events that bypass
+ * Tamagui's document-level outside-click detection on the Popover. Using
+ * page.mouse.click() at the button's coordinates exercises the same event
+ * path as a real browser click — ensuring the Popover dismissal guard in
+ * Component.tsx is actually tested.
+ */
+async function clickDialogButtonWithMouse(page: Page, buttonText: string) {
+  const btn = page.getByRole('dialog').getByText(buttonText, { exact: true });
+  await expect(btn).toBeVisible();
+  const box = await btn.boundingBox();
+  if (!box) {
+    throw new Error(`Dialog button "${buttonText}" has no bounding box`);
+  }
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+/**
  * Deletes a message
  */
 export async function deleteMessage(
@@ -1608,6 +1626,7 @@ export async function deleteMessage(
 
   await longPressMessage(page, messageText);
   await page.getByText('Delete message').click();
+  await clickDialogButtonWithMouse(page, 'Delete message');
   if (!isDM) {
     await expect(
       page.getByText(messageText, { exact: true })
@@ -1626,6 +1645,7 @@ export async function deletePost(page: Page, postText: string) {
 
   await longPressMessage(page, postText);
   await page.getByText('Delete post').click();
+  await clickDialogButtonWithMouse(page, 'Delete post');
   await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
 }
 
@@ -1921,6 +1941,11 @@ export async function interactWithHiddenPost(
   // Click the requested action
   await expect(page.getByText(action)).toBeVisible({ timeout: 5000 });
   await page.getByText(action).click();
+
+  // If deleting, confirm in the confirmation dialog
+  if (action === 'Delete post') {
+    await clickDialogButtonWithMouse(page, 'Delete post');
+  }
 
   // Wait for action to complete
   await page.waitForTimeout(500);

@@ -1,6 +1,6 @@
 import * as store from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
-import React, { useEffect, useState } from 'react';
+import { ConfirmDialog } from '@tloncorp/ui';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -46,6 +46,25 @@ export function ChatMessageActions({
   const canWrite = useCanWrite(channel.data, currentUserId);
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
+
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const confirmDeleteRef = useRef<(() => void) | null>(null);
+  const deletePostTermRef = useRef('message');
+
+  const handleRequestDeleteConfirmation = useCallback(
+    (postTerm: string, onConfirm: () => void) => {
+      deletePostTermRef.current = postTerm;
+      confirmDeleteRef.current = onConfirm;
+      setShowDeleteConfirmation(true);
+    },
+    []
+  );
+
+  const handleConfirmDelete = useCallback(() => {
+    confirmDeleteRef.current?.();
+    confirmDeleteRef.current = null;
+    setShowDeleteConfirmation(false);
+  }, []);
 
   const [actionLayout, setActionLayout] = useState<LayoutStruct | null>(null);
   const [originalLayout, setOriginalLayout] = useState<LayoutStruct | null>(
@@ -138,80 +157,112 @@ export function ChatMessageActions({
   switch (mode) {
     case 'await-trigger': {
       return (
-        <Popover
-          onOpenChange={(open) => {
-            // Only dismiss when explicitly closed (e.g. clicking outside or trigger button)
-            if (!open) {
-              onDismiss();
-            }
-            onOpenChange?.(open);
-          }}
-          placement="top-end"
-          allowFlip
-          offset={-12}
-        >
-          <Popover.Trigger asChild>{trigger}</Popover.Trigger>
-          <Popover.Content
-            elevate
-            zIndex={1000000}
-            position="relative"
-            borderColor="$border"
-            borderWidth={1}
-            padding={1}
-            testID="ChatMessageActions"
+        <>
+          <Popover
+            onOpenChange={(open) => {
+              // When the delete confirmation dialog is open, block Popover dismissal.
+              // Real mouse clicks on the dialog land outside Popover content, triggering
+              // an outside-click close that would unmount ChatMessageActions (and the
+              // dialog's React tree) before the confirm callback can execute.
+              if (!open && showDeleteConfirmation) {
+                return;
+              }
+              if (!open) {
+                onDismiss();
+              }
+              onOpenChange?.(open);
+            }}
+            placement="top-end"
+            allowFlip
+            offset={-12}
           >
-            <YStack gap="$xs">
-              {canWrite && (
-                <XStack justifyContent="center">
+            <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+            <Popover.Content
+              elevate
+              zIndex={1000000}
+              pointerEvents={showDeleteConfirmation ? 'none' : 'auto'}
+              position="relative"
+              borderColor="$border"
+              borderWidth={1}
+              padding={1}
+              testID="ChatMessageActions"
+            >
+              <YStack gap="$xs">
+                {canWrite && (
+                  <XStack justifyContent="center">
+                    <EmojiToolbar
+                      post={post}
+                      onDismiss={onDismiss}
+                      openExternalSheet={onShowEmojiPicker}
+                    />
+                  </XStack>
+                )}
+                <MessageActions
+                  post={post}
+                  postActionIds={postActionIds}
+                  dismiss={onDismiss}
+                  onReply={onReply}
+                  onEdit={onEdit}
+                  onViewReactions={onViewReactions}
+                  onRequestDeleteConfirmation={handleRequestDeleteConfirmation}
+                />
+              </YStack>
+            </Popover.Content>
+          </Popover>
+          <ConfirmDialog
+            open={showDeleteConfirmation}
+            onOpenChange={setShowDeleteConfirmation}
+            title={`Delete ${deletePostTermRef.current}?`}
+            description="This action cannot be undone."
+            confirmText={`Delete ${deletePostTermRef.current}`}
+            destructive
+            onConfirm={handleConfirmDelete}
+          />
+        </>
+      );
+    }
+    case 'immediate': {
+      return (
+        <>
+          <Animated.View style={animatedStyles}>
+            <View
+              width={width}
+              height={height}
+              onLayout={handleLayout}
+              pointerEvents={showDeleteConfirmation ? 'none' : 'auto'}
+              paddingHorizontal="$xl"
+            >
+              <YStack gap="$xs">
+                {canWrite && (
                   <EmojiToolbar
                     post={post}
                     onDismiss={onDismiss}
                     openExternalSheet={onShowEmojiPicker}
                   />
-                </XStack>
-              )}
-              <MessageActions
-                post={post}
-                postActionIds={postActionIds}
-                dismiss={onDismiss}
-                onReply={onReply}
-                onEdit={onEdit}
-                onViewReactions={onViewReactions}
-              />
-            </YStack>
-          </Popover.Content>
-        </Popover>
-      );
-    }
-    case 'immediate': {
-      return (
-        <Animated.View style={animatedStyles}>
-          <View
-            width={width}
-            height={height}
-            onLayout={handleLayout}
-            paddingHorizontal="$xl"
-          >
-            <YStack gap="$xs">
-              {canWrite && (
-                <EmojiToolbar
+                )}
+                <MessageContainer post={post} />
+                <MessageActions
                   post={post}
-                  onDismiss={onDismiss}
-                  openExternalSheet={onShowEmojiPicker}
+                  postActionIds={postActionIds}
+                  dismiss={onDismiss}
+                  onReply={onReply}
+                  onEdit={onEdit}
+                  onViewReactions={onViewReactions}
+                  onRequestDeleteConfirmation={handleRequestDeleteConfirmation}
                 />
-              )}
-              <MessageContainer post={post} />
-              <MessageActions
-                post={post}
-                postActionIds={postActionIds}
-                dismiss={onDismiss}
-                onReply={onReply}
-                onEdit={onEdit}
-                onViewReactions={onViewReactions}
-              />
-            </YStack>
-          </View>
-        </Animated.View>
+              </YStack>
+            </View>
+          </Animated.View>
+          <ConfirmDialog
+            open={showDeleteConfirmation}
+            onOpenChange={setShowDeleteConfirmation}
+            title={`Delete ${deletePostTermRef.current}?`}
+            description="This action cannot be undone."
+            confirmText={`Delete ${deletePostTermRef.current}`}
+            destructive
+            onConfirm={handleConfirmDelete}
+          />
+        </>
       );
     }
   }
