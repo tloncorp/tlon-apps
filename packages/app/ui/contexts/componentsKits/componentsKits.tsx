@@ -9,14 +9,14 @@ import * as db from '@tloncorp/shared/db';
 import { ReactElement, createContext, useContext } from 'react';
 import { Text } from 'react-native';
 
-import { AudioPost } from '../components/AudioPost';
-import { ChatMessage } from '../components/ChatMessage';
-import { ColorPost } from '../components/ColorPost';
-import { useContactName } from '../components/ContactNameV2';
-import { EditableNotePostContent } from '../components/EditableNotePostContent';
-import { GalleryPost } from '../components/GalleryPost';
-import { NotebookPost } from '../components/NotebookPost';
-import { YellPost } from '../components/YellPost';
+import { AudioPost } from '../../components/AudioPost';
+import { ChatMessage } from '../../components/ChatMessage';
+import { ColorPost } from '../../components/ColorPost';
+import { useContactName } from '../../components/ContactNameV2';
+import { EditableNotePostContent } from '../../components/EditableNotePostContent';
+import { GalleryPost } from '../../components/GalleryPost';
+import { NotebookPost } from '../../components/NotebookPost';
+import { YellPost } from '../../components/YellPost';
 import {
   ChatInput,
   ColorInput,
@@ -24,18 +24,18 @@ import {
   GalleryInput,
   MicInput,
   NotebookInput,
-} from '../components/draftInputs';
-import { ButtonInput } from '../components/draftInputs/ButtonInput';
-import { BoardroomPostCollectionView } from '../components/postCollectionViews/BoardroomPostCollectionView';
+} from '../../components/draftInputs';
+import { ButtonInput } from '../../components/draftInputs/ButtonInput';
+import { BoardroomPostCollectionView } from '../../components/postCollectionViews/BoardroomPostCollectionView';
 import {
   CardsPostCollection,
   SingleCardPostCollection,
-} from '../components/postCollectionViews/CardsPostCollectionView';
-import { CarouselPostCollection } from '../components/postCollectionViews/CarouselPostCollectionView';
-import { ListPostCollection } from '../components/postCollectionViews/ListPostCollectionView';
-import { StrobePostCollectionView } from '../components/postCollectionViews/StrobePostCollectionView';
-import { PostSummaryCollectionView } from '../components/postCollectionViews/SummaryCollectionView';
-import { IPostCollectionView } from '../components/postCollectionViews/shared';
+} from '../../components/postCollectionViews/CardsPostCollectionView';
+import { CarouselPostCollection } from '../../components/postCollectionViews/CarouselPostCollectionView';
+import { ListPostCollection } from '../../components/postCollectionViews/ListPostCollectionView';
+import { StrobePostCollectionView } from '../../components/postCollectionViews/StrobePostCollectionView';
+import { PostSummaryCollectionView } from '../../components/postCollectionViews/SummaryCollectionView';
+import { IPostCollectionView } from '../../components/postCollectionViews/shared';
 
 type RenderItemProps = {
   post: db.Post;
