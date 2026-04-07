@@ -105,23 +105,13 @@ Key rules:
 -   **`verb` takes 3 arguments**: `%^  verb  |  %warn` (loud flag, log volume, agent). Not `%+  verb  |`.
 -   **Register new agents** in `desk/desk.bill`.
 
-#### State Mutation Rules
+#### State Narrowing in Helper Cores
 
-Inside the helper core, state fields (from `=*  state  -`) and the card accumulator (`cards` in the door sample) interact via the `cor` pattern. Follow these rules:
+When using the `=<` + helper core pattern with `^+  cor`, be aware that type-narrowing a state field (e.g., `?>  ?=(^ owner)` or `?~  lease-until  cor`) changes the core type. This can break `^+  cor` if the narrowed branch continues to modify state or emit cards.
 
--   **Never type-narrow state fields.** `?>  ?=(^ owner)` or `?~  lease-until  cor` narrows the field's type, which changes the core type and breaks `^+  cor`. Instead:
-    -   Use `=(status %up)` (equality) instead of `?=(%up status)` (type narrowing)
-    -   Use `(need owner)` or `=/  own  owner  ?~  own  cor` (local var) instead of `?>  ?=(^ owner)`
-    -   Use `=/  lut  lease-until  ?~  lut  cor` to unwrap units into locals
--   **When assigning narrowed locals to state fields**, re-wrap to preserve the full type: `=.  last-id  \`u.mkey`(not`=. last-id mkey`where`mkey`was narrowed by`?~`)
-
-#### Activity Event Access
-
-When processing `%activity-update-4` facts:
-
--   `time-event` in `[%add =source time-event]` is inlined without a face (`+$  time-event  [=time =event]`). Access via `event.upd`, not `event.time-event.upd`.
--   `$%` variant payloads (like `dm-post-event` inside `incoming-event`) are also inlined without faces. Access the `key` face directly: `key.event`, not `key.dm-post-event.incoming-event.event`.
--   Use positional addressing for the tag: `-<.event` to get the `incoming-event` tag.
+-   Prefer locals when narrowing would fight `^+  cor`: `=/  own  owner  ?~  own  cor`
+-   Simple narrowing that leads directly to a return (no further state mutation) is fine: `?~  lease-until  cor  ?.  (lte u.lease-until now.bowl)  cor`
+-   When assigning a narrowed local back to a state field, re-wrap to preserve the declared type: `=.  last-id  \`u.mkey`
 
 #### Mark Conventions
 
