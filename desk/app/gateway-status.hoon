@@ -1,6 +1,6 @@
 ::  gateway-status: offline-reply and liveness agent for openclaw gateway
 ::
-/-  gs=gateway-status, a=activity, c=chat, s=story
+/-  gs=gateway-status, a=activity, cv=chat-ver, s=story
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
@@ -32,7 +32,7 @@
   ++  on-agent
     |=  [=wire =sign:agent:gall]
     ^-  (quip card _this)
-    =^  cards  state  abet:(agnt:cor wire sign)
+    =^  cards  state  abet:(agent:cor wire sign)
     [cards this]
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
@@ -42,7 +42,7 @@
   ++  on-watch
     |=  =path
     ^-  (quip card _this)
-    ?>  =(src.bowl our.bowl)
+    ?>  =(src our):bowl
     ?+  path  (on-watch:def path)
         [%v1 ~]
       :_  this
@@ -73,20 +73,24 @@
   ^+  cor
   (emit %pass /activity %agent [our.bowl %activity] %watch /v4)
 ::
+++  poke
+  |=  [=mark =vase]
+  ^+  cor
+  ?>  =(src our):bowl
+  ?>  ?=(%gateway-status-action-1 mark)
+  =/  act  !<(action-1:gs vase)
+  ?-  -.act
+    %configure          (handle-configure +.act)
+    %gateway-start      (handle-gateway-start +.act)
+    %gateway-heartbeat  (handle-gateway-heartbeat +.act)
+    %gateway-stop       (handle-gateway-stop +.act)
+  ==
+::
 ++  cancel-lease-timer
   ^+  cor
   =/  lut  lease-until
   ?~  lut  cor
   (emit %pass /lease-check %arvo %b %rest u.lut)
-::
-++  send-dm
-  |=  text=@t
-  ^+  cor
-  =/  content=story:s  ~[[%inline ~[text]]]
-  =/  =essay:c  [[content our.bowl now.bowl] chat+/ ~ ~]
-  =/  =diff:dm:c  [[our.bowl now.bowl] %add essay `now.bowl]
-  =/  =action:dm:c  [(need owner) diff]
-  (emit %pass /dm/send %agent [our.bowl %chat] %poke %chat-dm-action-2 !>(action))
 ::
 ++  status-update
   |=  [sts=?(%unknown %up %down) lut=(unit @da)]
@@ -100,28 +104,14 @@
       (lth (sub now last-owner-message-at) active-window)
   ==
 ::
-++  should-auto-reply
-  |=  current-key=message-key:a
-  ^-  ?
-  ?:  (is-gateway-live:gs status lease-until now.bowl)  %.n
-  =/  lrt  last-offline-auto-reply-to
-  ?:  ?&(?=(^ lrt) =(u.lrt current-key))  %.n
-  =/  lra  last-offline-auto-reply-at
-  ?:  ?&(?=(^ lra) (lth (sub now.bowl u.lra) offline-reply-cooldown))  %.n
-  %.y
-::
-++  poke
-  |=  [=mark =vase]
+++  send-dm
+  |=  text=@t
   ^+  cor
-  ?>  =(src.bowl our.bowl)
-  ?>  ?=(%gateway-status-action-1 mark)
-  =/  act  !<(action-1:gs vase)
-  ?-  -.act
-    %configure          (handle-configure +.act)
-    %gateway-start      (handle-gateway-start +.act)
-    %gateway-heartbeat  (handle-gateway-heartbeat +.act)
-    %gateway-stop       (handle-gateway-stop +.act)
-  ==
+  =/  content=story:s  ~[[%inline ~[text]]]
+  =/  =essay:v7:cv  [[content our.bowl now.bowl] chat+/ ~ ~]
+  =/  =diff:dm:v7:cv  [[our.bowl now.bowl] %add essay `now.bowl]
+  =/  =action:dm:v7:cv  [(need owner) diff]
+  (emit %pass /dm/send %agent [our.bowl %chat] %poke %chat-dm-action-2 !>(action))
 ::
 ++  handle-configure
   |=  [who=ship aw=@dr orc=@dr]
@@ -175,7 +165,7 @@
     (send-dm 'Your Tlon bot is restarting. I should be back shortly. 🔧')
   (status-update status lease-until)
 ::
-++  agnt
+++  agent
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+  wire  cor
@@ -201,6 +191,16 @@
       ((slog 'gateway-status: dm send failed' u.p.sign) cor)
     ==
   ==
+::
+++  should-auto-reply
+  |=  current-key=message-key:a
+  ^-  ?
+  ?:  (is-gateway-live:gs status lease-until now.bowl)  %.n
+  =/  lrt  last-offline-auto-reply-to
+  ?:  ?&(?=(^ lrt) =(u.lrt current-key))  %.n
+  =/  lra  last-offline-auto-reply-at
+  ?:  ?&(?=(^ lra) (lth (sub now.bowl u.lra) offline-reply-cooldown))  %.n
+  %.y
 ::
 ++  handle-activity-add
   |=  [who=ship =source:a =event:a]
@@ -231,9 +231,8 @@
       [%lease-check ~]
     ?>  ?=([%behn %wake *] sign)
     ?.  =(status %up)  cor
-    =/  lut  lease-until
-    ?~  lut  cor
-    ?.  (lte u.lut now.bowl)  cor
+    ?~  lease-until  cor
+    ?.  (lte u.lease-until now.bowl)  cor
     %-  (slog leaf+"gateway-status: lease expired, transitioning to down" ~)
     =.  status  %down
     =.  pending-restart-notice  %.y
