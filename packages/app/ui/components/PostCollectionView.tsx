@@ -2,7 +2,7 @@ import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { Ref, useMemo } from 'react';
 
-import type { useComponentsKitContext } from '../contexts/componentsKits';
+import { useComponentsKitContext } from '../contexts/componentsKits';
 import { ListPostCollection } from './postCollectionViews/ListPostCollectionView';
 import {
   IPostCollectionView,

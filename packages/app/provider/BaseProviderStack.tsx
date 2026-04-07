@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
 import { LoadingSpinner, PortalProvider, StoreProvider, View } from '../ui';
+import { ComponentsKitProvider } from '../ui/contexts/componentsKits/ComponentsKitProvider';
 import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
 import { Provider as TamaguiProvider } from './';
 import { TelemetryProvider } from './TelemetryProvider';
@@ -73,7 +74,9 @@ function UIProviderStack({
               Android mobile does not proxy portal contexts, so any providers
               used by portaled components must be *above* the PortalProvider
             */}
-            <PortalProvider>{children}</PortalProvider>
+            <PortalProvider>
+              <ComponentsKitProvider>{children}</ComponentsKitProvider>
+            </PortalProvider>
           </BottomSheetModalProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
