@@ -284,12 +284,13 @@ export function GalleryInput({
       () =>
         route !== 'gallery' && route !== 'add-post' ? null : (
           <>
-            <ScreenHeader.IconButton
+            <ScreenHeader.TextButton
               key="gallery"
-              type="Add"
               onPress={handleAdd}
               testID="AddGalleryPost"
-            />
+            >
+              New
+            </ScreenHeader.TextButton>
             <Notices.CollectionInputTooltip channelId={channel.id} />
           </>
         ),
