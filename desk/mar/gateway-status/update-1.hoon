@@ -1,12 +1,14 @@
+::  gateway-status-update-1: mark for gateway-status outbound updates
+::
 /-  gs=gateway-status
-|_  =update-1:gs
+|_  =update:v1:gs
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  update-1
+  ++  noun  update
   --
 ++  grab
   |%
-  ++  noun  update-1:gs
+  ++  noun  update:v1:gs
   --
 --

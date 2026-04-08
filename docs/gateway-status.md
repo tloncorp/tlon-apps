@@ -27,20 +27,22 @@ The agent state is `state-0`:
 
 ```
 owner              (unit ship)            owner ship; ~ = unconfigured/inert
-status             ?(%unknown %up %down)  gateway liveness (default %unknown)
+last-owner-msg     @da                    timestamp of most recent owner DM
+last-owner-msg-id  (unit message-key)     key of most recent owner DM
+status             status:gs              gateway liveness (default %unknown)
 boot-id            (unit @t)              current gateway process id (~ after graceful stop)
 lease-until        (unit @da)             when the heartbeat lease expires
-pending-restart-notice  ?                 whether to send back-online DM on next start
-last-owner-message-at   @da               timestamp of most recent owner DM
-last-owner-message-id   (unit message-key)  key of most recent owner DM
-last-heartbeat-at       (unit @da)        timestamp of most recent accepted heartbeat
-last-stop-at            (unit @da)        timestamp of most recent graceful stop
-last-start-at           (unit @da)        timestamp of most recent gateway start
-last-offline-auto-reply-at   (unit @da)   when the last auto-reply was sent
-last-offline-auto-reply-to   (unit message-key)  key of DM that last triggered an auto-reply (deduplication)
+last-heartbeat     (unit @da)             timestamp of most recent accepted heartbeat
+last-stop          (unit @da)             timestamp of most recent graceful stop
+last-start         (unit @da)             timestamp of most recent gateway start
+pending-restart    ?                      whether to send back-online DM on next start
+last-auto-reply    (unit @da)             when the last offline auto-reply was sent
+last-auto-reply-to (unit message-key)     key of DM that last triggered an auto-reply (deduplication)
+reply-cooldown     @dr                    minimum interval between offline auto-replies
 active-window      @dr                    how recently owner must have messaged for notices
-offline-reply-cooldown  @dr               minimum interval between offline auto-replies
 ```
+
+State is defined in the app file (`desk/app/gateway-status.hoon`), not in `sur/`. The `status` type and shared protocol types (`action`, `update`) live in `desk/sur/gateway-status.hoon`.
 
 While `owner` is `~`, the agent is inert: it subscribes to `%activity` but ignores all DM events. `%configure` is always accepted (it is how the agent leaves the inert state), but `%gateway-start`, `%gateway-heartbeat`, and `%gateway-stop` crash if owner is not set.
 
@@ -60,7 +62,7 @@ The agent considers the gateway live when all three conditions hold:
 -   `lease-until` is set
 -   `lease-until` is in the future
 
-This is computed by `++is-gateway-live` in the structure file.
+This is computed by `++is-gateway-live` in the app helper core.
 
 ## poke protocol
 
@@ -96,8 +98,8 @@ Effects:
 -   Cancels any existing lease timer
 -   Sets `status` to `%up`, stores `boot-id` and `lease-until`
 -   Schedules a behn timer at `lease-until`
--   If `pending-restart-notice` is set and owner was recently active, sends the back-online DM
--   Clears `pending-restart-notice`
+-   If `pending-restart` is set and owner was recently active, sends the back-online DM
+-   Clears `pending-restart`
 
 JSON:
 
@@ -118,8 +120,8 @@ Effects:
 
 -   Cancels existing timer, schedules new timer at new `lease-until`
 -   Restores `status` to `%up` (relevant after lease-expiry recovery)
--   Clears `pending-restart-notice`
--   Updates `last-heartbeat-at`
+-   Clears `pending-restart`
+-   Updates `last-heartbeat`
 
 JSON:
 
@@ -141,7 +143,7 @@ Effects:
 -   Cancels lease timer
 -   Sets `status` to `%down`
 -   Clears `boot-id` from state (prevents delayed heartbeats from reviving the agent)
--   Sets `pending-restart-notice` to true
+-   Sets `pending-restart` to true
 -   If owner was recently active, sends the restarting DM
 
 JSON:
@@ -164,7 +166,7 @@ configure → gateway-start → heartbeat (every ~s30) → gateway-stop
 
 1. Transitions to `%down`
 2. Clears `boot-id` (so delayed in-flight heartbeats are ignored)
-3. Arms `pending-restart-notice`
+3. Arms `pending-restart`
 4. Optionally sends the restarting DM if the owner was recently active
 
 ### crash / lease expiry
@@ -172,7 +174,7 @@ configure → gateway-start → heartbeat (every ~s30) → gateway-stop
 No `%gateway-stop` arrives. The behn timer fires at `lease-until`:
 
 1. If `status` is still `%up` and the lease has expired, transitions to `%down`
-2. Arms `pending-restart-notice`
+2. Arms `pending-restart`
 3. `boot-id` remains in state (enabling heartbeat recovery)
 
 ### heartbeat recovery after lease expiry
@@ -182,14 +184,14 @@ If the gateway is still alive but its heartbeat was delayed (network, load), a v
 On heartbeat recovery:
 
 -   `status` is restored to `%up`
--   `pending-restart-notice` is cleared (the gateway never actually went down)
+-   `pending-restart` is cleared (the gateway never actually went down)
 
 ### restart after downtime
 
 When `%gateway-start` arrives with a new `boot-id`:
 
--   If `pending-restart-notice` is set and the owner was recently active, sends the back-online DM
--   Clears `pending-restart-notice`
+-   If `pending-restart` is set and the owner was recently active, sends the back-online DM
+-   Clears `pending-restart`
 
 ## offline auto-reply
 
@@ -198,8 +200,8 @@ When the configured owner sends a DM (observed via `%activity /v4`) and the gate
 Three conditions must all be true for the reply to fire:
 
 1. **Gateway is unavailable**: `is-gateway-live` returns false
-2. **Not a duplicate**: the inbound message-key differs from `last-offline-auto-reply-to`
-3. **Cooldown elapsed**: time since `last-offline-auto-reply-at` exceeds `offline-reply-cooldown`
+2. **Not a duplicate**: the inbound message-key differs from `last-auto-reply-to`
+3. **Cooldown elapsed**: time since `last-auto-reply` exceeds `reply-cooldown`
 
 The agent ignores:
 
@@ -221,7 +223,7 @@ Sent during `%gateway-stop` if the owner was recently active:
 
 ### back-online notice
 
-Sent during `%gateway-start` if `pending-restart-notice` was armed and the owner was recently active:
+Sent during `%gateway-start` if `pending-restart` was armed and the owner was recently active:
 
 > Your Tlon bot is back online and ready to chat again. ✅
 
@@ -229,8 +231,8 @@ Sent during `%gateway-start` if `pending-restart-notice` was armed and the owner
 
 The owner is considered recently active when:
 
--   `last-owner-message-at` is non-zero
--   `now - last-owner-message-at` is less than `active-window`
+-   `last-owner-msg` is non-zero
+-   `now - last-owner-msg` is less than `active-window`
 
 ## stale event protection
 
@@ -251,23 +253,23 @@ The key asymmetry:
 
 Initial fact on subscribe: `[%status status lease-until]`
 
-Ongoing facts use the `update-1` type:
+Ongoing facts use the `update:v1:gs` type:
 
 | Variant           | Fields                  | When emitted                             |
 | ----------------- | ----------------------- | ---------------------------------------- |
 | `%status`         | `status`, `lease-until` | After any lifecycle poke or lease expiry |
-| `%owner-activity` | `last-owner-message-at` | When the owner sends a DM                |
+| `%owner-activity` | `last-owner-msg`        | When the owner sends a DM                |
 | `%auto-reply`     | `ship`, `at`            | When an offline auto-reply is sent       |
 
 ### scry surface
 
 All scries return `%noun` (no JSON conversion).
 
-| Path                | Returns                 | Description              |
-| ------------------- | ----------------------- | ------------------------ |
-| `/x/status`         | `[status lease-until]`  | Current status and lease |
-| `/x/owner-activity` | `last-owner-message-at` | Last owner DM timestamp  |
-| `/x/state`          | full `state-0`          | Debugging                |
+| Path                | Returns                | Description              |
+| ------------------- | ---------------------- | ------------------------ |
+| `/x/status`         | `[status lease-until]` | Current status and lease |
+| `/x/owner-activity` | `last-owner-msg`       | Last owner DM timestamp  |
+| `/x/state`          | full `state-0`         | Debugging                |
 
 ## integration with openclaw-tlon
 
@@ -288,11 +290,11 @@ The `boot-id` should be a unique identifier per gateway process (e.g., a UUID ge
 
 ## timing defaults
 
-| Parameter                | Default    | Set by                              |
-| ------------------------ | ---------- | ----------------------------------- |
-| `active-window`          | 5 minutes  | Ship agent (via `%configure`)       |
-| `offline-reply-cooldown` | 5 minutes  | Ship agent (via `%configure`)       |
-| Heartbeat interval       | 30 seconds | Gateway process                     |
-| Lease duration           | 90 seconds | Gateway process (via `lease-until`) |
+| Parameter          | Default    | Set by                              |
+| ------------------ | ---------- | ----------------------------------- |
+| `active-window`    | 5 minutes  | Ship agent (via `%configure`)       |
+| `reply-cooldown`   | 5 minutes  | Ship agent (via `%configure`)       |
+| Heartbeat interval | 30 seconds | Gateway process                     |
+| Lease duration     | 90 seconds | Gateway process (via `lease-until`) |
 
-The ship agent stores `active-window` and `offline-reply-cooldown`. The heartbeat interval and lease duration are computed by the gateway process and are not stored in agent state.
+The ship agent stores `active-window` and `reply-cooldown`. The heartbeat interval and lease duration are computed by the gateway process and are not stored in agent state.

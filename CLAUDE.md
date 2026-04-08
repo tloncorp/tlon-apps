@@ -103,7 +103,15 @@ Key rules:
 -   **`=|  versioned-state` must NOT have a face** (not `=|  state=versioned-state`). The bare `=|` makes state fields directly accessible in the helper core. Adding a face wraps the fields and breaks `=.  field  value` access.
 -   **No extra arms in the agent door.** The `^-  agent:gall` cast requires exactly the 10 standard arms. Put all helpers in the lower core via `=<`.
 -   **`verb` takes 3 arguments**: `%^  verb  |  %warn` (loud flag, log volume, agent). Not `%+  verb  |`.
+-   **State types belong in the app file**, not in `sur/`. Only shared protocol types (actions, updates, type aliases used by marks) belong in `sur/`.
+-   **Application logic helpers** (liveness checks, predicates) belong in the app helper core, not in `sur/`.
 -   **Register new agents** in `desk/desk.bill`.
+
+#### Type Naming
+
+-   Types in `sur/` use bare names (`action`, `update`, `status`) with `v1`/`v2` version arms for indirection. Mark files are versioned separately (`action-1.hoon`). Don't carry mark-version numbers into type names.
+-   Callers reference shared types through the version arm: `action:v1:gs`, `update:v1:gs`.
+-   Keep field names short. Drop redundant suffixes like `-at` on timestamp fields — the aura (`@da`, `@dr`) communicates the type.
 
 #### State Narrowing in Helper Cores
 

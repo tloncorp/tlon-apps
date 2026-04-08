@@ -1,45 +1,45 @@
 ::  gateway-status-action-1: mark for gateway-status inbound actions
 ::
 /-  gs=gateway-status
-|_  =action-1:gs
+|_  =action:v1:gs
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  action-1
+  ++  noun  action
   ++  json
     =,  enjs:format
     ^-  ^json
-    ?-  -.action-1
+    ?-  -.action
         %configure
       %-  frond  :-  'configure'
       %-  pairs
-      :~  ['owner' s+(scot %p owner.action-1)]
-          ['active-window' s+(scot %dr active-window.action-1)]
-          ['offline-reply-cooldown' s+(scot %dr offline-reply-cooldown.action-1)]
+      :~  ['owner' s+(scot %p owner.action)]
+          ['active-window' s+(scot %dr active-window.action)]
+          ['offline-reply-cooldown' s+(scot %dr reply-cooldown.action)]
       ==
         %gateway-start
       %-  frond  :-  'gateway-start'
       %-  pairs
-      :~  ['boot-id' s+boot-id.action-1]
-          ['lease-until' s+(scot %da lease-until.action-1)]
+      :~  ['boot-id' s+boot-id.action]
+          ['lease-until' s+(scot %da lease-until.action)]
       ==
         %gateway-heartbeat
       %-  frond  :-  'gateway-heartbeat'
       %-  pairs
-      :~  ['boot-id' s+boot-id.action-1]
-          ['lease-until' s+(scot %da lease-until.action-1)]
+      :~  ['boot-id' s+boot-id.action]
+          ['lease-until' s+(scot %da lease-until.action)]
       ==
         %gateway-stop
       %-  frond  :-  'gateway-stop'
-      (pairs ~[['boot-id' s+boot-id.action-1] ['reason' s+reason.action-1]])
+      (pairs ~[['boot-id' s+boot-id.action] ['reason' s+reason.action]])
     ==
   --
 ++  grab
   |%
-  ++  noun  action-1:gs
+  ++  noun  action:v1:gs
   ++  json
     |=  jon=^json
-    ^-  action-1:gs
+    ^-  action:v1:gs
     =,  dejs:format
     %.  jon
     %-  of
