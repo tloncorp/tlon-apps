@@ -1887,6 +1887,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   updateSession({ phase: 'high' });
 
   if (!alreadySubscribed) {
+    // Only clear cached presence on a fresh startup. During recovery syncs we keep
+    // the current snapshot until new presence events arrive to avoid UI flicker
     clearPresenceState();
   }
 

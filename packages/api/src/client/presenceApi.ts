@@ -18,6 +18,9 @@ export interface PresenceDisplayInput {
   blob?: string | null;
 }
 
+// Client-facing presence entries keep the original wire fields but add a
+// normalized app context id so consumers can work with conversation/group ids
+// instead of Urbit-specific paths.
 export interface PresenceStatus {
   key: ub.PresenceKey;
   timing: ub.PresenceTiming;
@@ -25,6 +28,8 @@ export interface PresenceStatus {
   contextId: string | null;
 }
 
+// The store consumes a small normalized event union rather than the raw wire
+// shapes so init/set/clear all share the same context-id semantics.
 export type PresenceEvent =
   | { type: 'init'; states: PresenceStatus[] }
   | { type: 'set'; state: PresenceStatus }
@@ -55,6 +60,8 @@ export const groupIdToPresenceContext = (groupId: string) => {
   return formatScryPath('group', host, name);
 };
 
+// Presence keys are scoped to wire contexts like `/dm/~nec`; convert them back to
+// the app's stable ids so store consumers can join presence against existing data.
 export const getPresenceContextIdFromKey = (
   key: ub.PresenceKey,
   currentUserId = getCurrentUserId()
@@ -66,6 +73,8 @@ export const getPresenceContextIdFromKey = (
   }
 
   if (context.type === 'dm') {
+    // DM presence can name either participant depending on which side emitted the
+    // event. Normalize both forms to "the other participant" conversation id.
     if (key.ship === currentUserId) {
       return context.ship;
     }
@@ -206,6 +215,9 @@ export const subscribeToPresenceUpdates = async (
     }
   );
 };
+
+// The init response arrives as a nested context -> topic -> ship tree. Flatten it
+// into the same one-status-per-entry shape that incremental events use.
 export const toPresenceStatuses = (
   places: ub.PresencePlaces,
   currentUserId = getCurrentUserId()
@@ -244,6 +256,7 @@ export const toPresenceStatus = (
   };
 };
 
+// Collapse the three wire response variants into the reducer-friendly event union.
 export const toPresenceEvent = (
   event: ub.PresenceResponse,
   currentUserId = getCurrentUserId()
