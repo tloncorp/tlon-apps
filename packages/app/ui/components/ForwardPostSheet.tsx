@@ -9,10 +9,8 @@ import {
   useState,
 } from 'react';
 
-import {
-  useForwardToChannelSheet,
-} from './useForwardToChannelSheet';
 import { ForwardToChannelSheet } from './ForwardToChannelSheet';
+import { useForwardToChannelSheet } from './useForwardToChannelSheet';
 
 const ForwardPostSheetContext = createContext<{
   open: (post: db.Post) => void;

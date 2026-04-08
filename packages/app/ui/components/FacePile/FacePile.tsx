@@ -37,7 +37,10 @@ export const FacePile = React.memo(function FacePileComponent({
     const isCompactGrid = gridDensity === 'compact';
 
     return (
-      <YStack gap={isCompactGrid ? '$2xs' : '$xs'} padding={isCompactGrid ? 1 : 0}>
+      <YStack
+        gap={isCompactGrid ? '$2xs' : '$xs'}
+        padding={isCompactGrid ? 1 : 0}
+      >
         <XStack gap={isCompactGrid ? '$2xs' : '$xs'}>
           {visibleContactIds.slice(0, 2).map((contactId) => (
             <ContactAvatar key={contactId} contactId={contactId} size="$xl" />

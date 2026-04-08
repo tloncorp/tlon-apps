@@ -164,7 +164,9 @@ export function GalleryInput({
 
     if (
       hasAttachments &&
-      (route === 'gallery' || route === 'add-post' || route === 'add-attachment')
+      (route === 'gallery' ||
+        route === 'add-post' ||
+        route === 'add-attachment')
     ) {
       setRoute('review-attachment');
       return;
@@ -282,12 +284,13 @@ export function GalleryInput({
       () =>
         route !== 'gallery' && route !== 'add-post' ? null : (
           <>
-            <ScreenHeader.IconButton
+            <ScreenHeader.TextButton
               key="gallery"
-              type="Add"
               onPress={handleAdd}
               testID="AddGalleryPost"
-            />
+            >
+              New
+            </ScreenHeader.TextButton>
             <Notices.CollectionInputTooltip channelId={channel.id} />
           </>
         ),

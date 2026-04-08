@@ -33,8 +33,10 @@ const crashlytics = (): CrashlyticsStub => {
     },
     setCrashlyticsCollectionEnabled: (enabled: boolean) => {
       // No-op in desktop environment
-      console.log(`[Crashlytics Stub] setCrashlyticsCollectionEnabled: ${enabled}`);
-    }
+      console.log(
+        `[Crashlytics Stub] setCrashlyticsCollectionEnabled: ${enabled}`
+      );
+    },
   };
 };
 

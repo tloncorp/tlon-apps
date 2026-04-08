@@ -87,7 +87,10 @@ function MentionPopupInternal(
   }>
 ) {
   const maxResults = Platform.OS === 'web' ? 7 : 4;
-  const subSet = useMemo(() => options.slice(0, maxResults), [options, maxResults]);
+  const subSet = useMemo(
+    () => options.slice(0, maxResults),
+    [options, maxResults]
+  );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 

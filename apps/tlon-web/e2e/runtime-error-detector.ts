@@ -19,7 +19,7 @@ interface RuntimeError {
  */
 export class RuntimeErrorDetector {
   private errors: RuntimeError[] = [];
-  
+
   // Static patterns to avoid duplication between class and injected script
   private static readonly CRITICAL_PATTERNS = [
     'Cannot assign to read only property',
@@ -118,86 +118,89 @@ export class RuntimeErrorDetector {
         const criticalPatterns = critical;
         const ignoredPatterns = ignored;
 
-      // Track errors in a global variable - use a type assertion for window
-      interface WindowWithErrors extends Window {
-        __runtimeErrors?: Array<{
-          message: string;
-          stack?: string;
-          url?: string;
-          lineno?: number;
-          colno?: number;
-          type: string;
-          timestamp: number;
-        }>;
-      }
-
-      (window as WindowWithErrors).__runtimeErrors = [];
-
-      // Helper function to check if error should be captured
-      const shouldCaptureError = (message: string) => {
-        const lowerMessage = message.toLowerCase();
-
-        // Check if error should be ignored
-        const shouldIgnore = ignoredPatterns.some((pattern) =>
-          lowerMessage.includes(pattern.toLowerCase())
-        );
-
-        if (shouldIgnore) {
-          return false;
+        // Track errors in a global variable - use a type assertion for window
+        interface WindowWithErrors extends Window {
+          __runtimeErrors?: Array<{
+            message: string;
+            stack?: string;
+            url?: string;
+            lineno?: number;
+            colno?: number;
+            type: string;
+            timestamp: number;
+          }>;
         }
 
-        // Only capture critical errors
-        return criticalPatterns.some((pattern) =>
-          lowerMessage.includes(pattern.toLowerCase())
-        );
-      };
+        (window as WindowWithErrors).__runtimeErrors = [];
 
-      // Catch window error events
-      window.addEventListener('error', (event) => {
-        if (shouldCaptureError(event.message)) {
-          const errors = (window as WindowWithErrors).__runtimeErrors;
-          if (errors) {
-            errors.push({
-              message: event.message,
-              stack: event.error?.stack,
-              url: event.filename,
-              lineno: event.lineno,
-              colno: event.colno,
-              type: 'error',
-              timestamp: Date.now(),
-            });
-          }
+        // Helper function to check if error should be captured
+        const shouldCaptureError = (message: string) => {
+          const lowerMessage = message.toLowerCase();
 
-          // Log to console for visibility
-          console.error(
-            '[RuntimeErrorDetector] Critical error:',
-            event.message
+          // Check if error should be ignored
+          const shouldIgnore = ignoredPatterns.some((pattern) =>
+            lowerMessage.includes(pattern.toLowerCase())
           );
-        }
-      });
 
-      // Catch unhandled promise rejections
-      window.addEventListener('unhandledrejection', (event) => {
-        const message =
-          event.reason instanceof Error
-            ? event.reason.message
-            : String(event.reason);
-
-        if (shouldCaptureError(message)) {
-          const errors = (window as WindowWithErrors).__runtimeErrors;
-          if (errors) {
-            errors.push({
-              message: `Unhandled Promise Rejection: ${message}`,
-              stack: event.reason?.stack,
-              type: 'unhandledrejection',
-              timestamp: Date.now(),
-            });
+          if (shouldIgnore) {
+            return false;
           }
 
-          // Log to console for visibility
-          console.error('[RuntimeErrorDetector] Critical rejection:', message);
-        }
-      });
+          // Only capture critical errors
+          return criticalPatterns.some((pattern) =>
+            lowerMessage.includes(pattern.toLowerCase())
+          );
+        };
+
+        // Catch window error events
+        window.addEventListener('error', (event) => {
+          if (shouldCaptureError(event.message)) {
+            const errors = (window as WindowWithErrors).__runtimeErrors;
+            if (errors) {
+              errors.push({
+                message: event.message,
+                stack: event.error?.stack,
+                url: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                type: 'error',
+                timestamp: Date.now(),
+              });
+            }
+
+            // Log to console for visibility
+            console.error(
+              '[RuntimeErrorDetector] Critical error:',
+              event.message
+            );
+          }
+        });
+
+        // Catch unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+          const message =
+            event.reason instanceof Error
+              ? event.reason.message
+              : String(event.reason);
+
+          if (shouldCaptureError(message)) {
+            const errors = (window as WindowWithErrors).__runtimeErrors;
+            if (errors) {
+              errors.push({
+                message: `Unhandled Promise Rejection: ${message}`,
+                stack: event.reason?.stack,
+                type: 'unhandledrejection',
+                timestamp: Date.now(),
+              });
+            }
+
+            // Log to console for visibility
+            console.error(
+              '[RuntimeErrorDetector] Critical rejection:',
+              message
+            );
+          }
+        });
       },
       {
         critical: RuntimeErrorDetector.CRITICAL_PATTERNS,

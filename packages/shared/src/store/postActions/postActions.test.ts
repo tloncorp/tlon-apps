@@ -1,18 +1,18 @@
+import * as api from '@tloncorp/api';
+import { poke, scry } from '@tloncorp/api';
+import { Attachment, ImageAttachment } from '@tloncorp/api/types/attachment';
+import { PostDataDraft } from '@tloncorp/api/types/post';
 import * as $ from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import * as api from '@tloncorp/api';
-import { poke, scry } from '@tloncorp/api';
-import * as db from '../db';
-import { Attachment, ImageAttachment } from '@tloncorp/api/types/attachment';
-import { PostDataDraft } from '@tloncorp/api/types/post';
-import { AnalyticsEvent } from '../domain';
-import { toPostData } from '../logic';
-import { useDebugStore } from '../debug';
-import { getClient, setupDatabaseTestSuite } from '../test/helpers';
+import * as db from '../../db';
+import { useDebugStore } from '../../debug';
+import { AnalyticsEvent } from '../../domain';
+import { toPostData } from '../../logic';
+import { getClient, setupDatabaseTestSuite } from '../../test/helpers';
+import { updateSession } from '../session';
+import { setUploadState } from '../storage';
 import { finalizeAndSendPost } from './postActions';
-import { updateSession } from './session';
-import { setUploadState } from './storage';
 
 const TEST_CHANNEL = '~zod';
 const LOCAL_URI = 'LOCAL_URI';

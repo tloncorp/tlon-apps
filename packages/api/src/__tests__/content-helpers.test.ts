@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import {
   contentToTextAndMentions,
   textAndMentionsToContent,
-} from '../lib/content-helpers';
+} from '../client/content-helpers';
 
 describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () => {
   test('mention + link text survives round-trip without corruption', () => {
@@ -33,7 +33,10 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
     expect(firstPass.text.slice(0, 14)).toBe('~malmur-halmex');
 
     // Step 3: text+mentions → content (second round-trip)
-    const content2 = textAndMentionsToContent(firstPass.text, firstPass.mentions);
+    const content2 = textAndMentionsToContent(
+      firstPass.text,
+      firstPass.mentions
+    );
 
     // Step 4: content → text+mentions (second round-trip)
     const secondPass = contentToTextAndMentions(content2);
@@ -45,9 +48,7 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
 
   test('mention id without tilde prefix is handled correctly', () => {
     const text = '~zod hello';
-    const mentions = [
-      { id: 'zod', display: '~zod', start: 0, end: 4 },
-    ];
+    const mentions = [{ id: 'zod', display: '~zod', start: 0, end: 4 }];
 
     const content = textAndMentionsToContent(text, mentions);
     const result = contentToTextAndMentions(content);
@@ -69,7 +70,11 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
     const result = contentToTextAndMentions(content);
 
     expect(result.mentions).toHaveLength(2);
-    expect(result.text.slice(result.mentions[0].start, result.mentions[0].end)).toBe('~zod');
-    expect(result.text.slice(result.mentions[1].start, result.mentions[1].end)).toBe('~bus');
+    expect(
+      result.text.slice(result.mentions[0].start, result.mentions[0].end)
+    ).toBe('~zod');
+    expect(
+      result.text.slice(result.mentions[1].start, result.mentions[1].end)
+    ).toBe('~bus');
   });
 });

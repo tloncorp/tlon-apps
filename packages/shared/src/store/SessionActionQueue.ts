@@ -1,4 +1,4 @@
-import { logger } from './postActions';
+import { logger } from './postActions/logger';
 import { Session, getSession, subscribeToSession } from './session';
 
 class SessionActionQueue {

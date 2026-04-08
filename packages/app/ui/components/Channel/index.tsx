@@ -194,8 +194,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isNotebookOrGallery =
       channel.type === 'notebook' || channel.type === 'gallery';
     const pinnedPostId = logic.getPinnedPostId(channel);
-    const isSingleChannelGroup = group?.channels?.length === 1;
-
     // For DMs, get the other participant's ID
     const dmRecipientId = useMemo(() => {
       if (isDM && channel.members) {
@@ -225,22 +223,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       [onGroupAction]
     );
 
-    const handleGoToChannelDetails = useCallback(() => {
-      if (!channel.groupId) return;
-
-      if (isSingleChannelGroup) {
-        return;
-      } else {
-        if (goToChannelDetails) {
-          goToChannelDetails(channel.groupId, channel.id);
-        }
-      }
-    }, [
-      goToChannelDetails,
-      channel.groupId,
-      channel.id,
-      group?.channels?.length,
-    ]);
     const { attachAssets } = useAttachmentContext();
 
     const inView = useIsFocused();
@@ -539,16 +521,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             channel.type === 'dm' ||
                             channel.type === 'groupDm'
                           }
-                          showEditButton={
-                            isGroupAdmin &&
-                            !isSingleChannelGroup &&
-                            !!channel.groupId &&
-                            (channel.type === 'chat' ||
-                              channel.type === 'notebook' ||
-                              channel.type === 'gallery') &&
-                            draftInputPresentationMode !== 'fullscreen'
-                          }
-                          goToEdit={handleGoToChannelDetails}
                         />
                         {shouldShowPinnedPostBanner && (
                           <PinnedPostBanner

@@ -1,18 +1,18 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  JSONValue,
-  createChannel,
-  useGroup,
-  useUpdateChannel,
-} from '@tloncorp/shared';
-import {
   ChannelContentConfiguration,
   ComponentSpec,
   allCollectionRenderers,
   allContentRenderers,
   allDraftInputs,
 } from '@tloncorp/api';
+import {
+  JSONValue,
+  createChannel,
+  useGroup,
+  useUpdateChannel,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { objectEntries } from '@tloncorp/shared/utils';
 import { Button, Icon, IconButton, Text } from '@tloncorp/ui';

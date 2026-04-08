@@ -1,12 +1,9 @@
-import {
-  AppThemeName,
-  StorageConfiguration,
-  StorageCredentials,
-  StorageService,
-} from '@tloncorp/api';
+import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
+import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
+import * as ub from '@tloncorp/api/urbit';
+
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
-import * as ub from '@tloncorp/api/urbit';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =
@@ -411,20 +408,26 @@ const defaultNagState: NagState = {
 
 // Cache nag storage items to avoid creating new instances on every render
 // This prevents race conditions from multiple updateLock instances
-const nagStorageItemCache = new Map<string, ReturnType<typeof createStorageItem<NagState>>>();
+const nagStorageItemCache = new Map<
+  string,
+  ReturnType<typeof createStorageItem<NagState>>
+>();
 
-export const createNagStorageItem = (key: string, persistAfterLogout = true) => {
+export const createNagStorageItem = (
+  key: string,
+  persistAfterLogout = true
+) => {
   const cached = nagStorageItemCache.get(key);
   if (cached) {
     return cached;
   }
-  
+
   const storageItem = createStorageItem<NagState>({
     key: `nag:${key}`,
     defaultValue: defaultNagState,
     persistAfterLogout,
   });
-  
+
   nagStorageItemCache.set(key, storageItem);
   return storageItem;
 };

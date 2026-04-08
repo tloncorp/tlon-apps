@@ -1,42 +1,39 @@
 import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
+import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
-import { extractClientVolumes } from '@tloncorp/api/lib/activity';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
-import * as db from '../db';
-import { QueryCtx, batchEffects } from '../db/query';
-import { SETTINGS_SINGLETON_KEY } from '../db/schema';
-import { createDevLogger, runIfDev } from '../debug';
-import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
+import * as db from '../../db';
+import { QueryCtx, batchEffects } from '../../db/query';
+import { queryClient } from '../../db/reactQuery';
+import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
+import { runIfDev } from '../../debug';
+import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
-} from '../store/useActivityFetchers';
-import { createBatchHandler, createHandler } from './bufferedSubscription';
-import * as LocalCache from './cachedData';
-import { addContacts, updateContactMetadata } from './contactActions';
-import { updateChannelSections } from './groupActions';
-import { verifyUserInviteLink } from './inviteActions';
-import { discoverContacts } from './lanyardActions';
-import { useLureState } from './lure';
-import { failEnqueuedPosts, verifyPostDelivery } from './postActions';
-import { queryClient } from './reactQuery';
-import { getSession, setSession, updateSession } from './session';
-import { SyncCtx, SyncPriority, syncQueue } from './syncQueue';
-import { getSystemContacts } from './systemContactsApi';
-import { addToChannelPosts, clearChannelPostsQueries } from './useChannelPosts';
-
-export { SyncPriority, syncQueue } from './syncQueue';
-
-const logger = createDevLogger('sync', false);
-
-// Update the last activity timestamp when we receive new data
-export function updateLastActivityTime() {
-  db.lastActivityAt.setValue(Date.now());
-}
+} from '../../store/useActivityFetchers';
+import { persistUnreads } from '../activityActions';
+import { createBatchHandler, createHandler } from '../bufferedSubscription';
+import * as LocalCache from '../cachedData';
+import { addContacts, updateContactMetadata } from '../contactActions';
+import { updateChannelSections } from '../groupActions';
+import { verifyUserInviteLink } from '../inviteActions';
+import { discoverContacts } from '../lanyardActions';
+import { useLureState } from '../lure';
+import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
+import { getSession, setSession, updateSession } from '../session';
+import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
+import { getSystemContacts } from '../systemContactsApi';
+import { clearChannelPostsQueries } from '../useChannelPosts/queries';
+import { addToChannelPosts } from '../useChannelPosts/subscriptions';
+import { logger } from './logger';
+import { syncContacts } from './syncContacts';
+import { syncGroup } from './syncGroup';
+import { updateLastActivityTime } from './updateLastActivityTime';
 
 // Used to keep track of which groups/channels we're a part of. If we
 // see something new, we refetch init data. Fallback in case we miss
@@ -593,33 +590,6 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   }
 };
 
-export const syncContacts = async (
-  ctx?: SyncCtx,
-  queryCtx?: QueryCtx,
-  yieldWriter?: boolean
-) => {
-  const contacts = await syncQueue.add('contacts', ctx, () =>
-    api.getContacts()
-  );
-  logger.log('got contacts from api', contacts.length, 'contacts');
-
-  const writer = async () => {
-    try {
-      await db.insertContacts(contacts, queryCtx);
-      LocalCache.cacheContacts(contacts);
-    } catch (e) {
-      logger.error('error inserting contacts', e);
-    }
-  };
-
-  if (yieldWriter) {
-    return writer;
-  } else {
-    await writer();
-    return () => Promise.resolve();
-  }
-};
-
 export const syncUserAttestations = async (ctx?: SyncCtx) => {
   logger.log('syncing verifications');
   try {
@@ -773,45 +743,6 @@ export async function syncThreadPosts(
   updateLastActivityTime();
 }
 
-const groupSyncsInProgress = new Set<string>();
-
-export async function syncGroup(
-  id: string,
-  ctx?: SyncCtx,
-  config?: { force?: boolean }
-) {
-  if (groupSyncsInProgress.has(id)) {
-    return;
-  }
-  groupSyncsInProgress.add(id);
-  try {
-    const group = await db.getGroup({ id });
-    const session = getSession();
-    if (
-      group &&
-      session &&
-      (session.startTime ?? 0) < (group.syncedAt ?? 0) &&
-      !config?.force
-    ) {
-      return;
-    }
-    const response = await syncQueue.add('syncGroup', ctx, () =>
-      api.getGroup(id)
-    );
-    await batchEffects('syncGroup', async (ctx) => {
-      await db.insertGroups({ groups: [response] }, ctx);
-      await db.updateGroup({ id, syncedAt: Date.now() }, ctx);
-      updateLastActivityTime();
-    });
-  } catch (e) {
-    logger.trackError('group sync failed', e);
-    console.error(e);
-    throw e;
-  } finally {
-    groupSyncsInProgress.delete(id);
-  }
-}
-
 export const syncStorageSettings = (ctx?: SyncCtx) => {
   return Promise.all([
     syncQueue
@@ -821,37 +752,6 @@ export const syncStorageSettings = (ctx?: SyncCtx) => {
       .add('storageCredentials', ctx, () => api.getStorageCredentials())
       .then((creds) => db.storageCredentials.setValue(creds)),
   ]);
-};
-
-export const persistUnreads = async ({
-  unreads,
-  ctx,
-  includesAllUnreads,
-}: {
-  unreads: db.ActivityInit;
-  ctx?: QueryCtx;
-  includesAllUnreads?: boolean;
-}) => {
-  const { baseUnread, groupUnreads, channelUnreads, threadActivity } = unreads;
-  if (baseUnread) {
-    await db.insertBaseUnread(baseUnread, ctx);
-  }
-  await db.insertGroupUnreads(groupUnreads, ctx);
-  await db.insertChannelUnreads(channelUnreads, ctx);
-  await db.insertThreadUnreads(threadActivity, ctx);
-
-  // if we have all channel unreads, we should use that data to update which
-  // channels we're joined to
-  if (includesAllUnreads) {
-    await db.setJoinedGroupChannels(
-      {
-        channelIds: channelUnreads
-          .filter((u) => u.type === 'channel')
-          .map((u) => u.channelId),
-      },
-      ctx
-    );
-  }
 };
 
 export const resetActivity = async (syncCtx?: SyncCtx) => {
@@ -1815,21 +1715,6 @@ export async function syncPosts(
   return response;
 }
 
-export async function syncGroupPreviews(groupIds: string[]) {
-  const promises = groupIds.map(async (groupId) => {
-    const group = await db.getGroup({ id: groupId });
-    if (group?.currentUserIsMember) {
-      return group;
-    }
-
-    const groupPreview = await api.getGroupPreview(groupId);
-    await db.insertUnjoinedGroups([groupPreview]);
-    return groupPreview;
-  });
-
-  return Promise.all(promises);
-}
-
 export async function syncChannelPreivews(channelIds: string[]) {
   const promises = channelIds.map(async (channelId) => {
     const channel = await db.getChannelWithRelations({ id: channelId });
@@ -2202,3 +2087,12 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
     ]);
   });
 };
+
+async function failEnqueuedPosts() {
+  const enqueuedPosts = await db.getEnqueuedPosts();
+  await Promise.all(
+    enqueuedPosts.map(async (post) => {
+      await db.updatePost({ id: post.id, deliveryStatus: 'failed' });
+    })
+  );
+}

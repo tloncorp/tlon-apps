@@ -50,11 +50,9 @@ const MemoizedHandle = React.memo(() => <BottomSheetHandle />);
 
 MemoizedHandle.displayName = 'MemoizedHandle';
 
-const MemoizedBackground = React.memo(
-  ({ style }: { style: any }) => (
-    <View style={style} accessible={false} pointerEvents="none" />
-  )
-);
+const MemoizedBackground = React.memo(({ style }: { style: any }) => (
+  <View style={style} accessible={false} pointerEvents="none" />
+));
 
 MemoizedBackground.displayName = 'MemoizedBackground';
 

@@ -1,4 +1,4 @@
-/-  reel, gv=groups-ver, c=chat, ch=channels, meta, story
+/-  reel, gv=groups-ver, c=chat, cv=chat-ver, ch=channels, meta, story
 /+  *test-agent, test
 /=  grouper-agent  /app/grouper
 |%
@@ -114,12 +114,12 @@
   =/  =id:c  [our now]:bowl
   =/  =memo:ch
     [~[[%inline ~[[%ship joiner] ' has joined the network']]] id]
-  =/  =action:dm:c
+  =/  =action:dm:v7:cv
     :-  joiner
     [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /dm/(scot %p joiner)/0v1 [our.bowl %chat] chat-dm-action-1+!>(action))
+    :~  (ex-poke /dm/(scot %p joiner)/0v1 [our.bowl %chat] chat-dm-action-2+!>(action))
     ==
   (pure:m ~)
 ::  +test-group-bite: test group invite bite
@@ -144,7 +144,7 @@
   =/  =id:c  [our now]:bowl
   =/  =memo:ch
     [~[[%inline ~[[%ship joiner] ' has joined the network']]] id]
-  =/  =action:dm:c
+  =/  =action:dm:v7:cv
     :-  joiner
     [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
   =/  =a-groups:v8:gv
@@ -155,7 +155,7 @@
     %+  %*(. ex-cards drop-logs |)  caz
     :~  (ex-poke-wire /logs)
         (ex-poke /invite [our.bowl %groups] group-action-4+!>(a-groups))
-        (ex-poke /dm/(scot %p joiner)/0v1 [our.bowl %chat] chat-dm-action-1+!>(action))
+        (ex-poke /dm/(scot %p joiner)/0v1 [our.bowl %chat] chat-dm-action-2+!>(action))
     ==
   (pure:m ~)
 --

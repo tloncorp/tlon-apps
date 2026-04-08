@@ -70,7 +70,11 @@ function withForwardVisuals(
   };
 }
 
-const supportChannel = withForwardVisuals(tlonLocalSupport, 'Support', localGroup);
+const supportChannel = withForwardVisuals(
+  tlonLocalSupport,
+  'Support',
+  localGroup
+);
 const devsChannel = withForwardVisuals(tlonLocalIntros, 'Devs', tlonGroup);
 const etcChannel = withForwardVisuals(tlonLocalWaterCooler, 'Etc', tlonGroup);
 const imageIconChannel = withForwardVisuals(

@@ -37,7 +37,7 @@ test('should allow kicking users from groups', async ({
 
   // Verify kick option is available and click it
   await expect(zodPage.getByText('Kick User')).toBeVisible();
-  
+
   // Set up dialog handler to accept the confirmation
   zodPage.once('dialog', async (dialog) => {
     expect(dialog.type()).toBe('confirm');
@@ -45,7 +45,7 @@ test('should allow kicking users from groups', async ({
     expect(dialog.message()).toContain('invalidate all the invitations');
     await dialog.accept();
   });
-  
+
   await zodPage.getByText('Kick User').click();
 
   // Wait for kick to complete

@@ -1,5 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  NativeDb,
+  ensureDbReady as ensureSingletonDbReady,
+  getDbPath as getSingletonDbPath,
+  purgeDb as purgeSingletonDb,
+  runMigrations as runSingletonMigrations,
+  setupDb as setupSingletonDb,
+} from './nativeDb';
+import { TRIGGER_SETUP } from './triggers';
+
 type MockConnection = {
   close: ReturnType<typeof vi.fn>;
   createClient: ReturnType<typeof vi.fn>;
@@ -24,7 +34,9 @@ const sqliteRuntime = vi.hoisted(() => {
     close: vi.fn(),
     createClient: vi.fn(() => ({
       delete: vi.fn(() => ({ run: vi.fn(async () => undefined) })),
-      select: vi.fn(() => ({ from: vi.fn(() => ({ all: vi.fn(async () => []) })) })),
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({ all: vi.fn(async () => []) })),
+      })),
     })),
     delete: vi.fn(),
     execute: vi.fn(async () => undefined),
@@ -121,16 +133,6 @@ vi.mock('./opsqliteConnection', () => ({
   },
 }));
 
-import {
-  NativeDb,
-  ensureDbReady as ensureSingletonDbReady,
-  getDbPath as getSingletonDbPath,
-  purgeDb as purgeSingletonDb,
-  runMigrations as runSingletonMigrations,
-  setupDb as setupSingletonDb,
-} from './nativeDb';
-import { TRIGGER_SETUP } from './triggers';
-
 type NativeDbInternals = {
   client: object | null;
   connection: MockConnection | null;
@@ -182,8 +184,12 @@ describe('NativeDb', () => {
       location: 'default',
       name: 'tlon.sqlite',
     });
-    expect(connection.execute).toHaveBeenCalledWith('PRAGMA mmap_size=268435456');
-    expect(connection.execute).toHaveBeenCalledWith('PRAGMA journal_mode=DELETE');
+    expect(connection.execute).toHaveBeenCalledWith(
+      'PRAGMA mmap_size=268435456'
+    );
+    expect(connection.execute).toHaveBeenCalledWith(
+      'PRAGMA journal_mode=DELETE'
+    );
     expect(connection.execute).toHaveBeenCalledWith('PRAGMA synchronous=OFF');
     expect(connection.updateHook).toHaveBeenCalledTimes(1);
     expect(connection.createClient).toHaveBeenCalledTimes(1);
@@ -260,7 +266,9 @@ describe('NativeDb', () => {
 
   it('retries through purge/setup when initial migrate fails', async () => {
     const firstConnection = sqliteRuntime.makeConnection({
-      migrateClient: vi.fn().mockRejectedValue(new Error('initial migrate failed')),
+      migrateClient: vi
+        .fn()
+        .mockRejectedValue(new Error('initial migrate failed')),
     });
     const secondConnection = sqliteRuntime.makeConnection();
     sqliteRuntime.enqueueConnection(firstConnection);
@@ -307,7 +315,9 @@ describe('NativeDb', () => {
       delete: vi.fn(() => {
         throw new Error('delete failed');
       }),
-      migrateClient: vi.fn().mockRejectedValue(new Error('initial migrate failed')),
+      migrateClient: vi
+        .fn()
+        .mockRejectedValue(new Error('initial migrate failed')),
     });
     sqliteRuntime.enqueueConnection(firstConnection);
     const db = new NativeDb();
@@ -317,10 +327,14 @@ describe('NativeDb', () => {
 
   it('throws if retry migrate attempt also fails', async () => {
     const firstConnection = sqliteRuntime.makeConnection({
-      migrateClient: vi.fn().mockRejectedValue(new Error('initial migrate failed')),
+      migrateClient: vi
+        .fn()
+        .mockRejectedValue(new Error('initial migrate failed')),
     });
     const secondConnection = sqliteRuntime.makeConnection({
-      migrateClient: vi.fn().mockRejectedValue(new Error('retry migrate failed')),
+      migrateClient: vi
+        .fn()
+        .mockRejectedValue(new Error('retry migrate failed')),
     });
     sqliteRuntime.enqueueConnection(firstConnection);
     sqliteRuntime.enqueueConnection(secondConnection);
@@ -410,11 +424,15 @@ describe('NativeDb', () => {
   });
 
   it('singleton export helpers delegate to NativeDb instance methods', async () => {
-    const setupSpy = vi.spyOn(NativeDb.prototype, 'setupDb').mockResolvedValue(undefined);
+    const setupSpy = vi
+      .spyOn(NativeDb.prototype, 'setupDb')
+      .mockResolvedValue(undefined);
     const ensureSpy = vi
       .spyOn(NativeDb.prototype, 'ensureDbReady')
       .mockResolvedValue(undefined);
-    const purgeSpy = vi.spyOn(NativeDb.prototype, 'purgeDb').mockResolvedValue(undefined);
+    const purgeSpy = vi
+      .spyOn(NativeDb.prototype, 'purgeDb')
+      .mockResolvedValue(undefined);
     const runSpy = vi
       .spyOn(NativeDb.prototype, 'runMigrations')
       .mockResolvedValue(undefined);

@@ -437,7 +437,7 @@ export function ManageChannelsProvider({
           onSave={
             state.editSection
               ? (title) =>
-                state.handleUpdateSection(state.editSection!.id, title)
+                  state.handleUpdateSection(state.editSection!.id, title)
               : undefined
           }
         />

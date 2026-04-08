@@ -5,7 +5,6 @@
  * On web: tracks mouse, keyboard, scroll, touch, and focus events
  * On mobile: always returns true (mobile has its own activity handling)
  */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Idle threshold in milliseconds - user is "inactive" after this long without input */
@@ -90,7 +89,10 @@ export function useUserActivity(): UserActivityState {
 
       setState((prev) => {
         // Only update if changed to avoid unnecessary re-renders
-        if (prev.isActive !== isActive || Math.abs(prev.idleMs - idleMs) > 1000) {
+        if (
+          prev.isActive !== isActive ||
+          Math.abs(prev.idleMs - idleMs) > 1000
+        ) {
           return { isActive, idleMs };
         }
         return prev;

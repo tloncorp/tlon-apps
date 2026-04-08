@@ -9,7 +9,11 @@ declare global {
       clearAuthInfo: () => Promise<boolean>;
 
       // Notification functions
-      showNotification: (options: { title: string; body: string; data?: any }) => Promise<boolean>;
+      showNotification: (options: {
+        title: string;
+        body: string;
+        data?: any;
+      }) => Promise<boolean>;
       onNotificationClicked: (callback: (data: any) => void) => () => void;
     };
     sqliteBridge?: {
