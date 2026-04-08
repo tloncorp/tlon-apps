@@ -2,7 +2,13 @@ import * as db from '@tloncorp/shared/db';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { UrbitSigil } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import React from 'react';
 import {
   ColorTokens,
@@ -311,6 +317,11 @@ export const ImageAvatar = function ImageAvatarComponent({
 
   const shouldShowImage =
     isGroupIcon || ignoreCalm || !calmSettings.disableAvatars;
+
+  useEffect(() => {
+    setLoadFailed(false);
+    setIsLoading(!!imageUrl);
+  }, [imageUrl]);
 
   return imageUrl &&
     imageUrl !== '' &&
