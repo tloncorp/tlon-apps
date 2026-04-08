@@ -6,7 +6,7 @@
        [%turf p=(list turf)]
 -      [%unto =unto:gall]  ::  internal gifts to host ships
 -                          ::   (%facts are transformed to %raw-facts)
-+      [%unto p=unto:gall]
++      [%unto =unto:gall]
 +      [%response =http-event:http]
    ==
  --
