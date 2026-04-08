@@ -9,11 +9,11 @@ export type PresenceStatusesByContext = Record<string, PresenceStatusesByKey>;
 
 const logger = createDevLogger('presenceStore', false);
 const EMPTY_CONTEXT_STATUSES = Object.freeze({}) as PresenceStatusesByKey;
-let statusesByContext: PresenceStatusesByContext = {};
+let presenceStatusesByContext: PresenceStatusesByContext = {};
 const presenceListeners: Array<() => void> = [];
 
 export const reducePresenceState = (
-  statusesByContext: PresenceStatusesByContext,
+  currentPresenceStatusesByContext: PresenceStatusesByContext,
   event: PresenceEvent
 ): PresenceStatusesByContext => {
   if (event.type === 'init') {
@@ -47,18 +47,19 @@ export const reducePresenceState = (
       logger.log('ignoring set presence event without contextId', {
         key: event.state.key,
       });
-      return statusesByContext;
+      return currentPresenceStatusesByContext;
     }
 
     const contextId = event.state.contextId;
     const statusId = toPresenceStatusId(event.state);
-    const existingContextStatuses = statusesByContext[contextId];
+    const existingContextStatuses =
+      currentPresenceStatusesByContext[contextId];
     const nextContextStatuses = {
       ...(existingContextStatuses ?? {}),
       [statusId]: event.state,
     };
     const nextState = {
-      ...statusesByContext,
+      ...currentPresenceStatusesByContext,
       [contextId]: nextContextStatuses,
     };
 
@@ -77,18 +78,19 @@ export const reducePresenceState = (
     logger.log('ignoring clear presence event without contextId', {
       key: event.key,
     });
-    return statusesByContext;
+    return currentPresenceStatusesByContext;
   }
 
   const contextId = event.contextId;
-  const existingContextStatuses = statusesByContext[contextId];
+  const existingContextStatuses =
+    currentPresenceStatusesByContext[contextId];
 
   if (!existingContextStatuses) {
     logger.log('ignoring clear presence event for unknown context', {
       event: summarizePresenceEvent(event),
-      currentState: summarizePresenceState(statusesByContext),
+      currentState: summarizePresenceState(currentPresenceStatusesByContext),
     });
-    return statusesByContext;
+    return currentPresenceStatusesByContext;
   }
 
   const statusId = toPresenceKeyId(event.key);
@@ -98,7 +100,7 @@ export const reducePresenceState = (
       event: summarizePresenceEvent(event),
       knownStatusIds: Object.keys(existingContextStatuses),
     });
-    return statusesByContext;
+    return currentPresenceStatusesByContext;
   }
 
   const { [statusId]: _removedStatus, ...remainingContextStatuses } =
@@ -106,7 +108,7 @@ export const reducePresenceState = (
 
   if (Object.keys(remainingContextStatuses).length === 0) {
     const { [contextId]: _removedContext, ...remainingContexts } =
-      statusesByContext;
+      currentPresenceStatusesByContext;
 
     logger.log('reduced clear presence event and removed empty context', {
       event: summarizePresenceEvent(event),
@@ -117,7 +119,7 @@ export const reducePresenceState = (
   }
 
   const nextState = {
-    ...statusesByContext,
+    ...currentPresenceStatusesByContext,
     [contextId]: remainingContextStatuses,
   };
 
@@ -131,7 +133,7 @@ export const reducePresenceState = (
 };
 
 function getPresenceState() {
-  return statusesByContext;
+  return presenceStatusesByContext;
 }
 
 function subscribeToPresence(listener: () => void) {
@@ -151,15 +153,15 @@ function subscribeToPresence(listener: () => void) {
 }
 
 function setPresenceState(nextState: PresenceStatusesByContext) {
-  if (nextState === statusesByContext) {
+  if (nextState === presenceStatusesByContext) {
     logger.log('presence state unchanged, skipping notify', {
-      state: summarizePresenceState(statusesByContext),
+      state: summarizePresenceState(presenceStatusesByContext),
     });
     return;
   }
 
-  const previousState = statusesByContext;
-  statusesByContext = nextState;
+  const previousState = presenceStatusesByContext;
+  presenceStatusesByContext = nextState;
   logger.log('presence state updated', {
     previousState: summarizePresenceState(previousState),
     nextState: summarizePresenceState(nextState),
@@ -170,12 +172,12 @@ function setPresenceState(nextState: PresenceStatusesByContext) {
 
 export function handlePresenceEvent(event: PresenceEvent) {
   logger.log('handling presence event', summarizePresenceEvent(event));
-  setPresenceState(reducePresenceState(statusesByContext, event));
+  setPresenceState(reducePresenceState(presenceStatusesByContext, event));
 }
 
 export function clearPresenceState() {
   logger.log('clearing presence state', {
-    previousState: summarizePresenceState(statusesByContext),
+    previousState: summarizePresenceState(presenceStatusesByContext),
   });
   setPresenceState({});
 }
