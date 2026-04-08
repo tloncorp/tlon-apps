@@ -60,8 +60,7 @@ export const reducePresenceState = (
 
     const contextId = event.state.contextId;
     const statusId = toPresenceStatusId(event.state);
-    const existingContextStatuses =
-      currentPresenceStatusesByContext[contextId];
+    const existingContextStatuses = currentPresenceStatusesByContext[contextId];
     const nextContextStatuses = {
       ...(existingContextStatuses ?? {}),
       [statusId]: event.state,
@@ -90,8 +89,7 @@ export const reducePresenceState = (
   }
 
   const contextId = event.contextId;
-  const existingContextStatuses =
-    currentPresenceStatusesByContext[contextId];
+  const existingContextStatuses = currentPresenceStatusesByContext[contextId];
 
   if (!existingContextStatuses) {
     logger.log('ignoring clear presence event for unknown context', {
