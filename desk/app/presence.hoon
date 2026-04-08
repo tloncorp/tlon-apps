@@ -423,6 +423,11 @@
   ~|  wire=wire
   ?+  wire  ~|(%strange-wire !!)
       [%setup ?(~ ^)]
+    ?>  ?=([%behn %wake *] sign)
+    ?^  error.sign
+      ::TODO  log formally
+      %.  [~ this]
+      (slog (rap 3 dap.bowl ': failed wake on ' (spat wire) ~) u.error.sign)
     ?~  t.wire
       ::  ensure we .want all relevant contexts, then inflate fully.
       ::  this implicitly drops any contexts not in +channel- or +dm-contexts!
