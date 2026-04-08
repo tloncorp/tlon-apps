@@ -154,6 +154,7 @@ patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
 rm -f $pier/base/lib/strandio.hoon.rej
 rm -f $pier/base/lib/strandio.hoon.orig
 rm -f $pier/base/sur/aquarium.hoon.rej
+rm -f $pier/base/sur/aquarium.hoon.orig
 
 echo "Updating base desk..."
 $run_click $pier <<EOF
