@@ -223,6 +223,7 @@
 ;<  ~  bind:m  (poke-app:ph-test [~nec %reel] reel-command+[%set-ship ~fen])
 ;<  ~  bind:m  (poke-app:ph-test [~fen %reel] reel-command+[%set-ship ~fen])
 ;<  ~  bind:m  (poke-app:ph-test [~dem %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (sleep ~s0)
 ;<  ~  bind:m  ph-test-shut:ph-test
 ::  TODO notify agent does not support swapping a provider
 ;<  =bowl:spider  bind:m  get-bowl
@@ -253,6 +254,8 @@
   ~>  %slog.1^leaf+"{(trip name)} took {<took-s>}.{((d-co:co 3) took-ms)}s"
   $(tests t.tests, results [[path.test thread-result] results])
 ;<  ~  bind:m  end:ph-io
+::TODO fix aqua to only clear a particular snap
+;<  ~  bind:m  (poke-our %aqua noun+!>([%clear-snap snap]))
 =+  ok=&
 |-
 ?~  results  (pure:m !>(ok))

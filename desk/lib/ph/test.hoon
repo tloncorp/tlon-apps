@@ -82,7 +82,6 @@
   ?>  ?=(%aqua-effect p.cage)
   =+  !<(=aqua-effect q.cage)
   =/  [from=^ship =unix-effect]  aqua-effect
-  ~&  wait-for-app-fact+[from unix-effect]
   ?.  =(from our)  loop
   ?.  =(wire p.unix-effect)  loop
   ?.  ?=([%unto %raw-fact *] q.unix-effect)  loop

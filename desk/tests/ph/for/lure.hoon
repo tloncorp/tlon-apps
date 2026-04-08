@@ -16,6 +16,7 @@
 |%
 ++  test-flag  ~zod^%test-group
 ++  test-group-id  '~zod/test-group'
+++  test-group-name  'test-group'
 ::  +ex-r-groups: expect group response
 ::
 ++  ex-r-groups
@@ -57,13 +58,13 @@
   ;<  ~  bind:m  (poke-app [~zod %groups] group-command+[%create create-group])
   ;<  ~  bind:m  (ex-r-groups-fact ~zod test-flag %create)
   (pure:m ~)
-++  lure-link-metadata
+++  lure-group-metadata
   ^~
   ^-  metadata:v1:r
   :-  %groups-0
   %-  my
   :~  [%'inviterUserId' '~zod']
-      [%'inviterNickname' 'Zod']
+      [%'inviterNickname' 'Aqua Zod']
       [%'inviterAvatarImage' 'https://zod.arvo.network/avatar.png']
       [%'invitedGroupTitle' 'Test Group']
       [%'invitedGroupDescription' 'Aqua test group']
@@ -71,6 +72,30 @@
       [%'invitedGroupIconImageUrl' 'https://zod.arvo.network/sunrise.jpg']
       [%'bite-type' '2']
   ==
+++  lure-personal-metadata
+  ^~
+  ^-  metadata:v1:r
+  :-  %group-0
+  %-  my
+  :~  [%'inviterUserId' '~zod']
+      [%'inviterNickname' 'Aqua Zod']
+      [%'inviterAvatarImage' 'https://zod.arvo.network/avatar.png']
+      [%'inviteType' 'user']
+      [%'invitedGroupId' '']
+      [%'bite-type' '2']
+  ==
+::
+++  scry-reel-bait
+  |=  =ship
+  =/  m  (strand ,[@t @p])
+  ^-  form:m
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /i/(scot %p ship)/gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/bait/noun/noun
+  =+  ;;  [bait=(unit [vic=@t civ=@p])]
+    (scry-aqua:util noun our.bowl now.bowl aqua-pax)
+  (pure:m (need bait))
+::
 ++  scry-reel-service
   |=  =ship
   =/  m  (strand @t)
@@ -83,19 +108,19 @@
   (pure:m (need vic))
 ::
 ++  generate-lure-invite
+  |=  =metadata:v1:r
   =/  m  (strand @t)
   ^-  form:m
   =+  lure-path=(stab (cat 3 '/v1/id-link/' test-group-id))
+  ;<  ~  bind:m  (poke-app [~zod %reel] verb+[%volume %info])
   ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] lure-path)
-  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[test-group-id lure-link-metadata])
+  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[test-group-id metadata])
   ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
   ;<  ~  bind:m  (leave-app /~zod/reel/v1/id-link [~zod %reel])
   ?>  ?=(%json p.kag)
   =+  !<(=json q.kag)
   ?>  ?=(%s -.json)
-  ;<  vic=@t  bind:m  (scry-reel-service ~zod)
-  =/  lure-token=@t  (rsh [3 (met 3 vic)] p.json)
-  (pure:m lure-token)
+  (pure:m p.json)
 ::
 ++  ph-test-lure-link-creation
   =/  m  (strand ,~)
@@ -104,44 +129,138 @@
   ::
   ;<  ~  bind:m  create-test-group
   ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+test-group-id)
-  ;<  token=@t  bind:m  generate-lure-invite
+  ;<  token=@t  bind:m  (generate-lure-invite lure-group-metadata)
   ?>  (gth (met 3 token) 0)
   (pure:m ~)
 ::
-++  ph-test-lure-group-redemption
-  =/  m  (strand ,~)
+++  eyre-authenticate
+  |=  =ship
+  =/  m  (strand (unit @t))
   ^-  form:m
-  ::  host a group on ~zod and enables lure links
-  ::
-  ;<  ~  bind:m  create-test-group
-  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+test-group-id)
-  ;<  token=@t  bind:m  generate-lure-invite
-  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
-  ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
-  ::  ~bud onboards from hosting through the lure invite.
-  ::
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /i/(scot %p ship)/j/(scot %p ship)/code/(scot %da now.bowl)/(scot %p ship)/noun
+  =+  ;;  code=(unit @t)
+    (scry-aqua:util noun our.bowl now.bowl aqua-pax)
+  =+  password=(rsh [3 1] (need code))
   =/  =request:http
     :*  %'POST'
-        (cat 3 '/lure/' token)
+        '/~/login'
         ~
-        `(as-octs:mimes:html 'ship=%7Ebud')
+        `(as-octs:mimes:html (crip "password={(trip password)}"))
     ==
   =/  =task:eyre
-    :*  %request-local
+    :*  %request
         secure=|
         ipv4+.127.0.0.1
         request
     ==
   =/  =aqua-event
-    [%event ~zod /e/aqua/eyre/request-local task]
+    [%event ship /e/aqua/eyre/request task]
+  ;<  ~  bind:m  (watch-our /effect/response %aqua /effect/response)
   ;<  ~  bind:m  (send-events ~[aqua-event])
-  ::  ~bud receives an dm invitation and a group invitation
+  ;<  =aqua-effect  bind:m  (take-effect /effect/response)
+  ?>  =(ship who.aqua-effect)
+  =*  effect  q.ufs.aqua-effect
+  ?>  ?=(%response -.effect)
+  ?>  ?=(%start -.http-event.effect)
+  =*  headers  headers.response-header.http-event.effect
+  =/  [@t cookie=@t]
+    %-  head
+    (skim headers |=([key=@t value=@t] ?:(=('set-cookie' key) & |)))
+  =/  cookie=(unit @t)
+    %+  bind  (rush cookie ;~(sfix (plus ;~(less mic prn)) (star prn)))
+    crip
+  (pure:m cookie)
+::
+++  ph-test-lure-group
+  =/  m  (strand ,~)
+  ^-  form:m
+  ::
+  ;<  ~  bind:m  (poke-app [~fen %bait] verb+[%volume %info])
+  ::  host a group on ~zod and enable lure links
+  ::
+  ;<  ~  bind:m  create-test-group
+  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+test-group-name)
+  ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-group-metadata)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
+  ;<  cookie=(unit @t)  bind:m  (eyre-authenticate ~fen)
+  ?>  ?=(^ cookie)
+  ::  ~bud onboards from hosting through the lure invite.
+  ::
+  =/  =purl:eyre
+    (need (de-purl:html lure-invite))
+  =*  pork  q.purl
+  =/  lure-line=@t
+    ?~  p.pork  (spat q.pork)
+    (cat 3 (spat q.pork) (cat 3 '.' u.p.pork))
+  =/  =request:http
+    :*  %'POST'
+        lure-line
+        ~[['cookie' u.cookie]]
+        `(as-octs:mimes:html 'ship=%7Ebud')
+    ==
+  =/  =task:eyre
+    :*  %request
+        secure=|
+        ipv4+.127.0.0.1
+        request
+    ==
+  ::  ~fen the bait provider receives the onboarding request
+  ::
+  =/  =aqua-event
+    [%event ~fen /e/aqua/eyre/request task]
+  ;<  ~  bind:m  (send-events ~[aqua-event])
+  ::  ~bud receives group invites: one current and one backwards compatible
   ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
-  ~&  p.kag
   ?>  =(%foreigns-1 p.kag)
+  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
+  ?>  =(%foreigns-1 p.kag)
+  ::  ~bud receives dm invite
+  ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
-  ~&  p.kag
+  ?>  =(%writ-response-4 p.kag)
+  (pure:m ~)
+::
+++  ph-test-lure-personal
+  =/  m  (strand ,~)
+  ^-  form:m
+  ::
+  ;<  ~  bind:m  (poke-app [~fen %bait] verb+[%volume %info])
+  ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-personal-metadata)
+  ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
+  ;<  cookie=(unit @t)  bind:m  (eyre-authenticate ~fen)
+  ?>  ?=(^ cookie)
+  ::  ~bud onboards from hosting through the lure invite.
+  ::
+  =/  =purl:eyre
+    (need (de-purl:html lure-invite))
+  =*  pork  q.purl
+  =/  lure-line=@t
+    ?~  p.pork  (spat q.pork)
+    (cat 3 (spat q.pork) (cat 3 '.' u.p.pork))
+  =/  =request:http
+    :*  %'POST'
+        lure-line
+        ~[['cookie' u.cookie]]
+        `(as-octs:mimes:html 'ship=%7Ebud')
+    ==
+  =/  =task:eyre
+    :*  %request
+        secure=|
+        ipv4+.127.0.0.1
+        request
+    ==
+  ::  ~fen the bait provider receives the onboarding request
+  ::
+  =/  =aqua-event
+    [%event ~fen /e/aqua/eyre/request task]
+  ;<  ~  bind:m  (send-events ~[aqua-event])
+  ::  ~bud receives dm invite
+  ::
+  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
   ?>  =(%writ-response-4 p.kag)
   (pure:m ~)
 --

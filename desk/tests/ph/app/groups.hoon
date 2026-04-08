@@ -1,9 +1,6 @@
 /-  spider, g=groups, gv=groups-ver
 /+  *ph-io, *ph-test
 =,  strand=strand:spider
-=>
-|%
---
 |%
 ++  test-flag  ~zod^%my-test-group
 ::  +ex-r-groups: expect group response
@@ -64,40 +61,8 @@
   =/  =a-foreigns:v8:gv
     [%foreign test-flag %join token.i.invites.foreign]
   ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
-  ::  wait for ~bud to complete the group join
-  ::
-  :: ~&  %bud-receive-connection-update
-  :: ;<  ~  bind:m  (ex-r-groups ~bud ~zod^%my-test-group [%connection &+%watch])
-  :: ~&  %bud-receive-connection-update-2
-  :: ;<  ~  bind:m  (ex-r-groups ~bud ~zod^%my-test-group [%connection &+%done])
-  ~&  %bud-receive-creation-update
   ;<  ~  bind:m  (ex-r-groups-fact ~bud ~zod^%my-test-group %create)
   ;<  =bowl:strand  bind:m  get-bowl
-  :: =/  aqua-pax
-  ::   /i/~bud/gx/~bud/groups/(scot %da now.bowl)/v2/groups/noun/noun
-  :: =+  ;;  groups=(unit groups:v9:gv)
-  ::     (scry-aqua:util noun our.bowl now.bowl aqua-pax)
-  :: ~&  groups+groups
   (pure:m ~)
-::  +ph-test-group-conn-not-found: test missing group connection update
-::
-::  scenario
-::
-::  ~zod hosts a group. ~bud joins the group and then suspends his
-::  subscription. ~zod deletes the group. ~bud revives his subscription
-::  and receives a %not-found connection error.
-::
-:: ++  ph-test-group-conn-not-found
-::   =/  m  (strand ,~)
-::   ^-  form:m
-::   ;<  ~  bind:m  ph-test-group-join
-::   ;<  ~  bind:m  (poke-app [~bud %groups] group-suspend+[test-flag &])
-::   :: ;<  ~  bind:m  (ex-r-groups ~bud test-flag [%connection &+%suspend])
-::   ;<  ~  bind:m  (poke-app [~zod %groups] group-command+[%group test-flag %delete ~])
-::   :: ;<  ~  bind:m  (poke-app [~bud %groups] group-suspend+[test-flag |])
-::   :: ;<  ~  bind:m  (ex-r-groups ~bud test-flag [%connection &+%watch])
-::   :: ;<  ~  bind:m  (ex-r-groups ~bud test-flag [%connection &+%done])
-::   :: ;<  ~  bind:m  (ex-r-groups ~bud test-flag [%connection |+%not-found])
-::   (pure:m ~)
 --
 
