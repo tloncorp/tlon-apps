@@ -28,9 +28,6 @@
 ::    timestamps and timeouts as-is, and ignoring any that have expired
 ::    by the time we receive them. if it's in the future, treat it as now.
 ::
-::TODO  subscribe to chat and channels agents for contexts we care about,
-::      instead of scrying during load (making sure to not sub to channels
-::      that we ourselves host)
 ::TODO  make chat, channels clear %typing whenever we receive a msg?
 ::TODO  discipline
 ::
@@ -389,8 +386,8 @@
     ::
         %fact
       ?.  ?=(%presence-update-1 p.cage.sign)
-        ::TODO  if %presence-update-* do best-effort?
-        ::TODO  otherwise no-op?
+        ::NOTE  unexpected because we %watch-as in +watch-context
+        ::TODO  log formally
         [~ this]
       =+  !<(upd=update-1 q.cage.sign)
       ?-  -.upd
@@ -403,6 +400,9 @@
         ?:  (gth now.bowl end)
           ::TODO  maybe delete existing one at key?
           [~ this]
+        ::TODO  should we be adjusting the context.key.upd to the local
+        ::      perspective? or does sender take care of that?
+        ::      dm context paths hard to track...
         :_  this(places (put-presence places +.upd))
         :~  (give-response %here +.upd)
             :+  %pass
