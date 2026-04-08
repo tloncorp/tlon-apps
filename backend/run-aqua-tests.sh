@@ -150,7 +150,9 @@ fi
 
 # Patch the broken +await-thread in /lib/strandio.hoon
 patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
+patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
 rm -f $pier/base/lib/strandio.hoon.rej
+rm -f $pier/base/sur/aquarium.hoon.rej
 
 echo "Updating base desk..."
 $run_click $pier <<EOF
