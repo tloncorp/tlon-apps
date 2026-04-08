@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Controller, UseFormReturn } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
-
 import { useTheme } from 'tamagui';
 
 import { Field } from './Field';

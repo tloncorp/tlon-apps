@@ -1,5 +1,4 @@
 import { Button, Text } from '@tloncorp/ui';
-
 import { Icon, Image } from '@tloncorp/ui';
 import { View, XStack, YStack } from 'tamagui';
 

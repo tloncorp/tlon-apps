@@ -12,8 +12,8 @@ import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
 import { useCurrentUserId } from '../../../contexts/appDataContext';
-import { useChannelContext } from '../../../contexts/channel';
 import { useAttachmentContext } from '../../../contexts/attachment';
+import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';

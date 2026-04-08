@@ -13,8 +13,8 @@ import {
   ImageAvatar,
   SystemIconAvatar,
 } from './Avatar';
-import { GroupAvatar } from './GroupAvatar';
 import ContactName from './ContactName';
+import { GroupAvatar } from './GroupAvatar';
 
 export interface BaseListItemProps<T> {
   model: T;

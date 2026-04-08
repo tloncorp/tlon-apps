@@ -18,6 +18,7 @@ import { useCalm, useContact } from '../contexts/appDataContext';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
 import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
+
 export const AvatarFrame = styled(View, {
   width: '$4xl',
   height: '$4xl',

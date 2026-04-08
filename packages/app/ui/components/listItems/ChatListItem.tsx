@@ -2,9 +2,9 @@ import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import React, { useMemo } from 'react';
 
+import { ListItemProps } from '../ListItem';
 import { ChannelListItem } from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
-import { ListItemProps } from '../ListItem';
 
 export const ChatListItem = React.memo(function ChatListItemComponent({
   model,

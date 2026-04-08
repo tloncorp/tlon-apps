@@ -15,13 +15,13 @@ import {
   KEYBOARD_EXTRA_PADDING,
   Text,
 } from '@tloncorp/ui';
+import { KeyboardAvoidingView, LoadingSpinner } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
-import { KeyboardAvoidingView, LoadingSpinner } from '@tloncorp/ui';
 import { useKeyboardAwareScroll } from '../../hooks/useKeyboardAwareScroll';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {

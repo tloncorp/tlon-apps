@@ -29,8 +29,8 @@ import { Text, View, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
-import { useAttachmentContext } from '../contexts/attachment';
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { useAttachmentContext } from '../contexts/attachment';
 import { ChannelProvider } from '../contexts/channel';
 import { NavigationProvider } from '../contexts/navigation';
 import { useStore } from '../contexts/storeContext';

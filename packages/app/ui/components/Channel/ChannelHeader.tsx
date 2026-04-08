@@ -15,8 +15,8 @@ import {
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
-import { GroupAvatar } from '../GroupAvatar';
 import ConnectionStatus from '../ConnectionStatus';
+import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {

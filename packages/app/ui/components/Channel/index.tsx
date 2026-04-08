@@ -40,10 +40,10 @@ import {
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
 import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useAttachmentContext } from '../../contexts/attachment';
 import { ChannelProvider } from '../../contexts/channel';
 import { GroupsProvider } from '../../contexts/groups';
 import { NavigationProvider } from '../../contexts/navigation';
-import { useAttachmentContext } from '../../contexts/attachment';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
