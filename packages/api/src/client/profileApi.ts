@@ -206,11 +206,10 @@ export async function getPublicProfileRunning() {
 }
 
 export async function getPublicProfileEnabled() {
-  return tryScryPaths(
-    scryProfileBoolean,
-    ['/bound/json', '/x/bound/json'],
-    false
-  );
+  return scry<boolean>({
+    app: 'profile',
+    path: '/bound/json'
+  });
 }
 
 export async function setPublicProfileEnabled(enabled: boolean) {
