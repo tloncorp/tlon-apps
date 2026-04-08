@@ -26,6 +26,218 @@ import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
+interface StaticChatMessageProps {
+  post: db.Post;
+  showAuthor?: boolean;
+  hideProfilePreview?: boolean;
+  authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
+  showReplies?: boolean;
+  onPressReplies?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onLongPress?: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
+  onPressDelete?: (post: db.Post) => void;
+  setViewReactionsPost?: (post: db.Post) => void;
+  isHighlighted?: boolean;
+  displayDebugMode?: boolean;
+  searchQuery?: string;
+  hideSentAtTimestamp?: boolean;
+}
+
+function StaticChatMessage({
+  post,
+  showAuthor,
+  hideProfilePreview,
+  onPressReplies,
+  onPressImage,
+  onLongPress,
+  onPressRetry,
+  showReplies,
+  setViewReactionsPost,
+  isHighlighted,
+  displayDebugMode = false,
+  searchQuery,
+  hideSentAtTimestamp,
+}: StaticChatMessageProps) {
+  const isNotice = post.type === 'notice';
+
+  if (isNotice) {
+    showAuthor = false;
+  }
+
+  const deliveryFailed =
+    post.deliveryStatus === 'failed' ||
+    post.editStatus === 'failed' ||
+    post.deleteStatus === 'failed';
+
+  const handleRepliesPressed = useCallback(() => {
+    onPressReplies?.(post);
+  }, [onPressReplies, post]);
+
+  const handleLongPress = useCallback(() => {
+    onLongPress?.(post);
+  }, [post, onLongPress]);
+
+  const handleImagePressed = useCallback(
+    (uri: string) => {
+      onPressImage?.(post, uri);
+    },
+    [onPressImage, post]
+  );
+
+  const handleRetryPressed = useCallback(async () => {
+    try {
+      await onPressRetry?.(post);
+    } catch (e) {
+      console.error('Failed to retry post', e);
+    }
+  }, [onPressRetry, post]);
+
+  const content = usePostContent(post);
+  const lastEditContent = usePostLastEditContent(post);
+
+  const shouldRenderReplies =
+    showReplies && post.replyCount && post.replyTime && post.replyContactIds;
+
+  const shouldRenderReplySummary =
+    shouldRenderReplies || (!showAuthor && post.isEdited);
+
+  return (
+    <YStack key={post.id}>
+      {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
+      {showAuthor ? (
+        <AuthorRow
+          padding="$l"
+          paddingBottom="$2xs"
+          author={post.author}
+          authorId={post.authorId}
+          sent={post.sentAt ?? 0}
+          type={post.type}
+          isBot={post.isBot ?? undefined}
+          disabled={hideProfilePreview}
+          editStatus={post.editStatus}
+          deleteStatus={post.deleteStatus}
+          showEditedIndicator={!!post.isEdited}
+        />
+      ) : null}
+
+      {!hideSentAtTimestamp && !showAuthor && (
+        <SentTimeText
+          sentAt={post.sentAt}
+          color="$tertiaryText"
+          position="absolute"
+          top={12}
+          left={5}
+        />
+      )}
+
+      {!!post.deliveryStatus && post.deliveryStatus !== 'failed' ? (
+        <View
+          pointerEvents="none"
+          position="absolute"
+          right={12}
+          top={8}
+          zIndex={199}
+        >
+          <ChatMessageDeliveryStatus status={post.deliveryStatus} />
+        </View>
+      ) : null}
+
+      <View paddingLeft={!isNotice ? '$4xl' : undefined}>
+        {displayDebugMode ? (
+          <Text color="$green" size="$body" padding="$xl">
+            {JSON.stringify(
+              {
+                seq: post.sequenceNum,
+                id: post.id,
+                sentAt: post.sentAt,
+                channelId: post.channelId,
+                authorId: post.authorId,
+                deliveryStatus: post.deliveryStatus,
+                blob: post.blob,
+              },
+              null,
+              2
+            )}
+          </Text>
+        ) : (
+          <ChatContentRenderer
+            content={post.editStatus === 'failed' ? lastEditContent : content}
+            isNotice={post.type === 'notice'}
+            onPressImage={handleImagePressed}
+            onLongPress={handleLongPress}
+            searchQuery={searchQuery}
+          />
+        )}
+      </View>
+
+      {post.reactions && post.reactions.length > 0 && (
+        <View paddingBottom="$l" paddingLeft="$4xl">
+          <ReactionsDisplay
+            post={post}
+            onViewPostReactions={setViewReactionsPost}
+          />
+        </View>
+      )}
+
+      {shouldRenderReplySummary || deliveryFailed ? (
+        <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
+          <ChatMessageReplySummary
+            post={post}
+            onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
+            showEditedIndicator={!showAuthor && !!post.isEdited}
+            deliveryFailed={deliveryFailed}
+            onPressRetry={handleRetryPressed}
+          />
+        </XStack>
+      ) : null}
+    </YStack>
+  );
+}
+
+/**
+ * If `post` should be hidden, renders an appropriate notice for the hidden reason.
+ * Otherwise, renders `children`, which is expected to be the full message content.
+ */
+function MaskedChatMessage({
+  post,
+  children,
+}: {
+  post: db.Post;
+  children?: React.ReactNode;
+}) {
+  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
+    useBlockedAuthor(post);
+  const [showHiddenContent, setShowHiddenContent] = useState(false);
+
+  if (post.isDeleted) {
+    return (
+      <PostErrorMessage testID="MessageDeleted" message="Message deleted" />
+    );
+  } else if (post.hidden && !showHiddenContent) {
+    return (
+      <PostErrorMessage
+        testID="MessageHidden"
+        message="Message hidden or flagged."
+        actionLabel="Show anyway"
+        onAction={() => setShowHiddenContent(true)}
+      />
+    );
+  } else if (isAuthorBlocked && !showBlockedContent) {
+    return (
+      <PostErrorMessage
+        testID="MessageBlocked"
+        message="Message from a blocked user."
+        actionLabel="Show anyway"
+        onAction={handleShowAnyway}
+        actionTestID="ShowBlockedMessageButton"
+      />
+    );
+  } else {
+    return children;
+  }
+}
+
 const ChatMessage = ({
   post,
   showAuthor,
@@ -73,21 +285,6 @@ const ChatMessage = ({
     [channel, canWrite]
   );
 
-  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
-    useBlockedAuthor(post);
-  const [showHiddenContent, setShowHiddenContent] = useState(false);
-
-  const isNotice = post.type === 'notice';
-
-  if (isNotice) {
-    showAuthor = false;
-  }
-
-  const deliveryFailed =
-    post.deliveryStatus === 'failed' ||
-    post.editStatus === 'failed' ||
-    post.deleteStatus === 'failed';
-
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
@@ -103,21 +300,6 @@ const ChatMessage = ({
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
   }, [post, onLongPress]);
-
-  const handleImagePressed = useCallback(
-    (uri: string) => {
-      onPressImage?.(post, uri);
-    },
-    [onPressImage, post]
-  );
-
-  const handleRetryPressed = useCallback(async () => {
-    try {
-      await onPressRetry?.(post);
-    } catch (e) {
-      console.error('Failed to retry post', e);
-    }
-  }, [onPressRetry, post]);
 
   const handleEditPressed = useCallback(() => {
     onPressEdit?.(post);
@@ -139,169 +321,65 @@ const ChatMessage = ({
     }
   }, []);
 
-  const content = usePostContent(post);
-  const lastEditContent = usePostLastEditContent(post);
-
-  if (!post) {
-    return null;
-  }
-
-  if (post.isDeleted) {
-    return (
-      <PostErrorMessage testID="MessageDeleted" message="Message deleted" />
-    );
-  } else if (post.hidden && !showHiddenContent) {
-    return (
-      <PostErrorMessage
-        testID="MessageHidden"
-        message="Message hidden or flagged."
-        actionLabel="Show anyway"
-        onAction={() => setShowHiddenContent(true)}
-      />
-    );
-  } else if (isAuthorBlocked && !showBlockedContent) {
-    return (
-      <PostErrorMessage
-        testID="MessageBlocked"
-        message="Message from a blocked user."
-        actionLabel="Show anyway"
-        onAction={handleShowAnyway}
-        actionTestID="ShowBlockedMessageButton"
-      />
-    );
-  }
-
-  const shouldRenderReplies =
-    showReplies && post.replyCount && post.replyTime && post.replyContactIds;
-
-  const shouldRenderReplySummary =
-    shouldRenderReplies || (!showAuthor && post.isEdited);
-
   return (
-    <Pressable
-      // avoid setting the top level press handler at all unless we need to
-      onPress={shouldHandlePress ? handlePress : undefined}
-      onLongPress={handleLongPress}
-      onHoverIn={handleHoverIn}
-      onHoverOut={handleHoverOut}
-      pressStyle="unset"
-      cursor="default"
-      testID="Post"
-      borderRadius={'$m'}
-      overflow="hidden"
-      backgroundColor={
-        isWeb && isHovered ? '$secondaryBackground' : 'transparent'
-      }
-    >
-      <YStack key={post.id}>
-        {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
-        {showAuthor ? (
-          <AuthorRow
-            padding="$l"
-            paddingBottom="$2xs"
-            author={post.author}
-            authorId={post.authorId}
-            sent={post.sentAt ?? 0}
-            type={post.type}
-            isBot={post.isBot ?? undefined}
-            disabled={hideProfilePreview}
-            editStatus={post.editStatus}
-            deleteStatus={post.deleteStatus}
-            showEditedIndicator={!!post.isEdited}
-          />
-        ) : null}
-
-        {!hideOverflowMenu && isHovered && !showAuthor && (
-          <SentTimeText
-            sentAt={post.sentAt}
-            color="$tertiaryText"
-            position="absolute"
-            top={12}
-            left={5}
-          />
-        )}
-
-        {!!post.deliveryStatus && post.deliveryStatus !== 'failed' ? (
-          <View
-            pointerEvents="none"
-            position="absolute"
-            right={12}
-            top={8}
-            zIndex={199}
-          >
-            <ChatMessageDeliveryStatus status={post.deliveryStatus} />
-          </View>
-        ) : null}
-
-        <View paddingLeft={!isNotice ? '$4xl' : undefined}>
-          {displayDebugMode ? (
-            <Text color="$green" size="$body" padding="$xl">
-              {JSON.stringify(
-                {
-                  seq: post.sequenceNum,
-                  id: post.id,
-                  sentAt: post.sentAt,
-                  channelId: post.channelId,
-                  authorId: post.authorId,
-                  deliveryStatus: post.deliveryStatus,
-                  blob: post.blob,
-                },
-                null,
-                2
-              )}
-            </Text>
-          ) : (
-            <ChatContentRenderer
-              content={post.editStatus === 'failed' ? lastEditContent : content}
-              isNotice={post.type === 'notice'}
-              onPressImage={handleImagePressed}
-              onLongPress={handleLongPress}
-              searchQuery={searchQuery}
-            />
-          )}
-        </View>
-
-        {post.reactions && post.reactions.length > 0 && (
-          <View paddingBottom="$l" paddingLeft="$4xl">
-            <ReactionsDisplay
+    <MaskedChatMessage post={post}>
+      <Pressable
+        // avoid setting the top level press handler at all unless we need to
+        onPress={shouldHandlePress ? handlePress : undefined}
+        onLongPress={handleLongPress}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
+        pressStyle="unset"
+        cursor="default"
+        testID="Post"
+        borderRadius={'$m'}
+        overflow="hidden"
+        backgroundColor={
+          isWeb && isHovered ? '$secondaryBackground' : 'transparent'
+        }
+      >
+        <StaticChatMessage
+          {...{
+            post,
+            showAuthor,
+            hideProfilePreview,
+            onPressReplies,
+            onPressImage,
+            onPress,
+            onLongPress,
+            onPressRetry,
+            onShowEmojiPicker,
+            onPressEdit,
+            showReplies,
+            setViewReactionsPost,
+            isHighlighted,
+            hideOverflowMenu,
+            displayDebugMode,
+            searchQuery,
+            hideSentAtTimestamp: hideOverflowMenu || isHovered,
+          }}
+        />
+        {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
+          <View position="absolute" top={showAuthor ? 8 : 2} right={12}>
+            <ChatMessageActions
               post={post}
-              onViewPostReactions={setViewReactionsPost}
+              postActionIds={postActionIds}
+              onDismiss={() => {
+                setIsPopoverOpen(false);
+                setIsHovered(false);
+              }}
+              onOpenChange={setIsPopoverOpen}
+              onReply={handleRepliesPressed}
+              onEdit={handleEditPressed}
+              onViewReactions={setViewReactionsPost}
+              onShowEmojiPicker={handleEmojiPickerPressed}
+              trigger={<OverflowTriggerButton testID="MessageActionsTrigger" />}
+              mode="await-trigger"
             />
           </View>
         )}
-
-        {shouldRenderReplySummary || deliveryFailed ? (
-          <XStack paddingLeft={'$4xl'} paddingRight="$l" paddingBottom="$l">
-            <ChatMessageReplySummary
-              post={post}
-              onPress={shouldRenderReplies ? handleRepliesPressed : undefined}
-              showEditedIndicator={!showAuthor && !!post.isEdited}
-              deliveryFailed={deliveryFailed}
-              onPressRetry={handleRetryPressed}
-            />
-          </XStack>
-        ) : null}
-      </YStack>
-      {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
-        <View position="absolute" top={showAuthor ? 8 : 2} right={12}>
-          <ChatMessageActions
-            post={post}
-            postActionIds={postActionIds}
-            onDismiss={() => {
-              setIsPopoverOpen(false);
-              setIsHovered(false);
-            }}
-            onOpenChange={setIsPopoverOpen}
-            onReply={handleRepliesPressed}
-            onEdit={handleEditPressed}
-            onViewReactions={setViewReactionsPost}
-            onShowEmojiPicker={handleEmojiPickerPressed}
-            trigger={<OverflowTriggerButton testID="MessageActionsTrigger" />}
-            mode="await-trigger"
-          />
-        </View>
-      )}
-    </Pressable>
+      </Pressable>
+    </MaskedChatMessage>
   );
 };
 
