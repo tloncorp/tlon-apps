@@ -128,7 +128,7 @@
   ::  host a group on ~zod and enable lure links
   ::
   ;<  ~  bind:m  create-test-group
-  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-id)
+  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-name)
   ;<  token=@t  bind:m  (generate-lure-invite lure-group-metadata)
   ?>  (gth (met 3 token) 0)
   (pure:m ~)
