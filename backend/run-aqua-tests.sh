@@ -152,6 +152,7 @@ fi
 patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
 patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
 rm -f $pier/base/lib/strandio.hoon.rej
+rm -f $pier/base/lib/strandio.hoon.orig
 rm -f $pier/base/sur/aquarium.hoon.rej
 
 echo "Updating base desk..."
