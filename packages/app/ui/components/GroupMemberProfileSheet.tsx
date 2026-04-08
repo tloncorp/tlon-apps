@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
-import { useIsAdmin } from '../utils';
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { useIsAdmin } from '../utils';
 import { ProfileSheet } from './ProfileSheet';
 
 export function useGroupMemberProfileSheet() {
@@ -75,9 +75,7 @@ export function GroupMemberProfileSheet({
       contact={selectedContactData}
       currentUserIsAdmin={currentUserIsAdmin}
       groupHostId={group?.hostUserId}
-      userIsBanned={bannedUsers.some(
-        (b) => b.contactId === selectedContact
-      )}
+      userIsBanned={bannedUsers.some((b) => b.contactId === selectedContact)}
       userIsInvited={groupMembers.some(
         (m) => m.contactId === selectedContact && m.status === 'invited'
       )}
