@@ -294,6 +294,7 @@ function ChatDetailsScreenView() {
             <MembersList
               entityType={chatType}
               members={members}
+              group={group}
               canInvite={canInviteToGroup}
               canManage={currentUserIsAdmin && actionsEnabled}
             />
