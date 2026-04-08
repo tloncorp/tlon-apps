@@ -6,7 +6,7 @@ import { useChannelContext } from '../../contexts/channel';
 import {
   RenderItemType,
   useComponentsKitContext,
-} from '../../contexts/componentsKits';
+} from '../../contexts/componentsKits/componentsKits';
 import { ChatMessage } from '../ChatMessage';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';

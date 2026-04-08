@@ -27,10 +27,10 @@ import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 import { useNowPlayingController } from '../../contexts/nowPlaying';
 import { Waveform } from '../AudioRecorder/Waveform';
 import {
-  ContentReferenceLoader,
+  ContentReferenceLoaderProxy as ContentReferenceLoader,
   IsInsideReferenceContext,
-  Reference,
-} from '../ContentReference';
+} from '../ContentReference/ContentReferenceLoaderRegistry';
+import { Reference } from '../ContentReference/Reference';
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';

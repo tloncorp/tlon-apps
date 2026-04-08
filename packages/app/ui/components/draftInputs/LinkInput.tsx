@@ -21,7 +21,7 @@ import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, useTheme } from 'tamagui';
 
-import { KeyboardAvoidingView, LoadingSpinner } from '../..';
+import { KeyboardAvoidingView, LoadingSpinner } from '@tloncorp/ui';
 import { useKeyboardAwareScroll } from '../../hooks/useKeyboardAwareScroll';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {

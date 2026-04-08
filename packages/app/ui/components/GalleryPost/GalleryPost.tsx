@@ -39,7 +39,7 @@ import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component'
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
-import { Reference } from '../ContentReference';
+import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
 import { PostErrorMessage } from '../PostErrorMessage';

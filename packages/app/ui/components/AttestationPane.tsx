@@ -14,7 +14,7 @@ import { Linking } from 'react-native';
 import { XStack, XStackProps, YStack, styled } from 'tamagui';
 
 import { useStore } from '../contexts/storeContext';
-import { HiddenPhoneDisplay } from './Profile/ConnectedAccountsWidget';
+import { HiddenPhoneDisplay } from './Profile/HiddenPhoneDisplay';
 
 type SigStatus = 'initial' | 'loading' | 'verified' | 'invalid' | 'errored';
 

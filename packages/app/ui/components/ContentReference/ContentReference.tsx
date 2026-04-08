@@ -4,14 +4,15 @@ import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import React, { createContext } from 'react';
+import React from 'react';
 import { ComponentProps, useCallback, useContext } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
 import { useNavigation } from '../../contexts/navigation';
 import { useRequests } from '../../contexts/requests';
 import { useGroupTitle } from '../../utils';
-import { ContactAvatar, GroupAvatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
+import { GroupAvatar } from '../GroupAvatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
 import { ListItem } from '../ListItem';
@@ -24,8 +25,12 @@ import {
   ReferenceSkeleton,
   useReferenceContext,
 } from './Reference';
+import {
+  IsInsideReferenceContext,
+  registerContentReferenceLoader,
+} from './ContentReferenceLoaderRegistry';
 
-export const IsInsideReferenceContext = createContext(false);
+export { IsInsideReferenceContext };
 export const useIsInsideReference = () => useContext(IsInsideReferenceContext);
 
 // Any reference
@@ -369,3 +374,8 @@ function ContentReferenceHeader({ type }: { type: keyof typeof typeMeta }) {
     </Reference.Header>
   );
 }
+
+// Register ContentReferenceLoader in the module registry to break the
+// circular import with BlockRenderer.tsx. By render time all modules are
+// loaded, so the registry is populated before any component renders.
+registerContentReferenceLoader(ContentReferenceLoader);

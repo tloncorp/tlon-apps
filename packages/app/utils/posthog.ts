@@ -105,7 +105,6 @@ export const identifyTlonEmployee = () => {
   }
 
   const UUID = posthog.getDistinctId();
-  // Import at top of function to avoid circular dependency
-  const { identifyUser } = require('./identifyUser');
-  identifyUser(UUID, { isTlonEmployee: true });
+  posthog.identify(UUID, { isTlonEmployee: true });
+  Sentry.setUser({ id: UUID, isTlonEmployee: true });
 };

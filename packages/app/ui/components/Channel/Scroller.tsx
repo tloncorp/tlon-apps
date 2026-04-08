@@ -59,10 +59,7 @@ interface PostWithNeighbors {
 
 const logger = createDevLogger('scroller', false);
 
-export type ScrollAnchor = {
-  type: 'unread' | 'selected';
-  postId: string;
-};
+export type { ScrollAnchor } from './scrollerTypes';
 
 /**
  * This scroller makes some assumptions you should not break!

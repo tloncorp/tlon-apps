@@ -33,7 +33,8 @@ import { RootStackParamList } from '../../navigation/types';
 import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
-import { ContactAvatar, GroupAvatar } from './Avatar';
+import { ContactAvatar } from './Avatar';
+import { GroupAvatar } from './GroupAvatar';
 import { ContactName } from './ContactNameV2';
 import {
   PhoneAttestDisplay,

@@ -12,7 +12,7 @@ import { LayoutRectangle } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
 import { useNavigation } from '../contexts/navigation';
-import { Reference } from './ContentReference';
+import { Reference } from './ContentReference/Reference';
 import { BlockquoteSideBorder } from './PostContent/BlockquoteSideBorder';
 
 function FileNameLabel({

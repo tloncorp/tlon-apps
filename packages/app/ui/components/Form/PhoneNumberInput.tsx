@@ -4,7 +4,9 @@ import { Controller, UseFormReturn } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
 
-import { Field, useTheme } from '../../';
+import { useTheme } from 'tamagui';
+
+import { Field } from './Field';
 
 export function PhoneNumberInput({
   form,

@@ -10,10 +10,10 @@ import { numberWithMax } from '../utils';
 import {
   ChannelAvatar,
   ContactAvatar,
-  GroupAvatar,
   ImageAvatar,
   SystemIconAvatar,
 } from './Avatar';
+import { GroupAvatar } from './GroupAvatar';
 import ContactName from './ContactName';
 
 export interface BaseListItemProps<T> {

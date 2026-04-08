@@ -7,16 +7,9 @@ import type { RenderItemType } from '../../contexts/componentsKits';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { useLivePost } from '../../contexts/requests';
 import { PostView } from '../Channel/PostView';
+import { IPostCollectionView, PostCollectionHandle } from './types';
 
-export interface PostCollectionHandle {
-  scrollToPostAtIndex?: (index: number, viewPosition?: number) => void;
-  scrollToStart?: (opts: { animated?: boolean }) => void;
-  highlightPost?: (postId: string) => void;
-}
-
-export type IPostCollectionView = React.ForwardRefExoticComponent<
-  React.RefAttributes<PostCollectionHandle>
->;
+export type { IPostCollectionView, PostCollectionHandle };
 
 export function ConnectedPostView({
   post,

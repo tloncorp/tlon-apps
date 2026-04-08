@@ -26,7 +26,7 @@ import { useRootNavigation } from '../../navigation/utils';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
-import { GroupAvatar } from './Avatar';
+import { GroupAvatar } from './GroupAvatar';
 import { Badge } from './Badge';
 import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';

@@ -8,7 +8,7 @@ import * as db from '@tloncorp/shared/db';
 import { ReactElement, createContext, useContext } from 'react';
 
 import { DraftInputContext } from '../../components/draftInputs';
-import { IPostCollectionView } from '../../components/postCollectionViews/shared';
+import { IPostCollectionView } from '../../components/postCollectionViews/types';
 
 type RenderItemProps = {
   post: db.Post;
