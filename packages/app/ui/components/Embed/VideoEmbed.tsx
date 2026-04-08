@@ -193,7 +193,7 @@ export default function VideoEmbed({
           {...mediaSizeProps}
           backgroundColor="transparent"
           contentFit={contentFit}
-          alt={video.alt}
+          alt={video.alt ?? 'video'}
         />
       ) : (
         <View
