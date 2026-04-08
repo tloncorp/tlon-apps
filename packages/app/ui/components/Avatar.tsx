@@ -372,6 +372,23 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
   );
 });
 
+function getDefaultInnerSigilSize(
+  avatarSize: NonNullable<AvatarProps['size']>,
+  sigilSize: number
+) {
+  switch (avatarSize) {
+    // Tiny fallback sigils can read like a solid square when an avatar image
+    // is missing, especially for darker profile colors. Give the smallest
+    // avatars a little more room so the sigil stays legible.
+    case '$xl':
+      return sigilSize * 0.75;
+    case '$2xl':
+      return sigilSize * 0.67;
+    default:
+      return sigilSize * 0.5;
+  }
+}
+
 export const SigilAvatar = React.memo(function SigilAvatarComponent({
   contactId,
   contactOverride,
@@ -411,6 +428,10 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       return styles.width ?? styles.height ?? 20;
     }
   }, [size, styles.width, styles.height, props.width, props.height]);
+  const defaultInnerSigilSize = useMemo(
+    () => getDefaultInnerSigilSize(size, sigilSize),
+    [size, sigilSize]
+  );
 
   return (
     <AvatarFrame
@@ -423,7 +444,7 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       <UrbitSigil
         key={contactId}
         colors={colors}
-        size={innerSigilSize ?? sigilSize * 0.5}
+        size={innerSigilSize ?? defaultInnerSigilSize}
         contactId={contactId}
         renderDetail={renderDetail}
       />
