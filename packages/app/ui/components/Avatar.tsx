@@ -17,7 +17,11 @@ import {
 import { useCalm, useContact } from '../contexts';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
-import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
+import {
+  getContrastingColor,
+  getFallbackSigilColor,
+  useSigilColors,
+} from '../utils/colorUtils';
 import { FacePile } from './FacePile';
 
 const AvatarFrame = styled(View, {
@@ -404,7 +408,11 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
 } & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
-  const colors = useSigilColors(contact?.color);
+  const accentColor = useMemo(
+    () => contact?.color ?? getFallbackSigilColor(contactId),
+    [contact?.color, contactId]
+  );
+  const colors = useSigilColors(accentColor);
   const styles = useStyle(props, { resolveValues: 'value' });
   const sigilSize = useMemo(() => {
     if (size && size !== 'custom') {
