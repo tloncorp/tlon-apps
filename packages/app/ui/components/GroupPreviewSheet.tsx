@@ -470,9 +470,7 @@ export function getActionGroups(
         title: 'Request invite',
         accent: status.isProtocolMismatch ? 'disabled' : 'hero',
         disabled: status.isProtocolMismatch,
-        onPress: status.isProtocolMismatch
-          ? undefined
-          : actions.requestInvite,
+        onPress: status.isProtocolMismatch ? undefined : actions.requestInvite,
         description: status.isProtocolMismatch
           ? MISMATCH_DESCRIPTION
           : undefined,
