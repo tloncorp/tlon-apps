@@ -96,7 +96,9 @@
   |=  [subs=(jug context ship) disclose=(set ship) upd=update-1]
   ^-  (list card)
   =/  =key  ?-(-.upd %set key.upd, %clear key.upd)
-  =+  s=(~(int in disclose) (~(get ju subs) context.key))
+  =/  s
+    ?:  =(~ disclose)  (~(get ju subs) context.key)
+    (~(int in disclose) (~(get ju subs) context.key))
   ?:  =(~ s)  ~
   =/  paz=(list path)
     %+  turn  ~(tap in s)
