@@ -190,9 +190,8 @@ export function getConversationPresence(conversationId: string) {
 }
 
 export function useConversationPresence(conversationId: string) {
-  const conversationPresence = useSyncExternalStore(
-    subscribeToPresence,
-    () => getConversationPresenceMap(conversationId)
+  const conversationPresence = useSyncExternalStore(subscribeToPresence, () =>
+    getConversationPresenceMap(conversationId)
   );
 
   return useMemo(
@@ -219,7 +218,9 @@ function summarizePresenceEvent(event: PresenceEvent) {
       type: event.type,
       stateCount: event.states.length,
       contextIds: [
-        ...new Set(event.states.map((state) => state.contextId).filter(Boolean)),
+        ...new Set(
+          event.states.map((state) => state.contextId).filter(Boolean)
+        ),
       ],
     };
   }
