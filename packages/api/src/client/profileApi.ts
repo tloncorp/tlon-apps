@@ -237,11 +237,10 @@ export async function setPublicProfileEnabled(enabled: boolean) {
 }
 
 export async function getPublicProfileLayout() {
-  return tryScryPaths(
-    scryProfileLayout,
-    ['/layout/json', '/x/layout/json'],
-    [] as PublicProfileWidget[]
-  );
+  return scry<PublicProfileWidget[]>({
+    app: 'profile',
+    path: '/layout/json',
+  });
 }
 
 export async function setPublicProfileWidgetEnabled(
