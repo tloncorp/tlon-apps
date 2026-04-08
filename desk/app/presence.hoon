@@ -34,7 +34,7 @@
 ::TODO  make chat, channels clear %typing whenever we receive a msg?
 ::TODO  discipline
 ::
-/-  *presence
+/-  *presence, cv=channels-ver
 /+  dbug, verb
 ::
 |%
@@ -123,6 +123,17 @@
     /(scot %p our.bowl)/chat/(scot %da now.bowl)/dm/ships
   ==
 ::
+++  channel-contexts
+  |=  =bowl:gall
+  ^-  (set [ship context])
+  %.  |=  nest:v9:cv
+      [ship /channel/[kind]/(scot %p ship)/[name]]
+  %~  run  in
+  %~  key  by
+  .^  channels:v9:cv  %gx
+    /(scot %p our.bowl)/channels/(scot %da now.bowl)/v4/channels/channels-4
+  ==
+::
 ++  watch-context
   |=  [our=ship who=ship =context]
   ^-  card
@@ -138,8 +149,8 @@
 ++  inflate
   |=  [=bowl:gall want=(set [ship context])]
   ^-  (list card)
-  %+  weld
-    ::  leave subs that we have but don't want
+  ;:  weld
+    ::  leave contexts that we have but don't want
     ::
     %+  murn  ~(tap by wex.bowl)
     |=  [[=wire =ship =term] *]
@@ -148,15 +159,29 @@
     =*  context  t.wire
     ?:  (~(has in want) ship context)  ~
     `[%pass wire %agent [ship term] %leave ~]
-  ::  watch subs that we don't have but want
   ::
-  %+  murn  ~(tap in want)
-  |=  [=ship =context]
-  ^-  (unit card)
-  ?:  =(ship our.bowl)  ~  ::  don't subscribe to ourselves
-  =/  =wire  [%context context]
-  ?:  (~(has by wex.bowl) wire ship dap.bowl)  ~
-  `(watch-context our.bowl ship context)
+    ::  watch contexts that we don't have but want
+    ::
+    %+  murn  ~(tap in want)
+    |=  [=ship =context]
+    ^-  (unit card)
+    ?:  =(ship our.bowl)  ~  ::  don't subscribe to ourselves
+    =/  =wire  [%context context]
+    ?:  (~(has by wex.bowl) wire ship dap.bowl)  ~
+    `(watch-context our.bowl ship context)
+  ::
+    ::  ensure we have local subs in place
+    ::
+    %+  murn
+      ^-  (list [wire dude:gall path])
+      :~  [/chat/invited %chat /dm/invited]  ::REVIEW  not firing as often as expected..?
+          [/channels/all %channels /v3]  ::REVIEW  can we watch anything "smaller"?
+      ==
+    |=  [=wire =dude:gall =path]
+    ^-  (unit card)
+    ?:  (~(has by wex.bowl) wire our.bowl dude)  ~
+    `[%pass wire %agent [our.bowl dude] %watch path]
+  ==
 --
 ::
 =|  state-0
@@ -284,6 +309,60 @@
   ^-  (quip card _this)
   ~|  wire=wire
   ?+  wire  ~|(%strange-wire !!)
+      ?([%chat %invited ~] [%channels %all ~])
+    ?-  -.sign
+      %poke-ack  ~|(%unexpeced-poke-ack !!)
+    ::
+        %kick
+      ::  re-do setup after brief wait, preventing hot-looping.
+      ::  particularly important here because it's a local subscription.
+      ::
+      [[(await-setup (add now.bowl ~s30) ~)]~ this]
+    ::
+        %watch-ack
+      ?~  p.sign  [~ this]
+      ::TODO  log formally
+      %-  (slog (rap 3 dap.bowl ' rejected by local for ' (spat wire) ~) u.p.sign)
+      [~ this]
+    ::
+        %fact
+      ?-  wire
+          [%chat %invited ~]
+        ?.  ?=(%ships p.cage.sign)
+          ::TODO  log formally
+          [~ this]
+        ::  if nothing new, no-op. otherwise, initiate setup/inflation.
+        ::  we do full setup instead of adding piecemeal, so that we can
+        ::  catch & clean up deletions more easily.
+        ::
+        ?:  %-  ~(all in !<((set ship) q.cage.sign))
+            |=  who=ship
+            (~(has in want) who /dm/(scot %p our.bowl))
+          [~ this]
+        ::  setup will scry out relevant dms
+        ::
+        [[(await-setup now.bowl ~)]~ this]
+      ::
+          [%channels %all ~]
+        ?.  ?=(%channel-response-4 p.cage.sign)
+          ::TODO  log formally
+          [~ this]
+        ::TODO  would love to do a smaller sub, so we don't end up doing these
+        ::      checks for literally anything that happens in channels agent...
+        =+  !<(rc=r-channels:v9:cv q.cage.sign)
+        ::  never subscribe to ourselves
+        ::
+        ?:  =(our.bowl ship.nest.rc)  [~ this]
+        =/  new=[=ship context]
+          =,  nest.rc
+          [ship /channel/[kind]/(scot %p ship)/[name]]
+        ::  if it was previously unknown, register and subscribe
+        ::
+        ?:  (~(has in want) new)  [~ this]
+        [[(watch-context our.bowl new)]~ this(want (~(put in want) new))]
+      ==
+    ==
+  ::
       [%context *]
     =*  context  t.wire
     ?-  -.sign
@@ -344,9 +423,12 @@
   ?+  wire  ~|(%strange-wire !!)
       [%setup ?(~ ^)]
     ?~  t.wire
-      ::  ensure we .want all relevant contexts, then inflate fully
+      ::  ensure we .want all relevant contexts, then inflate fully.
+      ::  this implicitly drops any contexts not in +channel- or +dm-contexts!
       ::
-      =.  want  (~(uni in want) (dm-contexts bowl))
+      =.  want
+        %-  ~(uni in (dm-contexts bowl))
+        (channel-contexts bowl)
       [(inflate bowl want) this]
     ::  set up subscription for a specific context
     ::
