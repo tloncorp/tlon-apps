@@ -166,6 +166,7 @@ EOF
 
 # TODO: We should figure out the source ship for this file and delete it
 rm -f $pier/groups/tests/lib/diary-graph.hoon
+rm -f $pier/groups/tests/ph/chat.hoon
 
 # Update the desk
 rsync -r desk/ $pier/groups
