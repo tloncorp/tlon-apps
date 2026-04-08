@@ -49,9 +49,6 @@ export type PresenceAction =
   | { set: PresenceActionSet }
   | { clear: PresenceKey }
   | { nuke: string };
-
-export type PresenceUpdate = { set: PresenceUpdateSet } | { clear: PresenceKey };
-
 export type PresenceResponse =
   | { init: PresencePlaces }
   | { here: PresenceUpdateSet }

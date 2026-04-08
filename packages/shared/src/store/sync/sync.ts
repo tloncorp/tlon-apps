@@ -24,6 +24,7 @@ import { updateChannelSections } from '../groupActions';
 import { verifyUserInviteLink } from '../inviteActions';
 import { discoverContacts } from '../lanyardActions';
 import { useLureState } from '../lure';
+import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { getSession, setSession, updateSession } from '../session';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
@@ -1885,6 +1886,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   isSyncing = true;
   updateSession({ phase: 'high' });
 
+  if (!alreadySubscribed) {
+    clearPresenceState();
+  }
+
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
@@ -2072,6 +2077,7 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
+      api.subscribeToPresenceUpdates(handlePresenceEvent),
     ]);
   });
 };
