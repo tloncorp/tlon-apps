@@ -33,6 +33,7 @@
   "scripts": {
     "build": "tsup",
     "lint": "eslint src/",
+    "lint:format": "prettier ./ --write",
     "prepare": "pnpm build",
     "watch": "tsup --watch",
     "tsc": "tsc --noEmit"
