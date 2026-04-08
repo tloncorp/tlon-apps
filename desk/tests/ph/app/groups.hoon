@@ -2,7 +2,7 @@
 /+  *ph-io, *ph-test
 =,  strand=strand:spider
 |%
-++  test-flag  ~zod^%my-test-group
+++  my-test-flag  ~zod^%my-test-group
 ::  +ex-r-groups: expect group response
 ::
 ++  ex-r-groups
@@ -56,10 +56,10 @@
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ?>  =(%foreigns-1 p.kag)
   =+  !<(=foreigns:v8:gv q.kag)
-  =+  foreign=(~(got by foreigns) test-flag)
+  =+  foreign=(~(got by foreigns) my-test-flag)
   ?>  ?=(^ invites.foreign)
   =/  =a-foreigns:v8:gv
-    [%foreign test-flag %join token.i.invites.foreign]
+    [%foreign my-test-flag %join token.i.invites.foreign]
   ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
   ;<  ~  bind:m  (ex-r-groups-fact ~bud ~zod^%my-test-group %create)
   ;<  =bowl:strand  bind:m  get-bowl

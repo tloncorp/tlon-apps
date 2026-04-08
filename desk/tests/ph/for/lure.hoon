@@ -14,9 +14,9 @@
 ::  ~fen is the bait provider
 ::
 |%
-++  test-flag  ~zod^%test-group
-++  test-group-id  '~zod/test-group'
-++  test-group-name  'test-group'
+++  my-test-flag  ~zod^%test-group
+++  my-test-group-id  '~zod/test-group'
+++  my-test-group-name  'test-group'
 ::  +ex-r-groups: expect group response
 ::
 ++  ex-r-groups
@@ -56,7 +56,7 @@
         ~
     ==
   ;<  ~  bind:m  (poke-app [~zod %groups] group-command+[%create create-group])
-  ;<  ~  bind:m  (ex-r-groups-fact ~zod test-flag %create)
+  ;<  ~  bind:m  (ex-r-groups-fact ~zod my-test-flag %create)
   (pure:m ~)
 ++  lure-group-metadata
   ^~
@@ -68,7 +68,7 @@
       [%'inviterAvatarImage' 'https://zod.arvo.network/avatar.png']
       [%'invitedGroupTitle' 'Test Group']
       [%'invitedGroupDescription' 'Aqua test group']
-      [%'invitedGroupId' test-group-id]
+      [%'invitedGroupId' my-test-group-id]
       [%'invitedGroupIconImageUrl' 'https://zod.arvo.network/sunrise.jpg']
       [%'bite-type' '2']
   ==
@@ -111,10 +111,10 @@
   |=  =metadata:v1:r
   =/  m  (strand @t)
   ^-  form:m
-  =+  lure-path=(stab (cat 3 '/v1/id-link/' test-group-id))
+  =+  lure-path=(stab (cat 3 '/v1/id-link/' my-test-group-id))
   ;<  ~  bind:m  (poke-app [~zod %reel] verb+[%volume %info])
   ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] lure-path)
-  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[test-group-id metadata])
+  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[my-test-group-id metadata])
   ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
   ;<  ~  bind:m  (leave-app /~zod/reel/v1/id-link [~zod %reel])
   ?>  ?=(%json p.kag)
@@ -128,7 +128,7 @@
   ::  host a group on ~zod and enable lure links
   ::
   ;<  ~  bind:m  create-test-group
-  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+test-group-id)
+  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-id)
   ;<  token=@t  bind:m  (generate-lure-invite lure-group-metadata)
   ?>  (gth (met 3 token) 0)
   (pure:m ~)
@@ -181,7 +181,7 @@
   ::  host a group on ~zod and enable lure links
   ::
   ;<  ~  bind:m  create-test-group
-  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+test-group-name)
+  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-name)
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-group-metadata)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
