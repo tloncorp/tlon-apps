@@ -4,8 +4,9 @@ import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Dimensions } from 'react-native';
 import { View } from 'tamagui';
 
-import ChatMessage from '../ChatMessage/ChatMessage';
 import AuthorRow from '../../AuthorRow';
+import { MaskedChatMessage } from '../MaskedChatMessage';
+import { StaticChatMessage } from '../StaticChatMessage';
 
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
 
@@ -31,7 +32,9 @@ export function MessageContainer({ post }: { post: db.Post }) {
         type={post.type}
         // roles={roles}
       />
-      <ChatMessage post={post} hideOverflowMenu />
+      <MaskedChatMessage post={post}>
+        <StaticChatMessage post={post} />
+      </MaskedChatMessage>
     </View>
   );
 }
