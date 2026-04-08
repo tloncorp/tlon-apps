@@ -137,6 +137,7 @@
 ++  watch-context
   |=  [our=ship who=ship =context]
   ^-  card
+  ?<  =(our who)
   ::NOTE  we watch-as, so the publisher will attempt conversion.
   ::      this will work as long as we're aligned or behind the publisher.
   ::      ⚠️ if we're ahead and ask about a mark they don't know,
