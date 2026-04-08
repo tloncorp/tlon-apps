@@ -105,6 +105,7 @@ Key rules:
 -   **`verb` takes 3 arguments**: `%^  verb  |  %warn` (loud flag, log volume, agent). Not `%+  verb  |`.
 -   **State types belong in the app file**, not in `sur/`. Only shared protocol types (actions, updates, type aliases used by marks) belong in `sur/`.
 -   **Application logic helpers** (liveness checks, predicates) belong in the app helper core, not in `sur/`.
+-   **New agents require a spec doc** in `docs/<agent-name>.md`. The doc should cover purpose, poke/watch/scry surface, state model, and any important lifecycle or invariants.
 -   **Register new agents** in `desk/desk.bill`.
 
 #### Type Naming
