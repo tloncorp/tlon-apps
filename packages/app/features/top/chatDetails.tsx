@@ -325,10 +325,9 @@ export function SettingsSection({
 
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
-  const connectionStatus = useShipConnectionStatus(
-    group?.hostUserId ?? '',
-    { enabled: entityType === 'group' && !!group }
-  );
+  const connectionStatus = useShipConnectionStatus(group?.hostUserId ?? '', {
+    enabled: entityType === 'group' && !!group,
+  });
 
   const connectionLabels = useMemo(
     () =>
