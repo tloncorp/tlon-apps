@@ -206,7 +206,6 @@ export const subscribeToPresenceUpdates = async (
     }
   );
 };
-
 export const toPresenceStatuses = (
   places: ub.PresencePlaces,
   currentUserId = getCurrentUserId()

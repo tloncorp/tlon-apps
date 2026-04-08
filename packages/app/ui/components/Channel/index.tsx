@@ -67,6 +67,7 @@ import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
+import { ThinkingState } from './ThinkingState';
 
 //TODO implement usePost and useChannel
 const useApp = () => {};
@@ -471,6 +472,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       editingPost,
       draftInputPresentationMode,
     ]);
+    const shouldShowThinkingState =
+      canRead && draftInputPresentationMode !== 'fullscreen';
 
     return (
       <ScrollContextProvider>
@@ -571,6 +574,11 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                   <PostCollectionView
                                     collectionRef={collectionRef}
                                     channel={channel}
+                                    listBottomComponent={
+                                      shouldShowThinkingState ? (
+                                        <ThinkingState conversationId={channel.id} />
+                                      ) : undefined
+                                    }
                                   />
                                 </PostCollectionContext.Provider>
                               </View>
