@@ -207,34 +207,6 @@ export const subscribeToPresenceUpdates = async (
   );
 };
 
-export const subscribeToConversationPresenceUpdates = async (
-  conversationId: string,
-  handler: (event: PresenceEvent) => void
-) => {
-  return subscribeToPresenceUpdates((event) => {
-    if (event.type === 'init') {
-      handler({
-        type: 'init',
-        states: event.states.filter(
-          (state) => state.contextId === conversationId
-        ),
-      });
-      return;
-    }
-
-    if (event.type === 'set') {
-      if (event.state.contextId === conversationId) {
-        handler(event);
-      }
-      return;
-    }
-
-    if (event.contextId === conversationId) {
-      handler(event);
-    }
-  });
-};
-
 export const toPresenceStatuses = (
   places: ub.PresencePlaces,
   currentUserId = getCurrentUserId()
