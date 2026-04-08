@@ -2,7 +2,6 @@ import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useNegotiate } from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
@@ -100,7 +99,7 @@ export function GroupPreviewPane({
 }) {
   const [isJoining, setIsJoining] = useState(group?.joinStatus === 'joining');
 
-  const { status: negotiationStatus } = useNegotiate(
+  const { status: negotiationStatus } = store.useNegotiate(
     group?.hostUserId ?? '',
     'groups',
     'groups'
@@ -469,8 +468,14 @@ export function getActionGroups(
     return [
       {
         title: 'Request invite',
-        accent: 'hero',
-        onPress: actions.requestInvite,
+        accent: status.isProtocolMismatch ? 'disabled' : 'hero',
+        disabled: status.isProtocolMismatch,
+        onPress: status.isProtocolMismatch
+          ? undefined
+          : actions.requestInvite,
+        description: status.isProtocolMismatch
+          ? MISMATCH_DESCRIPTION
+          : undefined,
       },
     ];
   }
