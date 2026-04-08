@@ -8,10 +8,16 @@ type PresenceStatusesByKey = Record<string, PresenceStatus>;
 export type PresenceStatusesByContext = Record<string, PresenceStatusesByKey>;
 
 const logger = createDevLogger('presenceStore', false);
+// Missing conversations all reuse this frozen bucket so selectors can return a
+// stable empty object until presence actually appears for that context.
 const EMPTY_CONTEXT_STATUSES = Object.freeze({}) as PresenceStatusesByKey;
+// Keep one external snapshot of normalized presence grouped by app context id,
+// then by a stable per-status key. That makes conversation reads cheap and keeps
+// incremental updates scoped to a single bucket.
 let presenceStatusesByContext: PresenceStatusesByContext = {};
 const presenceListeners: Array<() => void> = [];
 
+// Reduce normalized presence init/set/clear events into the grouped store shape.
 export const reducePresenceState = (
   currentPresenceStatusesByContext: PresenceStatusesByContext,
   event: PresenceEvent
@@ -19,6 +25,8 @@ export const reducePresenceState = (
   if (event.type === 'init') {
     const nextStatusesByContext: PresenceStatusesByContext = {};
 
+    // Init replaces the whole snapshot, regrouping the flat API statuses by the
+    // context ids that the UI already uses elsewhere.
     event.states.forEach((state) => {
       if (!state.contextId) {
         logger.log('dropping init presence state without contextId', {
@@ -107,6 +115,8 @@ export const reducePresenceState = (
     existingContextStatuses;
 
   if (Object.keys(remainingContextStatuses).length === 0) {
+    // Once the last status in a context is cleared, drop the bucket entirely so we
+    // fall back to the shared empty map for future reads.
     const { [contextId]: _removedContext, ...remainingContexts } =
       currentPresenceStatusesByContext;
 
@@ -153,6 +163,8 @@ function subscribeToPresence(listener: () => void) {
 }
 
 function setPresenceState(nextState: PresenceStatusesByContext) {
+  // `useSyncExternalStore` only needs a notification when the snapshot reference
+  // actually changes, so preserve no-op reducer results.
   if (nextState === presenceStatusesByContext) {
     logger.log('presence state unchanged, skipping notify', {
       state: summarizePresenceState(presenceStatusesByContext),
@@ -196,6 +208,7 @@ export function useConversationPresence(conversationId: string) {
     getConversationPresenceMap(conversationId)
   );
 
+  // The store keeps a keyed map for updates; components usually want the values.
   return useMemo(
     () => Object.values(conversationPresence),
     [conversationPresence]
@@ -211,6 +224,8 @@ function toPresenceStatusId(state: PresenceStatus) {
 }
 
 function toPresenceKeyId(key: PresenceKey) {
+  // The same ship can publish multiple presence topics in one context, so the
+  // full wire key is the stable identity for a status entry.
   return `${key.context}|${key.ship}|${key.topic}`;
 }
 
