@@ -1,15 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useIsAdmin } from '../utils';
 import { ProfileSheet } from './ProfileSheet';
-
-export function useGroupMemberProfileSheet() {
-  const [selectedContact, setSelectedContact] = useState<string | null>(null);
-  const dismiss = useCallback(() => setSelectedContact(null), []);
-  return { selectedContact, setSelectedContact, dismiss };
-}
 
 export function GroupMemberProfileSheet({
   selectedContact,

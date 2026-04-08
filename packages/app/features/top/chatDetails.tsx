@@ -216,7 +216,11 @@ export function MembersList({
                 showNickname
                 key={member.contactId}
                 contactId={member.contactId}
-                onPress={setSelectedContact}
+                onPress={
+                  entityType === 'group' && group
+                    ? setSelectedContact
+                    : undefined
+                }
               />
             ))}
           {(memberCount > maxMembersToDisplay || canInvite) && (
