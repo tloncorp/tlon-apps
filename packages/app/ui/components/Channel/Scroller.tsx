@@ -50,6 +50,7 @@ import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
 import { ChannelDivider } from './ChannelDivider';
 import { PostList, PostListMethods } from './PostList';
+import type { ScrollAnchor } from './scrollerTypes';
 
 interface PostWithNeighbors {
   post: db.Post;
