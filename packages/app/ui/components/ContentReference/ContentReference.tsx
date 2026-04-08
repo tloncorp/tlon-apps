@@ -12,10 +12,14 @@ import { useNavigation } from '../../contexts/navigation';
 import { useRequests } from '../../contexts/requests';
 import { useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
-import { GroupAvatar } from '../GroupAvatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
+import { GroupAvatar } from '../GroupAvatar';
 import { ListItem } from '../ListItem';
+import {
+  ContentReferenceContext,
+  IsInsideReferenceContext,
+} from '../PostContent/BlockRenderer';
 import { PostContentRenderer } from '../PostContent/ContentRenderer';
 import { useBoundHandler } from '../listItems/listItemUtils';
 import {
@@ -25,22 +29,17 @@ import {
   ReferenceSkeleton,
   useReferenceContext,
 } from './Reference';
-import {
-  IsInsideReferenceContext,
-  registerContentReferenceLoader,
-} from './ContentReferenceLoaderRegistry';
+import { ContentReferenceLoaderComponent } from './types';
 
 export { IsInsideReferenceContext };
 export const useIsInsideReference = () => useContext(IsInsideReferenceContext);
 
 // Any reference
 
-export function ContentReferenceLoader({
+export const ContentReferenceLoader: ContentReferenceLoaderComponent = ({
   reference,
   ...props
-}: {
-  reference: ContentReference;
-} & ReferenceProps) {
+}) => {
   if (reference.referenceType === 'channel') {
     return (
       <PostReferenceLoader
@@ -69,7 +68,7 @@ export function ContentReferenceLoader({
       {...props}
     />
   );
-}
+};
 
 // Post reference
 
@@ -375,7 +374,18 @@ function ContentReferenceHeader({ type }: { type: keyof typeof typeMeta }) {
   );
 }
 
-// Register ContentReferenceLoader in the module registry to break the
-// circular import with BlockRenderer.tsx. By render time all modules are
-// loaded, so the registry is populated before any component renders.
-registerContentReferenceLoader(ContentReferenceLoader);
+/**
+ * Provides a component to render a content reference to support recursive
+ * reference rendering without having circular dependencies.
+ */
+export function ContentReferenceLoaderProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ContentReferenceContext.Provider value={ContentReferenceLoader}>
+      {children}
+    </ContentReferenceContext.Provider>
+  );
+}

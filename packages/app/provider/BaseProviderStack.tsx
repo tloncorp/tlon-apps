@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ShipProvider } from '../contexts/ship';
 import { LoadingSpinner, PortalProvider, StoreProvider, View } from '../ui';
+import { ContentReferenceLoaderProvider } from '../ui/components/ContentReference/ContentReference';
 import { ComponentsKitProvider } from '../ui/contexts/componentsKits/ComponentsKitProvider';
 import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
 import { Provider as TamaguiProvider } from './';
@@ -75,7 +76,9 @@ function UIProviderStack({
               used by portaled components must be *above* the PortalProvider
             */}
             <PortalProvider>
-              <ComponentsKitProvider>{children}</ComponentsKitProvider>
+              <ContentReferenceLoaderProvider>
+                <ComponentsKitProvider>{children}</ComponentsKitProvider>
+              </ContentReferenceLoaderProvider>
             </PortalProvider>
           </BottomSheetModalProvider>
         </GestureHandlerRootView>
