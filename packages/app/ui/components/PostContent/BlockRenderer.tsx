@@ -585,7 +585,7 @@ export function ImageBlock({
 const ContentImage = styled(Image, {
   name: 'ContentImage',
   context: ContentContext,
-  width: '100%',
+  maxWidth: '100%',
 });
 
 export function RuleBlock({
