@@ -71,15 +71,15 @@ function UIProviderStack({
       <SafeAreaProvider>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <BottomSheetModalProvider>
-            {/*
-              Android mobile does not proxy portal contexts, so any providers
-              used by portaled components must be *above* the PortalProvider
-            */}
-            <PortalProvider>
-              <ContentReferenceLoaderProvider>
-                <ComponentsKitProvider>{children}</ComponentsKitProvider>
-              </ContentReferenceLoaderProvider>
-            </PortalProvider>
+            <ContentReferenceLoaderProvider>
+              <ComponentsKitProvider>
+                {/*
+                  Android mobile does not proxy portal contexts, so any providers
+                  used by portaled components must be *above* the PortalProvider
+                */}
+                <PortalProvider>{children}</PortalProvider>
+              </ComponentsKitProvider>
+            </ContentReferenceLoaderProvider>
           </BottomSheetModalProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>
