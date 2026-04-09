@@ -1,4 +1,7 @@
-import type { ShareIntentFile as AppShareIntentFile } from '@tloncorp/app/types/shareIntent';
+import type {
+  ShareIntentFile as AppShareIntentFile,
+  ChannelShareIntent,
+} from '@tloncorp/app/types/shareIntent';
 import {
   type ShareIntentFile as ExpoShareIntentFile,
   type ShareIntent,
@@ -31,17 +34,7 @@ export const getShareIntentFingerprint = (shareIntent: ShareIntent): string => {
   });
 };
 
-export const extractSharedText = (shareIntent: ShareIntent): string | null => {
-  return shareIntent.text?.trim() || null;
-};
-
-export const extractSharedWebUrl = (
-  shareIntent: ShareIntent
-): string | null => {
-  return shareIntent.webUrl?.trim() || null;
-};
-
-export const extractSharedFile = (
+const extractSharedFile = (
   files: ShareIntent['files']
 ): AppShareIntentFile | null => {
   if (!files?.length) {
@@ -56,4 +49,21 @@ export const extractSharedFile = (
   }
 
   return null;
+};
+
+export const toChannelShareIntent = (
+  shareIntent: ShareIntent
+): ChannelShareIntent | null => {
+  const text = shareIntent.text?.trim() || null;
+  const webUrl = shareIntent.webUrl?.trim() || null;
+  const file = extractSharedFile(shareIntent.files);
+
+  return text || webUrl || file
+    ? {
+        createdAt: Date.now(),
+        text,
+        webUrl,
+        file,
+      }
+    : null;
 };

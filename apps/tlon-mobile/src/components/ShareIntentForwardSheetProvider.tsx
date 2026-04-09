@@ -22,10 +22,8 @@ import {
 } from 'react';
 
 import {
-  extractSharedFile,
-  extractSharedText,
-  extractSharedWebUrl,
   getShareIntentFingerprint,
+  toChannelShareIntent,
 } from '../lib/shareIntent';
 
 const shareIntentLogger = createDevLogger('shareIntent', true);
@@ -87,29 +85,15 @@ export function ShareIntentForwardSheetProvider({
     lastHandledShareRef.current = fingerprint;
 
     try {
-      const sharedText = extractSharedText(shareIntent);
-      const sharedWebUrl = extractSharedWebUrl(shareIntent);
-      const sharedFile = extractSharedFile(shareIntent.files);
-      const hasMoreThanOneFile = (shareIntent.files?.length ?? 0) > 1;
-
-      if (sharedText || sharedWebUrl || sharedFile) {
-        setPendingShare({
-          createdAt: Date.now(),
-          text: sharedText,
-          webUrl: sharedWebUrl,
-          file: sharedFile,
-        });
+      const nextPendingShare = toChannelShareIntent(shareIntent);
+      if (nextPendingShare) {
+        setPendingShare(nextPendingShare);
       }
 
-      if (hasMoreThanOneFile) {
-        shareIntentLogger.log(
-          'Received multiple files; only the first will be used'
-        );
-      }
-
-      shareIntentLogger.log(
-        `Processed share intent type=${shareIntent.type} files=${shareIntent.files?.length ?? 0}`
-      );
+      shareIntentLogger.log('Processed share intent', {
+        rawShareIntent: shareIntent,
+        channelShareIntent: nextPendingShare,
+      });
     } catch (err) {
       shareIntentLogger.error('Failed to process share intent', err);
     } finally {
