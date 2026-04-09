@@ -1,29 +1,16 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Pressable, Text } from '@tloncorp/ui';
+import { Pressable } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
-import { View, XStack, YStack, isWeb } from 'tamagui';
+import { View, isWeb } from 'tamagui';
 
-import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
-import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-import { DefaultRendererProps } from '../PostContent/BlockRenderer';
-import { createContentRenderer } from '../PostContent/ContentRenderer';
-import {
-  usePostContent,
-  usePostLastEditContent,
-} from '../PostContent/contentUtils';
-import { PostErrorMessage } from '../PostErrorMessage';
-import { SentTimeText } from '../SentTimeText';
 import { ChatMessageActions } from './ChatMessageActions/Component';
-import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
-import { ChatMessageHighlight } from './ChatMessageHighlight';
-import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { MaskedChatMessage } from './MaskedChatMessage';
 import { StaticChatMessage } from './StaticChatMessage';
 
