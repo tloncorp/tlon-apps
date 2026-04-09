@@ -54,7 +54,7 @@ posthogAsync?.then((client) => {
   };
 
   useDebugStore.getState().initializeErrorLogger(compositeLogger);
-  posthog?.register({
+  client.register({
     gitHash: GIT_HASH,
   });
 
