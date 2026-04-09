@@ -315,7 +315,7 @@
       (~(put by c) %avatar look/u.avatar.o)
     =?  c  ?=(^ cover.o)
       (~(put by c) %cover look/u.cover.o)
-    =?  c  !?=(~ groups.o)
+    =?  c  !=(~ groups.o)
       %+  ~(put by c)  %groups
       :-  %set
       %-  ~(run in groups.o)

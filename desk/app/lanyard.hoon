@@ -81,7 +81,7 @@
       [[%2 *] *]  [who.feed (rear kyz.feed)]
     ==
   ?>  =(who.seed our)
-  =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key.seed) (jam dat))
+  =/  sig=@ux  (sigh:as:(nol:nu:cric:crypto key.seed) (jam dat))
   [our lyf.seed dat sig]
 ::
 ++  valid-jam
@@ -103,7 +103,7 @@
   ::  jael should have the pubkey. get it and validate.
   ::
   =+  .^([life =pass (unit @ux)] %j /(scot %p our)/deed/(scot %da now)/(scot %p who.u.sign)/(scot %ud lyf.u.sign))
-  `(safe:as:(com:nu:crub:crypto pass) sig.u.sign (jam dat.u.sign))
+  `(safe:as:(com:nu:cric:crypto pass) sig.u.sign (jam dat.u.sign))
 ::
 ++  inflate-contacts-profile
   |=  $:  [our=@p now=@da]
