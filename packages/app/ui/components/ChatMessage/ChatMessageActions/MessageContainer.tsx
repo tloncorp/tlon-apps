@@ -54,7 +54,7 @@ export function MessageContainer({ post }: { post: db.Post }) {
         // roles={roles}
       />
       <MaskedChatMessage post={post}>
-        <StaticChatMessage post={post} />
+        <StaticChatMessage post={post} hideSentAtTimestamp />
       </MaskedChatMessage>
     </View>
   );
