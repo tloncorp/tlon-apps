@@ -182,9 +182,6 @@ then
   exit 1
 fi
 
-kill -TERM $vere_pid
-exit 1
-
 # Run the unit tests
 echo "Running tests..."
 result=$( $run_click -t 180 $pier <<EOF
