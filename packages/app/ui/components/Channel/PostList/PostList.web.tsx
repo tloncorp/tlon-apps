@@ -265,11 +265,11 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
                   {renderItem({ item, index })}
                 </PostListItem>
               ))}
-              {listBottomComponent}
 
               {orderedData.length === 0 && (
                 <View style={{ flex: 1 }}>{renderEmptyComponent?.()}</View>
               )}
+              {listBottomComponent}
             </View>
           </div>
         </div>
