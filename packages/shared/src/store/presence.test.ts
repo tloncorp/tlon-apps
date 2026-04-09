@@ -8,13 +8,16 @@ import {
   reducePresenceState,
 } from './presence';
 
+const FIRST_SINCE = new Date('2026-04-07T10:00:00.000Z').getTime();
+const SECOND_SINCE = new Date('2026-04-07T10:00:30.000Z').getTime();
+
 const typingStatus: PresenceStatus = {
   key: {
     context: '/channel/chat/~bus/general',
     ship: '~nec',
     topic: 'typing',
   },
-  timing: { since: '~2026.4.7..10.00.00', timeout: '~s30' },
+  timing: { since: FIRST_SINCE, timeout: '~s30' },
   display: { icon: null, text: 'Typing...', blob: null },
   contextId: 'chat/~bus/general',
 };
@@ -25,7 +28,7 @@ const computingStatus: PresenceStatus = {
     ship: '~nec',
     topic: 'computing',
   },
-  timing: { since: '~2026.4.7..10.00.30', timeout: '~m1' },
+  timing: { since: SECOND_SINCE, timeout: '~m1' },
   display: { icon: null, text: 'Thinking...', blob: null },
   contextId: '~nec',
 };

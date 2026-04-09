@@ -10,6 +10,8 @@ import {
 import type * as ub from '../urbit';
 
 const CURRENT_USER_ID = '~zod';
+const FIRST_SINCE = new Date('2026-03-25T12:00:00.000Z').getTime();
+const SECOND_SINCE = new Date('2026-03-25T12:00:30.000Z').getTime();
 
 describe('presenceApi', () => {
   test('builds DM and channel presence contexts from conversation ids', () => {
@@ -100,7 +102,7 @@ describe('presenceApi', () => {
           ship: '~nec',
           topic: 'computing',
         },
-        timing: { since: '~2026.3.25..12.00.00', timeout: '~m1' },
+        timing: { since: FIRST_SINCE, timeout: '~m1' },
         display: { icon: null, text: 'Thinking...', blob: null },
         contextId: '~nec',
       },
@@ -110,7 +112,7 @@ describe('presenceApi', () => {
           ship: '~marzod',
           topic: 'typing',
         },
-        timing: { since: '~2026.3.25..12.00.30', timeout: '~s30' },
+        timing: { since: SECOND_SINCE, timeout: '~s30' },
         display: { icon: null, text: 'Typing...', blob: null },
         contextId: 'chat/~bus/general',
       },
@@ -141,7 +143,7 @@ describe('presenceApi', () => {
           ship: '~nec',
           topic: 'computing',
         },
-        timing: { since: '~2026.3.25..12.00.00', timeout: '~m1' },
+        timing: { since: FIRST_SINCE, timeout: '~m1' },
         display: { icon: null, text: 'Thinking...', blob: null },
         contextId: '~nec',
       },

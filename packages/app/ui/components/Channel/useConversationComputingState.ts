@@ -4,7 +4,6 @@ import {
   parseComputingStatus,
 } from '@tloncorp/api';
 import { useConversationPresence } from '@tloncorp/shared';
-import { da, parse } from '@urbit/aura';
 import { useMemo } from 'react';
 
 type ConversationComputingState = {
@@ -12,25 +11,13 @@ type ConversationComputingState = {
   toolCalls: ComputingToolCall[];
 };
 
-function parsePresenceTimestamp(since: string) {
-  try {
-    return Number(da.toUnix(parse('da', since)));
-  } catch {
-    return null;
-  }
-}
-
 export function useConversationComputingState(conversationId: string) {
   const presenceStates = useConversationPresence(conversationId);
 
   return useMemo<ConversationComputingState | null>(() => {
     const activeStates = presenceStates
       .filter((status) => status.key.topic === 'computing')
-      .sort((left, right) => {
-        const leftSince = parsePresenceTimestamp(left.timing.since) ?? 0;
-        const rightSince = parsePresenceTimestamp(right.timing.since) ?? 0;
-        return rightSince - leftSince;
-      });
+      .sort((left, right) => right.timing.since - left.timing.since);
 
     const activeState = activeStates[0];
     if (!activeState) {
