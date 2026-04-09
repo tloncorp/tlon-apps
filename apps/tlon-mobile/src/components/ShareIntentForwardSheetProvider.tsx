@@ -1,11 +1,11 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { APP_SCHEME } from '@tloncorp/app/constants';
-import type { RootStackParamList } from '@tloncorp/app/navigation/types';
+import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import { screenNameFromChannelId } from '@tloncorp/app/navigation/utils';
 import type { ChannelShareIntent } from '@tloncorp/app/types/shareIntent';
 import {
+  ChannelShareIntentProvider,
   ForwardToChannelSheet,
-  useChannelShareIntent,
   useForwardToChannelSheet,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
@@ -16,6 +16,7 @@ import {
   PropsWithChildren,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -42,7 +43,14 @@ export function ShareIntentForwardSheetProvider({
   const [pendingShare, setPendingShare] = useState<ChannelShareIntent | null>(
     null
   );
-  const { pushShareIntent } = useChannelShareIntent();
+  const pendingShareIntentRef = useRef<{
+    channelId: string;
+    shareIntent: ChannelShareIntent;
+  } | null>(null);
+  const [pendingShareIntent, setPendingShareIntent] = useState<{
+    channelId: string;
+    shareIntent: ChannelShareIntent;
+  } | null>(null);
   const lastHandledShareRef = useRef<string | null>(null);
   const { error, hasShareIntent, isReady, resetShareIntent, shareIntent } =
     useShareIntent({
@@ -124,20 +132,9 @@ export function ShareIntentForwardSheetProvider({
     }
   }, []);
 
-  const handleNavigateToChannel = useCallback(
-    async (channel: db.Channel) => {
-      if (!enabled) {
-        throw new Error('Share routing is not ready yet');
-      }
-      if (!pendingShare) {
-        throw new Error('Missing pending share');
-      }
-
+  const navigateToChannelTarget = useCallback(
+    (channel: db.Channel) => {
       const screenName = screenNameFromChannelId(channel.id);
-      pushShareIntent({
-        channelId: channel.id,
-        shareIntent: pendingShare,
-      });
       if (screenName === 'Channel') {
         navigation.navigate('Channel', {
           channelId: channel.id,
@@ -152,22 +149,68 @@ export function ShareIntentForwardSheetProvider({
           channelId: channel.id,
         });
       }
+    },
+    [navigation]
+  );
+
+  const popShareIntent = useCallback((channelId: string) => {
+    const pendingChannelShareIntent = pendingShareIntentRef.current;
+    if (
+      !pendingChannelShareIntent ||
+      pendingChannelShareIntent.channelId !== channelId
+    ) {
+      return null;
+    }
+
+    pendingShareIntentRef.current = null;
+    setPendingShareIntent(null);
+
+    return pendingChannelShareIntent.shareIntent;
+  }, []);
+
+  const channelShareIntentContextValue = useMemo(
+    () => ({
+      pendingShareIntent,
+      popShareIntent,
+    }),
+    [pendingShareIntent, popShareIntent]
+  );
+
+  const routeShareIntentToChannel = useCallback(
+    async (channel: db.Channel) => {
+      if (!enabled) {
+        throw new Error('Share routing is not ready yet');
+      }
+      if (!pendingShare) {
+        throw new Error('Missing pending share');
+      }
+
+      // Route the pending share atomically: stash it for the destination
+      // channel, then immediately navigate there to consume it.
+      const nextPendingShareIntent = {
+        channelId: channel.id,
+        shareIntent: pendingShare,
+      };
+
+      pendingShareIntentRef.current = nextPendingShareIntent;
+      setPendingShareIntent(nextPendingShareIntent);
+      navigateToChannelTarget(channel);
 
       setPendingShare(null);
     },
-    [enabled, navigation, pendingShare, pushShareIntent]
+    [enabled, navigateToChannelTarget, pendingShare]
   );
 
   const { handleChannelSelected, renderFooter } = useForwardToChannelSheet({
     isOpen,
     onClose: () => handleOpenChange(false),
-    onForwardToChannel: handleNavigateToChannel,
+    onForwardToChannel: routeShareIntentToChannel,
     successMessage: () => null,
     failureMessage: 'Failed to open channel',
   });
 
   return (
-    <>
+    <ChannelShareIntentProvider value={channelShareIntentContextValue}>
       {children}
       <ForwardToChannelSheet
         open={isOpen}
@@ -177,6 +220,6 @@ export function ShareIntentForwardSheetProvider({
         channelFilter={(channel) => channel.type !== 'notebook'}
         footerComponent={renderFooter}
       />
-    </>
+    </ChannelShareIntentProvider>
   );
 }

@@ -21,7 +21,6 @@ import {
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
-  ChannelShareIntentProvider,
   ForwardPostSheetProvider,
   PortalProvider,
   ZStack,
@@ -187,11 +186,9 @@ export default function ConnectedAuthenticatedApp() {
       */}
       <PortalProvider>
         <ForwardPostSheetProvider>
-          <ChannelShareIntentProvider>
-            <ShareIntentForwardSheetProvider enabled={clientReady}>
-              {clientReady && <AuthenticatedApp />}
-            </ShareIntentForwardSheetProvider>
-          </ChannelShareIntentProvider>
+          <ShareIntentForwardSheetProvider enabled={clientReady}>
+            {clientReady && <AuthenticatedApp />}
+          </ShareIntentForwardSheetProvider>
         </ForwardPostSheetProvider>
       </PortalProvider>
     </AppDataProvider>
