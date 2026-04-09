@@ -95,6 +95,13 @@ function combineSharedText(intent: ChannelShareIntent): string | null {
   return url && !text.includes(url) ? `${text}\n${url}` : text;
 }
 
+type SharedTextDraftKind = 'attachment' | 'link' | 'text';
+
+type ProcessedShareIntent = {
+  draftMode?: 'text' | 'link';
+  uploadIntent: Attachment.UploadIntent | null;
+};
+
 const uploadIntentFromShareIntentFile = (
   file: NonNullable<ChannelShareIntent['file']>
 ): Attachment.UploadIntent | null => {
@@ -127,18 +134,18 @@ const uploadIntentFromShareIntentFile = (
 };
 
 function usePrefillDraftFromShareIntent({
-  channel,
+  channelId,
   disabled,
-  openDraft,
-  storeDraft,
+  appendSharedTextToDraft,
+  didProcessShareIntent,
 }: {
-  channel: db.Channel;
+  channelId: string;
   disabled: boolean;
-  openDraft: (mode?: 'text' | 'link') => void;
-  storeDraft: (
-    draft: JSONContent,
-    draftType?: GalleryDraftType
+  appendSharedTextToDraft: (
+    text: string,
+    kind: SharedTextDraftKind
   ) => Promise<void>;
+  didProcessShareIntent: (result: ProcessedShareIntent) => void;
 }) {
   const { pendingShareIntent, popShareIntent } = useChannelShareIntent();
   const { attachAssets } = useAttachmentContext();
@@ -149,24 +156,24 @@ function usePrefillDraftFromShareIntent({
   useEffect(() => {
     processingShareIntentIdRef.current = null;
     setActiveShareIntent(null);
-  }, [channel.id]);
+  }, [channelId]);
 
   // Claim the pending share into local state before popping it from context.
   useEffect(() => {
     if (
       disabled ||
       activeShareIntent ||
-      pendingShareIntent?.channelId !== channel.id
+      pendingShareIntent?.channelId !== channelId
     ) {
       return;
     }
 
-    const nextShareIntent = popShareIntent(channel.id);
+    const nextShareIntent = popShareIntent(channelId);
     if (!nextShareIntent) return;
 
     setActiveShareIntent(nextShareIntent);
   }, [
-    channel.id,
+    channelId,
     activeShareIntent,
     disabled,
     pendingShareIntent,
@@ -198,38 +205,25 @@ function usePrefillDraftFromShareIntent({
 
       if (uploadIntent) {
         if (sharedText) {
-          await storeDraft(
-            logic.textAndMentionsToContent(sharedText, []),
-            channel.type === 'gallery' ? 'caption' : undefined
-          );
+          await appendSharedTextToDraft(sharedText, 'attachment');
           if (signal.cancelled) return;
         }
 
         attachAssets([uploadIntent]);
-        if (channel.type !== 'gallery') {
-          openDraft();
-        }
+        didProcessShareIntent({ uploadIntent });
         return;
       }
 
       if (sharedText == null) return;
 
-      const draftType =
-        channel.type === 'gallery'
-          ? !!url && (!text || text === url)
-            ? 'link'
-            : 'text'
-          : undefined;
+      const draftMode = !!url && (!text || text === url) ? 'link' : 'text';
 
-      await storeDraft(
-        logic.textAndMentionsToContent(sharedText, []),
-        draftType
-      );
+      await appendSharedTextToDraft(sharedText, draftMode);
       if (signal.cancelled) return;
 
-      openDraft(draftType);
+      didProcessShareIntent({ draftMode, uploadIntent: null });
     },
-    [attachAssets, channel.type, openDraft, storeDraft]
+    [appendSharedTextToDraft, attachAssets, didProcessShareIntent]
   );
 
   // Process the active share from local state so popping context state can't interrupt it.
@@ -628,12 +622,40 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
       draftInputRef.current?.startDraft?.(mode);
     }, []);
+    const appendSharedTextToDraft = useCallback(
+      async (text: string, kind: SharedTextDraftKind) => {
+        const draftType =
+          channel.type === 'gallery'
+            ? kind === 'attachment'
+              ? 'caption'
+              : kind
+            : undefined;
+
+        await storeDraft(logic.textAndMentionsToContent(text, []), draftType);
+      },
+      [channel.type, storeDraft]
+    );
+
+    const handleProcessedShareIntent = useCallback(
+      ({
+        draftMode,
+        uploadIntent,
+      }: {
+        draftMode?: 'text' | 'link';
+        uploadIntent: Attachment.UploadIntent | null;
+      }) => {
+        if (!(channel.type === 'gallery' && uploadIntent)) {
+          handleOpenDraft(draftMode);
+        }
+      },
+      [channel.type, handleOpenDraft]
+    );
 
     usePrefillDraftFromShareIntent({
-      channel,
+      channelId: channel.id,
       disabled: !canWrite || !inView,
-      openDraft: handleOpenDraft,
-      storeDraft,
+      appendSharedTextToDraft,
+      didProcessShareIntent: handleProcessedShareIntent,
     });
 
     const isNarrow = useIsWindowNarrow();
