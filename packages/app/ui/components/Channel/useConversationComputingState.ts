@@ -47,10 +47,6 @@ export function useConversationComputingState(conversationId: string) {
       (parsedStatus ? getComputingStatusText(parsedStatus) : null) ||
       'Thinking...';
 
-    if (!label) {
-      return null;
-    }
-
     const toolCalls =
       parsedStatus?.toolCalls.filter((toolCall) => {
         return parsedStatus.toolCalls.length > 1 || toolCall.label !== label;
