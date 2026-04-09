@@ -165,7 +165,7 @@ export const hasViewedPersonalInvite = createStorageItem<boolean>({
 
 export const postDraft = (opts: {
   key: string;
-  type: 'caption' | 'text' | undefined; // matches GalleryDraftType
+  type: 'caption' | 'link' | 'text' | undefined; // matches GalleryDraftType
 }) => {
   return createStorageItem<ub.JSONContent | null>({
     key: `draft-${opts.key}${opts.type ? `-${opts.type}` : ''}`,
