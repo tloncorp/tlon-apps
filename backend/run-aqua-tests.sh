@@ -148,7 +148,10 @@ then
   cp $pill ${pier}/groups/${pill_name}.jam
 fi
 
-# Patch the broken +await-thread in /lib/strandio.hoon
+patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
+rm -f $pier/base/lib/strandio.hoon.rej
+rm -f $pier/base/lib/strandio.hoon.orig
+
 patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
 rm -f $pier/base/sur/aquarium.hoon.rej
 rm -f $pier/base/sur/aquarium.hoon.orig
