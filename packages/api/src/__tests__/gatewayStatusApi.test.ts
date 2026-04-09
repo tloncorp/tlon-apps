@@ -1,14 +1,14 @@
 import { da, dr, render } from '@urbit/aura';
 import { expect, test, vi } from 'vitest';
 
+import { poke } from '../client/urbit';
 import {
   configureGatewayStatus,
   gatewayHeartbeat,
   gatewayStart,
   gatewayStatusAction,
   gatewayStop,
-} from '../client/gatewayStatusApi';
-import { poke } from '../client/urbit';
+} from '../index';
 
 vi.mock('../client/urbit', () => ({
   poke: vi.fn().mockResolvedValue(undefined),
