@@ -7,7 +7,7 @@ import {
   gatewayStart,
   gatewayStatusAction,
   gatewayStop,
-} from '../client/gatewayStatusApi';
+} from '../index';
 import { poke } from '../client/urbit';
 
 vi.mock('../client/urbit', () => ({
