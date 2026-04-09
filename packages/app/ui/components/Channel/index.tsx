@@ -576,7 +576,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                     channel={channel}
                                     listBottomComponent={
                                       shouldShowThinkingState ? (
-                                        <ThinkingState conversationId={channel.id} />
+                                        <ThinkingState
+                                          conversationId={channel.id}
+                                        />
                                       ) : undefined
                                     }
                                   />

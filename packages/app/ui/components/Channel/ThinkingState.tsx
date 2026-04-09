@@ -3,11 +3,7 @@ import { Spinner, View, XStack } from 'tamagui';
 
 import { useConversationComputingState } from './useConversationComputingState';
 
-export function ThinkingState({
-  conversationId,
-}: {
-  conversationId: string;
-}) {
+export function ThinkingState({ conversationId }: { conversationId: string }) {
   const computingState = useConversationComputingState(conversationId);
 
   if (!computingState) {

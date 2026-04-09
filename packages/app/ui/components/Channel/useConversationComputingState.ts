@@ -1,7 +1,7 @@
 import {
+  type ComputingToolCall,
   getComputingStatusText,
   parseComputingStatus,
-  type ComputingToolCall,
 } from '@tloncorp/api';
 import { useConversationPresence } from '@tloncorp/shared';
 import { da, parse } from '@urbit/aura';
@@ -20,9 +20,7 @@ function parsePresenceTimestamp(since: string) {
   }
 }
 
-export function useConversationComputingState(
-  conversationId: string
-) {
+export function useConversationComputingState(conversationId: string) {
   const presenceStates = useConversationPresence(conversationId);
 
   return useMemo<ConversationComputingState | null>(() => {

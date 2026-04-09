@@ -64,7 +64,7 @@ export type PostListComponentProps = {
    * nested FlatLists which break on Android.
    *
    * Mapped to ListFooterComponent when inverted, ListHeaderComponent otherwise.
-  */
+   */
   listHeaderComponent?: React.ReactElement;
   /**
    * Content to display at the visual bottom of the list (below all items).
