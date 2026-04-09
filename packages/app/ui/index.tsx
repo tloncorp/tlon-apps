@@ -36,6 +36,8 @@ export * from './components/Form';
 export * as Form from './components/Form';
 export * from './components/ForwardPostSheet';
 export * from './components/ForwardGroupSheet';
+export * from './components/ForwardToChannelSheet';
+export * from './components/useForwardToChannelSheet';
 export * from './components/GalleryPost';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';

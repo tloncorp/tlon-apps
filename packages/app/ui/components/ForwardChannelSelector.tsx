@@ -19,11 +19,13 @@ import { SearchBar } from './SearchBar';
 type ForwardChannelSelectorProps = {
   isOpen: boolean;
   onChannelSelected: (channel: db.Channel) => void;
+  channelFilter?: (channel: db.Channel) => boolean;
 };
 
 export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
+  channelFilter,
 }: ForwardChannelSelectorProps) {
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
@@ -45,10 +47,10 @@ export function ForwardChannelSelector({
   const channels = useMemo(() => {
     const allChats = displayData.flatMap((section) => section.data);
 
-    return allChats.flatMap((chat) =>
-      chat.type === 'channel' ? [chat.channel] : []
-    );
-  }, [displayData]);
+    return allChats
+      .flatMap((chat) => (chat.type === 'channel' ? [chat.channel] : []))
+      .filter((channel) => (channelFilter ? channelFilter(channel) : true));
+  }, [channelFilter, displayData]);
 
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);

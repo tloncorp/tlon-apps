@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import * as db from '../db';
 import * as kv from '../db/keyValue';
 
-type GalleryDraftType = 'caption' | 'text';
+type GalleryDraftType = 'caption' | 'link' | 'text';
 interface PostDraftCallbacks {
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   storeDraft: (
