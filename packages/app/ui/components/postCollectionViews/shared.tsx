@@ -1,11 +1,7 @@
 import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import {
-  ComponentPropsWithoutRef,
-  useCallback,
-  useMemo,
-} from 'react';
+import { ComponentPropsWithoutRef, useCallback, useMemo } from 'react';
 
 import { useLivePost } from '../../contexts';
 import { RenderItemType } from '../../contexts/componentsKits';
