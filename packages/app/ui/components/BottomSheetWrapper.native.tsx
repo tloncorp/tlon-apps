@@ -377,9 +377,10 @@ export const BottomSheetWrapper = forwardRef<
     const nonModalProps = useMemo(
       () => ({
         ...commonProps,
+        ...commonOverrides,
         index: open ? 0 : -1, // Control visibility via index instead of conditional rendering
       }),
-      [commonProps, open]
+      [commonOverrides, commonProps, open]
     );
 
     const isNested = useContext(ActionSheetContext).isInsideSheet;
