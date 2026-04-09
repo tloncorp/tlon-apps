@@ -221,7 +221,14 @@ export function ReferenceBlock({
   const isInsideReference = useContext(IsInsideReferenceContext);
   const ReferenceLoader = useContext(ContentReferenceContext);
 
-  if (isInsideReference || !ReferenceLoader) {
+  if (isInsideReference) {
+    return null;
+  }
+
+  if (!ReferenceLoader) {
+    console.warn(
+      'ReferenceBlock rendered without a ReferenceLoader in context'
+    );
     return null;
   }
 
