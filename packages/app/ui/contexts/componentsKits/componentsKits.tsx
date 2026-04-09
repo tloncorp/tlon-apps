@@ -74,12 +74,15 @@ export interface ComponentsKitContextValue {
   >;
 }
 
-export const ComponentsKitContext = createContext<ComponentsKitContextValue>({
-  collectionRenderers: {},
-  inputs: {},
-  renderers: {},
-});
+export const ComponentsKitContext =
+  createContext<ComponentsKitContextValue | null>(null);
 
 export function useComponentsKitContext() {
-  return useContext(ComponentsKitContext);
+  const ctx = useContext(ComponentsKitContext);
+  if (!ctx) {
+    throw new Error(
+      'useComponentsKitContext must be used within a ComponentsKitProvider'
+    );
+  }
+  return ctx;
 }
