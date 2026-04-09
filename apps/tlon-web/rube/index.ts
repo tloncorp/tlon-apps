@@ -1034,6 +1034,40 @@ const makeRequestWithCookies = async (
   return responseBody;
 };
 
+const waitForGroupsDeskInKiln = async (
+  ship: Ship,
+  options: { maxAttempts?: number; delayMs?: number } = {}
+): Promise<string> => {
+  const maxAttempts = options.maxAttempts ?? 30;
+  const delayMs = options.delayMs ?? 1_000;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await makeRequestWithCookies(
+      ship.ship as ShipName,
+      `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`,
+      {
+        context: `wait for %groups desk in kiln (attempt ${attempt}/${maxAttempts})`,
+      }
+    );
+
+    const json = JSON.parse(response);
+    if (json?.groups?.hash) {
+      return json.groups.hash as string;
+    }
+
+    if (attempt < maxAttempts) {
+      console.log(
+        `%groups desk not yet available in kiln for ~${ship.ship} (attempt ${attempt}/${maxAttempts}), retrying...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw new Error(
+    `%groups desk did not appear in kiln/pikes.json for ~${ship.ship} after ${maxAttempts} attempts`
+  );
+};
+
 const assertShipHealthy = async (
   ship: ShipName,
   context: string,
@@ -1065,18 +1099,13 @@ const getStartHashes = async () => {
       continue;
     }
 
-    const response = await makeRequestWithCookies(
-      ship.ship as ShipName,
-      `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`,
-      {
-        context: 'initial kiln hash fetch',
-      }
-    );
-
-    const json = JSON.parse(response);
+    const groupsHash = await waitForGroupsDeskInKiln(ship, {
+      maxAttempts: FRESH_BOOT ? 60 : 10,
+      delayMs: 1_000,
+    });
 
     startHashes[ship.ship] = {
-      groups: json.groups.hash,
+      groups: groupsHash,
     };
     console.log(`Start hashes for ~${ship.ship}:`, startHashes[ship.ship]);
   }
