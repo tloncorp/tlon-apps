@@ -474,6 +474,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     ]);
     const shouldShowThinkingState =
       canRead && draftInputPresentationMode !== 'fullscreen';
+    const listBottomComponent = useMemo(
+      () =>
+        shouldShowThinkingState ? (
+          <ThinkingState conversationId={channel.id} />
+        ) : undefined,
+      [shouldShowThinkingState, channel.id]
+    );
 
     return (
       <ScrollContextProvider>
@@ -574,13 +581,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                   <PostCollectionView
                                     collectionRef={collectionRef}
                                     channel={channel}
-                                    listBottomComponent={
-                                      shouldShowThinkingState ? (
-                                        <ThinkingState
-                                          conversationId={channel.id}
-                                        />
-                                      ) : undefined
-                                    }
+                                    listBottomComponent={listBottomComponent}
                                   />
                                 </PostCollectionContext.Provider>
                               </View>
