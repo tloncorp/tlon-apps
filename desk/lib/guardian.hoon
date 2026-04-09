@@ -26,14 +26,17 @@
 /%  chat-paged-writs-1  %chat-paged-writs-1
 /%  chat-paged-writs-2  %chat-paged-writs-2
 /%  chat-paged-writs-3  %chat-paged-writs-3
+/%  chat-paged-writs-4  %chat-paged-writs-4
 /%  chat-scam  %chat-scam
 /%  chat-scam-1  %chat-scam-1
 /%  chat-scam-2  %chat-scam-2
 /%  chat-scam-3  %chat-scam-3
+/%  chat-scam-4  %chat-scam-4
 /%  chat-scan  %chat-scan
 /%  chat-scan-1  %chat-scan-1
 /%  chat-scan-2  %chat-scan-2
 /%  chat-scan-3  %chat-scan-3
+/%  chat-scan-4  %chat-scan-4
 /%  chat-toggle-message  %chat-toggle-message
 /%  chat-unblocked-by  %chat-unblocked-by
 /%  chat-unread-update  %chat-unread-update
@@ -41,6 +44,7 @@
 /%  chat-writ-1  %chat-writ-1
 /%  chat-writ-2  %chat-writ-2
 /%  chat-writ-3  %chat-writ-3
+/%  chat-writ-4  %chat-writ-4
 /%  clubs  %clubs
 /%  epic  %epic
 /%  hidden-messages  %hidden-messages
@@ -92,14 +96,17 @@
       [%chat-paged-writs-1 $+(chat-paged-writs-1 _*vale:chat-paged-writs-1)]
       [%chat-paged-writs-2 $+(chat-paged-writs-2 _*vale:chat-paged-writs-2)]
       [%chat-paged-writs-3 $+(chat-paged-writs-3 _*vale:chat-paged-writs-3)]
+      [%chat-paged-writs-4 $+(chat-paged-writs-4 _*vale:chat-paged-writs-4)]
       [%chat-scam $+(chat-scam _*vale:chat-scam)]
       [%chat-scam-1 $+(chat-scam-1 _*vale:chat-scam-1)]
       [%chat-scam-2 $+(chat-scam-2 _*vale:chat-scam-2)]
       [%chat-scam-3 $+(chat-scam-3 _*vale:chat-scam-3)]
+      [%chat-scam-4 $+(chat-scam-4 _*vale:chat-scam-4)]
       [%chat-scan $+(chat-scan _*vale:chat-scan)]
       [%chat-scan-1 $+(chat-scan-1 _*vale:chat-scan-1)]
       [%chat-scan-2 $+(chat-scan-2 _*vale:chat-scan-2)]
       [%chat-scan-3 $+(chat-scan-3 _*vale:chat-scan-3)]
+      [%chat-scan-4 $+(chat-scan-4 _*vale:chat-scan-4)]
       [%chat-toggle-message $+(chat-toggle-message _*vale:chat-toggle-message)]
       [%chat-unblocked-by $+(chat-unblocked-by _*vale:chat-unblocked-by)]
       [%chat-unread-update $+(chat-unread-update _*vale:chat-unread-update)]
@@ -107,6 +114,7 @@
       [%chat-writ-1 $+(chat-writ-1 _*vale:chat-writ-1)]
       [%chat-writ-2 $+(chat-writ-2 _*vale:chat-writ-2)]
       [%chat-writ-3 $+(chat-writ-3 _*vale:chat-writ-3)]
+      [%chat-writ-4 $+(chat-writ-4 _*vale:chat-writ-4)]
       [%clubs $+(clubs _*vale:clubs)]
       [%epic $+(epic _*vale:epic)]
       [%hidden-messages $+(hidden-messages _*vale:hidden-messages)]
@@ -158,14 +166,17 @@
     %chat-paged-writs-1  [-.rail !>(+.rail)]
     %chat-paged-writs-2  [-.rail !>(+.rail)]
     %chat-paged-writs-3  [-.rail !>(+.rail)]
+    %chat-paged-writs-4  [-.rail !>(+.rail)]
     %chat-scam  [-.rail !>(+.rail)]
     %chat-scam-1  [-.rail !>(+.rail)]
     %chat-scam-2  [-.rail !>(+.rail)]
     %chat-scam-3  [-.rail !>(+.rail)]
+    %chat-scam-4  [-.rail !>(+.rail)]
     %chat-scan  [-.rail !>(+.rail)]
     %chat-scan-1  [-.rail !>(+.rail)]
     %chat-scan-2  [-.rail !>(+.rail)]
     %chat-scan-3  [-.rail !>(+.rail)]
+    %chat-scan-4  [-.rail !>(+.rail)]
     %chat-toggle-message  [-.rail !>(+.rail)]
     %chat-unblocked-by  [-.rail !>(+.rail)]
     %chat-unread-update  [-.rail !>(+.rail)]
@@ -173,6 +184,7 @@
     %chat-writ-1  [-.rail !>(+.rail)]
     %chat-writ-2  [-.rail !>(+.rail)]
     %chat-writ-3  [-.rail !>(+.rail)]
+    %chat-writ-4  [-.rail !>(+.rail)]
     %clubs  [-.rail !>(+.rail)]
     %epic  [-.rail !>(+.rail)]
     %hidden-messages  [-.rail !>(+.rail)]

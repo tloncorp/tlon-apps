@@ -1244,23 +1244,24 @@
 ++  peek
   |=  =path
   ~>  %spin.['peek']
-  ^-  (unit (unit cage))
+  %-  peek:unguard:guardian
+  ^-  (unit (unit rail))
   ?+  path  [~ ~]
-    [%x %full ~]  ``noun+!>([dms clubs])
-    [%x %old ~]  ``noun+!>(old-chats)  ::  legacy data, for migration use
+    [%x %full ~]  ``noun+[dms clubs]
+    [%x %old ~]  ``noun+old-chats  ::  legacy data, for migration use
   ::
-    [%x %clubs ~]  ``clubs+!>((~(run by clubs) |=(=club:c crew.club)))
+    [%x %clubs ~]  ``clubs+(~(run by clubs) |=(=club:c crew.club))
   ::
-    [%x %blocked ~]  ``ships+!>(blocked)
+    [%x %blocked ~]  ``ships+blocked
   ::
-    [%x %blocked-by ~]  ``ships+!>(blocked-by)
+    [%x %blocked-by ~]  ``ships+blocked-by
   ::
-    [%x %hidden-messages ~]  ``hidden-messages+!>(hidden-messages)
+    [%x %hidden-messages ~]  ``hidden-messages+hidden-messages
   ::
-    [%x %unreads ~]  ``chat-unreads+!>(unreads)
+    [%x %unreads ~]  ``chat-unreads+unreads
   ::
       [%x %init ~]
-    =-  ``noun+!>(-)
+    :^  ~  ~  %noun
     :*  (~(run by clubs) |=(=club:c crew.club))
         ~(key by accepted-dms)
         unreads
@@ -1269,7 +1270,7 @@
     ==
   ::
       [%x %v1 %init ~]
-    =-  ``noun+!>(-)
+    :^  ~  ~  %noun
     :*  ~(key by accepted-dms)
         ~(key by pending-dms)
         (~(run by clubs) |=(=club:c crew.club))
@@ -1284,7 +1285,7 @@
       ?^  tim=(slaw %da i.t.t.path)  `u.tim
       `(slav %ud i.t.t.path)
     :^  ~  ~  %chat-heads
-    !>((v3:chat-heads:v5:cc (v5:chat-heads:v7:cc (heads since))))
+    (v3:chat-heads:v5:cc (v5:chat-heads:v7:cc (heads since)))
   ::
       [%x ?(%v1 %v2 %v3 %v4) %heads ?(~ [@ ~])]
     =*  ver  i.t.path
@@ -1293,10 +1294,10 @@
       ?^  tim=(slaw %da i.t.t.t.path)  `u.tim
       `(slav %ud i.t.t.t.path)
     ?-  ver
-      %v1  ``[%chat-heads-1 !>((v4:chat-heads:v7:cc (heads since)))]
-      %v2  ``[%chat-heads-2 !>((v5:chat-heads:v7:cc (heads since)))]
-      %v3  ``[%chat-heads-3 !>((v6:chat-heads:v7:cc (heads since)))]
-      %v4  ``[%chat-heads-4 !>(`chat-heads:v7:cv`(heads since))]
+      %v1  ``[%chat-heads-1 (v4:chat-heads:v7:cc (heads since))]
+      %v2  ``[%chat-heads-2 (v5:chat-heads:v7:cc (heads since))]
+      %v3  ``[%chat-heads-3 (v6:chat-heads:v7:cc (heads since))]
+      %v4  ``[%chat-heads-4 `chat-heads:v7:cv`(heads since)]
     ==
   ::
       [%x ver=?(%v3 %v4) %changes since=@ rest=*]
@@ -1309,17 +1310,17 @@
             %v3
           =/  changes-6
             (~(run by changes) (curr bind v6:writs:v7:cc))
-          ``chat-changed-writs+!>(changes-6)
+          ``chat-changed-writs+changes-6
         ::
             %v4
           =/  changes-7=(map whom:c (unit writs:v7:cv))
             changes
-          ``chat-changed-writs-1+!>(changes-7)
+          ``chat-changed-writs-1+changes-7
         ==
       ::
           [%count ~]
         :^  ~  ~  %json
-        !>  ^-  json
+        ^-  json
         %-  numb:enjs:format
         %-  ~(rep by changes)
         |=  [[* w=(unit writs:c)] sum=@ud]
@@ -1373,12 +1374,12 @@
           %v3
         =/  changes-6
           (~(run by changes) (curr bind v6:writs:v7:cc))
-        ``chat-changed-writs+!>(changes-6)
+        ``chat-changed-writs+changes-6
       ::
           %v4
         =/  changes-7=(map whom:c (unit writs:v7:cv))
           changes
-        ``chat-changed-writs-1+!>(changes-7)
+        ``chat-changed-writs-1+changes-7
       ==
     %-  ~(gas by *(map whom:c (unit writs:c)))
     =*  type  $%([%ship who=ship =dm:c] [%club =id:club:c =club:c])
@@ -1412,13 +1413,13 @@
     (weld older newer)
   ::
       [%x %dm ~]
-    ``ships+!>(~(key by accepted-dms))
+    ``ships+~(key by accepted-dms)
   ::
       [%x %dm %invited ~]
-    ``ships+!>(~(key by pending-dms))
+    ``ships+~(key by pending-dms)
   ::
       [%x %dm %archive ~]
-    ``ships+!>(~(key by archived-dms))
+    ``ships+~(key by archived-dms)
   ::
       [%x %dm @ *]
     =/  =ship  (slav %p i.t.t.path)
@@ -1438,16 +1439,16 @@
     =/  =ship  (slav %p i.t.t.path)
     =/  has  (~(has by dms) ship)
     ?.  has
-      ``loob+!>(|)
-    ?~  t.t.t.path  ``loob+!>(has)
+      ``loob+|
+    ?~  t.t.t.path  ``loob+has
     (di-peek:(di-abed:di-core ship) %u %v0 t.t.t.path)
   ::
       [%u %club @ *]
     =/  =id:club:c  (slav %uv i.t.t.path)
     =/  has  (~(has by clubs) id)
     ?.  has
-      ``loob+!>(|)
-    ?~  t.t.t.path  ``loob+!>(has)
+      ``loob+|
+    ?~  t.t.t.path  ``loob+has
     (cu-peek:(cu-abed:cu-core id) %u %v0 t.t.t.path)
   ::
   ==
@@ -2333,20 +2334,20 @@
   ++  cu-peek
     |=  [care=@tas ver=?(%v0 %v1 %v2 %v3 %v4) =(pole knot)]
     ~>  %spin.['cu-peek']
-    ^-  (unit (unit cage))
+    ^-  (unit (unit rail))
     ?+  pole  [~ ~]
       [%writs rest=*]  (peek:cu-pact care ver rest.pole)
-      [%crew ~]   ``chat-club-crew+!>(crew.club)
+      [%crew ~]   ``[%unsafe %chat-club-crew !>(crew.club)]
     ::
         [%search %bounded kind=?(%text %mention) from=@ tries=@ nedl=@ ~]
       :+  ~  ~
       =;  =scam:c
         ?-  ver
-          %v0  chat-scam+!>((v3:scam:v5:cc (v5:scam:v7:cc scam)))
-          %v1  chat-scam-1+!>((v4:scam:v7:cc scam))
-          %v2  chat-scam-2+!>((v5:scam:v7:cc scam))
-          %v3  chat-scam-3+!>((v6:scam:v7:cc scam))
-          %v4  chat-scam-4+!>(`scam:v7:cv`scam)
+          %v0  chat-scam+(v3:scam:v5:cc (v5:scam:v7:cc scam))
+          %v1  chat-scam-1+(v4:scam:v7:cc scam)
+          %v2  chat-scam-2+(v5:scam:v7:cc scam)
+          %v3  chat-scam-3+(v6:scam:v7:cc scam)
+          %v4  chat-scam-4+`scam:v7:cv`scam
         ==
       %^    ?-  kind.pole
               %text     text:tries-bound:search:cu-pact
@@ -2364,11 +2365,11 @@
       :+  ~  ~
       =;  =scan:c
         ?-  ver
-          %v0  chat-scan+!>((v3:scan:v5:cc (v5:scan:v7:cc scan)))
-          %v1  chat-scan-1+!>((v4:scan:v5:cc (v5:scan:v7:cc scan)))
-          %v2  chat-scan-2+!>((v5:scan:v7:cc scan))
-          %v3  chat-scan-3+!>((v6:scan:v7:cc scan))
-          %v4  chat-scan-4+!>(`scan:v7:cv`scan)
+          %v0  chat-scan+(v3:scan:v5:cc (v5:scan:v7:cc scan))
+          %v1  chat-scan-1+(v4:scan:v5:cc (v5:scan:v7:cc scan))
+          %v2  chat-scan-2+(v5:scan:v7:cc scan)
+          %v3  chat-scan-3+(v6:scan:v7:cc scan)
+          %v4  chat-scan-4+`scan:v7:cv`scan
         ==
       %^    text:hits-bound:search:cu-pact
           (slav %ud skip.pole)
@@ -2379,11 +2380,11 @@
       :+  ~  ~
       =;  =scan:c
         ?-  ver
-          %v0  chat-scan+!>((v3:scan:v5:cc (v5:scan:v7:cc scan)))
-          %v1  chat-scan-1+!>((v4:scan:v5:cc (v5:scan:v7:cc scan)))
-          %v2  chat-scan-2+!>((v5:scan:v7:cc scan))
-          %v3  chat-scan-3+!>((v6:scan:v7:cc scan))
-          %v4  chat-scan-4+!>(`scan:v7:cv`scan)
+          %v0  chat-scan+(v3:scan:v5:cc (v5:scan:v7:cc scan))
+          %v1  chat-scan-1+(v4:scan:v5:cc (v5:scan:v7:cc scan))
+          %v2  chat-scan-2+(v5:scan:v7:cc scan)
+          %v3  chat-scan-3+(v6:scan:v7:cc scan)
+          %v4  chat-scan-4+`scan:v7:cv`scan
         ==
       %^    mention:hits-bound:search:cu-pact
           (slav %ud skip.pole)
@@ -2941,7 +2942,7 @@
   ++  di-peek
     |=  [care=@tas ver=?(%v0 %v1 %v2 %v3 %v4) =(pole knot)]
     ~>  %spin.['di-peek']
-    ^-  (unit (unit cage))
+    ^-  (unit (unit rail))
     ?+    pole  [~ ~]
         [%writs rest=*]
       (peek:di-pact care ver rest.pole)
@@ -2950,11 +2951,11 @@
       =;  =scam:c
         :+  ~  ~
         ?-  ver
-          %v0  chat-scam+!>((v3:scam:v5:cc (v5:scam:v7:cc scam)))
-          %v1  chat-scam-1+!>((v4:scam:v7:cc scam))
-          %v2  chat-scam-2+!>((v5:scam:v7:cc scam))
-          %v3  chat-scam-3+!>((v6:scam:v7:cc scam))
-          %v4  chat-scam-4+!>(`scam:v7:cv`scam)
+          %v0  chat-scam+(v3:scam:v5:cc (v5:scam:v7:cc scam))
+          %v1  chat-scam-1+(v4:scam:v7:cc scam)
+          %v2  chat-scam-2+(v5:scam:v7:cc scam)
+          %v3  chat-scam-3+(v6:scam:v7:cc scam)
+          %v4  chat-scam-4+`scam:v7:cv`scam
         ==
       %^    ?-  kind.pole
               %text     text:tries-bound:search:di-pact
@@ -2972,11 +2973,11 @@
       =;  =scan:c
         :+  ~  ~
         ?-  ver
-          %v0  chat-scan+!>((v3:scan:v5:cc (v5:scan:v7:cc scan)))
-          %v1  chat-scan-1+!>((v4:scan:v5:cc (v5:scan:v7:cc scan)))
-          %v2  chat-scan-2+!>((v5:scan:v7:cc scan))
-          %v3  chat-scan-3+!>((v6:scan:v7:cc scan))
-          %v4  chat-scan-4+!>(`scan:v7:cv`scan)
+          %v0  chat-scan+(v3:scan:v5:cc (v5:scan:v7:cc scan))
+          %v1  chat-scan-1+(v4:scan:v5:cc (v5:scan:v7:cc scan))
+          %v2  chat-scan-2+(v5:scan:v7:cc scan)
+          %v3  chat-scan-3+(v6:scan:v7:cc scan)
+          %v4  chat-scan-4+`scan:v7:cv`scan
         ==
       %^    text:hits-bound:search:di-pact
           (slav %ud skip.pole)
@@ -2987,11 +2988,11 @@
       =;  =scan:c
         :+  ~  ~
         ?-  ver
-          %v0  chat-scan+!>((v3:scan:v5:cc (v5:scan:v7:cc scan)))
-          %v1  chat-scan-1+!>((v4:scan:v5:cc (v5:scan:v7:cc scan)))
-          %v2  chat-scan-2+!>((v5:scan:v7:cc scan))
-          %v3  chat-scan-3+!>((v6:scan:v7:cc scan))
-          %v4  chat-scan-4+!>(`scan:v7:cv`scan)
+          %v0  chat-scan+(v3:scan:v5:cc (v5:scan:v7:cc scan))
+          %v1  chat-scan-1+(v4:scan:v5:cc (v5:scan:v7:cc scan))
+          %v2  chat-scan-2+(v5:scan:v7:cc scan)
+          %v3  chat-scan-3+(v6:scan:v7:cc scan)
+          %v4  chat-scan-4+`scan:v7:cv`scan
         ==
       %^    mention:hits-bound:search:di-pact
           (slav %ud skip.pole)

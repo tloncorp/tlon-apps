@@ -1,5 +1,5 @@
 /-  c=chat, cv=chat-ver, d=channels, s=story, meta
-/+  mp=mop-extensions, cc=chat-conv, cu=channel-utils
+/+  mp=mop-extensions, cc=chat-conv, cu=channel-utils, guardian
 |_  pac=pact:c
 ++  size-limit  256.000  :: 256KB
 ++  mope  ((mp time (may:c writ:c)) lte)
@@ -252,14 +252,14 @@
 ++  give-paged-writs
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3 %v4) ls=(list [time (may:c writ:c)])]
   ~>  %spin.['libdm-give-paged-writs']
-  ^-  (unit (unit cage))
+  ^-  (unit (unit rail:guardian))
   =;  p=paged-writs:c
     ?-  ver
-      %v0  ``chat-paged-writs+!>((v3:paged-writs:v4:cc (v4:paged-writs:v7:cc p)))
-      %v1  ``chat-paged-writs-1+!>((v4:paged-writs:v7:cc p))
-      %v2  ``chat-paged-writs-2+!>((v5:paged-writs:v7:cc p))
-      %v3  ``chat-paged-writs-3+!>((v6:paged-writs:v7:cc p))
-      %v4  ``chat-paged-writs-4+!>(`paged-writs:v7:cv`p)
+      %v0  ``chat-paged-writs+(v3:paged-writs:v4:cc (v4:paged-writs:v7:cc p))
+      %v1  ``chat-paged-writs-1+(v4:paged-writs:v7:cc p)
+      %v2  ``chat-paged-writs-2+(v5:paged-writs:v7:cc p)
+      %v3  ``chat-paged-writs-3+(v6:paged-writs:v7:cc p)
+      %v4  ``chat-paged-writs-4+`paged-writs:v7:cv`p
     ==
   =/  =writs:c
     %+  gas:on:writs:c  *writs:c
@@ -293,7 +293,7 @@
 ++  get-around
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3 %v4) =time count=@ud]
   ~>  %spin.['libdm-get-around']
-  ^-  (unit (unit cage))
+  ^-  (unit (unit rail:guardian))
   =/  older  (bat:mope wit.pac `time count)
   =/  newer  (tab:on:writs:c wit.pac `time count)
   =/  writ   (get:on:writs:c wit.pac time)
@@ -323,7 +323,7 @@
 ++  peek
   |=  [care=@tas ver=?(%v0 %v1 %v2 %v3 %v4) =(pole knot)]
   ~>  %spin.['libdm-peek']
-  ^-  (unit (unit cage))
+  ^-  (unit (unit rail:guardian))
   =*  on   on:writs:c
   ?+    pole  [~ ~]
   ::
@@ -354,7 +354,7 @@
     =/  time    (slav %ud time.pole)
     =/  count   (slav %ud count.pole)
     =/  entry   (get ship `@da`time)
-    ?~  entry  ``chat-paged-writs+!>(*paged-writs:c)
+    ?~  entry  ``chat-paged-writs+*paged-writs:v3:cv
     (get-around mode.pole ver time.u.entry count)
   ::
       [%range start=@ end=@ mode=?(%light %heavy) ~]
@@ -392,17 +392,17 @@
       =/  writ=(may:c writ:c)  writ:(got ship `@da`time)
       ?:  ?=(%| -.writ)  [~ ~]
       ?-    ver
-            %v0  ``writ+!>((v3:writ:v5:cc (v5:writ:v7:cc +.writ)))
-            %v1  ``chat-writ-1+!>((v4:writ:v5:cc (v5:writ:v7:cc +.writ)))
-            %v2  ``chat-writ-2+!>((v5:writ:v7:cc +.writ))
-            %v3  ``chat-writ-3+!>((mind:v7:cv writ v6:writ:v7:cc))
-            %v4  ``chat-writ-4+!>(`(may:v7:cv writ:v7:cv)`writ)
+            %v0  ``writ+(v3:writ:v5:cc (v5:writ:v7:cc +.writ))
+            %v1  ``chat-writ-1+(v4:writ:v5:cc (v5:writ:v7:cc +.writ))
+            %v2  ``chat-writ-2+(v5:writ:v7:cc +.writ)
+            %v3  ``chat-writ-3+(mind:v7:cv writ v6:writ:v7:cc)
+            %v4  ``chat-writ-4+`(may:v7:cv writ:v7:cv)`writ
       ==
     =/  has-writ
       ?:  ?=(?(%v0 %v1 %v2) ver)  ?~((get ship `@da`time) | &)
       ?~  entry=(get ship `@da`time)  |
       !?=(%| -.writ.u.entry)
-    ``loob+!>(has-writ)
+    ``loob+has-writ
   ==
 ::
 ++  search
