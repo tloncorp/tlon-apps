@@ -116,23 +116,19 @@ const ChatMessage = ({
       >
         <StaticChatMessage
           {...{
-            post,
-            showAuthor,
-            hideProfilePreview,
-            onPressReplies,
-            onPressImage,
-            onPress,
-            onLongPress,
-            onPressRetry,
-            onShowEmojiPicker,
-            onPressEdit,
-            showReplies,
-            setViewReactionsPost,
-            isHighlighted,
-            hideOverflowMenu,
             displayDebugMode,
-            searchQuery,
+            hideProfilePreview,
             hideSentAtTimestamp: hideOverflowMenu || !isHovered,
+            isHighlighted,
+            onLongPress,
+            onPressImage,
+            onPressReplies,
+            onPressRetry,
+            post,
+            searchQuery,
+            setViewReactionsPost,
+            showAuthor,
+            showReplies,
           }}
         />
         {!hideOverflowMenu && (isHovered || isPopoverOpen) && (

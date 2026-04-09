@@ -18,35 +18,35 @@ import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
 export function StaticChatMessage({
-  post,
-  showAuthor,
-  hideProfilePreview,
-  onPressReplies,
-  onPressImage,
-  onLongPress,
-  onPressRetry,
-  showReplies,
-  setViewReactionsPost,
-  isHighlighted,
   displayDebugMode = false,
-  searchQuery,
+  hideProfilePreview,
   hideSentAtTimestamp,
+  isHighlighted,
+  onLongPress,
+  onPressImage,
+  onPressReplies,
+  onPressRetry,
+  post,
+  searchQuery,
+  setViewReactionsPost,
+  showAuthor,
+  showReplies,
 }: {
-  post: db.Post;
-  showAuthor?: boolean;
-  hideProfilePreview?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
-  showReplies?: boolean;
-  onPressReplies?: (post: db.Post) => void;
-  onPressImage?: (post: db.Post, imageUri?: string) => void;
-  onLongPress?: (post: db.Post) => void;
-  onPressRetry?: (post: db.Post) => Promise<void>;
-  onPressDelete?: (post: db.Post) => void;
-  setViewReactionsPost?: (post: db.Post) => void;
-  isHighlighted?: boolean;
   displayDebugMode?: boolean;
-  searchQuery?: string;
+  hideProfilePreview?: boolean;
   hideSentAtTimestamp?: boolean;
+  isHighlighted?: boolean;
+  onLongPress?: (post: db.Post) => void;
+  onPressDelete?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPressReplies?: (post: db.Post) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
+  post: db.Post;
+  searchQuery?: string;
+  setViewReactionsPost?: (post: db.Post) => void;
+  showAuthor?: boolean;
+  showReplies?: boolean;
 }) {
   const isNotice = post.type === 'notice';
 
