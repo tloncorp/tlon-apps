@@ -145,7 +145,7 @@ const ChatMessage = ({
             hideOverflowMenu,
             displayDebugMode,
             searchQuery,
-            hideSentAtTimestamp: hideOverflowMenu || isHovered,
+            hideSentAtTimestamp: hideOverflowMenu || !isHovered,
           }}
         />
         {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
