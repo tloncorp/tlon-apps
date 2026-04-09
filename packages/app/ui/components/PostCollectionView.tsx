@@ -1,23 +1,20 @@
 import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { ReactElement, Ref, useMemo } from 'react';
+import { Ref, useMemo } from 'react';
 
 import { useComponentsKitContext } from '../contexts/componentsKits';
 import { ListPostCollection } from './postCollectionViews/ListPostCollectionView';
 import {
   IPostCollectionView,
   PostCollectionHandle,
-  PostCollectionViewProps,
 } from './postCollectionViews/shared';
 
 export function PostCollectionView({
   channel,
   collectionRef,
-  listBottomComponent,
 }: {
   channel: db.Channel;
   collectionRef: Ref<PostCollectionHandle>;
-  listBottomComponent?: ReactElement;
 }) {
   const { collectionRenderers } = useComponentsKitContext();
   const SpecificComponent: IPostCollectionView = useMemo(() => {
@@ -39,8 +36,5 @@ export function PostCollectionView({
     })();
     return rendererFromContentConfig ?? ListPostCollection;
   }, [channel.contentConfiguration, collectionRenderers]);
-  const collectionProps: PostCollectionViewProps = {
-    listBottomComponent,
-  };
-  return <SpecificComponent {...collectionProps} ref={collectionRef} />;
+  return <SpecificComponent ref={collectionRef} />;
 }

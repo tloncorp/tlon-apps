@@ -3,7 +3,6 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   ComponentPropsWithoutRef,
-  ReactElement,
   useCallback,
   useMemo,
 } from 'react';
@@ -19,9 +18,7 @@ export interface PostCollectionHandle {
   highlightPost?: (postId: string) => void;
 }
 
-export interface PostCollectionViewProps {
-  listBottomComponent?: ReactElement;
-}
+export interface PostCollectionViewProps {}
 
 export type IPostCollectionView = React.ForwardRefExoticComponent<
   PostCollectionViewProps & React.RefAttributes<PostCollectionHandle>

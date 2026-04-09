@@ -18,6 +18,8 @@ import { useCurrentUserId } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { EmptyChannelNotice } from '../Channel/EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from '../Channel/Scroller';
+import { ThinkingState } from '../Channel/ThinkingState';
+import { useCanRead } from '../../utils';
 import { IPostCollectionView } from './shared';
 
 interface ScrollerHandle {
@@ -30,10 +32,11 @@ interface ScrollerHandle {
 }
 
 export const ListPostCollection: IPostCollectionView = forwardRef(
-  function ListPostCollection({ listBottomComponent }, forwardedRef) {
+  function ListPostCollection(_props, forwardedRef) {
     const ctx = usePostCollectionContext();
     const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
     const currentUserId = useCurrentUserId();
+    const canRead = useCanRead(ctx.channel, currentUserId);
     const scrollerRef = useRef<ScrollerHandle>(null);
     const collectionLayoutType = useMemo(
       () => layoutTypeFromChannel(ctx.channel),
@@ -42,6 +45,11 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const collectionLayout = useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
+    );
+    const listBottomComponent = useMemo(
+      () =>
+        canRead ? <ThinkingState conversationId={ctx.channel.id} /> : undefined,
+      [canRead, ctx.channel.id]
     );
 
     const renderEmptyComponent = useCallback(() => {
