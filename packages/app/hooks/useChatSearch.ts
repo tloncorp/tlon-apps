@@ -2,7 +2,7 @@ import { configurationFromChannel } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { getChannelTitle, getGroupTitle } from '../ui';
 import {
@@ -188,8 +188,11 @@ function useDebouncedValue<T>(input: T, delay: number) {
     }
 
     debouncedSetValue(input);
-    return () => debouncedSetValue.cancel();
   }, [debouncedSetValue, delay, input]);
+
+  useEffect(() => {
+    return () => debouncedSetValue.cancel();
+  }, [debouncedSetValue]);
 
   return delay <= 0 ? input : value;
 }
