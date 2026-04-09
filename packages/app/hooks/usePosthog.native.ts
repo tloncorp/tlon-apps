@@ -12,10 +12,7 @@ export function usePosthog() {
       getIsOptedOut: () => posthog?.optedOut ?? false,
       optIn: () => posthog?.optIn(),
       optOut: () => posthog?.optOut(),
-      identify: (userId, properties) => {
-        posthog?.identify(userId, properties);
-        identifyUser(userId, properties);
-      },
+      identify: (userId, properties) => identifyUser(userId, properties),
       capture: (eventName, properties) =>
         posthog?.capture(eventName, properties),
       flush: async () => posthog?.flush(),

@@ -2,12 +2,15 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import * as Sentry from '@sentry/react-native';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import PostHog from 'posthog-react-native';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
+import { identifyUser } from './identifyUser';
+import { posthog, posthogAsync } from './posthogSingleton';
 import { createSentryErrorLogger } from './sentry';
 import { UrbitModuleSpec } from './urbitModule';
+
+export { posthog, posthogAsync } from './posthogSingleton';
 
 export type OnboardingProperties = {
   actionName: string;
@@ -24,18 +27,7 @@ export type OnboardingProperties = {
   inviteType?: 'user' | 'group';
 };
 
-export let posthog: PostHog | undefined;
-
-export const posthogAsync =
-  process.env.NODE_ENV === 'test' && !process.env.POST_HOG_IN_DEV
-    ? undefined
-    : PostHog.initAsync(POST_HOG_API_KEY, {
-        host: 'https://data-bridge-v1.vercel.app/ingest',
-        enable: true,
-      });
-
 posthogAsync?.then((client) => {
-  posthog = client;
   const distinctId = client.getDistinctId();
 
   crashlytics().setAttribute('analyticsId', distinctId);
@@ -105,6 +97,5 @@ export const identifyTlonEmployee = () => {
   }
 
   const UUID = posthog.getDistinctId();
-  posthog.identify(UUID, { isTlonEmployee: true });
-  Sentry.setUser({ id: UUID, isTlonEmployee: true });
+  identifyUser(UUID, { isTlonEmployee: true });
 };
