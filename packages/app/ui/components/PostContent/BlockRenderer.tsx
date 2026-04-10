@@ -554,15 +554,15 @@ export function ImageBlock({
             height: constrainedSize.height,
             maxWidth: '100%',
           }
-        : {})}
+        : dimensions.width
+          ? { maxWidth: dimensions.width }
+          : {})}
     >
       <ContentImage
         source={{
           uri: block.src,
         }}
-        {...(constrainedSize
-          ? { width: '100%', height: '100%' }
-          : { width: dimensions.width ?? '100%' })}
+        {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
         {...(shouldUseAspectRatio && !constrainedSize
           ? { aspectRatio: dimensions.aspect || 1 }
           : {})}
