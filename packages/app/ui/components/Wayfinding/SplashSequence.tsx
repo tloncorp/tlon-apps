@@ -176,7 +176,7 @@ function SplashSequenceComponent(props: {
         <ShareGroupPane
           botName={botName || 'Tlonbot'}
           botEmoji={botEmoji}
-          onActionPress={() => setCurrentPane(SplashPane.Invite)}
+          onActionPress={handleSplashCompleted}
         />
       )}
       {currentPane === 'Group' && (
