@@ -482,32 +482,44 @@ function useMarkThreadAsReadEffect(
     channel: db.Channel;
     parent: db.Post;
     mostRecentlyReceivedReply: db.Post;
+    hasThreadUnreads: boolean;
   } | null
 ) {
   const store = useStore();
-  const markRead = useCallback(() => {
-    if (opts == null) {
-      return;
-    }
+  const shouldMarkRead = opts?.shouldMarkRead ?? false;
+  const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
+  const hasThreadUnreads = opts?.hasThreadUnreads ?? false;
 
-    const { channel, parent, mostRecentlyReceivedReply } = opts;
-    if (channel && parent && mostRecentlyReceivedReply) {
+  // Ref captures the latest opts so the effect can read current values
+  // without depending on the unstable inline object identity.
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
+
+  // Single effect with two trigger signals:
+  //   - hasThreadUnreads: authoritative signal (SSE pushed unread count > 0).
+  //   - latestReplyId: secondary signal (thread sync delivered a new post,
+  //     allowing immediate mark-read if hasThreadUnreads is already true).
+  //
+  // Guard: only acts when hasThreadUnreads is true.
+  //   - false -> true: guard passes, marks read.
+  //   - true -> false (unread state cleared): guard returns early, no poke sent.
+  // This directly mirrors Channel/index.tsx:292-301's `if (hasUnreads && ...)`.
+  useEffect(() => {
+    if (!shouldMarkRead || !hasThreadUnreads) return;
+    const current = optsRef.current;
+    if (current == null) return;
+    const { channel, parent, mostRecentlyReceivedReply } = current;
+    if (!channel || !parent || !mostRecentlyReceivedReply) return;
+
+    const timeoutId = setTimeout(() => {
       store.markThreadRead({
         channel,
         parentPost: parent,
         post: mostRecentlyReceivedReply,
       });
-    }
-  }, [opts, store]);
-
-  const shouldMarkRead = opts?.shouldMarkRead ?? false;
-  useEffect(() => {
-    if (shouldMarkRead) {
-      markRead();
-    }
-    // Only want to trigger once per set of params
-    // eslint-disable-next-line
-  }, [shouldMarkRead]);
+    }, 150);
+    return () => clearTimeout(timeoutId);
+  }, [shouldMarkRead, hasThreadUnreads, latestReplyId, store]);
 }
 
 function SinglePostView({
@@ -575,6 +587,13 @@ function SinglePostView({
     }
     initializeChannelUnread();
   }, [parentPost.id]);
+
+  const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
+    parentPost.id
+  );
+  const hasThreadUnreads = !!(
+    liveThreadUnread?.count && liveThreadUnread.count > 0
+  );
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
@@ -699,6 +718,7 @@ function SinglePostView({
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
           shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
+          hasThreadUnreads,
         }
   );
 
