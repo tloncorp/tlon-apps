@@ -1,6 +1,5 @@
 import * as store from '@tloncorp/shared/store';
-import { ConfirmDialog } from '@tloncorp/ui';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -46,25 +45,6 @@ export function ChatMessageActions({
   const canWrite = useCanWrite(channel.data, currentUserId);
   const insets = useSafeAreaInsets();
   const PADDING_THRESHOLD = 40;
-
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const confirmDeleteRef = useRef<(() => void) | null>(null);
-  const deletePostTermRef = useRef('message');
-
-  const handleRequestDeleteConfirmation = useCallback(
-    (postTerm: string, onConfirm: () => void) => {
-      deletePostTermRef.current = postTerm;
-      confirmDeleteRef.current = onConfirm;
-      setShowDeleteConfirmation(true);
-    },
-    []
-  );
-
-  const handleConfirmDelete = useCallback(() => {
-    confirmDeleteRef.current?.();
-    confirmDeleteRef.current = null;
-    setShowDeleteConfirmation(false);
-  }, []);
 
   const [actionLayout, setActionLayout] = useState<LayoutStruct | null>(null);
   const [originalLayout, setOriginalLayout] = useState<LayoutStruct | null>(
@@ -157,121 +137,80 @@ export function ChatMessageActions({
   switch (mode) {
     case 'await-trigger': {
       return (
-        <>
-          <Popover
-            {...(showDeleteConfirmation ? { open: true } : {})}
-            onOpenChange={(open) => {
-              if (!open && showDeleteConfirmation) {
-                // The Popover is trying to close while the dialog is
-                // active (Escape, Cancel click, overlay click all land
-                // here because they fire outside Popover.Content).
-                // Close the dialog but keep the Popover and action menu
-                // open — the controlled `open={true}` prop prevents
-                // the Popover from visually closing. Don't call
-                // onDismiss so the component stays mounted.
-                // Note: do NOT null confirmDeleteRef here — Tamagui
-                // fires outside-click on pointerdown (before click),
-                // so if the confirm button was clicked the ref must
-                // survive for the subsequent click event.
-                setShowDeleteConfirmation(false);
-                return;
-              }
-              if (!open) {
-                onDismiss();
-              }
-              onOpenChange?.(open);
-            }}
-            placement="top-end"
-            allowFlip
-            offset={-12}
+        <Popover
+          onOpenChange={(open) => {
+            // Only dismiss when explicitly closed (e.g. clicking outside or trigger button)
+            if (!open) {
+              onDismiss();
+            }
+            onOpenChange?.(open);
+          }}
+          placement="top-end"
+          allowFlip
+          offset={-12}
+        >
+          <Popover.Trigger asChild>{trigger}</Popover.Trigger>
+          <Popover.Content
+            elevate
+            zIndex={1000000}
+            position="relative"
+            borderColor="$border"
+            borderWidth={1}
+            padding={1}
+            testID="ChatMessageActions"
           >
-            <Popover.Trigger asChild>{trigger}</Popover.Trigger>
-            <Popover.Content
-              elevate
-              zIndex={1000000}
-              pointerEvents={showDeleteConfirmation ? 'none' : 'auto'}
-              position="relative"
-              borderColor="$border"
-              borderWidth={1}
-              padding={1}
-              testID="ChatMessageActions"
-            >
-              <YStack gap="$xs">
-                {canWrite && (
-                  <XStack justifyContent="center">
-                    <EmojiToolbar
-                      post={post}
-                      onDismiss={onDismiss}
-                      openExternalSheet={onShowEmojiPicker}
-                    />
-                  </XStack>
-                )}
-                <MessageActions
-                  post={post}
-                  postActionIds={postActionIds}
-                  dismiss={onDismiss}
-                  onReply={onReply}
-                  onEdit={onEdit}
-                  onViewReactions={onViewReactions}
-                  onRequestDeleteConfirmation={handleRequestDeleteConfirmation}
-                />
-              </YStack>
-            </Popover.Content>
-          </Popover>
-          <ConfirmDialog
-            open={showDeleteConfirmation}
-            onOpenChange={setShowDeleteConfirmation}
-            title={`Delete ${deletePostTermRef.current}?`}
-            description="This action cannot be undone."
-            confirmText={`Delete ${deletePostTermRef.current}`}
-            destructive
-            onConfirm={handleConfirmDelete}
-          />
-        </>
-      );
-    }
-    case 'immediate': {
-      return (
-        <>
-          <Animated.View style={animatedStyles}>
-            <View
-              width={width}
-              height={height}
-              onLayout={handleLayout}
-              pointerEvents={showDeleteConfirmation ? 'none' : 'auto'}
-              paddingHorizontal="$xl"
-            >
-              <YStack gap="$xs">
-                {canWrite && (
+            <YStack gap="$xs">
+              {canWrite && (
+                <XStack justifyContent="center">
                   <EmojiToolbar
                     post={post}
                     onDismiss={onDismiss}
                     openExternalSheet={onShowEmojiPicker}
                   />
-                )}
-                <MessageContainer post={post} />
-                <MessageActions
+                </XStack>
+              )}
+              <MessageActions
+                post={post}
+                postActionIds={postActionIds}
+                dismiss={onDismiss}
+                onReply={onReply}
+                onEdit={onEdit}
+                onViewReactions={onViewReactions}
+              />
+            </YStack>
+          </Popover.Content>
+        </Popover>
+      );
+    }
+    case 'immediate': {
+      return (
+        <Animated.View style={animatedStyles}>
+          <View
+            width={width}
+            height={height}
+            onLayout={handleLayout}
+            paddingHorizontal="$xl"
+          >
+            <YStack gap="$xs">
+              {canWrite && (
+                <EmojiToolbar
                   post={post}
-                  postActionIds={postActionIds}
-                  dismiss={onDismiss}
-                  onReply={onReply}
-                  onEdit={onEdit}
-                  onViewReactions={onViewReactions}
-                  onRequestDeleteConfirmation={handleRequestDeleteConfirmation}
+                  onDismiss={onDismiss}
+                  openExternalSheet={onShowEmojiPicker}
                 />
-              </YStack>
-            </View>
-          </Animated.View>
-          <ConfirmDialog
-            open={showDeleteConfirmation}
-            onOpenChange={setShowDeleteConfirmation}
-            title={`Delete ${deletePostTermRef.current}?`}
-            description="This action cannot be undone."
-            confirmText={`Delete ${deletePostTermRef.current}`}
-            destructive
-            onConfirm={handleConfirmDelete}
-          />
-        </>
+              )}
+              <MessageContainer post={post} />
+              <MessageActions
+                post={post}
+                postActionIds={postActionIds}
+                dismiss={onDismiss}
+                onReply={onReply}
+                onEdit={onEdit}
+                onViewReactions={onViewReactions}
+              />
+            </YStack>
+          </View>
+        </Animated.View>
       );
     }
   }

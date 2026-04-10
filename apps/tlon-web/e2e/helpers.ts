@@ -1595,25 +1595,28 @@ export async function reportMessage(page: Page, messageText: string) {
   await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
 }
 
-/**
- * Clicks a button inside a dialog using real mouse coordinates.
- * Playwright's locator.click() dispatches synthetic events that bypass
- * Tamagui's document-level outside-click detection on the Popover. Using
- * page.mouse.click() at the button's coordinates exercises the same event
- * path as a real browser click — ensuring the Popover dismissal guard in
- * Component.tsx is actually tested.
- */
-export async function clickDialogButtonWithMouse(
+export function acceptDeleteConfirmation(
   page: Page,
-  buttonText: string
+  postTerm: 'message' | 'post'
 ) {
-  const btn = page.getByRole('dialog').getByText(buttonText, { exact: true });
-  await expect(btn).toBeVisible();
-  const box = await btn.boundingBox();
-  if (!box) {
-    throw new Error(`Dialog button "${buttonText}" has no bounding box`);
-  }
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain(`Delete ${postTerm}?`);
+    expect(dialog.message()).toContain('This action cannot be undone.');
+    await dialog.accept();
+  });
+}
+
+export function dismissDeleteConfirmation(
+  page: Page,
+  postTerm: 'message' | 'post'
+) {
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain(`Delete ${postTerm}?`);
+    expect(dialog.message()).toContain('This action cannot be undone.');
+    await dialog.dismiss();
+  });
 }
 
 /**
@@ -1628,8 +1631,8 @@ export async function deleteMessage(
   await waitForSessionStability(page);
 
   await longPressMessage(page, messageText);
+  acceptDeleteConfirmation(page, 'message');
   await page.getByText('Delete message').click();
-  await clickDialogButtonWithMouse(page, 'Delete message');
   if (!isDM) {
     await expect(
       page.getByText(messageText, { exact: true })
@@ -1647,8 +1650,8 @@ export async function deletePost(page: Page, postText: string) {
   await waitForSessionStability(page);
 
   await longPressMessage(page, postText);
+  acceptDeleteConfirmation(page, 'post');
   await page.getByText('Delete post').click();
-  await clickDialogButtonWithMouse(page, 'Delete post');
   await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
 }
 
@@ -1943,12 +1946,10 @@ export async function interactWithHiddenPost(
 
   // Click the requested action
   await expect(page.getByText(action)).toBeVisible({ timeout: 5000 });
-  await page.getByText(action).click();
-
-  // If deleting, confirm in the confirmation dialog
   if (action === 'Delete post') {
-    await clickDialogButtonWithMouse(page, 'Delete post');
+    acceptDeleteConfirmation(page, 'post');
   }
+  await page.getByText(action).click();
 
   // Wait for action to complete
   await page.waitForTimeout(500);

@@ -26,9 +26,6 @@ export function ConfirmDialog({
   open = false,
   onOpenChange,
 }: ConfirmDialogProps) {
-  const overlayZIndex = 1000001;
-  const contentZIndex = 1000002;
-
   // Mobile: use native Alert.alert
   useEffect(() => {
     if (!open || Platform.OS === 'web') return;
@@ -61,7 +58,6 @@ export function ConfirmDialog({
             key="overlay"
             backgroundColor="$darkOverlay"
             opacity={0.5}
-            zIndex={overlayZIndex}
             enterStyle={{ opacity: 0 }}
             exitStyle={{ opacity: 0 }}
           />
@@ -69,7 +65,6 @@ export function ConfirmDialog({
             bordered
             elevate
             key="content"
-            zIndex={contentZIndex}
             borderColor="$border"
             borderRadius="$l"
             padding="$l"

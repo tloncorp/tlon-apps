@@ -7,7 +7,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
@@ -26,7 +26,6 @@ export default function MessageActions({
   postActionIds,
   onEdit,
   onViewReactions,
-  onRequestDeleteConfirmation,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
@@ -34,10 +33,6 @@ export default function MessageActions({
   onViewReactions?: (post: db.Post) => void;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
-  onRequestDeleteConfirmation?: (
-    postTerm: string,
-    onConfirm: () => void
-  ) => void;
 }) {
   // arbitrary width that looks reasonable given labels
   const width = isWeb ? 'auto' : 220;
@@ -54,7 +49,6 @@ export default function MessageActions({
             onViewReactions,
             post,
             actionId,
-            onRequestDeleteConfirmation,
           }}
         />
       ))}
@@ -71,7 +65,6 @@ const ConnectedAction = memo(function ConnectedAction({
   onReply,
   onViewReactions,
   post,
-  onRequestDeleteConfirmation,
 }: {
   actionId: ChannelAction.Id;
   post: db.Post;
@@ -80,10 +73,6 @@ const ConnectedAction = memo(function ConnectedAction({
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
-  onRequestDeleteConfirmation?: (
-    postTerm: string,
-    onConfirm: () => void
-  ) => void;
 }) {
   const currentUserId = useCurrentUserId();
   const connectionStatus = store.useConnectionStatus();
@@ -183,11 +172,13 @@ const ConnectedAction = memo(function ConnectedAction({
           addAttachment,
           showToast,
         };
-        if (actionId === 'delete' && onRequestDeleteConfirmation) {
-          onRequestDeleteConfirmation(postTerm, () => handleAction(actionArgs));
+        if (actionId === 'delete') {
+          confirmDeleteAction(postTerm, () => {
+            void handleAction(actionArgs);
+          });
           return;
         }
-        handleAction(actionArgs);
+        void handleAction(actionArgs);
       }}
       key={actionId}
       actionType={action.actionType}
@@ -208,6 +199,29 @@ function CopyJsonAction({ post }: { post: db.Post }) {
       {!didCopy ? 'Copy post JSON' : 'Copied'}
     </ActionList.Action>
   );
+}
+
+function confirmDeleteAction(postTerm: string, onConfirm: () => void) {
+  const title = `Delete ${postTerm}?`;
+  const message = 'This action cannot be undone.';
+
+  if (isWeb) {
+    if (window.confirm(`${title}\n\n${message}`)) {
+      onConfirm();
+    }
+    return;
+  }
+
+  Alert.alert(title, message, [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: `Delete ${postTerm}`,
+      style: 'destructive',
+      onPress: () => {
+        onConfirm();
+      },
+    },
+  ]);
 }
 
 export async function handleAction({

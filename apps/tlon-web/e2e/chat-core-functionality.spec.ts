@@ -146,20 +146,8 @@ test('should require confirmation before deleting a message (cancel prevents del
 
   // Open action menu and click delete
   await helpers.longPressMessage(zodPage, 'Cancel delete test message');
+  helpers.dismissDeleteConfirmation(zodPage, 'message');
   await zodPage.getByText('Delete message').click();
-
-  // Confirmation dialog should appear — click Cancel
-  const cancelDialog = zodPage
-    .getByRole('dialog')
-    .filter({ hasText: 'Delete message?' });
-  await expect(cancelDialog).toBeVisible();
-  await zodPage
-    .getByRole('dialog')
-    .getByText('Cancel', { exact: true })
-    .click();
-
-  // Confirmation dialog should be dismissed
-  await expect(cancelDialog).not.toBeVisible();
 
   // Action menu should still be visible (Cancel leaves menu open)
   await expect(zodPage.getByTestId('ChatMessageActions')).toBeVisible();
@@ -167,83 +155,6 @@ test('should require confirmation before deleting a message (cancel prevents del
   // Message should still be present
   await expect(
     zodPage.getByText('Cancel delete test message', { exact: true })
-  ).toBeVisible();
-});
-
-test('should require confirmation before deleting a message (escape prevents deletion)', async ({
-  zodSetup,
-}) => {
-  const zodPage = zodSetup.page;
-
-  // Assert that we're on the Home page
-  await expect(zodPage.getByText('Home')).toBeVisible();
-
-  // Create a new group
-  await helpers.createGroup(zodPage);
-
-  // Navigate back to Home and navigate to group
-  await helpers.navigateToGroupByTestId(zodPage);
-
-  // Send a message
-  await helpers.sendMessage(zodPage, 'Escape delete test message');
-
-  // Open action menu and click delete
-  await helpers.longPressMessage(zodPage, 'Escape delete test message');
-  await zodPage.getByText('Delete message').click();
-
-  // Confirmation dialog should appear — press Escape
-  const dialog = zodPage
-    .getByRole('dialog')
-    .filter({ hasText: 'Delete message?' });
-  await expect(dialog).toBeVisible();
-  await zodPage.keyboard.press('Escape');
-
-  // Confirmation dialog should be dismissed
-  await expect(dialog).not.toBeVisible();
-
-  // Message should still be present
-  await expect(
-    zodPage.getByText('Escape delete test message', { exact: true })
-  ).toBeVisible();
-});
-
-test('should require confirmation before deleting a message (overlay click prevents deletion)', async ({
-  zodSetup,
-}) => {
-  const zodPage = zodSetup.page;
-
-  // Assert that we're on the Home page
-  await expect(zodPage.getByText('Home')).toBeVisible();
-
-  // Create a new group
-  await helpers.createGroup(zodPage);
-
-  // Navigate back to Home and navigate to group
-  await helpers.navigateToGroupByTestId(zodPage);
-
-  // Send a message
-  await helpers.sendMessage(zodPage, 'Overlay delete test message');
-
-  // Open action menu and click delete
-  await helpers.longPressMessage(zodPage, 'Overlay delete test message');
-  await zodPage.getByText('Delete message').click();
-
-  // Confirmation dialog should appear — click the overlay (top-left corner)
-  const overlayDialog = zodPage
-    .getByRole('dialog')
-    .filter({ hasText: 'Delete message?' });
-  await expect(overlayDialog).toBeVisible();
-  await zodPage.mouse.click(10, 10);
-
-  // Confirmation dialog should be dismissed
-  await expect(overlayDialog).not.toBeVisible();
-
-  // Action menu should still be visible (overlay click leaves menu open)
-  await expect(zodPage.getByTestId('ChatMessageActions')).toBeVisible();
-
-  // Message should still be present
-  await expect(
-    zodPage.getByText('Overlay delete test message', { exact: true })
   ).toBeVisible();
 });
 
@@ -287,11 +198,8 @@ test('should allow admin to delete another user message with confirmation', asyn
   await expect(zodPage.getByText('Admin: Delete message')).toBeVisible();
 
   // Click admin delete
+  helpers.acceptDeleteConfirmation(zodPage, 'message');
   await zodPage.getByText('Admin: Delete message').click();
-
-  // Confirmation dialog should appear — confirm deletion
-  await expect(zodPage.getByRole('dialog')).toBeVisible();
-  await helpers.clickDialogButtonWithMouse(zodPage, 'Delete message');
 
   // Message should be deleted
   await expect(
