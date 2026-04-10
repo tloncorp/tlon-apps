@@ -6,7 +6,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -15,7 +15,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Image, ScrollView } from 'react-native';
+import { FlatList, Image, ScrollView, TextInput as RNTextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -38,10 +38,18 @@ import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { saveBotConfig } from '@tloncorp/shared/api';
-import { BotBehaviorScreenView } from '../BotBehaviorScreenView';
-import type { BotBehaviorFormData } from '../BotBehaviorScreenView';
-import { BotIdentityScreenView } from '../BotIdentityScreenView';
-import type { BotIdentityFormData } from '../BotIdentityScreenView';
+import {
+  DEFAULT_BOT_CONFIG,
+  MODEL_OPTIONS,
+  PERSONALITY_TYPES,
+  SUGGESTED_EMOJIS,
+  SUGGESTED_NAMES,
+  type BotConfig,
+  type PersonalityType,
+} from '@tloncorp/shared/domain';
+import { EmojiPicker } from '../EmojiPicker';
+import { NameSuggestions } from '../NameSuggestions';
+import { PersonalityCard } from '../PersonalityCard';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
@@ -53,8 +61,9 @@ enum SplashPane {
   Channels = 'Channels',
   Privacy = 'Privacy',
   TlonBot = 'TlonBot',
-  BotIdentity = 'BotIdentity',
-  BotBehavior = 'BotBehavior',
+  BotName = 'BotName',
+  BotPersonality = 'BotPersonality',
+  BotModel = 'BotModel',
   Invite = 'Invite',
 }
 
@@ -68,8 +77,13 @@ function SplashSequenceComponent(props: {
     SplashPane.Welcome
   );
   const { hostingBotEnabled } = props;
-  const [botIdentityData, setBotIdentityData] =
-    React.useState<BotIdentityFormData | null>(null);
+  const [botName, setBotName] = React.useState(DEFAULT_BOT_CONFIG.name);
+  const [botEmoji, setBotEmoji] = React.useState(DEFAULT_BOT_CONFIG.emoji);
+  const [botPersonality, setBotPersonality] = React.useState<PersonalityType>(
+    DEFAULT_BOT_CONFIG.personalityType
+  );
+  const [botModel, setBotModel] = React.useState(DEFAULT_BOT_CONFIG.model);
+  const [botApiKey, setBotApiKey] = React.useState('');
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();
@@ -90,41 +104,47 @@ function SplashSequenceComponent(props: {
       )}
       {currentPane === 'TlonBot' && (
         <TlonBotPane
-          onActionPress={() => setCurrentPane(SplashPane.BotIdentity)}
+          onActionPress={() => setCurrentPane(SplashPane.BotName)}
         />
       )}
-      {currentPane === 'BotIdentity' && (
-        <BotIdentityScreenView
-          onGoBack={() => setCurrentPane(SplashPane.TlonBot)}
-          onContinue={(data) => {
-            setBotIdentityData(data);
-            setCurrentPane(SplashPane.BotBehavior);
-          }}
+      {currentPane === 'BotName' && (
+        <BotNamePane
+          name={botName}
+          emoji={botEmoji}
+          onNameChange={setBotName}
+          onEmojiChange={setBotEmoji}
+          onActionPress={() => setCurrentPane(SplashPane.BotPersonality)}
         />
       )}
-      {currentPane === 'BotBehavior' && (
-        <BotBehaviorScreenView
-          onGoBack={() => setCurrentPane(SplashPane.BotIdentity)}
-          onSave={async (data) => {
-            if (botIdentityData) {
-              const config = {
-                name: botIdentityData.name,
-                emoji: botIdentityData.emoji,
-                personalityType: botIdentityData.personalityType,
-                customSoulPrompt: botIdentityData.customSoulPrompt,
-                model: data.model,
-                apiKey: data.apiKey || undefined,
-                responseStyle: data.responseStyle,
-                activeHoursStart: Number(data.activeHoursStart),
-                activeHoursEnd: Number(data.activeHoursEnd),
-                timezone:
-                  Intl.DateTimeFormat().resolvedOptions().timeZone,
-              };
-              try {
-                await saveBotConfig(config);
-              } catch (e) {
-                console.error('Failed to save bot config during onboarding:', e);
-              }
+      {currentPane === 'BotPersonality' && (
+        <BotPersonalityPane
+          personality={botPersonality}
+          onPersonalityChange={setBotPersonality}
+          onActionPress={() => setCurrentPane(SplashPane.BotModel)}
+        />
+      )}
+      {currentPane === 'BotModel' && (
+        <BotModelPane
+          model={botModel}
+          apiKey={botApiKey}
+          onModelChange={setBotModel}
+          onApiKeyChange={setBotApiKey}
+          onActionPress={async () => {
+            const config: BotConfig = {
+              name: botName || 'Tlonbot',
+              emoji: botEmoji,
+              personalityType: botPersonality,
+              model: botModel,
+              apiKey: botApiKey || undefined,
+              responseStyle: 'balanced',
+              activeHoursStart: 0,
+              activeHoursEnd: 24,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            };
+            try {
+              await saveBotConfig(config);
+            } catch (e) {
+              console.error('Failed to save bot config during onboarding:', e);
             }
             setCurrentPane(SplashPane.Group);
           }}
@@ -297,6 +317,288 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
         shadow
         marginHorizontal="$xl"
         marginBottom={insets.bottom}
+      />
+    </View>
+  );
+}
+
+function BotNamePane(props: {
+  name: string;
+  emoji: string;
+  onNameChange: (name: string) => void;
+  onEmojiChange: (emoji: string) => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const theme = useThemeName();
+  const textColor = theme === 'dark' ? '#ffffff' : '#1a1818';
+  const placeholderColor = theme === 'dark' ? '#808080' : '#999999';
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
+        <SplashTitle>
+          Name your{'\n'}
+          <Text color="$positiveActionText">bot.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$xl', 'size'),
+          }}
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom="$xl">
+            Pick a name and emoji for your Tlonbot. You can always change this
+            later.
+          </SplashParagraph>
+
+          {/* Live Preview */}
+          <XStack
+            alignItems="center"
+            gap="$m"
+            padding="$l"
+            borderRadius="$xl"
+            backgroundColor="$secondaryBackground"
+            marginBottom="$xl"
+          >
+            <Text fontSize={36}>{props.emoji}</Text>
+            <Text fontSize={20} fontWeight="600" color="$primaryText">
+              {props.name || 'Your Bot'}
+            </Text>
+          </XStack>
+
+          {/* Name Input */}
+          <YStack gap="$s" marginBottom="$xl">
+            <View
+              borderRadius="$xl"
+              borderWidth={1}
+              borderColor="$border"
+              backgroundColor="$secondaryBackground"
+              paddingHorizontal="$l"
+              paddingVertical="$m"
+            >
+              <RNTextInput
+                value={props.name}
+                onChangeText={props.onNameChange}
+                placeholder="Give your bot a name"
+                placeholderTextColor={placeholderColor}
+                style={{
+                  fontSize: 16,
+                  color: textColor,
+                }}
+              />
+            </View>
+            <NameSuggestions
+              onSelect={props.onNameChange}
+              currentValue={props.name}
+            />
+          </YStack>
+
+          {/* Emoji Picker */}
+          <SplashParagraph marginHorizontal={0} marginBottom="$s" color="$tertiaryText">
+            Choose an emoji
+          </SplashParagraph>
+          <View flexDirection="row" flexWrap="wrap" gap="$s">
+            {SUGGESTED_EMOJIS.map((emoji) => (
+              <Pressable key={emoji} onPress={() => props.onEmojiChange(emoji)}>
+                <View
+                  width={48}
+                  height={48}
+                  borderRadius="$m"
+                  borderWidth={2}
+                  borderColor={
+                    props.emoji === emoji ? '$positiveActionText' : '$border'
+                  }
+                  backgroundColor={
+                    props.emoji === emoji
+                      ? '$positiveBackground'
+                      : '$secondaryBackground'
+                  }
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <Text fontSize={24}>{emoji}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </ScrollView>
+      </YStack>
+      <Button
+        onPress={props.onActionPress}
+        label="Next"
+        preset="hero"
+        shadow
+        marginHorizontal="$xl"
+        marginTop="$xl"
+      />
+    </View>
+  );
+}
+
+function BotPersonalityPane(props: {
+  personality: PersonalityType;
+  onPersonalityChange: (p: PersonalityType) => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
+        <SplashTitle>
+          What kind of{'\n'}
+          <Text color="$positiveActionText">personality?</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$xl', 'size'),
+            gap: getTokenValue('$s', 'size'),
+          }}
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom="$m">
+            This shapes how your bot talks and thinks.
+          </SplashParagraph>
+          {PERSONALITY_TYPES.map((option) => (
+            <PersonalityCard
+              key={option.value}
+              option={option}
+              selected={props.personality === option.value}
+              onPress={() => props.onPersonalityChange(option.value)}
+            />
+          ))}
+        </ScrollView>
+      </YStack>
+      <Button
+        onPress={props.onActionPress}
+        label="Next"
+        preset="hero"
+        shadow
+        marginHorizontal="$xl"
+        marginTop="$xl"
+      />
+    </View>
+  );
+}
+
+function BotModelPane(props: {
+  model: string;
+  apiKey: string;
+  onModelChange: (model: string) => void;
+  onApiKeyChange: (key: string) => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const theme = useThemeName();
+  const textColor = theme === 'dark' ? '#ffffff' : '#1a1818';
+  const placeholderColor = theme === 'dark' ? '#808080' : '#999999';
+  const selectedOption = MODEL_OPTIONS.find((o) => o.value === props.model);
+  const needsApiKey = selectedOption?.requiresKey ?? false;
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
+        <SplashTitle>
+          Choose a{'\n'}
+          <Text color="$positiveActionText">brain.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$xl', 'size'),
+            gap: getTokenValue('$s', 'size'),
+          }}
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom="$m">
+            MiniMax is free. Bring your own API key to use a different provider.
+          </SplashParagraph>
+          {MODEL_OPTIONS.map((option) => {
+            const isSelected = props.model === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => props.onModelChange(option.value)}
+              >
+                <XStack
+                  padding="$l"
+                  borderRadius="$xl"
+                  borderWidth={2}
+                  borderColor={isSelected ? '$positiveActionText' : '$border'}
+                  backgroundColor={
+                    isSelected ? '$positiveBackground' : '$secondaryBackground'
+                  }
+                  justifyContent="space-between"
+                  alignItems="center"
+                >
+                  <YStack>
+                    <Text
+                      fontSize={16}
+                      fontWeight="500"
+                      color={
+                        isSelected ? '$positiveActionText' : '$primaryText'
+                      }
+                    >
+                      {option.label}
+                    </Text>
+                    <Text
+                      fontSize={12}
+                      color={
+                        isSelected ? '$positiveActionText' : '$secondaryText'
+                      }
+                    >
+                      {option.description}
+                    </Text>
+                  </YStack>
+                  {isSelected && (
+                    <Icon type="Checkmark" color="$positiveActionText" />
+                  )}
+                </XStack>
+              </Pressable>
+            );
+          })}
+          {needsApiKey && (
+            <View
+              borderRadius="$xl"
+              borderWidth={1}
+              borderColor="$border"
+              backgroundColor="$secondaryBackground"
+              paddingHorizontal="$l"
+              paddingVertical="$m"
+              marginTop="$s"
+            >
+              <RNTextInput
+                value={props.apiKey}
+                onChangeText={props.onApiKeyChange}
+                placeholder={`${selectedOption?.label} API key`}
+                placeholderTextColor={placeholderColor}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={{
+                  fontSize: 16,
+                  color: textColor,
+                }}
+              />
+            </View>
+          )}
+        </ScrollView>
+      </YStack>
+      <Button
+        onPress={props.onActionPress}
+        label="Next"
+        preset="hero"
+        shadow
+        marginHorizontal="$xl"
+        marginTop="$xl"
       />
     </View>
   );
