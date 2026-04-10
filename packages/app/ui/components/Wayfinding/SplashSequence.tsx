@@ -37,6 +37,11 @@ import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { ListItem, SystemContactListItem } from '../ListItem';
+import { saveBotConfig } from '@tloncorp/shared/api';
+import { BotBehaviorScreenView } from '../BotBehaviorScreenView';
+import type { BotBehaviorFormData } from '../BotBehaviorScreenView';
+import { BotIdentityScreenView } from '../BotIdentityScreenView';
+import type { BotIdentityFormData } from '../BotIdentityScreenView';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
@@ -48,6 +53,8 @@ enum SplashPane {
   Channels = 'Channels',
   Privacy = 'Privacy',
   TlonBot = 'TlonBot',
+  BotIdentity = 'BotIdentity',
+  BotBehavior = 'BotBehavior',
   Invite = 'Invite',
 }
 
@@ -61,6 +68,8 @@ function SplashSequenceComponent(props: {
     SplashPane.Welcome
   );
   const { hostingBotEnabled } = props;
+  const [botIdentityData, setBotIdentityData] =
+    React.useState<BotIdentityFormData | null>(null);
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();
@@ -80,7 +89,46 @@ function SplashSequenceComponent(props: {
         />
       )}
       {currentPane === 'TlonBot' && (
-        <TlonBotPane onActionPress={() => setCurrentPane(SplashPane.Group)} />
+        <TlonBotPane
+          onActionPress={() => setCurrentPane(SplashPane.BotIdentity)}
+        />
+      )}
+      {currentPane === 'BotIdentity' && (
+        <BotIdentityScreenView
+          onGoBack={() => setCurrentPane(SplashPane.TlonBot)}
+          onContinue={(data) => {
+            setBotIdentityData(data);
+            setCurrentPane(SplashPane.BotBehavior);
+          }}
+        />
+      )}
+      {currentPane === 'BotBehavior' && (
+        <BotBehaviorScreenView
+          onGoBack={() => setCurrentPane(SplashPane.BotIdentity)}
+          onSave={async (data) => {
+            if (botIdentityData) {
+              const config = {
+                name: botIdentityData.name,
+                emoji: botIdentityData.emoji,
+                personalityType: botIdentityData.personalityType,
+                customSoulPrompt: botIdentityData.customSoulPrompt,
+                model: data.model,
+                apiKey: data.apiKey || undefined,
+                responseStyle: data.responseStyle,
+                activeHoursStart: Number(data.activeHoursStart),
+                activeHoursEnd: Number(data.activeHoursEnd),
+                timezone:
+                  Intl.DateTimeFormat().resolvedOptions().timeZone,
+              };
+              try {
+                await saveBotConfig(config);
+              } catch (e) {
+                console.error('Failed to save bot config during onboarding:', e);
+              }
+            }
+            setCurrentPane(SplashPane.Group);
+          }}
+        />
       )}
       {currentPane === 'Group' && (
         <GroupsPane
@@ -114,15 +162,30 @@ function SplashSequenceComponent(props: {
 export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const SplashTitle = styled(Text, {
-  fontSize: '$xl',
+  fontSize: 34,
+  lineHeight: 38,
+  letterSpacing: -0.374,
   fontWeight: '600',
   marginHorizontal: '$xl',
 });
 
-const SplashParagraph = styled(Text, {
-  size: '$body',
+const SplashSubtitle = styled(Text, {
+  fontSize: 20,
+  lineHeight: 24,
+  letterSpacing: -0.408,
+  fontWeight: '500',
   marginHorizontal: '$xl',
-  marginBottom: '$2xl',
+  color: '$secondaryText',
+});
+
+const SplashParagraph = styled(Text, {
+  fontSize: 16,
+  lineHeight: 24,
+  letterSpacing: -0.032,
+  fontWeight: '400',
+  marginHorizontal: '$xl',
+  marginBottom: '$l',
+  color: '$secondaryText',
 });
 
 export function WelcomePane(props: {
@@ -151,23 +214,24 @@ export function WelcomePane(props: {
               : require(`../../assets/raster/sourdough-starter.png`)
         }
       />
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-        <SplashTitle>Welcome to Tlon Messenger</SplashTitle>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+        <SplashTitle>
+          Welcome to{'\n'}Tlon{' '}
+          <Text color="$positiveActionText">Messenger.</Text>
+        </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
           <SplashParagraph>
-            On Tlon Messenger you control your data. Unlike other apps,
-            everything is stored on your personal cloud computer that only you
-            can access.
+            Everything here lives on your personal cloud computer, a server
+            that only you can access. Your messages, your data, your rules.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Your Tlon computer also comes with an AI agent called Tlonbot. It
-              can help you search the web, summarize threads, draft messages,
-              and more.
+              Your account also comes with an AI agent called Tlonbot that can
+              search the web, summarize threads, and help you stay organized.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -204,31 +268,24 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
               : require(`../../assets/raster/bot.png`)
         }
       />
-      <YStack flex={1} gap={'$2xl'}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$xl">
         <SplashTitle>
-          Meet your <Text color="$positiveActionText">Tlonbot.</Text>
+          Meet your{'\n'}
+          <Text color="$positiveActionText">Tlonbot.</Text>
         </SplashTitle>
         <ScrollView
-          style={{ flex: 1, marginBottom: getTokenValue('$2xl', 'size') }}
+          style={{ flex: 1, marginBottom: getTokenValue('$l', 'size') }}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
           <SplashParagraph>
-            Your account comes with an AI agent called Tlonbot. It has its own
-            identity on the network, so it can act as an independent participant
-            — not just a chatbot.
+            Tlonbot has its own identity on the network. DM it to search the
+            web, draft messages, or set up daily briefings. Add it to group
+            channels and it can participate in conversations alongside you.
           </SplashParagraph>
           <SplashParagraph>
-            You can DM your Tlonbot to search the web, draft messages, summarize
-            threads, or set up scheduled tasks like daily weather briefings.
-          </SplashParagraph>
-          <SplashParagraph>
-            Add your Tlonbot to group channels and it can participate in
-            conversations, respond to mentions, and help keep things organized.
-          </SplashParagraph>
-          <SplashParagraph>
-            Your API keys, your agent&rsquo;s memory, and everything it learns
-            stays on your personal node. You own it all.
+            Your API keys, your agent's memory, and everything it learns stays
+            on your personal node. You own it all.
           </SplashParagraph>
         </ScrollView>
       </YStack>
@@ -268,7 +325,7 @@ export function GroupsPane(props: {
               : require(`../../assets/raster/garden-party-invite.png`)
         }
       />
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
           This is a <Text color="$positiveActionText">group.</Text>
         </SplashTitle>
@@ -278,13 +335,13 @@ export function GroupsPane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            A group lives on your Tlon computer. A group can serve a lot of
-            purposes: family chats, work collaboration, newsletters, etc.
+            A group lives on your computer. Family chats, work collaboration,
+            newsletters. A group can be anything you need.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              You can also add your Tlonbot to group channels so it can
-              participate in conversations and help out.
+              Add your Tlonbot to any group channel and it can participate
+              alongside everyone else.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -320,9 +377,10 @@ export function ChannelsPane(props: {
             : require(`../../assets/raster/app-screens.png`)
         }
       />
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          A group contains <Text color="$positiveActionText">channels.</Text>
+          Groups contain{'\n'}
+          <Text color="$positiveActionText">channels.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -330,17 +388,13 @@ export function ChannelsPane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            No matter what you use your group for, everything happens in a
-            channel.
-          </SplashParagraph>
-          <SplashParagraph>
-            Send messages in chats, post longer thoughts in notebooks, collect
-            images and links in galleries.
+            Chats for quick messages, notebooks for longer thoughts, galleries
+            for images and links. Everything happens in a channel.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Mention your Tlonbot in any channel and it can search the web,
-              summarize threads, or draft messages for you.
+              Mention your Tlonbot in any channel to search the web, summarize
+              threads, or draft messages.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -373,10 +427,10 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         paddingBottom={insets.bottom}
       >
         <PrivacyLevelsDisplay />
-        <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+        <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
           <SplashTitle>
-            By default, groups are{' '}
-            <Text color="$positiveActionText">secret.</Text>
+            Groups are{'\n'}
+            <Text color="$positiveActionText">secret</Text> by default.
           </SplashTitle>
           <ScrollView
             style={{ flex: 1 }}
@@ -384,9 +438,8 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             bounces={false}
           >
             <SplashParagraph>
-              Only the people you invite can see your group. If you want to open
-              it up to other people on the network, edit the privacy controls in
-              your group settings.
+              Only people you invite can see your group. You can change this
+              anytime in your group settings.
             </SplashParagraph>
           </ScrollView>
         </YStack>
@@ -568,24 +621,24 @@ function ConnectContactBookContent(props: {
         flex={1}
         paddingHorizontal="$xl"
         paddingBottom={insets.bottom}
-        gap="$2xl"
+        gap="$xl"
       >
         <SplashTitle>
-          Tlon is better <Text color="$positiveActionText">with friends.</Text>
+          Better with{'\n'}
+          <Text color="$positiveActionText">friends.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <SplashParagraph>
-            Social spaces are more fun with friends. When your friends join Tlon
-            Messenger, they get their own cloud computer. You can all post
+          <SplashParagraph marginHorizontal={0}>
+            When your friends join, they get their own computer too. Post
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
           {shouldShowConnectOption && (
-            <SplashParagraph>
-              Sync your contact book to easily find people you know on Tlon.
+            <SplashParagraph marginHorizontal={0}>
+              Sync your contact book to find people you know on Tlon.
             </SplashParagraph>
           )}
         </ScrollView>

@@ -52,6 +52,13 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
+  BotIdentity: undefined;
+  BotBehavior: {
+    name: string;
+    emoji: string;
+    personalityType: 'assistant' | 'creature' | 'companion' | 'custom';
+    customSoulPrompt?: string;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;

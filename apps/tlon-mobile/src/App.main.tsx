@@ -97,7 +97,9 @@ const App = () => {
   const haveHostedLogin = db.haveHostedLogin.useValue();
   const hostedAccountInitialized = db.hostedAccountIsInitialized.useValue();
   const hostedNodeRunning = db.hostedNodeIsRunning.useValue();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  // TODO: remove __DEV__ override before merging
+  const _hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const hostingBotEnabled = __DEV__ || _hostingBotEnabled;
 
   const currentlyOnboarding = useMemo(() => {
     return signupContext.email || signupContext.phoneNumber;
@@ -141,8 +143,9 @@ const App = () => {
     isAuthenticated,
   ]);
 
+  // TODO: remove __DEV__ override before merging — forces splash for testing
   const showSplashSequence = useMemo(() => {
-    return showAuthenticatedApp && needsSplashSequence;
+    return showAuthenticatedApp && (__DEV__ || needsSplashSequence);
   }, [showAuthenticatedApp, needsSplashSequence]);
 
   return (

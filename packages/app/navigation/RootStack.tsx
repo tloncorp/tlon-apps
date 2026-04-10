@@ -14,6 +14,8 @@ import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
+import { BotIdentityScreen } from '../features/bot/BotIdentityScreen';
+import { BotBehaviorScreen } from '../features/bot/BotBehaviorScreen';
 import { ManageAccountScreen } from '../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../features/settings/PrivacyScreen';
 import { PushNotificationSettingsScreen } from '../features/settings/PushNotificationSettingsScreen';
@@ -138,6 +140,8 @@ export function RootStack() {
         component={InviteSystemContactsScreen}
       />
       <Root.Screen name="InviteUsers" component={InviteUsersScreen} />
+      <Root.Screen name="BotIdentity" component={BotIdentityScreen} />
+      <Root.Screen name="BotBehavior" component={BotBehaviorScreen} />
     </Root.Navigator>
   );
 }
