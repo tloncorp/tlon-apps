@@ -1639,6 +1639,30 @@ export async function reportMessage(page: Page, messageText: string) {
   await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
 }
 
+export function acceptDeleteConfirmation(
+  page: Page,
+  postTerm: 'message' | 'post'
+) {
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain(`Delete ${postTerm}?`);
+    expect(dialog.message()).toContain('This action cannot be undone.');
+    await dialog.accept();
+  });
+}
+
+export function dismissDeleteConfirmation(
+  page: Page,
+  postTerm: 'message' | 'post'
+) {
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain(`Delete ${postTerm}?`);
+    expect(dialog.message()).toContain('This action cannot be undone.');
+    await dialog.dismiss();
+  });
+}
+
 /**
  * Deletes a message
  */
@@ -1651,6 +1675,7 @@ export async function deleteMessage(
   await waitForSessionStability(page);
 
   await longPressMessage(page, messageText);
+  acceptDeleteConfirmation(page, 'message');
   await page.getByText('Delete message').click();
   if (!isDM) {
     await expect(
@@ -1669,6 +1694,7 @@ export async function deletePost(page: Page, postText: string) {
   await waitForSessionStability(page);
 
   await longPressMessage(page, postText);
+  acceptDeleteConfirmation(page, 'post');
   await page.getByText('Delete post').click();
   await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
 }
@@ -1964,6 +1990,9 @@ export async function interactWithHiddenPost(
 
   // Click the requested action
   await expect(page.getByText(action)).toBeVisible({ timeout: 5000 });
+  if (action === 'Delete post') {
+    acceptDeleteConfirmation(page, 'post');
+  }
   await page.getByText(action).click();
 
   // Wait for action to complete
