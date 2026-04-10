@@ -172,6 +172,33 @@
     crip
   (pure:m cookie)
 ::
+++  redeem-lure-invite
+  |=  [=ship cookie=@t lure-invite=@t]
+  =/  m  (strand ,~)
+  ^-  form:m
+  =/  =purl:eyre
+    (need (de-purl:html lure-invite))
+  =*  pork  q.purl
+  =/  lure-line=@t
+    ?~  p.pork  (spat q.pork)
+    (cat 3 (spat q.pork) (cat 3 '.' u.p.pork))
+  =/  =request:http
+    :*  %'POST'
+        lure-line
+        ~[['cookie' cookie]]
+        `(as-octs:mimes:html (cat 3 'ship=%7E' (rsh [3 1] (scot %p ship))))
+    ==
+  =/  =task:eyre
+    :*  %request
+        secure=|
+        ipv4+.127.0.0.1
+        request
+    ==
+  ::  ~fen the bait provider receives the onboarding request
+  ::
+  =/  =aqua-event
+    [%event ~fen /e/aqua/eyre/request task]
+  (send-events ~[aqua-event])
 ++  ph-test-lure-group
   =/  m  (strand ,~)
   ^-  form:m
@@ -188,29 +215,7 @@
   ?>  ?=(^ cookie)
   ::  ~bud onboards from hosting through the lure invite.
   ::
-  =/  =purl:eyre
-    (need (de-purl:html lure-invite))
-  =*  pork  q.purl
-  =/  lure-line=@t
-    ?~  p.pork  (spat q.pork)
-    (cat 3 (spat q.pork) (cat 3 '.' u.p.pork))
-  =/  =request:http
-    :*  %'POST'
-        lure-line
-        ~[['cookie' u.cookie]]
-        `(as-octs:mimes:html 'ship=%7Ebud')
-    ==
-  =/  =task:eyre
-    :*  %request
-        secure=|
-        ipv4+.127.0.0.1
-        request
-    ==
-  ::  ~fen the bait provider receives the onboarding request
-  ::
-  =/  =aqua-event
-    [%event ~fen /e/aqua/eyre/request task]
-  ;<  ~  bind:m  (send-events ~[aqua-event])
+  ;<  ~  bind:m  (redeem-lure-invite ~bud u.cookie lure-invite)
   ::  ~bud receives group invites: one current and one backwards compatible
   ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
@@ -234,29 +239,7 @@
   ?>  ?=(^ cookie)
   ::  ~bud onboards from hosting through the lure invite.
   ::
-  =/  =purl:eyre
-    (need (de-purl:html lure-invite))
-  =*  pork  q.purl
-  =/  lure-line=@t
-    ?~  p.pork  (spat q.pork)
-    (cat 3 (spat q.pork) (cat 3 '.' u.p.pork))
-  =/  =request:http
-    :*  %'POST'
-        lure-line
-        ~[['cookie' u.cookie]]
-        `(as-octs:mimes:html 'ship=%7Ebud')
-    ==
-  =/  =task:eyre
-    :*  %request
-        secure=|
-        ipv4+.127.0.0.1
-        request
-    ==
-  ::  ~fen the bait provider receives the onboarding request
-  ::
-  =/  =aqua-event
-    [%event ~fen /e/aqua/eyre/request task]
-  ;<  ~  bind:m  (send-events ~[aqua-event])
+  ;<  ~  bind:m  (redeem-lure-invite ~bud u.cookie lure-invite)
   ::  ~bud receives dm invite
   ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
