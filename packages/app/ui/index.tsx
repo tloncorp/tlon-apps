@@ -88,7 +88,6 @@ export {
   XStack,
   YGroup,
   YStack,
-  ZStack,
   isWeb,
   setupDev,
   useStyle,
