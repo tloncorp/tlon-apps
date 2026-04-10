@@ -7,6 +7,8 @@ test('should clear thread unreads while user is viewing the thread', async ({
   zodSetup,
   tenSetup,
 }) => {
+  test.setTimeout(120000); // 2 minutes for cross-ship group operations
+
   const zodPage = zodSetup.page;
   const tenPage = tenSetup.page;
 
