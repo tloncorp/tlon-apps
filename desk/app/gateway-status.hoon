@@ -88,11 +88,11 @@
     ?+  path  [~ ~]
         [%x %status ~]       ``noun+!>([status lease-until])
         [%x %owner-activity ~]  ``noun+!>(last-owner-msg)
-        [%x %state ~]        ``noun+!>(state)
     ==
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
+    ::TODO logging
     %-  (slog 'gateway-status: on-fail' >term< tang)
     [~ this]
   --
@@ -127,6 +127,11 @@
 ++  give-status-update
   ^+  cor
   (give %fact ~[/v1] %gateway-status-update-1 !>(`update:v1:gs`[%status status lease-until]))
+::
+++  give-update
+  |=  =update:v1:gs
+  ^+  cor
+  (give %fact ~[/v1] %gateway-status-update-1 !>(update))
 ::
 ++  is-owner-recently-active
   |=  now=@da
@@ -165,15 +170,15 @@
   |=  [bid=@t lut=@da]
   ^+  cor
   ?>  has-owner
-  =.  cor  cancel-lease-timer
   =.  status  %up
   =.  boot-id  `bid
   =.  lease-until  `lut
   =.  last-start  `now.bowl
-  =.  pending-restart  |
+  =.  cor  cancel-lease-timer
   =.  cor  (emit %pass /lease-check %arvo %b %wait lut)
   =?  cor  ?&(pending-restart (is-owner-recently-active now.bowl))
     (send-dm 'Your Tlon bot is back online and ready to chat again. ✅')
+  =.  pending-restart  |
   give-status-update
 ::
 ++  handle-gateway-heartbeat
@@ -221,6 +226,7 @@
       (handle-activity-add u.owner source.update event.update)
     ::
         %kick
+      ::infinite loop
       (emit %pass /activity %agent [our.bowl %activity] %watch /v4)
     ::
         %watch-ack
@@ -232,6 +238,7 @@
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
+      ::TODO enable logging
       ((slog 'gateway-status: dm send failed' u.p.sign) cor)
     ==
   ==
@@ -240,10 +247,14 @@
   |=  current-key=message-key:a
   ^-  ?
   ?:  is-gateway-live  |
-  =*  lrt  last-auto-reply-to
-  ?:  ?&(?=(^ lrt) =(u.lrt current-key))  |
-  =*  lra  last-auto-reply
-  ?:  ?&(?=(^ lra) (lth (sub now.bowl u.lra) reply-cooldown))  |
+  ?:  ?&  ?=(^ last-auto-reply-to) 
+          =(u.last-auto-reply-to current-key)
+      ==
+    |
+  ?:  ?&  ?=(^ last-auto-reply) 
+          (lth (sub now.bowl u.last-auto-reply) reply-cooldown)
+      ==
+    |
   &
 ::
 ++  handle-activity-add
@@ -255,18 +266,21 @@
       %dm-reply  `key.event
     ==
   ?~  mkey  cor
-  =/  sender=ship  p.id.u.mkey
+  =*  sender  p.id.u.mkey
   ?.  =(sender who)  cor
   ?:  =(sender our.bowl)  cor
-  =/  should-reply  (should-auto-reply u.mkey)
   =.  last-owner-msg  now.bowl
   =.  last-owner-msg-id  `u.mkey
+  =.  cor  
+    (give-update [%owner-activity now.bowl])
+  ::
+  =+  should-reply=(should-auto-reply u.mkey)
   =?  last-auto-reply  should-reply  `now.bowl
   =?  last-auto-reply-to  should-reply  `u.mkey
-  =.  cor  (give %fact ~[/v1] %gateway-status-update-1 !>(`update:v1:gs`[%owner-activity now.bowl]))
   ?.  should-reply  cor
-  =.  cor  (send-dm 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
-  (give %fact ~[/v1] %gateway-status-update-1 !>(`update:v1:gs`[%auto-reply who now.bowl]))
+  =.  cor  
+    (send-dm 'Your Tlon bot is offline right now, so replies are paused. I\'ll let you know when I\'m back. 🛰️')
+  (give-update [%auto-reply who now.bowl])
 ::
 ++  arvo
   |=  [=wire sign=sign-arvo]
@@ -274,9 +288,11 @@
   ?+  wire  cor
       [%lease-check ~]
     ?>  ?=([%behn %wake *] sign)
-    ?.  =(status %up)  cor
+    =+  st=status
+    ?.  ?=(%up st)  cor  ::TMI
     ?~  lease-until  cor
     ?.  (lte u.lease-until now.bowl)  cor
+    ::TODO logging
     %-  (slog leaf+"gateway-status: lease expired, transitioning to down" ~)
     =.  status  %down
     =.  pending-restart  &
