@@ -183,7 +183,7 @@
     "postcss": "^8.4.12",
     "postcss-import": "^14.1.0",
     "prettier": "^3.1.1",
-    "react-cosmos-plugin-vite": "6.1.1",
+    "react-cosmos-plugin-vite": "7.2.0",
     "react-test-renderer": "^19.0.0",
     "rollup-plugin-analyzer": "^4.0.0",
     "rollup-plugin-visualizer": "^5.6.0",

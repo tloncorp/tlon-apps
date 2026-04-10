@@ -47,7 +47,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "lint-staged": "^15.0.0",
     "prettierignore-monorepo": "^1.0.5",
-    "react-cosmos": "6.1.1",
+    "react-cosmos": "7.2.0",
     "tsup": "^8.0.1",
     "vitest": "^1.2.2"
   },
@@ -64,7 +64,7 @@
       "usehooks-ts@2.6.0": "patches/usehooks-ts@2.6.0.patch",
       "@10play/tentap-editor@0.4.55": "patches/@10play__tentap-editor@0.4.55.patch",
       "any-ascii@0.3.2": "patches/any-ascii@0.3.2.patch",
-      "react-cosmos@6.1.1": "patches/react-cosmos@6.1.1.patch",
+      "react-cosmos@7.2.0": "patches/react-cosmos@7.2.0.patch",
       "@10play/tentap-editor@0.5.21": "patches/@10play__tentap-editor@0.5.21.patch",
       "drizzle-orm@0.39.3": "patches/drizzle-orm@0.39.3.patch",
       "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch",
