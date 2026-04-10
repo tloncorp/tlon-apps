@@ -120,9 +120,10 @@
   ==
 ::
 ++  cancel-lease-timer
+  |=  lease=(unit @da)
   ^+  cor
-  ?~  lease-until  cor
-  (emit %pass /lease-check %arvo %b %rest u.lease-until)
+  ?~  lease  cor
+  (emit %pass /lease-check %arvo %b %rest u.lease)
 ::
 ++  give-status-update
   ^+  cor
@@ -172,9 +173,9 @@
   ?>  has-owner
   =.  status  %up
   =.  boot-id  `bid
+  =.  cor  (cancel-lease-timer lease-until)
   =.  lease-until  `lut
   =.  last-start  `now.bowl
-  =.  cor  cancel-lease-timer
   =.  cor  (emit %pass /lease-check %arvo %b %wait lut)
   =?  cor  ?&(pending-restart (is-owner-recently-active now.bowl))
     (send-dm 'Your Tlon bot is back online and ready to chat again. ✅')
@@ -188,9 +189,9 @@
   ::TODO this should be logged with a warning, as it could indicate
   ::     gateway malfunction.
   ?.  =(boot-id `bid)  cor
-  =.  cor  cancel-lease-timer
   =.  status  %up
   =.  pending-restart  |
+  =.  cor  (cancel-lease-timer lease-until)
   =.  lease-until  `lut
   =.  last-heartbeat  `now.bowl
   =.  cor  (emit %pass /lease-check %arvo %b %wait lut)
@@ -203,9 +204,9 @@
   ::TODO this should be logged with a warning, as it could indicate
   ::     gateway malfunction.
   ?.  =(boot-id `bid)  cor
-  =.  cor  cancel-lease-timer
   =.  status  %down
   =.  boot-id  ~
+  =.  cor  (cancel-lease-timer lease-until)
   =.  last-stop  `now.bowl
   =.  pending-restart  &
   =?  cor  (is-owner-recently-active now.bowl)
