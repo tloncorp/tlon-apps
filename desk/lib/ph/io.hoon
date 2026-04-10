@@ -433,10 +433,11 @@
   =/  aqua-pax=path
     %+  weld
       /i/(scot %p ship)
-    pax
+    (snoc `path`pax %noun)
   %-  pure:m
   ;;  mold
   .^  noun
+      %gx
       (scot %p our.bowl)
       %aqua
       (scot %da now.bowl)

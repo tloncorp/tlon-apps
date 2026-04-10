@@ -138,10 +138,10 @@
   ^-  form:m
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
-    /j/(scot %p ship)/code/(scot %da now.bowl)/(scot %p ship)/noun
-  ;<  code=(unit @t)  bind:m
-    (scry-aqua (unit @t) ship aqua-pax)
-  =+  password=(rsh [3 1] (need code))
+    /j/(scot %p ship)/code/(scot %da now.bowl)/(scot %p ship)
+  ;<  code=(unit @p)  bind:m
+    (scry-aqua (unit @p) ship aqua-pax)
+  =+  password=(rsh [3 1] (scot %p (need code)))
   =/  =request:http
     :*  %'POST'
         '/~/login'
@@ -220,8 +220,16 @@
   ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ?>  =(%foreigns-1 p.kag)
+  =+  !<(=foreigns:v8:gv q.kag)
+  =+  far=(~(got by foreigns) my-test-flag)
+  ;<  ~  bind:m
+    (ex-equal !>((lent invites.far)) !>(1))
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ?>  =(%foreigns-1 p.kag)
+  =+  !<(=foreigns:v8:gv q.kag)
+  =+  far=(~(got by foreigns) my-test-flag)
+  ;<  ~  bind:m
+    (ex-equal !>((lent invites.far)) !>(2))
   ::  ~bud receives dm invite
   ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
