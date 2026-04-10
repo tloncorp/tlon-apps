@@ -64,6 +64,8 @@ enum SplashPane {
   BotName = 'BotName',
   BotPersonality = 'BotPersonality',
   BotModel = 'BotModel',
+  BotLaunch = 'BotLaunch',
+  BotLaunchLoading = 'BotLaunchLoading',
   Invite = 'Invite',
 }
 
@@ -105,6 +107,7 @@ function SplashSequenceComponent(props: {
       {currentPane === 'TlonBot' && (
         <TlonBotPane
           onActionPress={() => setCurrentPane(SplashPane.BotName)}
+          onSkip={() => setCurrentPane(SplashPane.Group)}
         />
       )}
       {currentPane === 'BotName' && (
@@ -146,9 +149,27 @@ function SplashSequenceComponent(props: {
             } catch (e) {
               console.error('Failed to save bot config during onboarding:', e);
             }
-            setCurrentPane(SplashPane.Group);
+            setCurrentPane(SplashPane.BotLaunch);
           }}
         />
+      )}
+      {currentPane === 'BotLaunch' && (
+        <BotLaunchPane
+          botName={botName || 'Tlonbot'}
+          botEmoji={botEmoji}
+          onCreateGroup={() => {
+            setCurrentPane(SplashPane.BotLaunchLoading);
+            // TODO: wire up actual group creation + bot invite + branch link
+            // For now, simulate the loading period then show invite
+            setTimeout(() => {
+              setCurrentPane(SplashPane.Invite);
+            }, 3000);
+          }}
+          onSkip={() => setCurrentPane(SplashPane.Group)}
+        />
+      )}
+      {currentPane === 'BotLaunchLoading' && (
+        <BotLaunchLoadingPane botEmoji={botEmoji} />
       )}
       {currentPane === 'Group' && (
         <GroupsPane
@@ -269,7 +290,10 @@ export function WelcomePane(props: {
   );
 }
 
-export function TlonBotPane(props: { onActionPress: () => void }) {
+export function TlonBotPane(props: {
+  onActionPress: () => void;
+  onSkip?: () => void;
+}) {
   const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
@@ -309,15 +333,36 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </ScrollView>
       </YStack>
-      <Button
-        onPress={props.onActionPress}
-        testID="bot-next"
-        label="Next"
-        preset="hero"
-        shadow
-        marginHorizontal="$xl"
-        marginBottom={insets.bottom}
-      />
+      <YStack
+        paddingHorizontal="$xl"
+        paddingBottom={insets.bottom}
+        gap="$l"
+      >
+        <Button
+          onPress={props.onActionPress}
+          testID="bot-configure"
+          label="Configure now"
+          preset="hero"
+          shadow
+        />
+        {props.onSkip && (
+          <Button
+            onPress={props.onSkip}
+            testID="bot-skip"
+            label="Skip"
+            preset="secondary"
+            fill="text"
+          />
+        )}
+        <Text
+          fontSize={12}
+          color="$tertiaryText"
+          textAlign="center"
+          marginBottom="$xs"
+        >
+          You can always configure your bot later in Settings.
+        </Text>
+      </YStack>
     </View>
   );
 }
@@ -450,8 +495,8 @@ function BotPersonalityPane(props: {
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
         <SplashTitle>
-          What kind of{'\n'}
-          <Text color="$positiveActionText">personality?</Text>
+          Give it a{'\n'}
+          <Text color="$positiveActionText">persona.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -600,6 +645,89 @@ function BotModelPane(props: {
         marginHorizontal="$xl"
         marginTop="$xl"
       />
+    </View>
+  );
+}
+
+function BotLaunchPane(props: {
+  botName: string;
+  botEmoji: string;
+  onCreateGroup: () => void;
+  onSkip: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
+        <SplashTitle>
+          Put it to{'\n'}
+          <Text color="$positiveActionText">work.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <SplashParagraph>
+            Create a group and invite your friends. {props.botEmoji}{' '}
+            {props.botName} will join automatically and can help keep
+            conversations going, answer questions, and make things more fun.
+          </SplashParagraph>
+        </ScrollView>
+      </YStack>
+      <YStack
+        paddingHorizontal="$xl"
+        paddingBottom={insets.bottom}
+        gap="$l"
+      >
+        <Button
+          onPress={props.onCreateGroup}
+          label="Create a group"
+          preset="hero"
+          shadow
+        />
+        <Button
+          onPress={props.onSkip}
+          label="I'll do this later"
+          preset="secondary"
+          fill="text"
+        />
+        <Text
+          fontSize={12}
+          color="$tertiaryText"
+          textAlign="center"
+          marginBottom="$xs"
+        >
+          You can always create groups from the home screen.
+        </Text>
+      </YStack>
+    </View>
+  );
+}
+
+function BotLaunchLoadingPane(props: { botEmoji: string }) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View
+      flex={1}
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+      alignItems="center"
+      justifyContent="center"
+      gap="$2xl"
+    >
+      <Text fontSize={64}>{props.botEmoji}</Text>
+      <YStack alignItems="center" gap="$m">
+        <LoadingSpinner size="large" />
+        <Text fontSize={16} fontWeight="500" color="$primaryText">
+          Setting things up...
+        </Text>
+        <Text fontSize={14} color="$secondaryText">
+          Creating your group and inviting your bot.
+        </Text>
+      </YStack>
     </View>
   );
 }
