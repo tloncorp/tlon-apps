@@ -99,4 +99,14 @@
   ?~  tang
     `[%done ~]
   `[%fail %ex-equal tang]
+::
+++  ex-not-equal
+  |=  [actual=vase expected=vase]
+  =/  m  (strand ,~)
+  ^-  form:m
+  |=  tin=strand-input:strand
+  =/  =tang  (expect-not-eq:test expected actual)
+  ?~  tang
+    `[%fail %ex-not-equal tang]
+  `[%done ~]
 --

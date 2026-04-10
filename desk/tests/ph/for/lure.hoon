@@ -91,9 +91,9 @@
   ^-  form:m
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
-    /i/(scot %p ship)/gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/bait/noun/noun
-  =+  ;;  [bait=(unit [vic=@t civ=@p])]
-    (scry-aqua:util noun our.bowl now.bowl aqua-pax)
+    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/bait/noun/noun
+  ;<  [bait=(unit [vic=@t civ=@p])]  bind:m
+    (scry-aqua (unit ,[vic=@t civ=@p]) ship aqua-pax)
   (pure:m (need bait))
 ::
 ++  scry-reel-service
@@ -102,9 +102,9 @@
   ^-  form:m
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
-    /i/(scot %p ship)/gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/service/noun/noun
-  =+  ;;  vic=(unit @t)
-    (scry-aqua:util noun our.bowl now.bowl aqua-pax)
+    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/service/noun/noun
+  ;<  vic=(unit @t)  bind:m
+    (scry-aqua (unit @t) ship aqua-pax)
   (pure:m (need vic))
 ::
 ++  generate-lure-invite
@@ -117,7 +117,7 @@
   ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[my-test-group-id metadata])
   ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
   ;<  ~  bind:m  (leave-app /~zod/reel/v1/id-link [~zod %reel])
-  ?>  ?=(%json p.kag)
+  ;<  ~  bind:m  (ex-equal !>(p.kag) !>(%json))
   =+  !<(=json q.kag)
   ?>  ?=(%s -.json)
   (pure:m p.json)
@@ -128,10 +128,9 @@
   ::  host a group on ~zod and enable lure links
   ::
   ;<  ~  bind:m  create-test-group
-  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-name)
-  ;<  token=@t  bind:m  (generate-lure-invite lure-group-metadata)
-  ?>  (gth (met 3 token) 0)
-  (pure:m ~)
+  ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-id)
+  ;<  invite-link=@t  bind:m  (generate-lure-invite lure-group-metadata)
+  (ex-not-equal !>(invite-link) !>(''))
 ::
 ++  eyre-authenticate
   |=  =ship
@@ -139,9 +138,9 @@
   ^-  form:m
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
-    /i/(scot %p ship)/j/(scot %p ship)/code/(scot %da now.bowl)/(scot %p ship)/noun
-  =+  ;;  code=(unit @t)
-    (scry-aqua:util noun our.bowl now.bowl aqua-pax)
+    /j/(scot %p ship)/code/(scot %da now.bowl)/(scot %p ship)/noun
+  ;<  code=(unit @t)  bind:m
+    (scry-aqua (unit @t) ship aqua-pax)
   =+  password=(rsh [3 1] (need code))
   =/  =request:http
     :*  %'POST'

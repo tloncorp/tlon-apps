@@ -27,14 +27,13 @@
 ++  start-azimuth
   =/  m  (strand ,~)
   ^-  form:m
-  ;<(~ bind:m start-simple init)
+  ;<(* bind:m start-simple init)
 ::
-++  end
-  (end-test %aqua-ames %aqua-behn %aqua-dill %aqua-eyre ~)
+++  end  end-test
 ::
 ++  start-test
   |=  vane-threads=(list term)
-  =/  m  (strand ,~)
+  =/  m  (strand (map term tid:spider))
   ^-  form:m
   ;<  tids=(map term tid:spider)  bind:m  (start-threads vane-threads)
   ;<  ~  bind:m  (watch-our /effect %aqua /effect)
@@ -53,13 +52,13 @@
   ::  future.
   ::
   ;<  ~  bind:m  (sleep `@dr`2)
-  (pure:m ~)
+  (pure:m tids)
 ::
 ++  end-test
-  |=  vane-threads=(list term)
+  |=  tids=(map term tid:spider)
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (stop-threads vane-threads)
+  ;<  ~  bind:m  (stop-threads tids)
   ;<  ~  bind:m  (leave-our /effect %aqua)
   (pure:m ~)
 ::
@@ -74,17 +73,24 @@
   ?~  threads
     (pure:m tids)
   =/  tid
-    %+  scot  %ta
+    ^-  @ta
     (cat 3 (cat 3 'strand_' i.threads) (scot %uv (sham i.threads eny.bowl)))
-  =/  poke-vase  !>([`tid.bowl ~ byk.bowl(q %base) i.threads *vase])
+  =/  poke-vase  !>([`tid.bowl `tid byk.bowl(q %base) i.threads *vase])
   ;<  ~  bind:m  (poke-our %spider %spider-start poke-vase)
   loop(threads t.threads, tids (~(put by tids) i.threads tid))
 ::
 ++  stop-threads
-  |=  threads=(list term)
+  |=  tids=(map term tid:spider)
   =/  m  (strand ,~)
   ^-  form:m
-  (pure:m ~)
+  =/  caz=(list cage)
+    %+  turn  ~(val by tids)
+    |=  =tid:spider
+    spider-stop+!>([tid |])
+  |-
+  ?~  caz  (pure:m ~)
+  ;<  ~  bind:m  (poke-our %spider i.caz)
+  $(caz t.caz)
 ::
 ++  init
   =/  m  (strand ,~)
@@ -110,10 +116,8 @@
   |=  [who=ship her=ship]
   =/  m  (strand ,~)
   ;<  =bowl:spider  bind:m  get-bowl
-  =/  aqua-pax
-    :-  %i
-    /(scot %p her)/j/(scot %p her)/rift/(scot %da now.bowl)/(scot %p who)/noun
-  =/  old-rut  ;;((unit @) (scry-aqua:util noun our.bowl now.bowl aqua-pax))
+  ;<  old-rut=(unit @ud)  bind:m  
+    (scry-aqua (unit @ud) her /j/(scot %p her)/rift/(scot %da now.bowl)/(scot %p who)/noun)
   =/  new-rut
     ?~  old-rut
       1
@@ -125,10 +129,8 @@
   =*  loop  $
   ;<  ~  bind:m  (sleep ~s10)
   ;<  =bowl:spider  bind:m  get-bowl
-  =/  aqua-pax
-    :-  %i
-    /(scot %p her)/j/(scot %p her)/rift/(scot %da now.bowl)/(scot %p who)/noun
-  =/  rut  (scry-aqua:util noun our.bowl now.bowl aqua-pax)
+  ;<  rut=(unit @ud)  bind:m
+    (scry-aqua (unit @ud) her /j/(scot %p her)/rift/(scot %da now.bowl)/(scot %p who)/noun)
   ?:  =([~ new-rut] rut)
     (pure:m ~)
   loop
@@ -219,11 +221,8 @@
     ::  XX  search deeper in the .unix-effect?
     ::
     loop
-  =/  aqua-pax
-    :-  %i
-    /(scot %p our)/gg/(scot %p our)//(scot %da now)/[%$]/noun
-  =+  ;;  flubs=(unit (jug ship term))
-    (scry-aqua:util noun our.bowl now aqua-pax)
+  ;<  flubs=(unit (jug ship term))  bind:m  
+    (scry-aqua (unit (jug ship term)) our /gg/(scot %p our)//(scot %da now)//noun)
   ?~  flubs  loop
   ?.  (~(has ju u.flubs) her dap)
     loop
@@ -244,11 +243,8 @@
     ::  XX  search deeper in the .unix-effect?
     ::
     loop
-  =/  aqua-pax
-    :-  %i
-    /(scot %p our)/gg/(scot %p our)//(scot %da now)/[%$]/noun
-  =+  ;;  flubs=(unit (jug ship term))
-    (scry-aqua:util noun our.bowl now aqua-pax)
+  ;<  flubs=(unit (jug ship term))  bind:m
+    (scry-aqua (unit (jug ship term)) our /gg/(scot %p our)//(scot %da now)//noun)
   ?~  flubs  loop
   ?:  (~(has ju u.flubs) her dap)
     loop
@@ -273,11 +269,8 @@
     ::  XX  search deeper in the .unix-effect?
     ::
     loop
-  =/  aqua-pax
-    :-  %i
-    /(scot %p our)/gh/(scot %p our)//(scot %da now)/[%$]/noun
-  =+  ;;  halts=(unit (jug app=term [ship =duct]))
-    (scry-aqua:util noun our.bowl now aqua-pax)
+  ;<  halts=(unit (jug app=term ship =duct))  bind:m
+    (scry-aqua (unit ,(jug app=term ship =duct)) our /gh/(scot %p our)//(scot %da now)//noun)
   ?~  halts  loop
   ?.  (~(has by u.halts) dap)  ::  XX check .her as well
     loop
@@ -298,11 +291,8 @@
     ::  XX  search deeper in the .unix-effect?
     ::
     loop
-  =/  aqua-pax
-    :-  %i
-    /(scot %p our)/gh/(scot %p our)//(scot %da now)/[%$]/noun
-  =+  ;;  halts=(unit (jug app=term [ship =duct]))
-    (scry-aqua:util noun our.bowl now aqua-pax)
+  ;<  halts=(unit (jug app=term [ship =duct]))  bind:m
+    (scry-aqua (unit ,(jug app=term [ship =duct])) our /gh/(scot %p our)//(scot %da now)//noun)
   ?~  halts  loop
   ?:  (~(has by u.halts) dap) ::  XX check .her as well
     loop
@@ -364,14 +354,15 @@
   ;<  now=@da  bind:m  get-time
   =/  aqua-pax
     ;:  weld
-        /i/(scot %p her)/cx/(scot %p her)/[desk]/(scot %da now)
+        /cx/(scot %p her)/[desk]/(scot %da now)
         pax
         /noun
     ==
+  ;<  file=(unit @t)  bind:m  (scry-aqua (unit @t) her aqua-pax)
   =/  warped
     %^  cat  3  '=>  .  '
     %^  cat  3  extra
-    (need (scry-aqua:util (unit @) our now aqua-pax))
+    (need file)
   ;<  ~  bind:m  (send-events (insert-files:util her desk [pax warped] ~))
   (pure:m warped)
 ::
@@ -409,11 +400,12 @@
     loop
   =/  aqua-pax
     ;:  weld
-        /i/(scot %p ship)/cx/(scot %p ship)/[desk]/(scot %da now)
+        /cx/(scot %p ship)/[desk]/(scot %da now)
         pax
         /noun
     ==
-  ?:  =(warped (need (scry-aqua:util (unit @) our now aqua-pax)))
+  ;<  file=(unit @t)  bind:m  (scry-aqua (unit @t) ship aqua-pax)
+  ?:  =(warped (need file))
     (pure:m ~)
   loop
 ::
@@ -432,4 +424,22 @@
   ^-  form:m
   =/  command=tape  "-{(trip ted)} &{(trip mark)} {<data>}"
   (send-events (dojo:util ship command))
+::
+++  scry-aqua
+  |*  [=mold =ship pax=path]
+  =/  m  (strand ,mold)
+  ^-  form:m
+  ;<  =bowl:spider  bind:m  get-bowl
+  =/  aqua-pax=path
+    %+  weld
+      /i/(scot %p ship)
+    pax
+  %-  pure:m
+  ;;  mold
+  .^  noun
+      (scot %p our.bowl)
+      %aqua
+      (scot %da now.bowl)
+      aqua-pax
+  ==
 --

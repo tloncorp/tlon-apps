@@ -106,7 +106,8 @@
     %thread-fail  (pure:m %| !<([term tang] q.cage))
   ==
 ::  +sync-desk: sync aqua ship desk to host
-::
+::  host ship -> sync desk to virtual ship
+::  %groups -> aqua %groups
 ++  sync-desk
   |=  [her=ship desk=@tas]
   =/  m  (strand ,~)
@@ -195,7 +196,7 @@
   (pure:m !>(~))
 ~>  %slog.1^leaf+"{<num>} test {?:((gth num 1) "threads" "thread")} built"
 ~>  %slog.1^'Booting ships...'
-;<  ~  bind:m  start-simple:ph-io
+;<  vane-tids=(map term tid:spider)  bind:m  start-simple:ph-io
 ::  test ships
 ::
 ;<  ~  bind:m  (init-ship:ph-io ~zod &)
@@ -209,11 +210,11 @@
 ;<  ~  bind:m  (init-ship:ph-io ~dem &)
 ::
 ~>  %slog.1^(crip "Syncing {<q.byk>} desk to ships...")
-;<  ~  bind:m  (sync-desk ~zod %groups)
-;<  ~  bind:m  (sync-desk ~bud %groups)
-;<  ~  bind:m  (sync-desk ~nec %groups)
-;<  ~  bind:m  (sync-desk ~fen %groups)
-;<  ~  bind:m  (sync-desk ~dem %groups)
+:: ;<  ~  bind:m  (sync-desk ~zod %groups)
+:: ;<  ~  bind:m  (sync-desk ~bud %groups)
+:: ;<  ~  bind:m  (sync-desk ~nec %groups)
+:: ;<  ~  bind:m  (sync-desk ~fen %groups)
+:: ;<  ~  bind:m  (sync-desk ~dem %groups)
 ::  setup bait provider
 ::
 ~>  %slog.1^(crip "Setting ~fen as lure provider...")
@@ -225,6 +226,7 @@
 ;<  ~  bind:m  (poke-app:ph-test [~dem %reel] reel-command+[%set-ship ~fen])
 ;<  ~  bind:m  (sleep ~s0)
 ;<  ~  bind:m  ph-test-shut:ph-test
+;<  ~  bind:m  (end:ph-io vane-tids)
 ::  TODO notify agent does not support swapping a provider
 ;<  =bowl:spider  bind:m  get-bowl
 =+  snap-id=(end 3^4 (sham eny.bowl))
@@ -241,11 +243,12 @@
   =*  test  i.tests
   =*  name  (rear path.test)
   ::  allow virtual vanes to run before we restore snapshot
-  ;<  ~  bind:n  (sleep ~s5)
+  ;<  vane-tids=(map term tid:spider)  bind:n  start-simple:ph-io
   ;<  ~  bind:n  (send-events:ph-io [%restore-snap snap]~)
   ;<  now-1=@da  bind:n  get-time
   ;<  =thread-result  bind:n  (await-test-thread test)
   ;<  now-2=@da  bind:n  get-time
+  ;<  ~  bind:n  (end:ph-io vane-tids)
   =/  [took-s=@ud took-ms=@ud]
     =*  s  ~s1
     =*  ms  (div s 1.000)
@@ -253,7 +256,6 @@
     [(div diff s) (div (mod diff s) ms)]
   ~>  %slog.1^leaf+"{(trip name)} took {<took-s>}.{((d-co:co 3) took-ms)}s"
   $(tests t.tests, results [[path.test thread-result] results])
-;<  ~  bind:m  end:ph-io
 ::TODO fix aqua to only clear a particular snap
 ;<  ~  bind:m  (poke-our %aqua noun+!>([%clear-snap snap]))
 =+  ok=&
