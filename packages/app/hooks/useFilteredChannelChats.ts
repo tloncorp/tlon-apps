@@ -72,13 +72,8 @@ export function useFilteredChannelChats({
     semanticCacheKey,
   });
 
-  const visibleChannelChats = useMemo(
-    () => (isSearching ? searchResults : allChats).filter(isChannelChat),
-    [allChats, isSearching, searchResults]
-  );
-
   return {
-    channelChats: visibleChannelChats,
+    channelChats: isSearching ? searchResults : allChats,
     isSearching,
   };
 }

@@ -15,27 +15,27 @@ import {
   tokenizeChatSearchQuery,
 } from './chatSearchRanking';
 
-type ChatSearchDoc = ChatSearchCandidate & {
-  chat: db.Chat;
+type ChatSearchDoc<TChat extends db.Chat> = ChatSearchCandidate & {
+  chat: TChat;
 };
 
-type ChatSearchSource = {
+type ChatSearchSource<TChat extends db.Chat> = {
   key: string;
-  docs: ChatSearchDoc[];
-  fuse: Fuse<ChatSearchDoc>;
-  allChats: db.Chat[];
+  docs: ChatSearchDoc<TChat>[];
+  fuse: Fuse<ChatSearchDoc<TChat>>;
+  allChats: TChat[];
 };
 
-type ChatSearchResult = {
+type ChatSearchResult<TChat extends db.Chat> = {
   sourceKey: string;
   query: string;
-  chats: db.Chat[];
+  chats: TChat[];
 };
 
-function buildChatSearchDoc(
-  chat: db.Chat,
+function buildChatSearchDoc<TChat extends db.Chat>(
+  chat: TChat,
   disableNicknames: boolean
-): ChatSearchDoc {
+): ChatSearchDoc<TChat> {
   const title = normalizeChatSearchString(getChatTitle(chat, disableNicknames));
   const groupTitle = normalizeChatSearchString(
     chat.type === 'channel' && chat.channel.group
@@ -89,11 +89,11 @@ function scoreSubstringMatch(
   );
 }
 
-function searchChatDocs(
-  docs: ChatSearchDoc[],
-  fuse: Fuse<ChatSearchDoc>,
+function searchChatDocs<TChat extends db.Chat>(
+  docs: ChatSearchDoc<TChat>[],
+  fuse: Fuse<ChatSearchDoc<TChat>>,
   query: string
-): db.Chat[] {
+): TChat[] {
   const normalizedQuery = normalizeChatSearchString(query);
   if (!normalizedQuery) {
     return [];
@@ -148,17 +148,17 @@ function searchChatDocs(
   ).map((candidate) => candidate.chat);
 }
 
-function createChatSearchSource(
-  chats: db.Chat[],
+function createChatSearchSource<TChat extends db.Chat>(
+  chats: TChat[],
   disableNicknames: boolean,
   key: string
-): ChatSearchSource {
+): ChatSearchSource<TChat> {
   const docs = chats.map((chat) => buildChatSearchDoc(chat, disableNicknames));
 
   return {
     key,
     docs,
-    allChats: docs.map((doc) => doc.chat),
+    allChats: chats,
     fuse: new Fuse(docs, {
       includeScore: true,
       ignoreLocation: true,
@@ -197,21 +197,21 @@ function useDebouncedValue<T>(input: T, delay: number) {
   return delay <= 0 ? input : value;
 }
 
-export function useChatSearch({
+export function useChatSearch<TChat extends db.Chat>({
   chats,
   searchQuery,
   debounceMs,
   disableNicknames,
   semanticCacheKey,
 }: {
-  chats: db.Chat[];
+  chats: TChat[];
   searchQuery: string;
   debounceMs: number;
   disableNicknames: boolean;
   semanticCacheKey?: string;
 }) {
-  const sourceCacheRef = useRef<ChatSearchSource | null>(null);
-  const resultCacheRef = useRef<ChatSearchResult | null>(null);
+  const sourceCacheRef = useRef<ChatSearchSource<TChat> | null>(null);
+  const resultCacheRef = useRef<ChatSearchResult<TChat> | null>(null);
   const searchSource = useMemo(() => {
     if (!semanticCacheKey) {
       return createChatSearchSource(chats, disableNicknames, '');
