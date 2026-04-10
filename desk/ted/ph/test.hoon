@@ -210,11 +210,11 @@
 ;<  ~  bind:m  (init-ship:ph-io ~dem &)
 ::
 ~>  %slog.1^(crip "Syncing {<q.byk>} desk to ships...")
-:: ;<  ~  bind:m  (sync-desk ~zod %groups)
-:: ;<  ~  bind:m  (sync-desk ~bud %groups)
-:: ;<  ~  bind:m  (sync-desk ~nec %groups)
-:: ;<  ~  bind:m  (sync-desk ~fen %groups)
-:: ;<  ~  bind:m  (sync-desk ~dem %groups)
+;<  ~  bind:m  (sync-desk ~zod %groups)
+;<  ~  bind:m  (sync-desk ~bud %groups)
+;<  ~  bind:m  (sync-desk ~nec %groups)
+;<  ~  bind:m  (sync-desk ~fen %groups)
+;<  ~  bind:m  (sync-desk ~dem %groups)
 ::  setup bait provider
 ::
 ~>  %slog.1^(crip "Setting ~fen as lure provider...")
