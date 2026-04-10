@@ -15,7 +15,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Image, ScrollView, TextInput as RNTextInput } from 'react-native';
+import { FlatList, Image, ScrollView, Share, TextInput as RNTextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -66,6 +66,7 @@ enum SplashPane {
   BotModel = 'BotModel',
   BotLaunch = 'BotLaunch',
   BotLaunchLoading = 'BotLaunchLoading',
+  ShareGroup = 'ShareGroup',
   Invite = 'Invite',
 }
 
@@ -160,9 +161,9 @@ function SplashSequenceComponent(props: {
           onCreateGroup={() => {
             setCurrentPane(SplashPane.BotLaunchLoading);
             // TODO: wire up actual group creation + bot invite + branch link
-            // For now, simulate the loading period then show invite
+            // For now, simulate the loading period then show share screen
             setTimeout(() => {
-              setCurrentPane(SplashPane.Invite);
+              setCurrentPane(SplashPane.ShareGroup);
             }, 3000);
           }}
           onSkip={() => setCurrentPane(SplashPane.Group)}
@@ -170,6 +171,13 @@ function SplashSequenceComponent(props: {
       )}
       {currentPane === 'BotLaunchLoading' && (
         <BotLaunchLoadingPane botEmoji={botEmoji} />
+      )}
+      {currentPane === 'ShareGroup' && (
+        <ShareGroupPane
+          botName={botName || 'Tlonbot'}
+          botEmoji={botEmoji}
+          onActionPress={() => setCurrentPane(SplashPane.Invite)}
+        />
       )}
       {currentPane === 'Group' && (
         <GroupsPane
@@ -727,6 +735,87 @@ function BotLaunchLoadingPane(props: { botEmoji: string }) {
         <Text fontSize={14} color="$secondaryText">
           Creating your group and inviting your bot.
         </Text>
+      </YStack>
+    </View>
+  );
+}
+
+function ShareGroupPane(props: {
+  botName: string;
+  botEmoji: string;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [copied, setCopied] = useState(false);
+  // TODO: replace with actual invite link from group creation
+  const inviteLink = 'https://join.tlon.io/example-invite-link';
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await Share.share({
+        message: `Join my group on Tlon! ${inviteLink}`,
+      });
+    } catch {
+      // User cancelled share sheet
+    }
+  }, [inviteLink]);
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$3xl" alignItems="center">
+        <Text fontSize={64}>{props.botEmoji}</Text>
+        <SplashTitle textAlign="center">
+          You're all{'\n'}
+          <Text color="$positiveActionText">set.</Text>
+        </SplashTitle>
+        <SplashParagraph textAlign="center">
+          Your group is ready and {props.botName} is in it. Share the link
+          below to invite your friends.
+        </SplashParagraph>
+
+        <YStack
+          marginHorizontal="$xl"
+          width="100%"
+          paddingHorizontal="$xl"
+          gap="$m"
+        >
+          <View
+            borderRadius="$xl"
+            borderWidth={1}
+            borderColor="$border"
+            backgroundColor="$secondaryBackground"
+            paddingHorizontal="$l"
+            paddingVertical="$m"
+          >
+            <Text
+              fontSize={14}
+              color="$secondaryText"
+              numberOfLines={1}
+              textAlign="center"
+            >
+              {inviteLink}
+            </Text>
+          </View>
+        </YStack>
+      </YStack>
+
+      <YStack
+        paddingHorizontal="$xl"
+        paddingBottom={insets.bottom}
+        gap="$l"
+      >
+        <Button
+          onPress={handleCopy}
+          label="Share invite link"
+          preset="hero"
+          shadow
+        />
+        <Button
+          onPress={props.onActionPress}
+          label="Continue"
+          preset="secondary"
+          fill="text"
+        />
       </YStack>
     </View>
   );
