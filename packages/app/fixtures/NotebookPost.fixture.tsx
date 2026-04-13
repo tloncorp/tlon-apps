@@ -4,7 +4,12 @@ import { Text } from '@tloncorp/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView } from 'tamagui';
 
-import { AppDataContextProvider, RequestsProvider, View } from '../ui';
+import {
+  AppDataContextProvider,
+  ChannelProvider,
+  RequestsProvider,
+  View,
+} from '../ui';
 import {
   NotebookContentRenderer,
   NotebookPost,
@@ -36,49 +41,53 @@ const PostVariantsFixture = ({ post }: { post: db.Post }) => {
   const insets = useSafeAreaInsets();
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <AppDataContextProvider contacts={Object.values(content.exampleContacts)}>
-        <RequestsProvider
-          usePost={content.usePost}
-          useApp={content.useApp}
-          useChannel={content.useChannel}
-          useGroup={content.useGroup}
-          usePostReference={content.usePostReference}
+      <ChannelProvider value={{ channel: post.channel! }}>
+        <AppDataContextProvider
+          contacts={Object.values(content.exampleContacts)}
         >
-          <ScrollView
-            contentContainerStyle={{
-              paddingTop: insets.top,
-              paddingHorizontal: 12,
-              paddingBottom: insets.bottom,
-              gap: 12,
-            }}
+          <RequestsProvider
+            usePost={content.usePost}
+            useApp={content.useApp}
+            useChannel={content.useChannel}
+            useGroup={content.useGroup}
+            usePostReference={content.usePostReference}
           >
-            <NotebookPostSpecimen label="Default" post={post} />
-            <NotebookPostSpecimen
-              label="Pending"
-              post={{ ...post, deliveryStatus: 'pending' }}
-            />
-            <NotebookPostSpecimen
-              label="Failed"
-              post={{ ...post, deliveryStatus: 'failed' }}
-              onPressRetry={async (p) => {
-                alert(`Retry triggered for post: ${p.id}`);
+            <ScrollView
+              contentContainerStyle={{
+                paddingTop: insets.top,
+                paddingHorizontal: 12,
+                paddingBottom: insets.bottom,
+                gap: 12,
               }}
-            />
-            <NotebookPostSpecimen
-              label="Sent"
-              post={{ ...post, deliveryStatus: 'sent' }}
-            />
-            <NotebookPostSpecimen
-              label="Edited"
-              post={{ ...post, isEdited: true }}
-            />
-            <NotebookPostSpecimen
-              label="Hidden"
-              post={{ ...post, hidden: true }}
-            />
-          </ScrollView>
-        </RequestsProvider>
-      </AppDataContextProvider>
+            >
+              <NotebookPostSpecimen label="Default" post={post} />
+              <NotebookPostSpecimen
+                label="Pending"
+                post={{ ...post, deliveryStatus: 'pending' }}
+              />
+              <NotebookPostSpecimen
+                label="Failed"
+                post={{ ...post, deliveryStatus: 'failed' }}
+                onPressRetry={async (p) => {
+                  alert(`Retry triggered for post: ${p.id}`);
+                }}
+              />
+              <NotebookPostSpecimen
+                label="Sent"
+                post={{ ...post, deliveryStatus: 'sent' }}
+              />
+              <NotebookPostSpecimen
+                label="Edited"
+                post={{ ...post, isEdited: true }}
+              />
+              <NotebookPostSpecimen
+                label="Hidden"
+                post={{ ...post, hidden: true }}
+              />
+            </ScrollView>
+          </RequestsProvider>
+        </AppDataContextProvider>
+      </ChannelProvider>
     </FixtureWrapper>
   );
 };
