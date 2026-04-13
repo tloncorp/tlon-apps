@@ -265,6 +265,17 @@ export default ({ mode }: { mode: string }) => {
     },
     plugins: plugins(mode),
     resolve: {
+      // Prefer .web.* extensions so platform-specific modules (e.g.
+      // transcription.web.ts) are used instead of their native counterparts.
+      extensions: [
+        '.web.mjs', '.mjs',
+        '.web.js', '.js',
+        '.web.mts', '.mts',
+        '.web.ts', '.ts',
+        '.web.jsx', '.jsx',
+        '.web.tsx', '.tsx',
+        '.json',
+      ],
       conditions: ['tlon-source'],
       dedupe: ['@tanstack/react-query'],
       alias: {
