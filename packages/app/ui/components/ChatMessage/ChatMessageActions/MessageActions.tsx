@@ -1,4 +1,3 @@
-import * as Clipboard from 'expo-clipboard';
 import * as api from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -6,6 +5,7 @@ import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import { memo, useMemo } from 'react';
 import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';

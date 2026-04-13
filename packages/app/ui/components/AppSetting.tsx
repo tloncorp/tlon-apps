@@ -1,6 +1,6 @@
-import * as Clipboard from 'expo-clipboard';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import { useCallback, useState } from 'react';
 
 import { ListItem } from './ListItem';

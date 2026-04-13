@@ -7,4 +7,5 @@
 // ensures the polyfill runs during module initialization (before
 // main.tsx's body executes).
 import { installExpoGlobalPolyfill } from 'expo-modules-core/src/polyfill/dangerous-internal';
+
 installExpoGlobalPolyfill();

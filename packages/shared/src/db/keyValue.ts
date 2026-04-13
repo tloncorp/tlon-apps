@@ -1,10 +1,11 @@
-import type { AppThemeName } from '@tloncorp/api/urbit/settings';
 import type {
   StorageConfiguration,
   StorageCredentials,
   StorageService,
 } from '@tloncorp/api/client/upload';
 import * as ub from '@tloncorp/api/urbit';
+import type { AppThemeName } from '@tloncorp/api/urbit/settings';
+
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
 import { createStorageItem } from './storageItem';

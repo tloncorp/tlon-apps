@@ -1,10 +1,8 @@
 // if (import.meta.env.VITE_ENABLE_WDYR) {
 //   import.meta.glob('./wdyr.ts', { eager: true });
 // }
-
 // MUST be the first import. Sets up globalThis.expo before any expo modules load.
 // See expo-polyfill.ts for details on why this is needed.
-import './expo-polyfill';
 
 /* eslint-disable */
 // At some point recently, we started getting a "regeneratorRuntime is not defined" error
@@ -23,6 +21,7 @@ import { createRoot } from 'react-dom/client';
 
 import App from './app';
 import { isElectron } from './electron-bridge';
+import './expo-polyfill';
 import { analyticsClient } from './logic/analytics';
 import { initSentry } from './sentry';
 import './styles/index.css';

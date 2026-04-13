@@ -86,7 +86,9 @@ export function useAnchorScrollLock({
   const readyToDisplayPosts =
     !anchor?.postId || didAnchorSearchTimeout || didScrollToAnchor;
 
-  const showPostsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showPostsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   useEffect(() => {
     if (posts?.length && !showPostsTimeoutRef.current && !readyToDisplayPosts) {
       showPostsTimeoutRef.current = setTimeout(() => {

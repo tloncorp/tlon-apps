@@ -206,9 +206,11 @@ export function getStateFromNavigationIntent(
     return null;
   }
 
-  return (navigatorType === 'mobile'
-    ? getStateFromPath(url, getMobileLinkingConfig('').config) ?? null
-    : getStateFromPath(url, getDesktopLinkingConfig('').config) ?? null) as PartialState<NavigationState<CombinedParamList>> | null;
+  return (
+    navigatorType === 'mobile'
+      ? getStateFromPath(url, getMobileLinkingConfig('').config) ?? null
+      : getStateFromPath(url, getDesktopLinkingConfig('').config) ?? null
+  ) as PartialState<NavigationState<CombinedParamList>> | null;
 }
 
 // stubs to be replaced by https://github.com/tloncorp/tlon-apps/pull/4803

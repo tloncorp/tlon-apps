@@ -65,8 +65,7 @@ export const useChatSettingsNavigation = () => {
         // setTimeout uses a stale navigation ref after screen unmount.
         const group = await db.getGroup({ id: params.groupId });
         const channelId =
-          group?.channels?.[0]?.id ??
-          params.groupId.replace('group/', 'chat/');
+          group?.channels?.[0]?.id ?? params.groupId.replace('group/', 'chat/');
         navigation.navigate('Channel' as any, {
           channelId,
           groupId: params.groupId,

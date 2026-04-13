@@ -1,7 +1,7 @@
-import * as Clipboard from 'expo-clipboard';
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import * as Clipboard from 'expo-clipboard';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

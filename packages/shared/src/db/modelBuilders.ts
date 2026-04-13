@@ -1,11 +1,5 @@
-import {
-  toPostContent,
-  getContentImages,
-} from '@tloncorp/api/client/postsApi';
-import {
-  getCanonicalPostId,
-  udToDate,
-} from '@tloncorp/api/client/apiUtils';
+import { getCanonicalPostId, udToDate } from '@tloncorp/api/client/apiUtils';
+import { getContentImages, toPostContent } from '@tloncorp/api/client/postsApi';
 import * as ub from '@tloncorp/api/urbit';
 import { getChannelKindFromType } from '@tloncorp/api/urbit';
 import { da } from '@urbit/aura';

@@ -20,7 +20,14 @@ import {
   Text,
   useGlobalSearch,
 } from '@tloncorp/ui';
-import { ReactElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
