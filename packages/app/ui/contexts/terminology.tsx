@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from 'react';
 
-import { useChannelContext } from './channel';
+import { useChannelContextOrNull } from './channel';
 
 const termContext = createContext<{ post: 'post' | 'message' } | null>(null);
 
@@ -9,14 +9,14 @@ const termContext = createContext<{ post: 'post' | 'message' } | null>(null);
 export const TerminologyProvider = termContext.Provider;
 
 export function usePostTerminology(): 'post' | 'message' {
-  const channel = useChannelContext();
+  const channel = useChannelContextOrNull();
   const terminology = useContext(termContext);
 
   return useMemo(() => {
     if (terminology != null) {
       return terminology.post;
     }
-    switch (channel.type) {
+    switch (channel?.type) {
       case 'dm':
       case 'chat':
       case 'groupDm':
@@ -25,5 +25,8 @@ export function usePostTerminology(): 'post' | 'message' {
       case 'gallery':
         return 'post';
     }
-  }, [terminology, channel.type]);
+
+    console.warn('No channel context found, defaulting to "post" terminology');
+    return 'post';
+  }, [terminology, channel?.type]);
 }
