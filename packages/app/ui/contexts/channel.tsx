@@ -5,15 +5,7 @@ export type ChannelState = {
   channel: db.Channel;
 };
 
-type ContextValue = ChannelState;
-
-const defaultState: ChannelState = {
-  channel: {} as db.Channel,
-};
-
-const Context = createContext({
-  ...defaultState,
-} as ContextValue);
+const Context = createContext<ChannelState | null>(null);
 
 export const useChannelContext = () => {
   const context = useContext(Context);
