@@ -142,7 +142,6 @@ export function NotebookPost({
             alignSelf="center"
             width="100%"
             flex={1}
-            marginHorizontal="auto"
           >
             {moderated.type === 'hidden' ? (
               moderated.hidden
@@ -303,8 +302,6 @@ export function NotebookPostDetailView({
       embedded
       borderTopWidth={post.image ? 1 : 0}
       paddingTop={post.image ? '$xl' : '$2xl'}
-      width="100%"
-      marginHorizontal="auto"
     >
       <NotebookPostHeader
         post={post}
