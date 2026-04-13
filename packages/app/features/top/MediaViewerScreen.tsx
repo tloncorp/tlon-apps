@@ -641,7 +641,7 @@ function ImageViewer(props: {
                 {showOverlay ? (
                   <YStack
                     key="overlay"
-                    animation="simple"
+                    transition="simple"
                     enterStyle={{ opacity: 0 }}
                     exitStyle={{ opacity: 0 }}
                     position="absolute"

@@ -221,7 +221,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [editorContent]);
 
     const webviewRef = editor.webviewRef;
-    const reloadContentRef = useRef<JSONContent>();
+    const reloadContentRef = useRef<JSONContent>(undefined);
     const editorWithJsonContent = editor as EditorBridge & {
       setContent: (content: string | JSONContent | null) => void;
     };
