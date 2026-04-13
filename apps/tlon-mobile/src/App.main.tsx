@@ -12,6 +12,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
+import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
@@ -97,9 +98,7 @@ const App = () => {
   const haveHostedLogin = db.haveHostedLogin.useValue();
   const hostedAccountInitialized = db.hostedAccountIsInitialized.useValue();
   const hostedNodeRunning = db.hostedNodeIsRunning.useValue();
-  // TODO: remove __DEV__ override before merging
-  const _hostingBotEnabled = db.hostingBotEnabled.useValue();
-  const hostingBotEnabled = __DEV__ || _hostingBotEnabled;
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
 
   const currentlyOnboarding = useMemo(() => {
     return signupContext.email || signupContext.phoneNumber;
@@ -143,9 +142,8 @@ const App = () => {
     isAuthenticated,
   ]);
 
-  // TODO: remove __DEV__ override before merging — forces splash for testing
   const showSplashSequence = useMemo(() => {
-    return showAuthenticatedApp && (__DEV__ || needsSplashSequence);
+    return showAuthenticatedApp && (FORCE_SPLASH_SEQUENCE || needsSplashSequence);
   }, [showAuthenticatedApp, needsSplashSequence]);
 
   return (

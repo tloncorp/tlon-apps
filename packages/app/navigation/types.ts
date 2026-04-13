@@ -163,6 +163,8 @@ export type SettingsDrawerParamList = Pick<
   | 'PushNotificationSettings'
   | 'WompWomp'
   | 'PrivacySettings'
+  | 'BotIdentity'
+  | 'BotBehavior'
 >;
 
 export type ChannelStackParamList = {
