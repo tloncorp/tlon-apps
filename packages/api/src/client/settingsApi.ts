@@ -45,6 +45,7 @@ function getBucket(key: string): string {
     case 'completedWayfindingTutorial':
     case 'disableTlonInfraEnhancement':
     case 'enableTelemetry':
+    case 'tlonbotConfig':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
@@ -76,6 +77,16 @@ export const setSetting = async (key: string, val: any) => {
       },
     },
   });
+};
+
+export const getSettingValue = async (key: string): Promise<unknown> => {
+  const bucket = getBucket(key);
+  const results = await scry<ub.GroupsDeskSettings>({
+    app: 'settings',
+    path: '/desk/groups',
+  });
+  const desk = results as Record<string, Record<string, unknown>> | undefined;
+  return desk?.[bucket]?.[key] ?? null;
 };
 
 export const getSettings = async (): Promise<{

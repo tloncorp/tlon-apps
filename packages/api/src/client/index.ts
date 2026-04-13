@@ -51,3 +51,4 @@ export type { HostingHeartBeatCode } from './hostingApi';
 export * from './apiUtils';
 export * from './metagrabApi';
 export * from './changesApi';
+export * from './hostedBotApi';
