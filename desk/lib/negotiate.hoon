@@ -195,6 +195,31 @@
         =?  kill  !=(u.hail `v.i.need)
           (~(put in kill) [wire gill])
         $(need t.need)
+      ::  re-negotiate orphaned heed entries whose subscriptions were lost.
+      ::  without this, a stale version in heed persists indefinitely
+      ::  because +negotiate-missing skips protocols already in heed.
+      ::  only run during +on-load (knew is non-null) to avoid defeating
+      ::  the ~m30 backoff timers used by the nack/kick retry path.
+      ::  snapshot heed before mutation so +notes can compute pre-inflate
+      ::  match state correctly.
+      ::
+      =/  pre-heed  heed
+      =^  init  heed
+        ?.  ?=(^ knew)  [init heed]
+        =/  entries=(list [[=gill:gall =protocol] ver=(unit version)])
+          ~(tap by heed)
+        |-
+        ?~  entries  [init heed]
+        =/  =wire
+          :+  %~.~  %negotiate
+          [%heed (scot %p p.gill.i.entries) q.gill.i.entries protocol.i.entries ~]
+        ?:  (~(has by boat) [wire gill.i.entries])
+          $(entries t.entries)
+        ::  subscription missing: clear heed and queue for re-negotiation
+        ::
+        =.  heed  (~(del by heed) [gill.i.entries protocol.i.entries])
+        =.  init  (~(put in init) [gill.i.entries protocol.i.entries])
+        $(entries t.entries)
       ::
       =^  inis  state
         =|  caz=(list card)
@@ -210,7 +235,7 @@
         %+  turn  ~(tap in `(set gill:gall)`(~(run in ~(key by heed)) head))
         |=  =gill:gall
         ^-  (list card)
-        =/  did=?  (match(know u.knew) gill)
+        =/  did=?  (match(know u.knew, heed pre-heed) gill)
         =/  now=?  (match gill)
         ?:  =(did now)  ~
         %+  weld  (notify-outer now gill)
@@ -812,6 +837,13 @@
           =/  for=[gill:gall protocol]
             =*  w  t.t.t.t.t.wire
             [[(slav %p i.w) i.t.w] i.t.t.w]
+          ::  skip if subscription was already re-established (e.g. by
+          ::  orphan detection in +inflate during +on-load)
+          ::
+          =/  =^wire
+            /~/negotiate/heed/(scot %p p.for)/[q.for]/[+.for]
+          ?:  (~(has by wex.bowl) [wire -.for])
+            `this
           :_  this
           :~  (watch-version:up for)
               %^  tell:log   %dbug
