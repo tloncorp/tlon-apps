@@ -73,8 +73,7 @@
       "@simform_solutions/react-native-audio-waveform@2.1.6": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch",
       "expo-task-manager@14.0.9": "patches/expo-task-manager@14.0.9.patch",
       "react-native@0.81.5": "patches/react-native@0.81.5.patch",
-      "expo-share-intent@5.1.1": "patches/expo-share-intent@5.1.1.patch",
-      "@tamagui/web@2.0.0-rc.22": "patches/@tamagui__web@2.0.0-rc.22.patch"
+      "expo-share-intent@5.1.1": "patches/expo-share-intent@5.1.1.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
