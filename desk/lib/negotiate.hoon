@@ -338,6 +338,36 @@
       ?<  (~(has by heed) for)
       :-  [(watch-version for)]~
       state(heed (~(put by heed) for ~))
+    ::  +reset-heed: operator-invoked repair for stuck heed entries
+    ::
+    ::    for each matching heed key, emit %leave on the heed subscription
+    ::    wire, clear the entry, and call +negotiate to re-subscribe. this
+    ::    forces the publisher to re-answer via +on-watch with its current
+    ::    version, healing zombie/desynced subscription state that the
+    ::    orphan detector cannot see (both sides' wex/sup agree, but the
+    ::    version we heard is stale).
+    ::
+    ++  reset-heed
+      |=  target=(unit gill:gall)
+      ^-  (quip card _state)
+      =/  keys=(list [gill:gall protocol])
+        %+  skim  ~(tap in ~(key by heed))
+        |=  [=gill:gall *]
+        ?~  target  &
+        =(gill u.target)
+      =|  out=(list card)
+      |-
+      ?~  keys  [out state]
+      =*  entry  i.keys
+      =/  =wire
+        /~/negotiate/heed/(scot %p p.entry)/[q.entry]/[+.entry]
+      =.  out  (snoc out [%pass wire %agent -.entry %leave ~])
+      =.  out
+        %+  snoc  out
+        (tell:log %dbug ~[>[%reset-heed entry]<] ~)
+      =.  heed  (~(del by heed) entry)
+      =^  caz  state  (negotiate entry)
+      $(out (weld out caz), keys t.keys)
     ::
     ++  ours-changed
       |=  [ole=(map protocol version) neu=(map protocol version)]
@@ -350,15 +380,18 @@
         %+  turn  old
         |=  [=protocol =version]
         [%give %kick [/~/negotiate/version/[protocol]]~ ~]
-      ::  give updates for protocols whose supported version changed
+      ::  re-announce current version for every protocol we expose.
+      ::  idempotent on subscribers (+heed-changed short-circuits on
+      ::  same version), but heals cases where a prior %fact was
+      ::  missed (breach-adjacent flow reset, upgrade path that
+      ::  skipped this arm, etc). called unconditionally from on-load
+      ::  so every reload acts as a safety-net re-announce.
       ::
       ^-  (list card)
       %-  zing
-      %+  murn  ~(tap by neu)
+      %+  turn  ~(tap by neu)
       |=  [=protocol =version]
-      ^-  (unit (list card))
-      ?:  =(`version (~(get by ole) protocol))  ~
-      %-  some
+      ^-  (list card)
       :~  (tell:log %dbug ~[>[%ours-changed 'giving version' version 'for protocol' protocol]<] ~)
           [%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
       ==
@@ -581,9 +614,13 @@
             $(cards (weld cards caz), suz t.suz)
           ?>  ?=(%1 -.old)
           =.  state  old
-          =/  caz1
-            ?:  =(ours our-versions)  ~
-            (ours-changed:up ours our-versions)
+          ::  always re-announce current versions on reload as a safety
+          ::  net. +ours-changed handles both the kick path (for removed
+          ::  protocols) and the fact emission (for current protocols);
+          ::  facts are no-ops on subscribers whose heed is already
+          ::  in sync via +heed-changed's early return.
+          ::
+          =/  caz1  (ours-changed:up ours our-versions)
           =.  ours   our-versions
           =/  knew   know
           =.  know   our-config
@@ -726,6 +763,30 @@
         (fall ((soft (list mass)) q.q.u.u.dat) ~)
       ?:  =(/x/dbug/state path)
         ``noun+!>((slop on-save:og !>(negotiate=state)))
+      ::  raw outer-bowl peeks: these bypass +inner-boat/+inner-bitt so
+      ::  operators can see library-internal wires that would otherwise
+      ::  be filtered out of any inner-agent (e.g. +dbug) scry.
+      ::
+      ?:  =(/x/dbug/wex path)
+        ``noun+!>(wex.bowl)
+      ?:  =(/x/dbug/sup path)
+        ``noun+!>(sup.bowl)
+      ?:  =(/x/dbug/bowl path)
+        ``noun+!>(bowl)
+      ::  orphan diff: heed keys whose /~/negotiate/heed/... subscription
+      ::  is missing from wex.bowl. non-empty result means +inflate's
+      ::  orphan detector should have fired but didn't (or hasn't yet).
+      ::
+      ?:  =(/x/dbug/orphans path)
+        :^  ~  ~  %noun
+        !>  ^-  (list [gill:gall protocol])
+        %+  murn  ~(tap by heed)
+        |=  [[=gill:gall =protocol] *]
+        =/  =wire
+          :+  %~.~  %negotiate
+          [%heed (scot %p p.gill) q.gill protocol ~]
+        ?:  (~(has by wex.bowl) [wire gill])  ~
+        `[gill protocol]
       ?.  ?=([@ %~.~ %negotiate *] path)
         (on-peek:og path)
       !:
@@ -824,6 +885,14 @@
     ++  on-poke
       |=  [=mark =vase]
       ^-  (quip card _this)
+      ::  library-level repair poke: clear targeted heed entries and
+      ::  re-negotiate, healing stuck subscriptions without waiting
+      ::  for the next reload.
+      ::
+      ?:  ?=(%negotiate-reset mark)
+        =+  !<(target=(unit gill:gall) vase)
+        =^  cards  state  (reset-heed:up target)
+        [cards this]
       ?.  ?&  ?=(%egg-any mark)
             !:
               =+  !<(=egg-any:gall vase)
