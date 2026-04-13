@@ -86,7 +86,11 @@ function MentionPopupInternal(
     handleMentionKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;
   }>
 ) {
-  const subSet = useMemo(() => options.slice(0, 7), [options]);
+  const maxResults = Platform.OS === 'web' ? 7 : 4;
+  const subSet = useMemo(
+    () => options.slice(0, maxResults),
+    [options, maxResults]
+  );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 

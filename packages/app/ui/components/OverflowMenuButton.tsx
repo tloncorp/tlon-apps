@@ -42,7 +42,10 @@ export function OverflowMenuButton({
       height={0}
       {...viewProps}
     >
-      <OverflowTriggerButton backgroundColor={backgroundColor} onPress={onPress} />
+      <OverflowTriggerButton
+        backgroundColor={backgroundColor}
+        onPress={onPress}
+      />
     </View>
   );
 }

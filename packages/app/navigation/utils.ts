@@ -3,6 +3,8 @@ import {
   NavigationProp,
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
+import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -17,6 +19,12 @@ import {
 import { CombinedParamList, RootStackParamList } from './types';
 
 const logger = createDevLogger('nav-utils', false);
+
+export const mediaViewerScreenOptions: NativeStackNavigationOptions = {
+  animation: 'none',
+  presentation: 'transparentModal',
+  contentStyle: { backgroundColor: 'transparent' },
+};
 
 export const useNavigation = () => {
   return useReactNavigation<NavigationProp<CombinedParamList>>();
@@ -186,12 +194,13 @@ export function useNavigateToPost() {
     navigation.getState()?.index === activityIndex;
 
   return useCallback(
-    (post: db.Post) => {
+    (post: db.Post, options?: { selectedPostId?: string | null }) => {
       const postParams = {
         postId: post.id,
         authorId: post.authorId,
         channelId: post.channelId,
         groupId: post.groupId ?? undefined,
+        selectedPostId: options?.selectedPostId,
       };
 
       if (!isWindowNarrow && currentScreenIsActivity) {
@@ -212,16 +221,7 @@ export function useNavigateToPost() {
         return;
       }
 
-      navigation.navigate(
-        'Post',
-        {
-          postId: post.id,
-          authorId: post.authorId,
-          channelId: post.channelId,
-          groupId: post.groupId ?? undefined,
-        },
-        { pop: true }
-      );
+      navigation.navigate('Post', postParams, { pop: true });
     },
     [isWindowNarrow, currentScreenIsActivity, navigation, lastOpenTab]
   );
@@ -467,6 +467,7 @@ export function getDesktopChannelRoute(
       pop: true,
       params: {
         channelId,
+        selectedPostId,
         ...(groupId ? { groupId } : {}),
         screen: 'ChannelRoot',
         pop: true,
@@ -522,9 +523,9 @@ export async function getMainGroupRoute(
 }
 
 export function screenNameFromChannelId(channelId: string) {
-  return logic.isDmChannelId(channelId)
+  return isDmChannelId(channelId)
     ? 'DM'
-    : logic.isGroupDmChannelId(channelId)
+    : isGroupDmChannelId(channelId)
       ? 'GroupDM'
       : 'Channel';
 }

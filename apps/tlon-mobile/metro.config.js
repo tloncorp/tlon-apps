@@ -104,7 +104,21 @@ const config = {
       // https://metrobundler.dev/docs/configuration/#requirecycleignorepatterns
       /(^|\/|\\)node_modules($|\/|\\)/,
     ],
+    nodeModulesPaths: [
+      path.resolve(projectRoot, 'node_modules'),
+      path.resolve(workspaceRoot, 'node_modules'),
+      // Tamagui packages expect to be able to require anything under the
+      // tamagui umbrella node_modules folder. Some modules fail to resolve
+      // without this.
+      path.resolve(workspaceRoot, 'node_modules/tamagui/node_modules'),
+    ],
     sourceExts: [...baseConfig.resolver.sourceExts, 'svg', 'sql'],
+
+    // Enables importing alternative package exports, e.g. `react-tweet/api`
+    unstable_enablePackageExports: true,
+    // Removes import, which causes issues for zustand
+    // This is the default setting in newer versions of react-native
+    unstable_conditionNames: ['tlon-source', 'source', 'require'],
   },
 };
 

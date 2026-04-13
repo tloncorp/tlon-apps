@@ -4,13 +4,12 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
-import { setupDb } from '@tloncorp/app/lib/nativeDb';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState, Platform, TurboModuleRegistry } from 'react-native';
 import 'react-native-get-random-values';
 import {
@@ -20,6 +19,7 @@ import {
 import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
+import { useDbReady } from './src/hooks/useDbReady';
 import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
@@ -72,15 +72,11 @@ function useJsHeartbeat(enabled: boolean) {
 }
 
 function MainInner() {
-  const [isDbReady, setIsDbReady] = useState(false);
+  const { dbInitError, isDbReady } = useDbReady();
 
-  useEffect(() => {
-    async function checkDb() {
-      await setupDb();
-      setIsDbReady(true);
-    }
-    checkDb();
-  }, []);
+  if (dbInitError) {
+    throw dbInitError;
+  }
 
   useEffect(() => {
     async function init() {

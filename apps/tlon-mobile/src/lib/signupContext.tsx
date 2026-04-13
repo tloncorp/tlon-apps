@@ -1,9 +1,9 @@
 // This signup context lives here in the mobile app because this path can only
 // be reached by the mobile app and it's only used by the mobile app.
+import * as api from '@tloncorp/api';
 import { useBootSequence } from '@tloncorp/app/hooks/useBootSequence';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import { createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import { didSignUp, signupData } from '@tloncorp/shared/db';
 import {
   AnalyticsEvent,

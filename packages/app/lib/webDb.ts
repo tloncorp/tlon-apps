@@ -11,8 +11,24 @@ import { BaseDb, logger, useMigrations as useMigrationsBase } from './baseDb';
 import { TRIGGER_SETUP } from './triggers';
 import migrate from './webMigrator';
 
-const ENABLE_DB_FILE_LOAD = true;
-const ENABLE_DB_FILE_SAVE = true;
+const IS_SECURE_CONTEXT =
+  typeof globalThis !== 'undefined' && globalThis.isSecureContext !== false;
+const ENABLE_DB_FILE_LOAD = IS_SECURE_CONTEXT;
+const ENABLE_DB_FILE_SAVE = IS_SECURE_CONTEXT;
+const MIN_FREE_BYTES_BEFORE_VACUUM = 4 * 1024 * 1024;
+const MIN_FREE_RATIO_BEFORE_VACUUM = 0.25;
+
+// crypto.randomUUID() is only available in secure contexts. Polyfill it
+// for plain HTTP so that SQLocal (which uses it internally) can function.
+if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
+  crypto.randomUUID = () =>
+    '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c: string) =>
+      (
+        +c ^
+        (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (+c / 4)))
+      ).toString(16)
+    ) as `${string}-${string}-${string}-${string}-${string}`;
+}
 
 export class WebDb extends BaseDb {
   private sqlocal: SQLocalDrizzle | null = null;
@@ -23,11 +39,27 @@ export class WebDb extends BaseDb {
       return;
     }
     try {
-      this.sqlocal = new SQLocalDrizzle({
-        databasePath: ':memory:',
-        verbose: false,
+      // Await the onConnect callback to ensure the WASM driver is fully
+      // initialized before sending any queries. In non-worker mode (used for
+      // :memory: databases), SQLocal's processor.postMessage is async and
+      // queries can race ahead of initialization without this.
+      const sqlocal = await new Promise<SQLocalDrizzle>((resolve, reject) => {
+        const instance = new SQLocalDrizzle({
+          databasePath: ':memory:',
+          verbose: false,
+          onConnect: () => {
+            clearTimeout(timeout);
+            resolve(instance);
+          },
+        });
+        const timeout = setTimeout(() => {
+          instance.destroy();
+          reject(new Error('SQLocal init timed out'));
+        }, 15000);
       });
-      const { driver } = this.sqlocal;
+      this.sqlocal = sqlocal;
+
+      const { driver } = sqlocal;
       this.client = drizzle(driver, { schema });
 
       // Immediately try to load DB from persisted file.
@@ -99,21 +131,66 @@ export class WebDb extends BaseDb {
       if (this.sqlocal == null) {
         return;
       }
-      const { getDatabaseFile } = this.sqlocal;
+      await this.maybeCompactBeforeSave();
 
-      const dbFile = await getDatabaseFile();
-      if (dbFile != null) {
-        try {
-          const encoded = await readArrayBufferFromBlob(dbFile);
-          await sqliteContent.setValue(encoded);
-        } catch (e) {
-          console.error('Failed to save to file', e);
+      const sqlocal = this.sqlocal;
+      if (sqlocal == null) {
+        return;
+      }
+
+      try {
+        const dbFile = await sqlocal.getDatabaseFile();
+        if (dbFile == null) {
+          return;
         }
+
+        const encoded = await readArrayBufferFromBlob(dbFile);
+        await sqliteContent.setValue(encoded);
+      } catch (e) {
+        console.error('Failed to save to file', e);
       }
     },
     1000,
     { trailing: true }
   );
+
+  private async maybeCompactBeforeSave() {
+    if (this.sqlocal == null) return;
+
+    try {
+      const [stats] = await this.sqlocal.sql<{
+        page_count: number;
+        freelist_count: number;
+        page_size: number;
+      }>(`
+        SELECT page_count AS page_count, freelist_count AS freelist_count, page_size AS page_size
+        FROM pragma_page_count(), pragma_freelist_count(), pragma_page_size()
+      `);
+      if (!stats || stats.page_count <= 0) return;
+
+      const { page_count, freelist_count, page_size } = stats;
+      const freeBytes = freelist_count * page_size;
+      const freeRatio = freelist_count / page_count;
+
+      if (
+        freeBytes < MIN_FREE_BYTES_BEFORE_VACUUM &&
+        freeRatio < MIN_FREE_RATIO_BEFORE_VACUUM
+      ) {
+        return;
+      }
+
+      logger.log('Vacuuming SQLite database before export', {
+        page_count,
+        freelist_count,
+        page_size,
+        freeBytes,
+        freeRatio,
+      });
+      await this.sqlocal.sql('VACUUM');
+    } catch (e) {
+      console.warn('Failed to compact SQLite database before export', e);
+    }
+  }
 
   override async processChanges() {
     await super.processChanges();
@@ -136,10 +213,13 @@ export class WebDb extends BaseDb {
   async purgeDb() {
     if (!this.sqlocal) {
       logger.warn('purgeDb called before setupDb, ignoring');
+      await sqliteContent.resetValue();
       return;
     }
     logger.log('purging sqlite database');
-    this.sqlocal.destroy();
+    this.saveToFile.cancel();
+    await sqliteContent.resetValue();
+    await this.sqlocal.destroy();
     this.sqlocal = null;
     this.client = null;
     logger.log('purged sqlite database, recreating');

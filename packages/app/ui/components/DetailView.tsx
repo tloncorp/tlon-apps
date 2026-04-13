@@ -1,10 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
-import { FlatList } from 'react-native';
 import { View, YStack } from 'tamagui';
 
-import Scroller from './Channel/Scroller';
+import Scroller, { ScrollAnchor } from './Channel/Scroller';
 import { ChatMessage } from './ChatMessage';
 import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
 import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
@@ -23,7 +22,8 @@ export interface DetailViewProps {
   onPressDelete: (post: db.Post) => void;
   setActiveMessage: (post: db.Post | null) => void;
   activeMessage: db.Post | null;
-  flatListRef?: React.RefObject<FlatList | null>;
+  anchor?: ScrollAnchor | null;
+  highlightPostId?: string | null;
   scrollerRef?: React.RefObject<{
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
@@ -42,6 +42,8 @@ export const DetailView = ({
   onPressDelete,
   setActiveMessage,
   activeMessage,
+  anchor,
+  highlightPostId,
   scrollerRef,
 }: DetailViewProps) => {
   const channelType = channel.type;
@@ -87,6 +89,7 @@ export const DetailView = ({
     >
       <Scroller
         ref={scrollerRef}
+        anchor={anchor}
         inverted={isChat}
         renderItem={ChatMessage}
         channel={channel}
@@ -99,6 +102,7 @@ export const DetailView = ({
         onPressImage={onPressImage}
         onPressRetry={onPressRetry}
         onPressDelete={onPressDelete}
+        highlightPostId={highlightPostId}
         firstUnreadId={
           initialPostUnread?.count ?? 0 > 0
             ? initialPostUnread?.firstUnreadPostId

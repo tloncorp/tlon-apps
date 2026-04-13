@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { Pressable } from '@tloncorp/ui';
+import { Icon, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { formatDistanceToNow } from 'date-fns';
 import React, { useMemo } from 'react';
@@ -15,31 +15,50 @@ export const ChatMessageReplySummary = React.memo(
     textColor,
     showTime = true,
     showEditedIndicator = false,
+    deliveryFailed = false,
+    onPressRetry,
   }: {
     post: db.Post;
     onPress?: () => void;
     textColor?: ColorTokens;
     showTime?: boolean;
     showEditedIndicator?: boolean;
+    deliveryFailed?: boolean;
+    onPressRetry?: () => void;
     // Since this component is used in places other than a chat log, we need to
     // be able to toggle the Chat message padding on and off
   }) {
     const { replyCount, replyTime, replyContactIds, threadUnread } = post;
     const hasUnreads = !!threadUnread?.count;
     const isNotify = threadUnread?.notify ?? false;
+    const isWindowNarrow = useIsWindowNarrow();
     const time = useMemo(() => {
       return replyTime ? formatDistanceToNow(replyTime) : '';
     }, [replyTime]);
 
     const hasReplies = !!(replyCount && replyContactIds && replyTime);
 
-    // Show the component if there are replies OR if we need to show the edited indicator
-    if (!hasReplies && !showEditedIndicator) {
+    if (!hasReplies && !showEditedIndicator && !deliveryFailed) {
       return null;
     }
 
     const content = (
       <XStack gap="$m" alignItems="center">
+        {deliveryFailed && (
+          <Pressable
+            onPress={(e) => {
+              e?.stopPropagation();
+              onPressRetry?.();
+            }}
+          >
+            <XStack gap="$xs" alignItems="center">
+              <Icon type="Redo" size="$s" color="$negativeActionText" />
+              <Text size="$label/m" color="$negativeActionText">
+                Send failed, {isWindowNarrow ? 'tap' : 'click'} to retry
+              </Text>
+            </XStack>
+          </Pressable>
+        )}
         {hasReplies && <AvatarPreviewStack contactIds={replyContactIds} />}
         {hasReplies && (
           <Text
@@ -122,7 +141,12 @@ function ThreadUnreadDot({
   isNotify: boolean;
 }) {
   if (unreadCount) {
-    return <UnreadDot color={isNotify ? 'primary' : 'neutral'} />;
+    return (
+      <UnreadDot
+        testID="ThreadUnreadDot"
+        color={isNotify ? 'primary' : 'neutral'}
+      />
+    );
   }
 
   return null;

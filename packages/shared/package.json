@@ -14,6 +14,7 @@
     "./db": "./src/db/index.ts",
     "./db/client": "./src/db/client.ts",
     "./db/migrations": "./src/db/migrations/index.ts",
+    "./db/reactQuery": "./src/db/reactQuery.ts",
     "./db/schema": "./src/db/schema.ts",
     "./db/types": "./src/db/types.ts",
     "./logic": "./src/logic/index.ts",
@@ -25,7 +26,6 @@
     "./logic/*": "./src/logic/*.ts",
     "./perf": "./src/perf.ts",
     "./store": "./src/store/index.ts",
-    "./store/reactQuery": "./src/store/reactQuery.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/activity": "./src/urbit/activity.ts",
     "./urbit/channel": "./src/urbit/channel.ts",
@@ -85,8 +85,8 @@
     "vitest": "^1.4.0"
   },
   "peerDependencies": {
+    "expo-speech-recognition": "*",
     "@react-native-async-storage/async-storage": "*",
-    "expo-speech-transcriber": "*",
     "expo-file-system": "*",
     "@tanstack/react-query": "^5.32.1",
     "@tiptap/core": "^2.6.6",

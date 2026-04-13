@@ -13,7 +13,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Popover,
   View,
   YStack,
   getTokenValue,
@@ -29,7 +28,6 @@ import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { GroupAvatar } from './Avatar';
 import { Badge } from './Badge';
 import { ChatOptionsSheet } from './ChatOptionsSheet';
-import ConnectionStatus from './ConnectionStatus';
 import { ChannelListItem } from './ListItem/ChannelListItem';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
@@ -293,22 +291,15 @@ export const GroupChannelsScreenView = React.memo(
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}
           rightControls={
-            <>
-              {group && isGroupAdmin && (
-                <Popover hoverable allowFlip placement="bottom-end">
-                  <Popover.Trigger>
-                    <ScreenHeader.IconButton
-                      type="Settings"
-                      aria-label="Edit channels"
-                      onPress={() =>
-                        group && onPressManageChannels(group.id, false)
-                      }
-                      disabled={!canEdit}
-                    />
-                  </Popover.Trigger>
-                </Popover>
-              )}
-            </>
+            group && isGroupAdmin ? (
+              <ScreenHeader.IconButton
+                type="EditList"
+                color="$positiveActionText"
+                onPress={() => onPressManageChannels(group.id, false)}
+                disabled={!canEdit}
+                aria-label="Edit channels"
+              />
+            ) : null
           }
         />
         {isPersonalGroup && group && (

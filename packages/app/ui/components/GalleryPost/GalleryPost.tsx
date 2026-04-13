@@ -29,6 +29,7 @@ import { View, XStack, styled } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
+import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import {
   useChannelContext,
   useCurrentUserId,
@@ -380,6 +381,7 @@ export function GalleryPostDetailView({
         navigation.navigate('MediaViewer', {
           mediaType: 'image',
           uri: src,
+          viewerId: getPostImageViewerId(post.id, src),
         });
       } catch (error) {
         logger.log('Navigation error:', error);
@@ -423,6 +425,7 @@ export function GalleryPostDetailView({
           post={post}
           size="$l"
           onPressImage={handlePressImage}
+          getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
           testID="GalleryPostContent"
           isPreview={false}
         />
@@ -471,10 +474,14 @@ export function GalleryPostDetailView({
 export function GalleryContentRenderer({
   post,
   isPreview = false,
+  onPressImage,
+  getImageViewerId,
+  size,
   ...props
 }: {
   post: db.Post;
   onPressImage?: (src: string) => void;
+  getImageViewerId?: (src: string) => string | undefined;
   size?: '$s' | '$l';
   isPreview?: boolean;
 } & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
@@ -484,7 +491,7 @@ export function GalleryContentRenderer({
   // For gallery detail views of image posts, only show images
   // since CaptionContentRenderer handles text separately below
   const displayContent = useMemo(() => {
-    if (!isPreview && props.size === '$l') {
+    if (!isPreview && size === '$l') {
       // Check if this is an image post
       const hasImage = content.some((block) => block.type === 'image');
       if (hasImage) {
@@ -495,7 +502,7 @@ export function GalleryContentRenderer({
     }
     // For non-image posts and previews, use appropriate content
     return isPreview ? previewContent : content;
-  }, [content, previewContent, isPreview, props.size]);
+  }, [content, previewContent, isPreview, size]);
 
   if (post.hidden) {
     return (
@@ -505,35 +512,52 @@ export function GalleryContentRenderer({
     return <ErrorPlaceholder>This post has been deleted</ErrorPlaceholder>;
   }
 
-  return props.size === '$l' ? (
-    <LargePreview content={displayContent} {...props} />
+  return size === '$l' ? (
+    <LargePreview
+      content={displayContent}
+      onPressImage={onPressImage}
+      getImageViewerId={getImageViewerId}
+      {...props}
+    />
   ) : (
-    <SmallPreview content={displayContent} {...props} />
+    <SmallPreview
+      content={displayContent}
+      onPressImage={onPressImage}
+      getImageViewerId={getImageViewerId}
+      {...props}
+    />
   );
 }
+
+type GalleryPreviewProps = {
+  content: PostContent;
+  onPressImage?: (src: string) => void;
+  getImageViewerId?: (src: string) => string | undefined;
+} & Omit<ComponentProps<typeof PreviewFrame>, 'content'>;
 
 function LargePreview({
   content,
   onPressImage,
+  getImageViewerId,
   ...props
-}: { content: PostContent; onPressImage?: (src: string) => void } & Omit<
-  ComponentProps<typeof PreviewFrame>,
-  'content'
->) {
+}: GalleryPreviewProps) {
   return (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer content={content} onPressImage={onPressImage} />
+      <LargeContentRenderer
+        content={content}
+        onPressImage={onPressImage}
+        getImageViewerId={getImageViewerId}
+      />
     </PreviewFrame>
   );
 }
 
 function SmallPreview({
   content,
+  onPressImage,
+  getImageViewerId,
   ...props
-}: { content: PostContent } & Omit<
-  ComponentProps<typeof PreviewFrame>,
-  'content'
->) {
+}: GalleryPreviewProps) {
   const link = useBlockLink(content);
 
   return link ? (
@@ -542,7 +566,12 @@ function SmallPreview({
     </PreviewFrame>
   ) : (
     <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer height={'100%'} content={content} />
+      <SmallContentRenderer
+        height={'100%'}
+        content={content}
+        onPressImage={onPressImage}
+        getImageViewerId={getImageViewerId}
+      />
     </PreviewFrame>
   );
 }

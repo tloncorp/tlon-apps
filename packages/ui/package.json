@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
-    "@likashefqet/react-native-image-zoom": "^4.2.0",
+    "react-native-gesture-image-viewer": "1.9.4",
     "@tamagui/animations-moti": "~2.0.0-rc.22",
     "@tamagui/get-token": "~2.0.0-rc.22",
     "@tamagui/image": "~2.0.0-rc.22",

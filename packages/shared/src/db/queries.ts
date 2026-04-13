@@ -1,4 +1,16 @@
 import {
+  ACTIVITY_SOURCE_PAGESIZE,
+  ChannelInit,
+  getCurrentUserId,
+} from '@tloncorp/api';
+import { parseGroupId } from '@tloncorp/api';
+import {
+  SourceActivityEvents,
+  interleaveActivityEvents,
+  toSourceActivityEvents,
+} from '@tloncorp/api/client/activity';
+import { Rank } from '@tloncorp/api/urbit';
+import {
   AnyColumn,
   Column,
   SQLChunk,
@@ -27,20 +39,9 @@ import {
   sql,
 } from 'drizzle-orm';
 
-import { ACTIVITY_SOURCE_PAGESIZE } from '@tloncorp/api/client/activityApi';
-import { ChannelInit } from '@tloncorp/api/client/channelsApi';
-import { getCurrentUserId } from '@tloncorp/api/client/urbit';
-import { parseGroupId } from '@tloncorp/api/client/apiUtils';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
-import {
-  SourceActivityEvents,
-  interleaveActivityEvents,
-  toSourceActivityEvents,
-} from '@tloncorp/api/lib/activity';
-import { Session } from '../store';
-import { Rank } from '@tloncorp/api/urbit';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
@@ -780,7 +781,7 @@ export const getMentionCandidates = createReadQuery(
   async (
     {
       chatId,
-      limit = 4,
+      limit = 8,
       query,
     }: { chatId: string; limit?: number; query: string },
     ctx: QueryCtx
@@ -788,7 +789,7 @@ export const getMentionCandidates = createReadQuery(
     if (!(query = query.trim())) return [];
 
     const idSearchTerm = `~${query.toLowerCase()}%`;
-    const searchTerm = `${query.toLowerCase()}%`;
+    const searchTerm = `%${query.toLowerCase()}%`;
 
     const $candidates = ctx.db
       .select({
@@ -803,12 +804,16 @@ export const getMentionCandidates = createReadQuery(
         membershipType: $chatMembers.membershipType,
         joinedAt: $chatMembers.joinedAt,
         isBlocked: $contacts.isBlocked,
-        // Priority: 1 = group members, 2 = other contacts, 3 = other group members
+        // Priority: nickname matches rank higher than ship-id-only matches
+        // Within each match type: channel members > contacts > others
         priority: sql<number>`
           CASE 
-            WHEN ${$chatMembers.chatId} = ${chatId} THEN 1
-            WHEN ${$contacts.isContact} = true THEN 2
-            ELSE 3
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} AND ${$chatMembers.chatId} = ${chatId} THEN 1
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} AND ${$contacts.isContact} = true THEN 2
+            WHEN LOWER(COALESCE(${$contacts.nickname}, '')) LIKE ${searchTerm} THEN 3
+            WHEN ${$chatMembers.chatId} = ${chatId} THEN 4
+            WHEN ${$contacts.isContact} = true THEN 5
+            ELSE 6
           END
         `.as('priority'),
       })
@@ -852,6 +857,7 @@ export const getMentionCandidates = createReadQuery(
         .from($candidates)
         // This call to sql is only necessary because of a drizzle type inference issue
         .groupBy(sql`${$candidates.id}`)
+        .orderBy(sql`priority ASC`, ascNullsLast($candidates.nickname))
         .limit(limit)
     );
   },
@@ -2612,7 +2618,17 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    if (joinedChannelIds.length === 0) return;
+    if (joinedChannelIds.length === 0) {
+      return await ctx.db
+        .update($channels)
+        .set({ currentUserIsMember: false })
+        .where(
+          and(
+            isNotNull($channels.groupId),
+            eq($channels.currentUserIsMember, true)
+          )
+        );
+    }
     return await ctx.db
       .update($channels)
       .set({
@@ -2632,7 +2648,12 @@ export const setLeftGroupChannels = createWriteQuery(
 export const setLeftGroups = createWriteQuery(
   'setLeftGroups',
   async ({ joinedGroupIds }: { joinedGroupIds: string[] }, ctx: QueryCtx) => {
-    if (joinedGroupIds.length === 0) return;
+    if (joinedGroupIds.length === 0) {
+      return await ctx.db
+        .update($groups)
+        .set({ currentUserIsMember: false })
+        .where(eq($groups.currentUserIsMember, true));
+    }
     return await ctx.db
       .update($groups)
       .set({

@@ -222,6 +222,7 @@ export const FilteredChatList = React.memo(
             renderItem={renderItem}
             getItemType={getItemType}
             overrideItemLayout={handleOverrideLayout}
+            extraData={selectedIndex}
             {...listProps}
           />
         )}

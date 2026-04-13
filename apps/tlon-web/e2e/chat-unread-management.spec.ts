@@ -48,7 +48,13 @@ test('should show and clear unread message counts', async ({
   await tenPage.waitForTimeout(2000);
 
   // Verify unread count on ~ten's side
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 1, false, true);
+  await helpers.verifyChatUnreadCount(
+    tenPage,
+    'Untitled group',
+    1,
+    false,
+    true
+  );
 
   // Send another message to test count increment
   await helpers.sendMessage(zodPage, 'Second unread message');
@@ -56,7 +62,13 @@ test('should show and clear unread message counts', async ({
   // Wait for cross-ship message sync
   await tenPage.waitForTimeout(2000);
 
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 2, false, true);
+  await helpers.verifyChatUnreadCount(
+    tenPage,
+    'Untitled group',
+    2,
+    false,
+    true
+  );
 
   // Navigate to the group as ~ten to clear unread count
   await tenPage.getByText(groupName).first().click();
@@ -65,5 +77,11 @@ test('should show and clear unread message counts', async ({
   // Navigate back to home and verify unread count is cleared
   await tenPage.getByTestId('HomeNavIcon').click();
   await expect(tenPage.getByText('Home')).toBeVisible();
-  await helpers.verifyChatUnreadCount(tenPage, 'Untitled group', 0, false, true);
+  await helpers.verifyChatUnreadCount(
+    tenPage,
+    'Untitled group',
+    0,
+    false,
+    true
+  );
 });

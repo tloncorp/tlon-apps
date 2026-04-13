@@ -316,7 +316,14 @@ export function ChannelHeader({
   return (
     <ScreenHeader
       title={displayTitle}
-      titleIcon={avatarElement || titleIcon}
+      titleIcon={
+        <>
+          {avatarElement || titleIcon}
+          {channelHost && !isWindowNarrow && (
+            <ConnectionStatus contactId={channelHost} type="indicator" />
+          )}
+        </>
+      }
       subtitle={displaySubtitle}
       testID="ChannelHeaderTitle"
       showSubtitle
@@ -327,12 +334,6 @@ export function ChannelHeader({
       leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
       rightControls={
         <>
-          {channelHost && !isWindowNarrow && (
-            <ConnectionStatus
-              contactId={channelHost}
-              type="indicator-with-text"
-            />
-          )}
           {showSearchButton && (
             <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
           )}
@@ -341,11 +342,13 @@ export function ChannelHeader({
             <Fragment key={index}>{item}</Fragment>
           ))}
           {showEditButton && (
-            <ScreenHeader.IconButton
+            <ScreenHeader.TextButton
               onPress={goToEdit}
               testID="ChannelHeaderEditButton"
-              type="Settings"
-            />
+              color="$primaryText"
+            >
+              Edit
+            </ScreenHeader.TextButton>
           )}
         </>
       }

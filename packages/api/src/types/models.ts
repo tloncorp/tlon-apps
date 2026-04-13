@@ -4,11 +4,11 @@
  * These are the API-owned structural contracts used across package boundaries.
  * DB-layer models are expected to be assignable to these shapes.
  */
-
 import type { ChannelContentConfiguration } from '../client/channelContentConfig';
 import type { ExtendedEventType, NotificationLevel } from '../urbit';
 import type {
   GroupJoinStatus,
+  GroupMemberInvite,
   GroupPrivacy,
 } from './groups';
 import type { Post, ThreadUnreadState } from './post';
@@ -174,6 +174,9 @@ export interface Group extends WithId {
   volumeSettings?: VolumeSettings | null;
   flaggedPosts?: any[] | null;
   bannedMembers?: any[] | null;
+  // Kept for tlon-skill compatibility, though current group hydration appears
+  // to fold invited members into `members` with `status: 'invited'` instead.
+  pendingMembers?: GroupMemberInvite[] | null;
   joinRequests?: any[] | null;
 }
 
@@ -304,7 +307,9 @@ export function isGroupEvent(event: ActivityEvent): event is GroupEvent {
   );
 }
 
-export function isSystemContact(contact: Contact | SystemContact): contact is SystemContact {
+export function isSystemContact(
+  contact: Contact | SystemContact
+): contact is SystemContact {
   const hasPhone = 'phoneNumber' in contact;
   const hasEmail = 'email' in contact;
   return hasPhone || hasEmail;

@@ -3,19 +3,20 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
-import { parseIdNumber } from '../client/apiUtils';
-import { Stringified } from '../lib/utilityTypes';
+import type { Poke } from '../http-api';
+import type { Stringified } from '../lib/utilityTypes';
 import {
   Block,
   Image,
   Inline,
   isBlock,
   isBlockquote,
-  isImage,
   isBreak,
+  isImage,
 } from './content';
 import { Flag } from './hark';
 import { Metadata } from './meta';
+import { parseIdNumber } from './utils';
 
 export interface CacheId {
   author: string;
@@ -166,7 +167,7 @@ export type PageMap = BTree<BigInteger, Post | null>;
 
 export interface Reply {
   seal: ReplySeal;
-  memo: Memo;
+  'reply-essay': ReplyEssay;
   revision?: string;
 }
 
@@ -174,6 +175,10 @@ export interface Memo {
   content: Story;
   author: Author;
   sent: number;
+}
+
+export interface ReplyEssay extends Memo {
+  blob: string | null;
 }
 
 export type ReplyMap = BTree<BigInteger, Reply>;
@@ -264,13 +269,13 @@ export interface CreateDiff {
 }
 
 export interface ReplyActionAdd {
-  add: Memo;
+  add: ReplyEssay;
 }
 
 export interface ReplyActionEdit {
   edit: {
     id: string;
-    memo: Memo;
+    'reply-essay': ReplyEssay;
   };
 }
 
@@ -291,7 +296,7 @@ export type SortMode = 'alpha' | 'time' | 'arranged';
 
 export interface PendingMessages {
   posts: Record<string, PostEssay>;
-  replies: Record<string, Record<string, Memo>>;
+  replies: Record<string, Record<string, ReplyEssay>>;
 }
 
 export type JSONValue = number | string | boolean;
@@ -425,7 +430,7 @@ export type PendingResponse =
       reply: {
         top: string;
         meta: ReplyMeta;
-        memo: Memo;
+        'reply-essay': ReplyEssay;
       };
     };
 
@@ -569,10 +574,11 @@ export const emptyReply: Reply = {
     reacts: {},
   },
   revision: '0',
-  memo: {
+  'reply-essay': {
     author: '',
     content: [],
     sent: 0,
+    blob: null,
   },
 };
 
@@ -718,3 +724,19 @@ export type ChannelHead = {
 export type ChannelHeadsResponse = ChannelHead[];
 
 export type ChannelHooksPreview = { name: string; meta: Metadata }[];
+
+export function channelAction(
+  channelId: string,
+  action: Action
+): Poke<ChannelsAction> {
+  return {
+    app: 'channels',
+    mark: 'channel-action-2',
+    json: {
+      channel: {
+        nest: channelId,
+        action,
+      },
+    },
+  };
+}

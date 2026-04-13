@@ -1,6 +1,5 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import {
   ComponentProps,
   useCallback,
@@ -10,8 +9,7 @@ import {
 } from 'react';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
-import { useFilteredChats } from '../../hooks/useFilteredChats';
-import { useResolvedChats } from '../../hooks/useResolvedChats';
+import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
 import { ActionSheet } from './ActionSheet';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
@@ -19,40 +17,27 @@ import { SearchBar } from './SearchBar';
 type ForwardChannelSelectorProps = {
   isOpen: boolean;
   onChannelSelected: (channel: db.Channel) => void;
+  channelFilter?: (channel: db.Channel) => boolean;
 };
+
+type ChannelChat = db.Chat & { type: 'channel' };
 
 export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
+  channelFilter,
 }: ForwardChannelSelectorProps) {
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
-  const { data: chats } = store.useCurrentChats();
-  const resolvedChats = useResolvedChats(chats);
-  const filteredChatsConfig = useMemo(
-    () => ({
-      ...resolvedChats,
-      pending: [],
-      searchQuery: query,
-      activeTab: 'channels' as const,
-    }),
-    [resolvedChats, query]
-  );
-  const displayData = useFilteredChats(filteredChatsConfig);
-
-  const channels = useMemo(() => {
-    const allChats = displayData.flatMap((section) => section.data);
-
-    return allChats.flatMap((chat) =>
-      chat.type === 'channel' ? [chat.channel] : []
-    );
-  }, [displayData]);
-
+  const { channelChats, isSearching } = useFilteredChannelChats({
+    searchQuery: query,
+    channelFilter,
+  });
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
-    // Reset explicit row selection on a new query so top result is highlighted.
+    // Reset any explicit row selection when the result set changes.
     setSelectedChannelId(null);
   }, []);
 
@@ -64,14 +49,14 @@ export function ForwardChannelSelector({
   }, [isOpen]);
 
   const highlightedChannelId = useMemo(() => {
-    if (!channels.length) {
+    if (!selectedChannelId) {
       return null;
     }
-    if (selectedChannelId && channels.some((c) => c.id === selectedChannelId)) {
-      return selectedChannelId;
-    }
-    return channels[0].id;
-  }, [channels, selectedChannelId]);
+
+    return channelChats.some((chat) => chat.channel.id === selectedChannelId)
+      ? selectedChannelId
+      : null;
+  }, [channelChats, selectedChannelId]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -81,11 +66,11 @@ export function ForwardChannelSelector({
     [onChannelSelected]
   );
 
-  const renderItem: ListRenderItem<db.Channel> = useCallback(
-    ({ item }: { item: db.Channel }) => (
+  const renderItem: ListRenderItem<ChannelChat> = useCallback(
+    ({ item }: { item: ChannelChat }) => (
       <ForwardChannelListItem
-        channel={item}
-        selected={highlightedChannelId === item.id}
+        channel={item.channel}
+        selected={highlightedChannelId === item.channel.id}
         onPress={handleChannelSelected}
       />
     ),
@@ -100,28 +85,28 @@ export function ForwardChannelSelector({
     []
   );
 
-  const isSearching = query.trim() !== '';
-
   return (
     <>
       <XStack paddingHorizontal="$xl">
         <SearchBar
           placeholder="Search channels"
           onChangeQuery={handleQueryChanged}
+          debounceTime={0}
         ></SearchBar>
       </XStack>
 
       {isOpen ? (
-        <View flex={1}>
-          {isSearching && channels.length === 0 ? (
+        <View flex={1} minHeight={200}>
+          {isSearching && channelChats.length === 0 ? (
             <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
               No results found
             </Text>
           ) : (
-            <FlashList<db.Channel>
-              data={channels}
+            <FlashList<ChannelChat>
+              data={channelChats}
+              extraData={highlightedChannelId}
               contentContainerStyle={contentContainerStyle}
-              keyExtractor={(channel) => channel.id}
+              keyExtractor={(chat) => chat.channel.id}
               renderItem={renderItem}
               renderScrollComponent={(props) => (
                 <ActionSheet.ScrollableContent
@@ -130,6 +115,7 @@ export function ForwardChannelSelector({
                   >)}
                 />
               )}
+              keyboardShouldPersistTaps="always"
             />
           )}
         </View>

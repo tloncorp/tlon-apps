@@ -1,12 +1,12 @@
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
+import { createDevLogger } from '../lib/logger';
+import type { Stringified } from '../lib/utilityTypes';
 import type * as db from '../types/models';
-import { createDevLogger } from './logger';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
 import { encodeString } from '../urbit/utils';
-import { Stringified } from '../lib/utilityTypes';
 import {
   getCanonicalPostId,
   getChannelIdType,
@@ -23,22 +23,6 @@ import {
 } from './urbit';
 
 const logger = createDevLogger('channelsApi', false);
-
-export function channelAction(
-  channelId: string,
-  action: Action
-): Poke<ChannelsAction> {
-  return {
-    app: 'channels',
-    mark: 'channel-action-1',
-    json: {
-      channel: {
-        nest: channelId,
-        action,
-      },
-    },
-  };
-}
 
 export type AddPostUpdate = { type: 'addPost'; post: db.Post };
 export type PostReactionsUpdate = {
@@ -123,12 +107,12 @@ export const createChannel = async ({
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
-      mark: 'channel-action-1',
+      mark: 'channel-action-2',
       json: {
         create: channelPayload,
       },
     },
-    { app: 'channels', path: '/v2' },
+    { app: 'channels', path: '/v4' },
     (event) => {
       return 'create' in event.response && event.nest === id;
     },
@@ -143,7 +127,7 @@ export async function updateChannelMeta(
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-2',
       json: {
         channel: {
           nest: channelId,
@@ -153,7 +137,7 @@ export async function updateChannelMeta(
         },
       },
     },
-    { app: 'channels', path: '/v2' },
+    { app: 'channels', path: '/v4' },
     (event) => {
       return 'meta' in event.response;
     }
@@ -180,7 +164,7 @@ export const subscribeToChannelsUpdates = async (
   eventHandler: (update: ChannelsUpdate) => void
 ) => {
   subscribe(
-    { app: 'channels', path: '/v2' },
+    { app: 'channels', path: '/v4' },
     (rawEvent: ub.ChannelsSubscribeResponse) => {
       logger.log('channels received event', rawEvent);
       eventHandler(toChannelsUpdate(rawEvent));
@@ -328,19 +312,25 @@ export const toChannelsUpdate = (
           return { type: 'deletePost', postId, channelId };
         } else if ('reacts' in postResponse && postResponse.reacts !== null) {
           // Check for shortcodes in raw reactions from server
-          const shortcodeReactions = Object.entries(postResponse.reacts).filter(([, v]) => 
-            typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+          const shortcodeReactions = Object.entries(postResponse.reacts).filter(
+            ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
           );
-          
+
           if (shortcodeReactions.length > 0) {
-            logger.trackError('Shortcode reactions received from server (post)', {
-              postId,
-              shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
-              allReacts: postResponse.reacts,
-              context: 'channel_post_update'
-            });
+            logger.trackError(
+              'Shortcode reactions received from server (post)',
+              {
+                postId,
+                shortcodeReactions: shortcodeReactions.map(([k, v]) => ({
+                  user: k,
+                  value: v,
+                })),
+                allReacts: postResponse.reacts,
+                context: 'channel_post_update',
+              }
+            );
           }
-          
+
           const updatedReacts = toReactionsData(postResponse.reacts, postId);
           logger.log('update reactions event');
           return { type: 'updateReactions', postId, reactions: updatedReacts };
@@ -368,19 +358,27 @@ export const toChannelsUpdate = (
           return { type: 'deletePost', postId: replyId, channelId };
         } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
           // Check for shortcodes in raw reply reactions from server
-          const shortcodeReactions = Object.entries(replyResponse.reacts).filter(([, v]) => 
-            typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+          const shortcodeReactions = Object.entries(
+            replyResponse.reacts
+          ).filter(
+            ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
           );
-          
+
           if (shortcodeReactions.length > 0) {
-            logger.trackError('Shortcode reactions received from server (reply)', {
-              replyId,
-              shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
-              allReacts: replyResponse.reacts,
-              context: 'channel_reply_update'
-            });
+            logger.trackError(
+              'Shortcode reactions received from server (reply)',
+              {
+                replyId,
+                shortcodeReactions: shortcodeReactions.map(([k, v]) => ({
+                  user: k,
+                  value: v,
+                })),
+                allReacts: replyResponse.reacts,
+                context: 'channel_reply_update',
+              }
+            );
           }
-          
+
           const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
           logger.log('update reply reactions event');
           return {
@@ -428,12 +426,12 @@ export const createNewGroupDefaultChannel = async ({
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-2',
       json: {
         create: channelPayload,
       },
     },
-    { app: 'channels', path: '/v2' },
+    { app: 'channels', path: '/v4' },
     (event) => {
       const { response, nest } = event;
       return (
@@ -460,7 +458,7 @@ export const searchChannel = async (params: {
     // channels agent
     response = await scry<ub.ChannelScam>({
       app: 'channels',
-      path: `/${params.channelId}/search/bounded/text/${
+      path: `/v5/${params.channelId}/search/bounded/text/${
         params.cursor ? render('ud', BigInt(params.cursor ?? 0)) : ''
       }/${SINGLE_PAGE_SEARCH_DEPTH}/${encodedQuery}`,
     });
@@ -510,7 +508,7 @@ export const setOrder = async (
 ) => {
   await poke({
     app: 'channels',
-    mark: 'channel-action',
+    mark: 'channel-action-2',
     json: {
       channel: {
         nest: channelId,
@@ -526,7 +524,7 @@ export const leaveChannel = async (channelId: string) => {
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-2',
       json: {
         channel: {
           nest: channelId,
@@ -536,7 +534,7 @@ export const leaveChannel = async (channelId: string) => {
         },
       },
     },
-    { app: 'channels', path: '/v2' },
+    { app: 'channels', path: '/v4' },
     (event) => {
       return 'leave' in event.response && event.response.leave === channelId;
     },
@@ -548,7 +546,7 @@ export const joinChannel = async (channelId: string, groupId: string) => {
   return trackedPoke<ub.ChannelsResponse>(
     {
       app: 'channels',
-      mark: 'channel-action',
+      mark: 'channel-action-2',
       json: {
         channel: {
           nest: channelId,
@@ -558,7 +556,7 @@ export const joinChannel = async (channelId: string, groupId: string) => {
         },
       },
     },
-    { app: 'channels', path: '/v2' },
+    { app: 'channels', path: '/v4' },
     (event) => {
       return 'join' in event.response && event.nest === channelId;
     },
@@ -583,7 +581,7 @@ export async function addChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelAction(channelId, { 'add-writers': writers }));
+  return poke(ub.channelAction(channelId, { 'add-writers': writers }));
 }
 
 export async function removeChannelWriters({
@@ -593,5 +591,5 @@ export async function removeChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelAction(channelId, { 'del-writers': writers }));
+  return poke(ub.channelAction(channelId, { 'del-writers': writers }));
 }

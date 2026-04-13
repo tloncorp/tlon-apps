@@ -1,22 +1,9 @@
-import type {
-  Blockquote as MdastBlockquote,
-  Code as MdastCode,
-  Delete,
-  Emphasis,
-  Heading,
-  Image as MdastImage,
-  InlineCode as MdastInlineCode,
-  Link as MdastLink,
-  List as MdastList,
-  ListItem as MdastListItem,
-  Paragraph,
-  PhrasingContent,
-  RootContent,
-  Strong,
-  Text,
-  ThematicBreak,
-} from 'mdast';
-
+import {
+  Story,
+  Verse,
+  VerseBlock,
+  VerseInline,
+} from '@tloncorp/api/urbit/channel';
 import {
   Block,
   Blockquote,
@@ -39,7 +26,25 @@ import {
   Strikethrough,
   Task,
 } from '@tloncorp/api/urbit/content';
-import { Story, Verse, VerseBlock, VerseInline } from '@tloncorp/api/urbit/channel';
+import type {
+  Delete,
+  Emphasis,
+  Heading,
+  Blockquote as MdastBlockquote,
+  Code as MdastCode,
+  Image as MdastImage,
+  InlineCode as MdastInlineCode,
+  Link as MdastLink,
+  List as MdastList,
+  ListItem as MdastListItem,
+  Paragraph,
+  PhrasingContent,
+  RootContent,
+  Strong,
+  Text,
+  ThematicBreak,
+} from 'mdast';
+
 import type { ShipMention } from './shipMentionPlugin';
 
 /**
@@ -198,7 +203,9 @@ function listItemsToListings(
 
       // Handle task list with nested items
       if (listType === 'tasklist' && isTaskListItem(item)) {
-        const task: Task = { task: { checked: item.checked, content: contentInlines } };
+        const task: Task = {
+          task: { checked: item.checked, content: contentInlines },
+        };
         contentInlines = [task];
       }
 
@@ -226,7 +233,9 @@ function listItemsToListings(
 
       for (const child of item.children) {
         if (child.type === 'paragraph') {
-          const paragraphInlines = phrasingToInlines((child as Paragraph).children);
+          const paragraphInlines = phrasingToInlines(
+            (child as Paragraph).children
+          );
           // Add the paragraph's content
           if (inlines.length > 0) {
             // Add a break between paragraphs to preserve paragraph separation
@@ -238,7 +247,9 @@ function listItemsToListings(
 
       // Handle task list item
       if (listType === 'tasklist' && isTaskListItem(item)) {
-        const task: Task = { task: { checked: item.checked, content: inlines } };
+        const task: Task = {
+          task: { checked: item.checked, content: inlines },
+        };
         const listItem: ListItem = { item: [task] };
         listings.push(listItem);
       } else {
@@ -268,8 +279,10 @@ function nodeToBlock(node: RootContent): Block | null {
       const codeNode = node as MdastCode;
       // Normalize language to lowercase alphanumeric, default to 'text'
       const lang =
-        codeNode.lang?.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') ||
-        'text';
+        codeNode.lang
+          ?.trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, '') || 'text';
       const code: Code = {
         code: {
           code: codeNode.value,
@@ -370,7 +383,11 @@ function tableToVerse(node: RootContent): VerseInline | null {
 
   // Extract rows from table
   const rows: string[][] = [];
-  for (const row of (node as { children: Array<{ children: Array<{ children: PhrasingContent[] }> }> }).children) {
+  for (const row of (
+    node as {
+      children: Array<{ children: Array<{ children: PhrasingContent[] }> }>;
+    }
+  ).children) {
     const cells: string[] = [];
     for (const cell of row.children) {
       // Extract text from cell children

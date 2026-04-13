@@ -7,10 +7,7 @@ import { useCallback } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import {
-  ChatOptionsProvider,
-  ForwardGroupSheetProvider,
-} from '../../ui';
+import { ChatOptionsProvider, ForwardGroupSheetProvider } from '../../ui';
 import { ChannelDetailsScreenView } from '../top/ChannelDetailsScreen';
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'ChannelInfo'>;

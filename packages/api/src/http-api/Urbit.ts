@@ -1,32 +1,25 @@
 import { parse, render } from '@urbit/aura';
-import { Atom, Cell, Noun, dejs, enjs, jam } from '@urbit/nockjs';
+import { Atom, Cell, Noun, dejs, jam } from '@urbit/nockjs';
 
-import { TimeoutError } from '../client';
-import { createDevLogger } from '../client/logger';
-import { desig } from '../urbit';
-import { readArrayBufferFromBlob } from '../lib/blob';
-import { createTimeoutSignal } from '../lib/timeoutSignal';
 import { EventEmitter } from '../lib/EventEmitter';
+import { readArrayBufferFromBlob } from '../lib/blob';
+import { createDevLogger } from '../lib/logger';
+import { createTimeoutSignal } from '../lib/timeoutSignal';
+import { desig } from '../lib/urbit';
 import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
-import {
-  EventSourceMessage,
-  FetchEventSourceInit,
-  fetchEventSource,
-} from './fetch-event-source';
+import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
   Ack,
   AuthError,
   AuthenticationInterface,
   FatalError,
   Message,
-  NounPoke,
   NounPokeInterface,
   PokeHandlers,
   PokeInterface,
   ReapError,
   SSEBadResponseError,
   SSEOptions,
-  SSETimeoutError,
   Scry,
   SubscriptionRequestInterface,
   Thread,
@@ -142,6 +135,10 @@ export class Urbit {
     const headers: headers = {
       'Content-Type': 'application/json',
     };
+
+    if (!isBrowser && this.cookie) {
+      headers['Cookie'] = this.cookie;
+    }
 
     return {
       credentials: isBrowser ? 'include' : undefined,
@@ -285,9 +282,14 @@ export class Urbit {
    *
    */
   async getOurName(): Promise<void> {
+    const headers: Record<string, string> = {};
+    if (!isBrowser && this.cookie) {
+      headers['Cookie'] = this.cookie;
+    }
     const nameResp = await this.fetchFn(`${this.url}/~/name`, {
       method: 'get',
       credentials: 'include',
+      headers,
     });
     const name = await nameResp.text();
     this.our = name;
@@ -317,18 +319,21 @@ export class Urbit {
       if (this.verbose) {
         console.log('Received authentication response', response);
       }
-      if (response.status >= 200 && response.status < 300) {
+      if (response.status < 200 || response.status >= 300) {
         throw new Error('Login failed with status ' + response.status);
       }
       const cookie = response.headers.get('set-cookie');
       if (!this.nodeId && cookie) {
-        this.nodeId = new RegExp(/urbauth-~([\w-]+)/).exec(cookie)?.[1];
+        this.nodeId = new RegExp(/urbauth-(~[\w-]+)/).exec(cookie)?.[1];
       }
       if (!isBrowser) {
-        this.cookie = cookie || undefined;
+        // In the Node request path we reuse this value as a `Cookie` header.
+        // `set-cookie` includes attributes like `Path` and `Max-Age`, but
+        // subsequent `Cookie` headers should only send the `key=value` pair.
+        this.cookie = cookie?.split(';')[0].trim() || undefined;
       }
-      this.getShipName();
-      this.getOurName();
+      await this.getShipName();
+      await this.getOurName();
     });
   }
 
@@ -551,7 +556,7 @@ export class Urbit {
       }
     });
 
-    this.outstandingPokes.forEach((poke, id) => {
+    this.outstandingPokes.forEach((poke) => {
       poke.onError?.('Channel was reaped');
     });
     this.outstandingPokes = new Map();

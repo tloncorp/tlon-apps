@@ -1,8 +1,8 @@
 import type { Poke } from '../http-api';
+import { createDevLogger } from '../lib/logger';
+import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import type * as db from '../types/models';
 import type { GroupPrivacy } from '../types/models';
-import { createDevLogger } from './logger';
-import { AnalyticsEvent, AnalyticsSeverity } from '../types/analytics';
 import { PersonalGroupSlugs } from '../types/wayfinding';
 import type * as ub from '../urbit';
 import {
@@ -1710,8 +1710,7 @@ export function toClientGroupV7(
     haveRequestedInvite: isJoined ? false : undefined,
     currentUserIsMember: isJoined,
     currentUserIsHost: hostUserId === currentUserId,
-    isPersonalGroup:
-      id === `${currentUserId}/${PersonalGroupSlugs.slug}`,
+    isPersonalGroup: id === `${currentUserId}/${PersonalGroupSlugs.slug}`,
     joinStatus: undefined, // v7 groups from init are already joined
     hostUserId,
     flaggedPosts,

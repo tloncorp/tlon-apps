@@ -215,13 +215,14 @@ function ChatDetailsScreenView() {
         title={getTitle()}
         rightControls={
           currentUserIsAdmin ? (
-            <ScreenHeader.IconButton
-              aria-label="Edit"
+            <ScreenHeader.TextButton
               onPress={!actionsEnabled ? undefined : handlePressEdit}
               disabled={!actionsEnabled}
-              type="Draw"
+              color="$primaryText"
               testID="DetailsEditButton"
-            />
+            >
+              Rename
+            </ScreenHeader.TextButton>
           ) : null
         }
       />

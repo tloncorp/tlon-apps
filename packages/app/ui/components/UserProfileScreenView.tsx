@@ -429,7 +429,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
-  const queryClient = store.queryClient;
+  const queryClient = db.queryClient;
 
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {

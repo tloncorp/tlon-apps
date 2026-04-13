@@ -1,5 +1,7 @@
-import { createDevLogger } from '@tloncorp/shared';
 import * as api from '@tloncorp/api';
+import { reportChatListNativeCacheResult } from '@tloncorp/app/lib/chatListSettleTelemetry';
+import { reportPushNotifNativeCacheResult } from '@tloncorp/app/lib/pushNotifTapTelemetry';
+import { createDevLogger } from '@tloncorp/shared';
 import {
   CHANGES_SYNCED_AT_KEY,
   registerStorageItemListener,
@@ -7,8 +9,6 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import * as utils from '@tloncorp/shared/utils';
-import { reportChatListNativeCacheResult } from '@tloncorp/app/lib/chatListSettleTelemetry';
-import { reportPushNotifNativeCacheResult } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { useCallback, useEffect } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
 

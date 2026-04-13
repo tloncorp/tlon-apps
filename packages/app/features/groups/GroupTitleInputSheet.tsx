@@ -55,7 +55,13 @@ export function GroupTitleInputSheet({
   );
 
   const nextButton = (
-    <Button preset="primary" disabled={!title.trim()} onPress={handleNext} label="Next" centered />
+    <Button
+      preset="primary"
+      disabled={!title.trim()}
+      onPress={handleNext}
+      label="Next"
+      centered
+    />
   );
 
   const content = isWindowNarrow ? (
@@ -94,7 +100,11 @@ export function GroupTitleInputSheet({
       };
 
   return (
-    <ActionSheet open={open} onOpenChange={handleOpenChange} {...actionSheetProps}>
+    <ActionSheet
+      open={open}
+      onOpenChange={handleOpenChange}
+      {...actionSheetProps}
+    >
       {isWindowNarrow ? content : <View padding="$m">{content}</View>}
     </ActionSheet>
   );

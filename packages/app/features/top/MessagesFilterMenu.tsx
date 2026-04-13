@@ -1,5 +1,5 @@
-import * as store from '@tloncorp/shared/store';
 import { TalkSidebarFilter } from '@tloncorp/api/urbit';
+import * as store from '@tloncorp/shared/store';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
 
 import { ActionSheet, createActionGroups } from '../../ui';

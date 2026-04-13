@@ -2,6 +2,7 @@ import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
+  GestureTrigger,
   Icon,
   Image,
   Pressable,
@@ -224,9 +225,7 @@ export function ReferenceBlock({
 export function VoiceMemoBlock({
   block,
   ...props
-}: { block: cn.VoiceMemoBlockData } & ComponentProps<
-  typeof Reference.Frame
->) {
+}: { block: cn.VoiceMemoBlockData } & ComponentProps<typeof Reference.Frame>) {
   const { togglePlayback, progress, status, isThisSourceLoaded } =
     useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
 
@@ -483,7 +482,7 @@ export function VideoBlock({
   ComponentProps<typeof VideoEmbed>,
   'video'
 >) {
-  return <VideoEmbed video={block} {...props} />;
+  return <VideoEmbed video={block.video} {...props} />;
 }
 
 export function ImageBlock({
@@ -494,7 +493,7 @@ export function ImageBlock({
   block: cn.ImageBlockData;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof View>) {
-  const { onPressImage, onLongPress } = useContentContext();
+  const { getImageViewerId, onPressImage, onLongPress } = useContentContext();
   const [dimensions, setDimensions] = useState({
     width: block.width || null,
     height: block.height || null,
@@ -517,19 +516,56 @@ export function ImageBlock({
   }, []);
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
+  const viewerId = getImageViewerId?.(block.src);
 
-  return (
+  // Calculate constrained dimensions that respect both maxWidth and maxHeight
+  // while maintaining the natural aspect ratio (similar to VideoEmbed logic).
+  // Dimensions are applied to the Pressable wrapper so ContentImage fills it.
+  const constrainedSize = useMemo(() => {
+    const aspect = dimensions.aspect;
+    if (!aspect) return null;
+    const maxW =
+      typeof imageProps?.maxWidth === 'number' ? imageProps.maxWidth : null;
+    const maxH =
+      typeof imageProps?.maxHeight === 'number' ? imageProps.maxHeight : null;
+    if (maxW != null && maxH != null) {
+      const width = Math.min(maxW, maxH * aspect);
+      return { width, height: width / aspect };
+    }
+    return null;
+  }, [dimensions.aspect, imageProps?.maxWidth, imageProps?.maxHeight]);
+
+  // When using constrained sizing, strip maxWidth/maxHeight from imageProps
+  // so they don't override responsive sizing on narrow viewports.
+  const {
+    maxWidth: _imageMaxWidth,
+    maxHeight: _imageMaxHeight,
+    ...remainingImageProps
+  } = imageProps ?? {};
+
+  const imagePressable = (
     <Pressable
       overflow="hidden"
       onPress={handlePress}
       onLongPress={onLongPress}
       {...props}
+      {...(constrainedSize
+        ? {
+            alignSelf: 'flex-start' as const,
+            width: constrainedSize.width,
+            height: constrainedSize.height,
+            maxWidth: '100%',
+          }
+        : dimensions.width
+          ? { maxWidth: dimensions.width }
+          : {})}
     >
       <ContentImage
         source={{
           uri: block.src,
         }}
-        {...(shouldUseAspectRatio
+        {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
+        {...(shouldUseAspectRatio && !constrainedSize
           ? { aspectRatio: dimensions.aspect || 1 }
           : {})}
         {...(isInsideReference
@@ -542,18 +578,22 @@ export function ImageBlock({
         borderRadius="$s"
         alt={block.alt}
         onLoad={handleImageLoaded}
-        {...imageProps}
+        {...(constrainedSize ? remainingImageProps : imageProps)}
       />
     </Pressable>
   );
+
+  if (!viewerId) {
+    return imagePressable;
+  }
+
+  return <GestureTrigger id={viewerId}>{imagePressable}</GestureTrigger>;
 }
 
 const ContentImage = styled(Image, {
   name: 'ContentImage',
   context: ContentContext,
   width: '100%',
-  aspectRatio: 1,
-  backgroundColor: '$secondaryBackground',
 });
 
 export function RuleBlock({

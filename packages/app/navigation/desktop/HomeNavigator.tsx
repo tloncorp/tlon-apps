@@ -24,6 +24,7 @@ import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
+import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
 
 const HomeDrawer = createDrawerNavigator();
@@ -117,7 +118,9 @@ const DrawerContent = memo((props: DrawerContentComponentProps) => {
           />
         );
       }
-      return <HomeSidebar focusedChannelId={focusedRouteParams.chatId as string} />;
+      return (
+        <HomeSidebar focusedChannelId={focusedRouteParams.chatId as string} />
+      );
     } else if (focusedRouteParams.chatType === 'group') {
       return <GroupChannelsScreenContent groupId={focusedRouteParams.chatId} />;
     }
@@ -153,18 +156,21 @@ function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
   const navKey = () => {
-    if (props.route.params && 'channelId' in props.route.params) {
-      return props.route.params.channelId;
+    let channelId = 'none';
+    let selectedPostId = '';
+    const params = props.route.params;
+    if (params && 'channelId' in params) {
+      channelId = String(params.channelId ?? 'none');
+      if ('selectedPostId' in params && params.selectedPostId) {
+        selectedPostId = String(params.selectedPostId);
+      }
+    } else if (params?.params && 'channelId' in params.params) {
+      channelId = String(params.params.channelId ?? 'none');
+      if ('selectedPostId' in params.params && params.params.selectedPostId) {
+        selectedPostId = String(params.params.selectedPostId);
+      }
     }
-    if (
-      props.route.params &&
-      props.route.params.params &&
-      'channelId' in props.route.params.params
-    ) {
-      return props.route.params.params.channelId;
-    }
-
-    return 'none';
+    return selectedPostId ? `${channelId}:${selectedPostId}` : channelId;
   };
 
   return (
@@ -196,6 +202,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="MediaViewer"
           component={MediaViewerScreen}
+          options={mediaViewerScreenOptions}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"

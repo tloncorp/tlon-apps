@@ -5,11 +5,12 @@ import {
   createDevLogger,
   makePrettyDurationFromSeconds,
 } from '@tloncorp/shared';
-import { Icon, Image, Pressable, Text } from '@tloncorp/ui';
+import { GestureTrigger, Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback } from 'react';
 import { View, styled } from 'tamagui';
 
 import { RootStackParamList } from '../../../navigation/types';
+import { getVideoViewerId } from '../../../utils/mediaViewer';
 
 type VideoEmbedProps = ComponentProps<typeof View> & {
   video: {
@@ -92,8 +93,7 @@ function resolveVideoLayout({
   alignSelf: ComponentProps<typeof View>['alignSelf'];
   aspectRatio: number;
 }): VideoLayout {
-  const numericMaxWidth =
-    typeof maxWidth === 'number' ? maxWidth : undefined;
+  const numericMaxWidth = typeof maxWidth === 'number' ? maxWidth : undefined;
   const numericMaxHeight =
     typeof maxHeight === 'number' ? maxHeight : undefined;
 
@@ -130,7 +130,11 @@ function resolveVideoLayout({
   };
 }
 
-export default function VideoEmbed({ video, contentFit = 'contain', ...props }: VideoEmbedProps) {
+export default function VideoEmbed({
+  video,
+  contentFit = 'contain',
+  ...props
+}: VideoEmbedProps) {
   const {
     maxWidth,
     maxHeight,
@@ -148,6 +152,7 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
     alignSelf: alignSelfProp,
     aspectRatio,
   });
+  const viewerId = getVideoViewerId(video.src, video.posterUri);
   const shouldFillMedia = layout.fillMedia || explicitHeight != null;
   const mediaSizeProps = shouldFillMedia
     ? { height: '100%' as const }
@@ -161,20 +166,17 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
       mediaType: 'video',
       uri: video.src,
       posterUri: video.posterUri,
+      viewerId,
     });
-  }, [
-    navigation,
-    video.posterUri,
-    video.src,
-  ]);
+  }, [navigation, video.posterUri, video.src, viewerId]);
 
-  return (
+  const content = (
     <Pressable
       onPress={handlePress}
       group="button"
       borderRadius="$m"
       overflow="hidden"
-      backgroundColor="$secondaryBackground"
+      backgroundColor={video.posterUri ? 'transparent' : '$secondaryBackground'}
       alignSelf={layout.alignSelf}
       maxWidth={maxWidth}
       width={layout.width}
@@ -192,9 +194,9 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
           source={{ uri: video.posterUri }}
           width="100%"
           {...mediaSizeProps}
-          backgroundColor="$secondaryBackground"
+          backgroundColor="transparent"
           contentFit={contentFit}
-          alt={video.alt}
+          alt={video.alt ?? 'video'}
         />
       ) : (
         <View
@@ -206,4 +208,10 @@ export default function VideoEmbed({ video, contentFit = 'contain', ...props }: 
       <VideoOverlay durationLabel={durationLabel} />
     </Pressable>
   );
+
+  if (!viewerId) {
+    return content;
+  }
+
+  return <GestureTrigger id={viewerId}>{content}</GestureTrigger>;
 }

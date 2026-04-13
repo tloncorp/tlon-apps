@@ -1,13 +1,3 @@
-import { SQL, relations, sql } from 'drizzle-orm';
-import {
-  index,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
-
 import type { ChannelContentConfiguration } from '@tloncorp/api/client/channelContentConfig';
 import {
   BASE_UNREADS_SINGLETON_KEY as API_BASE_UNREADS_SINGLETON_KEY,
@@ -24,7 +14,20 @@ import type {
   PinType as ApiPinType,
   PostDeliveryStatus as ApiPostDeliveryStatus,
 } from '@tloncorp/api/types/models';
-import { ExtendedEventType, NotificationLevel, Rank } from '@tloncorp/api/urbit';
+import {
+  ExtendedEventType,
+  NotificationLevel,
+  Rank,
+} from '@tloncorp/api/urbit';
+import { SQL, relations, sql } from 'drizzle-orm';
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });

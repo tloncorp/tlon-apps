@@ -1,18 +1,18 @@
-import bigInt, { BigInteger } from 'big-integer';  //REVIEW  non-native!
+import bigInt, { BigInteger } from 'big-integer';
+//REVIEW  non-native!
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
 import {
-  Memo,
   PostEssay,
   PostSeal,
   PostSealDataResponse,
-  Reply,
+  ReplyEssay,
   ReplyMeta,
   ReplySeal,
 } from './channel';
 import { GroupMeta } from './groups';
-import { parseIdNumber } from '../client/apiUtils';
+import { parseIdNumber } from './utils';
 
 export type Patda = string;
 export type Ship = string;
@@ -35,14 +35,16 @@ export type WritLike = Writ | WritTombstone;
 
 export type WritEssay = PostEssay;
 
-export type WritMemo = Memo;
+export type WritMemo = ReplyEssay;
 
 export interface WritReplySeal extends ReplySeal {
   time: string;
 }
 
-export interface WritReply extends Reply {
+export interface WritReply {
   seal: WritReplySeal;
+  'reply-essay': WritMemo;
+  revision?: string;
 }
 
 export interface WritReplyReferenceResponse {
@@ -83,7 +85,7 @@ export interface WritDeltaDelReact {
 
 export interface ReplyDeltaAdd {
   add: {
-    memo: WritMemo;
+    'reply-essay': WritMemo;
     time: string | null;
   };
 }
@@ -385,3 +387,17 @@ export type ChatHead = {
 };
 
 export type ChatHeadsResponse = ChatHead[];
+
+export function multiDmAction(id: string, delta: ClubDelta) {
+  return {
+    app: 'chat',
+    mark: 'chat-club-action-2',
+    json: {
+      id,
+      diff: {
+        uid: '0v4',
+        delta,
+      },
+    },
+  };
+}

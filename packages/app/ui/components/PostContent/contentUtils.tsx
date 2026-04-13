@@ -28,6 +28,7 @@ export function usePostLastEditContent(post: Post): BlockData[] {
 export interface ContentContextProps {
   isNotice?: boolean;
   onPressImage?: (src: string) => void;
+  getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
   searchQuery?: string;
 }

@@ -1,16 +1,12 @@
 import { expect, test } from 'vitest';
 
+import { toPostData, toPostReplyData, toPostsData } from '../client/postsApi';
 import type { Post } from '../types/models';
+import * as ub from '../urbit';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from './fixtures/channelPosts.json';
 import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';
 import rawGroupDmPostWithRepliesData from './fixtures/groupDmPostWithReplies.json';
-import * as ub from '../urbit';
-import {
-  toPostData,
-  toPostReplyData,
-  toPostsData,
-} from '../client/postsApi';
 
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',
@@ -66,7 +62,8 @@ test('toPostData extracts authorId from BotProfile on tombstone', () => {
 
 test('toPostsData handles mix of bot and normal authors', () => {
   const posts: ub.Posts = {
-    '170.141.184.506.535.164.684.262.900.635.183.087.616': makeBotPost(botAuthor),
+    '170.141.184.506.535.164.684.262.900.635.183.087.616':
+      makeBotPost(botAuthor),
     '170.141.184.506.536.962.871.190.015.156.707.917.824': makeBotPost('~zod'),
   };
   const result = toPostsData('chat/~zod/test', posts);
@@ -78,17 +75,18 @@ test('toPostsData handles mix of bot and normal authors', () => {
   expect(typeof normalPost!.authorId).toBe('string');
 });
 
-test('toPostReplyData extracts authorId from BotProfile memo author', () => {
+test('toPostReplyData extracts authorId from BotProfile reply-essay author', () => {
   const reply: ub.Reply = {
     seal: {
       id: '170141184506535176367510061158978551808',
       'parent-id': '170141184506535164684262900635183087616',
       reacts: {},
     },
-    memo: {
+    'reply-essay': {
       content: [{ inline: ['bot reply'] }],
       author: botAuthor,
       sent: 1701276293246,
+      blob: null,
     },
   };
   const result = toPostReplyData(
