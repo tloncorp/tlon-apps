@@ -6,7 +6,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -42,12 +42,11 @@ import {
   DEFAULT_BOT_CONFIG,
   MODEL_OPTIONS,
   PERSONALITY_TYPES,
-  SUGGESTED_EMOJIS,
-  SUGGESTED_NAMES,
   type BotConfig,
   type PersonalityType,
 } from '@tloncorp/shared/domain';
 import { EmojiPicker } from '../EmojiPicker';
+import { ModelOptionCard } from '../ModelOptionCard';
 import { NameSuggestions } from '../NameSuggestions';
 import { PersonalityCard } from '../PersonalityCard';
 import { PersonalInviteButton } from '../PersonalInviteButton';
@@ -454,30 +453,7 @@ function BotNamePane(props: {
           <SplashParagraph marginHorizontal={0} marginBottom="$s" color="$tertiaryText">
             Choose an emoji
           </SplashParagraph>
-          <View flexDirection="row" flexWrap="wrap" gap="$s">
-            {SUGGESTED_EMOJIS.map((emoji) => (
-              <Pressable key={emoji} onPress={() => props.onEmojiChange(emoji)}>
-                <View
-                  width={48}
-                  height={48}
-                  borderRadius="$m"
-                  borderWidth={2}
-                  borderColor={
-                    props.emoji === emoji ? '$positiveActionText' : '$border'
-                  }
-                  backgroundColor={
-                    props.emoji === emoji
-                      ? '$positiveBackground'
-                      : '$secondaryBackground'
-                  }
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <Text fontSize={24}>{emoji}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
+          <EmojiPicker value={props.emoji} onSelect={props.onEmojiChange} />
         </ScrollView>
       </YStack>
       <Button
@@ -574,50 +550,14 @@ function BotModelPane(props: {
           <SplashParagraph marginHorizontal={0} marginBottom="$m">
             MiniMax is free. Bring your own API key to use a different provider.
           </SplashParagraph>
-          {MODEL_OPTIONS.map((option) => {
-            const isSelected = props.model === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                onPress={() => props.onModelChange(option.value)}
-              >
-                <XStack
-                  padding="$l"
-                  borderRadius="$xl"
-                  borderWidth={2}
-                  borderColor={isSelected ? '$positiveActionText' : '$border'}
-                  backgroundColor={
-                    isSelected ? '$positiveBackground' : '$secondaryBackground'
-                  }
-                  justifyContent="space-between"
-                  alignItems="center"
-                >
-                  <YStack>
-                    <Text
-                      fontSize={16}
-                      fontWeight="500"
-                      color={
-                        isSelected ? '$positiveActionText' : '$primaryText'
-                      }
-                    >
-                      {option.label}
-                    </Text>
-                    <Text
-                      fontSize={12}
-                      color={
-                        isSelected ? '$positiveActionText' : '$secondaryText'
-                      }
-                    >
-                      {option.description}
-                    </Text>
-                  </YStack>
-                  {isSelected && (
-                    <Icon type="Checkmark" color="$positiveActionText" />
-                  )}
-                </XStack>
-              </Pressable>
-            );
-          })}
+          {MODEL_OPTIONS.map((option) => (
+            <ModelOptionCard
+              key={option.value}
+              option={option}
+              selected={props.model === option.value}
+              onPress={() => props.onModelChange(option.value)}
+            />
+          ))}
           {needsApiKey && (
             <View
               borderRadius="$xl"

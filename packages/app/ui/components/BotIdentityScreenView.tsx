@@ -15,7 +15,7 @@ import { ScrollView, Text, View, XStack, YStack, useTheme } from 'tamagui';
 
 import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
 import { EmojiPicker } from './EmojiPicker';
-import { ControlledTextField, FormFrame } from './Form';
+import { ControlledTextField, Field, FormFrame } from './Form';
 import { NameSuggestions } from './NameSuggestions';
 import { PersonalityCard } from './PersonalityCard';
 import { ScreenHeader } from './ScreenHeader';
@@ -176,7 +176,9 @@ export function BotIdentityScreenView({
             </YStack>
 
             {/* Emoji Picker */}
-            <EmojiPicker value={currentEmoji} onSelect={handleEmojiSelect} />
+            <Field label="Emoji">
+              <EmojiPicker value={currentEmoji} onSelect={handleEmojiSelect} />
+            </Field>
 
             {/* Personality Type */}
             <YStack gap="$m">

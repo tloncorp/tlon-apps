@@ -6,7 +6,6 @@ import {
 } from '@tloncorp/shared/domain';
 import {
   DEFAULT_BOTTOM_PADDING,
-  Icon,
   KEYBOARD_EXTRA_PADDING,
   KeyboardAvoidingView,
   Pressable,
@@ -22,6 +21,7 @@ import {
   Field,
   FormFrame,
 } from './Form';
+import { ModelOptionCard } from './ModelOptionCard';
 import { ScreenHeader } from './ScreenHeader';
 
 export interface BotBehaviorFormData {
@@ -113,60 +113,16 @@ export function BotBehaviorScreenView({
             {/* Model Picker */}
             <Field label="Model provider">
               <YStack gap="$s">
-                {MODEL_OPTIONS.map((option) => {
-                  const isSelected = currentModel === option.value;
-                  return (
-                    <Pressable
-                      key={option.value}
-                      onPress={() =>
-                        setValue('model', option.value, { shouldDirty: true })
-                      }
-                    >
-                      <XStack
-                        padding="$l"
-                        borderRadius="$xl"
-                        borderWidth={2}
-                        borderColor={
-                          isSelected ? '$positiveActionText' : '$border'
-                        }
-                        backgroundColor={
-                          isSelected
-                            ? '$positiveBackground'
-                            : '$secondaryBackground'
-                        }
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <YStack>
-                          <Text
-                            fontSize={16}
-                            fontWeight="500"
-                            color={
-                              isSelected
-                                ? '$positiveActionText'
-                                : '$primaryText'
-                            }
-                          >
-                            {option.label}
-                          </Text>
-                          <Text
-                            fontSize={12}
-                            color={
-                              isSelected
-                                ? '$positiveActionText'
-                                : '$secondaryText'
-                            }
-                          >
-                            {option.description}
-                          </Text>
-                        </YStack>
-                        {isSelected && (
-                          <Icon type="Checkmark" color="$positiveActionText" />
-                        )}
-                      </XStack>
-                    </Pressable>
-                  );
-                })}
+                {MODEL_OPTIONS.map((option) => (
+                  <ModelOptionCard
+                    key={option.value}
+                    option={option}
+                    selected={currentModel === option.value}
+                    onPress={() =>
+                      setValue('model', option.value, { shouldDirty: true })
+                    }
+                  />
+                ))}
               </YStack>
             </Field>
 
