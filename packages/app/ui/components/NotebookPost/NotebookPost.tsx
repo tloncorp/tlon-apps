@@ -14,6 +14,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import {
   View,
   ViewStyle,
@@ -68,6 +69,8 @@ export function NotebookPost({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
+
+  const disableLongPress = Platform.OS === 'web';
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -127,97 +130,97 @@ export function NotebookPost({
         }
 
         return (
-          <Pressable
+          <NotebookPostFrame
+            testID="Post"
+            size={size}
+            disabled={viewMode === 'activity'}
             onPress={handlePress}
             onHoverIn={onHoverIn}
             onHoverOut={onHoverOut}
-            onLongPress={handleLongPress}
+            onLongPress={disableLongPress ? undefined : handleLongPress}
             pressStyle={{ backgroundColor: '$secondaryBackground' }}
-            borderRadius="$l"
-            maxWidth={600}
-            width={'100%'}
+            alignSelf="center"
+            width="100%"
+            flex={1}
             marginHorizontal="auto"
-            testID="Post"
           >
-            <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
-              {moderated.type === 'hidden' ? (
-                moderated.hidden
-              ) : (
-                <>
-                  <NotebookPostHeader
+            {moderated.type === 'hidden' ? (
+              moderated.hidden
+            ) : (
+              <>
+                <NotebookPostHeader
+                  post={moderated.post}
+                  showDate={showDate}
+                  showAuthor={showAuthor && viewMode !== 'activity'}
+                  testID="NotebookPostHeader"
+                />
+
+                {viewMode !== 'activity' && (
+                  <Text
+                    size="$body"
+                    color="$secondaryText"
+                    numberOfLines={3}
+                    paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+                    testID="NotebookPostContentSummary"
+                  >
+                    {moderated.post.textContent}
+                  </Text>
+                )}
+
+                {showReplies && hasReplies ? (
+                  <ChatMessageReplySummary
                     post={moderated.post}
-                    showDate={showDate}
-                    showAuthor={showAuthor && viewMode !== 'activity'}
-                    testID="NotebookPostHeader"
+                    showTime={false}
+                    textColor="$tertiaryText"
                   />
+                ) : null}
+              </>
+            )}
 
-                  {viewMode !== 'activity' && (
-                    <Text
-                      size="$body"
-                      color="$secondaryText"
-                      numberOfLines={3}
-                      paddingBottom={showReplies && hasReplies ? 0 : '$m'}
-                      testID="NotebookPostContentSummary"
-                    >
-                      {moderated.post.textContent}
-                    </Text>
-                  )}
-
-                  {showReplies && hasReplies ? (
-                    <ChatMessageReplySummary
-                      post={moderated.post}
-                      showTime={false}
-                      textColor="$tertiaryText"
+            {deliveryFailed ? (
+              <Pressable onPress={handleRetryPressed}>
+                <XStack alignItems="center" justifyContent="flex-end">
+                  <Text color="$negativeActionText" size="$label/m">
+                    {isWindowNarrow ? 'Tap' : 'Click'} to retry
+                  </Text>
+                </XStack>
+              </Pressable>
+            ) : null}
+            {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+              <Pressable
+                position="absolute"
+                zIndex={1000}
+                top={12}
+                right={12}
+                onPress={handleOverflowPress}
+              >
+                <ChatMessageActions
+                  post={post}
+                  postActionIds={postActionIds}
+                  onDismiss={() => {
+                    setIsPopoverOpen(false);
+                    setIsHovered(false);
+                  }}
+                  onOpenChange={setIsPopoverOpen}
+                  onEdit={handleEditPostPressed}
+                  onReply={handlePress}
+                  mode="await-trigger"
+                  trigger={
+                    <Button
+                      icon="Overflow"
+                      fill="ghost"
+                      type="secondary"
+                      size="small"
+                      width={32}
+                      height={32}
+                      borderRadius="$m"
+                      testID="MessageActionsTrigger"
                     />
-                  ) : null}
-                </>
-              )}
-
-              {deliveryFailed ? (
-                <Pressable onPress={handleRetryPressed}>
-                  <XStack alignItems="center" justifyContent="flex-end">
-                    <Text color="$negativeActionText" size="$label/m">
-                      {isWindowNarrow ? 'Tap' : 'Click'} to retry
-                    </Text>
-                  </XStack>
-                </Pressable>
-              ) : null}
-              {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-                <Pressable
-                  position="absolute"
-                  zIndex={1000}
-                  top={12}
-                  right={12}
-                  onPress={handleOverflowPress}
-                >
-                  <ChatMessageActions
-                    post={post}
-                    postActionIds={postActionIds}
-                    onDismiss={() => {
-                      setIsPopoverOpen(false);
-                      setIsHovered(false);
-                    }}
-                    onOpenChange={setIsPopoverOpen}
-                    onEdit={handleEditPostPressed}
-                    onReply={handlePress}
-                    mode="await-trigger"
-                    trigger={
-                      <Button
-                        icon="Overflow"
-                        fill="ghost"
-                        type="secondary"
-                        size="small"
-                        width={32}
-                        height={32}
-                        borderRadius="$m"
-                        testID="MessageActionsTrigger"
-                      />
-                    }
-                  />
-                </Pressable>
-              )}
-            </NotebookPostFrame>
-          </Pressable>
+                  }
+                />
+              </Pressable>
+            )}
+          </NotebookPostFrame>
         );
       }}
     </PostModerationSwitch>
@@ -296,13 +299,12 @@ export function NotebookPostDetailView({
 
   return (
     <NotebookPostFrame
+      disabled // this is technically a Pressable - disable press behavior here
       embedded
       borderTopWidth={post.image ? 1 : 0}
-      paddingHorizontal={0}
       paddingTop={post.image ? '$xl' : '$2xl'}
       width="100%"
       marginHorizontal="auto"
-      maxWidth={600}
     >
       <NotebookPostHeader
         post={post}
@@ -342,7 +344,7 @@ const NotebookPostContext = createStyledContext<{ size: '$l' | '$s' | '$xs' }>({
   size: '$l',
 });
 
-const NotebookPostFrame = styled(View, {
+const NotebookPostFrame = styled(Pressable, {
   name: 'NotebookPostFrame',
   context: NotebookPostContext,
   borderWidth: 1,
@@ -350,6 +352,8 @@ const NotebookPostFrame = styled(View, {
   borderRadius: '$l',
   gap: '$2xl',
   padding: '$xl',
+  maxWidth: 600,
+  disabledStyle: { cursor: 'default' },
   variants: {
     embedded: {
       true: {
@@ -359,6 +363,7 @@ const NotebookPostFrame = styled(View, {
         borderBottomWidth: 1,
         borderColor: '$border',
         paddingBottom: '$l',
+        paddingHorizontal: 0,
       },
     },
     size: {} as Record<'$s' | '$l' | '$xs', ViewStyle>,
@@ -371,7 +376,7 @@ const NotebookPostHeaderFrame = styled(YStack, {
   overflow: 'hidden',
 });
 
-export const NotebookPostHeroImage = styled(Image, {
+const NotebookPostHeroImage = styled(Image, {
   context: NotebookPostContext,
   width: '100%',
   height: IMAGE_HEIGHT,
@@ -386,7 +391,7 @@ export const NotebookPostHeroImage = styled(Image, {
   } as const,
 });
 
-export const NotebookPostTitle = styled(Text, {
+const NotebookPostTitle = styled(Text, {
   context: NotebookPostContext,
   color: '$primaryText',
   size: '$title/l',
