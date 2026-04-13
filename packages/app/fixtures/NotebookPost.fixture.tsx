@@ -17,6 +17,7 @@ import {
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
 import { postWithEverything as post } from './contentHelpers';
+import { tlonLocalGettingStarted } from './fakeData';
 
 const NotebookPostSpecimen = ({
   label,
@@ -39,9 +40,11 @@ const NotebookPostSpecimen = ({
 
 const PostVariantsFixture = ({ post }: { post: db.Post }) => {
   const insets = useSafeAreaInsets();
+  const channel = tlonLocalGettingStarted;
+
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <ChannelProvider value={{ channel: post.channel! }}>
+      <ChannelProvider value={{ channel }}>
         <AppDataContextProvider
           contacts={Object.values(content.exampleContacts)}
         >

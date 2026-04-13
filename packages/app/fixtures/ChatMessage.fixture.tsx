@@ -20,6 +20,10 @@ import {
   View,
 } from '../ui';
 import { PostBlockSeparator } from '../ui/components/Channel/Scroller';
+import {
+  ChannelProvider,
+  useChannelContextOrNull,
+} from '../ui/contexts/channel';
 import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
@@ -50,7 +54,7 @@ import {
   useGroup,
   usePostReference,
 } from './contentHelpers';
-import { createFakeReactions } from './fakeData';
+import { createFakeReactions, tlonLocalIntros } from './fakeData';
 
 type PostGroup = { divider: 'date' | 'unread' | 'none'; posts: db.Post[] };
 
@@ -284,34 +288,41 @@ const SinglePostFixture = ({ post }: { post: db.Post }) => {
 };
 
 const PostVariantsFixture = ({ post }: { post: db.Post }) => {
+  const channel = tlonLocalIntros;
+
   return (
     <ChatMessageFixtureWrapper backgroundColor="$secondaryBackground">
-      <View padding="$m" gap="$m">
-        <PostSpecimen label="Default" post={post} />
-        <PostSpecimen
-          label="Pending"
-          post={{ ...post, deliveryStatus: 'pending' }}
-        />
-        <PostSpecimen
-          label="Failed (showAuthor=true)"
-          post={{ ...post, deliveryStatus: 'failed' }}
-          onPressRetry={async (p) => {
-            alert(`Retry triggered for post: ${p.id}`);
-          }}
-        />
-        <PostSpecimen
-          label="Failed (showAuthor=false)"
-          post={{ ...post, deliveryStatus: 'failed' }}
-          showAuthor={false}
-          onPressRetry={async (p) => {
-            alert(`Retry triggered for post: ${p.id}`);
-          }}
-        />
-        <PostSpecimen label="Sent" post={{ ...post, deliveryStatus: 'sent' }} />
-        <PostSpecimen label="Edited" post={{ ...post, isEdited: true }} />
-        <PostSpecimen label="Hidden" post={{ ...post, hidden: true }} />
-        <PostSpecimen label="Deleted" post={{ ...post, isDeleted: true }} />
-      </View>
+      <ChannelProvider value={{ channel }}>
+        <View padding="$m" gap="$m">
+          <PostSpecimen label="Default" post={post} />
+          <PostSpecimen
+            label="Pending"
+            post={{ ...post, deliveryStatus: 'pending' }}
+          />
+          <PostSpecimen
+            label="Failed (showAuthor=true)"
+            post={{ ...post, deliveryStatus: 'failed' }}
+            onPressRetry={async (p) => {
+              alert(`Retry triggered for post: ${p.id}`);
+            }}
+          />
+          <PostSpecimen
+            label="Failed (showAuthor=false)"
+            post={{ ...post, deliveryStatus: 'failed' }}
+            showAuthor={false}
+            onPressRetry={async (p) => {
+              alert(`Retry triggered for post: ${p.id}`);
+            }}
+          />
+          <PostSpecimen
+            label="Sent"
+            post={{ ...post, deliveryStatus: 'sent' }}
+          />
+          <PostSpecimen label="Edited" post={{ ...post, isEdited: true }} />
+          <PostSpecimen label="Hidden" post={{ ...post, hidden: true }} />
+          <PostSpecimen label="Deleted" post={{ ...post, isDeleted: true }} />
+        </View>
+      </ChannelProvider>
     </ChatMessageFixtureWrapper>
   );
 };
