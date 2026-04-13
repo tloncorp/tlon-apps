@@ -1838,8 +1838,6 @@
           |=  [=time reply=(may:c v-reply:c)]
           ?:  ?=(%| -.reply)  |
           =((get-author-ship:utils author.reply) our.bowl)
-      =/  =path  (scry-path %activity /v4/volume-settings/noun)
-      =+  .^(settings=volume-settings %gx path)
       =/  =action
         :*  %add  %reply
             [[reply-author id] id]
@@ -1850,9 +1848,15 @@
             mention
         ==
       ::  only follow thread if we haven't adjusted settings already
-      ::  and if we're the author of the post, mentioned, or in the replies
+      ::  and if we're the author of the post, mentioned, or in the replies.
+      ::
       =/  thread=source  [%thread parent-key nest group.perm.channel]
-      ?.  ?&  !(~(has by settings) thread)
+      =/  has-setting=?
+        ?.  running:ca-activity  |
+        =/  =path  (scry-path %activity /v4/volume-settings/noun)
+        =+  .^(settings=volume-settings %gx path)
+        (~(has by settings) thread)
+      ?.  ?&  !has-setting
               ?|  mention
                   in-replies
                   =(parent-author our.bowl)
@@ -3451,13 +3455,16 @@
     =/  =source:v8:av  [%channel nest flag]
     ?.  (can-read:ca-perms our.bowl)
       (send:ca-activity [%adjust source ~] ~)
-    =+  .^(=volume-settings:v8:av %gx (scry-path %activity /v4/volume-settings/noun))
+    =/  setting=(unit volume-map:v8:av)
+      ?.  running:ca-activity  ~
+      =+  .^(=volume-settings:v8:av %gx (scry-path %activity /v4/volume-settings/noun))
+      (~(get by volume-settings) source)
     =.  ca-core
       ::  if we don't have a setting, no-op
-      ?~  setting=(~(get by volume-settings) source)  ca-core
-      ::  if they have a setting that's not mute, retain it otherwise
+      ?~  setting  ca-core
+      ::  if they have a setting that's not mute, retain it. otherwise
       ::  delete setting if it's mute so it defaults
-      ?.  =(setting mute:v8:av)  ca-core
+      ?:  !=(u.setting mute:v8:av)  ca-core
       (send:ca-activity [%adjust source ~] ~)
     ::  if our read permissions restored, re-subscribe
     (ca-safe-sub |)
