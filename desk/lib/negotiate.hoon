@@ -198,8 +198,11 @@
       ::  re-negotiate orphaned heed entries whose subscriptions were lost.
       ::  without this, a stale version in heed persists indefinitely
       ::  because +negotiate-missing skips protocols already in heed.
+      ::  only run during +on-load (knew is non-null) to avoid defeating
+      ::  the ~m30 backoff timers used by the nack/kick retry path.
       ::
       =^  init  heed
+        ?.  ?=(^ knew)  [init heed]
         =/  entries=(list [[=gill:gall =protocol] ver=(unit version)])
           ~(tap by heed)
         |-
