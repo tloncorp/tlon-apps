@@ -15,6 +15,7 @@ import {
   PostContent,
   parsePostBlob,
 } from '@tloncorp/shared/logic';
+import { omit } from '@tloncorp/shared/utils';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
 import { truncate } from 'lodash';
@@ -139,6 +140,24 @@ export function GalleryPost({
     onPressEdit?.(post);
   }, [onPressEdit, post]);
 
+  // we need to filter out props that are not supported by the GalleryPostFrame
+  // These props come from parent components but shouldn't be passed to DOM elements
+  const rest = useMemo(
+    () =>
+      omit(props, [
+        'onShowEmojiPicker',
+        'onPressImage',
+        'editPost',
+        'isHighlighted',
+        'showReplies',
+        'setViewReactionsPost',
+        'onPressReplies',
+        // 'displayDebugMode',
+        'onPressDelete',
+      ]),
+    [props]
+  );
+
   if (post.isDeleted) {
     return <PostDeletedNotice />;
   }
@@ -146,24 +165,6 @@ export function GalleryPost({
   if (isAuthorBlocked && !showBlockedContent) {
     return <PostBlockedNotice onShowAnywayPressed={handleShowAnyway} />;
   }
-
-  // we need to filter out props that are not supported by the GalleryPostFrame
-  // These props come from parent components but shouldn't be passed to DOM elements
-  const {
-    onShowEmojiPicker: _onShowEmojiPicker,
-    onPressImage: _onPressImage,
-    editPost: _editPost,
-    isHighlighted: _isHighlighted,
-    showReplies: _showReplies,
-    setViewReactionsPost: _setViewReactionsPost,
-    onPressReplies: _onPressReplies,
-    displayDebugMode: _displayDebugMode,
-    onPressDelete: _onPressDelete,
-    ...rest
-  } = props as typeof props & {
-    displayDebugMode?: boolean;
-    onPressDelete?: (post: db.Post) => void;
-  };
 
   return (
     <Pressable
