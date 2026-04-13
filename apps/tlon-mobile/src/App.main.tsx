@@ -12,6 +12,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
+import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
@@ -142,7 +143,7 @@ const App = () => {
   ]);
 
   const showSplashSequence = useMemo(() => {
-    return showAuthenticatedApp && needsSplashSequence;
+    return showAuthenticatedApp && (FORCE_SPLASH_SEQUENCE || needsSplashSequence);
   }, [showAuthenticatedApp, needsSplashSequence]);
 
   return (

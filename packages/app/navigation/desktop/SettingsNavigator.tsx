@@ -6,8 +6,10 @@ import { getVariableValue, useTheme } from '@tamagui/core';
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
+import { BotBehaviorScreen } from '../../features/bot/BotBehaviorScreen';
+import { BotIdentityScreen } from '../../features/bot/BotIdentityScreen';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
@@ -54,8 +56,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, [navigate]);
 
   const onBotSettingsPressed = useCallback(() => {
-    Linking.openURL('https://tlon.network/tlawnbot');
-  }, []);
+    navigate('BotIdentity');
+  }, [navigate]);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigate('FeatureFlags');
@@ -136,6 +138,14 @@ export const SettingsNavigator = () => {
         component={PrivacySettingsScreen}
       />
       <SettingsDrawer.Screen name="WompWomp" component={UserBugReportScreen} />
+      <SettingsDrawer.Screen
+        name="BotIdentity"
+        component={BotIdentityScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotBehavior"
+        component={BotBehaviorScreen}
+      />
     </SettingsDrawer.Navigator>
   );
 };
