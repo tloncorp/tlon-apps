@@ -115,15 +115,16 @@ export function SettingsScreenView(props: Props) {
               isFocused={props.focusedRouteName === 'BotSettings'}
             />
           )}
-          {/* TODO: restore props.botEnabled gate before merging */}
-          <SettingsAction
-            title="Bot Config"
-            leftIcon="Settings"
-            rightIcon={'ChevronRight'}
-            onPress={props.onBotConfigPressed}
-            subtitle="Identity & behavior"
-            isFocused={props.focusedRouteName === 'BotIdentity'}
-          />
+          {props.botEnabled && (
+            <SettingsAction
+              title="Bot Config"
+              leftIcon="Settings"
+              rightIcon={'ChevronRight'}
+              onPress={props.onBotConfigPressed}
+              subtitle="Identity & behavior"
+              isFocused={props.focusedRouteName === 'BotIdentity'}
+            />
+          )}
           <SettingsAction
             title="Theme"
             leftIcon="ChannelGalleries"
