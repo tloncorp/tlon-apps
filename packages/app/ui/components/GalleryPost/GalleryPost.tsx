@@ -36,13 +36,16 @@ import { useRequests } from '../../contexts/requests';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import {
+  PostBlockedNotice,
+  PostDeletedNotice,
+} from '../ChatMessage/MaskedChatMessage';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
 import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
-import { PostErrorMessage } from '../PostErrorMessage';
 import { useBoundHandler } from '../listItems/listItemUtils';
 
 const GalleryPostFrame = styled(View, {
@@ -137,18 +140,11 @@ export function GalleryPost({
   }, [onPressEdit, post]);
 
   if (post.isDeleted) {
-    return null;
+    return <PostDeletedNotice />;
   }
 
   if (isAuthorBlocked && !showBlockedContent) {
-    return (
-      <PostErrorMessage
-        message="Post from a blocked user."
-        actionLabel="Show anyway"
-        onAction={handleShowAnyway}
-        actionTestID="ShowBlockedPostButton"
-      />
-    );
+    return <PostBlockedNotice onShowAnywayPressed={handleShowAnyway} />;
   }
 
   // we need to filter out props that are not supported by the GalleryPostFrame

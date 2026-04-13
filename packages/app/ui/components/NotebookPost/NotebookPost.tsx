@@ -31,12 +31,16 @@ import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
+import {
+  PostBlockedNotice,
+  PostDeletedNotice,
+  PostHiddenNotice,
+} from '../ChatMessage/MaskedChatMessage';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import { PostErrorMessage } from '../PostErrorMessage';
 
 const IMAGE_HEIGHT = 268;
 
@@ -118,19 +122,12 @@ export function NotebookPost({
     []
   );
 
-  if (!post || post.isDeleted) {
-    return null;
+  if (post.isDeleted) {
+    return <PostDeletedNotice />;
   }
 
   if (isAuthorBlocked && !showBlockedContent) {
-    return (
-      <PostErrorMessage
-        message="Post from a blocked user."
-        actionLabel="Show anyway"
-        onAction={handleShowAnyway}
-        actionTestID="ShowBlockedPostButton"
-      />
-    );
+    return <PostBlockedNotice onShowAnywayPressed={handleShowAnyway} />;
   }
 
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
@@ -149,7 +146,7 @@ export function NotebookPost({
     >
       <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
         {post.hidden ? (
-          <PostErrorMessage message="You have hidden or reported this post." />
+          <PostHiddenNotice />
         ) : (
           <>
             <NotebookPostHeader
