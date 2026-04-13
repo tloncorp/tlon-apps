@@ -1594,7 +1594,9 @@
 ++  init-posts
   |=  [channels=@ud context=@ud]
   ^-  (map nest:c (unit posts:c))
-  =/  activity
+  =/  =activity:v8:av
+    ?.  .^(? %gu (scry-path %activity /$))  
+      *activity:v8:av
     %-  ~(gas by *activity:v8:av)
     .^  (list [source:v8:av activity-summary:v8:av])  %gx
       (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
@@ -1851,12 +1853,9 @@
       ::  and if we're the author of the post, mentioned, or in the replies.
       ::
       =/  thread=source  [%thread parent-key nest group.perm.channel]
-      =/  has-setting=?
-        ?.  running:ca-activity  |
-        =/  =path  (scry-path %activity /v4/volume-settings/noun)
-        =+  .^(settings=volume-settings %gx path)
-        (~(has by settings) thread)
-      ?.  ?&  !has-setting
+      =/  =path  (scry-path %activity /v4/volume-settings/noun)
+      =+  .^(settings=volume-settings %gx path)
+      ?.  ?&  !(~(has by settings) thread)
               ?|  mention
                   in-replies
                   =(parent-author our.bowl)
