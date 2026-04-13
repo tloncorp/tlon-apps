@@ -10,8 +10,8 @@ import { useChannelContext } from '../../contexts/channel';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
+import { MaskedChatMessage } from '../PostModerationSwitch';
 import { ChatMessageActions } from './ChatMessageActions/Component';
-import { MaskedChatMessage } from './MaskedChatMessage';
 import { StaticChatMessage } from './StaticChatMessage';
 
 const ChatMessage = ({

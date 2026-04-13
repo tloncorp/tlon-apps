@@ -30,12 +30,12 @@ import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
-import { PostModerationSwitch } from '../ChatMessage/MaskedChatMessage';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import { PostModerationSwitch } from '../PostModerationSwitch';
 
 const IMAGE_HEIGHT = 268;
 

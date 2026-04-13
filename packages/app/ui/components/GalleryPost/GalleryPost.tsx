@@ -36,13 +36,13 @@ import { useRequests } from '../../contexts/requests';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { PostModerationSwitch } from '../ChatMessage/MaskedChatMessage';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
 import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
+import { PostModerationSwitch } from '../PostModerationSwitch';
 import { useBoundHandler } from '../listItems/listItemUtils';
 
 const GalleryPostFrame = styled(View, {

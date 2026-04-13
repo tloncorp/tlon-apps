@@ -6,7 +6,7 @@ import { ScrollView, View } from 'tamagui';
 
 import AuthorRow from '../../AuthorRow';
 import { NotebookPost } from '../../NotebookPost';
-import { MaskedChatMessage } from '../MaskedChatMessage';
+import { MaskedChatMessage } from '../../PostModerationSwitch';
 import { StaticChatMessage } from '../StaticChatMessage';
 
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;

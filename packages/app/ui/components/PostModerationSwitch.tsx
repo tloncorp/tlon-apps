@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
-import { usePostTerminology } from '../../contexts/terminology';
-import { PostErrorMessage } from '../PostErrorMessage';
+import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
+import { usePostTerminology } from '../contexts/terminology';
+import { PostErrorMessage } from './PostErrorMessage';
 
 type Strings<Keys extends string> = Record<Keys, string>;
 
