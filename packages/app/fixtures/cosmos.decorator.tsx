@@ -9,6 +9,7 @@ import {
   config,
   createNoOpStore,
 } from '../ui';
+import { ComponentsKitProvider } from '../ui/contexts/componentsKits/ComponentsKitProvider';
 import { group } from './fakeData';
 
 // eslint-disable-next-line
@@ -29,7 +30,9 @@ export default ({ children }: { children: React.ReactNode }) => {
     <TamaguiProvider defaultTheme={'light'} config={config}>
       <StoreProvider stub={store}>
         <SafeAreaProvider>
-          <PortalProvider>{children}</PortalProvider>
+          <ComponentsKitProvider>
+            <PortalProvider>{children}</PortalProvider>
+          </ComponentsKitProvider>
         </SafeAreaProvider>
       </StoreProvider>
     </TamaguiProvider>
