@@ -93,7 +93,8 @@
       "react-native-reanimated": "~4.1.6",
       "react-native-gesture-handler": "~2.28.0",
       "expo-audio": "~1.1.1",
-      "get-intrinsic": "1.2.4"
+      "get-intrinsic": "1.2.4",
+      "esbuild": "0.27.3"
     }
   }
 }

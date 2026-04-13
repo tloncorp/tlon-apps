@@ -58,7 +58,7 @@ COPY ../../../.npmrc* /workspace/
 # Install dependencies.
 # Ignore lifecycle scripts in this dependency-only layer to avoid running
 # desktop postinstall hooks (electron native rebuilds) during web E2E image build.
-RUN pnpm install --frozen-lockfile --ignore-scripts --config.package-import-method=copy
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Install Playwright browsers and dependencies (before source copy for better caching)
 WORKDIR /workspace/apps/tlon-web
