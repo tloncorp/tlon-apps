@@ -195,6 +195,25 @@
         =?  kill  !=(u.hail `v.i.need)
           (~(put in kill) [wire gill])
         $(need t.need)
+      ::  re-negotiate orphaned heed entries whose subscriptions were lost.
+      ::  without this, a stale version in heed persists indefinitely
+      ::  because +negotiate-missing skips protocols already in heed.
+      ::
+      =^  init  heed
+        =/  entries=(list [[=gill:gall =protocol] ver=(unit version)])
+          ~(tap by heed)
+        |-
+        ?~  entries  [init heed]
+        =/  =wire
+          :+  %~.~  %negotiate
+          [%heed (scot %p p.gill.i.entries) q.gill.i.entries protocol.i.entries ~]
+        ?:  (~(has by boat) [wire gill.i.entries])
+          $(entries t.entries)
+        ::  subscription missing: clear heed and queue for re-negotiation
+        ::
+        =.  heed  (~(del by heed) [gill.i.entries protocol.i.entries])
+        =.  init  (~(put in init) [gill.i.entries protocol.i.entries])
+        $(entries t.entries)
       ::
       =^  inis  state
         =|  caz=(list card)
