@@ -37,6 +37,7 @@ import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { ListItem, SystemContactListItem } from '../ListItem';
+import * as api from '@tloncorp/api';
 import { saveBotConfig } from '@tloncorp/shared/api';
 import {
   DEFAULT_BOT_CONFIG,
@@ -74,7 +75,7 @@ function SplashSequenceComponent(props: {
   inviteSystemContacts?: InviteSystemContactsFn;
   hostingBotEnabled?: boolean;
 }) {
-  const store = useStore();
+  const appStore = useStore();
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
     SplashPane.Welcome
   );
@@ -86,11 +87,14 @@ function SplashSequenceComponent(props: {
   );
   const [botModel, setBotModel] = React.useState(DEFAULT_BOT_CONFIG.model);
   const [botApiKey, setBotApiKey] = React.useState('');
+  const [createdGroupId, setCreatedGroupId] = React.useState<string | null>(null);
+  const [groupInviteLink, setGroupInviteLink] = React.useState<string | null>(null);
+  const [launchError, setLaunchError] = React.useState<string | null>(null);
 
   const handleSplashCompleted = useCallback(() => {
-    store.completeWayfindingSplash();
+    appStore.completeWayfindingSplash();
     props.onCompleted();
-  }, [props, store]);
+  }, [props, appStore]);
 
   return (
     <View flex={1}>
@@ -157,15 +161,52 @@ function SplashSequenceComponent(props: {
         <BotLaunchPane
           botName={botName || 'Tlonbot'}
           botEmoji={botEmoji}
-          onCreateGroup={() => {
+          onCreateGroup={async () => {
             setCurrentPane(SplashPane.BotLaunchLoading);
-            // TODO: wire up actual group creation + bot invite + branch link
-            // For now, simulate the loading period then show share screen
-            setTimeout(() => {
+            setLaunchError(null);
+            try {
+              // Create the group
+              const group = await store.createDefaultGroup({
+                title: `${botName || 'Tlonbot'}'s Group`,
+              });
+              setCreatedGroupId(group.id);
+
+              // Add bot to the group (best-effort)
+              const shipId = await db.hostedUserNodeId.getValue();
+              const authCookie = await db.hostingAuthToken.getValue();
+              if (shipId && authCookie) {
+                try {
+                  await api.addBotToCordon(shipId, authCookie, group.id);
+                  await api.addBotToGroup(shipId, authCookie, group.id);
+                } catch (e) {
+                  console.warn('Failed to add bot to group:', e);
+                }
+              }
+
+              // Generate invite link (best-effort)
+              try {
+                await store.createGroupInviteLink(group.id);
+                const lureState = store.useLureState.getState();
+                await lureState.fetchLure(group.id, '', false);
+                const lure = lureState.lures[group.id];
+                if (lure?.deepLinkUrl) {
+                  setGroupInviteLink(lure.deepLinkUrl);
+                } else if (lure?.url) {
+                  setGroupInviteLink(lure.url);
+                }
+              } catch (e) {
+                console.warn('Failed to generate invite link:', e);
+              }
+
               setCurrentPane(SplashPane.ShareGroup);
-            }, 3000);
+            } catch (e) {
+              console.error('Failed to create group:', e);
+              setLaunchError('Something went wrong. Try again or skip.');
+              setCurrentPane(SplashPane.BotLaunch);
+            }
           }}
           onSkip={() => setCurrentPane(SplashPane.Group)}
+          error={launchError}
         />
       )}
       {currentPane === 'BotLaunchLoading' && (
@@ -175,6 +216,7 @@ function SplashSequenceComponent(props: {
         <ShareGroupPane
           botName={botName || 'Tlonbot'}
           botEmoji={botEmoji}
+          inviteLink={groupInviteLink}
           onActionPress={handleSplashCompleted}
         />
       )}
@@ -602,6 +644,7 @@ function BotLaunchPane(props: {
   botEmoji: string;
   onCreateGroup: () => void;
   onSkip: () => void;
+  error?: string | null;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -629,6 +672,11 @@ function BotLaunchPane(props: {
         paddingBottom={insets.bottom}
         gap="$l"
       >
+        {props.error && (
+          <Text fontSize={14} color="$negativeActionText" textAlign="center">
+            {props.error}
+          </Text>
+        )}
         <Button
           onPress={props.onCreateGroup}
           label="Create a group"
@@ -683,14 +731,14 @@ function BotLaunchLoadingPane(props: { botEmoji: string }) {
 function ShareGroupPane(props: {
   botName: string;
   botEmoji: string;
+  inviteLink?: string | null;
   onActionPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const [copied, setCopied] = useState(false);
-  // TODO: replace with actual invite link from group creation
-  const inviteLink = 'https://join.tlon.io/example-invite-link';
+  const inviteLink = props.inviteLink ?? null;
 
-  const handleCopy = useCallback(async () => {
+  const handleShare = useCallback(async () => {
+    if (!inviteLink) return;
     try {
       await Share.share({
         message: `Join my group on Tlon! ${inviteLink}`,
@@ -709,34 +757,38 @@ function ShareGroupPane(props: {
           <Text color="$positiveActionText">set.</Text>
         </SplashTitle>
         <SplashParagraph textAlign="center">
-          Your group is ready and {props.botName} is in it. Share the link
-          below to invite your friends.
+          Your group is ready and {props.botName} is in it.
+          {inviteLink
+            ? ' Share the link below to invite your friends.'
+            : ' You can invite friends later from the group settings.'}
         </SplashParagraph>
 
-        <YStack
-          marginHorizontal="$xl"
-          width="100%"
-          paddingHorizontal="$xl"
-          gap="$m"
-        >
-          <View
-            borderRadius="$xl"
-            borderWidth={1}
-            borderColor="$border"
-            backgroundColor="$secondaryBackground"
-            paddingHorizontal="$l"
-            paddingVertical="$m"
+        {inviteLink && (
+          <YStack
+            marginHorizontal="$xl"
+            width="100%"
+            paddingHorizontal="$xl"
+            gap="$m"
           >
-            <Text
-              fontSize={14}
-              color="$secondaryText"
-              numberOfLines={1}
-              textAlign="center"
+            <View
+              borderRadius="$xl"
+              borderWidth={1}
+              borderColor="$border"
+              backgroundColor="$secondaryBackground"
+              paddingHorizontal="$l"
+              paddingVertical="$m"
             >
-              {inviteLink}
-            </Text>
-          </View>
-        </YStack>
+              <Text
+                fontSize={14}
+                color="$secondaryText"
+                numberOfLines={1}
+                textAlign="center"
+              >
+                {inviteLink}
+              </Text>
+            </View>
+          </YStack>
+        )}
       </YStack>
 
       <YStack
@@ -744,17 +796,20 @@ function ShareGroupPane(props: {
         paddingBottom={insets.bottom}
         gap="$l"
       >
-        <Button
-          onPress={handleCopy}
-          label="Share invite link"
-          preset="hero"
-          shadow
-        />
+        {inviteLink && (
+          <Button
+            onPress={handleShare}
+            label="Share invite link"
+            preset="hero"
+            shadow
+          />
+        )}
         <Button
           onPress={props.onActionPress}
           label="Continue"
-          preset="secondary"
-          fill="text"
+          preset={inviteLink ? 'secondary' : 'hero'}
+          fill={inviteLink ? 'text' : undefined}
+          shadow={!inviteLink}
         />
       </YStack>
     </View>
