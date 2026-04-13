@@ -21,6 +21,7 @@
     "sqlocal": "^0.14.1"
   },
   "devDependencies": {
+    "@faker-js/faker": "^8.4.1",
     "@types/react": "~19.1.10",
     "@types/react-native": "0.73.0"
   },
