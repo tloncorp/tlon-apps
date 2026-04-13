@@ -55,12 +55,10 @@ COPY ../../../patches/ /workspace/patches/
 # Copy .npmrc if it exists (for npm configurations)
 COPY ../../../.npmrc* /workspace/
 
-# Install dependencies (with cache mount for faster rebuilds).
+# Install dependencies.
 # Ignore lifecycle scripts in this dependency-only layer to avoid running
 # desktop postinstall hooks (electron native rebuilds) during web E2E image build.
-# Use clone-or-copy import method to avoid hard-link collisions on layered container filesystems.
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --ignore-scripts --package-import-method=clone-or-copy
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Install Playwright browsers and dependencies (before source copy for better caching)
 WORKDIR /workspace/apps/tlon-web
