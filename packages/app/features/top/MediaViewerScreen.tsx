@@ -33,7 +33,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AnimatePresence,
   Spinner,
-  Stack,
   View,
   XStack,
   YStack,
