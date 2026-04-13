@@ -840,11 +840,10 @@
           ::  skip if subscription was already re-established (e.g. by
           ::  orphan detection in +inflate during +on-load)
           ::
-          =/  =wire
-            :+  %~.~  %negotiate
-            [%heed (scot %p p.gill.for) q.gill.for protocol.for ~]
-          ?:  (~(has by wex.bowl) [wire gill.for])
-            [~ this]
+          =/  =^wire
+            /~/negotiate/heed/(scot %p p.for)/[q.for]/[+.for]
+          ?:  (~(has by wex.bowl) [wire -.for])
+            `this
           :_  this
           :~  (watch-version:up for)
               %^  tell:log   %dbug
