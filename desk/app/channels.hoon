@@ -3469,8 +3469,8 @@
   ::  leave the subscriptions only
   ::
   ++  ca-simple-leave
-    =.  ca-core
-      (unsubscribe (weld ca-area /checkpoint) [ship.nest server])
+    =.  ca-core  (unsubscribe (weld ca-area /backlog) [ship.nest server])
+    =.  ca-core  (unsubscribe (weld ca-area /checkpoint) [ship.nest server])
     (unsubscribe ca-sub-wire [ship.nest server])
   ::
   ::  leave the subscription, tell people about it, and delete our local
