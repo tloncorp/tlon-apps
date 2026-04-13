@@ -1595,7 +1595,7 @@
   |=  [channels=@ud context=@ud]
   ^-  (map nest:c (unit posts:c))
   =/  =activity:v8:av
-    ?.  .^(? %gu (scry-path %activity /$))  
+    ?.  .^(? %gu (scry-path %activity /$))
       *activity:v8:av
     %-  ~(gas by *activity:v8:av)
     .^  (list [source:v8:av activity-summary:v8:av])  %gx
