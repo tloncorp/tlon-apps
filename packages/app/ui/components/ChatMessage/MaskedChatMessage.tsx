@@ -5,35 +5,6 @@ import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { usePostTerminology } from '../../contexts/terminology';
 import { PostErrorMessage } from '../PostErrorMessage';
 
-/**
- * If `post` should be hidden, renders an appropriate notice for the hidden reason.
- * Otherwise, renders `children`, which is expected to be the full message content.
- */
-export function MaskedChatMessage({
-  post,
-  children,
-}: {
-  post: db.Post;
-  children?: React.ReactNode;
-}) {
-  return (
-    <PostModerationSwitch post={post}>
-      {(m) => {
-        switch (m.type) {
-          case 'deleted':
-            return m.deleted;
-          case 'hidden':
-            return m.hidden;
-          case 'blocked':
-            return m.blocked;
-          case 'post':
-            return children;
-        }
-      }}
-    </PostModerationSwitch>
-  );
-}
-
 type Strings<Keys extends string> = Record<Keys, string>;
 
 function PostDeletedNotice() {
@@ -206,4 +177,33 @@ export function PostModerationSwitch({
   } else {
     return children?.({ type: 'post', post }) ?? null;
   }
+}
+
+/**
+ * If `post` should be hidden, renders an appropriate notice for the hidden reason.
+ * Otherwise, renders `children`, which is expected to be the full message content.
+ */
+export function MaskedChatMessage({
+  post,
+  children,
+}: {
+  post: db.Post;
+  children?: React.ReactNode;
+}) {
+  return (
+    <PostModerationSwitch post={post}>
+      {(m) => {
+        switch (m.type) {
+          case 'deleted':
+            return m.deleted;
+          case 'hidden':
+            return m.hidden;
+          case 'blocked':
+            return m.blocked;
+          case 'post':
+            return children;
+        }
+      }}
+    </PostModerationSwitch>
+  );
 }
