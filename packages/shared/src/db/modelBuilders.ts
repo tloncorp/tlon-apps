@@ -4,7 +4,7 @@ import * as ub from '@tloncorp/api/urbit';
 import { getChannelKindFromType } from '@tloncorp/api/urbit';
 import { da } from '@urbit/aura';
 
-import * as db from '../db';
+import type * as db from '../db';
 import * as domain from '../domain';
 import * as logic from '../logic';
 import { convertToAscii } from '../logic';
