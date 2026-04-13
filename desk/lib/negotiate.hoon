@@ -200,7 +200,10 @@
       ::  because +negotiate-missing skips protocols already in heed.
       ::  only run during +on-load (knew is non-null) to avoid defeating
       ::  the ~m30 backoff timers used by the nack/kick retry path.
+      ::  snapshot heed before mutation so +notes can compute pre-inflate
+      ::  match state correctly.
       ::
+      =/  pre-heed  heed
       =^  init  heed
         ?.  ?=(^ knew)  [init heed]
         =/  entries=(list [[=gill:gall =protocol] ver=(unit version)])
@@ -232,7 +235,7 @@
         %+  turn  ~(tap in `(set gill:gall)`(~(run in ~(key by heed)) head))
         |=  =gill:gall
         ^-  (list card)
-        =/  did=?  (match(know u.knew) gill)
+        =/  did=?  (match(know u.knew, heed pre-heed) gill)
         =/  now=?  (match gill)
         ?:  =(did now)  ~
         %+  weld  (notify-outer now gill)
@@ -834,6 +837,14 @@
           =/  for=[gill:gall protocol]
             =*  w  t.t.t.t.t.wire
             [[(slav %p i.w) i.t.w] i.t.t.w]
+          ::  skip if subscription was already re-established (e.g. by
+          ::  orphan detection in +inflate during +on-load)
+          ::
+          =/  =wire
+            :+  %~.~  %negotiate
+            [%heed (scot %p p.gill.for) q.gill.for protocol.for ~]
+          ?:  (~(has by wex.bowl) [wire gill.for])
+            [~ this]
           :_  this
           :~  (watch-version:up for)
               %^  tell:log   %dbug
