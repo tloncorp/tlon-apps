@@ -79,7 +79,7 @@ export function useAnchorScrollLock({
   const currentAnchorId = useRef<string | undefined>(anchor?.postId);
   const renderedPostsRef = useRef(new Set<string>());
   const scrollPhaseRef = useRef<'idle' | 'scrolled' | 'done'>('idle');
-  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const failureRetryCountRef = useRef(0);
   const userHasScrolledRef = useRef(userHasScrolled);
   userHasScrolledRef.current = userHasScrolled;
