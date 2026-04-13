@@ -23,7 +23,6 @@ import {
   styled,
 } from 'tamagui';
 
-import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits/componentsKits';
@@ -31,11 +30,7 @@ import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
-import {
-  PostBlockedNotice,
-  PostDeletedNotice,
-  PostHiddenNotice,
-} from '../ChatMessage/MaskedChatMessage';
+import { PostModerationSwitch } from '../ChatMessage/MaskedChatMessage';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
@@ -73,9 +68,6 @@ export function NotebookPost({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
-
-  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
-    useBlockedAuthor(post);
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -122,107 +114,113 @@ export function NotebookPost({
     []
   );
 
-  if (post.isDeleted) {
-    return <PostDeletedNotice />;
-  }
-
-  if (isAuthorBlocked && !showBlockedContent) {
-    return <PostBlockedNotice onShowAnywayPressed={handleShowAnyway} />;
-  }
-
   const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
+
   return (
-    <Pressable
-      onPress={handlePress}
-      onHoverIn={onHoverIn}
-      onHoverOut={onHoverOut}
-      onLongPress={handleLongPress}
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-      borderRadius="$l"
-      maxWidth={600}
-      width={'100%'}
-      marginHorizontal="auto"
-      testID="Post"
-    >
-      <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
-        {post.hidden ? (
-          <PostHiddenNotice />
-        ) : (
-          <>
-            <NotebookPostHeader
-              post={post}
-              showDate={showDate}
-              showAuthor={showAuthor && viewMode !== 'activity'}
-              testID="NotebookPostHeader"
-            />
+    <PostModerationSwitch post={post}>
+      {(moderated) => {
+        if (moderated.type === 'deleted') {
+          return moderated.deleted;
+        }
+        if (moderated.type === 'blocked') {
+          return moderated.blocked;
+        }
 
-            {viewMode !== 'activity' && (
-              <Text
-                size="$body"
-                color="$secondaryText"
-                numberOfLines={3}
-                paddingBottom={showReplies && hasReplies ? 0 : '$m'}
-                testID="NotebookPostContentSummary"
-              >
-                {post.textContent}
-              </Text>
-            )}
-
-            {showReplies && hasReplies ? (
-              <ChatMessageReplySummary
-                post={post}
-                showTime={false}
-                textColor="$tertiaryText"
-              />
-            ) : null}
-          </>
-        )}
-
-        {deliveryFailed ? (
-          <Pressable onPress={handleRetryPressed}>
-            <XStack alignItems="center" justifyContent="flex-end">
-              <Text color="$negativeActionText" size="$label/m">
-                {isWindowNarrow ? 'Tap' : 'Click'} to retry
-              </Text>
-            </XStack>
-          </Pressable>
-        ) : null}
-        {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+        return (
           <Pressable
-            position="absolute"
-            zIndex={1000}
-            top={12}
-            right={12}
-            onPress={handleOverflowPress}
+            onPress={handlePress}
+            onHoverIn={onHoverIn}
+            onHoverOut={onHoverOut}
+            onLongPress={handleLongPress}
+            pressStyle={{ backgroundColor: '$secondaryBackground' }}
+            borderRadius="$l"
+            maxWidth={600}
+            width={'100%'}
+            marginHorizontal="auto"
+            testID="Post"
           >
-            <ChatMessageActions
-              post={post}
-              postActionIds={postActionIds}
-              onDismiss={() => {
-                setIsPopoverOpen(false);
-                setIsHovered(false);
-              }}
-              onOpenChange={setIsPopoverOpen}
-              onEdit={handleEditPostPressed}
-              onReply={handlePress}
-              mode="await-trigger"
-              trigger={
-                <Button
-                  icon="Overflow"
-                  fill="ghost"
-                  type="secondary"
-                  size="small"
-                  width={32}
-                  height={32}
-                  borderRadius="$m"
-                  testID="MessageActionsTrigger"
-                />
-              }
-            />
+            <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
+              {moderated.type === 'hidden' ? (
+                moderated.hidden
+              ) : (
+                <>
+                  <NotebookPostHeader
+                    post={moderated.post}
+                    showDate={showDate}
+                    showAuthor={showAuthor && viewMode !== 'activity'}
+                    testID="NotebookPostHeader"
+                  />
+
+                  {viewMode !== 'activity' && (
+                    <Text
+                      size="$body"
+                      color="$secondaryText"
+                      numberOfLines={3}
+                      paddingBottom={showReplies && hasReplies ? 0 : '$m'}
+                      testID="NotebookPostContentSummary"
+                    >
+                      {moderated.post.textContent}
+                    </Text>
+                  )}
+
+                  {showReplies && hasReplies ? (
+                    <ChatMessageReplySummary
+                      post={moderated.post}
+                      showTime={false}
+                      textColor="$tertiaryText"
+                    />
+                  ) : null}
+                </>
+              )}
+
+              {deliveryFailed ? (
+                <Pressable onPress={handleRetryPressed}>
+                  <XStack alignItems="center" justifyContent="flex-end">
+                    <Text color="$negativeActionText" size="$label/m">
+                      {isWindowNarrow ? 'Tap' : 'Click'} to retry
+                    </Text>
+                  </XStack>
+                </Pressable>
+              ) : null}
+              {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+                <Pressable
+                  position="absolute"
+                  zIndex={1000}
+                  top={12}
+                  right={12}
+                  onPress={handleOverflowPress}
+                >
+                  <ChatMessageActions
+                    post={post}
+                    postActionIds={postActionIds}
+                    onDismiss={() => {
+                      setIsPopoverOpen(false);
+                      setIsHovered(false);
+                    }}
+                    onOpenChange={setIsPopoverOpen}
+                    onEdit={handleEditPostPressed}
+                    onReply={handlePress}
+                    mode="await-trigger"
+                    trigger={
+                      <Button
+                        icon="Overflow"
+                        fill="ghost"
+                        type="secondary"
+                        size="small"
+                        width={32}
+                        height={32}
+                        borderRadius="$m"
+                        testID="MessageActionsTrigger"
+                      />
+                    }
+                  />
+                </Pressable>
+              )}
+            </NotebookPostFrame>
           </Pressable>
-        )}
-      </NotebookPostFrame>
-    </Pressable>
+        );
+      }}
+    </PostModerationSwitch>
   );
 }
 

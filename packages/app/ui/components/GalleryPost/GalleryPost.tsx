@@ -28,7 +28,6 @@ import {
 } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
-import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
@@ -37,10 +36,7 @@ import { useRequests } from '../../contexts/requests';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import {
-  PostBlockedNotice,
-  PostDeletedNotice,
-} from '../ChatMessage/MaskedChatMessage';
+import { PostModerationSwitch } from '../ChatMessage/MaskedChatMessage';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
@@ -97,9 +93,6 @@ export function GalleryPost({
     () => JSONValue.asString(contentRendererConfiguration?.contentSize, '$s'),
     [contentRendererConfiguration]
   ) as '$s' | '$l';
-
-  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
-    useBlockedAuthor(post);
 
   const handleRetryPressed = useCallback(async () => {
     try {
@@ -158,88 +151,95 @@ export function GalleryPost({
     [props]
   );
 
-  if (post.isDeleted) {
-    return <PostDeletedNotice />;
-  }
-
-  if (isAuthorBlocked && !showBlockedContent) {
-    return <PostBlockedNotice onShowAnywayPressed={handleShowAnyway} />;
-  }
-
   return (
-    <Pressable
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      onHoverIn={onHoverIn}
-      onHoverOut={onHoverOut}
-      flex={1}
-      testID="Post"
-    >
-      <GalleryPostFrame {...rest}>
-        {showHeaderFooter && <GalleryPostHeader post={post} />}
-        {hasFileUpload && (
-          <GalleryPostRow>
-            <XStack alignItems="center" gap="$xs">
-              <Icon
-                type="ChannelNote"
-                color="$tertiaryText"
-                customSize={['$l', '$l']}
-              />
-              <GalleryPostRow.Text>File upload</GalleryPostRow.Text>
-            </XStack>
-            <Reference.ActionIcon />
-          </GalleryPostRow>
-        )}
-        <GalleryContentRenderer
-          testID="GalleryPostContentPreview"
-          post={post}
-          pointerEvents="none"
-          size={size}
-          embedded={embedded}
-          isPreview={true}
-        />
-        {showHeaderFooter && (
-          <GalleryPostFooter
-            post={post}
-            deliveryFailed={deliveryFailed}
-            onPressRetry={handleRetryPressed}
-          />
-        )}
-        {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-          <Pressable
-            position="absolute"
-            top={36}
-            right={4}
-            onPress={handleOverflowPress}
-          >
-            <ChatMessageActions
-              post={post}
-              postActionIds={postActionIds}
-              onDismiss={() => {
-                setIsPopoverOpen(false);
-                setIsHovered(false);
-              }}
-              onOpenChange={setIsPopoverOpen}
-              onReply={handlePress}
-              onEdit={handleEditPressed}
-              mode="await-trigger"
-              trigger={
-                <Button
-                  icon="Overflow"
-                  fill="ghost"
-                  type="secondary"
-                  size="small"
-                  width={32}
-                  height={32}
-                  borderRadius="$m"
-                  testID="MessageActionsTrigger"
-                />
-              }
-            />
-          </Pressable>
-        )}
-      </GalleryPostFrame>
-    </Pressable>
+    <PostModerationSwitch post={post}>
+      {(m) => {
+        switch (m.type) {
+          case 'deleted':
+            return m.deleted;
+          case 'blocked':
+            return m.blocked;
+          case 'hidden':
+          // fallthrough - we don't hide gallery posts(?)
+          case 'post':
+            return (
+              <Pressable
+                onPress={handlePress}
+                onLongPress={handleLongPress}
+                onHoverIn={onHoverIn}
+                onHoverOut={onHoverOut}
+                flex={1}
+                testID="Post"
+              >
+                <GalleryPostFrame {...rest}>
+                  {showHeaderFooter && <GalleryPostHeader post={post} />}
+                  {hasFileUpload && (
+                    <GalleryPostRow>
+                      <XStack alignItems="center" gap="$xs">
+                        <Icon
+                          type="ChannelNote"
+                          color="$tertiaryText"
+                          customSize={['$l', '$l']}
+                        />
+                        <GalleryPostRow.Text>File upload</GalleryPostRow.Text>
+                      </XStack>
+                      <Reference.ActionIcon />
+                    </GalleryPostRow>
+                  )}
+                  <GalleryContentRenderer
+                    testID="GalleryPostContentPreview"
+                    post={post}
+                    pointerEvents="none"
+                    size={size}
+                    embedded={embedded}
+                    isPreview={true}
+                  />
+                  {showHeaderFooter && (
+                    <GalleryPostFooter
+                      post={post}
+                      deliveryFailed={deliveryFailed}
+                      onPressRetry={handleRetryPressed}
+                    />
+                  )}
+                  {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+                    <Pressable
+                      position="absolute"
+                      top={36}
+                      right={4}
+                      onPress={handleOverflowPress}
+                    >
+                      <ChatMessageActions
+                        post={post}
+                        postActionIds={postActionIds}
+                        onDismiss={() => {
+                          setIsPopoverOpen(false);
+                          setIsHovered(false);
+                        }}
+                        onOpenChange={setIsPopoverOpen}
+                        onReply={handlePress}
+                        onEdit={handleEditPressed}
+                        mode="await-trigger"
+                        trigger={
+                          <Button
+                            icon="Overflow"
+                            fill="ghost"
+                            type="secondary"
+                            size="small"
+                            width={32}
+                            height={32}
+                            borderRadius="$m"
+                            testID="MessageActionsTrigger"
+                          />
+                        }
+                      />
+                    </Pressable>
+                  )}
+                </GalleryPostFrame>
+              </Pressable>
+            );
+        }
+      }}
+    </PostModerationSwitch>
   );
 }
 

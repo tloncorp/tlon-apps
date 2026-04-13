@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { usePostTerminology } from '../../contexts/terminology';
@@ -16,28 +16,27 @@ export function MaskedChatMessage({
   post: db.Post;
   children?: React.ReactNode;
 }) {
-  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
-    useBlockedAuthor(post);
-  const [showHiddenContent, setShowHiddenContent] = useState(false);
-
-  if (post.isDeleted) {
-    return <PostDeletedNotice />;
-  } else if (post.hidden && !showHiddenContent) {
-    return (
-      <PostHiddenNotice
-        onShowAnywayPressed={() => setShowHiddenContent(true)}
-      />
-    );
-  } else if (isAuthorBlocked && !showBlockedContent) {
-    return <PostBlockedNotice onShowAnywayPressed={handleShowAnyway} />;
-  } else {
-    return children;
-  }
+  return (
+    <PostModerationSwitch post={post}>
+      {(m) => {
+        switch (m.type) {
+          case 'deleted':
+            return m.deleted;
+          case 'hidden':
+            return m.hidden;
+          case 'blocked':
+            return m.blocked;
+          case 'post':
+            return children;
+        }
+      }}
+    </PostModerationSwitch>
+  );
 }
 
 type Strings<Keys extends string> = Record<Keys, string>;
 
-export function PostDeletedNotice() {
+function PostDeletedNotice() {
   const postTerm = usePostTerminology();
   const strings = useMemo<Strings<'message' | 'testId'>>(() => {
     switch (postTerm) {
@@ -62,7 +61,7 @@ export function PostDeletedNotice() {
   return <PostErrorMessage testID={strings.testId} message={strings.message} />;
 }
 
-export function PostHiddenNotice({
+function PostHiddenNotice({
   onShowAnywayPressed,
 }: {
   /** If provided, renders a "Show anyway" button that calls this callback when pressed. */
@@ -100,7 +99,7 @@ export function PostHiddenNotice({
   );
 }
 
-export function PostBlockedNotice({
+function PostBlockedNotice({
   onShowAnywayPressed,
 }: {
   /** If provided, renders a "Show anyway" button that calls this callback when pressed. */
@@ -139,4 +138,72 @@ export function PostBlockedNotice({
           })}
     />
   );
+}
+
+type TypeTagged<T extends string, Payload> = { type: T } & Record<T, Payload>;
+
+export function PostModerationSwitch({
+  post,
+  disableBypassBlockedContent,
+  disableBypassHiddenContent,
+  children,
+}: {
+  post: db.Post;
+  disableBypassBlockedContent?: boolean;
+  disableBypassHiddenContent?: boolean;
+  children?: (
+    moderated:
+      | TypeTagged<'deleted', React.ReactNode>
+      | TypeTagged<'hidden', React.ReactNode>
+      | TypeTagged<'blocked', React.ReactNode>
+      // after checking all other fields are null, the caller should be able to
+      // safely access the unmoderated content:
+      | TypeTagged<'post', db.Post>
+  ) => React.ReactNode;
+}) {
+  const { isAuthorBlocked } = useBlockedAuthor(post);
+  const [showBlockedContent, setShowBlockedContent] = useState(false);
+  const [showHiddenContent, setShowHiddenContent] = useState(false);
+
+  // reset override whenever bypass is disabled/enabled
+  useEffect(() => {
+    setShowHiddenContent(false);
+  }, [disableBypassHiddenContent]);
+  useEffect(() => {
+    setShowBlockedContent(false);
+  }, [disableBypassBlockedContent]);
+
+  if (post.isDeleted) {
+    return (
+      children?.({ type: 'deleted', deleted: <PostDeletedNotice /> }) ?? null
+    );
+  } else if (post.hidden && !showHiddenContent) {
+    return children?.({
+      type: 'hidden',
+      hidden: (
+        <PostHiddenNotice
+          onShowAnywayPressed={
+            disableBypassHiddenContent
+              ? undefined
+              : () => setShowHiddenContent(true)
+          }
+        />
+      ),
+    });
+  } else if (isAuthorBlocked && !showBlockedContent) {
+    return children?.({
+      type: 'blocked',
+      blocked: (
+        <PostBlockedNotice
+          onShowAnywayPressed={
+            disableBypassBlockedContent
+              ? undefined
+              : () => setShowBlockedContent(true)
+          }
+        />
+      ),
+    });
+  } else {
+    return children?.({ type: 'post', post }) ?? null;
+  }
 }
