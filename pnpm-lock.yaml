@@ -1111,9 +1111,6 @@ importers:
         specifier: ^3.7.2
         version: 3.7.2(react@19.1.0)
     devDependencies:
-      '@faker-js/faker':
-        specifier: ^8.4.1
-        version: 8.4.1
       '@types/react':
         specifier: ~19.1.10
         version: 19.1.17
