@@ -240,7 +240,12 @@ export default ({ mode }: { mode: string }) => {
     // config since it doesn't use the dev server proxy from urbitPlugin.
     preview: {
       proxy: {
-        '~/': {
+        '/~/': {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+        '/spider/': {
           target: SHIP_URL,
           changeOrigin: true,
           secure: false,
