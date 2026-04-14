@@ -5,7 +5,13 @@ import {
   downloadImageForWeb,
   ensureFileExtension,
 } from '@tloncorp/shared';
-import { GestureMediaViewer, Icon, Image, Pressable, ZStack } from '@tloncorp/ui';
+import {
+  GestureMediaViewer,
+  Icon,
+  Image,
+  Pressable,
+  ZStack,
+} from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -30,7 +36,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-<<<<<<< HEAD
 import { AnimatePresence, Spinner, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
