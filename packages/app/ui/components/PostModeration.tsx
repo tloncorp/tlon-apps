@@ -2,13 +2,13 @@ import * as db from '@tloncorp/shared/db';
 import { createContext, useContext, useMemo, useState } from 'react';
 
 import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
-import { usePostTerminology } from '../contexts/terminology';
 import { PostErrorMessage } from './PostErrorMessage';
 
 type Strings<Keys extends string> = Record<Keys, string>;
 
 function PostDeletedNotice() {
-  const postTerm = usePostTerminology();
+  const postModeration = usePostModerationContext();
+  const postTerm = termForPost(postModeration.post);
   const strings = useMemo<Strings<'message' | 'testId'>>(() => {
     switch (postTerm) {
       case 'message':
@@ -33,8 +33,8 @@ function PostDeletedNotice() {
 }
 
 function PostHiddenNotice() {
-  const moderationBypass = useContext(PostModerationContext);
-  const postTerm = usePostTerminology();
+  const postModeration = usePostModerationContext();
+  const postTerm = termForPost(postModeration.post);
   const strings = useMemo<
     Strings<'message' | 'testId' | 'messageWithoutAction'>
   >(() => {
@@ -54,21 +54,21 @@ function PostHiddenNotice() {
     }
   }, [postTerm]);
 
-  return moderationBypass.disableBypassHiddenContent ? (
+  return postModeration.disableBypassHiddenContent ? (
     <PostErrorMessage message={strings.messageWithoutAction} />
   ) : (
     <PostErrorMessage
       testID={strings.testId}
       message={strings.message}
       actionLabel="Show anyway"
-      onAction={moderationBypass.requestBypass}
+      onAction={postModeration.requestBypass}
     />
   );
 }
 
 function PostBlockedNotice() {
-  const moderationBypass = useContext(PostModerationContext);
-  const postTerm = usePostTerminology();
+  const postModeration = usePostModerationContext();
+  const postTerm = termForPost(postModeration.post);
   const strings = useMemo<
     Strings<'message' | 'testId' | 'actionTestID'>
   >(() => {
@@ -92,28 +92,37 @@ function PostBlockedNotice() {
     <PostErrorMessage
       testID={strings.testId}
       message={strings.message}
-      {...(moderationBypass.disableBypassBlockedContent
+      {...(postModeration.disableBypassBlockedContent
         ? {}
         : {
             actionTestID: strings.actionTestID,
             actionLabel: 'Show anyway',
-            onAction: moderationBypass.requestBypass,
+            onAction: postModeration.requestBypass,
           })}
     />
   );
 }
 
 const PostModerationContext = createContext<{
+  post: db.Post;
   isBypassed: boolean;
   requestBypass: () => void;
   disableBypassBlockedContent?: boolean;
   disableBypassHiddenContent?: boolean;
-}>({
-  isBypassed: false,
-  requestBypass: () => {
-    throw new Error('use a PostModerationContext provider');
-  },
-});
+} | null>(null);
+
+function usePostModerationContext() {
+  const ctx = useContext(PostModerationContext);
+  if (ctx == null) {
+    throw new Error('Use PostModerationContext inside a provider');
+  }
+  return ctx;
+}
+
+function termForPost(post: db.Post): 'post' | 'message' {
+  if (post.type === 'block' || post.type === 'note') return 'post';
+  return 'message';
+}
 
 export function PostModeration({
   post,
@@ -132,12 +141,14 @@ export function PostModeration({
   const [moderationBypassed, setModerationBypassed] = useState(false);
   const ctxValue = useMemo(
     () => ({
+      post,
       isBypassed: moderationBypassed,
       requestBypass: () => setModerationBypassed(true),
       disableBypassBlockedContent,
       disableBypassHiddenContent,
     }),
     [
+      post,
       moderationBypassed,
       disableBypassBlockedContent,
       disableBypassHiddenContent,
