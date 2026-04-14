@@ -237,10 +237,18 @@ export default ({ mode }: { mode: string }) => {
       },
     },
     // vite preview (used by production smoke tests) doesn't use the dev
-    // server proxy. Proxy /apps/landscape so the login redirect works
-    // during auth setup — the ship redirects there after successful login.
+    // server proxy. Proxy ship-owned paths to the ship so auth works —
+    // login, scry, and the /apps/landscape redirect target.
     preview: {
       proxy: {
+        // Auth goes to /apps/groups/~/login which vite would otherwise
+        // serve as an SPA route. Strip the base prefix and forward.
+        '/apps/groups/~/': {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (p: string) => p.replace(/^\/apps\/groups/, ''),
+        },
         '/apps/landscape': {
           target: SHIP_URL,
           changeOrigin: true,
