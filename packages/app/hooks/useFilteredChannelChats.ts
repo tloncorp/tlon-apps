@@ -75,7 +75,9 @@ export function useFilteredChannelChats({
     }
 
     setFrozenChannelChats((current) =>
-      current.length < channelChats.length ? liveChannelChatsRef.current : current
+      current.length < channelChats.length
+        ? liveChannelChatsRef.current
+        : current
     );
   }, [shouldFreeze, channelChats.length]);
   const searchableChats = shouldFreeze ? frozenChannelChats : channelChats;

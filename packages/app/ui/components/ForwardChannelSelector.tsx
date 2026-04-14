@@ -1,6 +1,12 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import { ComponentProps, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { ScrollViewProps, useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 

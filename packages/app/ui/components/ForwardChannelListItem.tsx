@@ -82,44 +82,48 @@ const ForwardGroupChannelIcon = memo(function ForwardGroupChannelIcon({
   );
 });
 
-export const ForwardChannelListItem = memo(function ForwardChannelListItem({
-  channel,
-  selected = false,
-  onPress,
-  onLayout,
-}: ForwardChannelListItemProps) {
-  const selectedStyles = selected
-    ? { backgroundColor: '$positiveBackground', borderColor: '$positiveBorder' }
-    : { borderColor: 'transparent' };
-
-  const sharedProps = {
-    model: channel,
+export const ForwardChannelListItem = memo(
+  function ForwardChannelListItem({
+    channel,
+    selected = false,
     onPress,
     onLayout,
-    disableOptions: true,
-    disableFocusedStyle: true,
-    showGroupTitle: true,
-    borderWidth: '$2xs',
-    marginHorizontal: -1,
-    ...selectedStyles,
-  } as const;
+  }: ForwardChannelListItemProps) {
+    const selectedStyles = selected
+      ? {
+          backgroundColor: '$positiveBackground',
+          borderColor: '$positiveBorder',
+        }
+      : { borderColor: 'transparent' };
 
-  if (!isNonDmGroupChannel(channel)) {
-    return <ChannelListItem {...sharedProps} />;
-  }
+    const sharedProps = {
+      model: channel,
+      onPress,
+      onLayout,
+      disableOptions: true,
+      disableFocusedStyle: true,
+      showGroupTitle: true,
+      borderWidth: '$2xs',
+      marginHorizontal: -1,
+      ...selectedStyles,
+    } as const;
 
-  return (
-    <ChannelListItem
-      {...sharedProps}
-      StartIcon={<ForwardGroupChannelIcon channel={channel} />}
-    />
-  );
-},
-(prev, next) =>
-  prev.channel.id === next.channel.id &&
-  prev.channel.type === next.channel.type &&
-  prev.channel.group?.id === next.channel.group?.id &&
-  prev.selected === next.selected &&
-  prev.onPress === next.onPress &&
-  prev.onLayout === next.onLayout
+    if (!isNonDmGroupChannel(channel)) {
+      return <ChannelListItem {...sharedProps} />;
+    }
+
+    return (
+      <ChannelListItem
+        {...sharedProps}
+        StartIcon={<ForwardGroupChannelIcon channel={channel} />}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.channel.id === next.channel.id &&
+    prev.channel.type === next.channel.type &&
+    prev.channel.group?.id === next.channel.group?.id &&
+    prev.selected === next.selected &&
+    prev.onPress === next.onPress &&
+    prev.onLayout === next.onLayout
 );
