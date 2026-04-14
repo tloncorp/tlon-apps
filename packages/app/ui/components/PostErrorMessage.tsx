@@ -1,6 +1,5 @@
 import { Button, ForwardingProps, Icon, Text, View } from '@tloncorp/ui';
 import { useLayoutEffect, useState } from 'react';
-import 'react-native-reanimated';
 import { XStack } from 'tamagui';
 
 export function PostErrorMessage({
@@ -26,6 +25,15 @@ export function PostErrorMessage({
     forceNarrowLayout ?? null
   );
   const [opacity, setOpacity] = useState(0);
+
+  // Why `useLayoutEffect`?
+  //
+  // We want the following steps to occur serially:
+  // 1. measure layout and set `isContainerNarrow`
+  // 2. re-render using the correct responsive layout (flexDirection)
+  // 3. set opacity to 1 once everything's correctly laid out
+  // We use `useLayoutEffect` to set opacity (3) to ensure that step 2's render
+  // synchronously completes before showing the content.
   useLayoutEffect(() => {
     setOpacity(isContainerNarrow == null ? 0 : 1);
   }, [isContainerNarrow]);
