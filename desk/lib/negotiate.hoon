@@ -338,14 +338,10 @@
       ?<  (~(has by heed) for)
       :-  [(watch-version for)]~
       state(heed (~(put by heed) for ~))
-    ::  +reset-heed: operator-invoked repair for stuck heed entries
+    ::  +reset-heed: renegotiate targeted heed entries
     ::
     ::    for each matching heed key, emit %leave on the heed subscription
-    ::    wire, clear the entry, and call +negotiate to re-subscribe. this
-    ::    forces the publisher to re-answer via +on-watch with its current
-    ::    version, healing zombie/desynced subscription state that the
-    ::    orphan detector cannot see (both sides' wex/sup agree, but the
-    ::    version we heard is stale).
+    ::    wire, clear the entry, and call +negotiate to re-subscribe.
     ::
     ++  reset-heed
       |=  target=(unit gill:gall)
@@ -380,18 +376,15 @@
         %+  turn  old
         |=  [=protocol =version]
         [%give %kick [/~/negotiate/version/[protocol]]~ ~]
-      ::  re-announce current version for every protocol we expose.
-      ::  idempotent on subscribers (+heed-changed short-circuits on
-      ::  same version), but heals cases where a prior %fact was
-      ::  missed (breach-adjacent flow reset, upgrade path that
-      ::  skipped this arm, etc). called unconditionally from on-load
-      ::  so every reload acts as a safety-net re-announce.
+      ::  give updates for protocols whose supported version changed
       ::
       ^-  (list card)
       %-  zing
-      %+  turn  ~(tap by neu)
+      %+  murn  ~(tap by neu)
       |=  [=protocol =version]
-      ^-  (list card)
+      ^-  (unit (list card))
+      ?:  =(`version (~(get by ole) protocol))  ~
+      %-  some
       :~  (tell:log %dbug ~[>[%ours-changed 'giving version' version 'for protocol' protocol]<] ~)
           [%give %fact [/~/negotiate/version/[protocol]]~ %noun !>(version)]
       ==
@@ -614,13 +607,9 @@
             $(cards (weld cards caz), suz t.suz)
           ?>  ?=(%1 -.old)
           =.  state  old
-          ::  always re-announce current versions on reload as a safety
-          ::  net. +ours-changed handles both the kick path (for removed
-          ::  protocols) and the fact emission (for current protocols);
-          ::  facts are no-ops on subscribers whose heed is already
-          ::  in sync via +heed-changed's early return.
-          ::
-          =/  caz1  (ours-changed:up ours our-versions)
+          =/  caz1
+            ?:  =(ours our-versions)  ~
+            (ours-changed:up ours our-versions)
           =.  ours   our-versions
           =/  knew   know
           =.  know   our-config
@@ -763,10 +752,6 @@
         (fall ((soft (list mass)) q.q.u.u.dat) ~)
       ?:  =(/x/dbug/state path)
         ``noun+!>((slop on-save:og !>(negotiate=state)))
-      ::  raw outer-bowl peeks: these bypass +inner-boat/+inner-bitt so
-      ::  operators can see library-internal wires that would otherwise
-      ::  be filtered out of any inner-agent (e.g. +dbug) scry.
-      ::
       ?:  =(/x/dbug/wex path)
         ``noun+!>(wex.bowl)
       ?:  =(/x/dbug/sup path)
@@ -885,10 +870,6 @@
     ++  on-poke
       |=  [=mark =vase]
       ^-  (quip card _this)
-      ::  library-level repair poke: clear targeted heed entries and
-      ::  re-negotiate, healing stuck subscriptions without waiting
-      ::  for the next reload.
-      ::
       ?:  ?=(%negotiate-reset mark)
         =+  !<(target=(unit gill:gall) vase)
         =^  cards  state  (reset-heed:up target)
