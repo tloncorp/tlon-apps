@@ -1,7 +1,7 @@
 /**
  * Acts like Lodash's `omit` but with stricter typing.
  */
-export function omit<T extends object, K extends keyof T>(
+export function omit<T extends object, K extends Extract<keyof T, string>>(
   obj: T,
   keys: K[] | Set<K>
 ): Omit<T, K> {
