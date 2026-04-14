@@ -140,15 +140,26 @@ export async function with404Handler<T>(
   }
 }
 export function getCanonicalPostId(inputId: string) {
-  let id = inputId;
-  // Dm and club posts come prefixed with the author, so we strip it
+  let id = inputId.trim();
+
+  // DM and club posts can be prefixed with author/path; keep only trailing id segment.
   if (id[0] === '~') {
-    id = id.split('/').pop()!;
+    const tail = id.split('/').pop();
+    if (tail) id = tail.trim();
   }
-  // The id in group post ids doesn't come dot separated, so we format it
-  if (id[3] !== '.') {
-    id = render('ud', BigInt(id)); //REVIEW  weird, and dot check is not ideal
+
+  // Already canonical dotted @ud (e.g. 1.234, 12.345, 123.456, 1.234.567)
+  if (/^\d{1,3}(?:\.\d{3})*$/.test(id)) {
+    return id;
   }
+
+  // Raw undotted digits -> canonical dotted @ud
+  if (/^\d+$/.test(id)) {
+    return render('ud', BigInt(id));
+  }
+
+  // Unknown/non-numeric shape: don't crash parser pipeline.
+  // Return as-is; caller can log/track malformed IDs upstream.
   return id;
 }
 
