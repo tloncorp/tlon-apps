@@ -1,6 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { isBatteryCharging } from 'react-native-device-info';
+import { createContext, useContext, useMemo, useState } from 'react';
 
 import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
 import { usePostTerminology } from '../contexts/terminology';
