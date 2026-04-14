@@ -5,7 +5,8 @@ import { Dimensions } from 'react-native';
 import { ScrollView, View } from 'tamagui';
 
 import AuthorRow from '../../AuthorRow';
-import { NotebookPost } from '../../NotebookPost';
+import { NotebookPostContent } from '../../NotebookPost/NotebookPostContent';
+import { NotebookPostFrame } from '../../NotebookPost/shared';
 import { MaskedChatMessage } from '../../PostModerationSwitch';
 import { StaticChatMessage } from '../StaticChatMessage';
 
@@ -26,13 +27,11 @@ export function MessageContainer({ post }: { post: db.Post }) {
         backgroundColor="$background"
         padding="$l"
         borderRadius="$l"
+        width={width}
       >
-        <NotebookPost
-          showAuthor={false}
-          size="$xs"
-          post={post}
-          hideOverflowMenu
-        />
+        <NotebookPostFrame>
+          <NotebookPostContent post={post} showAuthor={false} />
+        </NotebookPostFrame>
       </ScrollView>
     );
   }
