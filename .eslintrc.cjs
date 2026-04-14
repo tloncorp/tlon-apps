@@ -106,6 +106,25 @@ module.exports = {
     'react/prop-types': 'off',
     'react/display-name': 'warn',
     'no-useless-escape': 'warn',
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: 'tamagui',
+            importNames: ['ZStack'],
+            message:
+              'Import ZStack from @tloncorp/ui instead. The repo uses a local native-safe implementation.',
+          },
+          {
+            name: '@tamagui/stacks',
+            importNames: ['ZStack'],
+            message:
+              'Import ZStack from @tloncorp/ui instead. The repo uses a local native-safe implementation.',
+          },
+        ],
+      },
+    ],
     'react-hooks/exhaustive-deps': [
       'warn',
       {

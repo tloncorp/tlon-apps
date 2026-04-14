@@ -1,8 +1,7 @@
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
-import { Icon } from '@tloncorp/ui';
-import { LoadingSpinner } from '@tloncorp/ui';
+import { Icon, LoadingSpinner, ZStack } from '@tloncorp/ui';
 import { ImageBackground } from 'expo-image';
 import {
   ComponentProps,
@@ -12,7 +11,7 @@ import {
   useState,
 } from 'react';
 import { TouchableOpacity } from 'react-native';
-import { Circle, View, ZStack, useTheme } from 'tamagui';
+import { Circle, View, useTheme } from 'tamagui';
 
 import {
   useAttachmentContext,
