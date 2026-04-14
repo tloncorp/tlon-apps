@@ -237,11 +237,16 @@ export default ({ mode }: { mode: string }) => {
       },
     },
     // vite preview (used by production smoke tests) doesn't use the
-    // dev server proxy from urbitPlugin. Proxy everything that isn't
-    // a request under the groups base (/apps/groups/) to the ship —
-    // this mirrors the regex the urbit plugin uses for the dev server.
+    // dev server proxy from urbitPlugin. Mirror the same proxy config
+    // the urbit plugin sets up for the dev server: forward desk.js and
+    // everything outside the groups base to the ship.
     preview: {
       proxy: {
+        '^/apps/groups/desk.js': {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
         '^((?!/apps/groups/).)*$': {
           target: SHIP_URL,
           changeOrigin: true,
