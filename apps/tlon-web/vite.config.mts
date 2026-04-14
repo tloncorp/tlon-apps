@@ -240,22 +240,22 @@ export default ({ mode }: { mode: string }) => {
     // vite preview (used by production smoke tests) needs its own proxy
     // config since it doesn't use the dev server proxy from urbitPlugin.
     preview: {
+      // Proxy ship requests. In dev mode the urbit plugin handles this,
+      // but vite preview needs explicit config.
       proxy: {
-        '/~/': {
+        '/~/': { target: SHIP_URL, changeOrigin: true, secure: false },
+        '/apps/landscape': {
           target: SHIP_URL,
           changeOrigin: true,
           secure: false,
         },
+        '/spider/': { target: SHIP_URL, changeOrigin: true, secure: false },
+        // API calls made under the app base path
         '/apps/groups/~/': {
           target: SHIP_URL,
           changeOrigin: true,
           secure: false,
           rewrite: (p: string) => p.replace('/apps/groups', ''),
-        },
-        '/spider/': {
-          target: SHIP_URL,
-          changeOrigin: true,
-          secure: false,
         },
       },
     },
