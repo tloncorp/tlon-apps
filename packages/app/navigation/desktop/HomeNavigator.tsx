@@ -24,6 +24,7 @@ import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { HomeDrawerParamList } from '../types';
+import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
 
 const HomeDrawer = createDrawerNavigator();
@@ -201,6 +202,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="MediaViewer"
           component={MediaViewerScreen}
+          options={mediaViewerScreenOptions}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"

@@ -7,6 +7,7 @@ import { useCallback } from 'react';
 
 import { RootStackParamList } from '../navigation/types';
 import { useRootNavigation } from '../navigation/utils';
+import { getPostImageViewerId } from '../utils/mediaViewer';
 
 const logger = createDevLogger('useChannelNavigation', false);
 
@@ -78,6 +79,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
       navigation.navigate('MediaViewer', {
         mediaType: 'image',
         uri,
+        viewerId: getPostImageViewerId(post.id, uri),
       });
     },
     [navigation]

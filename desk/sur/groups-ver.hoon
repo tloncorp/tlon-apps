@@ -1,4 +1,4 @@
-/-  g=groups, meta, e=epic, s=story
+/-  meta, e=epic, s=story
 |%
 ::
 ::  common
@@ -6,6 +6,7 @@
 +$  flag  flag:v0
 +$  nest  nest:v0
 +$  sect  sect:v0
++$  role-id  role-id:v10
 ::
 ::  versions
 ::

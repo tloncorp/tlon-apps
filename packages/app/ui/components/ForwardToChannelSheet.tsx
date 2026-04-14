@@ -30,6 +30,9 @@ export function ForwardToChannelSheet({
       onOpenChange={onOpenChange}
       snapPointsMode="percent"
       snapPoints={FORWARD_SHEET_SNAP_POINTS}
+      keyboardBehavior="extend"
+      enableContentPanningGesture={false}
+      hasScrollableContent
       footerComponent={footerComponent}
     >
       <ActionSheet.Content flex={1} paddingBottom="$s">

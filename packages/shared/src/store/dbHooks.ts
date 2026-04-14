@@ -248,6 +248,30 @@ export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
   });
 };
 
+/**
+ * Reactively tracks the unread state for a thread, keyed by the parent post's
+ * ID. Unlike `useLiveThreadUnread` (which requires a `ThreadUnreadState` seed
+ * and goes dormant when the seed is null), this hook always tracks reactively
+ * as long as `parentPostId` is non-null — even when the thread starts with no
+ * unread row.
+ */
+export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
+  const depsKey = useMemo(
+    () => (parentPostId ? keyFromQueryDeps(db.getThreadUnreadState) : null),
+    [parentPostId]
+  );
+
+  return useQuery({
+    queryKey: ['liveUnreadCount', depsKey, 'thread', parentPostId],
+    queryFn: async () => {
+      if (parentPostId) {
+        return db.getThreadUnreadState({ parentId: parentPostId });
+      }
+      return null;
+    },
+  });
+};
+
 export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
   const depsKey = useMemo(
     () => (unread ? keyFromQueryDeps(db.getChannelUnread) : null),

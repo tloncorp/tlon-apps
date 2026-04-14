@@ -4,6 +4,7 @@ import { ComponentProps, useCallback } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
+import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
@@ -154,6 +155,7 @@ export function StaticChatMessage({
             content={post.editStatus === 'failed' ? lastEditContent : content}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
+            getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
             searchQuery={searchQuery}
           />
