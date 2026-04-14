@@ -15,10 +15,11 @@ type ForwardChannelListItemProps = {
 };
 
 const FORWARD_CHANNEL_AVATAR = {
-  footprint: 52,
+  footprint: 48,
   groupSizeToken: '$3.5xl',
   badgeSize: 29,
   badgeRadius: 5,
+  badgeOffset: 4,
   iconSizeToken: '$xl',
 } as const;
 
@@ -60,8 +61,8 @@ function ForwardGroupChannelIcon({
       />
       <View
         position="absolute"
-        right={0}
-        bottom={0}
+        right={-FORWARD_CHANNEL_AVATAR.badgeOffset}
+        bottom={-FORWARD_CHANNEL_AVATAR.badgeOffset}
         width={FORWARD_CHANNEL_AVATAR.badgeSize}
         height={FORWARD_CHANNEL_AVATAR.badgeSize}
         borderRadius={FORWARD_CHANNEL_AVATAR.badgeRadius}

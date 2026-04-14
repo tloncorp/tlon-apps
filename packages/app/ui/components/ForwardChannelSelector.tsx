@@ -7,6 +7,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
@@ -22,11 +23,21 @@ type ForwardChannelSelectorProps = {
 
 type ChannelChat = db.Chat & { type: 'channel' };
 
+const ITEM_H = 76;
+
+const getItemType = (chat: ChannelChat) =>
+  chat.channel.type === 'dm' || chat.channel.type === 'groupDm'
+    ? 'dm'
+    : chat.channel.group
+      ? 'group'
+      : 'channel';
+
 export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
   channelFilter,
 }: ForwardChannelSelectorProps) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
@@ -35,9 +46,9 @@ export function ForwardChannelSelector({
     searchQuery: query,
     channelFilter,
   });
+
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
-    // Reset any explicit row selection when the result set changes.
     setSelectedChannelId(null);
   }, []);
 
@@ -67,7 +78,7 @@ export function ForwardChannelSelector({
   );
 
   const renderItem: ListRenderItem<ChannelChat> = useCallback(
-    ({ item }: { item: ChannelChat }) => (
+    ({ item }) => (
       <ForwardChannelListItem
         channel={item.channel}
         selected={highlightedChannelId === item.channel.id}
@@ -85,6 +96,14 @@ export function ForwardChannelSelector({
     []
   );
 
+  const estimatedListSize = useMemo(
+    () => ({
+      width: screenWidth,
+      height: Math.floor(screenHeight * 0.55),
+    }),
+    [screenWidth, screenHeight]
+  );
+
   return (
     <>
       <XStack paddingHorizontal="$xl">
@@ -92,7 +111,7 @@ export function ForwardChannelSelector({
           placeholder="Search channels"
           onChangeQuery={handleQueryChanged}
           debounceTime={0}
-        ></SearchBar>
+        />
       </XStack>
 
       {isOpen ? (
@@ -106,9 +125,12 @@ export function ForwardChannelSelector({
               data={channelChats}
               extraData={highlightedChannelId}
               contentContainerStyle={contentContainerStyle}
+              getItemType={getItemType}
               keyExtractor={(chat) => chat.channel.id}
+              overrideItemLayout={(layout) => {
+                layout.size = ITEM_H;
+              }}
               renderItem={renderItem}
-              estimatedItemSize={72}
               renderScrollComponent={(props) => (
                 <ActionSheet.ScrollableContent
                   {...(props as ComponentProps<
@@ -116,6 +138,9 @@ export function ForwardChannelSelector({
                   >)}
                 />
               )}
+              drawDistance={ITEM_H * 8}
+              estimatedItemSize={ITEM_H}
+              estimatedListSize={estimatedListSize}
               keyboardShouldPersistTaps="always"
             />
           )}
