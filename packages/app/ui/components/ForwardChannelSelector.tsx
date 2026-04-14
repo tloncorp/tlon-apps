@@ -5,11 +5,14 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
+import { useCalm } from '../../ui';
+import { useChatSearch } from '../../hooks/useChatSearch';
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
 import { ActionSheet } from './ActionSheet';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
@@ -38,14 +41,32 @@ export function ForwardChannelSelector({
   channelFilter,
 }: ForwardChannelSelectorProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { disableNicknames } = useCalm();
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
-  const { channelChats, isSearching } = useFilteredChannelChats({
-    searchQuery: query,
+  const { channelChats: liveChannelChats } = useFilteredChannelChats({
+    searchQuery: '',
     channelFilter,
   });
+  const latestLiveChannelChatsRef = useRef(liveChannelChats);
+  latestLiveChannelChatsRef.current = liveChannelChats;
+  const [frozenChannelChats, setFrozenChannelChats] =
+    useState<ChannelChat[]>(liveChannelChats);
+  const { isSearching, results: searchResults, allChats } = useChatSearch({
+    chats: frozenChannelChats,
+    searchQuery: query,
+    debounceMs: 0,
+    disableNicknames,
+  });
+  const channelChats = isSearching ? searchResults : allChats;
+
+  useEffect(() => {
+    if (isOpen) {
+      setFrozenChannelChats(latestLiveChannelChatsRef.current);
+    }
+  }, [isOpen]);
 
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
