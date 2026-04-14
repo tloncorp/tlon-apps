@@ -227,7 +227,6 @@ export function ProfileSheet({
           <ProfileBlock
             height={200}
             contactId={contactId}
-            contact={contact}
             onPressGoToProfile={onPressGoToProfile}
           />
         </ActionSheet.ContentBlock>

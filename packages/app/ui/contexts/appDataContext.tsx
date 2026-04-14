@@ -100,16 +100,6 @@ export const useContact = (ship: string) => {
   return contactIndex?.[ship] ?? null;
 };
 
-/**
- * Like useContact, but returns null instead of throwing when outside
- * AppDataContextProvider. Useful for components rendered in portaled
- * contexts (e.g. BottomSheetModal) where the provider may not be available.
- */
-export const useContactSafe = (ship: string): db.Contact | null => {
-  const context = useContext(Context);
-  return context?.contactIndex?.[ship] ?? null;
-};
-
 export const useInviteService = () => {
   const context = useAppDataContext();
   return {
