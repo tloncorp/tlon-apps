@@ -9,7 +9,11 @@ export function omit<T extends object, K extends keyof T>(
   const result = {} as Omit<T, K>;
   for (const key of Object.keys(obj)) {
     if (!keySet.has(key as K)) {
-      result[key] = obj[key];
+      // Since `key` is not in `keySet`, which should implicitly define the
+      // type `K`, we can safely make this type assertion:
+      const k = key as keyof Omit<T, K>;
+
+      result[k] = obj[k];
     }
   }
   return result;
