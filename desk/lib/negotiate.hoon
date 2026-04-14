@@ -71,6 +71,13 @@
 +$  version   *
 +$  config    (map dude:gall (map protocol version))
 +$  status    ?(%match %clash %await %unmet)
++$  state-1
+  $:  %1
+      ours=(map protocol version)
+      know=config
+      heed=(map [gill:gall protocol] (unit version))
+      want=(map gill:gall (map wire path))  ::  un-packed wires
+  ==
 ::
 ++  initiate
   |=  =gill:gall
@@ -92,14 +99,6 @@
   |=  [notify=? our-versions=(map protocol version) =our=config]
   ^-  $-(agent:gall agent:gall)
   |^  agent
-  ::
-  +$  state-1
-    $:  %1
-        ours=(map protocol version)
-        know=config
-        heed=(map [gill:gall protocol] (unit version))
-        want=(map gill:gall (map wire path))  ::  un-packed wires
-    ==
   ::
   +$  card  card:agent:gall
   ::
