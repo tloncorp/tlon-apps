@@ -14,8 +14,10 @@ export interface PostCollectionHandle {
   highlightPost?: (postId: string) => void;
 }
 
+export interface PostCollectionViewProps {}
+
 export type IPostCollectionView = React.ForwardRefExoticComponent<
-  React.RefAttributes<PostCollectionHandle>
+  PostCollectionViewProps & React.RefAttributes<PostCollectionHandle>
 >;
 
 export function ConnectedPostView({

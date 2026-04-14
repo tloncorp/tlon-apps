@@ -40,6 +40,7 @@ export const PostList: PostListComponent = React.forwardRef(
       onScrolledToBottomThreshold = 1,
       onScrolledAwayFromBottom,
       listHeaderComponent,
+      listBottomComponent,
     },
     forwardedRef
   ) => {
@@ -155,10 +156,10 @@ export const PostList: PostListComponent = React.forwardRef(
         }
         inverted={effectiveInverted}
         ListFooterComponent={
-          effectiveInverted ? listHeaderComponent : undefined
+          effectiveInverted ? listHeaderComponent : listBottomComponent
         }
         ListHeaderComponent={
-          effectiveInverted ? undefined : listHeaderComponent
+          effectiveInverted ? listBottomComponent : listHeaderComponent
         }
         maxToRenderPerBatch={15}
         windowSize={11}

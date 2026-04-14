@@ -1,3 +1,5 @@
+import { da, parse } from '@urbit/aura';
+
 import { createDevLogger } from '../lib/logger';
 import { preSig } from '../lib/urbit';
 import * as ub from '../urbit';
@@ -18,12 +20,17 @@ export interface PresenceDisplayInput {
   blob?: string | null;
 }
 
+export interface PresenceTiming {
+  since: number;
+  timeout: string | null;
+}
+
 // Client-facing presence entries keep the original wire fields but add a
 // normalized app context id so consumers can work with conversation/group ids
 // instead of Urbit-specific paths.
 export interface PresenceStatus {
   key: ub.PresenceKey;
-  timing: ub.PresenceTiming;
+  timing: PresenceTiming;
   display: ub.PresenceDisplay;
   contextId: string | null;
 }
@@ -252,6 +259,7 @@ export const toPresenceStatus = (
 ): PresenceStatus => {
   return {
     ...state,
+    timing: toPresenceTiming(state.timing),
     contextId: getPresenceContextIdFromKey(state.key, currentUserId),
   };
 };
@@ -290,6 +298,21 @@ function toWireDisplay(
     text: display?.text ?? null,
     blob: display?.blob ?? null,
   };
+}
+
+function toPresenceTiming(timing: ub.PresenceTiming): PresenceTiming {
+  try {
+    return {
+      since: Number(da.toUnix(parse('da', timing.since))),
+      timeout: timing.timeout,
+    };
+  } catch {
+    logger.log('failed to parse presence timing', timing);
+    return {
+      since: 0,
+      timeout: timing.timeout,
+    };
+  }
 }
 
 function parsePresenceContext(context: string): ParsedPresenceContext | null {
