@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import { Icon } from '@tloncorp/ui';
-import { ComponentProps } from 'react';
+import { ComponentProps, memo } from 'react';
 import { View, getTokenValue } from 'tamagui';
 
 import { getChannelTypeIcon } from '../utils';
@@ -29,7 +29,7 @@ function isNonDmGroupChannel(
   return channel.type !== 'dm' && channel.type !== 'groupDm' && !!channel.group;
 }
 
-function ForwardGroupChannelIcon({
+const ForwardGroupChannelIcon = memo(function ForwardGroupChannelIcon({
   channel,
 }: {
   channel: db.Channel & { group: NonNullable<db.Channel['group']> };
@@ -80,9 +80,9 @@ function ForwardGroupChannelIcon({
       </View>
     </View>
   );
-}
+});
 
-export function ForwardChannelListItem({
+export const ForwardChannelListItem = memo(function ForwardChannelListItem({
   channel,
   selected = false,
   onPress,
@@ -114,4 +114,12 @@ export function ForwardChannelListItem({
       StartIcon={<ForwardGroupChannelIcon channel={channel} />}
     />
   );
-}
+},
+(prev, next) =>
+  prev.channel.id === next.channel.id &&
+  prev.channel.type === next.channel.type &&
+  prev.channel.group?.id === next.channel.group?.id &&
+  prev.selected === next.selected &&
+  prev.onPress === next.onPress &&
+  prev.onLayout === next.onLayout
+);

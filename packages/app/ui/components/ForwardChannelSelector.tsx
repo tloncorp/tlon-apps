@@ -1,7 +1,7 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import { ComponentProps, useCallback, useEffect, useMemo, useState } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { ScrollViewProps, useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
@@ -25,6 +25,16 @@ const getItemType = (chat: ChannelChat) =>
     : chat.channel.group
       ? 'group'
       : 'channel';
+
+const renderScrollableContent = (props: ScrollViewProps) => (
+  <ActionSheet.ScrollableContent
+    {...(props as ComponentProps<typeof ActionSheet.ScrollableContent>)}
+  />
+);
+
+const overrideItemLayout = (layout: { span?: number; size?: number }) => {
+  layout.size = ITEM_H;
+};
 
 export function ForwardChannelSelector({
   isOpen,
@@ -122,17 +132,9 @@ export function ForwardChannelSelector({
               contentContainerStyle={contentContainerStyle}
               getItemType={getItemType}
               keyExtractor={(chat) => chat.channel.id}
-              overrideItemLayout={(layout) => {
-                layout.size = ITEM_H;
-              }}
+              overrideItemLayout={overrideItemLayout}
               renderItem={renderItem}
-              renderScrollComponent={(props) => (
-                <ActionSheet.ScrollableContent
-                  {...(props as ComponentProps<
-                    typeof ActionSheet.ScrollableContent
-                  >)}
-                />
-              )}
+              renderScrollComponent={renderScrollableContent}
               drawDistance={ITEM_H * 8}
               estimatedItemSize={ITEM_H}
               estimatedListSize={estimatedListSize}
