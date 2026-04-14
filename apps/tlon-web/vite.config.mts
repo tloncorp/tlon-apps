@@ -236,6 +236,18 @@ export default ({ mode }: { mode: string }) => {
         },
       },
     },
+    // vite preview (used by production smoke tests) doesn't use the dev
+    // server proxy. Proxy /apps/landscape so the login redirect works
+    // during auth setup — the ship redirects there after successful login.
+    preview: {
+      proxy: {
+        '/apps/landscape': {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
     build:
       mode !== 'profile'
         ? {
