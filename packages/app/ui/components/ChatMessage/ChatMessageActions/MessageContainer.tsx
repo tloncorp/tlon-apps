@@ -7,7 +7,7 @@ import { View } from 'tamagui';
 import AuthorRow from '../../AuthorRow';
 import { NotebookPostContent } from '../../NotebookPost/NotebookPostContent';
 import { NotebookPostFrame } from '../../NotebookPost/shared';
-import { PostModeration } from '../../PostModerationSwitch';
+import { PostModeration } from '../../PostModeration';
 import { StaticChatMessage } from '../StaticChatMessage';
 
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;

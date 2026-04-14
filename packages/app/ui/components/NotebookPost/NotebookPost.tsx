@@ -15,7 +15,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import { PostModeration } from '../PostModerationSwitch';
+import { PostModeration } from '../PostModeration';
 import { NotebookPostContent } from './NotebookPostContent';
 import { NotebookPostFrame, NotebookPostHeader } from './shared';
 

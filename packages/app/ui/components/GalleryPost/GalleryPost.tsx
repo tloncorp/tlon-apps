@@ -42,7 +42,7 @@ import ContactName from '../ContactName';
 import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
-import { PostModeration } from '../PostModerationSwitch';
+import { PostModeration } from '../PostModeration';
 import { useBoundHandler } from '../listItems/listItemUtils';
 
 const GalleryPostFrame = styled(View, {
