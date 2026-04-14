@@ -37,7 +37,7 @@ export function ForwardChannelSelector({
     null
   );
   const { channelChats, isSearching } = useFilteredChannelChats({
-    isOpen,
+    mode: isOpen ? 'snapshot' : 'live',
     searchQuery: query,
     channelFilter,
   });

@@ -36,11 +36,11 @@ function buildChannelChatSearchKey(
 }
 
 export function useFilteredChannelChats({
-  isOpen,
+  mode = 'live',
   searchQuery,
   channelFilter,
 }: {
-  isOpen?: boolean;
+  mode?: 'live' | 'snapshot';
   searchQuery: string;
   channelFilter?: (channel: db.Channel) => boolean;
 }) {
@@ -61,23 +61,24 @@ export function useFilteredChannelChats({
   liveChannelChatsRef.current = channelChats;
   const [frozenChannelChats, setFrozenChannelChats] =
     useState<ChannelChat[]>(channelChats);
+  const shouldFreeze = mode === 'snapshot';
 
   useEffect(() => {
-    if (isOpen) {
+    if (shouldFreeze) {
       setFrozenChannelChats(liveChannelChatsRef.current);
     }
-  }, [isOpen]);
+  }, [shouldFreeze]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!shouldFreeze) {
       return;
     }
 
     setFrozenChannelChats((current) =>
       current.length < channelChats.length ? liveChannelChatsRef.current : current
     );
-  }, [isOpen, channelChats.length]);
-  const searchableChats = isOpen ? frozenChannelChats : channelChats;
+  }, [shouldFreeze, channelChats.length]);
+  const searchableChats = shouldFreeze ? frozenChannelChats : channelChats;
   const semanticCacheKey = useMemo(
     () => buildChannelChatSearchKey(searchableChats, disableNicknames),
     [searchableChats, disableNicknames]
