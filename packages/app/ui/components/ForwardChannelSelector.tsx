@@ -1,19 +1,10 @@
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import {
-  ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { ComponentProps, useCallback, useEffect, useMemo, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
-import { useChatSearch } from '../../hooks/useChatSearch';
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
-import { useCalm } from '../../ui';
 import { ActionSheet } from './ActionSheet';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
@@ -35,66 +26,21 @@ const getItemType = (chat: ChannelChat) =>
       ? 'group'
       : 'channel';
 
-function useFrozenChannelChats({
-  isOpen,
-  channelFilter,
-}: {
-  isOpen: boolean;
-  channelFilter?: (channel: db.Channel) => boolean;
-}) {
-  const { channelChats: liveChannelChats } = useFilteredChannelChats({
-    searchQuery: '',
-    channelFilter,
-  });
-  const liveChannelChatsRef = useRef(liveChannelChats);
-  liveChannelChatsRef.current = liveChannelChats;
-  const [frozenChannelChats, setFrozenChannelChats] =
-    useState<ChannelChat[]>(liveChannelChats);
-
-  useEffect(() => {
-    if (isOpen) {
-      setFrozenChannelChats(liveChannelChatsRef.current);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setFrozenChannelChats((current) =>
-      current.length < liveChannelChats.length
-        ? liveChannelChatsRef.current
-        : current
-    );
-  }, [isOpen, liveChannelChats.length]);
-
-  return frozenChannelChats;
-}
-
 export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
   channelFilter,
 }: ForwardChannelSelectorProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const { disableNicknames } = useCalm();
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
-  const frozenChannelChats = useFrozenChannelChats({ isOpen, channelFilter });
-  const {
-    isSearching,
-    results: searchResults,
-    allChats,
-  } = useChatSearch({
-    chats: frozenChannelChats,
+  const { channelChats, isSearching } = useFilteredChannelChats({
+    isOpen,
     searchQuery: query,
-    debounceMs: 0,
-    disableNicknames,
+    channelFilter,
   });
-  const channelChats = isSearching ? searchResults : allChats;
 
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);

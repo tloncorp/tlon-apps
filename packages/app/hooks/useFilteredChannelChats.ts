@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useCalm } from '../ui';
 import { useChatSearch } from './useChatSearch';
@@ -36,9 +36,11 @@ function buildChannelChatSearchKey(
 }
 
 export function useFilteredChannelChats({
+  isOpen,
   searchQuery,
   channelFilter,
 }: {
+  isOpen?: boolean;
   searchQuery: string;
   channelFilter?: (channel: db.Channel) => boolean;
 }) {
@@ -55,9 +57,30 @@ export function useFilteredChannelChats({
       ? all.filter((chat) => channelFilter(chat.channel))
       : all;
   }, [channelFilter, resolvedChats.pinned, resolvedChats.unpinned]);
+  const liveChannelChatsRef = useRef(channelChats);
+  liveChannelChatsRef.current = channelChats;
+  const [frozenChannelChats, setFrozenChannelChats] =
+    useState<ChannelChat[]>(channelChats);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFrozenChannelChats(liveChannelChatsRef.current);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setFrozenChannelChats((current) =>
+      current.length < channelChats.length ? liveChannelChatsRef.current : current
+    );
+  }, [isOpen, channelChats.length]);
+  const searchableChats = isOpen ? frozenChannelChats : channelChats;
   const semanticCacheKey = useMemo(
-    () => buildChannelChatSearchKey(channelChats, disableNicknames),
-    [channelChats, disableNicknames]
+    () => buildChannelChatSearchKey(searchableChats, disableNicknames),
+    [searchableChats, disableNicknames]
   );
 
   const {
@@ -65,7 +88,7 @@ export function useFilteredChannelChats({
     results: searchResults,
     allChats,
   } = useChatSearch({
-    chats: channelChats,
+    chats: searchableChats,
     searchQuery,
     debounceMs: 0,
     disableNicknames,
