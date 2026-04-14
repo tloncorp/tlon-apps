@@ -15,7 +15,7 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import { PostModerationSwitch } from '../PostModerationSwitch';
+import { PostModeration } from '../PostModerationSwitch';
 import { NotebookPostContent } from './NotebookPostContent';
 import { NotebookPostFrame, NotebookPostHeader } from './shared';
 
@@ -97,13 +97,13 @@ export function NotebookPost({
   );
 
   return (
-    <PostModerationSwitch post={post}>
-      {(moderated) => {
-        if (moderated.type === 'deleted') {
-          return moderated.deleted;
+    <PostModeration post={post}>
+      {(moderation) => {
+        if (moderation === 'deleted') {
+          return <PostModeration.Deleted />;
         }
-        if (moderated.type === 'blocked') {
-          return moderated.blocked;
+        if (moderation === 'blocked') {
+          return <PostModeration.Blocked />;
         }
 
         return (
@@ -120,8 +120,8 @@ export function NotebookPost({
             width="100%"
             flex={1}
           >
-            {moderated.type === 'hidden' ? (
-              moderated.hidden
+            {moderation === 'hidden' ? (
+              <PostModeration.Hidden />
             ) : (
               <NotebookPostContent
                 post={post}
@@ -178,7 +178,7 @@ export function NotebookPost({
           </NotebookPostFrame>
         );
       }}
-    </PostModerationSwitch>
+    </PostModeration>
   );
 }
 

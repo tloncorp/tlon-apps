@@ -7,7 +7,7 @@ import { View } from 'tamagui';
 import AuthorRow from '../../AuthorRow';
 import { NotebookPostContent } from '../../NotebookPost/NotebookPostContent';
 import { NotebookPostFrame } from '../../NotebookPost/shared';
-import { PostModerationSwitch } from '../../PostModerationSwitch';
+import { PostModeration } from '../../PostModerationSwitch';
 import { StaticChatMessage } from '../StaticChatMessage';
 
 const MAX_MESSAGE_TO_SCREEN_RATIO = 0.3;
@@ -38,21 +38,20 @@ export function MessageContainer({ post }: { post: db.Post }) {
       padding="$l"
       borderRadius="$l"
     >
-      <PostModerationSwitch
+      <PostModeration
         post={post}
         disableBypassBlockedContent
         disableBypassHiddenContent
       >
         {(m) => {
-          switch (m.type) {
+          switch (m) {
             case 'deleted':
-              return m.deleted;
+              return <PostModeration.Deleted />;
             case 'blocked':
-              return m.blocked;
+              return <PostModeration.Blocked />;
             case 'hidden':
-              return m.hidden;
-            case 'post': {
-              post = m.post;
+              return <PostModeration.Hidden />;
+            case 'ok': {
               return post.type === 'note' ? (
                 <NotebookPostFrame>
                   <NotebookPostContent post={post} showAuthor={false} />
@@ -72,7 +71,7 @@ export function MessageContainer({ post }: { post: db.Post }) {
             }
           }
         }}
-      </PostModerationSwitch>
+      </PostModeration>
     </View>
   );
 }

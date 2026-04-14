@@ -42,7 +42,7 @@ import ContactName from '../ContactName';
 import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
-import { PostModerationSwitch } from '../PostModerationSwitch';
+import { PostModeration } from '../PostModerationSwitch';
 import { useBoundHandler } from '../listItems/listItemUtils';
 
 const GalleryPostFrame = styled(View, {
@@ -152,16 +152,16 @@ export function GalleryPost({
   );
 
   return (
-    <PostModerationSwitch post={post}>
+    <PostModeration post={post}>
       {(m) => {
-        switch (m.type) {
+        switch (m) {
           case 'deleted':
-            return m.deleted;
+            return <PostModeration.Deleted />;
           case 'blocked':
-            return m.blocked;
+            return <PostModeration.Blocked />;
           case 'hidden':
           // fallthrough - we don't hide gallery posts(?)
-          case 'post':
+          case 'ok':
             return (
               <Pressable
                 onPress={handlePress}
@@ -239,7 +239,7 @@ export function GalleryPost({
             );
         }
       }}
-    </PostModerationSwitch>
+    </PostModeration>
   );
 }
 

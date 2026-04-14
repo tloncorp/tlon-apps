@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { isBatteryCharging } from 'react-native-device-info';
 
 import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
 import { usePostTerminology } from '../contexts/terminology';
@@ -32,12 +33,8 @@ function PostDeletedNotice() {
   return <PostErrorMessage testID={strings.testId} message={strings.message} />;
 }
 
-function PostHiddenNotice({
-  onShowAnywayPressed,
-}: {
-  /** If provided, renders a "Show anyway" button that calls this callback when pressed. */
-  onShowAnywayPressed?: () => void;
-}) {
+function PostHiddenNotice() {
+  const moderationBypass = useContext(PostModerationContext);
   const postTerm = usePostTerminology();
   const strings = useMemo<
     Strings<'message' | 'testId' | 'messageWithoutAction'>
@@ -58,24 +55,20 @@ function PostHiddenNotice({
     }
   }, [postTerm]);
 
-  return onShowAnywayPressed == null ? (
+  return moderationBypass.disableBypassHiddenContent ? (
     <PostErrorMessage message={strings.messageWithoutAction} />
   ) : (
     <PostErrorMessage
       testID={strings.testId}
       message={strings.message}
       actionLabel="Show anyway"
-      onAction={onShowAnywayPressed}
+      onAction={moderationBypass.requestBypass}
     />
   );
 }
 
-function PostBlockedNotice({
-  onShowAnywayPressed,
-}: {
-  /** If provided, renders a "Show anyway" button that calls this callback when pressed. */
-  onShowAnywayPressed?: () => void;
-}) {
+function PostBlockedNotice() {
+  const moderationBypass = useContext(PostModerationContext);
   const postTerm = usePostTerminology();
   const strings = useMemo<
     Strings<'message' | 'testId' | 'actionTestID'>
@@ -100,20 +93,30 @@ function PostBlockedNotice({
     <PostErrorMessage
       testID={strings.testId}
       message={strings.message}
-      {...(onShowAnywayPressed == null
+      {...(moderationBypass.disableBypassBlockedContent
         ? {}
         : {
             actionTestID: strings.actionTestID,
             actionLabel: 'Show anyway',
-            onAction: onShowAnywayPressed,
+            onAction: moderationBypass.requestBypass,
           })}
     />
   );
 }
 
-type TypeTagged<T extends string, Payload> = { type: T } & Record<T, Payload>;
+const PostModerationContext = createContext<{
+  isBypassed: boolean;
+  requestBypass: () => void;
+  disableBypassBlockedContent?: boolean;
+  disableBypassHiddenContent?: boolean;
+}>({
+  isBypassed: false,
+  requestBypass: () => {
+    throw new Error('use a PostModerationContext provider');
+  },
+});
 
-export function PostModerationSwitch({
+export function PostModeration({
   post,
   disableBypassBlockedContent,
   disableBypassHiddenContent,
@@ -123,61 +126,43 @@ export function PostModerationSwitch({
   disableBypassBlockedContent?: boolean;
   disableBypassHiddenContent?: boolean;
   children?: (
-    moderated:
-      | TypeTagged<'deleted', React.ReactNode>
-      | TypeTagged<'hidden', React.ReactNode>
-      | TypeTagged<'blocked', React.ReactNode>
-      // after checking all other fields are null, the caller should be able to
-      // safely access the unmoderated content:
-      | TypeTagged<'post', db.Post>
+    moderationResult: 'deleted' | 'hidden' | 'blocked' | 'ok'
   ) => React.ReactNode;
 }) {
   const { isAuthorBlocked } = useBlockedAuthor(post);
-  const [showBlockedContent, setShowBlockedContent] = useState(false);
-  const [showHiddenContent, setShowHiddenContent] = useState(false);
-
-  // reset override whenever bypass is disabled/enabled
-  useEffect(() => {
-    setShowHiddenContent(false);
-  }, [disableBypassHiddenContent]);
-  useEffect(() => {
-    setShowBlockedContent(false);
-  }, [disableBypassBlockedContent]);
-
-  if (post.isDeleted) {
-    return (
-      children?.({ type: 'deleted', deleted: <PostDeletedNotice /> }) ?? null
-    );
-  } else if (post.hidden && !showHiddenContent) {
-    return children?.({
-      type: 'hidden',
-      hidden: (
-        <PostHiddenNotice
-          onShowAnywayPressed={
-            disableBypassHiddenContent
-              ? undefined
-              : () => setShowHiddenContent(true)
-          }
-        />
-      ),
-    });
-  } else if (isAuthorBlocked && !showBlockedContent) {
-    return children?.({
-      type: 'blocked',
-      blocked: (
-        <PostBlockedNotice
-          onShowAnywayPressed={
-            disableBypassBlockedContent
-              ? undefined
-              : () => setShowBlockedContent(true)
-          }
-        />
-      ),
-    });
-  } else {
-    return children?.({ type: 'post', post }) ?? null;
-  }
+  const [moderationBypassed, setModerationBypassed] = useState(false);
+  const ctxValue = useMemo(
+    () => ({
+      isBypassed: moderationBypassed,
+      requestBypass: () => setModerationBypassed(true),
+      disableBypassBlockedContent,
+      disableBypassHiddenContent,
+    }),
+    [
+      moderationBypassed,
+      disableBypassBlockedContent,
+      disableBypassHiddenContent,
+    ]
+  );
+  return (
+    <PostModerationContext.Provider value={ctxValue}>
+      {(() => {
+        if (post.isDeleted) {
+          return children?.('deleted') ?? null;
+        } else if (post.hidden && !moderationBypassed) {
+          return children?.('hidden');
+        } else if (isAuthorBlocked && !moderationBypassed) {
+          return children?.('blocked');
+        } else {
+          return children?.('ok') ?? null;
+        }
+      })()}
+    </PostModerationContext.Provider>
+  );
 }
+PostModeration.Deleted = PostDeletedNotice;
+PostModeration.Hidden = PostHiddenNotice;
+PostModeration.Blocked = PostBlockedNotice;
 
 /**
  * If `post` should be hidden, renders an appropriate notice for the hidden reason.
@@ -191,19 +176,19 @@ export function MaskedChatMessage({
   children?: React.ReactNode;
 }) {
   return (
-    <PostModerationSwitch post={post}>
+    <PostModeration post={post}>
       {(m) => {
-        switch (m.type) {
+        switch (m) {
           case 'deleted':
-            return m.deleted;
+            return <PostModeration.Deleted />;
           case 'hidden':
-            return m.hidden;
+            return <PostModeration.Hidden />;
           case 'blocked':
-            return m.blocked;
-          case 'post':
+            return <PostModeration.Blocked />;
+          case 'ok':
             return children;
         }
       }}
-    </PostModerationSwitch>
+    </PostModeration>
   );
 }
