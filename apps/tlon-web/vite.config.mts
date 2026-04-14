@@ -249,6 +249,14 @@ export default ({ mode }: { mode: string }) => {
           secure: false,
           rewrite: (p: string) => p.replace(/^\/apps\/groups/, ''),
         },
+        // The login form posts to bare /~/login (no base prefix),
+        // and scries etc. also use /~/ paths.
+        '/~/': {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+        // After login the ship redirects to /apps/landscape/.
         '/apps/landscape': {
           target: SHIP_URL,
           changeOrigin: true,
