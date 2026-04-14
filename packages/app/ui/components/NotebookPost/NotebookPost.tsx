@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { XStack } from 'tamagui';
 
+import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits/componentsKits';
@@ -222,6 +223,7 @@ export function NotebookPostDetailView({
         paddingHorizontal="$xl"
         testID="NotebookPostContent"
         onPressImage={handlePressImage}
+        getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
         content={
           post.editStatus === 'failed' || post.editStatus === 'pending'
             ? lastEditContent
