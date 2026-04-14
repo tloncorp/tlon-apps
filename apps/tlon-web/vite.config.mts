@@ -236,6 +236,17 @@ export default ({ mode }: { mode: string }) => {
         },
       },
     },
+    // vite preview (used by production smoke tests) needs its own proxy
+    // config since it doesn't use the dev server proxy from urbitPlugin.
+    preview: {
+      proxy: {
+        '~/': {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
     build:
       mode !== 'profile'
         ? {
