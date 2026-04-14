@@ -5,13 +5,14 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useChatSearch } from '../../hooks/useChatSearch';
-import { useFrozenChannelChats } from '../../hooks/useFrozenChannelChats';
+import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
 import { useCalm } from '../../ui';
 import { ActionSheet } from './ActionSheet';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
@@ -33,6 +34,43 @@ const getItemType = (chat: ChannelChat) =>
     : chat.channel.group
       ? 'group'
       : 'channel';
+
+function useFrozenChannelChats({
+  isOpen,
+  channelFilter,
+}: {
+  isOpen: boolean;
+  channelFilter?: (channel: db.Channel) => boolean;
+}) {
+  const { channelChats: liveChannelChats } = useFilteredChannelChats({
+    searchQuery: '',
+    channelFilter,
+  });
+  const liveChannelChatsRef = useRef(liveChannelChats);
+  liveChannelChatsRef.current = liveChannelChats;
+  const [frozenChannelChats, setFrozenChannelChats] =
+    useState<ChannelChat[]>(liveChannelChats);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFrozenChannelChats(liveChannelChatsRef.current);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setFrozenChannelChats((current) =>
+      current.length < liveChannelChats.length
+        ? liveChannelChatsRef.current
+        : current
+    );
+  }, [isOpen, liveChannelChats.length]);
+
+  return frozenChannelChats;
+}
 
 export function ForwardChannelSelector({
   isOpen,
