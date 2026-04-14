@@ -14,11 +14,7 @@ Object.entries(shipManifest).forEach(([_key, ship]: [string, any]) => {
   }
 
   setup(`authenticate ${ship.ship}`, async ({ page }) => {
-    const loginPath =
-      process.env.USE_PRODUCTION_BUILD === 'true'
-        ? '/apps/groups/~/login'
-        : '/~/login';
-    await page.goto(new URL(loginPath, `${ship.webUrl}/`).toString());
+    await page.goto(`${ship.webUrl}/~/login`);
     await page.getByPlaceholder('sampel-ticlyt-migfun-falmel').fill(ship.code);
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.waitForURL(`${ship.webUrl}/apps/landscape/`);

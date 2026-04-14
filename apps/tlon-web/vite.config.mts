@@ -236,36 +236,13 @@ export default ({ mode }: { mode: string }) => {
         },
       },
     },
-    // vite preview (used by production smoke tests) doesn't use the dev
-    // server proxy. Proxy ship-owned paths to the ship so auth works —
-    // login, scry, and the /apps/landscape redirect target.
+    // vite preview (used by production smoke tests) doesn't use the
+    // dev server proxy from urbitPlugin. Proxy everything that isn't
+    // a request under the groups base (/apps/groups/) to the ship —
+    // this mirrors the regex the urbit plugin uses for the dev server.
     preview: {
       proxy: {
-        // Auth goes to /apps/groups/~/login which vite would otherwise
-        // serve as an SPA route. Strip the base prefix and forward.
-        '/apps/groups/~/': {
-          target: SHIP_URL,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (p: string) => p.replace(/^\/apps\/groups/, ''),
-        },
-        // The login form posts to bare /~/login (no base prefix),
-        // and scries etc. also use /~/ paths.
-        '/~/': {
-          target: SHIP_URL,
-          changeOrigin: true,
-          secure: false,
-        },
-        // After login the ship redirects to /apps/landscape/ (or to /
-        // which the ship then redirects to /apps/landscape/). Proxy
-        // /apps/landscape to the ship, and use a bypass on / so only
-        // the bare root path hits the ship (not every request).
-        '/apps/landscape': {
-          target: SHIP_URL,
-          changeOrigin: true,
-          secure: false,
-        },
-        '^/$': {
+        '^((?!/apps/groups/).)*$': {
           target: SHIP_URL,
           changeOrigin: true,
           secure: false,
