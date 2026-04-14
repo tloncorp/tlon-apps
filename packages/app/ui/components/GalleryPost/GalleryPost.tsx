@@ -145,8 +145,9 @@ export function GalleryPost({
         'showReplies',
         'setViewReactionsPost',
         'onPressReplies',
-        // 'displayDebugMode',
         'onPressDelete',
+        // @ts-expect-error - this gets passed despite not being in props
+        'displayDebugMode',
       ]),
     [props]
   );
