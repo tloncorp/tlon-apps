@@ -1,4 +1,10 @@
-import React, { Children, ComponentProps, ElementRef, forwardRef, isValidElement } from 'react';
+import React, {
+  Children,
+  ComponentProps,
+  ElementRef,
+  forwardRef,
+  isValidElement,
+} from 'react';
 import { View, YStack } from 'tamagui';
 
 export type ZStackProps = ComponentProps<typeof YStack>;
@@ -11,7 +17,11 @@ export const ZStack = forwardRef<ElementRef<typeof YStack>, ZStackProps>(
       <YStack ref={ref} position={position} {...props}>
         {childrenList.map((child, index) => (
           <View
-            key={isValidElement(child) && child.key != null ? child.key : `${index}0t`}
+            key={
+              isValidElement(child) && child.key != null
+                ? child.key
+                : `${index}0t`
+            }
             display="flex"
             flexDirection="column"
             position="absolute"
