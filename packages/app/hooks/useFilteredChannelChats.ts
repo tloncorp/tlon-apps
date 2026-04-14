@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useMemo } from 'react';
 
-import { useCalm } from '../ui';
+import { useCalm } from '../ui/contexts/appDataContext';
 import { useChatSearch } from './useChatSearch';
 import { useResolvedChats } from './useResolvedChats';
 

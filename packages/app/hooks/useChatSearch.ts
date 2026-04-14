@@ -4,7 +4,7 @@ import Fuse from 'fuse.js';
 import { debounce } from 'lodash';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { getChannelTitle, getGroupTitle } from '../ui';
+import { getChannelTitle, getGroupTitle } from '../ui/utils/channelUtils';
 import {
   ChatSearchCandidate,
   ChatSearchFuzzyScore,
