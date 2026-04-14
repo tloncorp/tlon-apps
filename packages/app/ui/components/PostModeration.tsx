@@ -28,7 +28,7 @@ function PostDeletedNotice(
     }
   }, [postTerm]);
 
-  // We don't show a notice for hidden posts (we simply hide them)
+  // We don't show a notice at this level for deleted posts
   if (postTerm === 'post') {
     return null;
   }
