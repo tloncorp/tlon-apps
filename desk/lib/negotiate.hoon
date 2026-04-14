@@ -871,6 +871,7 @@
       |=  [=mark =vase]
       ^-  (quip card _this)
       ?:  ?=(%negotiate-reset mark)
+        ?>  =(our src):bowl
         =+  !<(target=(unit gill:gall) vase)
         =^  cards  state  (reset-heed:up target)
         [cards this]
