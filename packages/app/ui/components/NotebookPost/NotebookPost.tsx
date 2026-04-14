@@ -97,7 +97,7 @@ export function NotebookPost({
   );
 
   return (
-    <PostModeration post={post}>
+    <PostModeration post={post} disableBypassHiddenContent>
       {(moderation) => {
         if (moderation === 'deleted') {
           return <PostModeration.Deleted />;
