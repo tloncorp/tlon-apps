@@ -91,7 +91,7 @@ function PostBlockedNotice(
         return {
           message: 'Message from a blocked user.',
           testId: 'MessageBlocked',
-          actionTestID: 'ShowBlockedPostButton',
+          actionTestID: 'ShowBlockedMessageButton',
         };
       case 'post':
         return {
