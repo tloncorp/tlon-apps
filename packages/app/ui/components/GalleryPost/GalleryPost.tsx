@@ -156,9 +156,9 @@ export function GalleryPost({
       {(m) => {
         switch (m) {
           case 'deleted':
-            return <PostModeration.Deleted />;
+            return <PostModeration.Deleted flex={1} />;
           case 'blocked':
-            return <PostModeration.Blocked />;
+            return <PostModeration.Blocked flex={1} />;
           case 'hidden':
           // fallthrough - we don't hide gallery posts(?)
           case 'ok':

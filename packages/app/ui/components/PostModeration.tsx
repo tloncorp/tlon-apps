@@ -2,11 +2,14 @@ import * as db from '@tloncorp/shared/db';
 import { createContext, useContext, useMemo, useState } from 'react';
 
 import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
+import { ForwardingProps } from '../utils';
 import { PostErrorMessage } from './PostErrorMessage';
 
 type Strings<Keys extends string> = Record<Keys, string>;
 
-function PostDeletedNotice() {
+function PostDeletedNotice(
+  props: ForwardingProps<typeof PostErrorMessage, object, 'message'>
+) {
   const postModeration = usePostModerationContext();
   const postTerm = termForPost(postModeration.post);
   const strings = useMemo<Strings<'message' | 'testId'>>(() => {
@@ -29,10 +32,18 @@ function PostDeletedNotice() {
   if (postTerm === 'post') {
     return null;
   }
-  return <PostErrorMessage testID={strings.testId} message={strings.message} />;
+  return (
+    <PostErrorMessage
+      testID={strings.testId}
+      message={strings.message}
+      {...props}
+    />
+  );
 }
 
-function PostHiddenNotice() {
+function PostHiddenNotice(
+  props: ForwardingProps<typeof PostErrorMessage, object, 'message'>
+) {
   const postModeration = usePostModerationContext();
   const postTerm = termForPost(postModeration.post);
   const strings = useMemo<
@@ -55,18 +66,21 @@ function PostHiddenNotice() {
   }, [postTerm]);
 
   return postModeration.disableBypassHiddenContent ? (
-    <PostErrorMessage message={strings.messageWithoutAction} />
+    <PostErrorMessage message={strings.messageWithoutAction} {...props} />
   ) : (
     <PostErrorMessage
       testID={strings.testId}
       message={strings.message}
       actionLabel="Show anyway"
       onAction={postModeration.requestBypass}
+      {...props}
     />
   );
 }
 
-function PostBlockedNotice() {
+function PostBlockedNotice(
+  props: ForwardingProps<typeof PostErrorMessage, object, 'message'>
+) {
   const postModeration = usePostModerationContext();
   const postTerm = termForPost(postModeration.post);
   const strings = useMemo<
@@ -99,6 +113,7 @@ function PostBlockedNotice() {
             actionLabel: 'Show anyway',
             onAction: postModeration.requestBypass,
           })}
+      {...props}
     />
   );
 }

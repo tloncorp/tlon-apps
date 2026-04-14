@@ -1,23 +1,27 @@
-import { Button, Icon, Text, View } from '@tloncorp/ui';
+import { Button, ForwardingProps, Icon, Text, View } from '@tloncorp/ui';
 import { useLayoutEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { XStack } from 'tamagui';
 
 export function PostErrorMessage({
   message,
-  testID,
   actionLabel,
   onAction,
   actionTestID,
   forceNarrowLayout,
-}: {
-  message: string;
-  testID?: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  actionTestID?: string;
-  forceNarrowLayout?: boolean;
-}) {
+  style,
+  ...restProps
+}: ForwardingProps<
+  typeof View,
+  {
+    message: string;
+    actionLabel?: string;
+    onAction?: () => void;
+    actionTestID?: string;
+    forceNarrowLayout?: boolean;
+  },
+  'onLayout'
+>) {
   const [isContainerNarrow, setIsContainerNarrow] = useState<boolean | null>(
     forceNarrowLayout ?? null
   );
@@ -32,14 +36,14 @@ export function PostErrorMessage({
       paddingVertical="$xl"
       justifyContent={'center'}
       alignItems={'center'}
-      testID={testID}
       onLayout={(event) => {
         if (forceNarrowLayout == null) {
           setIsContainerNarrow(event.nativeEvent.layout.width < 200);
         }
       }}
       flexDirection={isContainerNarrow ? 'column' : 'row'}
-      style={{ opacity }}
+      style={[{ opacity }, style]}
+      {...restProps}
     >
       <XStack gap="$s">
         <Icon size="$s" type="Placeholder" color="$tertiaryText" />
