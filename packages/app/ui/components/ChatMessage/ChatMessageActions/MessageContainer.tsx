@@ -53,7 +53,7 @@ export function MessageContainer({ post }: { post: db.Post }) {
               return <PostModeration.Hidden />;
             case 'ok': {
               return post.type === 'note' ? (
-                <NotebookPostFrame>
+                <NotebookPostFrame size="$xs">
                   <NotebookPostContent post={post} showAuthor={false} />
                 </NotebookPostFrame>
               ) : (
