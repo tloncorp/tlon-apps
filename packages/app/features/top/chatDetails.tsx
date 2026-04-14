@@ -5,7 +5,7 @@ import * as store from '@tloncorp/shared/store';
 import { capitalize } from 'lodash';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
-import { Spinner, isWeb } from 'tamagui';
+import { isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -32,7 +32,7 @@ import {
   useGroupTitle,
   useIsAdmin,
 } from '../../ui';
-import { getStatusLabels } from '../../ui/components/ConnectionStatus';
+import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -333,14 +333,6 @@ export function SettingsSection({
     enabled: entityType === 'group' && !!group,
   });
 
-  const connectionLabels = useMemo(
-    () =>
-      entityType === 'group' && group
-        ? getStatusLabels(connectionStatus.status)
-        : null,
-    [entityType, group, connectionStatus.status]
-  );
-
   const volumeSettings =
     entityType === 'group' ? group?.volumeSettings : channel?.volumeSettings;
 
@@ -470,31 +462,10 @@ export function SettingsSection({
           borderWidth: 0,
         }}
       >
-        {entityType === 'group' && group && connectionLabels && (
-          <ListItem
-            paddingHorizontal="$2xl"
-            backgroundColor="$background"
-            alignItems="center"
-          >
-            <ActionSheet.ActionContent flex={1} flexShrink={0}>
-              <ActionSheet.ActionTitle>
-                {connectionLabels.title}
-              </ActionSheet.ActionTitle>
-              <ActionSheet.ActionDescription>
-                {connectionLabels.subtitle}
-              </ActionSheet.ActionDescription>
-            </ActionSheet.ActionContent>
-            <ListItem.EndContent>
-              {connectionLabels.icon ? (
-                <Icon
-                  type={connectionLabels.icon}
-                  color={connectionLabels.color}
-                />
-              ) : (
-                <Spinner size="small" />
-              )}
-            </ListItem.EndContent>
-          </ListItem>
+        {entityType === 'group' && group && (
+          <ConnectionIndicatorAction
+            status={connectionStatus.status}
+          />
         )}
         {actions.map((action, index) => (
           <SettingsAction
