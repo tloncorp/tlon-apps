@@ -20,10 +20,7 @@ import {
   View,
 } from '../ui';
 import { PostBlockSeparator } from '../ui/components/Channel/Scroller';
-import {
-  ChannelProvider,
-  useChannelContextOrNull,
-} from '../ui/contexts/channel';
+import { ChannelProvider } from '../ui/contexts/channel';
 import { NowPlayingProvider } from '../ui/contexts/nowPlaying';
 import { FixtureWrapper } from './FixtureWrapper';
 import * as content from './contentHelpers';
