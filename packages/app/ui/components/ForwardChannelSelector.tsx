@@ -50,8 +50,8 @@ export function ForwardChannelSelector({
     searchQuery: '',
     channelFilter,
   });
-  const latestLiveChannelChatsRef = useRef(liveChannelChats);
-  latestLiveChannelChatsRef.current = liveChannelChats;
+  const liveChannelChatsRef = useRef(liveChannelChats);
+  liveChannelChatsRef.current = liveChannelChats;
   const [frozenChannelChats, setFrozenChannelChats] =
     useState<ChannelChat[]>(liveChannelChats);
   const { isSearching, results: searchResults, allChats } = useChatSearch({
@@ -64,9 +64,21 @@ export function ForwardChannelSelector({
 
   useEffect(() => {
     if (isOpen) {
-      setFrozenChannelChats(latestLiveChannelChatsRef.current);
+      setFrozenChannelChats(liveChannelChatsRef.current);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    setFrozenChannelChats((current) =>
+      current.length < liveChannelChats.length
+        ? liveChannelChatsRef.current
+        : current
+    );
+  }, [isOpen, liveChannelChats.length]);
 
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
