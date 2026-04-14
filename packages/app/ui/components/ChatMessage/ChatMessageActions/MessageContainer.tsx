@@ -38,7 +38,11 @@ export function MessageContainer({ post }: { post: db.Post }) {
       padding="$l"
       borderRadius="$l"
     >
-      <PostModerationSwitch post={post}>
+      <PostModerationSwitch
+        post={post}
+        disableBypassBlockedContent
+        disableBypassHiddenContent
+      >
         {(m) => {
           switch (m.type) {
             case 'deleted':
