@@ -463,9 +463,7 @@ export function SettingsSection({
         }}
       >
         {entityType === 'group' && group && (
-          <ConnectionIndicatorAction
-            status={connectionStatus.status}
-          />
+          <ConnectionIndicatorAction status={connectionStatus.status} />
         )}
         {actions.map((action, index) => (
           <SettingsAction
