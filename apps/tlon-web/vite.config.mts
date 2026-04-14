@@ -120,6 +120,7 @@ export default ({ mode }: { mode: string }) => {
       tamaguiPlugin({
         config: './tamagui.config.ts',
         platform: 'web',
+        disableWatchTamaguiConfig: true,
       }) as Plugin,
       VitePWA({
         base: '/apps/groups/',
@@ -244,6 +245,12 @@ export default ({ mode }: { mode: string }) => {
           target: SHIP_URL,
           changeOrigin: true,
           secure: false,
+        },
+        '/apps/groups/~/': {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (p: string) => p.replace('/apps/groups', ''),
         },
         '/spider/': {
           target: SHIP_URL,
