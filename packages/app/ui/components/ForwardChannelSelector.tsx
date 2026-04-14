@@ -10,9 +10,9 @@ import {
 import { useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
-import { useCalm } from '../../ui';
 import { useChatSearch } from '../../hooks/useChatSearch';
 import { useFrozenChannelChats } from '../../hooks/useFrozenChannelChats';
+import { useCalm } from '../../ui';
 import { ActionSheet } from './ActionSheet';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
@@ -46,7 +46,11 @@ export function ForwardChannelSelector({
     null
   );
   const frozenChannelChats = useFrozenChannelChats({ isOpen, channelFilter });
-  const { isSearching, results: searchResults, allChats } = useChatSearch({
+  const {
+    isSearching,
+    results: searchResults,
+    allChats,
+  } = useChatSearch({
     chats: frozenChannelChats,
     searchQuery: query,
     debounceMs: 0,
