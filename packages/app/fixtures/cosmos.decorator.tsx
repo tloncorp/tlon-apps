@@ -9,8 +9,9 @@ import {
   config,
   createNoOpStore,
 } from '../ui';
+import { ChannelProvider } from '../ui/contexts/channel';
 import { ComponentsKitProvider } from '../ui/contexts/componentsKits/ComponentsKitProvider';
-import { group } from './fakeData';
+import { group, tlonLocalIntros } from './fakeData';
 
 // eslint-disable-next-line
 export default ({ children }: { children: React.ReactNode }) => {
@@ -30,9 +31,11 @@ export default ({ children }: { children: React.ReactNode }) => {
     <TamaguiProvider defaultTheme={'light'} config={config}>
       <StoreProvider stub={store}>
         <SafeAreaProvider>
-          <ComponentsKitProvider>
-            <PortalProvider>{children}</PortalProvider>
-          </ComponentsKitProvider>
+          <ChannelProvider value={{ channel: tlonLocalIntros }}>
+            <ComponentsKitProvider>
+              <PortalProvider>{children}</PortalProvider>
+            </ComponentsKitProvider>
+          </ChannelProvider>
         </SafeAreaProvider>
       </StoreProvider>
     </TamaguiProvider>
