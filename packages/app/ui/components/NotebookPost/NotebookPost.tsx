@@ -1,44 +1,23 @@
-import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
+import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  Button,
-  Image,
-  Pressable,
-  Text,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
-import {
-  ComponentProps,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from 'react';
+import { Button, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
-import {
-  View,
-  ViewStyle,
-  XStack,
-  YStack,
-  createStyledContext,
-  styled,
-} from 'tamagui';
+import { XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
-import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { PostModerationSwitch } from '../PostModerationSwitch';
-
-const IMAGE_HEIGHT = 268;
+import { NotebookPostContent } from './NotebookPostContent';
+import { NotebookPostFrame, NotebookPostHeader } from './shared';
 
 export function NotebookPost({
   post,
@@ -117,8 +96,6 @@ export function NotebookPost({
     []
   );
 
-  const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
-
   return (
     <PostModerationSwitch post={post}>
       {(moderated) => {
@@ -146,34 +123,13 @@ export function NotebookPost({
             {moderated.type === 'hidden' ? (
               moderated.hidden
             ) : (
-              <>
-                <NotebookPostHeader
-                  post={moderated.post}
-                  showDate={showDate}
-                  showAuthor={showAuthor && viewMode !== 'activity'}
-                  testID="NotebookPostHeader"
-                />
-
-                {viewMode !== 'activity' && (
-                  <Text
-                    size="$body"
-                    color="$secondaryText"
-                    numberOfLines={3}
-                    paddingBottom={showReplies && hasReplies ? 0 : '$m'}
-                    testID="NotebookPostContentSummary"
-                  >
-                    {moderated.post.textContent}
-                  </Text>
-                )}
-
-                {showReplies && hasReplies ? (
-                  <ChatMessageReplySummary
-                    post={moderated.post}
-                    showTime={false}
-                    textColor="$tertiaryText"
-                  />
-                ) : null}
-              </>
+              <NotebookPostContent
+                post={post}
+                showDate={showDate}
+                viewMode={viewMode}
+                showReplies={showReplies}
+                showAuthor={showAuthor}
+              />
             )}
 
             {deliveryFailed ? (
@@ -223,59 +179,6 @@ export function NotebookPost({
         );
       }}
     </PostModerationSwitch>
-  );
-}
-
-function NotebookPostHeader({
-  showDate,
-  showAuthor,
-  post,
-  ...props
-}: {
-  showAuthor?: boolean;
-  showDate?: boolean;
-  post: db.Post;
-} & ComponentProps<typeof NotebookPostHeaderFrame>) {
-  const { size } = useContext(NotebookPostContext);
-  const formattedDate = useMemo(() => {
-    return makePrettyShortDate(new Date(post.receivedAt));
-  }, [post.receivedAt]);
-
-  return (
-    <NotebookPostHeaderFrame {...props}>
-      {!!post.image && size !== '$xs' && (
-        <NotebookPostHeroImage
-          source={{
-            uri:
-              post.editStatus === 'failed' || post.editStatus === 'pending'
-                ? post.lastEditImage ?? undefined
-                : post.image,
-          }}
-        />
-      )}
-
-      <NotebookPostTitle>
-        {post.editStatus === 'failed' || post.editStatus === 'pending'
-          ? post.lastEditTitle ?? 'Untitled Post'
-          : post.title ?? 'Untitled Post'}
-      </NotebookPostTitle>
-
-      {showDate && (
-        <Text size="$body" color="$tertiaryText">
-          {formattedDate}
-        </Text>
-      )}
-
-      {showAuthor && (
-        <DetailViewAuthorRow
-          authorId={post.authorId}
-          isBot={post.isBot ?? undefined}
-          deliveryStatus={post.deliveryStatus}
-          editStatus={post.editStatus}
-          deleteStatus={post.deleteStatus}
-        />
-      )}
-    </NotebookPostHeaderFrame>
   );
 }
 
@@ -335,68 +238,4 @@ export const NotebookContentRenderer = createContentRenderer({
   inlineRenderers: {
     lineBreak: NotebookLineBreak,
   },
-});
-
-const NotebookPostContext = createStyledContext<{ size: '$l' | '$s' | '$xs' }>({
-  size: '$l',
-});
-
-const NotebookPostFrame = styled(Pressable, {
-  name: 'NotebookPostFrame',
-  context: NotebookPostContext,
-  borderWidth: 1,
-  borderColor: '$border',
-  borderRadius: '$l',
-  gap: '$2xl',
-  padding: '$xl',
-  maxWidth: 600,
-  disabledStyle: { cursor: 'default' },
-  variants: {
-    embedded: {
-      true: {
-        borderWidth: 0,
-        borderRadius: 0,
-        borderTopWidth: 1,
-        borderBottomWidth: 1,
-        borderColor: '$border',
-        paddingBottom: '$l',
-        paddingHorizontal: 0,
-      },
-    },
-    size: {} as Record<'$s' | '$l' | '$xs', ViewStyle>,
-  } as const,
-});
-
-const NotebookPostHeaderFrame = styled(YStack, {
-  name: 'NotebookHeaderFrame',
-  gap: '$2xl',
-  overflow: 'hidden',
-});
-
-const NotebookPostHeroImage = styled(Image, {
-  context: NotebookPostContext,
-  width: '100%',
-  height: IMAGE_HEIGHT,
-  borderRadius: '$s',
-  objectFit: 'cover',
-  variants: {
-    size: {
-      $s: {
-        height: IMAGE_HEIGHT / 2,
-      },
-    },
-  } as const,
-});
-
-const NotebookPostTitle = styled(Text, {
-  context: NotebookPostContext,
-  color: '$primaryText',
-  size: '$title/l',
-  variants: {
-    size: {
-      $s: { size: '$label/2xl' },
-      $l: { size: '$title/l' },
-      $xs: { size: '$label/xl' },
-    },
-  } as const,
 });
