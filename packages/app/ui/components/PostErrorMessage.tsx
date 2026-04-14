@@ -20,7 +20,6 @@ export function PostErrorMessage({
       paddingVertical="$xl"
       justifyContent={'center'}
       alignItems={'center'}
-      flex={1}
       testID={testID}
     >
       <Icon size="$s" type="Placeholder" color="$tertiaryText" />
