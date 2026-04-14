@@ -256,8 +256,16 @@ export default ({ mode }: { mode: string }) => {
           changeOrigin: true,
           secure: false,
         },
-        // After login the ship redirects to /apps/landscape/.
+        // After login the ship redirects to /apps/landscape/ (or to /
+        // which the ship then redirects to /apps/landscape/). Proxy
+        // /apps/landscape to the ship, and use a bypass on / so only
+        // the bare root path hits the ship (not every request).
         '/apps/landscape': {
+          target: SHIP_URL,
+          changeOrigin: true,
+          secure: false,
+        },
+        '^/$': {
           target: SHIP_URL,
           changeOrigin: true,
           secure: false,
