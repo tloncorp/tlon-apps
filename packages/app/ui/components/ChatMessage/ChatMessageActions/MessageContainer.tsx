@@ -54,7 +54,11 @@ export function MessageContainer({ post }: { post: db.Post }) {
             case 'ok': {
               return post.type === 'note' ? (
                 <NotebookPostContentContainer size="$xs" padding="$xl">
-                  <NotebookPostContent post={post} showAuthor={false} />
+                  <NotebookPostContent
+                    post={post}
+                    showAuthor={false}
+                    showReplies
+                  />
                 </NotebookPostContentContainer>
               ) : (
                 <>
