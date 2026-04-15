@@ -15,7 +15,6 @@ import {
   type PersonalityType,
   SUGGESTED_NAMES,
 } from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -97,14 +96,8 @@ function SplashSequenceComponent(props: {
   );
   const [botModel, setBotModel] = React.useState(DEFAULT_BOT_CONFIG.model);
   const [botApiKey, setBotApiKey] = React.useState('');
-  const [createdGroupId, setCreatedGroupId] = React.useState<string | null>(
-    null
-  );
-  const [groupInviteLink, setGroupInviteLink] = React.useState<string | null>(
-    null
-  );
-  const [launchError, setLaunchError] = React.useState<string | null>(null);
   const [botMoonId, setBotMoonId] = React.useState<string | null>(null);
+  const [savingConfig, setSavingConfig] = React.useState(false);
   const [botContactAvatarUrl, setBotContactAvatarUrl] = React.useState<
     string | null
   >(null);
@@ -196,7 +189,9 @@ function SplashSequenceComponent(props: {
           apiKey={botApiKey}
           onModelChange={setBotModel}
           onApiKeyChange={setBotApiKey}
+          loading={savingConfig}
           onActionPress={async () => {
+            setSavingConfig(true);
             const config: BotConfig = {
               name: botName || 'Tlonbot',
               emoji: DEFAULT_BOT_CONFIG.emoji,
@@ -214,85 +209,28 @@ function SplashSequenceComponent(props: {
             } catch (e) {
               console.error('Failed to save bot config during onboarding:', e);
             }
-            setCurrentPane(SplashPane.BotLaunch);
+            setSavingConfig(false);
+            setCurrentPane(SplashPane.Group);
           }}
-        />
-      )}
-      {currentPane === 'BotLaunch' && (
-        <BotLaunchPane
-          botName={botName || 'Tlonbot'}
-          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
-          botMoonId={botMoonId}
-          botContactAvatarUrl={botContactAvatarUrl}
-          onCreateGroup={async () => {
-            setCurrentPane(SplashPane.BotLaunchLoading);
-            setLaunchError(null);
-            try {
-              // Create the group
-              const group = await store.createDefaultGroup({
-                title: `${botName || 'Tlonbot'}'s Group`,
-              });
-              setCreatedGroupId(group.id);
-
-              // Add bot to the group (best-effort)
-              const shipId = await db.hostedUserNodeId.getValue();
-              const authCookie = await db.hostingAuthToken.getValue();
-              if (shipId && authCookie) {
-                try {
-                  await api.addBotToCordon(shipId, authCookie, group.id);
-                  await api.addBotToGroup(shipId, authCookie, group.id);
-                } catch (e) {
-                  console.warn('Failed to add bot to group:', e);
-                }
-              }
-
-              // Generate invite link (best-effort)
-              try {
-                await store.createGroupInviteLink(group.id);
-                const lureState = store.useLureState.getState();
-                await lureState.fetchLure(group.id, '', false);
-                const lure = lureState.lures[group.id];
-                if (lure?.deepLinkUrl) {
-                  setGroupInviteLink(lure.deepLinkUrl);
-                } else if (lure?.url) {
-                  setGroupInviteLink(lure.url);
-                }
-              } catch (e) {
-                console.warn('Failed to generate invite link:', e);
-              }
-
-              setCurrentPane(SplashPane.ShareGroup);
-            } catch (e) {
-              console.error('Failed to create group:', e);
-              setLaunchError('Something went wrong. Try again or skip.');
-              setCurrentPane(SplashPane.BotLaunch);
-            }
-          }}
-          onSkip={() => setCurrentPane(SplashPane.Group)}
-          error={launchError}
-        />
-      )}
-      {currentPane === 'BotLaunchLoading' && (
-        <BotLaunchLoadingPane
-          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
-          botMoonId={botMoonId}
-          botContactAvatarUrl={botContactAvatarUrl}
-        />
-      )}
-      {currentPane === 'ShareGroup' && (
-        <ShareGroupPane
-          botName={botName || 'Tlonbot'}
-          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
-          botMoonId={botMoonId}
-          botContactAvatarUrl={botContactAvatarUrl}
-          inviteLink={groupInviteLink}
-          onActionPress={handleSplashCompleted}
         />
       )}
       {currentPane === 'Group' && (
         <GroupsPane
-          onActionPress={() => setCurrentPane(SplashPane.Channels)}
+          onActionPress={() =>
+            setCurrentPane(
+              hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
+            )
+          }
           hostingBotEnabled={props.hostingBotEnabled}
+          botName={botName || 'Tlonbot'}
+          onCreateGroupWithBot={
+            hostingBotEnabled
+              ? async () => {
+                  await db.pendingBotGroupCreation.setValue(true);
+                  setCurrentPane(SplashPane.Invite);
+                }
+              : undefined
+          }
         />
       )}
       {currentPane === 'Channels' && (
@@ -623,6 +561,7 @@ export function BotPersonalityPane(props: {
 export function BotModelPane(props: {
   model: string;
   apiKey: string;
+  loading?: boolean;
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: string) => void;
   onActionPress: () => void;
@@ -692,9 +631,10 @@ export function BotModelPane(props: {
       </YStack>
       <Button
         onPress={props.onActionPress}
-        label="Next"
+        label={props.loading ? 'Saving...' : 'Next'}
         preset="hero"
-        shadow
+        loading={props.loading}
+        disabled={props.loading}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
@@ -903,6 +843,9 @@ export function ShareGroupPane(props: {
 export function GroupsPane(props: {
   onActionPress: () => void;
   hostingBotEnabled?: boolean;
+  botName?: string;
+  onCreateGroupWithBot?: () => void;
+  error?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
@@ -925,7 +868,15 @@ export function GroupsPane(props: {
       />
       <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          This is a <Text color="$positiveActionText">group.</Text>
+          {props.onCreateGroupWithBot ? (
+            <>
+              Create a <Text color="$positiveActionText">group.</Text>
+            </>
+          ) : (
+            <>
+              This is a <Text color="$positiveActionText">group.</Text>
+            </>
+          )}
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -936,24 +887,46 @@ export function GroupsPane(props: {
             A group lives on your computer. Family chats, work collaboration,
             newsletters. A group can be anything you need.
           </SplashParagraph>
-          {props.hostingBotEnabled && (
+          {props.onCreateGroupWithBot && (
             <SplashParagraph>
-              Add your Tlonbot to any group channel and it can participate
-              alongside everyone else.
+              Create a group and invite your friends. {props.botName} will join
+              automatically and can help keep conversations going.
             </SplashParagraph>
           )}
         </ScrollView>
       </YStack>
-      <Button
-        data-testid="got-it"
-        testID="got-it"
-        onPress={props.onActionPress}
-        label="Got it"
-        preset="hero"
-        shadow
-        marginHorizontal="$xl"
-        marginTop="$xl"
-      />
+      {props.onCreateGroupWithBot ? (
+        <YStack paddingHorizontal="$xl" gap="$l">
+          {props.error && (
+            <Text fontSize={14} color="$negativeActionText" textAlign="center">
+              {props.error}
+            </Text>
+          )}
+          <Button
+            onPress={props.onCreateGroupWithBot}
+            label="Create a group"
+            preset="hero"
+            shadow
+          />
+          <Button
+            onPress={props.onActionPress}
+            label="Skip"
+            preset="secondary"
+            fill="text"
+          />
+        </YStack>
+      ) : (
+        <Button
+          data-testid="got-it"
+          testID="got-it"
+          onPress={props.onActionPress}
+          label="Got it"
+          preset="hero"
+          shadow
+          marginHorizontal="$xl"
+          marginTop="$xl"
+        />
+      )}
     </View>
   );
 }
@@ -1213,29 +1186,23 @@ function ConnectContactBookContent(props: {
     : props.onSkip;
 
   return (
-    <View flex={1}>
+    <View flex={1} paddingBottom={insets.bottom}>
       <InviteFriendsDisplay />
-      <YStack
-        flex={1}
-        paddingHorizontal="$xl"
-        paddingBottom={insets.bottom}
-        gap="$xl"
-      >
+      <YStack flex={1} gap="$xl" paddingTop="$2xl">
         <SplashTitle>
-          Better with{'\n'}
-          <Text color="$positiveActionText">friends.</Text>
+          Better with <Text color="$positiveActionText">friends.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <SplashParagraph marginHorizontal={0}>
+          <SplashParagraph>
             When your friends join, they get their own computer too. Post
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
           {shouldShowConnectOption && (
-            <SplashParagraph marginHorizontal={0}>
+            <SplashParagraph>
               Sync your contact book to find people you know on Tlon.
             </SplashParagraph>
           )}
@@ -1246,7 +1213,7 @@ function ConnectContactBookContent(props: {
           </YStack>
         )}
       </YStack>
-      <YStack paddingBottom={insets.bottom} paddingHorizontal="$xl" gap="$2xl">
+      <YStack paddingHorizontal="$xl" gap="$2xl">
         <Button
           data-testid="connect-contact-book"
           onPress={handleAction}
