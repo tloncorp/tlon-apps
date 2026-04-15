@@ -4,19 +4,24 @@ import * as db from '@tloncorp/shared/db';
 import { ContentReference } from '@tloncorp/shared/domain';
 import { IconType } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import React, { createContext } from 'react';
+import React from 'react';
 import { ComponentProps, useCallback, useContext } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
-import { useNavigation } from '../../contexts';
+import { useNavigation } from '../../contexts/navigation';
 import { useRequests } from '../../contexts/requests';
 import { useGroupTitle } from '../../utils';
-import { ContactAvatar, GroupAvatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
 import { GalleryContentRenderer } from '../GalleryPost';
+import { GroupAvatar } from '../GroupAvatar';
 import { ListItem } from '../ListItem';
-import { useBoundHandler } from '../ListItem/listItemUtils';
+import {
+  ContentReferenceContext,
+  IsInsideReferenceContext,
+} from '../PostContent/BlockRenderer';
 import { PostContentRenderer } from '../PostContent/ContentRenderer';
+import { useBoundHandler } from '../listItems/listItemUtils';
 import {
   Reference,
   ReferenceContext,
@@ -24,18 +29,17 @@ import {
   ReferenceSkeleton,
   useReferenceContext,
 } from './Reference';
+import { ContentReferenceLoaderComponent } from './types';
 
-export const IsInsideReferenceContext = createContext(false);
+export { IsInsideReferenceContext };
 export const useIsInsideReference = () => useContext(IsInsideReferenceContext);
 
 // Any reference
 
-export function ContentReferenceLoader({
+export const ContentReferenceLoader: ContentReferenceLoaderComponent = ({
   reference,
   ...props
-}: {
-  reference: ContentReference;
-} & ReferenceProps) {
+}) => {
   if (reference.referenceType === 'channel') {
     return (
       <PostReferenceLoader
@@ -64,7 +68,7 @@ export function ContentReferenceLoader({
       {...props}
     />
   );
-}
+};
 
 // Post reference
 
@@ -367,5 +371,21 @@ function ContentReferenceHeader({ type }: { type: keyof typeof typeMeta }) {
       </Reference.Title>
       <Reference.ActionIcon />
     </Reference.Header>
+  );
+}
+
+/**
+ * Provides a component to render a content reference to support recursive
+ * reference rendering without having circular dependencies.
+ */
+export function ContentReferenceLoaderProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ContentReferenceContext.Provider value={ContentReferenceLoader}>
+      {children}
+    </ContentReferenceContext.Provider>
   );
 }

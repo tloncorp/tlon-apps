@@ -42,17 +42,15 @@ import {
 import { useIsUserActive } from '../../../hooks/useUserActivity';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
-import {
-  ChannelProvider,
-  GroupsProvider,
-  NavigationProvider,
-  useChannelShareIntent,
-  useCurrentUserId,
-} from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useAttachmentContext } from '../../contexts/attachment';
+import { ChannelProvider } from '../../contexts/channel';
+import { GroupsProvider } from '../../contexts/groups';
+import { NavigationProvider } from '../../contexts/navigation';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
+import { useChannelShareIntent } from '../../contexts/shareIntent';
 import * as utils from '../../utils';
 import { FileDrop } from '../FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';

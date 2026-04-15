@@ -7,6 +7,7 @@ import { XStack, YStack } from 'tamagui';
 
 import { AttestationSheet } from '../AttestationSheet';
 import { WidgetPane } from '../WidgetPane';
+import { HiddenPhoneDisplay } from './HiddenPhoneDisplay';
 
 export function TwitterAttestDisplay(props: { attestation: db.Attestation }) {
   const [showDetails, setShowDetails] = useState(false);
@@ -89,17 +90,4 @@ export function PhoneAttestDisplay(props: { attestation: db.Attestation }) {
   );
 }
 
-export function HiddenPhoneDisplay() {
-  return (
-    <Text size="$label/l" fontWeight="500">
-      (
-      <Text size="$label/xl" fontWeight="600">
-        ···
-      </Text>
-      ){' '}
-      <Text size="$label/xl" fontWeight="600">
-        ··· ····
-      </Text>
-    </Text>
-  );
-}
+export { HiddenPhoneDisplay } from './HiddenPhoneDisplay';

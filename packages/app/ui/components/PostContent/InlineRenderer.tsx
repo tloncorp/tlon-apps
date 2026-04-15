@@ -18,7 +18,9 @@ import React, {
 import { Linking, Platform } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
-import { useChannelContext, useNavigation, useRequests } from '../../contexts';
+import { useChannelContext } from '../../contexts/channel';
+import { useNavigation } from '../../contexts/navigation';
+import { useRequests } from '../../contexts/requests';
 import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
 import { useContentContext } from './contentUtils';
