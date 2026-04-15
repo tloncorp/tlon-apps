@@ -12,6 +12,7 @@ type ForwardToChannelSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  subtitle?: string;
   onChannelSelected: (channel: db.Channel) => void;
   // Temporary escape hatch for share-target filtering. Should probably push it
   // down into the underlying query.
@@ -23,6 +24,7 @@ export function ForwardToChannelSheet({
   open,
   onOpenChange,
   title,
+  subtitle,
   onChannelSelected,
   channelFilter,
   footerComponent,
@@ -41,7 +43,7 @@ export function ForwardToChannelSheet({
       footerComponent={footerComponent}
     >
       <ActionSheet.Content flex={1} paddingBottom="$s">
-        <ActionSheet.SimpleHeader title={title} />
+        <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
         {showSelector ? (
           <ForwardChannelSelector
             isOpen={showSelector}
