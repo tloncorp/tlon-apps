@@ -416,7 +416,7 @@ export function TlonBotPane(props: {
   );
 }
 
-function BotNamePane(props: {
+export function BotNamePane(props: {
   name: string;
   emoji: string;
   onNameChange: (name: string) => void;
@@ -510,7 +510,7 @@ function BotNamePane(props: {
   );
 }
 
-function BotPersonalityPane(props: {
+export function BotPersonalityPane(props: {
   personality: PersonalityType;
   onPersonalityChange: (p: PersonalityType) => void;
   onActionPress: () => void;
@@ -558,7 +558,7 @@ function BotPersonalityPane(props: {
   );
 }
 
-function BotModelPane(props: {
+export function BotModelPane(props: {
   model: string;
   apiKey: string;
   onModelChange: (model: string) => void;
@@ -639,7 +639,7 @@ function BotModelPane(props: {
   );
 }
 
-function BotLaunchPane(props: {
+export function BotLaunchPane(props: {
   botName: string;
   botEmoji: string;
   onCreateGroup: () => void;
@@ -702,7 +702,7 @@ function BotLaunchPane(props: {
   );
 }
 
-function BotLaunchLoadingPane(props: { botEmoji: string }) {
+export function BotLaunchLoadingPane(props: { botEmoji: string }) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -728,7 +728,7 @@ function BotLaunchLoadingPane(props: { botEmoji: string }) {
   );
 }
 
-function ShareGroupPane(props: {
+export function ShareGroupPane(props: {
   botName: string;
   botEmoji: string;
   inviteLink?: string | null;
