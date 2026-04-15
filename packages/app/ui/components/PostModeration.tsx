@@ -1,5 +1,5 @@
 import * as db from '@tloncorp/shared/db';
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
 import { ForwardingProps } from '../utils';
@@ -154,6 +154,14 @@ export function PostModeration({
 }) {
   const { isAuthorBlocked } = useBlockedAuthor(post);
   const [moderationBypassed, setModerationBypassed] = useState(false);
+
+  // If user bypass is disabled, we want to reset
+  // thebypass state so that content is hidden/blocked
+  // again.
+  useEffect(() => {
+    setModerationBypassed(false);
+  }, [disableBypassBlockedContent, disableBypassHiddenContent]);
+
   const ctxValue = useMemo(
     () => ({
       post,
