@@ -14,6 +14,12 @@ import { MaskedChatMessage } from '../PostModeration';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { StaticChatMessage } from './StaticChatMessage';
 
+/**
+ * Wraps
+ * [`StaticChatMessage`](packages/app/ui/components/ChatMessage/StaticChatMessage.tsx)
+ * with press behavior, moderation (deleted/hidden/blocked) handling, and an
+ * overflow menu with actions.
+ */
 const ChatMessage = ({
   post,
   showAuthor,
