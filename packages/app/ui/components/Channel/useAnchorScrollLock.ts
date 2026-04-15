@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { FlatList } from 'react-native';
 
-import { ScrollAnchor } from './Scroller';
+import { ScrollAnchor } from './scrollerTypes';
 
 const logger = createDevLogger('useAnchorScrollLock', false);
 

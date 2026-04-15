@@ -6,7 +6,7 @@ import { isWeb } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
 import { Badge } from '../Badge';
-import { ListItem } from './ListItem';
+import { ListItem } from '../ListItem';
 import { useBoundHandler } from './listItemUtils';
 
 export const SystemContactListItem = ({

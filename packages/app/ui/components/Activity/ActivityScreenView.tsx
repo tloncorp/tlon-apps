@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { View, XStack, isWeb, useStyle } from 'tamagui';
 
-import { NavigationProvider, useStore } from '../../contexts';
+import { NavigationProvider } from '../../contexts/navigation';
+import { useStore } from '../../contexts/storeContext';
 import { useIsDarkTheme } from '../../utils/colorUtils';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PersonalInviteSheet } from '../PersonalInviteSheet';

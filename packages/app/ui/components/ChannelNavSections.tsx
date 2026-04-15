@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { SizableText, YStack, getVariableValue, useTheme } from 'tamagui';
 
 import ChannelNavSection from './ChannelNavSection';
-import { ChannelListItem } from './ListItem';
+import { ChannelListItem } from './listItems';
 
 export default function ChannelNavSections({
   group,

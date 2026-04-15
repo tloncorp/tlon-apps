@@ -5,13 +5,14 @@ import { Pressable } from '@tloncorp/ui';
 import { View, isWeb } from 'tamagui';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useChatOptions, useContact } from '../../contexts';
+import { useContact } from '../../contexts/appDataContext';
+import { useChatOptions } from '../../contexts/chatOptions/useChatOptions';
 import { useGroupTitle } from '../../utils';
 import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-import { ListItem, ListItemProps } from './ListItem';
+import { ListItem, ListItemProps } from '../ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 
 export const GroupListItem = ({

@@ -5,7 +5,7 @@ import { View, getTokenValue } from 'tamagui';
 
 import { getChannelTypeIcon } from '../utils';
 import { ListItem } from './ListItem';
-import { ChannelListItem } from './ListItem/ChannelListItem';
+import { ChannelListItem } from './listItems/ChannelListItem';
 
 type ForwardChannelListItemProps = {
   channel: db.Channel;
