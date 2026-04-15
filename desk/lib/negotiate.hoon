@@ -345,23 +345,22 @@
     ++  reset-heed
       |=  target=(unit gill:gall)
       ^-  (quip card _state)
-      =/  keys=(list [gill:gall protocol])
+      =/  keys=(list [=gill:gall =protocol])
+        ?~  target  ~(tap in ~(key by heed))
         %+  skim  ~(tap in ~(key by heed))
-        |=  [=gill:gall *]
-        ?~  target  &
-        =(gill u.target)
+        |=([=gill:gall *] =(gill u.target))
       =|  out=(list card)
       |-
       ?~  keys  [out state]
-      =*  entry  i.keys
-      =/  =wire
-        /~/negotiate/heed/(scot %p p.entry)/[q.entry]/[+.entry]
-      =.  out  (snoc out [%pass wire %agent -.entry %leave ~])
       =.  out
-        %+  snoc  out
-        (tell:log %dbug ~[>[%reset-heed entry]<] ~)
-      =.  heed  (~(del by heed) entry)
-      =^  caz  state  (negotiate entry)
+        :+  (tell:log %dbug ~[>[%reset-heed i.keys]<] ~)
+          =,  i.keys
+          :+  %pass
+            /~/negotiate/heed/(scot %p p.gill)/[q.gill]/[protocol]
+          [%agent gill %leave ~]
+        out
+      =.  heed  (~(del by heed) i.keys)
+      =^  caz  state  (negotiate i.keys)
       $(out (weld out caz), keys t.keys)
     ::
     ++  ours-changed
@@ -749,28 +748,29 @@
         =/  dat  (on-peek:og path)
         ?:  ?=(?(~ [~ ~]) dat)  ~
         (fall ((soft (list mass)) q.q.u.u.dat) ~)
-      ?:  =(/x/dbug/state path)
-        ``noun+!>((slop on-save:og !>(negotiate=state)))
-      ?:  =(/x/dbug/wex path)
-        ``noun+!>(wex.bowl)
-      ?:  =(/x/dbug/sup path)
-        ``noun+!>(sup.bowl)
-      ?:  =(/x/dbug/bowl path)
-        ``noun+!>(bowl)
-      ::  orphan diff: heed keys whose /~/negotiate/heed/... subscription
-      ::  is missing from wex.bowl. non-empty result means +inflate's
-      ::  orphan detector should have fired but didn't (or hasn't yet).
-      ::
-      ?:  =(/x/dbug/orphans path)
-        :^  ~  ~  %noun
-        !>  ^-  (list [gill:gall protocol])
-        %+  murn  ~(tap by heed)
-        |=  [[=gill:gall =protocol] *]
-        =/  =wire
-          :+  %~.~  %negotiate
-          [%heed (scot %p p.gill) q.gill protocol ~]
-        ?:  (~(has by wex.bowl) [wire gill])  ~
-        `[gill protocol]
+      ?:  ?=([%x %dbug *] path)
+        ?+  t.t.path  [~ ~]
+            [%wex ~]   ``noun+!>(wex.bowl)
+            [%sup ~]   ``noun+!>(sup.bowl)
+            [%bowl ~]  ``noun+!>(bowl)
+            [%state ~]
+          ``noun+!>((slop on-save:og !>(negotiate=state)))
+        ::
+        ::  orphan diff: heed keys whose /~/negotiate/heed/... subscription
+        ::  is missing from wex.bowl. non-empty result means +inflate's
+        ::  orphan detector should have fired but didn't (or hasn't yet).
+        ::
+            [%orphans ~]
+          :^  ~  ~  %noun
+          !>  ^-  (list [gill:gall protocol])
+          %+  murn  ~(tap by heed)
+          |=  [[=gill:gall =protocol] *]
+          =/  =wire
+            :+  %~.~  %negotiate
+            [%heed (scot %p p.gill) q.gill protocol ~]
+          ?:  (~(has by wex.bowl) [wire gill])  ~
+          `[gill protocol]
+        ==
       ?.  ?=([@ %~.~ %negotiate *] path)
         (on-peek:og path)
       !:
