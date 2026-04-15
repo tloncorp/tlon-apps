@@ -1,7 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { createVideoPlayer } from 'expo-video';
 import { EventSubscription } from 'expo-modules-core';
+import { createVideoPlayer } from 'expo-video';
 
 import { VideoPreviewData, VideoPreviewSource } from './videoPreviewTypes';
 

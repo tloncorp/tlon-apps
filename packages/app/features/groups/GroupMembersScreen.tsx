@@ -5,8 +5,8 @@ import { useHandleGoBack } from '../../hooks/useChatSettingsNavigation';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
-import { GroupMembersScreenView } from '../../ui';
 import { useRootNavigation } from '../../navigation/utils';
+import { GroupMembersScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<
   GroupSettingsStackParamList,

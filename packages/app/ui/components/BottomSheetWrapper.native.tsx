@@ -1,5 +1,7 @@
 import BottomSheet, {
   BottomSheetBackdrop,
+  BottomSheetFooter,
+  BottomSheetFooterProps,
   BottomSheetModal,
   BottomSheetView,
   BottomSheetScrollView as GorhomBottomSheetScrollView,
@@ -50,11 +52,9 @@ const MemoizedHandle = React.memo(() => <BottomSheetHandle />);
 
 MemoizedHandle.displayName = 'MemoizedHandle';
 
-const MemoizedBackground = React.memo(
-  ({ style }: { style: any }) => (
-    <View style={style} accessible={false} pointerEvents="none" />
-  )
-);
+const MemoizedBackground = React.memo(({ style }: { style: any }) => (
+  <View style={style} accessible={false} pointerEvents="none" />
+));
 
 MemoizedBackground.displayName = 'MemoizedBackground';
 
@@ -179,6 +179,21 @@ export const BottomSheetWrapper = forwardRef<
     const flexWithBackgroundStyle = useMemo(
       () => ({ flex: 1, backgroundColor }),
       [backgroundColor]
+    );
+
+    const wrappedFooterComponent = useMemo(
+      () =>
+        footerComponent
+          ? (props: BottomSheetFooterProps) => {
+              const content = footerComponent(props);
+              return content ? (
+                <BottomSheetFooter {...props}>
+                  <View backgroundColor={backgroundColor}>{content}</View>
+                </BottomSheetFooter>
+              ) : null;
+            }
+          : undefined,
+      [backgroundColor, footerComponent]
     );
 
     // Transform snapPoints based on snapPointsMode for compatibility with Tamagui Sheet API
@@ -323,7 +338,7 @@ export const BottomSheetWrapper = forwardRef<
         backdropComponent: renderBackdrop,
         handleComponent: renderHandle,
         backgroundComponent: renderBackground,
-        footerComponent,
+        footerComponent: wrappedFooterComponent,
         style: frameStyle,
         snapPointsMode,
         snapPoints: transformedSnapPoints,
@@ -345,7 +360,7 @@ export const BottomSheetWrapper = forwardRef<
         renderBackdrop,
         renderHandle,
         renderBackground,
-        footerComponent,
+        wrappedFooterComponent,
         frameStyle,
         snapPointsMode,
         transformedSnapPoints,
@@ -362,9 +377,10 @@ export const BottomSheetWrapper = forwardRef<
     const nonModalProps = useMemo(
       () => ({
         ...commonProps,
+        ...commonOverrides,
         index: open ? 0 : -1, // Control visibility via index instead of conditional rendering
       }),
-      [commonProps, open]
+      [commonOverrides, commonProps, open]
     );
 
     const isNested = useContext(ActionSheetContext).isInsideSheet;

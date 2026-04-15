@@ -1,14 +1,14 @@
-/-  a=activity
+/-  av=activity-ver
 /+  aj=activity-json
-|_  =stream:a
+|_  =stream:v8:av
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  stream
-  ++  json  (stream:enjs:aj stream)
+  ++  json  (stream:v8:enjs:aj stream)
   --
 ++  grab
   |%
-  ++  noun  stream:a
+  ++  noun  stream:v8:av
   --
 --

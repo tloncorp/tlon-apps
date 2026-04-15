@@ -39,12 +39,8 @@ describe('chatSearchRanking helpers', () => {
   test('requires all tokens to match across channel/group/id fields', () => {
     const candidate = makeCandidate({ title: 'general', groupTitle: 'tlon' });
 
-    expect(hasAllChatSearchTokens(candidate, ['tlon', 'general'])).toBe(
-      true
-    );
-    expect(hasAllChatSearchTokens(candidate, ['tlon', 'random'])).toBe(
-      false
-    );
+    expect(hasAllChatSearchTokens(candidate, ['tlon', 'general'])).toBe(true);
+    expect(hasAllChatSearchTokens(candidate, ['tlon', 'random'])).toBe(false);
   });
 
   test('prefers split group+channel match over loose fuzzy alternatives', () => {

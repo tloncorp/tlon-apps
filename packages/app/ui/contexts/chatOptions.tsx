@@ -1,7 +1,7 @@
+import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/api/urbit';
 import { ConfirmDialog, useIsWindowNarrow } from '@tloncorp/ui';
 import {
   ReactNode,
@@ -32,7 +32,11 @@ export type ChatOptionsContextValue = {
   onPressChannelMembers: () => void;
   onPressChannelMeta: () => void;
   onPressChannelTemplate: () => void;
-  onPressChatDetails: (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => void;
+  onPressChatDetails: (chat: {
+    type: 'group' | 'channel';
+    id: string;
+    groupId?: string;
+  }) => void;
   togglePinned: () => void;
   leaveGroup: () => Promise<void>;
   leaveChannel: () => void;
@@ -86,7 +90,11 @@ type ChatOptionsProviderProps = {
   children: ReactNode;
   useChannel?: typeof store.useChannel;
   useGroup?: typeof store.useGroup;
-  onPressGroupMeta?: (groupId: string, fromBlankChannel?: boolean, fromChatDetails?: boolean) => void;
+  onPressGroupMeta?: (
+    groupId: string,
+    fromBlankChannel?: boolean,
+    fromChatDetails?: boolean
+  ) => void;
   onPressGroupMembers?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressManageChannels?: (groupId: string, fromChatDetails?: boolean) => void;
   onPressInvite?: (groupId: string) => void;

@@ -7,13 +7,18 @@ import {
   useEffect,
   useRef,
 } from 'react';
-import { ActivityIndicator, Platform, Pressable, ViewStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ViewStyle,
+} from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
-  withDelay,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
@@ -99,7 +104,9 @@ export const ScreenHeaderComponent = ({
 
   // Fallback for non-string titles: swap to loading subtitle while loading.
   const displayTitle =
-    !useHorizontalTitleLayout && isLoadingActive && !shouldUseAnimatedTitleLayout
+    !useHorizontalTitleLayout &&
+    isLoadingActive &&
+    !shouldUseAnimatedTitleLayout
       ? activeLoadingText
       : title;
 
@@ -121,7 +128,6 @@ export const ScreenHeaderComponent = ({
       color="$secondaryText"
       size="$label/s"
       numberOfLines={1}
-      paddingTop={5}
       testID="ScreenHeaderSubtitle"
     >
       {resolvedSubtitle}
@@ -138,12 +144,7 @@ export const ScreenHeaderComponent = ({
     );
 
   const titleCluster = (
-    <XStack
-      alignItems="center"
-      justifyContent="center"
-      gap="$s"
-      height="$4xl"
-    >
+    <XStack alignItems="center" justifyContent="center" gap="$s" height="$4xl">
       {titleIcon}
       {shouldUseAnimatedTitleLayout ? (
         <HeaderAnimatedTitle
@@ -165,7 +166,9 @@ export const ScreenHeaderComponent = ({
           {displayTitle}
         </Text>
       )}
-      {onTitlePress && <Icon type="ChevronDown" color="$primaryText" size="$s" />}
+      {onTitlePress && (
+        <Icon type="ChevronDown" color="$primaryText" size="$s" />
+      )}
     </XStack>
   );
 
@@ -370,9 +373,7 @@ function HeaderAnimatedTitle({
       transform: [
         {
           translateX:
-            !leftAlignLoadingText && loadingRowWidth
-              ? -loadingRowWidth / 2
-              : 0,
+            !leftAlignLoadingText && loadingRowWidth ? -loadingRowWidth / 2 : 0,
         },
         { translateY: loadingTranslateY.value },
       ],
@@ -386,7 +387,10 @@ function HeaderAnimatedTitle({
   });
 
   const spinnerColor = getVariableValue(theme.secondaryText);
-  const spinnerStrokeStyle = { borderColor: spinnerColor, borderTopColor: 'transparent' };
+  const spinnerStrokeStyle = {
+    borderColor: spinnerColor,
+    borderTopColor: 'transparent',
+  };
 
   return (
     <View
@@ -424,7 +428,11 @@ function HeaderAnimatedTitle({
             animating={isLoading}
             size={spinnerSize}
             color={spinnerColor}
-            style={{ width: spinnerSize, height: spinnerSize, marginRight: spinnerGap }}
+            style={{
+              width: spinnerSize,
+              height: spinnerSize,
+              marginRight: spinnerGap,
+            }}
           />
         ) : (
           <Animated.View
@@ -503,7 +511,9 @@ const HeaderTitleText = styled(Text, {
 
 const HeaderControls = styled(XStack, {
   position: 'absolute',
-  bottom: '$m',
+  bottom: 0,
+  height: '$4xl',
+  alignItems: 'center',
   gap: '$l',
   zIndex: 1,
   variants: {

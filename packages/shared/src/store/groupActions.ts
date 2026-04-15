@@ -1,18 +1,18 @@
+import * as api from '@tloncorp/api';
+import {
+  GroupTemplateId,
+  groupTemplatesById,
+} from '@tloncorp/api/types/groupTemplates';
+import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';
 import isEqual from 'lodash/isEqual';
 
-import * as api from '@tloncorp/api';
 import * as db from '../db';
 import { QueryCtx, batchEffects } from '../db/query';
 import { GroupPrivacy } from '../db/schema';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
-import {
-  GroupTemplateId,
-  groupTemplatesById,
-} from '@tloncorp/api/types/groupTemplates';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';
 import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);

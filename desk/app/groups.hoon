@@ -7,7 +7,7 @@
 ::  the server core +se-core and client core +go-core.
 ::
 /-  g=groups, gv=groups-ver, c=chat, d=channels, dv=channels-ver, s=story,
-    activity
+    av=activity-ver
 /-  meta
 /+  default-agent, verb, dbug
 /+  gc=groups-conv, cu=channel-utils, v=volume, s=subscriber, imp=import-aid, logs,
@@ -103,7 +103,6 @@
         [/v1/groups %group-response-1 ~]
         [/groups/ui %group-action-3 ~]
       ::
-        [/chan/$/$/$ %channel-preview ~]
         [/v1/channels/$/$/$/preview %channel-preview-1 ~]
       ::
         [/gangs/index/$ %group-previews ~]
@@ -256,13 +255,13 @@
 ++  server  dap.bowl
 ::
 ++  submit-activity
-  |=  =action:activity
+  |=  =action:v8:av
   ~>  %spin.['submit-activity']
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  activity-action+!>(`action:activity`action)
+  =/  =cage  activity-action+!>(`action:v8:av`action)
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 ::  |l: logging core
 ::
@@ -1057,10 +1056,8 @@
 ::
 ++  inflate-io
   ^+  cor
-  ::
   =.  cor  (watch-contacts |)
   =.  cor  (watch-channels |)
-  ::
   =.  cor
     %+  roll
       ~(tap by groups)
@@ -1112,17 +1109,10 @@
   ::
     [%v1 %groups ~]  ?>(from-self cor)
   ::
-      [ver=?(%v0 %v1) %channels app=@ ship=@ name=@ rest=*]
-    ?>  from-self
+      [ver=%v1 %channels app=@ ship=@ name=@ %preview ~]
     =/  ship=@p  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
-    =/  =flag:g  (~(got by channels-index) nest)
-    go-abet:(go-watch:(go-abed:go-core flag) ver.pole +.pole)
-  ::
-      ::  deprecated
-      [%chan app=@ ship=@ name=@ rest=*]
-    ?>  ?=(~ rest.pole)
-    $(pole [%v0 %channels app ship name %preview rest]:pole)
+    (watch-channel-preview ver.pole nest)
   ::
     ::  deprecated
     [%groups %ui ~]  ?>(from-self cor)
@@ -1171,6 +1161,27 @@
   =/  se-core  (se-abed:se-core flag)
   ?:  (se-is-banned:se-core src.bowl)  ~
   `[flag se-preview:se-core]
+::  +watch-channel-preview: handle channel preview request
+::
+++  watch-channel-preview
+  |=  [ver=%v1 =nest:g]
+  ^+  cor
+  ?.  =(p.q.nest our.bowl)
+    (emil (pass-preview-channel nest))
+  =+  flag=(~(got by channels-index) nest)
+  (go-watch-channel-preview:(go-abed:go-core flag) ver nest)
+::
+++  pass-preview-channel
+  |=  =nest:g
+  ^-  (list card)
+  =*  ship  p.q.nest
+  =/  =wire  /channels/[p.nest]/(scot %p ship)/[q.q.nest]/preview
+  =/  =dock  [ship %groups]
+  =/  =path
+    /v1/channels/[p.nest]/(scot %p ship)/[q.q.nest]/preview
+  :~  [%pass wire %agent dock %leave ~]
+      [%pass wire %agent dock %watch path]
+  ==
 ::
 ++  peek
   |=  =(pole knot)
@@ -1434,14 +1445,12 @@
         ==
       cor
     fi-abet:(fi-agent:(fi-abed:fi-core ship name.pole) rest.pole sign)
-  ::
-      [%chan app=@ ship=@ name=@ rest=*]
-    ::  we got a sign on this old-style channel preview wire,
-    ::  likely indicating the last breath of a lingering preview sub.
-    ::  we could clean up but probably don't need to. no-op.
     ::
-    ~&  [%groups-stale-preview `wire`pole -.sign]
-    (~(tell l ~) %info 'sign on old wire' >[wire=`wire`pole sign=-.sign]< ~)
+      ::  requested a channel preview
+      [%channels app=@ ship=@ name=@ %preview ~]
+    =+  ship=(slav %p ship.pole)
+    =/  =nest:g  [app.pole ship name.pole]
+    (take-channel-preview nest sign)
   ::
       [%channels ~]
     (take-channels sign)
@@ -1458,7 +1467,54 @@
   ::
     ::  deprecated
     [%helm *]  cor
+  ::
+      ::  deprecated
+      [%chan app=@ ship=@ name=@ rest=*]
+    ::  we got a sign on this old-style channel preview wire,
+    ::  likely indicating the last breath of a lingering preview sub.
+    ::  we could clean up but probably don't need to. no-op.
+    ::
+    ~&  [%groups-stale-preview `wire`pole -.sign]
+    (~(tell l ~) %info 'sign on old wire' >[wire=`wire`pole sign=-.sign]< ~)
   ==
+::  +take-channel-preview: handel channels preview response
+::
+++  take-channel-preview
+  |=  [=nest:g =sign:agent:gall]
+  ^+  cor
+  ?+    -.sign  ~|(take-channel-preview+-.sign !!)
+      %kick
+    =/  path-1=path
+      /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
+    (emit %give %kick ~[path-1] ~)
+  ::
+      %watch-ack
+    ?~  p.sign  cor
+    (fail:l %watch-ack 'failed channel preview request' u.p.sign)
+  ::
+      %fact
+    ::  we use the same subscription path for client and agent subscriptions.
+    ::  here we only process the most recent mark coming from the
+    ::  channel host. 
+    ::
+    ?.  =(p.cage.sign %channel-preview-1)  cor
+    =+  !<(=channel-preview:v7:gv q.cage.sign)
+    (give-channel-preview %v1 channel-preview)
+  ==
+::  +give-channel-preview: give channel preview to subscribers
+::
+++  give-channel-preview
+  |=  [ver=?(%v1) =channel-preview:g]
+  ^+  cor
+  =*  nest  nest.channel-preview
+  ::  v1
+  ::
+  =/  preview-7=channel-preview:v7:gv  channel-preview
+  =/  path-1=path
+    /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
+  =.  cor  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
+  =.  cor  (emit %give %kick ~[path-1] ~)
+  cor
 ::
 ++  arvo
   |=  [=(pole knot) sign=sign-arvo]
@@ -3267,7 +3323,7 @@
   ::  +go-activity: notify about a group event
   ::
   ++  go-activity
-    =,  activity
+    =,  v8:av
     |=  $=  concern
         $%  [%join =ship]
             [%kick =ship]
@@ -3398,21 +3454,6 @@
       =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %join-channels)
       `[%pass wire %agent dock %poke cage]
-    ::
-    ++  preview-channel
-      |=  =nest:g
-      ~>  %spin.['preview-channel']
-      ^-  (list card)
-      =*  ship  p.q.nest
-      =/  =wire
-        %+  weld  go-area
-        /channels/[p.nest]/(scot %p ship)/[q.q.nest]/preview
-      =/  =dock  [ship %groups]
-      =/  =path
-        /v1/channels/[p.nest]/(scot %p ship)/[q.q.nest]/preview
-      :~  [%pass wire %agent dock %leave ~]
-          [%pass wire %agent dock %watch path]
-      ==
     ::
     ++  go-wake-members
       ~>  %spin.['go-wake-members']
@@ -3653,57 +3694,27 @@
       [%section section-id %set order.section]
     %+  go-send-command:go-core  /command/section-order
     [%section-order order.a-navigation]
-  ::  +go-watch: handle group watch request
+  ::  +go-watch-channel-preview: handle channel preview request
   ::
-  ++  go-watch
-    |=  [ver=?(%v0 %v1) =(pole knot)]
-    ~>  %spin.['go-watch']
-    ^+  go-core
+  ++  go-watch-channel-preview
+    |=  [ver=?(%v1) =nest:g]
     ?<  (go-is-banned src.bowl)
-    ?+    pole  ~|(go-bad-watch+pole !!)
-        [%channels app=@ ship=@ name=@ %preview ~]
-      =+  ship=(slav %p ship.pole)
-      =/  =nest:g  [app.pole ship name.pole]
-      ?.  =(ship.pole our.bowl)
-        ::  proxy the request to the channel host
-        =.  cor  (emil (preview-channel:go-pass nest))
-        go-core
-      =+  chan=(~(get by channels.group) nest)
-      ?~  chan  ~|(go-watch-bad-channel-preview+nest !!)
-      ::TODO verify this: if a ship has permissions to read
-      ::     a channel, this implies she can also preview a (secret) group.
-      ::
-      ?>  (go-can-read src.bowl u.chan)
-      =/  =channel-preview:v7:gv
-        :*  nest
-            meta.u.chan
-            go-preview
-        ==
-      (go-give-channel-preview channel-preview &)
-    ==
-  ::  +go-give-channel-preview: give channel preview to subscribers
-  ::
-  ++  go-give-channel-preview
-    |=  [=channel-preview:g watch=?]
-    ~>  %spin.['go-give-channel-preview']
-    ^+  go-core
-    =*  nest  nest.channel-preview
-    ::  v0
+    =*  ship  p.q.nest
+    ?>  =(ship our.bowl)
+    =+  chan=(~(get by channels.group) nest)
+    ?~  chan  ~|(go-watch-bad-channel-preview+nest !!)
+    ?>  (go-can-read src.bowl u.chan)
+    =/  =channel-preview:g
+      :*  nest
+          meta.u.chan
+          go-preview
+      ==
+    ::NOTE we send out the fact on a subscription path,
+    ::     rather than to present subscriber. however, given
+    ::     that we always clean up the subscription by kicking,
+    ::     these are equivalent.
     ::
-    =/  preview-2
-      (v2:channel-preview:v7:gc channel-preview)
-    =/  path-0=path  ?:  watch  ~
-      /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
-    =.  go-core  (emit %give %fact ~[path-0] channel-preview+!>(preview-2))
-    =?  go-core  watch  (emit %give %kick ~[path-0] ~)
-    ::  v1
-    ::
-    =/  preview-7=channel-preview:v7:gv  channel-preview
-    =/  path-1=path  ?:  watch  ~
-      /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
-    =.  go-core  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
-    =?  go-core  watch  (emit %give %kick ~[path-1] ~)
-    go-core
+    (give-channel-preview ver channel-preview)
   ::  +go-agent: handle group response
   ::
   ::  when adding a new response, always consider
@@ -3796,28 +3807,6 @@
           ::
           =.  cor  (tell:l %warn %poke-ack 'failed to leave channels' u.p.sign)
           go-core
-      ==
-    ::
-        ::  requested a channel preview
-        [%channels app=@ ship=@ name=@ %preview ~]
-      ?+    -.sign  ~|(go-agent-bad-channels+-.sign !!)
-          %kick
-        =+  ship=(slav %p i.t.t.wire)
-        =/  =nest:g  [i.t i.t.t i.t.t.t]:wire
-        =/  path-0=path
-          /chan/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
-        =/  path-1=path
-          /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
-        (emit %give %kick ~[path-0 path-1] ~)
-      ::
-          %watch-ack
-        ?~  p.sign  go-core
-        =.  cor  (fail:l %watch-ack 'failed channel preview request' u.p.sign)
-        go-core
-      ::
-          %fact
-        =+  !<(=channel-preview:v7:gv q.cage.sign)
-        (go-give-channel-preview channel-preview |)
       ==
     ==
   ::
@@ -4573,7 +4562,7 @@
               converted-nest
               flag
           ==
-        =/  new-reply-message-id=message-id:activity  [src u.q.plan]
+        =/  new-reply-message-id=message-id:av  [src u.q.plan]
         %+  go-activity  %flag-reply
         :*  [new-reply-message-id u.q.plan]
             [new-message-id p.plan]
@@ -4777,7 +4766,7 @@
     fi-core
   ::
   ++  fi-activity
-    =,  activity
+    =,  v8:av
     |=  concern=[%group-invite =ship]
     ^+  fi-core
     =.  cor

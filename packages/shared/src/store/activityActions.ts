@@ -1,11 +1,13 @@
 import * as api from '@tloncorp/api';
-import * as db from '../db';
-import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
-import { createDevLogger } from '../debug';
-import { isGroupChannelId } from '../logic';
-import * as logic from '../logic';
+import { isGroupChannelId } from '@tloncorp/api/client';
 import * as ub from '@tloncorp/api/urbit';
 import { whomIsMultiDm } from '@tloncorp/api/urbit';
+
+import * as db from '../db';
+import { QueryCtx } from '../db/query';
+import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
+import { createDevLogger } from '../debug';
+import * as logic from '../logic';
 
 const logger = createDevLogger('activityActions', false);
 
@@ -323,3 +325,34 @@ export async function setChannelVolumeLevel(params: {
     }
   }
 }
+
+export const persistUnreads = async ({
+  unreads,
+  ctx,
+  includesAllUnreads,
+}: {
+  unreads: db.ActivityInit;
+  ctx?: QueryCtx;
+  includesAllUnreads?: boolean;
+}) => {
+  const { baseUnread, groupUnreads, channelUnreads, threadActivity } = unreads;
+  if (baseUnread) {
+    await db.insertBaseUnread(baseUnread, ctx);
+  }
+  await db.insertGroupUnreads(groupUnreads, ctx);
+  await db.insertChannelUnreads(channelUnreads, ctx);
+  await db.insertThreadUnreads(threadActivity, ctx);
+
+  // if we have all channel unreads, we should use that data to update which
+  // channels we're joined to
+  if (includesAllUnreads) {
+    await db.setJoinedGroupChannels(
+      {
+        channelIds: channelUnreads
+          .filter((u) => u.type === 'channel')
+          .map((u) => u.channelId),
+      },
+      ctx
+    );
+  }
+};

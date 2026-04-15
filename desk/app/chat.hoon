@@ -1,5 +1,5 @@
 /-  c=chat, cv=chat-ver, d=channels, dv=channels-ver, g=groups
-/-  u=ui, e=epic, a=activity, s=story, meta
+/-  u=ui, e=epic, a=activity, av=activity-ver, s=story, meta
 /-  contacts
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
@@ -1354,8 +1354,8 @@
     =+  channels=(slav %ud i.t.t.t.path)
     =+  context=(slav %ud i.t.t.t.t.path)
     =/  activity
-      %-  ~(gas by *activity:a)
-      .^  (list [source:a activity-summary:a])  %gx
+      %-  ~(gas by *activity:v8:av)
+      .^  (list [source:v8:av activity-summary:v8:av])  %gx
         (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
       ==
     =;  changes=(map whom:c (unit writs:c))
@@ -1414,14 +1414,14 @@
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) %x %v0 t.t.t.path)
   ::
-      [%x ?(%v1 %v2 %v3) %dm @ *]
+      [%x ?(%v1 %v2 %v3 %v4) %dm @ *]
     =/  =ship  (slav %p i.t.t.t.path)
     (di-peek:(di-abed:di-core ship) %x i.t.path t.t.t.t.path)
   ::
       [%x %club @ *]
     (cu-peek:(cu-abed (slav %uv i.t.t.path)) %x %v0 t.t.t.path)
   ::
-      [%x ?(%v1 %v2 %v3) %club @ *]
+      [%x ?(%v1 %v2 %v3 %v4) %club @ *]
     (cu-peek:(cu-abed (slav %uv i.t.t.t.path)) %x i.t.path t.t.t.t.path)
   ::
       [%u %dm @ *]
@@ -1492,7 +1492,7 @@
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
 ++  pass-activity
-  =,  a
+  =,  v8:av
   |=  $:  =whom
           $=  concern
           $%  [%invite ~]
@@ -1510,7 +1510,7 @@
   =;  actions=(list action)
     %-  emil
     %+  turn  actions
-    |=  =action
+    |=  =action:v8:av
     =/  =cage  activity-action+!>(action)
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
   ?:  ?&  ?=(?(%post %reply) -.concern)
@@ -1524,8 +1524,8 @@
         [%bump source]
     ==
   ?:  ?=(%delete-reply -.concern)
-    =/  =source:a  [%dm-thread top.concern whom]
-    =/  =incoming-event:a
+    =/  =source:v8:av  [%dm-thread top.concern whom]
+    =/  =incoming-event:v8:av
       [%dm-reply key.concern top.concern whom content mention]
     [%del-event source incoming-event]~
   ?:  ?=(%delete-post -.concern)
@@ -1950,7 +1950,7 @@
       cor
     =.  clubs  (~(del by clubs) id)
     ::  if we're leaving a DM we're in, make sure we delete the activity
-    =/  =action:a  [%del %dm %club id]
+    =/  =action:v8:av  [%del %dm %club id]
     =/  =cage  activity-action+!>(action)
     (emit [%pass /activity/submit %agent [our.bowl %activity] %poke cage])
   ++  cu-abed
@@ -2506,7 +2506,7 @@
       cor
     =.  dms  (~(del by dms) ship)
     ::  if we're leaving a DM we're in, make sure we delete the activity
-    =/  =action:a  [%del %dm %ship ship]
+    =/  =action:v8:av  [%del %dm %ship ship]
     =/  =cage  activity-action+!>(action)
     (emit [%pass /activity/submit %agent [our.bowl %activity] %poke cage])
   ++  di-abed
@@ -3043,25 +3043,25 @@
 ++  rectify-activity
   ?.  .^(? %gu (scry-path %activity /$))
     cor
-  =+  .^(full-info:a %gx (scry-path %activity /v4/noun))
+  =+  .^(full-info:v8:av %gx (scry-path %activity /v4/noun))
   %-  emil
   %+  roll
     ~(tap by indices)
-  |=  [[=source:a *] caz=(list card)]
+  |=  [[=source:v8:av *] caz=(list card)]
   ?.  ?=(%dm -.source)
     caz
   ?:  ?=(%club -.whom.source)
     =*  id  p.whom.source
     ::  only remove activity if club is gone
     ?:  (~(has by clubs) id)  caz
-    =/  =action:a  [%del %dm %club id]
+    =/  =action:v8:av  [%del %dm %club id]
     =/  =cage  activity-action+!>(action)
     :_  caz
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
   =*  ship  p.whom.source
   ::  only remove activity if dm is gone
   ?:  (~(has by dms) ship)  caz
-  =/  =action:a  [%del %dm %ship ship]
+  =/  =action:v8:av  [%del %dm %ship ship]
   =/  =cage  activity-action+!>(action)
   :_  caz
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]

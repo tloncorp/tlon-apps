@@ -9,6 +9,9 @@ import {
   useEditorBridge,
   useEditorContent,
 } from '@10play/tentap-editor';
+import { toContentReference } from '@tloncorp/api';
+import * as ub from '@tloncorp/api/urbit';
+import { Inline, JSONContent, isInline, pathToCite } from '@tloncorp/api/urbit';
 //ts-expect-error not typed
 import { editorHtml } from '@tloncorp/editor/dist/editorHtml';
 import {
@@ -17,17 +20,10 @@ import {
   MentionsBridge,
   ShortcutsBridge,
 } from '@tloncorp/editor/src/bridges';
-import {
-  REF_REGEX,
-  createDevLogger,
-  tiptap,
-} from '@tloncorp/shared';
-import { toContentReference } from '@tloncorp/api';
+import { REF_REGEX, createDevLogger, tiptap } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
-import * as ub from '@tloncorp/api/urbit';
-import { Inline, JSONContent, isInline, pathToCite } from '@tloncorp/api/urbit';
 import { HEADER_HEIGHT } from '@tloncorp/ui';
 import {
   forwardRef,
@@ -58,6 +54,12 @@ import { hydrateEditPost, processReferenceAndUpdateEditor } from './helpers';
 export const DEFAULT_MESSAGE_INPUT_HEIGHT = Platform.OS === 'web' ? 38 : 44;
 
 const messageInputLogger = createDevLogger('MessageInput', false);
+
+const isEmptyEditorJson = (json?: JSONContent) =>
+  !json?.content?.length ||
+  (json.content.length === 1 &&
+    json.content[0].type === 'paragraph' &&
+    !json.content[0].content);
 
 type MessageEditorMessage = {
   type: 'contentHeight';
@@ -219,14 +221,19 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [editorContent]);
 
     const webviewRef = editor.webviewRef;
+    const reloadContentRef = useRef<JSONContent>();
+    const editorWithJsonContent = editor as EditorBridge & {
+      setContent: (content: string | JSONContent | null) => void;
+    };
 
     const reloadWebview = useCallback(
       (reason: string) => {
+        reloadContentRef.current = editorContent as JSONContent | undefined;
         webviewRef.current?.reload();
         messageInputLogger.log('[webview] Reloading webview, reason:', reason);
         setEditorCrashed(undefined);
       },
-      [webviewRef]
+      [editorContent, webviewRef]
     );
 
     const lastEditingPost = useRef<db.Post | undefined>(editingPost);
@@ -235,14 +242,23 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
       if (!hasSetInitialContent && editorState.isReady) {
         messageInputLogger.log('Setting initial content');
         try {
+          if (reloadContentRef.current) {
+            editorWithJsonContent.setContent(reloadContentRef.current);
+            setEditorIsEmpty(
+              isEmptyEditorJson(reloadContentRef.current) &&
+                attachments.length === 0
+            );
+            reloadContentRef.current = undefined;
+            setHasSetInitialContent(true);
+            return;
+          }
           getDraft(draftType).then((draft) => {
             if (!editingPost && draft) {
               messageInputLogger.log(
                 'Not editing and we have draft content',
                 draft
               );
-              // @ts-expect-error setContent does accept JSONContent
-              editor.setContent(draft);
+              editorWithJsonContent.setContent(draft);
               setEditorIsEmpty(false);
               messageInputLogger.log(
                 'set has set initial content, not editing'
@@ -276,8 +292,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
                 'Setting content with edit post content',
                 tiptapContent
               );
-              // @ts-expect-error setContent does accept JSONContent
-              editor.setContent(tiptapContent);
+              editorWithJsonContent.setContent(tiptapContent);
               setEditorIsEmpty(false);
               messageInputLogger.log('set has set initial content, editing');
               setHasSetInitialContent(true);
@@ -390,11 +405,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         const json = (await editor.getJSON()) as JSONContent;
         messageInputLogger.log('Storing draft', json);
 
-        if (
-          json.content?.length === 1 &&
-          json.content[0].type === 'paragraph' &&
-          !json.content[0].content
-        ) {
+        if (isEmptyEditorJson(json)) {
           clearDraft(draftType);
           return; // Don't store empty draft after clearing!
         }
@@ -574,6 +585,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             : (JSON.parse(data) as MessageEditorMessage);
 
         if (type === 'editor-ready') {
+          if (reloadContentRef.current) {
+            setHasSetInitialContent(false);
+          }
           webviewRef.current?.injectJavaScript(
             `
               function updateContentHeight() {

@@ -52,3 +52,4 @@ export * from './apiUtils';
 export * from './metagrabApi';
 export * from './changesApi';
 export * from './hostedBotApi';
+export * from './gatewayStatusApi';

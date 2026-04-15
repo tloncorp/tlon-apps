@@ -1,9 +1,16 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
+import { Icon, LoadingSpinner, Pressable } from '@tloncorp/ui';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { GestureResponderEvent } from 'react-native';
 import { Text, View } from 'tamagui';
-import { Icon, LoadingSpinner, Pressable } from '@tloncorp/ui';
 
-import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
 import { AudioPlayerHandle } from './AudioEmbedShared';
 
 export const AudioPlayer = forwardRef<
@@ -93,21 +100,13 @@ export const AudioPlayer = forwardRef<
     if (!audio || !progressBar) return;
 
     const rect = progressBar.getBoundingClientRect();
-    const position = (e.nativeEvent.locationX / rect.width);
+    const position = e.nativeEvent.locationX / rect.width;
     audio.currentTime = position * audio.duration;
   };
 
   return (
-    <View
-      padding="$m"
-      borderRadius="$l"
-      width="100%"
-    >
-      <audio
-        ref={audioRef}
-        src={url}
-        style={{ display: 'none' }}
-      />
+    <View padding="$m" borderRadius="$l" width="100%">
+      <audio ref={audioRef} src={url} style={{ display: 'none' }} />
       <View
         flexDirection="row"
         alignItems="center"
@@ -141,8 +140,8 @@ export const AudioPlayer = forwardRef<
               {isLoading
                 ? 'Loading...'
                 : isPlaying
-                ? 'Now Playing'
-                : 'Audio Track'}
+                  ? 'Now Playing'
+                  : 'Audio Track'}
             </Text>
             {!isLoading && (
               <>

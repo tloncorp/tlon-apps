@@ -214,7 +214,9 @@ export const ControlledColorField = <
     ({
       field: { onChange, ref: _ref, ...field },
     }: UseControllerReturn<TFieldValues, TName>) => {
-      return <ColorInput {...field} onChange={onChange} {...props.inputProps} />;
+      return (
+        <ColorInput {...field} onChange={onChange} {...props.inputProps} />
+      );
     },
     [props.inputProps]
   );

@@ -1,9 +1,5 @@
-import {
-  isTrustedEmbed,
-  useEmbed,
-  utils,
-  validOembedCheck,
-} from '@tloncorp/shared';
+import * as utils from '@tloncorp/api/lib/utils';
+import { isTrustedEmbed, useEmbed, validOembedCheck } from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { Linking, Platform } from 'react-native';

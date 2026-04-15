@@ -73,8 +73,7 @@ function getDataUriSize(uri: string): number | undefined {
       : normalizedPayload.endsWith('=')
         ? 1
         : 0;
-    const size =
-      Math.floor((normalizedPayload.length * 3) / 4) - paddingLength;
+    const size = Math.floor((normalizedPayload.length * 3) / 4) - paddingLength;
 
     return size >= 0 ? size : undefined;
   }
@@ -86,7 +85,9 @@ function getDataUriSize(uri: string): number | undefined {
   }
 }
 
-function normalizeMediaType(value: string | null | undefined): string | undefined {
+function normalizeMediaType(
+  value: string | null | undefined
+): string | undefined {
   if (!value) {
     return undefined;
   }
@@ -101,9 +102,7 @@ function normalizeMediaType(value: string | null | undefined): string | undefine
     .filter((index) => index >= 0)
     .sort((a, b) => a - b)[0];
   const mediaType =
-    endIndex == null
-      ? withoutDataPrefix
-      : withoutDataPrefix.slice(0, endIndex);
+    endIndex == null ? withoutDataPrefix : withoutDataPrefix.slice(0, endIndex);
 
   return mediaType || undefined;
 }
@@ -158,10 +157,10 @@ export function normalizeImagePickerAssetForUpload(
     asset.type === 'image' || asset.type === 'video'
       ? asset.type
       : isLikelyVideoSource({
-          mimeType: mimeType ?? undefined,
-          name: fileName ?? undefined,
-          uri: asset.uri,
-        })
+            mimeType: mimeType ?? undefined,
+            name: fileName ?? undefined,
+            uri: asset.uri,
+          })
         ? 'video'
         : 'image';
   const normalizedFile =

@@ -1,4 +1,4 @@
-import { createDevLogger } from './logger';
+import { createDevLogger } from '../lib/logger';
 
 const logger = createDevLogger('hostedBotApi', false);
 

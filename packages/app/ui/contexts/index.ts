@@ -3,6 +3,7 @@ export * from './chatOptions';
 export * from './navigation';
 export * from './thread';
 export * from './channel';
+export * from './shareIntent';
 export * from './appDataContext';
 export * from './attachment';
 export * from './requests';

@@ -45,6 +45,7 @@ export type RootStackParamList = {
     mediaType: 'image' | 'video';
     uri?: string;
     posterUri?: string;
+    viewerId?: string;
   };
   GroupSettings: NavigatorScreenParams<GroupSettingsStackParamList>;
   AppSettings: undefined;
