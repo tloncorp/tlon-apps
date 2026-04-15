@@ -3340,10 +3340,10 @@
       ::TODO port %activity to new %groups types
       :-  %add
       ?-  -.concern
-        %ask   [%group-ask ^flag ship]
-        %join  [%group-join ^flag ship]
-        %kick  [%group-kick ^flag ship]
-        %role  [%group-role ^flag ship (~(run in roles) |=(=role-id:g `sect:v0:gv`role-id))]
+        %ask   [%group-ask ^^flag ship]
+        %join  [%group-join ^^flag ship]
+        %kick  [%group-kick ^^flag ship]
+        %role  [%group-role ^^flag ship (~(run in roles) |=(=role-id:g `sect:v0:gv`role-id))]
         %flag-post  [%flag-post key nest group]
         %flag-reply  [%flag-reply key parent nest group]
       ==
@@ -4766,13 +4766,12 @@
     fi-core
   ::
   ++  fi-activity
-    =,  v8:av
     |=  concern=[%group-invite =ship]
     ^+  fi-core
     =.  cor
       %-  submit-activity
-      ^-  action
-      [%add %group-invite ^flag ship.concern]
+      ^-  action:v8:av
+      [%add %group-invite flag ship.concern]
     fi-core
   ::  +fi-area: foreign base path
   ++  fi-area  `path`/foreigns/(scot %p p.flag)/[q.flag]
