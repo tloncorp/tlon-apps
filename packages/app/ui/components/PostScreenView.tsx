@@ -621,7 +621,7 @@ function SinglePostView({
 
   // --- Chat-thread highlight + fast-path handle ---
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
-  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const highlightPost = useCallback((postId: string) => {
     setHighlightPostId(postId);

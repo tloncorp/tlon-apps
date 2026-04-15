@@ -578,19 +578,25 @@ export async function cleanupExistingGroup(page: Page, groupName?: string) {
 }
 
 /**
- * Navigates back using header back button with fallback logic
+ * Navigates back using header back button with fallback logic.
+ * NativeStack on web renders all stacked screens in the DOM, so there can be
+ * many HeaderBackButton elements. We click the last visible one (the topmost screen).
  */
-export async function navigateBack(page: Page, preferredIndex = 0) {
+export async function navigateBack(page: Page, preferredIndex = -1) {
   const backButtons = page.getByTestId('HeaderBackButton');
-
-  if (await backButtons.nth(preferredIndex).isVisible()) {
+  if (
+    preferredIndex !== -1 &&
+    (await backButtons.nth(preferredIndex).isVisible())
+  ) {
     await backButtons.nth(preferredIndex).click();
-  } else if (await backButtons.first().isVisible()) {
-    await backButtons.first().click();
-  } else if (await backButtons.nth(1).isVisible()) {
-    await backButtons.nth(1).click();
-  } else {
-    await backButtons.nth(2).click();
+    return;
+  }
+  const count = await backButtons.count();
+  for (let i = count - 1; i >= 0; i--) {
+    if (await backButtons.nth(i).isVisible()) {
+      await backButtons.nth(i).click();
+      return;
+    }
   }
 }
 
@@ -1063,7 +1069,7 @@ export async function setGroupPrivacy(
   await page.waitForTimeout(2000);
 
   // Navigate back to close the privacy screen
-  await page.getByTestId('HeaderBackButton').first().click();
+  await navigateBack(page);
 
   // Wait for navigation and verify we're back on group settings
   await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });

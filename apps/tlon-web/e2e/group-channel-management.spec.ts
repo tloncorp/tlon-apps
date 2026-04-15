@@ -262,7 +262,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await helpers.setGroupNotifications(page, 'All activity');
 
   // Close the notification sheet by clicking the first back button (in the sheet header)
-  await page.getByTestId('HeaderBackButton').first().click();
+  await helpers.navigateBack(page);
 
   // Wait for the notification sheet to close
   await page.waitForTimeout(1000);

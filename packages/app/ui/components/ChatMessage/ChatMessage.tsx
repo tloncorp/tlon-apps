@@ -182,8 +182,8 @@ const ChatMessage = ({
       // avoid setting the top level press handler at all unless we need to
       onPress={shouldHandlePress ? handlePress : undefined}
       onLongPress={handleLongPress}
-      onHoverIn={handleHoverIn}
-      onHoverOut={handleHoverOut}
+      onMouseEnter={handleHoverIn}
+      onMouseLeave={handleHoverOut}
       pressStyle="unset"
       cursor="default"
       testID="Post"

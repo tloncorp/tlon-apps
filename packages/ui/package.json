@@ -32,10 +32,9 @@
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
     "react-native-gesture-image-viewer": "1.9.4",
-    "@react-native-clipboard/clipboard": "^1.16.3",
-    "@tamagui/animations-moti": "~1.126.12",
-    "@tamagui/get-token": "~1.126.12",
-    "@tamagui/image": "~1.126.12",
+    "@tamagui/animations-moti": "~2.0.0-rc.22",
+    "@tamagui/get-token": "~2.0.0-rc.22",
+    "@tamagui/image": "~2.0.0-rc.22",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@uidotdev/usehooks": "^2.4.1",
@@ -47,9 +46,9 @@
     "lodash": "^4.17.21",
     "moti": "^0.28.1",
     "react-hook-form": "^7.52.0",
-    "react-qr-code": "^2.0.12",
+    "react-qr-code": "^2.0.18",
     "react-tweet": "^3.0.4",
-    "tamagui": "~1.126.12",
+    "tamagui": "~2.0.0-rc.22",
     "urbit-ob": "^5.0.1"
   },
   "peerDependencies": {
@@ -69,6 +68,6 @@
     "react-native-svg": "*"
   },
   "devDependencies": {
-    "@tamagui/build": "~1.126.12"
+    "@tamagui/build": "~2.0.0-rc.22"
   }
 }

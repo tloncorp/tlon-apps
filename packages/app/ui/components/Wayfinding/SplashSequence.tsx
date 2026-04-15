@@ -6,7 +6,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, LoadingSpinner, Text, ZStack } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -21,7 +21,6 @@ import {
   View,
   XStack,
   YStack,
-  ZStack,
   getTokenValue,
   isWeb,
   styled,

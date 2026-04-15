@@ -20,7 +20,14 @@ import {
   Text,
   useGlobalSearch,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -165,7 +172,7 @@ function TextWithMentions({
   }
 
   const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
-  const textParts: JSX.Element[] = [];
+  const textParts: ReactElement[] = [];
 
   if (sortedMentions[0].start > 0) {
     textParts.push(
@@ -934,7 +941,7 @@ export default function BareChatInput({
               letterSpacing: -0.032,
               color: inputTextColor,
               ...(isWeb ? placeholderTextColor : {}),
-              ...(isWeb ? { outlineStyle: 'none' } : {}),
+              ...(isWeb ? ({ outlineStyle: 'none' } as any) : {}),
             }}
             // Hack to prevent @p's getting squiggled on web
             spellCheck={!mentions.length}

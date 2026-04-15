@@ -151,7 +151,6 @@ export const ChatList = React.memo(function ChatListComponent({
       keyExtractor={getChatKey}
       renderItem={renderItem}
       getItemType={getItemType}
-      estimatedItemSize={sizeRefs.current.chatListItem}
       overrideItemLayout={handleOverrideLayout}
       onLoad={onLoad ? () => onLoad() : undefined}
     />

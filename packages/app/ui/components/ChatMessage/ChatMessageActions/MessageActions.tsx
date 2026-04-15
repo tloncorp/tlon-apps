@@ -1,11 +1,10 @@
-import Clipboard from '@react-native-clipboard/clipboard';
-import * as api from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import { memo, useMemo } from 'react';
 import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
@@ -285,10 +284,10 @@ export async function handleAction({
       onEdit?.();
       break;
     case 'copyRef':
-      Clipboard.setString(logic.getPostReferencePath(post));
+      await Clipboard.setStringAsync(logic.getPostReferencePath(post));
       break;
     case 'copyText':
-      Clipboard.setString(post.textContent ?? '');
+      await Clipboard.setStringAsync(post.textContent ?? '');
       break;
     case 'delete':
       store.deletePost({ post });

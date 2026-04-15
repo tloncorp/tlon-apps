@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { ReactNode, useEffect } from 'react';
 import create from 'zustand';
 
 interface Trace {
@@ -61,7 +61,7 @@ export function InstrumentationProvider({
 }: {
   endpoint: PerformanceMonitoringEndpoint | null;
   collectionEnabled: boolean;
-  children: JSX.Element;
+  children: ReactNode;
 }) {
   const { setEndpoint, setEnabled } = usePerformanceMonitoringStore();
 

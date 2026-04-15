@@ -5,18 +5,21 @@ import {
   downloadImageForWeb,
   ensureFileExtension,
 } from '@tloncorp/shared';
-import { GestureMediaViewer, Icon, Image, Pressable } from '@tloncorp/ui';
-import * as FileSystem from 'expo-file-system';
+import {
+  GestureMediaViewer,
+  Icon,
+  Image,
+  Pressable,
+  ZStack,
+} from '@tloncorp/ui';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
-import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
   StatusChangeEventPayload,
   TimeUpdateEventPayload,
-} from 'expo-video/build/VideoPlayerEvents.types';
-// Temporary SDK 52 workaround: expo-video@2.0.6 has a broken root export on web
-// (VideoThumbnail). Keep subpath imports until we can move to expo-video>=3.0.0.
-import { VideoView } from 'expo-video/build/VideoView';
+} from 'expo-video';
 import {
   PropsWithChildren,
   useCallback,
@@ -33,16 +36,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  AnimatePresence,
-  Spinner,
-  Stack,
-  View,
-  XStack,
-  YStack,
-  ZStack,
-  isWeb,
-} from 'tamagui';
+import { AnimatePresence, Spinner, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -71,9 +65,9 @@ function MediaViewerModal({
 
 function OverlayIconButton({ icon }: { icon: 'Close' | 'ArrowDown' }) {
   return (
-    <Stack padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
+    <View padding="$m" backgroundColor="$darkOverlay" borderRadius="$l">
       <Icon type={icon} size="$l" color="$white" />
-    </Stack>
+    </View>
   );
 }
 
@@ -645,7 +639,7 @@ function ImageViewer(props: {
                 {showOverlay ? (
                   <YStack
                     key="overlay"
-                    animation="simple"
+                    transition="simple"
                     enterStyle={{ opacity: 0 }}
                     exitStyle={{ opacity: 0 }}
                     position="absolute"

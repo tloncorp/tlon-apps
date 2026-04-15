@@ -76,7 +76,7 @@ export default ({ mode }: { mode: string }) => {
           babel: {
             plugins: [
               '@babel/plugin-proposal-export-namespace-from',
-              'react-native-reanimated/plugin',
+              'react-native-worklets/plugin',
             ],
           },
           jsxImportSource: '@welldone-software/why-did-you-render',
@@ -108,7 +108,7 @@ export default ({ mode }: { mode: string }) => {
           // https://docs.swmansion.com/react-native-reanimated/docs/guides/web-support/
           plugins: [
             '@babel/plugin-proposal-export-namespace-from',
-            'react-native-reanimated/plugin',
+            'react-native-worklets/plugin',
           ],
         },
         jsxImportSource: '@welldone-software/why-did-you-render',
@@ -188,6 +188,9 @@ export default ({ mode }: { mode: string }) => {
         : 3000;
 
   return defineConfig({
+    // @tamagui/vite-plugin overrides envPrefix to ["TAMAGUI_"], blocking VITE_* env vars.
+    // Explicitly set both prefixes so VITE_* vars remain available in import.meta.env.
+    envPrefix: ['VITE_', 'TAMAGUI_'],
     base: base(mode),
     server: {
       host: 'localhost',
@@ -262,6 +265,17 @@ export default ({ mode }: { mode: string }) => {
     },
     plugins: plugins(mode),
     resolve: {
+      // Prefer .web.* extensions so platform-specific modules (e.g.
+      // transcription.web.ts) are used instead of their native counterparts.
+      extensions: [
+        '.web.mjs', '.mjs',
+        '.web.js', '.js',
+        '.web.mts', '.mts',
+        '.web.ts', '.ts',
+        '.web.jsx', '.jsx',
+        '.web.tsx', '.tsx',
+        '.json',
+      ],
       conditions: ['tlon-source'],
       dedupe: ['@tanstack/react-query'],
       alias: {

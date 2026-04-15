@@ -58,20 +58,37 @@ export const useChatSettingsNavigation = () => {
       params: GroupSettingsStackParamList[T]
     ) => {
       if (!isWindowNarrow && 'groupId' in params && params.groupId) {
-        await navigateToGroup(params.groupId);
+        // Navigate directly to Channel > GroupSettings in a single call.
+        // The old 2-step approach (navigateToGroup + setTimeout) breaks in
+        // React Navigation v7 because 'Home' is ambiguous (matches
+        // MainStack > Home instead of TopLevelDrawer > Home) and the
+        // setTimeout uses a stale navigation ref after screen unmount.
+        const group = await db.getGroup({ id: params.groupId });
+        const channelId =
+          group?.channels?.[0]?.id ?? params.groupId.replace('group/', 'chat/');
+        navigation.navigate('Channel' as any, {
+          channelId,
+          groupId: params.groupId,
+          screen: 'GroupSettings',
+          pop: true,
+          params: {
+            state: {
+              routes: [{ name: screen, params }],
+              index: 0,
+            },
+          },
+        });
+        return;
       }
 
-      setTimeout(
-        () => {
-          navigation.navigate('GroupSettings', {
-            screen,
-            params,
-          } as NavigatorScreenParams<GroupSettingsStackParamList>);
+      navigation.navigate('GroupSettings', {
+        state: {
+          routes: [{ name: screen, params }],
+          index: 0,
         },
-        !isWindowNarrow ? 100 : 0
-      );
+      } as NavigatorScreenParams<GroupSettingsStackParamList>);
     },
-    [navigation, navigateToGroup, isWindowNarrow]
+    [navigation, isWindowNarrow]
   );
 
   const onPressGroupMeta = useCallback(

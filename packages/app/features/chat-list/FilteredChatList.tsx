@@ -1,4 +1,4 @@
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import { FlashList, FlashListRef, ListRenderItem } from '@shopify/flash-list';
 import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import React, {
@@ -43,7 +43,7 @@ export const FilteredChatList = React.memo(
     { searchQuery, listType, listProps, onPressItem },
     ref
   ) {
-    const listRef = useRef<FlashList<ChatListItemData>>(null);
+    const listRef = useRef<FlashListRef<ChatListItemData>>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
 
     const { data: chats } = store.useCurrentChats();
@@ -221,7 +221,6 @@ export const FilteredChatList = React.memo(
             keyExtractor={getChatKey}
             renderItem={renderItem}
             getItemType={getItemType}
-            estimatedItemSize={sizeRefs.current.chatListItem}
             overrideItemLayout={handleOverrideLayout}
             extraData={selectedIndex}
             {...listProps}

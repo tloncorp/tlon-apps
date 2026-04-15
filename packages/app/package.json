@@ -21,7 +21,7 @@
     "sqlocal": "^0.14.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.55",
+    "@types/react": "~19.1.10",
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
@@ -43,7 +43,7 @@
     "react-native-fetch-api": "*",
     "react-native-polyfill-globals": "*",
     "react-native-safe-area-context": "*",
-    "tamagui": "~1.126.12",
+    "tamagui": "~2.0.0-rc.22",
     "@tanstack/react-query": "^5.32.1",
     "zustand": "^3.7.2"
   }

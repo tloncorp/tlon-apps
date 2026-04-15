@@ -108,7 +108,6 @@ export function ForwardChannelSelector({
               contentContainerStyle={contentContainerStyle}
               keyExtractor={(chat) => chat.channel.id}
               renderItem={renderItem}
-              estimatedItemSize={72}
               renderScrollComponent={(props) => (
                 <ActionSheet.ScrollableContent
                   {...(props as ComponentProps<

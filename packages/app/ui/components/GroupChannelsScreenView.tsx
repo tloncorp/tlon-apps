@@ -321,7 +321,6 @@ export const GroupChannelsScreenView = React.memo(
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               getItemType={getItemType}
-              estimatedItemSize={sizeRefs.current.channelItem}
               overrideItemLayout={handleOverrideLayout}
               contentContainerStyle={{
                 paddingTop: getTokenValue('$l'),
