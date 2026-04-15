@@ -90,7 +90,7 @@ export function ActivityScreen(props: Props) {
   );
 
   const handleNavigateToContacts = useCallback(() => {
-    props.navigation.navigate('Contacts');
+    props.navigation.navigate('Contacts', undefined, { pop: true });
   }, [props.navigation]);
 
   const handleInviteFriends = useCallback(() => {
@@ -115,9 +115,15 @@ export function ActivityScreen(props: Props) {
           onInviteFriends={handleInviteFriends}
         />
         <NavBarView
-          navigateToContacts={() => props.navigation.navigate('Contacts')}
-          navigateToHome={() => props.navigation.navigate('ChatList')}
-          navigateToNotifications={() => props.navigation.navigate('Activity')}
+          navigateToContacts={() =>
+            props.navigation.navigate('Contacts', undefined, { pop: true })
+          }
+          navigateToHome={() =>
+            props.navigation.navigate('ChatList', undefined, { pop: true })
+          }
+          navigateToNotifications={() =>
+            props.navigation.navigate('Activity', undefined, { pop: true })
+          }
           currentRoute="Activity"
           currentUserId={currentUserId}
           showContactsTab={contactsTabEnabled}

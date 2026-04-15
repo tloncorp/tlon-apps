@@ -42,7 +42,7 @@ export function GroupSettingsStack({
   navigation: NavigationProp<GroupSettingsStackParamList>;
 }) {
   const navigateToHome = () => {
-    navigation.navigate('ChatList' as never);
+    navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
   };
 
   return (

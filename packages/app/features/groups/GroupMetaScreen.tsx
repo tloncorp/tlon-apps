@@ -37,7 +37,7 @@ export function GroupMetaScreen(props: Props) {
   const currentUserId = useCurrentUserId();
 
   const navigateToHome = useCallback(() => {
-    navigation.getParent()?.navigate('ChatList');
+    navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
   }, [navigation]);
 
   const handleGoBack = useHandleGoBack(navigation, {

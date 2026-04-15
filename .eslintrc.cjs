@@ -163,6 +163,35 @@ module.exports = {
         message:
           'Please use the useTypedReset() hook instead of importing reset from @react-navigation/native for type safety.',
       },
+      {
+        // `navigation.navigate('ChatList' | 'Activity' | 'Contacts' | 'Settings', …)`.
+        // Also matches TS casts like `navigate('ChatList' as never)`, which
+        // wrap the literal in a TSAsExpression.
+        // The escape hatch is a `pop: true` property anywhere in the call's
+        // subtree (accepts both the top-level `{ pop: true }` options arg
+        // and nested-param forms like `getDesktopChannelRoute`).
+        selector:
+          'CallExpression[callee.property.name="navigate"]' +
+          ':matches(' +
+          '[arguments.0.value=/^(ChatList|Activity|Contacts|Settings)$/],' +
+          '[arguments.0.expression.value=/^(ChatList|Activity|Contacts|Settings)$/]' +
+          ')' +
+          ':not(:has(Property[key.name="pop"][value.value=true]))',
+        message:
+          "navigate() to a top-level tab route must pass { pop: true } as the third argument. React Navigation 7's navigate() pushes a new screen by default — without pop:true this causes duplicate screen mounts and perceived input delay on Android. See TLON-5598.",
+      },
+      {
+        // Destructured `navigate('ChatList' | ...)` (e.g. `const { navigate } = props.navigation`).
+        selector:
+          'CallExpression[callee.name="navigate"]' +
+          ':matches(' +
+          '[arguments.0.value=/^(ChatList|Activity|Contacts|Settings)$/],' +
+          '[arguments.0.expression.value=/^(ChatList|Activity|Contacts|Settings)$/]' +
+          ')' +
+          ':not(:has(Property[key.name="pop"][value.value=true]))',
+        message:
+          "navigate() to a top-level tab route must pass { pop: true } as the third argument. React Navigation 7's navigate() pushes a new screen by default — without pop:true this causes duplicate screen mounts and perceived input delay on Android. See TLON-5598.",
+      },
     ],
   },
 };

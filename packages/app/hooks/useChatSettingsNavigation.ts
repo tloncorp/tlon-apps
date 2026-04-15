@@ -201,7 +201,7 @@ export const useChatSettingsNavigation = () => {
 
   const onLeaveGroup = useCallback(() => {
     if (isWindowNarrow) {
-      navigationRef.current.navigate('ChatList');
+      navigationRef.current.navigate('ChatList', undefined, { pop: true });
     } else {
       // Desktop: Reset navigation stack to clean Home state
       reset([{ name: 'Home' }]);
