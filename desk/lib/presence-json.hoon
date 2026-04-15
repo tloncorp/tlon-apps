@@ -8,7 +8,7 @@
   |%
   ++  key      (ot 'context'^pa 'ship'^(se %p) 'topic'^topic ~)
   ++  topic    (su (perk %typing %computing %other ~))
-  ++  display  (ot 'symbol'^(mu so) 'text'^(mu so) 'blob'^(mu so) ~)
+  ++  display  (ot 'icon'^(mu so) 'text'^(mu so) 'blob'^(mu so) ~)
   ::
   ++  action-1
     ^-  $-(json ^action-1)

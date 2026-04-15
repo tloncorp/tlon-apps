@@ -31,7 +31,7 @@
 ::TODO  make chat, channels clear %typing whenever we receive a msg?
 ::TODO  discipline
 ::
-/-  *presence, cv=channels-ver
+/-  *presence, cv=channels-ver, gv=groups-ver
 /+  dbug, verb
 ::
 |%
@@ -68,6 +68,45 @@
     [%channel kind=@ ship=@ name=@ ~]  (slav %p i.t.t.context)
     [%group ship=@ term=@ ~]           (slav %p i.t.context)
   ==
+::
+++  is-participant
+  |=  [=context =bowl:gall]
+  ^-  ?
+  ?+  context  &
+      [%dm @ ~]
+    =(src.bowl (slav %p i.t.context))
+  ::
+      [%channel @ @ @ ~]
+    =/  group=(unit flag:gv)
+      %^  group-for-channel  i.t.context
+        (slav %p i.t.t.context)
+      [i.t.t.t.context bowl]
+    ?~  group  |
+    (has-seat u.group bowl)
+  ::
+      [%group @ @ ~]
+    (has-seat [(slav %p i.t.context) i.t.t.context] bowl)
+  ==
+::
+++  has-seat
+  |=  [=flag:gv =bowl:gall]
+  ^-  ?
+  =/  base=path  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+  =/  group=path  (weld base /groups/(scot %p p.flag)/[q.flag])
+  ?.  .^(? %gu (weld base /$))  |
+  ?.  .^(? %gu group)  |
+  ?=  ^
+  .^((unit seat:v7:gv) %gx (weld group /seats/(scot %p src.bowl)/noun))
+::
+++  group-for-channel
+  |=  [nest:cv =bowl:gall]
+  ^-  (unit flag:gv)
+  =/  base=path  /(scot %p our.bowl)/channels/(scot %da now.bowl)
+  =/  channel=path  (weld base /v4/[kind]/(scot %p ship)/[name])
+  ?.  .^(? %gu (weld base /$))  ~
+  ?.  .^(? %gu channel)  ~
+  =+  .^(=perm:v9:cv %gx (weld channel /perm/channel-perm))
+  `group.perm
 ::
 ++  put-presence
   |=  [=places key =timing =display]
@@ -216,7 +255,7 @@
     =+  !<(act=action-1 vase)
     ?:  ?=(%nuke -.act)
       ::TODO  response?
-      [~ this(places (~(del by places) context))]
+      [~ this(places (~(del by places) context.act))]
     =;  =cage
       =/  =key     ?-(-.act %set key.act, %clear key.act)
       =/  host=@p  (context-host context.key our.bowl)
@@ -239,6 +278,10 @@
     ?>  =(our.bowl (context-host context.key our.bowl))
     ?>  |(!?=([%dm *] context.key) =(our src):bowl)
     ?>  =(src.bowl ship.key)
+    ::  for non-dm contexts, verify participant membership
+    ::
+    ?>  ?:  ?=([%dm *] context.key)  &
+        (is-participant context.key bowl)
     ?-  -.cmd
         %set
       ::  ack but no-op on timed out presence
@@ -289,6 +332,9 @@
     ::  context watch paths must be properly personalized
     ::
     ?>  =(src.bowl (slav %p i.t.path))
+    ::  verify the subscriber is a participant in this context
+    ::
+    ?>  (is-participant t.t.path bowl)
     =.  subs  (~(put ju subs) t.t.path src.bowl)
     ::NOTE  no initial fact, since all data is short-lived,        ::REVIEW
     ::      and we don't want to hot-loop on mark incompatibility  ::REVIEW
@@ -390,6 +436,11 @@
         ::TODO  log formally
         [~ this]
       =+  !<(upd=update-1 q.cage.sign)
+      ::  translate dm context from peer's perspective to ours
+      ::
+      =/  =key  ?-(-.upd %set key.upd, %clear key.upd)
+      =?  context.key  ?=([%dm *] context.key)
+        /dm/(scot %p src.bowl)
       ?-  -.upd
           %set
         =?  since.timing.upd  (gth since.timing.upd now.bowl)
@@ -400,21 +451,18 @@
         ?:  (gth now.bowl end)
           ::TODO  maybe delete existing one at key?
           [~ this]
-        ::TODO  should we be adjusting the context.key.upd to the local
-        ::      perspective? or does sender take care of that?
-        ::      dm context paths hard to track...
-        :_  this(places (put-presence places +.upd))
-        :~  (give-response %here +.upd)
+        :_  this(places (put-presence places [key timing.upd display.upd]))
+        :~  (give-response %here [key timing.upd display.upd])
             :+  %pass
               ::TODO  +key-wire
-              [%expire (scot %p ship.key.upd) topic.key.upd context.key.upd]
+              [%expire (scot %p ship.key) topic.key context.key]
             [%arvo %b %wait end]
         ==
       ::
           %clear
         ::TODO  no-op if we didn't have it anyway
-        :_  this(places (del-presence places key.upd))
-        [(give-response %gone key.upd)]~
+        :_  this(places (del-presence places key))
+        [(give-response %gone key)]~
       ==
     ==
   ==
