@@ -106,10 +106,20 @@ const NotebookPostTitle = styled(Text, {
  */
 export const NotebookPostFrame = styled(View, {
   name: 'NotebookPostFrame',
-  borderTopWidth: 1,
   borderBottomWidth: 1,
   borderColor: '$border',
   paddingBottom: '$l',
+
+  borderTopWidth: 0,
+  paddingTop: '$2xl',
+  variants: {
+    hasImage: {
+      true: {
+        borderTopWidth: 1,
+        paddingTop: '$xl',
+      },
+    },
+  } as const,
 });
 
 /**

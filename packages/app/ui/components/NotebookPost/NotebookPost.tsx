@@ -210,8 +210,11 @@ export function NotebookPostDetailView({
 
   return (
     <NotebookPostFrame
-      borderTopWidth={post.image ? 1 : 0}
-      paddingTop={post.image ? '$xl' : '$2xl'}
+      hasImage={
+        // This can be an empty string when the post is missing an image, so we
+        // can't check `!= null`.
+        !!post.image
+      }
     >
       <NotebookPostContentContainer>
         <NotebookPostHeader
