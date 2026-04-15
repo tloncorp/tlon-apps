@@ -1,5 +1,5 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { runMigrations, setupDb } from '@tloncorp/app/lib/nativeDb';
+import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import {
   SyncPriority,
   createDevLogger,
@@ -17,8 +17,7 @@ import { refreshHostingAuth } from './hostingAuth';
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
-  await setupDb();
-  await runMigrations();
+  await ensureDbReady();
   const taskExecutionId = uuidv4();
   logger.trackEvent('Initiating background sync', { taskExecutionId });
   const timings: Record<string, number> = {

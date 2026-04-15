@@ -16,9 +16,9 @@ export async function fetchChangesSince(timestamp: number): Promise<
 > {
   const busyResult = await checkIsNodeBusyWithHints();
   const encodedTimestamp = render('da', da.fromUnix(timestamp));
-  const response = await scry<ub.ChangesV7>({
+  const response = await scry<ub.ChangesV8>({
     app: 'groups-ui',
-    path: `/v7/changes/${encodedTimestamp}`,
+    path: `/v8/changes/${encodedTimestamp}`,
   });
 
   const nodeBusyStatus = await Promise.race([busyResult, timedOutDefault(500)]);
@@ -28,7 +28,7 @@ export async function fetchChangesSince(timestamp: number): Promise<
   return { ...changes, ...nodeBusyStatus };
 }
 
-export function parseChanges(input: ub.ChangesV7): db.ChangesResult {
+export function parseChanges(input: ub.ChangesV8): db.ChangesResult {
   const groups = toClientGroupsV7(input.groups, true);
 
   const channelPosts = Object.entries(input.channels).flatMap(

@@ -1,7 +1,7 @@
 import { createDevLogger } from '@tloncorp/shared';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { createVideoPlayer } from 'expo-video';
 import { EventSubscription } from 'expo-modules-core';
+import { createVideoPlayer } from 'expo-video';
 
 import { VideoPreviewData, VideoPreviewSource } from './videoPreviewTypes';
 
@@ -45,7 +45,7 @@ export async function getVideoPreviewData(
     const imageRef = await manipulator.renderAsync();
     const saved = await imageRef.saveAsync({
       compress: 0.75,
-      format: SaveFormat.JPEG,
+      format: SaveFormat.WEBP,
     });
 
     return {

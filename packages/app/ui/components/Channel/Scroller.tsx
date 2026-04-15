@@ -99,6 +99,8 @@ const Scroller = forwardRef(
       isLoading,
       onPressScrollToBottom,
       listHeaderComponent,
+      listBottomComponent,
+      highlightPostId,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -123,12 +125,20 @@ const Scroller = forwardRef(
       hasNewerPosts?: boolean;
       activeMessage: db.Post | null;
       setActiveMessage: (post: db.Post | null) => void;
-      ref?: RefObject<{ scrollToIndex: (params: { index: number }) => void }>;
+      ref?: RefObject<{
+        scrollToIndex: (params: {
+          index: number;
+          animated?: boolean;
+          viewPosition?: number;
+        }) => void;
+      }>;
       isLoading?: boolean;
       // Unused
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
       listHeaderComponent?: React.ReactElement;
+      listBottomComponent?: React.ReactElement;
+      highlightPostId?: string | null;
     },
     ref
   ) => {
@@ -172,8 +182,11 @@ const Scroller = forwardRef(
     const listRef = useRef<PostListMethods>(null);
 
     useImperativeHandle(ref, () => ({
-      scrollToIndex: (params: { index: number; animated?: boolean }) =>
-        listRef.current?.scrollToIndex(params),
+      scrollToIndex: (params: {
+        index: number;
+        animated?: boolean;
+        viewPosition?: number;
+      }) => listRef.current?.scrollToIndex(params),
       scrollToStart: (params: { animated?: boolean }) =>
         listRef.current?.scrollToStart(params),
       scrollToEnd: (params: { animated?: boolean }) =>
@@ -260,7 +273,8 @@ const Scroller = forwardRef(
           isFirstPostOfDay;
         const isFirstUnread = post.id === firstUnreadId;
         const isSelected =
-          anchor?.type === 'selected' && anchor.postId === post.id;
+          (anchor?.type === 'selected' && anchor.postId === post.id) ||
+          highlightPostId === post.id;
 
         return (
           <ScrollerItem
@@ -305,6 +319,7 @@ const Scroller = forwardRef(
       [
         anchor?.type,
         anchor?.postId,
+        highlightPostId,
         firstUnreadId,
         inverted,
         renderItem,
@@ -372,7 +387,12 @@ const Scroller = forwardRef(
             };
           }
         }
-      }, [insets.bottom, posts?.length, collectionLayoutType, rootVerticalPadding])
+      }, [
+        insets.bottom,
+        posts?.length,
+        collectionLayoutType,
+        rootVerticalPadding,
+      ])
     ) as StyleProp<ViewStyle>;
 
     const columnWrapperStyle = useStyle(
@@ -517,6 +537,7 @@ const Scroller = forwardRef(
             scrollEnabled={!editingPost}
             style={style}
             listHeaderComponent={listHeaderComponent}
+            listBottomComponent={listBottomComponent}
           />
         )}
         {activeMessage !== null && !emojiPickerOpen && (

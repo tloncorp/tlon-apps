@@ -262,6 +262,7 @@ export default ({ mode }: { mode: string }) => {
     },
     plugins: plugins(mode),
     resolve: {
+      conditions: ['tlon-source'],
       dedupe: ['@tanstack/react-query'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

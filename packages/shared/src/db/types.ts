@@ -129,6 +129,14 @@ export interface GroupEvent extends ActivityEvent {
   groupEventUser: Contact;
 }
 
+export function isChannel(obj: Channel | Group): obj is Channel {
+  return !('hostUserId' in obj);
+}
+
+export function isGroup(obj: Channel | Group): obj is Group {
+  return 'hostUserId' in obj;
+}
+
 export function isGroupEvent(event: ActivityEvent): event is GroupEvent {
   return Boolean(
     event.type === 'group-ask' && event.groupEventUserId && event.groupId

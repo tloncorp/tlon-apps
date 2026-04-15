@@ -33,7 +33,7 @@ import {
   Treaty,
   udToDec,
 } from '@urbit/api';
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 import anyAscii from 'any-ascii';
 import bigInt, { BigInteger } from 'big-integer';
 import { hsla, parseToHsla, parseToRgba } from 'color2k';
@@ -830,7 +830,9 @@ const groups = [
 ];
 const chat = [
   'chat-dm-action',
+  'chat-dm-action-2',
   'chat-club-action-0',
+  'chat-club-action-2',
   'chat-dm-archive',
   'chat-dm-unarchive',
   'chat-dm-rsvp',
@@ -842,6 +844,7 @@ const chat = [
 ];
 const channels = [
   'channel-action',
+  'channel-action-2',
   'leave',
   'add-writers',
   'del-writers',

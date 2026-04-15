@@ -54,6 +54,7 @@ export function PostContentRenderer({
 function ContentRenderer({
   content,
   onPressImage,
+  getImageViewerId,
   onLongPress,
   isNotice,
   searchQuery,
@@ -64,6 +65,7 @@ function ContentRenderer({
   return (
     <ContentContext.Provider
       onPressImage={onPressImage}
+      getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
       isNotice={isNotice}
       searchQuery={searchQuery}

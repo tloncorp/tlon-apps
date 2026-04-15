@@ -1,3 +1,4 @@
+import * as ub from '@tloncorp/api/urbit';
 import {
   BlockData,
   extractContentTypesFromPost,
@@ -8,7 +9,6 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/api/urbit';
 import {
   DEFAULT_BOTTOM_PADDING,
   HEADER_HEIGHT,
@@ -39,6 +39,7 @@ export type LinkInputSaveParams = {
 
 interface LinkInputProps {
   editingPost?: db.Post;
+  initialUrl?: string;
   isPosting?: boolean;
   onSave: ({ content, meta }: LinkInputSaveParams) => void;
 }
@@ -59,7 +60,12 @@ const PostRenderer = createContentRenderer({
   },
 });
 
-export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
+export function LinkInput({
+  editingPost,
+  initialUrl,
+  isPosting,
+  onSave,
+}: LinkInputProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -89,6 +95,7 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
     title: string | null;
     description: string | null;
   }>({ title: null, description: null });
+  const appliedInitialUrlRef = useRef<string | null>(null);
 
   const {
     control,
@@ -115,6 +122,23 @@ export function LinkInput({ editingPost, isPosting, onSave }: LinkInputProps) {
   }, [form.url, url]);
   const { data, isLoading } = store.useLinkGrabber(url);
   const hasIssue = data && (data.type === 'error' || data.type === 'redirect');
+
+  useEffect(() => {
+    if (
+      editingPost ||
+      !initialUrl ||
+      appliedInitialUrlRef.current === initialUrl ||
+      form.url !== ''
+    ) {
+      return;
+    }
+
+    appliedInitialUrlRef.current = initialUrl;
+    setValue('url', initialUrl, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [editingPost, form.url, initialUrl, setValue]);
 
   useEffect(() => {
     if (data && data.type === 'page') {

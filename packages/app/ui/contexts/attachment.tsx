@@ -122,18 +122,6 @@ function revokeBlobUri(uri: string) {
   }
 }
 
-function revokeDetachedVideoPreviewUris(
-  previous: Attachment[],
-  next: Attachment[]
-) {
-  const retainedUris = new Set(next.flatMap(getVideoBlobPreviewUris));
-  previous.flatMap(getVideoBlobPreviewUris).forEach((uri) => {
-    if (!retainedUris.has(uri)) {
-      revokeBlobUri(uri);
-    }
-  });
-}
-
 export const AttachmentProvider = ({
   initialAttachments,
   uploadAsset,
@@ -149,6 +137,7 @@ export const AttachmentProvider = ({
 }>) => {
   const [state, setState] = useState<Attachment[]>(initialAttachments ?? []);
   const stateRef = useRef(state);
+  const previewUrisToRevokeRef = useRef(new Set<string>());
 
   useEffect(() => {
     stateRef.current = state;
@@ -157,14 +146,18 @@ export const AttachmentProvider = ({
   const assetUploadStates = useUploadStates(
     useMemo(
       () =>
-        state.flatMap((a) => {
-          const x = Attachment.toUploadIntent(a);
-          if (x.needsUpload) {
-            return [Attachment.UploadIntent.extractKey(x)];
-          } else {
-            return [];
-          }
-        }),
+        Array.from(
+          new Set(
+            state.flatMap((a) => {
+              const x = Attachment.toUploadIntent(a);
+              if (x.needsUpload) {
+                return [Attachment.UploadIntent.extractKey(x)];
+              } else {
+                return [];
+              }
+            })
+          )
+        ),
       [state]
     )
   );
@@ -196,15 +189,26 @@ export const AttachmentProvider = ({
     });
   }, [attachments, uploadAsset, assetUploadStates]);
 
+  useEffect(() => {
+    attachments.flatMap(getVideoBlobPreviewUris).forEach((uri) => {
+      previewUrisToRevokeRef.current.add(uri);
+    });
+  }, [attachments]);
+
+  useEffect(() => {
+    return () => {
+      previewUrisToRevokeRef.current.forEach(revokeBlobUri);
+      previewUrisToRevokeRef.current.clear();
+    };
+  }, []);
+
   const handleAddAttachment = useCallback((attachment: Attachment) => {
-    const previous = stateRef.current;
-    const next = addAttachmentToState(previous, attachment);
+    const next = addAttachmentToState(stateRef.current, attachment);
     if (next.errorMessage) {
       Alert.alert('Unable to attach', next.errorMessage);
     }
     stateRef.current = next.attachments;
     setState(next.attachments);
-    revokeDetachedVideoPreviewUris(previous, next.attachments);
   }, []);
 
   const handleAttachAssets = useCallback(
@@ -238,19 +242,16 @@ export const AttachmentProvider = ({
       }
       return true;
     });
-    revokeDetachedVideoPreviewUris(previousState, nextState);
     stateRef.current = nextState;
     setState(nextState);
   }, []);
 
   const handleClearAttachments = useCallback(() => {
-    revokeDetachedVideoPreviewUris(stateRef.current, []);
     stateRef.current = [];
     setState([]);
   }, []);
 
   const handleResetAttachments = useCallback((attachments: Attachment[]) => {
-    revokeDetachedVideoPreviewUris(stateRef.current, attachments);
     stateRef.current = attachments;
     setState(attachments);
   }, []);
@@ -374,9 +375,8 @@ function useKickOffVoiceMemoTranscriptions({
     // we're catching errors internally, no need to catch outer promise
     void (async () => {
       try {
-        const { status } =
-          await Transcription.requestTranscriptionPermissionsIfNeeded();
-        if (status !== 'granted') {
+        const result = await Transcription.setupTranscriptionIfNeeded();
+        if (!result.canTranscribe) {
           return;
         }
 

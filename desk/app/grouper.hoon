@@ -1,4 +1,4 @@
-/-  reel, gv=groups-ver, c=chat, ch=channels, story
+/-  reel, gv=groups-ver, c=chat, cv=chat-ver, ch=channels, story
 /+  gj=groups-json, default-agent, verb, logs, dbug
 ::
 |%
@@ -228,10 +228,10 @@
       =/  =id:c  [our now]:bowl
       =/  =memo:ch
         [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
-      =/  =action:dm:c
+      =/  =action:dm:v7:cv
         :-  joiner.bite
         [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
-      =/  =cage  chat-dm-action-1+!>(`action:dm:c`action)
+      =/  =cage  chat-dm-action-2+!>(action)
       :_  this
       [%pass wir %agent dock %poke cage]~
     ::

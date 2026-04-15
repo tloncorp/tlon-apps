@@ -1,8 +1,6 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog, runIfDev } from './logger';
-import { getConstants } from '../types/constants';
 import {
   AuthError,
   ChannelStatus,
@@ -11,10 +9,12 @@ import {
   Thread,
   Urbit,
 } from '../http-api';
-import { preSig } from '../urbit';
-import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
+import { createDevLogger, escapeLog, runIfDev } from '../lib/logger';
+import { preSig } from '../lib/urbit';
 import { AnalyticsEvent } from '../types/analytics';
+import { getConstants } from '../types/constants';
 import * as Hosting from '../types/hosting';
+import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
 
 const logger = createDevLogger('urbit', false);
 
@@ -98,6 +98,7 @@ export interface ClientParams {
     relevantSubscription?: string
   ) => void;
   onChannelStatusChange?: (status: ChannelStatus) => void;
+  client?: Urbit;
 }
 
 const config: Config = {
@@ -160,8 +161,10 @@ export function internalConfigureClient({
   handleAuthFailure,
   onQuitOrReset,
   onChannelStatusChange,
+  client: injectedClient,
 }: ClientParams) {
-  config.client = config.client || new Urbit(shipUrl, '', '', fetchFn);
+  config.client =
+    injectedClient || config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
   config.shipUrl = shipUrl;
@@ -206,6 +209,27 @@ export function internalConfigureClient({
     });
     logger.log('client channel-reaped');
   });
+}
+
+export async function configureClient(params: ClientParams) {
+  const { client: injectedClient, fetchFn, getCode, shipUrl } = params;
+  const code = !injectedClient && getCode ? await getCode() : '';
+  const nextClient =
+    injectedClient || config.client || new Urbit(shipUrl, code, '', fetchFn);
+
+  if (!injectedClient && code) {
+    nextClient.code = code;
+  }
+
+  internalConfigureClient({
+    ...params,
+    client: nextClient,
+  });
+
+  if (!injectedClient && code) {
+    await nextClient.connect();
+    await nextClient.eventSource();
+  }
 }
 
 export function internalRemoveClient() {
@@ -781,6 +805,10 @@ async function reauth() {
 
             reject(new Error("Couldn't authenticate with urbit"));
             return;
+          }
+
+          if (config.client) {
+            config.client.cookie = authCookie;
           }
 
           config.pendingAuth = null;

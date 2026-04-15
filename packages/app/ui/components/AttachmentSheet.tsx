@@ -28,6 +28,7 @@ import {
   getFileSize,
   getMimeType,
 } from '../../utils/files';
+import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
 import { useAttachmentContext } from '../contexts';
 import {
   createImageAssetFromClipboardData,
@@ -212,7 +213,9 @@ export default function AttachmentSheet({
 
             removePlaceholderAttachment();
             await attachNormalizedUploadIntents([
-              imagePickerAssetToUploadIntent(realAsset),
+              imagePickerAssetToUploadIntent(
+                normalizeImagePickerAssetForUpload(realAsset)
+              ),
             ]);
           } else {
             // If user canceled, remove the placeholder
@@ -325,10 +328,11 @@ export default function AttachmentSheet({
 
         if (!result.canceled) {
           const realAsset = result.assets[0];
+          const normalizedAsset = normalizeImagePickerAssetForUpload(realAsset);
 
           const { uploadIntents: normalizedUploadIntents, errorMessage } =
             await normalizeUploadIntents([
-              imagePickerAssetToUploadIntent(realAsset),
+              imagePickerAssetToUploadIntent(normalizedAsset),
             ]);
 
           // Remove placeholder before attaching the selected media so validation
@@ -384,7 +388,11 @@ export default function AttachmentSheet({
   const startFilePicker = useCallback(async () => {
     onOpenChange(false);
 
-    const uploadIntents = await pickFile();
+    const { uploadIntents, errorMessage } = await pickFile();
+    if (errorMessage) {
+      Alert.alert('Unable to attach', errorMessage);
+      return;
+    }
     await attachNormalizedUploadIntents(uploadIntents);
   }, [attachNormalizedUploadIntents, onOpenChange]);
 
@@ -393,21 +401,13 @@ export default function AttachmentSheet({
       createActionGroups(
         [
           'neutral',
+          // The sheet is only shown on mobile — on web, AttachmentButton
+          // skips straight to the system file picker.
           {
-            title: useVideoInMediaPicker
-              ? isWeb
-                ? 'Upload Media'
-                : 'Media Library'
-              : isWeb
-                ? 'Upload an Image'
-                : 'Photo Library',
-            description: isWeb
-              ? useVideoInMediaPicker
-                ? 'Upload an image or video from your computer'
-                : 'Upload an image from your computer'
-              : useVideoInMediaPicker
-                ? 'Choose a photo or video from your library'
-                : 'Choose a photo from your library',
+            title: useVideoInMediaPicker ? 'Media Library' : 'Photo Library',
+            description: useVideoInMediaPicker
+              ? 'Choose a photo or video from your library'
+              : 'Choose a photo from your library',
             action: pickImage,
           },
           !isWeb &&
@@ -420,14 +420,12 @@ export default function AttachmentSheet({
                 : 'Use your camera to take a photo',
               action: takePicture,
             },
-          !isWeb &&
-            Platform.OS === 'android' && {
-              title: 'Capture photo',
-              description: 'Use your camera to capture a photo',
-              action: takePhoto,
-            },
-          !isWeb &&
-            Platform.OS === 'android' &&
+          Platform.OS === 'android' && {
+            title: 'Capture photo',
+            description: 'Use your camera to capture a photo',
+            action: takePhoto,
+          },
+          Platform.OS === 'android' &&
             useVideoInMediaPicker && {
               title: 'Capture video',
               description: 'Use your camera to capture a video',

@@ -2,8 +2,9 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, h=hooks, m=meta
-/+  utils=channel-utils, imp=import-aid, em=emojimart
+/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, av=activity-ver,
+    h=hooks, m=meta
+/+  ccv=channel-conv, utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
@@ -52,7 +53,7 @@
 ::
 %-  %-  agent:neg
     :+  notify=|
-      [~.channels^%3 ~ ~]
+      [~.channels^%4 ~ ~]
     (my %groups^[~.groups^%2 ~ ~] ~)
 %-  agent:dbug
 %^  verb  |  %warn
@@ -62,8 +63,8 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %13
-        =v-channels:v9:cv
+    $:  %14
+        =v-channels:v10:cv
         =hooks:h
         =pimp:imp
     ==
@@ -162,12 +163,14 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -182,7 +185,13 @@
         state-1
         state-0
     ==
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13
+    $:  %13
+        =v-channels:v9:cv
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-12  _%*(. *state-13 - %12)
   +$  state-11  _%*(. *state-12 - %11)
   +$  state-10
@@ -213,6 +222,15 @@
     $:  %6
       =v-channels:v7:cv
       =pimp:imp
+    ==
+  ::
+  ++  state-13-to-14
+    |=  =state-13
+    ~>  %spin.['state-13-to-14']
+    ^-  state-14
+    %=  state-13
+      -  %14
+      v-channels  (~(run by v-channels.state-13) v10:v-channel:v9:ccv)
     ==
   ::
   ++  state-12-to-13
@@ -1154,15 +1172,15 @@
     =*  replies  replies.parent
     ?-    -.c-reply
         %add
-      ?>  =(src.bowl (get-author-ship:utils author.memo.c-reply))
-      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
+      ?>  =(src.bowl (get-author-ship:utils author.reply-essay.c-reply))
+      ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
         =/  reply  (get:on-v-replies:c replies now.bowl)
         ?~  reply  now.bowl
         $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
       =/  reply-seal=v-reply-seal:c  [id ~]
-      =/  new=v-reply:c  [reply-seal 0 memo.c-reply]
+      =/  new=v-reply:c  [reply-seal 0 reply-essay.c-reply]
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %add parent new]
         (run-hooks event nest 'reply blocked')
@@ -1179,17 +1197,17 @@
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
       ?>  =(src.bowl (get-author-ship:utils author.u.reply))
-      ?>  (lte (met 3 (jam memo.c-reply)) size-limit)
+      ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
-        =/  =event:h  [%on-reply %edit parent +.u.reply memo.c-reply]
+        =/  =event:h  [%on-reply %edit parent +.u.reply reply-essay.c-reply]
         (run-hooks event nest 'edit blocked')
       ?:  ?=(%.n -.result)
         ((slog p.result) [~ replies])
-      =/  =memo:c
+      =/  =reply-essay:c
         ?>  ?=([%on-reply %edit *] p.result)
-        memo.p.result
+        reply-essay.p.result
       ::TODO  could optimize and no-op if the edit is identical to current
-      =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) memo]
+      =/  new=v-reply:c  [+<.u.reply +(rev.u.reply) reply-essay]
       :-  `[%reply id.c-reply %set &+new]
       (put:on-v-replies:c replies id.c-reply &+new)
     ::
@@ -1627,7 +1645,7 @@
       %channels
     ::  Run channel effects after normal cards in the same event so the
     ::  originating post update has time to commit/propagate first.
-    =/  =cage  channel-action-1+!>(`a-channels:v9:cv`a-channels.effect)
+    =/  =cage  channel-action-2+!>(`a-channels:v10:cv`a-channels.effect)
     (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
   ::
       %groups
@@ -1635,7 +1653,7 @@
     (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke cage])
   ::
       %activity
-    =/  =cage  activity-action+!>(action.effect)
+    =/  =cage  activity-action+!>(`action:v8:av`action.effect)
     (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke cage])
   ::
       %dm

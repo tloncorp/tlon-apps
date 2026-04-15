@@ -34,7 +34,11 @@ export default function ProfileRow({
               <ContactName contactId={contactId} mode="nickname" />
             </Text>
             <Text color={color} opacity={dark ? 0.5 : 0.7} size="$label/xl">
-              <ContactName contactId={contactId} mode="contactId" expandLongIds />
+              <ContactName
+                contactId={contactId}
+                mode="contactId"
+                expandLongIds
+              />
             </Text>
           </>
         ) : (

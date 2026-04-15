@@ -1,11 +1,10 @@
 import { fetch as fetchNetInfo } from '@react-native-community/netinfo';
-import { createDevLogger } from '@tloncorp/shared';
 import { getChannelPosts } from '@tloncorp/api';
+import { createDevLogger } from '@tloncorp/shared';
 
 const logger = createDevLogger('PushNotifTapTelemetry', false);
 const PUSH_TAP_CHECK_EVENT = 'Push Tap Correctness Check';
 const DEADLINE_MS = 5000;
-
 
 type PushNotifMeasurement = {
   channelId: string;

@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
   createChannel,
@@ -5,7 +6,6 @@ import {
   deleteChannel,
   useChannelHooksPreview,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';

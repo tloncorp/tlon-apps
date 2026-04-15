@@ -23,6 +23,7 @@ import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
 import { GroupSettingsStack } from '../GroupSettingsStack';
 import { HomeDrawerParamList } from '../types';
+import { mediaViewerScreenOptions } from '../utils';
 import { MessagesSidebar } from './MessagesSidebar';
 
 const MessagesDrawer = createDrawerNavigator();
@@ -97,14 +98,21 @@ function ChannelStack(
   props: NativeStackScreenProps<HomeDrawerParamList, 'Channel'>
 ) {
   const navKey = () => {
-    if ('channelId' in props.route.params) {
-      return props.route.params.channelId;
+    let channelId = 'none';
+    let selectedPostId = '';
+    const params = props.route.params;
+    if (params && 'channelId' in params) {
+      channelId = String(params.channelId ?? 'none');
+      if ('selectedPostId' in params && params.selectedPostId) {
+        selectedPostId = String(params.selectedPostId);
+      }
+    } else if (params?.params && 'channelId' in params.params) {
+      channelId = String(params.params.channelId ?? 'none');
+      if ('selectedPostId' in params.params && params.params.selectedPostId) {
+        selectedPostId = String(params.params.selectedPostId);
+      }
     }
-    if (props.route.params.params && 'channelId' in props.route.params.params) {
-      return props.route.params.params.channelId;
-    }
-
-    return 'none';
+    return selectedPostId ? `${channelId}:${selectedPostId}` : channelId;
   };
 
   return (
@@ -136,6 +144,7 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="MediaViewer"
           component={MediaViewerScreen}
+          options={mediaViewerScreenOptions}
         />
         <ChannelStackNavigator.Screen
           name="UserProfile"

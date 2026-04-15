@@ -11,14 +11,14 @@
     %-  pairs
     :~  groups/(groups-ui:v2:enjs:gj groups.init)
         gangs/(gangs:v2:enjs:gj gangs.init)
-        activity/(activity:enjs:aj activity.init |)
+        activity/(activity:v8:enjs:aj activity.init |)
         pins/a/(turn pins.init whom:enjs:gj)
         profile/b/profile.init
       ::
         :-  %channel
         %-  pairs
         :~  channels/(channels:v1:enjs:dj channels.channel.init)
-            hidden-posts/(hidden-posts:enjs:dj hidden-posts.channel.init)
+            hidden-posts/(hidden-posts:v9:enjs:dj hidden-posts.channel.init)
         ==
       ::
         :-  %chat

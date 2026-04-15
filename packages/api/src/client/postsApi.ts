@@ -1,15 +1,11 @@
 import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
-import type * as db from '../types/models';
-import { createDevLogger } from './logger';
+import { createDevLogger } from '../lib/logger';
 import { IMAGE_URL_REGEX } from '../lib/utils';
-import {
-  PlaintextPreviewConfig,
-  getTextContent,
-} from '../lib/postContent';
-import * as ub from '../urbit';
+import type * as db from '../types/models';
 import { ContentReference } from '../types/references';
+import * as ub from '../urbit';
 import {
   ClubAction,
   DmAction,
@@ -24,25 +20,28 @@ import {
   WritDeltaAddReact,
   WritDeltaDelReact,
   WritDiff,
+  channelAction,
   checkNest,
   getChannelType,
   whomIsDm,
 } from '../urbit';
 import {
+  type AuthorProfile,
   formatDateParam,
   formatScryPath,
   formatUd,
   getCanonicalPostId,
   getChannelIdType,
+  isBotUserId,
   isDmChannelId,
   isGroupChannelId,
   isGroupDmChannelId,
+  toAuthor,
   toPostEssay,
   udToDate,
   with404Handler,
 } from './apiUtils';
-import { channelAction } from './channelsApi';
-import { multiDmAction } from './chatApi';
+import { PlaintextPreviewConfig, getTextContent } from './postContent';
 import { poke, scry, subscribeOnce } from './urbit';
 
 const logger = createDevLogger('postsApi', false);
@@ -59,7 +58,7 @@ export function chatAction(
   if (whomIsDm(whom)) {
     const action: Poke<DmAction> = {
       app: 'chat',
-      mark: 'chat-dm-action-1',
+      mark: 'chat-dm-action-2',
       json: {
         ship: whom,
         diff: {
@@ -74,11 +73,11 @@ export function chatAction(
   const diff: WritDiff = { id, delta };
   const action: Poke<ClubAction> = {
     app: 'chat',
-    mark: 'chat-club-action-1',
+    mark: 'chat-club-action-2',
     json: {
       id: whom,
       diff: {
-        uid: '0v3',
+        uid: '0v4',
         delta: { writ: diff },
       },
     },
@@ -96,7 +95,7 @@ export async function getPostReference({
   postId: string;
   replyId?: string;
 }) {
-  const path = `/said/${channelId}/post/${postId}${
+  const path = `/v5/said/${channelId}/post/${postId}${
     replyId ? '/' + replyId : ''
   }`;
   const data = await subscribeOnce<ub.Said>(
@@ -142,6 +141,7 @@ export const sendPost = async ({
   content,
   blob,
   metadata,
+  botProfile,
 }: {
   channelId: string;
   authorId: string;
@@ -149,9 +149,12 @@ export const sendPost = async ({
   content: Story;
   blob?: string;
   metadata?: db.PostMetadata;
+  botProfile?: AuthorProfile;
 }) => {
   logger.log('sending post', { channelId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
+
+  const author = toAuthor(authorId, botProfile);
 
   if (channelType === 'dm' || channelType === 'groupDm') {
     const delta: WritDeltaAdd = {
@@ -159,7 +162,7 @@ export const sendPost = async ({
         essay: {
           content,
           sent: sentAt,
-          author: authorId,
+          author,
           kind: '/chat',
           meta: null,
           blob: blob ?? null,
@@ -170,7 +173,7 @@ export const sendPost = async ({
 
     const action = chatAction(
       channelId,
-      `${delta.add.essay.author}/${formatUd(da.fromUnix(delta.add.essay.sent).toString())}`,
+      `${authorId}/${formatUd(da.fromUnix(delta.add.essay.sent).toString())}`,
       delta
     );
     await poke(action);
@@ -191,6 +194,7 @@ export const sendPost = async ({
           cover: metadata.cover || '',
         }
       : undefined,
+    botProfile,
   });
 
   const action = channelPostAction(channelId, {
@@ -229,10 +233,11 @@ export const editPost = async ({
 
   if (parentId) {
     logger.log('editing a reply');
-    const memo: ub.Memo = {
+    const replyEssay: ub.ReplyEssay = {
       author: authorId,
       content,
       sent: sentAt,
+      blob: blob ?? null,
     };
 
     const action: ub.Action = {
@@ -242,7 +247,7 @@ export const editPost = async ({
           action: {
             edit: {
               id: postId,
-              memo,
+              'reply-essay': replyEssay,
             },
           },
         },
@@ -290,16 +295,22 @@ export const sendReply = async ({
   parentId,
   parentAuthor,
   content,
+  blob,
   sentAt,
   authorId,
+  botProfile,
 }: {
   authorId: string;
   channelId: string;
   parentId: string;
   parentAuthor: string;
   content: Story;
+  blob?: string;
   sentAt: number;
+  botProfile?: AuthorProfile;
 }) => {
+  const author = toAuthor(authorId, botProfile);
+
   if (isDmChannelId(channelId) || isGroupDmChannelId(channelId)) {
     const delta: ub.ReplyDelta = {
       reply: {
@@ -307,10 +318,11 @@ export const sendReply = async ({
         meta: null,
         delta: {
           add: {
-            memo: {
+            'reply-essay': {
               content,
-              author: authorId,
+              author,
               sent: sentAt,
+              blob: blob ?? null,
             },
             time: null,
           },
@@ -329,8 +341,9 @@ export const sendReply = async ({
       action: {
         add: {
           content,
-          author: authorId,
+          author,
           sent: sentAt,
+          blob: blob ?? null,
         },
       },
     },
@@ -356,9 +369,9 @@ export const getSequencedChannelPosts = async (
   const app = type === 'channel' ? 'channels' : 'chat';
   const endpoint = formatScryPath(
     ...[
-      type === 'dm' ? 'v3/dm' : null,
-      type === 'club' ? 'v3/club' : null,
-      type === 'channel' ? 'v4' : null,
+      type === 'dm' ? 'v4/dm' : null,
+      type === 'club' ? 'v4/club' : null,
+      type === 'channel' ? 'v5' : null,
     ],
     options.channelId,
     type === 'channel' ? 'posts' : 'writs',
@@ -420,7 +433,7 @@ export const getInitialPosts = async (config: {
 }) => {
   const response = await scry<ub.PostsInit>({
     app: 'groups-ui',
-    path: `/v5/init-posts/${config.channelCount}/${config.postCount}`,
+    path: `/v6/init-posts/${config.channelCount}/${config.postCount}`,
   });
 
   const channelPosts = Object.entries(response.channels).flatMap(
@@ -445,9 +458,9 @@ export const getChannelPosts = async ({
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(
     ...[
-      type === 'dm' ? 'v3/dm' : null,
-      type === 'club' ? 'v3/club' : null,
-      type === 'channel' ? 'v4' : null,
+      type === 'dm' ? 'v4/dm' : null,
+      type === 'club' ? 'v4/club' : null,
+      type === 'channel' ? 'v5' : null,
     ],
     channelId,
     type === 'channel' ? 'posts' : 'writs',
@@ -567,7 +580,7 @@ export const getLatestPosts = async ({
     const { channels, dms } = await scry<ub.CombinedHeads>({
       app: 'groups-ui',
       path: formatScryPath(
-        'v3/heads',
+        'v4/heads',
         afterCursor ? formatCursor(afterCursor) : null,
         count
       ),
@@ -880,7 +893,7 @@ export async function showPost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
-      mark: 'channel-action-1',
+      mark: 'channel-action-2',
       json: {
         'toggle-post': {
           show: post.id,
@@ -908,7 +921,7 @@ export async function hidePost(post: db.Post) {
   if (isGroupChannelId(post.channelId)) {
     const action = {
       app: 'channels',
-      mark: 'channel-action-1',
+      mark: 'channel-action-2',
       json: {
         'toggle-post': {
           hide: post.id,
@@ -994,7 +1007,7 @@ export async function deletePost(
         del: null,
       })
     : isGroupDmChannelId(channelId)
-      ? multiDmAction(channelId, {
+      ? ub.multiDmAction(channelId, {
           writ: {
             id: `${authorId}/${postId}`,
             delta: {
@@ -1037,7 +1050,7 @@ export async function deleteReply(params: {
       }
     );
   } else if (isGroupDmChannelId(params.channelId)) {
-    action = multiDmAction(params.channelId, {
+    action = ub.multiDmAction(params.channelId, {
       writ: {
         id: `${params.parentAuthorId}/${params.parentId}`,
         delta: {
@@ -1091,13 +1104,13 @@ export const getPostWithReplies = async ({
 
   if (isDmChannelId(channelId)) {
     app = 'chat';
-    path = `/v2/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v4/dm/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupDmChannelId(channelId)) {
     app = 'chat';
-    path = `/v2/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
+    path = `/v4/club/${channelId}/writs/writ/id/${authorId}/${postId}`;
   } else if (isGroupChannelId(channelId)) {
     app = 'channels';
-    path = `/v4/${channelId}/posts/post/${postId}`;
+    path = `/v5/${channelId}/posts/post/${postId}`;
   } else {
     throw new Error('invalid channel id');
   }
@@ -1181,7 +1194,7 @@ function isBotProfile(author: ub.Author): author is ub.BotProfile {
  * This ensures bot authors are consistently represented as BotProfile objects.
  */
 function normalizeAuthor(author: ub.Author): ub.Author {
-  if (typeof author === 'string' && author.startsWith('~pinser-botter-')) {
+  if (typeof author === 'string' && isBotUserId(author)) {
     return {
       ship: author,
       nickname: null,
@@ -1393,6 +1406,7 @@ export function toPostReplyData(
   reply: ub.Reply | ub.WritReply | ub.PostTombstone
 ): db.Post {
   if (isPostTombstone(reply)) {
+    reply.author = normalizeAuthor(reply.author);
     return {
       id: getCanonicalPostId(reply.id),
       parentId: getCanonicalPostId(postId),
@@ -1401,6 +1415,7 @@ export function toPostReplyData(
       type: 'reply',
       sentAt: getReceivedAtFromId(reply.id),
       isDeleted: true,
+      isBot: isBotProfile(reply.author),
       deletedAt: reply['deleted-at'],
       receivedAt: getReceivedAtFromId(reply.id),
       sequenceNum: null,
@@ -1408,7 +1423,20 @@ export function toPostReplyData(
     };
   }
 
-  const [content, flags] = toPostContent(reply.memo.content);
+  const replyEssay =
+    'reply-essay' in reply
+      ? reply['reply-essay']
+      : {
+          ...(
+            reply as ub.WritReply & {
+              memo: Omit<ub.ReplyEssay, 'blob'>;
+            }
+          ).memo,
+          blob: null,
+        };
+  replyEssay.author = normalizeAuthor(replyEssay.author);
+  const isBot = isBotProfile(replyEssay.author);
+  const [content, flags] = toPostContent(replyEssay.content);
   const id = getCanonicalPostId(reply.seal.id);
   const backendTime =
     reply.seal && 'time' in reply.seal
@@ -1418,21 +1446,23 @@ export function toPostReplyData(
     id,
     channelId,
     type: 'reply',
-    authorId: getAuthorId(reply.memo.author),
+    authorId: getAuthorId(replyEssay.author),
     isEdited: !!reply.revision && reply.revision !== '0',
+    isBot,
     parentId: getCanonicalPostId(postId),
     reactions: toReactionsData(reply.seal.reacts, id),
     content: JSON.stringify(content),
-    textContent: getTextContent(reply.memo.content),
-    sentAt: reply.memo.sent,
+    textContent: getTextContent(replyEssay.content),
+    sentAt: replyEssay.sent,
     // replies aren't sequenced, seq 0 is never genuine. drizzle has trouble
     // targeting nulls for onConflictDoUpdate so we use a default value instead
     sequenceNum: 0,
     backendTime,
     receivedAt: getReceivedAtFromId(id),
     replyCount: 0,
-    images: getContentImages(id, reply.memo.content),
+    images: getContentImages(id, replyEssay.content),
     syncedAt: Date.now(),
+    blob: replyEssay.blob ?? null,
     ...flags,
   };
 }

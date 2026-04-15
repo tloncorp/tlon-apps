@@ -8,6 +8,7 @@ declare const process: {
 const projectId = '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0';
 const isPreview = process.env.APP_VARIANT === 'preview';
 const buildGitHash = process.env.EAS_BUILD_GIT_COMMIT_HASH || 'development';
+const appScheme = isPreview ? 'io.tlon.groups.preview' : 'io.tlon.groups';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -16,6 +17,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: isPreview ? 'Tlon - Preview' : 'Tlon',
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
+  scheme: appScheme,
   extra: {
     eas: {
       projectId,
@@ -75,6 +77,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-asset',
     'expo-localization',
     'expo-secure-store',
+    [
+      'expo-share-intent',
+      {
+        iosActivationRules: {
+          NSExtensionActivationSupportsText: true,
+          NSExtensionActivationSupportsWebURLWithMaxCount: 1,
+          NSExtensionActivationSupportsWebPageWithMaxCount: 1,
+          NSExtensionActivationSupportsImageWithMaxCount: 1,
+          NSExtensionActivationSupportsMovieWithMaxCount: 1,
+          NSExtensionActivationSupportsFileWithMaxCount: 1,
+        },
+        androidIntentFilters: ['text/*', 'image/*', 'video/*', '*/*'],
+      },
+    ],
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/perf',
@@ -96,13 +112,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-audio',
-    [
-      'expo-speech-transcriber',
-      {
-        speechRecognitionPermission:
-          'We need permission to transcribe voice memos in your messages',
-      },
-    ],
   ],
   updates: {
     url: `https://u.expo.dev/${projectId}`,

@@ -1,10 +1,11 @@
+import * as api from '@tloncorp/api';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import {
   AnalyticsEvent,
   createDevLogger,
   extractNormalizedInviteLink,
   withRetry,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
@@ -14,7 +15,6 @@ import {
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { verifyUserInviteLink } from '@tloncorp/shared/store';
-import { preSig } from '@tloncorp/api/urbit';
 import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 

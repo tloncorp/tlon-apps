@@ -22,3 +22,6 @@ apps/tlon-web/.playwright-dev.pid
 
 dump.sqlite3
 .claude
+
+.gitattributes
+clurd

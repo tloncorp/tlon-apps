@@ -1,8 +1,10 @@
 import * as api from '@tloncorp/api';
-import { StorageConfiguration, StorageCredentials, scry } from '@tloncorp/api';
+import { StorageConfiguration, scry } from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
+import { StorageCredentials } from '@tloncorp/api/urbit';
+
 import * as db from '../../db';
 import { createDevLogger } from '../../debug';
-import { desig } from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('storage utils', false);
 
@@ -14,13 +16,16 @@ const mimeToExt: Record<string, string> = {
   'image/webp': '.webp',
   'image/heic': '.heic',
   'image/heif': '.heif',
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+  'video/webm': '.webm',
 };
 
 export function ensureFileExtension(
   filename: string,
   contentType?: string
 ): string {
-  if (/\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(filename)) {
+  if (/\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|webm)$/i.test(filename)) {
     return filename;
   }
 

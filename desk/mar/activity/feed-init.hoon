@@ -1,6 +1,6 @@
-/-  a=activity
+/-  av=activity-ver
 /+  aj=activity-json
-|_  [all=feed:v4:old:a mentions=feed:v4:old:a replies=feed:v4:old:a]
+|_  [all=feed:v4:av mentions=feed:v4:av replies=feed:v4:av]
 ++  grad  %noun
 ++  grow
   |%
@@ -15,6 +15,6 @@
   --
 ++  grab
   |%
-  ++  noun  [all=feed:v4:old:a mentions=feed:v4:old:a replies=feed:v4:old:a]
+  ++  noun  [all=feed:v4:av mentions=feed:v4:av replies=feed:v4:av]
   --
 --

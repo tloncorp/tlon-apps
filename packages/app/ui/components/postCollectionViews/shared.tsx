@@ -9,12 +9,15 @@ import { usePostCollectionContext } from '../../contexts/postCollection';
 import { PostView } from '../Channel/PostView';
 
 export interface PostCollectionHandle {
-  scrollToPostAtIndex?: (index: number) => void;
+  scrollToPostAtIndex?: (index: number, viewPosition?: number) => void;
   scrollToStart?: (opts: { animated?: boolean }) => void;
+  highlightPost?: (postId: string) => void;
 }
 
+export interface PostCollectionViewProps {}
+
 export type IPostCollectionView = React.ForwardRefExoticComponent<
-  React.RefAttributes<PostCollectionHandle>
+  PostCollectionViewProps & React.RefAttributes<PostCollectionHandle>
 >;
 
 export function ConnectedPostView({
@@ -59,8 +62,7 @@ export function ConnectedPostView({
 
       ...overrides,
 
-      showAuthor: standardConfig?.showAuthor,
-      showReplies: standardConfig?.showReplies,
+      ...(standardConfig ?? {}),
     }),
     [ctx, livePost, overrides, standardConfig, editPost]
   );

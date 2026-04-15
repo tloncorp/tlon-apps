@@ -1,10 +1,6 @@
 import { configureHostingSessionStore } from '@tloncorp/api/api/hostingApi';
 
-import {
-  hostingAuthToken,
-  hostingBotEnabled,
-  hostingUserId,
-} from './keyValue';
+import { hostingAuthToken, hostingBotEnabled, hostingUserId } from './keyValue';
 
 configureHostingSessionStore({
   authToken: hostingAuthToken,
@@ -24,3 +20,4 @@ export { setClient } from './client';
 export type { AnySqliteDatabase } from './client';
 export * from './changeListener';
 export * from './writeObservers';
+export * from './reactQuery';

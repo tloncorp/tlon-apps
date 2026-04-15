@@ -1,5 +1,5 @@
-import { JSONValue } from '@tloncorp/shared';
 import { ChannelContentConfiguration } from '@tloncorp/api';
+import { JSONValue } from '@tloncorp/shared';
 import { useMemo } from 'react';
 
 import { useChannelContext } from '../../contexts';

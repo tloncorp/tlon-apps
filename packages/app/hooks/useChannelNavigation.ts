@@ -1,11 +1,15 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { RootStackParamList } from '../navigation/types';
 import { useRootNavigation } from '../navigation/utils';
+import { getPostImageViewerId } from '../utils/mediaViewer';
+
+const logger = createDevLogger('useChannelNavigation', false);
 
 export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
   const channelQuery = store.useChannel({
@@ -23,22 +27,51 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
   const { navigateToPost, navigateToChannel } = useRootNavigation();
 
   const navigateToRef = useCallback(
-    (channel: db.Channel, post: db.Post) => {
+    async (channel: db.Channel, post: db.Post) => {
       if (channel.type === 'chat') {
-        if (channel.id === channelId) {
-          navigation.navigate('Channel', {
-            channelId: channel.id,
-            selectedPostId: post.id,
-            groupId: channel.groupId ?? undefined,
-          });
-        } else {
-          navigateToChannel(channel, post.id);
+        // Chat thread reply: navigate to the parent thread with this reply
+        // selected, instead of the main channel (where the reply is not
+        // visible as a top-level post).
+        if (post.parentId) {
+          try {
+            // Look up the parent post locally for its authorId. For group
+            // channels (the scope of this fix), authorId is not used in the
+            // API path, so falling back to the reply's authorId is safe —
+            // PostScreen.syncThreadPosts will fetch the parent from the API.
+            const parentPost = await db.getPost({ postId: post.parentId });
+            const parentAuthorId = parentPost?.authorId ?? post.authorId;
+            navigateToPost(
+              {
+                id: post.parentId,
+                channelId: post.channelId,
+                groupId: post.groupId,
+                authorId: parentAuthorId,
+              } as db.Post,
+              { selectedPostId: post.id }
+            );
+            return;
+          } catch (e) {
+            logger.log('navigateToRef: error resolving parent post', e);
+            // Still navigate to parent thread — authorId placeholder is
+            // safe for group channels.
+            navigateToPost(
+              {
+                id: post.parentId,
+                channelId: post.channelId,
+                groupId: post.groupId,
+                authorId: post.authorId,
+              } as db.Post,
+              { selectedPostId: post.id }
+            );
+            return;
+          }
         }
+        navigateToChannel(channel, post.id);
       } else {
         navigateToPost(post);
       }
     },
-    [navigation, channelId, navigateToChannel, navigateToPost]
+    [navigateToChannel, navigateToPost]
   );
 
   const navigateToImage = useCallback(
@@ -46,6 +79,7 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
       navigation.navigate('MediaViewer', {
         mediaType: 'image',
         uri,
+        viewerId: getPostImageViewerId(post.id, uri),
       });
     },
     [navigation]

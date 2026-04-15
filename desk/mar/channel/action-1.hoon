@@ -9,6 +9,6 @@
 ++  grab
   |%
   ++  noun  a-channels:v9:cv
-  ++  json  a-channels:dejs:j
+  ++  json  a-channels:v9:dejs:j
   --
 --

@@ -269,6 +269,8 @@ PODS:
     - ExpoModulesCore
   - ExpoLinearGradient (14.0.2):
     - ExpoModulesCore
+  - ExpoLinking (7.0.5):
+    - ExpoModulesCore
   - ExpoLocalization (16.0.1):
     - ExpoModulesCore
   - ExpoMailComposer (14.0.2):
@@ -303,9 +305,11 @@ PODS:
     - ExpoModulesCore
   - ExpoSensors (14.0.2):
     - ExpoModulesCore
+  - ExpoShareIntentModule (3.2.3):
+    - ExpoModulesCore
   - ExpoSMS (13.0.1):
     - ExpoModulesCore
-  - ExpoSpeechTranscriber (0.1.9):
+  - ExpoSpeechRecognition (3.1.1):
     - ExpoModulesCore
   - ExpoSplashScreen (0.29.24):
     - ExpoModulesCore
@@ -401,8 +405,8 @@ PODS:
   - hermes-engine (0.76.9):
     - hermes-engine/Pre-built (= 0.76.9)
   - hermes-engine/Pre-built (0.76.9)
-  - libavif/core (0.11.1)
-  - libavif/libdav1d (0.11.1):
+  - libavif/core (1.0.0)
+  - libavif/libdav1d (1.0.0):
     - libavif/core
     - libdav1d (>= 0.6.0)
   - libdav1d (1.2.0)
@@ -446,7 +450,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - PostHog (3.31.0)
+  - PostHog (3.49.1)
   - PromisesObjC (2.4.0)
   - PromisesSwift (2.4.0):
     - PromisesObjC (= 2.4.0)
@@ -2231,7 +2235,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNGestureHandler (2.20.2):
+  - RNGestureHandler (2.24.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2241,6 +2245,7 @@ PODS:
     - React-Core
     - React-debug
     - React-Fabric
+    - React-FabricComponents
     - React-featureflags
     - React-graphics
     - React-ImageManager
@@ -2453,12 +2458,12 @@ PODS:
   - SDWebImage (5.19.7):
     - SDWebImage/Core (= 5.19.7)
   - SDWebImage/Core (5.19.7)
-  - SDWebImageAVIFCoder (0.11.0):
+  - SDWebImageAVIFCoder (0.11.1):
     - libavif/core (>= 0.11.0)
     - SDWebImage (~> 5.10)
   - SDWebImageSVGCoder (1.7.0):
     - SDWebImage/Core (~> 5.6)
-  - SDWebImageWebPCoder (0.14.6):
+  - SDWebImageWebPCoder (0.15.0):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
   - Sentry/HybridSDK (8.57.2)
@@ -2523,14 +2528,16 @@ DEPENDENCIES:
   - ExpoImagePicker (from `../../../node_modules/expo-image-picker/ios`)
   - ExpoKeepAwake (from `../../../node_modules/expo-keep-awake/ios`)
   - ExpoLinearGradient (from `../../../node_modules/expo-linear-gradient/ios`)
+  - ExpoLinking (from `../../../node_modules/expo-linking/ios`)
   - ExpoLocalization (from `../../../node_modules/expo-localization/ios`)
   - ExpoMailComposer (from `../../../node_modules/expo-mail-composer/ios`)
   - ExpoMediaLibrary (from `../../../node_modules/expo-media-library/ios`)
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
   - ExpoSensors (from `../../../node_modules/expo-sensors/ios`)
+  - ExpoShareIntentModule (from `../../../node_modules/expo-share-intent/ios`)
   - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
-  - ExpoSpeechTranscriber (from `../../../node_modules/expo-speech-transcriber/ios`)
+  - ExpoSpeechRecognition (from `../../../node_modules/expo-speech-recognition/ios`)
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
   - ExpoVideo (from `../../../node_modules/expo-video/ios`)
   - EXTaskManager (from `../../../node_modules/expo-task-manager/ios`)
@@ -2727,6 +2734,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-keep-awake/ios"
   ExpoLinearGradient:
     :path: "../../../node_modules/expo-linear-gradient/ios"
+  ExpoLinking:
+    :path: "../../../node_modules/expo-linking/ios"
   ExpoLocalization:
     :path: "../../../node_modules/expo-localization/ios"
   ExpoMailComposer:
@@ -2739,10 +2748,12 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-secure-store/ios"
   ExpoSensors:
     :path: "../../../node_modules/expo-sensors/ios"
+  ExpoShareIntentModule:
+    :path: "../../../node_modules/expo-share-intent/ios"
   ExpoSMS:
     :path: "../../../node_modules/expo-sms/ios"
-  ExpoSpeechTranscriber:
-    :path: "../../../node_modules/expo-speech-transcriber/ios"
+  ExpoSpeechRecognition:
+    :path: "../../../node_modules/expo-speech-recognition/ios"
   ExpoSplashScreen:
     :path: "../../../node_modules/expo-splash-screen/ios"
   ExpoVideo:
@@ -2961,14 +2972,16 @@ SPEC CHECKSUMS:
   ExpoImagePicker: 24e5ba8da111f74519b1e6dc556e0b438b2b8464
   ExpoKeepAwake: b0171a73665bfcefcfcc311742a72a956e6aa680
   ExpoLinearGradient: 35ebd83b16f80b3add053a2fd68cc328ed927f60
+  ExpoLinking: 8d12bee174ba0cdf31239706578e29e74a417402
   ExpoLocalization: 7776ea3bdb112125390745bbaf919b734b2ad1c7
   ExpoMailComposer: 05d7236221229740563ed12f008f8b2054ed0474
   ExpoMediaLibrary: 2709fc2e4fcf87d28767714abcc603c4bec228c6
   ExpoModulesCore: c3e810e874b33139221bea656743f106a2826f47
   ExpoSecureStore: 9a3665d7161dd1031be386e278bffd623658f316
   ExpoSensors: 02a52ddab1e3a8a1438258c3d87d1ee5f721743a
+  ExpoShareIntentModule: 44f7fa9289445395d0d162f1a458c4a6da7f4368
   ExpoSMS: 9cd812ab438c5c1d86bddaa7749387c762e43b92
-  ExpoSpeechTranscriber: 429160b0766c7f2ec6122988e2d22e1c19b53e06
+  ExpoSpeechRecognition: 46c21b61638bcf3478066886b52579b2f9f56ab5
   ExpoSplashScreen: 8261985ce9778f904abc7e31bed3538dce67ed4d
   ExpoVideo: 10e69b9c0652aba5c2edee2c572090e0412bd7ce
   EXTaskManager: 0dcaa9b4b058b435f4e5bff4919c863f4f46badc
@@ -2992,12 +3005,12 @@ SPEC CHECKSUMS:
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   hermes-engine: 9e868dc7be781364296d6ee2f56d0c1a9ef0bb11
-  libavif: 84bbb62fb232c3018d6f1bab79beea87e35de7b7
+  libavif: 5f8e715bea24debec477006f21ef9e95432e254d
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   op-sqlite: 833d4789d2953bf0df4363d9294016c26a0f1b48
-  PostHog: fcb0bc4425a69a2b0ee0ff5782b298a23aedcc83
+  PostHog: 83ac10c7713958b0cd75e4a977884362407172d4
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   RCT-Folly: ea9d9256ba7f9322ef911169a9f696e5857b9e17
@@ -3076,15 +3089,15 @@ SPEC CHECKSUMS:
   RNFBCrashlytics: f9c67f58b800bbb713a14286243cd8fa3a3c43f8
   RNFBPerf: 7a693ef06bd3785b81002a47144eaa4f0936229b
   RNFlashList: d07f21fa085263d2a1cda36e126194018b6c8465
-  RNGestureHandler: de2b7ccdbf18766609fb9490c7f11c18805705a3
+  RNGestureHandler: b69033378d5ab4b1b239bcd4bc916aeb291f90db
   RNReanimated: 61b4e41a4d0a60c139342a670db67caed071321f
   RNScreens: 2fe3d999c2dee6ef1d5e863fec0fb6f7de60c45a
   RNSentry: 974b21b0345c073586c22a3aaf77d69b3e47f63e
   RNSVG: d332ea2a8540218eadc5c8f31c2b58dfba6b14b5
   SDWebImage: 8a6b7b160b4d710e2a22b6900e25301075c34cb3
-  SDWebImageAVIFCoder: 00310d246aab3232ce77f1d8f0076f8c4b021d90
+  SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
-  SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
+  SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   Sentry: 83a3814c3ca042874b39c5c5bdffb6570d4d760e
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748
   sqlite3: 73513155ec6979715d3904ef53a8d68892d4032b
