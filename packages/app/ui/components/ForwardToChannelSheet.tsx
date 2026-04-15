@@ -3,7 +3,10 @@ import { ComponentProps } from 'react';
 
 import { ActionSheet } from './ActionSheet';
 import { ForwardChannelSelector } from './ForwardChannelSelector';
-import { FORWARD_SHEET_SNAP_POINTS } from './useForwardToChannelSheet';
+import {
+  FORWARD_SHEET_SNAP_POINTS,
+  useDelayedClose,
+} from './useForwardToChannelSheet';
 
 type ForwardToChannelSheetProps = {
   open: boolean;
@@ -24,6 +27,8 @@ export function ForwardToChannelSheet({
   channelFilter,
   footerComponent,
 }: ForwardToChannelSheetProps) {
+  const showSelector = useDelayedClose(open);
+
   return (
     <ActionSheet
       open={open}
@@ -37,9 +42,9 @@ export function ForwardToChannelSheet({
     >
       <ActionSheet.Content flex={1} paddingBottom="$s">
         <ActionSheet.SimpleHeader title={title} />
-        {open ? (
+        {showSelector ? (
           <ForwardChannelSelector
-            isOpen={open}
+            isOpen={showSelector}
             onChannelSelected={onChannelSelected}
             channelFilter={channelFilter}
           />
