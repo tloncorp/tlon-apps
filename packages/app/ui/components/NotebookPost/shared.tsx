@@ -1,8 +1,8 @@
 import { makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Image, Pressable, Text } from '@tloncorp/ui';
+import { Image, Text } from '@tloncorp/ui';
 import { ComponentProps, useContext, useMemo } from 'react';
-import { ViewStyle, YStack, createStyledContext, styled } from 'tamagui';
+import { View, ViewStyle, YStack, createStyledContext, styled } from 'tamagui';
 
 import { DetailViewAuthorRow } from '../AuthorRow';
 
@@ -101,7 +101,7 @@ const NotebookPostTitle = styled(Text, {
   } as const,
 });
 
-export const NotebookPostFrame = styled(Pressable, {
+export const NotebookPostFrame = styled(View, {
   name: 'NotebookPostFrame',
   context: NotebookPostContext,
   borderWidth: 1,
@@ -109,8 +109,6 @@ export const NotebookPostFrame = styled(Pressable, {
   borderRadius: '$l',
   gap: '$2xl',
   padding: '$xl',
-  maxWidth: 600,
-  disabledStyle: { cursor: 'default' },
   variants: {
     embedded: {
       true: {
@@ -120,7 +118,6 @@ export const NotebookPostFrame = styled(Pressable, {
         borderBottomWidth: 1,
         borderColor: '$border',
         paddingBottom: '$l',
-        paddingHorizontal: 0,
       },
     },
     size: {} as Record<'$s' | '$l' | '$xs', ViewStyle>,

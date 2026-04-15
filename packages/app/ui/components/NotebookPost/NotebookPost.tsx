@@ -108,75 +108,88 @@ export function NotebookPost({
         }
 
         return (
-          <NotebookPostFrame
-            testID="Post"
-            size={size}
-            disabled={viewMode === 'activity'}
+          <Pressable
             onPress={handlePress}
             onHoverIn={onHoverIn}
             onHoverOut={onHoverOut}
-            onLongPress={disableLongPress ? undefined : handleLongPress}
+            onLongPress={handleLongPress}
             pressStyle={{ backgroundColor: '$secondaryBackground' }}
-            alignSelf="center"
-            width="100%"
-            flex={1}
+            borderRadius="$l"
+            maxWidth={600}
+            width={'100%'}
+            marginHorizontal="auto"
+            testID="Post"
           >
-            {moderation === 'hidden' ? (
-              <PostModeration.Hidden />
-            ) : (
-              <NotebookPostContent
-                post={post}
-                showDate={showDate}
-                viewMode={viewMode}
-                showReplies={showReplies}
-                showAuthor={showAuthor}
-              />
-            )}
-
-            {deliveryFailed ? (
-              <Pressable onPress={handleRetryPressed}>
-                <XStack alignItems="center" justifyContent="flex-end">
-                  <Text color="$negativeActionText" size="$label/m">
-                    {isWindowNarrow ? 'Tap' : 'Click'} to retry
-                  </Text>
-                </XStack>
-              </Pressable>
-            ) : null}
-            {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-              <Pressable
-                position="absolute"
-                zIndex={1000}
-                top={12}
-                right={12}
-                onPress={handleOverflowPress}
-              >
-                <ChatMessageActions
+            <NotebookPostFrame
+              testID="Post"
+              size={size}
+              disabled={viewMode === 'activity'}
+              onPress={handlePress}
+              onHoverIn={onHoverIn}
+              onHoverOut={onHoverOut}
+              onLongPress={disableLongPress ? undefined : handleLongPress}
+              pressStyle={{ backgroundColor: '$secondaryBackground' }}
+              alignSelf="center"
+              width="100%"
+              flex={1}
+            >
+              {moderation === 'hidden' ? (
+                <PostModeration.Hidden />
+              ) : (
+                <NotebookPostContent
                   post={post}
-                  postActionIds={postActionIds}
-                  onDismiss={() => {
-                    setIsPopoverOpen(false);
-                    setIsHovered(false);
-                  }}
-                  onOpenChange={setIsPopoverOpen}
-                  onEdit={handleEditPostPressed}
-                  onReply={handlePress}
-                  mode="await-trigger"
-                  trigger={
-                    <Button
-                      icon="Overflow"
-                      fill="ghost"
-                      type="secondary"
-                      size="small"
-                      width={32}
-                      height={32}
-                      borderRadius="$m"
-                      testID="MessageActionsTrigger"
-                    />
-                  }
+                  showDate={showDate}
+                  viewMode={viewMode}
+                  showReplies={showReplies}
+                  showAuthor={showAuthor}
                 />
-              </Pressable>
-            )}
-          </NotebookPostFrame>
+              )}
+
+              {deliveryFailed ? (
+                <Pressable onPress={handleRetryPressed}>
+                  <XStack alignItems="center" justifyContent="flex-end">
+                    <Text color="$negativeActionText" size="$label/m">
+                      {isWindowNarrow ? 'Tap' : 'Click'} to retry
+                    </Text>
+                  </XStack>
+                </Pressable>
+              ) : null}
+              {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+                <Pressable
+                  position="absolute"
+                  zIndex={1000}
+                  top={12}
+                  right={12}
+                  onPress={handleOverflowPress}
+                >
+                  <ChatMessageActions
+                    post={post}
+                    postActionIds={postActionIds}
+                    onDismiss={() => {
+                      setIsPopoverOpen(false);
+                      setIsHovered(false);
+                    }}
+                    onOpenChange={setIsPopoverOpen}
+                    onEdit={handleEditPostPressed}
+                    onReply={handlePress}
+                    mode="await-trigger"
+                    trigger={
+                      <Button
+                        icon="Overflow"
+                        fill="ghost"
+                        type="secondary"
+                        size="small"
+                        width={32}
+                        height={32}
+                        borderRadius="$m"
+                        testID="MessageActionsTrigger"
+                      />
+                    }
+                  />
+                </Pressable>
+              )}
+            </NotebookPostFrame>
+          </Pressable>
         );
       }}
     </PostModeration>
