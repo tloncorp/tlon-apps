@@ -112,7 +112,7 @@ function ChannelsPaneFixture() {
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <ChannelsPane onActionPress={handleAction} hostingBotEnabled />
+      <ChannelsPane onActionPress={handleAction} />
     </FixtureWrapper>
   );
 }

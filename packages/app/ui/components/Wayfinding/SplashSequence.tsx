@@ -62,18 +62,24 @@ import { SearchBar } from '../SearchBar';
 import { TextInputWithSuggestions } from '../TextInputWithSuggestions';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
+/**
+ * Splash sequence panes.
+ *
+ * Bot-enabled flow:
+ *   Welcome → TlonBot → BotName → BotPersonality → BotModel → Group → Invite
+ *
+ * Standard flow:
+ *   Welcome → Group → Channels → Privacy → Invite
+ */
 enum SplashPane {
   Welcome = 'Welcome',
-  Group = 'Group',
-  Channels = 'Channels',
-  Privacy = 'Privacy',
   TlonBot = 'TlonBot',
   BotName = 'BotName',
   BotPersonality = 'BotPersonality',
   BotModel = 'BotModel',
-  BotLaunch = 'BotLaunch',
-  BotLaunchLoading = 'BotLaunchLoading',
-  ShareGroup = 'ShareGroup',
+  Group = 'Group',
+  Channels = 'Channels',
+  Privacy = 'Privacy',
   Invite = 'Invite',
 }
 
@@ -142,6 +148,35 @@ function SplashSequenceComponent(props: {
     setAvatarDirty(true);
   }, []);
 
+  const handleSaveBotConfig = useCallback(async () => {
+    setSavingConfig(true);
+    const config: BotConfig = {
+      name: botName || 'Tlonbot',
+      emoji: DEFAULT_BOT_CONFIG.emoji,
+      avatarUrl: botAvatarUrl,
+      personalityType: botPersonality,
+      model: botModel,
+      apiKey: botApiKey || undefined,
+      responseStyle: 'balanced',
+      activeHoursStart: 0,
+      activeHoursEnd: 24,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
+    try {
+      await saveBotConfig(config);
+    } catch (e) {
+      console.error('Failed to save bot config during onboarding:', e);
+    }
+    setSavingConfig(false);
+    setCurrentPane(SplashPane.Group);
+  }, [botName, botAvatarUrl, botPersonality, botModel, botApiKey]);
+
+  // Sets a flag so AuthenticatedApp creates the group once the client is ready
+  const handleCreateGroupWithBot = useCallback(async () => {
+    await db.pendingBotGroupCreation.setValue(true);
+    setCurrentPane(SplashPane.Invite);
+  }, []);
+
   const handleSplashCompleted = useCallback(() => {
     appStore.completeWayfindingSplash();
     props.onCompleted();
@@ -149,7 +184,8 @@ function SplashSequenceComponent(props: {
 
   return (
     <View flex={1}>
-      {currentPane === 'Welcome' && (
+      {/* --- Welcome --- */}
+      {currentPane === SplashPane.Welcome && (
         <WelcomePane
           onActionPress={() =>
             setCurrentPane(
@@ -159,13 +195,15 @@ function SplashSequenceComponent(props: {
           hostingBotEnabled={hostingBotEnabled}
         />
       )}
-      {currentPane === 'TlonBot' && (
+
+      {/* --- Bot configuration (bot-enabled flow only) --- */}
+      {currentPane === SplashPane.TlonBot && (
         <TlonBotPane
           onActionPress={() => setCurrentPane(SplashPane.BotName)}
           onSkip={() => setCurrentPane(SplashPane.Group)}
         />
       )}
-      {currentPane === 'BotName' && (
+      {currentPane === SplashPane.BotName && (
         <BotNamePane
           name={botName}
           avatarUrl={avatarDirty ? botAvatarUrl : null}
@@ -176,77 +214,50 @@ function SplashSequenceComponent(props: {
           onActionPress={() => setCurrentPane(SplashPane.BotPersonality)}
         />
       )}
-      {currentPane === 'BotPersonality' && (
+      {currentPane === SplashPane.BotPersonality && (
         <BotPersonalityPane
           personality={botPersonality}
           onPersonalityChange={setBotPersonality}
           onActionPress={() => setCurrentPane(SplashPane.BotModel)}
         />
       )}
-      {currentPane === 'BotModel' && (
+      {currentPane === SplashPane.BotModel && (
         <BotModelPane
           model={botModel}
           apiKey={botApiKey}
+          loading={savingConfig}
           onModelChange={setBotModel}
           onApiKeyChange={setBotApiKey}
-          loading={savingConfig}
-          onActionPress={async () => {
-            setSavingConfig(true);
-            const config: BotConfig = {
-              name: botName || 'Tlonbot',
-              emoji: DEFAULT_BOT_CONFIG.emoji,
-              avatarUrl: botAvatarUrl,
-              personalityType: botPersonality,
-              model: botModel,
-              apiKey: botApiKey || undefined,
-              responseStyle: 'balanced',
-              activeHoursStart: 0,
-              activeHoursEnd: 24,
-              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            };
-            try {
-              await saveBotConfig(config);
-            } catch (e) {
-              console.error('Failed to save bot config during onboarding:', e);
-            }
-            setSavingConfig(false);
-            setCurrentPane(SplashPane.Group);
-          }}
+          onActionPress={handleSaveBotConfig}
         />
       )}
-      {currentPane === 'Group' && (
+
+      {/* --- Groups explainer / create-a-group prompt --- */}
+      {currentPane === SplashPane.Group && (
         <GroupsPane
           onActionPress={() =>
             setCurrentPane(
               hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
             )
           }
-          hostingBotEnabled={props.hostingBotEnabled}
+          hostingBotEnabled={hostingBotEnabled}
           botName={botName || 'Tlonbot'}
           onCreateGroupWithBot={
-            hostingBotEnabled
-              ? async () => {
-                  await db.pendingBotGroupCreation.setValue(true);
-                  setCurrentPane(SplashPane.Invite);
-                }
-              : undefined
+            hostingBotEnabled ? handleCreateGroupWithBot : undefined
           }
         />
       )}
-      {currentPane === 'Channels' && (
-        <ChannelsPane
-          onActionPress={() =>
-            setCurrentPane(
-              hostingBotEnabled ? SplashPane.Invite : SplashPane.Privacy
-            )
-          }
-          hostingBotEnabled={hostingBotEnabled}
-        />
+
+      {/* --- Standard flow only: channels & privacy explainers --- */}
+      {currentPane === SplashPane.Channels && (
+        <ChannelsPane onActionPress={() => setCurrentPane(SplashPane.Privacy)} />
       )}
-      {currentPane === 'Privacy' && (
+      {currentPane === SplashPane.Privacy && (
         <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
       )}
-      {currentPane === 'Invite' && (
+
+      {/* --- Invite contacts (shared by both flows) --- */}
+      {currentPane === SplashPane.Invite && (
         <InvitePane
           onActionPress={handleSplashCompleted}
           inviteSystemContacts={props.inviteSystemContacts}
@@ -931,10 +942,7 @@ export function GroupsPane(props: {
   );
 }
 
-export function ChannelsPane(props: {
-  onActionPress: () => void;
-  hostingBotEnabled?: boolean;
-}) {
+export function ChannelsPane(props: { onActionPress: () => void }) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -962,21 +970,13 @@ export function ChannelsPane(props: {
             Chats for quick messages, notebooks for longer thoughts, galleries
             for images and links. Everything happens in a channel.
           </SplashParagraph>
-          {props.hostingBotEnabled && (
-            <SplashParagraph>
-              Mention your Tlonbot in any channel to search the web, summarize
-              threads, or draft messages.
-            </SplashParagraph>
-          )}
         </ScrollView>
       </YStack>
       <Button
         data-testid="one-quick-thing"
         testID="one-quick-thing"
         onPress={props.onActionPress}
-        label={
-          props.hostingBotEnabled ? 'Invite your friends' : 'One quick thing'
-        }
+        label="One quick thing"
         preset="hero"
         shadow
         marginHorizontal="$xl"
