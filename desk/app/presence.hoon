@@ -95,11 +95,12 @@
   =/  group=path  (weld base /groups/(scot %p p.flag)/[q.flag])
   ?.  .^(? %gu (weld base /$))  |
   ?.  .^(? %gu group)  |
-  ?=  ^
+  =;  seat
+    ?=(^ seat)
   .^((unit seat:v7:gv) %gx (weld group /seats/(scot %p src.bowl)/noun))
 ::
 ++  group-for-channel
-  |=  [nest:cv =bowl:gall]
+  |=  [kind=@tas =ship name=@tas =bowl:gall]
   ^-  (unit flag:gv)
   =/  base=path  /(scot %p our.bowl)/channels/(scot %da now.bowl)
   =/  channel=path  (weld base /v4/[kind]/(scot %p ship)/[name])
