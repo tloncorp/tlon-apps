@@ -1,14 +1,14 @@
-/-  a=activity
+/-  av=activity-ver
 /+  aj=activity-json
-|_  na=notifications-allowed:a
+|_  na=notifications-allowed:v8:av
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  na
-  ++  json  (allowed:enjs:aj na)
+  ++  json  (allowed:v8:enjs:aj na)
   --
 ++  grab
   |%
-  ++  noun  notifications-allowed:a
+  ++  noun  notifications-allowed:v8:av
   --
 --

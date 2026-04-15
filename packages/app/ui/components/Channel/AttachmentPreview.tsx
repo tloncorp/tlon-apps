@@ -88,7 +88,6 @@ function ContentImage({
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        opacity: imageAttachment?.uploadState?.status === 'uploading' ? 0.5 : 1,
       }}
       resizeMode="contain"
     >
@@ -152,7 +151,6 @@ function ContentVideo({
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        opacity: videoAttachment?.uploadState?.status === 'uploading' ? 0.5 : 1,
       }}
       resizeMode="contain"
     >

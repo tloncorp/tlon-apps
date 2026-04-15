@@ -1,5 +1,4 @@
 import * as store from '@tloncorp/shared/store';
-import { useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, LayoutChangeEvent } from 'react-native';
 import Animated, {

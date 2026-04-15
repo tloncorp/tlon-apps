@@ -7,6 +7,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
+import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
@@ -254,6 +255,7 @@ const ChatMessage = ({
               content={post.editStatus === 'failed' ? lastEditContent : content}
               isNotice={post.type === 'notice'}
               onPressImage={handleImagePressed}
+              getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
               onLongPress={handleLongPress}
               searchQuery={searchQuery}
             />

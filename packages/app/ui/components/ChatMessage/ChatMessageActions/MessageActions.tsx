@@ -7,7 +7,7 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCopy, useToast } from '@tloncorp/ui';
 import { memo, useMemo } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
@@ -42,7 +42,14 @@ export default function MessageActions({
         <ConnectedAction
           key={actionId}
           last={index === list.length - 1 && !__DEV__}
-          {...{ dismiss, onReply, onEdit, onViewReactions, post, actionId }}
+          {...{
+            dismiss,
+            onReply,
+            onEdit,
+            onViewReactions,
+            post,
+            actionId,
+          }}
         />
       ))}
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
@@ -76,7 +83,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const showToast = useToast();
   const pinnedPostId = logic.getPinnedPostId(channel);
 
-  const { label } = useDisplaySpecForChannelActionId(actionId, {
+  const { label, postTerm } = useDisplaySpecForChannelActionId(actionId, {
     post,
     channel,
     currentUserId,
@@ -150,8 +157,8 @@ const ConnectedAction = memo(function ConnectedAction({
   return (
     <ActionList.Action
       height="auto"
-      onPress={() =>
-        handleAction({
+      onPress={() => {
+        const actionArgs = {
           id: actionId,
           post,
           userId: currentUserId,
@@ -164,8 +171,15 @@ const ConnectedAction = memo(function ConnectedAction({
           onViewReactions,
           addAttachment,
           showToast,
-        })
-      }
+        };
+        if (actionId === 'delete') {
+          confirmDeleteAction(postTerm, () => {
+            void handleAction(actionArgs);
+          });
+          return;
+        }
+        void handleAction(actionArgs);
+      }}
       key={actionId}
       actionType={action.actionType}
       last={last}
@@ -185,6 +199,29 @@ function CopyJsonAction({ post }: { post: db.Post }) {
       {!didCopy ? 'Copy post JSON' : 'Copied'}
     </ActionList.Action>
   );
+}
+
+function confirmDeleteAction(postTerm: string, onConfirm: () => void) {
+  const title = `Delete ${postTerm}?`;
+  const message = 'This action cannot be undone.';
+
+  if (isWeb) {
+    if (window.confirm(`${title}\n\n${message}`)) {
+      onConfirm();
+    }
+    return;
+  }
+
+  Alert.alert(title, message, [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: `Delete ${postTerm}`,
+      style: 'destructive',
+      onPress: () => {
+        onConfirm();
+      },
+    },
+  ]);
 }
 
 export async function handleAction({
@@ -306,6 +343,7 @@ export function useDisplaySpecForChannelActionId(
   }
 ): {
   label: string;
+  postTerm: string;
 } {
   const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
   const postTerm = useMemo(() => {
@@ -314,7 +352,7 @@ export function useDisplaySpecForChannelActionId(
       : 'post';
   }, [channel?.type]);
 
-  return useMemo(() => {
+  const spec = useMemo(() => {
     switch (id) {
       case 'debugJson':
         return { label: 'Toggle debug' };
@@ -399,4 +437,6 @@ export function useDisplaySpecForChannelActionId(
     isMuted,
     channel?.type,
   ]);
+
+  return { ...spec, postTerm };
 }

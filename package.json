@@ -67,7 +67,6 @@
       "any-ascii@0.3.2": "patches/any-ascii@0.3.2.patch",
       "react-native@0.73.4": "patches/react-native@0.73.4.patch",
       "@react-navigation/drawer@6.7.2": "patches/@react-navigation__drawer@6.7.2.patch",
-      "@likashefqet/react-native-image-zoom@4.2.0": "patches/@likashefqet__react-native-image-zoom@4.2.0.patch",
       "react-cosmos@6.1.1": "patches/react-cosmos@6.1.1.patch",
       "@10play/tentap-editor@0.5.21": "patches/@10play__tentap-editor@0.5.21.patch",
       "drizzle-orm@0.39.3": "patches/drizzle-orm@0.39.3.patch",
@@ -79,12 +78,14 @@
       "expo-localization@16.0.1": "patches/expo-localization@16.0.1.patch",
       "@simform_solutions/react-native-audio-waveform@2.1.6": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch",
       "expo-task-manager@12.0.6": "patches/expo-task-manager@12.0.6.patch",
+      "expo-share-intent@3.2.3": "patches/expo-share-intent@3.2.3.patch",
       "expo-audio@0.3.5": "patches/expo-audio@0.3.5.patch",
       "react-native-screens@4.4.0": "patches/react-native-screens@4.4.0.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
       "typescript": "5.4.5",
+      "react-native-gesture-handler": "~2.24.0",
       "@10play/tentap-editor": "0.5.21",
       "@tiptap/suggestion": "2.6.0",
       "@tiptap/extension-mention": "2.6.0",

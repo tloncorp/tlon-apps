@@ -1,4 +1,3 @@
-import { ImageZoom } from '@likashefqet/react-native-image-zoom';
 import * as React from 'react';
 import {
   FlatList,
@@ -14,6 +13,7 @@ import { Edges, SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatePresence, View, withStaticProperties } from 'tamagui';
 
 import { ForwardingProps } from '../utils/react';
+import { GestureMediaViewer } from './GestureMediaViewer';
 
 const CarouselContext = React.createContext<{
   direction: 'horizontal' | 'vertical';
@@ -158,7 +158,6 @@ const _Carousel = React.forwardRef<
               data={childrenArray}
               decelerationRate="fast"
               disableIntervalMomentum
-              scrollEnabled={!disableCarouselInteraction}
               initialScrollIndex={initialVisibleIndex}
               style={[
                 {
@@ -181,6 +180,7 @@ const _Carousel = React.forwardRef<
               )}
               getItemLayout={getItemLayout}
               maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+              scrollEnabled={!disableCarouselInteraction}
               {...flatListProps}
             />
           )}
@@ -289,13 +289,27 @@ function ContentImage({
   uri: string;
   safeAreaEdges?: Edges;
 }) {
+  const items = React.useMemo(
+    () => [
+      {
+        type: 'image' as const,
+        uri,
+      },
+    ],
+    [uri]
+  );
+
   if (Platform.OS === 'web') {
     return null;
   }
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={safeAreaEdges}>
-      <ImageZoom style={{ flex: 1 }} resizeMode="contain" uri={uri} />
+      <GestureMediaViewer
+        items={items}
+        enableDismissGesture={false}
+        enableSwipeGesture={false}
+      />
     </SafeAreaView>
   );
 }

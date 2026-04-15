@@ -20,10 +20,10 @@ import {
 
 const logger = createDevLogger('PoorUxReport', false);
 const SHAKE_UPDATE_INTERVAL_MS = 250;
-const SHAKE_DELTA_THRESHOLD = 1.1;
-const SHAKE_HITS_REQUIRED = 2;
-const SHAKE_HITS_WINDOW_MS = 700;
-const SHAKE_COOLDOWN_MS = 1500;
+const SHAKE_DELTA_THRESHOLD = 2.5;
+const SHAKE_HITS_REQUIRED = 3;
+const SHAKE_HITS_WINDOW_MS = 1000;
+const SHAKE_COOLDOWN_MS = 3000;
 const FOREGROUND_SHAKE_GRACE_MS = 1500;
 
 export function usePoorUxShakeReport() {

@@ -2,6 +2,7 @@ import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
+  GestureTrigger,
   Icon,
   Image,
   Pressable,
@@ -481,7 +482,7 @@ export function VideoBlock({
   ComponentProps<typeof VideoEmbed>,
   'video'
 >) {
-  return <VideoEmbed video={block} {...props} />;
+  return <VideoEmbed video={block.video} {...props} />;
 }
 
 export function ImageBlock({
@@ -492,7 +493,7 @@ export function ImageBlock({
   block: cn.ImageBlockData;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof View>) {
-  const { onPressImage, onLongPress } = useContentContext();
+  const { getImageViewerId, onPressImage, onLongPress } = useContentContext();
   const [dimensions, setDimensions] = useState({
     width: block.width || null,
     height: block.height || null,
@@ -515,6 +516,7 @@ export function ImageBlock({
   }, []);
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
+  const viewerId = getImageViewerId?.(block.src);
 
   // Calculate constrained dimensions that respect both maxWidth and maxHeight
   // while maintaining the natural aspect ratio (similar to VideoEmbed logic).
@@ -541,7 +543,7 @@ export function ImageBlock({
     ...remainingImageProps
   } = imageProps ?? {};
 
-  return (
+  const imagePressable = (
     <Pressable
       overflow="hidden"
       onPress={handlePress}
@@ -554,15 +556,15 @@ export function ImageBlock({
             height: constrainedSize.height,
             maxWidth: '100%',
           }
-        : {})}
+        : dimensions.width
+          ? { maxWidth: dimensions.width }
+          : {})}
     >
       <ContentImage
         source={{
           uri: block.src,
         }}
-        {...(constrainedSize
-          ? { width: '100%', height: '100%' }
-          : { width: dimensions.width ?? '100%' })}
+        {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
         {...(shouldUseAspectRatio && !constrainedSize
           ? { aspectRatio: dimensions.aspect || 1 }
           : {})}
@@ -580,6 +582,12 @@ export function ImageBlock({
       />
     </Pressable>
   );
+
+  if (!viewerId) {
+    return imagePressable;
+  }
+
+  return <GestureTrigger id={viewerId}>{imagePressable}</GestureTrigger>;
 }
 
 const ContentImage = styled(Image, {

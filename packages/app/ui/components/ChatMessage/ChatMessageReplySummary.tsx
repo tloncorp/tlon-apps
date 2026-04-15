@@ -141,7 +141,12 @@ function ThreadUnreadDot({
   isNotify: boolean;
 }) {
   if (unreadCount) {
-    return <UnreadDot color={isNotify ? 'primary' : 'neutral'} />;
+    return (
+      <UnreadDot
+        testID="ThreadUnreadDot"
+        color={isNotify ? 'primary' : 'neutral'}
+      />
+    );
   }
 
   return null;

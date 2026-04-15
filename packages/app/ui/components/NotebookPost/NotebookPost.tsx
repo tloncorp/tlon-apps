@@ -24,6 +24,7 @@ import {
 } from 'tamagui';
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
+import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import { useChannelContext, useCurrentUserId } from '../../contexts';
 import { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
@@ -324,6 +325,7 @@ export function NotebookPostDetailView({
         paddingHorizontal="$xl"
         testID="NotebookPostContent"
         onPressImage={handlePressImage}
+        getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
         content={
           post.editStatus === 'failed' || post.editStatus === 'pending'
             ? lastEditContent
