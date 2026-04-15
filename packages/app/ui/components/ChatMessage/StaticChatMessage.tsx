@@ -18,6 +18,11 @@ import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
 
+/**
+ * Renders a chat message with minimal interactivity (no pressable, no overflow
+ * menu). For a fully interactive chat message view, see
+ * [`ChatMessage`](packages/app/ui/components/ChatMessage/ChatMessage.tsx).
+ */
 export function StaticChatMessage({
   displayDebugMode = false,
   hideProfilePreview,
