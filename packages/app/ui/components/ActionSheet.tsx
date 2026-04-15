@@ -342,7 +342,7 @@ const ActionSheetComponent = ({
       open={open}
       onOpenChange={onOpenChange}
       dismissOnSnapToBottom={true}
-      transition="quick"
+      animation="quick"
       handleDisableScroll={true}
       modal={props.modal}
       snapPoints={props.snapPoints}
@@ -372,12 +372,12 @@ const ActionSheetComponent = ({
       onOpenChange={onOpenChange}
       dismissOnSnapToBottom
       snapPointsMode="fit"
-      transition="quick"
+      animation="quick"
       handleDisableScroll
       {...props}
       modal={props.modal}
     >
-      <Sheet.Overlay transition="quick" />
+      <Sheet.Overlay animation="quick" />
       <Sheet.Frame pressStyle={{}}>
         <Sheet.Handle />
         <ActionSheetContext.Provider value={actionSheetContextValue}>

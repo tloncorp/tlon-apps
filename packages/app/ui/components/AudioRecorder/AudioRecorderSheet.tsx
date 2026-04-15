@@ -55,13 +55,13 @@ export function AudioRecorderSheet({
 
   return (
     <Sheet
-      transition="simple"
+      animation="simple"
       modal
       dismissOnOverlayPress={false}
       {...forwardedProps}
       onOpenChange={onAnyOpenChange}
     >
-      <Sheet.Overlay transition="simple" />
+      <Sheet.Overlay animation="simple" />
       <Sheet.Frame
         borderRadius="$3.5xl"
         backgroundColor="$background"

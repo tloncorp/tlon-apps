@@ -127,7 +127,7 @@ export const BottomSheetWrapper = forwardRef<
       open,
       onOpenChange,
       children,
-      transition = 'quick',
+      animation: transition = 'quick',
       dismissOnSnapToBottom = true,
       handleDisableScroll: _handleDisableScroll,
       frameStyle,

@@ -192,7 +192,7 @@ const _Carousel = React.forwardRef<
           {(!hideOverlayOnTap || isOverlayShown) && (
             <View
               key="overlay"
-              transition="simple"
+              animation="simple"
               enterStyle={{ opacity: 0 }}
               exitStyle={{ opacity: 0 }}
               flex={1}

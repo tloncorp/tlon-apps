@@ -104,7 +104,7 @@ export function EmojiPickerSheet(
       }}
       dismissOnSnapToBottom
       dismissOnOverlayPress
-      transition="quick"
+      animation="quick"
       modal
       hasScrollableContent={Platform.OS !== 'web'}
       {...rest}

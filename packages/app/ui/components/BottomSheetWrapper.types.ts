@@ -7,7 +7,7 @@ export interface BottomSheetWrapperProps {
   children: ReactNode;
 
   // Animation & behavior
-  transition?: 'quick' | 'medium' | 'slow';
+  animation?: 'quick' | 'medium' | 'slow';
   dismissOnSnapToBottom?: boolean;
   handleDisableScroll?: boolean;
 

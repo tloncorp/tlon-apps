@@ -16,7 +16,7 @@ export const BottomSheetWrapper = forwardRef<
       open,
       onOpenChange,
       children,
-      transition = 'quick',
+      animation: transition = 'quick',
       dismissOnSnapToBottom = true,
       handleDisableScroll,
       snapPointsMode = 'fit',
@@ -41,12 +41,12 @@ export const BottomSheetWrapper = forwardRef<
         dismissOnSnapToBottom={dismissOnSnapToBottom}
         snapPointsMode={snapPointsMode}
         snapPoints={snapPoints}
-        transition={transition}
+        animation={transition}
         handleDisableScroll={handleDisableScroll}
         modal={modal}
       >
         {showOverlay && (
-          <Sheet.Overlay transition={transition} opacity={overlayOpacity} />
+          <Sheet.Overlay animation={transition} opacity={overlayOpacity} />
         )}
         <Sheet.Frame style={frameStyle} pressStyle={{}}>
           {showHandle && <Sheet.Handle />}

@@ -54,10 +54,10 @@ export const FileDrop: FileDropComponent = ({
     // @ts-expect-error reason: getRootProps() which is web specific return some react-native incompatible props, but it's fine
     <View {...getRootProps()} {...props}>
       {/* need an empty input div just have image drop feature in the web */}
-      {/*  @ts-expect-error web-only props */}
+      {/* @ts-expect-error getInputProps() returns web-specific props incompatible with RN types */}
       <View
         {...getInputProps()}
-        render="input"
+        tag="input"
         width={0}
         height={0}
         position="absolute"

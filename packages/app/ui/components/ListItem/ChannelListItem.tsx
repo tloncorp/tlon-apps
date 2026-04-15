@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { TamaguiWebElement, View, isWeb } from 'tamagui';
+import { View, isWeb } from 'tamagui';
 
 import { useChatOptions, useNavigation } from '../../contexts';
 import * as utils from '../../utils';
@@ -45,7 +45,7 @@ export function ChannelListItem({
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
-  const containerRef = useRef<TamaguiWebElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
   const unreadCount = model.unread?.count ?? 0;
   const notified = model.unread?.notify ?? false;
   const title = utils.useChannelTitle(model);
