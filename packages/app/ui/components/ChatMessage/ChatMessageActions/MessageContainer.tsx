@@ -6,7 +6,7 @@ import { View } from 'tamagui';
 
 import AuthorRow from '../../AuthorRow';
 import { NotebookPostContent } from '../../NotebookPost/NotebookPostContent';
-import { NotebookPostFrame } from '../../NotebookPost/shared';
+import { NotebookPostContentContainer } from '../../NotebookPost/shared';
 import { PostModeration } from '../../PostModeration';
 import { StaticChatMessage } from '../StaticChatMessage';
 
@@ -53,9 +53,9 @@ export function MessageContainer({ post }: { post: db.Post }) {
               return <PostModeration.Hidden />;
             case 'ok': {
               return post.type === 'note' ? (
-                <NotebookPostFrame size="$xs">
+                <NotebookPostContentContainer size="$xs" padding="$xl">
                   <NotebookPostContent post={post} showAuthor={false} />
-                </NotebookPostFrame>
+                </NotebookPostContentContainer>
               ) : (
                 <>
                   <AuthorRow

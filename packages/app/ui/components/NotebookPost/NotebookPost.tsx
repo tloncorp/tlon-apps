@@ -18,7 +18,12 @@ import {
 } from '../PostContent/contentUtils';
 import { PostModeration } from '../PostModeration';
 import { NotebookPostContent } from './NotebookPostContent';
-import { NotebookPostFrame, NotebookPostHeader } from './shared';
+import {
+  NotebookPostContentContainer,
+  NotebookPostFrame,
+  NotebookPostFramePressable,
+  NotebookPostHeader,
+} from './shared';
 
 export function NotebookPost({
   post,
@@ -108,31 +113,21 @@ export function NotebookPost({
         }
 
         return (
-          <Pressable
+          <NotebookPostFramePressable
             onPress={handlePress}
             onHoverIn={onHoverIn}
             onHoverOut={onHoverOut}
-            onLongPress={handleLongPress}
+            onLongPress={disableLongPress ? undefined : handleLongPress}
             pressStyle={{ backgroundColor: '$secondaryBackground' }}
             borderRadius="$l"
             maxWidth={600}
-            width={'100%'}
-            marginHorizontal="auto"
+            width="100%"
+            alignSelf="center"
+            flex={1}
             testID="Post"
+            disabled={viewMode === 'activity'}
           >
-            <NotebookPostFrame
-              testID="Post"
-              size={size}
-              disabled={viewMode === 'activity'}
-              onPress={handlePress}
-              onHoverIn={onHoverIn}
-              onHoverOut={onHoverOut}
-              onLongPress={disableLongPress ? undefined : handleLongPress}
-              pressStyle={{ backgroundColor: '$secondaryBackground' }}
-              alignSelf="center"
-              width="100%"
-              flex={1}
-            >
+            <NotebookPostContentContainer size={size}>
               {moderation === 'hidden' ? (
                 <PostModeration.Hidden />
               ) : (
@@ -188,8 +183,8 @@ export function NotebookPost({
                   />
                 </Pressable>
               )}
-            </NotebookPostFrame>
-          </Pressable>
+            </NotebookPostContentContainer>
+          </NotebookPostFramePressable>
         );
       }}
     </PostModeration>
@@ -215,34 +210,34 @@ export function NotebookPostDetailView({
 
   return (
     <NotebookPostFrame
-      disabled // this is technically a Pressable - disable press behavior here
-      embedded
       borderTopWidth={post.image ? 1 : 0}
       paddingTop={post.image ? '$xl' : '$2xl'}
     >
-      <NotebookPostHeader
-        post={post}
-        showDate
-        showAuthor
-        paddingHorizontal={'$xl'}
-        paddingBottom={'$2xl'}
-        borderBottomWidth={1}
-        borderBottomColor="$border"
-        testID="NotebookPostHeaderDetailView"
-      />
-      <NotebookContentRenderer
-        marginTop="$-l"
-        marginHorizontal="$-l"
-        paddingHorizontal="$xl"
-        testID="NotebookPostContent"
-        onPressImage={handlePressImage}
-        getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
-        content={
-          post.editStatus === 'failed' || post.editStatus === 'pending'
-            ? lastEditContent
-            : content
-        }
-      />
+      <NotebookPostContentContainer>
+        <NotebookPostHeader
+          post={post}
+          showDate
+          showAuthor
+          paddingHorizontal={'$xl'}
+          paddingBottom={'$2xl'}
+          borderBottomWidth={1}
+          borderBottomColor="$border"
+          testID="NotebookPostHeaderDetailView"
+        />
+        <NotebookContentRenderer
+          marginTop="$-l"
+          marginHorizontal="$-l"
+          paddingHorizontal="$xl"
+          testID="NotebookPostContent"
+          onPressImage={handlePressImage}
+          getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
+          content={
+            post.editStatus === 'failed' || post.editStatus === 'pending'
+              ? lastEditContent
+              : content
+          }
+        />
+      </NotebookPostContentContainer>
     </NotebookPostFrame>
   );
 }

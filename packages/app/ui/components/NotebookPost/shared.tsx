@@ -1,6 +1,6 @@
 import { makePrettyShortDate } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Image, Text } from '@tloncorp/ui';
+import { Image, Pressable, Text } from '@tloncorp/ui';
 import { ComponentProps, useContext, useMemo } from 'react';
 import { View, ViewStyle, YStack, createStyledContext, styled } from 'tamagui';
 
@@ -101,25 +101,40 @@ const NotebookPostTitle = styled(Text, {
   } as const,
 });
 
+/**
+ * Used when displaying the post content in a non-pressable context.
+ */
 export const NotebookPostFrame = styled(View, {
   name: 'NotebookPostFrame',
-  context: NotebookPostContext,
+  borderTopWidth: 1,
+  borderBottomWidth: 1,
+  borderColor: '$border',
+  paddingBottom: '$l',
+});
+
+/**
+ * Used when the entire post should be pressable, such as in the
+ * notebook list view. This can't be a variant of `NotebookPostFrame` since we
+ * need to use a different base component for presses.
+ */
+export const NotebookPostFramePressable = styled(Pressable, {
+  name: 'NotebookPostFramePressable',
   borderWidth: 1,
   borderColor: '$border',
   borderRadius: '$l',
-  gap: '$2xl',
   padding: '$xl',
+});
+
+/**
+ * Wraps content (including title) of a notebook post, defining context and
+ * parent layout.
+ */
+export const NotebookPostContentContainer = styled(View, {
+  name: 'NotebookPostContentContainer',
+  context: NotebookPostContext,
+
+  gap: '$2xl',
   variants: {
-    embedded: {
-      true: {
-        borderWidth: 0,
-        borderRadius: 0,
-        borderTopWidth: 1,
-        borderBottomWidth: 1,
-        borderColor: '$border',
-        paddingBottom: '$l',
-      },
-    },
     size: {} as Record<'$s' | '$l' | '$xs', ViewStyle>,
-  } as const,
+  },
 });
