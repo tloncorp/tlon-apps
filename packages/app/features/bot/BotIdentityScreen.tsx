@@ -17,6 +17,7 @@ export function BotIdentityScreen({ navigation }: Props) {
       navigation.navigate('BotBehavior', {
         name: data.name,
         emoji: data.emoji,
+        avatarUrl: data.avatarUrl,
         personalityType: data.personalityType,
         customSoulPrompt: data.customSoulPrompt,
       });

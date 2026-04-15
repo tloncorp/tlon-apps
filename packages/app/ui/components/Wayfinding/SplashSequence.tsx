@@ -1,10 +1,20 @@
 // tamagui-ignore
+import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
+import { saveBotConfig } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
+import {
+  type BotConfig,
+  DEFAULT_BOT_CONFIG,
+  MODEL_OPTIONS,
+  PERSONALITY_TYPES,
+  type PersonalityType,
+  SUGGESTED_NAMES,
+} from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
@@ -15,7 +25,13 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Image, ScrollView, Share, TextInput as RNTextInput } from 'react-native';
+import {
+  FlatList,
+  Image,
+  TextInput as RNTextInput,
+  ScrollView,
+  Share,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -36,23 +52,15 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
+import { ContactAvatar } from '../Avatar';
+import { AvatarPicker } from '../AvatarPicker';
 import { ListItem, SystemContactListItem } from '../ListItem';
-import * as api from '@tloncorp/api';
-import { saveBotConfig } from '@tloncorp/shared/api';
-import {
-  DEFAULT_BOT_CONFIG,
-  MODEL_OPTIONS,
-  PERSONALITY_TYPES,
-  type BotConfig,
-  type PersonalityType,
-} from '@tloncorp/shared/domain';
-import { EmojiPicker } from '../EmojiPicker';
 import { ModelOptionCard } from '../ModelOptionCard';
-import { NameSuggestions } from '../NameSuggestions';
-import { PersonalityCard } from '../PersonalityCard';
 import { PersonalInviteButton } from '../PersonalInviteButton';
+import { PersonalityCard } from '../PersonalityCard';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
+import { TextInputWithSuggestions } from '../TextInputWithSuggestions';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {
@@ -81,15 +89,65 @@ function SplashSequenceComponent(props: {
   );
   const { hostingBotEnabled } = props;
   const [botName, setBotName] = React.useState(DEFAULT_BOT_CONFIG.name);
-  const [botEmoji, setBotEmoji] = React.useState(DEFAULT_BOT_CONFIG.emoji);
+  const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
+    DEFAULT_BOT_CONFIG.avatarUrl
+  );
   const [botPersonality, setBotPersonality] = React.useState<PersonalityType>(
     DEFAULT_BOT_CONFIG.personalityType
   );
   const [botModel, setBotModel] = React.useState(DEFAULT_BOT_CONFIG.model);
   const [botApiKey, setBotApiKey] = React.useState('');
-  const [createdGroupId, setCreatedGroupId] = React.useState<string | null>(null);
-  const [groupInviteLink, setGroupInviteLink] = React.useState<string | null>(null);
+  const [createdGroupId, setCreatedGroupId] = React.useState<string | null>(
+    null
+  );
+  const [groupInviteLink, setGroupInviteLink] = React.useState<string | null>(
+    null
+  );
   const [launchError, setLaunchError] = React.useState<string | null>(null);
+  const [botMoonId, setBotMoonId] = React.useState<string | null>(null);
+  const [botContactAvatarUrl, setBotContactAvatarUrl] = React.useState<
+    string | null
+  >(null);
+  const [avatarDirty, setAvatarDirty] = React.useState(false);
+
+  // Fetch the bot's current nickname and avatar from hosting API + contacts
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const shipId = await db.hostedUserNodeId.getValue();
+        const authToken = await db.hostingAuthToken.getValue();
+        if (shipId && authToken) {
+          const [botInfo, nickname] = await Promise.all([
+            api.getBotInfo(shipId, authToken).catch(() => null),
+            api.getBotNickname(shipId, authToken).catch(() => null),
+          ]);
+          if (!cancelled) {
+            if (nickname) {
+              setBotName(nickname);
+            }
+            if (botInfo?.moon) {
+              setBotMoonId(botInfo.moon);
+              const contact = await db.getContact({ id: botInfo.moon });
+              if (!cancelled && contact?.avatarImage) {
+                setBotContactAvatarUrl(contact.avatarImage);
+              }
+            }
+          }
+        }
+      } catch {
+        // Best-effort
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAvatarUrlChange = useCallback((url: string | null) => {
+    setBotAvatarUrl(url);
+    setAvatarDirty(true);
+  }, []);
 
   const handleSplashCompleted = useCallback(() => {
     appStore.completeWayfindingSplash();
@@ -117,9 +175,11 @@ function SplashSequenceComponent(props: {
       {currentPane === 'BotName' && (
         <BotNamePane
           name={botName}
-          emoji={botEmoji}
+          avatarUrl={avatarDirty ? botAvatarUrl : null}
+          botMoonId={botMoonId}
+          botContactAvatarUrl={botContactAvatarUrl}
           onNameChange={setBotName}
-          onEmojiChange={setBotEmoji}
+          onAvatarUrlChange={handleAvatarUrlChange}
           onActionPress={() => setCurrentPane(SplashPane.BotPersonality)}
         />
       )}
@@ -139,7 +199,8 @@ function SplashSequenceComponent(props: {
           onActionPress={async () => {
             const config: BotConfig = {
               name: botName || 'Tlonbot',
-              emoji: botEmoji,
+              emoji: DEFAULT_BOT_CONFIG.emoji,
+              avatarUrl: botAvatarUrl,
               personalityType: botPersonality,
               model: botModel,
               apiKey: botApiKey || undefined,
@@ -160,7 +221,9 @@ function SplashSequenceComponent(props: {
       {currentPane === 'BotLaunch' && (
         <BotLaunchPane
           botName={botName || 'Tlonbot'}
-          botEmoji={botEmoji}
+          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
+          botMoonId={botMoonId}
+          botContactAvatarUrl={botContactAvatarUrl}
           onCreateGroup={async () => {
             setCurrentPane(SplashPane.BotLaunchLoading);
             setLaunchError(null);
@@ -210,12 +273,18 @@ function SplashSequenceComponent(props: {
         />
       )}
       {currentPane === 'BotLaunchLoading' && (
-        <BotLaunchLoadingPane botEmoji={botEmoji} />
+        <BotLaunchLoadingPane
+          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
+          botMoonId={botMoonId}
+          botContactAvatarUrl={botContactAvatarUrl}
+        />
       )}
       {currentPane === 'ShareGroup' && (
         <ShareGroupPane
           botName={botName || 'Tlonbot'}
-          botEmoji={botEmoji}
+          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
+          botMoonId={botMoonId}
+          botContactAvatarUrl={botContactAvatarUrl}
           inviteLink={groupInviteLink}
           onActionPress={handleSplashCompleted}
         />
@@ -257,15 +326,6 @@ const SplashTitle = styled(Text, {
   letterSpacing: -0.374,
   fontWeight: '600',
   marginHorizontal: '$xl',
-});
-
-const SplashSubtitle = styled(Text, {
-  fontSize: 20,
-  lineHeight: 24,
-  letterSpacing: -0.408,
-  fontWeight: '500',
-  marginHorizontal: '$xl',
-  color: '$secondaryText',
 });
 
 const SplashParagraph = styled(Text, {
@@ -315,8 +375,8 @@ export function WelcomePane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            Everything here lives on your personal cloud computer, a server
-            that only you can access. Your messages, your data, your rules.
+            Everything here lives on your personal cloud computer, a server that
+            only you can access. Your messages, your data, your rules.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
@@ -347,7 +407,7 @@ export function TlonBotPane(props: {
   const insets = useSafeAreaInsets();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
   return (
-    <View flex={1}>
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <Image
         style={{ width: '100%', height: 330 }}
         resizeMode="cover"
@@ -361,10 +421,9 @@ export function TlonBotPane(props: {
               : require(`../../assets/raster/bot.png`)
         }
       />
-      <YStack flex={1} gap={'$xl'} paddingTop="$xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          Meet your{'\n'}
-          <Text color="$positiveActionText">Tlonbot.</Text>
+          Meet your <Text color="$positiveActionText">Tlonbot.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1, marginBottom: getTokenValue('$l', 'size') }}
@@ -377,16 +436,12 @@ export function TlonBotPane(props: {
             channels and it can participate in conversations alongside you.
           </SplashParagraph>
           <SplashParagraph>
-            Your API keys, your agent's memory, and everything it learns stays
-            on your personal node. You own it all.
+            Your API keys, your agent&#39;s memory, and everything it learns
+            stays on your personal node. You own it all.
           </SplashParagraph>
         </ScrollView>
       </YStack>
-      <YStack
-        paddingHorizontal="$xl"
-        paddingBottom={insets.bottom}
-        gap="$l"
-      >
+      <YStack paddingHorizontal="$xl" gap="$l">
         <Button
           onPress={props.onActionPress}
           testID="bot-configure"
@@ -395,22 +450,24 @@ export function TlonBotPane(props: {
           shadow
         />
         {props.onSkip && (
-          <Button
-            onPress={props.onSkip}
-            testID="bot-skip"
-            label="Skip"
-            preset="secondary"
-            fill="text"
-          />
+          <>
+            <Button
+              onPress={props.onSkip}
+              testID="bot-skip"
+              label="Skip"
+              preset="secondary"
+              fill="text"
+            />
+            <Text
+              fontSize={12}
+              color="$tertiaryText"
+              textAlign="center"
+              marginBottom="$xs"
+            >
+              You can always configure your bot later in Settings.
+            </Text>
+          </>
         )}
-        <Text
-          fontSize={12}
-          color="$tertiaryText"
-          textAlign="center"
-          marginBottom="$xs"
-        >
-          You can always configure your bot later in Settings.
-        </Text>
       </YStack>
     </View>
   );
@@ -418,22 +475,20 @@ export function TlonBotPane(props: {
 
 export function BotNamePane(props: {
   name: string;
-  emoji: string;
+  avatarUrl?: string | null;
+  botMoonId?: string | null;
+  botContactAvatarUrl?: string | null;
   onNameChange: (name: string) => void;
-  onEmojiChange: (emoji: string) => void;
+  onAvatarUrlChange: (url: string | null) => void;
   onActionPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const theme = useThemeName();
-  const textColor = theme === 'dark' ? '#ffffff' : '#1a1818';
-  const placeholderColor = theme === 'dark' ? '#808080' : '#999999';
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          Name your{'\n'}
-          <Text color="$positiveActionText">bot.</Text>
+          Name your <Text color="$positiveActionText">bot.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -445,7 +500,7 @@ export function BotNamePane(props: {
           }}
         >
           <SplashParagraph marginHorizontal={0} marginBottom="$xl">
-            Pick a name and emoji for your Tlonbot. You can always change this
+            Pick a name and avatar for your Tlonbot. You can always change this
             later.
           </SplashParagraph>
 
@@ -458,44 +513,52 @@ export function BotNamePane(props: {
             backgroundColor="$secondaryBackground"
             marginBottom="$xl"
           >
-            <Text fontSize={36}>{props.emoji}</Text>
+            {props.avatarUrl ? (
+              <Image
+                source={{ uri: props.avatarUrl }}
+                style={{ width: 32, height: 32, borderRadius: 4 }}
+              />
+            ) : props.botMoonId ? (
+              <ContactAvatar
+                contactId={props.botMoonId}
+                overrideUrl={props.botContactAvatarUrl ?? undefined}
+                size="$3xl"
+              />
+            ) : null}
             <Text fontSize={20} fontWeight="600" color="$primaryText">
-              {props.name || 'Your Bot'}
+              {props.name || 'Your Tlonbot'}
             </Text>
           </XStack>
 
           {/* Name Input */}
-          <YStack gap="$s" marginBottom="$xl">
-            <View
-              borderRadius="$xl"
-              borderWidth={1}
-              borderColor="$border"
-              backgroundColor="$secondaryBackground"
-              paddingHorizontal="$l"
-              paddingVertical="$m"
-            >
-              <RNTextInput
-                value={props.name}
-                onChangeText={props.onNameChange}
-                placeholder="Give your bot a name"
-                placeholderTextColor={placeholderColor}
-                style={{
-                  fontSize: 16,
-                  color: textColor,
-                }}
-              />
-            </View>
-            <NameSuggestions
-              onSelect={props.onNameChange}
-              currentValue={props.name}
-            />
-          </YStack>
-
-          {/* Emoji Picker */}
-          <SplashParagraph marginHorizontal={0} marginBottom="$s" color="$tertiaryText">
-            Choose an emoji
+          <SplashParagraph
+            marginHorizontal={0}
+            marginBottom="$s"
+            color="$tertiaryText"
+          >
+            Name
           </SplashParagraph>
-          <EmojiPicker value={props.emoji} onSelect={props.onEmojiChange} />
+          <View marginBottom="$xl">
+            <TextInputWithSuggestions
+              value={props.name}
+              onChangeText={props.onNameChange}
+              placeholder="Give your bot a name"
+              suggestions={SUGGESTED_NAMES}
+            />
+          </View>
+
+          {/* Avatar Picker */}
+          <SplashParagraph
+            marginHorizontal={0}
+            marginBottom="$s"
+            color="$tertiaryText"
+          >
+            Choose an avatar
+          </SplashParagraph>
+          <AvatarPicker
+            value={props.avatarUrl ?? null}
+            onSelect={props.onAvatarUrlChange}
+          />
         </ScrollView>
       </YStack>
       <Button
@@ -519,10 +582,9 @@ export function BotPersonalityPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          Give it a{'\n'}
-          <Text color="$positiveActionText">persona.</Text>
+          Give it a <Text color="$positiveActionText">persona.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -574,10 +636,9 @@ export function BotModelPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          Choose a{'\n'}
-          <Text color="$positiveActionText">brain.</Text>
+          Choose a <Text color="$positiveActionText">brain.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -602,12 +663,14 @@ export function BotModelPane(props: {
           ))}
           {needsApiKey && (
             <View
-              borderRadius="$xl"
+              borderRadius="$l"
               borderWidth={1}
               borderColor="$border"
-              backgroundColor="$secondaryBackground"
-              paddingHorizontal="$l"
-              paddingVertical="$m"
+              backgroundColor="$background"
+              paddingLeft="$xl"
+              paddingRight="$l"
+              height={56}
+              justifyContent="center"
               marginTop="$s"
             >
               <RNTextInput
@@ -641,7 +704,9 @@ export function BotModelPane(props: {
 
 export function BotLaunchPane(props: {
   botName: string;
-  botEmoji: string;
+  botAvatarUrl?: string | null;
+  botMoonId?: string | null;
+  botContactAvatarUrl?: string | null;
   onCreateGroup: () => void;
   onSkip: () => void;
   error?: string | null;
@@ -650,10 +715,9 @@ export function BotLaunchPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$3xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          Put it to{'\n'}
-          <Text color="$positiveActionText">work.</Text>
+          Put it to <Text color="$positiveActionText">work.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -661,17 +725,13 @@ export function BotLaunchPane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            Create a group and invite your friends. {props.botEmoji}{' '}
-            {props.botName} will join automatically and can help keep
-            conversations going, answer questions, and make things more fun.
+            Create a group and invite your friends. {props.botName} will join
+            automatically and can help keep conversations going, answer
+            questions, and make things more fun.
           </SplashParagraph>
         </ScrollView>
       </YStack>
-      <YStack
-        paddingHorizontal="$xl"
-        paddingBottom={insets.bottom}
-        gap="$l"
-      >
+      <YStack paddingHorizontal="$xl" gap="$l">
         {props.error && (
           <Text fontSize={14} color="$negativeActionText" textAlign="center">
             {props.error}
@@ -702,7 +762,11 @@ export function BotLaunchPane(props: {
   );
 }
 
-export function BotLaunchLoadingPane(props: { botEmoji: string }) {
+export function BotLaunchLoadingPane(props: {
+  botAvatarUrl?: string | null;
+  botMoonId?: string | null;
+  botContactAvatarUrl?: string | null;
+}) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -714,7 +778,18 @@ export function BotLaunchLoadingPane(props: { botEmoji: string }) {
       justifyContent="center"
       gap="$2xl"
     >
-      <Text fontSize={64}>{props.botEmoji}</Text>
+      {props.botAvatarUrl ? (
+        <Image
+          source={{ uri: props.botAvatarUrl }}
+          style={{ width: 64, height: 64, borderRadius: 8 }}
+        />
+      ) : props.botMoonId ? (
+        <ContactAvatar
+          contactId={props.botMoonId}
+          overrideUrl={props.botContactAvatarUrl ?? undefined}
+          size="$5xl"
+        />
+      ) : null}
       <YStack alignItems="center" gap="$m">
         <LoadingSpinner size="large" />
         <Text fontSize={16} fontWeight="500" color="$primaryText">
@@ -730,7 +805,9 @@ export function BotLaunchLoadingPane(props: { botEmoji: string }) {
 
 export function ShareGroupPane(props: {
   botName: string;
-  botEmoji: string;
+  botAvatarUrl?: string | null;
+  botMoonId?: string | null;
+  botContactAvatarUrl?: string | null;
   inviteLink?: string | null;
   onActionPress: () => void;
 }) {
@@ -750,8 +827,19 @@ export function ShareGroupPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$3xl" alignItems="center">
-        <Text fontSize={64}>{props.botEmoji}</Text>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl" alignItems="center">
+        {props.botAvatarUrl ? (
+          <Image
+            source={{ uri: props.botAvatarUrl }}
+            style={{ width: 64, height: 64, borderRadius: 8 }}
+          />
+        ) : props.botMoonId ? (
+          <ContactAvatar
+            contactId={props.botMoonId}
+            overrideUrl={props.botContactAvatarUrl ?? undefined}
+            size="$5xl"
+          />
+        ) : null}
         <SplashTitle textAlign="center">
           You're all{'\n'}
           <Text color="$positiveActionText">set.</Text>
@@ -791,11 +879,7 @@ export function ShareGroupPane(props: {
         )}
       </YStack>
 
-      <YStack
-        paddingHorizontal="$xl"
-        paddingBottom={insets.bottom}
-        gap="$l"
-      >
+      <YStack paddingHorizontal="$xl" gap="$l">
         {inviteLink && (
           <Button
             onPress={handleShare}

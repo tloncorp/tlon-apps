@@ -3,6 +3,7 @@ import {
   PERSONALITY_TYPES,
   type PersonalityType,
 } from '@tloncorp/shared/domain';
+import { Image } from 'react-native';
 import {
   DEFAULT_BOTTOM_PADDING,
   KEYBOARD_EXTRA_PADDING,
@@ -14,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, Text, View, XStack, YStack, useTheme } from 'tamagui';
 
 import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
-import { EmojiPicker } from './EmojiPicker';
+import { AvatarPicker } from './AvatarPicker';
 import { ControlledTextField, Field, FormFrame } from './Form';
 import { NameSuggestions } from './NameSuggestions';
 import { PersonalityCard } from './PersonalityCard';
@@ -23,6 +24,7 @@ import { ScreenHeader } from './ScreenHeader';
 export interface BotIdentityFormData {
   name: string;
   emoji: string;
+  avatarUrl: string | null;
   personalityType: PersonalityType;
   customSoulPrompt?: string;
 }
@@ -56,6 +58,7 @@ export function BotIdentityScreenView({
     defaultValues: {
       name: initialValues?.name ?? DEFAULT_BOT_CONFIG.name,
       emoji: initialValues?.emoji ?? DEFAULT_BOT_CONFIG.emoji,
+      avatarUrl: initialValues?.avatarUrl ?? DEFAULT_BOT_CONFIG.avatarUrl,
       personalityType:
         initialValues?.personalityType ?? DEFAULT_BOT_CONFIG.personalityType,
       customSoulPrompt: initialValues?.customSoulPrompt ?? '',
@@ -64,6 +67,7 @@ export function BotIdentityScreenView({
 
   const currentName = watch('name');
   const currentEmoji = watch('emoji');
+  const currentAvatarUrl = watch('avatarUrl');
   const currentPersonality = watch('personalityType');
 
   const handleNameChipSelect = useCallback(
@@ -73,9 +77,9 @@ export function BotIdentityScreenView({
     [setValue]
   );
 
-  const handleEmojiSelect = useCallback(
-    (emoji: string) => {
-      setValue('emoji', emoji, { shouldValidate: true, shouldDirty: true });
+  const handleAvatarSelect = useCallback(
+    (url: string | null) => {
+      setValue('avatarUrl', url, { shouldValidate: true, shouldDirty: true });
     },
     [setValue]
   );
@@ -139,7 +143,14 @@ export function BotIdentityScreenView({
               borderRadius="$xl"
               backgroundColor="$secondaryBackground"
             >
-              <Text fontSize={40}>{currentEmoji}</Text>
+              {currentAvatarUrl ? (
+                <Image
+                  source={{ uri: currentAvatarUrl }}
+                  style={{ width: 40, height: 40, borderRadius: 4 }}
+                />
+              ) : (
+                <Text fontSize={40}>{currentEmoji}</Text>
+              )}
               <YStack>
                 <Text fontSize={20} fontWeight="500" color="$primaryText">
                   {currentName || 'Your Bot'}
@@ -175,9 +186,12 @@ export function BotIdentityScreenView({
               />
             </YStack>
 
-            {/* Emoji Picker */}
-            <Field label="Emoji">
-              <EmojiPicker value={currentEmoji} onSelect={handleEmojiSelect} />
+            {/* Avatar Picker */}
+            <Field label="Avatar">
+              <AvatarPicker
+                value={currentAvatarUrl}
+                onSelect={handleAvatarSelect}
+              />
             </Field>
 
             {/* Personality Type */}

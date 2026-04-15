@@ -10,7 +10,8 @@ import type { BotBehaviorFormData } from '../../ui/components/BotBehaviorScreenV
 type Props = NativeStackScreenProps<RootStackParamList, 'BotBehavior'>;
 
 export function BotBehaviorScreen({ navigation, route }: Props) {
-  const { name, emoji, personalityType, customSoulPrompt } = route.params;
+  const { name, emoji, avatarUrl, personalityType, customSoulPrompt } =
+    route.params;
   const [isSaving, setIsSaving] = useState(false);
 
   const handleGoBack = useCallback(() => {
@@ -24,6 +25,7 @@ export function BotBehaviorScreen({ navigation, route }: Props) {
         const config: BotConfig = {
           name,
           emoji,
+          avatarUrl,
           personalityType,
           customSoulPrompt,
           model: data.model,

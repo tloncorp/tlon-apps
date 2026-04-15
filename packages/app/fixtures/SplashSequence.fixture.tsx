@@ -155,7 +155,7 @@ function InvitePaneFixture() {
 
 function BotNamePaneFixture() {
   const [name, setName] = useValue('Bot Name', { defaultValue: '' });
-  const [emoji, setEmoji] = useValue('Bot Emoji', { defaultValue: '🌱' });
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const handleAction = React.useCallback(() => {
     console.log('BotName pane action pressed');
   }, []);
@@ -164,9 +164,11 @@ function BotNamePaneFixture() {
     <FixtureWrapper fillWidth fillHeight>
       <BotNamePane
         name={name}
-        emoji={emoji}
+        avatarUrl={avatarUrl}
+        botMoonId={null}
+        botContactAvatarUrl={null}
         onNameChange={setName}
-        onEmojiChange={setEmoji}
+        onAvatarUrlChange={setAvatarUrl}
         onActionPress={handleAction}
       />
     </FixtureWrapper>
@@ -228,7 +230,9 @@ function BotLaunchPaneFixture() {
     <FixtureWrapper fillWidth fillHeight>
       <BotLaunchPane
         botName="Tlonbot"
-        botEmoji="🌱"
+        botAvatarUrl={null}
+        botMoonId={null}
+        botContactAvatarUrl={null}
         onCreateGroup={handleCreateGroup}
         onSkip={handleSkip}
         error={showError ? 'Something went wrong. Try again or skip.' : null}
@@ -240,7 +244,7 @@ function BotLaunchPaneFixture() {
 function BotLaunchLoadingPaneFixture() {
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <BotLaunchLoadingPane botEmoji="🌱" />
+      <BotLaunchLoadingPane botAvatarUrl={null} botMoonId={null} botContactAvatarUrl={null} />
     </FixtureWrapper>
   );
 }
@@ -255,7 +259,9 @@ function ShareGroupPaneFixture() {
     <FixtureWrapper fillWidth fillHeight>
       <ShareGroupPane
         botName="Tlonbot"
-        botEmoji="🌱"
+        botAvatarUrl={null}
+        botMoonId={null}
+        botContactAvatarUrl={null}
         inviteLink={
           hasInviteLink ? 'https://join.tlon.io/example-invite-link' : null
         }

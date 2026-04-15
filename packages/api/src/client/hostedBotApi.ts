@@ -226,6 +226,28 @@ export async function setBotNickname(
   );
 }
 
+export async function getBotAvatar(
+  ship: string,
+  authCookie: string
+): Promise<string | null> {
+  return hostedBotFetch<string | null>(
+    `/v1/tlawn/ships/${ship}/avatar`,
+    authCookie
+  );
+}
+
+export async function setBotAvatar(
+  ship: string,
+  authCookie: string,
+  avatar: string
+): Promise<string | null> {
+  return hostedBotFetch<string | null>(
+    `/v1/tlawn/ships/${ship}/avatar`,
+    authCookie,
+    { method: 'PUT', json: { avatar } }
+  );
+}
+
 export async function getBotConfig(
   ship: string,
   authCookie: string

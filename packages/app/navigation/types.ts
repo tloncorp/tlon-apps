@@ -57,6 +57,7 @@ export type RootStackParamList = {
   BotBehavior: {
     name: string;
     emoji: string;
+    avatarUrl: string | null;
     personalityType: 'assistant' | 'creature' | 'companion' | 'custom';
     customSoulPrompt?: string;
   };

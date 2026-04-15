@@ -10,7 +10,10 @@ interface Props {
 export function NameSuggestions({ onSelect, currentValue }: Props) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-      <XStack gap="$s" paddingVertical="$xs">
+      <XStack gap="$s" alignItems="center">
+        <Text fontSize={14} color="$tertiaryText" flexShrink={0} marginLeft="$l">
+          Suggestions
+        </Text>
         {SUGGESTED_NAMES.map((name) => (
           <Pressable key={name} onPress={() => onSelect(name)}>
             <XStack
@@ -20,7 +23,7 @@ export function NameSuggestions({ onSelect, currentValue }: Props) {
               backgroundColor={
                 currentValue === name
                   ? '$positiveActionText'
-                  : '$secondaryBackground'
+                  : '$border'
               }
             >
               <Text

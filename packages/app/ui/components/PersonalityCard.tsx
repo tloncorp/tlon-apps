@@ -1,6 +1,7 @@
 import type { PersonalityOption } from '@tloncorp/shared/domain';
-import { Pressable } from '@tloncorp/ui';
-import { Text, View, XStack, YStack } from 'tamagui';
+import { Icon } from '@tloncorp/ui';
+
+import { ListItem } from './ListItem';
 
 interface Props {
   option: PersonalityOption;
@@ -10,30 +11,29 @@ interface Props {
 
 export function PersonalityCard({ option, selected, onPress }: Props) {
   return (
-    <Pressable onPress={onPress}>
-      <XStack
-        padding="$l"
-        gap="$m"
-        borderRadius="$xl"
-        borderWidth={2}
-        borderColor={selected ? '$positiveActionText' : '$border'}
-        backgroundColor={selected ? '$positiveBackground' : '$secondaryBackground'}
-        alignItems="center"
-      >
-        <View>
-          <Text fontSize={28} lineHeight={32}>
-            {option.emoji}
-          </Text>
-        </View>
-        <YStack flex={1} gap="$2xs">
-          <Text fontSize={16} fontWeight="500" color="$primaryText">
-            {option.title}
-          </Text>
-          <Text fontSize={14} color="$secondaryText">
-            {option.description}
-          </Text>
-        </YStack>
-      </XStack>
-    </Pressable>
+    <ListItem
+      onPress={onPress}
+      backgroundColor={selected ? '$positiveBackground' : '$background'}
+      borderWidth={1}
+      borderColor={selected ? '$positiveActionText' : '$border'}
+    >
+      <ListItem.MainContent>
+        <ListItem.Title
+          color={selected ? '$positiveActionText' : '$primaryText'}
+        >
+          {option.title}
+        </ListItem.Title>
+        <ListItem.Subtitle
+          color={selected ? '$positiveActionText' : '$secondaryText'}
+        >
+          {option.description}
+        </ListItem.Subtitle>
+      </ListItem.MainContent>
+      {selected && (
+        <ListItem.EndContent>
+          <Icon type="Checkmark" color="$positiveActionText" />
+        </ListItem.EndContent>
+      )}
+    </ListItem>
   );
 }

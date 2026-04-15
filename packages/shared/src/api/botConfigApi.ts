@@ -36,8 +36,13 @@ async function getAuthCookie(): Promise<string> {
  * have no remote endpoint (emoji, personality, response style, active hours).
  */
 export async function saveBotConfig(config: BotConfig): Promise<void> {
-  // Always persist full config locally so the UI can reload it
-  await api.setSetting(LOCAL_CONFIG_KEY, JSON.stringify(config));
+  // Persist full config locally so the UI can reload it (best-effort —
+  // the Urbit client may not be initialized yet during onboarding)
+  try {
+    await api.setSetting(LOCAL_CONFIG_KEY, JSON.stringify(config));
+  } catch {
+    // Client not ready; hosting API calls below will still run
+  }
 
   // Attempt to sync remote-backed fields to the hosting API
   const userId = await db.hostingUserId.getValue();
