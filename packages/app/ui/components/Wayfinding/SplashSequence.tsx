@@ -153,27 +153,17 @@ function SplashSequenceComponent(props: {
       const shipId = await db.hostedUserNodeId.getValue();
       if (userId && shipId) {
         const name = botName || 'Tlonbot';
-        const selectedModel = MODEL_OPTIONS.find((o) => o.value === botModel);
-        const provider =
-          {
-            minimax: 'basic',
-            anthropic: 'anthropic',
-            openai: 'openai',
-            openrouter: 'openrouter',
-          }[botModel] ?? 'basic';
-        const model =
-          {
-            basic: 'minimax/minimax-m2.5',
-            anthropic: 'anthropic/claude-haiku-4-5-20251001',
-            openai: 'openai/gpt-4o-mini',
-            openrouter: 'openrouter/auto',
-          }[provider] ?? 'minimax/minimax-m2.5';
+        const selected =
+          MODEL_OPTIONS.find((o) => o.value === botModel) ?? MODEL_OPTIONS[0];
 
         await Promise.allSettled([
           api.setTlawnNickname(shipId, name),
-          api.setTlawnPrimaryModel(userId, { provider, model }),
-          botApiKey && selectedModel?.requiresKey
-            ? api.setTlawnProviderKey(userId, provider, botApiKey)
+          api.setTlawnPrimaryModel(userId, {
+            provider: selected.provider,
+            model: selected.hostingModel,
+          }),
+          botApiKey && selected.requiresKey
+            ? api.setTlawnProviderKey(userId, selected.provider, botApiKey)
             : Promise.resolve(),
         ]);
       }
