@@ -47,7 +47,6 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { UrbitSigil } from '@tloncorp/ui';
 import { AvatarPicker } from '../AvatarPicker';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
@@ -65,15 +64,16 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
  */
-type SplashPane =
-  | 'Welcome'
-  | 'TlonBot'
-  | 'BotName'
-  | 'BotModel'
-  | 'Group'
-  | 'Channels'
-  | 'Privacy'
-  | 'Invite';
+enum SplashPane {
+  Welcome = 'Welcome',
+  Group = 'Group',
+  Channels = 'Channels',
+  Privacy = 'Privacy',
+  TlonBot = 'TlonBot',
+  BotName = 'BotName',
+  BotModel = 'BotModel',
+  Invite = 'Invite',
+}
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
@@ -81,9 +81,7 @@ function SplashSequenceComponent(props: {
   hostingBotEnabled?: boolean;
 }) {
   const store = useStore();
-  const [currentPane, setCurrentPane] = React.useState<SplashPane>(
-    'Welcome'
-  );
+  const [currentPane, setCurrentPane] = React.useState(SplashPane.Welcome);
   const { hostingBotEnabled } = props;
   const [botName, setBotName] = React.useState(DEFAULT_BOT_CONFIG.name);
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
@@ -171,7 +169,7 @@ function SplashSequenceComponent(props: {
     }
     setSavingConfig(false);
     setDidConfigureBot(true);
-    setCurrentPane('Group');
+    setCurrentPane(SplashPane.Group);
   }, [botName, botModel, botApiKey]);
 
   const handleSplashCompleted = useCallback(() => {
@@ -181,24 +179,22 @@ function SplashSequenceComponent(props: {
 
   return (
     <View flex={1}>
-      {currentPane === 'Welcome' && (
+      {currentPane === SplashPane.Welcome && (
         <WelcomePane
           onActionPress={() =>
-            setCurrentPane(
-              hostingBotEnabled ? 'TlonBot' : 'Group'
-            )
+            setCurrentPane(hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group)
           }
           hostingBotEnabled={hostingBotEnabled}
         />
       )}
 
-      {currentPane === 'TlonBot' && (
+      {currentPane === SplashPane.TlonBot && (
         <TlonBotPane
-          onActionPress={() => setCurrentPane('BotName')}
-          onSkip={() => setCurrentPane('Group')}
+          onActionPress={() => setCurrentPane(SplashPane.BotName)}
+          onSkip={() => setCurrentPane(SplashPane.Group)}
         />
       )}
-      {currentPane === 'BotName' && (
+      {currentPane === SplashPane.BotName && (
         <BotNamePane
           name={botName}
           avatarUrl={avatarDirty ? botAvatarUrl : null}
@@ -207,10 +203,10 @@ function SplashSequenceComponent(props: {
           nameSuggestions={nameSuggestions}
           onNameChange={setBotName}
           onAvatarUrlChange={handleAvatarUrlChange}
-          onActionPress={() => setCurrentPane('BotModel')}
+          onActionPress={() => setCurrentPane(SplashPane.BotModel)}
         />
       )}
-      {currentPane === 'BotModel' && (
+      {currentPane === SplashPane.BotModel && (
         <BotModelPane
           model={botModel}
           apiKey={botApiKey}
@@ -221,12 +217,10 @@ function SplashSequenceComponent(props: {
         />
       )}
 
-      {currentPane === 'Group' && (
+      {currentPane === SplashPane.Group && (
         <GroupsPane
           onActionPress={() =>
-            setCurrentPane(
-              hostingBotEnabled ? 'Invite' : 'Channels'
-            )
+            setCurrentPane(hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels)
           }
           hostingBotEnabled={hostingBotEnabled}
           botName={botName || 'Tlonbot'}
@@ -234,16 +228,14 @@ function SplashSequenceComponent(props: {
         />
       )}
 
-      {currentPane === 'Channels' && (
-        <ChannelsPane
-          onActionPress={() => setCurrentPane('Privacy')}
-        />
+      {currentPane === SplashPane.Channels && (
+        <ChannelsPane onActionPress={() => setCurrentPane(SplashPane.Privacy)} />
       )}
-      {currentPane === 'Privacy' && (
-        <PrivacyPane onActionPress={() => setCurrentPane('Invite')} />
+      {currentPane === SplashPane.Privacy && (
+        <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
       )}
 
-      {currentPane === 'Invite' && (
+      {currentPane === SplashPane.Invite && (
         <InvitePane
           onActionPress={handleSplashCompleted}
           inviteSystemContacts={props.inviteSystemContacts}
@@ -445,11 +437,22 @@ export function BotNamePane(props: {
           >
             {props.avatarUrl ?? props.botContactAvatarUrl ? (
               <Image
-                source={{ uri: (props.avatarUrl ?? props.botContactAvatarUrl)! }}
+                source={{
+                  uri: (props.avatarUrl ?? props.botContactAvatarUrl)!,
+                }}
                 style={{ width: 32, height: 32, borderRadius: 4 }}
               />
             ) : props.botMoonId ? (
-              <UrbitSigil contactId={props.botMoonId} size={32} />
+              <View
+                width={32}
+                height={32}
+                borderRadius="$s"
+                backgroundColor="$secondaryBackground"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <Icon type="Face" color="$tertiaryText" />
+              </View>
             ) : null}
             <Text fontSize={20} fontWeight="600" color="$primaryText">
               {props.name || 'Your Tlonbot'}
@@ -665,7 +668,16 @@ export function BotLaunchLoadingPane(props: {
           style={{ width: 64, height: 64, borderRadius: 8 }}
         />
       ) : props.botMoonId ? (
-        <UrbitSigil contactId={props.botMoonId} size={64} />
+        <View
+          width={64}
+          height={64}
+          borderRadius="$m"
+          backgroundColor="$secondaryBackground"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Icon type="Face" color="$tertiaryText" size="$xl" />
+        </View>
       ) : null}
       <YStack alignItems="center" gap="$m">
         <LoadingSpinner size="large" />
@@ -719,7 +731,16 @@ export function ShareGroupPane(props: {
             style={{ width: 64, height: 64, borderRadius: 8 }}
           />
         ) : props.botMoonId ? (
-          <UrbitSigil contactId={props.botMoonId} size={64} />
+          <View
+          width={64}
+          height={64}
+          borderRadius="$m"
+          backgroundColor="$secondaryBackground"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Icon type="Face" color="$tertiaryText" size="$xl" />
+        </View>
         ) : null}
         <SplashTitle textAlign="center" marginHorizontal={0}>
           <Text color="$positiveActionText">You&#39;re all set.</Text>
@@ -841,7 +862,10 @@ export function GroupsPane(props: {
   );
 }
 
-export function ChannelsPane(props: { onActionPress: () => void }) {
+export function ChannelsPane(props: {
+  onActionPress: () => void;
+  hostingBotEnabled?: boolean;
+}) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -857,8 +881,7 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
       />
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
-          Groups contain{'\n'}
-          <Text color="$positiveActionText">channels.</Text>
+          Groups contain <Text color="$positiveActionText">channels.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -869,13 +892,21 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
             Chats for quick messages, notebooks for longer thoughts, galleries
             for images and links. Everything happens in a channel.
           </SplashParagraph>
+          {props.hostingBotEnabled && (
+            <SplashParagraph>
+              Mention your Tlonbot in any channel and it can search the web,
+              summarize threads, or draft messages for you.
+            </SplashParagraph>
+          )}
         </ScrollView>
       </YStack>
       <Button
         data-testid="one-quick-thing"
         testID="one-quick-thing"
         onPress={props.onActionPress}
-        label="One quick thing"
+        label={
+          props.hostingBotEnabled ? 'Invite your friends' : 'One quick thing'
+        }
         preset="hero"
         shadow
         marginHorizontal="$xl"
