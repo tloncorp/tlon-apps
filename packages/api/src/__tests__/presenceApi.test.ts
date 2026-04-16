@@ -36,23 +36,19 @@ describe('presenceApi', () => {
     ).toBe('~nec');
 
     expect(
-      getPresenceContextIdFromKey(
-        {
-          context: '/channel/chat/~bus/general',
-          ship: '~nec',
-          topic: 'typing',
-        }
-      )
+      getPresenceContextIdFromKey({
+        context: '/channel/chat/~bus/general',
+        ship: '~nec',
+        topic: 'typing',
+      })
     ).toBe('chat/~bus/general');
 
     expect(
-      getPresenceContextIdFromKey(
-        {
-          context: '/group/~bus/community',
-          ship: '~nec',
-          topic: 'other',
-        }
-      )
+      getPresenceContextIdFromKey({
+        context: '/group/~bus/community',
+        ship: '~nec',
+        topic: 'other',
+      })
     ).toBe('~bus/community');
   });
 
@@ -102,19 +98,17 @@ describe('presenceApi', () => {
 
   test('maps presence response events into normalized client events', () => {
     expect(
-      toPresenceEvent(
-        {
-          here: {
-            key: {
-              context: '/dm/~nec',
-              ship: '~nec',
-              topic: 'computing',
-            },
-            timing: { since: '~2026.3.25..12.00.00', timeout: '~m1' },
-            display: { icon: null, text: 'Thinking...', blob: null },
+      toPresenceEvent({
+        here: {
+          key: {
+            context: '/dm/~nec',
+            ship: '~nec',
+            topic: 'computing',
           },
-        }
-      )
+          timing: { since: '~2026.3.25..12.00.00', timeout: '~m1' },
+          display: { icon: null, text: 'Thinking...', blob: null },
+        },
+      })
     ).toStrictEqual({
       type: 'set',
       state: {
@@ -130,15 +124,13 @@ describe('presenceApi', () => {
     });
 
     expect(
-      toPresenceEvent(
-        {
-          gone: {
-            context: '/dm/~nec',
-            ship: '~nec',
-            topic: 'computing',
-          },
-        }
-      )
+      toPresenceEvent({
+        gone: {
+          context: '/dm/~nec',
+          ship: '~nec',
+          topic: 'computing',
+        },
+      })
     ).toStrictEqual({
       type: 'clear',
       key: {
