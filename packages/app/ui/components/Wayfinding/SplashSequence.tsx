@@ -234,7 +234,10 @@ function SplashSequenceComponent(props: {
       )}
 
       {currentPane === SplashPane.Channels && (
-        <ChannelsPane onActionPress={() => setCurrentPane(SplashPane.Privacy)} />
+        <ChannelsPane
+          onActionPress={() => setCurrentPane(SplashPane.Privacy)}
+          hostingBotEnabled={hostingBotEnabled}
+        />
       )}
       {currentPane === SplashPane.Privacy && (
         <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
@@ -702,8 +705,8 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         <PrivacyLevelsDisplay />
         <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
           <SplashTitle>
-            Groups are{'\n'}
-            <Text color="$positiveActionText">secret</Text> by default.
+            By default, groups are{' '}
+            <Text color="$positiveActionText">secret.</Text>
           </SplashTitle>
           <ScrollView
             style={{ flex: 1 }}
@@ -711,8 +714,9 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             bounces={false}
           >
             <SplashParagraph>
-              Only people you invite can see your group. You can change this
-              anytime in your group settings.
+              Only the people you invite can see your group. If you want to open
+              it up to other people on the network, edit the privacy controls in
+              your group settings.
             </SplashParagraph>
           </ScrollView>
         </YStack>
