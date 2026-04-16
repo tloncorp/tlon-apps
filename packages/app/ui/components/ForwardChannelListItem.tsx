@@ -1,6 +1,6 @@
 import type * as db from '@tloncorp/shared/db';
 import { Icon } from '@tloncorp/ui';
-import { ComponentProps } from 'react';
+import { ComponentProps, memo } from 'react';
 import { View, getTokenValue } from 'tamagui';
 
 import { getChannelTypeIcon } from '../utils';
@@ -15,10 +15,11 @@ type ForwardChannelListItemProps = {
 };
 
 const FORWARD_CHANNEL_AVATAR = {
-  footprint: 52,
+  footprint: 48,
   groupSizeToken: '$3.5xl',
   badgeSize: 29,
   badgeRadius: 5,
+  badgeOffset: 4,
   iconSizeToken: '$xl',
 } as const;
 
@@ -28,7 +29,7 @@ function isNonDmGroupChannel(
   return channel.type !== 'dm' && channel.type !== 'groupDm' && !!channel.group;
 }
 
-function ForwardGroupChannelIcon({
+const ForwardGroupChannelIcon = memo(function ForwardGroupChannelIcon({
   channel,
 }: {
   channel: db.Channel & { group: NonNullable<db.Channel['group']> };
@@ -60,8 +61,8 @@ function ForwardGroupChannelIcon({
       />
       <View
         position="absolute"
-        right={0}
-        bottom={0}
+        right={-FORWARD_CHANNEL_AVATAR.badgeOffset}
+        bottom={-FORWARD_CHANNEL_AVATAR.badgeOffset}
         width={FORWARD_CHANNEL_AVATAR.badgeSize}
         height={FORWARD_CHANNEL_AVATAR.badgeSize}
         borderRadius={FORWARD_CHANNEL_AVATAR.badgeRadius}
@@ -79,38 +80,50 @@ function ForwardGroupChannelIcon({
       </View>
     </View>
   );
-}
+});
 
-export function ForwardChannelListItem({
-  channel,
-  selected = false,
-  onPress,
-  onLayout,
-}: ForwardChannelListItemProps) {
-  const selectedStyles = selected
-    ? { backgroundColor: '$positiveBackground', borderColor: '$positiveBorder' }
-    : { borderColor: 'transparent' };
-
-  const sharedProps = {
-    model: channel,
+export const ForwardChannelListItem = memo(
+  function ForwardChannelListItem({
+    channel,
+    selected = false,
     onPress,
     onLayout,
-    disableOptions: true,
-    disableFocusedStyle: true,
-    showGroupTitle: true,
-    borderWidth: '$2xs',
-    marginHorizontal: -1,
-    ...selectedStyles,
-  } as const;
+  }: ForwardChannelListItemProps) {
+    const selectedStyles = selected
+      ? {
+          backgroundColor: '$positiveBackground',
+          borderColor: '$positiveBorder',
+        }
+      : { borderColor: 'transparent' };
 
-  if (!isNonDmGroupChannel(channel)) {
-    return <ChannelListItem {...sharedProps} />;
-  }
+    const sharedProps = {
+      model: channel,
+      onPress,
+      onLayout,
+      disableOptions: true,
+      disableFocusedStyle: true,
+      showGroupTitle: true,
+      borderWidth: '$2xs',
+      marginHorizontal: -1,
+      ...selectedStyles,
+    } as const;
 
-  return (
-    <ChannelListItem
-      {...sharedProps}
-      StartIcon={<ForwardGroupChannelIcon channel={channel} />}
-    />
-  );
-}
+    if (!isNonDmGroupChannel(channel)) {
+      return <ChannelListItem {...sharedProps} />;
+    }
+
+    return (
+      <ChannelListItem
+        {...sharedProps}
+        StartIcon={<ForwardGroupChannelIcon channel={channel} />}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.channel.id === next.channel.id &&
+    prev.channel.type === next.channel.type &&
+    prev.channel.group?.id === next.channel.group?.id &&
+    prev.selected === next.selected &&
+    prev.onPress === next.onPress &&
+    prev.onLayout === next.onLayout
+);

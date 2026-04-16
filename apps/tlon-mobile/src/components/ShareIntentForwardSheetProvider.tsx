@@ -198,6 +198,7 @@ export function ShareIntentForwardSheetProvider({
         open={isOpen}
         onOpenChange={handleOpenChange}
         title="Send to channel"
+        subtitle="Select where to send it"
         onChannelSelected={handleChannelSelected}
         channelFilter={(channel) => channel.type !== 'notebook'}
         footerComponent={renderFooter}
