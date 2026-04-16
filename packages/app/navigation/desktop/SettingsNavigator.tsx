@@ -6,11 +6,10 @@ import { getVariableValue, useTheme } from '@tamagui/core';
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
-import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
@@ -55,8 +54,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, [navigate]);
 
   const onBotSettingsPressed = useCallback(() => {
-    navigate('BotSettings');
-  }, [navigate]);
+    Linking.openURL('https://tlon.network/tlawnbot');
+  }, []);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigate('FeatureFlags');
@@ -84,12 +83,13 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onNotificationSettingsPressed={onPushNotifPressed}
       onBlockedUsersPressed={onBlockedUsersPressed}
       onManageAccountPressed={onManageAccountPressed}
-      onBotSettingsPressed={botEnabled ? onBotSettingsPressed : undefined}
+      onBotSettingsPressed={onBotSettingsPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
       dmLink={dmLink}
       focusedRouteName={focusedRoute.name}
+      botEnabled={botEnabled}
     />
   );
 }
@@ -136,7 +136,6 @@ export const SettingsNavigator = () => {
         component={PrivacySettingsScreen}
       />
       <SettingsDrawer.Screen name="WompWomp" component={UserBugReportScreen} />
-      <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
     </SettingsDrawer.Navigator>
   );
 };

@@ -78,12 +78,13 @@ export default function SettingsScreen(props: Props) {
         onNotificationSettingsPressed={onPushNotifPressed}
         onBlockedUsersPressed={onBlockedUsersPressed}
         onManageAccountPressed={onManageAccountPressed}
-        onBotSettingsPressed={botEnabled ? onBotSettingsPressed : undefined}
+        onBotSettingsPressed={onBotSettingsPressed}
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
         onPrivacyPressed={onPrivacyPressed}
         dmLink={dmLink}
         onBackPressed={onBack}
+        botEnabled={botEnabled}
       />
     </View>
   );
