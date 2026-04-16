@@ -18,12 +18,7 @@ import {
   useGroupTitle,
 } from '../../ui';
 
-type Props = NativeStackScreenProps<
-  GroupSettingsStackParamList,
-  'GroupMeta'
-> & {
-  navigateToHome: () => void;
-};
+type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupMeta'>;
 
 export function GroupMetaScreen(props: Props) {
   const { groupId, fromBlankChannel, fromChatDetails } = props.route.params;
