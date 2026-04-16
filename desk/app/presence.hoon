@@ -129,6 +129,20 @@
   ?:  =(~ tos)  (~(del by places) context)
   (~(put by places) context tos)
 ::
+++  cancel-expire
+  |=  [=places key]
+  ^-  (list card)
+  =/  tos  (~(gut by places) context *topics)
+  =/  pes  (~(gut by tos) topic *people)
+  ?~  pre=(~(get by pes) ship)  ~
+  =/  end=@da
+    %+  add  since.u.pre
+    (fall timeout.u.pre (default-timeout topic))
+  :_  ~
+  :+  %pass
+    [%expire (scot %p ship) topic context]
+  [%arvo %b %rest end]
+::
 ++  give-update
   |=  [subs=(jug context ship) disclose=(set ship) upd=update-1]
   ^-  (list card)
@@ -231,7 +245,7 @@
 =*  state  -
 ::
 %-  agent:dbug
-%^  verb  &  %dbug
+%^  verb  |  %warn
 ::
 ^-  agent:gall
 |_  =bowl:gall
@@ -321,10 +335,13 @@
         %clear
       ::TODO  no-op if we didn't have it anyway
       :_  this(places (del-presence places key.cmd))
-      :-  (give-response %gone key.cmd)
-      %+  give-update
-        (~(del ju subs) context.key.cmd src.bowl)
-      [~ %clear key.cmd]
+      ;:  weld
+        (cancel-expire places key.cmd)
+        [(give-response %gone key.cmd)]~
+        %+  give-update
+          (~(del ju subs) context.key.cmd src.bowl)
+        [~ %clear key.cmd]
+      ==
     ==
   ==
 ::
@@ -501,8 +518,11 @@
           %clear
         ::TODO  no-op if we didn't have it anyway
         :_  this(places (del-presence places key.upd))
-        :~  (tell:log %dbug ~['context fact: %clear applied' >key.upd<] ~)
-            (give-response %gone key.upd)
+        ;:  weld
+          (cancel-expire places key.upd)
+          :~  (tell:log %dbug ~['context fact: %clear applied' >key.upd<] ~)
+              (give-response %gone key.upd)
+          ==
         ==
       ==
     ==
