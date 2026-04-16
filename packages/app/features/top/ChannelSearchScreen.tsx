@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
+  ChannelProvider,
   ScreenHeader,
   SearchBar,
   SearchResults,
@@ -60,38 +61,42 @@ export default function ChannelSearchScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   return (
-    <YStack flex={1} backgroundColor="$background">
-      <ScreenHeader
-        title={`Search ${title ?? ''}`}
-        useHorizontalTitleLayout={!isWindowNarrow}
-        backAction={props.navigation.goBack}
-        borderBottom
-      />
-      <View paddingTop="$2xl" flex={1}>
-        <XStack marginHorizontal="$m">
-          <SearchBar
-            onChangeQuery={setQuery}
-            placeholder={`Search ${title ?? ''}`}
-            inputProps={{ autoFocus: true }}
-            onPressCancel={() => props.navigation.pop()}
-          />
-        </XStack>
-
-        <SearchResults
-          posts={posts ?? []}
-          navigateToPost={navigateToPost}
-          search={{
-            query,
-            loading,
-            errored,
-            hasMore,
-            loadMore,
-            searchComplete: !loading && !hasMore,
-            numResults: posts?.length ?? 0,
-            searchedThroughDate,
-          }}
+    <ChannelProvider
+      value={channelQuery.data ? { channel: channelQuery.data } : null}
+    >
+      <YStack flex={1} backgroundColor="$background">
+        <ScreenHeader
+          title={`Search ${title ?? ''}`}
+          useHorizontalTitleLayout={!isWindowNarrow}
+          backAction={props.navigation.goBack}
+          borderBottom
         />
-      </View>
-    </YStack>
+        <View paddingTop="$2xl" flex={1}>
+          <XStack marginHorizontal="$m">
+            <SearchBar
+              onChangeQuery={setQuery}
+              placeholder={`Search ${title ?? ''}`}
+              inputProps={{ autoFocus: true }}
+              onPressCancel={() => props.navigation.pop()}
+            />
+          </XStack>
+
+          <SearchResults
+            posts={posts ?? []}
+            navigateToPost={navigateToPost}
+            search={{
+              query,
+              loading,
+              errored,
+              hasMore,
+              loadMore,
+              searchComplete: !loading && !hasMore,
+              numResults: posts?.length ?? 0,
+              searchedThroughDate,
+            }}
+          />
+        </View>
+      </YStack>
+    </ChannelProvider>
   );
 }

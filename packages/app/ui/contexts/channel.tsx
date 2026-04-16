@@ -1,11 +1,11 @@
 import * as db from '@tloncorp/shared/db';
 import { ReactNode, createContext, useContext } from 'react';
 
-export type ChannelState = {
+type ChannelState = {
   channel: db.Channel;
-};
+} | null;
 
-const Context = createContext<ChannelState | null>(null);
+const Context = createContext<ChannelState>(null);
 
 export const useChannelContext = () => {
   const context = useContext(Context);
