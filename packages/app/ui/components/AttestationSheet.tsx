@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 
-import { useCurrentUserId } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionSheet } from './ActionSheet';
 import { AttestationPane } from './AttestationPane';
 

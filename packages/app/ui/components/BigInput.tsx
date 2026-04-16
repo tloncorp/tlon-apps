@@ -33,7 +33,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
 import { useFeatureFlag } from '../../lib/featureFlags';
-import { useAttachmentContext } from '../contexts';
+import { useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MarkdownEditor } from './MarkdownEditor';

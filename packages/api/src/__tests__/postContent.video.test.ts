@@ -35,19 +35,23 @@ test('convertContent keeps both blob and story videos when src matches', () => {
   expect(videos).toHaveLength(2);
   expect(videos[0]).toMatchObject({
     type: 'video',
-    src,
-    width: 100,
-    height: 200,
-    duration: 12.25,
-    alt: 'blob-clip',
-    posterUri: 'https://cdn.example.com/blob-clip-poster.jpg',
+    video: {
+      src,
+      width: 100,
+      height: 200,
+      duration: 12.25,
+      alt: 'blob-clip',
+      posterUri: 'https://cdn.example.com/blob-clip-poster.jpg',
+    },
   });
   expect(videos[1]).toMatchObject({
     type: 'video',
-    src,
-    width: 1,
-    height: 1,
-    alt: 'story-clip',
+    video: {
+      src,
+      width: 1,
+      height: 1,
+      alt: 'story-clip',
+    },
   });
 });
 
@@ -75,7 +79,7 @@ test('convertContent keeps distinct blob and story videos when src differs', () 
 
   const content = convertContent(story, blob);
   const videoSrcs = content
-    .flatMap((block) => (block.type === 'video' ? [block.src] : []))
+    .flatMap((block) => (block.type === 'video' ? [block.video.src] : []))
     .sort();
   expect(videoSrcs).toEqual([
     'https://cdn.example.com/blob.mp4',

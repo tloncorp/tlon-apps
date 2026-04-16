@@ -64,7 +64,7 @@ export const respondToDMInvite = ({
     });
   }
 
-  const action = multiDmAction(channel.id, {
+  const action = ub.multiDmAction(channel.id, {
     team: { ship: currentUserId, ok: accept },
   });
   return poke(action);
@@ -78,7 +78,7 @@ export const updateDMMeta = async ({
   meta: db.ClientMeta;
 }) => {
   return await trackedPoke<ub.WritResponse | ub.ClubAction | string[]>(
-    multiDmAction(channelId, { meta: fromClientMeta(meta) }),
+    ub.multiDmAction(channelId, { meta: fromClientMeta(meta) }),
     { app: 'chat', path: '/v4' },
     (event) => {
       if (!('diff' in event)) {
@@ -283,20 +283,6 @@ export function unblockUser(userId: string) {
     mark: 'chat-unblock-ship',
     json: { ship: userId },
   });
-}
-
-export function multiDmAction(id: string, delta: ub.ClubDelta) {
-  return {
-    app: 'chat',
-    mark: 'chat-club-action-2',
-    json: {
-      id,
-      diff: {
-        uid: '0v4',
-        delta,
-      },
-    },
-  };
 }
 
 export type GetDmsResponse = db.Channel[];

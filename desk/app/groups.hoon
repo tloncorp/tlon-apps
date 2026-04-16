@@ -7,7 +7,7 @@
 ::  the server core +se-core and client core +go-core.
 ::
 /-  g=groups, gv=groups-ver, c=chat, d=channels, dv=channels-ver, s=story,
-    activity
+    av=activity-ver
 /-  meta
 /+  default-agent, verb, dbug
 /+  gc=groups-conv, cu=channel-utils, v=volume, s=subscriber, imp=import-aid, logs,
@@ -255,13 +255,13 @@
 ++  server  dap.bowl
 ::
 ++  submit-activity
-  |=  =action:activity
+  |=  =action:v8:av
   ~>  %spin.['submit-activity']
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  activity-action+!>(`action:activity`action)
+  =/  =cage  activity-action+!>(`action:v8:av`action)
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 ::  |l: logging core
 ::
@@ -2000,6 +2000,7 @@
     ?>  from-self
     ?>  ((sane %tas) name.create)
     ?>  (lte (met 3 (jam create)) size-limit)
+    =.  cor  (tell:l %info %se-c-create (sell !>([flag create])) ~)
     =/  =flag:g  [our.bowl name.create]
     =/  =admissions:g
       %*  .  *admissions:g
@@ -3323,7 +3324,7 @@
   ::  +go-activity: notify about a group event
   ::
   ++  go-activity
-    =,  activity
+    =,  v8:av
     |=  $=  concern
         $%  [%join =ship]
             [%kick =ship]
@@ -4562,7 +4563,7 @@
               converted-nest
               flag
           ==
-        =/  new-reply-message-id=message-id:activity  [src u.q.plan]
+        =/  new-reply-message-id=message-id:av  [src u.q.plan]
         %+  go-activity  %flag-reply
         :*  [new-reply-message-id u.q.plan]
             [new-message-id p.plan]
@@ -4766,7 +4767,7 @@
     fi-core
   ::
   ++  fi-activity
-    =,  activity
+    =,  v8:av
     |=  concern=[%group-invite =ship]
     ^+  fi-core
     =.  cor

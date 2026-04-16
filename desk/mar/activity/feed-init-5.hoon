@@ -1,6 +1,6 @@
-/-  a=activity
+/-  av=activity-ver
 /+  aj=activity-json
-|_  =feed-init:a
+|_  =feed-init:v8:av
 ++  grad  %noun
 ++  grow
   |%
@@ -8,14 +8,14 @@
   ++  json
     =,  enjs:format
     %-  pairs
-    :~  all+a+(turn all.feed-init activity-bundle:enjs:aj)
-        mentions+a+(turn mentions.feed-init activity-bundle:enjs:aj)
-        replies+a+(turn replies.feed-init activity-bundle:enjs:aj)
-        summaries+(activity:enjs:aj summaries.feed-init |)
+    :~  all+a+(turn all.feed-init activity-bundle:v8:enjs:aj)
+        mentions+a+(turn mentions.feed-init activity-bundle:v8:enjs:aj)
+        replies+a+(turn replies.feed-init activity-bundle:v8:enjs:aj)
+        summaries+(activity:v8:enjs:aj summaries.feed-init |)
     ==
   --
 ++  grab
   |%
-  ++  noun  feed-init:a
+  ++  noun  feed-init:v8:av
   --
 --

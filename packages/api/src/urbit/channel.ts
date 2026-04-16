@@ -3,6 +3,7 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
+import type { Poke } from '../http-api';
 import type { Stringified } from '../lib/utilityTypes';
 import {
   Block,
@@ -723,3 +724,19 @@ export type ChannelHead = {
 export type ChannelHeadsResponse = ChannelHead[];
 
 export type ChannelHooksPreview = { name: string; meta: Metadata }[];
+
+export function channelAction(
+  channelId: string,
+  action: Action
+): Poke<ChannelsAction> {
+  return {
+    app: 'channels',
+    mark: 'channel-action-2',
+    json: {
+      channel: {
+        nest: channelId,
+        action,
+      },
+    },
+  };
+}

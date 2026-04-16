@@ -10,6 +10,9 @@ type ForwardToChannelSheetProps = {
   onOpenChange: (open: boolean) => void;
   title: string;
   onChannelSelected: (channel: db.Channel) => void;
+  // Temporary escape hatch for share-target filtering. Should probably push it
+  // down into the underlying query.
+  channelFilter?: (channel: db.Channel) => boolean;
   footerComponent?: ComponentProps<typeof ActionSheet>['footerComponent'];
 };
 
@@ -18,6 +21,7 @@ export function ForwardToChannelSheet({
   onOpenChange,
   title,
   onChannelSelected,
+  channelFilter,
   footerComponent,
 }: ForwardToChannelSheetProps) {
   return (
@@ -26,6 +30,9 @@ export function ForwardToChannelSheet({
       onOpenChange={onOpenChange}
       snapPointsMode="percent"
       snapPoints={FORWARD_SHEET_SNAP_POINTS}
+      keyboardBehavior="extend"
+      enableContentPanningGesture={false}
+      hasScrollableContent
       footerComponent={footerComponent}
     >
       <ActionSheet.Content flex={1} paddingBottom="$s">
@@ -34,6 +41,7 @@ export function ForwardToChannelSheet({
           <ForwardChannelSelector
             isOpen={open}
             onChannelSelected={onChannelSelected}
+            channelFilter={channelFilter}
           />
         ) : null}
       </ActionSheet.Content>

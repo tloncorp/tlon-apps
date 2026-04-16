@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { Keyboard, Platform, TouchableWithoutFeedback } from 'react-native';
 import { View, YStack } from 'tamagui';
 
-import { useStore } from '../contexts';
+import { useStore } from '../contexts/storeContext';
 import { AttestationPane } from './AttestationPane';
 import { CopyableTextBlock } from './CopyableTextBlock';
 import { ControlledTextField } from './Form';

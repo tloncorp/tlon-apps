@@ -4,7 +4,7 @@ import { ConnectionStatus } from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import { debounce } from 'lodash';
 
-import { useCurrentUserId } from '../../ui';
+import { useCurrentUserId } from '../../ui/contexts/appDataContext';
 
 const logger = createDevLogger('useShipConnectionStatus', false);
 

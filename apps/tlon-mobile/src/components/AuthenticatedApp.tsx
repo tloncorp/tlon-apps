@@ -45,6 +45,7 @@ import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
+import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
 
@@ -185,7 +186,9 @@ export default function ConnectedAuthenticatedApp() {
       */}
       <PortalProvider>
         <ForwardPostSheetProvider>
-          {clientReady && <AuthenticatedApp />}
+          <ShareIntentForwardSheetProvider enabled={clientReady}>
+            {clientReady && <AuthenticatedApp />}
+          </ShareIntentForwardSheetProvider>
         </ForwardPostSheetProvider>
       </PortalProvider>
     </AppDataProvider>

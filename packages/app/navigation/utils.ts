@@ -3,21 +3,28 @@ import {
   NavigationProp,
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
+import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 
-import { useGlobalSearch, useIsWindowNarrow } from '../ui';
-import {
+import type {
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
 } from './BasePathNavigator';
 import { CombinedParamList, RootStackParamList } from './types';
 
 const logger = createDevLogger('nav-utils', false);
+
+export const mediaViewerScreenOptions: NativeStackNavigationOptions = {
+  animation: 'none',
+  presentation: 'transparentModal',
+  contentStyle: { backgroundColor: 'transparent' },
+};
 
 export const useNavigation = () => {
   return useReactNavigation<NavigationProp<CombinedParamList>>();

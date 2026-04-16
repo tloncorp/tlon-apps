@@ -10,7 +10,7 @@ import { ComponentProps, useCallback, useEffect } from 'react';
 import { Share } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { useCurrentUserId, useInviteService } from '../contexts';
+import { useCurrentUserId, useInviteService } from '../contexts/appDataContext';
 import { useIsAdmin } from '../utils';
 
 const logger = createDevLogger('InviteButton', false);

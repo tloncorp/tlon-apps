@@ -1,10 +1,15 @@
 import { formatUd } from '../client/apiUtils';
-import { PostBlobDataEntry, parsePostBlob } from '../client/content-helpers';
+import {
+  PostBlobDataEntryFile,
+  PostBlobDataEntryVideo,
+  PostBlobDataEntryVoiceMemo,
+  parsePostBlob,
+} from '../client/content-helpers';
 import { assertNever } from '../lib/assertNever';
 import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
-import { PostContent as ApiPostContent } from './postsApi';
+import type { PostContent as ApiPostContent } from './postsApi';
 
 // Inline types
 
@@ -86,24 +91,29 @@ export type ImageBlockData = {
   alt: string;
 };
 
+export type VideoContentData = Pick<
+  PostBlobDataEntryVideo,
+  'duration' | 'posterUri'
+> & {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+};
+
 export type VideoBlockData = {
   type: 'video';
-  src: string;
-  height: number;
-  width: number;
-  alt: string;
-  duration?: number;
-  posterUri?: string;
+  video: VideoContentData;
 };
 
 export type FileUploadBlockData = {
   type: 'file';
-  file: Extract<PostBlobDataEntry, { type: 'file' }>;
+  file: PostBlobDataEntryFile;
 };
 
 export type VoiceMemoBlockData = {
   type: 'voicememo';
-  voiceMemo: Extract<PostBlobDataEntry, { type: 'voicememo' }>;
+  voiceMemo: PostBlobDataEntryVoiceMemo;
 };
 
 export type LinkBlockData = {
@@ -375,12 +385,14 @@ export function convertContent(
         case 'video': {
           out.push({
             type: 'video',
-            src: entry.fileUri,
-            width: entry.width ?? 1,
-            height: entry.height ?? 1,
-            alt: entry.name ?? 'video',
-            duration: entry.duration,
-            posterUri: entry.posterUri,
+            video: {
+              src: entry.fileUri,
+              alt: entry.name ?? 'video',
+              width: entry.width ?? 1,
+              height: entry.height ?? 1,
+              duration: entry.duration,
+              posterUri: entry.posterUri,
+            },
           });
           break;
         }
@@ -519,7 +531,12 @@ function convertBlock(block: ub.Block): BlockData {
       if (VIDEO_REGEX.test(block.image.src)) {
         return {
           type: 'video',
-          ...block.image,
+          video: {
+            src: block.image.src,
+            alt: block.image.alt,
+            width: block.image.width,
+            height: block.image.height,
+          },
         };
       } else {
         return {

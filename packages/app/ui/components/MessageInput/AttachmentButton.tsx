@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { isWeb } from 'tamagui';
 
 import { pickFile } from '../../../utils/filepicker';
-import { useAttachmentContext } from '../../contexts';
+import { useAttachmentContext } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
 
 export default function AttachmentButton({
