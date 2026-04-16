@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useCalm } from '../ui/contexts/appDataContext';
 import { useChatSearch } from './useChatSearch';
@@ -36,9 +36,11 @@ function buildChannelChatSearchKey(
 }
 
 export function useFilteredChannelChats({
+  mode = 'live',
   searchQuery,
   channelFilter,
 }: {
+  mode?: 'live' | 'snapshot';
   searchQuery: string;
   channelFilter?: (channel: db.Channel) => boolean;
 }) {
@@ -55,9 +57,33 @@ export function useFilteredChannelChats({
       ? all.filter((chat) => channelFilter(chat.channel))
       : all;
   }, [channelFilter, resolvedChats.pinned, resolvedChats.unpinned]);
+  const liveChannelChatsRef = useRef(channelChats);
+  liveChannelChatsRef.current = channelChats;
+  const [frozenChannelChats, setFrozenChannelChats] =
+    useState<ChannelChat[]>(channelChats);
+  const shouldFreeze = mode === 'snapshot';
+
+  useEffect(() => {
+    if (shouldFreeze) {
+      setFrozenChannelChats(liveChannelChatsRef.current);
+    }
+  }, [shouldFreeze]);
+
+  useEffect(() => {
+    if (!shouldFreeze) {
+      return;
+    }
+
+    setFrozenChannelChats((current) =>
+      current.length < channelChats.length
+        ? liveChannelChatsRef.current
+        : current
+    );
+  }, [shouldFreeze, channelChats.length]);
+  const searchableChats = shouldFreeze ? frozenChannelChats : channelChats;
   const semanticCacheKey = useMemo(
-    () => buildChannelChatSearchKey(channelChats, disableNicknames),
-    [channelChats, disableNicknames]
+    () => buildChannelChatSearchKey(searchableChats, disableNicknames),
+    [searchableChats, disableNicknames]
   );
 
   const {
@@ -65,7 +91,7 @@ export function useFilteredChannelChats({
     results: searchResults,
     allChats,
   } = useChatSearch({
-    chats: channelChats,
+    chats: searchableChats,
     searchQuery,
     debounceMs: 0,
     disableNicknames,

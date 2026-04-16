@@ -67,7 +67,7 @@
   =/  writ-response-3=[whom:v6:cv response:writs:v6:cv]
     :-  ship+~bud  ::  whom
     ^-  response:writs:v6:cv  ::  response
-    ::  all timestamps are .received, rather than sent, because the notice
+    ::  all timestamps are .received, rather than .sent, because the notice
     ::  is self-generated.
     ::
     :-  [~zod received]
