@@ -1,17 +1,11 @@
+import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import {
-  ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import { ScrollViewProps, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform, useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
-import { ActionSheet } from './ActionSheet';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
 
@@ -24,6 +18,10 @@ type ForwardChannelSelectorProps = {
 type ChannelChat = db.Chat & { type: 'channel' };
 
 const ITEM_H = 76;
+const LIST_HEIGHT_RATIO = 0.68;
+const ForwardSheetFlashList = (
+  Platform.OS === 'web' ? FlashList : BottomSheetFlashList
+) as typeof FlashList;
 
 const getItemType = (chat: ChannelChat) =>
   chat.channel.type === 'dm' || chat.channel.type === 'groupDm'
@@ -31,12 +29,6 @@ const getItemType = (chat: ChannelChat) =>
     : chat.channel.group
       ? 'group'
       : 'channel';
-
-const renderScrollableContent = (props: ScrollViewProps) => (
-  <ActionSheet.ScrollableContent
-    {...(props as ComponentProps<typeof ActionSheet.ScrollableContent>)}
-  />
-);
 
 const overrideItemLayout = (layout: { span?: number; size?: number }) => {
   layout.size = ITEM_H;
@@ -52,6 +44,7 @@ export function ForwardChannelSelector({
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
+
   const { channelChats, isSearching } = useFilteredChannelChats({
     mode: isOpen ? 'snapshot' : 'live',
     searchQuery: query,
@@ -110,7 +103,7 @@ export function ForwardChannelSelector({
   const estimatedListSize = useMemo(
     () => ({
       width: screenWidth,
-      height: Math.floor(screenHeight * 0.55),
+      height: Math.floor(screenHeight * LIST_HEIGHT_RATIO),
     }),
     [screenWidth, screenHeight]
   );
@@ -126,13 +119,13 @@ export function ForwardChannelSelector({
       </XStack>
 
       {isOpen ? (
-        <View flex={1} minHeight={200}>
+        <View style={estimatedListSize}>
           {isSearching && channelChats.length === 0 ? (
             <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
               No results found
             </Text>
           ) : (
-            <FlashList<ChannelChat>
+            <ForwardSheetFlashList<ChannelChat>
               data={channelChats}
               extraData={highlightedChannelId}
               contentContainerStyle={contentContainerStyle}
@@ -140,7 +133,6 @@ export function ForwardChannelSelector({
               keyExtractor={(chat) => chat.channel.id}
               overrideItemLayout={overrideItemLayout}
               renderItem={renderItem}
-              renderScrollComponent={renderScrollableContent}
               drawDistance={ITEM_H * 8}
               estimatedItemSize={ITEM_H}
               estimatedListSize={estimatedListSize}
