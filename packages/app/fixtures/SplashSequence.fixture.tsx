@@ -1,5 +1,4 @@
 import * as db from '@tloncorp/shared/db';
-import { PersonalityType } from '@tloncorp/shared/domain';
 import React, { useEffect } from 'react';
 import { useValue } from 'react-cosmos/client';
 
@@ -9,7 +8,6 @@ import {
   BotLaunchPane,
   BotModelPane,
   BotNamePane,
-  BotPersonalityPane,
   ChannelsPane,
   GroupsPane,
   InviteContactsContent,
@@ -175,27 +173,6 @@ function BotNamePaneFixture() {
   );
 }
 
-function BotPersonalityPaneFixture() {
-  const [personality, setPersonality] = useValue<PersonalityType>(
-    'Personality',
-    {
-      defaultValue: 'assistant',
-    }
-  );
-  const handleAction = React.useCallback(() => {
-    console.log('BotPersonality pane action pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotPersonalityPane
-        personality={personality}
-        onPersonalityChange={setPersonality}
-        onActionPress={handleAction}
-      />
-    </FixtureWrapper>
-  );
-}
 
 function BotModelPaneFixture() {
   const [model, setModel] = useValue('Model', { defaultValue: 'minimax' });
@@ -290,7 +267,6 @@ export default {
   'Privacy Pane': <PrivacyPaneFixture />,
   'TlonBot Pane': <TlonBotPaneFixture />,
   'Bot Name Pane': <BotNamePaneFixture />,
-  'Bot Personality Pane': <BotPersonalityPaneFixture />,
   'Bot Model Pane': <BotModelPaneFixture />,
   'Bot Launch Pane': <BotLaunchPaneFixture />,
   'Bot Launch Loading Pane': <BotLaunchLoadingPaneFixture />,

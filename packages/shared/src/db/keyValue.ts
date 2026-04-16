@@ -278,11 +278,6 @@ export const nodeAccessCode = createStorageItem<string | null>({
   isSecure: true,
 });
 
-export const pendingBotGroupCreation = createStorageItem<boolean>({
-  key: 'pendingBotGroupCreation',
-  defaultValue: false,
-});
-
 export const nodeStoppedWhileLoggedIn = createStorageItem<boolean>({
   key: 'nodeStoppedWhileLoggedIn',
   defaultValue: false,

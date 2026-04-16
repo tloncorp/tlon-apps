@@ -8,8 +8,6 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
-import { BotBehaviorScreen } from '../../features/bot/BotBehaviorScreen';
-import { BotIdentityScreen } from '../../features/bot/BotIdentityScreen';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
@@ -55,10 +53,6 @@ function DrawerContent(props: DrawerContentComponentProps) {
     navigate('ManageAccount');
   }, [navigate]);
 
-  const onBotSettingsPressed = useCallback(() => {
-    navigate('BotIdentity');
-  }, [navigate]);
-
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigate('FeatureFlags');
   }, [navigate]);
@@ -85,7 +79,6 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onNotificationSettingsPressed={onPushNotifPressed}
       onBlockedUsersPressed={onBlockedUsersPressed}
       onManageAccountPressed={onManageAccountPressed}
-      onBotSettingsPressed={onBotSettingsPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
@@ -138,14 +131,6 @@ export const SettingsNavigator = () => {
         component={PrivacySettingsScreen}
       />
       <SettingsDrawer.Screen name="WompWomp" component={UserBugReportScreen} />
-      <SettingsDrawer.Screen
-        name="BotIdentity"
-        component={BotIdentityScreen}
-      />
-      <SettingsDrawer.Screen
-        name="BotBehavior"
-        component={BotBehaviorScreen}
-      />
     </SettingsDrawer.Navigator>
   );
 };

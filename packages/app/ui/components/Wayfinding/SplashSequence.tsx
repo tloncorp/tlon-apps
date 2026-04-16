@@ -5,16 +5,13 @@ import {
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
-import { saveBotConfig } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
 import {
-  type BotConfig,
   DEFAULT_BOT_CONFIG,
   MODEL_OPTIONS,
-  PERSONALITY_TYPES,
-  type PersonalityType,
   SUGGESTED_NAMES,
 } from '@tloncorp/shared/domain';
+import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -56,7 +53,6 @@ import { AvatarPicker } from '../AvatarPicker';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { ModelOptionCard } from '../ModelOptionCard';
 import { PersonalInviteButton } from '../PersonalInviteButton';
-import { PersonalityCard } from '../PersonalityCard';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { TextInputWithSuggestions } from '../TextInputWithSuggestions';
@@ -66,7 +62,8 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Splash sequence panes.
  *
  * Bot-enabled flow:
- *   Welcome → TlonBot → BotName → BotPersonality → BotModel → Group → Invite
+ *   Welcome → TlonBot → BotName → BotModel
+ *     → Group (create) → CreatingGroup → ShareGroup → Invite
  *
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
@@ -75,9 +72,10 @@ enum SplashPane {
   Welcome = 'Welcome',
   TlonBot = 'TlonBot',
   BotName = 'BotName',
-  BotPersonality = 'BotPersonality',
   BotModel = 'BotModel',
   Group = 'Group',
+  CreatingGroup = 'CreatingGroup',
+  ShareGroup = 'ShareGroup',
   Channels = 'Channels',
   Privacy = 'Privacy',
   Invite = 'Invite',
@@ -97,9 +95,6 @@ function SplashSequenceComponent(props: {
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
     DEFAULT_BOT_CONFIG.avatarUrl
   );
-  const [botPersonality, setBotPersonality] = React.useState<PersonalityType>(
-    DEFAULT_BOT_CONFIG.personalityType
-  );
   const [botModel, setBotModel] = React.useState(DEFAULT_BOT_CONFIG.model);
   const [botApiKey, setBotApiKey] = React.useState('');
   const [botMoonId, setBotMoonId] = React.useState<string | null>(null);
@@ -108,6 +103,10 @@ function SplashSequenceComponent(props: {
     string | null
   >(null);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
+  const [groupInviteLink, setGroupInviteLink] = React.useState<string | null>(
+    null
+  );
+  const [groupError, setGroupError] = React.useState<string | null>(null);
 
   // Fetch the bot's current nickname and avatar from hosting API + contacts
   useEffect(() => {
@@ -148,34 +147,89 @@ function SplashSequenceComponent(props: {
     setAvatarDirty(true);
   }, []);
 
+  // Save bot config via hosting API — nickname, model, and optional API key.
+  // These are all direct hosting API calls (no Urbit client needed).
   const handleSaveBotConfig = useCallback(async () => {
     setSavingConfig(true);
-    const config: BotConfig = {
-      name: botName || 'Tlonbot',
-      emoji: DEFAULT_BOT_CONFIG.emoji,
-      avatarUrl: botAvatarUrl,
-      personalityType: botPersonality,
-      model: botModel,
-      apiKey: botApiKey || undefined,
-      responseStyle: 'balanced',
-      activeHoursStart: 0,
-      activeHoursEnd: 24,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    };
     try {
-      await saveBotConfig(config);
+      const userId = await db.hostingUserId.getValue();
+      const shipId = await db.hostedUserNodeId.getValue();
+      const authCookie = await db.hostingAuthToken.getValue();
+      if (userId && shipId && authCookie) {
+        const name = botName || 'Tlonbot';
+        const selectedModel = MODEL_OPTIONS.find((o) => o.value === botModel);
+        const provider =
+          { minimax: 'basic', anthropic: 'anthropic', openai: 'openai', openrouter: 'openrouter' }[botModel] ?? 'basic';
+        const model =
+          { basic: 'minimax/minimax-m2.5', anthropic: 'anthropic/claude-haiku-4-5-20251001', openai: 'openai/gpt-4o-mini', openrouter: 'openrouter/auto' }[provider] ?? 'minimax/minimax-m2.5';
+
+        await Promise.allSettled([
+          api.setBotNickname(shipId, authCookie, name),
+          api.setPrimaryModel(userId, authCookie, { provider, model }),
+          botApiKey && selectedModel?.requiresKey
+            ? api.setProviderKey(userId, authCookie, provider, botApiKey)
+            : Promise.resolve(),
+        ]);
+      }
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
     }
     setSavingConfig(false);
     setCurrentPane(SplashPane.Group);
-  }, [botName, botAvatarUrl, botPersonality, botModel, botApiKey]);
+  }, [botName, botModel, botApiKey]);
 
-  // Sets a flag so AuthenticatedApp creates the group once the client is ready
+  // Creates a group, invites the bot, and generates an invite link
   const handleCreateGroupWithBot = useCallback(async () => {
-    await db.pendingBotGroupCreation.setValue(true);
-    setCurrentPane(SplashPane.Invite);
-  }, []);
+    setCurrentPane(SplashPane.CreatingGroup);
+    setGroupError(null);
+    try {
+      // (a) Create the group
+      const group = await store.createDefaultGroup({
+        title: `${botName || 'Tlonbot'}'s Group`,
+      });
+
+      // (b) Add bot to the group's cordon via hosting API, then (c) tell it
+      //     to join. Both go through ylem because the bot's moon is managed
+      //     by the hosting platform, not the local ship.
+      const shipId = await db.hostedUserNodeId.getValue();
+      const authCookie = await db.hostingAuthToken.getValue();
+      if (shipId && authCookie && botMoonId) {
+        console.log('Adding bot to group:', {
+          shipId,
+          groupId: group.id,
+          moon: botMoonId,
+        });
+        await api
+          .addBotToCordon(shipId, authCookie, group.id, botMoonId)
+          .catch((e) => console.warn('Failed to add bot to cordon:', e));
+        await api
+          .addBotToGroup(shipId, authCookie, group.id, botMoonId)
+          .catch((e) => console.warn('Failed to join bot to group:', e));
+      }
+
+      // (d) Generate invite link (best-effort — may fail if the reel
+      //     agent's metadata schema is out of date on this ship)
+      try {
+        await store.createGroupInviteLink(group.id);
+        const lureState = store.useLureState.getState();
+        await lureState.fetchLure(group.id, '', false);
+        const lure = lureState.lures[group.id];
+        if (lure?.deepLinkUrl) {
+          setGroupInviteLink(lure.deepLinkUrl);
+        } else if (lure?.url) {
+          setGroupInviteLink(lure.url);
+        }
+      } catch (e) {
+        // Expected to fail on some ships due to reel agent type mismatch
+      }
+
+      setCurrentPane(SplashPane.ShareGroup);
+    } catch (e) {
+      console.error('Failed to create group:', e);
+      setGroupError('Something went wrong. Try again or skip.');
+      setCurrentPane(SplashPane.Group);
+    }
+  }, [botName, botMoonId]);
 
   const handleSplashCompleted = useCallback(() => {
     appStore.completeWayfindingSplash();
@@ -211,13 +265,6 @@ function SplashSequenceComponent(props: {
           botContactAvatarUrl={botContactAvatarUrl}
           onNameChange={setBotName}
           onAvatarUrlChange={handleAvatarUrlChange}
-          onActionPress={() => setCurrentPane(SplashPane.BotPersonality)}
-        />
-      )}
-      {currentPane === SplashPane.BotPersonality && (
-        <BotPersonalityPane
-          personality={botPersonality}
-          onPersonalityChange={setBotPersonality}
           onActionPress={() => setCurrentPane(SplashPane.BotModel)}
         />
       )}
@@ -245,12 +292,34 @@ function SplashSequenceComponent(props: {
           onCreateGroupWithBot={
             hostingBotEnabled ? handleCreateGroupWithBot : undefined
           }
+          error={groupError}
+        />
+      )}
+
+      {/* --- Bot group creation loading (bot-enabled flow only) --- */}
+      {currentPane === SplashPane.CreatingGroup && (
+        <BotLaunchLoadingPane
+          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
+          botMoonId={botMoonId}
+          botContactAvatarUrl={botContactAvatarUrl}
+        />
+      )}
+      {currentPane === SplashPane.ShareGroup && (
+        <ShareGroupPane
+          botName={botName || 'Tlonbot'}
+          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
+          botMoonId={botMoonId}
+          botContactAvatarUrl={botContactAvatarUrl}
+          inviteLink={groupInviteLink}
+          onActionPress={handleSplashCompleted}
         />
       )}
 
       {/* --- Standard flow only: channels & privacy explainers --- */}
       {currentPane === SplashPane.Channels && (
-        <ChannelsPane onActionPress={() => setCurrentPane(SplashPane.Privacy)} />
+        <ChannelsPane
+          onActionPress={() => setCurrentPane(SplashPane.Privacy)}
+        />
       )}
       {currentPane === SplashPane.Privacy && (
         <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
@@ -522,53 +591,6 @@ export function BotNamePane(props: {
   );
 }
 
-export function BotPersonalityPane(props: {
-  personality: PersonalityType;
-  onPersonalityChange: (p: PersonalityType) => void;
-  onActionPress: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-
-  return (
-    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
-        <SplashTitle>
-          Give it a <Text color="$positiveActionText">persona.</Text>
-        </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
-            gap: getTokenValue('$s', 'size'),
-          }}
-        >
-          <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            This shapes how your bot talks and thinks.
-          </SplashParagraph>
-          {PERSONALITY_TYPES.map((option) => (
-            <PersonalityCard
-              key={option.value}
-              option={option}
-              selected={props.personality === option.value}
-              onPress={() => props.onPersonalityChange(option.value)}
-            />
-          ))}
-        </ScrollView>
-      </YStack>
-      <Button
-        onPress={props.onActionPress}
-        label="Next"
-        preset="hero"
-        shadow
-        marginHorizontal="$xl"
-        marginTop="$xl"
-      />
-    </View>
-  );
-}
-
 export function BotModelPane(props: {
   model: string;
   apiKey: string;
@@ -778,7 +800,13 @@ export function ShareGroupPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl" alignItems="center">
+      <YStack
+        flex={1}
+        gap="$xl"
+        alignItems="center"
+        justifyContent="center"
+        paddingHorizontal="$xl"
+      >
         {props.botAvatarUrl ? (
           <Image
             source={{ uri: props.botAvatarUrl }}
@@ -791,11 +819,10 @@ export function ShareGroupPane(props: {
             size="$5xl"
           />
         ) : null}
-        <SplashTitle textAlign="center">
-          You're all{'\n'}
-          <Text color="$positiveActionText">set.</Text>
+        <SplashTitle textAlign="center" marginHorizontal={0}>
+          <Text color="$positiveActionText">You&#39;re all set.</Text>
         </SplashTitle>
-        <SplashParagraph textAlign="center">
+        <SplashParagraph textAlign="center" marginHorizontal={0}>
           Your group is ready and {props.botName} is in it.
           {inviteLink
             ? ' Share the link below to invite your friends.'
@@ -830,7 +857,7 @@ export function ShareGroupPane(props: {
         )}
       </YStack>
 
-      <YStack paddingHorizontal="$xl" gap="$l">
+      <YStack paddingHorizontal="$xl" gap="$l" width="100%">
         {inviteLink && (
           <Button
             onPress={handleShare}

@@ -22,7 +22,6 @@ interface Props {
   onPrivacyPressed: () => void;
   onManageAccountPressed: () => void;
   onBotSettingsPressed?: () => void;
-  onBotConfigPressed?: () => void;
   onThemePressed?: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
@@ -30,7 +29,6 @@ interface Props {
   dmLink?: string;
   onBackPressed?: () => void;
   focusedRouteName?: string;
-  botEnabled?: boolean;
 }
 
 export function SettingsScreenView(props: Props) {
@@ -106,23 +104,13 @@ export function SettingsScreenView(props: Props) {
             />
           )}
 
-          {props.botEnabled && (
+          {props.onBotSettingsPressed && (
             <SettingsAction
               title="Bot Settings"
               leftIcon="Face"
               rightIcon={'ChevronRight'}
               onPress={props.onBotSettingsPressed}
               isFocused={props.focusedRouteName === 'BotSettings'}
-            />
-          )}
-          {props.botEnabled && (
-            <SettingsAction
-              title="Bot Config"
-              leftIcon="Settings"
-              rightIcon={'ChevronRight'}
-              onPress={props.onBotConfigPressed}
-              subtitle="Identity & behavior"
-              isFocused={props.focusedRouteName === 'BotIdentity'}
             />
           )}
           <SettingsAction

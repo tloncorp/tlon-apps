@@ -1,54 +1,9 @@
-export type PersonalityType = 'assistant' | 'creature' | 'companion' | 'custom';
-export type ResponseStyle = 'concise' | 'balanced' | 'detailed';
-export interface BotConfig {
-  name: string;
-  emoji: string;
-  avatarUrl: string | null;
-  personalityType: PersonalityType;
-  customSoulPrompt?: string;
-  model: string;
-  apiKey?: string;
-  responseStyle: ResponseStyle;
-  activeHoursStart: number;
-  activeHoursEnd: number;
-  timezone: string;
-}
-
-export interface PersonalityOption {
-  value: PersonalityType;
-  title: string;
-  description: string;
-}
-
 export interface ModelOption {
   value: string;
   label: string;
   description: string;
   requiresKey?: boolean;
 }
-
-export const PERSONALITY_TYPES: PersonalityOption[] = [
-  {
-    value: 'assistant',
-    title: 'AI assistant',
-    description: 'Helpful, capable, professional',
-  },
-  {
-    value: 'creature',
-    title: 'Digital creature',
-    description: 'Quirky, alive, unpredictable',
-  },
-  {
-    value: 'companion',
-    title: 'Virtual companion',
-    description: 'Warm, present, genuinely cares',
-  },
-  {
-    value: 'custom',
-    title: 'Something weirder',
-    description: 'Define yourself',
-  },
-];
 
 export const SUGGESTED_NAMES = [
   'Daneel', // R. Daneel Olivaw — Asimov, The Caves of Steel
@@ -108,23 +63,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
 ];
 
-export const RESPONSE_STYLE_OPTIONS: {
-  value: ResponseStyle;
-  label: string;
-}[] = [
-  { value: 'concise', label: 'Concise' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'detailed', label: 'Detailed' },
-];
-
-export const DEFAULT_BOT_CONFIG: BotConfig = {
+export const DEFAULT_BOT_CONFIG = {
   name: '',
-  emoji: '🌱',
-  avatarUrl: null,
-  personalityType: 'assistant',
+  avatarUrl: null as string | null,
   model: 'minimax',
-  responseStyle: 'balanced',
-  activeHoursStart: 0,
-  activeHoursEnd: 24,
-  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
 };

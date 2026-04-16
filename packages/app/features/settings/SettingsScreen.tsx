@@ -46,10 +46,6 @@ export default function SettingsScreen(props: Props) {
     navigationRef.current.navigate('BotSettings');
   }, [navigationRef]);
 
-  const onBotConfigPressed = useCallback(() => {
-    navigationRef.current.navigate('BotIdentity');
-  }, [navigationRef]);
-
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigationRef.current.navigate('FeatureFlags');
   }, [navigationRef]);
@@ -82,14 +78,12 @@ export default function SettingsScreen(props: Props) {
         onNotificationSettingsPressed={onPushNotifPressed}
         onBlockedUsersPressed={onBlockedUsersPressed}
         onManageAccountPressed={onManageAccountPressed}
-        onBotSettingsPressed={onBotSettingsPressed}
-        onBotConfigPressed={onBotConfigPressed}
+        onBotSettingsPressed={botEnabled ? onBotSettingsPressed : undefined}
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
         onPrivacyPressed={onPrivacyPressed}
         dmLink={dmLink}
         onBackPressed={onBack}
-        botEnabled={botEnabled}
       />
     </View>
   );
