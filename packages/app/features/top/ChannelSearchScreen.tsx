@@ -61,42 +61,42 @@ export default function ChannelSearchScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
 
   return (
-    <ChannelProvider
-      value={channelQuery.data ? { channel: channelQuery.data } : null}
-    >
-      <YStack flex={1} backgroundColor="$background">
-        <ScreenHeader
-          title={`Search ${title ?? ''}`}
-          useHorizontalTitleLayout={!isWindowNarrow}
-          backAction={props.navigation.goBack}
-          borderBottom
-        />
-        <View paddingTop="$2xl" flex={1}>
-          <XStack marginHorizontal="$m">
-            <SearchBar
-              onChangeQuery={setQuery}
-              placeholder={`Search ${title ?? ''}`}
-              inputProps={{ autoFocus: true }}
-              onPressCancel={() => props.navigation.pop()}
-            />
-          </XStack>
-
-          <SearchResults
-            posts={posts ?? []}
-            navigateToPost={navigateToPost}
-            search={{
-              query,
-              loading,
-              errored,
-              hasMore,
-              loadMore,
-              searchComplete: !loading && !hasMore,
-              numResults: posts?.length ?? 0,
-              searchedThroughDate,
-            }}
+    <YStack flex={1} backgroundColor="$background">
+      <ScreenHeader
+        title={`Search ${title ?? ''}`}
+        useHorizontalTitleLayout={!isWindowNarrow}
+        backAction={props.navigation.goBack}
+        borderBottom
+      />
+      <View paddingTop="$2xl" flex={1}>
+        <XStack marginHorizontal="$m">
+          <SearchBar
+            onChangeQuery={setQuery}
+            placeholder={`Search ${title ?? ''}`}
+            inputProps={{ autoFocus: true }}
+            onPressCancel={() => props.navigation.pop()}
           />
-        </View>
-      </YStack>
-    </ChannelProvider>
+        </XStack>
+
+        {channelQuery.data != null && (
+          <ChannelProvider value={{ channel: channelQuery.data }}>
+            <SearchResults
+              posts={posts ?? []}
+              navigateToPost={navigateToPost}
+              search={{
+                query,
+                loading,
+                errored,
+                hasMore,
+                loadMore,
+                searchComplete: !loading && !hasMore,
+                numResults: posts?.length ?? 0,
+                searchedThroughDate,
+              }}
+            />
+          </ChannelProvider>
+        )}
+      </View>
+    </YStack>
   );
 }
