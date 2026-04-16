@@ -11,7 +11,7 @@ import {
   MODEL_OPTIONS,
   SUGGESTED_NAMES,
 } from '@tloncorp/shared/domain';
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -50,7 +50,6 @@ import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { ContactAvatar } from '../Avatar';
 import { AvatarPicker } from '../AvatarPicker';
 import { ListItem, SystemContactListItem } from '../ListItem';
-import { ModelOptionCard } from '../ModelOptionCard';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
@@ -1386,3 +1385,40 @@ const InviteCard = (props: ComponentProps<typeof View>) => {
     </View>
   );
 };
+
+function ModelOptionCard({
+  option,
+  selected,
+  onPress,
+}: {
+  option: { label: string; description: string };
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <ListItem
+      onPress={onPress}
+      backgroundColor={selected ? '$positiveBackground' : '$background'}
+      borderWidth={1}
+      borderColor={selected ? '$positiveActionText' : '$border'}
+    >
+      <ListItem.MainContent>
+        <ListItem.Title
+          color={selected ? '$positiveActionText' : '$primaryText'}
+        >
+          {option.label}
+        </ListItem.Title>
+        <ListItem.Subtitle
+          color={selected ? '$positiveActionText' : '$secondaryText'}
+        >
+          {option.description}
+        </ListItem.Subtitle>
+      </ListItem.MainContent>
+      {selected && (
+        <ListItem.EndContent>
+          <Icon type="Checkmark" color="$positiveActionText" />
+        </ListItem.EndContent>
+      )}
+    </ListItem>
+  );
+}
