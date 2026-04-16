@@ -42,11 +42,11 @@ import {
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
-import { useStore } from '../../contexts';
+import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { AvatarPicker } from '../AvatarPicker';
 import { Field, TextInput } from '../Form';
-import { ListItem, SystemContactListItem } from '../ListItem';
+import { ListItem, SystemContactListItem } from '../listItems';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';

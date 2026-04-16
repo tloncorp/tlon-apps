@@ -3,7 +3,7 @@ import { useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
-import { useCalm } from '../ui';
+import { useCalm } from '../ui/contexts/appDataContext';
 import { useChatSearch } from './useChatSearch';
 
 export type TabName =

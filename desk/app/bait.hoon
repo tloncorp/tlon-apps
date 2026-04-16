@@ -78,20 +78,11 @@
   ++  fail
     |=  [desc=term =tang]
     %-  link
-    %-  %-  %*(. slog pri 3)  [leaf+"fail" tang]
     (~(fail logs our.bowl /logs) desc tang log-data)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
-    =/  pri
-      ?-  vol
-        %dbug  0
-        %info  1
-        %warn  2
-        %crit  3
-      ==
     %-  link
-    %-  %-  %*(. slog pri pri)  echo
     (~(tell logs our.bowl /logs) vol echo (weld ^log-data log-data))
   ::  +deez: log message details
   ::

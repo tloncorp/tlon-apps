@@ -15,6 +15,27 @@ type UseForwardToChannelSheetParams = {
 };
 
 export const FORWARD_SHEET_SNAP_POINTS: number[] = [85];
+export const FORWARD_SHEET_CLOSE_DURATION_MS = 250;
+
+export function useDelayedClose(isOpen: boolean) {
+  const [isDelayedCloseOpen, setIsDelayedCloseOpen] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsDelayedCloseOpen(true);
+      return;
+    }
+
+    const timeout = setTimeout(
+      () => setIsDelayedCloseOpen(false),
+      FORWARD_SHEET_CLOSE_DURATION_MS
+    );
+
+    return () => clearTimeout(timeout);
+  }, [isOpen]);
+
+  return isDelayedCloseOpen;
+}
 
 export function useForwardToChannelSheet({
   isOpen,
@@ -23,6 +44,7 @@ export function useForwardToChannelSheet({
   successMessage,
   failureMessage,
 }: UseForwardToChannelSheetParams) {
+  const isDelayedCloseOpen = useDelayedClose(isOpen);
   const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
     null
   );
@@ -33,11 +55,13 @@ export function useForwardToChannelSheet({
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    if (!isOpen) {
-      setSelectedChannel(null);
-      setErrorMessage(null);
+    if (isDelayedCloseOpen) {
+      return;
     }
-  }, [isOpen]);
+
+    setSelectedChannel(null);
+    setErrorMessage(null);
+  }, [isDelayedCloseOpen]);
 
   const handleChannelSelected = useCallback((channel: db.Channel) => {
     setSelectedChannel(channel);

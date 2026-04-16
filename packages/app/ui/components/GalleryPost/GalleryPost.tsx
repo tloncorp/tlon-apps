@@ -8,16 +8,10 @@ import {
   makePrettyShortDate,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  BlockData,
-  BlockFromType,
-  BlockType,
-  PostContent,
-  parsePostBlob,
-} from '@tloncorp/shared/logic';
+import { parsePostBlob } from '@tloncorp/shared/logic';
+import { omit } from '@tloncorp/shared/utils';
 import { Button, Icon, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { differenceInDays } from 'date-fns';
-import { truncate } from 'lodash';
 import {
   ComponentProps,
   PropsWithChildren,
@@ -27,26 +21,24 @@ import {
 } from 'react';
 import { View, XStack, styled } from 'tamagui';
 
-import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
-import {
-  useChannelContext,
-  useCurrentUserId,
-  useRequests,
-} from '../../contexts';
-import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useChannelContext } from '../../contexts/channel';
+import type { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useRequests } from '../../contexts/requests';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
-import { Reference } from '../ContentReference';
-import { useBoundHandler } from '../ListItem/listItemUtils';
+import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
-import { PostErrorMessage } from '../PostErrorMessage';
+import { PostModeration } from '../PostModeration';
+import { useBoundHandler } from '../listItems/listItemUtils';
+import { GalleryContentRenderer } from './GalleryContentRenderer';
 
 const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',
@@ -97,9 +89,6 @@ export function GalleryPost({
     [contentRendererConfiguration]
   ) as '$s' | '$l';
 
-  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
-    useBlockedAuthor(post);
-
   const handleRetryPressed = useCallback(async () => {
     try {
       await onPressRetry?.(post);
@@ -139,113 +128,114 @@ export function GalleryPost({
     onPressEdit?.(post);
   }, [onPressEdit, post]);
 
-  if (post.isDeleted) {
-    return null;
-  }
-
-  if (isAuthorBlocked && !showBlockedContent) {
-    return (
-      <PostErrorMessage
-        message="Post from a blocked user."
-        actionLabel="Show anyway"
-        onAction={handleShowAnyway}
-        actionTestID="ShowBlockedPostButton"
-      />
-    );
-  }
-
   // we need to filter out props that are not supported by the GalleryPostFrame
   // These props come from parent components but shouldn't be passed to DOM elements
-  const {
-    onShowEmojiPicker: _onShowEmojiPicker,
-    onPressImage: _onPressImage,
-    editPost: _editPost,
-    isHighlighted: _isHighlighted,
-    showReplies: _showReplies,
-    setViewReactionsPost: _setViewReactionsPost,
-    onPressReplies: _onPressReplies,
-    displayDebugMode: _displayDebugMode,
-    onPressDelete: _onPressDelete,
-    ...rest
-  } = props as typeof props & {
-    displayDebugMode?: boolean;
-    onPressDelete?: (post: db.Post) => void;
-  };
+  const rest = useMemo(
+    () =>
+      omit(props, [
+        'onShowEmojiPicker',
+        'onPressImage',
+        'editPost',
+        'isHighlighted',
+        'showReplies',
+        'setViewReactionsPost',
+        'onPressReplies',
+        'onPressDelete',
+        // @ts-expect-error - this gets passed despite not being in props
+        'displayDebugMode',
+      ]),
+    [props]
+  );
 
   return (
-    <Pressable
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      onHoverIn={onHoverIn}
-      onHoverOut={onHoverOut}
-      flex={1}
-      testID="Post"
-    >
-      <GalleryPostFrame {...rest}>
-        {showHeaderFooter && <GalleryPostHeader post={post} />}
-        {hasFileUpload && (
-          <GalleryPostRow>
-            <XStack alignItems="center" gap="$xs">
-              <Icon
-                type="ChannelNote"
-                color="$tertiaryText"
-                customSize={['$l', '$l']}
-              />
-              <GalleryPostRow.Text>File upload</GalleryPostRow.Text>
-            </XStack>
-            <Reference.ActionIcon />
-          </GalleryPostRow>
-        )}
-        <GalleryContentRenderer
-          testID="GalleryPostContentPreview"
-          post={post}
-          pointerEvents="none"
-          size={size}
-          embedded={embedded}
-          isPreview={true}
-        />
-        {showHeaderFooter && (
-          <GalleryPostFooter
-            post={post}
-            deliveryFailed={deliveryFailed}
-            onPressRetry={handleRetryPressed}
-          />
-        )}
-        {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-          <Pressable
-            position="absolute"
-            top={36}
-            right={4}
-            onPress={handleOverflowPress}
-          >
-            <ChatMessageActions
-              post={post}
-              postActionIds={postActionIds}
-              onDismiss={() => {
-                setIsPopoverOpen(false);
-                setIsHovered(false);
-              }}
-              onOpenChange={setIsPopoverOpen}
-              onReply={handlePress}
-              onEdit={handleEditPressed}
-              mode="await-trigger"
-              trigger={
-                <Button
-                  icon="Overflow"
-                  fill="ghost"
-                  type="secondary"
-                  size="small"
-                  width={32}
-                  height={32}
-                  borderRadius="$m"
-                  testID="MessageActionsTrigger"
-                />
-              }
-            />
-          </Pressable>
-        )}
-      </GalleryPostFrame>
-    </Pressable>
+    <PostModeration post={post}>
+      {(m) => {
+        switch (m) {
+          case 'deleted':
+            return <PostModeration.Deleted flex={1} />;
+          case 'blocked':
+            return <PostModeration.Blocked flex={1} />;
+          case 'hidden':
+          // fallthrough - we don't hide gallery posts(?)
+          case 'ok':
+            return (
+              <Pressable
+                onPress={handlePress}
+                onLongPress={handleLongPress}
+                onHoverIn={onHoverIn}
+                onHoverOut={onHoverOut}
+                flex={1}
+                testID="Post"
+              >
+                <GalleryPostFrame {...rest}>
+                  {showHeaderFooter && <GalleryPostHeader post={post} />}
+                  {hasFileUpload && (
+                    <GalleryPostRow>
+                      <XStack alignItems="center" gap="$xs">
+                        <Icon
+                          type="ChannelNote"
+                          color="$tertiaryText"
+                          customSize={['$l', '$l']}
+                        />
+                        <GalleryPostRow.Text>File upload</GalleryPostRow.Text>
+                      </XStack>
+                      <Reference.ActionIcon />
+                    </GalleryPostRow>
+                  )}
+                  <GalleryContentRenderer
+                    testID="GalleryPostContentPreview"
+                    post={post}
+                    pointerEvents="none"
+                    size={size}
+                    embedded={embedded}
+                    isPreview={true}
+                  />
+                  {showHeaderFooter && (
+                    <GalleryPostFooter
+                      post={post}
+                      deliveryFailed={deliveryFailed}
+                      onPressRetry={handleRetryPressed}
+                    />
+                  )}
+                  {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+                    <Pressable
+                      position="absolute"
+                      top={36}
+                      right={4}
+                      onPress={handleOverflowPress}
+                    >
+                      <ChatMessageActions
+                        post={post}
+                        postActionIds={postActionIds}
+                        onDismiss={() => {
+                          setIsPopoverOpen(false);
+                          setIsHovered(false);
+                        }}
+                        onOpenChange={setIsPopoverOpen}
+                        onReply={handlePress}
+                        onEdit={handleEditPressed}
+                        mode="await-trigger"
+                        trigger={
+                          <Button
+                            icon="Overflow"
+                            fill="ghost"
+                            type="secondary"
+                            size="small"
+                            width={32}
+                            height={32}
+                            borderRadius="$m"
+                            testID="MessageActionsTrigger"
+                          />
+                        }
+                      />
+                    </Pressable>
+                  )}
+                </GalleryPostFrame>
+              </Pressable>
+            );
+        }
+      }}
+    </PostModeration>
   );
 }
 
@@ -470,365 +460,16 @@ export function GalleryPostDetailView({
   );
 }
 
-export function GalleryContentRenderer({
-  post,
-  isPreview = false,
-  onPressImage,
-  getImageViewerId,
-  size,
-  ...props
-}: {
-  post: db.Post;
-  onPressImage?: (src: string) => void;
-  getImageViewerId?: (src: string) => string | undefined;
-  size?: '$s' | '$l';
-  isPreview?: boolean;
-} & Omit<ComponentProps<typeof PreviewFrame>, 'content'>) {
-  const content = usePostContent(post);
-  const previewContent = usePreviewContent(content);
-
-  // For gallery detail views of image posts, only show images
-  // since CaptionContentRenderer handles text separately below
-  const displayContent = useMemo(() => {
-    if (!isPreview && size === '$l') {
-      // Check if this is an image post
-      const hasImage = content.some((block) => block.type === 'image');
-      if (hasImage) {
-        // For image posts, only show images in main content area
-        // Caption text will be handled by CaptionContentRenderer below
-        return content.filter((block) => block.type === 'image');
-      }
-    }
-    // For non-image posts and previews, use appropriate content
-    return isPreview ? previewContent : content;
-  }, [content, previewContent, isPreview, size]);
-
-  if (post.hidden) {
-    return (
-      <ErrorPlaceholder>You have hidden or reported this post</ErrorPlaceholder>
-    );
-  } else if (post.isDeleted) {
-    return <ErrorPlaceholder>This post has been deleted</ErrorPlaceholder>;
-  }
-
-  return size === '$l' ? (
-    <LargePreview
-      content={displayContent}
-      onPressImage={onPressImage}
-      getImageViewerId={getImageViewerId}
-      {...props}
-    />
-  ) : (
-    <SmallPreview
-      content={displayContent}
-      onPressImage={onPressImage}
-      getImageViewerId={getImageViewerId}
-      {...props}
-    />
-  );
-}
-
-type GalleryPreviewProps = {
-  content: PostContent;
-  onPressImage?: (src: string) => void;
-  getImageViewerId?: (src: string) => string | undefined;
-} & Omit<ComponentProps<typeof PreviewFrame>, 'content'>;
-
-function LargePreview({
-  content,
-  onPressImage,
-  getImageViewerId,
-  ...props
-}: GalleryPreviewProps) {
-  return (
-    <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <LargeContentRenderer
-        content={content}
-        onPressImage={onPressImage}
-        getImageViewerId={getImageViewerId}
-      />
-    </PreviewFrame>
-  );
-}
-
-function SmallPreview({
-  content,
-  onPressImage,
-  getImageViewerId,
-  ...props
-}: GalleryPreviewProps) {
-  const link = useBlockLink(content);
-
-  return link ? (
-    <PreviewFrame {...props} previewType="link">
-      <LinkPreview link={link} />
-    </PreviewFrame>
-  ) : (
-    <PreviewFrame {...props} previewType={content[0]?.type ?? 'unsupported'}>
-      <SmallContentRenderer
-        height={'100%'}
-        content={content}
-        onPressImage={onPressImage}
-        getImageViewerId={getImageViewerId}
-      />
-    </PreviewFrame>
-  );
-}
-
-const PreviewFrame = styled(View, {
-  name: 'PostPreviewFrame',
-  flex: 1,
-  borderColor: '$border',
-  borderRadius: 0,
-  backgroundColor: '$background',
-  overflow: 'hidden',
-  variants: {
-    embedded: {
-      true: {
-        borderWidth: 0,
-        borderRadius: 0,
-        backgroundColor: 'transparent',
-      },
-    },
-    previewType: (type: BlockType, config: { props: { embedded?: true } }) => {
-      if (config.props.embedded) {
-        return {};
-      }
-      switch (type) {
-        case 'reference':
-          return {
-            backgroundColor: '$secondaryBackground',
-          };
-        case 'blockquote':
-          return { paddingTop: '$3xl' };
-      }
-    },
-  } as const,
-});
-
-function LinkPreview({ link }: { link: { href: string; text?: string } }) {
-  const truncatedHref = useMemo(() => {
-    return truncate(link?.href ?? '', { length: 100 });
-  }, [link?.href]);
-  return (
-    <View
-      flex={1}
-      backgroundColor={'$secondaryBackground'}
-      padding="$l"
-      gap="$xl"
-      borderRadius="$m"
-    >
-      <Icon type="Link" customSize={[17, 17]} />
-      <Text size={'$label/s'} color="$secondaryText">
-        {link.href !== link.text && link.text && link.text !== ' '
-          ? `${link.text}\n\n${truncatedHref}`
-          : truncatedHref}
-      </Text>
-    </View>
-  );
-}
-
-function useBlockLink(
-  content: BlockData[]
-): { text: string; href: string } | null {
-  return useMemo(() => {
-    if (content[0]?.type !== 'paragraph') {
-      return null;
-    }
-    for (const inline of content[0].content) {
-      if (inline.type === 'link') {
-        return inline;
-      }
-    }
-    return null;
-  }, [content]);
-}
-
-const noWrapperPadding = {
-  wrapperProps: {
-    padding: 0,
-  },
-} as const;
-
 const CaptionContentRenderer = createContentRenderer({
   blockSettings: {
     paragraph: {
       size: '$body',
-      ...noWrapperPadding,
+      wrapperProps: {
+        padding: 0,
+      },
     },
     image: {
       display: 'none',
     },
   },
 });
-
-const LargeContentRenderer = createContentRenderer({
-  blockSettings: {
-    blockWrapper: {
-      padding: '$2xl',
-    },
-    image: {
-      ...noWrapperPadding,
-      imageProps: { borderRadius: 0 },
-    },
-    video: {
-      borderRadius: 0,
-      maxHeight: 300,
-      alignSelf: 'center',
-      wrapperProps: {
-        padding: 0,
-        width: '100%',
-        minHeight: 300,
-        backgroundColor: '$secondaryBackground',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-    },
-    code: {
-      borderRadius: 0,
-      borderWidth: 0,
-      ...noWrapperPadding,
-    },
-    reference: {
-      borderRadius: 0,
-      borderWidth: 0,
-      contentSize: '$l',
-      height: '100%',
-      ...noWrapperPadding,
-    },
-    link: {
-      ...noWrapperPadding,
-      minHeight: 300,
-      imageProps: {
-        aspectRatio: 1.5,
-      },
-    },
-    file: {
-      fullbleed: false,
-    },
-  },
-});
-
-const SmallContentRenderer = createContentRenderer({
-  blockSettings: {
-    blockWrapper: {
-      padding: '$l',
-      flex: 1,
-    },
-    lineText: {
-      size: '$label/s',
-      trimmed: false,
-    },
-    image: {
-      height: '100%',
-      borderRadius: 0,
-      imageProps: {
-        aspectRatio: 'unset',
-        height: '100%',
-        contentFit: 'cover',
-        borderRadius: 0,
-      },
-      ...noWrapperPadding,
-    },
-    video: {
-      height: '100%',
-      borderRadius: 0,
-      contentFit: 'cover',
-      ...noWrapperPadding,
-    },
-    reference: {
-      contentSize: '$s',
-      borderRadius: 0,
-      borderWidth: 0,
-      ...noWrapperPadding,
-    },
-    code: {
-      borderWidth: 0,
-      contentSize: '$s',
-      textProps: { size: '$mono/s' },
-      ...noWrapperPadding,
-    },
-    link: {
-      borderRadius: 0,
-      borderWidth: 0,
-      renderDescription: true,
-      imageProps: {
-        height: '66%',
-        aspectRatio: 'unset',
-      },
-      ...noWrapperPadding,
-    },
-    file: {
-      fullbleed: true,
-    },
-  },
-});
-
-function ErrorPlaceholder({ children }: PropsWithChildren) {
-  return (
-    <View
-      backgroundColor={'$secondaryBackground'}
-      padding="$m"
-      flex={1}
-      gap="$m"
-    >
-      <Icon type="Placeholder" customSize={[24, 17]} />
-      <Text size="$label/s" color="$secondaryText">
-        {children}
-      </Text>
-    </View>
-  );
-}
-
-type GroupedBlocks = {
-  [K in BlockType]?: BlockFromType<K>[];
-};
-
-function usePreviewContent(content: BlockData[]): BlockData[] {
-  return useMemo(() => {
-    const groupedBlocks = content.reduce((memo, b) => {
-      if (!memo[b.type]) {
-        memo[b.type] = [];
-      }
-      // type mess, better ideas?
-      (memo[b.type] as BlockFromType<typeof b.type>[]).push(
-        b as BlockFromType<typeof b.type>
-      );
-      return memo;
-    }, {} as GroupedBlocks);
-
-    if (groupedBlocks.reference?.length) {
-      return [groupedBlocks.reference[0]];
-    } else if (groupedBlocks.image?.length) {
-      return [groupedBlocks.image[0]];
-    } else if (groupedBlocks.video?.length) {
-      return [groupedBlocks.video[0]];
-    } else if (groupedBlocks.link?.length) {
-      return [groupedBlocks.link[0]];
-    }
-
-    // For previewable first blocks (image/video/reference), show just that
-    if (firstBlockIsPreviewable(content)) {
-      return content.slice(0, 1);
-    }
-
-    // For text-only content, check if it's all text blocks
-    const isTextContent = content.every(
-      (block) => !['image', 'video', 'reference', 'link'].includes(block.type)
-    );
-
-    if (isTextContent) {
-      // Limit to first 2 blocks to prevent overflow in preview
-      return content.slice(0, 2);
-    }
-
-    return content;
-  }, [content]);
-}
-
-function firstBlockIsPreviewable(content: BlockData[]): boolean {
-  return (
-    content.length > 0 &&
-    ['image', 'video', 'reference', 'file'].includes(content[0].type)
-  );
-}

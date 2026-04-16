@@ -1,6 +1,6 @@
 import { ScrollView, YStack } from 'tamagui';
 
-import { ChannelListItem } from '../ui/components/ListItem/ChannelListItem';
+import { ChannelListItem } from '../ui/components/listItems/ChannelListItem';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   createFakePost,

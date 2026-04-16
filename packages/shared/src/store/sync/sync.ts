@@ -25,6 +25,7 @@ import { verifyUserInviteLink } from '../inviteActions';
 import { discoverContacts } from '../lanyardActions';
 import { useLureState } from '../lure';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
+import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
@@ -1885,6 +1886,12 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   isSyncing = true;
   updateSession({ phase: 'high' });
 
+  if (!alreadySubscribed) {
+    // Only clear cached presence on a fresh startup. During recovery syncs we keep
+    // the current snapshot until new presence events arrive to avoid UI flicker
+    clearPresenceState();
+  }
+
   const startTime = Date.now();
   logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
 
@@ -2072,6 +2079,7 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
+      api.subscribeToPresenceUpdates(handlePresenceEvent),
     ]);
   });
 };

@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { useSelect } from 'react-cosmos/client';
 
 import { EmptyChannelNotice } from '../ui/components/Channel/EmptyChannelNotice';
-import { GroupsProvider } from '../ui/contexts';
+import { GroupsProvider } from '../ui/contexts/groups';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   group,

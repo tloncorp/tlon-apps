@@ -5,7 +5,7 @@ import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
 import { AppTheme } from '../types/theme';
-import { config } from '../ui';
+import { config } from '../ui/tamagui.config';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
 const ThemeContext = React.createContext<{
