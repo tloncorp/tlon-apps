@@ -415,7 +415,6 @@
         :_  this
         [(tell:log %warn ~['/activity/all: unexpected mark' >p.cage.sign<] ~)]~
       =+  !<(upd=update:v8:av q.cage.sign)
-      ~&  [%presence-activity-upd upd]
       =/  news=(unit [add=? source=$>(?(%channel %dm) source:v8:av)])
         ?+  upd  ~
           [%add [?(%channel %dm) *] *]  `[& source.upd]
