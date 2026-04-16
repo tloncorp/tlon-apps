@@ -11,7 +11,6 @@ import {
   MODEL_OPTIONS,
   SUGGESTED_NAMES,
 } from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -62,8 +61,7 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Splash sequence panes.
  *
  * Bot-enabled flow:
- *   Welcome → TlonBot → BotName → BotModel
- *     → Group (create) → CreatingGroup → ShareGroup → Invite
+ *   Welcome → TlonBot → BotName → BotModel → Group → Invite
  *
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
@@ -74,8 +72,6 @@ enum SplashPane {
   BotName = 'BotName',
   BotModel = 'BotModel',
   Group = 'Group',
-  CreatingGroup = 'CreatingGroup',
-  ShareGroup = 'ShareGroup',
   Channels = 'Channels',
   Privacy = 'Privacy',
   Invite = 'Invite',
@@ -103,10 +99,6 @@ function SplashSequenceComponent(props: {
     string | null
   >(null);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
-  const [groupInviteLink, setGroupInviteLink] = React.useState<string | null>(
-    null
-  );
-  const [groupError, setGroupError] = React.useState<string | null>(null);
 
   // Fetch the bot's current nickname and avatar from hosting API + contacts
   useEffect(() => {
@@ -178,59 +170,6 @@ function SplashSequenceComponent(props: {
     setCurrentPane(SplashPane.Group);
   }, [botName, botModel, botApiKey]);
 
-  // Creates a group, invites the bot, and generates an invite link
-  const handleCreateGroupWithBot = useCallback(async () => {
-    setCurrentPane(SplashPane.CreatingGroup);
-    setGroupError(null);
-    try {
-      // (a) Create the group
-      const group = await store.createDefaultGroup({
-        title: `${botName || 'Tlonbot'}'s Group`,
-      });
-
-      // (b) Add bot to the group's cordon via hosting API, then (c) tell it
-      //     to join. Both go through ylem because the bot's moon is managed
-      //     by the hosting platform, not the local ship.
-      const shipId = await db.hostedUserNodeId.getValue();
-      const authCookie = await db.hostingAuthToken.getValue();
-      if (shipId && authCookie && botMoonId) {
-        console.log('Adding bot to group:', {
-          shipId,
-          groupId: group.id,
-          moon: botMoonId,
-        });
-        await api
-          .addBotToCordon(shipId, authCookie, group.id, botMoonId)
-          .catch((e) => console.warn('Failed to add bot to cordon:', e));
-        await api
-          .addBotToGroup(shipId, authCookie, group.id, botMoonId)
-          .catch((e) => console.warn('Failed to join bot to group:', e));
-      }
-
-      // (d) Generate invite link (best-effort — may fail if the reel
-      //     agent's metadata schema is out of date on this ship)
-      try {
-        await store.createGroupInviteLink(group.id);
-        const lureState = store.useLureState.getState();
-        await lureState.fetchLure(group.id, '', false);
-        const lure = lureState.lures[group.id];
-        if (lure?.deepLinkUrl) {
-          setGroupInviteLink(lure.deepLinkUrl);
-        } else if (lure?.url) {
-          setGroupInviteLink(lure.url);
-        }
-      } catch (e) {
-        // Expected to fail on some ships due to reel agent type mismatch
-      }
-
-      setCurrentPane(SplashPane.ShareGroup);
-    } catch (e) {
-      console.error('Failed to create group:', e);
-      setGroupError('Something went wrong. Try again or skip.');
-      setCurrentPane(SplashPane.Group);
-    }
-  }, [botName, botMoonId]);
-
   const handleSplashCompleted = useCallback(() => {
     appStore.completeWayfindingSplash();
     props.onCompleted();
@@ -279,7 +218,7 @@ function SplashSequenceComponent(props: {
         />
       )}
 
-      {/* --- Groups explainer / create-a-group prompt --- */}
+      {/* --- Groups explainer --- */}
       {currentPane === SplashPane.Group && (
         <GroupsPane
           onActionPress={() =>
@@ -289,29 +228,6 @@ function SplashSequenceComponent(props: {
           }
           hostingBotEnabled={hostingBotEnabled}
           botName={botName || 'Tlonbot'}
-          onCreateGroupWithBot={
-            hostingBotEnabled ? handleCreateGroupWithBot : undefined
-          }
-          error={groupError}
-        />
-      )}
-
-      {/* --- Bot group creation loading (bot-enabled flow only) --- */}
-      {currentPane === SplashPane.CreatingGroup && (
-        <BotLaunchLoadingPane
-          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
-          botMoonId={botMoonId}
-          botContactAvatarUrl={botContactAvatarUrl}
-        />
-      )}
-      {currentPane === SplashPane.ShareGroup && (
-        <ShareGroupPane
-          botName={botName || 'Tlonbot'}
-          botAvatarUrl={avatarDirty ? botAvatarUrl : null}
-          botMoonId={botMoonId}
-          botContactAvatarUrl={botContactAvatarUrl}
-          inviteLink={groupInviteLink}
-          onActionPress={handleSplashCompleted}
         />
       )}
 
@@ -882,8 +798,6 @@ export function GroupsPane(props: {
   onActionPress: () => void;
   hostingBotEnabled?: boolean;
   botName?: string;
-  onCreateGroupWithBot?: () => void;
-  error?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
@@ -906,15 +820,7 @@ export function GroupsPane(props: {
       />
       <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          {props.onCreateGroupWithBot ? (
-            <>
-              Create a <Text color="$positiveActionText">group.</Text>
-            </>
-          ) : (
-            <>
-              This is a <Text color="$positiveActionText">group.</Text>
-            </>
-          )}
+          This is a <Text color="$positiveActionText">group.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -925,46 +831,24 @@ export function GroupsPane(props: {
             A group lives on your computer. Family chats, work collaboration,
             newsletters. A group can be anything you need.
           </SplashParagraph>
-          {props.onCreateGroupWithBot && (
+          {props.hostingBotEnabled && (
             <SplashParagraph>
-              Create a group and invite your friends. {props.botName} will join
-              automatically and can help keep conversations going.
+              Your personal group is ready. {props.botName} has already joined
+              and can help keep conversations going.
             </SplashParagraph>
           )}
         </ScrollView>
       </YStack>
-      {props.onCreateGroupWithBot ? (
-        <YStack paddingHorizontal="$xl" gap="$l">
-          {props.error && (
-            <Text fontSize={14} color="$negativeActionText" textAlign="center">
-              {props.error}
-            </Text>
-          )}
-          <Button
-            onPress={props.onCreateGroupWithBot}
-            label="Create a group"
-            preset="hero"
-            shadow
-          />
-          <Button
-            onPress={props.onActionPress}
-            label="Skip"
-            preset="secondary"
-            fill="text"
-          />
-        </YStack>
-      ) : (
-        <Button
-          data-testid="got-it"
-          testID="got-it"
-          onPress={props.onActionPress}
-          label="Got it"
-          preset="hero"
-          shadow
-          marginHorizontal="$xl"
-          marginTop="$xl"
-        />
-      )}
+      <Button
+        data-testid="got-it"
+        testID="got-it"
+        onPress={props.onActionPress}
+        label="Got it"
+        preset="hero"
+        shadow
+        marginHorizontal="$xl"
+        marginTop="$xl"
+      />
     </View>
   );
 }
