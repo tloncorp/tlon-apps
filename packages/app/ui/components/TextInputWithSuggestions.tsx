@@ -1,14 +1,6 @@
-import { Pressable } from '@tloncorp/ui';
-import { useMemo } from 'react';
-import { TextInput as RNTextInput, ScrollView } from 'react-native';
-import { SizableText, Text, View, XStack, useThemeName } from 'tamagui';
-
-const VISIBLE_COUNT = 8;
-
-function pickRandom(items: string[], count: number): string[] {
-  const shuffled = [...items].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
-}
+import { Pressable, Text } from '@tloncorp/ui';
+import { ScrollView, TextInput as RNTextInput } from 'react-native';
+import { View, XStack, getTokenValue, useTheme } from 'tamagui';
 
 interface Props {
   value: string;
@@ -25,17 +17,7 @@ export function TextInputWithSuggestions({
   suggestions,
   suggestionsLabel = 'Suggestions',
 }: Props) {
-  const visibleSuggestions = useMemo(
-    () =>
-      suggestions.length > VISIBLE_COUNT
-        ? pickRandom(suggestions, VISIBLE_COUNT)
-        : suggestions,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [suggestions.length]
-  );
-  const theme = useThemeName();
-  const textColor = theme === 'dark' ? '#ffffff' : '#1a1818';
-  const placeholderColor = theme === 'dark' ? '#808080' : '#999999';
+  const theme = useTheme();
 
   return (
     <View
@@ -45,15 +27,15 @@ export function TextInputWithSuggestions({
       backgroundColor="$background"
       overflow="hidden"
     >
-      <View paddingHorizontal="$l" paddingVertical="$xl">
+      <View paddingHorizontal="$l" paddingVertical="$l">
         <RNTextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={placeholderColor}
+          placeholderTextColor={theme.tertiaryText.val}
           style={{
-            fontSize: 16,
-            color: textColor,
+            fontSize: 17,
+            color: theme.primaryText.val,
           }}
         />
       </View>
@@ -62,21 +44,21 @@ export function TextInputWithSuggestions({
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <XStack gap="$s" alignItems="center">
             <Text
-              fontSize={14}
+              size="$label/s"
               color="$tertiaryText"
               flexShrink={0}
               marginLeft="$l"
             >
               {suggestionsLabel}
             </Text>
-            {visibleSuggestions.map((suggestion, index) => {
+            {suggestions.map((suggestion, index) => {
               const selected = value === suggestion;
-              const isLast = index === visibleSuggestions.length - 1;
+              const isLast = index === suggestions.length - 1;
               return (
                 <Pressable
                   key={suggestion}
                   onPress={() => onChangeText(suggestion)}
-                  style={isLast ? { marginRight: 12 } : undefined}
+                  style={isLast ? { marginRight: getTokenValue('$l', 'size') } : undefined}
                 >
                   <View
                     paddingHorizontal="$m"
@@ -86,12 +68,12 @@ export function TextInputWithSuggestions({
                       selected ? '$positiveActionText' : '$background'
                     }
                   >
-                    <SizableText
-                      size="$s"
+                    <Text
+                      size="$label/s"
                       color={selected ? '$background' : '$secondaryText'}
                     >
                       {suggestion}
-                    </SizableText>
+                    </Text>
                   </View>
                 </Pressable>
               );

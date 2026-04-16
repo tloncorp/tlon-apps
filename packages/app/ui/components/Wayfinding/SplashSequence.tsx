@@ -100,6 +100,12 @@ function SplashSequenceComponent(props: {
   const [avatarDirty, setAvatarDirty] = React.useState(false);
   const [didConfigureBot, setDidConfigureBot] = React.useState(false);
 
+  // Pick a random subset of name suggestions on mount
+  const nameSuggestions = useMemo(() => {
+    const shuffled = [...SUGGESTED_NAMES].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 8);
+  }, []);
+
   // Fetch the bot's current nickname and avatar from hosting API + contacts
   useEffect(() => {
     let cancelled = false;
@@ -211,6 +217,7 @@ function SplashSequenceComponent(props: {
           avatarUrl={avatarDirty ? botAvatarUrl : null}
           botMoonId={botMoonId}
           botContactAvatarUrl={botContactAvatarUrl}
+          nameSuggestions={nameSuggestions}
           onNameChange={setBotName}
           onAvatarUrlChange={handleAvatarUrlChange}
           onActionPress={() => setCurrentPane(SplashPane.BotModel)}
@@ -422,6 +429,7 @@ export function BotNamePane(props: {
   avatarUrl?: string | null;
   botMoonId?: string | null;
   botContactAvatarUrl?: string | null;
+  nameSuggestions: string[];
   onNameChange: (name: string) => void;
   onAvatarUrlChange: (url: string | null) => void;
   onActionPress: () => void;
@@ -483,7 +491,7 @@ export function BotNamePane(props: {
               value={props.name}
               onChangeText={props.onNameChange}
               placeholder="Give your bot a name"
-              suggestions={SUGGESTED_NAMES}
+              suggestions={props.nameSuggestions}
             />
           </View>
 
