@@ -139,6 +139,12 @@ export async function with404Handler<T>(
     throw e;
   }
 }
+const CANONICAL_UD_ID = /^\d{1,3}(?:\.\d{3})*$/;
+
+export function isCanonicalPostId(id: string): boolean {
+  return CANONICAL_UD_ID.test(id);
+}
+
 export function getCanonicalPostId(inputId: string) {
   let id = inputId.trim();
 
@@ -149,7 +155,7 @@ export function getCanonicalPostId(inputId: string) {
   }
 
   // Already canonical dotted @ud (e.g. 1.234, 12.345, 123.456, 1.234.567)
-  if (/^\d{1,3}(?:\.\d{3})*$/.test(id)) {
+  if (CANONICAL_UD_ID.test(id)) {
     return id;
   }
 
