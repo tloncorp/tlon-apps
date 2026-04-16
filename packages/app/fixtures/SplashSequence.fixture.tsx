@@ -4,8 +4,6 @@ import { useValue } from 'react-cosmos/client';
 
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
-  BotLaunchLoadingPane,
-  BotLaunchPane,
   BotModelPane,
   BotNamePane,
   ChannelsPane,
@@ -13,7 +11,6 @@ import {
   InviteContactsContent,
   InvitePane,
   PrivacyPane,
-  ShareGroupPane,
   SplashSequence,
   TlonBotPane,
   WelcomePane,
@@ -194,60 +191,6 @@ function BotModelPaneFixture() {
   );
 }
 
-function BotLaunchPaneFixture() {
-  const [showError] = useValue('Show Error', { defaultValue: false });
-  const handleCreateGroup = React.useCallback(() => {
-    console.log('Create group pressed');
-  }, []);
-  const handleSkip = React.useCallback(() => {
-    console.log('Skip pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotLaunchPane
-        botName="Tlonbot"
-        botAvatarUrl={null}
-        botMoonId={null}
-        botContactAvatarUrl={null}
-        onCreateGroup={handleCreateGroup}
-        onSkip={handleSkip}
-        error={showError ? 'Something went wrong. Try again or skip.' : null}
-      />
-    </FixtureWrapper>
-  );
-}
-
-function BotLaunchLoadingPaneFixture() {
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <BotLaunchLoadingPane botAvatarUrl={null} botMoonId={null} botContactAvatarUrl={null} />
-    </FixtureWrapper>
-  );
-}
-
-function ShareGroupPaneFixture() {
-  const [hasInviteLink] = useValue('Has Invite Link', { defaultValue: true });
-  const handleAction = React.useCallback(() => {
-    console.log('ShareGroup pane action pressed');
-  }, []);
-
-  return (
-    <FixtureWrapper fillWidth fillHeight>
-      <ShareGroupPane
-        botName="Tlonbot"
-        botAvatarUrl={null}
-        botMoonId={null}
-        botContactAvatarUrl={null}
-        inviteLink={
-          hasInviteLink ? 'https://join.tlon.io/example-invite-link' : null
-        }
-        onActionPress={handleAction}
-      />
-    </FixtureWrapper>
-  );
-}
-
 function SplashModalFixture() {
   const [open, setOpen] = React.useState(true);
 
@@ -268,9 +211,6 @@ export default {
   'TlonBot Pane': <TlonBotPaneFixture />,
   'Bot Name Pane': <BotNamePaneFixture />,
   'Bot Model Pane': <BotModelPaneFixture />,
-  'Bot Launch Pane': <BotLaunchPaneFixture />,
-  'Bot Launch Loading Pane': <BotLaunchLoadingPaneFixture />,
-  'Share Group Pane': <ShareGroupPaneFixture />,
   'Invite Pane': <InvitePaneFixture />,
   'Splash Modal': <SplashModalFixture />,
 };
