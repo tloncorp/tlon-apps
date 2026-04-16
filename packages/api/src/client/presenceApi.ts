@@ -69,9 +69,7 @@ export const groupIdToPresenceContext = (groupId: string) => {
 
 // Presence keys are scoped to wire contexts like `/dm/~nec`; convert them back to
 // the app's stable ids so store consumers can join presence against existing data.
-export const getPresenceContextIdFromKey = (
-  key: ub.PresenceKey
-) => {
+export const getPresenceContextIdFromKey = (key: ub.PresenceKey) => {
   const context = parsePresenceContext(key.context);
 
   if (!context) {
@@ -214,35 +212,29 @@ export const subscribeToPresenceUpdates = async (
 
 // The init response arrives as a nested context -> topic -> ship tree. Flatten it
 // into the same one-status-per-entry shape that incremental events use.
-export const toPresenceStatuses = (
-  places: ub.PresencePlaces
-) => {
+export const toPresenceStatuses = (places: ub.PresencePlaces) => {
   return Object.entries(places).flatMap(([context, topics]) =>
     Object.entries(topics).flatMap(([topic, people]) =>
       Object.entries(people ?? {}).map(([ship, entry]) =>
-        toPresenceStatus(
-          {
-            key: {
-              context,
-              ship,
-              topic: topic as ub.PresenceTopic,
-            },
-            timing: entry.timing,
-            display: entry.display,
-          }
-        )
+        toPresenceStatus({
+          key: {
+            context,
+            ship,
+            topic: topic as ub.PresenceTopic,
+          },
+          timing: entry.timing,
+          display: entry.display,
+        })
       )
     )
   );
 };
 
-export const toPresenceStatus = (
-  state: {
-    key: ub.PresenceKey;
-    timing: ub.PresenceTiming;
-    display: ub.PresenceDisplay;
-  }
-): PresenceStatus => {
+export const toPresenceStatus = (state: {
+  key: ub.PresenceKey;
+  timing: ub.PresenceTiming;
+  display: ub.PresenceDisplay;
+}): PresenceStatus => {
   return {
     ...state,
     timing: toPresenceTiming(state.timing),
@@ -251,9 +243,7 @@ export const toPresenceStatus = (
 };
 
 // Collapse the three wire response variants into the reducer-friendly event union.
-export const toPresenceEvent = (
-  event: ub.PresenceResponse
-): PresenceEvent => {
+export const toPresenceEvent = (event: ub.PresenceResponse): PresenceEvent => {
   if ('init' in event) {
     return {
       type: 'init',
