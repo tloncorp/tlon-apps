@@ -47,9 +47,7 @@ test('format star moon', () => {
   const formatted = formatUserId(starMoon);
 
   expect(formatted?.display).toBe('~sampel-sampel-dozzod-bacwyd');
-  expect(formatted?.ariaLabel).toBe(
-    'sampel - sampel - dozzod - bacwyd'
-  );
+  expect(formatted?.ariaLabel).toBe('sampel - sampel - dozzod - bacwyd');
 });
 
 test('format galaxy moon', () => {
