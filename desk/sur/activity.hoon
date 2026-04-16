@@ -99,9 +99,11 @@
 +$  incoming-event
   $%  [%post post-event]
       [%reply reply-event]
+      [%react react-event]
       [%dm-invite =whom]
       [%dm-post dm-post-event]
       [%dm-reply dm-reply-event]
+      [%dm-react dm-react-event]
       [%group-ask group=flag:g =ship]
       [%group-kick group=flag:g =ship]
       [%group-join group=flag:g =ship]
@@ -130,6 +132,15 @@
       mention=?
   ==
 ::
++$  react-event
+  $:  key=message-key
+      parent=(unit message-key)  :: post or reply
+      channel=nest:c
+      group=flag:g
+      =author:c
+      =react:c
+  ==
+::
 +$  dm-post-event
   $:  key=message-key
       =whom
@@ -143,6 +154,13 @@
       =whom
       content=story:s
       mention=?
+  ==
+::
++$  dm-react-event
+  $:  key=message-key
+      parent=(unit message-key)  ::  either dm or dm-reply
+      =whom
+      =react:ch
   ==
 +$  contact-event
   $:  who=ship
@@ -218,11 +236,13 @@
       %post-mention
       %reply
       %reply-mention
+      %react
       %dm-invite
       %dm-post
       %dm-post-mention
       %dm-reply
       %dm-reply-mention
+      %dm-react
       %group-invite
       %group-kick
       %group-join
@@ -244,13 +264,15 @@
   %-  my
   :~  [%post & &]
       [%reply & |]
-      [%dm-reply & &]
+      [%react & |]
       [%post-mention & &]
       [%reply-mention & &]
       [%dm-invite & &]
       [%dm-post & &]
       [%dm-post-mention & &]
+      [%dm-reply & &]
       [%dm-reply-mention & &]
+      [%dm-react & &]
       [%group-invite & &]
       [%group-ask & &]
       [%flag-post & &]

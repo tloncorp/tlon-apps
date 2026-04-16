@@ -67,7 +67,7 @@
 +$  state-6
   $:  %6
       last-timer=time
-      notifications=(map time-id:a event:a)
+      notifications=(map time-id:a event:v8:av)
       base-state-0
   ==
 ::
@@ -79,7 +79,7 @@
   ==
 ::
 +$  event
-  $:  =event:a
+  $:  =event:v8:av
       ::TODO  if we poked the provider instead, we could track time-to-ack
       first-req=(unit @da)
   ==
@@ -470,10 +470,10 @@
           %fact
         ?.  ?=(%activity-event p.cage.sign)
           `this
-        =+  !<([=time-id:a =event:a] q.cage.sign)
+        =+  !<([=time-id:a =event:v8:av] q.cage.sign)
         =+  .^(=activity:v8:av %gx (scry:io %activity /v4/activity/activity-summary-4))
         =/  notify-count=@ud
-          notify-count:(~(gut by activity) [%base ~] *activity-summary:a)
+          notify-count:(~(gut by activity) [%base ~] *activity-summary:v8:av)
         =/  [v0-paths=(list path) v1-paths=(list path)]
           %+  roll  ~(tap by sup.bowl)
           |=  [[duct ship =path] v0=(list path) v1=(list path)]
@@ -511,7 +511,7 @@
           `this
         =+  .^(=activity:v8:av %gx (scry:io %activity /v4/activity/activity-summary-4))
         =/  notify-count=@ud
-          notify-count:(~(gut by activity) [%base ~] *activity-summary:a)
+          notify-count:(~(gut by activity) [%base ~] *activity-summary:v8:av)
         :_  this
         =/  v1-paths
           %+  murn  ~(tap by sup.bowl)
@@ -519,7 +519,7 @@
           ?:  ?=([%notify *] path)  ~
           `path
         ?~  v1-paths  ~
-        =/  source=@t  (string-source:enjs:aj source.update)
+        =/  source=@t  (string-source:v8:enjs:aj source.update)
         =/  =update:v1
           ::  the "newest" item in a recently read activity source
           ::  is what we need to know which notifications to dismiss

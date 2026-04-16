@@ -51,11 +51,11 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %9
-        allowed=notifications-allowed:v8:av
-        =indices:v8:av
-        =activity:v8:av
-        =volume-settings:v8:av
+    $:  %10
+        allowed=notifications-allowed:v9:av
+        =indices:v9:av
+        =activity:v9:av
+        =volume-settings:v9:av
     ==
   --
 ::
@@ -176,12 +176,15 @@
     [%give %kick ~[path] ~]
   =?  old  ?=(%8 -.old)
     old(- %9)
-  ?>  ?=(%9 -.old)
+  =?  old  ?=(%9 -.old)
+    (state-9-to-10 old)
+  ?>  ?=(%10 -.old)
   =.  state  old
   refresh-all-summaries
   ::
   +$  versioned-state
-    $%  state-9
+    $%  state-10
+        state-9
         state-8
         state-7
         state-6
@@ -191,7 +194,14 @@
         state-2
         state-1
     ==
-  +$  state-9  current-state
+  +$  state-10  current-state
+  +$  state-9
+    $:  %9
+        allowed=notifications-allowed:v8:av
+        =indices:v8:av
+        =activity:v8:av
+        =volume-settings:v8:av
+    ==
   +$  state-8
     $:  %8
         allowed=notifications-allowed:v8:av
@@ -231,6 +241,9 @@
     ==
   +$  state-1
     [%1 =indices:v3:av =activity:v2:av =volume-settings:v3:av]
+  ++  state-9-to-10
+    |=  state-9
+    *state-10
   ++  state-5-to-6
     |=  old=state-5
     ~>  %spin.['state-5-to-6']
@@ -786,7 +799,7 @@
   =?  cor  &(!importing notify (is-allowed:evt allowed inc))
     =/  =time-event:v8:av
       [time-id event]
-    (give %fact ~[/v4/notifications] activity-event+!>(time-event))
+    (give %fact ~[/v4/notificatkons] activity-event+!>(time-event))
   ::  we always update sources in order, so make sure base is processed last
   =.  cor
     ?+  -<.event  (add-to-index source time-id event)
@@ -800,6 +813,13 @@
       =.  cor  (add-to-index source time-id event)
       (add-to-index parent-src time-id event(child &))
     ::
+        %dm-react
+      =.  cor  (add-to-index source time-id event)
+      =?  cor  ?=(^ parent.event)
+        ::  reaction in a dm-thread
+        (add-to-index [%dm whom.event] time-id event(child &))
+      cor
+    ::
         %post
       =/  parent-src  [%group group.event]
       =.  cor  (add-to-index source time-id event)
@@ -810,6 +830,15 @@
       =/  group-src  [%group group.event]
       =.  cor  (add-to-index source time-id event)
       =.  cor  (add-to-index chan-src time-id event(child &))
+      (add-to-index group-src time-id event(child &))
+    ::
+        %react
+      =/  group-src  [%group group.event]
+      =.  cor  (add-to-index source time-id event)
+      =?  cor  ?=(^ parent.event)
+        ::  reaction in a thread
+        =/  chan-src  [%channel channel.event group.event]
+        (add-to-index chan-src time-id event(child &))
       (add-to-index group-src time-id event(child &))
     ==
   =.  cor  (add-to-index [%base ~] time-id event(child &))

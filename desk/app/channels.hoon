@@ -1769,6 +1769,7 @@
   ::
   ++  ca-activity
     =,  v8:av
+    =*  d  ^^c
     |%
     ++  blocked
       |=  who=ship
@@ -1783,7 +1784,7 @@
       .^(? %gu p)
     ::
     ++  on-post
-      |=  v-post:c
+      |=  v-post:d
       ~>  %spin.['on-post']
       ^+  ca-core
       =*  author-ship  (get-author-ship:utils author)
@@ -1801,7 +1802,7 @@
       (send ~[action])
     ::
     ++  on-post-delete
-      |=  v-post:c
+      |=  v-post:d
       ~>  %spin.['on-post-delete']
       ^+  ca-core
       ::  remove any activity that might've happened under this post
@@ -1817,7 +1818,7 @@
       (send [%del thread] [%del-event chan incoming-event] ~)
     ::
     ++  on-reply
-      |=  [parent=v-post:c v-reply:c]
+      |=  [parent=v-post:d v-reply:d]
       ~>  %spin.['on-reply']
       =*  parent-author  (get-author-ship:utils author.parent)
       =*  reply-author   (get-author-ship:utils author)
@@ -1834,8 +1835,8 @@
       =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  in-replies
-          %+  lien  (tap:on-v-replies:c replies.parent)
-          |=  [=time reply=(may:c v-reply:c)]
+          %+  lien  (tap:on-v-replies:d replies.parent)
+          |=  [=time reply=(may:d v-reply:d)]
           ?:  ?=(%| -.reply)  |
           =((get-author-ship:utils author.reply) our.bowl)
       =/  =path  (scry-path %activity /v4/volume-settings/noun)
@@ -1862,7 +1863,7 @@
       =/  vm=volume-map  [[%reply & &] ~ ~]
       (send ~[[%adjust thread `vm] action])
     ++  on-reply-delete
-      |=  [parent=v-post:c reply=v-reply:c]
+      |=  [parent=v-post:d reply=v-reply:d]
       ~>  %spin.['on-reply-delete']
       ^+  ca-core
       =*  parent-author  (get-author-ship:utils author.parent)
@@ -3457,7 +3458,7 @@
       ?~  setting=(~(get by volume-settings) source)  ca-core
       ::  if they have a setting that's not mute, retain it otherwise
       ::  delete setting if it's mute so it defaults
-      ?.  =(setting mute:v8:av)  ca-core
+      ?.  =(u.setting mute:v8:av)  ca-core
       (send:ca-activity [%adjust source ~] ~)
     ::  if our read permissions restored, re-subscribe
     (ca-safe-sub |)

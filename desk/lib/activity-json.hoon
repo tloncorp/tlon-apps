@@ -6,8 +6,6 @@
 ++  enjs
   =,  enjs:format
   |%
-  ::
-  +|  %primitives
   ++  ship
     |=  s=ship:z
     s+(scot %p s)
@@ -37,81 +35,6 @@
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))
   ::
-  +|  %basics
-  ::
-  ++  string-source
-    |=  s=source:a
-    ^-  cord
-    ?-  -.s
-      %base  'base'
-      %group  (rap 3 'group/' (print-flag:enjs:gj flag.s) ~)
-      %channel  (rap 3 'channel/' (print-nest:enjs:gj nest.s) ~)
-    ::
-        %dm
-      ?-  -.whom.s
-        %ship  (rap 3 'ship/' (scot %p p.whom.s) ~)
-        %club  (rap 3 'club/' (scot %uv p.whom.s) ~)
-      ==
-    ::
-        %thread
-      %+  rap  3
-      :~  'thread/'
-          (print-nest:enjs:gj channel.s)
-          '/'
-          (scot %ud time.key.s)
-      ==
-    ::
-        %dm-thread
-      %+  rap  3
-      :~  'dm-thread/'
-          ?-  -.whom.s
-            %ship  (scot %p p.whom.s)
-            %club  (scot %uv p.whom.s)
-          ==
-          '/'
-          (msg-id id.key.s)
-      ==
-    ::
-        %contact
-      (cat 3 'contact/' (scot %p who.s))
-    ==
-  ::
-  ++  source
-    |=  s=source:a
-    %-  pairs
-    ?-  -.s
-      %base  ~[base+~]
-      %group  ~[group+(flag:enjs:gj flag.s)]
-      %dm  ~[dm+(whom whom.s)]
-      %contact  ~[contact+(ship who.s)]
-    ::
-        %channel
-      :~  :-  %channel
-          %-  pairs
-          ::XX we should use channel-json for encoding
-          ::   nests.
-          :~  nest+(nest:enjs:gj nest.s)
-              group+(flag:enjs:gj group.s)
-          ==
-      ==
-    ::
-        %thread
-      :~  :-  %thread
-          %-  pairs
-          :~  channel/(nest:enjs:gj channel.s)
-              group/(flag:enjs:gj group.s)
-              key+(msg-key key.s)
-          ==
-      ==
-    ::
-        %dm-thread
-      :~  :-  %dm-thread
-          %-  pairs
-          :~  whom+(whom whom.s)
-              key+(msg-key key.s)
-          ==
-      ==
-    ==
   ::
   ++  volume
     |=  v=volume:a
@@ -141,250 +64,343 @@
         count/(numb count.up)
         notify/b/notify.up
     ==
-  ++  activity-summary
-    |=  sum=activity-summary:a
-    %-  pairs
-    :~  recency+(time newest.sum)
-        recency-uv+s+(scot %uv newest.sum)
-        count+(numb count.sum)
-        notify-count+(numb notify-count.sum)
-        notify+b+notify.sum
-        unread/?~(unread.sum ~ (unread-point u.unread.sum))
-    ==
-  ::
-  ++  activity-summary-full
-    |=  sum=activity-summary:a
-    %-  pairs
-    :~  recency+(time newest.sum)
-        count+(numb count.sum)
-        notify-count+(numb notify-count.sum)
-        notify+b+notify.sum
-        unread/?~(unread.sum ~ (unread-point u.unread.sum))
-      ::
-        :-  %children
-        a+(turn ~(tap in children.sum) (cork string-source (lead %s)))
-    ==
-  ::
-  ++  activity-bundle
-    |=  ab=activity-bundle:a
-    %-  pairs
-    :~  source+(source source.ab)
-        source-key+s+(string-source source.ab)
-        latest+s+(scot %ud latest.ab)
-        events+a+(turn events.ab time-event)
-    ==
-  ++  event
-    |=  e=event:a
-    %-  pairs
-    :_  [notified+b+notified.e]~
-      :-  -<.e
-    ?-  -<.e
-      %dm-invite  (whom whom.e)
-    ::
-        %chan-init
-      %-  pairs
-      :~  channel/(nest:enjs:gj channel.e)
-          group/(flag:enjs:gj group.e)
-      ==
-    ::
-        ?(%group-kick %group-join %group-ask %group-invite)
-      %-  pairs
-      :~  group+(flag:enjs:gj group.e)
-          ship+(ship ship.e)
-      ==
-    ::
-        %flag-post
-      %-  pairs
-      :~  key+(msg-key key.e)
-          channel/(nest:enjs:gj channel.e)
-          group/(flag:enjs:gj group.e)
-      ==
-    ::
-        %flag-reply
-      %-  pairs
-      :~  parent+(msg-key parent.e)
-          key+(msg-key key.e)
-          channel/(nest:enjs:gj channel.e)
-          group/(flag:enjs:gj group.e)
-      ==
-    ::
-        %dm-post
-      %-  pairs
-      :~  key+(msg-key key.e)
-          whom+(whom whom.e)
-          content+(story:enjs:sj content.e)
-          mention/b+mention.e
-      ==
-    ::
-        %dm-reply
-      %-  pairs
-      :~  parent+(msg-key parent.e)
-          key+(msg-key key.e)
-          whom+(whom whom.e)
-          content+(story:enjs:sj content.e)
-          mention/b+mention.e
-      ==
-    ::
-        %post
-      %-  pairs
-      :~  key+(msg-key key.e)
-          channel/(nest:enjs:gj channel.e)
-          group/(flag:enjs:gj group.e)
-          content+(story:enjs:sj content.e)
-          mention/b+mention.e
-      ==
-    ::
-        %reply
-      %-  pairs
-      :~  parent+(msg-key parent.e)
-          key+(msg-key key.e)
-          channel/(nest:enjs:gj channel.e)
-          group/(flag:enjs:gj group.e)
-          content+(story:enjs:sj content.e)
-          mention/b+mention.e
-      ==
-    ::
-        %group-role
-      %-  pairs
-      :~  group/(flag:enjs:gj group.e)
-          ship+(ship ship.e)
-          roles+a+(turn ~(tap in roles.e) |=(role=sect:v0:gv s+role))
-      ==
-    ::
-        %contact
-      %-  pairs
-      :~  who+(ship who.e)
-          update+(contact:enjs:dj [update.e ~ ~])
-      ==
-    ==
-  ::
-  ++  time-event
-    |=  te=time-event:a
-    %-  pairs
-    :~  time+s+(scot %ud time.te)
-        event+(event event.te)
-    ==
   ::
   ++  allowed  (lead %s)
-  +|  %collections
   ::
-  ++  stream
-    |=  s=stream:a
-    %-  pairs
-    %+  turn  (tap:on-event:a s)
-    |=  [=time:z e=event:a]
-    [(scot %ud time) (event e)]
-  ::
-  ++  indices
-    |=  ind=indices:a
-    %-  pairs
-    %+  turn  ~(tap by ind)
-    |=  [sc=source:a st=stream:a r=reads:a bump=^time]
-    :-  (string-source sc)
-    %-  pairs
-    :~  stream+(stream st)
-        reads+(reads r)
-        last-self-activity+(time bump)
-    ==
-  ::
-  ++  activity
-    |=  [ac=activity:a full=?]
-    %-  pairs
-    %+  turn  ~(tap by ac)
-    |=  [s=source:a sum=activity-summary:a]
-    :-  (string-source s)
-    ?.  full  (activity-summary sum)
-    (activity-summary-full sum)
-  ::
-  ++  activity-pairs
-    |=  activity=(list [source:a activity-summary:a])
-    :-  %a
-    %+  turn
-      activity
-    |=  [s=source:a as=activity-summary:a]
-    %-  pairs
-    :~  source+(source s)
-        activity+(activity-summary as)
-    ==
-  ::
-  ++  full-info
-    |=  fi=full-info:a
-    %-  pairs
-    :~  indices+(indices indices.fi)
-        activity+(activity activity.fi &)
-        settings+(volume-settings volume-settings.fi)
-    ==
-  ++  volume-settings
-    |=  vs=volume-settings:a
-    %-  pairs
-    %+  turn  ~(tap by vs)
-    |=  [s=source:a v=volume-map:a]
-    [(string-source s) (volume-map v)]
-  ::
-  ++  volume-map
-    |=  vm=volume-map:a
-    %-  pairs
-    %+  turn  ~(tap by vm)
-    |=  [e=event-type:a v=volume:a]
-    [e (volume v)]
-  ++  feed
-    |=  f=feed:a
-    %-  pairs
-    :~  feed+a+(turn feed.f activity-bundle)
-        summaries+(activity summaries.f |)
-    ==
-  ::
-  +|  %updates
-  ++  update
-    |=  u=update:a
-    %+  frond  -.u
-    ?-  -.u
-      %add  (added +.u)
-      %del  (source +.u)
-      %read  (read +.u)
-      %activity  (activity +.u |)
-      %adjust  (adjusted +.u)
-      %allow-notifications  (allowed +.u)
-    ==
-  ::
-  ++  added
-    |=  [src=source:a te=time-event:a]
-    %-  pairs
-    :~  source+(source src)
-        source-key+s+(string-source src)
-        time+(time time.te)
-        event+(event event.te)
-    ==
-  ::
-  ++  read
-    |=  [s=source:a as=activity-summary:a]
-    %-  pairs
-    :~  source+(source s)
-        activity+(activity-summary as)
-    ==
-  ::
-  ++  adjusted
-    |=  [s=source:a v=(unit volume-map:a)]
-    %-  pairs
-    :~  source+(source s)
-        volume+?~(v ~ (volume-map u.v))
-    ==
-  ++  v8  .
+  ++  v8
+    |%
+    ++  string-source
+      |=  s=source:v8:av
+      ^-  cord
+      ?-  -.s
+        %base  'base'
+        %group  (rap 3 'group/' (print-flag:enjs:gj flag.s) ~)
+        %channel  (rap 3 'channel/' (print-nest:enjs:gj nest.s) ~)
+      ::
+          %dm
+        ?-  -.whom.s
+          %ship  (rap 3 'ship/' (scot %p p.whom.s) ~)
+          %club  (rap 3 'club/' (scot %uv p.whom.s) ~)
+        ==
+      ::
+          %thread
+        %+  rap  3
+        :~  'thread/'
+            (print-nest:enjs:gj channel.s)
+            '/'
+            (scot %ud time.key.s)
+        ==
+      ::
+          %dm-thread
+        %+  rap  3
+        :~  'dm-thread/'
+            ?-  -.whom.s
+              %ship  (scot %p p.whom.s)
+              %club  (scot %uv p.whom.s)
+            ==
+            '/'
+            (msg-id id.key.s)
+        ==
+      ::
+          %contact
+        (cat 3 'contact/' (scot %p who.s))
+      ==
+    ::
+    ++  source
+      |=  s=source:v8:av
+      %-  pairs
+      ?-  -.s
+        %base  ~[base+~]
+        %group  ~[group+(flag:enjs:gj flag.s)]
+        %dm  ~[dm+(whom whom.s)]
+        %contact  ~[contact+(ship who.s)]
+      ::
+          %channel
+        :~  :-  %channel
+            %-  pairs
+            ::XX we should use channel-json for encoding
+            ::   nests.
+            :~  nest+(nest:enjs:gj nest.s)
+                group+(flag:enjs:gj group.s)
+            ==
+        ==
+      ::
+          %thread
+        :~  :-  %thread
+            %-  pairs
+            :~  channel/(nest:enjs:gj channel.s)
+                group/(flag:enjs:gj group.s)
+                key+(msg-key key.s)
+            ==
+        ==
+      ::
+          %dm-thread
+        :~  :-  %dm-thread
+            %-  pairs
+            :~  whom+(whom whom.s)
+                key+(msg-key key.s)
+            ==
+        ==
+      ==
+    ++  activity-summary
+      |=  sum=activity-summary:v8:av
+      %-  pairs
+      :~  recency+(time newest.sum)
+          recency-uv+s+(scot %uv newest.sum)
+          count+(numb count.sum)
+          notify-count+(numb notify-count.sum)
+          notify+b+notify.sum
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+      ==
+    ::
+    ++  activity-summary-full
+      |=  sum=activity-summary:v8:av
+      %-  pairs
+      :~  recency+(time newest.sum)
+          count+(numb count.sum)
+          notify-count+(numb notify-count.sum)
+          notify+b+notify.sum
+          unread/?~(unread.sum ~ (unread-point u.unread.sum))
+        ::
+          :-  %children
+          a+(turn ~(tap in children.sum) (cork string-source (lead %s)))
+      ==
+    ::
+    ++  activity-bundle
+      |=  ab=activity-bundle:v8:av
+      %-  pairs
+      :~  source+(source source.ab)
+          source-key+s+(string-source source.ab)
+          latest+s+(scot %ud latest.ab)
+          events+a+(turn events.ab time-event)
+      ==
+    ++  event
+      |=  e=event:v8:av
+      %-  pairs
+      :_  [notified+b+notified.e]~
+        :-  -<.e
+      ?-  -<.e
+        %dm-invite  (whom whom.e)
+      ::
+          %chan-init
+        %-  pairs
+        :~  channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+        ==
+      ::
+          ?(%group-kick %group-join %group-ask %group-invite)
+        %-  pairs
+        :~  group+(flag:enjs:gj group.e)
+            ship+(ship ship.e)
+        ==
+      ::
+          %flag-post
+        %-  pairs
+        :~  key+(msg-key key.e)
+            channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+        ==
+      ::
+          %flag-reply
+        %-  pairs
+        :~  parent+(msg-key parent.e)
+            key+(msg-key key.e)
+            channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+        ==
+      ::
+          %dm-post
+        %-  pairs
+        :~  key+(msg-key key.e)
+            whom+(whom whom.e)
+            content+(story:enjs:sj content.e)
+            mention/b+mention.e
+        ==
+      ::
+          %dm-reply
+        %-  pairs
+        :~  parent+(msg-key parent.e)
+            key+(msg-key key.e)
+            whom+(whom whom.e)
+            content+(story:enjs:sj content.e)
+            mention/b+mention.e
+        ==
+      ::
+          %post
+        %-  pairs
+        :~  key+(msg-key key.e)
+            channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+            content+(story:enjs:sj content.e)
+            mention/b+mention.e
+        ==
+      ::
+          %reply
+        %-  pairs
+        :~  parent+(msg-key parent.e)
+            key+(msg-key key.e)
+            channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+            content+(story:enjs:sj content.e)
+            mention/b+mention.e
+        ==
+      ::
+          %group-role
+        %-  pairs
+        :~  group/(flag:enjs:gj group.e)
+            ship+(ship ship.e)
+            roles+a+(turn ~(tap in roles.e) |=(role=sect:v0:gv s+role))
+        ==
+      ::
+          %contact
+        %-  pairs
+        :~  who+(ship who.e)
+            update+(contact:enjs:dj [update.e ~ ~])
+        ==
+      ==
+    ++  stream
+      |=  s=stream:v8:av
+      %-  pairs
+      %+  turn  (tap:on-event:v8:av s)
+      |=  [=time:z e=event:v8:av]
+      [(scot %ud time) (event e)]
+    ::
+    ++  indices
+      |=  ind=indices:v8:av
+      %-  pairs
+      %+  turn  ~(tap by ind)
+      |=  [sc=source:v8:av st=stream:v8:av r=reads:v8:av bump=^time]
+      :-  (string-source sc)
+      %-  pairs
+      :~  stream+(stream st)
+          reads+(reads r)
+          last-self-activity+(time bump)
+      ==
+    ::
+    ++  activity
+      |=  [ac=activity:v8:av full=?]
+      %-  pairs
+      %+  turn  ~(tap by ac)
+      |=  [s=source:v8:av sum=activity-summary:v8:av]
+      :-  (string-source s)
+      ?.  full  (activity-summary sum)
+      (activity-summary-full sum)
+    ::
+    ++  activity-pairs
+      |=  activity=(list [source:v8:av activity-summary:v8:av])
+      :-  %a
+      %+  turn
+        activity
+      |=  [s=source:v8:av as=activity-summary:v8:av]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ::
+    ++  full-info
+      |=  fi=full-info:v8:av
+      %-  pairs
+      :~  indices+(indices indices.fi)
+          activity+(activity activity.fi &)
+          settings+(volume-settings volume-settings.fi)
+      ==
+    ++  volume-settings
+      |=  vs=volume-settings:v8:av
+      %-  pairs
+      %+  turn  ~(tap by vs)
+      |=  [s=source:v8:av v=volume-map:v8:av]
+      [(string-source s) (volume-map v)]
+    ::
+    ++  volume-map
+      |=  vm=volume-map:v8:av
+      %-  pairs
+      %+  turn  ~(tap by vm)
+      |=  [e=event-type:v8:av v=volume:v8:av]
+      [e (volume v)]
+    ++  feed
+      |=  f=feed:v8:av
+      %-  pairs
+      :~  feed+a+(turn feed.f activity-bundle)
+          summaries+(activity summaries.f |)
+      ==
+    ::
+    ++  time-event
+      |=  te=time-event:v8:av
+      %-  pairs
+      :~  time+s+(scot %ud time.te)
+          event+(event event.te)
+      ==
+    ++  update
+      |=  u=update:v8:av
+      %+  frond  -.u
+      ?-  -.u
+        %add  (added +.u)
+        %del  (source +.u)
+        %read  (read +.u)
+        %activity  (activity +.u |)
+        %adjust  (adjusted +.u)
+        %allow-notifications  (allowed +.u)
+      ==
+    ::
+    ++  added
+      |=  [src=source:v8:av te=time-event:v8:av]
+      %-  pairs
+      :~  source+(source src)
+          source-key+s+(string-source src)
+          time+(time time.te)
+          event+(event event.te)
+      ==
+    ::
+    ++  read
+      |=  [s=source:v8:av as=activity-summary:v8:av]
+      %-  pairs
+      :~  source+(source s)
+          activity+(activity-summary as)
+      ==
+    ::
+    ++  adjusted
+      |=  [s=source:v8:av v=(unit volume-map:v8:av)]
+      %-  pairs
+      :~  source+(source s)
+          volume+?~(v ~ (volume-map u.v))
+      ==
+    --
   ++  v4
+    =,  v3
     |%
     ++  feed
       |=  f=feed:v4:av
       a+(turn f activity-bundle)
+    ++  activity-bundle
+      |=  ab=activity-bundle:v4:av
+      %-  pairs
+      :~  source+(source source.ab)
+          source-key+s+(string-source source.ab)
+          latest+s+(scot %ud latest.ab)
+          events+a+(turn events.ab time-event)
+      ==
+    ++  time-event
+      |=  te=time-event:v4:av
+      %-  pairs
+      :~  time+s+(scot %ud time.te)
+          event+(event event.te)
+      ==
     --
   ++  v3
+    =,  v2
     |%
     ++  update
       |=  u=update:v3:av
-      ?+  -.u  (^update u)
-        %read  (frond -.u (read +.u))
+      %+  frond  -.u
+      ?-  -.u
+        %add  (added +.u)
+        %del  (source +.u)
+        %read  (read +.u)
+        %adjust  (adjusted +.u)
+        %allow-notifications  (allowed +.u)
       ==
     ++  read
-      |=  [s=source:a as=activity-summary:v3:av]
+      |=  [s=source:v3:av as=activity-summary:v3:av]
       %-  pairs
       :~  source+(source s)
           activity+(activity-summary as)
@@ -400,18 +416,20 @@
       |=  ind=indices:v3:av
       %-  pairs
       %+  turn  ~(tap by ind)
-      |=  [sc=source:a st=stream:a r=reads:a]
+      |=  [sc=source:v3:av st=stream:v3:av r=reads:v3:av]
       :-  (string-source sc)
       %-  pairs
       :~  stream+(stream st)
           reads+(reads r)
       ==
+    ::
     ++  activity
       |=  ac=activity:v3:av
       %-  pairs
       %+  turn  ~(tap by ac)
-      |=  [s=source:a sum=activity-summary:v3:av]
+      |=  [s=source:v3:av sum=activity-summary:v3:av]
       [(string-source s) (activity-summary sum)]
+    ::
     ++  activity-summary
       |=  sum=activity-summary:v3:av
       %-  pairs
@@ -421,18 +439,105 @@
           notify-count+(numb notify-count.sum)
           unread/?~(unread.sum ~ (unread-point u.unread.sum))
           children+?~(children.sum ~ (activity u.children.sum))
-          reads+?:(=(reads.sum *reads:a) ~ (reads reads.sum))
+          reads+?:(=(reads.sum *reads:v3:av) ~ (reads reads.sum))
       ==
     --
   ++  v2
     |%
+    ++  string-source
+      |=  s=source:v2:av
+      ^-  cord
+      ?-  -.s
+        %base  'base'
+        %group  (rap 3 'group/' (print-flag:enjs:gj flag.s) ~)
+        %channel  (rap 3 'channel/' (print-nest:enjs:gj nest.s) ~)
+      ::
+          %dm
+        ?-  -.whom.s
+          %ship  (rap 3 'ship/' (scot %p p.whom.s) ~)
+          %club  (rap 3 'club/' (scot %uv p.whom.s) ~)
+        ==
+      ::
+          %thread
+        %+  rap  3
+        :~  'thread/'
+            (print-nest:enjs:gj channel.s)
+            '/'
+            (scot %ud time.key.s)
+        ==
+      ::
+          %dm-thread
+        %+  rap  3
+        :~  'dm-thread/'
+            ?-  -.whom.s
+              %ship  (scot %p p.whom.s)
+              %club  (scot %uv p.whom.s)
+            ==
+            '/'
+            (msg-id id.key.s)
+        ==
+      ==
+    ++  source
+      |=  s=source:v2:av
+      %-  pairs
+      ?-  -.s
+        %base  ~[base+~]
+        %group  ~[group+(flag:enjs:gj flag.s)]
+        %dm  ~[dm+(whom whom.s)]
+      ::
+          %channel
+        :~  :-  %channel
+            %-  pairs
+            ::XX we should use channel-json for encoding
+            ::   nests.
+            :~  nest+(nest:enjs:gj nest.s)
+                group+(flag:enjs:gj group.s)
+            ==
+        ==
+      ::
+          %thread
+        :~  :-  %thread
+            %-  pairs
+            :~  channel/(nest:enjs:gj channel.s)
+                group/(flag:enjs:gj group.s)
+                key+(msg-key key.s)
+            ==
+        ==
+      ::
+          %dm-thread
+        :~  :-  %dm-thread
+            %-  pairs
+            :~  whom+(whom whom.s)
+                key+(msg-key key.s)
+            ==
+        ==
+      ==
     ++  update
       |=  u=update:v2:av
-      ?+  -.u  (^update u)
-        %read  (frond -.u (read +.u))
+      %+  frond  -.u
+      ?-  -.u
+        %add  (added +.u)
+        %del  (source +.u)
+        %read  (read +.u)
+        %adjust  (adjusted +.u)
+        %allow-notifications  (allowed +.u)
+      ==
+    ++  adjusted
+      |=  [s=source:v2:av v=(unit volume-map:v2:av)]
+      %-  pairs
+      :~  source+(source s)
+          volume+?~(v ~ (volume-map u.v))
+      ==
+    ++  added
+      |=  [src=source:v2:av te=time-event:v2:av]
+      %-  pairs
+      :~  source+(source src)
+          source-key+s+(string-source src)
+          time+(time time.te)
+          event+(event event.te)
       ==
     ++  read
-      |=  [s=source:a as=activity-summary:v2:av]
+      |=  [s=source:v2:av as=activity-summary:v2:av]
       %-  pairs
       :~  source+(source s)
           activity+(activity-summary as)
@@ -448,7 +553,7 @@
       |=  ac=activity:v2:av
       %-  pairs
       %+  turn  ~(tap by ac)
-      |=  [s=source:a sum=activity-summary:v2:av]
+      |=  [s=source:v2:av sum=activity-summary:v2:av]
       [(string-source s) (activity-summary sum)]
     ++  activity-summary
       |=  sum=activity-summary:v2:av
@@ -459,6 +564,102 @@
           unread/?~(unread.sum ~ (unread-point u.unread.sum))
           children+?~(children.sum ~ (activity u.children.sum))
       ==
+    ++  volume-settings
+      |=  vs=volume-settings:v2:av
+      %-  pairs
+      %+  turn  ~(tap by vs)
+      |=  [s=source:v2:av v=volume-map:v2:av]
+      [(string-source s) (volume-map v)]
+    ++  volume-map
+      |=  vm=volume-map:v2:av
+      %-  pairs
+      %+  turn  ~(tap by vm)
+      |=  [e=event-type:v2:av v=volume:v2:av]
+      [e (volume v)]
+    ++  event
+      |=  e=event:v2:av
+      %-  pairs
+      :_  [notified+b+notified.e]~
+        :-  -<.e
+      ?-  -<.e
+        %dm-invite  (whom whom.e)
+      ::
+          %chan-init
+        %-  pairs
+        :~  channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+        ==
+      ::
+          ?(%group-kick %group-join %group-ask %group-invite)
+        %-  pairs
+        :~  group+(flag:enjs:gj group.e)
+            ship+(ship ship.e)
+        ==
+      ::
+          %flag-post
+        %-  pairs
+        :~  key+(msg-key key.e)
+            channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+        ==
+      ::
+          %flag-reply
+        %-  pairs
+        :~  parent+(msg-key parent.e)
+            key+(msg-key key.e)
+            channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+        ==
+      ::
+          %dm-post
+        %-  pairs
+        :~  key+(msg-key key.e)
+            whom+(whom whom.e)
+            content+(story:enjs:sj content.e)
+            mention/b+mention.e
+        ==
+      ::
+          %dm-reply
+        %-  pairs
+        :~  parent+(msg-key parent.e)
+            key+(msg-key key.e)
+            whom+(whom whom.e)
+            content+(story:enjs:sj content.e)
+            mention/b+mention.e
+        ==
+      ::
+          %post
+        %-  pairs
+        :~  key+(msg-key key.e)
+            channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+            content+(story:enjs:sj content.e)
+            mention/b+mention.e
+        ==
+      ::
+          %reply
+        %-  pairs
+        :~  parent+(msg-key parent.e)
+            key+(msg-key key.e)
+            channel/(nest:enjs:gj channel.e)
+            group/(flag:enjs:gj group.e)
+            content+(story:enjs:sj content.e)
+            mention/b+mention.e
+        ==
+      ::
+          %group-role
+        %-  pairs
+        :~  group/(flag:enjs:gj group.e)
+            ship+(ship ship.e)
+            roles+a+(turn ~(tap in roles.e) |=(role=sect:v0:gv s+role))
+        ==
+      ==
+    ++  stream
+      |=  s=stream:v2:av
+      %-  pairs
+      %+  turn  (tap:on-event:v2:av s)
+      |=  [=time:z e=event:v2:av]
+      [(scot %ud time) (event e)]
     --
   --
 ::
