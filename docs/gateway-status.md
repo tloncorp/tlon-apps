@@ -26,10 +26,10 @@ The gateway process is responsible for:
 The agent state is `state-0`:
 
 ```
-owner              (unit ship)            owner ship; ~ = unconfigured/inert
+owner              (unit ship)            owner ship; ~ means unconfigured/inert
 last-owner-msg     @da                    timestamp of most recent owner DM
 last-owner-msg-id  (unit message-key)     key of most recent owner DM
-status             status:gs              gateway liveness (default %unknown)
+status             ?(%unknown %up %down)  gateway liveness (default %unknown)
 boot-id            (unit @t)              current gateway process id (~ after graceful stop)
 lease-until        (unit @da)             when the heartbeat lease expires
 last-heartbeat     (unit @da)             timestamp of most recent accepted heartbeat
