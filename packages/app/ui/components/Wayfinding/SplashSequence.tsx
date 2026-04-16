@@ -7,7 +7,14 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG, SUGGESTED_NAMES } from '@tloncorp/shared/domain';
-import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  LoadingSpinner,
+  Pressable,
+  Text,
+  UrbitSigil,
+} from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -81,10 +88,12 @@ function SplashSequenceComponent(props: {
   const [botModel, setBotModel] = React.useState('');
   const [botApiKey, setBotApiKey] = React.useState('');
   const [botMoonId, setBotMoonId] = React.useState<string | null>(null);
+  const [userShipId, setUserShipId] = React.useState<string | null>(null);
   const [savingConfig, setSavingConfig] = React.useState(false);
   const [botContactAvatarUrl, setBotContactAvatarUrl] = React.useState<
     string | null
   >(null);
+  const [userAvatarUrl, setUserAvatarUrl] = React.useState<string | null>(null);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
   const [didConfigureBot, setDidConfigureBot] = React.useState(false);
   const [configError, setConfigError] = React.useState<string | null>(null);
@@ -106,6 +115,7 @@ function SplashSequenceComponent(props: {
         const shipId = await db.hostedUserNodeId.getValue();
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
+          setUserShipId(`~${shipId}`);
           const [botInfo, nickname, avatar, providerConfig] = await Promise.all(
             [
               api.getTlawnBotInfo(shipId).catch(() => null),
@@ -131,6 +141,12 @@ function SplashSequenceComponent(props: {
                   setBotContactAvatarUrl(contact.avatarImage);
                 }
               }
+            }
+
+            // Fetch current user's avatar
+            const userContact = await db.getContact({ id: `~${shipId}` });
+            if (!cancelled && userContact?.avatarImage) {
+              setUserAvatarUrl(userContact.avatarImage);
             }
 
             // Build provider options from hosting config
@@ -305,6 +321,9 @@ function SplashSequenceComponent(props: {
           hostingBotEnabled={hostingBotEnabled}
           botName={botName || 'Tlonbot'}
           didConfigureBot={didConfigureBot}
+          userShipId={userShipId}
+          userAvatarUrl={userAvatarUrl}
+          botAvatarUrl={avatarDirty ? botAvatarUrl : botContactAvatarUrl}
         />
       )}
 
@@ -341,10 +360,7 @@ function providerLabel(provider: string): string {
   return PROVIDER_LABELS[provider] ?? provider;
 }
 
-function validateProviderKey(
-  provider: string,
-  value: string
-): string | null {
+function validateProviderKey(provider: string, value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return 'Enter an API key.';
   switch (provider) {
@@ -357,8 +373,7 @@ function validateProviderKey(
       if (!trimmed.startsWith('sk-')) return 'Key must start with "sk-".';
       break;
     case 'openrouter':
-      if (!trimmed.startsWith('sk-or-'))
-        return 'Key must start with "sk-or-".';
+      if (!trimmed.startsWith('sk-or-')) return 'Key must start with "sk-or-".';
       break;
   }
   return null;
@@ -714,6 +729,9 @@ export function GroupsPane(props: {
   hostingBotEnabled?: boolean;
   botName?: string;
   didConfigureBot?: boolean;
+  userShipId?: string | null;
+  userAvatarUrl?: string | null;
+  botAvatarUrl?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
@@ -721,19 +739,28 @@ export function GroupsPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <Image
-        style={{ width: '100%', height: 368 }}
-        resizeMode="cover"
-        source={
-          isWeb
-            ? isDark
-              ? `./garden-party-invite-dark.png`
-              : `./garden-party-invite.png`
-            : isDark
-              ? require(`../../assets/raster/garden-party-invite-dark.png`)
-              : require(`../../assets/raster/garden-party-invite.png`)
-        }
-      />
+      <ZStack height={368}>
+        <Image
+          style={{ width: '100%', height: 368 }}
+          resizeMode="cover"
+          source={
+            isWeb
+              ? isDark
+                ? `./garden-party-invite-dark.png`
+                : `./garden-party-invite.png`
+              : isDark
+                ? require(`../../assets/raster/garden-party-invite-dark.png`)
+                : require(`../../assets/raster/garden-party-invite.png`)
+          }
+        />
+        {props.hostingBotEnabled && (
+          <AvatarPairOverlay
+            userAvatarUrl={props.userAvatarUrl}
+            userShipId={props.userShipId}
+            botAvatarUrl={props.botAvatarUrl}
+          />
+        )}
+      </ZStack>
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           This is a <Text color="$positiveActionText">group.</Text>
@@ -743,15 +770,25 @@ export function GroupsPane(props: {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          <SplashParagraph>
-            A group lives on your computer. Family chats, work collaboration,
-            newsletters. A group can be anything you need.
-          </SplashParagraph>
-          {props.hostingBotEnabled && (
+          {props.hostingBotEnabled ? (
+            <>
+              <SplashParagraph>
+                Your group is where{' '}
+                {props.didConfigureBot ? props.botName : 'your Tlonbot'} lives.
+                It reads messages, joins conversations, and works alongside
+                everyone in the group.
+              </SplashParagraph>
+              <SplashParagraph>
+                Groups are stored on your personal computer and last forever.
+                Invite friends and{' '}
+                {props.didConfigureBot ? props.botName : 'your bot'} will be
+                there too.
+              </SplashParagraph>
+            </>
+          ) : (
             <SplashParagraph>
-              Your personal group is ready.{' '}
-              {props.didConfigureBot ? props.botName : 'Your Tlonbot'} has
-              already joined and can help keep conversations going.
+              A group lives on your computer. Family chats, work collaboration,
+              newsletters. A group can be anything you need.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -1299,6 +1336,136 @@ const InviteCard = (props: ComponentProps<typeof View>) => {
     </View>
   );
 };
+
+const AVATAR_SIZE = 128;
+const AVATAR_BORDER_RADIUS = 12;
+
+function AvatarSquare({
+  imageUrl,
+  shipId,
+  fallbackIcon,
+}: {
+  imageUrl?: string | null;
+  shipId?: string | null;
+  fallbackIcon?: 'Face' | 'Profile';
+}) {
+  if (imageUrl) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={{
+          width: AVATAR_SIZE,
+          height: AVATAR_SIZE,
+          borderRadius: AVATAR_BORDER_RADIUS,
+          borderWidth: 2,
+          borderColor: 'rgba(0,0,0,0.1)',
+        }}
+      />
+    );
+  }
+  if (shipId) {
+    return (
+      <View
+        width={AVATAR_SIZE}
+        height={AVATAR_SIZE}
+        borderRadius={AVATAR_BORDER_RADIUS}
+        borderWidth={2}
+        borderColor="rgba(255,255,255,0.1)"
+        backgroundColor="#1a1a1a"
+        alignItems="center"
+        justifyContent="center"
+        overflow="hidden"
+      >
+        <UrbitSigil
+          contactId={shipId}
+          size={80}
+          renderDetail
+          colors={{ backgroundColor: '#1A1A1A', foregroundColor: '#FFFFFF' }}
+        />
+      </View>
+    );
+  }
+  return (
+    <View
+      width={AVATAR_SIZE}
+      height={AVATAR_SIZE}
+      borderRadius={AVATAR_BORDER_RADIUS}
+      borderWidth={2}
+      borderColor="rgba(0,0,0,0.1)"
+      backgroundColor="$secondaryBackground"
+      alignItems="center"
+      justifyContent="center"
+    >
+      <Icon type={fallbackIcon ?? 'Face'} color="$tertiaryText" size="$xl" />
+    </View>
+  );
+}
+
+function AvatarPairOverlay({
+  userAvatarUrl,
+  userShipId,
+  botAvatarUrl,
+}: {
+  userAvatarUrl?: string | null;
+  userShipId?: string | null;
+  botAvatarUrl?: string | null;
+}) {
+  return (
+    <>
+      <View
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        backgroundColor="$background"
+        opacity={0.7}
+      />
+      <View
+        position="absolute"
+        top={0}
+        left={0}
+        right={0}
+        bottom={0}
+        alignItems="center"
+        justifyContent="center"
+      >
+        <XStack>
+          <View
+            style={{
+              transform: [{ rotate: '-6deg' }],
+              marginRight: -2,
+              zIndex: 1,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 15 },
+              shadowOpacity: 0.35,
+              shadowRadius: 35,
+            }}
+          >
+            <AvatarSquare
+              imageUrl={userAvatarUrl}
+              shipId={userShipId}
+              fallbackIcon="Profile"
+            />
+          </View>
+          <View
+            style={{
+              transform: [{ rotate: '6deg' }],
+              marginLeft: -2,
+              zIndex: 0,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 15 },
+              shadowOpacity: 0.35,
+              shadowRadius: 35,
+            }}
+          >
+            <AvatarSquare imageUrl={botAvatarUrl} fallbackIcon="Face" />
+          </View>
+        </XStack>
+      </View>
+    </>
+  );
+}
 
 function ModelOptionCard({
   option,
