@@ -303,21 +303,18 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
   );
 });
 
-function getDefaultInnerSigilSize(
-  avatarSize: NonNullable<AvatarProps['size']>,
-  sigilSize: number
-) {
-  switch (avatarSize) {
-    // Tiny fallback sigils can read like a solid square when an avatar image
-    // is missing, especially for darker profile colors. Give the smallest
-    // avatars a little more room so the sigil stays legible.
-    case '$xl':
-      return sigilSize * 0.75;
-    case '$2xl':
-      return sigilSize * 0.67;
-    default:
-      return sigilSize * 0.5;
-  }
+// Hardcoded integer sizes for the inner sigil SVG. Fractional sizes render
+// blurry and can shift the sigil off the pixel grid, especially for tiny
+// avatars where the desktop tokens (14, 22) don't divide evenly.
+// Keyed off the numeric sigil size so this works for both mobile (16/24/…) and
+// desktop (14/22/…) token scales.
+function getDefaultInnerSigilSize(sigilSize: number): number {
+  if (sigilSize <= 16) return 12;
+  if (sigilSize <= 24) return 14;
+  // $3xl/$3.5xl: simplified sigils read better with a little color frame.
+  if (sigilSize < 44) return Math.floor(sigilSize * 0.55);
+  // $4xl and up render with detail, so give the linework a bit more room.
+  return Math.floor(sigilSize * 0.625);
 }
 
 export const SigilAvatar = React.memo(function SigilAvatarComponent({
@@ -335,10 +332,15 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
 } & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
-  const accentColor = useMemo(
-    () => contact?.color ?? getFallbackSigilColor(contactId),
-    [contact?.color, contactId]
-  );
+  const accentColor = useMemo(() => {
+    // Urbit's default unset sigil color is `0x0`, which normalizes to
+    // `#000000`. Treat that as "no color set" so the fallback fires for
+    // every ship that hasn't picked one.
+    if (!contact?.color || contact.color.toLowerCase() === '#000000') {
+      return getFallbackSigilColor(contactId);
+    }
+    return contact.color;
+  }, [contact?.color, contactId]);
   const colors = useSigilColors(accentColor);
   const styles = useStyle(props, { resolveValues: 'value' });
   const sigilSize = useMemo(() => {
@@ -364,9 +366,14 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
     }
   }, [size, styles.width, styles.height, props.width, props.height]);
   const defaultInnerSigilSize = useMemo(
-    () => getDefaultInnerSigilSize(size, sigilSize),
-    [size, sigilSize]
+    () => getDefaultInnerSigilSize(sigilSize),
+    [sigilSize]
   );
+  const finalInnerSigilSize = innerSigilSize ?? defaultInnerSigilSize;
+  // sigil-js strokes are ~2px up through size 48 and thicken above 64, so
+  // the overlaid detail linework only reads cleanly once the sigil itself is
+  // large enough. Auto-enable it at $4xl and up, unless the caller opts out.
+  const shouldRenderDetail = renderDetail ?? finalInnerSigilSize >= 24;
 
   return (
     <AvatarFrame
@@ -379,9 +386,9 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       <UrbitSigil
         key={contactId}
         colors={colors}
-        size={innerSigilSize ?? defaultInnerSigilSize}
+        size={finalInnerSigilSize}
         contactId={contactId}
-        renderDetail={renderDetail}
+        renderDetail={shouldRenderDetail}
       />
     </AvatarFrame>
   );
