@@ -106,11 +106,10 @@ function SplashSequenceComponent(props: {
     (async () => {
       try {
         const shipId = await db.hostedUserNodeId.getValue();
-        const authToken = await db.hostingAuthToken.getValue();
-        if (shipId && authToken) {
+        if (shipId) {
           const [botInfo, nickname] = await Promise.all([
-            api.getBotInfo(shipId, authToken).catch(() => null),
-            api.getBotNickname(shipId, authToken).catch(() => null),
+            api.getTlawnBotInfo(shipId).catch(() => null),
+            api.getTlawnNickname(shipId).catch(() => null),
           ]);
           if (!cancelled) {
             if (nickname) {
@@ -146,8 +145,7 @@ function SplashSequenceComponent(props: {
     try {
       const userId = await db.hostingUserId.getValue();
       const shipId = await db.hostedUserNodeId.getValue();
-      const authCookie = await db.hostingAuthToken.getValue();
-      if (userId && shipId && authCookie) {
+      if (userId && shipId) {
         const name = botName || 'Tlonbot';
         const selectedModel = MODEL_OPTIONS.find((o) => o.value === botModel);
         const provider =
@@ -166,10 +164,10 @@ function SplashSequenceComponent(props: {
           }[provider] ?? 'minimax/minimax-m2.5';
 
         await Promise.allSettled([
-          api.setBotNickname(shipId, authCookie, name),
-          api.setPrimaryModel(userId, authCookie, { provider, model }),
+          api.setTlawnNickname(shipId, name),
+          api.setTlawnPrimaryModel(userId, { provider, model }),
           botApiKey && selectedModel?.requiresKey
-            ? api.setProviderKey(userId, authCookie, provider, botApiKey)
+            ? api.setTlawnProviderKey(userId, provider, botApiKey)
             : Promise.resolve(),
         ]);
       }

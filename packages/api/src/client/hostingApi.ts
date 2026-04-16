@@ -216,6 +216,146 @@ const rawHostingFetch = async (path: string, init?: RequestInit) => {
   return response;
 };
 
+// --- JSON helpers for hosting API requests ---
+
+function jsonInit(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  };
+}
+
+// --- Tlawn (bot) types ---
+
+export interface TlawnProviderConfigInfo {
+  keys: Record<string, string>;
+  models: TlawnModelEntry[];
+  defaultKeys: Record<string, { key: string; id?: string }>;
+}
+
+export interface TlawnModelEntry {
+  provider: string;
+  model: string;
+}
+
+export interface TlawnPrimaryModelUpdate {
+  provider: string;
+  model: string;
+  fallbacks?: TlawnModelEntry[];
+}
+
+export interface TlawnBotInfo {
+  enabled: boolean;
+  provider?: string;
+  model?: string;
+  moon?: string;
+}
+
+export interface TlawnConfig {
+  dmAllowlist: string[];
+  defaultAuthorizedShips: string[];
+  channelRules: Record<string, { mode: string; allowedShips: string[] }>;
+  groupChannels: string[];
+  groupInviteAllowlist: string[];
+  autoAcceptDmInvites: boolean;
+  autoDiscoverChannels: boolean;
+}
+
+// --- Tlawn (bot) user-level endpoints ---
+
+export async function getTlawnProviderKeys(
+  userId: string
+): Promise<TlawnProviderConfigInfo> {
+  return hostingFetch<TlawnProviderConfigInfo>(
+    `/v1/tlawn/users/${userId}/provider-keys`
+  );
+}
+
+export async function setTlawnProviderKey(
+  userId: string,
+  provider: string,
+  key: string
+): Promise<TlawnProviderConfigInfo> {
+  return hostingFetch<TlawnProviderConfigInfo>(
+    `/v1/tlawn/users/${userId}/provider-keys/${provider}`,
+    jsonInit('PUT', { key })
+  );
+}
+
+export async function deleteTlawnProviderKey(
+  userId: string,
+  provider: string
+): Promise<TlawnProviderConfigInfo> {
+  return hostingFetch<TlawnProviderConfigInfo>(
+    `/v1/tlawn/users/${userId}/provider-keys/${provider}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function setTlawnPrimaryModel(
+  userId: string,
+  update: TlawnPrimaryModelUpdate
+): Promise<TlawnProviderConfigInfo> {
+  return hostingFetch<TlawnProviderConfigInfo>(
+    `/v1/tlawn/users/${userId}/primary-model`,
+    jsonInit('PUT', update)
+  );
+}
+
+// --- Tlawn (bot) ship-level endpoints ---
+
+export async function getTlawnBotInfo(
+  ship: string
+): Promise<TlawnBotInfo> {
+  return hostingFetch<TlawnBotInfo>(`/v1/tlawn/ships/${ship}`);
+}
+
+export async function getTlawnNickname(
+  ship: string
+): Promise<string | null> {
+  return hostingFetch<string | null>(`/v1/tlawn/ships/${ship}/nickname`);
+}
+
+export async function setTlawnNickname(
+  ship: string,
+  nickname: string
+): Promise<string | null> {
+  return hostingFetch<string | null>(
+    `/v1/tlawn/ships/${ship}/nickname`,
+    jsonInit('PUT', { nickname })
+  );
+}
+
+export async function getTlawnConfig(
+  ship: string
+): Promise<TlawnConfig> {
+  return hostingFetch<TlawnConfig>(`/v1/tlawn/ships/${ship}/config`);
+}
+
+export async function setTlawnConfig(
+  ship: string,
+  config: Partial<TlawnConfig>
+): Promise<TlawnConfig> {
+  return hostingFetch<TlawnConfig>(
+    `/v1/tlawn/ships/${ship}/config`,
+    jsonInit('PUT', config)
+  );
+}
+
+export async function reloadBot(ship: string): Promise<void> {
+  await rawHostingFetch(`/v1/tlawn/ships/${ship}/reload`, {
+    method: 'POST',
+  });
+}
+
+export async function isBotRunning(ship: string): Promise<boolean> {
+  const result = await hostingFetch<{ running: boolean }>(
+    `/v1/tlawn/ships/${ship}/running`
+  );
+  return result.running;
+}
+
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await sessionStore.userId.getValue();
