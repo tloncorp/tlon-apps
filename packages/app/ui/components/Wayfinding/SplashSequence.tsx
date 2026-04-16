@@ -11,7 +11,7 @@ import {
   MODEL_OPTIONS,
   SUGGESTED_NAMES,
 } from '@tloncorp/shared/domain';
-import { Button, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -262,20 +262,15 @@ function SplashSequenceComponent(props: {
 export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const SplashTitle = styled(Text, {
-  fontSize: 34,
-  lineHeight: 38,
-  letterSpacing: -0.374,
+  fontSize: '$xl',
   fontWeight: '600',
   marginHorizontal: '$xl',
 });
 
 const SplashParagraph = styled(Text, {
-  fontSize: 16,
-  lineHeight: 24,
-  letterSpacing: -0.032,
-  fontWeight: '400',
+  size: '$body',
   marginHorizontal: '$xl',
-  marginBottom: '$l',
+  marginBottom: '$2xl',
   color: '$secondaryText',
 });
 
@@ -306,23 +301,22 @@ export function WelcomePane(props: {
         }
       />
       <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
-        <SplashTitle>
-          Welcome to{'\n'}Tlon{' '}
-          <Text color="$positiveActionText">Messenger.</Text>
-        </SplashTitle>
+        <SplashTitle>Welcome to Tlon Messenger</SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
           <SplashParagraph>
-            Everything here lives on your personal cloud computer, a server that
-            only you can access. Your messages, your data, your rules.
+            On Tlon Messenger you control your data. Unlike other apps,
+            everything is stored on your personal cloud computer that only you
+            can access.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Your account also comes with an AI agent called Tlonbot that can
-              search the web, summarize threads, and help you stay organized.
+              Your Tlon computer also comes with an AI agent called Tlonbot. It
+              can help you search the web, summarize threads, draft messages,
+              and more.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -1382,29 +1376,30 @@ function ModelOptionCard({
   onPress: () => void;
 }) {
   return (
-    <ListItem
-      onPress={onPress}
-      backgroundColor={selected ? '$positiveBackground' : '$background'}
-      borderWidth={1}
-      borderColor={selected ? '$positiveActionText' : '$border'}
-    >
-      <ListItem.MainContent>
-        <ListItem.Title
-          color={selected ? '$positiveActionText' : '$primaryText'}
-        >
-          {option.label}
-        </ListItem.Title>
-        <ListItem.Subtitle
-          color={selected ? '$positiveActionText' : '$secondaryText'}
-        >
-          {option.description}
-        </ListItem.Subtitle>
-      </ListItem.MainContent>
-      {selected && (
-        <ListItem.EndContent>
-          <Icon type="Checkmark" color="$positiveActionText" />
-        </ListItem.EndContent>
-      )}
-    </ListItem>
+    <Pressable onPress={onPress}>
+      <ListItem
+        backgroundColor={selected ? '$positiveBackground' : '$background'}
+        borderWidth={1}
+        borderColor={selected ? '$positiveActionText' : '$border'}
+      >
+        <ListItem.MainContent>
+          <ListItem.Title
+            color={selected ? '$positiveActionText' : '$primaryText'}
+          >
+            {option.label}
+          </ListItem.Title>
+          <ListItem.Subtitle
+            color={selected ? '$positiveActionText' : '$secondaryText'}
+          >
+            {option.description}
+          </ListItem.Subtitle>
+        </ListItem.MainContent>
+        {selected && (
+          <ListItem.EndContent>
+            <Icon type="Checkmark" color="$positiveActionText" />
+          </ListItem.EndContent>
+        )}
+      </ListItem>
+    </Pressable>
   );
 }
