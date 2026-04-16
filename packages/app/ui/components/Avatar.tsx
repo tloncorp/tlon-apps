@@ -2,7 +2,13 @@ import * as db from '@tloncorp/shared/db';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { UrbitSigil } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import React from 'react';
 import {
   ColorTokens,
@@ -17,7 +23,11 @@ import {
 import { useCalm, useContact } from '../contexts/appDataContext';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
-import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
+import {
+  getContrastingColor,
+  getFallbackSigilColor,
+  useSigilColors,
+} from '../utils/colorUtils';
 
 export const AvatarFrame = styled(View, {
   width: '$4xl',
@@ -224,6 +234,11 @@ export const ImageAvatar = function ImageAvatarComponent({
   const shouldShowImage =
     isGroupIcon || ignoreCalm || !calmSettings.disableAvatars;
 
+  useEffect(() => {
+    setLoadFailed(false);
+    setIsLoading(!!imageUrl);
+  }, [imageUrl]);
+
   return imageUrl &&
     imageUrl !== '' &&
     !isSVG &&
@@ -288,6 +303,20 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
   );
 });
 
+// Hardcoded integer sizes for the inner sigil SVG. Fractional sizes render
+// blurry and can shift the sigil off the pixel grid, especially for tiny
+// avatars where the desktop tokens (14, 22) don't divide evenly.
+// Keyed off the numeric sigil size so this works for both mobile (16/24/…) and
+// desktop (14/22/…) token scales.
+function getDefaultInnerSigilSize(sigilSize: number): number {
+  if (sigilSize <= 16) return 12;
+  if (sigilSize <= 24) return 14;
+  // $3xl/$3.5xl: simplified sigils read better with a little color frame.
+  if (sigilSize < 44) return Math.floor(sigilSize * 0.55);
+  // $4xl and up render with detail, so give the linework a bit more room.
+  return Math.floor(sigilSize * 0.625);
+}
+
 export const SigilAvatar = React.memo(function SigilAvatarComponent({
   contactId,
   contactOverride,
@@ -303,7 +332,16 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
 } & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
-  const colors = useSigilColors(contact?.color);
+  const accentColor = useMemo(() => {
+    // Urbit's default unset sigil color is `0x0`, which normalizes to
+    // `#000000`. Treat that as "no color set" so the fallback fires for
+    // every ship that hasn't picked one.
+    if (!contact?.color || contact.color.toLowerCase() === '#000000') {
+      return getFallbackSigilColor(contactId);
+    }
+    return contact.color;
+  }, [contact?.color, contactId]);
+  const colors = useSigilColors(accentColor);
   const styles = useStyle(props, { resolveValues: 'value' });
   const sigilSize = useMemo(() => {
     if (size && size !== 'custom') {
@@ -327,6 +365,15 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       return styles.width ?? styles.height ?? 20;
     }
   }, [size, styles.width, styles.height, props.width, props.height]);
+  const defaultInnerSigilSize = useMemo(
+    () => getDefaultInnerSigilSize(sigilSize),
+    [sigilSize]
+  );
+  const finalInnerSigilSize = innerSigilSize ?? defaultInnerSigilSize;
+  // sigil-js strokes are ~2px up through size 48 and thicken above 64, so
+  // the overlaid detail linework only reads cleanly once the sigil itself is
+  // large enough. Auto-enable it at $4xl and up, unless the caller opts out.
+  const shouldRenderDetail = renderDetail ?? finalInnerSigilSize >= 24;
 
   return (
     <AvatarFrame
@@ -339,9 +386,9 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       <UrbitSigil
         key={contactId}
         colors={colors}
-        size={innerSigilSize ?? sigilSize * 0.5}
+        size={finalInnerSigilSize}
         contactId={contactId}
-        renderDetail={renderDetail}
+        renderDetail={shouldRenderDetail}
       />
     </AvatarFrame>
   );

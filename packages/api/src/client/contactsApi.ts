@@ -182,6 +182,12 @@ export const updateSigilColor = async (color: string | null) => {
     if (urbitColor.startsWith('0x')) {
       urbitColor = urbitColor.slice(2);
     }
+    // Urbit's unset sigil color is 0x0, which is indistinguishable from a
+    // deliberate pure black. Nudge true black to #010101 so the client can
+    // tell the two apart and render it instead of the hash-based fallback.
+    if (BigInt('0x' + urbitColor) === 0n) {
+      urbitColor = '010101';
+    }
     //NOTE  'tint' parser wants @ux without the leading 0x...
     const formattedColor = render('ux', BigInt('0x' + urbitColor)).slice(2);
     contactUpdate.color = {
