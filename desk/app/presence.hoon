@@ -258,10 +258,10 @@
   |=  [=mark =vase]
   ^-  (quip card _this)
   ~|  mark=mark
-  ?>  =(src our):bowl
   ?+  mark  !!
       %presence-action-1
     =+  !<(act=action-1 vase)
+    ?>  =(src our):bowl
     ?:  ?=(%nuke -.act)
       ::TODO  response?
       [~ this(places (~(del by places) context.act))]
