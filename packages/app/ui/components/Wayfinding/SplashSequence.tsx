@@ -206,15 +206,11 @@ function SplashSequenceComponent(props: {
       const provider = botModel || 'basic';
       const selected = providerOptions.find((p) => p.provider === provider);
 
-      // If this provider requires a key, validate it first
-      if (botApiKey && selected?.requiresKey) {
-        await api.setTlawnProviderKey(userId, provider, botApiKey);
-        try {
-          await api.getTlawnProviderModels(userId, provider);
-        } catch {
-          // Key was rejected — clean it up and show error
-          await api.deleteTlawnProviderKey(userId, provider).catch(() => {});
-          setConfigError('Invalid API key. Please check and try again.');
+      // Validate API key format before sending to hosting
+      if (selected?.requiresKey) {
+        const keyError = validateProviderKey(provider, botApiKey);
+        if (keyError) {
+          setConfigError(keyError);
           setSavingConfig(false);
           return;
         }
@@ -226,6 +222,9 @@ function SplashSequenceComponent(props: {
           provider,
           model: `${provider}/auto`,
         }),
+        botApiKey && selected?.requiresKey
+          ? api.setTlawnProviderKey(userId, provider, botApiKey)
+          : Promise.resolve(),
         avatarDirty && botAvatarUrl
           ? api.setTlawnAvatar(shipId, botAvatarUrl)
           : Promise.resolve(),
@@ -340,6 +339,29 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 function providerLabel(provider: string): string {
   return PROVIDER_LABELS[provider] ?? provider;
+}
+
+function validateProviderKey(
+  provider: string,
+  value: string
+): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Enter an API key.';
+  switch (provider) {
+    case 'anthropic':
+      if (!trimmed.startsWith('sk-ant-') && !trimmed.startsWith('anthropic-'))
+        return 'Key must start with "sk-ant-" or "anthropic-".';
+      if (trimmed.length < 80) return 'Key must be at least 80 characters.';
+      break;
+    case 'openai':
+      if (!trimmed.startsWith('sk-')) return 'Key must start with "sk-".';
+      break;
+    case 'openrouter':
+      if (!trimmed.startsWith('sk-or-'))
+        return 'Key must start with "sk-or-".';
+      break;
+  }
+  return null;
 }
 
 const SplashTitle = styled(Text, {
