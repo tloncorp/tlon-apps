@@ -16,8 +16,8 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
-import { useCurrentUserId } from '../contexts';
-import { useChatOptions } from '../contexts/chatOptions';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import * as utils from '../utils';
 import {
   Action,

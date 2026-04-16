@@ -2,7 +2,7 @@ import { Dispatch, SetStateAction } from 'react';
 import { View } from 'tamagui';
 
 import { BigInput } from '../BigInput';
-import { DraftInputContext } from './shared';
+import { DraftInputContext, GalleryDraftType } from './shared';
 
 /**
  * `BigInput` set up for multiple kinds of draft inputs.
@@ -17,12 +17,14 @@ export function DraftInputConnectedBigInput({
    */
   hidden = false,
   overrideChannelType,
+  draftType,
 }: {
   draftInputContext: DraftInputContext;
   // TODO: I think this is only used to dismiss big input on send - remove and just dismiss in `onSent` callback
   setShowBigInput: Dispatch<SetStateAction<boolean>>;
   hidden?: boolean;
   overrideChannelType?: 'notebook' | 'gallery';
+  draftType?: GalleryDraftType;
 }) {
   const {
     channel,
@@ -59,6 +61,7 @@ export function DraftInputConnectedBigInput({
         editingPost={editingPost}
         setEditingPost={setEditingPost}
         setShowBigInput={setShowBigInput}
+        draftType={draftType}
         placeholder=""
       />
     </View>

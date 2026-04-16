@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 
-import type { ScrollAnchor } from '../Scroller';
+import type { ScrollAnchor } from '../scrollerTypes';
 
 export interface PostWithNeighbors {
   post: db.Post;

@@ -2,7 +2,7 @@ import { JSONValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { createContext, useContext } from 'react';
 
-import { MinimalRenderItemType, RenderItemType } from './componentsKits';
+import type { MinimalRenderItemType, RenderItemType } from './componentsKits';
 
 export interface PostCollectionContextValue {
   channel: db.Channel;

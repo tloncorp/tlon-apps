@@ -269,6 +269,8 @@ PODS:
     - ExpoModulesCore
   - ExpoLinearGradient (14.0.2):
     - ExpoModulesCore
+  - ExpoLinking (7.0.5):
+    - ExpoModulesCore
   - ExpoLocalization (16.0.1):
     - ExpoModulesCore
   - ExpoMailComposer (14.0.2):
@@ -302,6 +304,8 @@ PODS:
   - ExpoSecureStore (14.0.1):
     - ExpoModulesCore
   - ExpoSensors (14.0.2):
+    - ExpoModulesCore
+  - ExpoShareIntentModule (3.2.3):
     - ExpoModulesCore
   - ExpoSMS (13.0.1):
     - ExpoModulesCore
@@ -2231,7 +2235,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - RNGestureHandler (2.20.2):
+  - RNGestureHandler (2.24.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -2241,6 +2245,7 @@ PODS:
     - React-Core
     - React-debug
     - React-Fabric
+    - React-FabricComponents
     - React-featureflags
     - React-graphics
     - React-ImageManager
@@ -2523,12 +2528,14 @@ DEPENDENCIES:
   - ExpoImagePicker (from `../../../node_modules/expo-image-picker/ios`)
   - ExpoKeepAwake (from `../../../node_modules/expo-keep-awake/ios`)
   - ExpoLinearGradient (from `../../../node_modules/expo-linear-gradient/ios`)
+  - ExpoLinking (from `../../../node_modules/expo-linking/ios`)
   - ExpoLocalization (from `../../../node_modules/expo-localization/ios`)
   - ExpoMailComposer (from `../../../node_modules/expo-mail-composer/ios`)
   - ExpoMediaLibrary (from `../../../node_modules/expo-media-library/ios`)
   - ExpoModulesCore (from `../../../node_modules/expo-modules-core`)
   - ExpoSecureStore (from `../../../node_modules/expo-secure-store/ios`)
   - ExpoSensors (from `../../../node_modules/expo-sensors/ios`)
+  - ExpoShareIntentModule (from `../../../node_modules/expo-share-intent/ios`)
   - ExpoSMS (from `../../../node_modules/expo-sms/ios`)
   - ExpoSpeechRecognition (from `../../../node_modules/expo-speech-recognition/ios`)
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
@@ -2727,6 +2734,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-keep-awake/ios"
   ExpoLinearGradient:
     :path: "../../../node_modules/expo-linear-gradient/ios"
+  ExpoLinking:
+    :path: "../../../node_modules/expo-linking/ios"
   ExpoLocalization:
     :path: "../../../node_modules/expo-localization/ios"
   ExpoMailComposer:
@@ -2739,6 +2748,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-secure-store/ios"
   ExpoSensors:
     :path: "../../../node_modules/expo-sensors/ios"
+  ExpoShareIntentModule:
+    :path: "../../../node_modules/expo-share-intent/ios"
   ExpoSMS:
     :path: "../../../node_modules/expo-sms/ios"
   ExpoSpeechRecognition:
@@ -2961,12 +2972,14 @@ SPEC CHECKSUMS:
   ExpoImagePicker: 24e5ba8da111f74519b1e6dc556e0b438b2b8464
   ExpoKeepAwake: b0171a73665bfcefcfcc311742a72a956e6aa680
   ExpoLinearGradient: 35ebd83b16f80b3add053a2fd68cc328ed927f60
+  ExpoLinking: 8d12bee174ba0cdf31239706578e29e74a417402
   ExpoLocalization: 7776ea3bdb112125390745bbaf919b734b2ad1c7
   ExpoMailComposer: 05d7236221229740563ed12f008f8b2054ed0474
   ExpoMediaLibrary: 2709fc2e4fcf87d28767714abcc603c4bec228c6
   ExpoModulesCore: c3e810e874b33139221bea656743f106a2826f47
   ExpoSecureStore: 9a3665d7161dd1031be386e278bffd623658f316
   ExpoSensors: 02a52ddab1e3a8a1438258c3d87d1ee5f721743a
+  ExpoShareIntentModule: 44f7fa9289445395d0d162f1a458c4a6da7f4368
   ExpoSMS: 9cd812ab438c5c1d86bddaa7749387c762e43b92
   ExpoSpeechRecognition: 46c21b61638bcf3478066886b52579b2f9f56ab5
   ExpoSplashScreen: 8261985ce9778f904abc7e31bed3538dce67ed4d
@@ -3076,7 +3089,7 @@ SPEC CHECKSUMS:
   RNFBCrashlytics: f9c67f58b800bbb713a14286243cd8fa3a3c43f8
   RNFBPerf: 7a693ef06bd3785b81002a47144eaa4f0936229b
   RNFlashList: d07f21fa085263d2a1cda36e126194018b6c8465
-  RNGestureHandler: de2b7ccdbf18766609fb9490c7f11c18805705a3
+  RNGestureHandler: b69033378d5ab4b1b239bcd4bc916aeb291f90db
   RNReanimated: 61b4e41a4d0a60c139342a670db67caed071321f
   RNScreens: 2fe3d999c2dee6ef1d5e863fec0fb6f7de60c45a
   RNSentry: 974b21b0345c073586c22a3aaf77d69b3e47f63e

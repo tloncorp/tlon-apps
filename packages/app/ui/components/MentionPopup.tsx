@@ -11,8 +11,8 @@ import { Platform } from 'react-native';
 import { MentionOption } from './BareChatInput/useMentions';
 import { ContactList } from './ContactList';
 import ContactName from './ContactName';
-import { ListItem } from './ListItem/ListItem';
-import { useBoundHandler } from './ListItem/listItemUtils';
+import { ListItem } from './ListItem';
+import { useBoundHandler } from './listItems/listItemUtils';
 
 export interface MentionController {
   handleMentionKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;

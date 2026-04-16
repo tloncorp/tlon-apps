@@ -8,6 +8,7 @@ import { JSONContent } from '@tloncorp/api/urbit';
 import {
   Attachment,
   DraftInputId,
+  createDevLogger,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
   uploadAsset,
@@ -39,16 +40,17 @@ import {
 } from 'tamagui';
 
 import { useIsUserActive } from '../../../hooks/useUserActivity';
-import {
-  ChannelProvider,
-  GroupsProvider,
-  NavigationProvider,
-  useCurrentUserId,
-} from '../../contexts';
+import type { ChannelShareIntent } from '../../../types/shareIntent';
+import { normalizeUploadIntent } from '../../../utils/filepicker';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useAttachmentContext } from '../../contexts/attachment';
+import { ChannelProvider } from '../../contexts/channel';
+import { GroupsProvider } from '../../contexts/groups';
+import { NavigationProvider } from '../../contexts/navigation';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { RequestsProvider } from '../../contexts/requests';
 import { ScrollContextProvider } from '../../contexts/scroll';
+import { useChannelShareIntent } from '../../contexts/shareIntent';
 import * as utils from '../../utils';
 import { FileDrop } from '../FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
@@ -72,6 +74,188 @@ import { ReadOnlyNotice } from './ReadOnlyNotice';
 const useApp = () => {};
 const HEADER_LOADING_SHOW_DELAY_MS = 180;
 const HEADER_LOADING_MIN_VISIBLE_MS = 420;
+const IMAGE_FILE_EXTENSION_REGEX =
+  /\.(png|jpe?g|gif|webp|heic|heif|bmp|tiff?)$/i;
+const shareIntentLogger = createDevLogger('shareIntent', true);
+
+const isLikelyImageFile = (file: NonNullable<ChannelShareIntent['file']>) => {
+  if (file.mimeType?.startsWith('image/')) {
+    return true;
+  }
+  const sourceName = file.fileName || file.path;
+  return IMAGE_FILE_EXTENSION_REGEX.test(sourceName);
+};
+
+function combineSharedText(intent: ChannelShareIntent): string | null {
+  const text = intent.text?.trim() || null;
+  const url = intent.webUrl?.trim() || null;
+  if (!text) return url;
+  return url && !text.includes(url) ? `${text}\n${url}` : text;
+}
+
+type SharedTextDraftKind = 'attachment' | 'link' | 'text';
+
+type ProcessedShareIntent = {
+  draftMode?: 'text' | 'link';
+  uploadIntent: Attachment.UploadIntent | null;
+};
+
+const uploadIntentFromShareIntentFile = (
+  file: NonNullable<ChannelShareIntent['file']>
+): Attachment.UploadIntent | null => {
+  const localUri = file.path?.trim();
+  if (!localUri) {
+    return null;
+  }
+
+  if (isLikelyImageFile(file)) {
+    return {
+      type: 'image',
+      asset: {
+        uri: localUri,
+        width: file.width ?? 0,
+        height: file.height ?? 0,
+        fileSize: file.size ?? undefined,
+        mimeType: file.mimeType ?? undefined,
+      },
+    };
+  }
+
+  return {
+    type: 'fileUri',
+    localUri,
+    name: file.fileName || localUri.split('/').pop(),
+    size: file.size ?? 0,
+    mimeType: file.mimeType ?? undefined,
+    voiceMemo: false,
+  };
+};
+
+function usePrefillDraftFromShareIntent({
+  channelId,
+  disabled,
+  appendSharedTextToDraft,
+  didProcessShareIntent,
+}: {
+  channelId: string;
+  disabled: boolean;
+  appendSharedTextToDraft: (
+    text: string,
+    kind: SharedTextDraftKind
+  ) => Promise<void>;
+  didProcessShareIntent: (result: ProcessedShareIntent) => void;
+}) {
+  const { pendingShareIntent, popShareIntent } = useChannelShareIntent();
+  const { attachAssets } = useAttachmentContext();
+  const processingShareIntentIdRef = useRef<number | null>(null);
+  const [activeShareIntent, setActiveShareIntent] =
+    useState<ChannelShareIntent | null>(null);
+
+  useEffect(() => {
+    processingShareIntentIdRef.current = null;
+    setActiveShareIntent(null);
+  }, [channelId]);
+
+  // Claim the pending share into local state before popping it from context.
+  useEffect(() => {
+    if (
+      disabled ||
+      activeShareIntent ||
+      pendingShareIntent?.channelId !== channelId
+    ) {
+      return;
+    }
+
+    const nextShareIntent = popShareIntent(channelId);
+    if (!nextShareIntent) return;
+
+    setActiveShareIntent(nextShareIntent);
+  }, [
+    channelId,
+    activeShareIntent,
+    disabled,
+    pendingShareIntent,
+    popShareIntent,
+  ]);
+
+  const processIntent = useCallback(
+    async (intent: ChannelShareIntent, signal: { cancelled: boolean }) => {
+      const rawUploadIntent = intent.file
+        ? uploadIntentFromShareIntentFile(intent.file)
+        : null;
+      const sharedText = combineSharedText(intent);
+      const text = intent.text?.trim() || null;
+      const url = intent.webUrl?.trim() || null;
+
+      if (!rawUploadIntent && !sharedText) return;
+
+      const { uploadIntent, errorMessage } = rawUploadIntent
+        ? await normalizeUploadIntent(rawUploadIntent)
+        : { uploadIntent: null, errorMessage: null };
+
+      if (signal.cancelled) return;
+
+      if (errorMessage) {
+        shareIntentLogger.log(`Unable to attach shared file: ${errorMessage}`);
+      }
+
+      if (!uploadIntent && !sharedText) return;
+
+      if (uploadIntent) {
+        if (sharedText) {
+          await appendSharedTextToDraft(sharedText, 'attachment');
+          if (signal.cancelled) return;
+        }
+
+        attachAssets([uploadIntent]);
+        didProcessShareIntent({ uploadIntent });
+        return;
+      }
+
+      if (sharedText == null) return;
+
+      const draftMode = !!url && (!text || text === url) ? 'link' : 'text';
+
+      await appendSharedTextToDraft(sharedText, draftMode);
+      if (signal.cancelled) return;
+
+      didProcessShareIntent({ draftMode, uploadIntent: null });
+    },
+    [appendSharedTextToDraft, attachAssets, didProcessShareIntent]
+  );
+
+  // Process the active share from local state so popping context state can't interrupt it.
+  useEffect(() => {
+    if (disabled || !activeShareIntent) return;
+    if (processingShareIntentIdRef.current === activeShareIntent.createdAt)
+      return;
+
+    processingShareIntentIdRef.current = activeShareIntent.createdAt;
+    const signal = { cancelled: false };
+
+    processIntent(activeShareIntent, signal)
+      .catch((err) => {
+        shareIntentLogger.error(
+          'Failed to prefill shared content in channel',
+          err
+        );
+      })
+      .then(() => {
+        if (!signal.cancelled) setActiveShareIntent(null);
+      })
+      .finally(() => {
+        if (
+          processingShareIntentIdRef.current === activeShareIntent.createdAt
+        ) {
+          processingShareIntentIdRef.current = null;
+        }
+      });
+
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [activeShareIntent, disabled, processIntent]);
+}
 
 interface ChannelProps {
   channel: db.Channel;
@@ -432,6 +616,45 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         draftInputRef.current?.startDraft?.();
       }
     }, [startDraft]);
+
+    const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
+      draftInputRef.current?.startDraft?.(mode);
+    }, []);
+    const appendSharedTextToDraft = useCallback(
+      async (text: string, kind: SharedTextDraftKind) => {
+        const draftType =
+          channel.type === 'gallery'
+            ? kind === 'attachment'
+              ? 'caption'
+              : kind
+            : undefined;
+
+        await storeDraft(logic.textAndMentionsToContent(text, []), draftType);
+      },
+      [channel.type, storeDraft]
+    );
+
+    const handleProcessedShareIntent = useCallback(
+      ({
+        draftMode,
+        uploadIntent,
+      }: {
+        draftMode?: 'text' | 'link';
+        uploadIntent: Attachment.UploadIntent | null;
+      }) => {
+        if (!(channel.type === 'gallery' && uploadIntent)) {
+          handleOpenDraft(draftMode);
+        }
+      },
+      [channel.type, handleOpenDraft]
+    );
+
+    usePrefillDraftFromShareIntent({
+      channelId: channel.id,
+      disabled: !canWrite || !inView,
+      appendSharedTextToDraft,
+      didProcessShareIntent: handleProcessedShareIntent,
+    });
 
     const isNarrow = useIsWindowNarrow();
 

@@ -2,6 +2,7 @@ import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
+  GestureTrigger,
   Icon,
   Image,
   Pressable,
@@ -26,17 +27,24 @@ import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNowPlayingController } from '../../contexts/nowPlaying';
 import { Waveform } from '../AudioRecorder/Waveform';
+import { Reference } from '../ContentReference/Reference';
 import {
-  ContentReferenceLoader,
-  IsInsideReferenceContext,
-  Reference,
-} from '../ContentReference';
+  ContentReferenceLoaderComponent,
+  ContentReferenceLoaderProps,
+} from '../ContentReference/types';
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
+
+export const IsInsideReferenceContext = createContext(false);
+// Provides the ContentReferenceLoader component to BlockRenderer without
+// creating a circular import. Set once at the app root via ContentReferenceLoaderProvider.
+// (This is a genuine circular dependency since a reference can render content that renders a reference.)
+export const ContentReferenceContext =
+  createContext<ContentReferenceLoaderComponent | null>(null);
 
 const DUMMY_WAVEFORM_VALUES = [
   1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
@@ -208,17 +216,24 @@ export function ParagraphBlock({
 export function ReferenceBlock({
   block,
   ...props
-}: { block: cn.ReferenceBlockData } & Omit<
-  ComponentProps<typeof ContentReferenceLoader>,
-  'reference'
->) {
+}: {
+  block: cn.ReferenceBlockData;
+} & Omit<ContentReferenceLoaderProps, 'reference'>) {
   const isInsideReference = useContext(IsInsideReferenceContext);
+  const ReferenceLoader = useContext(ContentReferenceContext);
 
   if (isInsideReference) {
     return null;
   }
 
-  return <ContentReferenceLoader reference={block} {...props} />;
+  if (!ReferenceLoader) {
+    console.warn(
+      'ReferenceBlock rendered without a ReferenceLoader in context'
+    );
+    return null;
+  }
+
+  return <ReferenceLoader reference={block} {...props} />;
 }
 
 export function VoiceMemoBlock({
@@ -481,7 +496,7 @@ export function VideoBlock({
   ComponentProps<typeof VideoEmbed>,
   'video'
 >) {
-  return <VideoEmbed video={block} {...props} />;
+  return <VideoEmbed video={block.video} {...props} />;
 }
 
 export function ImageBlock({
@@ -492,7 +507,7 @@ export function ImageBlock({
   block: cn.ImageBlockData;
   imageProps?: ComponentProps<typeof ContentImage>;
 } & ComponentProps<typeof View>) {
-  const { onPressImage, onLongPress } = useContentContext();
+  const { getImageViewerId, onPressImage, onLongPress } = useContentContext();
   const [dimensions, setDimensions] = useState({
     width: block.width || null,
     height: block.height || null,
@@ -515,6 +530,7 @@ export function ImageBlock({
   }, []);
 
   const shouldUseAspectRatio = imageProps?.aspectRatio !== 'unset';
+  const viewerId = getImageViewerId?.(block.src);
 
   // Calculate constrained dimensions that respect both maxWidth and maxHeight
   // while maintaining the natural aspect ratio (similar to VideoEmbed logic).
@@ -541,7 +557,7 @@ export function ImageBlock({
     ...remainingImageProps
   } = imageProps ?? {};
 
-  return (
+  const imagePressable = (
     <Pressable
       overflow="hidden"
       onPress={handlePress}
@@ -554,15 +570,15 @@ export function ImageBlock({
             height: constrainedSize.height,
             maxWidth: '100%',
           }
-        : {})}
+        : dimensions.width
+          ? { maxWidth: dimensions.width }
+          : {})}
     >
       <ContentImage
         source={{
           uri: block.src,
         }}
-        {...(constrainedSize
-          ? { width: '100%', height: '100%' }
-          : { width: dimensions.width ?? '100%' })}
+        {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
         {...(shouldUseAspectRatio && !constrainedSize
           ? { aspectRatio: dimensions.aspect || 1 }
           : {})}
@@ -580,6 +596,12 @@ export function ImageBlock({
       />
     </Pressable>
   );
+
+  if (!viewerId) {
+    return imagePressable;
+  }
+
+  return <GestureTrigger id={viewerId}>{imagePressable}</GestureTrigger>;
 }
 
 const ContentImage = styled(Image, {

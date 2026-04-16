@@ -34,12 +34,13 @@ import {
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
-import { useStore } from '../../contexts';
+import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { ListItem, SystemContactListItem } from '../ListItem';
+import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
+import { SystemContactListItem } from '../listItems';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {

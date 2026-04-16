@@ -4,8 +4,8 @@ import { Text } from '@tloncorp/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { Linking, Platform } from 'react-native';
 
-import { useCalm } from '../../contexts';
-import { AudioEmbed } from '../Embed';
+import { useCalm } from '../../contexts/appDataContext';
+import AudioEmbed from './AudioEmbed';
 import { Embed } from './Embed';
 import { EmbedWebView } from './EmbedWebView';
 import { getProviderConfig } from './providers';
