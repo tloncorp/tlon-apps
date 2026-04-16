@@ -11,7 +11,14 @@ import {
   MODEL_OPTIONS,
   SUGGESTED_NAMES,
 } from '@tloncorp/shared/domain';
-import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  Input,
+  LoadingSpinner,
+  Pressable,
+  Text,
+} from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -23,7 +30,6 @@ import React, {
 import {
   FlatList,
   Image,
-  TextInput as RNTextInput,
   ScrollView,
   Share,
 } from 'react-native';
@@ -511,9 +517,6 @@ export function BotModelPane(props: {
   onActionPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const theme = useThemeName();
-  const textColor = theme === 'dark' ? '#ffffff' : '#1a1818';
-  const placeholderColor = theme === 'dark' ? '#808080' : '#999999';
   const selectedOption = MODEL_OPTIONS.find((o) => o.value === props.model);
   const needsApiKey = selectedOption?.requiresKey ?? false;
 
@@ -545,31 +548,16 @@ export function BotModelPane(props: {
             />
           ))}
           {needsApiKey && (
-            <View
-              borderRadius="$l"
-              borderWidth={1}
-              borderColor="$border"
-              backgroundColor="$background"
-              paddingLeft="$xl"
-              paddingRight="$l"
-              height={56}
-              justifyContent="center"
-              marginTop="$s"
-            >
-              <RNTextInput
+            <Input size="$l" marginTop="$s">
+              <Input.Area
                 value={props.apiKey}
                 onChangeText={props.onApiKeyChange}
                 placeholder={`${selectedOption?.label} API key`}
-                placeholderTextColor={placeholderColor}
                 secureTextEntry
                 autoCapitalize="none"
                 autoCorrect={false}
-                style={{
-                  fontSize: 16,
-                  color: textColor,
-                }}
               />
-            </View>
+            </Input>
           )}
         </ScrollView>
       </YStack>
