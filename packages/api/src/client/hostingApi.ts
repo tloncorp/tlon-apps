@@ -314,17 +314,29 @@ export async function getTlawnBotInfo(
 export async function getTlawnNickname(
   ship: string
 ): Promise<string | null> {
-  return hostingFetch<string | null>(`/v1/tlawn/ships/${ship}/nickname`);
+  const result = await rawHostingFetch(`/v1/tlawn/ships/${ship}/nickname`);
+  const text = await result.text();
+  try {
+    return JSON.parse(text) as string | null;
+  } catch {
+    return null;
+  }
 }
 
 export async function setTlawnNickname(
   ship: string,
   nickname: string
 ): Promise<string | null> {
-  return hostingFetch<string | null>(
+  const result = await rawHostingFetch(
     `/v1/tlawn/ships/${ship}/nickname`,
     jsonInit('PUT', { nickname })
   );
+  const text = await result.text();
+  try {
+    return JSON.parse(text) as string | null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getTlawnConfig(

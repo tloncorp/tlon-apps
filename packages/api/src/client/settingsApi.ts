@@ -79,16 +79,6 @@ export const setSetting = async (key: string, val: any) => {
   });
 };
 
-export const getSettingValue = async (key: string): Promise<unknown> => {
-  const bucket = getBucket(key);
-  const results = await scry<ub.GroupsDeskSettings>({
-    app: 'settings',
-    path: '/desk/groups',
-  });
-  const desk = results as Record<string, Record<string, unknown>> | undefined;
-  return desk?.[bucket]?.[key] ?? null;
-};
-
 export const getSettings = async (): Promise<{
   settings: db.Settings;
   pendingMemberDismissals: db.PendingMemberDismissals;
