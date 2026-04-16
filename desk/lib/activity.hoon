@@ -153,9 +153,17 @@
       %chan-init      [%channel channel.event group.event]
       %post           [%channel channel.event group.event]
       %reply          [%thread parent.event channel.event group.event]
+      %react          ?~  parent.event
+                        [%channel channel group]:event
+                      [%thread u.parent channel group]:event
+      ::
       %dm-invite      [%dm whom.event]
       %dm-post        [%dm whom.event]
       %dm-reply       [%dm-thread parent.event whom.event]
+      %dm-react       ?~  parent.event
+                        [%dm whom.event]
+                      [%dm-thread u.parent.event whom.event]
+      ::
       %group-invite   [%group group.event]
       %group-kick     [%group group.event]
       %group-join     [%group group.event]
@@ -164,6 +172,7 @@
       %flag-post      [%group group.event]
       %flag-reply     [%group group.event]
       %contact        [%contact who.event]
+    ::
     ==
   ::
   ++  event-type
@@ -184,9 +193,11 @@
     ?+  type  |
       %post  &
       %reply  &
+      %react  &
       %contact  &
       %dm-post    &
       %dm-reply   &
+      %dm-react   &
       %dm-invite  &
       %group-invite  &
       %post-mention  &
@@ -318,7 +329,7 @@
     ++  activity-bundle
       |=  =activity-bundle:a
       ^-  (unit activity-bundle:v7:av)
-      ?:  ?=(%contact -.source.activity-bundle)  ~
+      ?:  ?=(?(%contact %react %dm-react) -.source.activity-bundle)  ~
       %-  some
       :*  source.activity-bundle
           latest.activity-bundle
@@ -327,7 +338,7 @@
     ++  time-event
       |=  =time-event:a
       ^-  (unit time-event:v7:av)
-      ?:  ?=(%contact -<.event.time-event)  ~
+      ?:  ?=(?(%contact %react %dm-react) -<.event.time-event)  ~
       `time-event
     ++  activity
       |=  =activity:a
@@ -336,7 +347,7 @@
       %+  murn  ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
       ^-  (unit [source:v7:av activity-summary:v7:av])
-      ?:  ?=(%contact -.source)  ~
+      ?:  ?=(?(%contact %react %dm-react) -.source)  ~
       :+  ~
         source
       (activity-summary as activity)
@@ -355,7 +366,7 @@
           ^-  (list source:v7:av)
           %+  murn  ~(tap in children.as)
           |=  =source:a
-          ?:(?=(%contact -.source) ~ `source)
+          ?:(?=(?(%contact %react %dm-react) -.source) ~ `source)
         ::
           ~  ::  unused
       ==
@@ -375,7 +386,7 @@
     ++  source
       |=  =source:a
       ^-  (unit source:v4:av)
-      ?:  ?=(%contact -.source)  ~
+      ?:  ?=(?(%contact %react %dm-react) -.source)  ~
       `source
     ++  index
       |=  =index:a
@@ -408,7 +419,7 @@
     ++  activity-bundle
       |=  =activity-bundle:a
       ^-  (unit activity-bundle:v4:av)
-      ?:  ?=(%contact -.source.activity-bundle)  ~
+      ?:  ?=(?(%contact %react %dm-react) -.source.activity-bundle)  ~
       %-  some
       :*  source.activity-bundle
           latest.activity-bundle
@@ -417,7 +428,7 @@
     ++  time-event
       |=  =time-event:a
       ^-  (unit time-event:v4:av)
-      ?:  ?=(%contact -<.event.time-event)  ~
+      ?:  ?=(?(%contact %react %dm-react) -<.event.time-event)  ~
       `time-event
     ++  activity
       |=  =activity:a
@@ -426,7 +437,7 @@
       %+  murn  ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
       ^-  (unit [source:v4:av activity-summary:v4:av])
-      ?:  ?=(%contact -.source)  ~
+      ?:  ?=(?(%contact %react %dm-react) -.source)  ~
       :+  ~
         source
       (activity-summary as activity)
@@ -445,7 +456,7 @@
           ^-  (list source:v4:av)
           %+  murn  ~(tap in children.as)
           |=  =source:a
-          ?:(?=(%contact -.source) ~ `source)
+          ?:(?=(?(%contact %react %dm-react) -.source) ~ `source)
         ::
           [*@da ~]
       ==
@@ -457,7 +468,7 @@
       %+  murn  ~(tap by volume-map)
       |=  [=event-type:a =volume:a]
       ^-  (unit [event-type:v4:av volume:v4:av])
-      ?:  ?=(%contact event-type)  ~
+      ?:  ?=(?(%contact %react %dm-react) event-type)  ~
       `[event-type volume]
     --
   ++  v3
@@ -469,7 +480,7 @@
       %+  murn  ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
       ^-  (unit [source:v3:av activity-summary:v3:av])
-      ?:  ?=(%contact -.source)  ~
+      ?:  ?=(?(%contact %react %dm-react) -.source)  ~
       :+  ~
         source
       (activity-summary as activity)
@@ -488,7 +499,7 @@
           %+  murn
             ~(tap in children.as)
           |=  =source:a
-          ?:  ?=(%contact -.source)  ~
+          ?:  ?=(?(%contact %react %dm-react) -.source)  ~
           =/  sum  (~(got by activity) source)
           :+  ~
             source
@@ -501,22 +512,22 @@
       ^-  (unit update:v3:av)
       ?-    -.update
           %add
-        ?:  ?=(%contact -.source.update)  ~
+        ?:  ?=(?(%contact %react %dm-react) -.source.update)  ~
         ?~  ev=(time-event +>.update)  ~
         `[%add source.update u.ev]
       ::
           %del
-        ?:  ?=(%contact -.source.update)  ~
+        ?:  ?=(?(%contact %react %dm-react) -.source.update)  ~
         `[%del source.update]
       ::
           %read
-        ?:  ?=(%contact -.source.update)  ~
+        ?:  ?=(?(%contact %react %dm-react) -.source.update)  ~
         `[%read source.update (activity-summary activity-summary.update activity)]
       ::
         %activity  !!
       ::
           %adjust
-        ?:  ?=(%contact -.source.update)  ~
+        ?:  ?=(?(%contact %react %dm-react) -.source.update)  ~
         `[%adjust source.update (bind volume-map.update volume-map)]
       ::
           %allow-notifications
@@ -529,13 +540,13 @@
       %+  murn  ~(tap by volume-map)
       |=  [=event-type:a =volume:a]
       ^-  (unit [event-type:v4:av volume:v4:av])
-      ?:  ?=(%contact event-type)  ~
+      ?:  ?=(?(%contact %react %dm-react) event-type)  ~
       %-  some
       [event-type volume]
     ++  time-event
       |=  =time-event:a
       ^-  (unit time-event:v4:av)
-      ?:  ?=(%contact -<.event.time-event)  ~
+      ?:  ?=(?(%contact %react %dm-react) -<.event.time-event)  ~
       `time-event
     --
   ++  v2
@@ -547,7 +558,7 @@
       %+  murn  ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
       ^-  (unit [source:v2:av activity-summary:v2:av])
-      ?:  ?=(%contact -.source)  ~
+      ?:  ?=(?(%contact %react %dm-react) -.source)  ~
       :+  ~
         source
       (activity-summary as activity)
@@ -564,7 +575,7 @@
           %+  murn
             ~(tap in children.as)
           |=  =source:a
-          ?:  ?=(%contact -.source)  ~
+          ?:  ?=(?(%contact %react %dm-react) -.source)  ~
           =/  sum  (~(got by activity) source)
           :+  ~
             source
@@ -575,22 +586,22 @@
       ^-  (unit update:v2:av)
       ?-    -.update
           %add
-        ?:  ?=(%contact -.source.update)  ~
+        ?:  ?=(?(%contact %react %dm-react) -.source.update)  ~
         ?~  ev=(time-event +>.update)  ~
         `[%add source.update u.ev]
       ::
           %del
-        ?:  ?=(%contact -.source.update)  ~
+        ?:  ?=(?(%contact %react %dm-react) -.source.update)  ~
         `[%del source.update]
       ::
           %read
-        ?:  ?=(%contact -.source.update)  ~
+        ?:  ?=(?(%contact %react %dm-react) -.source.update)  ~
         `[%read source.update (activity-summary activity-summary.update activity)]
       ::
         %activity  !!
       ::
           %adjust
-        ?:  ?=(%contact -.source.update)  ~
+        ?:  ?=(?(%contact %react %dm-react) -.source.update)  ~
         `[%adjust source.update (bind volume-map.update volume-map)]
       ::
           %allow-notifications
@@ -603,13 +614,13 @@
       %+  murn  ~(tap by volume-map)
       |=  [=event-type:a =volume:a]
       ^-  (unit [event-type:v4:av volume:v4:av])
-      ?:  ?=(%contact event-type)  ~
+      ?:  ?=(?(%contact %react %dm-react) event-type)  ~
       %-  some
       [event-type volume]
     ++  time-event
       |=  =time-event:a
       ^-  (unit time-event:v2:av)
-      ?:  ?=(%contact -<.event.time-event)  ~
+      ?:  ?=(?(%contact %react %dm-react) -<.event.time-event)  ~
       `time-event
     --
   --

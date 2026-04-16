@@ -11,6 +11,8 @@
 +$  time-id  time
 +$  message-id   (pair ship time-id)
 +$  message-key  [id=message-id =time]
+::  |v9: add reactions activity
+++  v9  a
 ::  |v8: add %contact event
 ++  v8
   =,  v7
