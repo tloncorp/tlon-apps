@@ -6,10 +6,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  DEFAULT_BOT_CONFIG,
-  SUGGESTED_NAMES,
-} from '@tloncorp/shared/domain';
+import { DEFAULT_BOT_CONFIG, SUGGESTED_NAMES } from '@tloncorp/shared/domain';
 import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -41,7 +38,7 @@ import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { AvatarPicker } from '../AvatarPicker';
-import { TextInput } from '../Form';
+import { Field, TextInput } from '../Form';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -90,6 +87,7 @@ function SplashSequenceComponent(props: {
   >(null);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
   const [didConfigureBot, setDidConfigureBot] = React.useState(false);
+  const [configError, setConfigError] = React.useState<string | null>(null);
   const [providerOptions, setProviderOptions] = React.useState<
     { label: string; provider: string; requiresKey: boolean }[]
   >([]);
@@ -108,15 +106,16 @@ function SplashSequenceComponent(props: {
         const shipId = await db.hostedUserNodeId.getValue();
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
-          const [botInfo, nickname, avatar, providerConfig] =
-            await Promise.all([
+          const [botInfo, nickname, avatar, providerConfig] = await Promise.all(
+            [
               api.getTlawnBotInfo(shipId).catch(() => null),
               api.getTlawnNickname(shipId).catch(() => null),
               api.getTlawnAvatar(shipId).catch(() => null),
               userId
                 ? api.getTlawnProviderKeys(userId).catch(() => null)
                 : null,
-            ]);
+            ]
+          );
           if (!cancelled) {
             if (nickname) {
               setBotName(nickname);
@@ -152,9 +151,7 @@ function SplashSequenceComponent(props: {
                 });
               }
               // Providers the user already has keys for
-              for (const provider of Object.keys(
-                providerConfig.keys ?? {}
-              )) {
+              for (const provider of Object.keys(providerConfig.keys ?? {})) {
                 if (!providers.some((p) => p.provider === provider)) {
                   providers.push({
                     label: providerLabel(provider),
@@ -164,11 +161,7 @@ function SplashSequenceComponent(props: {
                 }
               }
               // Always include common BYOK providers
-              for (const provider of [
-                'anthropic',
-                'openai',
-                'openrouter',
-              ]) {
+              for (const provider of ['anthropic', 'openai', 'openrouter']) {
                 if (!providers.some((p) => p.provider === provider)) {
                   providers.push({
                     label: providerLabel(provider),
@@ -200,39 +193,59 @@ function SplashSequenceComponent(props: {
     setAvatarDirty(true);
   }, []);
 
-  // Save bot config via hosting API — nickname, model, and optional API key.
-  // These are all direct hosting API calls (no Urbit client needed).
+  // Save bot config via hosting API — nickname, provider key, model, avatar.
   const handleSaveBotConfig = useCallback(async () => {
     setSavingConfig(true);
+    setConfigError(null);
     try {
       const userId = await db.hostingUserId.getValue();
       const shipId = await db.hostedUserNodeId.getValue();
-      if (userId && shipId) {
-        const name = botName || 'Tlonbot';
-        const provider = botModel || 'basic';
-        const selected = providerOptions.find((p) => p.provider === provider);
+      if (!userId || !shipId) return;
 
-        await Promise.allSettled([
-          api.setTlawnNickname(shipId, name),
-          api.setTlawnPrimaryModel(userId, {
-            provider,
-            model: `${provider}/auto`,
-          }),
-          botApiKey && selected?.requiresKey
-            ? api.setTlawnProviderKey(userId, provider, botApiKey)
-            : Promise.resolve(),
-          avatarDirty && botAvatarUrl
-            ? api.setTlawnAvatar(shipId, botAvatarUrl)
-            : Promise.resolve(),
-        ]);
+      const name = botName || 'Tlonbot';
+      const provider = botModel || 'basic';
+      const selected = providerOptions.find((p) => p.provider === provider);
+
+      // If this provider requires a key, validate it first
+      if (botApiKey && selected?.requiresKey) {
+        await api.setTlawnProviderKey(userId, provider, botApiKey);
+        try {
+          await api.getTlawnProviderModels(userId, provider);
+        } catch {
+          // Key was rejected — clean it up and show error
+          await api.deleteTlawnProviderKey(userId, provider).catch(() => {});
+          setConfigError('Invalid API key. Please check and try again.');
+          setSavingConfig(false);
+          return;
+        }
       }
+
+      await Promise.allSettled([
+        api.setTlawnNickname(shipId, name),
+        api.setTlawnPrimaryModel(userId, {
+          provider,
+          model: `${provider}/auto`,
+        }),
+        avatarDirty && botAvatarUrl
+          ? api.setTlawnAvatar(shipId, botAvatarUrl)
+          : Promise.resolve(),
+      ]);
+
+      setSavingConfig(false);
+      setDidConfigureBot(true);
+      setCurrentPane(SplashPane.Group);
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
+      setSavingConfig(false);
     }
-    setSavingConfig(false);
-    setDidConfigureBot(true);
-    setCurrentPane(SplashPane.Group);
-  }, [botName, botModel, botApiKey, providerOptions, avatarDirty, botAvatarUrl]);
+  }, [
+    botName,
+    botModel,
+    botApiKey,
+    providerOptions,
+    avatarDirty,
+    botAvatarUrl,
+  ]);
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();
@@ -276,6 +289,7 @@ function SplashSequenceComponent(props: {
           apiKey={botApiKey}
           providers={providerOptions}
           loading={savingConfig}
+          error={configError}
           onModelChange={setBotModel}
           onApiKeyChange={setBotApiKey}
           onActionPress={handleSaveBotConfig}
@@ -588,6 +602,7 @@ export function BotModelPane(props: {
   apiKey: string;
   providers: { label: string; provider: string; requiresKey: boolean }[];
   loading?: boolean;
+  error?: string | null;
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: string) => void;
   onActionPress: () => void;
@@ -597,6 +612,7 @@ export function BotModelPane(props: {
     apiKey,
     providers,
     loading,
+    error,
     onModelChange,
     onApiKeyChange,
     onActionPress,
@@ -633,22 +649,28 @@ export function BotModelPane(props: {
                 label: option.label,
                 description: option.requiresKey
                   ? 'Requires API key'
-                  : 'Default (free)',
+                  : 'Default (free, used as fallback)',
               }}
               selected={model === option.provider}
               onPress={() => onModelChange(option.provider)}
             />
           ))}
           {needsApiKey && (
-            <TextInput
-              value={apiKey}
-              onChangeText={onApiKeyChange}
-              placeholder={`${selected?.label} API key`}
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-            />
+            <Field
+              label={`${selected?.label} API key`}
+              error={error ?? undefined}
+              marginTop="$xl"
+            >
+              <TextInput
+                value={apiKey}
+                onChangeText={onApiKeyChange}
+                placeholder="Paste your key here"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+              />
+            </Field>
           )}
         </ScrollView>
       </YStack>
