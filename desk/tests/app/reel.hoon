@@ -15,20 +15,6 @@
   ==
 ++  dap  %reel-test
 ++  provider  ~loshut-lonreg
-++  old-group-invite-meta
-  ^~
-  ^-  metadata:v0:reel
-  :-  %groups-0
-  %-  my
-  :~  ['inviter' '~sampel-palnet']
-      ['inviterNickname' 'Sampel Palnet']
-      ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      ['invitedGroupTitle' 'Sunrise']
-      ['invitedGroupDescription' '']
-      ['invitedGroupId' '~sampel-palnet/sunrise']
-      ['invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
-      ['bite-type' '2']
-  ==
 ++  group-invite-meta
   ^~
   ^-  metadata:reel
@@ -42,18 +28,6 @@
       [%'invitedGroupId' '~sampel-palnet/sunrise']
       [%'invitedGroupIconImageUrl' 'https://sampel-palnet.arvo.network/sunrise.jpg']
       [%'bite-type' '2']
-  ==
-++  old-personal-invite-meta
-  ^~
-  ^-  metadata:v0:reel
-  :-  %groups-0
-  %-  my
-  :~  ['inviterUserId' '~sampel-palnet']
-      ['inviterNickname' 'Sampel Palnet']
-      ['inviterAvatarImage' 'https://sampel-palnet.arvo.network/avatar.png']
-      ['inviteType' 'user']
-      ['invitedGroupId' '~zod/personal-invite-link']
-      ['bite-type' '2']
   ==
 ++  personal-invite-meta
   ^~
@@ -73,7 +47,7 @@
   :~  %nickname^text+'Sampel Palnet'
   ==
 ++  do-register-invite
-  |=  [=token:reel =metadata:v0:reel]
+  |=  [=token:reel =metadata:reel]
   =/  m  (mare ,(list card))
   ^-  form:m
   =+  nonce=(scot %da ~2025.9.3)
@@ -164,7 +138,7 @@
   ::
   =/  =nonce:reel  (scot %da ~2025.9.3)
   ;<  ~  bind:m   (set-src ~sampel-palnet)
-  ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~sampel-palnet/sunrise' old-group-invite-meta]))
+  ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~sampel-palnet/sunrise' group-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-poke /describe [provider %bait] bait-describe+!>(`[nonce:reel metadata:reel]`[nonce group-invite-meta]))
@@ -183,7 +157,7 @@
   ::
   =+  nonce=(scot %da ~2025.9.3)
   ;<  ~  bind:m   (set-src ~sampel-palnet)
-  ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~zod/personal-invite-link' old-personal-invite-meta]))
+  ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~zod/personal-invite-link' personal-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-poke /describe [provider %bait] bait-describe+!>([nonce personal-invite-meta]))
@@ -214,7 +188,7 @@
   ;<  caz=(list card)  bind:m  (do-init dap reel-agent)
   ;<  *  bind:m  (do-agent /contacts [~sampel-palnet %contacts] %watch-ack ~)
   ;<  *  bind:m  (do-agent /groups [~sampel-palnet %groups] %watch-ack ~)
-  ;<  *  bind:m  (do-register-invite ~.0v1 old-group-invite-meta)
+  ;<  *  bind:m  (do-register-invite ~.0v1 group-invite-meta)
   ;<  =metadata:reel  bind:m
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
@@ -322,7 +296,7 @@
   ;<  caz=(list card)  bind:m  (do-init dap reel-agent)
   ;<  *  bind:m  (do-agent /contacts [~sampel-palnet %contacts] %watch-ack ~)
   ;<  *  bind:m  (do-register-invite ~.0v1 group-invite-meta)
-  ;<  *  bind:m  (do-register-invite ~.0v2 old-personal-invite-meta)
+  ;<  *  bind:m  (do-register-invite ~.0v2 personal-invite-meta)
   ;<  =metadata:reel  bind:m
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
   ;<  ~  bind:m
