@@ -47,7 +47,7 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { ContactAvatar } from '../Avatar';
+import { UrbitSigil } from '@tloncorp/ui';
 import { AvatarPicker } from '../AvatarPicker';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
@@ -459,17 +459,13 @@ export function BotNamePane(props: {
             backgroundColor="$secondaryBackground"
             marginBottom="$xl"
           >
-            {props.avatarUrl ? (
+            {props.avatarUrl ?? props.botContactAvatarUrl ? (
               <Image
-                source={{ uri: props.avatarUrl }}
+                source={{ uri: (props.avatarUrl ?? props.botContactAvatarUrl)! }}
                 style={{ width: 32, height: 32, borderRadius: 4 }}
               />
             ) : props.botMoonId ? (
-              <ContactAvatar
-                contactId={props.botMoonId}
-                overrideUrl={props.botContactAvatarUrl ?? undefined}
-                size="$3xl"
-              />
+              <UrbitSigil contactId={props.botMoonId} size={32} />
             ) : null}
             <Text fontSize={20} fontWeight="600" color="$primaryText">
               {props.name || 'Your Tlonbot'}
@@ -679,17 +675,13 @@ export function BotLaunchLoadingPane(props: {
       justifyContent="center"
       gap="$2xl"
     >
-      {props.botAvatarUrl ? (
+      {props.botAvatarUrl ?? props.botContactAvatarUrl ? (
         <Image
-          source={{ uri: props.botAvatarUrl }}
+          source={{ uri: (props.botAvatarUrl ?? props.botContactAvatarUrl)! }}
           style={{ width: 64, height: 64, borderRadius: 8 }}
         />
       ) : props.botMoonId ? (
-        <ContactAvatar
-          contactId={props.botMoonId}
-          overrideUrl={props.botContactAvatarUrl ?? undefined}
-          size="$5xl"
-        />
+        <UrbitSigil contactId={props.botMoonId} size={64} />
       ) : null}
       <YStack alignItems="center" gap="$m">
         <LoadingSpinner size="large" />
@@ -735,17 +727,15 @@ export function ShareGroupPane(props: {
         justifyContent="center"
         paddingHorizontal="$xl"
       >
-        {props.botAvatarUrl ? (
+        {props.botAvatarUrl ?? props.botContactAvatarUrl ? (
           <Image
-            source={{ uri: props.botAvatarUrl }}
+            source={{
+              uri: (props.botAvatarUrl ?? props.botContactAvatarUrl)!,
+            }}
             style={{ width: 64, height: 64, borderRadius: 8 }}
           />
         ) : props.botMoonId ? (
-          <ContactAvatar
-            contactId={props.botMoonId}
-            overrideUrl={props.botContactAvatarUrl ?? undefined}
-            size="$5xl"
-          />
+          <UrbitSigil contactId={props.botMoonId} size={64} />
         ) : null}
         <SplashTitle textAlign="center" marginHorizontal={0}>
           <Text color="$positiveActionText">You&#39;re all set.</Text>
