@@ -65,25 +65,24 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
  */
-enum SplashPane {
-  Welcome = 'Welcome',
-  TlonBot = 'TlonBot',
-  BotName = 'BotName',
-  BotModel = 'BotModel',
-  Group = 'Group',
-  Channels = 'Channels',
-  Privacy = 'Privacy',
-  Invite = 'Invite',
-}
+type SplashPane =
+  | 'Welcome'
+  | 'TlonBot'
+  | 'BotName'
+  | 'BotModel'
+  | 'Group'
+  | 'Channels'
+  | 'Privacy'
+  | 'Invite';
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
   hostingBotEnabled?: boolean;
 }) {
-  const appStore = useStore();
+  const store = useStore();
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
-    SplashPane.Welcome
+    'Welcome'
   );
   const { hostingBotEnabled } = props;
   const [botName, setBotName] = React.useState(DEFAULT_BOT_CONFIG.name);
@@ -172,36 +171,34 @@ function SplashSequenceComponent(props: {
     }
     setSavingConfig(false);
     setDidConfigureBot(true);
-    setCurrentPane(SplashPane.Group);
+    setCurrentPane('Group');
   }, [botName, botModel, botApiKey]);
 
   const handleSplashCompleted = useCallback(() => {
-    appStore.completeWayfindingSplash();
+    store.completeWayfindingSplash();
     props.onCompleted();
-  }, [props, appStore]);
+  }, [props, store]);
 
   return (
     <View flex={1}>
-      {/* --- Welcome --- */}
-      {currentPane === SplashPane.Welcome && (
+      {currentPane === 'Welcome' && (
         <WelcomePane
           onActionPress={() =>
             setCurrentPane(
-              hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group
+              hostingBotEnabled ? 'TlonBot' : 'Group'
             )
           }
           hostingBotEnabled={hostingBotEnabled}
         />
       )}
 
-      {/* --- Bot configuration (bot-enabled flow only) --- */}
-      {currentPane === SplashPane.TlonBot && (
+      {currentPane === 'TlonBot' && (
         <TlonBotPane
-          onActionPress={() => setCurrentPane(SplashPane.BotName)}
-          onSkip={() => setCurrentPane(SplashPane.Group)}
+          onActionPress={() => setCurrentPane('BotName')}
+          onSkip={() => setCurrentPane('Group')}
         />
       )}
-      {currentPane === SplashPane.BotName && (
+      {currentPane === 'BotName' && (
         <BotNamePane
           name={botName}
           avatarUrl={avatarDirty ? botAvatarUrl : null}
@@ -210,10 +207,10 @@ function SplashSequenceComponent(props: {
           nameSuggestions={nameSuggestions}
           onNameChange={setBotName}
           onAvatarUrlChange={handleAvatarUrlChange}
-          onActionPress={() => setCurrentPane(SplashPane.BotModel)}
+          onActionPress={() => setCurrentPane('BotModel')}
         />
       )}
-      {currentPane === SplashPane.BotModel && (
+      {currentPane === 'BotModel' && (
         <BotModelPane
           model={botModel}
           apiKey={botApiKey}
@@ -224,12 +221,11 @@ function SplashSequenceComponent(props: {
         />
       )}
 
-      {/* --- Groups explainer --- */}
-      {currentPane === SplashPane.Group && (
+      {currentPane === 'Group' && (
         <GroupsPane
           onActionPress={() =>
             setCurrentPane(
-              hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
+              hostingBotEnabled ? 'Invite' : 'Channels'
             )
           }
           hostingBotEnabled={hostingBotEnabled}
@@ -238,18 +234,16 @@ function SplashSequenceComponent(props: {
         />
       )}
 
-      {/* --- Standard flow only: channels & privacy explainers --- */}
-      {currentPane === SplashPane.Channels && (
+      {currentPane === 'Channels' && (
         <ChannelsPane
-          onActionPress={() => setCurrentPane(SplashPane.Privacy)}
+          onActionPress={() => setCurrentPane('Privacy')}
         />
       )}
-      {currentPane === SplashPane.Privacy && (
-        <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
+      {currentPane === 'Privacy' && (
+        <PrivacyPane onActionPress={() => setCurrentPane('Invite')} />
       )}
 
-      {/* --- Invite contacts (shared by both flows) --- */}
-      {currentPane === SplashPane.Invite && (
+      {currentPane === 'Invite' && (
         <InvitePane
           onActionPress={handleSplashCompleted}
           inviteSystemContacts={props.inviteSystemContacts}
@@ -300,7 +294,7 @@ export function WelcomePane(props: {
               : require(`../../assets/raster/sourdough-starter.png`)
         }
       />
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>Welcome to Tlon Messenger</SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -356,7 +350,7 @@ export function TlonBotPane(props: {
               : require(`../../assets/raster/bot.png`)
         }
       />
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           Meet your <Text color="$positiveActionText">Tlonbot.</Text>
         </SplashTitle>
@@ -422,7 +416,7 @@ export function BotNamePane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           Name your <Text color="$positiveActionText">bot.</Text>
         </SplashTitle>
@@ -522,7 +516,7 @@ export function BotModelPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           Choose a <Text color="$positiveActionText">brain.</Text>
         </SplashTitle>
@@ -602,7 +596,7 @@ export function BotLaunchPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           Put it to <Text color="$positiveActionText">work.</Text>
         </SplashTitle>
@@ -811,7 +805,7 @@ export function GroupsPane(props: {
               : require(`../../assets/raster/garden-party-invite.png`)
         }
       />
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           This is a <Text color="$positiveActionText">group.</Text>
         </SplashTitle>
@@ -861,7 +855,7 @@ export function ChannelsPane(props: { onActionPress: () => void }) {
             : require(`../../assets/raster/app-screens.png`)
         }
       />
-      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           Groups contain{'\n'}
           <Text color="$positiveActionText">channels.</Text>
@@ -903,7 +897,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         paddingBottom={insets.bottom}
       >
         <PrivacyLevelsDisplay />
-        <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+        <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
           <SplashTitle>
             Groups are{'\n'}
             <Text color="$positiveActionText">secret</Text> by default.
@@ -1093,7 +1087,7 @@ function ConnectContactBookContent(props: {
   return (
     <View flex={1} paddingBottom={insets.bottom}>
       <InviteFriendsDisplay />
-      <YStack flex={1} gap="$xl" paddingTop="$2xl">
+      <YStack flex={1} gap="$2xl" paddingTop="$2xl">
         <SplashTitle>
           Better with <Text color="$positiveActionText">friends.</Text>
         </SplashTitle>
