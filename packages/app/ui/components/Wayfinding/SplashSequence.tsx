@@ -8,7 +8,6 @@ import {
 import * as db from '@tloncorp/shared/db';
 import {
   DEFAULT_BOT_CONFIG,
-  MODEL_OPTIONS,
   SUGGESTED_NAMES,
 } from '@tloncorp/shared/domain';
 import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
@@ -82,11 +81,8 @@ function SplashSequenceComponent(props: {
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
     DEFAULT_BOT_CONFIG.avatarUrl
   );
-  const [botModel, setBotModel] = React.useState(DEFAULT_BOT_CONFIG.model);
+  const [botModel, setBotModel] = React.useState('');
   const [botApiKey, setBotApiKey] = React.useState('');
-  const [botSpecificModel, setBotSpecificModel] = React.useState<string | null>(
-    null
-  );
   const [botMoonId, setBotMoonId] = React.useState<string | null>(null);
   const [savingConfig, setSavingConfig] = React.useState(false);
   const [botContactAvatarUrl, setBotContactAvatarUrl] = React.useState<
@@ -94,6 +90,9 @@ function SplashSequenceComponent(props: {
   >(null);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
   const [didConfigureBot, setDidConfigureBot] = React.useState(false);
+  const [providerOptions, setProviderOptions] = React.useState<
+    { label: string; provider: string; requiresKey: boolean }[]
+  >([]);
 
   // Pick a random subset of name suggestions on mount
   const nameSuggestions = useMemo(() => {
@@ -101,18 +100,23 @@ function SplashSequenceComponent(props: {
     return shuffled.slice(0, 8);
   }, []);
 
-  // Fetch the bot's current nickname and avatar from hosting API + contacts
+  // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const shipId = await db.hostedUserNodeId.getValue();
+        const userId = await db.hostingUserId.getValue();
         if (shipId) {
-          const [botInfo, nickname, avatar] = await Promise.all([
-            api.getTlawnBotInfo(shipId).catch(() => null),
-            api.getTlawnNickname(shipId).catch(() => null),
-            api.getTlawnAvatar(shipId).catch(() => null),
-          ]);
+          const [botInfo, nickname, avatar, providerConfig] =
+            await Promise.all([
+              api.getTlawnBotInfo(shipId).catch(() => null),
+              api.getTlawnNickname(shipId).catch(() => null),
+              api.getTlawnAvatar(shipId).catch(() => null),
+              userId
+                ? api.getTlawnProviderKeys(userId).catch(() => null)
+                : null,
+            ]);
           if (!cancelled) {
             if (nickname) {
               setBotName(nickname);
@@ -122,12 +126,62 @@ function SplashSequenceComponent(props: {
             }
             if (botInfo?.moon) {
               setBotMoonId(botInfo.moon);
-              // Fall back to contact record if hosting didn't return an avatar
               if (!avatar) {
                 const contact = await db.getContact({ id: botInfo.moon });
                 if (!cancelled && contact?.avatarImage) {
                   setBotContactAvatarUrl(contact.avatarImage);
                 }
+              }
+            }
+
+            // Build provider options from hosting config
+            if (providerConfig) {
+              const providers: {
+                label: string;
+                provider: string;
+                requiresKey: boolean;
+              }[] = [];
+              // Providers with default keys (free, no user key needed)
+              for (const provider of Object.keys(
+                providerConfig.defaultKeys ?? {}
+              )) {
+                providers.push({
+                  label: providerLabel(provider),
+                  provider,
+                  requiresKey: false,
+                });
+              }
+              // Providers the user already has keys for
+              for (const provider of Object.keys(
+                providerConfig.keys ?? {}
+              )) {
+                if (!providers.some((p) => p.provider === provider)) {
+                  providers.push({
+                    label: providerLabel(provider),
+                    provider,
+                    requiresKey: true,
+                  });
+                }
+              }
+              // Always include common BYOK providers
+              for (const provider of [
+                'anthropic',
+                'openai',
+                'openrouter',
+              ]) {
+                if (!providers.some((p) => p.provider === provider)) {
+                  providers.push({
+                    label: providerLabel(provider),
+                    provider,
+                    requiresKey: true,
+                  });
+                }
+              }
+              setProviderOptions(providers);
+              // Default to the first free provider
+              const freeProvider = providers.find((p) => !p.requiresKey);
+              if (freeProvider) {
+                setBotModel(freeProvider.provider);
               }
             }
           }
@@ -155,21 +209,17 @@ function SplashSequenceComponent(props: {
       const shipId = await db.hostedUserNodeId.getValue();
       if (userId && shipId) {
         const name = botName || 'Tlonbot';
-        const selected =
-          MODEL_OPTIONS.find((o) => o.value === botModel) ?? MODEL_OPTIONS[0];
-
-        const modelId = botSpecificModel
-          ? `${selected.provider}/${botSpecificModel}`
-          : selected.hostingModel;
+        const provider = botModel || 'basic';
+        const selected = providerOptions.find((p) => p.provider === provider);
 
         await Promise.allSettled([
           api.setTlawnNickname(shipId, name),
           api.setTlawnPrimaryModel(userId, {
-            provider: selected.provider,
-            model: modelId,
+            provider,
+            model: `${provider}/auto`,
           }),
-          botApiKey && selected.requiresKey
-            ? api.setTlawnProviderKey(userId, selected.provider, botApiKey)
+          botApiKey && selected?.requiresKey
+            ? api.setTlawnProviderKey(userId, provider, botApiKey)
             : Promise.resolve(),
           avatarDirty && botAvatarUrl
             ? api.setTlawnAvatar(shipId, botAvatarUrl)
@@ -182,14 +232,7 @@ function SplashSequenceComponent(props: {
     setSavingConfig(false);
     setDidConfigureBot(true);
     setCurrentPane(SplashPane.Group);
-  }, [
-    botName,
-    botModel,
-    botApiKey,
-    botSpecificModel,
-    avatarDirty,
-    botAvatarUrl,
-  ]);
+  }, [botName, botModel, botApiKey, providerOptions, avatarDirty, botAvatarUrl]);
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();
@@ -231,9 +274,9 @@ function SplashSequenceComponent(props: {
         <BotModelPane
           model={botModel}
           apiKey={botApiKey}
+          providers={providerOptions}
           loading={savingConfig}
           onModelChange={setBotModel}
-          onSpecificModelChange={setBotSpecificModel}
           onApiKeyChange={setBotApiKey}
           onActionPress={handleSaveBotConfig}
         />
@@ -273,6 +316,17 @@ function SplashSequenceComponent(props: {
 }
 
 export const SplashSequence = React.memo(SplashSequenceComponent);
+
+const PROVIDER_LABELS: Record<string, string> = {
+  basic: 'MiniMax',
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+  openrouter: 'OpenRouter',
+};
+
+function providerLabel(provider: string): string {
+  return PROVIDER_LABELS[provider] ?? provider;
+}
 
 const SplashTitle = styled(Text, {
   fontSize: '$xl',
@@ -532,79 +586,24 @@ export function BotNamePane(props: {
 export function BotModelPane(props: {
   model: string;
   apiKey: string;
+  providers: { label: string; provider: string; requiresKey: boolean }[];
   loading?: boolean;
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: string) => void;
-  onSpecificModelChange?: (modelId: string | null) => void;
   onActionPress: () => void;
 }) {
   const {
     model,
     apiKey,
+    providers,
     loading,
     onModelChange,
     onApiKeyChange,
-    onSpecificModelChange,
     onActionPress,
   } = props;
   const insets = useSafeAreaInsets();
-  const selectedOption = MODEL_OPTIONS.find((o) => o.value === model);
-  const needsApiKey = selectedOption?.requiresKey ?? false;
-
-  const [validatingKey, setValidatingKey] = useState(false);
-  const [keyError, setKeyError] = useState<string | null>(null);
-  const [availableModels, setAvailableModels] = useState<
-    { id: string }[] | null
-  >(null);
-  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
-
-  // Reset validation state when provider changes
-  useEffect(() => {
-    setKeyError(null);
-    setAvailableModels(null);
-    setSelectedModelId(null);
-    onSpecificModelChange?.(null);
-  }, [model, onSpecificModelChange]);
-
-  const handleSubmitKey = useCallback(async () => {
-    if (!apiKey || !selectedOption) return;
-    setValidatingKey(true);
-    setKeyError(null);
-    try {
-      const userId = await db.hostingUserId.getValue();
-      if (!userId) return;
-
-      await api.setTlawnProviderKey(userId, selectedOption.provider, apiKey);
-
-      const result = await api.getTlawnProviderModels(
-        userId,
-        selectedOption.provider
-      );
-      const models = result?.data ?? [];
-      setAvailableModels(models);
-      if (models.length > 0) {
-        setSelectedModelId(models[0].id);
-        onSpecificModelChange?.(models[0].id);
-      }
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Invalid API key';
-      setKeyError(message);
-      setAvailableModels(null);
-    } finally {
-      setValidatingKey(false);
-    }
-  }, [apiKey, selectedOption, onSpecificModelChange]);
-
-  const handleSelectModel = useCallback(
-    (modelId: string) => {
-      setSelectedModelId(modelId);
-      onSpecificModelChange?.(modelId);
-    },
-    [onSpecificModelChange]
-  );
-
-  const canProceed =
-    !needsApiKey || (availableModels && availableModels.length > 0);
+  const selected = providers.find((p) => p.provider === model);
+  const needsApiKey = selected?.requiresKey ?? false;
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -623,59 +622,33 @@ export function BotModelPane(props: {
           }}
         >
           <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            MiniMax is free. Bring your own API key to use a different provider.
+            {providers.some((p) => !p.requiresKey)
+              ? 'A free model is included. Bring your own API key to use a different provider.'
+              : 'Enter your API key to use a provider.'}
           </SplashParagraph>
-          {MODEL_OPTIONS.map((option) => (
+          {providers.map((option) => (
             <ModelOptionCard
-              key={option.value}
-              option={option}
-              selected={model === option.value}
-              onPress={() => onModelChange(option.value)}
+              key={option.provider}
+              option={{
+                label: option.label,
+                description: option.requiresKey
+                  ? 'Requires API key'
+                  : 'Default (free)',
+              }}
+              selected={model === option.provider}
+              onPress={() => onModelChange(option.provider)}
             />
           ))}
           {needsApiKey && (
-            <YStack gap="$s" marginTop="$s">
-              {!availableModels ? (
-                <>
-                  <TextInput
-                    value={apiKey}
-                    onChangeText={onApiKeyChange}
-                    placeholder={`${selectedOption?.label} API key`}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    onSubmitEditing={handleSubmitKey}
-                    returnKeyType="done"
-                  />
-                  <Button
-                    onPress={handleSubmitKey}
-                    label="Submit"
-                    loading={validatingKey}
-                    disabled={validatingKey || !apiKey}
-                    preset="primary"
-                  />
-                  {keyError && (
-                    <Text size="$label/s" color="$negativeActionText">
-                      {keyError}
-                    </Text>
-                  )}
-                </>
-              ) : (
-                <YStack gap="$l">
-                  <Text size="$label/m" color="$tertiaryText">
-                    Choose a model
-                  </Text>
-                  {availableModels.slice(0, 10).map((m) => (
-                    <ModelOptionCard
-                      key={m.id}
-                      option={{ label: m.id, description: '' }}
-                      selected={selectedModelId === m.id}
-                      onPress={() => handleSelectModel(m.id)}
-                    />
-                  ))}
-                </YStack>
-              )}
-            </YStack>
+            <TextInput
+              value={apiKey}
+              onChangeText={onApiKeyChange}
+              placeholder={`${selected?.label} API key`}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
+            />
           )}
         </ScrollView>
       </YStack>
@@ -684,7 +657,7 @@ export function BotModelPane(props: {
         label={loading ? 'Saving...' : 'Next'}
         preset="hero"
         loading={loading}
-        disabled={loading || !canProceed}
+        disabled={loading || (needsApiKey && !apiKey)}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
