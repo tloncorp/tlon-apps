@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, getTokenValue, useStyle } from 'tamagui';
 
-import { useContactIndex, useContacts } from '../contexts';
+import { useContactIndex, useContacts } from '../contexts/appDataContext';
 import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,

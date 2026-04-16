@@ -25,8 +25,9 @@ import {
 
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
-import { useChannelContext, useCurrentUserId } from '../../contexts';
-import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useChannelContext } from '../../contexts/channel';
+import type { MinimalRenderItemProps } from '../../contexts/componentsKits/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';

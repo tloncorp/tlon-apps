@@ -34,7 +34,8 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
-import { useAttachmentContext, useStore } from '../../contexts';
+import { useAttachmentContext } from '../../contexts/attachment';
+import { useStore } from '../../contexts/storeContext';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';

@@ -45,7 +45,7 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
-import { useBranchDomain, useBranchKey } from '../../contexts';
+import { useBranchDomain, useBranchKey } from '../../contexts/appDataContext';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';

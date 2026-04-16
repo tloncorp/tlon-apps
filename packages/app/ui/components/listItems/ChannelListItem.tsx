@@ -11,13 +11,14 @@ import React, {
 } from 'react';
 import { View, isWeb } from 'tamagui';
 
-import { useChatOptions, useNavigation } from '../../contexts';
+import { useChatOptions } from '../../contexts/chatOptions/useChatOptions';
+import { useNavigation } from '../../contexts/navigation';
 import * as utils from '../../utils';
 import { Badge } from '../Badge';
 import { ChatOptionsSheet } from '../ChatOptionsSheet';
 import { ContactName } from '../ContactNameV2';
+import { ListItem, type ListItemProps } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-import { ListItem, type ListItemProps } from './ListItem';
 
 export function ChannelListItem({
   model,

@@ -11,8 +11,9 @@ import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useRenderCount } from '../../../../hooks/useRenderCount';
-import { useChannelContext, useCurrentUserId } from '../../../contexts';
+import { useCurrentUserId } from '../../../contexts/appDataContext';
 import { useAttachmentContext } from '../../../contexts/attachment';
+import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';

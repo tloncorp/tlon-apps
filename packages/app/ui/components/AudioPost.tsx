@@ -2,7 +2,7 @@ import { convertContent } from '@tloncorp/shared/logic';
 import { Pressable } from '@tloncorp/ui';
 import { useCallback, useMemo, useRef } from 'react';
 
-import { RenderItemType } from '../contexts/componentsKits';
+import type { RenderItemType } from '../contexts/componentsKits';
 import { ChatAuthorRow } from './AuthorRow';
 import { AudioPlayerHandle } from './Embed/AudioEmbedShared';
 import { AudioPlayer } from './Embed/AudioPlayer';
