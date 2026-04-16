@@ -4,6 +4,20 @@ import { p } from '@urbit/aura';
 
 const USER_ID_SEPARATORS = /([_^-])/;
 
+// p.cite shortens moons in ways that lose information: star/galaxy moons get
+// rendered as just their parent (impersonating it), and planet moons drop the
+// parent-planet prefix. Only shorten comets — everything else shows in full.
+function citeShip(userId: string): string | null {
+  try {
+    if (p.kind(userId) === 'comet') {
+      return p.cite(userId);
+    }
+    return userId;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Format a user ID for display with proper aria label.
  * @param userId - The user ID to format (e.g., '~sampel-palnet')
@@ -14,7 +28,7 @@ export function formatUserId(
   userId: string,
   full = false
 ): { display: string; ariaLabel: string } | null {
-  const shortenedName = full ? userId : p.cite(userId);
+  const shortenedName = full ? userId : citeShip(userId);
   if (!shortenedName) return null;
 
   const ariaLabel = desig(shortenedName).split(USER_ID_SEPARATORS).join(' ');
