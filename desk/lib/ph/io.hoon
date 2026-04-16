@@ -435,8 +435,7 @@
       /i/(scot %p ship)
     (snoc `path`pax %noun)
   %-  pure:m
-  ;;  mold
-  .^  noun
+  .^  mold
       %gx
       (scot %p our.bowl)
       %aqua
