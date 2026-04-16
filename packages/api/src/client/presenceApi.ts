@@ -269,7 +269,7 @@ function toWireDisplay(
   display?: PresenceDisplayInput
 ): ub.PresenceActionDisplay {
   return {
-    symbol: display?.icon ?? null,
+    icon: display?.icon ?? null,
     text: display?.text ?? null,
     blob: display?.blob ?? null,
   };

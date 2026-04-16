@@ -21,7 +21,7 @@ export interface PresenceDisplay {
 }
 
 export interface PresenceActionDisplay {
-  symbol: string | null;
+  icon: string | null;
   text: string | null;
   blob: string | null;
 }
