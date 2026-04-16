@@ -10,7 +10,13 @@ import {
   parseGroupChannelId,
   parseGroupId,
 } from './apiUtils';
-import { getCurrentUserId, poke, scry, subscribe } from './urbit';
+import {
+  BadResponseError,
+  getCurrentUserId,
+  poke,
+  scry,
+  subscribe,
+} from './urbit';
 
 const logger = createDevLogger('presenceApi', false);
 
@@ -198,6 +204,21 @@ export const clearPresenceContext = async (context: string) => {
 export const subscribeToPresenceUpdates = async (
   handler: (event: PresenceEvent) => void
 ) => {
+  try {
+    await scry<ub.PresenceResponse>({
+      app: 'presence',
+      path: '/v1/init',
+    });
+  } catch (error) {
+    if (error instanceof BadResponseError && error.status === 404) {
+      logger.trackEvent('%presence agent missing');
+      logger.warn('presence agent unavailable, skipping presence subscription');
+      return null;
+    }
+
+    throw error;
+  }
+
   return subscribe<ub.PresenceResponse>(
     {
       app: 'presence',

@@ -1,12 +1,26 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock('../client/urbit', async () => {
+  const actual = await vi.importActual<typeof import('../client/urbit')>(
+    '../client/urbit'
+  );
+
+  return {
+    ...actual,
+    scry: vi.fn(),
+    subscribe: vi.fn(),
+  };
+});
 
 import {
+  subscribeToPresenceUpdates,
   conversationIdToPresenceContext,
   getPresenceContextIdFromKey,
   groupIdToPresenceContext,
   toPresenceEvent,
   toPresenceStatuses,
 } from '../client/presenceApi';
+import { BadResponseError, scry, subscribe } from '../client/urbit';
 import type * as ub from '../urbit';
 
 const FIRST_SINCE = new Date('2026-03-25T12:00:00.000Z').getTime();
@@ -140,5 +154,44 @@ describe('presenceApi', () => {
       },
       contextId: '~nec',
     });
+  });
+
+  test('skips subscribing when the presence agent is unavailable', async () => {
+    vi.mocked(scry).mockRejectedValueOnce(new BadResponseError(404, 'Missing'));
+
+    await expect(subscribeToPresenceUpdates(vi.fn())).resolves.toBeNull();
+
+    expect(subscribe).not.toHaveBeenCalled();
+  });
+
+  test('rethrows non-missing errors while probing presence availability', async () => {
+    vi.mocked(scry).mockRejectedValueOnce(
+      new BadResponseError(500, 'Internal Server Error')
+    );
+
+    await expect(subscribeToPresenceUpdates(vi.fn())).rejects.toBeInstanceOf(
+      BadResponseError
+    );
+
+    expect(subscribe).not.toHaveBeenCalled();
+  });
+
+  test('subscribes to presence updates after a successful availability probe', async () => {
+    vi.mocked(scry).mockResolvedValueOnce({ init: {} } as ub.PresenceResponse);
+    vi.mocked(subscribe).mockResolvedValueOnce(42);
+
+    await expect(subscribeToPresenceUpdates(vi.fn())).resolves.toBe(42);
+
+    expect(scry).toHaveBeenCalledWith({
+      app: 'presence',
+      path: '/v1/init',
+    });
+    expect(subscribe).toHaveBeenCalledWith(
+      {
+        app: 'presence',
+        path: '/v1',
+      },
+      expect.any(Function)
+    );
   });
 });
