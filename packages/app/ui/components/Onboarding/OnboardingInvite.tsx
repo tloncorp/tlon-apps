@@ -2,7 +2,7 @@ import { DeepLinkMetadata } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import React, { ComponentProps } from 'react';
 
-import { AppDataContextProvider } from '../../contexts';
+import { AppDataContextProvider } from '../../contexts/appDataContext';
 import { getDisplayName } from '../../utils';
 import { ListItem } from '../ListItem';
 

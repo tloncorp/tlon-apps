@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { isWeb } from 'tamagui';
 
 import { pickFile } from '../../utils/filepicker';
-import { useAttachmentContext } from '../contexts';
+import { useAttachmentContext } from '../contexts/attachment';
 import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import { GalleryRoute } from './draftInputs/shared';

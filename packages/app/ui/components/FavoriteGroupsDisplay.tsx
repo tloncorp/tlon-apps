@@ -3,11 +3,12 @@ import { Pressable } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { SizableText, XStack } from 'tamagui';
 
-import { useGroups } from '../contexts';
+import { useGroups } from '../contexts/groups';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import { GroupSelectorSheet } from './GroupSelectorSheet';
-import { GroupListItem, ListItem } from './ListItem';
+import { ListItem } from './ListItem';
 import { WidgetPane } from './WidgetPane';
+import { GroupListItem } from './listItems';
 
 export function FavoriteGroupsDisplay(props: {
   groups: db.Group[];

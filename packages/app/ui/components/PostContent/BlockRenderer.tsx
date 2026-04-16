@@ -27,17 +27,24 @@ import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNowPlayingController } from '../../contexts/nowPlaying';
 import { Waveform } from '../AudioRecorder/Waveform';
+import { Reference } from '../ContentReference/Reference';
 import {
-  ContentReferenceLoader,
-  IsInsideReferenceContext,
-  Reference,
-} from '../ContentReference';
+  ContentReferenceLoaderComponent,
+  ContentReferenceLoaderProps,
+} from '../ContentReference/types';
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
+
+export const IsInsideReferenceContext = createContext(false);
+// Provides the ContentReferenceLoader component to BlockRenderer without
+// creating a circular import. Set once at the app root via ContentReferenceLoaderProvider.
+// (This is a genuine circular dependency since a reference can render content that renders a reference.)
+export const ContentReferenceContext =
+  createContext<ContentReferenceLoaderComponent | null>(null);
 
 const DUMMY_WAVEFORM_VALUES = [
   1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
@@ -209,17 +216,24 @@ export function ParagraphBlock({
 export function ReferenceBlock({
   block,
   ...props
-}: { block: cn.ReferenceBlockData } & Omit<
-  ComponentProps<typeof ContentReferenceLoader>,
-  'reference'
->) {
+}: {
+  block: cn.ReferenceBlockData;
+} & Omit<ContentReferenceLoaderProps, 'reference'>) {
   const isInsideReference = useContext(IsInsideReferenceContext);
+  const ReferenceLoader = useContext(ContentReferenceContext);
 
   if (isInsideReference) {
     return null;
   }
 
-  return <ContentReferenceLoader reference={block} {...props} />;
+  if (!ReferenceLoader) {
+    console.warn(
+      'ReferenceBlock rendered without a ReferenceLoader in context'
+    );
+    return null;
+  }
+
+  return <ReferenceLoader reference={block} {...props} />;
 }
 
 export function VoiceMemoBlock({

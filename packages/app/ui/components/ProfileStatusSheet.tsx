@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
-import { useContact, useCurrentUserId } from '../contexts';
+import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { ActionSheet } from './ActionSheet';
 import { ControlledTextField } from './Form';
 

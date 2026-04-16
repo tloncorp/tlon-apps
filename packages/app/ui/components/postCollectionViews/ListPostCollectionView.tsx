@@ -14,7 +14,7 @@ import {
   useState,
 } from 'react';
 
-import { useCurrentUserId } from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { EmptyChannelNotice } from '../Channel/EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from '../Channel/Scroller';
