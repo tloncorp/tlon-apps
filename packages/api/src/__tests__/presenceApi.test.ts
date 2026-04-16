@@ -1,9 +1,19 @@
 import { describe, expect, test, vi } from 'vitest';
 
+import {
+  conversationIdToPresenceContext,
+  getPresenceContextIdFromKey,
+  groupIdToPresenceContext,
+  subscribeToPresenceUpdates,
+  toPresenceEvent,
+  toPresenceStatuses,
+} from '../client/presenceApi';
+import { BadResponseError, scry, subscribe } from '../client/urbit';
+import type * as ub from '../urbit';
+
 vi.mock('../client/urbit', async () => {
-  const actual = await vi.importActual<typeof import('../client/urbit')>(
-    '../client/urbit'
-  );
+  const actual =
+    await vi.importActual<typeof import('../client/urbit')>('../client/urbit');
 
   return {
     ...actual,
@@ -11,17 +21,6 @@ vi.mock('../client/urbit', async () => {
     subscribe: vi.fn(),
   };
 });
-
-import {
-  subscribeToPresenceUpdates,
-  conversationIdToPresenceContext,
-  getPresenceContextIdFromKey,
-  groupIdToPresenceContext,
-  toPresenceEvent,
-  toPresenceStatuses,
-} from '../client/presenceApi';
-import { BadResponseError, scry, subscribe } from '../client/urbit';
-import type * as ub from '../urbit';
 
 const FIRST_SINCE = new Date('2026-03-25T12:00:00.000Z').getTime();
 const SECOND_SINCE = new Date('2026-03-25T12:00:30.000Z').getTime();
