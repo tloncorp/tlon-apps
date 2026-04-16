@@ -64,6 +64,7 @@ const SKIP_DOWNLOAD = process.env.SKIP_DOWNLOAD === 'true';
 const PRE_EXTRACTED_SHIPS = process.env.PRE_EXTRACTED_SHIPS;
 const URBIT_BINARY_PATH = process.env.URBIT_BINARY_PATH;
 const INCLUDE_OPTIONAL_SHIPS = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
+const FRESH_BOOT = process.env.FRESH_BOOT === 'true';
 
 export interface Ship {
   authFile: string;
@@ -427,6 +428,26 @@ const getPiers = async () => {
     return; // Skip download/extract logic
   }
 
+  // Fresh boot mode: skip download/extraction, just prepare directories
+  if (FRESH_BOOT) {
+    console.log('🆕 Fresh boot mode: skipping pier download/extraction');
+    for (const shipConfig of Object.values(ships) as Ship[]) {
+      if (targetShip && targetShip !== shipConfig.ship) {
+        continue;
+      }
+      const { extractPath, ship } = shipConfig;
+      // Remove any existing pier so urbit -F creates a clean one
+      if (fs.existsSync(extractPath)) {
+        fs.rmSync(extractPath, { recursive: true });
+        console.log(`Removed existing ${extractPath}`);
+      }
+      // Create parent directory (e.g. dist/zod/) so urbit -F creates dist/zod/zod/
+      fs.mkdirSync(extractPath, { recursive: true });
+      console.log(`Prepared fresh boot directory for ${ship}`);
+    }
+    return;
+  }
+
   // Original download and extract logic for non-container environments
   for (const shipConfig of Object.values(ships) as Ship[]) {
     if (targetShip && targetShip !== shipConfig.ship) {
@@ -554,6 +575,44 @@ const bootShip = (
   httpPort: string,
   ship: ShipName
 ) => {
+  if (FRESH_BOOT) {
+    // For fresh boot, use -F to create a new fakeship
+    // pierPath is e.g. dist/zod/zod - parent dir is dist/zod/
+    const parentDir = path.dirname(pierPath);
+    console.log(
+      `Fresh-booting ~${ship} at ${pierPath} on port ${httpPort} with ${binaryPath}`
+    );
+
+    const urbitProcess = childProcess.spawn(
+      binaryPath,
+      ['-F', ship, '-d', '--http-port', httpPort],
+      { cwd: parentDir }
+    );
+
+    spawnedProcesses.push(urbitProcess);
+    shipProcesses[ship] = urbitProcess;
+
+    if (urbitProcess.stdout) {
+      urbitProcess.stdout.on('data', (data) => {
+        console.log(`[Urbit STDOUT (${ship})]: ${data}`);
+      });
+    }
+
+    if (urbitProcess.stderr) {
+      urbitProcess.stderr.on('data', (data) => {
+        console.error(`[Urbit STDERR (${ship})]: ${data}`);
+      });
+    }
+
+    urbitProcess.on('exit', (code, signal) => {
+      console.log(
+        `[Urbit EXIT (${ship})]: code=${code ?? 'null'} signal=${signal ?? 'null'}`
+      );
+    });
+
+    return;
+  }
+
   const lockPath = path.join(pierPath, '.vere.lock');
 
   if (fs.existsSync(lockPath)) {
@@ -725,9 +784,9 @@ const shipsAreReadyForCommands = () => {
 
 const checkShipReadinessForCommands = async () =>
   new Promise<void>((resolve, reject) => {
-    // We need to try more times if we're *not* forcing extraction because
-    // the ships may need to run playback to get to a ready state
-    const maxAttempts = forceExtraction ? 120 : 30;
+    // Fresh boots compile the kernel from scratch and take much longer
+    // Force extraction also needs more time for playback
+    const maxAttempts = FRESH_BOOT ? 600 : forceExtraction ? 120 : 30;
     let attempts = 0;
 
     const checkForHttpsPorts = async () => {
@@ -827,6 +886,31 @@ const commitDesks = async (shipsNeedingUpdates: string[]) => {
       );
     }
   }
+};
+
+const installGroupsDesk = async () => {
+  console.log('Installing %groups desk on fresh ships');
+
+  for (const ship of Object.values(ships) as Ship[]) {
+    if (targetShip && targetShip !== ship.ship) {
+      continue;
+    }
+    if (ship.skipCommit === true) {
+      continue;
+    }
+
+    console.log(`Creating %groups desk on ${ship.ship}`);
+    await hoodCommand(
+      ship.ship as ShipName,
+      'merge %groups our %base',
+      ship.loopbackPort
+    );
+
+    // Wait for desk creation to complete
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+
+  console.log('Groups desk installed on all ships');
 };
 
 const nukeStateOnShips = async () => {
@@ -950,6 +1034,40 @@ const makeRequestWithCookies = async (
   return responseBody;
 };
 
+const waitForGroupsDeskInKiln = async (
+  ship: Ship,
+  options: { maxAttempts?: number; delayMs?: number } = {}
+): Promise<string> => {
+  const maxAttempts = options.maxAttempts ?? 30;
+  const delayMs = options.delayMs ?? 1_000;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await makeRequestWithCookies(
+      ship.ship as ShipName,
+      `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`,
+      {
+        context: `wait for %groups desk in kiln (attempt ${attempt}/${maxAttempts})`,
+      }
+    );
+
+    const json = JSON.parse(response);
+    if (json?.groups?.hash) {
+      return json.groups.hash as string;
+    }
+
+    if (attempt < maxAttempts) {
+      console.log(
+        `%groups desk not yet available in kiln for ~${ship.ship} (attempt ${attempt}/${maxAttempts}), retrying...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw new Error(
+    `%groups desk did not appear in kiln/pikes.json for ~${ship.ship} after ${maxAttempts} attempts`
+  );
+};
+
 const assertShipHealthy = async (
   ship: ShipName,
   context: string,
@@ -981,18 +1099,13 @@ const getStartHashes = async () => {
       continue;
     }
 
-    const response = await makeRequestWithCookies(
-      ship.ship as ShipName,
-      `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`,
-      {
-        context: 'initial kiln hash fetch',
-      }
-    );
-
-    const json = JSON.parse(response);
+    const groupsHash = await waitForGroupsDeskInKiln(ship, {
+      maxAttempts: FRESH_BOOT ? 60 : 10,
+      delayMs: 1_000,
+    });
 
     startHashes[ship.ship] = {
-      groups: json.groups.hash,
+      groups: groupsHash,
     };
     console.log(`Start hashes for ~${ship.ship}:`, startHashes[ship.ship]);
   }
@@ -1795,6 +1908,10 @@ const main = async () => {
     process.exit(1);
   }
 
+  if (FRESH_BOOT) {
+    console.log('🆕 Fresh boot mode - booting new fakeships from scratch');
+  }
+
   if (forceExtraction) {
     console.log('🚨 Force extraction enabled - all ships will be re-extracted');
   }
@@ -1816,30 +1933,53 @@ const main = async () => {
     await checkShipReadinessForCommands();
     await getPortsFromFiles();
     await login();
-    await getStartHashes();
 
-    // Nuke state and set reel service ship before mount/commit operations,
-    // this makes it more likely that the ships will be ready for click commands
-    await nukeStateOnShips();
-    // Only set reel service ship if ~mug is running (optional ships included)
-    if (INCLUDE_OPTIONAL_SHIPS) {
-      await setReelServiceShip();
+    let shipsNeedingUpdates: string[];
+
+    if (FRESH_BOOT) {
+      // Fresh boot: install desk from scratch, skip nuke
+      await installGroupsDesk();
+      await getStartHashes();
+
+      // Mount desks so Urbit writes its current state to filesystem
+      await mountDesks();
+
+      // Copy our desk files and commit
+      shipsNeedingUpdates = await copyDesks();
+      await commitDesks(shipsNeedingUpdates);
+      await checkShipReadinessForTests(shipsNeedingUpdates);
+
+      // Set up reel after desk is fully installed
+      if (INCLUDE_OPTIONAL_SHIPS) {
+        await setReelServiceShip();
+      }
+      await setStorageConfiguration();
     } else {
-      console.log(
-        'Skipping reel service ship setup (optional ships not included)'
-      );
+      await getStartHashes();
+
+      // Nuke state and set reel service ship before mount/commit operations,
+      // this makes it more likely that the ships will be ready for click commands
+      await nukeStateOnShips();
+      // Only set reel service ship if ~mug is running (optional ships included)
+      if (INCLUDE_OPTIONAL_SHIPS) {
+        await setReelServiceShip();
+      } else {
+        console.log(
+          'Skipping reel service ship setup (optional ships not included)'
+        );
+      }
+      await setStorageConfiguration();
+
+      // Mount desks first so Urbit writes its current state to filesystem
+      await mountDesks();
+
+      // Copy desk changes to ships that need updates
+      shipsNeedingUpdates = await copyDesks();
+
+      // Commit changes so Urbit reads our updates and updates its internal state
+      await commitDesks(shipsNeedingUpdates);
+      await checkShipReadinessForTests(shipsNeedingUpdates);
     }
-    await setStorageConfiguration();
-
-    // Mount desks first so Urbit writes its current state to filesystem
-    await mountDesks();
-
-    // Copy desk changes to ships that need updates
-    const shipsNeedingUpdates = await copyDesks();
-
-    // Commit changes so Urbit reads our updates and updates its internal state
-    await commitDesks(shipsNeedingUpdates);
-    await checkShipReadinessForTests(shipsNeedingUpdates);
 
     // uncomment to enable verb logging for all ships
     // await enableVerb();
