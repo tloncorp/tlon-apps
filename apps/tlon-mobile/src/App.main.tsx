@@ -14,7 +14,6 @@ import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
-import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
@@ -95,7 +94,6 @@ const App = () => {
   } = useShip();
   const [connected, setConnected] = useState(true);
   const signupContext = useSignupContext();
-  const configureClient = useConfigureUrbitClient();
 
   const finishingSelfHostedLogin = db.finishingSelfHostedLogin.useValue();
   const haveHostedLogin = db.haveHostedLogin.useValue();
@@ -156,13 +154,6 @@ const App = () => {
     setForcedSplash(false);
     clearNeedsSplashSequence();
   }, [clearNeedsSplashSequence]);
-
-  // Configure the Urbit client during the splash so group creation works
-  useEffect(() => {
-    if (showSplashSequence) {
-      configureClient();
-    }
-  }, [showSplashSequence, configureClient]);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
