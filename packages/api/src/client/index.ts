@@ -51,6 +51,7 @@ export {
   setTlawnProviderKey,
   deleteTlawnProviderKey,
   setTlawnPrimaryModel,
+  getTlawnProviderModels,
   getTlawnBotInfo,
   getTlawnNickname,
   setTlawnNickname,
@@ -68,6 +69,7 @@ export type {
   TlawnPrimaryModelUpdate,
   TlawnBotInfo,
   TlawnConfig,
+  TlawnProviderModel,
 } from './hostingApi';
 export * from './apiUtils';
 export * from './metagrabApi';

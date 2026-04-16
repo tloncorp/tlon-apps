@@ -11,14 +11,7 @@ import {
   MODEL_OPTIONS,
   SUGGESTED_NAMES,
 } from '@tloncorp/shared/domain';
-import {
-  Button,
-  Icon,
-  Input,
-  LoadingSpinner,
-  Pressable,
-  Text,
-} from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -27,11 +20,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  FlatList,
-  Image,
-  ScrollView,
-} from 'react-native';
+import { FlatList, Image, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -53,6 +42,7 @@ import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { AvatarPicker } from '../AvatarPicker';
+import { TextInput } from '../Form';
 import { ListItem, SystemContactListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -94,6 +84,9 @@ function SplashSequenceComponent(props: {
   );
   const [botModel, setBotModel] = React.useState(DEFAULT_BOT_CONFIG.model);
   const [botApiKey, setBotApiKey] = React.useState('');
+  const [botSpecificModel, setBotSpecificModel] = React.useState<string | null>(
+    null
+  );
   const [botMoonId, setBotMoonId] = React.useState<string | null>(null);
   const [savingConfig, setSavingConfig] = React.useState(false);
   const [botContactAvatarUrl, setBotContactAvatarUrl] = React.useState<
@@ -165,11 +158,15 @@ function SplashSequenceComponent(props: {
         const selected =
           MODEL_OPTIONS.find((o) => o.value === botModel) ?? MODEL_OPTIONS[0];
 
+        const modelId = botSpecificModel
+          ? `${selected.provider}/${botSpecificModel}`
+          : selected.hostingModel;
+
         await Promise.allSettled([
           api.setTlawnNickname(shipId, name),
           api.setTlawnPrimaryModel(userId, {
             provider: selected.provider,
-            model: selected.hostingModel,
+            model: modelId,
           }),
           botApiKey && selected.requiresKey
             ? api.setTlawnProviderKey(userId, selected.provider, botApiKey)
@@ -185,7 +182,14 @@ function SplashSequenceComponent(props: {
     setSavingConfig(false);
     setDidConfigureBot(true);
     setCurrentPane(SplashPane.Group);
-  }, [botName, botModel, botApiKey, avatarDirty, botAvatarUrl]);
+  }, [
+    botName,
+    botModel,
+    botApiKey,
+    botSpecificModel,
+    avatarDirty,
+    botAvatarUrl,
+  ]);
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();
@@ -197,7 +201,9 @@ function SplashSequenceComponent(props: {
       {currentPane === SplashPane.Welcome && (
         <WelcomePane
           onActionPress={() =>
-            setCurrentPane(hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group)
+            setCurrentPane(
+              hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group
+            )
           }
           hostingBotEnabled={hostingBotEnabled}
         />
@@ -227,6 +233,7 @@ function SplashSequenceComponent(props: {
           apiKey={botApiKey}
           loading={savingConfig}
           onModelChange={setBotModel}
+          onSpecificModelChange={setBotSpecificModel}
           onApiKeyChange={setBotApiKey}
           onActionPress={handleSaveBotConfig}
         />
@@ -235,7 +242,9 @@ function SplashSequenceComponent(props: {
       {currentPane === SplashPane.Group && (
         <GroupsPane
           onActionPress={() =>
-            setCurrentPane(hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels)
+            setCurrentPane(
+              hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
+            )
           }
           hostingBotEnabled={hostingBotEnabled}
           botName={botName || 'Tlonbot'}
@@ -526,11 +535,76 @@ export function BotModelPane(props: {
   loading?: boolean;
   onModelChange: (model: string) => void;
   onApiKeyChange: (key: string) => void;
+  onSpecificModelChange?: (modelId: string | null) => void;
   onActionPress: () => void;
 }) {
+  const {
+    model,
+    apiKey,
+    loading,
+    onModelChange,
+    onApiKeyChange,
+    onSpecificModelChange,
+    onActionPress,
+  } = props;
   const insets = useSafeAreaInsets();
-  const selectedOption = MODEL_OPTIONS.find((o) => o.value === props.model);
+  const selectedOption = MODEL_OPTIONS.find((o) => o.value === model);
   const needsApiKey = selectedOption?.requiresKey ?? false;
+
+  const [validatingKey, setValidatingKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<
+    { id: string }[] | null
+  >(null);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+
+  // Reset validation state when provider changes
+  useEffect(() => {
+    setKeyError(null);
+    setAvailableModels(null);
+    setSelectedModelId(null);
+    onSpecificModelChange?.(null);
+  }, [model, onSpecificModelChange]);
+
+  const handleSubmitKey = useCallback(async () => {
+    if (!apiKey || !selectedOption) return;
+    setValidatingKey(true);
+    setKeyError(null);
+    try {
+      const userId = await db.hostingUserId.getValue();
+      if (!userId) return;
+
+      await api.setTlawnProviderKey(userId, selectedOption.provider, apiKey);
+
+      const result = await api.getTlawnProviderModels(
+        userId,
+        selectedOption.provider
+      );
+      const models = result?.data ?? [];
+      setAvailableModels(models);
+      if (models.length > 0) {
+        setSelectedModelId(models[0].id);
+        onSpecificModelChange?.(models[0].id);
+      }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Invalid API key';
+      setKeyError(message);
+      setAvailableModels(null);
+    } finally {
+      setValidatingKey(false);
+    }
+  }, [apiKey, selectedOption, onSpecificModelChange]);
+
+  const handleSelectModel = useCallback(
+    (modelId: string) => {
+      setSelectedModelId(modelId);
+      onSpecificModelChange?.(modelId);
+    },
+    [onSpecificModelChange]
+  );
+
+  const canProceed =
+    !needsApiKey || (availableModels && availableModels.length > 0);
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -555,30 +629,62 @@ export function BotModelPane(props: {
             <ModelOptionCard
               key={option.value}
               option={option}
-              selected={props.model === option.value}
-              onPress={() => props.onModelChange(option.value)}
+              selected={model === option.value}
+              onPress={() => onModelChange(option.value)}
             />
           ))}
           {needsApiKey && (
-            <Input size="$l" marginTop="$s">
-              <Input.Area
-                value={props.apiKey}
-                onChangeText={props.onApiKeyChange}
-                placeholder={`${selectedOption?.label} API key`}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </Input>
+            <YStack gap="$s" marginTop="$s">
+              {!availableModels ? (
+                <>
+                  <TextInput
+                    value={apiKey}
+                    onChangeText={onApiKeyChange}
+                    placeholder={`${selectedOption?.label} API key`}
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    onSubmitEditing={handleSubmitKey}
+                    returnKeyType="done"
+                  />
+                  <Button
+                    onPress={handleSubmitKey}
+                    label="Submit"
+                    loading={validatingKey}
+                    disabled={validatingKey || !apiKey}
+                    preset="primary"
+                  />
+                  {keyError && (
+                    <Text size="$label/s" color="$negativeActionText">
+                      {keyError}
+                    </Text>
+                  )}
+                </>
+              ) : (
+                <YStack gap="$l">
+                  <Text size="$label/m" color="$tertiaryText">
+                    Choose a model
+                  </Text>
+                  {availableModels.slice(0, 10).map((m) => (
+                    <ModelOptionCard
+                      key={m.id}
+                      option={{ label: m.id, description: '' }}
+                      selected={selectedModelId === m.id}
+                      onPress={() => handleSelectModel(m.id)}
+                    />
+                  ))}
+                </YStack>
+              )}
+            </YStack>
           )}
         </ScrollView>
       </YStack>
       <Button
-        onPress={props.onActionPress}
-        label={props.loading ? 'Saving...' : 'Next'}
+        onPress={onActionPress}
+        label={loading ? 'Saving...' : 'Next'}
         preset="hero"
-        loading={props.loading}
-        disabled={props.loading}
+        loading={loading}
+        disabled={loading || !canProceed}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
@@ -1199,11 +1305,13 @@ function ModelOptionCard({
           >
             {option.label}
           </ListItem.Title>
-          <ListItem.Subtitle
-            color={selected ? '$positiveActionText' : '$secondaryText'}
-          >
-            {option.description}
-          </ListItem.Subtitle>
+          {option.description && (
+            <ListItem.Subtitle
+              color={selected ? '$positiveActionText' : '$secondaryText'}
+            >
+              {option.description}
+            </ListItem.Subtitle>
+          )}
         </ListItem.MainContent>
         {selected && (
           <ListItem.EndContent>

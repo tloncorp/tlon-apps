@@ -303,6 +303,25 @@ export async function setTlawnPrimaryModel(
   );
 }
 
+export interface TlawnProviderModel {
+  id: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Validate an API key and list available models for a provider.
+ * Returns the raw provider response (e.g. { data: [{ id: "model-id", ... }] }).
+ * Throws on invalid key (401/403) or missing key.
+ */
+export async function getTlawnProviderModels(
+  userId: string,
+  provider: string
+): Promise<{ data: TlawnProviderModel[] }> {
+  return hostingFetch<{ data: TlawnProviderModel[] }>(
+    `/v1/tlawn/users/${userId}/provider-models?provider=${encodeURIComponent(provider)}`
+  );
+}
+
 // --- Tlawn (bot) ship-level endpoints ---
 
 export async function getTlawnBotInfo(
