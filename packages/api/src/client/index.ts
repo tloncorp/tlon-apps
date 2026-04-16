@@ -54,6 +54,8 @@ export {
   getTlawnBotInfo,
   getTlawnNickname,
   setTlawnNickname,
+  getTlawnAvatar,
+  setTlawnAvatar,
   getTlawnConfig,
   setTlawnConfig,
   reloadBot,

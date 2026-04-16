@@ -115,19 +115,26 @@ function SplashSequenceComponent(props: {
       try {
         const shipId = await db.hostedUserNodeId.getValue();
         if (shipId) {
-          const [botInfo, nickname] = await Promise.all([
+          const [botInfo, nickname, avatar] = await Promise.all([
             api.getTlawnBotInfo(shipId).catch(() => null),
             api.getTlawnNickname(shipId).catch(() => null),
+            api.getTlawnAvatar(shipId).catch(() => null),
           ]);
           if (!cancelled) {
             if (nickname) {
               setBotName(nickname);
             }
+            if (avatar) {
+              setBotContactAvatarUrl(avatar);
+            }
             if (botInfo?.moon) {
               setBotMoonId(botInfo.moon);
-              const contact = await db.getContact({ id: botInfo.moon });
-              if (!cancelled && contact?.avatarImage) {
-                setBotContactAvatarUrl(contact.avatarImage);
+              // Fall back to contact record if hosting didn't return an avatar
+              if (!avatar) {
+                const contact = await db.getContact({ id: botInfo.moon });
+                if (!cancelled && contact?.avatarImage) {
+                  setBotContactAvatarUrl(contact.avatarImage);
+                }
               }
             }
           }
@@ -167,6 +174,9 @@ function SplashSequenceComponent(props: {
           botApiKey && selected.requiresKey
             ? api.setTlawnProviderKey(userId, selected.provider, botApiKey)
             : Promise.resolve(),
+          avatarDirty && botAvatarUrl
+            ? api.setTlawnAvatar(shipId, botAvatarUrl)
+            : Promise.resolve(),
         ]);
       }
     } catch (e) {
@@ -175,7 +185,7 @@ function SplashSequenceComponent(props: {
     setSavingConfig(false);
     setDidConfigureBot(true);
     setCurrentPane(SplashPane.Group);
-  }, [botName, botModel, botApiKey]);
+  }, [botName, botModel, botApiKey, avatarDirty, botAvatarUrl]);
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();

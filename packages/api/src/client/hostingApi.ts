@@ -339,6 +339,34 @@ export async function setTlawnNickname(
   }
 }
 
+export async function getTlawnAvatar(
+  ship: string
+): Promise<string | null> {
+  const result = await rawHostingFetch(`/v1/tlawn/ships/${ship}/avatar`);
+  const text = await result.text();
+  try {
+    return JSON.parse(text) as string | null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setTlawnAvatar(
+  ship: string,
+  url: string
+): Promise<string | null> {
+  const result = await rawHostingFetch(
+    `/v1/tlawn/ships/${ship}/avatar`,
+    jsonInit('PUT', { url })
+  );
+  const text = await result.text();
+  try {
+    return JSON.parse(text) as string | null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getTlawnConfig(
   ship: string
 ): Promise<TlawnConfig> {
