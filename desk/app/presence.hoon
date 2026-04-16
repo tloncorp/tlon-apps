@@ -32,7 +32,7 @@
 ::TODO  discipline
 ::
 /-  *presence, cv=channels-ver, gv=groups-ver
-/+  dbug, verb
+/+  dbug, verb, logs
 ::
 |%
 ::NOTE  .want contains a [ship context] pair, because for ease-of-use we
@@ -228,23 +228,28 @@
 =*  state  -
 ::
 %-  agent:dbug
-%^  verb  &  %warn
+%^  verb  &  %dbug
 ::
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
+    log   ~(. logs [our.bowl /logs])
 ++  on-init
   ^-  (quip card _this)
-  :-  [(await-setup now.bowl ~)]~
-  this
+  :_  this
+  :~  (tell:log %dbug ~['on-init: scheduling initial setup'] ~)
+      (await-setup now.bowl ~)
+  ==
 ::
 ++  on-save  !>(state)
 ::
 ++  on-load
   |=  ole=vase
   ^-  (quip card _this)
-  :-  [(await-setup now.bowl ~)]~
-  this(state !<(state-0 ole))
+  :_  this(state !<(state-0 ole))
+  :~  (tell:log %dbug ~['on-load: scheduling setup' >`@ud`~(wyt in want)< >`@ud`~(wyt by subs)<] ~)
+      (await-setup now.bowl ~)
+  ==
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -339,7 +344,8 @@
     =.  subs  (~(put ju subs) t.t.path src.bowl)
     ::NOTE  no initial fact, since all data is short-lived,        ::REVIEW
     ::      and we don't want to hot-loop on mark incompatibility  ::REVIEW
-    [~ this]
+    :_  this
+    [(tell:log %dbug ~['on-watch: incoming context sub' >src.bowl< >t.t.path<] ~)]~
   ==
 ::
 ++  on-leave
@@ -356,6 +362,15 @@
   ^-  (quip card _this)
   ~|  wire=wire
   ?+  wire  ~|(%strange-wire !!)
+      [%logs ~]
+    ::  acks from pokes we send to the logs agent; nothing to do.
+    ::  on nack, slog it so we don't lose the error silently.
+    ::
+    ?.  ?=(%poke-ack -.sign)  [~ this]
+    ?~  p.sign  [~ this]
+    %-  (slog (rap 3 dap.bowl ': logs poke nacked' ~) u.p.sign)
+    [~ this]
+  ::
       ?([%chat %invited ~] [%channels %all ~])
     ?-  -.sign
       %poke-ack  ~|(%unexpeced-poke-ack !!)
@@ -364,31 +379,41 @@
       ::  re-do setup after brief wait, preventing hot-looping.
       ::  particularly important here because it's a local subscription.
       ::
-      [[(await-setup (add now.bowl ~s30) ~)]~ this]
+      :_  this
+      :~  (tell:log %dbug ~['local sub kicked, rescheduling setup' >wire<] ~)
+          (await-setup (add now.bowl ~s30) ~)
+      ==
     ::
         %watch-ack
-      ?~  p.sign  [~ this]
+      ?~  p.sign  :_(this [(tell:log %dbug ~['local sub ack ok' >wire<] ~)]~)
       ::TODO  log formally
       %-  (slog (rap 3 dap.bowl ' rejected by local for ' (spat wire) ~) u.p.sign)
-      [~ this]
+      :_  this
+      [(tell:log %warn ~['local sub nacked' >wire< >u.p.sign<] ~)]~
     ::
         %fact
       ?-  wire
           [%chat %invited ~]
         ?.  ?=(%ships p.cage.sign)
           ::TODO  log formally
-          [~ this]
+          :_  this
+          [(tell:log %warn ~['chat/invited: unexpected mark' >p.cage.sign<] ~)]~
+        =/  dms=(set ship)  !<((set ship) q.cage.sign)
         ::  if nothing new, no-op. otherwise, initiate setup/inflation.
         ::  we do full setup instead of adding piecemeal, so that we can
         ::  catch & clean up deletions more easily.
         ::
-        ?:  %-  ~(all in !<((set ship) q.cage.sign))
+        ?:  %-  ~(all in dms)
             |=  who=ship
             (~(has in want) who /dm/(scot %p our.bowl))
-          [~ this]
+          :_  this
+          [(tell:log %dbug ~['chat/invited: no new dms' >dms<] ~)]~
         ::  setup will scry out relevant dms
         ::
-        [[(await-setup now.bowl ~)]~ this]
+        :_  this
+        :~  (tell:log %dbug ~['chat/invited: new dms detected, rescheduling setup' >dms<] ~)
+            (await-setup now.bowl ~)
+        ==
       ::
           [%channels %all ~]
         ?.  ?=(%channel-response-4 p.cage.sign)
@@ -406,7 +431,10 @@
         ::  if it was previously unknown, register and subscribe
         ::
         ?:  (~(has in want) new)  [~ this]
-        [[(watch-context our.bowl new)]~ this(want (~(put in want) new))]
+        :_  this(want (~(put in want) new))
+        :~  (tell:log %dbug ~['channels/all: registering new channel' >new<] ~)
+            (watch-context our.bowl new)
+        ==
       ==
     ==
   ::
@@ -414,34 +442,51 @@
     =*  context  t.wire
     ?-  -.sign
         %poke-ack
-      ?~  p.sign  [~ this]
-      %.  [~ this]
-      ::TODO  log formally
-      (slog (rap 3 dap.bowl ': poke-nacked by ' (scot %p src.bowl) ~) u.p.sign)
+      ?~  p.sign
+        :_  this
+        [(tell:log %dbug ~['context poke acked' >src.bowl< >context<] ~)]~
+      %-  (slog (rap 3 dap.bowl ': poke-nacked by ' (scot %p src.bowl) ~) u.p.sign)
+      :_  this
+      [(tell:log %warn ~['context poke nacked' >src.bowl< >context< >u.p.sign<] ~)]~
     ::
         %kick
-      :_  this
       ::  resubscribe after brief wait, prevent hot-looping
       ::
-      [(await-setup (add now.bowl ~s15) `[src.bowl context])]~
+      :_  this
+      :~  (tell:log %dbug ~['context sub kicked, rescheduling' >src.bowl< >context<] ~)
+          (await-setup (add now.bowl ~s15) `[src.bowl context])
+      ==
     ::
         %watch-ack
-      ?~  p.sign  [~ this]
+      ?~  p.sign
+        :_  this
+        [(tell:log %dbug ~['context sub ack ok' >src.bowl< >context<] ~)]~
       ::  nacked, can't do anything, drop desire
       ::
-      [~ this(want (~(del by want) src.bowl context))]
+      :_  this(want (~(del by want) src.bowl context))
+      [(tell:log %warn ~['context sub nacked, dropping desire' >src.bowl< >context< >u.p.sign<] ~)]~
     ::
         %fact
       ?.  ?=(%presence-update-1 p.cage.sign)
         ::NOTE  unexpected because we %watch-as in +watch-context
-        ::TODO  log formally
-        [~ this]
+        :_  this
+        [(tell:log %warn ~['context fact: unexpected mark' >p.cage.sign<] ~)]~
       =+  !<(upd=update-1 q.cage.sign)
+      ::  only allow updates for the same context
+      ?.  ?|  &(?=(%set -.upd) =(context.key.upd context))
+              &(?=(%clear -.upd) =(context.key.upd context))
+          ==
+        :_  this
+        [(tell:log %warn ~['context fact: wire/context mismatch' >wire< >upd<] ~)]~
       ::  translate dm context from peer's perspective to ours
       ::
-      =/  =key  ?-(-.upd %set key.upd, %clear key.upd)
-      =?  context.key  ?=([%dm *] context.key)
-        /dm/(scot %p src.bowl)
+      =/  theirs=^context  /dm/(scot %p our.bowl)
+      =/  ours=^context    /dm/(scot %p src.bowl)
+      =.  upd
+        ?-  -.upd
+          %set    ?:(=(theirs context.key.upd) upd(context.key ours) upd)
+          %clear  ?:(=(theirs context.key.upd) upd(context.key ours) upd)
+        ==
       ?-  -.upd
           %set
         =?  since.timing.upd  (gth since.timing.upd now.bowl)
@@ -451,19 +496,23 @@
           (fall timeout.timing.upd (default-timeout topic.key.upd))
         ?:  (gth now.bowl end)
           ::TODO  maybe delete existing one at key?
-          [~ this]
-        :_  this(places (put-presence places [key timing.upd display.upd]))
-        :~  (give-response %here [key timing.upd display.upd])
+          :_  this
+          [(tell:log %dbug ~['context fact: %set already expired' >key.upd<] ~)]~
+        :_  this(places (put-presence places +.upd))
+        :~  (tell:log %dbug ~['context fact: %set applied' >key.upd< >end<] ~)
+            (give-response %here +.upd)
             :+  %pass
               ::TODO  +key-wire
-              [%expire (scot %p ship.key) topic.key context.key]
+              [%expire (scot %p ship.key.upd) topic.key.upd context.key.upd]
             [%arvo %b %wait end]
         ==
       ::
           %clear
         ::TODO  no-op if we didn't have it anyway
-        :_  this(places (del-presence places key))
-        [(give-response %gone key)]~
+        :_  this(places (del-presence places key.upd))
+        :~  (tell:log %dbug ~['context fact: %clear applied' >key.upd<] ~)
+            (give-response %gone key.upd)
+        ==
       ==
     ==
   ==
@@ -483,18 +532,32 @@
       ::  ensure we .want all relevant contexts, then inflate fully.
       ::  this implicitly drops any contexts not in +channel- or +dm-contexts!
       ::
-      =.  want
-        %-  ~(uni in (dm-contexts bowl))
-        (channel-contexts bowl)
-      [(inflate bowl want) this]
+      =/  dms=(set [ship context])    (dm-contexts bowl)
+      =/  chans=(set [ship context])  (channel-contexts bowl)
+      =.  want  (~(uni in dms) chans)
+      =/  cards=(list card)  (inflate bowl want)
+      :_  this
+      %+  weld
+        ^-  (list card)
+        :~  (tell:log %dbug ~['setup: starting full inflate'] ~)
+            (tell:log %dbug ~['setup: dm-contexts' >dms<] ~)
+            (tell:log %dbug ~['setup: channel-contexts count' >`@ud`~(wyt in chans)<] ~)
+            (tell:log %dbug ~['setup: want total' >`@ud`~(wyt in want)<] ~)
+            (tell:log %dbug ~['setup: inflate produced cards' >`@ud`(lent cards)<] ~)
+        ==
+      cards
     ::  set up subscription for a specific context
     ::
     =/  =ship  (slav %p i.t.wire)
     ?<  =(ship our.bowl)  ::  don't subscribe to ourselves
     =*  context  t.t.wire
     ?:  (~(has by wex.bowl) [%context context] ship dap.bowl)
-      [~ this]
-    [[(watch-context our.bowl ship context)]~ this]
+      :_  this
+      [(tell:log %dbug ~['setup(specific): already subscribed, skipping' >ship< >context<] ~)]~
+    :_  this
+    :~  (tell:log %dbug ~['setup(specific): subscribing' >ship< >context<] ~)
+        (watch-context our.bowl ship context)
+    ==
   ::
       [%expire @ topic *]
     ::TODO  +wire-key
