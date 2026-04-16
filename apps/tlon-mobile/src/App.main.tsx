@@ -32,7 +32,7 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -145,9 +145,17 @@ const App = () => {
     isAuthenticated,
   ]);
 
+  // FORCE_SPLASH_SEQUENCE triggers the splash on first render but doesn't
+  // prevent it from being dismissed — clearNeedsSplashSequence still works.
+  const [forcedSplash, setForcedSplash] = useState(FORCE_SPLASH_SEQUENCE);
   const showSplashSequence = useMemo(() => {
-    return showAuthenticatedApp && (FORCE_SPLASH_SEQUENCE || needsSplashSequence);
-  }, [showAuthenticatedApp, needsSplashSequence]);
+    return showAuthenticatedApp && (forcedSplash || needsSplashSequence);
+  }, [showAuthenticatedApp, forcedSplash, needsSplashSequence]);
+
+  const handleClearSplash = useCallback(() => {
+    setForcedSplash(false);
+    clearNeedsSplashSequence();
+  }, [clearNeedsSplashSequence]);
 
   // Configure the Urbit client during the splash so group creation works
   useEffect(() => {
@@ -166,7 +174,7 @@ const App = () => {
         ) : showSplashSequence ? (
           <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
             <SplashSequence
-              onCompleted={clearNeedsSplashSequence}
+              onCompleted={handleClearSplash}
               inviteSystemContacts={inviteSystemContacts}
               hostingBotEnabled={hostingBotEnabled ?? false}
             />

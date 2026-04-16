@@ -99,6 +99,7 @@ function SplashSequenceComponent(props: {
     string | null
   >(null);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
+  const [didConfigureBot, setDidConfigureBot] = React.useState(false);
 
   // Fetch the bot's current nickname and avatar from hosting API + contacts
   useEffect(() => {
@@ -151,9 +152,19 @@ function SplashSequenceComponent(props: {
         const name = botName || 'Tlonbot';
         const selectedModel = MODEL_OPTIONS.find((o) => o.value === botModel);
         const provider =
-          { minimax: 'basic', anthropic: 'anthropic', openai: 'openai', openrouter: 'openrouter' }[botModel] ?? 'basic';
+          {
+            minimax: 'basic',
+            anthropic: 'anthropic',
+            openai: 'openai',
+            openrouter: 'openrouter',
+          }[botModel] ?? 'basic';
         const model =
-          { basic: 'minimax/minimax-m2.5', anthropic: 'anthropic/claude-haiku-4-5-20251001', openai: 'openai/gpt-4o-mini', openrouter: 'openrouter/auto' }[provider] ?? 'minimax/minimax-m2.5';
+          {
+            basic: 'minimax/minimax-m2.5',
+            anthropic: 'anthropic/claude-haiku-4-5-20251001',
+            openai: 'openai/gpt-4o-mini',
+            openrouter: 'openrouter/auto',
+          }[provider] ?? 'minimax/minimax-m2.5';
 
         await Promise.allSettled([
           api.setBotNickname(shipId, authCookie, name),
@@ -167,6 +178,7 @@ function SplashSequenceComponent(props: {
       console.error('Failed to save bot config during onboarding:', e);
     }
     setSavingConfig(false);
+    setDidConfigureBot(true);
     setCurrentPane(SplashPane.Group);
   }, [botName, botModel, botApiKey]);
 
@@ -228,6 +240,7 @@ function SplashSequenceComponent(props: {
           }
           hostingBotEnabled={hostingBotEnabled}
           botName={botName || 'Tlonbot'}
+          didConfigureBot={didConfigureBot}
         />
       )}
 
@@ -375,7 +388,7 @@ export function TlonBotPane(props: {
           </SplashParagraph>
         </ScrollView>
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$l">
+      <YStack paddingHorizontal="$xl" gap="$2xl">
         <Button
           onPress={props.onActionPress}
           testID="bot-configure"
@@ -798,6 +811,7 @@ export function GroupsPane(props: {
   onActionPress: () => void;
   hostingBotEnabled?: boolean;
   botName?: string;
+  didConfigureBot?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
@@ -833,8 +847,9 @@ export function GroupsPane(props: {
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Your personal group is ready. {props.botName} has already joined
-              and can help keep conversations going.
+              Your personal group is ready.{' '}
+              {props.didConfigureBot ? props.botName : 'Your Tlonbot'} has
+              already joined and can help keep conversations going.
             </SplashParagraph>
           )}
         </ScrollView>
