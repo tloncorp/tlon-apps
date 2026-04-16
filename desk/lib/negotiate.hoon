@@ -71,6 +71,13 @@
 +$  version   *
 +$  config    (map dude:gall (map protocol version))
 +$  status    ?(%match %clash %await %unmet)
++$  state-1
+  $:  %1
+      ours=(map protocol version)
+      know=config
+      heed=(map [gill:gall protocol] (unit version))
+      want=(map gill:gall (map wire path))  ::  un-packed wires
+  ==
 ::
 ++  initiate
   |=  =gill:gall
@@ -92,14 +99,6 @@
   |=  [notify=? our-versions=(map protocol version) =our=config]
   ^-  $-(agent:gall agent:gall)
   |^  agent
-  ::
-  +$  state-1
-    $:  %1
-        ours=(map protocol version)
-        know=config
-        heed=(map [gill:gall protocol] (unit version))
-        want=(map gill:gall (map wire path))  ::  un-packed wires
-    ==
   ::
   +$  card  card:agent:gall
   ::
@@ -338,6 +337,31 @@
       ?<  (~(has by heed) for)
       :-  [(watch-version for)]~
       state(heed (~(put by heed) for ~))
+    ::  +reset-heed: renegotiate targeted heed entries
+    ::
+    ::    for each matching heed key, emit %leave on the heed subscription
+    ::    wire, clear the entry, and call +negotiate to re-subscribe.
+    ::
+    ++  reset-heed
+      |=  target=(unit gill:gall)
+      ^-  (quip card _state)
+      =/  keys=(list [=gill:gall =protocol])
+        ?~  target  ~(tap in ~(key by heed))
+        %+  skim  ~(tap in ~(key by heed))
+        |=([=gill:gall *] =(gill u.target))
+      =|  out=(list card)
+      |-
+      ?~  keys  [out state]
+      =.  out
+        :+  (tell:log %dbug ~[>[%reset-heed i.keys]<] ~)
+          =,  i.keys
+          :+  %pass
+            /~/negotiate/heed/(scot %p p.gill)/[q.gill]/[protocol]
+          [%agent gill %leave ~]
+        out
+      =.  heed  (~(del by heed) i.keys)
+      =^  caz  state  (negotiate i.keys)
+      $(out (weld out caz), keys t.keys)
     ::
     ++  ours-changed
       |=  [ole=(map protocol version) neu=(map protocol version)]
@@ -724,8 +748,29 @@
         =/  dat  (on-peek:og path)
         ?:  ?=(?(~ [~ ~]) dat)  ~
         (fall ((soft (list mass)) q.q.u.u.dat) ~)
-      ?:  =(/x/dbug/state path)
-        ``noun+!>((slop on-save:og !>(negotiate=state)))
+      ?:  ?=([%x %dbug *] path)
+        ?+  t.t.path  [~ ~]
+            [%wex ~]   ``noun+!>(wex.bowl)
+            [%sup ~]   ``noun+!>(sup.bowl)
+            [%bowl ~]  ``noun+!>(bowl)
+            [%state ~]
+          ``noun+!>((slop on-save:og !>(negotiate=state)))
+        ::
+        ::  orphan diff: heed keys whose /~/negotiate/heed/... subscription
+        ::  is missing from wex.bowl. non-empty result means +inflate's
+        ::  orphan detector should have fired but didn't (or hasn't yet).
+        ::
+            [%orphans ~]
+          :^  ~  ~  %noun
+          !>  ^-  (list [gill:gall protocol])
+          %+  murn  ~(tap by heed)
+          |=  [[=gill:gall =protocol] *]
+          =/  =wire
+            :+  %~.~  %negotiate
+            [%heed (scot %p p.gill) q.gill protocol ~]
+          ?:  (~(has by wex.bowl) [wire gill])  ~
+          `[gill protocol]
+        ==
       ?.  ?=([@ %~.~ %negotiate *] path)
         (on-peek:og path)
       !:
@@ -824,6 +869,11 @@
     ++  on-poke
       |=  [=mark =vase]
       ^-  (quip card _this)
+      ?:  ?=(%negotiate-reset mark)
+        ?>  =(our src):bowl
+        =+  !<(target=(unit gill:gall) vase)
+        =^  cards  state  (reset-heed:up target)
+        [cards this]
       ?.  ?&  ?=(%egg-any mark)
             !:
               =+  !<(=egg-any:gall vase)
