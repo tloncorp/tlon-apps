@@ -29,6 +29,7 @@ interface Props {
   dmLink?: string;
   onBackPressed?: () => void;
   focusedRouteName?: string;
+  botEnabled?: boolean;
 }
 
 export function SettingsScreenView(props: Props) {
@@ -104,7 +105,7 @@ export function SettingsScreenView(props: Props) {
             />
           )}
 
-          {props.onBotSettingsPressed && (
+          {props.botEnabled && (
             <SettingsAction
               title="Bot Settings"
               leftIcon="Face"
