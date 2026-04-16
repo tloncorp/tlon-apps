@@ -122,16 +122,4 @@
   ?.  ?=(%request -.q.uf)  ~
   ?.  =(dest url.request.q.uf)  ~
   `[id.q.uf request.q.uf]
-::
-::  Scry into a running aqua ship
-::
-++  scry-aqua
-  |*  [a=mold our=@p now=@da pax=path]
-  .^  a
-      %gx
-      (scot %p our)
-      %aqua
-      (scot %da now)
-      pax
-  ==
 --

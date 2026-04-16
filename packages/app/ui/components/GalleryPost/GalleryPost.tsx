@@ -30,23 +30,21 @@ import { View, XStack, styled } from 'tamagui';
 import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { RootStackParamList } from '../../../navigation/types';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
-import {
-  useChannelContext,
-  useCurrentUserId,
-  useRequests,
-} from '../../contexts';
-import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useChannelContext } from '../../contexts/channel';
+import type { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useRequests } from '../../contexts/requests';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import ContactName from '../ContactName';
-import { Reference } from '../ContentReference';
-import { useBoundHandler } from '../ListItem/listItemUtils';
+import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
 import { PostErrorMessage } from '../PostErrorMessage';
+import { useBoundHandler } from '../listItems/listItemUtils';
 
 const GalleryPostFrame = styled(View, {
   name: 'GalleryPostFrame',

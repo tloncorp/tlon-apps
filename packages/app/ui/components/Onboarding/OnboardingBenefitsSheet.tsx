@@ -1,6 +1,8 @@
 import { Button, Text } from '@tloncorp/ui';
+import { Icon, Image } from '@tloncorp/ui';
+import { View, XStack, YStack } from 'tamagui';
 
-import { ActionSheet, Icon, Image, View, XStack, YStack } from '../..';
+import { ActionSheet } from '../ActionSheet';
 
 export function OnboardingBenefitsSheet({
   open,

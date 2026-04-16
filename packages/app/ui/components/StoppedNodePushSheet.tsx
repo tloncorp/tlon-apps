@@ -2,7 +2,8 @@ import * as domain from '@tloncorp/shared/domain';
 import { Button } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 
-import { AppDataContextProvider, useStore } from '../contexts';
+import { AppDataContextProvider } from '../contexts/appDataContext';
+import { useStore } from '../contexts/storeContext';
 import { ActionSheet } from './ActionSheet';
 import { SigilAvatar } from './Avatar';
 

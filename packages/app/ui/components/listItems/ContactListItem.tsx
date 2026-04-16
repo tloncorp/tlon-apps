@@ -5,7 +5,7 @@ import { isWeb } from 'tamagui';
 import { AvatarProps } from '../Avatar';
 import ContactName from '../ContactName';
 import { ContactName as ContactNameV2 } from '../ContactNameV2';
-import { ListItem } from './ListItem';
+import { ListItem } from '../ListItem';
 import { useBoundHandler } from './listItemUtils';
 
 export const ContactListItem = ({

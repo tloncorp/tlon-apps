@@ -4,13 +4,13 @@ import { Text } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
 import { ColorTokens, View, XStack } from 'tamagui';
 
-import { useNavigation } from '../contexts';
+import { useNavigation } from '../contexts/navigation';
 import { ContactAvatar } from './Avatar';
 import { Badge } from './Badge';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
-import { useBoundHandler } from './ListItem/listItemUtils';
 import { SentTimeText } from './SentTimeText';
+import { useBoundHandler } from './listItems/listItemUtils';
 
 const RoleBadge = View.styleable<{ role: string }>(
   ({ role, ...props }, ref) => {
