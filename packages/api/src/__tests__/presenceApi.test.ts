@@ -9,7 +9,6 @@ import {
 } from '../client/presenceApi';
 import type * as ub from '../urbit';
 
-const CURRENT_USER_ID = '~zod';
 const FIRST_SINCE = new Date('2026-03-25T12:00:00.000Z').getTime();
 const SECOND_SINCE = new Date('2026-03-25T12:00:30.000Z').getTime();
 
@@ -27,57 +26,35 @@ describe('presenceApi', () => {
     );
   });
 
-  test('normalizes both sides of a DM to the same conversation id', () => {
+  test('extracts context ids from presence keys', () => {
     expect(
-      getPresenceContextIdFromKey(
-        {
-          context: '/dm/~nec',
-          ship: CURRENT_USER_ID,
-          topic: 'computing',
-        },
-        CURRENT_USER_ID
-      )
+      getPresenceContextIdFromKey({
+        context: '/dm/~nec',
+        ship: '~nec',
+        topic: 'computing',
+      })
     ).toBe('~nec');
 
     expect(
-      getPresenceContextIdFromKey(
-        {
-          context: `/dm/${CURRENT_USER_ID}`,
-          ship: '~nec',
-          topic: 'computing',
-        },
-        CURRENT_USER_ID
-      )
-    ).toBe('~nec');
-  });
-
-  test('normalizes channel and group contexts', () => {
-    expect(
-      getPresenceContextIdFromKey(
-        {
-          context: '/channel/chat/~bus/general',
-          ship: '~nec',
-          topic: 'typing',
-        },
-        CURRENT_USER_ID
-      )
+      getPresenceContextIdFromKey({
+        context: '/channel/chat/~bus/general',
+        ship: '~nec',
+        topic: 'typing',
+      })
     ).toBe('chat/~bus/general');
 
     expect(
-      getPresenceContextIdFromKey(
-        {
-          context: '/group/~bus/community',
-          ship: '~nec',
-          topic: 'other',
-        },
-        CURRENT_USER_ID
-      )
+      getPresenceContextIdFromKey({
+        context: '/group/~bus/community',
+        ship: '~nec',
+        topic: 'other',
+      })
     ).toBe('~bus/community');
   });
 
   test('flattens presence init state into normalized statuses', () => {
     const places: ub.PresencePlaces = {
-      [`/dm/${CURRENT_USER_ID}`]: {
+      '/dm/~nec': {
         computing: {
           '~nec': {
             timing: { since: '~2026.3.25..12.00.00', timeout: '~m1' },
@@ -95,10 +72,10 @@ describe('presenceApi', () => {
       },
     };
 
-    expect(toPresenceStatuses(places, CURRENT_USER_ID)).toStrictEqual([
+    expect(toPresenceStatuses(places)).toStrictEqual([
       {
         key: {
-          context: `/dm/${CURRENT_USER_ID}`,
+          context: '/dm/~nec',
           ship: '~nec',
           topic: 'computing',
         },
@@ -121,25 +98,22 @@ describe('presenceApi', () => {
 
   test('maps presence response events into normalized client events', () => {
     expect(
-      toPresenceEvent(
-        {
-          here: {
-            key: {
-              context: `/dm/${CURRENT_USER_ID}`,
-              ship: '~nec',
-              topic: 'computing',
-            },
-            timing: { since: '~2026.3.25..12.00.00', timeout: '~m1' },
-            display: { icon: null, text: 'Thinking...', blob: null },
+      toPresenceEvent({
+        here: {
+          key: {
+            context: '/dm/~nec',
+            ship: '~nec',
+            topic: 'computing',
           },
+          timing: { since: '~2026.3.25..12.00.00', timeout: '~m1' },
+          display: { icon: null, text: 'Thinking...', blob: null },
         },
-        CURRENT_USER_ID
-      )
+      })
     ).toStrictEqual({
       type: 'set',
       state: {
         key: {
-          context: `/dm/${CURRENT_USER_ID}`,
+          context: '/dm/~nec',
           ship: '~nec',
           topic: 'computing',
         },
@@ -150,20 +124,17 @@ describe('presenceApi', () => {
     });
 
     expect(
-      toPresenceEvent(
-        {
-          gone: {
-            context: `/dm/${CURRENT_USER_ID}`,
-            ship: '~nec',
-            topic: 'computing',
-          },
+      toPresenceEvent({
+        gone: {
+          context: '/dm/~nec',
+          ship: '~nec',
+          topic: 'computing',
         },
-        CURRENT_USER_ID
-      )
+      })
     ).toStrictEqual({
       type: 'clear',
       key: {
-        context: `/dm/${CURRENT_USER_ID}`,
+        context: '/dm/~nec',
         ship: '~nec',
         topic: 'computing',
       },

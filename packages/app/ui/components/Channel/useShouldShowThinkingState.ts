@@ -2,7 +2,7 @@ import { isBotDmChannel, p } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
-import { useCurrentUserId } from '../../contexts';
+import { useCurrentUserId } from '../../../hooks/useCurrentUser';
 import { useCanRead } from '../../utils';
 
 export function useShouldShowThinkingState(channel: db.Channel) {
