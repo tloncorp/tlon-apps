@@ -70,8 +70,7 @@ export const groupIdToPresenceContext = (groupId: string) => {
 // Presence keys are scoped to wire contexts like `/dm/~nec`; convert them back to
 // the app's stable ids so store consumers can join presence against existing data.
 export const getPresenceContextIdFromKey = (
-  key: ub.PresenceKey,
-  currentUserId = getCurrentUserId()
+  key: ub.PresenceKey
 ) => {
   const context = parsePresenceContext(key.context);
 
@@ -80,17 +79,7 @@ export const getPresenceContextIdFromKey = (
   }
 
   if (context.type === 'dm') {
-    // DM presence can name either participant depending on which side emitted the
-    // event. Normalize both forms to "the other participant" conversation id.
-    if (key.ship === currentUserId) {
-      return context.ship;
-    }
-
-    if (context.ship === currentUserId) {
-      return key.ship;
-    }
-
-    return null;
+    return context.ship;
   }
 
   if (context.type === 'channel') {
@@ -226,8 +215,7 @@ export const subscribeToPresenceUpdates = async (
 // The init response arrives as a nested context -> topic -> ship tree. Flatten it
 // into the same one-status-per-entry shape that incremental events use.
 export const toPresenceStatuses = (
-  places: ub.PresencePlaces,
-  currentUserId = getCurrentUserId()
+  places: ub.PresencePlaces
 ) => {
   return Object.entries(places).flatMap(([context, topics]) =>
     Object.entries(topics).flatMap(([topic, people]) =>
@@ -241,8 +229,7 @@ export const toPresenceStatuses = (
             },
             timing: entry.timing,
             display: entry.display,
-          },
-          currentUserId
+          }
         )
       )
     )
@@ -254,39 +241,37 @@ export const toPresenceStatus = (
     key: ub.PresenceKey;
     timing: ub.PresenceTiming;
     display: ub.PresenceDisplay;
-  },
-  currentUserId = getCurrentUserId()
+  }
 ): PresenceStatus => {
   return {
     ...state,
     timing: toPresenceTiming(state.timing),
-    contextId: getPresenceContextIdFromKey(state.key, currentUserId),
+    contextId: getPresenceContextIdFromKey(state.key),
   };
 };
 
 // Collapse the three wire response variants into the reducer-friendly event union.
 export const toPresenceEvent = (
-  event: ub.PresenceResponse,
-  currentUserId = getCurrentUserId()
+  event: ub.PresenceResponse
 ): PresenceEvent => {
   if ('init' in event) {
     return {
       type: 'init',
-      states: toPresenceStatuses(event.init, currentUserId),
+      states: toPresenceStatuses(event.init),
     };
   }
 
   if ('here' in event) {
     return {
       type: 'set',
-      state: toPresenceStatus(event.here, currentUserId),
+      state: toPresenceStatus(event.here),
     };
   }
 
   return {
     type: 'clear',
     key: event.gone,
-    contextId: getPresenceContextIdFromKey(event.gone, currentUserId),
+    contextId: getPresenceContextIdFromKey(event.gone),
   };
 };
 
