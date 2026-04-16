@@ -31,7 +31,7 @@
 ::TODO  make chat, channels clear %typing whenever we receive a msg?
 ::TODO  discipline
 ::
-/-  *presence, cv=channels-ver, gv=groups-ver
+/-  *presence, cv=channels-ver, gv=groups-ver, av=activity-ver
 /+  dbug, verb, logs
 ::
 |%
@@ -186,6 +186,10 @@
   :+  %watch-as  %presence-update-1
   [%context (scot %p our) context]
 ::
+++  leave-context
+  |=  [who=ship =context]
+  [%pass [%context context] %agent [who %presence] %leave ~]
+::
 ++  inflate
   |=  [=bowl:gall want=(set [ship context])]
   ^-  (list card)
@@ -214,8 +218,7 @@
     ::
     %+  murn
       ^-  (list [wire dude:gall path])
-      :~  [/chat/invited %chat /dm/invited]  ::REVIEW  not firing as often as expected..?
-          [/channels/all %channels /v3]  ::REVIEW  can we watch anything "smaller"?
+      :~  [/activity/all %activity /v4]  ::TODO  would be nice to watch "smaller"
       ==
     |=  [=wire =dude:gall =path]
     ^-  (unit card)
@@ -371,7 +374,7 @@
     %-  (slog (rap 3 dap.bowl ': logs poke nacked' ~) u.p.sign)
     [~ this]
   ::
-      ?([%chat %invited ~] [%channels %all ~])
+      [%activity %all ~]
     ?-  -.sign
       %poke-ack  ~|(%unexpeced-poke-ack !!)
     ::
@@ -386,56 +389,44 @@
     ::
         %watch-ack
       ?~  p.sign  :_(this [(tell:log %dbug ~['local sub ack ok' >wire<] ~)]~)
-      ::TODO  log formally
       %-  (slog (rap 3 dap.bowl ' rejected by local for ' (spat wire) ~) u.p.sign)
       :_  this
       [(tell:log %warn ~['local sub nacked' >wire< >u.p.sign<] ~)]~
     ::
         %fact
-      ?-  wire
-          [%chat %invited ~]
-        ?.  ?=(%ships p.cage.sign)
-          ::TODO  log formally
-          :_  this
-          [(tell:log %warn ~['chat/invited: unexpected mark' >p.cage.sign<] ~)]~
-        =/  dms=(set ship)  !<((set ship) q.cage.sign)
-        ::  if nothing new, no-op. otherwise, initiate setup/inflation.
-        ::  we do full setup instead of adding piecemeal, so that we can
-        ::  catch & clean up deletions more easily.
-        ::
-        ?:  %-  ~(all in dms)
-            |=  who=ship
-            (~(has in want) who /dm/(scot %p our.bowl))
-          :_  this
-          [(tell:log %dbug ~['chat/invited: no new dms' >dms<] ~)]~
-        ::  setup will scry out relevant dms
-        ::
+      ?.  ?=(%activity-update-4 p.cage.sign)
         :_  this
-        :~  (tell:log %dbug ~['chat/invited: new dms detected, rescheduling setup' >dms<] ~)
-            (await-setup now.bowl ~)
+        [(tell:log %warn ~['/activity/all: unexpected mark' >p.cage.sign<] ~)]~
+      =+  !<(upd=update:v8:av q.cage.sign)
+      ~&  [%presence-activity-upd upd]
+      =/  news=(unit [add=? source=$>(?(%channel %dm) source:v8:av)])
+        ?+  upd  ~
+          [%add [?(%channel %dm) *] *]  `[& source.upd]
+          [%del [?(%channel %dm) *]]    `[| source.upd]
         ==
-      ::
-          [%channels %all ~]
-        ?.  ?=(%channel-response-4 p.cage.sign)
-          ::TODO  log formally
-          [~ this]
-        ::TODO  would love to do a smaller sub, so we don't end up doing these
-        ::      checks for literally anything that happens in channels agent...
-        =+  !<(rc=r-channels:v9:cv q.cage.sign)
-        ::  never subscribe to ourselves
-        ::
-        ?:  =(our.bowl ship.nest.rc)  [~ this]
-        =/  new=[=ship context]
-          =,  nest.rc
-          [ship /channel/[kind]/(scot %p ship)/[name]]
-        ::  if it was previously unknown, register and subscribe
-        ::
-        ?:  (~(has in want) new)  [~ this]
-        :_  this(want (~(put in want) new))
-        :~  (tell:log %dbug ~['channels/all: registering new channel' >new<] ~)
-            (watch-context our.bowl new)
+      ?~  news  [~ this]
+      =/  new=(unit [ship context])
+        =*  src  source.u.news
+        ?-  -.source.u.news
+          %channel  =,  nest.src
+                    ?:  =(our.bowl ship)        ~
+                    `[ship /channel/[kind]/(scot %p ship)/[name]]
+          %dm       ?.  ?=(%ship -.whom.src)    ~
+                    ?:  =(our.bowl p.whom.src)  ~
+                    `[p.whom.src /dm/(scot %p our.bowl)]
         ==
-      ==
+      ?~  new  [~ this]
+      ?:  &(add.u.news !(~(has in want) u.new))
+        :_  this(want (~(put in want) u.new))
+        :~  (tell:log %dbug ~['/activity/all: registering new context' >u.new<] ~)
+            (watch-context our.bowl u.new)
+        ==
+      ?:  &(!add.u.news (~(has in want) u.new))
+        :_  this(want (~(del in want) u.new))
+        :~  (tell:log %dbug ~['channels/all: removing context' >u.new<] ~)
+            (leave-context u.new)
+        ==
+      [~ this]
     ==
   ::
       [%context *]
