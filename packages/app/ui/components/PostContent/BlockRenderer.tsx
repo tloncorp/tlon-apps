@@ -592,7 +592,6 @@ export function ImageBlock({
 
 const ContentImage = styled(Image, {
   name: 'ContentImage',
-  context: ContentContext,
   width: '100%',
 });
 
