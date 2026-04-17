@@ -6,7 +6,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { DEFAULT_BOT_CONFIG, SUGGESTED_NAMES } from '@tloncorp/shared/domain';
+import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import {
   Button,
   Icon,
@@ -51,7 +51,6 @@ import { SystemContactListItem } from '../listItems';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
-import { TextInputWithSuggestions } from '../TextInputWithSuggestions';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 /**
@@ -88,7 +87,6 @@ function SplashSequenceComponent(props: {
   );
   const [botModel, setBotModel] = React.useState('');
   const [botApiKey, setBotApiKey] = React.useState('');
-  const [botMoonId, setBotMoonId] = React.useState<string | null>(null);
   const [userShipId, setUserShipId] = React.useState<string | null>(null);
   const [savingConfig, setSavingConfig] = React.useState(false);
   const [botContactAvatarUrl, setBotContactAvatarUrl] = React.useState<
@@ -101,12 +99,6 @@ function SplashSequenceComponent(props: {
   const [providerOptions, setProviderOptions] = React.useState<
     { label: string; provider: string; requiresKey: boolean }[]
   >([]);
-
-  // Pick a random subset of name suggestions on mount
-  const nameSuggestions = useMemo(() => {
-    const shuffled = [...SUGGESTED_NAMES].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 8);
-  }, []);
 
   // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
@@ -134,13 +126,10 @@ function SplashSequenceComponent(props: {
             if (avatar) {
               setBotContactAvatarUrl(avatar);
             }
-            if (botInfo?.moon) {
-              setBotMoonId(botInfo.moon);
-              if (!avatar) {
-                const contact = await db.getContact({ id: botInfo.moon });
-                if (!cancelled && contact?.avatarImage) {
-                  setBotContactAvatarUrl(contact.avatarImage);
-                }
+            if (botInfo?.moon && !avatar) {
+              const contact = await db.getContact({ id: botInfo.moon });
+              if (!cancelled && contact?.avatarImage) {
+                setBotContactAvatarUrl(contact.avatarImage);
               }
             }
 
@@ -291,9 +280,6 @@ function SplashSequenceComponent(props: {
         <BotNamePane
           name={botName}
           avatarUrl={avatarDirty ? botAvatarUrl : null}
-          botMoonId={botMoonId}
-          botContactAvatarUrl={botContactAvatarUrl}
-          nameSuggestions={nameSuggestions}
           onNameChange={setBotName}
           onAvatarUrlChange={handleAvatarUrlChange}
           onActionPress={() => setCurrentPane(SplashPane.BotModel)}
@@ -530,9 +516,6 @@ export function TlonBotPane(props: {
 export function BotNamePane(props: {
   name: string;
   avatarUrl?: string | null;
-  botMoonId?: string | null;
-  botContactAvatarUrl?: string | null;
-  nameSuggestions: string[];
   onNameChange: (name: string) => void;
   onAvatarUrlChange: (url: string | null) => void;
   onActionPress: () => void;
@@ -559,57 +542,17 @@ export function BotNamePane(props: {
             later.
           </SplashParagraph>
 
-          {/* Live Preview */}
-          <XStack
-            alignItems="center"
-            gap="$m"
-            padding="$l"
-            borderRadius="$xl"
-            backgroundColor="$secondaryBackground"
-            marginBottom="$xl"
-          >
-            {props.avatarUrl ?? props.botContactAvatarUrl ? (
-              <Image
-                source={{
-                  uri: (props.avatarUrl ?? props.botContactAvatarUrl)!,
-                }}
-                style={{ width: 32, height: 32, borderRadius: 4 }}
-              />
-            ) : props.botMoonId ? (
-              <View
-                width={32}
-                height={32}
-                borderRadius="$s"
-                backgroundColor="$secondaryBackground"
-                alignItems="center"
-                justifyContent="center"
-              >
-                <Icon type="Face" color="$tertiaryText" />
-              </View>
-            ) : null}
-            <Text fontSize={20} fontWeight="600" color="$primaryText">
-              {props.name || 'Your Tlonbot'}
-            </Text>
-          </XStack>
-
-          {/* Name Input */}
-          <SplashParagraph
-            marginHorizontal={0}
-            marginBottom="$s"
-            color="$tertiaryText"
-          >
-            Name
-          </SplashParagraph>
-          <View marginBottom="$xl">
-            <TextInputWithSuggestions
+          <Field label="Name" marginBottom="$xl">
+            <TextInput
               value={props.name}
               onChangeText={props.onNameChange}
               placeholder="Give your bot a name"
-              suggestions={props.nameSuggestions}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
             />
-          </View>
+          </Field>
 
-          {/* Avatar Picker */}
           <SplashParagraph
             marginHorizontal={0}
             marginBottom="$s"

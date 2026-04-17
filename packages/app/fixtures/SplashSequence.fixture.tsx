@@ -1,5 +1,4 @@
 import * as db from '@tloncorp/shared/db';
-import { SUGGESTED_NAMES } from '@tloncorp/shared/domain';
 import React, { useEffect } from 'react';
 import { useValue } from 'react-cosmos/client';
 
@@ -161,9 +160,6 @@ function BotNamePaneFixture() {
       <BotNamePane
         name={name}
         avatarUrl={avatarUrl}
-        botMoonId={null}
-        botContactAvatarUrl={null}
-        nameSuggestions={SUGGESTED_NAMES.slice(0, 8)}
         onNameChange={setName}
         onAvatarUrlChange={setAvatarUrl}
         onActionPress={handleAction}
