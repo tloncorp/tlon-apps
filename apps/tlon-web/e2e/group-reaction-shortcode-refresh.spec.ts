@@ -1,4 +1,4 @@
-import { expect, Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
@@ -81,9 +81,9 @@ async function expectSingleThumbReaction(page: Page) {
 async function expectSingleThumbReactionWithCount(page: Page, count: number) {
   const reactionDisplay = getMessagePost(page).getByTestId('ReactionDisplay');
   await expectSingleThumbReaction(page);
-  await expect(reactionDisplay.getByText(String(count), { exact: true })).toHaveCount(
-    1
-  );
+  await expect(
+    reactionDisplay.getByText(String(count), { exact: true })
+  ).toHaveCount(1);
 }
 
 async function addThumbReaction(page: Page) {

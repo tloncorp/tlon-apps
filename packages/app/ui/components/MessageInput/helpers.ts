@@ -1,14 +1,7 @@
-import { contentReferenceToCite } from '@tloncorp/api';
-import { citeToPath } from '@tloncorp/api/urbit';
 import { EditorBridge } from '@10play/tentap-editor';
 import { Editor } from '@tiptap/react';
-import {
-  createDevLogger,
-  extractContentTypesFromPost,
-  tiptap,
-} from '@tloncorp/shared';
-import { Attachment } from '@tloncorp/shared/domain';
-import * as db from '@tloncorp/shared/db';
+import { contentReferenceToCite } from '@tloncorp/api';
+import { citeToPath } from '@tloncorp/api/urbit';
 import {
   Block,
   Inline,
@@ -16,6 +9,13 @@ import {
   constructStory,
   isInline,
 } from '@tloncorp/api/urbit';
+import {
+  createDevLogger,
+  extractContentTypesFromPost,
+  tiptap,
+} from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { Attachment } from '@tloncorp/shared/domain';
 
 const logger = createDevLogger('processReference', true);
 

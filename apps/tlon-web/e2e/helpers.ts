@@ -1326,6 +1326,50 @@ export async function createGalleryPost(page: Page, content: string) {
   await expect(page.getByText(content).first()).toBeVisible();
 }
 
+/**
+ * Creates a new gallery image post.
+ */
+export async function createGalleryImagePost(
+  page: Page,
+  caption?: string,
+  imagePath?: string
+) {
+  const imageToUpload =
+    imagePath || path.join(__dirname, 'assets', 'test-group-icon.jpg');
+
+  await page.getByTestId('AddGalleryPost').click();
+  await page.getByTestId('AddGalleryPostImage').click();
+
+  await expect(page.getByText('Attach a file')).toBeVisible({ timeout: 5000 });
+
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByText('Upload Media', { exact: true }).click(),
+  ]);
+
+  await fileChooser.setFiles(imageToUpload);
+
+  await expect(page.getByTestId('GalleryPostButton')).toBeVisible({
+    timeout: 10000,
+  });
+
+  if (caption) {
+    await page.getByPlaceholder('Add a caption...').fill(caption);
+  }
+
+  await page.getByTestId('GalleryPostButton').click();
+  await page.waitForTimeout(1500);
+  await expect(page.getByTestId('GalleryPostContentPreview')).toBeVisible({
+    timeout: 15000,
+  });
+
+  if (caption) {
+    await expect(page.getByText(caption).first()).toBeVisible({
+      timeout: 10000,
+    });
+  }
+}
+
 // Chat-related helper functions
 
 /**
@@ -1595,6 +1639,30 @@ export async function reportMessage(page: Page, messageText: string) {
   await expect(page.getByText(messageText, { exact: true })).not.toBeVisible();
 }
 
+export function acceptDeleteConfirmation(
+  page: Page,
+  postTerm: 'message' | 'post'
+) {
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain(`Delete ${postTerm}?`);
+    expect(dialog.message()).toContain('This action cannot be undone.');
+    await dialog.accept();
+  });
+}
+
+export function dismissDeleteConfirmation(
+  page: Page,
+  postTerm: 'message' | 'post'
+) {
+  page.once('dialog', async (dialog) => {
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).toContain(`Delete ${postTerm}?`);
+    expect(dialog.message()).toContain('This action cannot be undone.');
+    await dialog.dismiss();
+  });
+}
+
 /**
  * Deletes a message
  */
@@ -1607,6 +1675,7 @@ export async function deleteMessage(
   await waitForSessionStability(page);
 
   await longPressMessage(page, messageText);
+  acceptDeleteConfirmation(page, 'message');
   await page.getByText('Delete message').click();
   if (!isDM) {
     await expect(
@@ -1625,6 +1694,7 @@ export async function deletePost(page: Page, postText: string) {
   await waitForSessionStability(page);
 
   await longPressMessage(page, postText);
+  acceptDeleteConfirmation(page, 'post');
   await page.getByText('Delete post').click();
   await expect(page.getByText(postText, { exact: true })).not.toBeVisible();
 }
@@ -1920,6 +1990,9 @@ export async function interactWithHiddenPost(
 
   // Click the requested action
   await expect(page.getByText(action)).toBeVisible({ timeout: 5000 });
+  if (action === 'Delete post') {
+    acceptDeleteConfirmation(page, 'post');
+  }
   await page.getByText(action).click();
 
   // Wait for action to complete

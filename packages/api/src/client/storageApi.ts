@@ -1,11 +1,12 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 
-import { createDevLogger } from './logger';
-import { desig } from '../urbit';
+import { createDevLogger } from '../lib/logger';
+import { desig } from '../lib/urbit';
+import { StorageCredentials } from '../urbit';
 import * as ub from '../urbit';
-import { StorageConfiguration, StorageCredentials } from './upload';
+import { StorageConfiguration } from './upload';
 import {
   getCurrentUserId,
   getCurrentUserIsHosted,

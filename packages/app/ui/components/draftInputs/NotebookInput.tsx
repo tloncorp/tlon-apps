@@ -52,12 +52,13 @@ export function NotebookInput({
       () =>
         showBigInput ? null : (
           <>
-            <ScreenHeader.IconButton
+            <ScreenHeader.TextButton
               key="notebook"
-              type="Add"
               onPress={handleAdd}
               testID="AddNotebookPost"
-            />
+            >
+              New
+            </ScreenHeader.TextButton>
             <WayfindingNotices.NotebookInputTooltip
               channelId={draftInputContext.channel.id}
             />

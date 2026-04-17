@@ -1,17 +1,15 @@
-import { render, valid, da } from '@urbit/aura';
+import { da, render, tryParse, valid } from '@urbit/aura';
+import { Atom } from '@urbit/nockjs';
 
-import { PostContent } from '../client';
+import { createDevLogger } from '../lib/logger';
 import type {
   ChannelType,
   GroupJoinStatus,
   GroupPrivacy,
 } from '../types/models';
-import { createDevLogger } from '../client/logger';
-import { ContentReference } from '../types/references';
-import * as ub from './channel';
+import type * as ub from './channel';
 import * as ubc from './content';
-import * as ubg from './groups';
-import { Atom } from '@urbit/nockjs';
+import type * as ubg from './groups';
 
 const logger = createDevLogger('urbitUtils', false);
 
@@ -41,26 +39,6 @@ export function nestToFlag(nest: string): [App, string] {
   const [app, ...rest] = nest.split('/');
 
   return [app as App, rest.join('/')];
-}
-
-export function preSig(ship: string): string {
-  if (!ship) {
-    return '';
-  }
-
-  if (ship.trim().startsWith('~')) {
-    return ship.trim();
-  }
-
-  return '~'.concat(ship.trim());
-}
-
-export function desig(ship: string): string {
-  if (!ship) {
-    return '';
-  }
-
-  return ship.trim().replace('~', '');
 }
 
 export function getFirstInline(content: ub.Story) {
@@ -177,34 +155,6 @@ export function getChannelKindFromType(
   } else {
     return 'chat';
   }
-}
-
-export function getTextContent(story: PostContent): string;
-export function getTextContent(story?: PostContent): string | undefined {
-  if (!story) {
-    return;
-  }
-  return story
-    .map((verse) => {
-      if (isReferenceVerse(verse)) {
-        return '';
-      } else if (ub.isBlockVerse(verse)) {
-        return getBlockContent(verse.block);
-      } else if ('inline' in verse) {
-        return getInlinesContent(verse.inline);
-      } else {
-        return '';
-      }
-    })
-    .filter((v) => !!v && v !== '')
-    .join(' ')
-    .trim();
-}
-
-function isReferenceVerse(
-  verse: ub.Verse | ContentReference
-): verse is ContentReference {
-  return 'type' in verse && verse.type === 'reference';
 }
 
 export function getBlockContent(block: ubc.Block) {
@@ -343,4 +293,15 @@ export function createSectionId() {
   const newSectionId = `z${idParts[idParts.length - 1]}`;
 
   return newSectionId;
+}
+
+//  parses either a @ud-formatted string (dot-separated decimal) or a plain
+//  decimal number string (aka @ui without the prefix).
+//  we try both instead of being precise at the callsites, because historically
+//  we used a too-lenient @ud parser, which also accepted dotless
+//  representations, making it slightly unclear/ambiguous what we were actually
+//  *intending* to parse. the backend is wildly inconsistent, so this is easier
+//  and safer than figuring all that out. (we'll tighten things up Soon™.)
+export function parseIdNumber(id: string): bigint {
+  return tryParse('ud', id) || BigInt(id);
 }

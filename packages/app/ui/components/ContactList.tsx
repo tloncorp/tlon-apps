@@ -2,7 +2,7 @@ import { ComponentProps, PropsWithChildren } from 'react';
 import { styled, withStaticProperties } from 'tamagui';
 import { YStack } from 'tamagui';
 
-import { ContactListItem } from './ListItem';
+import { ContactListItem } from './listItems';
 
 const ContactListFrame = styled(YStack, {
   gap: '$s',

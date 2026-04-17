@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { HostingError } from '@tloncorp/api';
 import {
   useLureMetadata,
   useSignupParams,
@@ -16,7 +17,6 @@ import {
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
-import { HostingError } from '@tloncorp/api';
 import { storage } from '@tloncorp/shared/db';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';

@@ -13,7 +13,6 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  Popover,
   View,
   YStack,
   getTokenValue,
@@ -24,17 +23,17 @@ import {
 import { useShipConnectionStatus } from '../../features/top/useShipConnectionStatus';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useRootNavigation } from '../../navigation/utils';
-import { useChatOptions, useCurrentUserId } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useChatOptions } from '../contexts/chatOptions';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
-import { GroupAvatar } from './Avatar';
 import { Badge } from './Badge';
 import { ChatOptionsSheet } from './ChatOptionsSheet';
-import ConnectionStatus from './ConnectionStatus';
-import { ChannelListItem } from './ListItem/ChannelListItem';
+import { GroupAvatar } from './GroupAvatar';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
 import SystemNotices from './SystemNotices';
 import WayfindingNotice from './Wayfinding/Notices';
+import { ChannelListItem } from './listItems/ChannelListItem';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string; id: string };
 type ChannelListData = db.Channel | SectionHeaderData;
@@ -293,22 +292,15 @@ export const GroupChannelsScreenView = React.memo(
           backAction={onBackPressed}
           onTitlePress={handleTitlePress}
           rightControls={
-            <>
-              {group && isGroupAdmin && (
-                <Popover hoverable allowFlip placement="bottom-end">
-                  <Popover.Trigger>
-                    <ScreenHeader.IconButton
-                      type="Settings"
-                      aria-label="Edit channels"
-                      onPress={() =>
-                        group && onPressManageChannels(group.id, false)
-                      }
-                      disabled={!canEdit}
-                    />
-                  </Popover.Trigger>
-                </Popover>
-              )}
-            </>
+            group && isGroupAdmin ? (
+              <ScreenHeader.IconButton
+                type="EditList"
+                color="$positiveActionText"
+                onPress={() => onPressManageChannels(group.id, false)}
+                disabled={!canEdit}
+                aria-label="Edit channels"
+              />
+            ) : null
           }
         />
         {isPersonalGroup && group && (

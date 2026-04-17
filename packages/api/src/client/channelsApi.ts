@@ -1,12 +1,12 @@
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 
 import type { Poke } from '../http-api';
+import { createDevLogger } from '../lib/logger';
+import type { Stringified } from '../lib/utilityTypes';
 import type * as db from '../types/models';
-import { createDevLogger } from './logger';
 import * as ub from '../urbit';
 import { Action, ChannelsAction, Posts } from '../urbit';
 import { encodeString } from '../urbit/utils';
-import { Stringified } from '../lib/utilityTypes';
 import {
   getCanonicalPostId,
   getChannelIdType,
@@ -23,22 +23,6 @@ import {
 } from './urbit';
 
 const logger = createDevLogger('channelsApi', false);
-
-export function channelAction(
-  channelId: string,
-  action: Action
-): Poke<ChannelsAction> {
-  return {
-    app: 'channels',
-    mark: 'channel-action-2',
-    json: {
-      channel: {
-        nest: channelId,
-        action,
-      },
-    },
-  };
-}
 
 export type AddPostUpdate = { type: 'addPost'; post: db.Post };
 export type PostReactionsUpdate = {
@@ -328,19 +312,25 @@ export const toChannelsUpdate = (
           return { type: 'deletePost', postId, channelId };
         } else if ('reacts' in postResponse && postResponse.reacts !== null) {
           // Check for shortcodes in raw reactions from server
-          const shortcodeReactions = Object.entries(postResponse.reacts).filter(([, v]) => 
-            typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+          const shortcodeReactions = Object.entries(postResponse.reacts).filter(
+            ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
           );
-          
+
           if (shortcodeReactions.length > 0) {
-            logger.trackError('Shortcode reactions received from server (post)', {
-              postId,
-              shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
-              allReacts: postResponse.reacts,
-              context: 'channel_post_update'
-            });
+            logger.trackError(
+              'Shortcode reactions received from server (post)',
+              {
+                postId,
+                shortcodeReactions: shortcodeReactions.map(([k, v]) => ({
+                  user: k,
+                  value: v,
+                })),
+                allReacts: postResponse.reacts,
+                context: 'channel_post_update',
+              }
+            );
           }
-          
+
           const updatedReacts = toReactionsData(postResponse.reacts, postId);
           logger.log('update reactions event');
           return { type: 'updateReactions', postId, reactions: updatedReacts };
@@ -368,19 +358,27 @@ export const toChannelsUpdate = (
           return { type: 'deletePost', postId: replyId, channelId };
         } else if ('reacts' in replyResponse && replyResponse.reacts !== null) {
           // Check for shortcodes in raw reply reactions from server
-          const shortcodeReactions = Object.entries(replyResponse.reacts).filter(([, v]) => 
-            typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
+          const shortcodeReactions = Object.entries(
+            replyResponse.reacts
+          ).filter(
+            ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
           );
-          
+
           if (shortcodeReactions.length > 0) {
-            logger.trackError('Shortcode reactions received from server (reply)', {
-              replyId,
-              shortcodeReactions: shortcodeReactions.map(([k, v]) => ({ user: k, value: v })),
-              allReacts: replyResponse.reacts,
-              context: 'channel_reply_update'
-            });
+            logger.trackError(
+              'Shortcode reactions received from server (reply)',
+              {
+                replyId,
+                shortcodeReactions: shortcodeReactions.map(([k, v]) => ({
+                  user: k,
+                  value: v,
+                })),
+                allReacts: replyResponse.reacts,
+                context: 'channel_reply_update',
+              }
+            );
           }
-          
+
           const updatedReacts = toReactionsData(replyResponse.reacts, replyId);
           logger.log('update reply reactions event');
           return {
@@ -583,7 +581,7 @@ export async function addChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelAction(channelId, { 'add-writers': writers }));
+  return poke(ub.channelAction(channelId, { 'add-writers': writers }));
 }
 
 export async function removeChannelWriters({
@@ -593,5 +591,5 @@ export async function removeChannelWriters({
   channelId: string;
   writers: string[];
 }) {
-  return poke(channelAction(channelId, { 'del-writers': writers }));
+  return poke(ub.channelAction(channelId, { 'del-writers': writers }));
 }

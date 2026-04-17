@@ -46,6 +46,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollEnabled = true,
       style,
       listHeaderComponent,
+      listBottomComponent,
     },
     forwardedRef
   ) => {
@@ -268,6 +269,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
               {orderedData.length === 0 && (
                 <View style={{ flex: 1 }}>{renderEmptyComponent?.()}</View>
               )}
+              {listBottomComponent}
             </View>
           </div>
         </div>
@@ -560,7 +562,7 @@ function useStickToScrollStart({
   scrollerContentsKey,
   scrollerRef,
   disable,
-  maxDistanceForStickToStart = 1,
+  maxDistanceForStickToStart = 100,
 }: {
   inverted: boolean;
   /** This value must change when the scroll height of the scroller changes */
@@ -580,7 +582,11 @@ function useStickToScrollStart({
     side: inverted ? 'bottom' : 'top',
   });
 
-  useEffect(() => {
+  // Use useLayoutEffect (not useEffect) so the sticky flag is updated
+  // synchronously before the scroll-to-bottom layoutEffect reads it.
+  // With useEffect, the flag could be set to false between renders during
+  // a message burst, causing the scroll to stop tracking.
+  useLayoutEffect(() => {
     shouldStickToStartRef.current = !disable && isAtStart;
   }, [isAtStart, disable]);
 

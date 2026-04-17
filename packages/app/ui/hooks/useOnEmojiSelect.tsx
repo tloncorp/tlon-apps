@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
-import { useCurrentUserId } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
 import { triggerHaptic } from '../utils';
 import { useReactionDetails } from '../utils/postUtils';
 

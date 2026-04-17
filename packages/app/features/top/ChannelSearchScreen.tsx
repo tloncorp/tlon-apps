@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
+  ChannelProvider,
   ScreenHeader,
   SearchBar,
   SearchResults,
@@ -77,20 +78,24 @@ export default function ChannelSearchScreen(props: Props) {
           />
         </XStack>
 
-        <SearchResults
-          posts={posts ?? []}
-          navigateToPost={navigateToPost}
-          search={{
-            query,
-            loading,
-            errored,
-            hasMore,
-            loadMore,
-            searchComplete: !loading && !hasMore,
-            numResults: posts?.length ?? 0,
-            searchedThroughDate,
-          }}
-        />
+        {channelQuery.data != null && (
+          <ChannelProvider value={{ channel: channelQuery.data }}>
+            <SearchResults
+              posts={posts ?? []}
+              navigateToPost={navigateToPost}
+              search={{
+                query,
+                loading,
+                errored,
+                hasMore,
+                loadMore,
+                searchComplete: !loading && !hasMore,
+                numResults: posts?.length ?? 0,
+                searchedThroughDate,
+              }}
+            />
+          </ChannelProvider>
+        )}
       </View>
     </YStack>
   );

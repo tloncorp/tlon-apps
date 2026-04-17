@@ -30,6 +30,10 @@ export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
 export const SENTRY_DSN = envVars.sentryDsn ?? '';
 export const APP_VARIANT = envVars.appVariant ?? 'production';
+const configuredScheme = Constants.expoConfig?.scheme;
+export const APP_SCHEME = Array.isArray(configuredScheme)
+  ? configuredScheme[0]
+  : configuredScheme ?? 'io.tlon.groups';
 export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
 export const API_AUTH_USERNAME = envVars.apiAuthUsername;
 export const API_AUTH_PASSWORD = envVars.apiAuthPassword;
@@ -75,6 +79,7 @@ export const ENV_VARS = {
   POST_HOG_API_KEY,
   SENTRY_DSN,
   APP_VARIANT,
+  APP_SCHEME,
   API_URL,
   API_AUTH_USERNAME,
   API_AUTH_PASSWORD,

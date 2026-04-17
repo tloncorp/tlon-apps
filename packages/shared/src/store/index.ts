@@ -1,5 +1,4 @@
 export * from './dbHooks';
-export * from './reactQuery';
 export * from './sync';
 export * from './useChannelPosts';
 export * from './useChannelSearch';
@@ -19,6 +18,7 @@ export * from './session';
 export * from './contactActions';
 export * from './clientActions';
 export * from './lure';
+export * from './presence';
 export * from './inviteActions';
 export * from './hostingActions';
 export * from './lanyardActions';

@@ -222,13 +222,8 @@
   ::
       %reel-describe
     ?>  =(our.bowl src.bowl)
-    =+  !<([id=cord old-metadata=metadata:v0:reel] vase)
+    =+  !<([id=cord =metadata:v1:reel] vase)
     =/  old-token  (~(get by stable-id) id)
-    ::TODO when the client is cleaned up of old fields, we should
-    ::     directly convert to new metadata type from json.
-    ::
-    =/  =metadata:reel
-      (v1:metadata:v0:conv old-metadata)
     =.  fields.metadata
       %-  ~(gas by fields.metadata)
       :~  [%'bite-type' '2']

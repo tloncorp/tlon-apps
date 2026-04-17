@@ -89,7 +89,9 @@ test('should customize group name, icon, and description', async ({
   await helpers.openGroupSettings(page);
 
   await page
-    .locator('[data-testid="ChatDetailsHeader"] [data-testid="DetailsEditButton"]')
+    .locator(
+      '[data-testid="ChatDetailsHeader"] [data-testid="DetailsEditButton"]'
+    )
     .click();
 
   // Change the group description
@@ -101,7 +103,9 @@ test('should customize group name, icon, and description', async ({
   // Optionally verify the description was saved by opening customization again
   await helpers.openGroupSettings(page);
   await page
-    .locator('[data-testid="ChatDetailsHeader"] [data-testid="DetailsEditButton"]')
+    .locator(
+      '[data-testid="ChatDetailsHeader"] [data-testid="DetailsEditButton"]'
+    )
     .click();
   const descriptionField = page.getByTestId('GroupDescriptionInput');
   if (await descriptionField.isVisible()) {

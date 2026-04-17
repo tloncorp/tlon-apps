@@ -18,6 +18,9 @@ const HOOK_MOCKS: Record<string, unknown> = {
   useThreadPosts: {
     data: [],
   },
+  useLiveThreadUnreadByParentId: {
+    data: null,
+  },
   useChannel: {
     data: null,
   },

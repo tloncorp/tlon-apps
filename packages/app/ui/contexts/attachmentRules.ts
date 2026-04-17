@@ -59,9 +59,12 @@ export function inferAllowedVideoMimeType({
   ];
 }
 
-export function validateVideoSource(
-  { mimeType, size, name, uri }: VideoCandidate
-): boolean {
+export function validateVideoSource({
+  mimeType,
+  size,
+  name,
+  uri,
+}: VideoCandidate): boolean {
   if (size == null || size < 0) {
     return false;
   }
@@ -117,8 +120,7 @@ export function canAddAttachment(
 
   const hasVideo = prev.some((attachment) => attachment.type === 'video');
   const hasOtherNonTextMedia = prev.some(
-    (attachment) =>
-      attachment.type !== 'text' && attachment.type !== 'video'
+    (attachment) => attachment.type !== 'text' && attachment.type !== 'video'
   );
 
   if (nextAttachment.type === 'video') {

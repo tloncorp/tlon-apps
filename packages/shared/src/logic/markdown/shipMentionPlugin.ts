@@ -1,5 +1,5 @@
-import type { Literal, Node } from 'unist';
 import type { PhrasingContent, Text } from 'mdast';
+import type { Literal, Node } from 'unist';
 
 import { visit } from './astUtils';
 

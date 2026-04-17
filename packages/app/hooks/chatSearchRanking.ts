@@ -41,7 +41,7 @@ export function hasAllChatSearchTokens(
   );
 }
 
-function tokenPresenceScore(
+export function tokenPresenceScore(
   value: string,
   token: string,
   weights: {
@@ -91,7 +91,9 @@ export function scoreChatSearchCandidate(
   }
 
   if (tokens.length > 1) {
-    const hasTitleToken = tokens.some((token) => candidate.title.includes(token));
+    const hasTitleToken = tokens.some((token) =>
+      candidate.title.includes(token)
+    );
     const hasGroupToken = tokens.some((token) =>
       candidate.groupTitle.includes(token)
     );
@@ -101,7 +103,10 @@ export function scoreChatSearchCandidate(
     }
   }
 
-  if (normalizedQuery.length > 0 && candidate.combined.includes(normalizedQuery)) {
+  if (
+    normalizedQuery.length > 0 &&
+    candidate.combined.includes(normalizedQuery)
+  ) {
     score += 25;
   }
 

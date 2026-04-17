@@ -1,5 +1,4 @@
-import { describe, expect, test } from 'vitest';
-
+import { Story } from '@tloncorp/api/urbit/channel';
 import {
   Block,
   Blockquote,
@@ -18,7 +17,8 @@ import {
   Strikethrough,
   Task,
 } from '@tloncorp/api/urbit/content';
-import { Story } from '@tloncorp/api/urbit/channel';
+import { describe, expect, test } from 'vitest';
+
 import {
   blockToMarkdown,
   inlinesToMarkdown,
@@ -64,11 +64,7 @@ describe('inlinesToMarkdown', () => {
   });
 
   test('converts Break to newline', () => {
-    const inlines: Inline[] = [
-      'line 1',
-      { break: null } as Break,
-      'line 2',
-    ];
+    const inlines: Inline[] = ['line 1', { break: null } as Break, 'line 2'];
     // remark-stringify uses backslash for hard breaks
     expect(inlinesToMarkdown(inlines)).toBe('line 1\\\nline 2');
   });
@@ -354,11 +350,7 @@ describe('blockToMarkdown', () => {
             { item: ['Plain text'] },
             { item: [{ bold: ['Bold text'] } as Bold] },
             {
-              item: [
-                'Mixed ',
-                { italics: ['italic'] } as Italics,
-                ' text',
-              ],
+              item: ['Mixed ', { italics: ['italic'] } as Italics, ' text'],
             },
           ],
         },
@@ -395,11 +387,7 @@ describe('inlinesToMarkdown - Blockquote', () => {
   test('converts Blockquote with inline formatting', () => {
     const inlines: Inline[] = [
       {
-        blockquote: [
-          'Quote with ',
-          { bold: ['bold'] } as Bold,
-          ' text',
-        ],
+        blockquote: ['Quote with ', { bold: ['bold'] } as Bold, ' text'],
       } as Blockquote,
     ];
     expect(inlinesToMarkdown(inlines)).toBe('> Quote with **bold** text');
@@ -555,7 +543,9 @@ describe('storyToMarkdown', () => {
           header: { tag: 'h1', content: ['Welcome'] },
         } as Header,
       },
-      { inline: ['This is an intro with ', { bold: ['emphasis'] } as Bold, '.'] },
+      {
+        inline: ['This is an intro with ', { bold: ['emphasis'] } as Bold, '.'],
+      },
       { block: { rule: null } as Rule },
       {
         block: {
