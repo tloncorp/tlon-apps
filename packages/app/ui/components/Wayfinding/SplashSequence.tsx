@@ -7,6 +7,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
+import * as store from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
@@ -46,11 +47,12 @@ import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { AvatarPicker } from '../AvatarPicker';
 import { Field, TextInput } from '../Form';
+import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 import { ListItem } from '../ListItem';
-import { SystemContactListItem } from '../listItems';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
+import { SystemContactListItem } from '../listItems';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 /**
@@ -406,7 +408,9 @@ export function WelcomePane(props: {
         }
       />
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-        <SplashTitle>Welcome to Tlon Messenger</SplashTitle>
+        <SplashTitle>
+          Welcome to <Text color="$positiveActionText">Tlon Messenger.</Text>
+        </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
@@ -414,14 +418,14 @@ export function WelcomePane(props: {
         >
           <SplashParagraph>
             On Tlon Messenger you control your data. Unlike other apps,
-            everything is stored on your personal cloud computer that only you
+            everything is stored on your private personal server that only you
             can access.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Your Tlon computer also comes with an AI agent called Tlonbot. It
-              can help you search the web, summarize threads, draft messages,
-              and more.
+              Your private personal server also comes with an AI agent called
+              Tlonbot. It can help you search the web, summarize threads, draft
+              messages, and more.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -680,6 +684,7 @@ export function GroupsPane(props: {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const { data: personalGroup } = store.usePersonalGroup();
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -707,7 +712,19 @@ export function GroupsPane(props: {
       </ZStack>
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
-          This is a <Text color="$positiveActionText">group.</Text>
+          {props.hostingBotEnabled ? (
+            <>
+              {props.didConfigureBot && props.botName
+                ? props.botName
+                : 'Your Tlonbot'}{' '}
+              works in groups{' '}
+              <Text color="$positiveActionText">with others.</Text>
+            </>
+          ) : (
+            <>
+              This is a <Text color="$positiveActionText">group.</Text>
+            </>
+          )}
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -723,30 +740,31 @@ export function GroupsPane(props: {
                 everyone in the group.
               </SplashParagraph>
               <SplashParagraph>
-                Groups are stored on your personal computer and last forever.
-                Invite friends and{' '}
+                Groups are stored on your private personal server and last
+                forever. Invite friends and{' '}
                 {props.didConfigureBot ? props.botName : 'your bot'} will be
                 there too.
               </SplashParagraph>
             </>
           ) : (
             <SplashParagraph>
-              A group lives on your computer. Family chats, work collaboration,
-              newsletters. A group can be anything you need.
+              A group lives on your private personal server. Family chats, work
+              collaboration, newsletters. A group can be anything you need.
             </SplashParagraph>
           )}
         </ScrollView>
       </YStack>
-      <Button
-        data-testid="got-it"
-        testID="got-it"
-        onPress={props.onActionPress}
-        label="Got it"
-        preset="hero"
-        shadow
-        marginHorizontal="$xl"
-        marginTop="$xl"
-      />
+      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
+        {personalGroup && <InviteFriendsToTlonButton group={personalGroup} />}
+        <Button
+          data-testid="got-it"
+          testID="got-it"
+          onPress={props.onActionPress}
+          label="Got it"
+          preset="hero"
+          shadow
+        />
+      </YStack>
     </View>
   );
 }
@@ -1010,7 +1028,8 @@ function ConnectContactBookContent(props: {
       <InviteFriendsDisplay />
       <YStack flex={1} gap="$2xl" paddingTop="$2xl">
         <SplashTitle>
-          Better with <Text color="$positiveActionText">friends.</Text>
+          Tlon Messenger works best with{' '}
+          <Text color="$positiveActionText">people you know.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -1018,8 +1037,9 @@ function ConnectContactBookContent(props: {
           bounces={false}
         >
           <SplashParagraph>
-            When your friends join, they get their own computer too. Post
-            together with peace of mind, for as long as your group exists.
+            When your friends join, they get their own private personal server
+            too. Post together with peace of mind, for as long as your group
+            exists.
           </SplashParagraph>
           {shouldShowConnectOption && (
             <>
