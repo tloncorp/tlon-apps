@@ -32,6 +32,44 @@ index 1234567..89abcde 100644
    }
  
    override func viewDidAppear(_ animated: Bool) {
+@@ -158,8 +171,16 @@ class ShareViewController: UIViewController {
+           var url: URL? = nil
+           if let dataURL = item as? URL {
+             url = dataURL
+           } else if let imageData = item as? UIImage {
+             url = self.saveScreenshot(imageData)
++          } else if let imageData = item as? Data {
++            url = self.saveImageData(imageData)
++          }
++
++          guard url != nil else {
++            NSLog("[ERROR] Cannot load image URL content !\(String(describing: item))")
++            self.dismissWithError(message: "Cannot load image URL content")
++            return
+           }
+ 
+           var pixelWidth: Int? = nil
+@@ -235,5 +256,20 @@ class ShareViewController: UIViewController {
+     }
+     return screenshotURL
+   }
+ 
++  private func saveImageData(_ data: Data) -> URL? {
++    guard let imagePath = documentDirectoryPath()?.appendingPathComponent("\(UUID().uuidString).png")
++    else {
++      return nil
++    }
++
++    do {
++      try data.write(to: imagePath)
++      return imagePath
++    } catch {
++      NSLog("Cannot save image data: \(error)")
++      return nil
++    }
++  }
++
+   private func handleVideos(content: NSExtensionItem, attachment: NSItemProvider, index: Int) async
 @@ -382,6 +384,18 @@
      case text
      case weburl

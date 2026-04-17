@@ -173,6 +173,14 @@ class ShareViewController: UIViewController {
             url = dataURL
           } else if let imageData = item as? UIImage {
             url = self.saveScreenshot(imageData)
+          } else if let imageData = item as? Data {
+            url = self.saveImageData(imageData)
+          }
+
+          guard url != nil else {
+            NSLog("[ERROR] Cannot load image URL content !\(String(describing: item))")
+            self.dismissWithError(message: "Cannot load image URL content")
+            return
           }
 
           var pixelWidth: Int? = nil
@@ -246,6 +254,21 @@ class ShareViewController: UIViewController {
       screenshotURL = screenshotPath
     }
     return screenshotURL
+  }
+
+  private func saveImageData(_ data: Data) -> URL? {
+    guard let imagePath = documentDirectoryPath()?.appendingPathComponent("\(UUID().uuidString).png")
+    else {
+      return nil
+    }
+
+    do {
+      try data.write(to: imagePath)
+      return imagePath
+    } catch {
+      NSLog("Cannot save image data: \(error)")
+      return nil
+    }
   }
 
   private func handleVideos(content: NSExtensionItem, attachment: NSItemProvider, index: Int) async
