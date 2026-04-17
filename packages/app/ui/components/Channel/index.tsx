@@ -58,7 +58,11 @@ import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
-import { DraftInputHandle, GalleryDraftType } from '../draftInputs/shared';
+import {
+  DraftInputContextProvider,
+  DraftInputHandle,
+  GalleryDraftType,
+} from '../draftInputs/shared';
 import {
   ConnectedPostView,
   PostCollectionHandle,
@@ -761,41 +765,45 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           <AnimatePresence>
                             {draftInputPresentationMode !== 'fullscreen' && (
                               <View flex={1}>
-                                <PostCollectionContext.Provider
-                                  value={{
-                                    channel,
-                                    collectionConfiguration:
-                                      channel.contentConfiguration == null
-                                        ? undefined
-                                        : ChannelContentConfiguration.defaultPostCollectionRenderer(
-                                            channel.contentConfiguration
-                                          ).configuration,
-                                    editingPost,
-                                    goToMediaViewer,
-                                    goToPost,
-                                    hasNewerPosts,
-                                    hasOlderPosts,
-                                    initialChannelUnread,
-                                    isLoadingPosts: isLoadingPosts ?? false,
-                                    loadPostsError,
-                                    onPressDelete,
-                                    onPressRetrySend,
-                                    onPressRetryLoad,
-                                    onScrollEndReached,
-                                    onScrollStartReached,
-                                    posts: posts ?? undefined,
-                                    scrollToBottom: onPressScrollToBottom,
-                                    selectedPostId,
-                                    setEditingPost,
-                                    LegacyPostView: PostView,
-                                    PostView: ConnectedPostView,
-                                  }}
+                                <DraftInputContextProvider
+                                  value={draftInputContext}
                                 >
-                                  <PostCollectionView
-                                    collectionRef={collectionRef}
-                                    channel={channel}
-                                  />
-                                </PostCollectionContext.Provider>
+                                  <PostCollectionContext.Provider
+                                    value={{
+                                      channel,
+                                      collectionConfiguration:
+                                        channel.contentConfiguration == null
+                                          ? undefined
+                                          : ChannelContentConfiguration.defaultPostCollectionRenderer(
+                                              channel.contentConfiguration
+                                            ).configuration,
+                                      editingPost,
+                                      goToMediaViewer,
+                                      goToPost,
+                                      hasNewerPosts,
+                                      hasOlderPosts,
+                                      initialChannelUnread,
+                                      isLoadingPosts: isLoadingPosts ?? false,
+                                      loadPostsError,
+                                      onPressDelete,
+                                      onPressRetrySend,
+                                      onPressRetryLoad,
+                                      onScrollEndReached,
+                                      onScrollStartReached,
+                                      posts: posts ?? undefined,
+                                      scrollToBottom: onPressScrollToBottom,
+                                      selectedPostId,
+                                      setEditingPost,
+                                      LegacyPostView: PostView,
+                                      PostView: ConnectedPostView,
+                                    }}
+                                  >
+                                    <PostCollectionView
+                                      collectionRef={collectionRef}
+                                      channel={channel}
+                                    />
+                                  </PostCollectionContext.Provider>
+                                </DraftInputContextProvider>
                               </View>
                             )}
                           </AnimatePresence>
