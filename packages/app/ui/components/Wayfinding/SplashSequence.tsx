@@ -59,7 +59,7 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Splash sequence panes.
  *
  * Bot-enabled flow:
- *   Welcome → TlonBot → BotName → BotModel → Group → Invite
+ *   Welcome → TlonBot → BotName → BotProvider → BotModel → Group → Invite
  *
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
@@ -71,6 +71,7 @@ enum SplashPane {
   Privacy = 'Privacy',
   TlonBot = 'TlonBot',
   BotName = 'BotName',
+  BotProvider = 'BotProvider',
   BotModel = 'BotModel',
   Invite = 'Invite',
 }
@@ -101,6 +102,10 @@ function SplashSequenceComponent(props: {
   const [providerOptions, setProviderOptions] = React.useState<
     { label: string; provider: string; requiresKey: boolean }[]
   >([]);
+  const [providerModels, setProviderModels] = React.useState<
+    api.TlawnProviderModel[]
+  >([]);
+  const [botPrimaryModel, setBotPrimaryModel] = React.useState('');
 
   // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
@@ -201,7 +206,55 @@ function SplashSequenceComponent(props: {
     setAvatarDirty(true);
   }, []);
 
-  // Save bot config via hosting API — nickname, provider key, model, avatar.
+  // Step 1: if needed, save provider key; fetch model list from hosting
+  // (which validates the key against the real provider) and advance to the
+  // model picker. For the `basic` provider we use a fixed model list —
+  // hosting's /provider-models endpoint won't return it since basic piggybacks
+  // on the openrouter default key.
+  const handleValidateProvider = useCallback(async () => {
+    setSavingConfig(true);
+    setConfigError(null);
+    try {
+      const userId = await db.hostingUserId.getValue();
+      if (!userId) return;
+
+      const provider = botModel || 'basic';
+      const selected = providerOptions.find((p) => p.provider === provider);
+
+      if (provider === BASIC_PROVIDER_ID) {
+        setProviderModels(BASIC_PROVIDER_MODELS);
+        setBotPrimaryModel(BASIC_DEFAULT_MODEL);
+        setSavingConfig(false);
+        setCurrentPane(SplashPane.BotModel);
+        return;
+      }
+
+      if (selected?.requiresKey) {
+        const keyError = validateProviderKey(provider, botApiKey);
+        if (keyError) {
+          setConfigError(keyError);
+          setSavingConfig(false);
+          return;
+        }
+        await api.setTlawnProviderKey(userId, provider, botApiKey);
+      }
+
+      const result = await api.getTlawnProviderModels(userId, provider);
+      setProviderModels(result.data);
+      setBotPrimaryModel(result.data[0]?.id ?? `${provider}/auto`);
+
+      setSavingConfig(false);
+      setCurrentPane(SplashPane.BotModel);
+    } catch (e) {
+      console.error('Failed to validate provider during onboarding:', e);
+      setConfigError(
+        'Could not validate provider. Check your API key and try again.'
+      );
+      setSavingConfig(false);
+    }
+  }, [botModel, botApiKey, providerOptions]);
+
+  // Step 2: persist the chosen model along with nickname and avatar.
   const handleSaveBotConfig = useCallback(async () => {
     setSavingConfig(true);
     setConfigError(null);
@@ -212,27 +265,11 @@ function SplashSequenceComponent(props: {
 
       const name = botName || 'Tlonbot';
       const provider = botModel || 'basic';
-      const selected = providerOptions.find((p) => p.provider === provider);
-
-      // Validate API key format before sending to hosting
-      if (selected?.requiresKey) {
-        const keyError = validateProviderKey(provider, botApiKey);
-        if (keyError) {
-          setConfigError(keyError);
-          setSavingConfig(false);
-          return;
-        }
-      }
+      const model = botPrimaryModel || `${provider}/auto`;
 
       await Promise.allSettled([
         api.setTlawnNickname(shipId, name),
-        api.setTlawnPrimaryModel(userId, {
-          provider,
-          model: `${provider}/auto`,
-        }),
-        botApiKey && selected?.requiresKey
-          ? api.setTlawnProviderKey(userId, provider, botApiKey)
-          : Promise.resolve(),
+        api.setTlawnPrimaryModel(userId, { provider, model }),
         avatarDirty && botAvatarUrl
           ? api.setTlawnAvatar(shipId, botAvatarUrl)
           : Promise.resolve(),
@@ -245,14 +282,7 @@ function SplashSequenceComponent(props: {
       console.error('Failed to save bot config during onboarding:', e);
       setSavingConfig(false);
     }
-  }, [
-    botName,
-    botModel,
-    botApiKey,
-    providerOptions,
-    avatarDirty,
-    botAvatarUrl,
-  ]);
+  }, [botName, botModel, botPrimaryModel, avatarDirty, botAvatarUrl]);
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();
@@ -284,11 +314,11 @@ function SplashSequenceComponent(props: {
           avatarUrl={avatarDirty ? botAvatarUrl : null}
           onNameChange={setBotName}
           onAvatarUrlChange={handleAvatarUrlChange}
-          onActionPress={() => setCurrentPane(SplashPane.BotModel)}
+          onActionPress={() => setCurrentPane(SplashPane.BotProvider)}
         />
       )}
-      {currentPane === SplashPane.BotModel && (
-        <BotModelPane
+      {currentPane === SplashPane.BotProvider && (
+        <BotProviderPane
           model={botModel}
           apiKey={botApiKey}
           providers={providerOptions}
@@ -296,6 +326,15 @@ function SplashSequenceComponent(props: {
           error={configError}
           onModelChange={setBotModel}
           onApiKeyChange={setBotApiKey}
+          onActionPress={handleValidateProvider}
+        />
+      )}
+      {currentPane === SplashPane.BotModel && (
+        <BotModelPane
+          models={providerModels}
+          selectedModel={botPrimaryModel}
+          loading={savingConfig}
+          onSelectModel={setBotPrimaryModel}
           onActionPress={handleSaveBotConfig}
         />
       )}
@@ -337,6 +376,12 @@ function SplashSequenceComponent(props: {
 }
 
 export const SplashSequence = React.memo(SplashSequenceComponent);
+
+const BASIC_PROVIDER_ID = 'basic';
+const BASIC_DEFAULT_MODEL = 'minimax/minimax-m2.7';
+const BASIC_PROVIDER_MODELS: api.TlawnProviderModel[] = [
+  { id: BASIC_DEFAULT_MODEL },
+];
 
 const PROVIDER_LABELS: Record<string, string> = {
   basic: 'MiniMax',
@@ -582,7 +627,7 @@ export function BotNamePane(props: {
   );
 }
 
-export function BotModelPane(props: {
+export function BotProviderPane(props: {
   model: string;
   apiKey: string;
   providers: { label: string; provider: string; requiresKey: boolean }[];
@@ -661,10 +706,62 @@ export function BotModelPane(props: {
       </YStack>
       <Button
         onPress={onActionPress}
-        label={loading ? 'Saving...' : 'Next'}
+        label={loading ? 'Validating...' : 'Next'}
         preset="hero"
         loading={loading}
         disabled={loading || (needsApiKey && !apiKey)}
+        marginHorizontal="$xl"
+        marginTop="$xl"
+      />
+    </View>
+  );
+}
+
+export function BotModelPane(props: {
+  models: api.TlawnProviderModel[];
+  selectedModel: string;
+  loading?: boolean;
+  onSelectModel: (modelId: string) => void;
+  onActionPress: () => void;
+}) {
+  const { models, selectedModel, loading, onSelectModel, onActionPress } =
+    props;
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+        <SplashTitle>
+          Pick a <Text color="$positiveActionText">model.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$xl', 'size'),
+            gap: getTokenValue('$s', 'size'),
+          }}
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom="$m">
+            Your key is valid. Choose which model your Tlonbot should use.
+          </SplashParagraph>
+          {models.map((m) => (
+            <ModelOptionCard
+              key={m.id}
+              option={{ label: m.id, description: '' }}
+              selected={selectedModel === m.id}
+              onPress={() => onSelectModel(m.id)}
+            />
+          ))}
+        </ScrollView>
+      </YStack>
+      <Button
+        onPress={onActionPress}
+        label={loading ? 'Saving...' : 'Save'}
+        preset="hero"
+        loading={loading}
+        disabled={loading || !selectedModel}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
@@ -1042,15 +1139,10 @@ function ConnectContactBookContent(props: {
             exists.
           </SplashParagraph>
           {shouldShowConnectOption && (
-            <>
-              <SplashParagraph>
-                Sync your contact book to find people you know on Tlon.
-              </SplashParagraph>
-              <SplashParagraph fontWeight="600" color="$primaryText">
-                We don&#39;t store your contacts — they&#39;re only referenced
-                by secure hash.
-              </SplashParagraph>
-            </>
+            <SplashParagraph fontWeight="600" color="$primaryText">
+              We don&#39;t store your contacts — they&#39;re only referenced by
+              secure hash.
+            </SplashParagraph>
           )}
         </ScrollView>
         {props.isProcessing && !isWeb && (
