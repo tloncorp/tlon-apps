@@ -734,14 +734,14 @@ export function GroupsPane(props: {
           {props.hostingBotEnabled ? (
             <>
               <SplashParagraph>
-                Your group is where{' '}
+                We created a group where{' '}
                 {props.didConfigureBot ? props.botName : 'your Tlonbot'} lives.
                 It reads messages, joins conversations, and works alongside
                 everyone in the group.
               </SplashParagraph>
               <SplashParagraph>
                 Groups are stored on your private personal server and last
-                forever. Invite friends and{' '}
+                forever. Invite some friends to this group and{' '}
                 {props.didConfigureBot ? props.botName : 'your bot'} will be
                 there too.
               </SplashParagraph>
