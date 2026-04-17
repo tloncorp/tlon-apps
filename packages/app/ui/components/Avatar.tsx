@@ -309,8 +309,9 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
 // Keyed off the numeric sigil size so this works for both mobile (16/24/…) and
 // desktop (14/22/…) token scales.
 function getDefaultInnerSigilSize(sigilSize: number): number {
-  if (sigilSize <= 16) return 12;
-  if (sigilSize <= 24) return 14;
+  // small sizes need a larger ratio to be recognizable
+  if (sigilSize <= 16) return Math.floor(sigilSize * 0.75);
+  if (sigilSize <= 24) return Math.floor(sigilSize * 0.625);
   // $3xl/$3.5xl: simplified sigils read better with a little color frame.
   if (sigilSize < 44) return Math.floor(sigilSize * 0.55);
   // $4xl and up render with detail, so give the linework a bit more room.
