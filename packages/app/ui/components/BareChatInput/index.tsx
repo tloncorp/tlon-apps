@@ -5,7 +5,6 @@ import {
   JSONToInlines,
   LinkAttachment,
   REF_REGEX,
-  TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
   useDebouncedValue,
@@ -413,22 +412,6 @@ function BareChatInput(
     },
     [handleSelectMention, controlledText]
   );
-
-  // Handle text attachments by inserting them into the input
-  useEffect(() => {
-    const textAttachment = attachments.find(
-      (a): a is TextAttachment => a.type === 'text'
-    );
-    if (textAttachment) {
-      if (controlledText === '') {
-        handleTextChange(`${textAttachment.text}`);
-      } else {
-        handleTextChange(`${textAttachment.text}${controlledText}`);
-      }
-      // Remove the text attachment since we've handled it
-      removeAttachment(textAttachment);
-    }
-  }, [attachments, handleTextChange, removeAttachment, controlledText]);
 
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
