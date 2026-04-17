@@ -1,9 +1,8 @@
+diff --git a/plugin/build/ios/ShareExtensionViewController.swift b/plugin/build/ios/ShareExtensionViewController.swift
+index 1234567..89abcde 100644
 --- a/plugin/build/ios/ShareExtensionViewController.swift
 +++ b/plugin/build/ios/ShareExtensionViewController.swift
-@@ -10,9 +10,21 @@
- import UIKit
- 
- class ShareViewController: UIViewController {
+@@ -13,6 +13,18 @@
 -  let hostAppGroupIdentifier = "<GROUPIDENTIFIER>"
 -  let shareProtocol = "<SCHEME>"
 -  let sharedKey = "<SCHEME>ShareKey"
@@ -25,7 +24,7 @@
    var sharedMedia: [SharedMediaFile] = []
    var sharedWebUrl: [WebUrl] = []
    var sharedText: [String] = []
-@@ -26,6 +38,7 @@
+@@ -26,6 +27,7 @@
  
    override func viewDidLoad() {
      super.viewDidLoad()
@@ -33,20 +32,50 @@
    }
  
    override func viewDidAppear(_ animated: Bool) {
-@@ -221,8 +234,7 @@
+@@ -158,8 +171,16 @@ class ShareViewController: UIViewController {
+           var url: URL? = nil
+           if let dataURL = item as? URL {
+             url = dataURL
+           } else if let imageData = item as? UIImage {
+             url = self.saveScreenshot(imageData)
++          } else if let imageData = item as? Data {
++            url = self.saveImageData(imageData)
++          }
++
++          guard url != nil else {
++            NSLog("[ERROR] Cannot load image URL content !\(String(describing: item))")
++            self.dismissWithError(message: "Cannot load image URL content")
++            return
+           }
+ 
+           var pixelWidth: Int? = nil
+@@ -235,5 +256,20 @@ class ShareViewController: UIViewController {
+     }
+     return screenshotURL
    }
  
-   private func documentDirectoryPath() -> URL? {
--    let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
--    return path.first
-+    return FileManager.default.temporaryDirectory
-   }
- 
-   private func saveScreenshot(_ image: UIImage) -> URL? {
-@@ -384,29 +396,32 @@
++  private func saveImageData(_ data: Data) -> URL? {
++    guard let imagePath = documentDirectoryPath()?.appendingPathComponent("\(UUID().uuidString).png")
++    else {
++      return nil
++    }
++
++    do {
++      try data.write(to: imagePath)
++      return imagePath
++    } catch {
++      NSLog("Cannot save image data: \(error)")
++      return nil
++    }
++  }
++
+   private func handleVideos(content: NSExtensionItem, attachment: NSItemProvider, index: Int) async
+@@ -382,6 +384,18 @@
+     case text
+     case weburl
      case file
-   }
- 
++  }
++
 +  private func setupLoadingIndicator() {
 +    view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.92)
 +    loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
@@ -57,11 +86,10 @@
 +      loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
 +    ])
 +    loadingIndicator.startAnimating()
-+  }
-+
+   }
+ 
    func getExtension(from url: URL, type: SharedMediaType) -> String {
-     let parts = url.lastPathComponent.components(separatedBy: ".")
-     var ex: String? = nil
+@@ -390,23 +404,14 @@ class ShareViewController: UIViewController {
      if parts.count > 1 {
        ex = parts.last
      }
@@ -88,3 +116,13 @@
      }
      return name
    }
+@@ -221,8 +221,7 @@ class ShareViewController: UIViewController {
+   }
+ 
+   private func documentDirectoryPath() -> URL? {
+-    let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+-    return path.first
++    return FileManager.default.temporaryDirectory
+   }
+ 
+   private func saveScreenshot(_ image: UIImage) -> URL? {
