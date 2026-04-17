@@ -1078,9 +1078,15 @@ function ConnectContactBookContent(props: {
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
           {shouldShowConnectOption && (
-            <SplashParagraph>
-              Sync your contact book to find people you know on Tlon.
-            </SplashParagraph>
+            <>
+              <SplashParagraph>
+                Sync your contact book to find people you know on Tlon.
+              </SplashParagraph>
+              <SplashParagraph fontWeight="600" color="$primaryText">
+                We don&#39;t store your contacts — they&#39;re only referenced
+                by secure hash.
+              </SplashParagraph>
+            </>
           )}
         </ScrollView>
         {props.isProcessing && !isWeb && (
@@ -1342,12 +1348,12 @@ const AVATAR_BORDER_RADIUS = 12;
 
 function AvatarSquare({
   imageUrl,
-  shipId,
-  fallbackIcon,
+  fallback,
+  backgroundColor = '$secondaryBackground',
 }: {
   imageUrl?: string | null;
-  shipId?: string | null;
-  fallbackIcon?: 'Face' | 'Profile';
+  fallback: React.ReactNode;
+  backgroundColor?: string;
 }) {
   if (imageUrl) {
     return (
@@ -1357,32 +1363,8 @@ function AvatarSquare({
           width: AVATAR_SIZE,
           height: AVATAR_SIZE,
           borderRadius: AVATAR_BORDER_RADIUS,
-          borderWidth: 2,
-          borderColor: 'rgba(0,0,0,0.1)',
         }}
       />
-    );
-  }
-  if (shipId) {
-    return (
-      <View
-        width={AVATAR_SIZE}
-        height={AVATAR_SIZE}
-        borderRadius={AVATAR_BORDER_RADIUS}
-        borderWidth={2}
-        borderColor="rgba(255,255,255,0.1)"
-        backgroundColor="#1a1a1a"
-        alignItems="center"
-        justifyContent="center"
-        overflow="hidden"
-      >
-        <UrbitSigil
-          contactId={shipId}
-          size={80}
-          renderDetail
-          colors={{ backgroundColor: '#1A1A1A', foregroundColor: '#FFFFFF' }}
-        />
-      </View>
     );
   }
   return (
@@ -1390,13 +1372,12 @@ function AvatarSquare({
       width={AVATAR_SIZE}
       height={AVATAR_SIZE}
       borderRadius={AVATAR_BORDER_RADIUS}
-      borderWidth={2}
-      borderColor="rgba(0,0,0,0.1)"
-      backgroundColor="$secondaryBackground"
+      backgroundColor={backgroundColor}
       alignItems="center"
       justifyContent="center"
+      overflow="hidden"
     >
-      <Icon type={fallbackIcon ?? 'Face'} color="$tertiaryText" size="$xl" />
+      {fallback}
     </View>
   );
 }
@@ -1444,8 +1425,20 @@ function AvatarPairOverlay({
           >
             <AvatarSquare
               imageUrl={userAvatarUrl}
-              shipId={userShipId}
-              fallbackIcon="Profile"
+              backgroundColor="#1a1a1a"
+              fallback={
+                userShipId ? (
+                  <UrbitSigil
+                    contactId={userShipId}
+                    size={80}
+                    renderDetail
+                    colors={{
+                      backgroundColor: '#1A1A1A',
+                      foregroundColor: '#FFFFFF',
+                    }}
+                  />
+                ) : null
+              }
             />
           </View>
           <View
@@ -1459,7 +1452,10 @@ function AvatarPairOverlay({
               shadowRadius: 35,
             }}
           >
-            <AvatarSquare imageUrl={botAvatarUrl} fallbackIcon="Face" />
+            <AvatarSquare
+              imageUrl={botAvatarUrl}
+              fallback={<Icon type="Face" color="$tertiaryText" size="$xl" />}
+            />
           </View>
         </XStack>
       </View>

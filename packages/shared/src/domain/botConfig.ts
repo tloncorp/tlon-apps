@@ -20,14 +20,14 @@ export const SUGGESTED_NAMES = [
 ];
 
 export const SUGGESTED_AVATARS = [
-  'https://i.pravatar.cc/150?img=1',
-  'https://i.pravatar.cc/150?img=5',
-  'https://i.pravatar.cc/150?img=8',
-  'https://i.pravatar.cc/150?img=12',
-  'https://i.pravatar.cc/150?img=21',
-  'https://i.pravatar.cc/150?img=32',
-  'https://i.pravatar.cc/150?img=47',
-  'https://i.pravatar.cc/150?img=52',
+  'https://storage.googleapis.com/tlon-prod-bots/tb-av-1.png',
+  'https://storage.googleapis.com/tlon-prod-bots/tb-av-2.png',
+  'https://storage.googleapis.com/tlon-prod-bots/tb-av-3.png',
+  'https://storage.googleapis.com/tlon-prod-bots/tb-av-4.png',
+  'https://storage.googleapis.com/tlon-prod-bots/tb-av-5.png',
+  'https://storage.googleapis.com/tlon-prod-bots/tb-av-6.png',
+  'https://storage.googleapis.com/tlon-prod-bots/tb-av-7.png',
+  'https://storage.googleapis.com/tlon-prod-bots/tb-av-8.png'
 ];
 
 export const DEFAULT_BOT_CONFIG = {
