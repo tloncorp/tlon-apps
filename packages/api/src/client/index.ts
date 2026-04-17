@@ -46,8 +46,31 @@ export {
   resumeShip,
   signUpHostingUser,
   verifyEmailDigits,
+  // Tlawn (bot) endpoints
+  getTlawnProviderKeys,
+  setTlawnProviderKey,
+  deleteTlawnProviderKey,
+  setTlawnPrimaryModel,
+  getTlawnProviderModels,
+  getTlawnBotInfo,
+  getTlawnNickname,
+  setTlawnNickname,
+  getTlawnAvatar,
+  setTlawnAvatar,
+  getTlawnConfig,
+  setTlawnConfig,
+  reloadBot,
+  isBotRunning,
 } from './hostingApi';
-export type { HostingHeartBeatCode } from './hostingApi';
+export type {
+  HostingHeartBeatCode,
+  TlawnProviderConfigInfo,
+  TlawnModelEntry,
+  TlawnPrimaryModelUpdate,
+  TlawnBotInfo,
+  TlawnConfig,
+  TlawnProviderModel,
+} from './hostingApi';
 export * from './apiUtils';
 export * from './metagrabApi';
 export * from './changesApi';
