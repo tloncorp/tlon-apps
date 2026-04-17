@@ -825,7 +825,6 @@ export function toPostData({
   let blob: string | undefined = undefined;
 
   attachments
-    .filter((attachment) => attachment.type !== 'text')
     // For notebooks, skip header image - it goes in metadata only, not content
     .filter((attachment) => {
       if (channelType === 'notebook' && image && attachment.type === 'image') {
