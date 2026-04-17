@@ -1890,13 +1890,16 @@ function toClientChannel({
   );
   const currentUserIsMember = isOpenChannel || userHasReadPermission;
 
+  const clientMeta = toClientMeta(channel.meta);
   return {
     id,
     groupId,
     type: getChannelType(id),
-    iconImage: omitEmpty(channel.meta.image),
+    iconImage: clientMeta.iconImage,
+    iconImageColor: clientMeta.iconImageColor,
+    coverImage: clientMeta.coverImage,
+    coverImageColor: clientMeta.coverImageColor,
     title: omitEmpty(channel.meta.title),
-    coverImage: omitEmpty(channel.meta.cover),
     description,
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
@@ -1920,13 +1923,16 @@ function toClientChannelFromPreview({
   const currentUserId = getCurrentUserId();
   const { host: hostUserId } = parseGroupChannelId(id);
 
+  const clientMeta = toClientMeta(channel.meta);
   return {
     id,
     groupId,
     type: getChannelType(id),
-    iconImage: omitEmpty(channel.meta.image),
+    iconImage: clientMeta.iconImage,
+    iconImageColor: clientMeta.iconImageColor,
+    coverImage: clientMeta.coverImage,
+    coverImageColor: clientMeta.coverImageColor,
     title: omitEmpty(channel.meta.title),
-    coverImage: omitEmpty(channel.meta.cover),
     description,
     contentConfiguration: channelContentConfiguration,
     currentUserIsHost: hostUserId === currentUserId,
