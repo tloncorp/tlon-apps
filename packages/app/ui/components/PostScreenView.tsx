@@ -47,7 +47,10 @@ import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import { DraftInputContext } from './draftInputs';
-import { DraftInputContextProvider } from './draftInputs/shared';
+import {
+  DraftInputContextProvider,
+  DraftInputHandle,
+} from './draftInputs/shared';
 
 const noop = async () => {};
 
@@ -573,6 +576,7 @@ function SinglePostView({
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
+  const replyDraftInputRef = useRef<DraftInputHandle>(null);
 
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -742,6 +746,7 @@ function SinglePostView({
     (): DraftInputContext => ({
       channel,
       clearDraft,
+      draftInputRef: replyDraftInputRef,
       editingPost,
       getDraft,
       group,
@@ -768,36 +773,38 @@ function SinglePostView({
 
   return (
     <YStack flex={1}>
-      {parentPost ? (
-        <DetailView
-          post={parentPost}
-          channel={channel}
-          initialPostUnread={initialThreadUnread}
-          anchor={threadAnchor}
-          onPressImage={handleGoToImage}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          onPressRetry={onPressRetry}
-          onPressDelete={onPressDelete}
-          posts={postsWithoutParent}
-          goBack={goBack}
-          activeMessage={activeMessage}
-          setActiveMessage={setActiveMessage}
-          highlightPostId={highlightPostId}
-          scrollerRef={scrollerRef}
-        />
-      ) : null}
+      {/* Keep reply context off parent editing UI; attachment actions use whichever draft context they inherit. */}
+      <DraftInputContextProvider value={replyDraftInputContext}>
+        {parentPost ? (
+          <DetailView
+            post={parentPost}
+            channel={channel}
+            initialPostUnread={initialThreadUnread}
+            anchor={threadAnchor}
+            onPressImage={handleGoToImage}
+            editingPost={editingPost}
+            setEditingPost={setEditingPost}
+            onPressRetry={onPressRetry}
+            onPressDelete={onPressDelete}
+            posts={postsWithoutParent}
+            goBack={goBack}
+            activeMessage={activeMessage}
+            setActiveMessage={setActiveMessage}
+            highlightPostId={highlightPostId}
+            scrollerRef={scrollerRef}
+          />
+        ) : null}
 
-      {negotiationMatch &&
-        channel &&
-        canWrite &&
-        !(
-          isEditingParent &&
-          (channel.type === 'notebook' || channel.type === 'gallery')
-        ) && (
-          <View id="reply-container" {...containingProperties}>
-            <DraftInputContextProvider value={replyDraftInputContext}>
+        {negotiationMatch &&
+          channel &&
+          canWrite &&
+          !(
+            isEditingParent &&
+            (channel.type === 'notebook' || channel.type === 'gallery')
+          ) && (
+            <View id="reply-container" {...containingProperties}>
               <BareChatInput
+                ref={replyDraftInputRef}
                 {...replyDraftInputContext}
                 placeholder="Reply"
                 channelId={replyDraftInputContext.channel.id}
@@ -811,9 +818,9 @@ function SinglePostView({
                   (isChatLike && parentPost?.replyCount === 0) || !!editingPost
                 }
               />
-            </DraftInputContextProvider>
-          </View>
-        )}
+            </View>
+          )}
+      </DraftInputContextProvider>
       {!negotiationMatch && channel && canWrite && (
         <View
           position={isChatChannel ? undefined : 'absolute'}

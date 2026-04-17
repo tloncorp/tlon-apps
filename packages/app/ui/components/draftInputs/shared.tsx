@@ -45,7 +45,7 @@ export interface DraftInputContext {
   channel: db.Channel;
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   configuration?: Record<string, JSONValue>;
-  draftInputRef?: React.Ref<DraftInputHandle>;
+  draftInputRef?: React.RefObject<DraftInputHandle>;
   editingPost?: db.Post;
   getDraft: (draftType?: GalleryDraftType) => Promise<JSONContent | null>;
   group: db.Group | null;
