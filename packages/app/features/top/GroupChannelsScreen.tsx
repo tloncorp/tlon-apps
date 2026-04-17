@@ -64,7 +64,7 @@ export function GroupChannelsScreenContent({
 
   const handleGoBackPressed = useCallback(() => {
     if (isWindowNarrow) {
-      navigation.navigate('ChatList');
+      navigation.navigate('ChatList', undefined, { pop: true });
     } else {
       // Reset is necessary on desktop to ensure that the ChannelStack is cleared
       navigation.reset({

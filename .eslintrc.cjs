@@ -163,6 +163,42 @@ module.exports = {
         message:
           'Please use the useTypedReset() hook instead of importing reset from @react-navigation/native for type safety.',
       },
+      {
+        // `navigation.navigate('ChatList' | 'Activity' | 'Contacts' | 'Settings', …)`.
+        // Also matches TS casts like `navigate('ChatList' as never)`, which
+        // wrap the literal in a TSAsExpression.
+        // The escape hatch requires an ObjectExpression third argument
+        // containing `pop: true` (including quoted `"pop"` keys).
+        selector:
+          'CallExpression[callee.property.name="navigate"]' +
+          ':matches(' +
+          '[arguments.0.value=/^(ChatList|Activity|Contacts|Settings)$/],' +
+          '[arguments.0.expression.value=/^(ChatList|Activity|Contacts|Settings)$/]' +
+          ')' +
+          ':not(:matches(' +
+          '[arguments.2.type="ObjectExpression"]:has(Property[key.name="pop"][value.value=true]),' +
+          '[arguments.2.type="ObjectExpression"]:has(Property[key.value="pop"][value.value=true])' +
+          '))',
+        message:
+          "navigate() to a top-level tab route must pass { pop: true } as the third argument. React Navigation 7's navigate() pushes a new screen by default — without pop:true this causes duplicate screen mounts and perceived input delay on Android. See TLON-5598.",
+      },
+      {
+        // Destructured `navigate('ChatList' | ...)` (e.g. `const { navigate } = props.navigation`).
+        // Requires an ObjectExpression third argument containing
+        // `pop: true` (including quoted `"pop"` keys).
+        selector:
+          'CallExpression[callee.name="navigate"]' +
+          ':matches(' +
+          '[arguments.0.value=/^(ChatList|Activity|Contacts|Settings)$/],' +
+          '[arguments.0.expression.value=/^(ChatList|Activity|Contacts|Settings)$/]' +
+          ')' +
+          ':not(:matches(' +
+          '[arguments.2.type="ObjectExpression"]:has(Property[key.name="pop"][value.value=true]),' +
+          '[arguments.2.type="ObjectExpression"]:has(Property[key.value="pop"][value.value=true])' +
+          '))',
+        message:
+          "navigate() to a top-level tab route must pass { pop: true } as the third argument. React Navigation 7's navigate() pushes a new screen by default — without pop:true this causes duplicate screen mounts and perceived input delay on Android. See TLON-5598.",
+      },
     ],
   },
 };

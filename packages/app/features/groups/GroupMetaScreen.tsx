@@ -18,12 +18,7 @@ import {
   useGroupTitle,
 } from '../../ui';
 
-type Props = NativeStackScreenProps<
-  GroupSettingsStackParamList,
-  'GroupMeta'
-> & {
-  navigateToHome: () => void;
-};
+type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupMeta'>;
 
 export function GroupMetaScreen(props: Props) {
   const { groupId, fromBlankChannel, fromChatDetails } = props.route.params;
@@ -37,7 +32,7 @@ export function GroupMetaScreen(props: Props) {
   const currentUserId = useCurrentUserId();
 
   const navigateToHome = useCallback(() => {
-    navigation.getParent()?.navigate('ChatList');
+    navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
   }, [navigation]);
 
   const handleGoBack = useHandleGoBack(navigation, {

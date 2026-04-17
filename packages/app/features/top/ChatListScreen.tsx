@@ -373,13 +373,13 @@ export function ChatListScreenView({
         {displayData && <SystemNotices.NotificationsPrompt />}
         <NavBarView
           navigateToContacts={() => {
-            navigation.navigate('Contacts');
+            navigation.navigate('Contacts', undefined, { pop: true });
           }}
           navigateToHome={() => {
-            navigation.navigate('ChatList');
+            navigation.navigate('ChatList', undefined, { pop: true });
           }}
           navigateToNotifications={() => {
-            navigation.navigate('Activity');
+            navigation.navigate('Activity', undefined, { pop: true });
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}
