@@ -161,18 +161,12 @@ export namespace UploadedVideoAttachment {
   }
 }
 
-export type TextAttachment = {
-  type: 'text';
-  text: string;
-};
-
 export type Attachment =
   | ReferenceAttachment
   | ImageAttachment
   | FileAttachment
   | VideoAttachment
   | VoiceMemoAttachment
-  | TextAttachment
   | LinkAttachment;
 
 export type FinalizedAttachment =
@@ -181,7 +175,6 @@ export type FinalizedAttachment =
   | UploadedFileAttachment
   | UploadedVideoAttachment
   | UploadedVoiceMemoAttachment
-  | TextAttachment
   | LinkAttachment;
 
 export namespace Attachment {
@@ -512,8 +505,6 @@ export namespace Attachment {
             waveformPreview: attachment.waveformPreview,
           },
         };
-      case 'text':
-      // fallthrough
       case 'link':
       // fallthrough
       case 'reference':
