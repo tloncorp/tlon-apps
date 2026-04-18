@@ -448,7 +448,7 @@ export function InviteContactsContent(props: {
       ) : !isReady ? (
         <LoadingState />
       ) : (
-        <View flex={1}>
+        <>
           <SplashParagraph marginTop="$l" marginBottom="$xl">
             {INVITE_EXPLANATION_TEXT}
           </SplashParagraph>
@@ -481,7 +481,7 @@ export function InviteContactsContent(props: {
               />
             )}
           />
-        </View>
+        </>
       )}
     </YStack>
   );
