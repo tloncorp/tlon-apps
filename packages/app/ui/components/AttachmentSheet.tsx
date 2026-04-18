@@ -324,6 +324,7 @@ export default function AttachmentSheet({
           allowsEditing: false,
           quality: 0.5,
           exif: false,
+          shouldDownloadFromNetwork: true,
         });
 
         if (!result.canceled) {
