@@ -470,8 +470,7 @@ export function InviteContactsContent(props: {
             keyExtractor={(item) => item.id}
             style={{ flex: 1 }}
             contentContainerStyle={{
-              paddingTop: 8,
-              paddingHorizontal: 14,
+              padding: getTokenValue('$l', 'size'),
               paddingBottom: getTokenValue('$4xl', 'size'),
             }}
             renderItem={({ item: contact }) => (
