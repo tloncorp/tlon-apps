@@ -19,7 +19,6 @@ import { FlatList, Image, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
-  XStack,
   YStack,
   ZStack,
   getTokenValue,
@@ -449,30 +448,30 @@ export function InviteContactsContent(props: {
       ) : !isReady ? (
         <LoadingState />
       ) : (
-        <>
+        <View flex={1}>
           <SplashParagraph marginTop="$l" marginBottom="$xl">
             {INVITE_EXPLANATION_TEXT}
           </SplashParagraph>
-          <XStack paddingHorizontal="$xl">
-            <SearchBar
-              height="$4xl"
-              debounceTime={100}
-              onChangeQuery={handleSearch}
-              placeholder="Search contacts"
-              inputProps={{
-                spellCheck: false,
-                autoCapitalize: 'none',
-                autoComplete: 'off',
-                flex: 1,
-              }}
-            />
-          </XStack>
+          <SearchBar
+            paddingHorizontal="$xl"
+            flexGrow={0}
+            debounceTime={100}
+            onChangeQuery={handleSearch}
+            placeholder="Search contacts"
+            inputProps={{
+              spellCheck: false,
+              autoCapitalize: 'none',
+              autoComplete: 'off',
+              flex: 1,
+            }}
+          />
           <FlatList
             data={displayContacts}
             keyExtractor={(item) => item.id}
             style={{ flex: 1 }}
             contentContainerStyle={{
-              padding: getTokenValue('$l', 'size'),
+              paddingTop: 8,
+              paddingHorizontal: 14,
               paddingBottom: getTokenValue('$4xl', 'size'),
             }}
             renderItem={({ item: contact }) => (
@@ -483,7 +482,7 @@ export function InviteContactsContent(props: {
               />
             )}
           />
-        </>
+        </View>
       )}
     </YStack>
   );
