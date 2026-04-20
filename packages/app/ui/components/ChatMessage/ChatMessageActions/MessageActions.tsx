@@ -24,9 +24,10 @@ import {
 
 const ENABLE_COPY_JSON = __DEV__;
 
-type DraftTextTarget = Pick<DraftInputContext, 'getDraft' | 'storeDraft'> & {
-  startDraft?: () => void;
-};
+type DraftTextTarget = Pick<
+  DraftInputContext,
+  'getDraft' | 'startDraft' | 'storeDraft'
+>;
 
 export default function MessageActions({
   dismiss,
@@ -188,9 +189,8 @@ const ConnectedAction = memo(function ConnectedAction({
           draftTextTarget: draftInputContext
             ? {
                 getDraft: draftInputContext.getDraft,
+                startDraft: draftInputContext.startDraft,
                 storeDraft: draftInputContext.storeDraft,
-                startDraft: () =>
-                  draftInputContext.draftInputRef?.current?.startDraft?.(),
               }
             : null,
           showToast,

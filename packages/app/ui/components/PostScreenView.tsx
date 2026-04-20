@@ -747,6 +747,10 @@ function SinglePostView({
     [channel.type]
   );
 
+  const startReplyDraft = useCallback((mode?: 'text' | 'link') => {
+    replyDraftInputRef.current?.startDraft?.(mode);
+  }, []);
+
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
       channel,
@@ -759,6 +763,7 @@ function SinglePostView({
       setEditingPost,
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
+      startDraft: startReplyDraft,
       storeDraft,
       replyToPost: { id: parentPost.id },
     }),
@@ -771,6 +776,7 @@ function SinglePostView({
       sendFromThreadComposer,
       setEditingPost,
       inputShouldBlur,
+      startReplyDraft,
       storeDraft,
       parentPost.id,
     ]
