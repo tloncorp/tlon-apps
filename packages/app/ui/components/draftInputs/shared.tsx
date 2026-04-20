@@ -42,6 +42,7 @@ export interface DraftInputHandle {
  * Shared API for all draft inputs.
  */
 export interface DraftInputContext {
+  canStartDraft?: boolean;
   channel: db.Channel;
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   configuration?: Record<string, JSONValue>;
