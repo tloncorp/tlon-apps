@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8759c833-c852-4246-9834-6fbe06e67687",
+  "id": "6da40593-e8b0-4711-9258-01efa9a18159",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2557,7 +2557,7 @@
             "author_id"
           ],
           "isUnique": false,
-          "where": "sequence_number = 0"
+          "where": "sequence_number = 0 AND parent_id IS NULL"
         },
         "posts_channel_last_preview": {
           "name": "posts_channel_last_preview",

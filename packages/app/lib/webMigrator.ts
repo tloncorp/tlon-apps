@@ -129,25 +129,58 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
       if (!appliedMigrationHashes.has(migrationHash)) {
         const migrationSql = migrations[migrationKey];
         if (migrationSql) {
-          // we need to track `failed` because we don't throw (i.e. return)
-          // on migration failure
           let failed = false;
 
           if (!dryRun) {
-            try {
-              await db.run(sql.raw(migrationSql));
-              logger.log(`Applied migration ${migrationHash}`);
+            // Split on drizzle's statement-breakpoint markers so each
+            // DDL runs independently. We tolerate "already exists"
+            // errors per statement — the generated SQL uses plain CREATE
+            // (not CREATE IF NOT EXISTS), and when `reset-migrations`
+            // rotates the tag, an existing DB would otherwise throw on
+            // the first CREATE TABLE and leave the migration un-recorded,
+            // causing it to retry (and fail) on every reload.
+            const statements = migrationSql
+              .split('--> statement-breakpoint')
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0);
 
-              // Record migration as applied
-              await db.run(sql`
+            for (const statement of statements) {
+              try {
+                await db.run(sql.raw(statement));
+              } catch (e) {
+                const msg = (
+                  e instanceof Error ? e.message : String(e)
+                ).toLowerCase();
+                if (msg.includes('already exists')) {
+                  // schema object already present; expected when the
+                  // migration's hash rotated but the DB is up to date.
+                  continue;
+                }
+                logger.error(
+                  `Unexpected error applying statement in ${migrationHash}`,
+                  e,
+                  statement
+                );
+                failed = true;
+                // keep going — don't let one statement abort the rest;
+                // the final "record as applied" is gated on !failed.
+              }
+            }
+
+            if (!failed) {
+              try {
+                await db.run(sql`
           INSERT INTO __drizzle_migrations (hash, created_at)
           VALUES (${migrationHash}, datetime('now'))
         `);
-              logger.log(`Recorded migration ${migrationHash}`);
-            } catch (e) {
-              logger.error(`Error applying migration ${migrationHash}`, e);
-              failed = true;
-              // throw e;
+                logger.log(`Recorded migration ${migrationHash}`);
+              } catch (e) {
+                logger.error(
+                  `Failed to record migration ${migrationHash}`,
+                  e
+                );
+                failed = true;
+              }
             }
           }
           if (!failed) {

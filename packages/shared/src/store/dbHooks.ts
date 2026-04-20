@@ -577,10 +577,13 @@ export const useChannel = (options: { id?: string }) => {
 // scan set. Shorten so unused entries age out quickly.
 const PER_POST_GC_TIME_MS = 30_000;
 
+// Per-post queries invalidate via changeListener's per-post events instead of
+// the table-level invalidation path. The queryKey must be a flat
+// ['post', id] so changeListener's invalidateQueries({ queryKey: ['post', id] })
+// actually matches (partial-key matching is positional).
 export const usePostWithThreadUnreads = (options: { id: string }) => {
-  const tableDeps = useKeyFromQueryDeps(db.getPostWithRelations);
   return useQuery({
-    queryKey: [['post', options.id], tableDeps],
+    queryKey: ['post', options.id],
     staleTime: Infinity,
     gcTime: PER_POST_GC_TIME_MS,
     queryFn: () => db.getPostWithRelations(options),
@@ -591,10 +594,9 @@ export const usePostWithRelations = (
   options: { id: string } | null,
   initialData?: db.Post
 ) => {
-  const deps = useKeyFromQueryDeps(db.getPostWithRelations, options?.id);
   return useQuery({
     enabled: options != null,
-    queryKey: [['post', options?.id], deps],
+    queryKey: ['post', options?.id],
     staleTime: Infinity,
     gcTime: PER_POST_GC_TIME_MS,
     ...(initialData ? { initialData } : {}),

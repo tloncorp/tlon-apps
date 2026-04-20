@@ -3378,10 +3378,14 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
 
 async function deleteReplacedCachedPosts(replacers: Post[], ctx: QueryCtx) {
   if (!replacers.length) return;
-  // Find outstanding optimistic rows (sequenceNum = 0) whose (channelId,
-  // sentAt, authorId) matches a real incoming post. Uses the
-  // `cached_posts_index` partial index over sequence_number = 0 — lookup is
-  // O(replacers × log(cachedRowCount)), not O(postsTableSize).
+  // Delete outstanding optimistic top-level rows whose (channelId, sentAt,
+  // authorId) tuple matches an incoming real post.
+  //
+  // Replies also have sequence_number = 0 (see toPostReplyData), so we also
+  // require parent_id IS NULL — keeps the lookup scoped to the cached_posts
+  // partial index (which shares this predicate) and rules out the
+  // theoretical case where a reply and a real top-level post share the
+  // composite tuple.
   const matches = replacers.map((p) =>
     and(
       eq($posts.channelId, p.channelId),
@@ -3391,7 +3395,13 @@ async function deleteReplacedCachedPosts(replacers: Post[], ctx: QueryCtx) {
   );
   await ctx.db
     .delete($posts)
-    .where(and(eq($posts.sequenceNum, 0), or(...matches)));
+    .where(
+      and(
+        eq($posts.sequenceNum, 0),
+        isNull($posts.parentId),
+        or(...matches)
+      )
+    );
 }
 
 export const resetHiddenPosts = createWriteQuery(
@@ -3422,12 +3432,23 @@ export const getHiddenPosts = createReadQuery(
 );
 
 async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
-  const channelIds = newPosts?.map((p) => p.channelId) ?? [];
+  if (!newPosts?.length) return;
 
-  if (channelIds.length === 0) return;
+  const uniqueChannels = new Set(newPosts.map((p) => p.channelId));
 
-  // Combine channel and group updates in a single transaction
-  // Update channels
+  // Single-channel fast path — the common receive case.
+  // Monotonic UPDATE driven by the incoming batch avoids the 3 correlated
+  // subqueries the multi-channel path runs. Only advances lastPost* forward.
+  // Paths that need a full recompute after a delete/edit (e.g.
+  // markPostAsDeleted in sync.ts) already explicitly reset lastPostId.
+  if (uniqueChannels.size === 1) {
+    await setLastPostsMonotonic(newPosts, ctx);
+    return;
+  }
+
+  const channelIds = Array.from(uniqueChannels);
+
+  // Multi-channel batched fallback (sync bursts spanning many channels).
   // lastPostId/lastPostAt: point to the newest *previewable* post (not deleted)
   // lastPostSequenceNum: always the newest post for syncing (even if deleted)
   await ctx.db
@@ -3530,6 +3551,77 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         )
       )
     );
+}
+
+async function setLastPostsMonotonic(newPosts: Post[], ctx: QueryCtx) {
+  const channelId = newPosts[0].channelId;
+
+  // Find the newest relevant posts in the batch:
+  // - `previewable`: newest non-reply non-deleted post (drives lastPostId/At)
+  // - `sequenced`: newest non-reply post with a sequenceNum (drives
+  //   lastPostSequenceNum — a delete still counts for seq tracking, matching
+  //   the original subquery semantics)
+  let previewable: Post | undefined;
+  let sequenced: Post | undefined;
+  for (const p of newPosts) {
+    if (p.type === 'reply') continue;
+    if (!p.isDeleted) {
+      if (!previewable || p.receivedAt > previewable.receivedAt) {
+        previewable = p;
+      }
+    }
+    if (p.sequenceNum != null) {
+      if (
+        !sequenced ||
+        (p.sequenceNum ?? 0) > (sequenced.sequenceNum ?? 0)
+      ) {
+        sequenced = p;
+      }
+    }
+  }
+
+  if (!previewable && !sequenced) return;
+
+  const setClauses: Parameters<
+    ReturnType<typeof ctx.db.update<typeof $channels>>['set']
+  >[0] = {};
+  if (previewable) {
+    const newAt = previewable.receivedAt;
+    const newId = previewable.id;
+    setClauses.lastPostId = sql`CASE WHEN ${$channels.lastPostAt} IS NULL OR ${newAt} > ${$channels.lastPostAt} THEN ${newId} ELSE ${$channels.lastPostId} END`;
+    setClauses.lastPostAt = sql`CASE WHEN ${$channels.lastPostAt} IS NULL OR ${newAt} > ${$channels.lastPostAt} THEN ${newAt} ELSE ${$channels.lastPostAt} END`;
+  }
+  if (sequenced && sequenced.sequenceNum != null) {
+    const newSeq = sequenced.sequenceNum;
+    setClauses.lastPostSequenceNum = sql`CASE WHEN ${$channels.lastPostSequenceNum} IS NULL OR ${newSeq} > ${$channels.lastPostSequenceNum} THEN ${newSeq} ELSE ${$channels.lastPostSequenceNum} END`;
+  }
+
+  await ctx.db
+    .update($channels)
+    .set(setClauses)
+    .where(eq($channels.id, channelId));
+
+  // Mirror to the parent group's lastPost* if applicable. Skip when there's
+  // no previewable (e.g., all-deleted batch) — groups only care about the
+  // visible newest.
+  if (!previewable) return;
+  const [channel] = await ctx.db
+    .select({ groupId: $channels.groupId })
+    .from($channels)
+    .where(eq($channels.id, channelId))
+    .limit(1);
+  const groupId = channel?.groupId;
+  if (!groupId) return;
+
+  const newAt = previewable.receivedAt;
+  const newId = previewable.id;
+  await ctx.db
+    .update($groups)
+    .set({
+      lastPostId: sql`CASE WHEN ${$groups.lastPostAt} IS NULL OR ${newAt} > ${$groups.lastPostAt} THEN ${newId} ELSE ${$groups.lastPostId} END`,
+      lastPostAt: sql`CASE WHEN ${$groups.lastPostAt} IS NULL OR ${newAt} > ${$groups.lastPostAt} THEN ${newAt} ELSE ${$groups.lastPostAt} END`,
+    })
+    .where(eq($groups.id, groupId));
 }
 
 // Delete any pending posts whose sentAt matches the incoming sentAt.
@@ -3823,7 +3915,11 @@ export const getPostWithRelations = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['posts', 'postReactions', 'threadUnreads', 'volumeSettings']
+  // Invalidation for ['post', id] queries is driven by changeListener's
+  // per-post events (see db/changeListener.ts). The broad table-level
+  // invalidation path would re-stale every cached per-post entry on any
+  // posts-table mutation; the targeted path only touches the specific post.
+  []
 );
 
 export const getPersonalGroup = createReadQuery(

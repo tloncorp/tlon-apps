@@ -1156,11 +1156,13 @@ export const posts = sqliteTable(
     groupId: index('posts_group_id').on(table.groupId, table.id),
     authorIdIndex: index('posts_author_id_index').on(table.authorId),
     parentIdIndex: index('posts_parent_id_index').on(table.parentId),
-    // Partial index over outstanding optimistic rows. Keeps the lookup in
-    // deleteReplacedCachedPosts from scanning the entire posts table.
+    // Partial index over outstanding optimistic top-level writes.
+    // Replies also carry sequence_number = 0 (see toPostReplyData), so the
+    // parent_id IS NULL clause keeps the index tiny — only rows that could
+    // actually be replaced by an incoming top-level post.
     cachedPostsIndex: index('cached_posts_index')
       .on(table.channelId, table.sentAt, table.authorId)
-      .where(sql`sequence_number = 0`),
+      .where(sql`sequence_number = 0 AND parent_id IS NULL`),
     // Supports setLastPosts's "latest previewable post per channel" subqueries
     // (lastPostId, lastPostAt). Partial so only top-level, non-deleted rows
     // are indexed — keeps size down and turns the subqueries into seeks.

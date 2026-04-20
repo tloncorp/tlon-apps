@@ -25,17 +25,19 @@ export interface QueryMeta<TOptions> {
    * query, changes to these tables should trigger a re-fetch)
    */
   tableDependencies: TableParam<TOptions>;
-
-  /**
-   * Used to indicate nested transaction context
-   */
-  rootTransaction?: string | null;
 }
 
 export interface QueryCtx {
   db: AnySqliteTransaction | AnySqliteDatabase;
   pendingEffects: Set<TableName>;
   meta: QueryMeta<any>;
+  /**
+   * Label of the outermost transaction on this ctx. Lives on the ctx (not
+   * meta) because meta is shared across concurrent invocations of the same
+   * wrapped query — storing the flag on meta caused concurrent calls to
+   * falsely detect each other as "nested", bypassing the transaction queue.
+   */
+  rootTransaction?: string | null;
 }
 
 export type WrappedQuery<TOptions, TReturn> = (TOptions extends QueryCtx
@@ -271,13 +273,15 @@ export async function withTransactionCtx<T>(
 ): Promise<T> {
   txLogger.log(ctx.meta.label, 'tx:enqueue');
 
-  // If we're already in a transaction, run the handler directly
-  if (ctx.meta.rootTransaction) {
+  // If we're already in a transaction on THIS ctx, run the handler directly.
+  // This flag lives on ctx (not meta) so it only reflects the current
+  // invocation — see note in QueryCtx.
+  if (ctx.rootTransaction) {
     txLogger.log(ctx.meta.label, 'tx:already-in');
     try {
       txLogger.trackEvent('running nested transaction', {
         isNested: true,
-        rootTransactionLabel: ctx.meta.rootTransaction,
+        rootTransactionLabel: ctx.rootTransaction,
         label: ctx.meta.label,
       });
       const result = await handler(ctx);
@@ -287,7 +291,7 @@ export async function withTransactionCtx<T>(
       txLogger.log(ctx.meta.label, 'tx:error', e);
       txLogger.trackError('transaction error', {
         isNested: true,
-        rootTransactionLabel: ctx.meta.rootTransaction,
+        rootTransactionLabel: ctx.rootTransaction,
         label: ctx.meta.label,
         errorMessage: e.message,
         errorStack: e.stack,
@@ -303,14 +307,14 @@ export async function withTransactionCtx<T>(
 
       try {
         await ctx.db.run(sql`BEGIN`);
-        ctx.meta.rootTransaction = ctx.meta.label;
+        ctx.rootTransaction = ctx.meta.label;
         txLogger.log(ctx.meta.label, 'tx:begin');
 
         const result = await handler(ctx);
         txLogger.log(ctx.meta.label, 'tx:run');
 
         await ctx.db.run(sql`COMMIT`);
-        ctx.meta.rootTransaction = null;
+        ctx.rootTransaction = null;
         txLogger.log(ctx.meta.label, 'tx:commit');
         resolve(result);
         return result;
@@ -330,7 +334,7 @@ export async function withTransactionCtx<T>(
             errorStack: rollbackError.stack,
           });
         }
-        ctx.meta.rootTransaction = null;
+        ctx.rootTransaction = null;
         reject(e);
       }
     });

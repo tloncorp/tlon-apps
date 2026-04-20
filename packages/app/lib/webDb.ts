@@ -66,24 +66,23 @@ export class WebDb extends BaseDb {
       // If successful, this will `overwriteDatabaseFile` which will reset the
       // connection to the DB - so make sure we don't do anything until this
       // promise resolves.
+      //
+      // We previously also dry-ran the migration here and wiped the DB if
+      // any migration looked unapplied — under the rationale "we don't do
+      // delta migrations." That rationale no longer holds: the migrator
+      // tolerates "already exists" errors and re-records the tag, so an
+      // unrecorded tag against an up-to-date DB is now harmless.
+      //
+      // With reset-migrations rotating the tag on every schema change, the
+      // old wipe path caused every reload to purge the DB, force a full
+      // re-sync, and block the UI for tens of seconds on initial-load
+      // heads + writs scrys. Drop the wipe; still catch genuine corruption
+      // via the `select null` probe.
       if (ENABLE_DB_FILE_LOAD) {
         try {
           await this.loadDbFromFile();
           // run a query to get a SQLITE_CORRUPT if loaded DB is corrupt
           await this.sqlocal.sql`select null`;
-
-          const { applied } = await migrate(
-            this.client,
-            migrations,
-            this.sqlocal,
-            { dryRun: true }
-          );
-          if (applied.length > 0) {
-            // We need to apply migrations - since we don't do delta
-            // migrations, we need to purge the DB and start fresh.
-            // We can do this by throwing to the catch below.
-            throw new Error('Loaded DB is outdated, needs migrations');
-          }
         } catch (e) {
           console.warn(
             'Failed to load DB from file, continuing with empty DB',
@@ -94,6 +93,47 @@ export class WebDb extends BaseDb {
       }
 
       logger.log('sqlocal instance created', { sqlocal: this.sqlocal });
+
+      // Expose devtools helpers for diagnosing migration/schema state.
+      try {
+        const sqlocal = this.sqlocal;
+        const g: any = globalThis;
+        // __tlonRawSql runs arbitrary SQL against the user's local DB —
+        // gate behind __DEV__ so it only exists in dev builds.
+        if (__DEV__) {
+          g.__tlonRawSql = async (query: string) => {
+            const rows = await sqlocal.sql(query);
+            // eslint-disable-next-line no-console
+            console.table(rows);
+            return rows;
+          };
+        }
+        g.__tlonDbState = async () => {
+          const migrations = await sqlocal.sql(
+            `SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`
+          );
+          const postsIndexes = await sqlocal.sql(
+            `SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name='posts' ORDER BY name`
+          );
+          const [postsCount] = await sqlocal.sql(
+            `SELECT COUNT(*) as n FROM posts`
+          );
+          // eslint-disable-next-line no-console
+          console.log('Applied migrations:');
+          // eslint-disable-next-line no-console
+          console.table(migrations);
+          // eslint-disable-next-line no-console
+          console.log('Posts table indexes:');
+          // eslint-disable-next-line no-console
+          console.table(postsIndexes);
+          // eslint-disable-next-line no-console
+          console.log('Posts row count:', postsCount);
+          return { migrations, postsIndexes, postsCount };
+        };
+      } catch (e) {
+        logger.warn('Failed to register devtools DB helpers', e);
+      }
+
       // Experimental SQLite settings. May cause crashes. More here:
       // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
       await this.sqlocal.sql('PRAGMA mmap_size=268435456');
@@ -192,12 +232,24 @@ export class WebDb extends BaseDb {
     }
   }
 
-  override async processChanges() {
-    await super.processChanges();
+  // Coalesce processChanges callbacks. SQLocal's `SELECT processChanges()`
+  // trigger fires once per __change_log row, and each callback round-trips
+  // main↔worker via postMessage (no SharedArrayBuffer fallback). A bulk
+  // insert of N rows would otherwise queue N separate callbacks, each
+  // paying a ~20 ms round-trip even after the first one drains the log.
+  // Bundling to a single trailing invocation per event-loop tick turns N
+  // callbacks into one.
+  private pendingProcessChanges: ReturnType<typeof setTimeout> | null = null;
 
-    if (ENABLE_DB_FILE_SAVE) {
-      this.saveToFile();
-    }
+  override async processChanges() {
+    if (this.pendingProcessChanges != null) return;
+    this.pendingProcessChanges = setTimeout(async () => {
+      this.pendingProcessChanges = null;
+      await super.processChanges();
+      if (ENABLE_DB_FILE_SAVE) {
+        this.saveToFile();
+      }
+    }, 0);
   }
 
   async checkDb() {

@@ -378,7 +378,7 @@ CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-bre
 CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);--> statement-breakpoint
 CREATE INDEX `posts_author_id_index` ON `posts` (`author_id`);--> statement-breakpoint
 CREATE INDEX `posts_parent_id_index` ON `posts` (`parent_id`);--> statement-breakpoint
-CREATE INDEX `cached_posts_index` ON `posts` (`channel_id`,`sent_at`,`author_id`) WHERE sequence_number = 0;--> statement-breakpoint
+CREATE INDEX `cached_posts_index` ON `posts` (`channel_id`,`sent_at`,`author_id`) WHERE sequence_number = 0 AND parent_id IS NULL;--> statement-breakpoint
 CREATE INDEX `posts_channel_last_preview` ON `posts` (`channel_id`,`received_at`) WHERE type != 'reply' AND (is_deleted IS NULL OR is_deleted = 0);--> statement-breakpoint
 CREATE INDEX `posts_channel_last_seq` ON `posts` (`channel_id`,`sequence_number`) WHERE type != 'reply' AND sequence_number IS NOT NULL;--> statement-breakpoint
 CREATE TABLE `settings` (

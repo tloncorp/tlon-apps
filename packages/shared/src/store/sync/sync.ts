@@ -492,11 +492,18 @@ export const syncAppInfo = async (ctx?: SyncCtx) => {
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
+  const stopFetch = perfMark('syncVolumeSettings.fetch');
   const volumeSettings = await syncQueue.add('volumeSettings', ctx, () =>
     api.getVolumeSettings()
   );
   const clientVolumes = extractClientVolumes(volumeSettings);
+  stopFetch({
+    total: clientVolumes.length,
+    threadScoped: clientVolumes.filter((v) => v.itemType === 'thread').length,
+  });
+  const stopWrite = perfMark('syncVolumeSettings.setVolumes');
   await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
+  stopWrite();
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {
@@ -776,16 +783,25 @@ export const syncStorageSettings = (ctx?: SyncCtx) => {
 };
 
 export const resetActivity = async (syncCtx?: SyncCtx) => {
+  const stopFetch = perfMark('resetActivity.fetch');
   const { relevantUnreads, events } = await syncQueue.add(
     'getInitialActivity',
     syncCtx,
     () => api.getInitialActivity()
   );
+  stopFetch({
+    events: events.length,
+    threadUnreads: relevantUnreads.threadActivity.length,
+    channelUnreads: relevantUnreads.channelUnreads.length,
+    groupUnreads: relevantUnreads.groupUnreads.length,
+  });
+  const stopWrite = perfMark('resetActivity.write');
   await batchEffects('resetActivity', async (ctx) => {
     await db.clearActivityEvents(ctx);
     await db.insertActivityEvents(events, ctx);
     await persistUnreads({ unreads: relevantUnreads, ctx });
   });
+  stopWrite();
   resetActivityFetchers();
 };
 
@@ -1771,24 +1787,34 @@ export async function syncChannelMessageDelivery({
 }: {
   channelId: string;
 }) {
-  if (currentPendingMessageSyncs.has(channelId)) {
+  // Dedupe: if a delivery-sync is already in flight for this channel, reuse
+  // it. The existing loop's isStillPending check already covers any messages
+  // sent while it was running. Without this guard, rapid sends stack up
+  // independent backoff loops, each firing its own syncPosts poll under load.
+  const existing = currentPendingMessageSyncs.get(channelId);
+  if (existing) {
     logger.log(`message delivery sync already in progress for ${channelId}`);
+    return existing;
   }
 
-  try {
-    logger.log(`syncing messsage delivery for ${channelId}`);
-    const syncPromise = syncChannelWithBackoff({ channelId });
-    currentPendingMessageSyncs.set(channelId, syncPromise);
-    await syncPromise;
-    logger.crumb(`all messages in channel are delivered`);
-    logger.sensitiveCrumb(`channelId: ${channelId}`);
-  } catch (e) {
-    logger.error(
-      `some messages in ${channelId} still undelivered, is the channel offline?`
-    );
-  } finally {
-    currentPendingMessageSyncs.delete(channelId);
-  }
+  const syncPromise = (async () => {
+    try {
+      logger.log(`syncing messsage delivery for ${channelId}`);
+      const result = await syncChannelWithBackoff({ channelId });
+      logger.crumb(`all messages in channel are delivered`);
+      logger.sensitiveCrumb(`channelId: ${channelId}`);
+      return result;
+    } catch (e) {
+      logger.error(
+        `some messages in ${channelId} still undelivered, is the channel offline?`
+      );
+      return false;
+    } finally {
+      currentPendingMessageSyncs.delete(channelId);
+    }
+  })();
+  currentPendingMessageSyncs.set(channelId, syncPromise);
+  return syncPromise;
 }
 
 export async function syncChannelWithBackoff({

@@ -45,19 +45,33 @@ export function handleChange({
     }
     postEvents[row.channel_id].push(row.id);
   }
-  // We count updates to a post's reaction as post updates so that they trigger
-  // channel refresh.
+  // Reactions, thread unreads, and thread-scoped volume settings all feed
+  // data that's joined into ['post', id] queries. Use invalidateQueries (not
+  // refetch) so only queries with observers actually refetch — the rest just
+  // get marked stale for next mount.
   if (table === 'post_reactions' && row) {
     logger.log('handleChange, Received post reaction change:', row);
-    queryClient.refetchQueries({
+    queryClient.invalidateQueries({
       queryKey: ['post', row.post_id],
     });
   }
 
-  // Same for changes to that post's thread unread
   if (table === 'thread_unreads' && row) {
-    queryClient.refetchQueries({
+    queryClient.invalidateQueries({
       queryKey: ['post', row.thread_id],
+    });
+  }
+
+  // Volume settings use item_id as the scope key; for thread volumes that's
+  // the parent post id, which matches our ['post', id] queryKey directly.
+  if (
+    table === 'volume_settings' &&
+    row &&
+    row.item_type === 'thread' &&
+    row.item_id
+  ) {
+    queryClient.invalidateQueries({
+      queryKey: ['post', row.item_id],
     });
   }
 }
