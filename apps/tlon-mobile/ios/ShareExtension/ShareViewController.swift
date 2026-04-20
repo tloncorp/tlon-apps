@@ -4,6 +4,7 @@
  * inspired by :
  *  - https://ajith-ab.github.io/react-native-receive-sharing-intent/docs/ios#create-share-extension
  */
+import ImageIO
 import MobileCoreServices
 import Photos
 import Social
@@ -174,7 +175,13 @@ class ShareViewController: UIViewController {
           } else if let imageData = item as? UIImage {
             url = self.saveScreenshot(imageData)
           } else if let imageData = item as? Data {
-            url = self.saveImageData(imageData)
+            guard let imageExtension = self.getImageDataExtension(imageData) else {
+              NSLog("[ERROR] Cannot identify image data type !\(String(describing: item))")
+              self.dismissWithError(message: "Could not read shared image")
+              return
+            }
+
+            url = self.saveImageData(imageData, fileExtension: imageExtension)
           }
 
           guard url != nil else {
@@ -256,8 +263,22 @@ class ShareViewController: UIViewController {
     return screenshotURL
   }
 
-  private func saveImageData(_ data: Data) -> URL? {
-    guard let imagePath = documentDirectoryPath()?.appendingPathComponent("\(UUID().uuidString).png")
+  private func getImageDataExtension(_ data: Data) -> String? {
+    guard let imageSource = CGImageSourceCreateWithData(data as CFData, nil),
+      CGImageSourceGetCount(imageSource) > 0,
+      let imageType = CGImageSourceGetType(imageSource),
+      let imageExtension = UTType(imageType as String)?.preferredFilenameExtension
+    else {
+      return nil
+    }
+
+    return imageExtension
+  }
+
+  private func saveImageData(_ data: Data, fileExtension: String) -> URL? {
+    guard
+      let imagePath = documentDirectoryPath()?.appendingPathComponent(
+        "\(UUID().uuidString).\(fileExtension)")
     else {
       return nil
     }
