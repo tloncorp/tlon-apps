@@ -21,6 +21,7 @@ const WayfindingNotice = {
   EmptyChannel,
   GroupChannels,
   CustomizeGroup,
+  HomeAddTooltip,
   ChatInputTooltip,
   CollectionInputTooltip,
   NotebookInputTooltip,
@@ -148,6 +149,26 @@ function CustomizeGroup() {
           your friends.
         </NoticeText>
       </NoticeContainer>
+    </View>
+  );
+}
+
+export function HomeAddTooltip() {
+  return (
+    <View pointerEvents="none" position="absolute" top={36} right={18}>
+      <YStack alignItems="flex-end">
+        <View
+          testID="HomeAddWayfindingTooltip"
+          padding={20}
+          width={220}
+          backgroundColor="$positiveActionText"
+          borderRadius="$l"
+        >
+          <Text size="$label/l" color="$white">
+            Tap here to create a new group
+          </Text>
+        </View>
+      </YStack>
     </View>
   );
 }
