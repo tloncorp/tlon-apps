@@ -444,14 +444,12 @@ export function WelcomePane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            On Tlon Messenger you control your data. Unlike other apps,
-            everything is stored on your private personal server that only you
-            can access.
+            Everything here is stored on your private server–only you can
+            access it.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Your private personal server also comes with an AI agent called
-              Tlonbot. It can help you search the web, summarize threads, draft
+              Tlonbot, your AI agent, helps you search, summarize, draft
               messages, and more.
             </SplashParagraph>
           )}
@@ -573,8 +571,7 @@ export function BotNamePane(props: {
           }}
         >
           <SplashParagraph marginHorizontal={0} marginBottom="$xl">
-            Pick a name and avatar for your Tlonbot. You can always change this
-            later.
+            Pick a name and avatar for your Tlonbot.
           </SplashParagraph>
 
           <Field label="Name" marginBottom="$xl">
@@ -817,19 +814,13 @@ export function GroupsPane(props: {
           bounces={false}
         >
           {props.hostingBotEnabled ? (
-            <>
-              <SplashParagraph>
-                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} lives
-                inside groups. It reads messages, chimes in when needed, and
-                works alongside everyone else.
-              </SplashParagraph>
-              <SplashParagraph marginBottom={0}>
-                Groups are stored on your personal server and last forever.
-                Invite some friends to this group and{' '}
-                {props.didConfigureBot ? props.botName : 'your bot'} will be
-                there too.
-              </SplashParagraph>
-            </>
+            <SplashParagraph marginBottom={0}>
+              {props.didConfigureBot ? props.botName : 'Your Tlonbot'} lives in
+              groups, reading messages and helping everyone. Groups last
+              forever on your server. Invite friends–
+              {props.didConfigureBot ? props.botName : 'your bot'} will be
+              there too.
+            </SplashParagraph>
           ) : (
             <SplashParagraph>
               A group lives on your private personal server. Family chats, work
@@ -964,7 +955,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
 const logger = createDevLogger('SplashSequence', true);
 
 const INVITE_EXPLANATION_TEXT =
-  "Anyone you invite will skip the waitlist and be added to your contacts. You'll receive a DM when they join.";
+  "Anyone you invite will skip the waitlist. You'll receive a DM when they join.";
 
 export function InviteContactsContent(props: {
   onComplete: () => void;
