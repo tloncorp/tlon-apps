@@ -724,9 +724,14 @@ function SinglePostView({
         }
   );
 
-  const sendReplyFromDraft = useCallback(
+  const sendFromThreadComposer = useCallback(
     async (draft: domain.PostDataDraft) => {
       setEditingPost?.(undefined);
+      if (draft.isEdit) {
+        await store.finalizeAndSendPost(draft);
+        return;
+      }
+
       draft.replyToPostId = parentPost.id;
       await store.finalizeAndSendPost(draft);
       scrollToNewReply();
@@ -742,7 +747,7 @@ function SinglePostView({
     [channel.type]
   );
 
-  const replyDraftInputContext = useMemo(
+  const threadComposerContext = useMemo(
     (): DraftInputContext => ({
       channel,
       clearDraft,
@@ -750,7 +755,7 @@ function SinglePostView({
       editingPost,
       getDraft,
       group,
-      sendPostFromDraft: sendReplyFromDraft,
+      sendPostFromDraft: sendFromThreadComposer,
       setEditingPost,
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
@@ -763,7 +768,7 @@ function SinglePostView({
       editingPost,
       getDraft,
       group,
-      sendReplyFromDraft,
+      sendFromThreadComposer,
       setEditingPost,
       inputShouldBlur,
       storeDraft,
@@ -773,8 +778,8 @@ function SinglePostView({
 
   return (
     <YStack flex={1}>
-      {/* Keep reply context off parent editing UI; attachment actions use whichever draft context they inherit. */}
-      <DraftInputContextProvider value={replyDraftInputContext}>
+      {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
+      <DraftInputContextProvider value={threadComposerContext}>
         {parentPost ? (
           <DetailView
             post={parentPost}
@@ -805,10 +810,10 @@ function SinglePostView({
             <View id="reply-container" {...containingProperties}>
               <BareChatInput
                 ref={replyDraftInputRef}
-                {...replyDraftInputContext}
+                {...threadComposerContext}
                 placeholder="Reply"
-                channelId={replyDraftInputContext.channel.id}
-                groupId={replyDraftInputContext.channel.groupId}
+                channelId={threadComposerContext.channel.id}
+                groupId={threadComposerContext.channel.groupId}
                 groupMembers={groupMembers}
                 groupRoles={groupRoles}
                 channelType="chat"
