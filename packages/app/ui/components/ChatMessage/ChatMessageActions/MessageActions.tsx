@@ -24,6 +24,10 @@ import {
 
 const ENABLE_COPY_JSON = __DEV__;
 
+type DraftTextTarget = Pick<DraftInputContext, 'getDraft' | 'storeDraft'> & {
+  startDraft?: () => void;
+};
+
 export default function MessageActions({
   dismiss,
   onReply,
@@ -181,7 +185,14 @@ const ConnectedAction = memo(function ConnectedAction({
           onForward: forwardPost,
           onViewReactions,
           addAttachment,
-          draftInputContext,
+          draftTextTarget: draftInputContext
+            ? {
+                getDraft: draftInputContext.getDraft,
+                storeDraft: draftInputContext.storeDraft,
+                startDraft: () =>
+                  draftInputContext.draftInputRef?.current?.startDraft?.(),
+              }
+            : null,
           showToast,
         };
         if (actionId === 'delete') {
@@ -248,7 +259,7 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
-  draftInputContext,
+  draftTextTarget,
   showToast,
 }: {
   id: ChannelAction.Id;
@@ -262,7 +273,7 @@ export async function handleAction({
   onForward?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
-  draftInputContext?: DraftInputContext | null;
+  draftTextTarget?: DraftTextTarget | null;
   showToast?: (options: { message: string; duration?: number }) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
@@ -288,7 +299,7 @@ export async function handleAction({
         (channel.type === 'dm' || channel.type === 'groupDm') &&
         post.textContent
       ) {
-        await prependTextToDraft(draftInputContext, `> ${post.textContent}\n`);
+        await prependTextToDraft(draftTextTarget, `> ${post.textContent}\n`);
       } else {
         // For other channel types, use reference attachment
         addAttachment({ type: 'reference', reference, path });
@@ -337,11 +348,11 @@ export async function handleAction({
 }
 
 async function prependTextToDraft(
-  ctx: DraftInputContext | null | undefined,
+  ctx: DraftTextTarget | null | undefined,
   text: string
 ) {
-  // DM quote actions should be rendered under the current draft input context.
-  // Missing context means the provider wiring is wrong, not that we should fall back to refs.
+  // DM quote actions should be rendered with the active draft text target.
+  // Missing target means the provider wiring is wrong, not that we should fall back to refs.
   if (!ctx) {
     throw new Error('Cannot quote DM text without a draft input context');
   }
@@ -360,7 +371,7 @@ async function prependTextToDraft(
       }))
     )
   );
-  ctx.draftInputRef?.current?.startDraft?.();
+  ctx.startDraft?.();
 }
 
 /**
