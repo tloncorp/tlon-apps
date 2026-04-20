@@ -206,11 +206,25 @@ function SplashSequenceComponent(props: {
     setAvatarDirty(true);
   }, []);
 
-  // Step 1: if needed, save provider key; fetch model list from hosting
-  // (which validates the key against the real provider) and advance to the
-  // model picker. For the `basic` provider we use a fixed model list —
-  // hosting's /provider-models endpoint won't return it since basic piggybacks
-  // on the openrouter default key.
+  // Save nickname and avatar; basic is the user's default so no primary-model
+  // poke is needed there.
+  const saveNicknameAndAvatar = useCallback(async () => {
+    const shipId = await db.hostedUserNodeId.getValue();
+    if (!shipId) return;
+    const name = botName || 'Tlonbot';
+    await Promise.allSettled([
+      api.setTlawnNickname(shipId, name),
+      avatarDirty && botAvatarUrl
+        ? api.setTlawnAvatar(shipId, botAvatarUrl)
+        : Promise.resolve(),
+    ]);
+  }, [botName, avatarDirty, botAvatarUrl]);
+
+  // Step 1: if the user picks `basic` (their hosting default), save
+  // nickname/avatar and skip straight to the group pane — nothing to validate
+  // or configure. Otherwise, save the provider key and call
+  // getTlawnProviderModels to validate it against the real provider and
+  // populate the model picker.
   const handleValidateProvider = useCallback(async () => {
     setSavingConfig(true);
     setConfigError(null);
@@ -218,14 +232,14 @@ function SplashSequenceComponent(props: {
       const userId = await db.hostingUserId.getValue();
       if (!userId) return;
 
-      const provider = botModel || 'basic';
+      const provider = botModel || BASIC_PROVIDER_ID;
       const selected = providerOptions.find((p) => p.provider === provider);
 
       if (provider === BASIC_PROVIDER_ID) {
-        setProviderModels(BASIC_PROVIDER_MODELS);
-        setBotPrimaryModel(BASIC_DEFAULT_MODEL);
+        await saveNicknameAndAvatar();
         setSavingConfig(false);
-        setCurrentPane(SplashPane.BotModel);
+        setDidConfigureBot(true);
+        setCurrentPane(SplashPane.Group);
         return;
       }
 
@@ -252,27 +266,22 @@ function SplashSequenceComponent(props: {
       );
       setSavingConfig(false);
     }
-  }, [botModel, botApiKey, providerOptions]);
+  }, [botModel, botApiKey, providerOptions, saveNicknameAndAvatar]);
 
-  // Step 2: persist the chosen model along with nickname and avatar.
+  // Step 2 (non-basic only): persist chosen model along with nickname/avatar.
   const handleSaveBotConfig = useCallback(async () => {
     setSavingConfig(true);
     setConfigError(null);
     try {
       const userId = await db.hostingUserId.getValue();
-      const shipId = await db.hostedUserNodeId.getValue();
-      if (!userId || !shipId) return;
+      if (!userId) return;
 
-      const name = botName || 'Tlonbot';
-      const provider = botModel || 'basic';
+      const provider = botModel || BASIC_PROVIDER_ID;
       const model = botPrimaryModel || `${provider}/auto`;
 
       await Promise.allSettled([
-        api.setTlawnNickname(shipId, name),
+        saveNicknameAndAvatar(),
         api.setTlawnPrimaryModel(userId, { provider, model }),
-        avatarDirty && botAvatarUrl
-          ? api.setTlawnAvatar(shipId, botAvatarUrl)
-          : Promise.resolve(),
       ]);
 
       setSavingConfig(false);
@@ -282,7 +291,7 @@ function SplashSequenceComponent(props: {
       console.error('Failed to save bot config during onboarding:', e);
       setSavingConfig(false);
     }
-  }, [botName, botModel, botPrimaryModel, avatarDirty, botAvatarUrl]);
+  }, [botModel, botPrimaryModel, saveNicknameAndAvatar]);
 
   const handleSplashCompleted = useCallback(() => {
     store.completeWayfindingSplash();
@@ -378,10 +387,6 @@ function SplashSequenceComponent(props: {
 export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
-const BASIC_DEFAULT_MODEL = 'minimax/minimax-m2.7';
-const BASIC_PROVIDER_MODELS: api.TlawnProviderModel[] = [
-  { id: BASIC_DEFAULT_MODEL },
-];
 
 const PROVIDER_LABELS: Record<string, string> = {
   basic: 'MiniMax',
