@@ -7,14 +7,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
-import * as store from '@tloncorp/shared/store';
-import {
-  Button,
-  Icon,
-  LoadingSpinner,
-  Pressable,
-  Text,
-} from '@tloncorp/ui';
+import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -23,7 +16,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Image, ScrollView } from 'react-native';
+import { FlatList, Image, ScrollView, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -46,7 +39,6 @@ import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import { AvatarPicker } from '../AvatarPicker';
 import { Field, TextInput } from '../Form';
-import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -92,6 +84,7 @@ function SplashSequenceComponent(props: {
   const [botModel, setBotModel] = React.useState('');
   const [botApiKey, setBotApiKey] = React.useState('');
   const [userShipId, setUserShipId] = React.useState<string | null>(null);
+  const [userNickname, setUserNickname] = React.useState<string | null>(null);
   const [botShipId, setBotShipId] = React.useState<string | null>(null);
   const [savingConfig, setSavingConfig] = React.useState(false);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
@@ -114,14 +107,18 @@ function SplashSequenceComponent(props: {
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
           setUserShipId(`~${shipId}`);
-          const [botInfo, nickname, providerConfig] = await Promise.all([
+          const [botInfo, providerConfig, userContact] = await Promise.all([
             api.getTlawnBotInfo(shipId).catch(() => null),
-            api.getTlawnNickname(shipId).catch(() => null),
             userId ? api.getTlawnProviderKeys(userId).catch(() => null) : null,
+            db.getContact({ id: `~${shipId}` }).catch(() => null),
           ]);
           if (!cancelled) {
-            if (nickname) {
-              setBotName(nickname);
+            if (userContact?.nickname) {
+              setUserNickname(userContact.nickname);
+              // Prefill the bot name from the user's nickname. We ignore any
+              // nickname stored on hosting so the field always reflects the
+              // user's current identity at splash time.
+              setBotName(`${userContact.nickname}'s Tlonbot`);
             }
             if (botInfo?.moon) {
               // Hosting returns the moon prefix (e.g., `pinser-botter`); the
@@ -304,6 +301,7 @@ function SplashSequenceComponent(props: {
         <BotNamePane
           name={botName}
           avatarUrl={avatarDirty ? botAvatarUrl : null}
+          userNickname={userNickname}
           onNameChange={setBotName}
           onAvatarUrlChange={handleAvatarUrlChange}
           onActionPress={() => setCurrentPane(SplashPane.BotProvider)}
@@ -369,6 +367,27 @@ function SplashSequenceComponent(props: {
 export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
+
+// Stand-in lure for the "Tlonbot Group" that the onboarding splash invites
+// friends to, until the personal group's own lure is ready during splash.
+// TODO: replace with the real shareable link before shipping.
+const TLONBOT_GROUP_INVITE_URL = 'https://join.tlon.io/tlonbot-group';
+
+async function shareTlonbotGroupInvite() {
+  if (isWeb) {
+    try {
+      await navigator.clipboard.writeText(TLONBOT_GROUP_INVITE_URL);
+    } catch (e) {
+      console.error('Failed to copy invite link:', e);
+    }
+    return;
+  }
+  try {
+    await Share.share({ message: TLONBOT_GROUP_INVITE_URL });
+  } catch (e) {
+    console.error('Failed to share invite link:', e);
+  }
+}
 
 const PROVIDER_LABELS: Record<string, string> = {
   basic: 'MiniMax',
@@ -533,11 +552,15 @@ export function TlonBotPane(props: {
 export function BotNamePane(props: {
   name: string;
   avatarUrl?: string | null;
+  userNickname?: string | null;
   onNameChange: (name: string) => void;
   onAvatarUrlChange: (url: string | null) => void;
   onActionPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const placeholder = props.userNickname
+    ? `${props.userNickname}'s Tlonbot`
+    : 'Give your bot a name';
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -563,7 +586,7 @@ export function BotNamePane(props: {
             <TextInput
               value={props.name}
               onChangeText={props.onNameChange}
-              placeholder="Give your bot a name"
+              placeholder={placeholder}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="done"
@@ -748,8 +771,6 @@ export function GroupsPane(props: {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
-  const { data: personalGroup } = store.usePersonalGroup();
-
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       {props.hostingBotEnabled ? (
@@ -778,14 +799,14 @@ export function GroupsPane(props: {
           />
         </ZStack>
       )}
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$xl">
         <SplashTitle>
           {props.hostingBotEnabled ? (
             <>
               {props.didConfigureBot && props.botName
                 ? props.botName
                 : 'Your Tlonbot'}{' '}
-              works in groups{' '}
+              works in groups{'\n'}
               <Text color="$positiveActionText">with others.</Text>
             </>
           ) : (
@@ -802,14 +823,13 @@ export function GroupsPane(props: {
           {props.hostingBotEnabled ? (
             <>
               <SplashParagraph>
-                We created a group where{' '}
-                {props.didConfigureBot ? props.botName : 'your Tlonbot'} lives.
-                It reads messages, joins conversations, and works alongside
-                everyone in the group.
+                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} lives
+                inside groups. It reads messages, chimes in when needed, and
+                works alongside everyone else.
               </SplashParagraph>
-              <SplashParagraph>
-                Groups are stored on your private personal server and last
-                forever. Invite some friends to this group and{' '}
+              <SplashParagraph marginBottom={0}>
+                Groups are stored on your personal server and last forever.
+                Invite some friends to this group and{' '}
                 {props.didConfigureBot ? props.botName : 'your bot'} will be
                 there too.
               </SplashParagraph>
@@ -822,15 +842,21 @@ export function GroupsPane(props: {
           )}
         </ScrollView>
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
-        {personalGroup && <InviteFriendsToTlonButton group={personalGroup} />}
+      <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
+        <Button
+          onPress={shareTlonbotGroupInvite}
+          label="Share invite with friends"
+          preset="hero"
+          leadingIcon="AddPerson"
+          shadow
+        />
         <Button
           data-testid="got-it"
           testID="got-it"
           onPress={props.onActionPress}
           label="Got it"
-          preset="hero"
-          shadow
+          preset="secondary"
+          fill="text"
         />
       </YStack>
     </View>
