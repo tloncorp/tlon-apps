@@ -14,7 +14,6 @@ import {
   LoadingSpinner,
   Pressable,
   Text,
-  UrbitSigil,
 } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -53,6 +52,7 @@ import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
+import { BotChatPreview } from './BotChatPreview';
 import { validateProviderKey } from './providerKeyValidation';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
@@ -92,11 +92,8 @@ function SplashSequenceComponent(props: {
   const [botModel, setBotModel] = React.useState('');
   const [botApiKey, setBotApiKey] = React.useState('');
   const [userShipId, setUserShipId] = React.useState<string | null>(null);
+  const [botShipId, setBotShipId] = React.useState<string | null>(null);
   const [savingConfig, setSavingConfig] = React.useState(false);
-  const [botContactAvatarUrl, setBotContactAvatarUrl] = React.useState<
-    string | null
-  >(null);
-  const [userAvatarUrl, setUserAvatarUrl] = React.useState<string | null>(null);
   const [avatarDirty, setAvatarDirty] = React.useState(false);
   const [didConfigureBot, setDidConfigureBot] = React.useState(false);
   const [configError, setConfigError] = React.useState<string | null>(null);
@@ -117,34 +114,19 @@ function SplashSequenceComponent(props: {
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
           setUserShipId(`~${shipId}`);
-          const [botInfo, nickname, avatar, providerConfig] = await Promise.all(
-            [
-              api.getTlawnBotInfo(shipId).catch(() => null),
-              api.getTlawnNickname(shipId).catch(() => null),
-              api.getTlawnAvatar(shipId).catch(() => null),
-              userId
-                ? api.getTlawnProviderKeys(userId).catch(() => null)
-                : null,
-            ]
-          );
+          const [botInfo, nickname, providerConfig] = await Promise.all([
+            api.getTlawnBotInfo(shipId).catch(() => null),
+            api.getTlawnNickname(shipId).catch(() => null),
+            userId ? api.getTlawnProviderKeys(userId).catch(() => null) : null,
+          ]);
           if (!cancelled) {
             if (nickname) {
               setBotName(nickname);
             }
-            if (avatar) {
-              setBotContactAvatarUrl(avatar);
-            }
-            if (botInfo?.moon && !avatar) {
-              const contact = await db.getContact({ id: botInfo.moon });
-              if (!cancelled && contact?.avatarImage) {
-                setBotContactAvatarUrl(contact.avatarImage);
-              }
-            }
-
-            // Fetch current user's avatar
-            const userContact = await db.getContact({ id: `~${shipId}` });
-            if (!cancelled && userContact?.avatarImage) {
-              setUserAvatarUrl(userContact.avatarImage);
+            if (botInfo?.moon) {
+              // Hosting returns the moon prefix (e.g., `pinser-botter`); the
+              // full @p is `~<prefix>-<shipName>`.
+              setBotShipId(`~${botInfo.moon}-${shipId}`);
             }
 
             // Build provider options from hosting config
@@ -360,8 +342,7 @@ function SplashSequenceComponent(props: {
           botName={botName || 'Tlonbot'}
           didConfigureBot={didConfigureBot}
           userShipId={userShipId}
-          userAvatarUrl={userAvatarUrl}
-          botAvatarUrl={avatarDirty ? botAvatarUrl : botContactAvatarUrl}
+          botShipId={botShipId}
         />
       )}
 
@@ -762,8 +743,7 @@ export function GroupsPane(props: {
   botName?: string;
   didConfigureBot?: boolean;
   userShipId?: string | null;
-  userAvatarUrl?: string | null;
-  botAvatarUrl?: string | null;
+  botShipId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
@@ -774,11 +754,12 @@ export function GroupsPane(props: {
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       {props.hostingBotEnabled ? (
         <View style={{ width: '100%', height: 368 }}>
-          <AvatarPairOverlay
-            userAvatarUrl={props.userAvatarUrl}
-            userShipId={props.userShipId}
-            botAvatarUrl={props.botAvatarUrl}
-          />
+          {props.userShipId && props.botShipId ? (
+            <BotChatPreview
+              userShipId={props.userShipId}
+              botShipId={props.botShipId}
+            />
+          ) : null}
         </View>
       ) : (
         <ZStack height={368}>
@@ -1388,126 +1369,6 @@ const InviteCard = (props: ComponentProps<typeof View>) => {
     </View>
   );
 };
-
-const AVATAR_SIZE = 128;
-const AVATAR_BORDER_RADIUS = 12;
-
-function AvatarSquare({
-  imageUrl,
-  fallback,
-  backgroundColor = '$secondaryBackground',
-}: {
-  imageUrl?: string | null;
-  fallback: React.ReactNode;
-  backgroundColor?: string;
-}) {
-  if (imageUrl) {
-    return (
-      <Image
-        source={{ uri: imageUrl }}
-        style={{
-          width: AVATAR_SIZE,
-          height: AVATAR_SIZE,
-          borderRadius: AVATAR_BORDER_RADIUS,
-        }}
-      />
-    );
-  }
-  return (
-    <View
-      width={AVATAR_SIZE}
-      height={AVATAR_SIZE}
-      borderRadius={AVATAR_BORDER_RADIUS}
-      backgroundColor={backgroundColor}
-      alignItems="center"
-      justifyContent="center"
-      overflow="hidden"
-    >
-      {fallback}
-    </View>
-  );
-}
-
-function AvatarPairOverlay({
-  userAvatarUrl,
-  userShipId,
-  botAvatarUrl,
-}: {
-  userAvatarUrl?: string | null;
-  userShipId?: string | null;
-  botAvatarUrl?: string | null;
-}) {
-  return (
-    <>
-      <View
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
-        backgroundColor="$background"
-        opacity={0.7}
-      />
-      <View
-        position="absolute"
-        top={0}
-        left={0}
-        right={0}
-        bottom={0}
-        alignItems="center"
-        justifyContent="center"
-      >
-        <XStack>
-          <View
-            style={{
-              transform: [{ rotate: '-6deg' }],
-              marginRight: -2,
-              zIndex: 1,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 15 },
-              shadowOpacity: 0.35,
-              shadowRadius: 35,
-            }}
-          >
-            <AvatarSquare
-              imageUrl={userAvatarUrl}
-              backgroundColor="#1a1a1a"
-              fallback={
-                userShipId ? (
-                  <UrbitSigil
-                    contactId={userShipId}
-                    size={80}
-                    renderDetail
-                    colors={{
-                      backgroundColor: '#1A1A1A',
-                      foregroundColor: '#FFFFFF',
-                    }}
-                  />
-                ) : null
-              }
-            />
-          </View>
-          <View
-            style={{
-              transform: [{ rotate: '6deg' }],
-              marginLeft: -2,
-              zIndex: 0,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 15 },
-              shadowOpacity: 0.35,
-              shadowRadius: 35,
-            }}
-          >
-            <AvatarSquare
-              imageUrl={botAvatarUrl}
-              fallback={<Icon type="Face" color="$tertiaryText" size="$xl" />}
-            />
-          </View>
-        </XStack>
-      </View>
-    </>
-  );
-}
 
 function ModelOptionCard({
   option,

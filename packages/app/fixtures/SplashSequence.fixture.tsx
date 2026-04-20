@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import React, { useEffect } from 'react';
 import { useValue } from 'react-cosmos/client';
 
+import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
   BotModelPane,
@@ -93,10 +94,18 @@ function GroupsPaneFixture() {
   const handleAction = React.useCallback(() => {
     console.log('Groups pane action pressed');
   }, []);
+  const [withBot] = useValue('With Tlonbot', { defaultValue: true });
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <GroupsPane onActionPress={handleAction} hostingBotEnabled />
+      <GroupsPane
+        onActionPress={handleAction}
+        hostingBotEnabled={withBot}
+        botName="Tlonbot"
+        didConfigureBot
+        userShipId="~rilfun-lidlen"
+        botShipId="~nocsyx-lassul-rilfun-lidlen"
+      />
     </FixtureWrapper>
   );
 }
@@ -230,6 +239,17 @@ function SplashModalFixture() {
   );
 }
 
+function BotChatPreviewFixture() {
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <BotChatPreview
+        userShipId="~rilfun-lidlen"
+        botShipId="~nocsyx-lassul-rilfun-lidlen"
+      />
+    </FixtureWrapper>
+  );
+}
+
 export default {
   'Full Sequence': <SplashSequenceFixture />,
   'Invite Contacts': <InviteContactsFixture />,
@@ -241,6 +261,7 @@ export default {
   'Bot Name Pane': <BotNamePaneFixture />,
   'Bot Provider Pane': <BotProviderPaneFixture />,
   'Bot Model Pane': <BotModelPaneFixture />,
+  'Bot Chat Preview': <BotChatPreviewFixture />,
   'Invite Pane': <InvitePaneFixture />,
   'Splash Modal': <SplashModalFixture />,
 };

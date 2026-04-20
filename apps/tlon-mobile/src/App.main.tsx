@@ -17,6 +17,7 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
+import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   LoadingSpinner,
@@ -162,11 +163,13 @@ const App = () => {
             <LoadingSpinner />
           </View>
         ) : showSplashSequence ? (
-          <SplashSequence
-            onCompleted={handleClearSplash}
-            inviteSystemContacts={inviteSystemContacts}
-            hostingBotEnabled={hostingBotEnabled ?? false}
-          />
+          <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+            <SplashSequence
+              onCompleted={handleClearSplash}
+              inviteSystemContacts={inviteSystemContacts}
+              hostingBotEnabled={hostingBotEnabled ?? false}
+            />
+          </AppDataProvider>
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (
