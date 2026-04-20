@@ -751,8 +751,17 @@ function SinglePostView({
     replyDraftInputRef.current?.startDraft?.(mode);
   }, []);
 
+  const canStartReplyDraft =
+    negotiationMatch &&
+    canWrite &&
+    !(
+      isEditingParent &&
+      (channel.type === 'notebook' || channel.type === 'gallery')
+    );
+
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
+      canStartDraft: canStartReplyDraft,
       channel,
       clearDraft,
       draftInputRef: replyDraftInputRef,
@@ -768,6 +777,7 @@ function SinglePostView({
       replyToPost: { id: parentPost.id },
     }),
     [
+      canStartReplyDraft,
       channel,
       clearDraft,
       editingPost,
@@ -806,31 +816,25 @@ function SinglePostView({
           />
         ) : null}
 
-        {negotiationMatch &&
-          channel &&
-          canWrite &&
-          !(
-            isEditingParent &&
-            (channel.type === 'notebook' || channel.type === 'gallery')
-          ) && (
-            <View id="reply-container" {...containingProperties}>
-              <BareChatInput
-                ref={replyDraftInputRef}
-                {...threadComposerContext}
-                placeholder="Reply"
-                channelId={threadComposerContext.channel.id}
-                groupId={threadComposerContext.channel.groupId}
-                groupMembers={groupMembers}
-                groupRoles={groupRoles}
-                channelType="chat"
-                showAttachmentButton={isChatLike}
-                showInlineAttachments
-                shouldAutoFocus={
-                  (isChatLike && parentPost?.replyCount === 0) || !!editingPost
-                }
-              />
-            </View>
-          )}
+        {canStartReplyDraft && (
+          <View id="reply-container" {...containingProperties}>
+            <BareChatInput
+              ref={replyDraftInputRef}
+              {...threadComposerContext}
+              placeholder="Reply"
+              channelId={threadComposerContext.channel.id}
+              groupId={threadComposerContext.channel.groupId}
+              groupMembers={groupMembers}
+              groupRoles={groupRoles}
+              channelType="chat"
+              showAttachmentButton={isChatLike}
+              showInlineAttachments
+              shouldAutoFocus={
+                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
+              }
+            />
+          </View>
+        )}
       </DraftInputContextProvider>
       {!negotiationMatch && channel && canWrite && (
         <View

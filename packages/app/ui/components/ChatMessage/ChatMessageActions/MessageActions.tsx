@@ -143,7 +143,7 @@ const ConnectedAction = memo(function ConnectedAction({
       case 'quote':
         // Quote needs the active composer surface. Search/detail surfaces can
         // render actions without one, so hide Quote there.
-        return !!draftInputContext;
+        return !!draftInputContext?.canStartDraft;
       default:
         return true;
     }

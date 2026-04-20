@@ -556,6 +556,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const draftInputRef = useRef<DraftInputHandle>(null);
 
+    const canStartDraft =
+      canRead &&
+      canWrite &&
+      negotiationMatch &&
+      !(channel.groupId && !group && !groupIsLoading) &&
+      !channel.isDmInvite;
+
     // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
     const scrollToNewMessage = useCallback(() => {
       requestAnimationFrame(() => {
@@ -569,6 +576,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const draftInputContext = useMemo(
       (): DraftInputContext => ({
+        canStartDraft,
         channel,
         clearDraft,
         configuration:
@@ -596,6 +604,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         storeDraft,
       }),
       [
+        canStartDraft,
         scrollToNewMessage,
         channel,
         clearDraft,
