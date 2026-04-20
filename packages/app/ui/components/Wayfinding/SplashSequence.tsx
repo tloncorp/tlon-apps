@@ -53,6 +53,7 @@ import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
+import { validateProviderKey } from './providerKeyValidation';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 /**
@@ -397,25 +398,6 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 function providerLabel(provider: string): string {
   return PROVIDER_LABELS[provider] ?? provider;
-}
-
-function validateProviderKey(provider: string, value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return 'Enter an API key.';
-  switch (provider) {
-    case 'anthropic':
-      if (!trimmed.startsWith('sk-ant-') && !trimmed.startsWith('anthropic-'))
-        return 'Key must start with "sk-ant-" or "anthropic-".';
-      if (trimmed.length < 80) return 'Key must be at least 80 characters.';
-      break;
-    case 'openai':
-      if (!trimmed.startsWith('sk-')) return 'Key must start with "sk-".';
-      break;
-    case 'openrouter':
-      if (!trimmed.startsWith('sk-or-')) return 'Key must start with "sk-or-".';
-      break;
-  }
-  return null;
 }
 
 const SplashTitle = styled(Text, {
@@ -790,28 +772,31 @@ export function GroupsPane(props: {
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <ZStack height={368}>
-        <Image
-          style={{ width: '100%', height: 368 }}
-          resizeMode="cover"
-          source={
-            isWeb
-              ? isDark
-                ? `./garden-party-invite-dark.png`
-                : `./garden-party-invite.png`
-              : isDark
-                ? require(`../../assets/raster/garden-party-invite-dark.png`)
-                : require(`../../assets/raster/garden-party-invite.png`)
-          }
-        />
-        {props.hostingBotEnabled && (
+      {props.hostingBotEnabled ? (
+        <View style={{ width: '100%', height: 368 }}>
           <AvatarPairOverlay
             userAvatarUrl={props.userAvatarUrl}
             userShipId={props.userShipId}
             botAvatarUrl={props.botAvatarUrl}
           />
-        )}
-      </ZStack>
+        </View>
+      ) : (
+        <ZStack height={368}>
+          <Image
+            style={{ width: '100%', height: 368 }}
+            resizeMode="cover"
+            source={
+              isWeb
+                ? isDark
+                  ? `./garden-party-invite-dark.png`
+                  : `./garden-party-invite.png`
+                : isDark
+                  ? require(`../../assets/raster/garden-party-invite-dark.png`)
+                  : require(`../../assets/raster/garden-party-invite.png`)
+            }
+          />
+        </ZStack>
+      )}
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           {props.hostingBotEnabled ? (
@@ -1130,7 +1115,7 @@ function ConnectContactBookContent(props: {
       <InviteFriendsDisplay />
       <YStack flex={1} gap="$2xl" paddingTop="$2xl">
         <SplashTitle>
-          Tlon Messenger works best with{' '}
+          Works best with{' '}
           <Text color="$positiveActionText">people you know.</Text>
         </SplashTitle>
         <ScrollView
