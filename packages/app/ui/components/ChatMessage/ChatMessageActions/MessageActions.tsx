@@ -135,6 +135,13 @@ const ConnectedAction = memo(function ConnectedAction({
       case 'unpinPost':
         // only show for admins on the currently pinned post
         return currentUserIsAdmin && pinnedPostId === post.id;
+      case 'quote':
+        // DM quotes write into the composer. Search/detail surfaces can render
+        // actions without a draft input context, so hide Quote there.
+        if (channel.type === 'dm' || channel.type === 'groupDm') {
+          return !!draftInputContext;
+        }
+        return true;
       default:
         return true;
     }
@@ -152,6 +159,7 @@ const ConnectedAction = memo(function ConnectedAction({
     channel.type,
     pinnedPostId,
     currentUserIsAdmin,
+    draftInputContext,
   ]);
 
   useRenderCount(`MessageAction-${actionId}`);
