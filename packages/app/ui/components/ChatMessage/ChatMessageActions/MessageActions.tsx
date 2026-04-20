@@ -136,12 +136,9 @@ const ConnectedAction = memo(function ConnectedAction({
         // only show for admins on the currently pinned post
         return currentUserIsAdmin && pinnedPostId === post.id;
       case 'quote':
-        // DM quotes write into the composer. Search/detail surfaces can render
-        // actions without a draft input context, so hide Quote there.
-        if (channel.type === 'dm' || channel.type === 'groupDm') {
-          return !!draftInputContext;
-        }
-        return true;
+        // Quote needs the active composer surface. Search/detail surfaces can
+        // render actions without one, so hide Quote there.
+        return !!draftInputContext;
       default:
         return true;
     }
