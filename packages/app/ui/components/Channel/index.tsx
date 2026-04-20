@@ -563,6 +563,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       });
     }, []);
 
+    const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
+      draftInputRef.current?.startDraft?.(mode);
+    }, []);
+
     const draftInputContext = useMemo(
       (): DraftInputContext => ({
         channel,
@@ -588,6 +592,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         setEditingPost,
         setShouldBlur: setInputShouldBlur,
         shouldBlur: inputShouldBlur,
+        startDraft: handleOpenDraft,
         storeDraft,
       }),
       [
@@ -597,6 +602,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         editingPost,
         getDraft,
         group,
+        handleOpenDraft,
         inputShouldBlur,
         setEditingPost,
         storeDraft,
@@ -617,13 +623,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     useEffect(() => {
       if (startDraft) {
-        draftInputRef.current?.startDraft?.();
+        handleOpenDraft();
       }
-    }, [startDraft]);
+    }, [handleOpenDraft, startDraft]);
 
-    const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
-      draftInputRef.current?.startDraft?.(mode);
-    }, []);
     const appendSharedTextToDraft = useCallback(
       async (text: string, kind: SharedTextDraftKind) => {
         const draftType =
