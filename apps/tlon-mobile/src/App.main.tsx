@@ -12,10 +12,12 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
+import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
+import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   LoadingSpinner,
@@ -142,7 +144,7 @@ const App = () => {
   ]);
 
   const showSplashSequence = useMemo(() => {
-    return showAuthenticatedApp && needsSplashSequence;
+    return showAuthenticatedApp && (FORCE_SPLASH_SEQUENCE || needsSplashSequence);
   }, [showAuthenticatedApp, needsSplashSequence]);
 
   return (
@@ -153,11 +155,13 @@ const App = () => {
             <LoadingSpinner />
           </View>
         ) : showSplashSequence ? (
-          <SplashSequence
-            onCompleted={clearNeedsSplashSequence}
-            inviteSystemContacts={inviteSystemContacts}
-            hostingBotEnabled={hostingBotEnabled ?? false}
-          />
+          <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+            <SplashSequence
+              onCompleted={clearNeedsSplashSequence}
+              inviteSystemContacts={inviteSystemContacts}
+              hostingBotEnabled={hostingBotEnabled ?? false}
+            />
+          </AppDataProvider>
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (

@@ -25,6 +25,7 @@ import {
   PortalProvider,
   ZStack,
 } from '@tloncorp/app/ui';
+import * as api from '@tloncorp/api';
 import {
   observeSyncSinceCompletion,
   sync,
@@ -32,6 +33,7 @@ import {
   updateSession,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
@@ -177,6 +179,38 @@ export default function ConnectedAuthenticatedApp() {
     }
     setup();
   }, [configureClient]);
+
+  // Handle deferred bot group creation from onboarding splash
+  useEffect(() => {
+    if (!clientReady) return;
+    (async () => {
+      const pending = await db.pendingBotGroupCreation.getValue();
+      if (!pending) return;
+      await db.pendingBotGroupCreation.setValue(false);
+      try {
+        const botConfig = await api.getSettingValue('tlonbotConfig');
+        const botName =
+          botConfig && typeof botConfig === 'string'
+            ? (JSON.parse(botConfig).name ?? 'Tlonbot')
+            : 'Tlonbot';
+        const group = await store.createDefaultGroup({
+          title: `${botName}'s Group`,
+        });
+        const shipId = await db.hostedUserNodeId.getValue();
+        const authCookie = await db.hostingAuthToken.getValue();
+        if (shipId && authCookie) {
+          await api
+            .addBotToCordon(shipId, authCookie, group.id)
+            .catch(() => {});
+          await api
+            .addBotToGroup(shipId, authCookie, group.id)
+            .catch(() => {});
+        }
+      } catch (e) {
+        console.warn('Failed to create deferred bot group:', e);
+      }
+    })();
+  }, [clientReady]);
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>

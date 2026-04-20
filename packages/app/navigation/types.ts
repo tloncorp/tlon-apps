@@ -53,6 +53,14 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
+  BotIdentity: undefined;
+  BotBehavior: {
+    name: string;
+    emoji: string;
+    avatarUrl: string | null;
+    personalityType: 'assistant' | 'creature' | 'companion' | 'custom';
+    customSoulPrompt?: string;
+  };
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -157,6 +165,8 @@ export type SettingsDrawerParamList = Pick<
   | 'PushNotificationSettings'
   | 'WompWomp'
   | 'PrivacySettings'
+  | 'BotIdentity'
+  | 'BotBehavior'
 >;
 
 export type ChannelStackParamList = {

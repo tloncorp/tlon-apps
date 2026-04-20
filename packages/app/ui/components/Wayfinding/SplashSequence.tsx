@@ -1,11 +1,20 @@
 // tamagui-ignore
+import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
+import { saveBotConfig } from '@tloncorp/shared/api';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
+import {
+  type BotConfig,
+  DEFAULT_BOT_CONFIG,
+  MODEL_OPTIONS,
+  PERSONALITY_TYPES,
+  type PersonalityType,
+  SUGGESTED_NAMES,
+} from '@tloncorp/shared/domain';
 import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -15,7 +24,13 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Image, ScrollView } from 'react-native';
+import {
+  FlatList,
+  Image,
+  TextInput as RNTextInput,
+  ScrollView,
+  Share,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -36,19 +51,36 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
+import { ContactAvatar } from '../Avatar';
+import { AvatarPicker } from '../AvatarPicker';
 import { ListItem } from '../ListItem';
+import { ModelOptionCard } from '../ModelOptionCard';
 import { PersonalInviteButton } from '../PersonalInviteButton';
+import { PersonalityCard } from '../PersonalityCard';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
+import { TextInputWithSuggestions } from '../TextInputWithSuggestions';
 import { SystemContactListItem } from '../listItems';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
+/**
+ * Splash sequence panes.
+ *
+ * Bot-enabled flow:
+ *   Welcome → TlonBot → BotName → BotPersonality → BotModel → Group → Invite
+ *
+ * Standard flow:
+ *   Welcome → Group → Channels → Privacy → Invite
+ */
 enum SplashPane {
   Welcome = 'Welcome',
+  TlonBot = 'TlonBot',
+  BotName = 'BotName',
+  BotPersonality = 'BotPersonality',
+  BotModel = 'BotModel',
   Group = 'Group',
   Channels = 'Channels',
   Privacy = 'Privacy',
-  TlonBot = 'TlonBot',
   Invite = 'Invite',
 }
 
@@ -57,20 +89,104 @@ function SplashSequenceComponent(props: {
   inviteSystemContacts?: InviteSystemContactsFn;
   hostingBotEnabled?: boolean;
 }) {
-  const store = useStore();
+  const appStore = useStore();
   const [currentPane, setCurrentPane] = React.useState<SplashPane>(
     SplashPane.Welcome
   );
   const { hostingBotEnabled } = props;
+  const [botName, setBotName] = React.useState(DEFAULT_BOT_CONFIG.name);
+  const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
+    DEFAULT_BOT_CONFIG.avatarUrl
+  );
+  const [botPersonality, setBotPersonality] = React.useState<PersonalityType>(
+    DEFAULT_BOT_CONFIG.personalityType
+  );
+  const [botModel, setBotModel] = React.useState(DEFAULT_BOT_CONFIG.model);
+  const [botApiKey, setBotApiKey] = React.useState('');
+  const [botMoonId, setBotMoonId] = React.useState<string | null>(null);
+  const [savingConfig, setSavingConfig] = React.useState(false);
+  const [botContactAvatarUrl, setBotContactAvatarUrl] = React.useState<
+    string | null
+  >(null);
+  const [avatarDirty, setAvatarDirty] = React.useState(false);
+
+  // Fetch the bot's current nickname and avatar from hosting API + contacts
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const shipId = await db.hostedUserNodeId.getValue();
+        const authToken = await db.hostingAuthToken.getValue();
+        if (shipId && authToken) {
+          const [botInfo, nickname] = await Promise.all([
+            api.getBotInfo(shipId, authToken).catch(() => null),
+            api.getBotNickname(shipId, authToken).catch(() => null),
+          ]);
+          if (!cancelled) {
+            if (nickname) {
+              setBotName(nickname);
+            }
+            if (botInfo?.moon) {
+              setBotMoonId(botInfo.moon);
+              const contact = await db.getContact({ id: botInfo.moon });
+              if (!cancelled && contact?.avatarImage) {
+                setBotContactAvatarUrl(contact.avatarImage);
+              }
+            }
+          }
+        }
+      } catch {
+        // Best-effort
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAvatarUrlChange = useCallback((url: string | null) => {
+    setBotAvatarUrl(url);
+    setAvatarDirty(true);
+  }, []);
+
+  const handleSaveBotConfig = useCallback(async () => {
+    setSavingConfig(true);
+    const config: BotConfig = {
+      name: botName || 'Tlonbot',
+      emoji: DEFAULT_BOT_CONFIG.emoji,
+      avatarUrl: botAvatarUrl,
+      personalityType: botPersonality,
+      model: botModel,
+      apiKey: botApiKey || undefined,
+      responseStyle: 'balanced',
+      activeHoursStart: 0,
+      activeHoursEnd: 24,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
+    try {
+      await saveBotConfig(config);
+    } catch (e) {
+      console.error('Failed to save bot config during onboarding:', e);
+    }
+    setSavingConfig(false);
+    setCurrentPane(SplashPane.Group);
+  }, [botName, botAvatarUrl, botPersonality, botModel, botApiKey]);
+
+  // Sets a flag so AuthenticatedApp creates the group once the client is ready
+  const handleCreateGroupWithBot = useCallback(async () => {
+    await db.pendingBotGroupCreation.setValue(true);
+    setCurrentPane(SplashPane.Invite);
+  }, []);
 
   const handleSplashCompleted = useCallback(() => {
-    store.completeWayfindingSplash();
+    appStore.completeWayfindingSplash();
     props.onCompleted();
-  }, [props, store]);
+  }, [props, appStore]);
 
   return (
     <View flex={1}>
-      {currentPane === 'Welcome' && (
+      {/* --- Welcome --- */}
+      {currentPane === SplashPane.Welcome && (
         <WelcomePane
           onActionPress={() =>
             setCurrentPane(
@@ -80,29 +196,71 @@ function SplashSequenceComponent(props: {
           hostingBotEnabled={hostingBotEnabled}
         />
       )}
-      {currentPane === 'TlonBot' && (
-        <TlonBotPane onActionPress={() => setCurrentPane(SplashPane.Group)} />
-      )}
-      {currentPane === 'Group' && (
-        <GroupsPane
-          onActionPress={() => setCurrentPane(SplashPane.Channels)}
-          hostingBotEnabled={props.hostingBotEnabled}
+
+      {/* --- Bot configuration (bot-enabled flow only) --- */}
+      {currentPane === SplashPane.TlonBot && (
+        <TlonBotPane
+          onActionPress={() => setCurrentPane(SplashPane.BotName)}
+          onSkip={() => setCurrentPane(SplashPane.Group)}
         />
       )}
-      {currentPane === 'Channels' && (
-        <ChannelsPane
+      {currentPane === SplashPane.BotName && (
+        <BotNamePane
+          name={botName}
+          avatarUrl={avatarDirty ? botAvatarUrl : null}
+          botMoonId={botMoonId}
+          botContactAvatarUrl={botContactAvatarUrl}
+          onNameChange={setBotName}
+          onAvatarUrlChange={handleAvatarUrlChange}
+          onActionPress={() => setCurrentPane(SplashPane.BotPersonality)}
+        />
+      )}
+      {currentPane === SplashPane.BotPersonality && (
+        <BotPersonalityPane
+          personality={botPersonality}
+          onPersonalityChange={setBotPersonality}
+          onActionPress={() => setCurrentPane(SplashPane.BotModel)}
+        />
+      )}
+      {currentPane === SplashPane.BotModel && (
+        <BotModelPane
+          model={botModel}
+          apiKey={botApiKey}
+          loading={savingConfig}
+          onModelChange={setBotModel}
+          onApiKeyChange={setBotApiKey}
+          onActionPress={handleSaveBotConfig}
+        />
+      )}
+
+      {/* --- Groups explainer / create-a-group prompt --- */}
+      {currentPane === SplashPane.Group && (
+        <GroupsPane
           onActionPress={() =>
             setCurrentPane(
-              hostingBotEnabled ? SplashPane.Invite : SplashPane.Privacy
+              hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
             )
           }
           hostingBotEnabled={hostingBotEnabled}
+          botName={botName || 'Tlonbot'}
+          onCreateGroupWithBot={
+            hostingBotEnabled ? handleCreateGroupWithBot : undefined
+          }
         />
       )}
-      {currentPane === 'Privacy' && (
+
+      {/* --- Standard flow only: channels & privacy explainers --- */}
+      {currentPane === SplashPane.Channels && (
+        <ChannelsPane
+          onActionPress={() => setCurrentPane(SplashPane.Privacy)}
+        />
+      )}
+      {currentPane === SplashPane.Privacy && (
         <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
       )}
-      {currentPane === 'Invite' && (
+
+      {/* --- Invite contacts (shared by both flows) --- */}
+      {currentPane === SplashPane.Invite && (
         <InvitePane
           onActionPress={handleSplashCompleted}
           inviteSystemContacts={props.inviteSystemContacts}
@@ -115,15 +273,21 @@ function SplashSequenceComponent(props: {
 export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const SplashTitle = styled(Text, {
-  fontSize: '$xl',
+  fontSize: 34,
+  lineHeight: 38,
+  letterSpacing: -0.374,
   fontWeight: '600',
   marginHorizontal: '$xl',
 });
 
 const SplashParagraph = styled(Text, {
-  size: '$body',
+  fontSize: 16,
+  lineHeight: 24,
+  letterSpacing: -0.032,
+  fontWeight: '400',
   marginHorizontal: '$xl',
-  marginBottom: '$2xl',
+  marginBottom: '$l',
+  color: '$secondaryText',
 });
 
 export function WelcomePane(props: {
@@ -152,23 +316,24 @@ export function WelcomePane(props: {
               : require(`../../assets/raster/sourdough-starter.png`)
         }
       />
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-        <SplashTitle>Welcome to Tlon Messenger</SplashTitle>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+        <SplashTitle>
+          Welcome to{'\n'}Tlon{' '}
+          <Text color="$positiveActionText">Messenger.</Text>
+        </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
           <SplashParagraph>
-            On Tlon Messenger you control your data. Unlike other apps,
-            everything is stored on your personal cloud computer that only you
-            can access.
+            Everything here lives on your personal cloud computer, a server that
+            only you can access. Your messages, your data, your rules.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
-              Your Tlon computer also comes with an AI agent called Tlonbot. It
-              can help you search the web, summarize threads, draft messages,
-              and more.
+              Your account also comes with an AI agent called Tlonbot that can
+              search the web, summarize threads, and help you stay organized.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -186,12 +351,15 @@ export function WelcomePane(props: {
   );
 }
 
-export function TlonBotPane(props: { onActionPress: () => void }) {
+export function TlonBotPane(props: {
+  onActionPress: () => void;
+  onSkip?: () => void;
+}) {
   const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
   return (
-    <View flex={1}>
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <Image
         style={{ width: '100%', height: 330 }}
         resizeMode="cover"
@@ -205,43 +373,483 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
               : require(`../../assets/raster/bot.png`)
         }
       />
-      <YStack flex={1} gap={'$2xl'}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
           Meet your <Text color="$positiveActionText">Tlonbot.</Text>
         </SplashTitle>
         <ScrollView
-          style={{ flex: 1, marginBottom: getTokenValue('$2xl', 'size') }}
+          style={{ flex: 1, marginBottom: getTokenValue('$l', 'size') }}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
           <SplashParagraph>
-            Your account comes with an AI agent called Tlonbot. It has its own
-            identity on the network, so it can act as an independent participant
-            — not just a chatbot.
+            Tlonbot has its own identity on the network. DM it to search the
+            web, draft messages, or set up daily briefings. Add it to group
+            channels and it can participate in conversations alongside you.
           </SplashParagraph>
           <SplashParagraph>
-            You can DM your Tlonbot to search the web, draft messages, summarize
-            threads, or set up scheduled tasks like daily weather briefings.
-          </SplashParagraph>
-          <SplashParagraph>
-            Add your Tlonbot to group channels and it can participate in
-            conversations, respond to mentions, and help keep things organized.
-          </SplashParagraph>
-          <SplashParagraph>
-            Your API keys, your agent&rsquo;s memory, and everything it learns
+            Your API keys, your agent&#39;s memory, and everything it learns
             stays on your personal node. You own it all.
           </SplashParagraph>
         </ScrollView>
       </YStack>
+      <YStack paddingHorizontal="$xl" gap="$l">
+        <Button
+          onPress={props.onActionPress}
+          testID="bot-configure"
+          label="Configure now"
+          preset="hero"
+          shadow
+        />
+        {props.onSkip && (
+          <>
+            <Button
+              onPress={props.onSkip}
+              testID="bot-skip"
+              label="Skip"
+              preset="secondary"
+              fill="text"
+            />
+            <Text
+              fontSize={12}
+              color="$tertiaryText"
+              textAlign="center"
+              marginBottom="$xs"
+            >
+              You can always configure your bot later in Settings.
+            </Text>
+          </>
+        )}
+      </YStack>
+    </View>
+  );
+}
+
+export function BotNamePane(props: {
+  name: string;
+  avatarUrl?: string | null;
+  botMoonId?: string | null;
+  botContactAvatarUrl?: string | null;
+  onNameChange: (name: string) => void;
+  onAvatarUrlChange: (url: string | null) => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+        <SplashTitle>
+          Name your <Text color="$positiveActionText">bot.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$xl', 'size'),
+          }}
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom="$xl">
+            Pick a name and avatar for your Tlonbot. You can always change this
+            later.
+          </SplashParagraph>
+
+          {/* Live Preview */}
+          <XStack
+            alignItems="center"
+            gap="$m"
+            padding="$l"
+            borderRadius="$xl"
+            backgroundColor="$secondaryBackground"
+            marginBottom="$xl"
+          >
+            {props.avatarUrl ? (
+              <Image
+                source={{ uri: props.avatarUrl }}
+                style={{ width: 32, height: 32, borderRadius: 4 }}
+              />
+            ) : props.botMoonId ? (
+              <ContactAvatar
+                contactId={props.botMoonId}
+                overrideUrl={props.botContactAvatarUrl ?? undefined}
+                size="$3xl"
+              />
+            ) : null}
+            <Text fontSize={20} fontWeight="600" color="$primaryText">
+              {props.name || 'Your Tlonbot'}
+            </Text>
+          </XStack>
+
+          {/* Name Input */}
+          <SplashParagraph
+            marginHorizontal={0}
+            marginBottom="$s"
+            color="$tertiaryText"
+          >
+            Name
+          </SplashParagraph>
+          <View marginBottom="$xl">
+            <TextInputWithSuggestions
+              value={props.name}
+              onChangeText={props.onNameChange}
+              placeholder="Give your bot a name"
+              suggestions={SUGGESTED_NAMES}
+            />
+          </View>
+
+          {/* Avatar Picker */}
+          <SplashParagraph
+            marginHorizontal={0}
+            marginBottom="$s"
+            color="$tertiaryText"
+          >
+            Choose an avatar
+          </SplashParagraph>
+          <AvatarPicker
+            value={props.avatarUrl ?? null}
+            onSelect={props.onAvatarUrlChange}
+          />
+        </ScrollView>
+      </YStack>
       <Button
         onPress={props.onActionPress}
-        testID="bot-next"
         label="Next"
         preset="hero"
         shadow
         marginHorizontal="$xl"
-        marginBottom={insets.bottom}
+        marginTop="$xl"
       />
+    </View>
+  );
+}
+
+export function BotPersonalityPane(props: {
+  personality: PersonalityType;
+  onPersonalityChange: (p: PersonalityType) => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+        <SplashTitle>
+          Give it a <Text color="$positiveActionText">persona.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$xl', 'size'),
+            gap: getTokenValue('$s', 'size'),
+          }}
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom="$m">
+            This shapes how your bot talks and thinks.
+          </SplashParagraph>
+          {PERSONALITY_TYPES.map((option) => (
+            <PersonalityCard
+              key={option.value}
+              option={option}
+              selected={props.personality === option.value}
+              onPress={() => props.onPersonalityChange(option.value)}
+            />
+          ))}
+        </ScrollView>
+      </YStack>
+      <Button
+        onPress={props.onActionPress}
+        label="Next"
+        preset="hero"
+        shadow
+        marginHorizontal="$xl"
+        marginTop="$xl"
+      />
+    </View>
+  );
+}
+
+export function BotModelPane(props: {
+  model: string;
+  apiKey: string;
+  loading?: boolean;
+  onModelChange: (model: string) => void;
+  onApiKeyChange: (key: string) => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const theme = useThemeName();
+  const textColor = theme === 'dark' ? '#ffffff' : '#1a1818';
+  const placeholderColor = theme === 'dark' ? '#808080' : '#999999';
+  const selectedOption = MODEL_OPTIONS.find((o) => o.value === props.model);
+  const needsApiKey = selectedOption?.requiresKey ?? false;
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+        <SplashTitle>
+          Choose a <Text color="$positiveActionText">brain.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$xl', 'size'),
+            gap: getTokenValue('$s', 'size'),
+          }}
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom="$m">
+            MiniMax is free. Bring your own API key to use a different provider.
+          </SplashParagraph>
+          {MODEL_OPTIONS.map((option) => (
+            <ModelOptionCard
+              key={option.value}
+              option={option}
+              selected={props.model === option.value}
+              onPress={() => props.onModelChange(option.value)}
+            />
+          ))}
+          {needsApiKey && (
+            <View
+              borderRadius="$l"
+              borderWidth={1}
+              borderColor="$border"
+              backgroundColor="$background"
+              paddingLeft="$xl"
+              paddingRight="$l"
+              height={56}
+              justifyContent="center"
+              marginTop="$s"
+            >
+              <RNTextInput
+                value={props.apiKey}
+                onChangeText={props.onApiKeyChange}
+                placeholder={`${selectedOption?.label} API key`}
+                placeholderTextColor={placeholderColor}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={{
+                  fontSize: 16,
+                  color: textColor,
+                }}
+              />
+            </View>
+          )}
+        </ScrollView>
+      </YStack>
+      <Button
+        onPress={props.onActionPress}
+        label={props.loading ? 'Saving...' : 'Next'}
+        preset="hero"
+        loading={props.loading}
+        disabled={props.loading}
+        marginHorizontal="$xl"
+        marginTop="$xl"
+      />
+    </View>
+  );
+}
+
+export function BotLaunchPane(props: {
+  botName: string;
+  botAvatarUrl?: string | null;
+  botMoonId?: string | null;
+  botContactAvatarUrl?: string | null;
+  onCreateGroup: () => void;
+  onSkip: () => void;
+  error?: string | null;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
+        <SplashTitle>
+          Put it to <Text color="$positiveActionText">work.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <SplashParagraph>
+            Create a group and invite your friends. {props.botName} will join
+            automatically and can help keep conversations going, answer
+            questions, and make things more fun.
+          </SplashParagraph>
+        </ScrollView>
+      </YStack>
+      <YStack paddingHorizontal="$xl" gap="$l">
+        {props.error && (
+          <Text fontSize={14} color="$negativeActionText" textAlign="center">
+            {props.error}
+          </Text>
+        )}
+        <Button
+          onPress={props.onCreateGroup}
+          label="Create a group"
+          preset="hero"
+          shadow
+        />
+        <Button
+          onPress={props.onSkip}
+          label="I'll do this later"
+          preset="secondary"
+          fill="text"
+        />
+        <Text
+          fontSize={12}
+          color="$tertiaryText"
+          textAlign="center"
+          marginBottom="$xs"
+        >
+          You can always create groups from the home screen.
+        </Text>
+      </YStack>
+    </View>
+  );
+}
+
+export function BotLaunchLoadingPane(props: {
+  botAvatarUrl?: string | null;
+  botMoonId?: string | null;
+  botContactAvatarUrl?: string | null;
+}) {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View
+      flex={1}
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+      alignItems="center"
+      justifyContent="center"
+      gap="$2xl"
+    >
+      {props.botAvatarUrl ? (
+        <Image
+          source={{ uri: props.botAvatarUrl }}
+          style={{ width: 64, height: 64, borderRadius: 8 }}
+        />
+      ) : props.botMoonId ? (
+        <ContactAvatar
+          contactId={props.botMoonId}
+          overrideUrl={props.botContactAvatarUrl ?? undefined}
+          size="$5xl"
+        />
+      ) : null}
+      <YStack alignItems="center" gap="$m">
+        <LoadingSpinner size="large" />
+        <Text fontSize={16} fontWeight="500" color="$primaryText">
+          Setting things up...
+        </Text>
+        <Text fontSize={14} color="$secondaryText">
+          Creating your group and inviting your bot.
+        </Text>
+      </YStack>
+    </View>
+  );
+}
+
+export function ShareGroupPane(props: {
+  botName: string;
+  botAvatarUrl?: string | null;
+  botMoonId?: string | null;
+  botContactAvatarUrl?: string | null;
+  inviteLink?: string | null;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const inviteLink = props.inviteLink ?? null;
+
+  const handleShare = useCallback(async () => {
+    if (!inviteLink) return;
+    try {
+      await Share.share({
+        message: `Join my group on Tlon! ${inviteLink}`,
+      });
+    } catch {
+      // User cancelled share sheet
+    }
+  }, [inviteLink]);
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl" alignItems="center">
+        {props.botAvatarUrl ? (
+          <Image
+            source={{ uri: props.botAvatarUrl }}
+            style={{ width: 64, height: 64, borderRadius: 8 }}
+          />
+        ) : props.botMoonId ? (
+          <ContactAvatar
+            contactId={props.botMoonId}
+            overrideUrl={props.botContactAvatarUrl ?? undefined}
+            size="$5xl"
+          />
+        ) : null}
+        <SplashTitle textAlign="center">
+          You're all{'\n'}
+          <Text color="$positiveActionText">set.</Text>
+        </SplashTitle>
+        <SplashParagraph textAlign="center">
+          Your group is ready and {props.botName} is in it.
+          {inviteLink
+            ? ' Share the link below to invite your friends.'
+            : ' You can invite friends later from the group settings.'}
+        </SplashParagraph>
+
+        {inviteLink && (
+          <YStack
+            marginHorizontal="$xl"
+            width="100%"
+            paddingHorizontal="$xl"
+            gap="$m"
+          >
+            <View
+              borderRadius="$xl"
+              borderWidth={1}
+              borderColor="$border"
+              backgroundColor="$secondaryBackground"
+              paddingHorizontal="$l"
+              paddingVertical="$m"
+            >
+              <Text
+                fontSize={14}
+                color="$secondaryText"
+                numberOfLines={1}
+                textAlign="center"
+              >
+                {inviteLink}
+              </Text>
+            </View>
+          </YStack>
+        )}
+      </YStack>
+
+      <YStack paddingHorizontal="$xl" gap="$l">
+        {inviteLink && (
+          <Button
+            onPress={handleShare}
+            label="Share invite link"
+            preset="hero"
+            shadow
+          />
+        )}
+        <Button
+          onPress={props.onActionPress}
+          label="Continue"
+          preset={inviteLink ? 'secondary' : 'hero'}
+          fill={inviteLink ? 'text' : undefined}
+          shadow={!inviteLink}
+        />
+      </YStack>
     </View>
   );
 }
@@ -249,6 +857,9 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
 export function GroupsPane(props: {
   onActionPress: () => void;
   hostingBotEnabled?: boolean;
+  botName?: string;
+  onCreateGroupWithBot?: () => void;
+  error?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
@@ -269,9 +880,17 @@ export function GroupsPane(props: {
               : require(`../../assets/raster/garden-party-invite.png`)
         }
       />
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          This is a <Text color="$positiveActionText">group.</Text>
+          {props.onCreateGroupWithBot ? (
+            <>
+              Create a <Text color="$positiveActionText">group.</Text>
+            </>
+          ) : (
+            <>
+              This is a <Text color="$positiveActionText">group.</Text>
+            </>
+          )}
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -279,35 +898,54 @@ export function GroupsPane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            A group lives on your Tlon computer. A group can serve a lot of
-            purposes: family chats, work collaboration, newsletters, etc.
+            A group lives on your computer. Family chats, work collaboration,
+            newsletters. A group can be anything you need.
           </SplashParagraph>
-          {props.hostingBotEnabled && (
+          {props.onCreateGroupWithBot && (
             <SplashParagraph>
-              You can also add your Tlonbot to group channels so it can
-              participate in conversations and help out.
+              Create a group and invite your friends. {props.botName} will join
+              automatically and can help keep conversations going.
             </SplashParagraph>
           )}
         </ScrollView>
       </YStack>
-      <Button
-        data-testid="got-it"
-        testID="got-it"
-        onPress={props.onActionPress}
-        label="Got it"
-        preset="hero"
-        shadow
-        marginHorizontal="$xl"
-        marginTop="$xl"
-      />
+      {props.onCreateGroupWithBot ? (
+        <YStack paddingHorizontal="$xl" gap="$l">
+          {props.error && (
+            <Text fontSize={14} color="$negativeActionText" textAlign="center">
+              {props.error}
+            </Text>
+          )}
+          <Button
+            onPress={props.onCreateGroupWithBot}
+            label="Create a group"
+            preset="hero"
+            shadow
+          />
+          <Button
+            onPress={props.onActionPress}
+            label="Skip"
+            preset="secondary"
+            fill="text"
+          />
+        </YStack>
+      ) : (
+        <Button
+          data-testid="got-it"
+          testID="got-it"
+          onPress={props.onActionPress}
+          label="Got it"
+          preset="hero"
+          shadow
+          marginHorizontal="$xl"
+          marginTop="$xl"
+        />
+      )}
     </View>
   );
 }
 
-export function ChannelsPane(props: {
-  onActionPress: () => void;
-  hostingBotEnabled?: boolean;
-}) {
+export function ChannelsPane(props: { onActionPress: () => void }) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -321,9 +959,10 @@ export function ChannelsPane(props: {
             : require(`../../assets/raster/app-screens.png`)
         }
       />
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+      <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
         <SplashTitle>
-          A group contains <Text color="$positiveActionText">channels.</Text>
+          Groups contain{'\n'}
+          <Text color="$positiveActionText">channels.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -331,28 +970,16 @@ export function ChannelsPane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            No matter what you use your group for, everything happens in a
-            channel.
+            Chats for quick messages, notebooks for longer thoughts, galleries
+            for images and links. Everything happens in a channel.
           </SplashParagraph>
-          <SplashParagraph>
-            Send messages in chats, post longer thoughts in notebooks, collect
-            images and links in galleries.
-          </SplashParagraph>
-          {props.hostingBotEnabled && (
-            <SplashParagraph>
-              Mention your Tlonbot in any channel and it can search the web,
-              summarize threads, or draft messages for you.
-            </SplashParagraph>
-          )}
         </ScrollView>
       </YStack>
       <Button
         data-testid="one-quick-thing"
         testID="one-quick-thing"
         onPress={props.onActionPress}
-        label={
-          props.hostingBotEnabled ? 'Invite your friends' : 'One quick thing'
-        }
+        label="One quick thing"
         preset="hero"
         shadow
         marginHorizontal="$xl"
@@ -374,10 +1001,10 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
         paddingBottom={insets.bottom}
       >
         <PrivacyLevelsDisplay />
-        <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+        <YStack flex={1} gap={'$xl'} paddingTop="$2xl">
           <SplashTitle>
-            By default, groups are{' '}
-            <Text color="$positiveActionText">secret.</Text>
+            Groups are{'\n'}
+            <Text color="$positiveActionText">secret</Text> by default.
           </SplashTitle>
           <ScrollView
             style={{ flex: 1 }}
@@ -385,9 +1012,8 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
             bounces={false}
           >
             <SplashParagraph>
-              Only the people you invite can see your group. If you want to open
-              it up to other people on the network, edit the privacy controls in
-              your group settings.
+              Only people you invite can see your group. You can change this
+              anytime in your group settings.
             </SplashParagraph>
           </ScrollView>
         </YStack>
@@ -563,16 +1189,11 @@ function ConnectContactBookContent(props: {
     : props.onSkip;
 
   return (
-    <View flex={1}>
+    <View flex={1} paddingBottom={insets.bottom}>
       <InviteFriendsDisplay />
-      <YStack
-        flex={1}
-        paddingHorizontal="$xl"
-        paddingBottom={insets.bottom}
-        gap="$2xl"
-      >
+      <YStack flex={1} gap="$xl" paddingTop="$2xl">
         <SplashTitle>
-          Tlon is better <Text color="$positiveActionText">with friends.</Text>
+          Better with <Text color="$positiveActionText">friends.</Text>
         </SplashTitle>
         <ScrollView
           style={{ flex: 1 }}
@@ -580,13 +1201,12 @@ function ConnectContactBookContent(props: {
           bounces={false}
         >
           <SplashParagraph>
-            Social spaces are more fun with friends. When your friends join Tlon
-            Messenger, they get their own cloud computer. You can all post
+            When your friends join, they get their own computer too. Post
             together with peace of mind, for as long as your group exists.
           </SplashParagraph>
           {shouldShowConnectOption && (
             <SplashParagraph>
-              Sync your contact book to easily find people you know on Tlon.
+              Sync your contact book to find people you know on Tlon.
             </SplashParagraph>
           )}
         </ScrollView>
@@ -596,7 +1216,7 @@ function ConnectContactBookContent(props: {
           </YStack>
         )}
       </YStack>
-      <YStack paddingBottom={insets.bottom} paddingHorizontal="$xl" gap="$2xl">
+      <YStack paddingHorizontal="$xl" gap="$2xl">
         <Button
           data-testid="connect-contact-book"
           onPress={handleAction}

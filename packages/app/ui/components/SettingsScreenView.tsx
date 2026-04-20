@@ -22,6 +22,7 @@ interface Props {
   onPrivacyPressed: () => void;
   onManageAccountPressed: () => void;
   onBotSettingsPressed?: () => void;
+  onBotConfigPressed?: () => void;
   onThemePressed?: () => void;
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
@@ -112,6 +113,16 @@ export function SettingsScreenView(props: Props) {
               rightIcon={'ChevronRight'}
               onPress={props.onBotSettingsPressed}
               isFocused={props.focusedRouteName === 'BotSettings'}
+            />
+          )}
+          {props.botEnabled && (
+            <SettingsAction
+              title="Bot Config"
+              leftIcon="Settings"
+              rightIcon={'ChevronRight'}
+              onPress={props.onBotConfigPressed}
+              subtitle="Identity & behavior"
+              isFocused={props.focusedRouteName === 'BotIdentity'}
             />
           )}
           <SettingsAction

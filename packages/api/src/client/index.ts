@@ -53,4 +53,5 @@ export * from './metagrabApi';
 export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
+export * from './hostedBotApi';
 export * from './gatewayStatusApi';
