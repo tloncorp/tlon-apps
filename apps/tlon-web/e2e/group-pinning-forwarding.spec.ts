@@ -54,5 +54,5 @@ test('should handle group pinning/unpinning and forwarding', async ({
   await expect(page.getByText('Group info')).toBeVisible();
 
   // Test forwarding group reference
-  await helpers.forwardGroupReference(page, 'Chat');
+  await helpers.forwardGroupReference(page, 'General');
 });
