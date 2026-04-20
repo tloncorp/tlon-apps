@@ -40,6 +40,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -194,6 +195,10 @@ export function ChatListScreenView({
   );
 
   const handlePressAddChat = useCallback(() => {
+    db.wayfindingProgress.setValue((prev) => ({
+      ...prev,
+      tappedHomeAdd: true,
+    }));
     createChatSheetRef.current?.open();
   }, []);
 
@@ -235,6 +240,7 @@ export function ChatListScreenView({
   const [searchQuery, setSearchQuery] = useState('');
 
   const isWindowNarrow = useIsWindowNarrow();
+  const showHomeAddTooltip = store.useShowHomeAddTooltip();
 
   const handleSearchInputToggled = useCallback(() => {
     if (isWindowNarrow) {
@@ -320,11 +326,20 @@ export function ChatListScreenView({
                     onPress={handleSearchInputToggled}
                   />
                   {isWindowNarrow ? (
-                    <ScreenHeader.IconButton
-                      type="Add"
-                      onPress={handlePressAddChat}
-                      testID="CreateChatSheetTrigger"
-                    />
+                    <View position="relative" alignItems="flex-end">
+                      <ScreenHeader.IconButton
+                        type="Add"
+                        onPress={handlePressAddChat}
+                        testID="CreateChatSheetTrigger"
+                        backgroundColor="$positiveActionText"
+                        color="$white"
+                        borderRadius="$6xl"
+                        customSize={['$2xl', '$xl']}
+                      />
+                      {isWindowNarrow && showHomeAddTooltip && (
+                        <WayfindingNotice.HomeAddTooltip />
+                      )}
+                    </View>
                   ) : (
                     <CreateChatSheet
                       ref={createChatSheetRef}

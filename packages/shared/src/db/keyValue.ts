@@ -321,6 +321,7 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
     viewedChatChannel: false,
     viewedCollectionChannel: false,
     viewedNotebookChannel: false,
+    tappedHomeAdd: true,
     tappedAddNote: true,
     tappedAddCollection: true,
     tappedChatInput: true,
