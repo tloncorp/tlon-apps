@@ -224,39 +224,11 @@ export function useBootSequence() {
         });
       });
 
-      if (lureMeta?.inviteType !== 'user') {
-        logger.trackEvent('Detected group invite, skipping scaffold');
-        return NodeBootPhase.CHECKING_FOR_INVITE;
-      }
-
-      if (lureMeta?.invitedGroupTitle) {
-        // workaround for our generic invites that boot you into empty state. Should be
-        // removed once a better backend solution is in place
-
-        logger.trackEvent(
-          'Detected generic workaround invite, skipping scaffold'
-        );
-        return NodeBootPhase.CHECKING_FOR_INVITE;
-      }
-
-      try {
-        await store.scaffoldPersonalGroup();
-
-        // since we know they're using the app for the first time, enable coach marks
-        db.wayfindingProgress.setValue((prev) => ({
-          ...prev,
-          tappedChatInput: false,
-          tappedAddCollection: false,
-          tappedAddNote: false,
-        }));
-
-        const signedUpWithInvite = Boolean(lureMeta?.id);
-        return signedUpWithInvite
-          ? NodeBootPhase.CHECKING_FOR_INVITE
-          : NodeBootPhase.READY;
-      } catch (e) {
-        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
-      }
+      // bypass wayfinding creation for now
+      const signedUpWithInvite = Boolean(lureMeta?.id);
+      return signedUpWithInvite
+        ? NodeBootPhase.CHECKING_FOR_INVITE
+        : NodeBootPhase.READY;
     }
 
     //
