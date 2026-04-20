@@ -28,12 +28,16 @@ const VISIBLE_H = CONTENT_HEIGHT * SCALE;
 // give a sense of a live conversation. Uses `StaticChatMessage` so the
 // preview looks identical to real chat, then transforms the whole thing down
 // to ~50% size.
+const DEFAULT_FRIEND_SHIP_ID = '~sampel-palnet';
+
 export function BotChatPreview({
   userShipId,
   botShipId,
+  friendShipId = DEFAULT_FRIEND_SHIP_ID,
 }: {
   userShipId: string;
   botShipId: string;
+  friendShipId?: string;
 }) {
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
   const scrollRef = useRef<ScrollView>(null);
@@ -52,19 +56,23 @@ export function BotChatPreview({
 
   const posts = useMemo(() => {
     const base = baseSentAtRef.current;
+    const shipIds = {
+      user: userShipId,
+      bot: botShipId,
+      friend: friendShipId,
+    };
     return MOCK_CONVERSATION.slice(0, visibleCount).map((msg, i) =>
       buildMockPost({
         index: i,
         sender: msg.sender,
         text: msg.text,
-        userShipId,
-        botShipId,
+        shipIds,
         // Space sentAt out so the chat UI groups consecutive same-author
         // posts correctly (authors are hidden after the first in a run).
         sentAt: base + i * 30_000,
       })
     );
-  }, [visibleCount, userShipId, botShipId]);
+  }, [visibleCount, userShipId, botShipId, friendShipId]);
 
   return (
     <View flex={1} alignItems="center" justifyContent="center">

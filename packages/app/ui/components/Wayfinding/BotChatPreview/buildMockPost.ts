@@ -9,22 +9,19 @@ export function buildMockPost({
   index,
   sender,
   text,
-  userShipId,
-  botShipId,
+  shipIds,
   sentAt,
 }: {
   index: number;
   sender: MockSender;
   text: string;
-  userShipId: string;
-  botShipId: string;
+  shipIds: Record<MockSender, string>;
   sentAt: number;
 }): db.Post {
-  const authorId = sender === 'bot' ? botShipId : userShipId;
   return {
     id: `preview-${index}`,
     type: 'chat',
-    authorId,
+    authorId: shipIds[sender],
     sentAt,
     receivedAt: sentAt,
     channelId: 'preview-channel',

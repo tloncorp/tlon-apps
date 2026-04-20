@@ -1,7 +1,8 @@
 // Scripted conversation displayed on the splash "This is a group" pane.
-// Modeled after the broccoli-gardening exchange on tlon.io's marketing page.
+// Modeled after the broccoli-gardening exchange on tlon.io's marketing page,
+// with a second group member joining in.
 
-export type MockSender = 'user' | 'bot';
+export type MockSender = 'user' | 'bot' | 'friend';
 
 export interface MockMessage {
   sender: MockSender;
@@ -23,25 +24,25 @@ export const MOCK_CONVERSATION: MockMessage[] = [
       "Patience — they're almost ready. When you see four true leaves, they'll have the strength to meet the wind. Harden them off first: an hour outside the first day, two the next.",
   },
   {
-    sender: 'user',
-    text: "should i worry about the cold? it's still dipping to 40 at night",
+    sender: 'friend',
+    text: 'ooh piggybacking — can I plant my tomatoes out yet? nights are still chilly here',
   },
   {
     sender: 'bot',
     text:
-      "Broccoli is tougher than it looks — it actually prefers the cool. A light frost won't trouble it. Just mulch around the base to keep the roots settled.",
+      'Tomatoes are fussier than broccoli — they want warm soil, 60°F and up. Give it another week or two, or cover the bed with black plastic to speed things up.',
   },
   {
     sender: 'user',
-    text: 'set a reminder for me to move them next week',
+    text: 'set a reminder for me to move the broccoli next week',
   },
   {
     sender: 'bot',
     text: "Sure thing! I'll remind you next week to move your broccoli seedlings outside.",
   },
   {
-    sender: 'user',
-    text: "you're the best, tlonbot ❤️",
+    sender: 'friend',
+    text: "thanks tlonbot 🙌",
   },
 ];
 
