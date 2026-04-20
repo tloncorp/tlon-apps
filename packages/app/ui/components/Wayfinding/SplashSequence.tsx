@@ -806,7 +806,7 @@ export function GroupsPane(props: {
               {props.didConfigureBot && props.botName
                 ? props.botName
                 : 'Your Tlonbot'}{' '}
-              works in groups{'\n'}
+              works in groups{' '}
               <Text color="$positiveActionText">with others.</Text>
             </>
           ) : (
