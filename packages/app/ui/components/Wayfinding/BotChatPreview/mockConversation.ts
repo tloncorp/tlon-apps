@@ -12,7 +12,7 @@ export interface MockMessage {
 export const MOCK_CONVERSATION: MockMessage[] = [
   {
     sender: 'bot',
-    text: "welcome! you've got your own group with me now. @ me here whenever, and bring your friends in–i'm here to chat with all of you.",
+    text: "Welcome! You've got your own group with me now. @ me here whenever, and bring your friends in—I'm here to chat with all of you.",
   },
   {
     sender: 'user',
