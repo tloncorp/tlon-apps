@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8de9c80f-1dfd-4589-9f31-128786ba4c58",
+  "id": "8759c833-c852-4246-9834-6fbe06e67687",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2548,6 +2548,34 @@
             "parent_id"
           ],
           "isUnique": false
+        },
+        "cached_posts_index": {
+          "name": "cached_posts_index",
+          "columns": [
+            "channel_id",
+            "sent_at",
+            "author_id"
+          ],
+          "isUnique": false,
+          "where": "sequence_number = 0"
+        },
+        "posts_channel_last_preview": {
+          "name": "posts_channel_last_preview",
+          "columns": [
+            "channel_id",
+            "received_at"
+          ],
+          "isUnique": false,
+          "where": "type != 'reply' AND (is_deleted IS NULL OR is_deleted = 0)"
+        },
+        "posts_channel_last_seq": {
+          "name": "posts_channel_last_seq",
+          "columns": [
+            "channel_id",
+            "sequence_number"
+          ],
+          "isUnique": false,
+          "where": "type != 'reply' AND sequence_number IS NOT NULL"
         }
       },
       "foreignKeys": {},

@@ -42,6 +42,7 @@ import {
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import { perfMark } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
@@ -3198,18 +3199,43 @@ export const insertChanges = createWriteQuery(
   'insertChanges',
   async (input: ChangesResult, ctx: QueryCtx) => {
     try {
+      const stopTxn = perfMark('insertChanges.transaction');
       await withTransactionCtx(ctx, async (txCtx) => {
+        const stopPosts = perfMark('insertChanges.channelPosts');
         await insertChannelPosts({ posts: input.posts }, txCtx);
+        stopPosts({ count: input.posts.length });
+
+        const stopGroups = perfMark('insertChanges.groups');
         await insertGroups({ groups: input.groups }, txCtx);
+        stopGroups({ count: input.groups.length });
+
+        const stopContacts = perfMark('insertChanges.contacts');
         await insertContacts(input.contacts, txCtx);
+        stopContacts({ count: input.contacts.length });
+
+        const stopDelChan = perfMark('insertChanges.deleteChannels');
         await deleteChannels(input.deletedChannelIds, txCtx);
+        stopDelChan({ count: input.deletedChannelIds.length });
+
+        const stopGroupUnreads = perfMark('insertChanges.groupUnreads');
         await insertGroupUnreads(input.unreads.groupUnreads, ctx);
+        stopGroupUnreads({ count: input.unreads.groupUnreads.length });
+
+        const stopChanUnreads = perfMark('insertChanges.channelUnreads');
         await insertChannelUnreads(input.unreads.channelUnreads, ctx);
+        stopChanUnreads({ count: input.unreads.channelUnreads.length });
+
+        const stopThreadUnreads = perfMark('insertChanges.threadUnreads');
         await insertThreadUnreads(input.unreads.threadActivity, ctx);
+        stopThreadUnreads({ count: input.unreads.threadActivity.length });
+
         if (input.unreads.baseUnread) {
+          const stopBase = perfMark('insertChanges.baseUnread');
           await insertBaseUnread(input.unreads.baseUnread, ctx);
+          stopBase();
         }
       });
+      stopTxn({ posts: input.posts.length });
     } catch (e) {
       logger.trackError('failed to insert changes', {
         errorMessage: e instanceof Error ? e.message : e.toString(),
@@ -3277,6 +3303,10 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
+  const uniqueChannels = new Set(posts.map((p) => p.channelId)).size;
+  const stopBatch = perfMark('insertPostsBatch.total');
+
+  const stopInsert = perfMark('insertPostsBatch.insertPosts');
   await ctx.db
     .insert($posts)
     .values(
@@ -3298,12 +3328,14 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
       ],
       set: conflictUpdateSetAll($posts, ['hidden']),
     });
+  stopInsert({ count: posts.length, channels: uniqueChannels });
 
   const reactions = posts
     .filter((p) => p.reactions && p.reactions.length > 0)
     .flatMap((p) => p.reactions) as Reaction[];
   logger.log('inserting post reactions', reactions);
   if (reactions.length) {
+    const stopReacts = perfMark('insertPostsBatch.insertReactions');
     await ctx.db
       .insert($postReactions)
       .values(reactions)
@@ -3311,48 +3343,55 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
         target: [$postReactions.contactId, $postReactions.postId],
         set: conflictUpdateSetAll($postReactions),
       });
+    stopReacts({ count: reactions.length });
   }
 
-  await deleteReplacedCachedPosts(ctx);
+  // Only real top-level posts (sequenceNum > 0) can replace an optimistic
+  // cached row. Optimistic-send batches and reply-only batches are all
+  // sequenceNum = 0 and can skip the scan entirely.
+  const cacheReplacers = posts.filter(
+    (p) => p.type !== 'reply' && (p.sequenceNum ?? 0) > 0
+  );
+  if (cacheReplacers.length) {
+    const stopDel = perfMark('insertPostsBatch.deleteReplacedCachedPosts');
+    await deleteReplacedCachedPosts(cacheReplacers, ctx);
+    stopDel({ candidates: cacheReplacers.length });
+  }
 
   logger.log('inserted posts');
+  const stopSetLast = perfMark('insertPostsBatch.setLastPosts');
   await setLastPosts(posts, ctx);
+  stopSetLast({ channels: uniqueChannels });
   logger.log('set last posts');
+  const stopClearPending = perfMark('insertPostsBatch.clearMatchedPendingPosts');
   await clearMatchedPendingPosts(
     posts.filter((p) => p.deliveryStatus !== 'pending'),
     ctx
   );
+  stopClearPending();
   logger.log('clear matched pending');
+  stopBatch({
+    count: posts.length,
+    channels: uniqueChannels,
+  });
 }
 
-async function deleteReplacedCachedPosts(ctx: QueryCtx) {
-  const $cachedPosts = ctx.db
-    .select()
-    .from($posts)
-    .where(eq($posts.sequenceNum, 0))
-    .as('cached_posts');
-
-  const receivedPosts = await ctx.db
-    .select({
-      id: $cachedPosts.id,
-    })
-    .from($posts)
-    .innerJoin(
-      $cachedPosts,
-      and(
-        ne($posts.sequenceNum, 0),
-        eq($posts.channelId, $cachedPosts.channelId),
-        eq($posts.sentAt, $cachedPosts.sentAt),
-        eq($posts.authorId, $cachedPosts.authorId)
-      )
-    );
-
-  await ctx.db.delete($posts).where(
-    inArray(
-      $posts.id,
-      receivedPosts.map((p) => p.id)
+async function deleteReplacedCachedPosts(replacers: Post[], ctx: QueryCtx) {
+  if (!replacers.length) return;
+  // Find outstanding optimistic rows (sequenceNum = 0) whose (channelId,
+  // sentAt, authorId) matches a real incoming post. Uses the
+  // `cached_posts_index` partial index over sequence_number = 0 — lookup is
+  // O(replacers × log(cachedRowCount)), not O(postsTableSize).
+  const matches = replacers.map((p) =>
+    and(
+      eq($posts.channelId, p.channelId),
+      eq($posts.sentAt, p.sentAt),
+      eq($posts.authorId, p.authorId)
     )
   );
+  await ctx.db
+    .delete($posts)
+    .where(and(eq($posts.sequenceNum, 0), or(...matches)));
 }
 
 export const resetHiddenPosts = createWriteQuery(

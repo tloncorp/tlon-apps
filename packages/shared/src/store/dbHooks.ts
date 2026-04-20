@@ -572,11 +572,17 @@ export const useChannel = (options: { id?: string }) => {
   });
 };
 
+// Transient per-post queries can accumulate in the cache after threads/action
+// menus close. The default 5m gcTime keeps them sitting in the invalidation
+// scan set. Shorten so unused entries age out quickly.
+const PER_POST_GC_TIME_MS = 30_000;
+
 export const usePostWithThreadUnreads = (options: { id: string }) => {
   const tableDeps = useKeyFromQueryDeps(db.getPostWithRelations);
   return useQuery({
     queryKey: [['post', options.id], tableDeps],
     staleTime: Infinity,
+    gcTime: PER_POST_GC_TIME_MS,
     queryFn: () => db.getPostWithRelations(options),
   });
 };
@@ -590,6 +596,7 @@ export const usePostWithRelations = (
     enabled: options != null,
     queryKey: [['post', options?.id], deps],
     staleTime: Infinity,
+    gcTime: PER_POST_GC_TIME_MS,
     ...(initialData ? { initialData } : {}),
     queryFn: () => (options == null ? null : db.getPostWithRelations(options)),
   });

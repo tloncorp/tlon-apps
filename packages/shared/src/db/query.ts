@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { startTrace } from '../perf';
+import { perfEnabled, perfLog } from '../perfLog';
 import * as changeListener from './changeListener';
 import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
 import { queryClient } from './reactQuery';
@@ -197,9 +198,16 @@ export async function withCtxOrDefault<T>(
       return;
     }
     const invalidated: string[] = [];
+    const scanStart = perfEnabled()
+      ? typeof performance !== 'undefined' && performance.now
+        ? performance.now()
+        : Date.now()
+      : 0;
+    let scanned = 0;
     queryClient.invalidateQueries({
       fetchStatus: 'idle',
       predicate: (query) => {
+        scanned++;
         const tableKey = query.queryKey[1];
         const shouldInvalidate =
           tableKey instanceof Set && setsOverlap(tableKey, pendingEffects);
@@ -209,6 +217,19 @@ export async function withCtxOrDefault<T>(
         return shouldInvalidate;
       },
     });
+    if (perfEnabled()) {
+      const now =
+        typeof performance !== 'undefined' && performance.now
+          ? performance.now()
+          : Date.now();
+      perfLog('invalidateQueries', {
+        ms: +(now - scanStart).toFixed(1),
+        label: meta.label ?? 'unknown',
+        scanned,
+        invalidated: invalidated.length,
+        effects: Array.from(pendingEffects).join(','),
+      });
+    }
     logger.log(
       `${meta.label}:triggered:${listDebugLabel(pendingEffects)}`,
       'invalidating',

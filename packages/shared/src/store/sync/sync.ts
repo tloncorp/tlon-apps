@@ -12,6 +12,7 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { perfMark } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -307,8 +308,18 @@ export const syncLatestChanges = async ({
     };
   }
 
+  const stopTotal = perfMark('syncLatestChanges.total');
+  const stopFetch = perfMark('syncLatestChanges.fetch');
   const result = await syncQueue.add('latestChanges', syncCtx, () => {
     return fetchChangesSince(syncFrom);
+  });
+  stopFetch({
+    posts: result.posts.length,
+    groups: result.groups.length,
+    contacts: result.contacts.length,
+    channelUnreads: result.unreads.channelUnreads.length,
+    groupUnreads: result.unreads.groupUnreads.length,
+    threadUnreads: result.unreads.threadActivity.length,
   });
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
@@ -333,8 +344,12 @@ export const syncLatestChanges = async ({
     );
   }
 
+  const stopInsert = perfMark('syncLatestChanges.insertChanges');
   await db.insertChanges(result, queryCtx);
+  stopInsert({ posts: result.posts.length });
+  const stopNotify = perfMark('syncLatestChanges.notifyListeners');
   notifyChannelPostListenersFromLatestChanges(topLevelPosts);
+  stopNotify({ topLevelPosts: topLevelPosts.length });
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -375,6 +390,11 @@ export const syncLatestChanges = async ({
   const groupUnreadCounts = Object.fromEntries(
     result.unreads.groupUnreads.map((u) => [u.groupId, u.count ?? 0])
   );
+  stopTotal({
+    posts: result.posts.length,
+    topLevelPosts: topLevelPosts.length,
+    hadChanges: String(hadChanges),
+  });
   return {
     hadChanges,
     nodeBusyStatus: result.nodeBusyStatus ?? null,
@@ -1545,6 +1565,7 @@ export async function handleAddPost(
   ctx?: QueryCtx
 ) {
   logger.log('event: add post', post);
+  const stopTotal = perfMark('handleAddPost.total');
   // We frequently get duplicate addPost events from the api,
   // so skip if we've just added this.
   if (post.id === lastAdded) {
@@ -1562,6 +1583,7 @@ export async function handleAddPost(
       authorId: post.authorId,
     });
     if (!cachedReply) {
+      const stopAddReply = perfMark('handleAddPost.addReplyToPost');
       await db.addReplyToPost(
         {
           parentId: post.parentId,
@@ -1571,23 +1593,32 @@ export async function handleAddPost(
         },
         ctx
       );
+      stopAddReply();
     }
+    const stopInsert = perfMark('handleAddPost.insertChannelPosts');
     await db.insertChannelPosts(
       {
         posts: [post],
       },
       ctx
     );
+    stopInsert({ isReply: 'true' });
   } else {
     addToChannelPosts(post);
+    const stopInsert = perfMark('handleAddPost.insertChannelPosts');
     await db.insertChannelPosts(
       {
         posts: [post],
       },
       ctx
     );
+    stopInsert({ isReply: 'false' });
   }
   updateLastActivityTime();
+  stopTotal({
+    isReply: post.parentId ? 'true' : 'false',
+    channelId: post.channelId,
+  });
 }
 
 export async function syncSequencedPosts(
