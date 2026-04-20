@@ -751,7 +751,7 @@ function SinglePostView({
     replyDraftInputRef.current?.startDraft?.(mode);
   }, []);
 
-  const canStartReplyDraft =
+  const canRenderReplyInput =
     negotiationMatch &&
     canWrite &&
     !(
@@ -761,7 +761,7 @@ function SinglePostView({
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
-      canStartDraft: canStartReplyDraft,
+      canStartDraft: canRenderReplyInput && !editingPost,
       channel,
       clearDraft,
       draftInputRef: replyDraftInputRef,
@@ -777,7 +777,7 @@ function SinglePostView({
       replyToPost: { id: parentPost.id },
     }),
     [
-      canStartReplyDraft,
+      canRenderReplyInput,
       channel,
       clearDraft,
       editingPost,
@@ -816,7 +816,7 @@ function SinglePostView({
           />
         ) : null}
 
-        {canStartReplyDraft && (
+        {canRenderReplyInput && (
           <View id="reply-container" {...containingProperties}>
             <BareChatInput
               ref={replyDraftInputRef}

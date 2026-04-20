@@ -561,7 +561,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       canWrite &&
       negotiationMatch &&
       !(channel.groupId && !group && !groupIsLoading) &&
-      !channel.isDmInvite;
+      !channel.isDmInvite &&
+      !editingPost;
 
     // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
     const scrollToNewMessage = useCallback(() => {
