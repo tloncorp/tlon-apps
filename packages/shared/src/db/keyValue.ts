@@ -158,6 +158,12 @@ export const personalInviteLink = createStorageItem<string | null>({
   defaultValue: null,
 });
 
+export const homeGroupInviteLink = createStorageItem<string | null>({
+  key: 'homeGroupInviteLink',
+  defaultValue: null,
+});
+
+
 export const hasViewedPersonalInvite = createStorageItem<boolean>({
   key: 'hasViewedPersonalInvite',
   defaultValue: false,

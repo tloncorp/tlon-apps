@@ -368,22 +368,17 @@ export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
 
-// Stand-in lure for the "Tlonbot Group" that the onboarding splash invites
-// friends to, until the personal group's own lure is ready during splash.
-// TODO: replace with the real shareable link before shipping.
-const TLONBOT_GROUP_INVITE_URL = 'https://join.tlon.io/tlonbot-group';
-
-async function shareTlonbotGroupInvite() {
+async function shareTlonbotGroupInvite(homeGroupInviteLink: string) {
   if (isWeb) {
     try {
-      await navigator.clipboard.writeText(TLONBOT_GROUP_INVITE_URL);
+      await navigator.clipboard.writeText(homeGroupInviteLink);
     } catch (e) {
       console.error('Failed to copy invite link:', e);
     }
     return;
   }
   try {
-    await Share.share({ message: TLONBOT_GROUP_INVITE_URL });
+    await Share.share({ message: homeGroupInviteLink });
   } catch (e) {
     console.error('Failed to share invite link:', e);
   }
@@ -770,6 +765,7 @@ export function GroupsPane(props: {
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
+  const homeGroupInviteLink = db.homeGroupInviteLink.useValue();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -844,7 +840,11 @@ export function GroupsPane(props: {
       </YStack>
       <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
         <Button
-          onPress={shareTlonbotGroupInvite}
+          onPress={() =>
+            shareTlonbotGroupInvite(
+              homeGroupInviteLink ? homeGroupInviteLink : ''
+            )
+          }
           label="Share invite with friends"
           preset="hero"
           leadingIcon="AddPerson"
