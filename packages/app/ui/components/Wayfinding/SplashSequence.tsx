@@ -190,12 +190,13 @@ function SplashSequenceComponent(props: {
   }, []);
 
   // Save nickname and avatar; basic is the user's default so no primary-model
-  // poke is needed there.
+  // poke is needed there. Throws on any failure so callers can keep the user
+  // on the current pane and surface the error.
   const saveNicknameAndAvatar = useCallback(async () => {
     const shipId = await db.hostedUserNodeId.getValue();
     if (!shipId) return;
     const name = botName || 'Tlonbot';
-    await Promise.allSettled([
+    await Promise.all([
       api.setTlawnNickname(shipId, name),
       avatarDirty && botAvatarUrl
         ? api.setTlawnAvatar(shipId, botAvatarUrl)
@@ -211,35 +212,50 @@ function SplashSequenceComponent(props: {
   const handleValidateProvider = useCallback(async () => {
     setSavingConfig(true);
     setConfigError(null);
-    try {
-      const userId = await db.hostingUserId.getValue();
-      if (!userId) return;
+    const userId = await db.hostingUserId.getValue();
+    if (!userId) {
+      setSavingConfig(false);
+      return;
+    }
 
-      const provider = botModel || BASIC_PROVIDER_ID;
-      const selected = providerOptions.find((p) => p.provider === provider);
+    const provider = botModel || BASIC_PROVIDER_ID;
+    const selected = providerOptions.find((p) => p.provider === provider);
 
-      if (provider === BASIC_PROVIDER_ID) {
+    if (provider === BASIC_PROVIDER_ID) {
+      try {
         await saveNicknameAndAvatar();
+      } catch (e) {
+        console.error('Failed to save bot config during onboarding:', e);
+        setConfigError(
+          e instanceof Error && e.message
+            ? e.message
+            : 'Could not save bot configuration. Please try again.'
+        );
         setSavingConfig(false);
-        setDidConfigureBot(true);
-        setCurrentPane(SplashPane.Group);
         return;
       }
+      setSavingConfig(false);
+      setDidConfigureBot(true);
+      setCurrentPane(SplashPane.Group);
+      return;
+    }
 
+    if (selected?.requiresKey) {
+      const keyError = validateProviderKey(provider, botApiKey);
+      if (keyError) {
+        setConfigError(keyError);
+        setSavingConfig(false);
+        return;
+      }
+    }
+
+    try {
       if (selected?.requiresKey) {
-        const keyError = validateProviderKey(provider, botApiKey);
-        if (keyError) {
-          setConfigError(keyError);
-          setSavingConfig(false);
-          return;
-        }
         await api.setTlawnProviderKey(userId, provider, botApiKey);
       }
-
       const result = await api.getTlawnProviderModels(userId, provider);
       setProviderModels(result.data);
       setBotPrimaryModel(result.data[0]?.id ?? `${provider}/auto`);
-
       setSavingConfig(false);
       setCurrentPane(SplashPane.BotModel);
     } catch (e) {
@@ -263,7 +279,10 @@ function SplashSequenceComponent(props: {
       const provider = botModel || BASIC_PROVIDER_ID;
       const model = botPrimaryModel || `${provider}/auto`;
 
-      await Promise.allSettled([
+      // Use Promise.all so any rejection aborts the save and keeps the user
+      // on this pane — otherwise a failed primary-model update would silently
+      // advance them with an unconfigured bot.
+      await Promise.all([
         saveNicknameAndAvatar(),
         api.setTlawnPrimaryModel(userId, { provider, model }),
       ]);
@@ -278,6 +297,11 @@ function SplashSequenceComponent(props: {
       setCurrentPane(SplashPane.Group);
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
+      setConfigError(
+        e instanceof Error && e.message
+          ? e.message
+          : 'Could not save bot configuration. Please try again.'
+      );
       setSavingConfig(false);
     }
   }, [botModel, botPrimaryModel, saveNicknameAndAvatar]);
@@ -338,6 +362,7 @@ function SplashSequenceComponent(props: {
             models={providerModels}
             selectedModel={botPrimaryModel}
             loading={savingConfig}
+            error={configError}
             onSelectModel={setBotPrimaryModel}
             onActionPress={handleSaveBotConfig}
           />
@@ -544,17 +569,21 @@ export function BotNamePane(props: {
   onActionPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const placeholder = props.userNickname
+  // Real default we'd save if the user advances with an empty field.
+  // Without a nickname we can't personalize, so fall back to plain "Tlonbot".
+  const fallbackName = props.userNickname
     ? `${props.userNickname}'s Tlonbot`
+    : 'Tlonbot';
+  // When we have a personalized fallback, surface it as the placeholder so
+  // the user sees what they'll get. Otherwise show instructional text — we
+  // must not write that instructional text into state.
+  const placeholder = props.userNickname
+    ? fallbackName
     : 'Give your bot a name';
-  // Nickname step is required — fall back to the placeholder if the user
-  // wipes the field so they can't advance with an empty string.
-  const effectiveName = props.name.trim() || placeholder;
-  const canProceed = effectiveName.length > 0;
 
   const handlePress = () => {
     if (!props.name.trim()) {
-      props.onNameChange(placeholder);
+      props.onNameChange(fallbackName);
     }
     props.onActionPress();
   };
@@ -595,7 +624,6 @@ export function BotNamePane(props: {
         label="Next"
         preset="hero"
         shadow
-        disabled={!canProceed}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
@@ -616,6 +644,14 @@ export function BotAvatarPane(props: {
     },
     [props]
   );
+
+  // `ImageInput` emits the local URI the moment the user picks an image,
+  // then swaps it for the remote CDN URL once upload finishes. Only the
+  // remote URL is safe to persist. Uses the same `file|data` check as
+  // `EditProfileScreenView` / `MetaEditorScreenView` so the convention
+  // stays consistent across the app.
+  const hasAvatar = !!props.avatarUrl;
+  const isUploading = hasAvatar && !/^(?!file|data).+/.test(props.avatarUrl!);
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -645,12 +681,14 @@ export function BotAvatarPane(props: {
         </Field>
       </ScrollView>
       <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
-        {props.avatarUrl ? (
+        {hasAvatar ? (
           <Button
             onPress={props.onActionPress}
-            label="Next"
+            label={isUploading ? 'Uploading…' : 'Next'}
             preset="hero"
             shadow
+            loading={isUploading}
+            disabled={isUploading}
           />
         ) : null}
         <Button
@@ -658,6 +696,7 @@ export function BotAvatarPane(props: {
           label="Skip"
           preset="secondary"
           fill="text"
+          disabled={isUploading}
         />
       </YStack>
     </View>
@@ -758,11 +797,18 @@ export function BotModelPane(props: {
   models: api.TlawnProviderModel[];
   selectedModel: string;
   loading?: boolean;
+  error?: string | null;
   onSelectModel: (modelId: string) => void;
   onActionPress: () => void;
 }) {
-  const { models, selectedModel, loading, onSelectModel, onActionPress } =
-    props;
+  const {
+    models,
+    selectedModel,
+    loading,
+    error,
+    onSelectModel,
+    onActionPress,
+  } = props;
   const insets = useSafeAreaInsets();
 
   return (
@@ -791,6 +837,16 @@ export function BotModelPane(props: {
               onPress={() => onSelectModel(m.id)}
             />
           ))}
+          {error ? (
+            <Text
+              size="$label/m"
+              color="$negativeActionText"
+              paddingHorizontal="$xl"
+              paddingTop="$l"
+            >
+              {error}
+            </Text>
+          ) : null}
         </ScrollView>
       </YStack>
       <Button
@@ -894,15 +950,17 @@ export function GroupsPane(props: {
       <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
         <Button
           onPress={() =>
-            shareTlonbotGroupInvite(
-              homeGroupInviteLink ? homeGroupInviteLink : ''
-            )
+            homeGroupInviteLink && shareTlonbotGroupInvite(homeGroupInviteLink)
           }
-          label="Share invite link"
+          label={
+            homeGroupInviteLink ? 'Share invite link' : 'Preparing invite link…'
+          }
           intent="positive"
           size="large"
-          leadingIcon="Link"
-          glow
+          leadingIcon={homeGroupInviteLink ? 'Link' : undefined}
+          loading={!homeGroupInviteLink}
+          disabled={!homeGroupInviteLink}
+          glow={!!homeGroupInviteLink}
         />
         <Button
           data-testid="got-it"
