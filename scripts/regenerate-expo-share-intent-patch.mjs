@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Run this after editing apps/tlon-mobile/ios/ShareExtension/ShareViewController.swift
+// to regenerate patches/expo-share-intent@3.2.3.patch from a clean package copy.
+
 import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
