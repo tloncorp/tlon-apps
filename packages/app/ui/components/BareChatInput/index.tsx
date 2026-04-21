@@ -292,6 +292,7 @@ function BareChatInput(
     handleMention,
     handleSelectMention,
     handleMentionEscape,
+    handleMentionSoftDismiss,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -906,6 +907,7 @@ function BareChatInput(
       mentionOptions={validOptions}
       mentionRef={mentionRef}
       onSelectMention={onMentionSelect}
+      onDismissMentions={handleMentionSoftDismiss}
       showAttachmentButton={showAttachmentButton}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
