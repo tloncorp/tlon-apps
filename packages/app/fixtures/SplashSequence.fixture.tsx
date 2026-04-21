@@ -195,7 +195,6 @@ function BotAvatarPaneFixture() {
   );
 }
 
-
 function BotProviderPaneFixture() {
   const [model, setModel] = useValue('Provider', { defaultValue: 'basic' });
   const [apiKey, setApiKey] = useValue('API Key', { defaultValue: '' });

@@ -324,15 +324,11 @@ export async function getTlawnProviderModels(
 
 // --- Tlawn (bot) ship-level endpoints ---
 
-export async function getTlawnBotInfo(
-  ship: string
-): Promise<TlawnBotInfo> {
+export async function getTlawnBotInfo(ship: string): Promise<TlawnBotInfo> {
   return hostingFetch<TlawnBotInfo>(`/v1/tlawn/ships/${ship}`);
 }
 
-export async function getTlawnNickname(
-  ship: string
-): Promise<string | null> {
+export async function getTlawnNickname(ship: string): Promise<string | null> {
   const result = await rawHostingFetch(`/v1/tlawn/ships/${ship}/nickname`);
   const text = await result.text();
   try {
@@ -358,9 +354,7 @@ export async function setTlawnNickname(
   }
 }
 
-export async function getTlawnAvatar(
-  ship: string
-): Promise<string | null> {
+export async function getTlawnAvatar(ship: string): Promise<string | null> {
   const result = await rawHostingFetch(`/v1/tlawn/ships/${ship}/avatar`);
   const text = await result.text();
   try {
@@ -386,9 +380,7 @@ export async function setTlawnAvatar(
   }
 }
 
-export async function getTlawnConfig(
-  ship: string
-): Promise<TlawnConfig> {
+export async function getTlawnConfig(ship: string): Promise<TlawnConfig> {
   return hostingFetch<TlawnConfig>(`/v1/tlawn/ships/${ship}/config`);
 }
 

@@ -35,9 +35,9 @@ import {
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
+import { AttachmentProvider } from '../../contexts/attachment';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { AttachmentProvider } from '../../contexts/attachment';
 import { Field, ImageInput, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
@@ -290,88 +290,92 @@ function SplashSequenceComponent(props: {
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
       <View flex={1}>
-      {currentPane === SplashPane.Welcome && (
-        <WelcomePane
-          onActionPress={() =>
-            setCurrentPane(
-              hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group
-            )
-          }
-          hostingBotEnabled={hostingBotEnabled}
-        />
-      )}
+        {currentPane === SplashPane.Welcome && (
+          <WelcomePane
+            onActionPress={() =>
+              setCurrentPane(
+                hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group
+              )
+            }
+            hostingBotEnabled={hostingBotEnabled}
+          />
+        )}
 
-      {currentPane === SplashPane.TlonBot && (
-        <TlonBotPane onActionPress={() => setCurrentPane(SplashPane.BotName)} />
-      )}
-      {currentPane === SplashPane.BotName && (
-        <BotNamePane
-          name={botName}
-          userNickname={userNickname}
-          onNameChange={setBotName}
-          onActionPress={() => setCurrentPane(SplashPane.BotAvatar)}
-        />
-      )}
-      {currentPane === SplashPane.BotAvatar && (
-        <BotAvatarPane
-          avatarUrl={avatarDirty ? botAvatarUrl : null}
-          onAvatarUrlChange={handleAvatarUrlChange}
-          onActionPress={() => setCurrentPane(SplashPane.BotProvider)}
-        />
-      )}
-      {currentPane === SplashPane.BotProvider && (
-        <BotProviderPane
-          model={botModel}
-          apiKey={botApiKey}
-          providers={providerOptions}
-          loading={savingConfig}
-          error={configError}
-          onModelChange={setBotModel}
-          onApiKeyChange={setBotApiKey}
-          onActionPress={handleValidateProvider}
-        />
-      )}
-      {currentPane === SplashPane.BotModel && (
-        <BotModelPane
-          models={providerModels}
-          selectedModel={botPrimaryModel}
-          loading={savingConfig}
-          onSelectModel={setBotPrimaryModel}
-          onActionPress={handleSaveBotConfig}
-        />
-      )}
+        {currentPane === SplashPane.TlonBot && (
+          <TlonBotPane
+            onActionPress={() => setCurrentPane(SplashPane.BotName)}
+          />
+        )}
+        {currentPane === SplashPane.BotName && (
+          <BotNamePane
+            name={botName}
+            userNickname={userNickname}
+            onNameChange={setBotName}
+            onActionPress={() => setCurrentPane(SplashPane.BotAvatar)}
+          />
+        )}
+        {currentPane === SplashPane.BotAvatar && (
+          <BotAvatarPane
+            avatarUrl={avatarDirty ? botAvatarUrl : null}
+            onAvatarUrlChange={handleAvatarUrlChange}
+            onActionPress={() => setCurrentPane(SplashPane.BotProvider)}
+          />
+        )}
+        {currentPane === SplashPane.BotProvider && (
+          <BotProviderPane
+            model={botModel}
+            apiKey={botApiKey}
+            providers={providerOptions}
+            loading={savingConfig}
+            error={configError}
+            onModelChange={setBotModel}
+            onApiKeyChange={setBotApiKey}
+            onActionPress={handleValidateProvider}
+          />
+        )}
+        {currentPane === SplashPane.BotModel && (
+          <BotModelPane
+            models={providerModels}
+            selectedModel={botPrimaryModel}
+            loading={savingConfig}
+            onSelectModel={setBotPrimaryModel}
+            onActionPress={handleSaveBotConfig}
+          />
+        )}
 
-      {currentPane === SplashPane.Group && (
-        <GroupsPane
-          onActionPress={() =>
-            setCurrentPane(
-              hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
-            )
-          }
-          hostingBotEnabled={hostingBotEnabled}
-          botName={botName || 'Tlonbot'}
-          didConfigureBot={didConfigureBot}
-          userShipId={userShipId}
-          botShipId={botShipId}
-        />
-      )}
+        {currentPane === SplashPane.Group && (
+          <GroupsPane
+            onActionPress={() =>
+              setCurrentPane(
+                hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
+              )
+            }
+            hostingBotEnabled={hostingBotEnabled}
+            botName={botName || 'Tlonbot'}
+            didConfigureBot={didConfigureBot}
+            userShipId={userShipId}
+            botShipId={botShipId}
+          />
+        )}
 
-      {currentPane === SplashPane.Channels && (
-        <ChannelsPane
-          onActionPress={() => setCurrentPane(SplashPane.Privacy)}
-          hostingBotEnabled={hostingBotEnabled}
-        />
-      )}
-      {currentPane === SplashPane.Privacy && (
-        <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
-      )}
+        {currentPane === SplashPane.Channels && (
+          <ChannelsPane
+            onActionPress={() => setCurrentPane(SplashPane.Privacy)}
+            hostingBotEnabled={hostingBotEnabled}
+          />
+        )}
+        {currentPane === SplashPane.Privacy && (
+          <PrivacyPane
+            onActionPress={() => setCurrentPane(SplashPane.Invite)}
+          />
+        )}
 
-      {currentPane === SplashPane.Invite && (
-        <InvitePane
-          onActionPress={handleSplashCompleted}
-          inviteSystemContacts={props.inviteSystemContacts}
-        />
-      )}
+        {currentPane === SplashPane.Invite && (
+          <InvitePane
+            onActionPress={handleSplashCompleted}
+            inviteSystemContacts={props.inviteSystemContacts}
+          />
+        )}
       </View>
     </AttachmentProvider>
   );

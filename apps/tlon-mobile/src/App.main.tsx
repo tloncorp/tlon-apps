@@ -11,8 +11,8 @@ import {
 } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
-import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
+import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
