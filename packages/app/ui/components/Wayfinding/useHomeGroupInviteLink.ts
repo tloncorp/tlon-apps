@@ -24,7 +24,8 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
   const enabledGroupLinksRef = useRef<string | null>(null);
 
   const homeGroupId = useMemo(
-    () => (enabled && currentUserId ? getHomeGroupId(currentUserId) : undefined),
+    () =>
+      enabled && currentUserId ? getHomeGroupId(currentUserId) : undefined,
     [currentUserId, enabled]
   );
   const { data: homeGroup, isLoading: homeGroupIsLoading } = useGroup({
