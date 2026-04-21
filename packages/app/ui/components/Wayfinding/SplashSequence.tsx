@@ -1144,25 +1144,11 @@ export function GroupsPane(props: {
               <SplashParagraph>
                 We made you a group on your server, and{' '}
                 {props.didConfigureBot ? props.botName : 'your Tlonbot'} is
-                already there.
+                already there.{' '}
+                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} loves
+                conversation, reading along with the group and chiming in to
+                help.
               </SplashParagraph>
-              {props.botSetupStatus === 'pending' ? (
-                <SplashParagraph>
-                  {props.didConfigureBot ? props.botName : 'Your Tlonbot'} is
-                  finishing setup and should be ready shortly.
-                </SplashParagraph>
-              ) : props.botSetupStatus === 'failed' ? (
-                <SplashParagraph>
-                  {props.didConfigureBot ? props.botName : 'Your Tlonbot'} is
-                  still setting up. You can keep using the app while it catches
-                  up.
-                </SplashParagraph>
-              ) : (
-                <SplashParagraph>
-                  {props.didConfigureBot ? props.botName : 'Your Tlonbot'} is
-                  ready to jump in whenever you need it.
-                </SplashParagraph>
-              )}
               <SplashParagraph>
                 Share the link below to bring your friends in.
               </SplashParagraph>
