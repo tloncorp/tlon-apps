@@ -24,13 +24,6 @@ type VideoEmbedProps = ComponentProps<typeof View> & {
   contentFit?: 'contain' | 'cover';
 };
 const logger = createDevLogger('VideoEmbed', false);
-type VideoLayout = {
-  width: number | '100%';
-  height?: number;
-  alignSelf: ComponentProps<typeof View>['alignSelf'];
-  fillMedia: boolean;
-  centerContainer: boolean;
-};
 
 const OverlayFrame = styled(View, {
   position: 'absolute',
@@ -82,51 +75,31 @@ function VideoOverlay({ durationLabel }: { durationLabel?: string }) {
   );
 }
 
-function resolveVideoLayout({
+function resolveConstrainedVideoSize({
   maxWidth,
   maxHeight,
-  alignSelf,
   aspectRatio,
 }: {
   maxWidth: ComponentProps<typeof View>['maxWidth'];
   maxHeight: ComponentProps<typeof View>['maxHeight'];
-  alignSelf: ComponentProps<typeof View>['alignSelf'];
   aspectRatio: number;
-}): VideoLayout {
+}) {
   const numericMaxWidth = typeof maxWidth === 'number' ? maxWidth : undefined;
   const numericMaxHeight =
     typeof maxHeight === 'number' ? maxHeight : undefined;
 
-  if (numericMaxHeight == null) {
-    return {
-      width: numericMaxWidth ?? '100%',
-      height: undefined,
-      alignSelf: alignSelf ?? 'flex-start',
-      fillMedia: false,
-      centerContainer: false,
-    };
-  }
-
-  if (numericMaxWidth == null) {
-    return {
-      width: '100%',
-      height: numericMaxHeight,
-      alignSelf: alignSelf ?? 'center',
-      fillMedia: true,
-      centerContainer: true,
-    };
+  if (numericMaxWidth == null || numericMaxHeight == null) {
+    return null;
   }
 
   const width =
     aspectRatio > 0
       ? Math.min(numericMaxWidth, numericMaxHeight * aspectRatio)
       : numericMaxWidth;
+
   return {
     width,
     height: aspectRatio > 0 ? width / aspectRatio : undefined,
-    alignSelf: alignSelf ?? 'flex-start',
-    fillMedia: true,
-    centerContainer: false,
   };
 }
 
@@ -146,14 +119,17 @@ export default function VideoEmbed({
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const durationLabel = makePrettyDurationFromSeconds(video.duration);
   const aspectRatio = video.height > 0 ? video.width / video.height : 1;
-  const layout = resolveVideoLayout({
+  const constrainedSize = resolveConstrainedVideoSize({
     maxWidth,
     maxHeight,
-    alignSelf: alignSelfProp,
     aspectRatio,
   });
   const viewerId = getVideoViewerId(video.src, video.posterUri);
-  const shouldFillMedia = layout.fillMedia || explicitHeight != null;
+  const shouldFillMedia = constrainedSize != null || explicitHeight != null;
+  const naturalMaxWidth =
+    !shouldFillMedia && maxWidth == null && video.width > 0
+      ? video.width
+      : undefined;
   const mediaSizeProps = shouldFillMedia
     ? { height: '100%' as const }
     : { maxWidth, maxHeight, aspectRatio };
@@ -177,16 +153,10 @@ export default function VideoEmbed({
       borderRadius="$m"
       overflow="hidden"
       backgroundColor={video.posterUri ? 'transparent' : '$secondaryBackground'}
-      alignSelf={layout.alignSelf}
-      maxWidth={maxWidth}
-      width={layout.width}
-      height={explicitHeight ?? layout.height}
-      {...(layout.centerContainer
-        ? {
-            alignItems: 'center',
-            justifyContent: 'center',
-          }
-        : {})}
+      alignSelf={alignSelfProp ?? 'flex-start'}
+      maxWidth={maxWidth ?? naturalMaxWidth}
+      width={constrainedSize?.width ?? '100%'}
+      height={explicitHeight ?? constrainedSize?.height}
       {...rest}
     >
       {video.posterUri ? (
