@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
-import { View, YStack } from 'tamagui';
+import { View, YStack, getTokenValue } from 'tamagui';
 
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
 import { ChatMessage } from './ChatMessage';
@@ -70,7 +70,15 @@ export const DetailView = ({
       return undefined;
     }
     return (
-      <View width="100%" marginHorizontal="auto" maxWidth={600}>
+      <View
+        // When replies exist, this header is rendered inside the padded reply
+        // list content, so cancel that padding to keep media full width.
+        width={posts?.length ? undefined : '100%'}
+        marginHorizontal={
+          posts?.length ? -getTokenValue('$m', 'space') : 'auto'
+        }
+        maxWidth={600}
+      >
         {channelType === 'gallery' ? (
           <GalleryPostDetailView post={post} onPressImage={onPressImage} />
         ) : channelType === 'notebook' ? (
@@ -78,11 +86,10 @@ export const DetailView = ({
         ) : null}
       </View>
     );
-  }, [isChat, channelType, post, onPressImage]);
+  }, [isChat, posts?.length, channelType, post, onPressImage]);
 
   return (
     <View
-      paddingTop="$l"
       paddingHorizontal={isChat ? '$m' : undefined}
       flex={1}
       {...containingProperties}
