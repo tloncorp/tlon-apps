@@ -110,6 +110,24 @@ export function useBootSequence() {
           tokenReceived: reservedNode.personalInviteToken,
         });
       }
+
+      // handle home group invite cacheing if available
+      if (
+        reservedNode.homeGroupInviteToken &&
+        reservedNode.homeGroupInviteToken.startsWith('0v')
+      ) {
+        const env = getConstants();
+        const inviteLink = extractNormalizedInviteLink(
+          `https://${env.BRANCH_DOMAIN}/${reservedNode.homeGroupInviteToken}`
+        );
+        await db.homeGroupInviteLink.setValue(inviteLink);
+      } else {
+        logger.trackError('Signup missing home group invite token', {
+          nodeId: reservedNode.id,
+          tokenReceived: reservedNode.homeGroupInviteToken,
+        });
+      }
+
       return NodeBootPhase.BOOTING;
     }
 
