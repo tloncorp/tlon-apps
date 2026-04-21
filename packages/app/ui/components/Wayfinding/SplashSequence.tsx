@@ -872,8 +872,11 @@ export function GroupsPane(props: {
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
-  const homeGroupInviteLink = db.homeGroupInviteLink.useValue();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  // Populated by the reserve-ship flow in useBootSequence for hosted-bot
+  // signups. Only used on the bot-enabled branch below — standard onboarding
+  // renders without this button.
+  const homeGroupInviteLink = db.homeGroupInviteLink.useValue();
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       {props.hostingBotEnabled ? (
@@ -948,20 +951,25 @@ export function GroupsPane(props: {
         </ScrollView>
       </YStack>
       <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
-        <Button
-          onPress={() =>
-            homeGroupInviteLink && shareTlonbotGroupInvite(homeGroupInviteLink)
-          }
-          label={
-            homeGroupInviteLink ? 'Share invite link' : 'Preparing invite link…'
-          }
-          intent="positive"
-          size="large"
-          leadingIcon={homeGroupInviteLink ? 'Link' : undefined}
-          loading={!homeGroupInviteLink}
-          disabled={!homeGroupInviteLink}
-          glow={!!homeGroupInviteLink}
-        />
+        {props.hostingBotEnabled ? (
+          <Button
+            onPress={() =>
+              homeGroupInviteLink &&
+              shareTlonbotGroupInvite(homeGroupInviteLink)
+            }
+            label={
+              homeGroupInviteLink
+                ? 'Share invite link'
+                : 'Preparing invite link…'
+            }
+            intent="positive"
+            size="large"
+            leadingIcon={homeGroupInviteLink ? 'Link' : undefined}
+            loading={!homeGroupInviteLink}
+            disabled={!homeGroupInviteLink}
+            glow={!!homeGroupInviteLink}
+          />
+        ) : null}
         <Button
           data-testid="got-it"
           testID="got-it"
