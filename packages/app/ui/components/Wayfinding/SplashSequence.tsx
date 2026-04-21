@@ -36,6 +36,7 @@ import {
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
+import { trackOnboardingAction } from '../../../utils/posthog';
 import { AttachmentProvider } from '../../contexts/attachment';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
@@ -458,6 +459,12 @@ function SplashSequenceComponent(props: {
       const provider = botModel || BASIC_PROVIDER_ID;
       const model = botPrimaryModel || `${provider}/auto`;
       setDidConfigureBot(true);
+      trackOnboardingAction({
+        actionName: 'Customized TlonBot API Key',
+        ship: shipId ?? undefined,
+        botProvider: provider,
+        botModel: model,
+      });
       startCustomBotSetup({ userId, shipId, provider, model });
       setCurrentPane(SplashPane.Group);
     } catch (e) {
