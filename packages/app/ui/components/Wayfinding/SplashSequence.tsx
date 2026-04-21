@@ -7,6 +7,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
+import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -36,6 +37,7 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
+import { AttachmentProvider } from '../../contexts/attachment';
 import { Field, ImageInput, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
@@ -75,6 +77,7 @@ function SplashSequenceComponent(props: {
   hostingBotEnabled?: boolean;
 }) {
   const store = useStore();
+  const canUpload = useCanUpload();
   const [currentPane, setCurrentPane] = React.useState(SplashPane.Welcome);
   const { hostingBotEnabled } = props;
   const [botName, setBotName] = React.useState(DEFAULT_BOT_CONFIG.name);
@@ -285,7 +288,8 @@ function SplashSequenceComponent(props: {
   }, [props, store]);
 
   return (
-    <View flex={1}>
+    <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
+      <View flex={1}>
       {currentPane === SplashPane.Welcome && (
         <WelcomePane
           onActionPress={() =>
@@ -368,7 +372,8 @@ function SplashSequenceComponent(props: {
           inviteSystemContacts={props.inviteSystemContacts}
         />
       )}
-    </View>
+      </View>
+    </AttachmentProvider>
   );
 }
 
