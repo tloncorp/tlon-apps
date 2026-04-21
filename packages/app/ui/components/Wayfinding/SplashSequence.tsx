@@ -1024,6 +1024,27 @@ export function BotModelPane(props: {
     onActionPress,
   } = props;
   const insets = useSafeAreaInsets();
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+
+  const visibleModels = useMemo(() => {
+    const normalizedQuery = modelSearchQuery.trim().toLowerCase();
+    const sortedModels = [...models].sort((a, b) => {
+      if (a.id === selectedModel) return -1;
+      if (b.id === selectedModel) return 1;
+      return a.id.localeCompare(b.id, undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+    });
+
+    if (!normalizedQuery) {
+      return sortedModels;
+    }
+
+    return sortedModels.filter((model) =>
+      model.id.toLowerCase().includes(normalizedQuery)
+    );
+  }, [modelSearchQuery, models, selectedModel]);
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -1043,14 +1064,39 @@ export function BotModelPane(props: {
           <SplashParagraph marginHorizontal={0} marginBottom="$m">
             Your key is valid. Choose which model your Tlonbot should use.
           </SplashParagraph>
-          {models.map((m) => (
-            <ModelOptionCard
-              key={m.id}
-              option={{ label: m.id, description: '' }}
-              selected={selectedModel === m.id}
-              onPress={() => onSelectModel(m.id)}
-            />
-          ))}
+          <SearchBar
+            placeholder="Search models"
+            onChangeQuery={setModelSearchQuery}
+            debounceTime={0}
+            paddingBottom="$m"
+            inputProps={{
+              autoCapitalize: 'none',
+              autoComplete: 'off',
+              flex: 1,
+            }}
+          />
+          <Text
+            size="$label/m"
+            color="$secondaryText"
+            paddingBottom="$s"
+            paddingHorizontal="$xs"
+          >
+            Showing {visibleModels.length} of {models.length} models
+          </Text>
+          {visibleModels.length ? (
+            visibleModels.map((m) => (
+              <ModelOptionCard
+                key={m.id}
+                option={{ label: m.id, description: '' }}
+                selected={selectedModel === m.id}
+                onPress={() => onSelectModel(m.id)}
+              />
+            ))
+          ) : (
+            <Text size="$body" color="$secondaryText" paddingVertical="$xl">
+              No models match "{modelSearchQuery.trim()}".
+            </Text>
+          )}
           {error ? (
             <Text
               size="$label/m"
