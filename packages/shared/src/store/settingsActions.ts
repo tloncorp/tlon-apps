@@ -53,6 +53,18 @@ export async function updateCalmSetting(
 }
 
 export async function completeWayfindingSplash() {
+  await db.wayfindingProgress.setValue((prev) => ({
+    ...prev,
+    viewedPersonalGroup: false,
+    viewedChatChannel: false,
+    viewedCollectionChannel: false,
+    viewedNotebookChannel: false,
+    tappedHomeAdd: false,
+    tappedAddNote: false,
+    tappedAddCollection: false,
+    tappedChatInput: false,
+  }));
+
   // optimistic update
   await db.insertSettings({ completedWayfindingSplash: true });
   try {

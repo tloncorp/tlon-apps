@@ -82,8 +82,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
         </XStack>
 
         <TlonText.Text size="$body" padding="$xl">
-          Choose the nickname you want to use on the Tlon network. By default,
-          you will use a pseudonymous identifier.
+          Choose the nickname you want to use on the Tlon network.
         </TlonText.Text>
         <Controller
           control={control}

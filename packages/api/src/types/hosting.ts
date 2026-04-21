@@ -27,6 +27,7 @@ export type AssignmentResponse = {
   };
   code?: string;
   personalLureToken?: string;
+  homeGroupLureToken?: string;
 };
 
 export type BootPhase =

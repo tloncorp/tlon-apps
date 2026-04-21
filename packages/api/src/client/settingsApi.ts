@@ -45,6 +45,7 @@ function getBucket(key: string): string {
     case 'completedWayfindingTutorial':
     case 'disableTlonInfraEnhancement':
     case 'enableTelemetry':
+    case 'tlonbotConfig':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':

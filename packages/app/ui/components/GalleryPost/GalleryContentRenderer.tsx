@@ -204,15 +204,11 @@ const LargeContentRenderer = createContentRenderer({
     },
     video: {
       borderRadius: 0,
-      maxHeight: 300,
-      alignSelf: 'center',
+      alignSelf: 'stretch',
       wrapperProps: {
         padding: 0,
         width: '100%',
-        minHeight: 300,
-        backgroundColor: '$secondaryBackground',
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'stretch',
       },
     },
     code: {
