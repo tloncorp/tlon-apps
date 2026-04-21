@@ -156,7 +156,7 @@ export function usePoorUxShakeReport() {
                 Report Poor UX
               </Text>
               <TextArea
-                minHeight={120}
+                numberOfLines={5}
                 backgroundColor="$background"
                 borderColor="$secondaryBorder"
                 borderWidth={1}
