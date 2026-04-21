@@ -7,6 +7,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
+import { withRetry } from '@tloncorp/shared/logic';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import React, {
@@ -46,6 +47,7 @@ import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { validateProviderKey } from './providerKeyValidation';
+import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 /**
@@ -70,6 +72,8 @@ enum SplashPane {
   BotModel = 'BotModel',
   Invite = 'Invite',
 }
+
+type CustomBotSetupStatus = 'idle' | 'pending' | 'ready' | 'failed';
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
@@ -100,6 +104,17 @@ function SplashSequenceComponent(props: {
     api.TlawnProviderModel[]
   >([]);
   const [botPrimaryModel, setBotPrimaryModel] = React.useState('');
+  const [customBotSetupStatus, setCustomBotSetupStatus] =
+    React.useState<CustomBotSetupStatus>('idle');
+  const [finishingSplash, setFinishingSplash] = React.useState(false);
+  const customBotSetupPromiseRef = useRef<Promise<boolean> | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
@@ -189,20 +204,183 @@ function SplashSequenceComponent(props: {
     setAvatarDirty(true);
   }, []);
 
-  // Save nickname and avatar; basic is the user's default so no primary-model
-  // poke is needed there. Throws on any failure so callers can keep the user
-  // on the current pane and surface the error.
-  const saveNicknameAndAvatar = useCallback(async () => {
-    const shipId = await db.hostedUserNodeId.getValue();
-    if (!shipId) return;
-    const name = botName || 'Tlonbot';
-    await Promise.all([
-      api.setTlawnNickname(shipId, name),
-      avatarDirty && botAvatarUrl
-        ? api.setTlawnAvatar(shipId, botAvatarUrl)
-        : Promise.resolve(),
-    ]);
-  }, [botName, avatarDirty, botAvatarUrl]);
+  const persistBotIdentityInBackground = useCallback(
+    ({
+      flow,
+      provider,
+      shipId,
+      nickname,
+      avatarUrl,
+    }: {
+      flow: 'basic' | 'custom' | 'identity';
+      provider: string;
+      shipId: string | null;
+      nickname: string;
+      avatarUrl: string | null;
+    }) => {
+      const name = nickname.trim() || 'Tlonbot';
+      const meta = {
+        flow,
+        provider,
+        hasAvatar: !!avatarUrl,
+      };
+
+      logger.trackEvent('Wayfinding Bot Identity Sync Started', meta);
+
+      void (async () => {
+        const resolvedShipId = shipId ?? (await db.hostedUserNodeId.getValue());
+
+        if (!resolvedShipId) {
+          logger.trackError('Wayfinding Bot Identity Sync Failed', {
+            ...meta,
+            step: 'missing_ship_id',
+          });
+          return;
+        }
+
+        try {
+          await withRetry(() => api.setTlawnNickname(resolvedShipId, name), {
+            startingDelay: 750,
+            numOfAttempts: 4,
+            maxDelay: 4000,
+          });
+          logger.trackEvent('Wayfinding Bot Nickname Sync Succeeded', meta);
+        } catch (error) {
+          logger.trackError('Wayfinding Bot Nickname Sync Failed', {
+            ...meta,
+            error,
+          });
+        }
+
+        if (avatarUrl) {
+          try {
+            await withRetry(
+              () => api.setTlawnAvatar(resolvedShipId, avatarUrl),
+              {
+                startingDelay: 750,
+                numOfAttempts: 4,
+                maxDelay: 4000,
+              }
+            );
+            logger.trackEvent('Wayfinding Bot Avatar Sync Succeeded', meta);
+          } catch (error) {
+            logger.trackError('Wayfinding Bot Avatar Sync Failed', {
+              ...meta,
+              error,
+            });
+          }
+        }
+
+        logger.trackEvent('Wayfinding Bot Identity Sync Completed', meta);
+      })();
+    },
+    []
+  );
+
+  const handleBotAvatarCompleted = useCallback(() => {
+    persistBotIdentityInBackground({
+      flow: 'identity',
+      provider: botModel || 'unselected',
+      shipId: userShipId ? userShipId.slice(1) : null,
+      nickname: botName,
+      avatarUrl: avatarDirty ? botAvatarUrl : null,
+    });
+    setCurrentPane(SplashPane.BotProvider);
+  }, [
+    avatarDirty,
+    botAvatarUrl,
+    botModel,
+    botName,
+    persistBotIdentityInBackground,
+    userShipId,
+  ]);
+
+  const startCustomBotSetup = useCallback(
+    ({
+      userId,
+      shipId,
+      provider,
+      model,
+    }: {
+      userId: string | null;
+      shipId: string | null;
+      provider: string;
+      model: string;
+    }) => {
+      if (isMountedRef.current) {
+        setCustomBotSetupStatus('pending');
+      }
+
+      const promise = (async () => {
+        const meta = { provider, model };
+        logger.trackEvent('Wayfinding Bot Reconfigure Started', meta);
+
+        if (!userId || !shipId) {
+          if (isMountedRef.current) {
+            setCustomBotSetupStatus('failed');
+          }
+          logger.trackError('Wayfinding Bot Reconfigure Failed', {
+            ...meta,
+            step: 'missing_ids',
+            hasUserId: !!userId,
+            hasShipId: !!shipId,
+          });
+          return false;
+        }
+
+        try {
+          await withRetry(
+            () => api.setTlawnPrimaryModel(userId, { provider, model }),
+            {
+              startingDelay: 750,
+              numOfAttempts: 4,
+              maxDelay: 4000,
+            }
+          );
+          logger.trackEvent(
+            'Wayfinding Bot Primary Model Sync Succeeded',
+            meta
+          );
+        } catch (error) {
+          if (isMountedRef.current) {
+            setCustomBotSetupStatus('failed');
+          }
+          logger.trackError('Wayfinding Bot Reconfigure Failed', {
+            ...meta,
+            step: 'set_primary_model',
+            error,
+          });
+          return false;
+        }
+
+        const running = await api.awaitBotRunning(shipId, {
+          timeoutMs: 30_000,
+          pollIntervalMs: 1500,
+        });
+
+        if (running) {
+          if (isMountedRef.current) {
+            setCustomBotSetupStatus('ready');
+          }
+          logger.trackEvent('Wayfinding Bot Reconfigure Ready', meta);
+          return true;
+        }
+
+        if (isMountedRef.current) {
+          setCustomBotSetupStatus('failed');
+        }
+        logger.trackError('Wayfinding Bot Reconfigure Failed', {
+          ...meta,
+          step: 'await_bot_running_timeout',
+        });
+        return false;
+      })();
+
+      customBotSetupPromiseRef.current = promise;
+      return promise;
+    },
+    []
+  );
 
   // Step 1: if the user picks `basic` (their hosting default), save
   // nickname/avatar and skip straight to the group pane — nothing to validate
@@ -212,104 +390,138 @@ function SplashSequenceComponent(props: {
   const handleValidateProvider = useCallback(async () => {
     setSavingConfig(true);
     setConfigError(null);
-    const userId = await db.hostingUserId.getValue();
-    if (!userId) {
-      setSavingConfig(false);
-      return;
-    }
-
-    const provider = botModel || BASIC_PROVIDER_ID;
-    const selected = providerOptions.find((p) => p.provider === provider);
-
-    if (provider === BASIC_PROVIDER_ID) {
-      try {
-        await saveNicknameAndAvatar();
-      } catch (e) {
-        console.error('Failed to save bot config during onboarding:', e);
-        setConfigError(
-          e instanceof Error && e.message
-            ? e.message
-            : 'Could not save bot configuration. Please try again.'
-        );
-        setSavingConfig(false);
-        return;
-      }
-      setSavingConfig(false);
-      setDidConfigureBot(true);
-      setCurrentPane(SplashPane.Group);
-      return;
-    }
-
-    if (selected?.requiresKey) {
-      const keyError = validateProviderKey(provider, botApiKey);
-      if (keyError) {
-        setConfigError(keyError);
-        setSavingConfig(false);
-        return;
-      }
-    }
-
     try {
+      const userId = await db.hostingUserId.getValue();
+      const provider = botModel || BASIC_PROVIDER_ID;
+      const selected = providerOptions.find((p) => p.provider === provider);
+
+      if (provider === BASIC_PROVIDER_ID) {
+        setDidConfigureBot(true);
+        setCustomBotSetupStatus('ready');
+        setCurrentPane(SplashPane.Group);
+        return;
+      }
+
+      if (!userId) {
+        setConfigError('Could not validate provider. Please try again.');
+        logger.trackError('Wayfinding Bot Provider Validation Failed', {
+          provider,
+          step: 'missing_user_id',
+        });
+        return;
+      }
+
       if (selected?.requiresKey) {
-        await api.setTlawnProviderKey(userId, provider, botApiKey);
+        const keyError = validateProviderKey(provider, botApiKey);
+        if (keyError) {
+          setConfigError(keyError);
+          return;
+        }
+      }
+
+      if (selected?.requiresKey) {
+        try {
+          await api.setTlawnProviderKey(userId, provider, botApiKey);
+          logger.trackEvent('Wayfinding Bot Provider Key Sync Succeeded', {
+            provider,
+          });
+        } catch (error) {
+          logger.trackError('Wayfinding Bot Provider Key Sync Failed', {
+            provider,
+            error,
+          });
+          throw error;
+        }
       }
       const result = await api.getTlawnProviderModels(userId, provider);
       setProviderModels(result.data);
       setBotPrimaryModel(result.data[0]?.id ?? `${provider}/auto`);
-      setSavingConfig(false);
       setCurrentPane(SplashPane.BotModel);
     } catch (e) {
       console.error('Failed to validate provider during onboarding:', e);
       setConfigError(
         'Could not validate provider. Check your API key and try again.'
       );
-      setSavingConfig(false);
+    } finally {
+      if (isMountedRef.current) {
+        setSavingConfig(false);
+      }
     }
-  }, [botModel, botApiKey, providerOptions, saveNicknameAndAvatar]);
+  }, [botApiKey, botModel, providerOptions]);
 
-  // Step 2 (non-basic only): persist chosen model along with nickname/avatar.
-  const handleSaveBotConfig = useCallback(async () => {
+  // Step 2 (non-basic only): start the restart-causing work in the background.
+  const handleSaveModelConfig = useCallback(async () => {
     setSavingConfig(true);
     setConfigError(null);
     try {
       const userId = await db.hostingUserId.getValue();
       const shipId = await db.hostedUserNodeId.getValue();
-      if (!userId || !shipId) return;
-
       const provider = botModel || BASIC_PROVIDER_ID;
       const model = botPrimaryModel || `${provider}/auto`;
-
-      // Use Promise.all so any rejection aborts the save and keeps the user
-      // on this pane — otherwise a failed primary-model update would silently
-      // advance them with an unconfigured bot.
-      await Promise.all([
-        saveNicknameAndAvatar(),
-        api.setTlawnPrimaryModel(userId, { provider, model }),
-      ]);
-
-      // Changing the primary model restarts the bot's gateway. Wait for it
-      // to come back up before advancing so the user doesn't land on the
-      // next screen with a dead bot. Non-blocking failure: advance anyway.
-      await api.awaitBotRunning(shipId);
-
-      setSavingConfig(false);
       setDidConfigureBot(true);
+      logger.trackEvent('Customized TlonBot API Key', {
+        botProvider: provider,
+        botModel: model,
+      });
+      startCustomBotSetup({ userId, shipId, provider, model });
       setCurrentPane(SplashPane.Group);
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
-      setConfigError(
-        e instanceof Error && e.message
-          ? e.message
-          : 'Could not save bot configuration. Please try again.'
-      );
-      setSavingConfig(false);
+      logger.trackError('Wayfinding Bot Reconfigure Failed', {
+        step: 'save_handler',
+        error: e,
+      });
+      setCurrentPane(SplashPane.Group);
+    } finally {
+      if (isMountedRef.current) {
+        setSavingConfig(false);
+      }
     }
-  }, [botModel, botPrimaryModel, saveNicknameAndAvatar]);
+  }, [botModel, botPrimaryModel, startCustomBotSetup]);
 
-  const handleSplashCompleted = useCallback(() => {
-    store.completeWayfindingSplash();
-    props.onCompleted();
-  }, [props, store]);
+  const handleSplashCompleted = useCallback(async () => {
+    if (finishingSplash) return;
+
+    setFinishingSplash(true);
+    try {
+      const pendingCustomBotSetup = customBotSetupPromiseRef.current;
+      if (customBotSetupStatus === 'pending' && pendingCustomBotSetup) {
+        logger.trackEvent('Wayfinding Bot Exit Wait Started', {
+          timeoutMs: 7000,
+        });
+        const exitWaitResult = await Promise.race([
+          pendingCustomBotSetup.then((ready) => ({
+            kind: 'resolved' as const,
+            ready,
+          })),
+          new Promise<{ kind: 'timeout' }>((resolve) => {
+            setTimeout(() => resolve({ kind: 'timeout' }), 7000);
+          }),
+        ]);
+
+        if (exitWaitResult.kind === 'resolved' && exitWaitResult.ready) {
+          logger.trackEvent('Wayfinding Bot Exit Wait Succeeded', {
+            timeoutMs: 7000,
+          });
+        } else if (exitWaitResult.kind === 'resolved') {
+          logger.trackEvent('Wayfinding Bot Exit Wait Finished Unready', {
+            timeoutMs: 7000,
+          });
+        } else {
+          logger.trackEvent('Wayfinding Bot Exit Wait Timed Out', {
+            timeoutMs: 7000,
+          });
+        }
+      }
+
+      void store.completeWayfindingSplash();
+      props.onCompleted();
+    } finally {
+      if (isMountedRef.current) {
+        setFinishingSplash(false);
+      }
+    }
+  }, [customBotSetupStatus, finishingSplash, props, store]);
 
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
@@ -342,7 +554,7 @@ function SplashSequenceComponent(props: {
           <BotAvatarPane
             avatarUrl={avatarDirty ? botAvatarUrl : null}
             onAvatarUrlChange={handleAvatarUrlChange}
-            onActionPress={() => setCurrentPane(SplashPane.BotProvider)}
+            onActionPress={handleBotAvatarCompleted}
           />
         )}
         {currentPane === SplashPane.BotProvider && (
@@ -364,7 +576,8 @@ function SplashSequenceComponent(props: {
             loading={savingConfig}
             error={configError}
             onSelectModel={setBotPrimaryModel}
-            onActionPress={handleSaveBotConfig}
+            onBackPress={() => setCurrentPane(SplashPane.BotProvider)}
+            onActionPress={handleSaveModelConfig}
           />
         )}
 
@@ -378,6 +591,7 @@ function SplashSequenceComponent(props: {
             hostingBotEnabled={hostingBotEnabled}
             botName={botName || 'Tlonbot'}
             didConfigureBot={didConfigureBot}
+            botSetupStatus={customBotSetupStatus}
             userShipId={userShipId}
             botShipId={botShipId}
           />
@@ -399,6 +613,7 @@ function SplashSequenceComponent(props: {
           <InvitePane
             onActionPress={handleSplashCompleted}
             inviteSystemContacts={props.inviteSystemContacts}
+            isCompleting={finishingSplash}
           />
         )}
       </View>
@@ -799,6 +1014,7 @@ export function BotModelPane(props: {
   loading?: boolean;
   error?: string | null;
   onSelectModel: (modelId: string) => void;
+  onBackPress?: () => void;
   onActionPress: () => void;
 }) {
   const {
@@ -807,13 +1023,40 @@ export function BotModelPane(props: {
     loading,
     error,
     onSelectModel,
+    onBackPress,
     onActionPress,
   } = props;
   const insets = useSafeAreaInsets();
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+
+  const visibleModels = useMemo(() => {
+    const normalizedQuery = modelSearchQuery.trim().toLowerCase();
+    const sortedModels = [...models].sort((a, b) => {
+      if (a.id === selectedModel) return -1;
+      if (b.id === selectedModel) return 1;
+      return a.id.localeCompare(b.id, undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+    });
+
+    if (!normalizedQuery) {
+      return sortedModels;
+    }
+
+    return sortedModels.filter((model) =>
+      model.id.toLowerCase().includes(normalizedQuery)
+    );
+  }, [modelSearchQuery, models, selectedModel]);
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+        <View paddingHorizontal="$xl">
+          <ScreenHeader.BackButton
+            onPress={loading ? undefined : onBackPress}
+          />
+        </View>
         <SplashTitle>
           Pick a <Text color="$positiveActionText">model.</Text>
         </SplashTitle>
@@ -829,14 +1072,39 @@ export function BotModelPane(props: {
           <SplashParagraph marginHorizontal={0} marginBottom="$m">
             Your key is valid. Choose which model your Tlonbot should use.
           </SplashParagraph>
-          {models.map((m) => (
-            <ModelOptionCard
-              key={m.id}
-              option={{ label: m.id, description: '' }}
-              selected={selectedModel === m.id}
-              onPress={() => onSelectModel(m.id)}
-            />
-          ))}
+          <SearchBar
+            placeholder="Search models"
+            onChangeQuery={setModelSearchQuery}
+            debounceTime={0}
+            paddingBottom="$m"
+            inputProps={{
+              autoCapitalize: 'none',
+              autoComplete: 'off',
+              flex: 1,
+            }}
+          />
+          <Text
+            size="$label/m"
+            color="$secondaryText"
+            paddingBottom="$s"
+            paddingHorizontal="$xs"
+          >
+            Showing {visibleModels.length} of {models.length} models
+          </Text>
+          {visibleModels.length ? (
+            visibleModels.map((m) => (
+              <ModelOptionCard
+                key={m.id}
+                option={{ label: m.id, description: '' }}
+                selected={selectedModel === m.id}
+                onPress={() => onSelectModel(m.id)}
+              />
+            ))
+          ) : (
+            <Text size="$body" color="$secondaryText" paddingVertical="$xl">
+              No models match "{modelSearchQuery.trim()}".
+            </Text>
+          )}
           {error ? (
             <Text
               size="$label/m"
@@ -867,16 +1135,19 @@ export function GroupsPane(props: {
   hostingBotEnabled?: boolean;
   botName?: string;
   didConfigureBot?: boolean;
+  botSetupStatus?: CustomBotSetupStatus;
   userShipId?: string | null;
   botShipId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
-  // Populated by the reserve-ship flow in useBootSequence for hosted-bot
-  // signups. Only used on the bot-enabled branch below — standard onboarding
-  // renders without this button.
-  const homeGroupInviteLink = db.homeGroupInviteLink.useValue();
+  const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
+    useHomeGroupInviteLink({
+      enabled: !!props.hostingBotEnabled,
+    });
+  const groupInviteIsLoading = homeGroupInviteState === 'loading';
+  const groupInviteIsReady = homeGroupInviteState === 'ready';
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       {props.hostingBotEnabled ? (
@@ -909,13 +1180,7 @@ export function GroupsPane(props: {
         <SplashTitle>
           {props.hostingBotEnabled ? (
             <>
-              Your group with{' '}
-              <Text color="$positiveActionText">
-                {props.didConfigureBot && props.botName
-                  ? props.botName
-                  : 'your Tlonbot'}
-              </Text>{' '}
-              is ready.
+              Your <Text color="$positiveActionText">group</Text> is ready.
             </>
           ) : (
             <>
@@ -953,11 +1218,23 @@ export function GroupsPane(props: {
       <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
         {props.hostingBotEnabled ? (
           <Button
-            onPress={() => shareTlonbotGroupInvite(homeGroupInviteLink ?? '')}
-            label="Share invite link"
+            onPress={
+              groupInviteIsReady && homeGroupInviteUrl
+                ? () => shareTlonbotGroupInvite(homeGroupInviteUrl)
+                : undefined
+            }
+            label={
+              groupInviteIsReady
+                ? 'Share invite link'
+                : groupInviteIsLoading
+                  ? 'Preparing invite link'
+                  : 'Invite link unavailable'
+            }
             intent="positive"
             size="large"
-            leadingIcon="Link"
+            leadingIcon={groupInviteIsLoading ? undefined : 'Link'}
+            loading={groupInviteIsLoading}
+            disabled={!groupInviteIsReady}
             glow
           />
         ) : null}
@@ -1081,6 +1358,7 @@ export function InviteContactsContent(props: {
   onComplete: () => void;
   systemContacts: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
+  completing?: boolean;
 }) {
   const inviteLink = db.personalInviteLink.useValue();
   const handleInviteContact = useInviteSystemContactHandler(
@@ -1101,9 +1379,10 @@ export function InviteContactsContent(props: {
         rightControls={
           <ScreenHeader.TextButton
             testID="finish-invites"
-            onPress={props.onComplete}
+            disabled={props.completing}
+            onPress={props.completing ? undefined : props.onComplete}
           >
-            Next
+            {props.completing ? 'Finishing...' : 'Next'}
           </ScreenHeader.TextButton>
         }
       />
@@ -1217,6 +1496,7 @@ function ConnectContactBookContent(props: {
   onConnectContacts: () => void;
   onSkip: () => void;
   isProcessing: boolean;
+  isCompleting?: boolean;
   forceShowConnect?: boolean;
 }) {
   const insets = useSafeAreaInsets();
@@ -1262,10 +1542,16 @@ function ConnectContactBookContent(props: {
         <Button
           data-testid="connect-contact-book"
           onPress={handleAction}
-          label={shouldShowConnectOption ? 'Connect contact book' : 'Finish'}
+          label={
+            props.isCompleting
+              ? 'Finishing...'
+              : shouldShowConnectOption
+                ? 'Connect contact book'
+                : 'Finish'
+          }
           preset="hero"
           shadow
-          disabled={props.isProcessing}
+          disabled={props.isProcessing || props.isCompleting}
         />
         {shouldShowConnectOption && (
           <Button
@@ -1273,7 +1559,7 @@ function ConnectContactBookContent(props: {
             label="Skip"
             preset="secondary"
             fill="text"
-            disabled={props.isProcessing}
+            disabled={props.isProcessing || props.isCompleting}
           />
         )}
       </YStack>
@@ -1284,6 +1570,7 @@ function ConnectContactBookContent(props: {
 export function InvitePane(props: {
   onActionPress: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
+  isCompleting?: boolean;
 }) {
   const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1356,6 +1643,7 @@ export function InvitePane(props: {
         onComplete={props.onActionPress}
         systemContacts={sysContacts}
         inviteSystemContacts={props.inviteSystemContacts}
+        completing={props.isCompleting}
       />
     );
   }
@@ -1365,6 +1653,7 @@ export function InvitePane(props: {
       onConnectContacts={handleConnectContacts}
       onSkip={handleSkip}
       isProcessing={isProcessing}
+      isCompleting={props.isCompleting}
     />
   );
 }
