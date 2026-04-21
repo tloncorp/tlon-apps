@@ -1,11 +1,10 @@
 import { toContentReference } from '@tloncorp/api';
-import { Story, pathToCite } from '@tloncorp/api/urbit';
+import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
   JSONToInlines,
   LinkAttachment,
   REF_REGEX,
-  TextAttachment,
   createDevLogger,
   diaryMixedToJSON,
   useDebouncedValue,
@@ -20,7 +19,16 @@ import {
   Text,
   useGlobalSearch,
 } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ForwardedRef,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Keyboard, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -45,6 +53,7 @@ import {
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
 import { hydrateEditPost } from '../MessageInput/helpers';
+import type { DraftInputHandle } from '../draftInputs/shared';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
   MentionOption,
@@ -218,31 +227,34 @@ function LinkPreviewLoading() {
   );
 }
 
-export default function BareChatInput({
-  shouldBlur,
-  setShouldBlur,
-  channelId,
-  groupId,
-  groupRoles,
-  storeDraft,
-  clearDraft,
-  getDraft,
-  editingPost,
-  setEditingPost,
-  showAttachmentButton,
-  paddingHorizontal,
-  initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
-  backgroundColor,
-  placeholder = 'Message',
-  image,
-  showInlineAttachments,
-  channelType,
-  onSend,
-  goBack,
-  shouldAutoFocus,
-  showWayfindingTooltip,
-  sendPostFromDraft,
-}: MessageInputProps) {
+function BareChatInput(
+  {
+    shouldBlur,
+    setShouldBlur,
+    channelId,
+    groupId,
+    groupRoles,
+    storeDraft,
+    clearDraft,
+    getDraft,
+    editingPost,
+    setEditingPost,
+    showAttachmentButton,
+    paddingHorizontal,
+    initialHeight = DEFAULT_MESSAGE_INPUT_HEIGHT,
+    backgroundColor,
+    placeholder = 'Message',
+    image,
+    showInlineAttachments,
+    channelType,
+    onSend,
+    goBack,
+    shouldAutoFocus,
+    showWayfindingTooltip,
+    sendPostFromDraft,
+  }: MessageInputProps,
+  ref: ForwardedRef<DraftInputHandle>
+) {
   const { bottom, top } = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const store = useStore();
@@ -400,22 +412,6 @@ export default function BareChatInput({
     },
     [handleSelectMention, controlledText]
   );
-
-  // Handle text attachments by inserting them into the input
-  useEffect(() => {
-    const textAttachment = attachments.find(
-      (a): a is TextAttachment => a.type === 'text'
-    );
-    if (textAttachment) {
-      if (controlledText === '') {
-        handleTextChange(`${textAttachment.text}`);
-      } else {
-        handleTextChange(`${textAttachment.text}${controlledText}`);
-      }
-      // Remove the text attachment since we've handled it
-      removeAttachment(textAttachment);
-    }
-  }, [attachments, handleTextChange, removeAttachment, controlledText]);
 
   const sendMessage = useCallback(
     async (isEdit?: boolean) => {
@@ -601,7 +597,9 @@ export default function BareChatInput({
           store.getLinkMetaWithFallback(url).then((linkMetadata) => {
             // Check if this request is still valid
             if (currentSession !== inputSessionRef.current) {
-              bareChatInputLogger.log('ignoring stale link metadata', { url });
+              bareChatInputLogger.log('ignoring stale link metadata', {
+                url,
+              });
               return;
             }
 
@@ -689,6 +687,39 @@ export default function BareChatInput({
     }
   }, [initialHeight]);
 
+  const setInputFromDraft = useCallback(
+    (draft: JSONContent | null) => {
+      if (!draft?.content?.length) return;
+
+      const { text, mentions } = contentToTextAndMentions(draft);
+      setControlledText(text);
+      setMentions(mentions);
+      setEditorIsEmpty(false);
+      setHasSetInitialContent(true);
+      setNeedsHeightAdjustmentAfterLoad(true);
+    },
+    [setMentions]
+  );
+
+  const reloadDraft = useCallback(async () => {
+    try {
+      const draft = await getDraft();
+      if (!editingPost) setInputFromDraft(draft);
+      inputRef.current?.focus();
+    } catch (e) {
+      bareChatInputLogger.error('Error loading draft', e);
+    }
+  }, [editingPost, getDraft, setInputFromDraft]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      exitFullscreen: () => {},
+      startDraft: () => void reloadDraft(),
+    }),
+    [reloadDraft]
+  );
+
   // Set initial content from draft or post that is being edited
   useEffect(() => {
     if (!hasSetInitialContent) {
@@ -696,24 +727,8 @@ export default function BareChatInput({
       try {
         getDraft().then((draft) => {
           bareChatInputLogger.log('got draft', draft);
-          if (
-            !editingPost &&
-            draft &&
-            draft.content &&
-            draft.content.length > 0
-          ) {
-            setEditorIsEmpty(false);
-            setHasSetInitialContent(true);
-            bareChatInputLogger.log('setting initial content', draft);
-            const { text, mentions } = contentToTextAndMentions(draft);
-            bareChatInputLogger.log(
-              'setting initial content text and mentions',
-              text,
-              mentions
-            );
-            setControlledText(text);
-            setMentions(mentions);
-            setNeedsHeightAdjustmentAfterLoad(true);
+          if (!editingPost) {
+            setInputFromDraft(draft);
           }
 
           if (editingPost && editingPost.content) {
@@ -765,6 +780,7 @@ export default function BareChatInput({
     editingPost,
     resetAttachments,
     addAttachment,
+    setInputFromDraft,
     setMentions,
   ]);
 
@@ -978,3 +994,5 @@ export default function BareChatInput({
     </MessageInputContainer>
   );
 }
+
+export default forwardRef(BareChatInput);
