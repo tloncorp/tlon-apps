@@ -175,10 +175,7 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
         `);
                 logger.log(`Recorded migration ${migrationHash}`);
               } catch (e) {
-                logger.error(
-                  `Failed to record migration ${migrationHash}`,
-                  e
-                );
+                logger.error(`Failed to record migration ${migrationHash}`, e);
                 failed = true;
               }
             }

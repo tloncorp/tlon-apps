@@ -3363,7 +3363,9 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
   await setLastPosts(posts, ctx);
   stopSetLast({ channels: uniqueChannels });
   logger.log('set last posts');
-  const stopClearPending = perfMark('insertPostsBatch.clearMatchedPendingPosts');
+  const stopClearPending = perfMark(
+    'insertPostsBatch.clearMatchedPendingPosts'
+  );
   await clearMatchedPendingPosts(
     posts.filter((p) => p.deliveryStatus !== 'pending'),
     ctx
@@ -3396,11 +3398,7 @@ async function deleteReplacedCachedPosts(replacers: Post[], ctx: QueryCtx) {
   await ctx.db
     .delete($posts)
     .where(
-      and(
-        eq($posts.sequenceNum, 0),
-        isNull($posts.parentId),
-        or(...matches)
-      )
+      and(eq($posts.sequenceNum, 0), isNull($posts.parentId), or(...matches))
     );
 }
 
@@ -3571,10 +3569,7 @@ async function setLastPostsMonotonic(newPosts: Post[], ctx: QueryCtx) {
       }
     }
     if (p.sequenceNum != null) {
-      if (
-        !sequenced ||
-        (p.sequenceNum ?? 0) > (sequenced.sequenceNum ?? 0)
-      ) {
+      if (!sequenced || (p.sequenceNum ?? 0) > (sequenced.sequenceNum ?? 0)) {
         sequenced = p;
       }
     }
