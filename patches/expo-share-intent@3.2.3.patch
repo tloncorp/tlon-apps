@@ -1,8 +1,9 @@
-diff --git a/plugin/build/ios/ShareExtensionViewController.swift b/plugin/build/ios/ShareExtensionViewController.swift
-index 1234567..89abcde 100644
 --- a/plugin/build/ios/ShareExtensionViewController.swift
 +++ b/plugin/build/ios/ShareExtensionViewController.swift
-@@ -13,6 +13,18 @@
+@@ -10,9 +10,21 @@
+ import UIKit
+ 
+ class ShareViewController: UIViewController {
 -  let hostAppGroupIdentifier = "<GROUPIDENTIFIER>"
 -  let shareProtocol = "<SCHEME>"
 -  let sharedKey = "<SCHEME>ShareKey"
@@ -24,7 +25,7 @@ index 1234567..89abcde 100644
    var sharedMedia: [SharedMediaFile] = []
    var sharedWebUrl: [WebUrl] = []
    var sharedText: [String] = []
-@@ -26,6 +27,7 @@
+@@ -26,6 +38,7 @@
  
    override func viewDidLoad() {
      super.viewDidLoad()
@@ -32,12 +33,20 @@ index 1234567..89abcde 100644
    }
  
    override func viewDidAppear(_ animated: Bool) {
-@@ -382,6 +384,18 @@
-     case text
-     case weburl
+@@ -221,8 +234,7 @@
+   }
+ 
+   private func documentDirectoryPath() -> URL? {
+-    let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+-    return path.first
++    return FileManager.default.temporaryDirectory
+   }
+ 
+   private func saveScreenshot(_ image: UIImage) -> URL? {
+@@ -384,29 +396,32 @@
      case file
-+  }
-+
+   }
+ 
 +  private func setupLoadingIndicator() {
 +    view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.92)
 +    loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
@@ -48,10 +57,11 @@ index 1234567..89abcde 100644
 +      loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
 +    ])
 +    loadingIndicator.startAnimating()
-   }
- 
++  }
++
    func getExtension(from url: URL, type: SharedMediaType) -> String {
-@@ -390,23 +404,14 @@ class ShareViewController: UIViewController {
+     let parts = url.lastPathComponent.components(separatedBy: ".")
+     var ex: String? = nil
      if parts.count > 1 {
        ex = parts.last
      }
@@ -78,13 +88,3 @@ index 1234567..89abcde 100644
      }
      return name
    }
-@@ -221,8 +221,7 @@ class ShareViewController: UIViewController {
-   }
- 
-   private func documentDirectoryPath() -> URL? {
--    let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
--    return path.first
-+    return FileManager.default.temporaryDirectory
-   }
- 
-   private func saveScreenshot(_ image: UIImage) -> URL? {
