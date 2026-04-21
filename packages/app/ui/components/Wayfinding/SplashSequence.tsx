@@ -47,6 +47,7 @@ import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { validateProviderKey } from './providerKeyValidation';
+import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 /**
@@ -1087,10 +1088,12 @@ export function GroupsPane(props: {
   const insets = useSafeAreaInsets();
   const activeTheme = useActiveTheme();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
-  // Populated by the reserve-ship flow in useBootSequence for hosted-bot
-  // signups. Only used on the bot-enabled branch below — standard onboarding
-  // renders without this button.
-  const homeGroupInviteLink = db.homeGroupInviteLink.useValue();
+  const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
+    useHomeGroupInviteLink({
+      enabled: !!props.hostingBotEnabled,
+    });
+  const groupInviteIsLoading = homeGroupInviteState === 'loading';
+  const groupInviteIsReady = homeGroupInviteState === 'ready';
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       {props.hostingBotEnabled ? (
@@ -1161,11 +1164,23 @@ export function GroupsPane(props: {
       <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
         {props.hostingBotEnabled ? (
           <Button
-            onPress={() => shareTlonbotGroupInvite(homeGroupInviteLink ?? '')}
-            label="Share invite link"
+            onPress={
+              groupInviteIsReady && homeGroupInviteUrl
+                ? () => shareTlonbotGroupInvite(homeGroupInviteUrl)
+                : undefined
+            }
+            label={
+              groupInviteIsReady
+                ? 'Share invite link'
+                : groupInviteIsLoading
+                  ? 'Preparing invite link'
+                  : 'Invite link unavailable'
+            }
             intent="positive"
             size="large"
-            leadingIcon="Link"
+            leadingIcon={groupInviteIsLoading ? undefined : 'Link'}
+            loading={groupInviteIsLoading}
+            disabled={!groupInviteIsReady}
             glow
           />
         ) : null}
