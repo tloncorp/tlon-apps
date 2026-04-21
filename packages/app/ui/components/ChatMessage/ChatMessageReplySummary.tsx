@@ -119,7 +119,7 @@ function AvatarPreviewStack({ contactIds }: { contactIds: string[] }) {
   return (
     <XStack alignItems="center">
       {contactIds?.map((c, i) => (
-        <AvatarPreviewFrame key={c} isLast={i === contactIds.length - 1}>
+        <AvatarPreviewFrame key={i} isLast={i === contactIds.length - 1}>
           <ContactAvatar contactId={c} size="$xl" />
         </AvatarPreviewFrame>
       ))}
