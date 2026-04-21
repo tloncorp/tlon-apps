@@ -792,18 +792,23 @@ export async function forwardGroupReference(page: Page, channelName: string) {
 
   // Verify forward sheet opened
   await expect(page.getByText('Forward group')).toBeVisible();
+  const forwardDialog = page.getByRole('dialog').filter({
+    hasText: 'Forward group',
+  });
 
   // Search for the channel
-  await page.getByPlaceholder('Search channels').fill(channelName);
+  await forwardDialog.getByPlaceholder('Search channels').fill(channelName);
   await page.waitForTimeout(2000);
 
   // Click on the channel in the modal (not the sidebar)
-  const channelRow = page.getByTestId(`ChannelListItem-${channelName}`);
+  const channelRow = forwardDialog.getByTestId(
+    `ChannelListItem-${channelName}`
+  );
   await expect(channelRow).toBeVisible({ timeout: 5000 });
   await channelRow.click();
 
   // Wait for the confirm button to appear and become clickable
-  const confirmButton = page.getByText(`Forward to ${channelName}`);
+  const confirmButton = forwardDialog.getByText(`Forward to ${channelName}`);
   await expect(confirmButton).toBeVisible({ timeout: 5000 });
   await confirmButton.click();
 
