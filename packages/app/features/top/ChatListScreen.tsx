@@ -66,20 +66,7 @@ export function ChatListScreenView({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
-  const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
-  const theme = useTheme();
-  const inviteButtonColor = useMemo(
-    () =>
-      (viewedPersonalInvite
-        ? theme?.primaryText?.val
-        : theme?.positiveActionText?.val) as ColorTokens,
-    [
-      theme?.positiveActionText?.val,
-      theme?.primaryText?.val,
-      viewedPersonalInvite,
-    ]
-  );
 
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -314,7 +301,6 @@ export function ChatListScreenView({
                 personalInvite ? (
                   <ScreenHeader.IconButton
                     type="AddPerson"
-                    color={inviteButtonColor}
                     onPress={handlePersonalInvitePress}
                   />
                 ) : undefined
@@ -331,10 +317,16 @@ export function ChatListScreenView({
                         type="Add"
                         onPress={handlePressAddChat}
                         testID="CreateChatSheetTrigger"
-                        backgroundColor="$positiveActionText"
-                        color="$white"
-                        borderRadius="$6xl"
-                        customSize={['$2xl', '$xl']}
+                        color={
+                          isWindowNarrow && showHomeAddTooltip
+                            ? '$positiveActionText'
+                            : '$primaryText'
+                        }
+                        backgroundColor={
+                          isWindowNarrow && showHomeAddTooltip
+                            ? '$positiveBackground'
+                            : 'transparent'
+                        }
                       />
                       {isWindowNarrow && showHomeAddTooltip && (
                         <WayfindingNotice.HomeAddTooltip />
