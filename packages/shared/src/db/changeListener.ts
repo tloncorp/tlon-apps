@@ -46,9 +46,11 @@ export function handleChange({
     postEvents[row.channel_id].push(row.id);
   }
   // Reactions, thread unreads, and thread-scoped volume settings all feed
-  // data that's joined into ['post', id] queries. Use invalidateQueries (not
-  // refetch) so only queries with observers actually refetch — the rest just
-  // get marked stale for next mount.
+  // data that's joined into ['post', id] queries. invalidateQueries uses
+  // prefix matching, so ['post', id] also covers usePostReference's
+  // ['post', id, 'reference'] entries. Use invalidateQueries (not refetch)
+  // so only queries with observers actually refetch — the rest just get
+  // marked stale for next mount.
   if (table === 'post_reactions' && row) {
     logger.log('handleChange, Received post reaction change:', row);
     queryClient.invalidateQueries({

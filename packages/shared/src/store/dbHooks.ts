@@ -501,9 +501,15 @@ export const usePostReference = ({
   replyId?: string;
   enabled?: boolean;
 }) => {
-  const deps = useKeyFromQueryDeps(db.getPostWithRelations, postId);
   const postQuery = useQuery({
-    queryKey: [['postReference', postId], deps],
+    // Share the ['post', id] prefix with usePostWithRelations /
+    // usePostWithThreadUnreads so changeListener's per-post invalidations
+    // (keyed on ['post', id]) partial-match references via React Query's
+    // prefix semantics. The 'reference' suffix keeps this a distinct cache
+    // entry from the plain per-post hooks, since the queryFn has a
+    // syncPostReference fallback that the others don't.
+    queryKey: ['post', postId, 'reference'],
+    gcTime: PER_POST_GC_TIME_MS,
     enabled: enabled && !!postId,
     queryFn: async () => {
       if (!postId) {
