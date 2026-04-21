@@ -36,8 +36,7 @@ import {
 import { useActiveTheme } from '../../../provider';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { AvatarPicker } from '../AvatarPicker';
-import { Field, TextInput } from '../Form';
+import { Field, ImageInput, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -51,7 +50,8 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Splash sequence panes.
  *
  * Bot-enabled flow:
- *   Welcome → TlonBot → BotName → BotProvider → BotModel → Group → Invite
+ *   Welcome → TlonBot → BotName → BotAvatar → BotProvider → BotModel → Group
+ *     → Invite
  *
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
@@ -63,6 +63,7 @@ enum SplashPane {
   Privacy = 'Privacy',
   TlonBot = 'TlonBot',
   BotName = 'BotName',
+  BotAvatar = 'BotAvatar',
   BotProvider = 'BotProvider',
   BotModel = 'BotModel',
   Invite = 'Invite',
@@ -302,9 +303,14 @@ function SplashSequenceComponent(props: {
       {currentPane === SplashPane.BotName && (
         <BotNamePane
           name={botName}
-          avatarUrl={avatarDirty ? botAvatarUrl : null}
           userNickname={userNickname}
           onNameChange={setBotName}
+          onActionPress={() => setCurrentPane(SplashPane.BotAvatar)}
+        />
+      )}
+      {currentPane === SplashPane.BotAvatar && (
+        <BotAvatarPane
+          avatarUrl={avatarDirty ? botAvatarUrl : null}
           onAvatarUrlChange={handleAvatarUrlChange}
           onActionPress={() => setCurrentPane(SplashPane.BotProvider)}
         />
@@ -524,68 +530,127 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
 
 export function BotNamePane(props: {
   name: string;
-  avatarUrl?: string | null;
   userNickname?: string | null;
   onNameChange: (name: string) => void;
-  onAvatarUrlChange: (url: string | null) => void;
   onActionPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const placeholder = props.userNickname
     ? `${props.userNickname}'s Tlonbot`
     : 'Give your bot a name';
+  // Nickname step is required — fall back to the placeholder if the user
+  // wipes the field so they can't advance with an empty string.
+  const effectiveName = props.name.trim() || placeholder;
+  const canProceed = effectiveName.length > 0;
+
+  const handlePress = () => {
+    if (!props.name.trim()) {
+      props.onNameChange(placeholder);
+    }
+    props.onActionPress();
+  };
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-        <SplashTitle>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          paddingHorizontal: getTokenValue('$xl', 'size'),
+          gap: getTokenValue('$2xl', 'size'),
+        }}
+      >
+        <SplashTitle marginHorizontal={0}>
           Name your <Text color="$positiveActionText">bot.</Text>
         </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
-          }}
-        >
-          <SplashParagraph marginHorizontal={0} marginBottom="$xl">
-            Pick a name and avatar for your Tlonbot.
-          </SplashParagraph>
-
-          <Field label="Name" marginBottom="$xl">
-            <TextInput
-              value={props.name}
-              onChangeText={props.onNameChange}
-              placeholder={placeholder}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-            />
-          </Field>
-
-          <SplashParagraph
-            marginHorizontal={0}
-            marginBottom="$s"
-            color="$tertiaryText"
-          >
-            Choose an avatar
-          </SplashParagraph>
-          <AvatarPicker
-            value={props.avatarUrl ?? null}
-            onSelect={props.onAvatarUrlChange}
+        <SplashParagraph marginHorizontal={0} marginBottom={0}>
+          Pick a name for your Tlonbot.
+        </SplashParagraph>
+        <Field label="Name">
+          <TextInput
+            value={props.name}
+            onChangeText={props.onNameChange}
+            placeholder={placeholder}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
           />
-        </ScrollView>
-      </YStack>
+        </Field>
+      </ScrollView>
       <Button
-        onPress={props.onActionPress}
+        onPress={handlePress}
         label="Next"
         preset="hero"
         shadow
+        disabled={!canProceed}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
+    </View>
+  );
+}
+
+export function BotAvatarPane(props: {
+  avatarUrl?: string | null;
+  onAvatarUrlChange: (url: string | null) => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  const handleImageChange = useCallback(
+    (value?: string) => {
+      props.onAvatarUrlChange(value ?? null);
+    },
+    [props]
+  );
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          paddingHorizontal: getTokenValue('$xl', 'size'),
+          gap: getTokenValue('$2xl', 'size'),
+        }}
+      >
+        <SplashTitle marginHorizontal={0}>
+          Choose an <Text color="$positiveActionText">avatar.</Text>
+        </SplashTitle>
+        <SplashParagraph marginHorizontal={0} marginBottom={0}>
+          Pick an avatar for your Tlonbot, or skip and add one later.
+        </SplashParagraph>
+        <Field label="Avatar">
+          <ImageInput
+            value={props.avatarUrl ?? undefined}
+            onChange={handleImageChange}
+            buttonLabel="Upload image"
+          />
+        </Field>
+      </ScrollView>
+      <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
+        {props.avatarUrl ? (
+          <Button
+            onPress={props.onActionPress}
+            label="Next"
+            preset="hero"
+            shadow
+          />
+        ) : null}
+        <Button
+          onPress={props.onActionPress}
+          label="Skip"
+          preset="secondary"
+          fill="text"
+        />
+      </YStack>
     </View>
   );
 }
