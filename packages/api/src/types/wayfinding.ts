@@ -17,6 +17,7 @@ export interface WayfindingProgress {
   viewedChatChannel: boolean;
   viewedCollectionChannel: boolean;
   viewedNotebookChannel: boolean;
+  tappedHomeAdd: boolean;
   tappedAddNote: boolean;
   tappedAddCollection: boolean;
   tappedChatInput: boolean;

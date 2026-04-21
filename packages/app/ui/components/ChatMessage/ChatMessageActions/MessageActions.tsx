@@ -17,8 +17,17 @@ import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
+import {
+  DraftInputContext,
+  useDraftInputContext,
+} from '../../draftInputs/shared';
 
 const ENABLE_COPY_JSON = __DEV__;
+
+type DraftTextTarget = Pick<
+  DraftInputContext,
+  'getDraft' | 'startDraft' | 'storeDraft'
+>;
 
 export default function MessageActions({
   dismiss,
@@ -79,6 +88,7 @@ const ConnectedAction = memo(function ConnectedAction({
   const connectionStatus = store.useConnectionStatus();
   const channel = useChannelContext();
   const { addAttachment } = useAttachmentContext();
+  const draftInputContext = useDraftInputContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
   const showToast = useToast();
@@ -130,6 +140,10 @@ const ConnectedAction = memo(function ConnectedAction({
       case 'unpinPost':
         // only show for admins on the currently pinned post
         return currentUserIsAdmin && pinnedPostId === post.id;
+      case 'quote':
+        // Quote needs the active composer surface. Search/detail surfaces can
+        // render actions without one, so hide Quote there.
+        return !!draftInputContext?.canStartDraft;
       default:
         return true;
     }
@@ -147,6 +161,7 @@ const ConnectedAction = memo(function ConnectedAction({
     channel.type,
     pinnedPostId,
     currentUserIsAdmin,
+    draftInputContext,
   ]);
 
   useRenderCount(`MessageAction-${actionId}`);
@@ -171,6 +186,13 @@ const ConnectedAction = memo(function ConnectedAction({
           onForward: forwardPost,
           onViewReactions,
           addAttachment,
+          draftTextTarget: draftInputContext
+            ? {
+                getDraft: draftInputContext.getDraft,
+                startDraft: draftInputContext.startDraft,
+                storeDraft: draftInputContext.storeDraft,
+              }
+            : null,
           showToast,
         };
         if (actionId === 'delete') {
@@ -237,6 +259,7 @@ export async function handleAction({
   onViewReactions,
   onForward,
   addAttachment,
+  draftTextTarget,
   showToast,
 }: {
   id: ChannelAction.Id;
@@ -250,6 +273,7 @@ export async function handleAction({
   onForward?: (post: db.Post) => void;
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
+  draftTextTarget?: DraftTextTarget | null;
   showToast?: (options: { message: string; duration?: number }) => void;
 }) {
   const [path, reference] = logic.postToContentReference(post);
@@ -275,8 +299,7 @@ export async function handleAction({
         (channel.type === 'dm' || channel.type === 'groupDm') &&
         post.textContent
       ) {
-        // For DMs, insert text as markdown quote
-        addAttachment({ type: 'text', text: `> ${post.textContent}\n` });
+        await prependTextToDraft(draftTextTarget, `> ${post.textContent}\n`);
       } else {
         // For other channel types, use reference attachment
         addAttachment({ type: 'reference', reference, path });
@@ -322,6 +345,33 @@ export async function handleAction({
 
   triggerHaptic('success');
   dismiss();
+}
+
+async function prependTextToDraft(
+  ctx: DraftTextTarget | null | undefined,
+  text: string
+) {
+  // DM quote actions should be rendered with the active draft text target.
+  // Missing target means the provider wiring is wrong, not that we should fall back to refs.
+  if (!ctx) {
+    throw new Error('Cannot quote DM text without a draft input context');
+  }
+
+  const draft = await ctx.getDraft();
+  const { text: existing, mentions } = draft
+    ? logic.contentToTextAndMentions(draft)
+    : { text: '', mentions: [] };
+  await ctx.storeDraft(
+    logic.textAndMentionsToContent(
+      text + existing,
+      mentions.map((m) => ({
+        ...m,
+        start: m.start + text.length,
+        end: m.end + text.length,
+      }))
+    )
+  );
+  ctx.startDraft?.();
 }
 
 /**

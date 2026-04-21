@@ -678,6 +678,11 @@ export const useShowChatInputWayfinding = (channelId: string) => {
   return isCorrectChan && !wayfindingProgress.tappedChatInput;
 };
 
+export const useShowHomeAddTooltip = () => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  return wayfindingProgress.tappedHomeAdd === false;
+};
+
 export const useShowCollectionAddTooltip = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
   const isCorrectChan = useMemo(() => {

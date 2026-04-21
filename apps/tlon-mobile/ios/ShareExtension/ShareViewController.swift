@@ -4,6 +4,7 @@
  * inspired by :
  *  - https://ajith-ab.github.io/react-native-receive-sharing-intent/docs/ios#create-share-extension
  */
+import ImageIO
 import MobileCoreServices
 import Photos
 import Social
@@ -173,6 +174,20 @@ class ShareViewController: UIViewController {
             url = dataURL
           } else if let imageData = item as? UIImage {
             url = self.saveScreenshot(imageData)
+          } else if let imageData = item as? Data {
+            guard let imageExtension = self.getImageDataExtension(imageData) else {
+              NSLog("[ERROR] Cannot identify image data type !\(String(describing: item))")
+              self.dismissWithError(message: "Could not read shared image")
+              return
+            }
+
+            url = self.saveImageData(imageData, fileExtension: imageExtension)
+          }
+
+          guard url != nil else {
+            NSLog("[ERROR] Cannot load image URL content !\(String(describing: item))")
+            self.dismissWithError(message: "Cannot load image URL content")
+            return
           }
 
           var pixelWidth: Int? = nil
@@ -246,6 +261,35 @@ class ShareViewController: UIViewController {
       screenshotURL = screenshotPath
     }
     return screenshotURL
+  }
+
+  private func getImageDataExtension(_ data: Data) -> String? {
+    guard let imageSource = CGImageSourceCreateWithData(data as CFData, nil),
+      CGImageSourceGetCount(imageSource) > 0,
+      let imageType = CGImageSourceGetType(imageSource),
+      let imageExtension = UTType(imageType as String)?.preferredFilenameExtension
+    else {
+      return nil
+    }
+
+    return imageExtension
+  }
+
+  private func saveImageData(_ data: Data, fileExtension: String) -> URL? {
+    guard
+      let imagePath = documentDirectoryPath()?.appendingPathComponent(
+        "\(UUID().uuidString).\(fileExtension)")
+    else {
+      return nil
+    }
+
+    do {
+      try data.write(to: imagePath)
+      return imagePath
+    } catch {
+      NSLog("Cannot save image data: \(error)")
+      return nil
+    }
   }
 
   private func handleVideos(content: NSExtensionItem, attachment: NSItemProvider, index: Int) async
