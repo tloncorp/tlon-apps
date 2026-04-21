@@ -21,7 +21,9 @@ describe('live provider key validation', () => {
   test.skipIf(!OPENROUTER_LIVE_KEY)(
     'openrouter: key returns a non-empty model list',
     async () => {
-      expect(validateProviderKey('openrouter', OPENROUTER_LIVE_KEY!)).toBeNull();
+      expect(
+        validateProviderKey('openrouter', OPENROUTER_LIVE_KEY!)
+      ).toBeNull();
 
       const response = await fetch('https://openrouter.ai/api/v1/models', {
         headers: { Authorization: `Bearer ${OPENROUTER_LIVE_KEY}` },

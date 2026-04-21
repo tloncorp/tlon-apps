@@ -295,7 +295,6 @@ export const GroupChannelsScreenView = React.memo(
             group && isGroupAdmin ? (
               <ScreenHeader.IconButton
                 type="EditList"
-                color="$positiveActionText"
                 onPress={() => onPressManageChannels(group.id, false)}
                 disabled={!canEdit}
                 aria-label="Edit channels"

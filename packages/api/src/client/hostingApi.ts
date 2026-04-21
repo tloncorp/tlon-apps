@@ -324,71 +324,78 @@ export async function getTlawnProviderModels(
 
 // --- Tlawn (bot) ship-level endpoints ---
 
-export async function getTlawnBotInfo(
-  ship: string
-): Promise<TlawnBotInfo> {
+export async function getTlawnBotInfo(ship: string): Promise<TlawnBotInfo> {
   return hostingFetch<TlawnBotInfo>(`/v1/tlawn/ships/${ship}`);
 }
 
-export async function getTlawnNickname(
-  ship: string
+// These endpoints return `string | null` (not an object) so they can't go
+// through `hostingFetch<T extends object>`. We hit `rawHostingFetch` directly
+// and do the ok/parse bookkeeping here — crucially, throwing a HostingError
+// on 4xx/5xx so callers can surface the failure instead of treating a rejected
+// write as a successful null response.
+async function fetchNullableString(
+  path: string,
+  init?: RequestInit
 ): Promise<string | null> {
-  const result = await rawHostingFetch(`/v1/tlawn/ships/${ship}/nickname`);
-  const text = await result.text();
+  const response = await rawHostingFetch(path, init);
+  const text = await response.text();
+  let parsed: unknown = null;
   try {
-    return JSON.parse(text) as string | null;
+    parsed = text.length === 0 ? null : JSON.parse(text);
   } catch {
-    return null;
+    parsed = null;
   }
+
+  if (!response.ok) {
+    const message =
+      parsed && typeof parsed === 'object' && 'message' in parsed
+        ? String((parsed as { message: unknown }).message)
+        : 'An unknown error has occurred.';
+    const err = new HostingError(message, {
+      method: init?.method ?? 'GET',
+      path,
+      status: response.status,
+    });
+    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
+      details: err.details,
+      errorMessage: err.message,
+      errorStack: err.stack,
+    });
+    throw err;
+  }
+
+  return typeof parsed === 'string' ? parsed : null;
+}
+
+export async function getTlawnNickname(ship: string): Promise<string | null> {
+  return fetchNullableString(`/v1/tlawn/ships/${ship}/nickname`);
 }
 
 export async function setTlawnNickname(
   ship: string,
   nickname: string
 ): Promise<string | null> {
-  const result = await rawHostingFetch(
+  return fetchNullableString(
     `/v1/tlawn/ships/${ship}/nickname`,
     jsonInit('PUT', { nickname })
   );
-  const text = await result.text();
-  try {
-    return JSON.parse(text) as string | null;
-  } catch {
-    return null;
-  }
 }
 
-export async function getTlawnAvatar(
-  ship: string
-): Promise<string | null> {
-  const result = await rawHostingFetch(`/v1/tlawn/ships/${ship}/avatar`);
-  const text = await result.text();
-  try {
-    return JSON.parse(text) as string | null;
-  } catch {
-    return null;
-  }
+export async function getTlawnAvatar(ship: string): Promise<string | null> {
+  return fetchNullableString(`/v1/tlawn/ships/${ship}/avatar`);
 }
 
 export async function setTlawnAvatar(
   ship: string,
   url: string
 ): Promise<string | null> {
-  const result = await rawHostingFetch(
+  return fetchNullableString(
     `/v1/tlawn/ships/${ship}/avatar`,
     jsonInit('PUT', { url })
   );
-  const text = await result.text();
-  try {
-    return JSON.parse(text) as string | null;
-  } catch {
-    return null;
-  }
 }
 
-export async function getTlawnConfig(
-  ship: string
-): Promise<TlawnConfig> {
+export async function getTlawnConfig(ship: string): Promise<TlawnConfig> {
   return hostingFetch<TlawnConfig>(`/v1/tlawn/ships/${ship}/config`);
 }
 
@@ -413,6 +420,28 @@ export async function isBotRunning(ship: string): Promise<boolean> {
     `/v1/tlawn/ships/${ship}/running`
   );
   return result.running;
+}
+
+// Poll `isBotRunning` until the bot reports as running or the timeout elapses.
+// Transient errors (the gateway going down during restart) are swallowed so
+// we keep polling. Returns true if running, false on timeout.
+export async function awaitBotRunning(
+  ship: string,
+  {
+    timeoutMs = 30_000,
+    pollIntervalMs = 1500,
+  }: { timeoutMs?: number; pollIntervalMs?: number } = {}
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      if (await isBotRunning(ship)) return true;
+    } catch {
+      // transient — gateway likely restarting
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+  return false;
 }
 
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';

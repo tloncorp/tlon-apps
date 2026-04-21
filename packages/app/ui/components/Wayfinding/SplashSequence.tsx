@@ -7,6 +7,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
+import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -34,10 +35,10 @@ import {
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
+import { AttachmentProvider } from '../../contexts/attachment';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { AvatarPicker } from '../AvatarPicker';
-import { Field, TextInput } from '../Form';
+import { Field, ImageInput, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -51,7 +52,8 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Splash sequence panes.
  *
  * Bot-enabled flow:
- *   Welcome → TlonBot → BotName → BotProvider → BotModel → Group → Invite
+ *   Welcome → TlonBot → BotName → BotAvatar → BotProvider → BotModel → Group
+ *     → Invite
  *
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
@@ -63,6 +65,7 @@ enum SplashPane {
   Privacy = 'Privacy',
   TlonBot = 'TlonBot',
   BotName = 'BotName',
+  BotAvatar = 'BotAvatar',
   BotProvider = 'BotProvider',
   BotModel = 'BotModel',
   Invite = 'Invite',
@@ -74,6 +77,7 @@ function SplashSequenceComponent(props: {
   hostingBotEnabled?: boolean;
 }) {
   const store = useStore();
+  const canUpload = useCanUpload();
   const [currentPane, setCurrentPane] = React.useState(SplashPane.Welcome);
   const { hostingBotEnabled } = props;
   const [botName, setBotName] = React.useState(DEFAULT_BOT_CONFIG.name);
@@ -186,12 +190,13 @@ function SplashSequenceComponent(props: {
   }, []);
 
   // Save nickname and avatar; basic is the user's default so no primary-model
-  // poke is needed there.
+  // poke is needed there. Throws on any failure so callers can keep the user
+  // on the current pane and surface the error.
   const saveNicknameAndAvatar = useCallback(async () => {
     const shipId = await db.hostedUserNodeId.getValue();
     if (!shipId) return;
     const name = botName || 'Tlonbot';
-    await Promise.allSettled([
+    await Promise.all([
       api.setTlawnNickname(shipId, name),
       avatarDirty && botAvatarUrl
         ? api.setTlawnAvatar(shipId, botAvatarUrl)
@@ -207,35 +212,50 @@ function SplashSequenceComponent(props: {
   const handleValidateProvider = useCallback(async () => {
     setSavingConfig(true);
     setConfigError(null);
-    try {
-      const userId = await db.hostingUserId.getValue();
-      if (!userId) return;
+    const userId = await db.hostingUserId.getValue();
+    if (!userId) {
+      setSavingConfig(false);
+      return;
+    }
 
-      const provider = botModel || BASIC_PROVIDER_ID;
-      const selected = providerOptions.find((p) => p.provider === provider);
+    const provider = botModel || BASIC_PROVIDER_ID;
+    const selected = providerOptions.find((p) => p.provider === provider);
 
-      if (provider === BASIC_PROVIDER_ID) {
+    if (provider === BASIC_PROVIDER_ID) {
+      try {
         await saveNicknameAndAvatar();
+      } catch (e) {
+        console.error('Failed to save bot config during onboarding:', e);
+        setConfigError(
+          e instanceof Error && e.message
+            ? e.message
+            : 'Could not save bot configuration. Please try again.'
+        );
         setSavingConfig(false);
-        setDidConfigureBot(true);
-        setCurrentPane(SplashPane.Group);
         return;
       }
+      setSavingConfig(false);
+      setDidConfigureBot(true);
+      setCurrentPane(SplashPane.Group);
+      return;
+    }
 
+    if (selected?.requiresKey) {
+      const keyError = validateProviderKey(provider, botApiKey);
+      if (keyError) {
+        setConfigError(keyError);
+        setSavingConfig(false);
+        return;
+      }
+    }
+
+    try {
       if (selected?.requiresKey) {
-        const keyError = validateProviderKey(provider, botApiKey);
-        if (keyError) {
-          setConfigError(keyError);
-          setSavingConfig(false);
-          return;
-        }
         await api.setTlawnProviderKey(userId, provider, botApiKey);
       }
-
       const result = await api.getTlawnProviderModels(userId, provider);
       setProviderModels(result.data);
       setBotPrimaryModel(result.data[0]?.id ?? `${provider}/auto`);
-
       setSavingConfig(false);
       setCurrentPane(SplashPane.BotModel);
     } catch (e) {
@@ -253,21 +273,35 @@ function SplashSequenceComponent(props: {
     setConfigError(null);
     try {
       const userId = await db.hostingUserId.getValue();
-      if (!userId) return;
+      const shipId = await db.hostedUserNodeId.getValue();
+      if (!userId || !shipId) return;
 
       const provider = botModel || BASIC_PROVIDER_ID;
       const model = botPrimaryModel || `${provider}/auto`;
 
-      await Promise.allSettled([
+      // Use Promise.all so any rejection aborts the save and keeps the user
+      // on this pane — otherwise a failed primary-model update would silently
+      // advance them with an unconfigured bot.
+      await Promise.all([
         saveNicknameAndAvatar(),
         api.setTlawnPrimaryModel(userId, { provider, model }),
       ]);
+
+      // Changing the primary model restarts the bot's gateway. Wait for it
+      // to come back up before advancing so the user doesn't land on the
+      // next screen with a dead bot. Non-blocking failure: advance anyway.
+      await api.awaitBotRunning(shipId);
 
       setSavingConfig(false);
       setDidConfigureBot(true);
       setCurrentPane(SplashPane.Group);
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
+      setConfigError(
+        e instanceof Error && e.message
+          ? e.message
+          : 'Could not save bot configuration. Please try again.'
+      );
       setSavingConfig(false);
     }
   }, [botModel, botPrimaryModel, saveNicknameAndAvatar]);
@@ -278,88 +312,97 @@ function SplashSequenceComponent(props: {
   }, [props, store]);
 
   return (
-    <View flex={1}>
-      {currentPane === SplashPane.Welcome && (
-        <WelcomePane
-          onActionPress={() =>
-            setCurrentPane(
-              hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group
-            )
-          }
-          hostingBotEnabled={hostingBotEnabled}
-        />
-      )}
+    <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
+      <View flex={1}>
+        {currentPane === SplashPane.Welcome && (
+          <WelcomePane
+            onActionPress={() =>
+              setCurrentPane(
+                hostingBotEnabled ? SplashPane.TlonBot : SplashPane.Group
+              )
+            }
+            hostingBotEnabled={hostingBotEnabled}
+          />
+        )}
 
-      {currentPane === SplashPane.TlonBot && (
-        <TlonBotPane
-          onActionPress={() => setCurrentPane(SplashPane.BotName)}
-          onSkip={() => setCurrentPane(SplashPane.Group)}
-        />
-      )}
-      {currentPane === SplashPane.BotName && (
-        <BotNamePane
-          name={botName}
-          avatarUrl={avatarDirty ? botAvatarUrl : null}
-          userNickname={userNickname}
-          onNameChange={setBotName}
-          onAvatarUrlChange={handleAvatarUrlChange}
-          onActionPress={() => setCurrentPane(SplashPane.BotProvider)}
-        />
-      )}
-      {currentPane === SplashPane.BotProvider && (
-        <BotProviderPane
-          model={botModel}
-          apiKey={botApiKey}
-          providers={providerOptions}
-          loading={savingConfig}
-          error={configError}
-          onModelChange={setBotModel}
-          onApiKeyChange={setBotApiKey}
-          onActionPress={handleValidateProvider}
-        />
-      )}
-      {currentPane === SplashPane.BotModel && (
-        <BotModelPane
-          models={providerModels}
-          selectedModel={botPrimaryModel}
-          loading={savingConfig}
-          onSelectModel={setBotPrimaryModel}
-          onActionPress={handleSaveBotConfig}
-        />
-      )}
+        {currentPane === SplashPane.TlonBot && (
+          <TlonBotPane
+            onActionPress={() => setCurrentPane(SplashPane.BotName)}
+          />
+        )}
+        {currentPane === SplashPane.BotName && (
+          <BotNamePane
+            name={botName}
+            userNickname={userNickname}
+            onNameChange={setBotName}
+            onActionPress={() => setCurrentPane(SplashPane.BotAvatar)}
+          />
+        )}
+        {currentPane === SplashPane.BotAvatar && (
+          <BotAvatarPane
+            avatarUrl={avatarDirty ? botAvatarUrl : null}
+            onAvatarUrlChange={handleAvatarUrlChange}
+            onActionPress={() => setCurrentPane(SplashPane.BotProvider)}
+          />
+        )}
+        {currentPane === SplashPane.BotProvider && (
+          <BotProviderPane
+            model={botModel}
+            apiKey={botApiKey}
+            providers={providerOptions}
+            loading={savingConfig}
+            error={configError}
+            onModelChange={setBotModel}
+            onApiKeyChange={setBotApiKey}
+            onActionPress={handleValidateProvider}
+          />
+        )}
+        {currentPane === SplashPane.BotModel && (
+          <BotModelPane
+            models={providerModels}
+            selectedModel={botPrimaryModel}
+            loading={savingConfig}
+            error={configError}
+            onSelectModel={setBotPrimaryModel}
+            onActionPress={handleSaveBotConfig}
+          />
+        )}
 
-      {currentPane === SplashPane.Group && (
-        <GroupsPane
-          onActionPress={() =>
-            setCurrentPane(
-              hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
-            )
-          }
-          hostingBotEnabled={hostingBotEnabled}
-          botName={botName || 'Tlonbot'}
-          didConfigureBot={didConfigureBot}
-          userShipId={userShipId}
-          botShipId={botShipId}
-        />
-      )}
+        {currentPane === SplashPane.Group && (
+          <GroupsPane
+            onActionPress={() =>
+              setCurrentPane(
+                hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
+              )
+            }
+            hostingBotEnabled={hostingBotEnabled}
+            botName={botName || 'Tlonbot'}
+            didConfigureBot={didConfigureBot}
+            userShipId={userShipId}
+            botShipId={botShipId}
+          />
+        )}
 
-      {currentPane === SplashPane.Channels && (
-        <ChannelsPane
-          onActionPress={() => setCurrentPane(SplashPane.Privacy)}
-          hostingBotEnabled={hostingBotEnabled}
-        />
-      )}
-      {currentPane === SplashPane.Privacy && (
-        <PrivacyPane onActionPress={() => setCurrentPane(SplashPane.Invite)} />
-      )}
+        {currentPane === SplashPane.Channels && (
+          <ChannelsPane
+            onActionPress={() => setCurrentPane(SplashPane.Privacy)}
+            hostingBotEnabled={hostingBotEnabled}
+          />
+        )}
+        {currentPane === SplashPane.Privacy && (
+          <PrivacyPane
+            onActionPress={() => setCurrentPane(SplashPane.Invite)}
+          />
+        )}
 
-      {currentPane === SplashPane.Invite && (
-        <InvitePane
-          onActionPress={handleSplashCompleted}
-          inviteSystemContacts={props.inviteSystemContacts}
-        />
-      )}
-    </View>
+        {currentPane === SplashPane.Invite && (
+          <InvitePane
+            onActionPress={handleSplashCompleted}
+            inviteSystemContacts={props.inviteSystemContacts}
+          />
+        )}
+      </View>
+    </AttachmentProvider>
   );
 }
 
@@ -443,8 +486,8 @@ export function WelcomePane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            Everything here is stored on your private server–only you can
-            access it.
+            Everything here is stored on your private server–only you can access
+            it.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
@@ -467,10 +510,7 @@ export function WelcomePane(props: {
   );
 }
 
-export function TlonBotPane(props: {
-  onActionPress: () => void;
-  onSkip?: () => void;
-}) {
+export function TlonBotPane(props: { onActionPress: () => void }) {
   const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
@@ -517,25 +557,6 @@ export function TlonBotPane(props: {
           preset="hero"
           shadow
         />
-        {props.onSkip && (
-          <>
-            <Button
-              onPress={props.onSkip}
-              testID="bot-skip"
-              label="Skip"
-              preset="secondary"
-              fill="text"
-            />
-            <Text
-              fontSize={12}
-              color="$tertiaryText"
-              textAlign="center"
-              marginBottom="$xs"
-            >
-              You can always configure your bot later in Settings.
-            </Text>
-          </>
-        )}
       </YStack>
     </View>
   );
@@ -543,68 +564,141 @@ export function TlonBotPane(props: {
 
 export function BotNamePane(props: {
   name: string;
-  avatarUrl?: string | null;
   userNickname?: string | null;
   onNameChange: (name: string) => void;
-  onAvatarUrlChange: (url: string | null) => void;
   onActionPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const placeholder = props.userNickname
+  // Real default we'd save if the user advances with an empty field.
+  // Without a nickname we can't personalize, so fall back to plain "Tlonbot".
+  const fallbackName = props.userNickname
     ? `${props.userNickname}'s Tlonbot`
+    : 'Tlonbot';
+  // When we have a personalized fallback, surface it as the placeholder so
+  // the user sees what they'll get. Otherwise show instructional text — we
+  // must not write that instructional text into state.
+  const placeholder = props.userNickname
+    ? fallbackName
     : 'Give your bot a name';
+
+  const handlePress = () => {
+    if (!props.name.trim()) {
+      props.onNameChange(fallbackName);
+    }
+    props.onActionPress();
+  };
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-        <SplashTitle>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          paddingHorizontal: getTokenValue('$xl', 'size'),
+          gap: getTokenValue('$2xl', 'size'),
+        }}
+      >
+        <SplashTitle marginHorizontal={0}>
           Name your <Text color="$positiveActionText">bot.</Text>
         </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
-          }}
-        >
-          <SplashParagraph marginHorizontal={0} marginBottom="$xl">
-            Pick a name and avatar for your Tlonbot.
-          </SplashParagraph>
-
-          <Field label="Name" marginBottom="$xl">
-            <TextInput
-              value={props.name}
-              onChangeText={props.onNameChange}
-              placeholder={placeholder}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="done"
-            />
-          </Field>
-
-          <SplashParagraph
-            marginHorizontal={0}
-            marginBottom="$s"
-            color="$tertiaryText"
-          >
-            Choose an avatar
-          </SplashParagraph>
-          <AvatarPicker
-            value={props.avatarUrl ?? null}
-            onSelect={props.onAvatarUrlChange}
+        <SplashParagraph marginHorizontal={0} marginBottom={0}>
+          Pick a name for your Tlonbot.
+        </SplashParagraph>
+        <Field label="Name">
+          <TextInput
+            value={props.name}
+            onChangeText={props.onNameChange}
+            placeholder={placeholder}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
           />
-        </ScrollView>
-      </YStack>
+        </Field>
+      </ScrollView>
       <Button
-        onPress={props.onActionPress}
+        onPress={handlePress}
         label="Next"
         preset="hero"
         shadow
         marginHorizontal="$xl"
         marginTop="$xl"
       />
+    </View>
+  );
+}
+
+export function BotAvatarPane(props: {
+  avatarUrl?: string | null;
+  onAvatarUrlChange: (url: string | null) => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+
+  const handleImageChange = useCallback(
+    (value?: string) => {
+      props.onAvatarUrlChange(value ?? null);
+    },
+    [props]
+  );
+
+  // `ImageInput` emits the local URI the moment the user picks an image,
+  // then swaps it for the remote CDN URL once upload finishes. Only the
+  // remote URL is safe to persist. Uses the same `file|data` check as
+  // `EditProfileScreenView` / `MetaEditorScreenView` so the convention
+  // stays consistent across the app.
+  const hasAvatar = !!props.avatarUrl;
+  const isUploading = hasAvatar && !/^(?!file|data).+/.test(props.avatarUrl!);
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          paddingHorizontal: getTokenValue('$xl', 'size'),
+          gap: getTokenValue('$2xl', 'size'),
+        }}
+      >
+        <SplashTitle marginHorizontal={0}>
+          Choose an <Text color="$positiveActionText">avatar.</Text>
+        </SplashTitle>
+        <SplashParagraph marginHorizontal={0} marginBottom={0}>
+          Pick an avatar for your Tlonbot, or skip and add one later.
+        </SplashParagraph>
+        <Field label="Avatar">
+          <ImageInput
+            value={props.avatarUrl ?? undefined}
+            onChange={handleImageChange}
+            buttonLabel="Upload image"
+          />
+        </Field>
+      </ScrollView>
+      <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
+        {hasAvatar ? (
+          <Button
+            onPress={props.onActionPress}
+            label={isUploading ? 'Uploading…' : 'Next'}
+            preset="hero"
+            shadow
+            loading={isUploading}
+            disabled={isUploading}
+          />
+        ) : null}
+        <Button
+          onPress={props.onActionPress}
+          label="Skip"
+          preset="secondary"
+          fill="text"
+          disabled={isUploading}
+        />
+      </YStack>
     </View>
   );
 }
@@ -703,11 +797,18 @@ export function BotModelPane(props: {
   models: api.TlawnProviderModel[];
   selectedModel: string;
   loading?: boolean;
+  error?: string | null;
   onSelectModel: (modelId: string) => void;
   onActionPress: () => void;
 }) {
-  const { models, selectedModel, loading, onSelectModel, onActionPress } =
-    props;
+  const {
+    models,
+    selectedModel,
+    loading,
+    error,
+    onSelectModel,
+    onActionPress,
+  } = props;
   const insets = useSafeAreaInsets();
 
   return (
@@ -736,11 +837,21 @@ export function BotModelPane(props: {
               onPress={() => onSelectModel(m.id)}
             />
           ))}
+          {error ? (
+            <Text
+              size="$label/m"
+              color="$negativeActionText"
+              paddingHorizontal="$xl"
+              paddingTop="$l"
+            >
+              {error}
+            </Text>
+          ) : null}
         </ScrollView>
       </YStack>
       <Button
         onPress={onActionPress}
-        label={loading ? 'Saving...' : 'Save'}
+        label={loading ? 'Starting bot…' : 'Save'}
         preset="hero"
         loading={loading}
         disabled={loading || !selectedModel}
@@ -791,15 +902,17 @@ export function GroupsPane(props: {
           />
         </ZStack>
       )}
-      <YStack flex={1} gap={'$2xl'} paddingTop="$xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           {props.hostingBotEnabled ? (
             <>
-              {props.didConfigureBot && props.botName
-                ? props.botName
-                : 'Your Tlonbot'}{' '}
-              works in groups{' '}
-              <Text color="$positiveActionText">with others.</Text>
+              Your group with{' '}
+              <Text color="$positiveActionText">
+                {props.didConfigureBot && props.botName
+                  ? props.botName
+                  : 'your Tlonbot'}
+              </Text>{' '}
+              is ready.
             </>
           ) : (
             <>
@@ -813,13 +926,19 @@ export function GroupsPane(props: {
           bounces={false}
         >
           {props.hostingBotEnabled ? (
-            <SplashParagraph marginBottom={0}>
-              {props.didConfigureBot ? props.botName : 'Your Tlonbot'} lives in
-              groups, reading messages and helping everyone. Groups last
-              forever on your server. Invite friends–
-              {props.didConfigureBot ? props.botName : 'your bot'} will be
-              there too.
-            </SplashParagraph>
+            <>
+              <SplashParagraph>
+                We made you a group on your server, and{' '}
+                {props.didConfigureBot ? props.botName : 'your Tlonbot'} is
+                already there.{' '}
+                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} loves
+                conversation, reading along with the group and chiming in to
+                help.
+              </SplashParagraph>
+              <SplashParagraph>
+                Share the link below to bring your friends in.
+              </SplashParagraph>
+            </>
           ) : (
             <SplashParagraph>
               A group lives on your private personal server. Family chats, work
@@ -831,14 +950,17 @@ export function GroupsPane(props: {
       <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
         <Button
           onPress={() =>
-            shareTlonbotGroupInvite(
-              homeGroupInviteLink ? homeGroupInviteLink : ''
-            )
+            homeGroupInviteLink && shareTlonbotGroupInvite(homeGroupInviteLink)
           }
-          label="Share invite with friends"
-          preset="hero"
-          leadingIcon="AddPerson"
-          shadow
+          label={
+            homeGroupInviteLink ? 'Share invite link' : 'Preparing invite link…'
+          }
+          intent="positive"
+          size="large"
+          leadingIcon={homeGroupInviteLink ? 'Link' : undefined}
+          loading={!homeGroupInviteLink}
+          disabled={!homeGroupInviteLink}
+          glow={!!homeGroupInviteLink}
         />
         <Button
           data-testid="got-it"

@@ -5,6 +5,7 @@ import { useValue } from 'react-cosmos/client';
 import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
+  BotAvatarPane,
   BotModelPane,
   BotNamePane,
   BotProviderPane,
@@ -160,7 +161,7 @@ function InvitePaneFixture() {
 
 function BotNamePaneFixture() {
   const [name, setName] = useValue('Bot Name', { defaultValue: '' });
-  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  const [userNickname] = useValue('User Nickname', { defaultValue: 'palbud' });
   const handleAction = React.useCallback(() => {
     console.log('BotName pane action pressed');
   }, []);
@@ -169,15 +170,30 @@ function BotNamePaneFixture() {
     <FixtureWrapper fillWidth fillHeight>
       <BotNamePane
         name={name}
-        avatarUrl={avatarUrl}
+        userNickname={userNickname}
         onNameChange={setName}
-        onAvatarUrlChange={setAvatarUrl}
         onActionPress={handleAction}
       />
     </FixtureWrapper>
   );
 }
 
+function BotAvatarPaneFixture() {
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  const handleAction = React.useCallback(() => {
+    console.log('BotAvatar pane action pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <BotAvatarPane
+        avatarUrl={avatarUrl}
+        onAvatarUrlChange={setAvatarUrl}
+        onActionPress={handleAction}
+      />
+    </FixtureWrapper>
+  );
+}
 
 function BotProviderPaneFixture() {
   const [model, setModel] = useValue('Provider', { defaultValue: 'basic' });
@@ -259,6 +275,7 @@ export default {
   'Privacy Pane': <PrivacyPaneFixture />,
   'TlonBot Pane': <TlonBotPaneFixture />,
   'Bot Name Pane': <BotNamePaneFixture />,
+  'Bot Avatar Pane': <BotAvatarPaneFixture />,
   'Bot Provider Pane': <BotProviderPaneFixture />,
   'Bot Model Pane': <BotModelPaneFixture />,
   'Bot Chat Preview': <BotChatPreviewFixture />,

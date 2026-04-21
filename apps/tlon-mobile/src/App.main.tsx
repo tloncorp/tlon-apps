@@ -11,9 +11,10 @@ import {
 } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
-import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
+import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
@@ -154,6 +155,17 @@ const App = () => {
     setForcedSplash(false);
     clearNeedsSplashSequence();
   }, [clearNeedsSplashSequence]);
+
+  // Splash renders instead of AuthenticatedApp, which is where the urbit
+  // client is normally configured. The splash's bot-avatar uploader hits
+  // storage code that reads the current user via the urbit client, so we
+  // configure it here too.
+  const configureClient = useConfigureUrbitClient();
+  useEffect(() => {
+    if (showSplashSequence) {
+      configureClient();
+    }
+  }, [showSplashSequence, configureClient]);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">

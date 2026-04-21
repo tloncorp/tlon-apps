@@ -20,8 +20,7 @@ export const MOCK_CONVERSATION: MockMessage[] = [
   },
   {
     sender: 'bot',
-    text:
-      "Patience — they're almost ready. When you see four true leaves, they'll have the strength to meet the wind. Harden them off first: an hour outside the first day, two the next.",
+    text: "Patience — they're almost ready. When you see four true leaves, they'll have the strength to meet the wind. Harden them off first: an hour outside the first day, two the next.",
   },
   {
     sender: 'friend',
@@ -29,8 +28,7 @@ export const MOCK_CONVERSATION: MockMessage[] = [
   },
   {
     sender: 'bot',
-    text:
-      'Tomatoes are fussier than broccoli — they want warm soil, 60°F and up. Give it another week or two, or cover the bed with black plastic to speed things up.',
+    text: 'Tomatoes are fussier than broccoli — they want warm soil, 60°F and up. Give it another week or two, or cover the bed with black plastic to speed things up.',
   },
   {
     sender: 'user',
@@ -42,7 +40,7 @@ export const MOCK_CONVERSATION: MockMessage[] = [
   },
   {
     sender: 'friend',
-    text: "thanks tlonbot 🙌",
+    text: 'thanks tlonbot 🙌',
   },
 ];
 

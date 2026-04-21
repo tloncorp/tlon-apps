@@ -31,7 +31,13 @@ export async function reserveNode(hostingUserId: string): Promise<{
 
   await db.hostedUserNodeId.setValue(nodeId);
 
-  return { id: nodeId, code, isReady, personalInviteToken, homeGroupInviteToken };
+  return {
+    id: nodeId,
+    code,
+    isReady,
+    personalInviteToken,
+    homeGroupInviteToken,
+  };
 }
 
 export async function checkNodeBooted(): Promise<boolean> {

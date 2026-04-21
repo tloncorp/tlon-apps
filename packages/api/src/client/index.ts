@@ -61,6 +61,7 @@ export {
   setTlawnConfig,
   reloadBot,
   isBotRunning,
+  awaitBotRunning,
 } from './hostingApi';
 export type {
   HostingHeartBeatCode,
