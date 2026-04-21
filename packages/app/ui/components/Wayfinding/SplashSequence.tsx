@@ -953,21 +953,12 @@ export function GroupsPane(props: {
       <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
         {props.hostingBotEnabled ? (
           <Button
-            onPress={() =>
-              homeGroupInviteLink &&
-              shareTlonbotGroupInvite(homeGroupInviteLink)
-            }
-            label={
-              homeGroupInviteLink
-                ? 'Share invite link'
-                : 'Preparing invite link…'
-            }
+            onPress={() => shareTlonbotGroupInvite(homeGroupInviteLink ?? '')}
+            label="Share invite link"
             intent="positive"
             size="large"
-            leadingIcon={homeGroupInviteLink ? 'Link' : undefined}
-            loading={!homeGroupInviteLink}
-            disabled={!homeGroupInviteLink}
-            glow={!!homeGroupInviteLink}
+            leadingIcon="Link"
+            glow
           />
         ) : null}
         <Button
