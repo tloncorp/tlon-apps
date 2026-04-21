@@ -16,6 +16,7 @@ export function ChatInput({
   const {
     channel,
     clearDraft,
+    draftInputRef,
     editingPost,
     getDraft,
     group,
@@ -33,6 +34,7 @@ export function ChatInput({
     <SafeAreaView edges={['right', 'left', 'bottom']}>
       <ParentAgnosticKeyboardAvoidingView>
         <BareChatInput
+          ref={draftInputRef}
           shouldBlur={shouldBlur}
           setShouldBlur={setShouldBlur}
           sendPostFromDraft={sendPostFromDraft}
