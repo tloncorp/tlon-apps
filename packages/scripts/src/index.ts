@@ -1,5 +1,5 @@
 import { parseContactUpdateEvent } from '@tloncorp/api/client/activityApi';
-import { getTextContent } from '@tloncorp/api/lib/postContent';
+import { getTextContent } from '@tloncorp/api/client/postContent';
 import type * as ub from '@tloncorp/api/urbit';
 import {
   ActivityIncomingEvent,
@@ -7,7 +7,7 @@ import {
   getSourceForEvent,
   sourceToString,
 } from '@tloncorp/api/urbit/activity';
-import { render, da } from '@urbit/aura';
+import { da, render } from '@urbit/aura';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
@@ -71,7 +71,10 @@ namespace PreviewContentNode {
   export function foreignGroupTitle(groupId: string): PreviewContentNode {
     return { type: 'foreignGroupTitle', groupId };
   }
-  export function roleTitle(groupId: string, roleId: string): PreviewContentNode {
+  export function roleTitle(
+    groupId: string,
+    roleId: string
+  ): PreviewContentNode {
     return { type: 'roleTitle', groupId, roleId };
   }
 }

@@ -29,7 +29,9 @@ function AnimatedLoadingHeaderFixture({
   showSubtitle?: boolean;
   withTitleIcon?: boolean;
 }) {
-  const [title] = useValue(`${fixtureName} Title`, { defaultValue: defaultTitle });
+  const [title] = useValue(`${fixtureName} Title`, {
+    defaultValue: defaultTitle,
+  });
   const [subtitle] = useValue(`${fixtureName} Subtitle`, {
     defaultValue: defaultSubtitle ?? 'Important announcements',
   });
@@ -52,10 +54,13 @@ function AnimatedLoadingHeaderFixture({
   const replay = useCallback(() => {
     clearReplayTimeout();
     setIsLoading(true);
-    timeoutRef.current = setTimeout(() => {
-      setIsLoading(false);
-      timeoutRef.current = null;
-    }, Number(holdForMs) || 1400);
+    timeoutRef.current = setTimeout(
+      () => {
+        setIsLoading(false);
+        timeoutRef.current = null;
+      },
+      Number(holdForMs) || 1400
+    );
   }, [clearReplayTimeout, holdForMs]);
 
   useEffect(() => {
@@ -68,16 +73,16 @@ function AnimatedLoadingHeaderFixture({
         title={title}
         subtitle={showSubtitle ? subtitle : undefined}
         showSubtitle={showSubtitle}
-        titleIcon={withTitleIcon
-          ? (
-              <View
-                width={18}
-                height={18}
-                borderRadius={999}
-                backgroundColor="$tertiaryText"
-              />
-            )
-          : undefined}
+        titleIcon={
+          withTitleIcon ? (
+            <View
+              width={18}
+              height={18}
+              borderRadius={999}
+              backgroundColor="$tertiaryText"
+            />
+          ) : undefined
+        }
         onTitlePress={useHorizontalTitleLayout ? () => {} : undefined}
         loadingSubtitle={isLoading ? loadingSubtitle : null}
         useHorizontalTitleLayout={useHorizontalTitleLayout}

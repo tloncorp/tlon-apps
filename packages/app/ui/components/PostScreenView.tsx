@@ -18,6 +18,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -28,13 +29,11 @@ import { Text, View, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
-import {
-  ChannelProvider,
-  NavigationProvider,
-  useAttachmentContext,
-  useCurrentUserId,
-  useStore,
-} from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useAttachmentContext } from '../contexts/attachment';
+import { ChannelProvider } from '../contexts/channel';
+import { NavigationProvider } from '../contexts/navigation';
+import { useStore } from '../contexts/storeContext';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
@@ -43,6 +42,7 @@ import {
   ChannelHeaderItemsProvider,
 } from './Channel/ChannelHeader';
 import { DraftInputView } from './Channel/DraftInputView';
+import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
@@ -50,6 +50,14 @@ import { DraftInputContext } from './draftInputs';
 import { DraftInputContextProvider } from './draftInputs/shared';
 
 const noop = async () => {};
+
+const HIGHLIGHT_DURATION_MS = 5000;
+
+interface ChatThreadHandle {
+  posts: db.Post[];
+  scrollToPostAtIndex: (index: number, viewPosition?: number) => void;
+  highlightPost: (postId: string) => void;
+}
 
 const FocusedPostContext = createContext<{
   focusedPost: db.Post | null;
@@ -167,6 +175,7 @@ export function PostScreenView({
   onGroupAction,
   goToDm,
   negotiationMatch,
+  selectedPostId,
 }: {
   channel: db.Channel;
   parentPost: db.Post | null;
@@ -175,6 +184,7 @@ export function PostScreenView({
   handleGoToUserProfile: (userId: string) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
+  selectedPostId?: string | null;
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
   const currentUserId = useCurrentUserId();
@@ -296,10 +306,35 @@ export function PostScreenView({
     channelId: channel.id,
   });
 
+  const chatThreadHandleRef = useRef<ChatThreadHandle | null>(null);
+
+  const handleRefPress = useCallback(
+    (refChannel: db.Channel, post: db.Post) => {
+      const threadHandle = chatThreadHandleRef.current;
+      if (threadHandle) {
+        const isSameChannel = refChannel.id === channel.id;
+        const isSameThread =
+          post.parentId === parentPost?.id || post.id === parentPost?.id;
+        if (isSameChannel && isSameThread) {
+          const anchorIndex = threadHandle.posts.findIndex(
+            (p) => p.id === post.id
+          );
+          if (anchorIndex !== -1) {
+            threadHandle.scrollToPostAtIndex(anchorIndex, 0.5);
+            threadHandle.highlightPost(post.id);
+            return;
+          }
+        }
+      }
+      navigateToRef(refChannel, post);
+    },
+    [navigateToRef, channel.id, parentPost?.id]
+  );
+
   return (
     <NavigationProvider
       onGoToUserProfile={handleGoToUserProfile}
-      onPressRef={navigateToRef}
+      onPressRef={handleRefPress}
       onPressGroupRef={onPressGroupRef}
       onPressGoToDm={goToDm}
     >
@@ -356,6 +391,7 @@ export function PostScreenView({
                       <SinglePostView
                         {...{
                           channel,
+                          chatThreadHandleRef,
                           editingPost,
                           goBack,
                           group,
@@ -365,6 +401,7 @@ export function PostScreenView({
                           onPressRetry,
                           parentEditDraftCallbacks,
                           parentPost,
+                          selectedPostId,
                           setEditingPost,
                         }}
                       />
@@ -443,36 +480,49 @@ function useMarkThreadAsReadEffect(
     channel: db.Channel;
     parent: db.Post;
     mostRecentlyReceivedReply: db.Post;
+    hasThreadUnreads: boolean;
   } | null
 ) {
   const store = useStore();
-  const markRead = useCallback(() => {
-    if (opts == null) {
-      return;
-    }
+  const shouldMarkRead = opts?.shouldMarkRead ?? false;
+  const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
+  const hasThreadUnreads = opts?.hasThreadUnreads ?? false;
 
-    const { channel, parent, mostRecentlyReceivedReply } = opts;
-    if (channel && parent && mostRecentlyReceivedReply) {
+  // Ref captures the latest opts so the effect can read current values
+  // without depending on the unstable inline object identity.
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
+
+  // Single effect with two trigger signals:
+  //   - hasThreadUnreads: authoritative signal (SSE pushed unread count > 0).
+  //   - latestReplyId: secondary signal (thread sync delivered a new post,
+  //     allowing immediate mark-read if hasThreadUnreads is already true).
+  //
+  // Guard: only acts when hasThreadUnreads is true.
+  //   - false -> true: guard passes, marks read.
+  //   - true -> false (unread state cleared): guard returns early, no poke sent.
+  // This directly mirrors Channel/index.tsx:292-301's `if (hasUnreads && ...)`.
+  useEffect(() => {
+    if (!shouldMarkRead || !hasThreadUnreads) return;
+    const current = optsRef.current;
+    if (current == null) return;
+    const { channel, parent, mostRecentlyReceivedReply } = current;
+    if (!channel || !parent || !mostRecentlyReceivedReply) return;
+
+    const timeoutId = setTimeout(() => {
       store.markThreadRead({
         channel,
         parentPost: parent,
         post: mostRecentlyReceivedReply,
       });
-    }
-  }, [opts, store]);
-
-  const shouldMarkRead = opts?.shouldMarkRead ?? false;
-  useEffect(() => {
-    if (shouldMarkRead) {
-      markRead();
-    }
-    // Only want to trigger once per set of params
-    // eslint-disable-next-line
-  }, [shouldMarkRead]);
+    }, 150);
+    return () => clearTimeout(timeoutId);
+  }, [shouldMarkRead, hasThreadUnreads, latestReplyId, store]);
 }
 
 function SinglePostView({
   channel,
+  chatThreadHandleRef,
   group,
   editingPost,
   goBack,
@@ -482,9 +532,11 @@ function SinglePostView({
   onPressRetry,
   parentEditDraftCallbacks,
   parentPost,
+  selectedPostId,
   setEditingPost,
 }: {
   channel: db.Channel;
+  chatThreadHandleRef?: React.MutableRefObject<ChatThreadHandle | null>;
   editingPost?: db.Post;
   goBack?: () => void;
   group: db.Group | null;
@@ -498,6 +550,7 @@ function SinglePostView({
     clearDraft: () => Promise<void>;
   } | null;
   parentPost: db.Post;
+  selectedPostId?: string | null;
   setEditingPost?: (post: db.Post | undefined) => void;
 }) {
   const groupMembers = group?.members ?? [];
@@ -510,6 +563,11 @@ function SinglePostView({
   const scrollerRef = useRef<{
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
+    scrollToIndex: (params: {
+      index: number;
+      animated?: boolean;
+      viewPosition?: number;
+    }) => void;
   }>(null);
 
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
@@ -527,6 +585,13 @@ function SinglePostView({
     }
     initializeChannelUnread();
   }, [parentPost.id]);
+
+  const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
+    parentPost.id
+  );
+  const hasThreadUnreads = !!(
+    liveThreadUnread?.count && liveThreadUnread.count > 0
+  );
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
@@ -551,6 +616,74 @@ function SinglePostView({
     [posts, parentPost]
   );
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
+
+  // --- Chat-thread highlight + fast-path handle ---
+  const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const highlightPost = useCallback((postId: string) => {
+    setHighlightPostId(postId);
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+    }
+    highlightTimeoutRef.current = setTimeout(() => {
+      setHighlightPostId(null);
+    }, HIGHLIGHT_DURATION_MS);
+  }, []);
+
+  // Keep chatThreadHandleRef in sync (chat threads only).
+  // useLayoutEffect ensures the ref is populated before paint so
+  // handleRefPress can read it synchronously during the same frame.
+  useLayoutEffect(() => {
+    if (!chatThreadHandleRef) return;
+
+    if (isChatChannel && posts) {
+      chatThreadHandleRef.current = {
+        posts,
+        scrollToPostAtIndex: (index: number, viewPosition?: number) => {
+          scrollerRef.current?.scrollToIndex({
+            index,
+            animated: true,
+            viewPosition,
+          });
+        },
+        highlightPost,
+      };
+    } else {
+      chatThreadHandleRef.current = null;
+    }
+
+    return () => {
+      chatThreadHandleRef.current = null;
+    };
+  }, [chatThreadHandleRef, isChatChannel, posts, highlightPost]);
+
+  // Clear pending highlight timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Compute a ScrollAnchor from selectedPostId for chat threads.
+  // This wires into useAnchorScrollLock via Scroller, giving us retry/recovery
+  // for unmeasured items instead of a one-shot scrollToIndex.
+  const threadAnchor: ScrollAnchor | null = useMemo(() => {
+    if (isChatChannel && selectedPostId) {
+      return { type: 'selected', postId: selectedPostId };
+    }
+    return null;
+  }, [isChatChannel, selectedPostId]);
+
+  // Trigger the 5s temporary highlight when selectedPostId changes.
+  // Scrolling is handled by the anchor via useAnchorScrollLock.
+  useEffect(() => {
+    if (isChatChannel && selectedPostId) {
+      highlightPost(selectedPostId);
+    }
+  }, [isChatChannel, selectedPostId, highlightPost]);
 
   const containingProperties: Partial<
     React.ComponentPropsWithoutRef<typeof View>
@@ -583,6 +716,7 @@ function SinglePostView({
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
           shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
+          hasThreadUnreads,
         }
   );
 
@@ -639,6 +773,7 @@ function SinglePostView({
           post={parentPost}
           channel={channel}
           initialPostUnread={initialThreadUnread}
+          anchor={threadAnchor}
           onPressImage={handleGoToImage}
           editingPost={editingPost}
           setEditingPost={setEditingPost}
@@ -648,6 +783,7 @@ function SinglePostView({
           goBack={goBack}
           activeMessage={activeMessage}
           setActiveMessage={setActiveMessage}
+          highlightPostId={highlightPostId}
           scrollerRef={scrollerRef}
         />
       ) : null}

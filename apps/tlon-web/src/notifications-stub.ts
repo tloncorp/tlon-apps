@@ -5,7 +5,9 @@
 export const cancelScheduledNotificationAsync = async (
   identifier: string
 ): Promise<void> => {
-  console.log(`[Notifications Stub] Canceling scheduled notification: ${identifier}`);
+  console.log(
+    `[Notifications Stub] Canceling scheduled notification: ${identifier}`
+  );
   return Promise.resolve();
 };
 
@@ -53,7 +55,9 @@ export const addNotificationResponseReceivedListener = () => {
   console.log('[Notifications Stub] Adding notification response listener');
   return {
     remove: () => {
-      console.log('[Notifications Stub] Removing notification response listener');
+      console.log(
+        '[Notifications Stub] Removing notification response listener'
+      );
     },
   };
 };

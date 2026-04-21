@@ -34,7 +34,8 @@ import {
   useWindowDimensions,
 } from 'tamagui';
 
-import { useAttachmentContext, useStore } from '../../contexts';
+import { useAttachmentContext } from '../../contexts/attachment';
+import { useStore } from '../../contexts/storeContext';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
 import { DEFAULT_MESSAGE_INPUT_HEIGHT } from '../MessageInput';
@@ -345,8 +346,13 @@ export default function BareChatInput({
       if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
         lastProcessedRef.current = newText;
         const textWithoutRefs = processReferences(newText);
-        const cursorPos = isWeb ? (inputRef.current as any)?.selectionStart : undefined;
-        const adjustedCursorPos = cursorPos != null ? Math.max(0, cursorPos - (newText.length - textWithoutRefs.length)) : undefined;
+        const cursorPos = isWeb
+          ? (inputRef.current as any)?.selectionStart
+          : undefined;
+        const adjustedCursorPos =
+          cursorPos != null
+            ? Math.max(0, cursorPos - (newText.length - textWithoutRefs.length))
+            : undefined;
         setControlledText(textWithoutRefs);
         handleMention(oldText, textWithoutRefs, adjustedCursorPos);
 
@@ -365,7 +371,9 @@ export default function BareChatInput({
         }
       } else if (!REF_REGEX.test(newText)) {
         // if there's no reference to process, just update normally
-        const cursorPos = isWeb ? (inputRef.current as any)?.selectionStart : undefined;
+        const cursorPos = isWeb
+          ? (inputRef.current as any)?.selectionStart
+          : undefined;
         setControlledText(newText);
         handleMention(oldText, newText, cursorPos);
 
@@ -941,7 +949,14 @@ export default function BareChatInput({
             )}
           </TextInput>
           {isWeb && !!controlledText && mentions.length > 0 && (
-            <View height={inputHeight} position="absolute" top={0} left={0} right={0} pointerEvents="none">
+            <View
+              height={inputHeight}
+              position="absolute"
+              top={0}
+              left={0}
+              right={0}
+              pointerEvents="none"
+            >
               <RawText
                 paddingHorizontal="$l"
                 paddingTop={getTokenValue('$m', 'space') + 3}

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { ALL_MENTION_ID as allID } from '@tloncorp/shared';
-import { valid } from '@urbit/aura';
 import * as db from '@tloncorp/shared/db';
+import { valid } from '@urbit/aura';
 import { useMemo, useState } from 'react';
 
 import { formatUserId } from '../../utils';
@@ -123,7 +123,11 @@ export const useMentions = ({
     return validOptions.length > 0;
   }, [validOptions]);
 
-  const handleMention = (oldText: string, newText: string, explicitCursorPosition?: number) => {
+  const handleMention = (
+    oldText: string,
+    newText: string,
+    explicitCursorPosition?: number
+  ) => {
     // Use explicit cursor position when available (web), fall back to diff-based heuristic
     let cursorPosition: number;
     let firstDiffIndex: number | null = null;
@@ -224,13 +228,18 @@ export const useMentions = ({
     // Update mention positions when text changes
     if (mentions.length > 0) {
       const delta = newText.length - oldText.length;
-      const editPosition = explicitCursorPosition != null
-        ? cursorPosition - (delta > 0 ? delta : 0)
-        : (firstDiffIndex ?? cursorPosition);
+      const editPosition =
+        explicitCursorPosition != null
+          ? cursorPosition - (delta > 0 ? delta : 0)
+          : firstDiffIndex ?? cursorPosition;
       const updatedMentions = mentions
         .map((mention) => {
           if (mention.start >= editPosition) {
-            return { ...mention, start: mention.start + delta, end: mention.end + delta };
+            return {
+              ...mention,
+              start: mention.start + delta,
+              end: mention.end + delta,
+            };
           }
           return mention;
         })
@@ -240,8 +249,10 @@ export const useMentions = ({
             mention.end <= newText.length &&
             newText.slice(mention.start, mention.end) === mention.display
         );
-      if (updatedMentions.length !== mentions.length ||
-          updatedMentions.some((m, i) => m.start !== mentions[i]?.start)) {
+      if (
+        updatedMentions.length !== mentions.length ||
+        updatedMentions.some((m, i) => m.start !== mentions[i]?.start)
+      ) {
         setMentions(updatedMentions);
       }
     }

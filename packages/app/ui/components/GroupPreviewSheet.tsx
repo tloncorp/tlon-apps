@@ -30,6 +30,7 @@ interface JoinStatus {
   needsInvite: boolean;
   hasInvite: boolean;
   requestedInvite: boolean;
+  isProtocolMismatch: boolean;
 }
 
 export type GroupPreviewAction = 'goTo' | 'joined' | 'other';
@@ -98,6 +99,13 @@ export function GroupPreviewPane({
 }) {
   const [isJoining, setIsJoining] = useState(group?.joinStatus === 'joining');
 
+  const { status: negotiationStatus } = store.useNegotiate(
+    group?.hostUserId ?? '',
+    'groups',
+    'groups'
+  );
+  const isProtocolMismatch = negotiationStatus === 'clash';
+
   const status: JoinStatus = useMemo(
     () => ({
       isMember: group?.currentUserIsMember ?? false,
@@ -107,6 +115,7 @@ export function GroupPreviewPane({
       needsInvite: group?.privacy !== 'public',
       hasInvite: group?.haveInvite ?? false,
       requestedInvite: group?.haveRequestedInvite ?? false,
+      isProtocolMismatch,
     }),
     [
       group?.currentUserIsMember,
@@ -115,6 +124,7 @@ export function GroupPreviewPane({
       group?.joinStatus,
       group?.privacy,
       isJoining,
+      isProtocolMismatch,
     ]
   );
 
@@ -166,7 +176,11 @@ export function GroupPreviewPane({
       // In lieu of a reactive update to the `group` prop, poll the database
       const interval = setInterval(async () => {
         const nextGroup = await db.getGroup({ id: group.id });
-        // TODO: handle case whare joinStatus === 'errored'
+        if (nextGroup?.joinStatus === 'errored') {
+          setIsJoining(false);
+          clearInterval(interval);
+          return;
+        }
         if (nextGroup?.currentUserIsMember === true) {
           setIsJoining(false);
           store
@@ -266,6 +280,9 @@ export function GroupPreviewPane({
                 <Badge text={privacyLabel} type="neutral" />
               </XStack>
             ) : null}
+            {isProtocolMismatch ? (
+              <Badge text="Incompatible" type="warning" />
+            ) : null}
             <ConnectionStatus contactId={group.hostUserId} type="badge" />
           </XStack>
         </YStack>
@@ -296,11 +313,20 @@ export function GroupPreviewPane({
                 case 'heroPositive':
                   return { fill: 'solid' as const, type: 'positive' as const };
                 case 'positive':
-                  return { fill: 'outline' as const, type: 'positive' as const };
+                  return {
+                    fill: 'outline' as const,
+                    type: 'positive' as const,
+                  };
                 case 'negative':
-                  return { fill: 'outline' as const, type: 'negative' as const };
+                  return {
+                    fill: 'outline' as const,
+                    type: 'negative' as const,
+                  };
                 case 'secondary':
-                  return { fill: 'outline' as const, type: 'secondary' as const };
+                  return {
+                    fill: 'outline' as const,
+                    type: 'secondary' as const,
+                  };
                 case 'minimal':
                   return { fill: 'text' as const, type: 'primary' as const };
                 default:
@@ -338,6 +364,23 @@ export function GroupPreviewPane({
 
 export const GroupPreviewSheet = React.memo(GroupPreviewSheetComponent);
 
+const MISMATCH_DESCRIPTION =
+  "The group host is running an incompatible version of the app. You won't be able to join until one of you updates.";
+
+const cancelJoinButton = (onPress: () => void): GroupActionButton => ({
+  title: 'Cancel join',
+  accent: 'negative',
+  onPress,
+});
+
+const rejectInviteButton = (
+  onPress: (accepted: boolean) => void
+): GroupActionButton => ({
+  title: 'Reject invite',
+  accent: 'secondary',
+  onPress: () => onPress(false),
+});
+
 export function getActionGroups(
   status: JoinStatus,
   actions: {
@@ -365,34 +408,36 @@ export function getActionGroups(
         accent: 'minimal',
         disabled: true,
       },
-      {
-        title: 'Cancel join',
-        accent: 'negative',
-        onPress: actions.cancelJoin,
-      },
+      cancelJoinButton(actions.cancelJoin),
     ];
   }
   if (status.isErrored) {
     return [
       {
-        title: 'Cancel join',
-        accent: 'negative',
-        onPress: actions.cancelJoin,
+        title: 'Joining failed',
+        accent: 'disabled',
+        disabled: true,
+        description: status.isProtocolMismatch
+          ? MISMATCH_DESCRIPTION
+          : 'Something went wrong while trying to join this group.',
       },
+      cancelJoinButton(actions.cancelJoin),
     ];
   }
   if (status.hasInvite) {
     return [
       {
         title: 'Accept invite',
-        accent: 'hero',
-        onPress: () => actions.respondToInvite(true),
+        accent: status.isProtocolMismatch ? 'disabled' : 'hero',
+        disabled: status.isProtocolMismatch,
+        onPress: status.isProtocolMismatch
+          ? undefined
+          : () => actions.respondToInvite(true),
+        description: status.isProtocolMismatch
+          ? MISMATCH_DESCRIPTION
+          : undefined,
       },
-      {
-        title: 'Reject invite',
-        accent: 'secondary',
-        onPress: () => actions.respondToInvite(false),
-      },
+      rejectInviteButton(actions.respondToInvite),
     ];
   }
   if (status.isSecret && !status.hasInvite) {
@@ -423,16 +468,22 @@ export function getActionGroups(
     return [
       {
         title: 'Request invite',
-        accent: 'hero',
-        onPress: actions.requestInvite,
+        accent: status.isProtocolMismatch ? 'disabled' : 'hero',
+        disabled: status.isProtocolMismatch,
+        onPress: status.isProtocolMismatch ? undefined : actions.requestInvite,
+        description: status.isProtocolMismatch
+          ? MISMATCH_DESCRIPTION
+          : undefined,
       },
     ];
   }
   return [
     {
       title: 'Join group',
-      accent: 'heroPositive',
-      onPress: actions.joinGroup,
+      accent: status.isProtocolMismatch ? 'disabled' : 'heroPositive',
+      disabled: status.isProtocolMismatch,
+      onPress: status.isProtocolMismatch ? undefined : actions.joinGroup,
+      description: status.isProtocolMismatch ? MISMATCH_DESCRIPTION : undefined,
     },
   ];
 }

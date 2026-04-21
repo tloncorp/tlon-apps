@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 
-import type { ScrollAnchor } from '../Scroller';
+import type { ScrollAnchor } from '../scrollerTypes';
 
 export interface PostWithNeighbors {
   post: db.Post;
@@ -14,7 +14,11 @@ export interface PostWithNeighbors {
 export interface PostListMethods {
   scrollToStart: (opts: { animated?: boolean }) => void;
   scrollToEnd: (opts: { animated?: boolean }) => void;
-  scrollToIndex: (opts: { index: number; animated?: boolean }) => void;
+  scrollToIndex: (opts: {
+    index: number;
+    animated?: boolean;
+    viewPosition?: number;
+  }) => void;
 }
 
 export type PostListComponentProps = {
@@ -62,6 +66,10 @@ export type PostListComponentProps = {
    * Mapped to ListFooterComponent when inverted, ListHeaderComponent otherwise.
    */
   listHeaderComponent?: React.ReactElement;
+  /**
+   * Content to display at the visual bottom of the list (below all items).
+   */
+  listBottomComponent?: React.ReactElement;
 };
 
 export type PostListComponent = ReturnType<

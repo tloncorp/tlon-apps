@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, getTokenValue, useStyle } from 'tamagui';
 
-import { useContactIndex, useContacts } from '../contexts';
+import { useContactIndex, useContacts } from '../contexts/appDataContext';
 import {
   useAlphabeticallySegmentedContacts,
   useSortedContacts,
@@ -112,7 +112,14 @@ export function ContactBook({
         onSelect?.(contactId);
       }
     },
-    [immutableSet, disabledSet, multiSelect, onSelect, onSelectedChange, selected]
+    [
+      immutableSet,
+      disabledSet,
+      multiSelect,
+      onSelect,
+      onSelectedChange,
+      selected,
+    ]
   );
 
   useEffect(() => {
@@ -142,7 +149,14 @@ export function ContactBook({
         />
       );
     },
-    [selected, immutableSet, disabledSet, disabledReason, multiSelect, handleSelect]
+    [
+      selected,
+      immutableSet,
+      disabledSet,
+      disabledReason,
+      multiSelect,
+      handleSelect,
+    ]
   );
 
   const onTouchStart = useCallback(() => {

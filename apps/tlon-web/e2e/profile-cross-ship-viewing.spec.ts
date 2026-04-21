@@ -17,7 +17,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   await expect(zodPage.getByText('Profile')).toBeVisible();
   await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
-  
+
   await zodPage.getByTestId('ProfileNicknameInput').click();
   await zodPage
     .getByTestId('ProfileNicknameInput')
@@ -31,7 +31,7 @@ test('should allow viewing and syncing profiles across ships', async ({
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Zod Testing bio');
   await zodPage.getByText('Save').click();
-  
+
   // Wait for profile to sync
   await zodPage.reload();
   await zodPage.waitForTimeout(2000);
@@ -63,7 +63,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   // The contact will appear with "Zod Testing nickname" after sync
   await tenPage.getByText('Zod Testing nickname').first().click();
   await expect(tenPage.getByText('Profile')).toBeVisible();
-  
+
   // Verify ~ten can see all of ~zod's custom profile data
   await expect(tenPage.getByText('Zod Testing nickname').first()).toBeVisible();
   await expect(tenPage.getByText('Zod Testing status').first()).toBeVisible();
@@ -75,7 +75,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   await tenPage.getByText('You').click();
   await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
-  
+
   await tenPage.getByTestId('ProfileNicknameInput').click();
   await tenPage.getByTestId('ProfileNicknameInput').fill('Ten Own Nickname');
   await tenPage.getByRole('textbox', { name: 'Hanging out...' }).click();
@@ -87,7 +87,7 @@ test('should allow viewing and syncing profiles across ships', async ({
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Ten Bio Information');
   await tenPage.getByText('Save').click();
-  
+
   // Wait for profile to sync
   await tenPage.reload();
   await tenPage.waitForTimeout(2000);
@@ -106,11 +106,11 @@ test('should allow viewing and syncing profiles across ships', async ({
   // Navigate to ~ten's profile
   await zodPage.getByTestId('AvatarNavIcon').click();
   await expect(zodPage.getByText('Contacts')).toBeVisible();
-  
+
   // ~ten should appear with their nickname
   await zodPage.getByText('Ten Own Nickname').first().click();
   await expect(zodPage.getByText('Profile')).toBeVisible();
-  
+
   // Verify ~zod can see all of ~ten's custom profile data
   await expect(zodPage.getByText('Ten Own Nickname').first()).toBeVisible();
   await expect(zodPage.getByText('Ten Status Message').first()).toBeVisible();
@@ -121,7 +121,7 @@ test('should allow viewing and syncing profiles across ships', async ({
   await helpers.cleanupContactNicknames(tenPage);
   await helpers.cleanupOwnProfile(zodPage);
   await helpers.cleanupContactNicknames(zodPage);
-  
+
   await zodPage.waitForTimeout(3000);
   await tenPage.waitForTimeout(3000);
 });

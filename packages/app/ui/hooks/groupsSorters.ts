@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import anyAscii from 'any-ascii';
 import { useMemo } from 'react';
 
-import { useCalm } from '../contexts';
+import { useCalm } from '../contexts/appDataContext';
 import * as utils from '../utils';
 
 export type AlphaGroupsSegment = {

@@ -1,10 +1,11 @@
+import * as api from '@tloncorp/api';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import {
   AnalyticsEvent,
   createDevLogger,
   extractNormalizedInviteLink,
   withRetry,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
@@ -14,7 +15,6 @@ import {
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { verifyUserInviteLink } from '@tloncorp/shared/store';
-import { preSig } from '@tloncorp/api/urbit';
 import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -224,39 +224,11 @@ export function useBootSequence() {
         });
       });
 
-      if (lureMeta?.inviteType !== 'user') {
-        logger.trackEvent('Detected group invite, skipping scaffold');
-        return NodeBootPhase.CHECKING_FOR_INVITE;
-      }
-
-      if (lureMeta?.invitedGroupTitle) {
-        // workaround for our generic invites that boot you into empty state. Should be
-        // removed once a better backend solution is in place
-
-        logger.trackEvent(
-          'Detected generic workaround invite, skipping scaffold'
-        );
-        return NodeBootPhase.CHECKING_FOR_INVITE;
-      }
-
-      try {
-        await store.scaffoldPersonalGroup();
-
-        // since we know they're using the app for the first time, enable coach marks
-        db.wayfindingProgress.setValue((prev) => ({
-          ...prev,
-          tappedChatInput: false,
-          tappedAddCollection: false,
-          tappedAddNote: false,
-        }));
-
-        const signedUpWithInvite = Boolean(lureMeta?.id);
-        return signedUpWithInvite
-          ? NodeBootPhase.CHECKING_FOR_INVITE
-          : NodeBootPhase.READY;
-      } catch (e) {
-        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
-      }
+      // bypass wayfinding creation for now
+      const signedUpWithInvite = Boolean(lureMeta?.id);
+      return signedUpWithInvite
+        ? NodeBootPhase.CHECKING_FOR_INVITE
+        : NodeBootPhase.READY;
     }
 
     //

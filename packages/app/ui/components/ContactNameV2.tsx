@@ -27,7 +27,7 @@
 import { RawText } from '@tloncorp/ui';
 import React, { useMemo } from 'react';
 
-import { useCalm } from '../contexts';
+import { useCalm } from '../contexts/appDataContext';
 import { useContact } from '../contexts/appDataContext';
 import { formatUserId } from '../utils/user';
 

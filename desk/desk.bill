@@ -18,4 +18,6 @@
     %dumb-proxy
     %expose
     %metagrab
+    %gateway-status
+    %presence
 ==

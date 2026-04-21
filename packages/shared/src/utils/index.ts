@@ -10,6 +10,7 @@ export * from '@tloncorp/api/lib/timeoutSignal';
 export * from '@tloncorp/api/lib/EventEmitter';
 export * from './deferred';
 export * from './files';
+export * from './omit';
 export * from './useEventEmitter';
 export * from './useMockedQuery';
 export * from '@tloncorp/api/lib/ProgressManager';

@@ -19,7 +19,6 @@ import { FlatList, Image, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
-  XStack,
   YStack,
   ZStack,
   getTokenValue,
@@ -34,12 +33,13 @@ import {
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
-import { useStore } from '../../contexts';
+import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { ListItem, SystemContactListItem } from '../ListItem';
+import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
+import { SystemContactListItem } from '../listItems';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
 enum SplashPane {
@@ -449,20 +449,19 @@ export function InviteContactsContent(props: {
           <SplashParagraph marginTop="$l" marginBottom="$xl">
             {INVITE_EXPLANATION_TEXT}
           </SplashParagraph>
-          <XStack paddingHorizontal="$xl">
-            <SearchBar
-              height="$4xl"
-              debounceTime={100}
-              onChangeQuery={handleSearch}
-              placeholder="Search contacts"
-              inputProps={{
-                spellCheck: false,
-                autoCapitalize: 'none',
-                autoComplete: 'off',
-                flex: 1,
-              }}
-            />
-          </XStack>
+          <SearchBar
+            paddingHorizontal="$xl"
+            flexGrow={0}
+            debounceTime={100}
+            onChangeQuery={handleSearch}
+            placeholder="Search contacts"
+            inputProps={{
+              spellCheck: false,
+              autoCapitalize: 'none',
+              autoComplete: 'off',
+              flex: 1,
+            }}
+          />
           <FlatList
             data={displayContacts}
             keyExtractor={(item) => item.id}

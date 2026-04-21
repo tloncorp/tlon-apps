@@ -1,7 +1,8 @@
-import { expect, test } from 'vitest';
-
 import { v0PeersToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
+import type * as ub from '@tloncorp/api/urbit/groups';
+import { expect, test } from 'vitest';
+
 import * as schema from '../db/schema';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
@@ -14,7 +15,6 @@ import {
 } from '../test/helpers';
 import initResponse from '../test/init.json';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
-import type * as ub from '@tloncorp/api/urbit/groups';
 import * as queries from './queries';
 import { Post } from './types';
 
