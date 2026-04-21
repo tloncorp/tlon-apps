@@ -470,7 +470,7 @@
         [(tell:log %dbug ~['context sub ack ok' >src.bowl< >context<] ~)]~
       ::  nacked, can't do anything, drop desire
       ::
-      :_  this(want (~(del by want) src.bowl context))
+      :_  this(want (~(del in want) src.bowl context))
       [(tell:log %warn ~['context sub nacked, dropping desire' >src.bowl< >context< >u.p.sign<] ~)]~
     ::
         %fact
