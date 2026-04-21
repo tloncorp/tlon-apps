@@ -576,6 +576,7 @@ function SplashSequenceComponent(props: {
             loading={savingConfig}
             error={configError}
             onSelectModel={setBotPrimaryModel}
+            onBackPress={() => setCurrentPane(SplashPane.BotProvider)}
             onActionPress={handleSaveModelConfig}
           />
         )}
@@ -1013,6 +1014,7 @@ export function BotModelPane(props: {
   loading?: boolean;
   error?: string | null;
   onSelectModel: (modelId: string) => void;
+  onBackPress?: () => void;
   onActionPress: () => void;
 }) {
   const {
@@ -1021,6 +1023,7 @@ export function BotModelPane(props: {
     loading,
     error,
     onSelectModel,
+    onBackPress,
     onActionPress,
   } = props;
   const insets = useSafeAreaInsets();
@@ -1049,6 +1052,11 @@ export function BotModelPane(props: {
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+        <View paddingHorizontal="$xl">
+          <ScreenHeader.BackButton
+            onPress={loading ? undefined : onBackPress}
+          />
+        </View>
         <SplashTitle>
           Pick a <Text color="$positiveActionText">model.</Text>
         </SplashTitle>
