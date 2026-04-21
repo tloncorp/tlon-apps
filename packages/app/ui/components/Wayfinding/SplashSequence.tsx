@@ -116,6 +116,12 @@ function SplashSequenceComponent(props: {
     };
   }, []);
 
+  useEffect(() => {
+    logger.trackEvent('Wayfinding Splash Pane Viewed', {
+      pane: currentPane,
+    });
+  }, [currentPane]);
+
   // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
     let cancelled = false;
