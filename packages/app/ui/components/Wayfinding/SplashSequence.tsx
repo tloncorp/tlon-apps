@@ -253,7 +253,8 @@ function SplashSequenceComponent(props: {
     setConfigError(null);
     try {
       const userId = await db.hostingUserId.getValue();
-      if (!userId) return;
+      const shipId = await db.hostedUserNodeId.getValue();
+      if (!userId || !shipId) return;
 
       const provider = botModel || BASIC_PROVIDER_ID;
       const model = botPrimaryModel || `${provider}/auto`;
@@ -262,6 +263,11 @@ function SplashSequenceComponent(props: {
         saveNicknameAndAvatar(),
         api.setTlawnPrimaryModel(userId, { provider, model }),
       ]);
+
+      // Changing the primary model restarts the bot's gateway. Wait for it
+      // to come back up before advancing so the user doesn't land on the
+      // next screen with a dead bot. Non-blocking failure: advance anyway.
+      await api.awaitBotRunning(shipId);
 
       setSavingConfig(false);
       setDidConfigureBot(true);
@@ -291,10 +297,7 @@ function SplashSequenceComponent(props: {
       )}
 
       {currentPane === SplashPane.TlonBot && (
-        <TlonBotPane
-          onActionPress={() => setCurrentPane(SplashPane.BotName)}
-          onSkip={() => setCurrentPane(SplashPane.Group)}
-        />
+        <TlonBotPane onActionPress={() => setCurrentPane(SplashPane.BotName)} />
       )}
       {currentPane === SplashPane.BotName && (
         <BotNamePane
@@ -443,8 +446,8 @@ export function WelcomePane(props: {
           bounces={false}
         >
           <SplashParagraph>
-            Everything here is stored on your private server–only you can
-            access it.
+            Everything here is stored on your private server–only you can access
+            it.
           </SplashParagraph>
           {props.hostingBotEnabled && (
             <SplashParagraph>
@@ -467,10 +470,7 @@ export function WelcomePane(props: {
   );
 }
 
-export function TlonBotPane(props: {
-  onActionPress: () => void;
-  onSkip?: () => void;
-}) {
+export function TlonBotPane(props: { onActionPress: () => void }) {
   const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
   const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
@@ -517,25 +517,6 @@ export function TlonBotPane(props: {
           preset="hero"
           shadow
         />
-        {props.onSkip && (
-          <>
-            <Button
-              onPress={props.onSkip}
-              testID="bot-skip"
-              label="Skip"
-              preset="secondary"
-              fill="text"
-            />
-            <Text
-              fontSize={12}
-              color="$tertiaryText"
-              textAlign="center"
-              marginBottom="$xs"
-            >
-              You can always configure your bot later in Settings.
-            </Text>
-          </>
-        )}
       </YStack>
     </View>
   );
@@ -740,7 +721,7 @@ export function BotModelPane(props: {
       </YStack>
       <Button
         onPress={onActionPress}
-        label={loading ? 'Saving...' : 'Save'}
+        label={loading ? 'Starting bot…' : 'Save'}
         preset="hero"
         loading={loading}
         disabled={loading || !selectedModel}
@@ -791,15 +772,17 @@ export function GroupsPane(props: {
           />
         </ZStack>
       )}
-      <YStack flex={1} gap={'$2xl'} paddingTop="$xl">
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
         <SplashTitle>
           {props.hostingBotEnabled ? (
             <>
-              {props.didConfigureBot && props.botName
-                ? props.botName
-                : 'Your Tlonbot'}{' '}
-              works in groups{' '}
-              <Text color="$positiveActionText">with others.</Text>
+              Your group with{' '}
+              <Text color="$positiveActionText">
+                {props.didConfigureBot && props.botName
+                  ? props.botName
+                  : 'your Tlonbot'}
+              </Text>{' '}
+              is ready.
             </>
           ) : (
             <>
@@ -813,13 +796,19 @@ export function GroupsPane(props: {
           bounces={false}
         >
           {props.hostingBotEnabled ? (
-            <SplashParagraph marginBottom={0}>
-              {props.didConfigureBot ? props.botName : 'Your Tlonbot'} lives in
-              groups, reading messages and helping everyone. Groups last
-              forever on your server. Invite friends–
-              {props.didConfigureBot ? props.botName : 'your bot'} will be
-              there too.
-            </SplashParagraph>
+            <>
+              <SplashParagraph>
+                We made you a group on your server, and{' '}
+                {props.didConfigureBot ? props.botName : 'your Tlonbot'} is
+                already there.{' '}
+                {props.didConfigureBot ? props.botName : 'Your Tlonbot'} loves
+                conversation, reading along with the group and chiming in to
+                help.
+              </SplashParagraph>
+              <SplashParagraph>
+                Share the link below to bring your friends in.
+              </SplashParagraph>
+            </>
           ) : (
             <SplashParagraph>
               A group lives on your private personal server. Family chats, work
@@ -835,10 +824,11 @@ export function GroupsPane(props: {
               homeGroupInviteLink ? homeGroupInviteLink : ''
             )
           }
-          label="Share invite with friends"
-          preset="hero"
-          leadingIcon="AddPerson"
-          shadow
+          label="Share invite link"
+          intent="positive"
+          size="large"
+          leadingIcon="Link"
+          glow
         />
         <Button
           data-testid="got-it"

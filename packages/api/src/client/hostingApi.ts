@@ -415,6 +415,28 @@ export async function isBotRunning(ship: string): Promise<boolean> {
   return result.running;
 }
 
+// Poll `isBotRunning` until the bot reports as running or the timeout elapses.
+// Transient errors (the gateway going down during restart) are swallowed so
+// we keep polling. Returns true if running, false on timeout.
+export async function awaitBotRunning(
+  ship: string,
+  {
+    timeoutMs = 30_000,
+    pollIntervalMs = 1500,
+  }: { timeoutMs?: number; pollIntervalMs?: number } = {}
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      if (await isBotRunning(ship)) return true;
+    } catch {
+      // transient — gateway likely restarting
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+  return false;
+}
+
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await sessionStore.userId.getValue();
