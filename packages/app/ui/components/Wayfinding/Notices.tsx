@@ -1,3 +1,4 @@
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
@@ -154,6 +155,10 @@ function CustomizeGroup() {
 }
 
 export function HomeAddTooltip() {
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const isHostedUser = getCurrentUserIsHosted();
+  const botEnabled = isHostedUser && hostingBotEnabled;
+
   return (
     <View pointerEvents="none" position="absolute" top={36} right={18}>
       <YStack alignItems="flex-end">
@@ -165,7 +170,9 @@ export function HomeAddTooltip() {
           borderRadius="$l"
         >
           <Text size="$label/l" color="$white">
-            Tap here to create a new group
+            {botEnabled
+              ? 'Tap here to create a new group and invite your Tlonbot.'
+              : 'Tap here to create a new group.'}
           </Text>
         </View>
       </YStack>
