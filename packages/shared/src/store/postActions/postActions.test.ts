@@ -792,21 +792,20 @@ describe('clearing a failed optimistic post', () => {
         db.updatePost({ id, deleteStatus: 'failed' }),
       expectedSequenceNum: 7,
     },
-  ])('deleteFailedPost() on a $label does not hard-delete', async ({
-    postOverrides,
-    seedExistingPost,
-    expectedSequenceNum,
-  }) => {
-    const post = await seedFailedOptimisticPost(postOverrides);
-    await seedExistingPost?.(post.id);
+  ])(
+    'deleteFailedPost() on a $label does not hard-delete',
+    async ({ postOverrides, seedExistingPost, expectedSequenceNum }) => {
+      const post = await seedFailedOptimisticPost(postOverrides);
+      await seedExistingPost?.(post.id);
 
-    await deleteFailedPost({ post: { ...post, ...postOverrides } });
+      await deleteFailedPost({ post: { ...post, ...postOverrides } });
 
-    const rowAfter = await fetchPost(post.id);
-    expect(rowAfter).toBeTruthy();
-    expect(rowAfter!.isDeleted).toBe(true);
-    expect(rowAfter!.sequenceNum).toBe(expectedSequenceNum);
-  });
+      const rowAfter = await fetchPost(post.id);
+      expect(rowAfter).toBeTruthy();
+      expect(rowAfter!.isDeleted).toBe(true);
+      expect(rowAfter!.sequenceNum).toBe(expectedSequenceNum);
+    }
+  );
 
   test('deletePost() re-reads the DB row before hard-delete classification', async () => {
     const post = await seedFailedOptimisticPost();
