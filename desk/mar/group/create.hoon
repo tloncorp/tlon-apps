@@ -9,6 +9,6 @@
 ++  grab
   |%
   ++  noun  create:v7:gv
-  ++  json  create:v7:dejs:j
+  ++  json  |=(^json *create:v7:gv)  ::TODO REVIEW create:v7:dejs:j doesn't exist
   --
 --

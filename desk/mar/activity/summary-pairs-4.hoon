@@ -10,6 +10,6 @@
   --
 ++  grab
   |%
-  ++  noun  (list [source:a activity-summary:a])
+  ++  noun  (list ,[source:a activity-summary:a])
   --
 --

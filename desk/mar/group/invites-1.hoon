@@ -1,14 +1,14 @@
 /-  gv=groups-ver
 /+  gj=groups-json
-|_  =invites:v7:gv
+|_  invites=(list invite:v7:gv)
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  invites
-  ++  json  (invites:v7:enjs:gvj invites)
+  ++  json  a+(turn invites invite:v7:enjs:gj)
   --
 ++  grab
   |%
-  ++  noun  invites:v7:gv
+  ++  noun  (list invite:v7:gv)
   --
 --

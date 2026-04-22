@@ -15,6 +15,6 @@
   --
 ++  grab
   |%
-  ++  noun  [all=feed:v4:old:a mentions=feed:v4:old:a replies=feed:v4:old:a]
+  ++  noun  ,[all=feed:v4:old:a mentions=feed:v4:old:a replies=feed:v4:old:a]
   --
 --
