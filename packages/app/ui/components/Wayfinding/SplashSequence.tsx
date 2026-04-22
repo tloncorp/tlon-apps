@@ -999,7 +999,7 @@ export function BotAvatarPane(props: {
                   bottom={0}
                   alignItems="center"
                   justifyContent="center"
-                  backgroundColor="rgba(0,0,0,0.3)"
+                  backgroundColor="$shadow"
                 >
                   <LoadingSpinner />
                 </View>
