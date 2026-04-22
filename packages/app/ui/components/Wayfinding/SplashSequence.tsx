@@ -8,7 +8,11 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
-import { withRetry } from '@tloncorp/shared/logic';
+import {
+  generateHomeGroupTitle,
+  getHomeGroupId,
+  withRetry,
+} from '@tloncorp/shared/logic';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import {
   Button,
@@ -285,10 +289,20 @@ function SplashSequenceComponent(props: {
           }
         }
 
+        try {
+          await applyHomeGroupBotIdentity(store, name);
+          logger.trackEvent('Wayfinding Home Group Sync Succeeded', meta);
+        } catch (error) {
+          logger.trackError('Wayfinding Home Group Sync Failed', {
+            ...meta,
+            error,
+          });
+        }
+
         logger.trackEvent('Wayfinding Bot Identity Sync Completed', meta);
       })();
     },
-    []
+    [store]
   );
 
   const handleBotAvatarCompleted = useCallback(() => {
@@ -638,6 +652,40 @@ function SplashSequenceComponent(props: {
 export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
+
+// Hosting provisions the home group generic and unpinned; once the user
+// picks a bot nickname we retitle and pin it client-side.
+async function applyHomeGroupBotIdentity(
+  store: {
+    updateGroupMeta: (group: db.Group) => Promise<void>;
+    pinGroup: (group: db.Group) => Promise<unknown>;
+  },
+  botNickname: string
+) {
+  const currentUserId = api.getCurrentUserId();
+  const homeGroupId = getHomeGroupId(currentUserId);
+  const newTitle = generateHomeGroupTitle(botNickname);
+
+  await withRetry(
+    async () => {
+      const homeGroup = await db.getGroup({ id: homeGroupId });
+      if (!homeGroup) {
+        throw new Error('Home group not yet available');
+      }
+      if (homeGroup.title !== newTitle) {
+        await store.updateGroupMeta({ ...homeGroup, title: newTitle });
+      }
+      if (!homeGroup.pin) {
+        await store.pinGroup(homeGroup);
+      }
+    },
+    {
+      startingDelay: 1000,
+      numOfAttempts: 5,
+      maxDelay: 4000,
+    }
+  );
+}
 
 async function shareTlonbotGroupInvite(homeGroupInviteLink: string) {
   if (isWeb) {

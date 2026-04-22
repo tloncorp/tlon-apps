@@ -112,3 +112,15 @@ export function generatePersonalGroupTitle(contact: {
   const displayName = contact.nickname || contact.id;
   return `${displayName}'s Group`;
 }
+
+export const HOME_GROUP_SLUG = 'home-group';
+
+export function getHomeGroupId(currentUserId: string) {
+  return `${currentUserId}/${HOME_GROUP_SLUG}`;
+}
+
+export function generateHomeGroupTitle(botNickname: string) {
+  const trimmed = botNickname.trim();
+  const name = trimmed || 'Tlonbot';
+  return `${name}'s Group`;
+}
