@@ -8,6 +8,7 @@ import {
   BotAvatarPane,
   BotModelPane,
   BotNamePane,
+  BotApiKeyPane,
   BotProviderPane,
   ChannelsPane,
   GroupsPane,
@@ -197,7 +198,6 @@ function BotAvatarPaneFixture() {
 
 function BotProviderPaneFixture() {
   const [model, setModel] = useValue('Provider', { defaultValue: 'basic' });
-  const [apiKey, setApiKey] = useValue('API Key', { defaultValue: '' });
   const handleAction = React.useCallback(() => {
     console.log('BotProvider pane action pressed');
   }, []);
@@ -206,7 +206,6 @@ function BotProviderPaneFixture() {
     <FixtureWrapper fillWidth fillHeight>
       <BotProviderPane
         model={model}
-        apiKey={apiKey}
         providers={[
           { label: 'MiniMax', provider: 'basic', requiresKey: false },
           { label: 'Anthropic', provider: 'anthropic', requiresKey: true },
@@ -214,7 +213,28 @@ function BotProviderPaneFixture() {
           { label: 'OpenRouter', provider: 'openrouter', requiresKey: true },
         ]}
         onModelChange={setModel}
+        onActionPress={handleAction}
+      />
+    </FixtureWrapper>
+  );
+}
+
+function BotApiKeyPaneFixture() {
+  const [apiKey, setApiKey] = useValue('API Key', { defaultValue: '' });
+  const handleAction = React.useCallback(() => {
+    console.log('BotApiKey pane action pressed');
+  }, []);
+  const handleBack = React.useCallback(() => {
+    console.log('BotApiKey pane back pressed');
+  }, []);
+
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <BotApiKeyPane
+        providerLabel="OpenAI"
+        apiKey={apiKey}
         onApiKeyChange={setApiKey}
+        onBackPress={handleBack}
         onActionPress={handleAction}
       />
     </FixtureWrapper>
@@ -277,6 +297,7 @@ export default {
   'Bot Name Pane': <BotNamePaneFixture />,
   'Bot Avatar Pane': <BotAvatarPaneFixture />,
   'Bot Provider Pane': <BotProviderPaneFixture />,
+  'Bot API Key Pane': <BotApiKeyPaneFixture />,
   'Bot Model Pane': <BotModelPaneFixture />,
   'Bot Chat Preview': <BotChatPreviewFixture />,
   'Invite Pane': <InvitePaneFixture />,
