@@ -1283,6 +1283,14 @@ export function BotModelPane(props: {
     Keyboard.dismiss();
   }, []);
 
+  const handleSelectModel = useCallback(
+    (modelId: string) => {
+      Keyboard.dismiss();
+      onSelectModel(modelId);
+    },
+    [onSelectModel]
+  );
+
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
@@ -1294,6 +1302,32 @@ export function BotModelPane(props: {
         <SplashTitle>
           Pick a <Text color="$positiveActionText">model.</Text>
         </SplashTitle>
+        <YStack
+          gap="$s"
+          paddingHorizontal="$xl"
+          paddingBottom="$m"
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom={0}>
+            Your key is valid. Choose which model your Tlonbot should use.
+          </SplashParagraph>
+          <SearchBar
+            placeholder="Search models"
+            onChangeQuery={setModelSearchQuery}
+            debounceTime={0}
+            inputProps={{
+              autoCapitalize: 'none',
+              autoComplete: 'off',
+              flex: 1,
+            }}
+          />
+          <Text
+            size="$label/m"
+            color="$secondaryText"
+            paddingHorizontal="$xs"
+          >
+            Showing {visibleModels.length} of {models.length} models
+          </Text>
+        </YStack>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
@@ -1306,35 +1340,13 @@ export function BotModelPane(props: {
             gap: getTokenValue('$s', 'size'),
           }}
         >
-          <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            Your key is valid. Choose which model your Tlonbot should use.
-          </SplashParagraph>
-          <SearchBar
-            placeholder="Search models"
-            onChangeQuery={setModelSearchQuery}
-            debounceTime={0}
-            paddingBottom="$m"
-            inputProps={{
-              autoCapitalize: 'none',
-              autoComplete: 'off',
-              flex: 1,
-            }}
-          />
-          <Text
-            size="$label/m"
-            color="$secondaryText"
-            paddingBottom="$s"
-            paddingHorizontal="$xs"
-          >
-            Showing {visibleModels.length} of {models.length} models
-          </Text>
           {visibleModels.length ? (
             visibleModels.map((m) => (
               <ModelOptionCard
                 key={m.id}
                 option={{ label: m.id, description: '' }}
                 selected={selectedModel === m.id}
-                onPress={() => onSelectModel(m.id)}
+                onPress={() => handleSelectModel(m.id)}
               />
             ))
           ) : (
