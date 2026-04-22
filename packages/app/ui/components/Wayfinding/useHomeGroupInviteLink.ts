@@ -1,5 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { getHomeGroupId } from '@tloncorp/shared/logic';
 import { enableGroupLinks, useGroup, useLure } from '@tloncorp/shared/store';
 import { useEffect, useMemo, useRef } from 'react';
 
@@ -9,25 +10,20 @@ import {
 } from '../../contexts/appDataContext';
 
 const logger = createDevLogger('useHomeGroupInviteLink', true);
-const HOME_GROUP_SLUG = 'home-group';
 
 type HomeGroupInviteState = 'ready' | 'loading' | 'unavailable';
-
-function getHomeGroupId(currentUserId: string) {
-  return `${currentUserId}/${HOME_GROUP_SLUG}`;
-}
 
 export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
   const currentUserId = useCurrentUserId();
   const inviteService = useInviteService();
   const cachedInviteLink = db.homeGroupInviteLink.useValue();
+  const cachedHomeGroupId = db.homeGroupId.useValue();
   const enabledGroupLinksRef = useRef<string | null>(null);
 
-  const homeGroupId = useMemo(
-    () =>
-      enabled && currentUserId ? getHomeGroupId(currentUserId) : undefined,
-    [currentUserId, enabled]
-  );
+  const homeGroupId = useMemo(() => {
+    if (!enabled || !currentUserId) return undefined;
+    return cachedHomeGroupId ?? getHomeGroupId(currentUserId);
+  }, [cachedHomeGroupId, currentUserId, enabled]);
   const { data: homeGroup, isLoading: homeGroupIsLoading } = useGroup({
     id: homeGroupId,
   });

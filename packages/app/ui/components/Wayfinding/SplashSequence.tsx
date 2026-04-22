@@ -9,8 +9,10 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import {
+  extractTokenFromInviteLink,
   generateHomeGroupTitle,
   getHomeGroupId,
+  getMetadataFromInviteToken,
   withRetry,
 } from '@tloncorp/shared/logic';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
@@ -290,7 +292,7 @@ function SplashSequenceComponent(props: {
         }
 
         try {
-          await applyHomeGroupBotIdentity(store, name);
+          await applyHomeGroupBotIdentity(name);
           logger.trackEvent('Wayfinding Home Group Sync Succeeded', meta);
         } catch (error) {
           logger.trackError('Wayfinding Home Group Sync Failed', {
@@ -653,17 +655,44 @@ export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
 
+// Resolve the home group ID from the cached lure token metadata so we don't
+// rely on the hardcoded slug. Falls back to the conventional slug if the
+// token metadata hasn't been cached or fails to resolve.
+async function resolveHomeGroupId(currentUserId: string): Promise<string> {
+  const cached = await db.homeGroupId.getValue();
+  if (cached) {
+    return cached;
+  }
+
+  const inviteLink = await db.homeGroupInviteLink.getValue();
+  const token = inviteLink ? extractTokenFromInviteLink(inviteLink) : null;
+  if (token) {
+    try {
+      const metadata = await getMetadataFromInviteToken(token);
+      if (metadata?.invitedGroupId) {
+        await db.homeGroupId.setValue(metadata.invitedGroupId);
+        return metadata.invitedGroupId;
+      }
+    } catch (e) {
+      logger.trackError('failed to resolve home group id from invite token', {
+        errorMessage: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  return getHomeGroupId(currentUserId);
+}
+
 // Hosting provisions the home group generic and unpinned; once the user
 // picks a bot nickname we retitle and pin it client-side.
-async function applyHomeGroupBotIdentity(
-  store: {
-    updateGroupMeta: (group: db.Group) => Promise<void>;
-    pinGroup: (group: db.Group) => Promise<unknown>;
-  },
-  botNickname: string
-) {
+//
+// Goes through `api` directly (rather than the `store.updateGroupMeta` /
+// `store.pinGroup` helpers) because those swallow poke failures and roll back
+// optimistically. We want errors to propagate here so `withRetry` actually
+// retries transient failures and the Wayfinding analytics reflect server state.
+async function applyHomeGroupBotIdentity(botNickname: string) {
   const currentUserId = api.getCurrentUserId();
-  const homeGroupId = getHomeGroupId(currentUserId);
+  const homeGroupId = await resolveHomeGroupId(currentUserId);
   const newTitle = generateHomeGroupTitle(botNickname);
 
   await withRetry(
@@ -673,10 +702,18 @@ async function applyHomeGroupBotIdentity(
         throw new Error('Home group not yet available');
       }
       if (homeGroup.title !== newTitle) {
-        await store.updateGroupMeta({ ...homeGroup, title: newTitle });
+        await api.updateGroupMeta({
+          groupId: homeGroup.id,
+          meta: {
+            title: newTitle,
+            description: homeGroup.description ?? '',
+            cover: homeGroup.coverImage ?? homeGroup.coverImageColor ?? '',
+            image: homeGroup.iconImage ?? homeGroup.iconImageColor ?? '',
+          },
+        });
       }
       if (!homeGroup.pin) {
-        await store.pinGroup(homeGroup);
+        await api.pinItem(homeGroup.id);
       }
     },
     {

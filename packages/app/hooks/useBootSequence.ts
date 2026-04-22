@@ -4,6 +4,7 @@ import {
   AnalyticsEvent,
   createDevLogger,
   extractNormalizedInviteLink,
+  getMetadataFromInviteToken,
   withRetry,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -121,6 +122,21 @@ export function useBootSequence() {
           `https://${env.BRANCH_DOMAIN}/${reservedNode.homeGroupInviteToken}`
         );
         await db.homeGroupInviteLink.setValue(inviteLink);
+
+        // Resolve the home group ID from the lure token so downstream
+        // wayfinding logic doesn't rely on a hardcoded slug.
+        try {
+          const metadata = await getMetadataFromInviteToken(
+            reservedNode.homeGroupInviteToken
+          );
+          if (metadata?.invitedGroupId) {
+            await db.homeGroupId.setValue(metadata.invitedGroupId);
+          }
+        } catch (e) {
+          logger.trackError('failed to resolve home group id from token', {
+            errorMessage: e instanceof Error ? e.message : String(e),
+          });
+        }
       } else {
         logger.trackError('Signup missing home group invite token', {
           nodeId: reservedNode.id,
