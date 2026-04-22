@@ -3,17 +3,6 @@ import { useMemo } from 'react';
 import { useTheme } from 'tamagui';
 import { ThemeName, useThemeName } from 'tamagui';
 
-export function getFallbackSigilColor(seed: string): string {
-  let hash = 0;
-
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-
-  const hue = hash % 360;
-  return `hsl(${hue}, 65%, 48%)`;
-}
-
 export const useSigilColors = (accentColor: string | null = '#000000') => {
   const theme = useThemeName();
   const backgroundColor = useMemo(

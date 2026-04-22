@@ -91,7 +91,7 @@ onFlowComplete:
 
 # wait until setup is complete
 - extendedWaitUntil:
-    visible: Welcome to Tlon Messenger
+    visible: Let's get started
     timeout: 600000
 
 - evalScript: ${output.operationEnd = Date.now()}

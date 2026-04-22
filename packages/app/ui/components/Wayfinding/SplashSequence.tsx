@@ -7,7 +7,7 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
+import { Attachment, DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import {
@@ -17,6 +17,7 @@ import {
   LoadingSpinner,
   Pressable,
   Text,
+  useToast,
 } from '@tloncorp/ui';
 import React, {
   ComponentProps,
@@ -44,10 +45,15 @@ import {
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
 import { useActiveTheme } from '../../../provider';
-import { AttachmentProvider } from '../../contexts/attachment';
+import {
+  AttachmentProvider,
+  useAttachmentContext,
+  useMappedImageAttachments,
+} from '../../contexts/attachment';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { Field, ImageInput, TextInput } from '../Form';
+import AttachmentSheet from '../AttachmentSheet';
+import { Field, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -62,8 +68,8 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Splash sequence panes.
  *
  * Bot-enabled flow:
- *   Welcome → TlonBot → BotName → BotAvatar → BotProvider → BotModel → Group
- *     → Invite
+ *   Welcome → TlonBot → BotName → BotAvatar → BotProvider
+ *     → (BotApiKey if provider requires key) → BotModel → Group → Invite
  *
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
@@ -77,6 +83,7 @@ enum SplashPane {
   BotName = 'BotName',
   BotAvatar = 'BotAvatar',
   BotProvider = 'BotProvider',
+  BotApiKey = 'BotApiKey',
   BotModel = 'BotModel',
   Invite = 'Invite',
 }
@@ -92,7 +99,7 @@ function SplashSequenceComponent(props: {
   const canUpload = useCanUpload();
   const [currentPane, setCurrentPane] = React.useState(SplashPane.Welcome);
   const { hostingBotEnabled } = props;
-  const [botName, setBotName] = React.useState(DEFAULT_BOT_CONFIG.name);
+  const [botName, setBotName] = React.useState('');
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
     DEFAULT_BOT_CONFIG.avatarUrl
   );
@@ -147,10 +154,6 @@ function SplashSequenceComponent(props: {
           if (!cancelled) {
             if (userContact?.nickname) {
               setUserNickname(userContact.nickname);
-              // Prefill the bot name from the user's nickname. We ignore any
-              // nickname stored on hosting so the field always reflects the
-              // user's current identity at splash time.
-              setBotName(`${userContact.nickname}'s Tlonbot`);
             }
             if (botInfo?.moon) {
               // Hosting returns the moon prefix (e.g., `pinser-botter`); the
@@ -448,8 +451,22 @@ function SplashSequenceComponent(props: {
         }
       }
       const result = await api.getTlawnProviderModels(userId, provider);
+      if (!result.data.length) {
+        setProviderModels([]);
+        setBotPrimaryModel('');
+        setConfigError(
+          'We could not load models for this API key. Please try again.'
+        );
+        logger.trackError('Wayfinding Bot Provider Validation Failed', {
+          provider,
+          step: 'empty_model_list',
+        });
+        return;
+      }
       setProviderModels(result.data);
-      setBotPrimaryModel(result.data[0]?.id ?? `${provider}/auto`);
+      // Require an explicit model pick on BotModelPane once real models are
+      // loaded. `handleSaveModelConfig` still keeps a defensive fallback.
+      setBotPrimaryModel('');
       setCurrentPane(SplashPane.BotModel);
     } catch (e) {
       console.error('Failed to validate provider during onboarding:', e);
@@ -462,6 +479,28 @@ function SplashSequenceComponent(props: {
       }
     }
   }, [botApiKey, botModel, providerOptions]);
+
+  // When the user advances from BotProviderPane: if the chosen provider needs
+  // a key, step into BotApiKey; otherwise (e.g. the free basic provider) fall
+  // straight through to the validate/save path.
+  const handleProviderSelected = useCallback(() => {
+    setConfigError(null);
+    const provider = botModel || BASIC_PROVIDER_ID;
+    const selected = providerOptions.find((p) => p.provider === provider);
+    if (selected?.requiresKey) {
+      setCurrentPane(SplashPane.BotApiKey);
+      return;
+    }
+    handleValidateProvider();
+  }, [botModel, providerOptions, handleValidateProvider]);
+
+  const handleModelBackPress = useCallback(() => {
+    const provider = botModel || BASIC_PROVIDER_ID;
+    const selected = providerOptions.find((p) => p.provider === provider);
+    setCurrentPane(
+      selected?.requiresKey ? SplashPane.BotApiKey : SplashPane.BotProvider
+    );
+  }, [botModel, providerOptions]);
 
   // Step 2 (non-basic only): start the restart-causing work in the background.
   const handleSaveModelConfig = useCallback(async () => {
@@ -568,18 +607,32 @@ function SplashSequenceComponent(props: {
           <BotAvatarPane
             avatarUrl={avatarDirty ? botAvatarUrl : null}
             onAvatarUrlChange={handleAvatarUrlChange}
+            onBackPress={() => setCurrentPane(SplashPane.BotName)}
             onActionPress={handleBotAvatarCompleted}
           />
         )}
         {currentPane === SplashPane.BotProvider && (
           <BotProviderPane
             model={botModel}
-            apiKey={botApiKey}
             providers={providerOptions}
             loading={savingConfig}
             error={configError}
             onModelChange={setBotModel}
+            onBackPress={() => setCurrentPane(SplashPane.BotAvatar)}
+            onActionPress={handleProviderSelected}
+          />
+        )}
+        {currentPane === SplashPane.BotApiKey && (
+          <BotApiKeyPane
+            providerLabel={
+              providerOptions.find((p) => p.provider === botModel)?.label ??
+              botModel
+            }
+            apiKey={botApiKey}
+            loading={savingConfig}
+            error={configError}
             onApiKeyChange={setBotApiKey}
+            onBackPress={() => setCurrentPane(SplashPane.BotProvider)}
             onActionPress={handleValidateProvider}
           />
         )}
@@ -590,7 +643,7 @@ function SplashSequenceComponent(props: {
             loading={savingConfig}
             error={configError}
             onSelectModel={setBotPrimaryModel}
-            onBackPress={() => setCurrentPane(SplashPane.BotProvider)}
+            onBackPress={handleModelBackPress}
             onActionPress={handleSaveModelConfig}
           />
         )}
@@ -798,61 +851,309 @@ export function BotNamePane(props: {
   onActionPress: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  // Real default we'd save if the user advances with an empty field.
-  // Without a nickname we can't personalize, so fall back to plain "Tlonbot".
-  const fallbackName = props.userNickname
-    ? `${props.userNickname}'s Tlonbot`
-    : 'Tlonbot';
-  // When we have a personalized fallback, surface it as the placeholder so
-  // the user sees what they'll get. Otherwise show instructional text — we
-  // must not write that instructional text into state.
-  const placeholder = props.userNickname
-    ? fallbackName
-    : 'Give your bot a name';
+  const [error, setError] = useState<string | null>(null);
+  const handleNameChange = (value: string) => {
+    setError(null);
+    props.onNameChange(value);
+  };
 
   const handlePress = () => {
     if (!props.name.trim()) {
-      props.onNameChange(fallbackName);
+      setError('Please give your bot a name.');
+      return;
+    }
+
+    if (props.name.trim().length > 50) {
+      setError('Please give your bot a shorter name');
+      return;
     }
     props.onActionPress();
   };
 
   return (
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+      <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+          <SplashTitle>
+            Name your <Text color="$positiveActionText">bot.</Text>
+          </SplashTitle>
+          <YStack paddingHorizontal="$xl" gap="$m">
+            <Field
+              label="Pick a name for your TlonBot"
+              error={error ?? undefined}
+            >
+              <TextInput
+                value={props.name}
+                onChangeText={handleNameChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handlePress}
+                enablesReturnKeyAutomatically
+                autoFocus
+                frameStyle={{ height: 72 }}
+                style={{ fontSize: 24, lineHeight: 30 }}
+              />
+            </Field>
+          </YStack>
+        </YStack>
+        <Button
+          onPress={handlePress}
+          label="Next"
+          preset="hero"
+          shadow
+          marginHorizontal="$xl"
+          marginTop="$xl"
+        />
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+export function BotAvatarPane(props: {
+  avatarUrl?: string | null;
+  onAvatarUrlChange: (url: string | null) => void;
+  onBackPress?: () => void;
+  onActionPress: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const { canUpload } = useAttachmentContext();
+  const showToast = useToast();
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Local URIs (file:// or data:) mean the upload is still pending; once the
+  // attachment pipeline swaps in the remote CDN URL, the avatar is safe to
+  // persist. Same check used in EditProfileScreenView.
+  const hasAvatar = !!props.avatarUrl;
+  const isUploading = hasAvatar && !/^(?!file|data).+/.test(props.avatarUrl!);
+
+  const { attachment } = useMappedImageAttachments(
+    props.avatarUrl ? { attachment: props.avatarUrl } : {}
+  );
+
+  useEffect(() => {
+    if (!attachment) return;
+    if (attachment.uploadState?.status === 'success') {
+      const remote = attachment.uploadState.remoteUri;
+      if (remote && remote !== props.avatarUrl) {
+        props.onAvatarUrlChange(remote);
+      }
+    } else if (attachment.uploadState?.status === 'error') {
+      const msg = attachment.uploadState.errorMessage || 'Upload failed';
+      showToast({
+        message: `Failed to upload image: ${msg}`,
+        duration: 5000,
+      });
+      props.onAvatarUrlChange(null);
+    }
+  }, [attachment, props, showToast]);
+
+  const openSheet = useCallback(() => {
+    if (!canUpload) {
+      showToast({
+        message: 'Please configure storage settings to upload images',
+        duration: 3000,
+      });
+      return;
+    }
+    setSheetOpen(true);
+  }, [canUpload, showToast]);
+
+  const handleImageSelected = useCallback(
+    (assets: Attachment.UploadIntent[]) => {
+      const uri =
+        Attachment.UploadIntent.extractImagePickerAssets(assets)[0]?.uri;
+      if (uri) {
+        props.onAvatarUrlChange(uri);
+      }
+    },
+    [props]
+  );
+
+  return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <ScrollView
-        style={{ flex: 1 }}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          paddingHorizontal: getTokenValue('$xl', 'size'),
-          gap: getTokenValue('$2xl', 'size'),
-        }}
-      >
-        <SplashTitle marginHorizontal={0}>
-          Name your <Text color="$positiveActionText">bot.</Text>
+      <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+        {props.onBackPress ? (
+          <View paddingHorizontal="$xl">
+            <ScreenHeader.BackButton
+              onPress={isUploading ? undefined : props.onBackPress}
+            />
+          </View>
+        ) : null}
+        <SplashTitle>
+          Choose an <Text color="$positiveActionText">avatar.</Text>
         </SplashTitle>
-        <SplashParagraph marginHorizontal={0} marginBottom={0}>
-          Pick a name for your Tlonbot.
+        <SplashParagraph marginBottom={0}>
+          Pick an avatar for your Tlonbot, or skip and add one later.
         </SplashParagraph>
-        <Field label="Name">
-          <TextInput
-            value={props.name}
-            onChangeText={props.onNameChange}
-            placeholder={placeholder}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="done"
-          />
-        </Field>
-      </ScrollView>
+        <YStack flex={1} alignItems="center" justifyContent="center">
+          <Pressable onPress={openSheet} disabled={!canUpload || isUploading}>
+            <View
+              width={160}
+              height={160}
+              borderRadius={80}
+              backgroundColor="$secondaryBackground"
+              alignItems="center"
+              justifyContent="center"
+              overflow="hidden"
+            >
+              {hasAvatar ? (
+                <Image
+                  source={{ uri: props.avatarUrl! }}
+                  style={{ width: 160, height: 160 }}
+                />
+              ) : (
+                <Icon
+                  type="Camera"
+                  customSize={[72, 72]}
+                  color="$tertiaryText"
+                />
+              )}
+              {isUploading ? (
+                <View
+                  position="absolute"
+                  top={0}
+                  left={0}
+                  right={0}
+                  bottom={0}
+                  alignItems="center"
+                  justifyContent="center"
+                  backgroundColor="$shadow"
+                >
+                  <LoadingSpinner />
+                </View>
+              ) : null}
+            </View>
+          </Pressable>
+        </YStack>
+      </YStack>
+      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
+        {hasAvatar ? (
+          <>
+            <Button
+              onPress={openSheet}
+              label="Change photo"
+              preset="secondary"
+              disabled={!canUpload || isUploading}
+            />
+            <Button
+              onPress={props.onActionPress}
+              label={isUploading ? 'Uploading…' : 'Continue'}
+              preset="hero"
+              shadow
+              loading={isUploading}
+              disabled={isUploading}
+            />
+          </>
+        ) : (
+          <>
+            <Button
+              onPress={openSheet}
+              label="Upload photo"
+              preset="hero"
+              shadow
+              disabled={!canUpload}
+            />
+            <Button
+              onPress={props.onActionPress}
+              label="Skip"
+              preset="secondary"
+              fill="text"
+            />
+          </>
+        )}
+      </YStack>
+      <AttachmentSheet
+        isOpen={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onAttach={handleImageSelected}
+        showClearOption={hasAvatar}
+        onClearAttachments={() => props.onAvatarUrlChange(null)}
+        mediaType="image"
+      />
+    </View>
+  );
+}
+
+export function BotProviderPane(props: {
+  model: string;
+  providers: { label: string; provider: string; requiresKey: boolean }[];
+  loading?: boolean;
+  error?: string | null;
+  onModelChange: (model: string) => void;
+  onBackPress?: () => void;
+  onActionPress: () => void;
+}) {
+  const {
+    model,
+    providers,
+    loading,
+    error,
+    onModelChange,
+    onBackPress,
+    onActionPress,
+  } = props;
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+        {onBackPress ? (
+          <View paddingHorizontal="$xl">
+            <ScreenHeader.BackButton
+              onPress={loading ? undefined : onBackPress}
+            />
+          </View>
+        ) : null}
+        <SplashTitle>
+          Choose a <Text color="$positiveActionText">brain.</Text>
+        </SplashTitle>
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          contentContainerStyle={{
+            paddingHorizontal: getTokenValue('$xl', 'size'),
+            gap: getTokenValue('$s', 'size'),
+            paddingBottom: getTokenValue('$6xl', 'size'),
+          }}
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom="$m">
+            {providers.some((p) => !p.requiresKey)
+              ? 'A free model is included. Bring your own API key to use a different provider.'
+              : 'Pick a provider, then enter your API key on the next screen.'}
+          </SplashParagraph>
+          {providers.map((option) => (
+            <ModelOptionCard
+              key={option.provider}
+              option={{
+                label: option.label,
+                description: option.requiresKey
+                  ? 'Requires API key'
+                  : 'Default (free, used as fallback)',
+              }}
+              selected={model === option.provider}
+              onPress={() => onModelChange(option.provider)}
+            />
+          ))}
+          {error ? (
+            <Text
+              size="$label/m"
+              color="$negativeActionText"
+              paddingHorizontal="$xl"
+              paddingTop="$l"
+            >
+              {error}
+            </Text>
+          ) : null}
+        </ScrollView>
+      </YStack>
       <Button
-        onPress={handlePress}
-        label="Next"
+        onPress={onActionPress}
+        label={loading ? 'Validating...' : 'Next'}
         preset="hero"
-        shadow
+        loading={loading}
+        disabled={loading || !model}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
@@ -860,101 +1161,26 @@ export function BotNamePane(props: {
   );
 }
 
-export function BotAvatarPane(props: {
-  avatarUrl?: string | null;
-  onAvatarUrlChange: (url: string | null) => void;
-  onActionPress: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-
-  const handleImageChange = useCallback(
-    (value?: string) => {
-      props.onAvatarUrlChange(value ?? null);
-    },
-    [props]
-  );
-
-  // `ImageInput` emits the local URI the moment the user picks an image,
-  // then swaps it for the remote CDN URL once upload finishes. Only the
-  // remote URL is safe to persist. Uses the same `file|data` check as
-  // `EditProfileScreenView` / `MetaEditorScreenView` so the convention
-  // stays consistent across the app.
-  const hasAvatar = !!props.avatarUrl;
-  const isUploading = hasAvatar && !/^(?!file|data).+/.test(props.avatarUrl!);
-
-  return (
-    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <ScrollView
-        style={{ flex: 1 }}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent: 'center',
-          paddingHorizontal: getTokenValue('$xl', 'size'),
-          gap: getTokenValue('$2xl', 'size'),
-        }}
-      >
-        <SplashTitle marginHorizontal={0}>
-          Choose an <Text color="$positiveActionText">avatar.</Text>
-        </SplashTitle>
-        <SplashParagraph marginHorizontal={0} marginBottom={0}>
-          Pick an avatar for your Tlonbot, or skip and add one later.
-        </SplashParagraph>
-        <Field label="Avatar">
-          <ImageInput
-            value={props.avatarUrl ?? undefined}
-            onChange={handleImageChange}
-            buttonLabel="Upload image"
-          />
-        </Field>
-      </ScrollView>
-      <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
-        {hasAvatar ? (
-          <Button
-            onPress={props.onActionPress}
-            label={isUploading ? 'Uploading…' : 'Next'}
-            preset="hero"
-            shadow
-            loading={isUploading}
-            disabled={isUploading}
-          />
-        ) : null}
-        <Button
-          onPress={props.onActionPress}
-          label="Skip"
-          preset="secondary"
-          fill="text"
-          disabled={isUploading}
-        />
-      </YStack>
-    </View>
-  );
-}
-
-export function BotProviderPane(props: {
-  model: string;
+export function BotApiKeyPane(props: {
+  providerLabel: string;
   apiKey: string;
-  providers: { label: string; provider: string; requiresKey: boolean }[];
   loading?: boolean;
   error?: string | null;
-  onModelChange: (model: string) => void;
   onApiKeyChange: (key: string) => void;
+  onBackPress: () => void;
   onActionPress: () => void;
 }) {
   const {
-    model,
+    providerLabel,
     apiKey,
-    providers,
     loading,
     error,
-    onModelChange,
     onApiKeyChange,
+    onBackPress,
     onActionPress,
   } = props;
   const insets = useSafeAreaInsets();
-  const selected = providers.find((p) => p.provider === model);
-  const needsApiKey = selected?.requiresKey ?? false;
+
   const handlePasteApiKey = useCallback(async () => {
     try {
       const clipboardContents = isWeb
@@ -964,17 +1190,22 @@ export function BotProviderPane(props: {
     } catch (error) {
       logger.trackError('Wayfinding Bot API Key Paste Failed', {
         error,
-        provider: selected?.provider ?? null,
+        provider: providerLabel,
       });
     }
-  }, [onApiKeyChange, selected?.provider]);
+  }, [onApiKeyChange, providerLabel]);
 
   return (
-    <KeyboardAvoidingView keyboardVerticalOffset={isWeb ? 0 : insets.top}>
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
       <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
         <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+          <View paddingHorizontal="$xl">
+            <ScreenHeader.BackButton
+              onPress={loading ? undefined : onBackPress}
+            />
+          </View>
           <SplashTitle>
-            Choose a <Text color="$positiveActionText">brain.</Text>
+            Add your <Text color="$positiveActionText">API key.</Text>
           </SplashTitle>
           <ScrollView
             style={{ flex: 1 }}
@@ -984,51 +1215,34 @@ export function BotProviderPane(props: {
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{
               paddingHorizontal: getTokenValue('$xl', 'size'),
-              gap: getTokenValue('$s', 'size'),
-              paddingBottom: getTokenValue('$6xl', 'size'),
+              gap: getTokenValue('$2xl', 'size'),
             }}
           >
-            <SplashParagraph marginHorizontal={0} marginBottom="$m">
-              {providers.some((p) => !p.requiresKey)
-                ? 'A free model is included. Bring your own API key to use a different provider.'
-                : 'Enter your API key to use a provider.'}
+            <SplashParagraph marginHorizontal={0} marginBottom={0}>
+              Paste your {providerLabel} key so your bot can talk to the
+              provider. Your key stays on your server.
             </SplashParagraph>
-            {providers.map((option) => (
-              <ModelOptionCard
-                key={option.provider}
-                option={{
-                  label: option.label,
-                  description: option.requiresKey
-                    ? 'Requires API key'
-                    : 'Default (free, used as fallback)',
-                }}
-                selected={model === option.provider}
-                onPress={() => onModelChange(option.provider)}
+            <Field
+              label={`${providerLabel} API key`}
+              error={error ?? undefined}
+            >
+              <TextInput
+                value={apiKey}
+                onChangeText={onApiKeyChange}
+                placeholder="Paste your key here"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                autoFocus
+                rightControls={
+                  <TextInput.InnerButton
+                    label="Paste"
+                    onPress={handlePasteApiKey}
+                  />
+                }
               />
-            ))}
-            {needsApiKey && (
-              <Field
-                label={`${selected?.label} API key`}
-                error={error ?? undefined}
-                marginTop="$xl"
-              >
-                <TextInput
-                  value={apiKey}
-                  onChangeText={onApiKeyChange}
-                  placeholder="Paste your key here"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  rightControls={
-                    <TextInput.InnerButton
-                      label="Paste"
-                      onPress={handlePasteApiKey}
-                    />
-                  }
-                />
-              </Field>
-            )}
+            </Field>
           </ScrollView>
         </YStack>
         <Button
@@ -1036,7 +1250,7 @@ export function BotProviderPane(props: {
           label={loading ? 'Validating...' : 'Next'}
           preset="hero"
           loading={loading}
-          disabled={loading || (needsApiKey && !apiKey)}
+          disabled={loading || !apiKey}
           marginHorizontal="$xl"
           marginTop="$xl"
         />
@@ -1051,7 +1265,7 @@ export function BotModelPane(props: {
   loading?: boolean;
   error?: string | null;
   onSelectModel: (modelId: string) => void;
-  onBackPress?: () => void;
+  onBackPress: () => void;
   onActionPress: () => void;
 }) {
   const {
@@ -1068,14 +1282,12 @@ export function BotModelPane(props: {
 
   const visibleModels = useMemo(() => {
     const normalizedQuery = modelSearchQuery.trim().toLowerCase();
-    const sortedModels = [...models].sort((a, b) => {
-      if (a.id === selectedModel) return -1;
-      if (b.id === selectedModel) return 1;
-      return a.id.localeCompare(b.id, undefined, {
+    const sortedModels = [...models].sort((a, b) =>
+      a.id.localeCompare(b.id, undefined, {
         numeric: true,
         sensitivity: 'base',
-      });
-    });
+      })
+    );
 
     if (!normalizedQuery) {
       return sortedModels;
@@ -1084,11 +1296,19 @@ export function BotModelPane(props: {
     return sortedModels.filter((model) =>
       model.id.toLowerCase().includes(normalizedQuery)
     );
-  }, [modelSearchQuery, models, selectedModel]);
+  }, [modelSearchQuery, models]);
 
   const handleModelListScrollBeginDrag = useCallback(() => {
     Keyboard.dismiss();
   }, []);
+
+  const handleSelectModel = useCallback(
+    (modelId: string) => {
+      Keyboard.dismiss();
+      onSelectModel(modelId);
+    },
+    [onSelectModel]
+  );
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -1101,6 +1321,24 @@ export function BotModelPane(props: {
         <SplashTitle>
           Pick a <Text color="$positiveActionText">model.</Text>
         </SplashTitle>
+        <YStack gap="$s" paddingHorizontal="$xl" paddingBottom="$m">
+          <SplashParagraph marginHorizontal={0} marginBottom={0}>
+            Your key is valid. Choose which model your Tlonbot should use.
+          </SplashParagraph>
+          <SearchBar
+            placeholder="Search models"
+            onChangeQuery={setModelSearchQuery}
+            debounceTime={0}
+            inputProps={{
+              autoCapitalize: 'none',
+              autoComplete: 'off',
+              flex: 1,
+            }}
+          />
+          <Text size="$label/m" color="$secondaryText" paddingHorizontal="$xs">
+            Showing {visibleModels.length} of {models.length} models
+          </Text>
+        </YStack>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
@@ -1113,35 +1351,13 @@ export function BotModelPane(props: {
             gap: getTokenValue('$s', 'size'),
           }}
         >
-          <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            Your key is valid. Choose which model your Tlonbot should use.
-          </SplashParagraph>
-          <SearchBar
-            placeholder="Search models"
-            onChangeQuery={setModelSearchQuery}
-            debounceTime={0}
-            paddingBottom="$m"
-            inputProps={{
-              autoCapitalize: 'none',
-              autoComplete: 'off',
-              flex: 1,
-            }}
-          />
-          <Text
-            size="$label/m"
-            color="$secondaryText"
-            paddingBottom="$s"
-            paddingHorizontal="$xs"
-          >
-            Showing {visibleModels.length} of {models.length} models
-          </Text>
           {visibleModels.length ? (
             visibleModels.map((m) => (
               <ModelOptionCard
                 key={m.id}
                 option={{ label: m.id, description: '' }}
                 selected={selectedModel === m.id}
-                onPress={() => onSelectModel(m.id)}
+                onPress={() => handleSelectModel(m.id)}
               />
             ))
           ) : (
