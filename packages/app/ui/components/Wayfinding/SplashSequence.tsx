@@ -53,7 +53,7 @@ import {
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
-import { Field, RawTextInput, TextInput } from '../Form';
+import { Field, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -842,6 +842,11 @@ export function BotNamePane(props: {
       setError('Please give your bot a name.');
       return;
     }
+
+    if (props.name.trim().length > 50) {
+      setError('Please give your bot a shorter name');
+      return;
+    }
     props.onActionPress();
   };
 
@@ -853,29 +858,23 @@ export function BotNamePane(props: {
             Name your <Text color="$positiveActionText">bot.</Text>
           </SplashTitle>
           <YStack paddingHorizontal="$xl" gap="$m">
-            <View
-              borderBottomWidth={1}
-              borderBottomColor={error ? '$negativeBorder' : '$tertiaryText'}
-              paddingBottom="$m"
+            <Field
+              label="Pick a name for your TlonBot"
+              error={error ?? undefined}
             >
-              <RawTextInput
+              <TextInput
                 value={props.name}
                 onChangeText={handleNameChange}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="done"
+                onSubmitEditing={handlePress}
+                enablesReturnKeyAutomatically
                 autoFocus
-                fontSize="$l"
-                color="$primaryText"
-                placeholderTextColor="$tertiaryText"
+                frameStyle={{ height: 72 }}
+                style={{ fontSize: 24, lineHeight: 30 }}
               />
-            </View>
-            <Text
-              size="$label/m"
-              color={error ? '$negativeActionText' : '$secondaryText'}
-            >
-              {error ?? 'Pick a name for your Tlonbot.'}
-            </Text>
+            </Field>
           </YStack>
         </YStack>
         <Button
@@ -1302,11 +1301,7 @@ export function BotModelPane(props: {
         <SplashTitle>
           Pick a <Text color="$positiveActionText">model.</Text>
         </SplashTitle>
-        <YStack
-          gap="$s"
-          paddingHorizontal="$xl"
-          paddingBottom="$m"
-        >
+        <YStack gap="$s" paddingHorizontal="$xl" paddingBottom="$m">
           <SplashParagraph marginHorizontal={0} marginBottom={0}>
             Your key is valid. Choose which model your Tlonbot should use.
           </SplashParagraph>
@@ -1320,11 +1315,7 @@ export function BotModelPane(props: {
               flex: 1,
             }}
           />
-          <Text
-            size="$label/m"
-            color="$secondaryText"
-            paddingHorizontal="$xs"
-          >
+          <Text size="$label/m" color="$secondaryText" paddingHorizontal="$xs">
             Showing {visibleModels.length} of {models.length} models
           </Text>
         </YStack>
