@@ -5,6 +5,11 @@ export const PersonalGroupSlugs = {
   notebookSlug: 'tm-wayfinding-group-notebook',
 };
 
+export const BotHomeGroupSlugs = {
+  slug: 'home-group',
+  chatSlug: 'home-group-chat',
+};
+
 export const PersonalGroupNames = {
   groupTitle: 'Your Group',
   chatTitle: 'Chat',
