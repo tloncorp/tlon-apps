@@ -4,7 +4,7 @@
 ++  grad  %noun
 ++  grab
   |%
-  ++  noun  (pair cord cord)
+  ++  noun  cord
   ++  json  (ot:dejs:format ~[token+so:dejs:format])
   --
 ++  grow
