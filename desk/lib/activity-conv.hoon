@@ -167,6 +167,34 @@
   --
 ++  v8
   |%
+  ++  source
+    |%
+    ++  v4
+      |=  =source:v8:av
+      ^-  (unit source:v4:av)
+      ?:  ?=(?(%contact %react %dm-react) -.source)  ~
+      `source
+    --
+  ++  stream
+    |%
+    ++  v4
+      |=  =stream:v8:av
+      ^-  (unit stream:v4:av)
+      =/  out=stream:v4:av
+        %+  gas:on-event:v4:av
+          *stream:v4:av
+        (murn (tap:on-event:v8:av stream) v4:time-event)
+      %-  some
+      out
+    --
+  ++  index
+    |%
+    ++  v4
+      |=  =index:v8:av
+      ^-  (unit index:v4:av)
+      ?~  stm=(v4:stream stream.index)  ~
+      `[u.stm reads.index bump.index]
+    --
   ++  feed
     |%
     ++  v7
@@ -365,34 +393,6 @@
       ?~  src=(v4:^source source)  ~
       ?~  idx=(v4:^index index)  ~
       `[u.src u.idx]
-    --
-  ++  source
-    |%
-    ++  v4
-      |=  =source:v8:av
-      ^-  (unit source:v4:av)
-      ?:  ?=(?(%contact %react %dm-react) -.source)  ~
-      `source
-    --
-  ++  index
-    |%
-    ++  v4
-      |=  =index:v8:av
-      ^-  (unit index:v4:av)
-      ?~  stm=(v4:stream stream.index)  ~
-      `[u.stm reads.index bump.index]
-    --
-  ++  stream
-    |%
-    ++  v4
-      |=  =stream:v8:av
-      ^-  (unit stream:v4:av)
-      =/  out=stream:v4:av
-        %+  gas:on-event:v4:av
-          *stream:v4:av
-        (murn (tap:on-event:v8:av stream) v4:time-event)
-      %-  some
-      out
     --
   ++  volume-settings
     |%

@@ -241,9 +241,11 @@
     ==
   +$  state-1
     [%1 =indices:v3:av =activity:v2:av =volume-settings:v3:av]
+  ::
   ++  state-9-to-10
-    |=  state-9
-    *state-10
+    |=  old=state-9
+    ^-  state-10
+    [%10 allowed indices activity volume-settings]:old
   ++  state-5-to-6
     |=  old=state-5
     ~>  %spin.['state-5-to-6']
