@@ -954,7 +954,9 @@ export function BotProviderPane(props: {
   } = props;
   const insets = useSafeAreaInsets();
   const selected = providers.find((p) => p.provider === model);
+  const defaultProvider = providers.find((p) => !p.requiresKey) ?? null;
   const needsApiKey = selected?.requiresKey ?? false;
+  const showFocusedProviderState = !!selected && needsApiKey;
   const handlePasteApiKey = useCallback(async () => {
     try {
       const clipboardContents = isWeb
@@ -968,6 +970,16 @@ export function BotProviderPane(props: {
       });
     }
   }, [onApiKeyChange, selected?.provider]);
+
+  const handleResetProvider = useCallback(() => {
+    Keyboard.dismiss();
+    onApiKeyChange('');
+    if (defaultProvider) {
+      onModelChange(defaultProvider.provider);
+      return;
+    }
+    onModelChange('');
+  }, [defaultProvider, onApiKeyChange, onModelChange]);
 
   return (
     <KeyboardAvoidingView keyboardVerticalOffset={isWeb ? 0 : insets.top}>
@@ -985,32 +997,50 @@ export function BotProviderPane(props: {
             contentContainerStyle={{
               paddingHorizontal: getTokenValue('$xl', 'size'),
               gap: getTokenValue('$s', 'size'),
-              paddingBottom: getTokenValue('$6xl', 'size'),
+              paddingBottom: getTokenValue(
+                showFocusedProviderState ? '$2xl' : '$6xl',
+                'size'
+              ),
             }}
           >
-            <SplashParagraph marginHorizontal={0} marginBottom="$m">
-              {providers.some((p) => !p.requiresKey)
-                ? 'A free model is included. Bring your own API key to use a different provider.'
-                : 'Enter your API key to use a provider.'}
-            </SplashParagraph>
-            {providers.map((option) => (
-              <ModelOptionCard
-                key={option.provider}
-                option={{
-                  label: option.label,
-                  description: option.requiresKey
-                    ? 'Requires API key'
-                    : 'Default (free, used as fallback)',
-                }}
-                selected={model === option.provider}
-                onPress={() => onModelChange(option.provider)}
-              />
-            ))}
-            {needsApiKey && (
+            {!showFocusedProviderState && (
+              <SplashParagraph marginHorizontal={0} marginBottom="$m">
+                {providers.some((p) => !p.requiresKey)
+                  ? 'A free model is included. Bring your own API key to use a different provider.'
+                  : 'Enter your API key to use a provider.'}
+              </SplashParagraph>
+            )}
+            {showFocusedProviderState ? (
+              <>
+                <ModelOptionCard
+                  option={{
+                    label: selected.label,
+                    description: 'Requires API key',
+                  }}
+                  selected
+                  onPress={() => {}}
+                />
+              </>
+            ) : (
+              providers.map((option) => (
+                <ModelOptionCard
+                  key={option.provider}
+                  option={{
+                    label: option.label,
+                    description: option.requiresKey
+                      ? 'Requires API key'
+                      : 'Default (free, used as fallback)',
+                  }}
+                  selected={model === option.provider}
+                  onPress={() => onModelChange(option.provider)}
+                />
+              ))
+            )}
+            {needsApiKey && selected && (
               <Field
                 label={`${selected?.label} API key`}
                 error={error ?? undefined}
-                marginTop="$xl"
+                marginTop={showFocusedProviderState ? '$m' : '$xl'}
               >
                 <TextInput
                   value={apiKey}
@@ -1029,6 +1059,18 @@ export function BotProviderPane(props: {
                 />
               </Field>
             )}
+            {showFocusedProviderState && (
+              <Text
+                textAlign="center"
+                onPress={handleResetProvider}
+                color="$tertiaryText"
+                textDecorationLine="underline"
+                size="$label/m"
+                marginTop="$s"
+              >
+                Or use the default model
+              </Text>
+            )}
           </ScrollView>
         </YStack>
         <Button
@@ -1036,7 +1078,7 @@ export function BotProviderPane(props: {
           label={loading ? 'Validating...' : 'Next'}
           preset="hero"
           loading={loading}
-          disabled={loading || (needsApiKey && !apiKey)}
+          disabled={loading || !selected || (needsApiKey && !apiKey)}
           marginHorizontal="$xl"
           marginTop="$xl"
         />
@@ -1088,6 +1130,14 @@ export function BotModelPane(props: {
     Keyboard.dismiss();
   }, []);
 
+  const handleSelectModel = useCallback(
+    (modelId: string) => {
+      Keyboard.dismiss();
+      onSelectModel(modelId);
+    },
+    [onSelectModel]
+  );
+
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
@@ -1099,6 +1149,32 @@ export function BotModelPane(props: {
         <SplashTitle>
           Pick a <Text color="$positiveActionText">model.</Text>
         </SplashTitle>
+        <YStack
+          paddingHorizontal="$xl"
+          gap="$s"
+          paddingBottom="$m"
+        >
+          <SplashParagraph marginHorizontal={0} marginBottom={0}>
+            Your key is valid. Choose which model your Tlonbot should use.
+          </SplashParagraph>
+          <SearchBar
+            placeholder="Search models"
+            onChangeQuery={setModelSearchQuery}
+            debounceTime={0}
+            inputProps={{
+              autoCapitalize: 'none',
+              autoComplete: 'off',
+              flex: 1,
+            }}
+          />
+          <Text
+            size="$label/m"
+            color="$secondaryText"
+            paddingHorizontal="$xs"
+          >
+            Showing {visibleModels.length} of {models.length} models
+          </Text>
+        </YStack>
         <ScrollView
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
@@ -1109,37 +1185,16 @@ export function BotModelPane(props: {
           contentContainerStyle={{
             paddingHorizontal: getTokenValue('$xl', 'size'),
             gap: getTokenValue('$s', 'size'),
+            paddingBottom: getTokenValue('$m', 'size'),
           }}
         >
-          <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            Your key is valid. Choose which model your Tlonbot should use.
-          </SplashParagraph>
-          <SearchBar
-            placeholder="Search models"
-            onChangeQuery={setModelSearchQuery}
-            debounceTime={0}
-            paddingBottom="$m"
-            inputProps={{
-              autoCapitalize: 'none',
-              autoComplete: 'off',
-              flex: 1,
-            }}
-          />
-          <Text
-            size="$label/m"
-            color="$secondaryText"
-            paddingBottom="$s"
-            paddingHorizontal="$xs"
-          >
-            Showing {visibleModels.length} of {models.length} models
-          </Text>
           {visibleModels.length ? (
             visibleModels.map((m) => (
               <ModelOptionCard
                 key={m.id}
                 option={{ label: m.id, description: '' }}
                 selected={selectedModel === m.id}
-                onPress={() => onSelectModel(m.id)}
+                onPress={() => handleSelectModel(m.id)}
               />
             ))
           ) : (
