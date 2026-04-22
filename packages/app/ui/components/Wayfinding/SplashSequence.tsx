@@ -1068,14 +1068,12 @@ export function BotModelPane(props: {
 
   const visibleModels = useMemo(() => {
     const normalizedQuery = modelSearchQuery.trim().toLowerCase();
-    const sortedModels = [...models].sort((a, b) => {
-      if (a.id === selectedModel) return -1;
-      if (b.id === selectedModel) return 1;
-      return a.id.localeCompare(b.id, undefined, {
+    const sortedModels = [...models].sort((a, b) =>
+      a.id.localeCompare(b.id, undefined, {
         numeric: true,
         sensitivity: 'base',
-      });
-    });
+      })
+    );
 
     if (!normalizedQuery) {
       return sortedModels;
@@ -1084,7 +1082,7 @@ export function BotModelPane(props: {
     return sortedModels.filter((model) =>
       model.id.toLowerCase().includes(normalizedQuery)
     );
-  }, [modelSearchQuery, models, selectedModel]);
+  }, [modelSearchQuery, models]);
 
   const handleModelListScrollBeginDrag = useCallback(() => {
     Keyboard.dismiss();
