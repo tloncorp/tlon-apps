@@ -73,6 +73,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     runtimeVersion: '4.0.2',
+    blockedPermissions: [
+      'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+    ],
   },
   plugins: [
     'expo-asset',
