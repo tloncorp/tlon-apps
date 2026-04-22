@@ -637,7 +637,7 @@ function SplashSequenceComponent(props: {
           />
         )}
         {currentPane === SplashPane.BotModel && (
-        <BotModelPane
+          <BotModelPane
             models={providerModels}
             selectedModel={botPrimaryModel}
             loading={savingConfig}
