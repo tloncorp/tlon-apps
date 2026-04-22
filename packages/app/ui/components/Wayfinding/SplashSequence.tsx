@@ -494,6 +494,14 @@ function SplashSequenceComponent(props: {
     handleValidateProvider();
   }, [botModel, providerOptions, handleValidateProvider]);
 
+  const handleModelBackPress = useCallback(() => {
+    const provider = botModel || BASIC_PROVIDER_ID;
+    const selected = providerOptions.find((p) => p.provider === provider);
+    setCurrentPane(
+      selected?.requiresKey ? SplashPane.BotApiKey : SplashPane.BotProvider
+    );
+  }, [botModel, providerOptions]);
+
   // Step 2 (non-basic only): start the restart-causing work in the background.
   const handleSaveModelConfig = useCallback(async () => {
     setSavingConfig(true);
@@ -629,13 +637,13 @@ function SplashSequenceComponent(props: {
           />
         )}
         {currentPane === SplashPane.BotModel && (
-          <BotModelPane
+        <BotModelPane
             models={providerModels}
             selectedModel={botPrimaryModel}
             loading={savingConfig}
             error={configError}
             onSelectModel={setBotPrimaryModel}
-            onBackPress={() => setCurrentPane(SplashPane.BotProvider)}
+            onBackPress={handleModelBackPress}
             onActionPress={handleSaveModelConfig}
           />
         )}
