@@ -12,6 +12,7 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/app/ui';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   getNicknameErrorMessage,
@@ -19,7 +20,6 @@ import {
   withRetry,
 } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { createDevLogger } from 'packages/shared/src';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
