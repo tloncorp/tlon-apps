@@ -184,12 +184,16 @@ function BotAvatarPaneFixture() {
   const handleAction = React.useCallback(() => {
     console.log('BotAvatar pane action pressed');
   }, []);
+  const handleBack = React.useCallback(() => {
+    console.log('BotAvatar pane back pressed');
+  }, []);
 
   return (
     <FixtureWrapper fillWidth fillHeight>
       <BotAvatarPane
         avatarUrl={avatarUrl}
         onAvatarUrlChange={setAvatarUrl}
+        onBackPress={handleBack}
         onActionPress={handleAction}
       />
     </FixtureWrapper>
@@ -200,6 +204,9 @@ function BotProviderPaneFixture() {
   const [model, setModel] = useValue('Provider', { defaultValue: 'basic' });
   const handleAction = React.useCallback(() => {
     console.log('BotProvider pane action pressed');
+  }, []);
+  const handleBack = React.useCallback(() => {
+    console.log('BotProvider pane back pressed');
   }, []);
 
   return (
@@ -213,6 +220,7 @@ function BotProviderPaneFixture() {
           { label: 'OpenRouter', provider: 'openrouter', requiresKey: true },
         ]}
         onModelChange={setModel}
+        onBackPress={handleBack}
         onActionPress={handleAction}
       />
     </FixtureWrapper>
@@ -248,6 +256,9 @@ function BotModelPaneFixture() {
   const handleAction = React.useCallback(() => {
     console.log('BotModel pane action pressed');
   }, []);
+  const handleBack = React.useCallback(() => {
+    console.log('BotModel pane back pressed');
+  }, []);
 
   return (
     <FixtureWrapper fillWidth fillHeight>
@@ -256,9 +267,29 @@ function BotModelPaneFixture() {
           { id: 'anthropic/claude-3-5-sonnet' },
           { id: 'anthropic/claude-3-opus' },
           { id: 'anthropic/claude-3-haiku' },
+          { id: 'anthropic/claude-3-7-sonnet' },
+          { id: 'anthropic/claude-sonnet-4' },
+          { id: 'anthropic/claude-opus-4' },
+          { id: 'openai/gpt-4o' },
+          { id: 'openai/gpt-4.1' },
+          { id: 'openai/gpt-4.1-mini' },
+          { id: 'openai/gpt-4.1-nano' },
+          { id: 'openai/o3' },
+          { id: 'openai/o4-mini' },
+          { id: 'google/gemini-1.5-pro' },
+          { id: 'google/gemini-1.5-flash' },
+          { id: 'google/gemini-2.0-flash' },
+          { id: 'meta/llama-3.1-8b-instruct' },
+          { id: 'meta/llama-3.1-70b-instruct' },
+          { id: 'mistral/mistral-large' },
+          { id: 'mistral/mistral-small' },
+          { id: 'minimax/minimax-text-01' },
+          { id: 'openrouter/anthropic/claude-3.5-sonnet' },
+          { id: 'openrouter/openai/gpt-4o-mini' },
         ]}
         selectedModel={selectedModel}
         onSelectModel={setSelectedModel}
+        onBackPress={handleBack}
         onActionPress={handleAction}
       />
     </FixtureWrapper>

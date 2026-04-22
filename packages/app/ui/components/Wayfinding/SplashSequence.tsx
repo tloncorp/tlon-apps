@@ -451,9 +451,21 @@ function SplashSequenceComponent(props: {
         }
       }
       const result = await api.getTlawnProviderModels(userId, provider);
+      if (!result.data.length) {
+        setProviderModels([]);
+        setBotPrimaryModel('');
+        setConfigError(
+          'We could not load models for this API key. Please try again.'
+        );
+        logger.trackError('Wayfinding Bot Provider Validation Failed', {
+          provider,
+          step: 'empty_model_list',
+        });
+        return;
+      }
       setProviderModels(result.data);
-      // Require an explicit model pick on BotModelPane. `handleSaveModelConfig`
-      // falls back to `${provider}/auto` on save if the list ever comes up empty.
+      // Require an explicit model pick on BotModelPane once real models are
+      // loaded. `handleSaveModelConfig` still keeps a defensive fallback.
       setBotPrimaryModel('');
       setCurrentPane(SplashPane.BotModel);
     } catch (e) {
@@ -1245,7 +1257,7 @@ export function BotModelPane(props: {
   loading?: boolean;
   error?: string | null;
   onSelectModel: (modelId: string) => void;
-  onBackPress?: () => void;
+  onBackPress: () => void;
   onActionPress: () => void;
 }) {
   const {
