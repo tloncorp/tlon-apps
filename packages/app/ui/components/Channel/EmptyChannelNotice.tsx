@@ -151,7 +151,7 @@ export function EmptyChannelNotice({
             }
             onPress={
               isSingleChannelGroup
-                ? () => onPressGroupMeta()
+                ? () => onPressGroupMeta(true)
                 : onPressChannelMeta
             }
           />
