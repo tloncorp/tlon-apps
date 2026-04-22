@@ -21,19 +21,31 @@ export const useHandleGoBack = (
   }
 ) => {
   const { groupId, fromChatDetails, fromBlankChannel } = params;
+  const isWindowNarrow = useIsWindowNarrow();
 
   return useCallback(() => {
     if (fromBlankChannel) {
       navigation.goBack();
     } else if (fromChatDetails) {
-      navigation.getParent()?.navigate('ChatDetails', {
-        chatType: 'group',
-        chatId: groupId,
-      });
+      // On narrow (mobile) under React Navigation v7, the old
+      // navigate('ChatDetails', ...) call pushed a duplicate ChatDetails
+      // route instead of popping to the existing one, which caused the
+      // TLON-5647 back-navigation loop. Popping the GroupSettings stack
+      // with goBack() returns to the sibling ChatDetails directly.
+      // Wide (desktop) keeps the pre-existing cross-navigator navigate,
+      // which already worked correctly for the same flow.
+      if (isWindowNarrow) {
+        navigation.goBack();
+      } else {
+        navigation.getParent()?.navigate('ChatDetails', {
+          chatType: 'group',
+          chatId: groupId,
+        });
+      }
     } else {
       navigation.goBack();
     }
-  }, [navigation, fromChatDetails, fromBlankChannel, groupId]);
+  }, [navigation, fromChatDetails, fromBlankChannel, groupId, isWindowNarrow]);
 };
 
 export const useChatSettingsNavigation = () => {
