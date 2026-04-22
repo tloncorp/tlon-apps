@@ -1,4 +1,5 @@
 // tamagui-ignore
+import Clipboard from '@react-native-clipboard/clipboard';
 import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
@@ -9,7 +10,14 @@ import * as db from '@tloncorp/shared/db';
 import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
-import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import {
+  Button,
+  Icon,
+  KeyboardAvoidingView,
+  LoadingSpinner,
+  Pressable,
+  Text,
+} from '@tloncorp/ui';
 import React, {
   ComponentProps,
   useCallback,
@@ -18,7 +26,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Image, ScrollView, Share } from 'react-native';
+import { FlatList, Image, Keyboard, ScrollView, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -947,70 +955,93 @@ export function BotProviderPane(props: {
   const insets = useSafeAreaInsets();
   const selected = providers.find((p) => p.provider === model);
   const needsApiKey = selected?.requiresKey ?? false;
+  const handlePasteApiKey = useCallback(async () => {
+    try {
+      const clipboardContents = isWeb
+        ? await navigator.clipboard.readText()
+        : await Clipboard.getString();
+      onApiKeyChange(clipboardContents.trim());
+    } catch (error) {
+      logger.trackError('Wayfinding Bot API Key Paste Failed', {
+        error,
+        provider: selected?.provider ?? null,
+      });
+    }
+  }, [onApiKeyChange, selected?.provider]);
 
   return (
-    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
-      <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
-        <SplashTitle>
-          Choose a <Text color="$positiveActionText">brain.</Text>
-        </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
-            gap: getTokenValue('$s', 'size'),
-          }}
-        >
-          <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            {providers.some((p) => !p.requiresKey)
-              ? 'A free model is included. Bring your own API key to use a different provider.'
-              : 'Enter your API key to use a provider.'}
-          </SplashParagraph>
-          {providers.map((option) => (
-            <ModelOptionCard
-              key={option.provider}
-              option={{
-                label: option.label,
-                description: option.requiresKey
-                  ? 'Requires API key'
-                  : 'Default (free, used as fallback)',
-              }}
-              selected={model === option.provider}
-              onPress={() => onModelChange(option.provider)}
-            />
-          ))}
-          {needsApiKey && (
-            <Field
-              label={`${selected?.label} API key`}
-              error={error ?? undefined}
-              marginTop="$xl"
-            >
-              <TextInput
-                value={apiKey}
-                onChangeText={onApiKeyChange}
-                placeholder="Paste your key here"
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
+    <KeyboardAvoidingView keyboardVerticalOffset={isWeb ? 0 : insets.top}>
+      <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+        <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
+          <SplashTitle>
+            Choose a <Text color="$positiveActionText">brain.</Text>
+          </SplashTitle>
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{
+              paddingHorizontal: getTokenValue('$xl', 'size'),
+              gap: getTokenValue('$s', 'size'),
+              paddingBottom: getTokenValue('$6xl', 'size'),
+            }}
+          >
+            <SplashParagraph marginHorizontal={0} marginBottom="$m">
+              {providers.some((p) => !p.requiresKey)
+                ? 'A free model is included. Bring your own API key to use a different provider.'
+                : 'Enter your API key to use a provider.'}
+            </SplashParagraph>
+            {providers.map((option) => (
+              <ModelOptionCard
+                key={option.provider}
+                option={{
+                  label: option.label,
+                  description: option.requiresKey
+                    ? 'Requires API key'
+                    : 'Default (free, used as fallback)',
+                }}
+                selected={model === option.provider}
+                onPress={() => onModelChange(option.provider)}
               />
-            </Field>
-          )}
-        </ScrollView>
-      </YStack>
-      <Button
-        onPress={onActionPress}
-        label={loading ? 'Validating...' : 'Next'}
-        preset="hero"
-        loading={loading}
-        disabled={loading || (needsApiKey && !apiKey)}
-        marginHorizontal="$xl"
-        marginTop="$xl"
-      />
-    </View>
+            ))}
+            {needsApiKey && (
+              <Field
+                label={`${selected?.label} API key`}
+                error={error ?? undefined}
+                marginTop="$xl"
+              >
+                <TextInput
+                  value={apiKey}
+                  onChangeText={onApiKeyChange}
+                  placeholder="Paste your key here"
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  rightControls={
+                    <TextInput.InnerButton
+                      label="Paste"
+                      onPress={handlePasteApiKey}
+                    />
+                  }
+                />
+              </Field>
+            )}
+          </ScrollView>
+        </YStack>
+        <Button
+          onPress={onActionPress}
+          label={loading ? 'Validating...' : 'Next'}
+          preset="hero"
+          loading={loading}
+          disabled={loading || (needsApiKey && !apiKey)}
+          marginHorizontal="$xl"
+          marginTop="$xl"
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -1055,6 +1086,10 @@ export function BotModelPane(props: {
     );
   }, [modelSearchQuery, models, selectedModel]);
 
+  const handleModelListScrollBeginDrag = useCallback(() => {
+    Keyboard.dismiss();
+  }, []);
+
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <YStack flex={1} gap={'$2xl'} paddingTop="$2xl">
@@ -1070,6 +1105,9 @@ export function BotModelPane(props: {
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
           bounces={false}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={handleModelListScrollBeginDrag}
           contentContainerStyle={{
             paddingHorizontal: getTokenValue('$xl', 'size'),
             gap: getTokenValue('$s', 'size'),
