@@ -113,10 +113,13 @@ export function generatePersonalGroupTitle(contact: {
   return `${displayName}'s Group`;
 }
 
-export const HOME_GROUP_SLUG = 'home-group';
+// Fallback only. The authoritative home group ID is resolved from the hosting
+// lure token metadata and cached in `db.homeGroupId`; callers should prefer
+// that value and fall back to this constant only when the cache is empty.
+export const FALLBACK_HOME_GROUP_SLUG = 'home-group';
 
-export function getHomeGroupId(currentUserId: string) {
-  return `${currentUserId}/${HOME_GROUP_SLUG}`;
+export function getFallbackHomeGroupId(currentUserId: string) {
+  return `${currentUserId}/${FALLBACK_HOME_GROUP_SLUG}`;
 }
 
 export function generateHomeGroupTitle(botNickname: string) {

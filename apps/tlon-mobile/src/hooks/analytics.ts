@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { getHomeGroupId } from '@tloncorp/shared/logic';
+import { getFallbackHomeGroupId } from '@tloncorp/shared/logic';
 import * as Contacts from 'expo-contacts';
 import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
@@ -58,7 +58,8 @@ export async function checkAnalyticsDigest() {
     try {
       const digest = await db.getAnalyticsDigest();
       const homeGroupId =
-        (await db.homeGroupId.getValue()) ?? getHomeGroupId(currentUserId);
+        (await db.homeGroupId.getValue()) ??
+        getFallbackHomeGroupId(currentUserId);
       const homeGroup = await db.getGroup({ id: homeGroupId });
       const homeGroupMemberCount =
         homeGroup?.memberCount ?? homeGroup?.members?.length ?? null;

@@ -1,6 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { getHomeGroupId } from '@tloncorp/shared/logic';
+import { getFallbackHomeGroupId } from '@tloncorp/shared/logic';
 import { enableGroupLinks, useGroup, useLure } from '@tloncorp/shared/store';
 import { useEffect, useMemo, useRef } from 'react';
 
@@ -22,7 +22,7 @@ export function useHomeGroupInviteLink({ enabled }: { enabled: boolean }) {
 
   const homeGroupId = useMemo(() => {
     if (!enabled || !currentUserId) return undefined;
-    return cachedHomeGroupId ?? getHomeGroupId(currentUserId);
+    return cachedHomeGroupId ?? getFallbackHomeGroupId(currentUserId);
   }, [cachedHomeGroupId, currentUserId, enabled]);
   const { data: homeGroup, isLoading: homeGroupIsLoading } = useGroup({
     id: homeGroupId,

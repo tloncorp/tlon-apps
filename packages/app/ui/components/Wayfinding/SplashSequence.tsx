@@ -11,7 +11,7 @@ import { DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import {
   extractTokenFromInviteLink,
   generateHomeGroupTitle,
-  getHomeGroupId,
+  getFallbackHomeGroupId,
   getMetadataFromInviteToken,
   withRetry,
 } from '@tloncorp/shared/logic';
@@ -680,7 +680,7 @@ async function resolveHomeGroupId(currentUserId: string): Promise<string> {
     }
   }
 
-  return getHomeGroupId(currentUserId);
+  return getFallbackHomeGroupId(currentUserId);
 }
 
 // Hosting provisions the home group generic and unpinned; once the user
