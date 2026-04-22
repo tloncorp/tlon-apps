@@ -985,7 +985,7 @@ export function BotAvatarPane(props: {
                 />
               ) : (
                 <Icon
-                  type="Profile"
+                  type="Camera"
                   customSize={[72, 72]}
                   color="$tertiaryText"
                 />
