@@ -4,7 +4,7 @@
 ++  grad  %noun
 ++  grab
   |%
-  ++  noun  metadata
+  ++  noun  metadata:reel
   ++  json  dejs-metadata
   --
 ++  grow

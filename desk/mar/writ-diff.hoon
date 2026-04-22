@@ -1,14 +1,14 @@
-/-  c=chat
+/-  cv=chat-ver
 /+  j=chat-json
-|_  =diff:writs:c
+|_  =diff:writs:v5:cv  ::REVIEW  unused
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  diff
-  ++  json  (writs-diff:enjs:j diff)
+  ++  json  (writs-diff:v5:enjs:j diff)
   --
 ++  grab
   |%
-  ++  noun  diff:writs:c
+  ++  noun  diff:writs:v5:cv
   --
 --
