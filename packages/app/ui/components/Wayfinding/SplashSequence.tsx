@@ -850,8 +850,7 @@ export function BotNamePane(props: {
       <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
         <YStack flex={1} gap="$2xl" paddingTop="$2xl">
           <SplashTitle>
-            What's your bot's{' '}
-            <Text color="$positiveActionText">name?</Text>
+            Name your <Text color="$positiveActionText">bot.</Text>
           </SplashTitle>
           <YStack paddingHorizontal="$xl" gap="$m">
             <View
