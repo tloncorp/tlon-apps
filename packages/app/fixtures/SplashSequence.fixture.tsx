@@ -5,10 +5,10 @@ import { useValue } from 'react-cosmos/client';
 import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
+  BotApiKeyPane,
   BotAvatarPane,
   BotModelPane,
   BotNamePane,
-  BotApiKeyPane,
   BotProviderPane,
   ChannelsPane,
   GroupsPane,

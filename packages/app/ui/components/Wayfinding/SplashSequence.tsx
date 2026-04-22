@@ -52,8 +52,8 @@ import {
 } from '../../contexts/attachment';
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
-import { Field, RawTextInput, TextInput } from '../Form';
 import AttachmentSheet from '../AttachmentSheet';
+import { Field, RawTextInput, TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
