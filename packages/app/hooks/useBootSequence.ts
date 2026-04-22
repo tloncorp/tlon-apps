@@ -261,7 +261,7 @@ export function useBootSequence() {
         }
       }
 
-      const { invitedDm, invitedGroup, tlonTeamDM } =
+      const { invitedDm, invitedGroup, tlonTeamDM, botHomeGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
       logger.trackEvent(AnalyticsEvent.InviteDebug, {
         context: 'invites to look for',
@@ -269,6 +269,10 @@ export function useBootSequence() {
         invitedGroup,
         tlonTeamDM,
       });
+
+      if (botHomeGroup && !botHomeGroup.pin) {
+        store.pinGroup(botHomeGroup);
+      }
 
       const requiredInvites =
         lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;
