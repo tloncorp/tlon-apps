@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as api from '@tloncorp/api';
 import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import {
   Field,
@@ -11,10 +12,14 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/app/ui';
+import * as db from '@tloncorp/shared/db';
 import {
   getNicknameErrorMessage,
   validateNickname,
+  withRetry,
 } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
+import { createDevLogger } from 'packages/shared/src';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -26,6 +31,8 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetNickname'>;
 type FormData = {
   nickname?: string;
 };
+
+const logger = createDevLogger('SetNicknameScreen', false);
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
@@ -51,6 +58,47 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
     signupContext.setOnboardingValues({
       nickname,
       userWasReadyAt: Date.now(),
+    });
+
+    // once they've decided on a nickname, we need to re-title their bot
+    // and update the name of their home group
+    withRetry(
+      async () => {
+        const userId = await db.hostedUserNodeId.getValue();
+        if (!userId) {
+          throw new Error('No user ID found during nickname setup');
+        }
+
+        if (!nickname) {
+          throw new Error('No nickname provided during nickname setup');
+        }
+
+        await store.updateCurrentUserProfile({ nickname });
+
+        const isBotEnabled = await db.hostingBotEnabled.getValue();
+        if (isBotEnabled) {
+          const botNickname = `${nickname}'s TlonBot 🌱`;
+          await api.setTlawnNickname(userId, botNickname);
+
+          const botHomeGroup = await db.getBotHomeGroup();
+          if (!botHomeGroup) {
+            throw new Error('No Bot Home Group found during nickname setup');
+          }
+
+          await store.updateGroupMeta({
+            ...botHomeGroup,
+            title: `${nickname}'s Home`,
+          });
+        }
+      },
+      { startingDelay: 0, numOfAttempts: 4, maxDelay: 4000 }
+    ).catch((err) => {
+      logger.trackError(
+        'Failed to set nickname on bot ship or update Home Group',
+        {
+          error: err instanceof Error ? err.message : String(err),
+        }
+      );
     });
 
     navigation.push('SetNotifications');
