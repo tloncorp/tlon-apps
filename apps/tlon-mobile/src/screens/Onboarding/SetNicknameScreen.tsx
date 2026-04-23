@@ -87,7 +87,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
 
           await store.updateGroupMeta({
             ...botHomeGroup,
-            title: `${nickname}'s Home`,
+            title: `${nickname}'s Group`,
           });
         }
       },
