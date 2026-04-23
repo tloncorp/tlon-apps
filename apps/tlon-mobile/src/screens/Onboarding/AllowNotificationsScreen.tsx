@@ -4,13 +4,7 @@ import {
   requestNotificationToken,
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
-import {
-  Button,
-  ScreenHeader,
-  TlonText,
-  View,
-  YStack,
-} from '@tloncorp/app/ui';
+import { Button, ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef } from 'react';
