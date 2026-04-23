@@ -1,18 +1,19 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
-import { requestNotificationToken } from '@tloncorp/app/lib/notifications';
+import {
+  requestNotificationToken,
+  useNotificationPermissions,
+} from '@tloncorp/app/lib/notifications';
 import {
   Button,
-  Icon,
   ScreenHeader,
   TlonText,
   View,
-  XStack,
   YStack,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { ImageBackground, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -30,6 +31,8 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
   const insets = useSafeAreaInsets();
   const isDarkMode = useIsDarkMode();
+  const notifPerms = useNotificationPermissions();
+  const hasContinued = useRef(false);
 
   // Select background image based on platform and theme
   const getBackgroundImage = () => {
@@ -44,6 +47,29 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
     }
   };
 
+  const continueOnboarding = useCallback(
+    async (notificationToken?: string) => {
+      if (hasContinued.current) {
+        return;
+      }
+
+      hasContinued.current = true;
+
+      // Save the notification token to signup context
+      signupContext.setOnboardingValues({
+        notificationToken,
+      });
+
+      if (signupContext.isGuidedLogin) {
+        signupContext.handlePostSignup();
+        await db.hostedAccountIsInitialized.setValue(true);
+      } else {
+        navigation.push('ReserveShip');
+      }
+    },
+    [signupContext, navigation]
+  );
+
   const handleNext = useCallback(async () => {
     let notificationToken: string | undefined;
 
@@ -57,18 +83,36 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
       }
     }
 
-    // Save the notification token to signup context
-    signupContext.setOnboardingValues({
-      notificationToken,
-    });
+    await continueOnboarding(notificationToken);
+  }, [continueOnboarding]);
 
-    if (signupContext.isGuidedLogin) {
-      signupContext.handlePostSignup();
-      await db.hostedAccountIsInitialized.setValue(true);
-    } else {
-      navigation.push('ReserveShip');
+  useEffect(() => {
+    if (!notifPerms.initialized || hasContinued.current) {
+      return;
     }
-  }, [signupContext, navigation]);
+
+    if (notifPerms.hasPermission) {
+      requestNotificationToken()
+        .then((notificationToken) => continueOnboarding(notificationToken))
+        .catch((err) => {
+          console.error('Error getting notification token:', err);
+          if (err instanceof Error) {
+            logger.trackError('Error getting notification token', err);
+          }
+          continueOnboarding();
+        });
+      return;
+    }
+
+    if (!notifPerms.canAskPermission) {
+      continueOnboarding();
+    }
+  }, [
+    continueOnboarding,
+    notifPerms.canAskPermission,
+    notifPerms.hasPermission,
+    notifPerms.initialized,
+  ]);
 
   useEffect(
     () =>
