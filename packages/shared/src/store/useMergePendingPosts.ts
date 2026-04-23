@@ -43,10 +43,6 @@ export const mergePendingPosts = ({
     post.sequenceNum === 0 &&
     deletedPosts[post.id] &&
     post.deliveryStatus === 'failed';
-  // Track `sentAt` slots that already carry deleted state somewhere in the
-  // optimistic/confirmed handoff. This lets a confirmed echo inherit the
-  // local tombstone overlay from the optimistic row it replaced.
-  const deletedSentAts = new Set<number>();
   // Stamp `isDeleted: true` on any surviving row the user has locally
   // cleared. This keeps confirmed echoes visible in the list (so the
   // tombstone slot is preserved) but flips them to the deleted-rendering
@@ -54,9 +50,7 @@ export const mergePendingPosts = ({
   // to the DB write from `markPostAsDeleted`.
   const applyDeletedOverlay = (posts: db.Post[]) =>
     posts.map((p) =>
-      !p.isDeleted && (deletedPosts[p.id] || deletedSentAts.has(p.sentAt))
-        ? { ...p, isDeleted: true }
-        : p
+      !p.isDeleted && deletedPosts[p.id] ? { ...p, isDeleted: true } : p
     );
   const finalizePosts = (posts: db.Post[]) =>
     posts.filter((p) => {
@@ -66,9 +60,6 @@ export const mergePendingPosts = ({
   [...newPosts, ...pendingPosts]
     .filter((post) => !isLocallyClearedOptimistic(post))
     .forEach((post) => {
-      if (post.isDeleted || deletedPosts[post.id]) {
-        deletedSentAts.add(post.sentAt);
-      }
       if (!sentAtMap.has(post.sentAt)) {
         sentAtMap.set(post.sentAt, post);
       }
