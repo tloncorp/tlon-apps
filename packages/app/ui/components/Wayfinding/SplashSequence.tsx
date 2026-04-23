@@ -1504,7 +1504,7 @@ export function GroupsPane(props: {
           onPress={props.onActionPress}
           label="Got it"
           preset={props.hostingBotEnabled ? 'secondary' : 'hero'}
-          fill={props.hostingBotEnabled ? 'text' : undefined}
+          backgroundColor={props.hostingBotEnabled ? '$transparent' : undefined}
         />
       </YStack>
     </View>
