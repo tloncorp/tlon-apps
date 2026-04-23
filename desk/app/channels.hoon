@@ -1839,8 +1839,8 @@
           |=  [=time reply=(may:d v-reply:d)]
           ?:  ?=(%| -.reply)  |
           =((get-author-ship:utils author.reply) our.bowl)
-      =/  =path  (scry-path %activity /v4/volume-settings/noun)
-      =+  .^(settings=volume-settings %gx path)
+      =/  =path  (scry-path %activity /v5/volume-settings/noun)
+      =+  .^(settings=volume-settings:v9:av %gx path)
       =/  =action
         :*  %add  %reply
             [[reply-author id] id]
@@ -3452,7 +3452,7 @@
     =/  =source:v8:av  [%channel nest flag]
     ?.  (can-read:ca-perms our.bowl)
       (send:ca-activity [%adjust source ~] ~)
-    =+  .^(=volume-settings:v8:av %gx (scry-path %activity /v4/volume-settings/noun))
+    =+  .^(=volume-settings:v9:av %gx (scry-path %activity /v5/volume-settings/noun))
     =.  ca-core
       ::  if we don't have a setting, no-op
       ?~  setting=(~(get by volume-settings) source)  ca-core

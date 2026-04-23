@@ -682,12 +682,12 @@
       ``activity-summary-pairs-5+!>(pairs)
     ==
   ::
-      [%x ver=?(%v4 %v5 %v6) %volume-settings ~]
+      [%x ver=?(%v4 %v5) %volume-settings ~]
     ?-    ver.pole
-        ?(%v4 %v5)
+        %v4
       ``activity-settings+!>((v8:volume-settings:v9:ac volume-settings))
     ::
-        %v6
+        %v5
       ``activity-settings-1+!>(`volume-settings:v9:av`volume-settings)
     ==
   ::
