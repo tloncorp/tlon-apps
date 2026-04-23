@@ -448,6 +448,33 @@ describe('mergePendingPosts locally-cleared optimistic rows', () => {
 // tombstone immediately, without waiting for the paginated query to catch
 // up with the DB write from `markPostAsDeleted`.
 describe('mergePendingPosts deleted-overlay synthesis', () => {
+  test('confirmed echo in newPosts inherits deleted state from an optimistic row with the same sentAt', () => {
+    const optimistic = {
+      ...makePost(10),
+      id: 'optimistic-1',
+      sequenceNum: 0,
+      deliveryStatus: 'pending' as const,
+    };
+    const confirmedEcho = {
+      ...makePost(10),
+      id: 'confirmed-echo-1',
+      sequenceNum: 42,
+      deliveryStatus: null,
+      content: JSON.stringify([{ inline: ['real message body'] }]),
+    };
+    const [merged] = mergePendingPosts({
+      newPosts: [confirmedEcho],
+      pendingPosts: [optimistic],
+      existingPosts: [],
+      deletedPosts: { [optimistic.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.id).toBe(confirmedEcho.id);
+    expect(merged.isDeleted).toBe(true);
+  });
+
   test('confirmed echo in newPosts with deletedPosts[id] surfaces as isDeleted:true', () => {
     const confirmedEcho = {
       ...makePost(10),
