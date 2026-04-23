@@ -399,8 +399,6 @@ describe('mergePendingPosts locally-cleared optimistic rows', () => {
   test('filterDeleted=true still removes confirmed tombstones, including newPosts echoes', () => {
     // Notebook / gallery keep the original semantics: `isDeleted || deletedPosts[id]`
     // both filter out rows. The narrowed live-merge check must not affect this.
-    // A non-empty existingPosts is required because mergePendingPosts short-
-    // circuits the final filter pass when existingPosts is empty.
     const confirmedEcho = {
       ...makePost(10),
       id: 'confirmed-echo-1',
@@ -422,6 +420,24 @@ describe('mergePendingPosts locally-cleared optimistic rows', () => {
 
     expect(mergedIds).not.toContain(confirmedEcho.id);
     expect(mergedIds).toContain(anchor.id);
+  });
+
+  test('filterDeleted=true also removes deleted overlays when existingPosts is empty', () => {
+    const confirmedEcho = {
+      ...makePost(10),
+      id: 'confirmed-echo-empty-1',
+      sequenceNum: 42,
+    };
+    const mergedIds = mergePendingPosts({
+      newPosts: [confirmedEcho],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [confirmedEcho.id]: true },
+      hasNewest: true,
+      filterDeleted: true,
+    }).map((p) => p.id);
+
+    expect(mergedIds).not.toContain(confirmedEcho.id);
   });
 });
 

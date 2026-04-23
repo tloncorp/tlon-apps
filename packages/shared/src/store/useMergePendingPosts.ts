@@ -52,6 +52,10 @@ export const mergePendingPosts = ({
     posts.map((p) =>
       !p.isDeleted && deletedPosts[p.id] ? { ...p, isDeleted: true } : p
     );
+  const finalizePosts = (posts: db.Post[]) =>
+    posts.filter((p) => {
+      return !p.isSequenceStub && (!filterDeleted || !p.isDeleted);
+    });
   const sentAtMap = new Map<number, db.Post>();
   [...newPosts, ...pendingPosts]
     .filter((post) => !isLocallyClearedOptimistic(post))
@@ -66,7 +70,9 @@ export const mergePendingPosts = ({
     if (aUnconfirmed !== bUnconfirmed) return aUnconfirmed ? -1 : 1;
     return aUnconfirmed ? b.sentAt - a.sentAt : b.receivedAt - a.receivedAt;
   });
-  if (!existingPosts.length) return applyDeletedOverlay(newAndPendingPosts);
+  if (!existingPosts.length) {
+    return finalizePosts(applyDeletedOverlay(newAndPendingPosts));
+  }
 
   // --- Step 2: Establish the Filtering Window for pendingPosts ---
   const lowerPaginationBound = existingPosts[existingPosts.length - 1].sentAt;
@@ -84,7 +90,5 @@ export const mergePendingPosts = ({
     ...existingPosts,
   ]);
 
-  return finalPosts.filter((p) => {
-    return !p.isSequenceStub && (!filterDeleted || !p.isDeleted);
-  });
+  return finalizePosts(finalPosts);
 };
