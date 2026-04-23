@@ -410,10 +410,10 @@
   ~>  %spin.['watch']
   ^+  cor
   ?+  pole  ~|(bad-watch-path+pole !!)
-    [%v4 ~]                 ?>(from-self cor)
-    [%v4 %unreads ~]        ?>(from-self cor)
-    [%v4 %reads ~]          ?>(from-self cor)
-    [%v4 %notifications ~]  ?>(from-self cor)
+    [?(%v4 %v5) ~]                 ?>(from-self cor)
+    [?(%v4 %v5) %unreads ~]        ?>(from-self cor)
+    [?(%v4 %v5) %reads ~]          ?>(from-self cor)
+    [?(%v4 %v5) %notifications ~]  ?>(from-self cor)
   ==
 ::
 ++  peek
@@ -879,9 +879,19 @@
       %only  only
       %both  (weld only hose)
     ==
-  ?~  update-8=(v8:update:v9:ac update)  cor
-  =/  v4-cage=cage  activity-update-4+!>(u.update-8)
-  (give %fact v4-paths v4-cage)
+  =/  v5-paths
+    =/  hose=(list path)  ~[/v5]
+    =/  only=(list path)  ~[[%v5 path.dist]]
+    ?-  -.dist
+      %hose  hose
+      %only  only
+      %both  (weld only hose)
+    ==
+  =/  update-8=(unit update:v8:av)
+    (v8:update:v9:ac update)
+  =?  cor  ?=(^ update-8)
+    (give %fact v4-paths activity-update-4+!>(u.update-8))
+  (give %fact v5-paths activity-update-5+!>(`update:v9:av`update))
 ++  add-event
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
@@ -900,9 +910,9 @@
   =?  cor  &(!importing notify (is-allowed:evt allowed inc))
     =/  time-event=(unit time-event:v8:av)
       (v8:time-event:v9:ac [time-id event])
-    ?~  time-event
-      cor
-    (give %fact ~[/v4/notifications] activity-event+!>(u.time-event))
+    =?  cor  ?=(^ time-event)
+      (give %fact ~[/v4/notifications] activity-event+!>(u.time-event))
+    (give %fact ~[/v5/notifications] activity-event-1+!>(`time-event:v9:av`[time-id event]))
   ::  we always update sources in order, so make sure base is processed last
   =.  cor
     ?+  -<.event  (add-to-index source time-id event)
