@@ -3,7 +3,7 @@ import { Icon, IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { View } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
-import { ColorTokens, isWeb } from 'tamagui';
+import { Circle, ColorTokens, isWeb } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
 
@@ -99,10 +99,14 @@ export default function NavIcon({
           justifyContent="center"
           alignItems="center"
         >
-          <View
-            width="$s"
-            height="$s"
-            borderRadius="$s"
+          <Circle
+            // Workaround for facebook/react-native#52415: on Android new
+            // arch, a View whose backgroundColor transitions from
+            // transparent to opaque loses its border-radius clipping.
+            // Keying on hasUnreads forces a fresh mount so the dot is
+            // rendered as a circle.
+            key={hasUnreads ? 'unread' : 'read'}
+            size="$s"
             backgroundColor={hasUnreads ? '$blue' : 'transparent'}
           />
         </View>
