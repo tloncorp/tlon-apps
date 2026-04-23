@@ -1,4 +1,4 @@
-/-  a=activity, g=groups, c=channels, ch=chat
+/-  a=activity, av=activity-ver, g=groups, c=channels, ch=chat
 /+  *activity, *test-agent
 /=  activity-agent  /app/activity
 |%
@@ -26,12 +26,16 @@
   ^-  form:m
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
-  ;<  *  bind:m  (do-load activity-agent `!>([%5 %some pre activity ~]))
+  =/  pre-4=indices:v4:av
+    (indices:v4:convert-to pre)
+  =/  activity-4=activity:v4:av
+    (activity:v4:convert-to activity)
+  ;<  *  bind:m  (do-load activity-agent `!>([%5 %some pre-4 activity-4 ~]))
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
   ;<  new=vase  bind:m  get-save
   =/  want-indices  post
-  =+  !<(=state-8 new)
-  =/  new-indices  indices.state-8
+  =+  !<(=state-9 new)
+  =/  new-indices  indices.state-9
   (ex-equal !>(new-indices) !>(want-indices))
 ::
 ++  test-fix-init
@@ -42,7 +46,13 @@
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
-  =/  start-state  [%6 %some indices pre-fix volumes]
+    =/  indices-4=indices:v4:av
+      (indices:v4:convert-to indices)
+    =/  pre-fix-4=activity:v4:av
+      (activity:v4:convert-to pre-fix)
+    =/  volumes-4=volume-settings:v4:av
+      (volume-settings:v4:convert-to volumes)
+  =/  start-state  [%6 %some indices-4 pre-fix-4 volumes-4]
   ;<  caz=(list card:agent:gall)  bind:m  (do-load activity-agent `!>(start-state))
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre-fix)) !>(11))
   ;<  bowl  bind:m  get-bowl
@@ -54,10 +64,10 @@
   ;<  *  bind:m  (do-poke noun+!>(%adjust-old-default))
   ;<  *  bind:m  (do-poke noun+!>(%fix-init-unreads))
   ;<  new=vase  bind:m  get-save
-  =+  !<(=state-8 new)
-  (ex-equal !>(activity.state-8) !>(post-fix))
-+$  state-8
-  $:  %8
+  =+  !<(=state-9 new)
+  (ex-equal !>(activity.state-9) !>(post-fix))
++$  state-9
+  $:  %9
       allowed=notifications-allowed:a
       =indices:a
       =activity:a

@@ -1,15 +1,11 @@
-import {
-  isTrustedEmbed,
-  useEmbed,
-  utils,
-  validOembedCheck,
-} from '@tloncorp/shared';
+import * as utils from '@tloncorp/api/lib/utils';
+import { isTrustedEmbed, useEmbed, validOembedCheck } from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { Linking, Platform } from 'react-native';
 
-import { useCalm } from '../../contexts';
-import { AudioEmbed } from '../Embed';
+import { useCalm } from '../../contexts/appDataContext';
+import AudioEmbed from './AudioEmbed';
 import { Embed } from './Embed';
 import { EmbedWebView } from './EmbedWebView';
 import { getProviderConfig } from './providers';

@@ -482,3 +482,23 @@ Uses Drizzle ORM with SQLite for local data storage:
 -   Schema defined in `packages/shared/src/db/schema.ts`
 -   Migrations in `packages/shared/src/db/migrations/`
 -   Platform-specific database connections in `packages/shared/src/db/`
+
+## Adding a New Post Blob Entry Type
+
+See `docs/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
+
+Use this section as a compact checklist when changing blob behavior.
+
+### Checklist
+
+1. Add a named schema and inferred type in `packages/api/src/lib/content-helpers.ts`, then register it in `postBlobDataEntryDefinitions`.
+2. Add an `appendXToPostBlob` helper if the new entry will be written from more than one place.
+3. Update the relevant attachment unions in `packages/api/src/types/attachment.ts`, then update `toPostData` in `packages/api/src/lib/content-helpers.ts` to write the new entry type.
+4. Do not add ad hoc `parsePostBlob` branches. Once the schema is in `postBlobDataEntryDefinitions`, the shared parser handles it.
+5. Update `convertContent` and the `PostContent` block types in `packages/api/src/lib/postContent.ts`.
+6. If the new block renders in the app, register it in `packages/app/ui/components/PostContent/BlockRenderer.tsx`.
+7. Add tests for valid payloads and malformed payloads.
+8. Preserve graceful degradation. Unknown entries should continue to render the "Upgrade your app" blockquote.
+9. Current frontend policy: blob edits are unsupported. The edit transport can carry a blob, but frontend edit flows preserve the original blob until explicit blob-edit support is implemented.
+
+No backend (Hoon) changes are needed for ordinary blob schema work. The backend stores and relays `blob` as opaque text.

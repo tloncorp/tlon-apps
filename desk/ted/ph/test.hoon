@@ -11,13 +11,13 @@
 ::
 |%
 ++  find-test-files
-  |=  [byk=beak dir=path]
+  |=  [byk=beak pax=path]
   =/  m  (strand ,(list path))
   ^-  form:m
   =/  dir=path
     ;:  weld
       /(scot %p p.byk)/[q.byk]/(scot %da +.r.byk)
-      dir
+      pax
     ==
   %-  pure:m
   %+  skim  .^((list ^path) %ct dir)
@@ -106,7 +106,8 @@
     %thread-fail  (pure:m %| !<([term tang] q.cage))
   ==
 ::  +sync-desk: sync aqua ship desk to host
-::
+::  host ship -> sync desk to virtual ship
+::  %groups -> aqua %groups
 ++  sync-desk
   |=  [her=ship desk=@tas]
   =/  m  (strand ,~)
@@ -140,7 +141,7 @@
   =/   =task:clay
     [%into desk & files]
   ;<  ~  bind:m  (send-events:ph-io [%event her /c/sync/0v1abc task]~)
-  ;<  ~  bind:m  (sleep ~s10)
+  ;<  ~  bind:m  (sleep ~s0)
   (pure:m ~)
 --
 ::
@@ -161,6 +162,14 @@
   [ship desk da+date]
 =?  pax  ?=(~ pax)
   /tests
+=/  =arch  .^(arch %cy (weld /(scot %p p.byk)/[q.byk]/(scot %da +.r.byk) pax))
+::  if the path does not point into a directory, assume last component
+::  is a pattern.
+=/  [arm-pat=(unit @ta) pax=path]
+  ?:  ?=(^ dir.arch)
+    [~ pax]
+  :_  (snip pax)
+  `(rear pax)
 ;<  test-files=(list path)  bind:m  (find-test-files byk pax)
 =.  test-files
   %+  sort  test-files
@@ -170,26 +179,60 @@
 =/  tests=(list test)
   %-  resolve-test-paths
   ^-  (list [path (list test-arm)])
-  (turn test-cores |=([=path =vase] [path (get-test-arms vase)]))
+  %+  turn  test-cores
+  ?~  arm-pat
+    |=([=path =vase] [path (get-test-arms vase)])
+  ::  filter based on arm pattern
+  ::
+  =+  len=(met 3 u.arm-pat)
+  |=  [=path =vase]
+  :-  path
+  %+  skim  (get-test-arms vase)
+  |=  =test-arm
+  =((cut 3 [0 len] name.test-arm) u.arm-pat)
 =+  num=(lent tests)
 ?:  =(num 0)
   ~>  %slog.2^leaf+"No suitable aqua tests found"
   (pure:m !>(~))
 ~>  %slog.1^leaf+"{<num>} test {?:((gth num 1) "threads" "thread")} built"
 ~>  %slog.1^'Booting ships...'
-;<  ~  bind:m  start-simple:ph-io
+;<  vane-tids=(map term tid:spider)  bind:m  start-simple:ph-io
+::  test ships
+::
 ;<  ~  bind:m  (init-ship:ph-io ~zod &)
 ;<  ~  bind:m  (init-ship:ph-io ~bud &)
 ;<  ~  bind:m  (init-ship:ph-io ~nec &)
+::  provider ships
+::
+::  bait provider
+;<  ~  bind:m  (init-ship:ph-io ~fen &)
+::  notify provider
+;<  ~  bind:m  (init-ship:ph-io ~dem &)
+::
 ~>  %slog.1^(crip "Syncing {<q.byk>} desk to ships...")
 ;<  ~  bind:m  (sync-desk ~zod %groups)
 ;<  ~  bind:m  (sync-desk ~bud %groups)
 ;<  ~  bind:m  (sync-desk ~nec %groups)
+;<  ~  bind:m  (sync-desk ~fen %groups)
+;<  ~  bind:m  (sync-desk ~dem %groups)
+::  setup bait provider
+::
+~>  %slog.1^(crip "Setting ~fen as lure provider...")
+;<  ~  bind:m  ph-test-init:ph-test
+;<  ~  bind:m  (poke-app:ph-test [~zod %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (poke-app:ph-test [~bud %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (poke-app:ph-test [~nec %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (poke-app:ph-test [~fen %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (poke-app:ph-test [~dem %reel] reel-command+[%set-ship ~fen])
+;<  ~  bind:m  (sleep ~s0)
+;<  ~  bind:m  ph-test-shut:ph-test
+;<  ~  bind:m  (end:ph-io vane-tids)
+::  TODO notify agent does not support swapping a provider
 ;<  =bowl:spider  bind:m  get-bowl
 =+  snap-id=(end 3^4 (sham eny.bowl))
 =+  snap=(cat 3 'aqua-tests-' (scot %uv snap-id))
 ~>  %slog.1^(crip "Taking snapshot...")
-;<  ~  bind:m  (send-events:ph-io [%snap-ships snap ~[~zod ~bud ~nec]]~)
+;<  ~  bind:m  (send-events:ph-io [%snap-ships snap ~[~zod ~bud ~nec ~fen ~dem]]~)
 ~>  %slog.1^'Running tests...'
 =/  n  (strand (list (pair path thread-result)))
 ;<  results=(list (pair path thread-result))  bind:m
@@ -199,10 +242,13 @@
   ?~  tests  (pure:n (flop results))
   =*  test  i.tests
   =*  name  (rear path.test)
+  ::  allow virtual vanes to run before we restore snapshot
+  ;<  vane-tids=(map term tid:spider)  bind:n  start-simple:ph-io
   ;<  ~  bind:n  (send-events:ph-io [%restore-snap snap]~)
   ;<  now-1=@da  bind:n  get-time
   ;<  =thread-result  bind:n  (await-test-thread test)
   ;<  now-2=@da  bind:n  get-time
+  ;<  ~  bind:n  (end:ph-io vane-tids)
   =/  [took-s=@ud took-ms=@ud]
     =*  s  ~s1
     =*  ms  (div s 1.000)
@@ -210,7 +256,8 @@
     [(div diff s) (div (mod diff s) ms)]
   ~>  %slog.1^leaf+"{(trip name)} took {<took-s>}.{((d-co:co 3) took-ms)}s"
   $(tests t.tests, results [[path.test thread-result] results])
-;<  ~  bind:m  end:ph-io
+::TODO fix aqua to only clear a particular snap
+;<  ~  bind:m  (poke-our %aqua noun+!>([%clear-snap snap]))
 =+  ok=&
 |-
 ?~  results  (pure:m !>(ok))

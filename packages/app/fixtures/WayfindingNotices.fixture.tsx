@@ -1,14 +1,21 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { YStack, View, XStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
+import { ScreenHeader } from '../ui';
 import WayfindingNotice, {
   ChatInputTooltip,
   CollectionInputTooltip,
+  HomeAddTooltip,
   NotebookInputTooltip,
 } from '../ui/components/Wayfinding/Notices';
 import { FixtureWrapper } from './FixtureWrapper';
-import { group, tlonLocalIntros, tlonLocalBulletinBoard, tlonLocalGettingStarted } from './fakeData';
+import {
+  group,
+  tlonLocalBulletinBoard,
+  tlonLocalGettingStarted,
+  tlonLocalIntros,
+} from './fakeData';
 
 const mockChatChannel: db.Channel = {
   ...tlonLocalIntros,
@@ -108,6 +115,42 @@ function ChatInputTooltipFixture() {
   );
 }
 
+function HomeAddTooltipFixture() {
+  return (
+    <FixtureWrapper fillWidth fillHeight safeArea>
+      <YStack flex={1} position="relative">
+        <ScreenHeader
+          title="Home"
+          rightControls={
+            <>
+              <ScreenHeader.IconButton type="Search" />
+              <View position="relative" alignItems="flex-end">
+                <ScreenHeader.IconButton
+                  type="Add"
+                  backgroundColor="$positiveActionText"
+                  color="$white"
+                  borderRadius="$6xl"
+                  customSize={['$2xl', '$xl']}
+                />
+                <View
+                  pointerEvents="none"
+                  position="absolute"
+                  top="100%"
+                  right={0}
+                  marginTop="$s"
+                >
+                  <HomeAddTooltip />
+                </View>
+              </View>
+            </>
+          }
+        />
+        <View flex={1} />
+      </YStack>
+    </FixtureWrapper>
+  );
+}
+
 function CollectionInputTooltipFixture() {
   return (
     <FixtureWrapper fillWidth fillHeight safeArea>
@@ -170,9 +213,28 @@ function AllTooltipsFixture() {
 
         <YStack gap="$xl">
           <Text size="$label/l" color="$secondaryText">
+            Home Add Tooltip
+          </Text>
+          <YStack
+            height={170}
+            position="relative"
+            backgroundColor="$secondaryBackground"
+            borderRadius="$l"
+          >
+            <HomeAddTooltip />
+          </YStack>
+        </YStack>
+
+        <YStack gap="$xl">
+          <Text size="$label/l" color="$secondaryText">
             Chat Input Tooltip
           </Text>
-          <YStack height={150} position="relative" backgroundColor="$secondaryBackground" borderRadius="$l">
+          <YStack
+            height={150}
+            position="relative"
+            backgroundColor="$secondaryBackground"
+            borderRadius="$l"
+          >
             <View flex={1} />
             <ChatInputTooltip />
           </YStack>
@@ -182,7 +244,12 @@ function AllTooltipsFixture() {
           <Text size="$label/l" color="$secondaryText">
             Collection Input Tooltip
           </Text>
-          <YStack height={150} position="relative" backgroundColor="$secondaryBackground" borderRadius="$l">
+          <YStack
+            height={150}
+            position="relative"
+            backgroundColor="$secondaryBackground"
+            borderRadius="$l"
+          >
             <CollectionInputTooltip channelId="test" />
           </YStack>
         </YStack>
@@ -191,7 +258,12 @@ function AllTooltipsFixture() {
           <Text size="$label/l" color="$secondaryText">
             Notebook Input Tooltip
           </Text>
-          <YStack height={150} position="relative" backgroundColor="$secondaryBackground" borderRadius="$l">
+          <YStack
+            height={150}
+            position="relative"
+            backgroundColor="$secondaryBackground"
+            borderRadius="$l"
+          >
             <NotebookInputTooltip channelId="test" />
           </YStack>
         </YStack>
@@ -206,6 +278,7 @@ export default {
   'Empty Channel - Notebook': <EmptyChannelNotebookFixture />,
   'Group Channels Notice': <GroupChannelsNoticeFixture />,
   'Customize Group Notice': <CustomizeGroupNoticeFixture />,
+  'Home Add Tooltip': <HomeAddTooltipFixture />,
   'Chat Input Tooltip': <ChatInputTooltipFixture />,
   'Collection Input Tooltip': <CollectionInputTooltipFixture />,
   'Notebook Input Tooltip': <NotebookInputTooltipFixture />,

@@ -8,7 +8,7 @@ import { XStack, YStack, isWeb, styled } from 'tamagui';
 import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { useNag } from '../../hooks/useNag';
 import { useNotificationPermissions } from '../../lib/notifications';
-import { useStore } from '../contexts';
+import { useStore } from '../contexts/storeContext';
 
 const logger = createDevLogger('SystemNotices', false);
 

@@ -3,16 +3,16 @@ import {
   UseQueryResult,
   useQuery,
 } from '@tanstack/react-query';
-import { isMatch, pick } from 'lodash';
-import { useEffect, useMemo } from 'react';
-
 import * as api from '@tloncorp/api';
 import { getMessagesFilter } from '@tloncorp/api';
 import { getConstants } from '@tloncorp/api/types/constants';
+import * as ub from '@tloncorp/api/urbit';
+import { isMatch, pick } from 'lodash';
+import { useEffect, useMemo } from 'react';
+
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
-import * as ub from '@tloncorp/api/urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -242,6 +242,30 @@ export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
     queryFn: async () => {
       if (unread) {
         return db.getThreadUnreadState({ parentId: unread.threadId ?? '' });
+      }
+      return null;
+    },
+  });
+};
+
+/**
+ * Reactively tracks the unread state for a thread, keyed by the parent post's
+ * ID. Unlike `useLiveThreadUnread` (which requires a `ThreadUnreadState` seed
+ * and goes dormant when the seed is null), this hook always tracks reactively
+ * as long as `parentPostId` is non-null — even when the thread starts with no
+ * unread row.
+ */
+export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
+  const depsKey = useMemo(
+    () => (parentPostId ? keyFromQueryDeps(db.getThreadUnreadState) : null),
+    [parentPostId]
+  );
+
+  return useQuery({
+    queryKey: ['liveUnreadCount', depsKey, 'thread', parentPostId],
+    queryFn: async () => {
+      if (parentPostId) {
+        return db.getThreadUnreadState({ parentId: parentPostId });
       }
       return null;
     },
@@ -652,6 +676,11 @@ export const useShowChatInputWayfinding = (channelId: string) => {
   }, [channelId]);
 
   return isCorrectChan && !wayfindingProgress.tappedChatInput;
+};
+
+export const useShowHomeAddTooltip = () => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  return wayfindingProgress.tappedHomeAdd === false;
 };
 
 export const useShowCollectionAddTooltip = (channelId: string) => {

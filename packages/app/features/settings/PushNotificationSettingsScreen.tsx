@@ -1,7 +1,7 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as ub from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/api/urbit';
 import { ComponentProps, useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

@@ -6,8 +6,8 @@ import { forwardRef, useEffect, useMemo } from 'react';
 import { FlatList } from 'react-native';
 import { View, getTokenValue } from 'tamagui';
 
-import { useLivePost } from '../../contexts';
 import { usePostCollectionContext } from '../../contexts/postCollection';
+import { useLivePost } from '../../contexts/requests';
 import { ListItem } from '../ListItem';
 import { IPostCollectionView } from './shared';
 

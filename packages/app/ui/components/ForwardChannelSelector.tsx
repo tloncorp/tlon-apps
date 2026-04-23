@@ -1,58 +1,58 @@
+import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
-import {
-  ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform, useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
-import { useFilteredChats } from '../../hooks/useFilteredChats';
-import { useResolvedChats } from '../../hooks/useResolvedChats';
-import { ActionSheet } from './ActionSheet';
+import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
 
 type ForwardChannelSelectorProps = {
   isOpen: boolean;
   onChannelSelected: (channel: db.Channel) => void;
+  channelFilter?: (channel: db.Channel) => boolean;
+};
+
+type ChannelChat = db.Chat & { type: 'channel' };
+
+const ITEM_H = 76;
+const LIST_HEIGHT_RATIO = 0.68;
+const ForwardSheetFlashList = (
+  Platform.OS === 'web' ? FlashList : BottomSheetFlashList
+) as typeof FlashList;
+
+const getItemType = (chat: ChannelChat) =>
+  chat.channel.type === 'dm' || chat.channel.type === 'groupDm'
+    ? 'dm'
+    : chat.channel.group
+      ? 'group'
+      : 'channel';
+
+const overrideItemLayout = (layout: { span?: number; size?: number }) => {
+  layout.size = ITEM_H;
 };
 
 export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
+  channelFilter,
 }: ForwardChannelSelectorProps) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
-  const { data: chats } = store.useCurrentChats();
-  const resolvedChats = useResolvedChats(chats);
-  const filteredChatsConfig = useMemo(
-    () => ({
-      ...resolvedChats,
-      pending: [],
-      searchQuery: query,
-      activeTab: 'channels' as const,
-    }),
-    [resolvedChats, query]
-  );
-  const displayData = useFilteredChats(filteredChatsConfig);
 
-  const channels = useMemo(() => {
-    const allChats = displayData.flatMap((section) => section.data);
-
-    return allChats.flatMap((chat) =>
-      chat.type === 'channel' ? [chat.channel] : []
-    );
-  }, [displayData]);
+  const { channelChats, isSearching } = useFilteredChannelChats({
+    mode: isOpen ? 'snapshot' : 'live',
+    searchQuery: query,
+    channelFilter,
+  });
 
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
-    // Reset explicit row selection on a new query so top result is highlighted.
     setSelectedChannelId(null);
   }, []);
 
@@ -64,14 +64,14 @@ export function ForwardChannelSelector({
   }, [isOpen]);
 
   const highlightedChannelId = useMemo(() => {
-    if (!channels.length) {
+    if (!selectedChannelId) {
       return null;
     }
-    if (selectedChannelId && channels.some((c) => c.id === selectedChannelId)) {
-      return selectedChannelId;
-    }
-    return channels[0].id;
-  }, [channels, selectedChannelId]);
+
+    return channelChats.some((chat) => chat.channel.id === selectedChannelId)
+      ? selectedChannelId
+      : null;
+  }, [channelChats, selectedChannelId]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
@@ -81,11 +81,11 @@ export function ForwardChannelSelector({
     [onChannelSelected]
   );
 
-  const renderItem: ListRenderItem<db.Channel> = useCallback(
-    ({ item }: { item: db.Channel }) => (
+  const renderItem: ListRenderItem<ChannelChat> = useCallback(
+    ({ item }) => (
       <ForwardChannelListItem
-        channel={item}
-        selected={highlightedChannelId === item.id}
+        channel={item.channel}
+        selected={highlightedChannelId === item.channel.id}
         onPress={handleChannelSelected}
       />
     ),
@@ -100,7 +100,13 @@ export function ForwardChannelSelector({
     []
   );
 
-  const isSearching = query.trim() !== '';
+  const estimatedListSize = useMemo(
+    () => ({
+      width: screenWidth,
+      height: Math.floor(screenHeight * LIST_HEIGHT_RATIO),
+    }),
+    [screenWidth, screenHeight]
+  );
 
   return (
     <>
@@ -108,29 +114,29 @@ export function ForwardChannelSelector({
         <SearchBar
           placeholder="Search channels"
           onChangeQuery={handleQueryChanged}
-        ></SearchBar>
+          debounceTime={0}
+        />
       </XStack>
 
       {isOpen ? (
-        <View flex={1}>
-          {isSearching && channels.length === 0 ? (
+        <View style={estimatedListSize}>
+          {isSearching && channelChats.length === 0 ? (
             <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
               No results found
             </Text>
           ) : (
-            <FlashList<db.Channel>
-              data={channels}
+            <ForwardSheetFlashList<ChannelChat>
+              data={channelChats}
+              extraData={highlightedChannelId}
               contentContainerStyle={contentContainerStyle}
-              keyExtractor={(channel) => channel.id}
+              getItemType={getItemType}
+              keyExtractor={(chat) => chat.channel.id}
+              overrideItemLayout={overrideItemLayout}
               renderItem={renderItem}
-              estimatedItemSize={72}
-              renderScrollComponent={(props) => (
-                <ActionSheet.ScrollableContent
-                  {...(props as ComponentProps<
-                    typeof ActionSheet.ScrollableContent
-                  >)}
-                />
-              )}
+              drawDistance={ITEM_H * 8}
+              estimatedItemSize={ITEM_H}
+              estimatedListSize={estimatedListSize}
+              keyboardShouldPersistTaps="always"
             />
           )}
         </View>

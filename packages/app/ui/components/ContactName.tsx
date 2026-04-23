@@ -9,13 +9,12 @@
  *
  * For all other use cases, import from './ContactNameV2' instead.
  */
-
 import { escapeRegExp } from '@tloncorp/shared';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useMemo } from 'react';
 import { SizableText } from 'tamagui';
 
-import { useCalm, useContact } from '../contexts';
+import { useCalm, useContact } from '../contexts/appDataContext';
 import { formatUserId } from '../utils/user';
 
 const NickNameWithMatch = ({

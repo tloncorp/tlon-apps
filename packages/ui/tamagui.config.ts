@@ -571,3 +571,5 @@ export const config =
         },
         animations,
       });
+
+export type Conf = typeof config;

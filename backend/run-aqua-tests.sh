@@ -148,9 +148,13 @@ then
   cp $pill ${pier}/groups/${pill_name}.jam
 fi
 
-# Patch the broken +await-thread in /lib/strandio.hoon
 patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
 rm -f $pier/base/lib/strandio.hoon.rej
+rm -f $pier/base/lib/strandio.hoon.orig
+
+patch -f $pier/base/sur/aquarium.hoon `dirname $0`/aqua-sur.patch
+rm -f $pier/base/sur/aquarium.hoon.rej
+rm -f $pier/base/sur/aquarium.hoon.orig
 
 echo "Updating base desk..."
 $run_click $pier <<EOF
@@ -162,9 +166,18 @@ EOF
 
 # TODO: We should figure out the source ship for this file and delete it
 rm -f $pier/groups/tests/lib/diary-graph.hoon
+rm -f $pier/groups/tests/ph/chat.hoon
 
-# Update the desk
+# Update the groups desk
 rsync -r desk/ $pier/groups
+
+result=$( $run_click -t 3 $pier <<EOF
+=/  m  (strand ,vase)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+(pure:m !>(hash))  
+EOF
+)
+desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 
 echo "Updating groups desk"
 ${run_click} $pier <<EOF
@@ -180,6 +193,21 @@ while ! curl -s "http://localhost:$http_port"
 do
   sleep 3
 done
+
+result=$( $run_click -t 3 $pier <<EOF
+=/  m  (strand ,vase)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+(pure:m !>(hash))  
+EOF
+)
+desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+
+if [ $desk_hash_a == $desk_hash_b ]
+then
+  echo "Desk upgrade failed ❌"
+  kill -TERM $vere_pid
+  exit 1
+fi
 
 echo "Starting %aqua..."
 ${run_click} $pier "/lib/pill/hoon"<<EOF

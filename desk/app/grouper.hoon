@@ -24,21 +24,12 @@
     |=  [desc=term trace=tang]
     =/  =card
       (~(fail logs our /logs) desc trace deez)
-    %-  %-  %*(. slog pri 3)  [leaf+"fail" trace]
     (link card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
     =/  =card
       (~(tell logs our /logs) vol echo (weld log-data deez))
-    =/  pri
-      ?-  vol
-        %dbug  0
-        %info  1
-        %warn  2
-        %crit  3
-      ==
-    %-  %-  %*(. slog pri pri)  echo
     (link card)
   ::  +deez: log message details
   ::
@@ -170,7 +161,7 @@
       ?~  p.sign  `this
       %-  (slog leaf/"Poke failed {<wire>}" u.p.sign)
       `this
-    =*  joiner  i.t.wire
+    =*  joiner  `@t`i.t.wire
     =*  token  i.t.t.wire
     ?~  p.sign
       %-  %^  tell:log  %info

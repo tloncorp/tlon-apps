@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { storyToMarkdown, markdownToStory } from './markdown';
+import { JSONContent } from '@tloncorp/api/urbit';
+import { Story, constructStory } from '@tloncorp/api/urbit/channel';
 import {
+  Blockquote,
   Bold,
   Break,
   Code,
@@ -15,11 +16,11 @@ import {
   Ship,
   Strikethrough,
   Task,
-  Blockquote,
 } from '@tloncorp/api/urbit/content';
-import { Story, constructStory } from '@tloncorp/api/urbit/channel';
+import { describe, expect, it } from 'vitest';
+
+import { markdownToStory, storyToMarkdown } from './markdown';
 import { JSONToInlines } from './tiptap';
-import { JSONContent } from '@tloncorp/api/urbit';
 
 /**
  * Round-trip conversion tests for Markdown ↔ Story conversion.
@@ -340,21 +341,27 @@ describe('Round-trip: Story → Markdown → Story', () => {
     });
 
     it('preserves Italics structure', () => {
-      const story: Story = [{ inline: [{ italics: ['italic text'] } as Italics] }];
+      const story: Story = [
+        { inline: [{ italics: ['italic text'] } as Italics] },
+      ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
     it('preserves Strikethrough structure', () => {
-      const story: Story = [{ inline: [{ strike: ['struck text'] } as Strikethrough] }];
+      const story: Story = [
+        { inline: [{ strike: ['struck text'] } as Strikethrough] },
+      ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
       expect(result).toEqual(story);
     });
 
     it('preserves InlineCode structure', () => {
-      const story: Story = [{ inline: [{ 'inline-code': 'const x = 1' } as InlineCode] }];
+      const story: Story = [
+        { inline: [{ 'inline-code': 'const x = 1' } as InlineCode] },
+      ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
       expect(result).toEqual(story);
@@ -379,7 +386,11 @@ describe('Round-trip: Story → Markdown → Story', () => {
     it('preserves nested formatting', () => {
       const story: Story = [
         {
-          inline: [{ italics: ['italic ', { bold: ['bold'] } as Bold, ' text'] } as Italics],
+          inline: [
+            {
+              italics: ['italic ', { bold: ['bold'] } as Bold, ' text'],
+            } as Italics,
+          ],
         },
       ];
       const md = storyToMarkdown(story);
@@ -391,7 +402,13 @@ describe('Round-trip: Story → Markdown → Story', () => {
   describe('links', () => {
     it('preserves Link structure', () => {
       const story: Story = [
-        { inline: [{ link: { href: 'https://example.com', content: 'Example' } } as Link] },
+        {
+          inline: [
+            {
+              link: { href: 'https://example.com', content: 'Example' },
+            } as Link,
+          ],
+        },
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
@@ -447,7 +464,10 @@ describe('Round-trip: Story → Markdown → Story', () => {
       const story: Story = [
         {
           block: {
-            header: { tag: 'h2', content: [{ bold: ['Bold'] } as Bold, ' Title'] },
+            header: {
+              tag: 'h2',
+              content: [{ bold: ['Bold'] } as Bold, ' Title'],
+            },
           } as Header,
         },
       ];
@@ -460,19 +480,27 @@ describe('Round-trip: Story → Markdown → Story', () => {
   describe('code blocks', () => {
     it('preserves Code block code content and language', () => {
       const story: Story = [
-        { block: { code: { code: 'const x = 1;', lang: 'javascript' } } as Code },
+        {
+          block: { code: { code: 'const x = 1;', lang: 'javascript' } } as Code,
+        },
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
-      expect(result).toEqual([{ block: { code: { code: 'const x = 1;', lang: 'javascript' } } }]);
+      expect(result).toEqual([
+        { block: { code: { code: 'const x = 1;', lang: 'javascript' } } },
+      ]);
     });
 
     it('preserves Code block without language (defaults to text)', () => {
-      const story: Story = [{ block: { code: { code: 'plain code', lang: '' } } as Code }];
+      const story: Story = [
+        { block: { code: { code: 'plain code', lang: '' } } as Code },
+      ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
       // Empty lang in input becomes 'text' default on round-trip
-      expect(result).toEqual([{ block: { code: { code: 'plain code', lang: 'text' } } }]);
+      expect(result).toEqual([
+        { block: { code: { code: 'plain code', lang: 'text' } } },
+      ]);
     });
   });
 
@@ -481,7 +509,12 @@ describe('Round-trip: Story → Markdown → Story', () => {
       const story: Story = [
         {
           block: {
-            image: { src: 'https://example.com/img.png', alt: 'An image', width: 0, height: 0 },
+            image: {
+              src: 'https://example.com/img.png',
+              alt: 'An image',
+              width: 0,
+              height: 0,
+            },
           } as Image,
         },
       ];
@@ -542,8 +575,18 @@ describe('Round-trip: Story → Markdown → Story', () => {
                 type: 'tasklist',
                 contents: [],
                 items: [
-                  { item: [{ task: { checked: false, content: ['pending'] } } as Task] },
-                  { item: [{ task: { checked: true, content: ['done'] } } as Task] },
+                  {
+                    item: [
+                      {
+                        task: { checked: false, content: ['pending'] },
+                      } as Task,
+                    ],
+                  },
+                  {
+                    item: [
+                      { task: { checked: true, content: ['done'] } } as Task,
+                    ],
+                  },
                 ],
               },
             },
@@ -577,7 +620,13 @@ describe('Round-trip: Story → Markdown → Story', () => {
 
     it('preserves Blockquote with formatting', () => {
       const story: Story = [
-        { inline: [{ blockquote: [{ bold: ['bold'] } as Bold, ' quote'] } as Blockquote] },
+        {
+          inline: [
+            {
+              blockquote: [{ bold: ['bold'] } as Bold, ' quote'],
+            } as Blockquote,
+          ],
+        },
       ];
       const md = storyToMarkdown(story);
       const result = markdownToStory(md);
@@ -592,7 +641,15 @@ describe('Round-trip: Story → Markdown → Story', () => {
       const story: Story = [
         {
           inline: [
-            { italics: ['italic text ', { link: { href: 'http://example.com', content: 'link' } } as Link, ' more'] } as Italics,
+            {
+              italics: [
+                'italic text ',
+                {
+                  link: { href: 'http://example.com', content: 'link' },
+                } as Link,
+                ' more',
+              ],
+            } as Italics,
           ],
         },
       ];
@@ -604,7 +661,15 @@ describe('Round-trip: Story → Markdown → Story', () => {
       const story: Story = [
         {
           inline: [
-            { bold: ['bold text ', { link: { href: 'http://example.com', content: 'link' } } as Link, ' more'] } as Bold,
+            {
+              bold: [
+                'bold text ',
+                {
+                  link: { href: 'http://example.com', content: 'link' },
+                } as Link,
+                ' more',
+              ],
+            } as Bold,
           ],
         },
       ];

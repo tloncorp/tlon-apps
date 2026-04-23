@@ -10,7 +10,7 @@ import {
   useContext,
 } from 'react';
 
-export type GalleryDraftType = 'caption' | 'text';
+export type GalleryDraftType = 'caption' | 'link' | 'text';
 
 export type GalleryRoute =
   | 'gallery'
@@ -25,7 +25,7 @@ export interface DraftInputHandle {
    * Perform anything necessary to put the user in a drafting state for this
    * input - open a model editor, focus text box, open image picker, etc.
    */
-  startDraft?: () => void;
+  startDraft?: (mode?: 'text' | 'link') => void;
 
   /**
    * @deprecated
@@ -42,6 +42,7 @@ export interface DraftInputHandle {
  * Shared API for all draft inputs.
  */
 export interface DraftInputContext {
+  canStartDraft?: boolean;
   channel: db.Channel;
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   configuration?: Record<string, JSONValue>;
@@ -64,6 +65,7 @@ export interface DraftInputContext {
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;
+  startDraft?: DraftInputHandle['startDraft'];
   storeDraft: (
     content: JSONContent,
     draftType?: GalleryDraftType

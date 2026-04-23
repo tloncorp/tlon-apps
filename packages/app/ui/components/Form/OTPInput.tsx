@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { TextInput as RNTextInput } from 'react-native';
 import { Text, View, XStack } from 'tamagui';
 
-import { Field } from '../../';
+import { Field } from './Field';
 
 export function OTPInput({
   length,

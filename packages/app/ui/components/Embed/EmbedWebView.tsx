@@ -123,7 +123,13 @@ export const EmbedWebView = memo<EmbedWebViewProps>(
 
     const baseHtml = useMemo(() => {
       if (!embedHtml || !url) return '';
-      return provider.generateHtml(url, embedHtml, isDark, hideTweetMedia, calculatedHeight);
+      return provider.generateHtml(
+        url,
+        embedHtml,
+        isDark,
+        hideTweetMedia,
+        calculatedHeight
+      );
     }, [url, embedHtml, isDark, provider, hideTweetMedia, calculatedHeight]);
 
     const html = useMemo(() => {

@@ -1,4 +1,5 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
+import * as api from '@tloncorp/api';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useStore } from '@tloncorp/app/ui';
@@ -7,10 +8,8 @@ import {
   AnalyticsSeverity,
   HostedNodeStatus,
   createDevLogger,
-  scaffoldPersonalGroup,
   withRetry,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
 import { useCallback } from 'react';

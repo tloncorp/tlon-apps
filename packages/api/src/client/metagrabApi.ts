@@ -1,7 +1,7 @@
 import { render } from '@urbit/aura';
 import { Atom } from '@urbit/nockjs';
 
-import { createDevLogger } from './logger';
+import { createDevLogger } from '../lib/logger';
 import * as domain from '../types';
 import { getConstants } from '../types';
 import * as ub from '../urbit';

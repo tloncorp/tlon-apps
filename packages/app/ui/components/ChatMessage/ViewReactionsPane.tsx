@@ -10,7 +10,7 @@ import { useGroupedReactions } from '../../utils/postUtils';
 import { ActionSheet } from '../ActionSheet';
 import { getNativeEmoji } from '../Emoji';
 import { ToggleGroupInput } from '../Form';
-import { ContactListItem } from '../ListItem';
+import { ContactListItem } from '../listItems';
 
 // Use BottomSheetFlatList on native for proper gesture integration with bottom sheet
 // Use regular FlatList on web

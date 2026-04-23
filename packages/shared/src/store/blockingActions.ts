@@ -1,5 +1,5 @@
+import { queryClient } from '../db/reactQuery';
 import { blockUser, unblockUser } from './dmActions';
-import { queryClient } from './reactQuery';
 
 export async function handleBlockingAction(
   userId: string,
@@ -12,8 +12,7 @@ export async function handleBlockingAction(
   }
 
   queryClient.invalidateQueries({
-    predicate: (query) => 
-      query.queryKey.includes('contacts')
+    predicate: (query) => query.queryKey.includes('contacts'),
   });
 }
 

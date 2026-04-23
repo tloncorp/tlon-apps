@@ -4,8 +4,8 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { markInvitesRead } from '@tloncorp/api';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -40,6 +40,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -65,20 +66,7 @@ export function ChatListScreenView({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
-  const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
-  const theme = useTheme();
-  const inviteButtonColor = useMemo(
-    () =>
-      (viewedPersonalInvite
-        ? theme?.primaryText?.val
-        : theme?.positiveActionText?.val) as ColorTokens,
-    [
-      theme?.positiveActionText?.val,
-      theme?.primaryText?.val,
-      viewedPersonalInvite,
-    ]
-  );
 
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -194,6 +182,10 @@ export function ChatListScreenView({
   );
 
   const handlePressAddChat = useCallback(() => {
+    db.wayfindingProgress.setValue((prev) => ({
+      ...prev,
+      tappedHomeAdd: true,
+    }));
     createChatSheetRef.current?.open();
   }, []);
 
@@ -235,6 +227,7 @@ export function ChatListScreenView({
   const [searchQuery, setSearchQuery] = useState('');
 
   const isWindowNarrow = useIsWindowNarrow();
+  const showHomeAddTooltip = store.useShowHomeAddTooltip();
 
   const handleSearchInputToggled = useCallback(() => {
     if (isWindowNarrow) {
@@ -308,7 +301,6 @@ export function ChatListScreenView({
                 personalInvite ? (
                   <ScreenHeader.IconButton
                     type="AddPerson"
-                    color={inviteButtonColor}
                     onPress={handlePersonalInvitePress}
                   />
                 ) : undefined
@@ -320,11 +312,26 @@ export function ChatListScreenView({
                     onPress={handleSearchInputToggled}
                   />
                   {isWindowNarrow ? (
-                    <ScreenHeader.IconButton
-                      type="Add"
-                      onPress={handlePressAddChat}
-                      testID="CreateChatSheetTrigger"
-                    />
+                    <View position="relative" alignItems="flex-end">
+                      <ScreenHeader.IconButton
+                        type="Add"
+                        onPress={handlePressAddChat}
+                        testID="CreateChatSheetTrigger"
+                        color={
+                          isWindowNarrow && showHomeAddTooltip
+                            ? '$positiveActionText'
+                            : '$primaryText'
+                        }
+                        backgroundColor={
+                          isWindowNarrow && showHomeAddTooltip
+                            ? '$positiveBackground'
+                            : 'transparent'
+                        }
+                      />
+                      {isWindowNarrow && showHomeAddTooltip && (
+                        <WayfindingNotice.HomeAddTooltip />
+                      )}
+                    </View>
                   ) : (
                     <CreateChatSheet
                       ref={createChatSheetRef}

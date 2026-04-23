@@ -1,6 +1,6 @@
+import * as api from '@tloncorp/api';
 import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as Contacts from 'expo-contacts';
 import * as Notifications from 'expo-notifications';
@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import { checkLatestVersion } from '../lib/lifecycleEvents';
 
 const logger = createDevLogger('analytics hooks', true);
+const HOME_GROUP_SLUG = 'home-group';
 
 export function useCheckAppInstalled() {
   const lureMeta = useLureMetadata();
@@ -56,10 +57,18 @@ export async function checkAnalyticsDigest() {
   ) {
     try {
       const digest = await db.getAnalyticsDigest();
+      const homeGroup = await db.getGroup({
+        id: `${currentUserId}/${HOME_GROUP_SLUG}`,
+      });
+      const homeGroupMemberCount =
+        homeGroup?.memberCount ?? homeGroup?.members?.length ?? null;
+
       logger.trackEvent(AnalyticsEvent.AnalyticsDigest, {
         ...digest,
+        homeGroupMemberCount,
         $set: {
           ...digest,
+          homeGroupMemberCount,
           analyticsDigestUpdatedAt: Date.now(),
           userId: currentUserId || undefined,
           contactBookPermissionGranted: status === 'granted',

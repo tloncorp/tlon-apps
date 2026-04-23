@@ -1,10 +1,11 @@
+import * as api from '@tloncorp/api';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import {
   AnalyticsEvent,
   createDevLogger,
   extractNormalizedInviteLink,
   withRetry,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
@@ -14,7 +15,6 @@ import {
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { verifyUserInviteLink } from '@tloncorp/shared/store';
-import { preSig } from '@tloncorp/api/urbit';
 import * as utils from '@tloncorp/shared/utils';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -110,6 +110,24 @@ export function useBootSequence() {
           tokenReceived: reservedNode.personalInviteToken,
         });
       }
+
+      // handle home group invite cacheing if available
+      if (
+        reservedNode.homeGroupInviteToken &&
+        reservedNode.homeGroupInviteToken.startsWith('0v')
+      ) {
+        const env = getConstants();
+        const inviteLink = extractNormalizedInviteLink(
+          `https://${env.BRANCH_DOMAIN}/${reservedNode.homeGroupInviteToken}`
+        );
+        await db.homeGroupInviteLink.setValue(inviteLink);
+      } else {
+        logger.trackError('Signup missing home group invite token', {
+          nodeId: reservedNode.id,
+          tokenReceived: reservedNode.homeGroupInviteToken,
+        });
+      }
+
       return NodeBootPhase.BOOTING;
     }
 
@@ -224,39 +242,11 @@ export function useBootSequence() {
         });
       });
 
-      if (lureMeta?.inviteType !== 'user') {
-        logger.trackEvent('Detected group invite, skipping scaffold');
-        return NodeBootPhase.CHECKING_FOR_INVITE;
-      }
-
-      if (lureMeta?.invitedGroupTitle) {
-        // workaround for our generic invites that boot you into empty state. Should be
-        // removed once a better backend solution is in place
-
-        logger.trackEvent(
-          'Detected generic workaround invite, skipping scaffold'
-        );
-        return NodeBootPhase.CHECKING_FOR_INVITE;
-      }
-
-      try {
-        await store.scaffoldPersonalGroup();
-
-        // since we know they're using the app for the first time, enable coach marks
-        db.wayfindingProgress.setValue((prev) => ({
-          ...prev,
-          tappedChatInput: false,
-          tappedAddCollection: false,
-          tappedAddNote: false,
-        }));
-
-        const signedUpWithInvite = Boolean(lureMeta?.id);
-        return signedUpWithInvite
-          ? NodeBootPhase.CHECKING_FOR_INVITE
-          : NodeBootPhase.READY;
-      } catch (e) {
-        return NodeBootPhase.SCAFFOLDING_WAYFINDING;
-      }
+      // bypass wayfinding creation for now
+      const signedUpWithInvite = Boolean(lureMeta?.id);
+      return signedUpWithInvite
+        ? NodeBootPhase.CHECKING_FOR_INVITE
+        : NodeBootPhase.READY;
     }
 
     //
@@ -271,7 +261,7 @@ export function useBootSequence() {
         }
       }
 
-      const { invitedDm, invitedGroup, tlonTeamDM } =
+      const { invitedDm, invitedGroup, tlonTeamDM, botHomeGroup } =
         await BootHelpers.getInvitedGroupAndDm(lureMeta);
       logger.trackEvent(AnalyticsEvent.InviteDebug, {
         context: 'invites to look for',
@@ -279,6 +269,10 @@ export function useBootSequence() {
         invitedGroup,
         tlonTeamDM,
       });
+
+      if (botHomeGroup && !botHomeGroup.pin) {
+        store.pinGroup(botHomeGroup);
+      }
 
       const requiredInvites =
         lureMeta?.inviteType === 'user' ? invitedDm : invitedGroup && invitedDm;

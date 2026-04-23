@@ -72,7 +72,9 @@ function AttestationPaneFixture() {
     <FixtureWrapper fillWidth safeArea>
       <YStack padding="$2xl" gap="$2xl">
         <Text size="$title/l">
-          {attestationType === 'twitter' ? '𝕏 Verification' : 'Phone Verification'}
+          {attestationType === 'twitter'
+            ? '𝕏 Verification'
+            : 'Phone Verification'}
         </Text>
         <Text size="$label/m" color="$secondaryText">
           {isOwnAttestation === 'own'

@@ -96,7 +96,12 @@ export function UserBugReportScreen({ navigation }: Props) {
               Information to help us diagnose the issue will be automatically
               attached.
             </FormText>
-            <Button preset="primary" onPress={handleSubmit(sendBugReport)} label="Send Report" centered />
+            <Button
+              preset="primary"
+              onPress={handleSubmit(sendBugReport)}
+              label="Send Report"
+              centered
+            />
           </FormFrame>
         </ScrollView>
       </KeyboardAvoidingView>

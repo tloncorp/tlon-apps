@@ -1,7 +1,7 @@
+import * as ub from '@tloncorp/api/urbit';
 import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import * as ub from '@tloncorp/api/urbit';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
 import { IconButton } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
@@ -16,8 +16,8 @@ import React, {
 } from 'react';
 import { Popover, isWeb } from 'tamagui';
 
-import { useCurrentUserId } from '../contexts';
-import { useChatOptions } from '../contexts/chatOptions';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
 import * as utils from '../utils';
 import {
   Action,

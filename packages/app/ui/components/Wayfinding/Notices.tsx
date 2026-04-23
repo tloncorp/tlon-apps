@@ -1,9 +1,10 @@
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { Icon, Pressable, Text } from '@tloncorp/ui';
+import { useCallback, useMemo } from 'react';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
-import { useStore } from '../../contexts';
+import { useStore } from '../../contexts/storeContext';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 const NoticeContainer = styled(YStack, {
@@ -21,6 +22,7 @@ const WayfindingNotice = {
   EmptyChannel,
   GroupChannels,
   CustomizeGroup,
+  HomeAddTooltip,
   ChatInputTooltip,
   CollectionInputTooltip,
   NotebookInputTooltip,
@@ -148,6 +150,50 @@ function CustomizeGroup() {
           your friends.
         </NoticeText>
       </NoticeContainer>
+    </View>
+  );
+}
+
+export function HomeAddTooltip() {
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const isHostedUser = getCurrentUserIsHosted();
+  const botEnabled = isHostedUser && hostingBotEnabled;
+
+  const handleDismiss = useCallback(() => {
+    db.wayfindingProgress.setValue((prev) => ({
+      ...prev,
+      tappedHomeAdd: true,
+    }));
+  }, []);
+
+  return (
+    <View position="absolute" top={36} right={18}>
+      <YStack alignItems="flex-end">
+        <Pressable
+          testID="HomeAddWayfindingTooltip"
+          onPress={handleDismiss}
+          paddingVertical={20}
+          paddingLeft={20}
+          paddingRight={44}
+          width={220}
+          backgroundColor="$positiveActionText"
+          borderRadius="$l"
+        >
+          <Text size="$label/l" color="$white">
+            {botEnabled
+              ? 'Tap here to create a new group and invite your Tlonbot.'
+              : 'Tap here to create a new group.'}
+          </Text>
+          <View position="absolute" top={8} right={8} padding={4}>
+            <Icon
+              type="Close"
+              size="$s"
+              color="$white"
+              testID="HomeAddWayfindingTooltipDismiss"
+            />
+          </View>
+        </Pressable>
+      </YStack>
     </View>
   );
 }

@@ -5,7 +5,8 @@ import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { YStack, styled } from 'tamagui';
 
-import { useChatOptions, useGroup } from '../../contexts';
+import { useChatOptions } from '../../contexts/chatOptions';
+import { useGroup } from '../../contexts/groups';
 import { useChatTitle, useIsAdmin } from '../../utils';
 import WayfindingNotice from '../Wayfinding/Notices';
 
@@ -150,7 +151,7 @@ export function EmptyChannelNotice({
             }
             onPress={
               isSingleChannelGroup
-                ? () => onPressGroupMeta()
+                ? () => onPressGroupMeta(true)
                 : onPressChannelMeta
             }
           />

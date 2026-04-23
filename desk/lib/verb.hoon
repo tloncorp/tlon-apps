@@ -40,7 +40,7 @@
   ^-  (quip card:agent:gall agent:gall)
   %-  (print bowl |.("{<dap.bowl>}: on-poke with mark {<mark>}"))
   ?:  ?=(%verb mark)
-    =+  !<(cmd=$@(?(%loud %bowl) [%volume volume:logs]) vase)
+    =+  !<(=cmd vase)
     ?-  cmd
       %loud        `this(loud !loud)
       %bowl        `this(bowl-print !bowl-print)

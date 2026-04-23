@@ -1,12 +1,12 @@
-import { JSONValue } from '@tloncorp/shared';
 import { ChannelContentConfiguration } from '@tloncorp/api';
+import { JSONValue } from '@tloncorp/shared';
 import { useMemo } from 'react';
 
-import { useChannelContext } from '../../contexts';
+import { useChannelContext } from '../../contexts/channel';
 import {
   RenderItemType,
   useComponentsKitContext,
-} from '../../contexts/componentsKits';
+} from '../../contexts/componentsKits/componentsKits';
 import { ChatMessage } from '../ChatMessage';
 import { GalleryPost } from '../GalleryPost';
 import { NotebookPost } from '../NotebookPost';

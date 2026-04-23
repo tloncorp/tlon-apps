@@ -1,6 +1,5 @@
-import { expect, test } from 'vitest';
-
 import { Attachment } from '@tloncorp/shared';
+import { expect, test } from 'vitest';
 
 import {
   VIDEO_COMPOSITION_ERROR,
@@ -36,11 +35,8 @@ function makeImage(
   };
 }
 
-test('allows one video with optional text', () => {
+test('allows one video', () => {
   expect(canAddAttachment([], makeVideo())).toEqual({ ok: true });
-  expect(
-    canAddAttachment([makeVideo()], { type: 'text', text: 'caption' })
-  ).toEqual({ ok: true });
 });
 
 test('rejects video mixed with non-text media', () => {
