@@ -105,7 +105,26 @@ export function personalGroupHasDefaultTitle(group?: db.Group | null) {
   return group.title?.toLowerCase().includes('group');
 }
 
+export function botHomeGroupHasDefaultTitle(group?: db.Group | null) {
+  if (!group) {
+    return false;
+  }
+
+  return (
+    group.title?.toLowerCase().includes('group') ||
+    group.title?.toLowerCase().includes('home')
+  );
+}
+
 export function generatePersonalGroupTitle(contact: {
+  id: string;
+  nickname?: string | null;
+}) {
+  const displayName = contact.nickname || contact.id;
+  return `${displayName}'s Group`;
+}
+
+export function generateBotHomeGroupTitle(contact: {
   id: string;
   nickname?: string | null;
 }) {

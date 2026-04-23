@@ -33,6 +33,25 @@ type FormData = {
 };
 
 const logger = createDevLogger('SetNicknameScreen', false);
+const NICKNAME_SETUP_STARTING_DELAY_MS = 1000;
+const NICKNAME_SETUP_MAX_DELAY_MS = 4000;
+const NICKNAME_SETUP_NUM_ATTEMPTS = 6;
+
+function getRetryDelayMs(attemptNumber: number) {
+  return Math.min(
+    NICKNAME_SETUP_STARTING_DELAY_MS *
+      Math.pow(2, Math.max(attemptNumber - 1, 0)),
+    NICKNAME_SETUP_MAX_DELAY_MS
+  );
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function getAttemptsUsed(retryCount: number) {
+  return Math.min(retryCount + 1, NICKNAME_SETUP_NUM_ATTEMPTS);
+}
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
@@ -55,6 +74,8 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
 
   const onSubmit = handleSubmit(({ nickname }) => {
+    let retryCount = 0;
+
     signupContext.setOnboardingValues({
       nickname,
       userWasReadyAt: Date.now(),
@@ -73,33 +94,63 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
           throw new Error('No nickname provided during nickname setup');
         }
 
-        await store.updateCurrentUserProfile({ nickname });
+        await store.updateCurrentUserProfile(
+          { nickname },
+          { shouldThrow: true }
+        );
 
         const isBotEnabled = await db.hostingBotEnabled.getValue();
         if (isBotEnabled) {
           const botNickname = `${nickname}'s TlonBot 🌱`;
           await api.setTlawnNickname(userId, botNickname);
-
-          const botHomeGroup = await db.getBotHomeGroup();
-          if (!botHomeGroup) {
-            throw new Error('No Bot Home Group found during nickname setup');
-          }
-
-          await store.updateGroupMeta({
-            ...botHomeGroup,
-            title: `${nickname}'s Group`,
-          });
         }
       },
-      { startingDelay: 0, numOfAttempts: 4, maxDelay: 4000 }
-    ).catch((err) => {
-      logger.trackError(
-        'Failed to set nickname on bot ship or update Home Group',
-        {
-          error: err instanceof Error ? err.message : String(err),
+      {
+        startingDelay: NICKNAME_SETUP_STARTING_DELAY_MS,
+        numOfAttempts: NICKNAME_SETUP_NUM_ATTEMPTS,
+        maxDelay: NICKNAME_SETUP_MAX_DELAY_MS,
+        retry: (error, retryNumber) => {
+          retryCount = retryNumber;
+          const willRetry = retryNumber < NICKNAME_SETUP_NUM_ATTEMPTS;
+
+          logger.trackEvent(
+            willRetry
+              ? 'Set nickname retry scheduled'
+              : 'Set nickname retries exhausted',
+            {
+              attemptsUsed: willRetry
+                ? retryNumber
+                : NICKNAME_SETUP_NUM_ATTEMPTS,
+              error: getErrorMessage(error),
+              maxAttempts: NICKNAME_SETUP_NUM_ATTEMPTS,
+              nextDelayMs: willRetry ? getRetryDelayMs(retryNumber) : null,
+              retryNumber,
+            }
+          );
+
+          return willRetry;
+        },
+      }
+    )
+      .then(() => {
+        if (retryCount > 0) {
+          logger.trackEvent('Set nickname retry recovered', {
+            attemptsUsed: getAttemptsUsed(retryCount),
+            maxAttempts: NICKNAME_SETUP_NUM_ATTEMPTS,
+            retryCount,
+          });
         }
-      );
-    });
+      })
+      .catch((err) => {
+        logger.trackError(
+          'Failed to set nickname on bot ship or update Home Group',
+          {
+            attemptsUsed: getAttemptsUsed(retryCount),
+            error: getErrorMessage(err),
+            retryCount,
+          }
+        );
+      });
 
     navigation.push('SetNotifications');
   });
