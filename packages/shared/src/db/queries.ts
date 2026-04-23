@@ -3723,6 +3723,9 @@ export const addReplyToPost = createWriteQuery(
           parentPost.replyContactIds ?? [],
           replyAuthor
         );
+        const nextOptimisticReplyBumpCount = replyMeta
+          ? 0
+          : (parentPost.optimisticReplyBumpCount ?? 0) + 1;
         // Never regress `replyTime` below the server-known value: the parent
         // should always reflect the newest known reply time. When this is an
         // optimistic add for a reply older than the parent's current
@@ -3737,6 +3740,7 @@ export const addReplyToPost = createWriteQuery(
               replyMeta?.replyCount ?? (parentPost.replyCount ?? 0) + 1,
             replyTime: replyMeta?.replyTime ?? derivedReplyTime,
             replyContactIds: replyMeta?.replyContactIds ?? newReplyContacts,
+            optimisticReplyBumpCount: nextOptimisticReplyBumpCount,
           })
           .where(eq($posts.id, parentId));
       }
@@ -3746,9 +3750,12 @@ export const addReplyToPost = createWriteQuery(
 );
 
 /**
- * Undo the optimistic reply-summary bump after a failed reply row is removed.
- * Recompute from local replies when the cache is complete; otherwise only
- * decrement `replyCount` and preserve server-sourced summary fields.
+ * Undo one optimistic reply-summary bump after a failed reply row is removed.
+ * If the parent row has already been replaced by server-authoritative
+ * `replyMeta`, the optimistic bump count is 0 and this becomes a no-op.
+ * Otherwise, recompute from local replies when the cache is complete; if the
+ * cache is partial, only decrement `replyCount` and preserve server-sourced
+ * summary fields.
  */
 export const undoOptimisticReplyBump = createWriteQuery(
   'undoOptimisticReplyBump',
@@ -3760,6 +3767,11 @@ export const undoOptimisticReplyBump = createWriteQuery(
         .where(eq($posts.id, parentId));
       const parent = parentRows[0];
       if (!parent) return;
+
+      const optimisticReplyBumpCount = parent.optimisticReplyBumpCount ?? 0;
+      if (optimisticReplyBumpCount <= 0) {
+        return;
+      }
 
       const aliveReplies = await txCtx.db
         .select({
@@ -3776,6 +3788,11 @@ export const undoOptimisticReplyBump = createWriteQuery(
 
       const currentReplyCount = parent.replyCount ?? 0;
       const aliveCount = aliveReplies.length;
+      // The deleted failed reply row has already been removed from the DB by
+      // the time this helper runs. If the local cache fully backs the parent's
+      // current reply summary, the parent should still be exactly one ahead of
+      // the surviving reply rows; other still-alive optimistic replies are
+      // already included in `aliveCount`.
       const localCacheIsComplete = currentReplyCount === aliveCount + 1;
 
       if (localCacheIsComplete) {
@@ -3809,6 +3826,7 @@ export const undoOptimisticReplyBump = createWriteQuery(
             replyCount: aliveCount,
             replyTime,
             replyContactIds,
+            optimisticReplyBumpCount: Math.max(optimisticReplyBumpCount - 1, 0),
           })
           .where(eq($posts.id, parentId));
       }
@@ -3820,6 +3838,7 @@ export const undoOptimisticReplyBump = createWriteQuery(
         .update($posts)
         .set({
           replyCount: Math.max(currentReplyCount - 1, 0),
+          optimisticReplyBumpCount: Math.max(optimisticReplyBumpCount - 1, 0),
         })
         .where(eq($posts.id, parentId));
     });

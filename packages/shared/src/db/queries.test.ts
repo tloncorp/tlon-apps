@@ -808,12 +808,13 @@ describe('undoOptimisticReplyBump', () => {
     });
   }
 
-  test('complete local cache: A -> B -> A after deleting the last A recomputes to ["B", "A"] recency', async () => {
+  test('complete local cache: A -> B -> A after deleting the last A recomputes to ["A", "B"] recency (most-recent last)', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
     await seedParent({
       replyCount: 3,
       replyTime: 1300,
       replyContactIds: ['~bravo', '~alfa'],
+      optimisticReplyBumpCount: 1,
     });
     await seedReply('~alfa', 1100);
     await seedReply('~bravo', 1200);
@@ -824,6 +825,7 @@ describe('undoOptimisticReplyBump', () => {
     expect(parent!.replyCount).toBe(2);
     expect(parent!.replyTime).toBe(1200);
     expect(parent!.replyContactIds).toEqual(['~alfa', '~bravo']);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
   });
 
   test('partial local cache: preserves server-sourced replyTime / replyContactIds, decrements replyCount', async () => {
@@ -833,6 +835,7 @@ describe('undoOptimisticReplyBump', () => {
       replyCount: 8,
       replyTime: 9999,
       replyContactIds: serverContactIds,
+      optimisticReplyBumpCount: 1,
     });
 
     await queries.undoOptimisticReplyBump({ parentId });
@@ -841,6 +844,7 @@ describe('undoOptimisticReplyBump', () => {
     expect(parent!.replyCount).toBe(7);
     expect(parent!.replyTime).toBe(9999);
     expect(parent!.replyContactIds).toEqual(serverContactIds);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
   });
 
   test('partial local cache with alive local replies: still preserves server fields', async () => {
@@ -849,6 +853,7 @@ describe('undoOptimisticReplyBump', () => {
       replyCount: 5,
       replyTime: 9999,
       replyContactIds: ['~remote-1', '~remote-2'],
+      optimisticReplyBumpCount: 1,
     });
     await seedReply('~alfa', 1100);
     await seedReply('~bravo', 1200);
@@ -859,16 +864,43 @@ describe('undoOptimisticReplyBump', () => {
     expect(parent!.replyCount).toBe(4);
     expect(parent!.replyTime).toBe(9999);
     expect(parent!.replyContactIds).toEqual(['~remote-1', '~remote-2']);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
   });
 
   test('replyCount never goes below 0', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
-    await seedParent({ replyCount: 0 });
+    await seedParent({ replyCount: 0, optimisticReplyBumpCount: 1 });
 
     await queries.undoOptimisticReplyBump({ parentId });
 
     const parent = await queries.getPost({ postId: parentId });
     expect(parent!.replyCount).toBe(0);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
+  });
+
+  test('server-authoritative replyMeta override clears optimistic bump tracking, so undo is a no-op', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedParent({
+      replyCount: 4,
+      replyTime: 9999,
+      replyContactIds: ['~remote-1', '~remote-2', '~remote-3'],
+      optimisticReplyBumpCount: 0,
+    });
+    await seedReply('~alfa', 1100, { sequenceNum: 101 });
+    await seedReply('~bravo', 1200, { sequenceNum: 102 });
+    await seedReply('~charlie', 1300, { sequenceNum: 103 });
+
+    await queries.undoOptimisticReplyBump({ parentId });
+
+    const parent = await queries.getPost({ postId: parentId });
+    expect(parent!.replyCount).toBe(4);
+    expect(parent!.replyTime).toBe(9999);
+    expect(parent!.replyContactIds).toEqual([
+      '~remote-1',
+      '~remote-2',
+      '~remote-3',
+    ]);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
   });
 });
 
