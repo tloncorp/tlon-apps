@@ -248,20 +248,21 @@ export default function AttachmentSheet({
   const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
+      const audioFileUri = filePathToFileUri(audioFilePath);
       const duration = await (async () => {
         try {
-          return await getAudioFileDurationSeconds(audioFilePath);
+          return await getAudioFileDurationSeconds(audioFileUri);
         } catch {
           return undefined;
         }
       })();
       const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
-        localUri: filePathToFileUri(audioFilePath),
-        size: getFileSize(audioFilePath) ?? -1,
+        localUri: audioFileUri,
+        size: getFileSize(audioFileUri) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
-        mimeType: getMimeType(audioFilePath) ?? undefined,
+        mimeType: getMimeType(audioFileUri) ?? undefined,
       };
       audioRecorder.dismiss();
 
