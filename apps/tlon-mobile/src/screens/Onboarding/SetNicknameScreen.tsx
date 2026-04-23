@@ -60,6 +60,8 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       userWasReadyAt: Date.now(),
     });
 
+    db.splashNickname.setValue(nickname ?? '');
+
     // once they've decided on a nickname, we need to re-title their bot
     // and update the name of their home group
     withRetry(
@@ -77,12 +79,6 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
           { nickname },
           { shouldThrow: true }
         );
-
-        const isBotEnabled = await db.hostingBotEnabled.getValue();
-        if (isBotEnabled) {
-          const botNickname = `${nickname}'s TlonBot 🌱`;
-          await api.setTlawnNickname(userId, botNickname);
-        }
       },
       {
         startingDelay: 1000,

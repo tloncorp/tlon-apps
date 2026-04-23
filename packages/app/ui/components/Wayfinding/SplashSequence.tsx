@@ -96,7 +96,7 @@ function getPreviewBotName(userNickname?: string | null) {
     return 'Tlonbot';
   }
 
-  return `${trimmedNickname}'s TlonBot 🌱`;
+  return `${trimmedNickname}'s Tlonbot 🌱`;
 }
 
 function SplashSequenceComponent(props: {
@@ -155,18 +155,18 @@ function SplashSequenceComponent(props: {
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
           setUserShipId(`~${shipId}`);
-          const [botInfo, providerConfig, userContact, savedSignup] =
+          const [botInfo, providerConfig, userContact, cachedNickname] =
             await Promise.all([
               api.getTlawnBotInfo(shipId).catch(() => null),
               userId
                 ? api.getTlawnProviderKeys(userId).catch(() => null)
                 : null,
               db.getContact({ id: `~${shipId}` }).catch(() => null),
-              db.signupData.getValue().catch(() => null),
+              db.splashNickname.getValue().catch(() => null),
             ]);
           if (!cancelled) {
             const resolvedUserNickname =
-              userContact?.nickname?.trim() || savedSignup?.nickname?.trim();
+              userContact?.nickname?.trim() || cachedNickname?.trim();
             if (resolvedUserNickname) {
               setUserNickname(resolvedUserNickname);
             }
@@ -909,7 +909,7 @@ export function BotNamePane(props: {
                 placeholder={
                   props.userNickname
                     ? getPreviewBotName(props.userNickname)
-                    : 'TlonBot'
+                    : 'Tlonbot'
                 }
                 frameStyle={{ height: 72 }}
                 style={{ fontSize: 24, lineHeight: 30 }}
