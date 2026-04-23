@@ -1034,6 +1034,7 @@ export function BotAvatarPane(props: {
               onPress={openSheet}
               label="Change photo"
               preset="secondary"
+              backgroundColor="transparent"
               disabled={!canUpload || isUploading}
             />
             <Button
@@ -1058,7 +1059,7 @@ export function BotAvatarPane(props: {
               onPress={props.onActionPress}
               label="Skip"
               preset="secondary"
-              fill="text"
+              backgroundColor="transparent"
             />
           </>
         )}
@@ -1475,7 +1476,7 @@ export function GroupsPane(props: {
           )}
         </ScrollView>
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
+      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
           <Button
             onPress={
@@ -1504,7 +1505,7 @@ export function GroupsPane(props: {
           onPress={props.onActionPress}
           label="Got it"
           preset="secondary"
-          fill="text"
+          backgroundColor="transparent"
         />
       </YStack>
     </View>
@@ -1818,7 +1819,7 @@ function ConnectContactBookContent(props: {
             onPress={props.onSkip}
             label="Skip"
             preset="secondary"
-            fill="text"
+            backgroundColor="transparent"
             disabled={props.isProcessing || props.isCompleting}
           />
         )}
