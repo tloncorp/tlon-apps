@@ -3,7 +3,7 @@ import { Icon, IconType } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { View } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
-import { Circle, ColorTokens, isWeb } from 'tamagui';
+import { ColorTokens, isWeb } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
 
@@ -99,8 +99,10 @@ export default function NavIcon({
           justifyContent="center"
           alignItems="center"
         >
-          <Circle
-            size="$s"
+          <View
+            width="$s"
+            height="$s"
+            borderRadius="$s"
             backgroundColor={hasUnreads ? '$blue' : 'transparent'}
           />
         </View>
