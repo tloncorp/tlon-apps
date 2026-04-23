@@ -22,7 +22,6 @@ dump.sqlite3
 .claude
 .gitattributes
 clurd
-cosmos.imports.ts
 # From apps/tlon-desktop/.gitignore
 /apps/tlon-desktop/build/
 /apps/tlon-desktop/dist/
