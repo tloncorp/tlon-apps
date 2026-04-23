@@ -1501,12 +1501,12 @@ export function GroupsPane(props: {
                   ? 'Preparing invite link'
                   : 'Invite link unavailable'
             }
-            intent="positive"
+            intent={groupInviteIsReady ? 'positive' : undefined}
             size="large"
             leadingIcon={groupInviteIsLoading ? undefined : 'Link'}
             loading={groupInviteIsLoading}
             disabled={!groupInviteIsReady}
-            glow
+            glow={groupInviteIsReady}
           />
         ) : null}
         <Button
@@ -1809,7 +1809,7 @@ function ConnectContactBookContent(props: {
           </YStack>
         )}
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$2xl">
+      <YStack paddingHorizontal="$xl" gap="$l">
         <Button
           data-testid="connect-contact-book"
           onPress={handleAction}
