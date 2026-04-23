@@ -1,0 +1,199 @@
+diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.js
+--- a/lib/module/js-reanimated/index.js
++++ b/lib/module/js-reanimated/index.js
+@@ -20,8 +20,11 @@
+ };
+ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
+   if (viewRef) {
+-    const component = viewRef.getAnimatableRef ? viewRef.getAnimatableRef() : viewRef;
+-    const [rawStyles] = Object.keys(updates).reduce((acc, key) => {
++    const component = getComponentFromRef(viewRef);
++    if (!component) {
++      return;
++    }
++    const [rawStyles] = Object.keys(updates ?? {}).reduce((acc, key) => {
+       const value = updates[key];
+       const index = typeof value === 'function' ? 1 : 0;
+       acc[index][key] = value;
+@@ -32,11 +35,11 @@
+       // Also, some components (e.g. from react-native-svg) don't have styles
+       // and always provide setNativeProps function instead (even on React Native Web 0.19+).
+       setNativeProps(component, rawStyles, isAnimatedProps);
+-    } else if (createReactDOMStyle !== undefined && component.style !== undefined) {
++    } else if (component.style !== undefined) {
+       // React Native Web 0.19+ no longer provides setNativeProps function,
+       // so we need to update DOM nodes directly.
+       updatePropsDOM(component, rawStyles, isAnimatedProps);
+-    } else if (Object.keys(component.props).length > 0) {
++    } else if (component.props && Object.keys(component.props).length > 0 && component._touchableNode) {
+       Object.keys(component.props).forEach(key => {
+         if (!rawStyles[key]) {
+           return;
+@@ -50,6 +53,16 @@
+     }
+   }
+ };
++const getComponentFromRef = viewRef => {
++  const component = viewRef.getAnimatableRef ? viewRef.getAnimatableRef() : viewRef;
++  if (!component) {
++    return component;
++  }
++  if (component.host) {
++    return component.host;
++  }
++  return component.current?.host ?? component;
++};
+ const setNativeProps = (component, newProps, isAnimatedProps) => {
+   if (isAnimatedProps) {
+     const uiProps = {};
+@@ -79,9 +92,9 @@
+     ...style
+   };
+   component.previousStyle = currentStyle;
+-  const domStyle = createReactDOMStyle(currentStyle);
+-  if (Array.isArray(domStyle.transform) && createTransformValue !== undefined) {
+-    domStyle.transform = createTransformValue(domStyle.transform);
++  const domStyle = createReactDOMStyle ? createReactDOMStyle(currentStyle) : currentStyle;
++  if (Array.isArray(domStyle.transform)) {
++    domStyle.transform = createTransformValue ? createTransformValue(domStyle.transform) : createTransformValueFallback(domStyle.transform);
+   }
+   if (createTextShadowValue !== undefined && (domStyle.textShadowColor || domStyle.textShadowRadius || domStyle.textShadowOffset)) {
+     domStyle.textShadow = createTextShadowValue({
+@@ -98,8 +111,12 @@
+     }
+   }
+ };
++const createTransformValueFallback = transform => transform.map(transformProp => {
++  const [key, value] = Object.entries(transformProp)[0] ?? [];
++  return key == null ? '' : `${key}(${value})`;
++}).filter(Boolean).join(' ');
+ function isNativeProp(propName) {
+   return !!PropsAllowlists.NATIVE_THREAD_PROPS_WHITELIST[propName];
+ }
+ export default reanimatedJS;
+-//# sourceMappingURL=index.js.map
+\ No newline at end of file
++//# sourceMappingURL=index.js.map
+diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
+--- a/src/js-reanimated/index.ts
++++ b/src/js-reanimated/index.ts
+@@ -40,8 +40,8 @@
+   previousStyle: StyleProps;
+   setNativeProps?: (style: StyleProps) => void;
+   style?: StyleProps;
+-  props: Record<string, string | number>;
+-  _touchableNode: {
++  props?: Record<string, string | number>;
++  _touchableNode?: {
+     setAttribute: (key: string, props: unknown) => void;
+   };
+ }
+@@ -49,8 +49,8 @@
+ export interface ReanimatedHTMLElement extends HTMLElement {
+   previousStyle: StyleProps;
+   setNativeProps?: (style: StyleProps) => void;
+-  props: Record<string, string | number>;
+-  _touchableNode: {
++  props?: Record<string, string | number>;
++  _touchableNode?: {
+     setAttribute: (key: string, props: unknown) => void;
+   };
+   reanimatedDummy?: boolean;
+@@ -66,9 +66,10 @@
+   isAnimatedProps?: boolean
+ ): void => {
+   if (viewRef) {
+-    const component = viewRef.getAnimatableRef
+-      ? viewRef.getAnimatableRef()
+-      : viewRef;
++    const component = getComponentFromRef(viewRef);
++    if (!component) {
++      return;
++    }
+     const [rawStyles] = Object.keys(updates).reduce(
+       (acc: [StyleProps, AnimatedStyle<any>], key) => {
+         const value = updates[key];
+@@ -84,14 +85,15 @@
+       // Also, some components (e.g. from react-native-svg) don't have styles
+       // and always provide setNativeProps function instead (even on React Native Web 0.19+).
+       setNativeProps(component, rawStyles, isAnimatedProps);
+-    } else if (
+-      createReactDOMStyle !== undefined &&
+-      component.style !== undefined
+-    ) {
++    } else if (component.style !== undefined) {
+       // React Native Web 0.19+ no longer provides setNativeProps function,
+       // so we need to update DOM nodes directly.
+       updatePropsDOM(component, rawStyles, isAnimatedProps);
+-    } else if (Object.keys(component.props).length > 0) {
++    } else if (
++      component.props &&
++      Object.keys(component.props).length > 0 &&
++      component._touchableNode
++    ) {
+       Object.keys(component.props).forEach((key) => {
+         if (!rawStyles[key]) {
+           return;
+@@ -109,6 +111,27 @@
+   }
+ };
+ 
++const getComponentFromRef = (
++  viewRef: (JSReanimatedComponent | ReanimatedHTMLElement) & {
++    getAnimatableRef?: () => JSReanimatedComponent | ReanimatedHTMLElement;
++    host?: JSReanimatedComponent | ReanimatedHTMLElement;
++    current?: {
++      host?: JSReanimatedComponent | ReanimatedHTMLElement;
++    };
++  }
++): JSReanimatedComponent | ReanimatedHTMLElement | undefined => {
++  const component = viewRef.getAnimatableRef
++    ? viewRef.getAnimatableRef()
++    : viewRef;
++  if (!component) {
++    return component;
++  }
++  if ('host' in component && component.host) {
++    return component.host;
++  }
++  return 'current' in component ? component.current?.host ?? component : component;
++};
++
+ const setNativeProps = (
+   component: JSReanimatedComponent | ReanimatedHTMLElement,
+   newProps: StyleProps,
+@@ -144,9 +167,13 @@
+   const currentStyle = { ...previousStyle, ...style };
+   (component as JSReanimatedComponent).previousStyle = currentStyle;
+ 
+-  const domStyle = createReactDOMStyle(currentStyle);
+-  if (Array.isArray(domStyle.transform) && createTransformValue !== undefined) {
+-    domStyle.transform = createTransformValue(domStyle.transform);
++  const domStyle = createReactDOMStyle
++    ? createReactDOMStyle(currentStyle)
++    : currentStyle;
++  if (Array.isArray(domStyle.transform)) {
++    domStyle.transform = createTransformValue
++      ? createTransformValue(domStyle.transform)
++      : createTransformValueFallback(domStyle.transform);
+   }
+ 
+   if (
+@@ -171,6 +198,17 @@
+   }
+ };
+ 
++const createTransformValueFallback = (
++  transform: Array<Record<string, string | number>>
++): string =>
++  transform
++    .map((transformProp) => {
++      const [key, value] = Object.entries(transformProp)[0] ?? [];
++      return key == null ? '' : `${key}(${value})`;
++    })
++    .filter(Boolean)
++    .join(' ');
++
+ function isNativeProp(propName: string): boolean {
+   return !!PropsAllowlists.NATIVE_THREAD_PROPS_WHITELIST[propName];
+ }

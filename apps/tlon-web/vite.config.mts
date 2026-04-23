@@ -39,6 +39,7 @@ export default ({ mode }: { mode: string }) => {
     process.env.VITE_SHIP_URL2 ||
     'http://localhost:8080';
   console.log(SHIP_URL2);
+  const targetShipUrl = mode === 'dev2' ? SHIP_URL2 : SHIP_URL;
   const shouldUploadSourcemaps =
     process.env.CI === 'true' && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
@@ -98,7 +99,7 @@ export default ({ mode }: { mode: string }) => {
       expo52PatchPlugin(), // Fix Expo 52 static name assignments
       urbitPlugin({
         base: 'groups',
-        target: mode === 'dev2' ? SHIP_URL2 : SHIP_URL,
+        target: targetShipUrl,
         changeOrigin: true,
         secure: false,
       }) as PluginOption[],
@@ -186,6 +187,51 @@ export default ({ mode }: { mode: string }) => {
       : process.env.VITE_PORT
         ? parseInt(process.env.VITE_PORT)
         : 3000;
+  const urbitProxy: Record<string, any> = {
+    '/apps/groups/~/metagrab/': {
+      target: targetShipUrl,
+      changeOrigin: true,
+      secure: false,
+      configure: (proxy) => {
+        proxy.on('proxyReq', (proxyReq) => {
+          // Log the path for debugging
+          console.log('Proxying request to:', proxyReq.path);
+        });
+        proxy.on('proxyRes', (proxyRes, req) => {
+          console.log(
+            'Proxy response for:',
+            req.url,
+            'Status:',
+            proxyRes.statusCode
+          );
+        });
+        proxy.on('error', (err, req) => {
+          console.error('Proxy error:', err, 'for request:', req.url);
+        });
+      },
+    },
+    '^/apps/groups/desk.js': {
+      target: targetShipUrl,
+      changeOrigin: true,
+      secure: false,
+    },
+    '^((?!/apps/groups/).)*$': {
+      target: targetShipUrl,
+      changeOrigin: true,
+      secure: false,
+    },
+    '^.*//.*': {
+      target: targetShipUrl,
+      changeOrigin: true,
+      secure: false,
+      rewrite: (path) => path.replaceAll('//', '/@@@/'),
+      configure: (proxy) => {
+        proxy.on('proxyReq', (proxyReq) => {
+          proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
+        });
+      },
+    },
+  };
 
   return defineConfig({
     base: base(mode),
@@ -197,41 +243,10 @@ export default ({ mode }: { mode: string }) => {
       //      as a workaround for this, we rewrite the path going into the
       //      proxy to "hide" the empty path segments, and then rewrite the
       //      path coming "out" of the proxy to obtain the original path.
-      proxy: {
-        '/apps/groups/~/metagrab/': {
-          target: SHIP_URL,
-          changeOrigin: true,
-          secure: false,
-          configure: (proxy) => {
-            proxy.on('proxyReq', (proxyReq) => {
-              // Log the path for debugging
-              console.log('Proxying request to:', proxyReq.path);
-            });
-            proxy.on('proxyRes', (proxyRes, req) => {
-              console.log(
-                'Proxy response for:',
-                req.url,
-                'Status:',
-                proxyRes.statusCode
-              );
-            });
-            proxy.on('error', (err, req) => {
-              console.error('Proxy error:', err, 'for request:', req.url);
-            });
-          },
-        },
-        '^.*//.*': {
-          target: SHIP_URL,
-          changeOrigin: true,
-          secure: false,
-          rewrite: (path) => path.replaceAll('//', '/@@@/'),
-          configure: (proxy) => {
-            proxy.on('proxyReq', (proxyReq) => {
-              proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
-            });
-          },
-        },
-      },
+      proxy: urbitProxy,
+    },
+    preview: {
+      proxy: urbitProxy,
     },
     build:
       mode !== 'profile'
@@ -266,6 +281,9 @@ export default ({ mode }: { mode: string }) => {
       dedupe: ['@tanstack/react-query'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        'react-native-reanimated': fileURLToPath(
+          new URL('../../node_modules/react-native-reanimated', import.meta.url)
+        ),
         ...(mode === 'electron'
           ? {
               'virtual:pwa-register/react': fileURLToPath(
