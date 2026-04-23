@@ -1892,6 +1892,7 @@ export function InvitePane(props: {
       if (perms.canAskPermission) {
         const status = await perms.requestPermissions();
         if (status === 'granted') {
+          hasAutoProcessed.current = true;
           await processContacts();
           return;
         }
