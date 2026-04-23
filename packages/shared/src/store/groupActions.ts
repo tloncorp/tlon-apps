@@ -444,7 +444,10 @@ export async function updateGroupPrivacy(
   }
 }
 
-export async function updateGroupMeta(group: db.Group) {
+export async function updateGroupMeta(
+  group: db.Group,
+  config?: { shouldThrow?: boolean }
+) {
   logger.log('updating group', group.id);
   logger.trackEvent(AnalyticsEvent.ActionCustomizedGroup, {
     ...logic.getModelAnalytics({ group }),
@@ -474,6 +477,9 @@ export async function updateGroupMeta(group: db.Group) {
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
+    }
+    if (config?.shouldThrow) {
+      throw e;
     }
   }
 }

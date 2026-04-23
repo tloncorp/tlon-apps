@@ -90,6 +90,15 @@ enum SplashPane {
 
 type CustomBotSetupStatus = 'idle' | 'pending' | 'ready' | 'failed';
 
+function getPreviewBotName(userNickname?: string | null) {
+  const trimmedNickname = userNickname?.trim();
+  if (!trimmedNickname) {
+    return 'Tlonbot';
+  }
+
+  return `${trimmedNickname}'s Tlonbot 🌱`;
+}
+
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
@@ -146,14 +155,20 @@ function SplashSequenceComponent(props: {
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
           setUserShipId(`~${shipId}`);
-          const [botInfo, providerConfig, userContact] = await Promise.all([
-            api.getTlawnBotInfo(shipId).catch(() => null),
-            userId ? api.getTlawnProviderKeys(userId).catch(() => null) : null,
-            db.getContact({ id: `~${shipId}` }).catch(() => null),
-          ]);
+          const [botInfo, providerConfig, userContact, cachedNickname] =
+            await Promise.all([
+              api.getTlawnBotInfo(shipId).catch(() => null),
+              userId
+                ? api.getTlawnProviderKeys(userId).catch(() => null)
+                : null,
+              db.getContact({ id: `~${shipId}` }).catch(() => null),
+              db.splashNickname.getValue().catch(() => null),
+            ]);
           if (!cancelled) {
-            if (userContact?.nickname) {
-              setUserNickname(userContact.nickname);
+            const resolvedUserNickname =
+              userContact?.nickname?.trim() || cachedNickname?.trim();
+            if (resolvedUserNickname) {
+              setUserNickname(resolvedUserNickname);
             }
             if (botInfo?.moon) {
               // Hosting returns the moon prefix (e.g., `pinser-botter`); the
@@ -890,7 +905,7 @@ export function BotNamePane(props: {
                 autoFocus
                 placeholder={
                   props.userNickname
-                    ? `${props.userNickname}'s Tlonbot`
+                    ? getPreviewBotName(props.userNickname)
                     : 'My Tlonbot'
                 }
                 frameStyle={{
