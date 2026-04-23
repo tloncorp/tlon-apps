@@ -33,6 +33,44 @@ Remove this patch once we upgrade to a compatible `react-native-screens`
 version that already includes the upstream fix. `4.24.0+` has the behavior
 enabled by default.
 
+## react-native@0.76.9
+
+Local patch:
+`patches/react-native@0.76.9.patch`
+
+Why:
+On iOS Fabric, a single-line `TextInput` that sets custom `lineHeight` can
+poison later recycled inputs. In our onboarding flow, styling the bot-name
+field with `lineHeight: 30` caused later placeholders like "Paste your key
+here" and "Search models" to render misaligned until the app was restarted.
+
+What it does:
+During Fabric `TextInput` recycle, removes `NSParagraphStyleAttributeName` from
+`defaultTextAttributes` and `typingAttributes` in
+`RCTTextInputComponentView.mm`. This clears stale paragraph-style state, which
+is where React Native stores iOS `lineHeight`.
+
+Upstream:
+- no exact upstream fix found for this placeholder/baseline bug on `0.76.x`
+- related issues:
+  `facebook/react-native#53050`
+  `facebook/react-native#37236`
+  `facebook/react-native#49933`
+
+Validation:
+- Rebuild the iOS app so the native patch is compiled in.
+- In onboarding, keep the bot-name field on the risky style
+  (`fontSize: 24`, `lineHeight: 30`, `height: 72`).
+- Advance from bot name to API key and model search panes and confirm the
+  later placeholders no longer drift downward after the bot-name screen is
+  shown.
+
+Removal:
+Remove this patch once we upgrade to a React Native version where the
+Fabric `TextInput` recycle path no longer leaks paragraph-style state between
+reused inputs, and we have verified the onboarding repro without the local
+patch.
+
 ## @10play/tentap-editor@0.5.21
 
 Why:
