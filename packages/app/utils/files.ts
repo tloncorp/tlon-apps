@@ -1,22 +1,12 @@
 import { createAudioPlayer } from 'expo-audio';
 import { File } from 'expo-file-system';
 
-// expo-file-system V2 requires an absolute URI (e.g. `file:///...`). Accept
-// either a raw path or a URI and normalize to a URI.
-function toFileUri(pathOrUri: string): string {
-  try {
-    return new URL(pathOrUri).toString();
-  } catch {
-    return new URL(`file://${pathOrUri}`).toString();
-  }
-}
-
 export function getMimeType(uri: string): string | null {
-  return new File(toFileUri(uri)).type;
+  return new File(uri).type;
 }
 
 export function getFileSize(uri: string): number | null {
-  return new File(toFileUri(uri)).size;
+  return new File(uri).size;
 }
 
 export async function getAudioFileDurationSeconds(
