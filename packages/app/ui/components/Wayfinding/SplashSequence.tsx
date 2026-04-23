@@ -896,7 +896,8 @@ export function BotNamePane(props: {
                 frameStyle={{
                   height: 72,
                   borderWidth: 0,
-                  paddingHorizontal: 0,
+                  paddingLeft: 0,
+                  paddingRight: 0,
                 }}
                 style={{ fontSize: 24, fontWeight: '600' }}
               />
