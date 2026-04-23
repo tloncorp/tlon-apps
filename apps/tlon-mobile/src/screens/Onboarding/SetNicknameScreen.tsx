@@ -87,7 +87,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
 
           await store.updateGroupMeta({
             ...botHomeGroup,
-            title: `${nickname}'s Home`,
+            title: `${nickname}'s Group`,
           });
         }
       },
@@ -161,6 +161,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 onBlur={onBlur}
                 onChangeText={onChange}
                 onSubmitEditing={onSubmit}
+                autoFocus
                 autoCapitalize="words"
                 autoComplete="name"
                 returnKeyType="send"
