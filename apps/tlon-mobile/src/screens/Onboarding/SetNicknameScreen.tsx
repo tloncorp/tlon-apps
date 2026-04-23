@@ -161,6 +161,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 onBlur={onBlur}
                 onChangeText={onChange}
                 onSubmitEditing={onSubmit}
+                autoFocus
                 autoCapitalize="words"
                 autoComplete="name"
                 returnKeyType="send"

@@ -1503,8 +1503,8 @@ export function GroupsPane(props: {
           testID="got-it"
           onPress={props.onActionPress}
           label="Got it"
-          preset="secondary"
-          fill="text"
+          preset={props.hostingBotEnabled ? 'secondary' : 'hero'}
+          backgroundColor={props.hostingBotEnabled ? '$transparent' : undefined}
         />
       </YStack>
     </View>
@@ -1839,6 +1839,12 @@ export function InvitePane(props: {
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
 
+  const advanceToInviteContacts = useCallback(() => {
+    hasAutoProcessed.current = true;
+    setSysContacts([]);
+    setShowInviteContacts(true);
+  }, []);
+
   const processContacts = useCallback(async () => {
     try {
       setIsProcessing(true);
@@ -1860,24 +1866,45 @@ export function InvitePane(props: {
   }, [storeContext]);
 
   useEffect(() => {
-    if (
-      !isWeb &&
-      perms.hasPermission &&
-      !perms.isLoading &&
-      !hasAutoProcessed.current
-    ) {
+    if (isWeb || perms.isLoading || hasAutoProcessed.current) {
+      return;
+    }
+
+    if (perms.hasPermission) {
       hasAutoProcessed.current = true;
       processContacts();
+      return;
     }
-  }, [perms.hasPermission, perms.isLoading, processContacts]);
+
+    if (perms.permissionDenied) {
+      advanceToInviteContacts();
+    }
+  }, [
+    advanceToInviteContacts,
+    perms.hasPermission,
+    perms.isLoading,
+    perms.permissionDenied,
+    processContacts,
+  ]);
 
   const handleConnectContacts = async () => {
     try {
       if (perms.canAskPermission) {
         const status = await perms.requestPermissions();
         if (status === 'granted') {
+          hasAutoProcessed.current = true;
           await processContacts();
+          return;
         }
+
+        if (status === 'denied') {
+          advanceToInviteContacts();
+        }
+        return;
+      }
+
+      if (perms.permissionDenied) {
+        advanceToInviteContacts();
       }
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
