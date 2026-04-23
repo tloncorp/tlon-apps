@@ -760,6 +760,148 @@ test('setJoinedGroupChannels: does not reset membership for channels not in the 
   }
 });
 
+// TLON-5606: `getPendingPosts` feeds the main-channel pending-merge layer.
+// Once a failed optimistic row is marked deleted, it must not come back as a
+// "pending" row and ghost the bottom of the chat scroller.
+describe('getPendingPosts', () => {
+  const channelId = 'pending-test-channel';
+  const authorId = '~zod';
+
+  async function seedPost(overrides: Partial<Post>): Promise<Post> {
+    const base: Post = {
+      id: `post-${overrides.sentAt ?? Date.now()}-${Math.random()}`,
+      type: 'chat',
+      channelId,
+      authorId,
+      sentAt: Date.now(),
+      receivedAt: Date.now(),
+      sequenceNum: 0,
+      content: JSON.stringify([{ inline: ['seed'] }]),
+      syncedAt: Date.now(),
+      ...overrides,
+    } as Post;
+    await queries.insertChannelPosts({ posts: [base] });
+    return base;
+  }
+
+  test('includes optimistic enqueued and pending rows', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const enqueued = await seedPost({
+      id: 'enq',
+      deliveryStatus: 'enqueued',
+      isDeleted: false,
+    });
+    const pending = await seedPost({
+      id: 'pend',
+      deliveryStatus: 'pending',
+      isDeleted: false,
+    });
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).toEqual(expect.arrayContaining([enqueued.id, pending.id]));
+  });
+
+  test('includes failed rows that have not been cleared (Retry sheet must surface these)', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const failed = await seedPost({
+      id: 'failed',
+      deliveryStatus: 'failed',
+      isDeleted: false,
+    });
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).toContain(failed.id);
+  });
+
+  test('excludes truly local-only deleted failed sends (TLON-5606 ghost-row fix)', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const failedCleared = await seedPost({
+      id: 'failed-cleared',
+      deliveryStatus: 'failed',
+      isDeleted: true,
+    });
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).not.toContain(failedCleared.id);
+  });
+
+  test('includes deleted markPostSent / needs_verification rows so the remount path still has a tombstone source', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    // `markPostSent` catch-up: server already acknowledged, sequenced
+    // `addPost` hasn't arrived yet, and the user deleted in the gap.
+    const sentCatchUp = await seedPost({
+      id: 'sent-catchup',
+      deliveryStatus: 'sent',
+      sequenceNum: 0,
+      isDeleted: true,
+    });
+    // `needs_verification` may also have reached the server.
+    const verifyCleared = await seedPost({
+      id: 'verify-cleared',
+      deliveryStatus: 'needs_verification',
+      sequenceNum: 0,
+      isDeleted: true,
+    });
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).toEqual(
+      expect.arrayContaining([sentCatchUp.id, verifyCleared.id])
+    );
+  });
+
+  test('includes deleted in-flight rows (enqueued / pending) so the tombstone stays visible while delivery polling resolves', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const enqueuedCleared = await seedPost({
+      id: 'enqueued-cleared',
+      deliveryStatus: 'enqueued',
+      sequenceNum: 0,
+      isDeleted: true,
+    });
+    const pendingCleared = await seedPost({
+      id: 'pending-cleared',
+      deliveryStatus: 'pending',
+      sequenceNum: 0,
+      isDeleted: true,
+    });
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).toEqual(
+      expect.arrayContaining([enqueuedCleared.id, pendingCleared.id])
+    );
+  });
+
+  test('excludes confirmed rows (null deliveryStatus) regardless of isDeleted', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const confirmed = await seedPost({
+      id: 'confirmed',
+      sequenceNum: 5,
+      deliveryStatus: null,
+      isDeleted: false,
+    });
+    const confirmedTombstone = await seedPost({
+      id: 'confirmed-tombstone',
+      sequenceNum: 6,
+      deliveryStatus: null,
+      isDeleted: true,
+    });
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).not.toContain(confirmed.id);
+    expect(ids).not.toContain(confirmedTombstone.id);
+  });
+
+  test('excludes replies regardless of isDeleted', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const reply = await seedPost({
+      id: 'reply',
+      type: 'reply',
+      parentId: 'some-parent',
+      deliveryStatus: 'pending',
+      isDeleted: false,
+    });
+    const ids = (await queries.getPendingPosts(channelId)).map((p) => p.id);
+    expect(ids).not.toContain(reply.id);
+  });
+});
+
+// TLON-5606: `undoOptimisticReplyBump` must undo a single optimistic reply
+// add without clobbering server-sourced reply summary state. Two regimes:
+// complete local cache → full recompute; partial local cache → decrement
+// only.
 describe('undoOptimisticReplyBump', () => {
   const channelId = 'undo-reply-bump-channel';
   const parentId = 'undo-reply-bump-parent';
@@ -810,6 +952,10 @@ describe('undoOptimisticReplyBump', () => {
 
   test('complete local cache: A -> B -> A after deleting the last A recomputes to ["A", "B"] recency (most-recent last)', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    // The third A has already been hard-deleted by the caller. At this
+    // point the parent still reflects the pre-delete count (3) because
+    // `addReplyToPost` incremented it. `aliveCount + 1 === replyCount`
+    // means we are in the complete-cache regime.
     await seedParent({
       replyCount: 3,
       replyTime: 1300,
@@ -824,12 +970,40 @@ describe('undoOptimisticReplyBump', () => {
     const parent = await queries.getPost({ postId: parentId });
     expect(parent!.replyCount).toBe(2);
     expect(parent!.replyTime).toBe(1200);
+    // Surviving A@1100, B@1200 → appendContactIdToReplies semantics yield
+    // ['~alfa', '~bravo'] (most recent at the end, not the clobbered
+    // pre-delete ordering).
+    expect(parent!.replyContactIds).toEqual(['~alfa', '~bravo']);
+  });
+
+  test('complete local cache: recompute preserves recency semantics after undo', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    // Parent's replyCount = aliveCount + 1 → complete regime.
+    await seedParent({
+      replyCount: 3,
+      replyTime: 1300,
+      replyContactIds: ['~alfa', '~bravo'],
+      optimisticReplyBumpCount: 1,
+    });
+    // Surviving replies after the failed-optimistic delete, in chronological
+    // order: alfa @1100, bravo @1200. Recompute must yield ['~alfa', '~bravo'].
+    await seedReply('~alfa', 1100);
+    await seedReply('~bravo', 1200);
+
+    await queries.undoOptimisticReplyBump({ parentId });
+
+    const parent = await queries.getPost({ postId: parentId });
+    expect(parent!.replyCount).toBe(2);
+    expect(parent!.replyTime).toBe(1200);
     expect(parent!.replyContactIds).toEqual(['~alfa', '~bravo']);
     expect(parent!.optimisticReplyBumpCount).toBe(0);
   });
 
   test('partial local cache: preserves server-sourced replyTime / replyContactIds, decrements replyCount', async () => {
     await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    // Server says 8 replies. Only 1 is locally cached — the one we are
+    // about to pretend we just hard-deleted. After delete, aliveCount === 0.
+    // The parent still carries server-known replyTime / replyContactIds.
     const serverContactIds = ['~remote-1', '~remote-2', '~remote-3'];
     await seedParent({
       replyCount: 8,
@@ -837,11 +1011,15 @@ describe('undoOptimisticReplyBump', () => {
       replyContactIds: serverContactIds,
       optimisticReplyBumpCount: 1,
     });
+    // No local replies — simulating the one local reply having just been
+    // hard-deleted by `clearUnsentPost`.
 
     await queries.undoOptimisticReplyBump({ parentId });
 
     const parent = await queries.getPost({ postId: parentId });
+    // Count decremented by 1 (undoes the optimistic +1 from addReplyToPost).
     expect(parent!.replyCount).toBe(7);
+    // Server-sourced fields left intact.
     expect(parent!.replyTime).toBe(9999);
     expect(parent!.replyContactIds).toEqual(serverContactIds);
     expect(parent!.optimisticReplyBumpCount).toBe(0);
@@ -855,6 +1033,9 @@ describe('undoOptimisticReplyBump', () => {
       replyContactIds: ['~remote-1', '~remote-2'],
       optimisticReplyBumpCount: 1,
     });
+    // 2 local undeleted replies. The parent's replyCount (5) is greater
+    // than aliveCount (2) + 1 (the deleted one) = 3, so we're still in the
+    // partial regime.
     await seedReply('~alfa', 1100);
     await seedReply('~bravo', 1200);
 
@@ -904,6 +1085,8 @@ describe('undoOptimisticReplyBump', () => {
   });
 });
 
+// TLON-5606: `recomputeChannelLastPost` must repoint `lastPostId` and
+// `lastPostAt` to the newest previewable top-level post after a hard delete.
 describe('recomputeChannelLastPost', () => {
   const channelId = 'preview-test-channel';
 
@@ -940,6 +1123,7 @@ describe('recomputeChannelLastPost', () => {
       lastPostAt: 2000,
     });
 
+    // Simulate the hard-delete of post-new (caller removed the row first).
     await queries.deletePost('post-new');
     await queries.recomputeChannelLastPost({ channelId });
 
@@ -989,6 +1173,7 @@ describe('recomputeChannelLastPost', () => {
     await queries.recomputeChannelLastPost({ channelId });
 
     const channel = await queries.getChannel({ id: channelId });
+    // Skips reply-newest (reply) and top-new-deleted (isDeleted=true).
     expect(channel!.lastPostId).toBe('top-old');
     expect(channel!.lastPostAt).toBe(1000);
   });
@@ -1018,6 +1203,7 @@ describe('recomputeChannelLastPost', () => {
       lastPostAt: 2000,
     });
 
+    // Hard-delete the newest post, then recompute.
     await queries.deletePost('group-new');
     await queries.recomputeChannelLastPost({ channelId });
 
@@ -1026,6 +1212,7 @@ describe('recomputeChannelLastPost', () => {
     expect(channel!.lastPostAt).toBe(1000);
 
     const group = await queries.getGroup({ id: groupId });
+    // Group last-post metadata must follow the channel head back down.
     expect(group!.lastPostId).toBe('group-old');
     expect(group!.lastPostAt).toBe(1000);
   });
@@ -1084,12 +1271,14 @@ describe('recomputeChannelLastPost', () => {
       { id: nulledSiblingId, type: 'chat', groupId },
     ]);
 
+    // Seed the channel we're about to delete from.
     await seedTopLevel('channel-head', 1000);
     await queries.updateChannel({
       id: channelId,
       lastPostId: 'channel-head',
       lastPostAt: 1000,
     });
+    // Valid sibling still has a real preview.
     await queries.insertChannelPosts({
       posts: [
         {
@@ -1110,17 +1299,155 @@ describe('recomputeChannelLastPost', () => {
       lastPostId: 'valid-sibling-head',
       lastPostAt: 2000,
     });
+    // Nulled sibling still carries a stale newer `lastPostAt` but its
+    // `lastPostId` is already null. This is the exact shape prior delete
+    // paths can leave behind.
     await queries.updateChannel({
       id: nulledSiblingId,
       lastPostId: null,
       lastPostAt: 9999,
     });
 
+    // Delete the head on `channelId`, then recompute.
     await queries.deletePost('channel-head');
     await queries.recomputeChannelLastPost({ channelId });
 
     const group = await queries.getGroup({ id: groupId });
+    // Must pick the valid sibling's preview, NOT the stale
+    // `{ lastPostId: null, lastPostAt: 9999 }` from the nulled sibling.
     expect(group!.lastPostId).toBe('valid-sibling-head');
     expect(group!.lastPostAt).toBe(2000);
+  });
+});
+
+// TLON-5606: the delivery-polling query must keep in-flight rows visible
+// even when the user has locally cleared them, so the backoff can still
+// reconcile against the server. `failed` and `needs_verification` are
+// handled separately and should not drive the delivery loop.
+describe('getDeliveryPendingPosts', () => {
+  const channelId = 'delivery-test-channel';
+
+  async function seedPost(overrides: Partial<Post>) {
+    const base: Post = {
+      id: `d-${overrides.id ?? Math.random()}`,
+      type: 'chat',
+      channelId,
+      authorId: '~zod',
+      sentAt: Date.now(),
+      receivedAt: Date.now(),
+      sequenceNum: 0,
+      content: JSON.stringify([{ inline: ['seed'] }]),
+      syncedAt: Date.now(),
+      ...overrides,
+    } as Post;
+    await queries.insertChannelPosts({ posts: [base] });
+    return base;
+  }
+
+  test('includes enqueued and pending rows regardless of isDeleted', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const enqueuedLive = await seedPost({
+      id: 'enq-live',
+      deliveryStatus: 'enqueued',
+      isDeleted: false,
+    });
+    const enqueuedCleared = await seedPost({
+      id: 'enq-cleared',
+      deliveryStatus: 'enqueued',
+      isDeleted: true,
+    });
+    const pendingLive = await seedPost({
+      id: 'pend-live',
+      deliveryStatus: 'pending',
+      isDeleted: false,
+    });
+    const pendingCleared = await seedPost({
+      id: 'pend-cleared',
+      deliveryStatus: 'pending',
+      isDeleted: true,
+    });
+
+    const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
+      (p) => p.id
+    );
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        enqueuedLive.id,
+        enqueuedCleared.id,
+        pendingLive.id,
+        pendingCleared.id,
+      ])
+    );
+  });
+
+  test('excludes failed and needs_verification rows', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const failedRow = await seedPost({
+      id: 'failed-row',
+      deliveryStatus: 'failed',
+      isDeleted: false,
+    });
+    const verifyRow = await seedPost({
+      id: 'verify-row',
+      deliveryStatus: 'needs_verification',
+      isDeleted: false,
+    });
+
+    const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
+      (p) => p.id
+    );
+    expect(ids).not.toContain(failedRow.id);
+    expect(ids).not.toContain(verifyRow.id);
+  });
+
+  test('excludes replies and confirmed rows', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const reply = await seedPost({
+      id: 'reply',
+      type: 'reply',
+      parentId: 'parent',
+      deliveryStatus: 'pending',
+      isDeleted: false,
+    });
+    const confirmed = await seedPost({
+      id: 'confirmed',
+      sequenceNum: 5,
+      deliveryStatus: null,
+      isDeleted: false,
+    });
+
+    const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
+      (p) => p.id
+    );
+    expect(ids).not.toContain(reply.id);
+    expect(ids).not.toContain(confirmed.id);
+  });
+
+  test('includes markPostSent catch-up rows (sent + sequenceNum === 0) so the backoff keeps polling', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const catchUp = await seedPost({
+      id: 'sent-catchup',
+      deliveryStatus: 'sent',
+      sequenceNum: 0,
+      isDeleted: false,
+    });
+    const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
+      (p) => p.id
+    );
+    expect(ids).toContain(catchUp.id);
+  });
+
+  test('excludes sequenced sent rows (the sequenced addPost has already reconciled the row)', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const reconciled = await seedPost({
+      id: 'sent-reconciled',
+      deliveryStatus: 'sent',
+      sequenceNum: 42,
+      isDeleted: false,
+    });
+    const ids = (await queries.getDeliveryPendingPosts(channelId)).map(
+      (p) => p.id
+    );
+    expect(ids).not.toContain(reconciled.id);
   });
 });

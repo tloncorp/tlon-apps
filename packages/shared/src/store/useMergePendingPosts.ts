@@ -27,10 +27,31 @@ export const mergePendingPosts = ({
   hasNewest: boolean;
   filterDeleted?: boolean;
 }): db.Post[] => {
+  // Drop **truly local-only** rows the user has locally cleared. The send
+  // either failed outright or was never acknowledged by the server, so the
+  // row can vanish immediately. Rows that are already server-acknowledged
+  // (`deliveryStatus: 'sent'`) but still waiting on their sequenced
+  // `addPost` event (`sequenceNum === 0`) — i.e., the `markPostSent`
+  // catch-up window — must NOT be dropped; they fall through and get an
+  // isDeleted tombstone overlay synthesized below. `needs_verification`
+  // rows also may have reached the server, so keep them visible too.
+  //
+  // `sequenceNum === 0` alone is not enough to conclude "safe to drop":
+  // the field only flips to a real value when the sequenced addPost
+  // arrives, which is strictly after the server-acknowledgement.
   const isLocallyClearedOptimistic = (post: db.Post) =>
     post.sequenceNum === 0 &&
     deletedPosts[post.id] &&
     post.deliveryStatus === 'failed';
+  // Stamp `isDeleted: true` on any surviving row the user has locally
+  // cleared. This keeps confirmed echoes visible in the list (so the
+  // tombstone slot is preserved) but flips them to the deleted-rendering
+  // path immediately, without waiting for the paginated query to catch up
+  // to the DB write from `markPostAsDeleted`.
+  const applyDeletedOverlay = (posts: db.Post[]) =>
+    posts.map((p) =>
+      !p.isDeleted && deletedPosts[p.id] ? { ...p, isDeleted: true } : p
+    );
   const sentAtMap = new Map<number, db.Post>();
   [...newPosts, ...pendingPosts]
     .filter((post) => !isLocallyClearedOptimistic(post))
@@ -45,7 +66,7 @@ export const mergePendingPosts = ({
     if (aUnconfirmed !== bUnconfirmed) return aUnconfirmed ? -1 : 1;
     return aUnconfirmed ? b.sentAt - a.sentAt : b.receivedAt - a.receivedAt;
   });
-  if (!existingPosts.length) return newAndPendingPosts;
+  if (!existingPosts.length) return applyDeletedOverlay(newAndPendingPosts);
 
   // --- Step 2: Establish the Filtering Window for pendingPosts ---
   const lowerPaginationBound = existingPosts[existingPosts.length - 1].sentAt;
@@ -58,12 +79,12 @@ export const mergePendingPosts = ({
       !existingPosts.some((existing) => existing.sentAt === p.sentAt)
     );
   });
-  const finalPosts = [...filteredNewPosts, ...existingPosts];
+  const finalPosts = applyDeletedOverlay([
+    ...filteredNewPosts,
+    ...existingPosts,
+  ]);
 
   return finalPosts.filter((p) => {
-    return (
-      !p.isSequenceStub &&
-      (!filterDeleted || (!p.isDeleted && !deletedPosts[p.id]))
-    );
+    return !p.isSequenceStub && (!filterDeleted || !p.isDeleted);
   });
 };
