@@ -640,7 +640,7 @@
       ``activity-summary-5+!>(`activity:v9:av`threads)
     ==
   ::
-      [%x ver=?(%v4 %v5) %activity %unreads ~]
+      [%x %v4 %activity %unreads ~]
     =/  unreads=(list [=source:a =activity-summary:a])
       %+  skim
         ~(tap by activity)
@@ -648,39 +648,25 @@
       ?.  |(?=(%thread -.source) ?=(%dm-thread -.source))
         (gth count.as 0)
       (gth notify-count.as 0)
-    ?-    ver.pole
-        %v4
-      =/  pairs=(list [source:v8:av activity-summary:v8:av])
-        %+  turn
-          unreads
-        |=  [=source:a =activity-summary:a]
-        [(v8:source:v9:ac source) (v8:activity-summary:v9:ac activity-summary)]
-      ``activity-summary-pairs-4+!>(pairs)
-    ::
-        %v5
-      =/  pairs=(list [source:v9:av activity-summary:v9:av])  unreads
-      ``activity-summary-pairs-5+!>(pairs)
-    ==
+    =/  pairs=(list [source:v8:av activity-summary:v8:av])
+      %+  turn
+        unreads
+      |=  [=source:a =activity-summary:a]
+      [(v8:source:v9:ac source) (v8:activity-summary:v9:ac activity-summary)]
+    ``activity-summary-pairs-4+!>(pairs)
   ::
-      [%x ver=?(%v4 %v5) %activity %notified ~]
+      [%x %v4 %activity %notified ~]
     =/  notified=(list [source:a activity-summary:a])
       %+  skim
         ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
       notify.as
-    ?-    ver.pole
-        %v4
-      =/  pairs=(list [source:v8:av activity-summary:v8:av])
-        %+  turn
-          notified
-        |=  [=source:a =activity-summary:a]
-        [(v8:source:v9:ac source) (v8:activity-summary:v9:ac activity-summary)]
-      ``activity-summary-pairs-4+!>(pairs)
-    ::
-        %v5
-      =/  pairs=(list [source:v9:av activity-summary:v9:av])  notified
-      ``activity-summary-pairs-5+!>(pairs)
-    ==
+    =/  pairs=(list [source:v8:av activity-summary:v8:av])
+      %+  turn
+        notified
+      |=  [=source:a =activity-summary:a]
+      [(v8:source:v9:ac source) (v8:activity-summary:v9:ac activity-summary)]
+    ``activity-summary-pairs-4+!>(pairs)
   ::
       [%x ver=?(%v4 %v5) %volume-settings ~]
     ?-    ver.pole
