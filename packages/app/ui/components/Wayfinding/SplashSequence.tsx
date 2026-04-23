@@ -891,6 +891,11 @@ export function BotNamePane(props: {
                 onSubmitEditing={handlePress}
                 enablesReturnKeyAutomatically
                 autoFocus
+                placeholder={
+                  props.userNickname
+                    ? `${props.userNickname}'s Tlonbot`
+                    : 'Tlonbot'
+                }
                 frameStyle={{ height: 72 }}
                 style={{ fontSize: 24, lineHeight: 30 }}
               />
@@ -901,7 +906,12 @@ export function BotNamePane(props: {
           onPress={handlePress}
           label="Next"
           preset="hero"
-          shadow
+          disabled={
+            props.name.trim().length === 0 || props.name.trim().length > 50
+          }
+          shadow={
+            props.name.trim().length > 0 && props.name.trim().length <= 50
+          }
           marginHorizontal="$xl"
           marginTop="$xl"
         />
@@ -1034,13 +1044,14 @@ export function BotAvatarPane(props: {
               onPress={openSheet}
               label="Change photo"
               preset="secondary"
+              backgroundColor="transparent"
               disabled={!canUpload || isUploading}
             />
             <Button
               onPress={props.onActionPress}
               label={isUploading ? 'Uploading…' : 'Continue'}
               preset="hero"
-              shadow
+              shadow={!isUploading}
               loading={isUploading}
               disabled={isUploading}
             />
@@ -1058,7 +1069,7 @@ export function BotAvatarPane(props: {
               onPress={props.onActionPress}
               label="Skip"
               preset="secondary"
-              fill="text"
+              backgroundColor="transparent"
             />
           </>
         )}
@@ -1475,7 +1486,7 @@ export function GroupsPane(props: {
           )}
         </ScrollView>
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
+      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
           <Button
             onPress={
@@ -1490,12 +1501,12 @@ export function GroupsPane(props: {
                   ? 'Preparing invite link'
                   : 'Invite link unavailable'
             }
-            intent="positive"
+            intent={groupInviteIsReady ? 'positive' : undefined}
             size="large"
             leadingIcon={groupInviteIsLoading ? undefined : 'Link'}
             loading={groupInviteIsLoading}
             disabled={!groupInviteIsReady}
-            glow
+            glow={groupInviteIsReady}
           />
         ) : null}
         <Button
@@ -1798,7 +1809,7 @@ function ConnectContactBookContent(props: {
           </YStack>
         )}
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$2xl">
+      <YStack paddingHorizontal="$xl" gap="$l">
         <Button
           data-testid="connect-contact-book"
           onPress={handleAction}
@@ -1818,7 +1829,7 @@ function ConnectContactBookContent(props: {
             onPress={props.onSkip}
             label="Skip"
             preset="secondary"
-            fill="text"
+            backgroundColor="transparent"
             disabled={props.isProcessing || props.isCompleting}
           />
         )}

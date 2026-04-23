@@ -5,16 +5,7 @@ import {
   usePostWithRelations,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { isEqual } from 'lodash';
-import {
-  PropsWithChildren,
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { PropsWithChildren, createContext, useContext, useMemo } from 'react';
 
 type State = {
   usePost: typeof usePostWithRelations;
@@ -68,22 +59,7 @@ export const RequestsProvider = ({
 };
 
 export const useLivePost = (initialPost: db.Post): db.Post => {
-  const [post, setPost] = useState(initialPost);
   const { usePost } = useRequests();
   const { data: updatedPost } = usePost({ id: initialPost.id }, initialPost);
-
-  const prevInitialPostRef = useRef(initialPost);
-  const prevUpdatedPostRef = useRef(updatedPost);
-
-  useEffect(() => {
-    if (updatedPost && !isEqual(updatedPost, prevUpdatedPostRef.current)) {
-      setPost(updatedPost);
-      prevUpdatedPostRef.current = updatedPost;
-    } else if (!isEqual(initialPost, prevInitialPostRef.current)) {
-      setPost(initialPost);
-      prevInitialPostRef.current = initialPost;
-    }
-  }, [updatedPost, initialPost]);
-
-  return post;
+  return updatedPost ?? initialPost;
 };
