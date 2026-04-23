@@ -890,13 +890,10 @@ export function BotNamePane(props: {
       <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
         <YStack flex={1} gap="$2xl" paddingTop="$2xl">
           <SplashTitle>
-            Name your <Text color="$positiveActionText">bot.</Text>
+            Pick a name for your <Text color="$positiveActionText">bot.</Text>
           </SplashTitle>
           <YStack paddingHorizontal="$xl" gap="$m">
-            <Field
-              label="Pick a name for your TlonBot"
-              error={error ?? undefined}
-            >
+            <Field error={error ?? undefined}>
               <TextInput
                 value={props.name}
                 onChangeText={handleNameChange}
@@ -909,10 +906,15 @@ export function BotNamePane(props: {
                 placeholder={
                   props.userNickname
                     ? getPreviewBotName(props.userNickname)
-                    : 'Tlonbot'
+                    : 'My Tlonbot'
                 }
-                frameStyle={{ height: 72 }}
-                style={{ fontSize: 24, lineHeight: 30 }}
+                frameStyle={{
+                  height: 72,
+                  borderWidth: 0,
+                  paddingLeft: 0,
+                  paddingRight: 0,
+                }}
+                style={{ fontSize: 24, fontWeight: '600' }}
               />
             </Field>
           </YStack>
