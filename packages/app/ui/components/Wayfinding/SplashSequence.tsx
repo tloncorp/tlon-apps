@@ -891,7 +891,7 @@ export function BotNamePane(props: {
                 placeholder={
                   props.userNickname
                     ? `${props.userNickname}'s Tlonbot`
-                    : 'Tlonbot'
+                    : 'My Tlonbot'
                 }
                 frameStyle={{
                   height: 72,
