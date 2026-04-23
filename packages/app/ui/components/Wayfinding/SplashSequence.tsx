@@ -891,6 +891,11 @@ export function BotNamePane(props: {
                 onSubmitEditing={handlePress}
                 enablesReturnKeyAutomatically
                 autoFocus
+                placeholder={
+                  props.userNickname
+                    ? `${props.userNickname}'s Tlonbot`
+                    : 'Tlonbot'
+                }
                 frameStyle={{ height: 72 }}
                 style={{ fontSize: 24, lineHeight: 30 }}
               />
@@ -901,7 +906,12 @@ export function BotNamePane(props: {
           onPress={handlePress}
           label="Next"
           preset="hero"
-          shadow
+          disabled={
+            props.name.trim().length === 0 || props.name.trim().length > 50
+          }
+          shadow={
+            props.name.trim().length > 0 && props.name.trim().length <= 50
+          }
           marginHorizontal="$xl"
           marginTop="$xl"
         />
