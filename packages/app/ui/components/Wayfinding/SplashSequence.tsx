@@ -1051,7 +1051,7 @@ export function BotAvatarPane(props: {
               onPress={props.onActionPress}
               label={isUploading ? 'Uploading…' : 'Continue'}
               preset="hero"
-              shadow
+              shadow={!isUploading}
               loading={isUploading}
               disabled={isUploading}
             />
