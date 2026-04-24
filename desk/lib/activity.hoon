@@ -216,11 +216,10 @@
   --
 ::
 ++  urd
-  |_  [=indices:a =activity:a =volume-settings:a log=$-((trap tape) _same)]
+  |_  [=indices:a =activity:a =volume-settings:a]
   ++  summarize-unreads
     |=  [=source:a =index:a]
     ^-  activity-summary:a
-    %-  (log |.("summarizing unreads for: {<source>}"))
     =/  top=time  -:(fall (ram:on-event:a stream.index) [*@da ~])
     =/  unread-stream=stream:a
       ::  all base's events are from children so we can ignore
@@ -239,7 +238,6 @@
       ?:  child.event  ~
       `event
     =/  children  (get-children:src indices source)
-    %-  (log |.("children: {<?:(?=(%base -.source) 'all' children)>}"))
     (stream-to-unreads source index(stream unread-stream) children top)
   ++  sum-children
     |=  children=(list source:a)
@@ -264,7 +262,6 @@
     ^-  activity-summary:a
     =/  cs=activity-summary:a
       (sum-children children)
-    %-  (log |.("children summary: {<cs>}"))
     =/  newest=time  :(max newest.cs floor.reads.index bump.index top)
     =/  total
       ::  if we're a channel, we only want thread notify counts, not totals

@@ -324,7 +324,6 @@
 +*  wood  ~(. wood-lib [bowl wood-state])
     log   ~(. logs [our.bowl /logs])
     ol    (kol gte)
-    log      ~(. logs [our.bowl /logs])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -1525,8 +1524,8 @@
         [%bump source]
     ==
   ?:  ?=(%delete-reply -.concern)
-    =/  =source:v8:av  [%dm-thread top.concern whom]
-    =/  =incoming-event:v8:av
+    =/  =source:v9:av  [%dm-thread top.concern whom]
+    =/  =incoming-event:v9:av
       [%dm-reply key.concern top.concern whom content mention]
     [%del-event source incoming-event]~
   ?:  ?=(%delete-post -.concern)

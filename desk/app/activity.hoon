@@ -118,16 +118,13 @@
     [(fail:log term tang ~)]~
   --
 |_  [=bowl:gall cards=(list card)]
++*  log   ~(. logs [our.bowl /logs])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  from-self  =(our src):bowl
-++  log
-  |=  msg=(trap tape)
-  ?.  verbose  same
-  (slog leaf+"%{(trip dap.bowl)} {(msg)}" ~)
 ::
 ++  init
   ^+  cor
@@ -748,7 +745,8 @@
   ::  after the start so we always get "new" sources when paging
   ?.  ?&  ?|(notified.event ?=(%contact -<.event))
           (lth latest.src-info start)
-          ?=  $?  %post  %reply  %dm-post  %dm-reply
+          ?=  $?  %post  %reply  %react
+                  %dm-post  %dm-reply  %dm-react
                   %flag-post  %flag-reply  %group-ask
                   %contact
               ==
@@ -860,7 +858,6 @@
       ==
   ~>  %spin.['give-update']
   ^+  cor
-  %-  (log |.("{<[update dist]>}"))
   =/  v4-paths
     =/  hose=(list path)  ~[/v4]
     =/  only=(list path)  ~[[%v4 path.dist]]
@@ -898,6 +895,9 @@
   =?  cor  !importing
     (give-update update [%hose ~])
   =?  cor  &(!importing notify (is-allowed:evt allowed inc))
+    =?  cor  ?=(%dm-react -.inc)
+      %-  emit
+      (tell:log %dbug ~[leaf+"activity: sending chat react notification"] ~)
     =/  time-event=(unit time-event:v8:av)
       (v8:time-event:v9:ac [time-id event])
     =?  cor  ?=(^ time-event)
@@ -951,7 +951,6 @@
         (snoc (get-parents:src source) source)
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(gut by activity) source *activity-summary:a))
-    %-  (log |.("sending activity: {<new-activity>}"))
     (give-update [%activity new-activity] [%hose ~])
   cor
 ::
@@ -996,7 +995,6 @@
       (snoc (get-parents:src source) source)
     |=  [=source:a out=activity:a]
     (~(put by out) source (~(got by activity) source))
-  %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ::
 ++  add-to-index
@@ -1011,7 +1009,6 @@
 ++  refresh-index
   |=  [=source:a new=index:a]
   ~>  %spin.['refresh-index']
-  %-  (log |.("refeshing index: {<source>}"))
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
@@ -1056,7 +1053,6 @@
       (snoc (get-parents:src source) source)
     |=  [=source:a out=activity:a]
     (~(put by out) source (~(gut by activity) source *activity-summary:a))
-  %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ++  read
   |=  [sources=(list source:a) action=read-action:a]
@@ -1077,7 +1073,6 @@
       %+  roll  ~(tap in updates)
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(gut by activity) source *activity-summary:a))
-    %-  (log |.("sending activity: {<new-activity>}"))
     (give-update [%activity new-activity] [%hose ~])
   |-
   ?~  sources
@@ -1117,7 +1112,6 @@
     =.  reads  nr
     =.  updates  nu
     ::  we need to refresh our own index to reflect new reads
-    %-  (log |.("refeshing index: {<source>}"))
     =.  indices  (~(put by indices) source new)
     ?:  from-parent
       =.  cor  (refresh-summary source)
@@ -1162,7 +1156,7 @@
   =.  allowed  na
   (give-update [%allow-notifications na] [%hose ~])
 ++  summarize-unreads
-  ~(summarize-unreads urd indices activity volume-settings log)
+  ~(summarize-unreads urd indices activity volume-settings)
 ::
 ++  clear-group-invites
   =;  sources=(list source:a)
