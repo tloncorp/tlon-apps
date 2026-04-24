@@ -196,7 +196,7 @@ export function ContactBook({
   return (
     <View
       flex={1}
-      height={height || '100%'}
+      height={height || 'auto'}
       width={width || '100%'}
       display={'flex'}
       minHeight={minHeight}
