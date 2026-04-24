@@ -1492,7 +1492,7 @@
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
 ++  pass-activity
-  =,  v8:av
+  =,  v9:av
   |=  $:  =whom
           $=  concern
           $%  [%invite ~]
@@ -1500,7 +1500,7 @@
               [%delete-post key=message-key]
               [%reply key=message-key top=message-key]
               [%delete-reply key=message-key top=message-key]
-              [%dm-react key=message-key:a top=(unit message-key)]
+              [%react key=message-key top=(unit message-key) =react:c]
           ==
           content=story:d
           mention=?
@@ -1511,8 +1511,8 @@
   =;  actions=(list action)
     %-  emil
     %+  turn  actions
-    |=  =action:v8:av
-    =/  =cage  activity-action+!>(action)
+    |=  =action:v9:av
+    =/  =cage  activity-action-1+!>(action)
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
   ?:  ?&  ?=(?(%post %reply) -.concern)
           .=  our.bowl
@@ -1539,6 +1539,7 @@
     %post    [%dm-post key.concern whom content mention]
     %reply   [%dm-reply key.concern top.concern whom content mention]
     %invite  [%dm-invite whom]
+    %react   [%dm-react key.concern top.concern whom react.concern]
   ==
 ::
 ++  make-notice
@@ -2185,8 +2186,9 @@
           (emit (tell:log %crit message metadata))
         cor
       =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
-      ?-  -.q.diff.delta
+      ?-    -.q.diff.delta
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
+        ::
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         =*  essay   essay.q.diff.delta
@@ -2543,7 +2545,7 @@
                 [%delete-post key=message-key:a]
                 [%reply key=message-key:a top=message-key:a]
                 [%delete-reply key=message-key:a top=message-key:a]
-                [%dm-react key=message-key:a top=(unit message-key:a)]
+                [%react key=message-key:a top=(unit message-key:a) =react:c]
             ==
             content=story:d
             mention=?
@@ -2660,8 +2662,17 @@
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       =.  dms  (~(put by dms) ship dm)  ::NOTE  +give-invites needs latest state
       give-invites
-    ?-  -.q.diff
-        ?(%add-react %del-react)  (di-give-writs-diff diff)
+    ?-    -.q.diff
+         %add-react
+      =?  di-core  &(?=(^ had) ?=(%& -.writ.u.had))
+        =/  message-key  [p.diff now.bowl]
+        =*  content  content.writ.u.had
+        =/  mention  (was-mentioned:utils content our.bowl ~)
+        =/  concern  [%react message-key ~ react.q.diff]
+        (di-activity concern content mention)
+      (di-give-writs-diff diff)
+    ::
+        %del-react  (di-give-writs-diff diff)
     ::
         %add
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
@@ -2709,8 +2720,18 @@
             ==
           (emit (tell:log %crit message metadata))
         cor
-      ?-  -.delta
-          ?(%add-react %del-react)  (di-give-writs-diff diff)
+      ?-    -.delta
+          %add-react
+        =?  di-core  ?&(?=(^ reply) ?=(%& -.reply.u.reply))
+          =/  top-key  [id time]:writ.u.entry
+          =/  message-key  [id time]:reply.u.reply
+          =*  content  content.reply.u.reply
+          =/  mention  (was-mentioned:utils content our.bowl ~)
+          =/  concern  [%react message-key `top-key react.delta]
+          (di-activity concern content mention)
+        (di-give-writs-diff diff)
+      ::
+        %del-react  (di-give-writs-diff diff)
       ::
           %del
         =?  di-core  &(?=(^ reply) ?=(%& -.reply.u.reply))
