@@ -1991,6 +1991,7 @@
                 [%delete-post key=message-key]
                 [%reply key=message-key top=message-key]
                 [%delete-reply key=message-key top=message-key]
+                [%react key=message-key top=(unit message-key) =react:c]
             ==
             content=story:d
             mention=?
@@ -2187,7 +2188,16 @@
         cor
       =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
       ?-    -.q.diff.delta
-          ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
+          %add-react
+        =?  cu-core  &(?=(^ had) ?=(%& -.writ.u.had))
+          =/  message-key  [p.diff.delta now.bowl]
+          =*  content  content.writ.u.had
+          =/  mention  (was-mentioned:utils content our.bowl ~)
+          =/  concern  [%react message-key ~ react.q.diff.delta]
+          (cu-activity concern content mention)
+        (cu-give-writs-diff diff.delta)
+      ::
+          %del-react  (cu-give-writs-diff diff.delta)
         ::
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
@@ -2236,7 +2246,17 @@
             (emit (tell:log %crit message metadata))
           cor
         ?-  -.delt
-            ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
+            %add-react
+          =?  cu-core  ?&(?=(^ reply) ?=(%& -.reply.u.reply))
+            =/  top-key  [id time]:writ.u.entry
+            =/  message-key  [id time]:reply.u.reply
+            =*  content  content.reply.u.reply
+            =/  mention  (was-mentioned:utils content our.bowl ~)
+            =/  concern  [%react message-key `top-key react.delt]
+            (cu-activity concern content mention)
+          (cu-give-writs-diff diff.delta)
+        ::
+            %del-react  (cu-give-writs-diff diff.delta)
         ::
             %del
           =?  cu-core  &(?=(^ reply) ?=(%& -.reply.u.reply))
