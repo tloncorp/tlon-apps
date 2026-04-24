@@ -812,7 +812,8 @@
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
-  ?.  ?=  $?  %post  %reply  %dm-post  %dm-reply
+  ?.  ?=  $?  %post  %reply  %react
+              %dm-post  %dm-reply  %dm-react
               %flag-post  %flag-reply  %group-ask
               %contact
           ==
@@ -827,6 +828,7 @@
     ==
   ?:  is-mention  [~ | acc]
   [~ | [(sub limit.acc 1) (snoc msgs.acc [time event])]]
+  ::
   +$  out
     $:  limit=@ud
         msgs=(list time-event:a)

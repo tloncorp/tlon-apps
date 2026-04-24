@@ -1768,8 +1768,8 @@
     (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+!>([nest ca-unread]))
   ::
   ++  ca-activity
-    =,  v8:av
-    =*  d  ^^c
+    =,  v9:av
+    =*  d  c
     |%
     ++  blocked
       |=  who=ship
@@ -1800,6 +1800,28 @@
       =/  action
         [%add %post [[author-ship id] id] nest group.perm.channel content mention]
       (send ~[action])
+    ++  on-react
+      |=  [id-post=id-post:c new=reacts:c old=reacts:c]
+      ~>  %spin.['on-react']
+      ^+  ca-core
+      ?.  running
+        ca-core
+      =/  =source  [%channel nest group.perm.channel]
+      =/  actions=(list action)
+        %+  roll  ~(tap by new)
+        |=  [[=author:c =react:c] actions=(list action)]
+        =/  old-react=(unit react:c)  (~(get by old) author)
+        ?:  =(old-react `react)  actions
+        =/  author-ship  (get-author-ship:utils author)
+        ?:  =(author-ship our.bowl)
+          :_  actions
+          [%read source [%all `now.bowl |]]
+        ?:  (blocked author-ship)  actions
+        :_  actions
+        [%add %react [[author-ship id-post] id-post] ~ nest group.perm.channel author react]
+      ?~  actions
+        ca-core
+      (send actions)
     ::
     ++  on-post-delete
       |=  v-post:d
@@ -1862,6 +1884,7 @@
         (send ~[action])
       =/  vm=volume-map  [[%reply & &] ~ ~]
       (send ~[[%adjust thread `vm] action])
+    ::
     ++  on-reply-delete
       |=  [parent=v-post:d reply=v-reply:d]
       ~>  %spin.['on-reply-delete']
@@ -1890,7 +1913,7 @@
       %-  emil
       %+  turn  actions
       |=  =action
-      =/  =cage  activity-action+!>(action)
+      =/  =cage  activity-action-1+!>(action)
       [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
     --
   ::
@@ -2458,13 +2481,19 @@
         (~(put ju diffs.future.channel) id-post u-post)
       ca-core
     ::
-    ?-  -.u-post
+    ?-    -.u-post
         %reply
       (ca-u-reply id-post +.u.post id.u-post u-reply.u-post)
+    ::
         %reacts
       =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.post)))
       =/  merged  (ca-apply-reacts reacts.u.post reacts.u-post)
       ?:  =(merged reacts.u.post)  ca-core
+      =.  ca-core
+        %^  on-react:ca-activity
+            id-post
+          (uv-reacts:utils merged)
+        (uv-reacts:utils reacts.u.post)
       =.  posts.channel
         (put:on-v-posts:c posts.channel id-post u.post(reacts merged))
       (ca-response %post id-post %reacts (uv-reacts:utils merged))
