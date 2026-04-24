@@ -215,11 +215,6 @@ export default ({ mode }: { mode: string }) => {
       changeOrigin: true,
       secure: false,
     },
-    '^((?!/apps/groups/).)*$': {
-      target: targetShipUrl,
-      changeOrigin: true,
-      secure: false,
-    },
     '^.*//.*': {
       target: targetShipUrl,
       changeOrigin: true,
@@ -230,6 +225,11 @@ export default ({ mode }: { mode: string }) => {
           proxyReq.path = proxyReq.path.replaceAll('/@@@/', '//');
         });
       },
+    },
+    '^((?!/apps/groups/).)*$': {
+      target: targetShipUrl,
+      changeOrigin: true,
+      secure: false,
     },
   };
 

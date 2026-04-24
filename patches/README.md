@@ -63,3 +63,35 @@ Removal:
 Remove this patch once we upgrade off the old `0.5.x` web bundle and confirm
 the replacement no longer vendors the legacy HTML link paste fallback or needs
 the local asset export stripping.
+
+## react-native-reanimated@3.16.7
+
+Why:
+- Fixes production-only web crashes in Reanimated's JS web updater when
+  animated refs resolve to wrapper objects without `props`
+- Avoids repeated web warning floods by unwrapping refs more defensively and
+  updating DOM style targets directly on web
+- Works with the web bundler alias that keeps Vite on the patched top-level
+  Reanimated package instead of a stale nested copy
+
+Local patch:
+`patches/react-native-reanimated@3.16.7.patch`
+
+Upstream:
+- repo: `software-mansion/react-native-reanimated`
+- matching issue: `software-mansion/react-native-reanimated#6775`
+- as of April 24, 2026, upstream `main` still appears to have the same
+  vulnerable web updater structure
+
+Validation:
+- Build web production with `pnpm --filter tlon-web exec vite build`
+- Open a production build or `vite preview` session and verify channel open and
+  sidebar switches no longer emit `Cannot convert undefined or null to object`
+  from Reanimated bundles
+- Confirm the emitted web bundle no longer contains the unguarded
+  `Object.keys(component.props)` updater path
+
+Removal:
+Remove this patch once we upgrade to a Reanimated version that includes an
+upstream fix for the web JS updater path and confirm production web no longer
+needs the local guards or transform fallback.

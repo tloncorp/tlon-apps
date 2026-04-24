@@ -63,9 +63,25 @@ diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.
      }
    }
  };
++const TRANSFORM_UNITS = {
++  perspective: 'px',
++  rotate: 'deg',
++  rotateX: 'deg',
++  rotateY: 'deg',
++  rotateZ: 'deg',
++  skewX: 'deg',
++  skewY: 'deg',
++  translateX: 'px',
++  translateY: 'px',
++  translateZ: 'px'
++};
 +const createTransformValueFallback = transform => transform.map(transformProp => {
 +  const [key, value] = Object.entries(transformProp)[0] ?? [];
-+  return key == null ? '' : `${key}(${value})`;
++  if (key == null) {
++    return '';
++  }
++  const unit = typeof value === 'number' ? TRANSFORM_UNITS[key] ?? '' : '';
++  return `${key}(${value}${unit})`;
 +}).filter(Boolean).join(' ');
  function isNativeProp(propName) {
    return !!PropsAllowlists.NATIVE_THREAD_PROPS_WHITELIST[propName];
@@ -183,13 +199,30 @@ diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
    }
  };
  
++const TRANSFORM_UNITS: Partial<Record<string, string>> = {
++  perspective: 'px',
++  rotate: 'deg',
++  rotateX: 'deg',
++  rotateY: 'deg',
++  rotateZ: 'deg',
++  skewX: 'deg',
++  skewY: 'deg',
++  translateX: 'px',
++  translateY: 'px',
++  translateZ: 'px',
++};
++
 +const createTransformValueFallback = (
 +  transform: Array<Record<string, string | number>>
 +): string =>
 +  transform
 +    .map((transformProp) => {
 +      const [key, value] = Object.entries(transformProp)[0] ?? [];
-+      return key == null ? '' : `${key}(${value})`;
++      if (key == null) {
++        return '';
++      }
++      const unit = typeof value === 'number' ? TRANSFORM_UNITS[key] ?? '' : '';
++      return `${key}(${value}${unit})`;
 +    })
 +    .filter(Boolean)
 +    .join(' ');
