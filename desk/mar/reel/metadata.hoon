@@ -5,7 +5,7 @@
 ++  grab
   |%
   ++  noun  metadata:reel
-  ++  json  dejs-metadata
+  ++  json  metadata:dejs
   --
 ++  grow
   |%

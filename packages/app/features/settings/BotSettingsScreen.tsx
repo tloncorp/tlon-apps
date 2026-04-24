@@ -10,7 +10,7 @@ import { useWebView } from '../../hooks/useWebview';
 import { RootStackParamList } from '../../navigation/types';
 import { LoadingSpinner, ScreenHeader, View, YStack, isWeb } from '../../ui';
 
-const BOT_SETTINGS_URL = 'https://tlon.network/tlawnbot';
+const BOT_SETTINGS_URL = 'https://tlon.network/tlonbot';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
 
