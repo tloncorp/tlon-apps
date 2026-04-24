@@ -1500,6 +1500,7 @@
               [%delete-post key=message-key]
               [%reply key=message-key top=message-key]
               [%delete-reply key=message-key top=message-key]
+              [%dm-react key=message-key:a top=(unit message-key)]
           ==
           content=story:d
           mention=?
@@ -2542,6 +2543,7 @@
                 [%delete-post key=message-key:a]
                 [%reply key=message-key:a top=message-key:a]
                 [%delete-reply key=message-key:a top=message-key:a]
+                [%dm-react key=message-key:a top=(unit message-key:a)]
             ==
             content=story:d
             mention=?

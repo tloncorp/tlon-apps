@@ -1,4 +1,4 @@
-/-  c=channels, t=contacts, ch=chat, g=groups, gv=groups-ver, s=story
+/-  cv=channels-ver, t=contacts, ch=chat, g=groups, gv=groups-ver, s=story
 /+  mp=mop-extensions
 |%
 +|  %collections
@@ -104,21 +104,21 @@
       [%dm-post dm-post-event]
       [%dm-reply dm-reply-event]
       [%dm-react dm-react-event]
-      [%group-ask group=flag:g =ship]
-      [%group-kick group=flag:g =ship]
-      [%group-join group=flag:g =ship]
-      [%group-invite group=flag:g =ship]
-      [%chan-init channel=nest:c group=flag:g]
-      [%group-role group=flag:g =ship roles=(set sect:v0:gv)]
-      [%flag-post key=message-key channel=nest:c group=flag:g]
-      [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
+      [%group-ask group=flag:gv =ship]
+      [%group-kick group=flag:gv =ship]
+      [%group-join group=flag:gv =ship]
+      [%group-invite group=flag:gv =ship]
+      [%chan-init channel=nest:cv group=flag:gv]
+      [%group-role group=flag:gv =ship roles=(set sect:v0:gv)]
+      [%flag-post key=message-key channel=nest:cv group=flag:gv]
+      [%flag-reply key=message-key parent=message-key channel=nest:cv group=flag:gv]
       [%contact contact-event]
   ==
 ::
 +$  post-event
   $:  key=message-key
-      channel=nest:c
-      group=flag:g
+      channel=nest:cv
+      group=flag:gv
       content=story:s
       mention=?
   ==
@@ -126,8 +126,8 @@
 +$  reply-event
   $:  key=message-key
       parent=message-key
-      channel=nest:c
-      group=flag:g
+      channel=nest:cv
+      group=flag:gv
       content=story:s
       mention=?
   ==
@@ -135,10 +135,10 @@
 +$  react-event
   $:  key=message-key
       parent=(unit message-key)  :: post or reply
-      channel=nest:c
-      group=flag:g
-      =author:c
-      =react:c
+      channel=nest:cv
+      group=flag:gv
+      =author:v10:cv
+      =react:v10:cv
   ==
 ::
 +$  dm-post-event
@@ -170,9 +170,9 @@
 ::  $source: where the activity is happening
 +$  source
   $%  [%base ~]
-      [%group =flag:g]
-      [%channel =nest:c group=flag:g]
-      [%thread key=message-key channel=nest:c group=flag:g]
+      [%group =flag:gv]
+      [%channel =nest:cv group=flag:gv]
+      [%thread key=message-key channel=nest:cv group=flag:gv]
       [%dm =whom]
       [%dm-thread key=message-key =whom]
       [%contact who=ship]

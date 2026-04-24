@@ -882,6 +882,95 @@
     :~  id/msg-id
         time/(se %ud)
     ==
+  ++  v9
+    =,  v8
+    |%
+    ++  event-type
+      %-  perk
+      :~  %post-mention
+          %reply-mention
+          %dm-post-mention
+          %dm-reply-mention
+          %post
+          %reply
+          %react
+          %dm-invite
+          %dm-post
+          %dm-reply
+          %dm-react
+          %flag-post
+          %flag-reply
+          %group-ask
+          %group-join
+          %group-kick
+          %group-role
+          %group-invite
+      ==
+    ++  action
+      ^-  $-(json action:v9:av)
+      %-  of
+      :~  add/add
+          clear-group-invites/ul
+          del/source
+          read/read
+          adjust/adjust
+          allow-notifications/(su (perk %all %some %none ~))
+      ==
+    ++  add  incoming-event
+    ++  read
+      ^-  $-(json [source:v9:av read-action:v9:av])
+      %-  ot
+      :~  source/source
+          action/read-action
+      ==
+    ++  source
+      ^-  $-(json source:v9:av)
+      %-  of
+      :~  base/ul
+          group/flag:dejs:gj
+          dm/whom
+          channel/channel-source
+          thread/thread-source
+          dm-thread/dm-thread-source
+          ::TODO contact
+      ==
+    ++  incoming-event
+      ^-  $-(json incoming-event:v9:av)
+      %-  of
+      :~  post/post-event
+          reply/reply-event
+          react/react-event
+          chan-init/chan-init-event
+          dm-invite/whom
+          dm-post/dm-post-event
+          dm-reply/dm-reply-event
+          dm-react/dm-react-event
+          flag-post/flag-post-event
+          flag-reply/flag-reply-event
+          group-ask/group-event
+          group-join/group-event
+          group-kick/group-event
+          group-invite/group-event
+          group-role/group-role-event
+          ::TODO contact
+      ==
+    ++  react-event
+      %-  ot
+      :~  key/msg-key
+          parent/(mu msg-key)
+          channel/nest:dejs:cj
+          group/flag:dejs:gj
+          author/author:v9:dejs:cj
+          react/react:v9:dejs:cj
+      ==
+    ++  dm-react-event
+      %-  ot
+      :~  key/msg-key
+          parent/(mu msg-key)
+          whom/whom
+          react/react:v9:dejs:cj
+      ==
+    --
   ++  v8
     |%
     ++  event-type
@@ -904,7 +993,7 @@
           %group-invite
       ==
     ++  action
-      ^-  $-(json action:a)
+      ^-  $-(json action:v8:av)
       %-  of
       :~  add/add
           clear-group-invites/ul
@@ -923,7 +1012,7 @@
       ==
     ::
     ++  read
-      ^-  $-(json [source:a read-action:a])
+      ^-  $-(json [source:v8:av read-action:v8:av])
       %-  ot
       :~  source/source
           action/read-action
@@ -941,7 +1030,7 @@
           deep/(uf | bo)
       ==
     ++  source
-      ^-  $-(json source:a)
+      ^-  $-(json source:v8:av)
       %-  of
       :~  base/ul
           group/flag:dejs:gj
@@ -978,7 +1067,7 @@
       ==
     ::
     ++  incoming-event
-      ^-  $-(json incoming-event:a)
+      ^-  $-(json incoming-event:v8:av)
       %-  of
       :~  post/post-event
           reply/reply-event

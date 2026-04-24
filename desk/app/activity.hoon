@@ -363,8 +363,8 @@
       migrate
     ==
   ::
-      %activity-action
-    =+  !<(=action:v8:av vase)
+      %activity-action-1
+    =+  !<(=action:v9:av vase)
     ?-  -.action
       %add      (add-event +.action)
       %bump     (bump +.action)
@@ -375,6 +375,10 @@
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
     ==
+  ::
+      %activity-action
+    =+  !<(=action:v8:av vase)
+    $(+< activity-action-1+!>(`action:v9:av`action))
   ::
       %egg-any
     =+  !<(=egg-any:gall vase)
@@ -521,7 +525,7 @@
   ::
   ::  /indexed: per-index
   ::
-      [%x ver=?(%v5 %v6) %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
+      [%x ver=?(%v5 %v6) %indexed concern=?([%channel nk=kind:cv ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
     =/  =source:a
       ?-  -.concern.pole
           %dm
