@@ -90,6 +90,15 @@ enum SplashPane {
 
 type CustomBotSetupStatus = 'idle' | 'pending' | 'ready' | 'failed';
 
+function getPreviewBotName(userNickname?: string | null) {
+  const trimmedNickname = userNickname?.trim();
+  if (!trimmedNickname) {
+    return 'Tlonbot';
+  }
+
+  return `${trimmedNickname}'s Tlonbot 🌱`;
+}
+
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
@@ -146,14 +155,20 @@ function SplashSequenceComponent(props: {
         const userId = await db.hostingUserId.getValue();
         if (shipId) {
           setUserShipId(`~${shipId}`);
-          const [botInfo, providerConfig, userContact] = await Promise.all([
-            api.getTlawnBotInfo(shipId).catch(() => null),
-            userId ? api.getTlawnProviderKeys(userId).catch(() => null) : null,
-            db.getContact({ id: `~${shipId}` }).catch(() => null),
-          ]);
+          const [botInfo, providerConfig, userContact, cachedNickname] =
+            await Promise.all([
+              api.getTlawnBotInfo(shipId).catch(() => null),
+              userId
+                ? api.getTlawnProviderKeys(userId).catch(() => null)
+                : null,
+              db.getContact({ id: `~${shipId}` }).catch(() => null),
+              db.splashNickname.getValue().catch(() => null),
+            ]);
           if (!cancelled) {
-            if (userContact?.nickname) {
-              setUserNickname(userContact.nickname);
+            const resolvedUserNickname =
+              userContact?.nickname?.trim() || cachedNickname?.trim();
+            if (resolvedUserNickname) {
+              setUserNickname(resolvedUserNickname);
             }
             if (botInfo?.moon) {
               // Hosting returns the moon prefix (e.g., `pinser-botter`); the
@@ -875,13 +890,10 @@ export function BotNamePane(props: {
       <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
         <YStack flex={1} gap="$2xl" paddingTop="$2xl">
           <SplashTitle>
-            Name your <Text color="$positiveActionText">bot.</Text>
+            Pick a name for your <Text color="$positiveActionText">bot.</Text>
           </SplashTitle>
           <YStack paddingHorizontal="$xl" gap="$m">
-            <Field
-              label="Pick a name for your TlonBot"
-              error={error ?? undefined}
-            >
+            <Field error={error ?? undefined}>
               <TextInput
                 value={props.name}
                 onChangeText={handleNameChange}
@@ -891,8 +903,18 @@ export function BotNamePane(props: {
                 onSubmitEditing={handlePress}
                 enablesReturnKeyAutomatically
                 autoFocus
-                frameStyle={{ height: 72 }}
-                style={{ fontSize: 24, lineHeight: 30 }}
+                placeholder={
+                  props.userNickname
+                    ? getPreviewBotName(props.userNickname)
+                    : 'My Tlonbot'
+                }
+                frameStyle={{
+                  height: 72,
+                  borderWidth: 0,
+                  paddingLeft: 0,
+                  paddingRight: 0,
+                }}
+                style={{ fontSize: 24, fontWeight: '600' }}
               />
             </Field>
           </YStack>
@@ -901,7 +923,12 @@ export function BotNamePane(props: {
           onPress={handlePress}
           label="Next"
           preset="hero"
-          shadow
+          disabled={
+            props.name.trim().length === 0 || props.name.trim().length > 50
+          }
+          shadow={
+            props.name.trim().length > 0 && props.name.trim().length <= 50
+          }
           marginHorizontal="$xl"
           marginTop="$xl"
         />
@@ -1034,13 +1061,14 @@ export function BotAvatarPane(props: {
               onPress={openSheet}
               label="Change photo"
               preset="secondary"
+              backgroundColor="transparent"
               disabled={!canUpload || isUploading}
             />
             <Button
               onPress={props.onActionPress}
               label={isUploading ? 'Uploading…' : 'Continue'}
               preset="hero"
-              shadow
+              shadow={!isUploading}
               loading={isUploading}
               disabled={isUploading}
             />
@@ -1058,7 +1086,7 @@ export function BotAvatarPane(props: {
               onPress={props.onActionPress}
               label="Skip"
               preset="secondary"
-              fill="text"
+              backgroundColor="transparent"
             />
           </>
         )}
@@ -1475,7 +1503,7 @@ export function GroupsPane(props: {
           )}
         </ScrollView>
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$2xl" marginTop="$xl">
+      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
           <Button
             onPress={
@@ -1490,12 +1518,12 @@ export function GroupsPane(props: {
                   ? 'Preparing invite link'
                   : 'Invite link unavailable'
             }
-            intent="positive"
+            intent={groupInviteIsReady ? 'positive' : undefined}
             size="large"
             leadingIcon={groupInviteIsLoading ? undefined : 'Link'}
             loading={groupInviteIsLoading}
             disabled={!groupInviteIsReady}
-            glow
+            glow={groupInviteIsReady}
           />
         ) : null}
         <Button
@@ -1503,8 +1531,8 @@ export function GroupsPane(props: {
           testID="got-it"
           onPress={props.onActionPress}
           label="Got it"
-          preset="secondary"
-          fill="text"
+          preset={props.hostingBotEnabled ? 'secondary' : 'hero'}
+          backgroundColor={props.hostingBotEnabled ? '$transparent' : undefined}
         />
       </YStack>
     </View>
@@ -1798,7 +1826,7 @@ function ConnectContactBookContent(props: {
           </YStack>
         )}
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$2xl">
+      <YStack paddingHorizontal="$xl" gap="$l">
         <Button
           data-testid="connect-contact-book"
           onPress={handleAction}
@@ -1818,7 +1846,7 @@ function ConnectContactBookContent(props: {
             onPress={props.onSkip}
             label="Skip"
             preset="secondary"
-            fill="text"
+            backgroundColor="transparent"
             disabled={props.isProcessing || props.isCompleting}
           />
         )}
@@ -1838,6 +1866,12 @@ export function InvitePane(props: {
   const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
+
+  const advanceToInviteContacts = useCallback(() => {
+    hasAutoProcessed.current = true;
+    setSysContacts([]);
+    setShowInviteContacts(true);
+  }, []);
 
   const processContacts = useCallback(async () => {
     try {
@@ -1860,24 +1894,45 @@ export function InvitePane(props: {
   }, [storeContext]);
 
   useEffect(() => {
-    if (
-      !isWeb &&
-      perms.hasPermission &&
-      !perms.isLoading &&
-      !hasAutoProcessed.current
-    ) {
+    if (isWeb || perms.isLoading || hasAutoProcessed.current) {
+      return;
+    }
+
+    if (perms.hasPermission) {
       hasAutoProcessed.current = true;
       processContacts();
+      return;
     }
-  }, [perms.hasPermission, perms.isLoading, processContacts]);
+
+    if (perms.permissionDenied) {
+      advanceToInviteContacts();
+    }
+  }, [
+    advanceToInviteContacts,
+    perms.hasPermission,
+    perms.isLoading,
+    perms.permissionDenied,
+    processContacts,
+  ]);
 
   const handleConnectContacts = async () => {
     try {
       if (perms.canAskPermission) {
         const status = await perms.requestPermissions();
         if (status === 'granted') {
+          hasAutoProcessed.current = true;
           await processContacts();
+          return;
         }
+
+        if (status === 'denied') {
+          advanceToInviteContacts();
+        }
+        return;
+      }
+
+      if (perms.permissionDenied) {
+        advanceToInviteContacts();
       }
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {

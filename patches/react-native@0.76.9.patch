@@ -1,0 +1,19 @@
+diff --git a/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm b/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
+index bd4c1e95e19f0b5969db02e49ca676ef739890a2..e4bd80f626a506347375b12c956e526a13d34a08 100644
+--- a/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
++++ b/React/Fabric/Mounting/ComponentViews/TextInput/RCTTextInputComponentView.mm
+@@ -324,6 +324,14 @@ static NSSet<NSNumber *> *returnKeyTypesSet;
+   _lastStringStateWasUpdatedWith = nil;
+   _ignoreNextTextInputCall = NO;
+   _didMoveToWindow = NO;
++  NSMutableDictionary<NSAttributedStringKey, id> *defaultAttributes =
++      [_backedTextInputView.defaultTextAttributes mutableCopy] ?: [NSMutableDictionary new];
++  [defaultAttributes removeObjectForKey:NSParagraphStyleAttributeName];
++  _backedTextInputView.defaultTextAttributes = defaultAttributes;
++  NSMutableDictionary<NSAttributedStringKey, id> *typingAttributes =
++      [_backedTextInputView.typingAttributes mutableCopy] ?: [_originalTypingAttributes mutableCopy];
++  [typingAttributes removeObjectForKey:NSParagraphStyleAttributeName];
++  _backedTextInputView.typingAttributes = typingAttributes;
+   [_backedTextInputView resignFirstResponder];
+ }
+ 

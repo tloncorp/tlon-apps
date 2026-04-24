@@ -13,11 +13,36 @@
   :~  ['tag' s+tag.metadata]
       ['fields' (pairs:enjs:format fields)]
   ==
-++  dejs-metadata
-  %-  ot:dejs:format
-  :~  tag+so:dejs:format
-      fields+(om so):dejs:format
-  ==
+++  dejs
+  =,  dejs:format
+  |%
+  ++  metadata
+    ^-  $-(json metadata:v1:^reel)
+    %-  ot
+    :~  tag+so
+        fields+(op field so)
+    ==
+  ++  field
+    %-  perk
+    :~  %'bite-type'
+      ::
+        %'inviteType'
+      ::
+        %'inviterUserId'
+        %'inviterNickname'
+        %'inviterAvatarImage'
+        %'inviterColor'
+      ::
+        %'invitedGroupId'
+        %'invitedGroupTitle'
+        %'invitedGroupDescription'
+        %'invitedGroupIconImageUrl'
+        %'invitedGroupDeleted'
+      ::
+        %'$og_title'
+        %'$twitter_title'
+    ==
+  --
 ++  conv
   |%
   ++  v0
@@ -25,7 +50,7 @@
     ++  metadata
       |%
       ++  v1
-        |^  
+        |^
         |=  meta=metadata:v0:reel
         ^-  metadata:v1:reel
         =*  fields  fields.meta
