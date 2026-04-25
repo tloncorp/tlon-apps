@@ -2,7 +2,7 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
-import Expo
+internal import Expo
 import Firebase
 import RNBranch
 
@@ -44,7 +44,6 @@ class AppDelegate: ExpoAppDelegate {
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
-    bindReactNativeFactory(factory)
 
     window = UIWindow(frame: UIScreen.main.bounds)
 
