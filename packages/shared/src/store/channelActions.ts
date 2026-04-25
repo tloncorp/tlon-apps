@@ -127,6 +127,12 @@ function channelContentConfigurationForChannelType(
         defaultPostContentRenderer: api.PostContentRendererId.gallery,
         defaultPostCollectionRenderer: api.CollectionRendererId.gallery,
       };
+    case 'urbit-notes':
+      return {
+        draftInput: api.DraftInputId.urbitNotes,
+        defaultPostContentRenderer: api.PostContentRendererId.urbitNotes,
+        defaultPostCollectionRenderer: api.CollectionRendererId.urbitNotes,
+      };
   }
 
   throw new Error('Unknown channel type');

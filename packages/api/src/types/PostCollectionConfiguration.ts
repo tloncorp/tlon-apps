@@ -62,6 +62,9 @@ export function layoutTypeFromChannel(
 
     case 'gallery':
       return 'grid';
+
+    case 'urbit-notes':
+      return 'comfy-list-top-to-bottom';
   }
 }
 
@@ -191,6 +194,13 @@ export function configurationFromChannel(
       return {
         includeDeletedPosts: false,
         postActionIds: ChannelAction.channelActionIdsFor({ channel }),
+        usesMemberListAsFallbackTitle: false,
+      };
+
+    case 'urbit-notes':
+      return {
+        includeDeletedPosts: false,
+        postActionIds: [],
         usesMemberListAsFallbackTitle: false,
       };
   }

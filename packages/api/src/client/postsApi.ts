@@ -454,6 +454,21 @@ export const getChannelPosts = async ({
   includeReplies = false,
   sequenceBoundary = null,
 }: GetChannelPostsOptions) => {
+  // urbit-notes channels are served by the %notes agent, not %channels.
+  // Rendering is delegated to the notes WebView, so we skip post fetching.
+  if (channelId.startsWith('notes/')) {
+    return {
+      posts: [],
+      newer: null,
+      older: null,
+      totalPosts: 0,
+      deletedPosts: [],
+      numStubs: 0,
+      numDeletes: 0,
+      newestSequenceNum: null,
+    };
+  }
+
   const type = getChannelIdType(channelId);
   const app = type === 'channel' ? 'channels' : 'chat';
   const path = formatScryPath(

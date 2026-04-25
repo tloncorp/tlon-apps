@@ -43,7 +43,13 @@ export type {
 export const SETTINGS_SINGLETON_KEY = 'settings' as const;
 export const BASE_UNREADS_SINGLETON_KEY = 'base_unreads' as const;
 
-export type ChannelType = 'chat' | 'notebook' | 'gallery' | 'dm' | 'groupDm';
+export type ChannelType =
+  | 'chat'
+  | 'notebook'
+  | 'gallery'
+  | 'dm'
+  | 'groupDm'
+  | 'urbit-notes';
 export type UnreadChannelType = 'channel' | 'dm';
 export type ActivityBucket = 'all' | 'mentions' | 'replies';
 export type PinType = 'group' | 'channel' | 'dm' | 'groupDm';
