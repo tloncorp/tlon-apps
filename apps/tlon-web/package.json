@@ -66,7 +66,7 @@
     "@react-navigation/drawer": "^7.7.13",
     "@react-navigation/native": "^7.1.28",
     "@sentry/react": "^10.29.0",
-    "@tamagui/vite-plugin": "~2.0.0-rc.22",
+    "@tamagui/vite-plugin": "~2.0.0-rc.41",
     "@tanstack/react-query": "^5.32.1",
     "@tanstack/react-query-devtools": "^5.32.1",
     "@tiptap/core": "^2.6.6",

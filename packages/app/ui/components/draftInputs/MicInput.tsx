@@ -1,5 +1,11 @@
 import * as domain from '@tloncorp/shared/domain';
-import { Audio } from 'expo-av';
+import {
+  RecordingPresets,
+  getRecordingPermissionsAsync,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from 'expo-audio';
 import { useCallback, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from 'tamagui';
@@ -11,12 +17,9 @@ export function MicInput({
 }: {
   draftInputContext: DraftInputContext;
 }) {
-  // note: `isRecording && !recording` is possible - `recording` is created
-  // async after user presses record
   const [isRecording, setIsRecording] = useState(false);
-  const [recording, setRecording] = useState<Audio.Recording>();
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
-  const [permissionResponse, requestPermission] = Audio.usePermissions();
+  const recorder = useAudioRecorder(RecordingPresets.LOW_QUALITY);
 
   const send = useCallback(async () => {
     if (recordingUri == null) {
@@ -48,33 +51,30 @@ export function MicInput({
 
   const startRecording = useCallback(async () => {
     setIsRecording(true);
-    if (permissionResponse?.status !== 'granted') {
-      await requestPermission();
+    let permission = await getRecordingPermissionsAsync();
+    if (permission.status !== 'granted') {
+      permission = await requestRecordingPermissionsAsync();
     }
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
+    if (permission.status !== 'granted') {
+      setIsRecording(false);
+      return;
+    }
+    await setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
     });
-
-    const { recording } = await Audio.Recording.createAsync(
-      Audio.RecordingOptionsPresets.LOW_QUALITY
-    );
-    setRecording(recording);
-  }, [permissionResponse, requestPermission]);
+    await recorder.prepareToRecordAsync();
+    recorder.record();
+  }, [recorder]);
 
   const stopRecording = useCallback(async () => {
     setIsRecording(false);
-    if (recording == null) {
-      return;
-    }
-    setRecording(undefined);
-    await recording.stopAndUnloadAsync();
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
+    await recorder.stop();
+    await setAudioModeAsync({
+      allowsRecording: false,
     });
-    const uri = recording.getURI();
-    setRecordingUri(uri);
-  }, [recording]);
+    setRecordingUri(recorder.uri);
+  }, [recorder]);
 
   return (
     <SafeAreaView
