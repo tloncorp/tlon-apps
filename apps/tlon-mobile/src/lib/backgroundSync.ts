@@ -4,6 +4,7 @@ import {
   SyncPriority,
   createDevLogger,
   flushErrorLogger,
+  syncContactDiscovery,
   syncSince,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
@@ -70,6 +71,18 @@ async function performSync() {
       },
     });
     timings.changesDuration = Date.now() - changesStart;
+
+    // Run lanyard contact discovery as part of the bg cycle so new
+    // matches surface even if the user hasn't opened the app recently.
+    const discoveryStart = Date.now();
+    await syncContactDiscovery().catch((err) => {
+      logger.trackError('Background contact discovery failed', {
+        error: err instanceof Error ? err : undefined,
+        taskExecutionId,
+      });
+    });
+    timings.discoveryDuration = Date.now() - discoveryStart;
+
     logger.trackEvent('Background sync complete', { taskExecutionId });
     didSucceed = true;
 

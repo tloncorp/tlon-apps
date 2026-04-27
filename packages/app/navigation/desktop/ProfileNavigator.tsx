@@ -6,7 +6,7 @@ import { NavigationState } from '@react-navigation/routers';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Alert } from 'react-native';
 
 import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
@@ -31,6 +31,14 @@ function DrawerContent(props: DrawerContentComponentProps) {
 
   const { data: userContacts } = store.useUserContacts();
   const { data: suggestions } = store.useSuggestedContacts();
+
+  // Clear "new match" pills when the contacts pane unmounts — the user
+  // has had a chance to see them.
+  useEffect(() => {
+    return () => {
+      db.clearContactsMatchedAt().catch(() => {});
+    };
+  }, []);
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {

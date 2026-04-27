@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useTheme } from 'tamagui';
 
@@ -46,6 +46,14 @@ export default function ContactsScreen(props: Props) {
     () => systemContacts?.filter((contact) => !contact.contactId),
     [systemContacts]
   );
+
+  // Clear "new match" pills when leaving the screen — the user has had
+  // a chance to see them.
+  useEffect(() => {
+    return () => {
+      db.clearContactsMatchedAt().catch(() => {});
+    };
+  }, []);
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {

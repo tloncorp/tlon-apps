@@ -4015,6 +4015,32 @@ export const updateContact = createWriteQuery(
   ['contacts']
 );
 
+export const markContactsAsMatched = createWriteQuery(
+  'markContactsAsMatched',
+  async (
+    { contactIds, matchedAt }: { contactIds: string[]; matchedAt: number },
+    ctx: QueryCtx
+  ) => {
+    if (!contactIds.length) return;
+    return ctx.db
+      .update($contacts)
+      .set({ matchedAt })
+      .where(inArray($contacts.id, contactIds));
+  },
+  ['contacts']
+);
+
+export const clearContactsMatchedAt = createWriteQuery(
+  'clearContactsMatchedAt',
+  async (_: void, ctx: QueryCtx) => {
+    return ctx.db
+      .update($contacts)
+      .set({ matchedAt: null })
+      .where(isNotNull($contacts.matchedAt));
+  },
+  ['contacts']
+);
+
 export const resetContactAttestations = createWriteQuery(
   'resetContactAttestations',
   async (

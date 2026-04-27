@@ -588,6 +588,19 @@ export const syncContactDiscovery = async (
       });
     });
     logger.log('syncContactDiscovery: added contacts', contactIds);
+    if (newMatches.length > 0) {
+      await db
+        .markContactsAsMatched({
+          contactIds: newMatches.map(([, id]) => id),
+          matchedAt: Date.now(),
+        })
+        .catch((e) => {
+          logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+            context: 'failed to mark contacts as matched',
+            error: e,
+          });
+        });
+    }
     const newContacts = await db.getSystemContactsBatchByContactId(contactIds);
 
     await Promise.all(
@@ -622,23 +635,6 @@ export const syncContactDiscovery = async (
     return empty;
   }
 };
-
-const CONTACT_DISCOVERY_INTERVAL_MS = 6 * 60 * 60 * 1000;
-let contactDiscoveryTimer: ReturnType<typeof setInterval> | null = null;
-
-function scheduleContactDiscoveryLoop() {
-  if (contactDiscoveryTimer) {
-    clearInterval(contactDiscoveryTimer);
-  }
-  contactDiscoveryTimer = setInterval(() => {
-    syncContactDiscovery().catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'periodic syncContactDiscovery failed',
-        error: e,
-      });
-    });
-  }, CONTACT_DISCOVERY_INTERVAL_MS);
-}
 
 export const syncUserAttestations = async (ctx?: SyncCtx) => {
   logger.log('syncing verifications');
@@ -2116,7 +2112,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // post sync initialization work
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
-    scheduleContactDiscoveryLoop();
   } finally {
     updateSession({ phase: 'ready' });
     isSyncing = false;
