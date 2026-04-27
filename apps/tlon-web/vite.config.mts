@@ -281,6 +281,8 @@ export default ({ mode }: { mode: string }) => {
       dedupe: ['@tanstack/react-query'],
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
+        // The root pnpm override pins the version; this keeps Vite from resolving
+        // a stale nested copy before the patched top-level package.
         'react-native-reanimated': fileURLToPath(
           new URL('../../node_modules/react-native-reanimated', import.meta.url)
         ),

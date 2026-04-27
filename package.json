@@ -97,7 +97,8 @@
       "prosemirror-view": "1.33.4",
       "prosemirror-state": "1.4.3",
       "@tiptap/pm": "2.6.6",
-      "get-intrinsic": "1.2.4"
+      "get-intrinsic": "1.2.4",
+      "react-native-reanimated": "3.16.7"
     }
   }
 }
