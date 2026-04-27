@@ -33,6 +33,46 @@ Remove this patch once we upgrade to a compatible `react-native-screens`
 version that already includes the upstream fix. `4.24.0+` has the behavior
 enabled by default.
 
+## react-native@0.76.9
+
+Local patch:
+`patches/react-native@0.76.9.patch`
+
+Why:
+On iOS Fabric, a single-line `TextInput` that sets custom `lineHeight` can
+poison later recycled inputs. In our onboarding flow, styling the bot-name
+field with `lineHeight: 30` caused later placeholders like "Paste your key
+here" and "Search models" to render misaligned until the app was restarted.
+
+What it does:
+In `Libraries/Text/TextInput/Singleline/RCTUITextField.mm`, this removes
+`NSParagraphStyleAttributeName` and `NSShadowAttributeName` from placeholder
+text attributes before building `attributedPlaceholder`.
+
+This stops single-line placeholders from inheriting paragraph-style and shadow
+attributes from the field's text styling. React Native stores iOS `lineHeight`
+in the paragraph style, so clearing that is the core part of the fix.
+
+Upstream:
+- no exact upstream fix found for this placeholder/baseline bug on `0.76.x`
+- related issues:
+  `facebook/react-native#53050`
+  `facebook/react-native#37236`
+  `facebook/react-native#49933`
+
+Validation:
+- Rebuild the iOS app so the native patch is compiled in.
+- In onboarding, keep the bot-name field on the risky style
+  (`fontSize: 24`, `lineHeight: 30`, `height: 72`).
+- Advance from bot name to API key and model search panes and confirm the
+  later placeholders no longer drift downward after the bot-name screen is
+  shown.
+
+Removal:
+Remove this patch once we upgrade to a React Native version where the
+single-line placeholder path no longer picks up broken paragraph-style state,
+and we have verified the onboarding repro without the local patch.
+
 ## @10play/tentap-editor@0.5.21
 
 Why:
