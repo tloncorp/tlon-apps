@@ -38,7 +38,7 @@
       reply-cooldown=@dr
       active-window=@dr
   ==
-::  $state-1: internal subscription logic bump
+::  $state-1: activity subscription version upgrade
 ::
 +$  state-1
   $:  %1

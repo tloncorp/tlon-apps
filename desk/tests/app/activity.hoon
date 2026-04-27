@@ -34,8 +34,8 @@
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
   ;<  new=vase  bind:m  get-save
   =/  want-indices  post
-  =+  !<(=state-9 new)
-  =/  new-indices  indices.state-9
+  =+  !<(=state-10 new)
+  =/  new-indices  indices.state-10
   (ex-equal !>(new-indices) !>(want-indices))
 ::
 ++  test-fix-init
@@ -64,14 +64,14 @@
   ;<  *  bind:m  (do-poke noun+!>(%adjust-old-default))
   ;<  *  bind:m  (do-poke noun+!>(%fix-init-unreads))
   ;<  new=vase  bind:m  get-save
-  =+  !<(=state-9 new)
-  (ex-equal !>(activity.state-9) !>(post-fix))
-+$  state-9
-  $:  %9
-      allowed=notifications-allowed:a
-      =indices:a
-      =activity:a
-      =volume-settings:a
+  =+  !<(=state-10 new)
+  (ex-equal !>(activity.state-10) !>(post-fix))
++$  state-10
+  $:  %10
+      allowed=notifications-allowed:v9:av
+      =indices:v9:av
+      =activity:v9:av
+      =volume-settings:v9:av
   ==
 +$  index-pair  [=source:a =index:a]
 +$  dms  (map ship dm:ch)
@@ -627,7 +627,7 @@
         ~(tap by indices)
       |=  [[=source:a =index:a] =activity:a]
       %+  ~(put by activity)  source
-      (~(summarize-unreads urd indices *activity:a volumes fake-log) source index)
+      (~(summarize-unreads urd indices *activity:a volumes) source index)
     ++  post-fix
       ^-  activity:a
       =+  sources
@@ -758,10 +758,6 @@
 ++  child-stream
   |=  =stream:a
   (run:on-event:a stream |=(=event:a event(child &)))
-++  fake-log
-  |=  msg=(trap tape)
-  same
-  :: (slog leaf+"%activity {(msg)}" ~)
 ++  i0  *@dr
 ++  i1  (add i0 ~s1)
 ++  d-1  (dec *@da)
