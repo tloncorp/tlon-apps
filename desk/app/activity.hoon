@@ -894,12 +894,12 @@
   =/  =event:a  [inc notify |]
   =/  =source:a  (source:evt inc)
   =/  =update:a  [%add source time-id event]
+  =.  cor
+    %-  emit
+    (tell:log %dbug ~[leaf+"activity: {<event>} from {<source>}"] ~)
   =?  cor  !importing
     (give-update update [%hose ~])
   =?  cor  &(!importing notify (is-allowed:evt allowed inc))
-    =?  cor  ?=(%dm-react -.inc)
-      %-  emit
-      (tell:log %dbug ~[leaf+"activity: sending chat react notification"] ~)
     =/  time-event=(unit time-event:v8:av)
       (v8:time-event:v9:ac [time-id event])
     =?  cor  ?=(^ time-event)
