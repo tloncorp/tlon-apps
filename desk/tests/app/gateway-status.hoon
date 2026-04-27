@@ -172,7 +172,7 @@
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-start 'boot-1' lease-time]))
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 q.res)
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%down))
   (ex-equal !>(pending-restart.st) !>(&))
 ++  test-gateway-start-clears-pending-notice
