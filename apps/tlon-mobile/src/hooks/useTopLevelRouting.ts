@@ -99,10 +99,7 @@ export function useTopLevelRouting() {
     const completedRevivalSplash =
       completedSplashMode === 'traditionalRevival' ||
       completedSplashMode === 'tlonbotRevival';
-    if (
-      completedRevivalSplash &&
-      revivalFlagClearStateRef.current === 'idle'
-    ) {
+    if (completedRevivalSplash && revivalFlagClearStateRef.current === 'idle') {
       revivalFlagClearStateRef.current = 'pending';
       store
         .clearShipRevivalStatus()
