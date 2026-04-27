@@ -60,6 +60,8 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       userWasReadyAt: Date.now(),
     });
 
+    db.splashNickname.setValue(nickname ?? '');
+
     // once they've decided on a nickname, we need to re-title their bot
     // and update the name of their home group
     withRetry(
@@ -73,25 +75,26 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
           throw new Error('No nickname provided during nickname setup');
         }
 
-        await store.updateCurrentUserProfile({ nickname });
-
-        const isBotEnabled = await db.hostingBotEnabled.getValue();
-        if (isBotEnabled) {
-          const botNickname = `${nickname}'s TlonBot 🌱`;
-          await api.setTlawnNickname(userId, botNickname);
-
-          const botHomeGroup = await db.getBotHomeGroup();
-          if (!botHomeGroup) {
-            throw new Error('No Bot Home Group found during nickname setup');
+        await store.updateCurrentUserProfile(
+          { nickname },
+          { shouldThrow: true }
+        );
+      },
+      {
+        startingDelay: 1000,
+        numOfAttempts: 4,
+        maxDelay: 4000,
+        retry: (error, retryNumber) => {
+          if (retryNumber < 4) {
+            logger.trackEvent('Set nickname failed, retrying', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+            return true;
           }
 
-          await store.updateGroupMeta({
-            ...botHomeGroup,
-            title: `${nickname}'s Group`,
-          });
-        }
-      },
-      { startingDelay: 0, numOfAttempts: 4, maxDelay: 4000 }
+          return false;
+        },
+      }
     ).catch((err) => {
       logger.trackError(
         'Failed to set nickname on bot ship or update Home Group',

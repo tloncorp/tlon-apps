@@ -319,6 +319,11 @@ export const userHasPersonalGroup = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const splashNickname = createStorageItem<string>({
+  key: 'splashNickname',
+  defaultValue: '',
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {
