@@ -66,23 +66,24 @@ export class WebDb extends BaseDb {
       // If successful, this will `overwriteDatabaseFile` which will reset the
       // connection to the DB - so make sure we don't do anything until this
       // promise resolves.
-      //
-      // We previously also dry-ran the migration here and wiped the DB if
-      // any migration looked unapplied — under the rationale "we don't do
-      // delta migrations." That rationale no longer holds: the migrator
-      // tolerates "already exists" errors and re-records the tag, so an
-      // unrecorded tag against an up-to-date DB is now harmless.
-      //
-      // With reset-migrations rotating the tag on every schema change, the
-      // old wipe path caused every reload to purge the DB, force a full
-      // re-sync, and block the UI for tens of seconds on initial-load
-      // heads + writs scrys. Drop the wipe; still catch genuine corruption
-      // via the `select null` probe.
       if (ENABLE_DB_FILE_LOAD) {
         try {
           await this.loadDbFromFile();
           // run a query to get a SQLITE_CORRUPT if loaded DB is corrupt
           await this.sqlocal.sql`select null`;
+
+          const { applied } = await migrate(
+            this.client,
+            migrations,
+            this.sqlocal,
+            { dryRun: true }
+          );
+          if (applied.length > 0) {
+            // We need to apply migrations - since we don't do delta
+            // migrations, we need to purge the DB and start fresh.
+            // We can do this by throwing to the catch below.
+            throw new Error('Loaded DB is outdated, needs migrations');
+          }
         } catch (e) {
           console.warn(
             'Failed to load DB from file, continuing with empty DB',

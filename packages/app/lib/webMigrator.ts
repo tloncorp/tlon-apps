@@ -65,49 +65,6 @@ async function getDatabaseInfo(sqlocal: SQLocalDrizzle) {
   }
 }
 
-function normalizeCreateSql(statement: string) {
-  return statement
-    .trim()
-    .replace(/;$/, '')
-    .replace(/[`"]/g, '')
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
-}
-
-function getCreatedObject(statement: string) {
-  const match = statement.match(
-    /^CREATE\s+(?:UNIQUE\s+)?(TABLE|INDEX)\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([^`"\s(]+)/i
-  );
-  if (!match) {
-    return null;
-  }
-
-  return {
-    type: match[1].toLowerCase(),
-    name: match[2],
-  };
-}
-
-async function existingCreateMatches(
-  db: SqliteRemoteDatabase<Record<string, unknown>>,
-  statement: string
-) {
-  const createdObject = getCreatedObject(statement);
-  if (!createdObject) {
-    return false;
-  }
-
-  const existing = await db.values<[string | null]>(
-    sql`SELECT sql FROM sqlite_master WHERE type = ${createdObject.type} AND name = ${createdObject.name} LIMIT 1`
-  );
-  const existingSql = existing[0]?.[0];
-
-  return (
-    existingSql != null &&
-    normalizeCreateSql(existingSql) === normalizeCreateSql(statement)
-  );
-}
-
 export default async function migrate<TSchema extends Record<string, unknown>>(
   db: SqliteRemoteDatabase<TSchema>,
   migrationConfig: typeof sharedMigrations,
@@ -174,59 +131,25 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
       if (!appliedMigrationHashes.has(migrationHash)) {
         const migrationSql = migrations[migrationKey];
         if (migrationSql) {
+          // we need to track `failed` because we don't throw (i.e. return)
+          // on migration failure
           let failed = false;
 
           if (!dryRun) {
-            // Split on drizzle's statement-breakpoint markers so each
-            // DDL runs independently. We tolerate "already exists"
-            // errors per statement — the generated SQL uses plain CREATE
-            // (not CREATE IF NOT EXISTS), and when `reset-migrations`
-            // rotates the tag, an existing DB would otherwise throw on
-            // the first CREATE TABLE and leave the migration un-recorded,
-            // causing it to retry (and fail) on every reload.
-            const statements = migrationSql
-              .split('--> statement-breakpoint')
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0);
+            try {
+              await db.run(sql.raw(migrationSql));
+              logger.log(`Applied migration ${migrationHash}`);
 
-            for (const statement of statements) {
-              try {
-                await db.run(sql.raw(statement));
-              } catch (e) {
-                const msg = (
-                  e instanceof Error ? e.message : String(e)
-                ).toLowerCase();
-                if (
-                  msg.includes('already exists') &&
-                  (await existingCreateMatches(db, statement))
-                ) {
-                  // Schema object already present with the same definition;
-                  // expected when the migration tag rotated but the DB is up
-                  // to date. If it differs, fail so the caller can purge/retry.
-                  continue;
-                }
-                logger.error(
-                  `Unexpected error applying statement in ${migrationHash}`,
-                  e,
-                  statement
-                );
-                failed = true;
-                // keep going — don't let one statement abort the rest;
-                // the final "record as applied" is gated on !failed.
-              }
-            }
-
-            if (!failed) {
-              try {
-                await db.run(sql`
+              // Record migration as applied
+              await db.run(sql`
           INSERT INTO __drizzle_migrations (hash, created_at)
           VALUES (${migrationHash}, datetime('now'))
         `);
-                logger.log(`Recorded migration ${migrationHash}`);
-              } catch (e) {
-                logger.error(`Failed to record migration ${migrationHash}`, e);
-                failed = true;
-              }
+              logger.log(`Recorded migration ${migrationHash}`);
+            } catch (e) {
+              logger.error(`Error applying migration ${migrationHash}`, e);
+              failed = true;
+              // throw e;
             }
           }
           if (!failed) {
