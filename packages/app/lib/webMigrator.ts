@@ -35,7 +35,9 @@ async function runWithRetry<T>(
   throw new Error(`All retries failed for operation ${operationName}`);
 }
 
-async function testDatabaseConnection(db: SqliteRemoteDatabase<any>) {
+async function testDatabaseConnection(
+  db: SqliteRemoteDatabase<Record<string, unknown>>
+) {
   logger.log('Testing database connection');
   try {
     await runWithRetry(
@@ -61,6 +63,49 @@ async function getDatabaseInfo(sqlocal: SQLocalDrizzle) {
     logger.error('Failed to fetch database info:', error);
     throw error;
   }
+}
+
+function normalizeCreateSql(statement: string) {
+  return statement
+    .trim()
+    .replace(/;$/, '')
+    .replace(/[`"]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function getCreatedObject(statement: string) {
+  const match = statement.match(
+    /^CREATE\s+(?:UNIQUE\s+)?(TABLE|INDEX)\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([^`"\s(]+)/i
+  );
+  if (!match) {
+    return null;
+  }
+
+  return {
+    type: match[1].toLowerCase(),
+    name: match[2],
+  };
+}
+
+async function existingCreateMatches(
+  db: SqliteRemoteDatabase<Record<string, unknown>>,
+  statement: string
+) {
+  const createdObject = getCreatedObject(statement);
+  if (!createdObject) {
+    return false;
+  }
+
+  const existing = await db.values<[string | null]>(
+    sql`SELECT sql FROM sqlite_master WHERE type = ${createdObject.type} AND name = ${createdObject.name} LIMIT 1`
+  );
+  const existingSql = existing[0]?.[0];
+
+  return (
+    existingSql != null &&
+    normalizeCreateSql(existingSql) === normalizeCreateSql(statement)
+  );
 }
 
 export default async function migrate<TSchema extends Record<string, unknown>>(
@@ -151,9 +196,13 @@ export default async function migrate<TSchema extends Record<string, unknown>>(
                 const msg = (
                   e instanceof Error ? e.message : String(e)
                 ).toLowerCase();
-                if (msg.includes('already exists')) {
-                  // schema object already present; expected when the
-                  // migration's hash rotated but the DB is up to date.
+                if (
+                  msg.includes('already exists') &&
+                  (await existingCreateMatches(db, statement))
+                ) {
+                  // Schema object already present with the same definition;
+                  // expected when the migration tag rotated but the DB is up
+                  // to date. If it differs, fail so the caller can purge/retry.
                   continue;
                 }
                 logger.error(
