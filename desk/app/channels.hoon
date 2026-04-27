@@ -1771,7 +1771,6 @@
   ::
   ++  ca-activity
     =,  v9:av
-    =*  d  c
     |%
     ++  blocked
       |=  who=ship
@@ -1804,7 +1803,7 @@
       (send ~[action])
     ::
     ++  on-post-react
-      |=  [id-post=id-post:c new=reacts:c old=reacts:c]
+      |=  [id-post=id-post:d new=reacts:d old=reacts:d]
       ~>  %spin.['on-post-react']
       ^+  ca-core
       ?.  running
@@ -1812,8 +1811,8 @@
       =/  =source  [%channel nest group.perm.channel]
       =/  actions=(list action)
         %+  roll  ~(tap by new)
-        |=  [[=author:c =react:c] actions=(list action)]
-        =/  old-react=(unit react:c)  (~(get by old) author)
+        |=  [[=author:d =react:d] actions=(list action)]
+        =/  old-react=(unit react:d)  (~(get by old) author)
         ?:  =(old-react `react)  actions
         =/  author-ship  (get-author-ship:utils author)
         ?:  =(author-ship our.bowl)
@@ -1889,7 +1888,7 @@
       (send ~[[%adjust thread `vm] action])
     ::
     ++  on-reply-react
-      |=  [parent=v-post:d reply=v-reply:d new=reacts:c old=reacts:c]
+      |=  [parent=v-post:d reply=v-reply:d new=reacts:d old=reacts:d]
       ~>  %spin.['on-reply-react']
       ^+  ca-core
       ?.  running
@@ -1900,8 +1899,8 @@
       =/  =source  [%thread parent-key nest group.perm.channel]
       =/  actions=(list action)
         %+  roll  ~(tap by new)
-        |=  [[=author:c =react:c] actions=(list action)]
-        =/  old-react=(unit react:c)  (~(get by old) author)
+        |=  [[=author:d =react:d] actions=(list action)]
+        =/  old-react=(unit react:d)  (~(get by old) author)
         ?:  =(old-react `react)  actions
         =/  author-ship  (get-author-ship:utils author)
         ?:  =(author-ship our.bowl)

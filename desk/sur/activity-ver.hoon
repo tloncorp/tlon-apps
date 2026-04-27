@@ -1,4 +1,4 @@
-/-  a=activity, gv=groups-ver, c=chat, dv=channels-ver, t=contacts, s=story
+/-  a=activity, gv=groups-ver, c=chat, d=channels, dv=channels-ver, t=contacts, s=story
 /+  mp=mop-extensions
 |%
 ::
