@@ -1800,9 +1800,10 @@
       =/  action
         [%add %post [[author-ship id] id] nest group.perm.channel content mention]
       (send ~[action])
-    ++  on-react
+    ::
+    ++  on-post-react
       |=  [id-post=id-post:c new=reacts:c old=reacts:c]
-      ~>  %spin.['on-react']
+      ~>  %spin.['on-post-react']
       ^+  ca-core
       ?.  running
         ca-core
@@ -1819,8 +1820,7 @@
         ?:  (blocked author-ship)  actions
         :_  actions
         [%add %react [[author-ship id-post] id-post] ~ nest group.perm.channel author react]
-      ?~  actions
-        ca-core
+      ?~  actions  ca-core
       (send actions)
     ::
     ++  on-post-delete
@@ -1884,6 +1884,31 @@
         (send ~[action])
       =/  vm=volume-map  [[%reply & &] ~ ~]
       (send ~[[%adjust thread `vm] action])
+    ::
+    ++  on-reply-react
+      |=  [parent=v-post:d reply=v-reply:d new=reacts:c old=reacts:c]
+      ~>  %spin.['on-reply-react']
+      ^+  ca-core
+      ?.  running
+        ca-core
+      =*  parent-author  (get-author-ship:utils author.parent)
+      =/  parent-key=message-key
+        [[parent-author id.parent] id.parent]
+      =/  =source  [%thread parent-key nest group.perm.channel]
+      =/  actions=(list action)
+        %+  roll  ~(tap by new)
+        |=  [[=author:c =react:c] actions=(list action)]
+        =/  old-react=(unit react:c)  (~(get by old) author)
+        ?:  =(old-react `react)  actions
+        =/  author-ship  (get-author-ship:utils author)
+        ?:  =(author-ship our.bowl)
+          :_  actions
+          [%read source [%all `now.bowl |]]
+        ?:  (blocked author-ship)  actions
+        :_  actions
+        [%add %react [[author-ship id.reply] id.reply] `parent-key nest group.perm.channel author react]
+      ?~  actions  ca-core
+      (send actions)
     ::
     ++  on-reply-delete
       |=  [parent=v-post:d reply=v-reply:d]
@@ -2490,7 +2515,7 @@
       =/  merged  (ca-apply-reacts reacts.u.post reacts.u-post)
       ?:  =(merged reacts.u.post)  ca-core
       =.  ca-core
-        %^  on-react:ca-activity
+        %^  on-post-react:ca-activity
             id-post
           (uv-reacts:utils merged)
         (uv-reacts:utils reacts.u.post)
@@ -2544,7 +2569,6 @@
         =.  ca-core
           (on-reply-delete:ca-activity post +.u.reply)
         (put-reply reply.u-reply %set reply.u-reply)
-      ::
       =*  old  u.reply
       =*  new  reply.u-reply
       =/  merged  (ca-apply-reply id-reply old new)
@@ -2552,11 +2576,19 @@
       ?:  =(merged old)  ca-core
       =.  ca-core  (ca-heed ~[author.new])
       (put-reply merged %set &+(uv-reply-4:utils id-post +.merged))
+    ::  reacts
     ::
     ?~  reply  ca-core
     =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.reply)))
     =/  merged  (ca-apply-reacts reacts.u.reply reacts.u-reply)
     ?:  =(merged reacts.u.reply)  ca-core
+    =.  ca-core
+      %:  on-reply-react:ca-activity
+        post
+        +.u.reply
+        (uv-reacts:utils merged)
+        (uv-reacts:utils reacts.u.reply)
+      ==
     (put-reply u.reply(reacts merged) %reacts (uv-reacts:utils merged))
     ::
     ::  put a reply into a post by id
