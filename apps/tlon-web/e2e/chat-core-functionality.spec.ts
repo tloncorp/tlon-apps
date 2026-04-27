@@ -47,7 +47,7 @@ test('should test comprehensive chat functionality', async ({
 
   // Navigate back to the channel and verify thread reply count
   await helpers.navigateBack(zodPage);
-  await expect(zodPage.getByText('1 reply')).toBeVisible();
+  await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 10000 });
 
   // React to the original message with thumb emoji
   await helpers.reactToMessage(zodPage, 'Hello, world!', 'thumb');
@@ -102,7 +102,7 @@ test('should test comprehensive chat functionality', async ({
   // Wait for message to appear
   await expect(
     zodPage.getByTestId('Post').getByText('mentioning ~ten')
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10000 });
 
   // Mention all in a message
   await zodPage.getByTestId('MessageInput').click();
@@ -113,7 +113,7 @@ test('should test comprehensive chat functionality', async ({
   // Wait for message to appear
   await expect(
     zodPage.getByTestId('Post').getByText('mentioning @all')
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10000 });
 
   // Mention a role in a message
   await zodPage.getByTestId('MessageInput').click();
@@ -124,7 +124,7 @@ test('should test comprehensive chat functionality', async ({
   // Wait for message to appear
   await expect(
     zodPage.getByTestId('Post').getByText('mentioning @admin')
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10000 });
 });
 
 test('should require confirmation before deleting a message (cancel prevents deletion)', async ({

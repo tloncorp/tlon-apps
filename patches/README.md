@@ -45,10 +45,13 @@ field with `lineHeight: 30` caused later placeholders like "Paste your key
 here" and "Search models" to render misaligned until the app was restarted.
 
 What it does:
-During Fabric `TextInput` recycle, removes `NSParagraphStyleAttributeName` from
-`defaultTextAttributes` and `typingAttributes` in
-`RCTTextInputComponentView.mm`. This clears stale paragraph-style state, which
-is where React Native stores iOS `lineHeight`.
+In `Libraries/Text/TextInput/Singleline/RCTUITextField.mm`, this removes
+`NSParagraphStyleAttributeName` and `NSShadowAttributeName` from placeholder
+text attributes before building `attributedPlaceholder`.
+
+This stops single-line placeholders from inheriting paragraph-style and shadow
+attributes from the field's text styling. React Native stores iOS `lineHeight`
+in the paragraph style, so clearing that is the core part of the fix.
 
 Upstream:
 - no exact upstream fix found for this placeholder/baseline bug on `0.76.x`
@@ -67,9 +70,8 @@ Validation:
 
 Removal:
 Remove this patch once we upgrade to a React Native version where the
-Fabric `TextInput` recycle path no longer leaks paragraph-style state between
-reused inputs, and we have verified the onboarding repro without the local
-patch.
+single-line placeholder path no longer picks up broken paragraph-style state,
+and we have verified the onboarding repro without the local patch.
 
 ## @10play/tentap-editor@0.5.21
 
