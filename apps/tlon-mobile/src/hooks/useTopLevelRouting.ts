@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSignupContext } from '../lib/signupContext';
 
 const logger = createDevLogger('splashscreen', false);
+type RevivalFlagClearState = 'idle' | 'pending' | 'cleared';
 
 export function useTopLevelRouting() {
   const {
@@ -65,13 +66,30 @@ export function useTopLevelRouting() {
   // FORCE_SPLASH_SEQUENCE triggers the splash on first render but doesn't
   // prevent it from being dismissed; clearNeedsSplashSequence still works.
   const [forcedSplash, setForcedSplash] = useState(FORCE_SPLASH_SEQUENCE);
-  const didClearRevivalFlagRef = useRef(false);
+  const revivalFlagClearStateRef = useRef<RevivalFlagClearState>('idle');
+  const wasShowingRevivalSplashRef = useRef(false);
   const showSplashSequence = useMemo(() => {
     return showAuthenticatedApp && (forcedSplash || needsSplashSequence);
   }, [showAuthenticatedApp, forcedSplash, needsSplashSequence]);
   const activeSplashSequenceMode = needsSplashSequence
     ? splashSequenceMode
     : undefined;
+  const showingRevivalSplash =
+    !!needsSplashSequence &&
+    (splashSequenceMode === 'traditionalRevival' ||
+      splashSequenceMode === 'tlonbotRevival');
+
+  useEffect(() => {
+    if (
+      showingRevivalSplash &&
+      !wasShowingRevivalSplashRef.current &&
+      revivalFlagClearStateRef.current !== 'pending'
+    ) {
+      revivalFlagClearStateRef.current = 'idle';
+    }
+
+    wasShowingRevivalSplashRef.current = showingRevivalSplash;
+  }, [showingRevivalSplash]);
 
   const handleClearSplash = useCallback(() => {
     const completedSplashMode = activeSplashSequenceMode;
@@ -81,16 +99,21 @@ export function useTopLevelRouting() {
     const completedRevivalSplash =
       completedSplashMode === 'traditionalRevival' ||
       completedSplashMode === 'tlonbotRevival';
-    if (completedRevivalSplash && !didClearRevivalFlagRef.current) {
-      didClearRevivalFlagRef.current = true;
+    if (
+      completedRevivalSplash &&
+      revivalFlagClearStateRef.current === 'idle'
+    ) {
+      revivalFlagClearStateRef.current = 'pending';
       store
         .clearShipRevivalStatus()
         .then(() => {
+          revivalFlagClearStateRef.current = 'cleared';
           logger.trackEvent('Toggled Hosting Revival Status', {
             splashSequenceMode: completedSplashMode,
           });
         })
         .catch((error) => {
+          revivalFlagClearStateRef.current = 'idle';
           logger.trackError('Failed to clear revival status', {
             error,
             splashSequenceMode: completedSplashMode,
