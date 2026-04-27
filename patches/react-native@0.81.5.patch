@@ -28,3 +28,16 @@ index 8c8a225eaa98ac3efe5f3194d53560c68c21a052..f6502e9b96bf9a76ff730f0d92fbb920
        auto attributedStringBox = stateData.attributedStringBox;
        if (attributedStringBox.getMode() ==
                AttributedStringBox::Mode::OpaquePointer ||
+diff --git a/ReactCommon/react/renderer/components/view/YogaLayoutableShadowNode.cpp b/ReactCommon/react/renderer/components/view/YogaLayoutableShadowNode.cpp
+index 961a8bb25b9b6e0b7c3e156c0fd495c992a5a31f..72c1b14b8af7b63c3a6fe707e710f96daffa8c0e 100644
+--- a/ReactCommon/react/renderer/components/view/YogaLayoutableShadowNode.cpp
++++ b/ReactCommon/react/renderer/components/view/YogaLayoutableShadowNode.cpp
+@@ -891,6 +891,8 @@ yoga::Config& YogaLayoutableShadowNode::initializeYogaConfig(
+     YGConfigConstRef previousConfig) {
+   YGConfigSetCloneNodeFunc(
+       &config, YogaLayoutableShadowNode::yogaNodeCloneCallbackConnector);
++  YGConfigSetExperimentalFeatureEnabled(
++      &config, YGExperimentalFeatureWebFlexBasis, true);
+   if (previousConfig != nullptr) {
+     YGConfigSetPointScaleFactor(
+         &config, YGConfigGetPointScaleFactor(previousConfig));

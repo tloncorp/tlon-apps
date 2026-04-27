@@ -9,6 +9,41 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## react-native@0.81.5
+
+Why:
+Enables Yoga's experimental `WebFlexBasis` feature, which fixes a flex-basis
+caching bug that makes flex children stick at their initial intrinsic content
+size when the parent's main-axis size transitions from undefined to defined
+across renders. The visible symptom in this app is a sheet/modal whose footer
+or "submit" button gets pushed off-screen when the sheet animates in over a
+ScrollView/View whose content is taller than the eventual viewport.
+
+(The patch also keeps a separate, pre-existing `BaseTextInputShadowNode`
+change related to TextInput attributed-string sync.)
+
+Local patch:
+`patches/react-native@0.81.5.patch`
+
+Upstream:
+- issue: `facebook/yoga#1552` (open since Jan 2024)
+- the fix already exists in Yoga as the `WebFlexBasis` experimental feature
+  flag — it just isn't enabled by default in React Native because rolling it
+  out historically broke Meta-internal apps that relied on the buggy behavior
+
+Background and tradeoffs are documented in PR #5790, including the
+same-generation re-measurement edge case the upstream maintainer flagged.
+
+Validation:
+Build the iOS app and verify that opening any animated bottom sheet (gorhom or
+Tamagui) with a flex:1 ScrollView/View larger than the viewport keeps the
+footer / submit button visible at the bottom of the sheet.
+
+Removal:
+Drop this patch once we upgrade to a Yoga/React Native version that enables
+spec-compliant flex-basis recomputation by default (i.e. the upstream issue is
+resolved without needing the experimental flag).
+
 ## react-native-screens@4.4.0
 
 Why:
