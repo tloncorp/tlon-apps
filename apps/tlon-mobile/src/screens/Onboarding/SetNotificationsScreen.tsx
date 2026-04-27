@@ -87,9 +87,8 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
       >
         <YStack gap="$2xl" flex={1} justifyContent="center">
           <TlonText.Text size="$body">
-            {isRevivalOnboarding
-              ? 'Choose how loudly Tlon should notify you. You can change this any time.'
-              : 'Tlon works best when you’re notified of messages. You can change these settings any time.'}
+            Tlon works best when you’re notified of messages. You can change
+            these settings any time.
           </TlonText.Text>
 
           <NotificationLevelSelector

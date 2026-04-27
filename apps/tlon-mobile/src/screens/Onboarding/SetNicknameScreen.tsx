@@ -152,7 +152,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
-        title={isRevivalOnboarding ? 'Profile' : 'Nickname'}
+        title="Nickname"
         backgroundColor="$secondaryBackground"
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
@@ -166,9 +166,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
         </XStack>
 
         <TlonText.Text size="$body" padding="$xl">
-          {isRevivalOnboarding
-            ? 'Choose the nickname you want to use when you return to Tlon.'
-            : 'Choose the nickname you want to use on the Tlon network.'}
+          Choose the nickname you want to use on the Tlon network.
         </TlonText.Text>
         <Controller
           control={control}
