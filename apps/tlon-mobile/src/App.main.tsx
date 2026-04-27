@@ -1,7 +1,6 @@
 import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
-import NetInfo from '@react-native-community/netinfo';
 import {
   DarkTheme,
   DefaultTheme,
@@ -11,10 +10,7 @@ import {
 } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
-import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
-import { useShip } from '@tloncorp/app/contexts/ship';
-import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
@@ -29,11 +25,9 @@ import {
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -41,7 +35,8 @@ import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
-import { SignupProvider, useSignupContext } from './lib/signupContext';
+import { useTopLevelRouting } from './hooks/useTopLevelRouting';
+import { SignupProvider } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
 
@@ -90,119 +85,19 @@ const App = () => {
   const isDarkMode = useIsDarkMode();
   const {
     isLoading,
-    isAuthenticated,
-    needsSplashSequence,
-    splashSequenceMode,
-    clearNeedsSplashSequence,
-  } = useShip();
-  const [connected, setConnected] = useState(true);
-  const signupContext = useSignupContext();
-
-  const finishingSelfHostedLogin = db.finishingSelfHostedLogin.useValue();
-  const haveHostedLogin = db.haveHostedLogin.useValue();
-  const hostedAccountInitialized = db.hostedAccountIsInitialized.useValue();
-  const hostedNodeRunning = db.hostedNodeIsRunning.useValue();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
-
-  const currentlyOnboarding = useMemo(() => {
-    return (
-      signupContext.email ||
-      signupContext.phoneNumber ||
-      signupContext.isGuidedLogin ||
-      signupContext.onboardingFlow
-    );
-  }, [
-    signupContext.email,
-    signupContext.phoneNumber,
-    signupContext.isGuidedLogin,
-    signupContext.onboardingFlow,
-  ]);
+    connected,
+    showAuthenticatedApp,
+    showSplashSequence,
+    activeSplashSequenceMode,
+    hostingBotEnabled,
+    handleClearSplash,
+  } = useTopLevelRouting();
 
   usePreloadedEmojis();
 
   useEffect(() => {
     registerBackgroundSyncTask();
   }, []);
-
-  useEffect(() => {
-    const unsubscribeFromNetInfo = NetInfo.addEventListener(
-      ({ isConnected }) => {
-        setConnected(isConnected ?? true);
-      }
-    );
-
-    return () => {
-      unsubscribeFromNetInfo();
-    };
-  }, []);
-
-  const showAuthenticatedApp = useMemo(() => {
-    const blockedOnSignup = currentlyOnboarding;
-    const blockedOnLoginHosted =
-      haveHostedLogin && (!hostedAccountInitialized || !hostedNodeRunning);
-    const blockedOnLoginSelfHosted = finishingSelfHostedLogin;
-    return (
-      isAuthenticated &&
-      !blockedOnSignup &&
-      !blockedOnLoginHosted &&
-      !blockedOnLoginSelfHosted
-    );
-  }, [
-    currentlyOnboarding,
-    haveHostedLogin,
-    hostedAccountInitialized,
-    hostedNodeRunning,
-    finishingSelfHostedLogin,
-    isAuthenticated,
-  ]);
-
-  // FORCE_SPLASH_SEQUENCE triggers the splash on first render but doesn't
-  // prevent it from being dismissed — clearNeedsSplashSequence still works.
-  const [forcedSplash, setForcedSplash] = useState(FORCE_SPLASH_SEQUENCE);
-  const didClearRevivalFlagRef = useRef(false);
-  const showSplashSequence = useMemo(() => {
-    return showAuthenticatedApp && (forcedSplash || needsSplashSequence);
-  }, [showAuthenticatedApp, forcedSplash, needsSplashSequence]);
-  const activeSplashSequenceMode = needsSplashSequence
-    ? splashSequenceMode
-    : undefined;
-
-  const handleClearSplash = useCallback(() => {
-    const completedSplashMode = activeSplashSequenceMode;
-    setForcedSplash(false);
-    clearNeedsSplashSequence();
-
-    const completedRevivalSplash =
-      completedSplashMode === 'traditionalRevival' ||
-      completedSplashMode === 'tlonbotRevival';
-    if (completedRevivalSplash && !didClearRevivalFlagRef.current) {
-      didClearRevivalFlagRef.current = true;
-      store
-        .clearShipRevivalStatus()
-        .then(() => {
-          splashscreenLogger.trackEvent('Toggled Hosting Revival Status', {
-            splashSequenceMode: completedSplashMode,
-          });
-        })
-        .catch((error) => {
-          splashscreenLogger.trackError('Failed to clear revival status', {
-            error,
-            splashSequenceMode: completedSplashMode,
-          });
-        });
-    }
-  }, [activeSplashSequenceMode, clearNeedsSplashSequence]);
-
-  // Splash renders instead of AuthenticatedApp, which is where the urbit
-  // client is normally configured. The splash's bot-avatar uploader hits
-  // storage code that reads the current user via the urbit client, so we
-  // configure it here too.
-  const configureClient = useConfigureUrbitClient();
-  useEffect(() => {
-    if (showSplashSequence) {
-      configureClient();
-    }
-  }, [showSplashSequence, configureClient]);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
@@ -216,7 +111,7 @@ const App = () => {
             <SplashSequence
               onCompleted={handleClearSplash}
               inviteSystemContacts={inviteSystemContacts}
-              hostingBotEnabled={hostingBotEnabled ?? false}
+              hostingBotEnabled={hostingBotEnabled}
               splashSequenceMode={activeSplashSequenceMode}
             />
           </AppDataProvider>
