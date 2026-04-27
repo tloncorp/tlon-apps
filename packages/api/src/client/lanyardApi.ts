@@ -61,11 +61,80 @@ export async function checkAttestedSignature(signData: string) {
   return false;
 }
 
+// Dev-only: skip the real lanyard query and return synthetic matches.
+// EXPO_PUBLIC_MOCK_LANYARD_DISCOVERY accepts two formats:
+//
+//   "3"
+//     Match the first 3 phone numbers in the submitted set against
+//     MOCK_DISCOVERY_SHIPS. Use computer-class ships so accounts that
+//     already have galaxies as contacts (common on Tlon staging) don't
+//     filter the matches out as "already a contact".
+//
+//   "+15555550100:~ravmel-ropdyl,+15555550101:~palfun-foslup"
+//     Explicit phone↔ship pairs. Lets you put specific contacts in the
+//     simulator address book and tie them to specific ship IDs so the
+//     match-rendering and nickname plumbing can be verified end-to-end.
+//     Pairs whose phone isn't in the submitted set are silently ignored.
+const MOCK_DISCOVERY_SHIPS = [
+  '~ravmel-ropdyl',
+  '~palfun-foslup',
+  '~bisbex-radmev',
+  '~watter-parner',
+  '~rilfun-lidlen',
+];
+
+function parseMockDiscoveryEnv(
+  raw: string,
+  phoneNums: string[]
+): [string, string][] | null {
+  if (raw.includes(':')) {
+    const submittedPhones = new Set(phoneNums);
+    const pairs = raw
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => entry.split(':') as [string, string])
+      .filter(
+        ([phone, ship]) => phone && ship && submittedPhones.has(phone.trim())
+      )
+      .map(([phone, ship]) => [phone.trim(), ship.trim()] as [string, string]);
+    return pairs.length > 0 ? pairs : null;
+  }
+  const count = parseInt(raw, 10);
+  if (!Number.isFinite(count) || count <= 0) return null;
+  return phoneNums
+    .slice(0, count)
+    .map(
+      (phone, i) =>
+        [phone, MOCK_DISCOVERY_SHIPS[i % MOCK_DISCOVERY_SHIPS.length]] as [
+          string,
+          string,
+        ]
+    );
+}
+
+async function maybeMockDiscovery(
+  phoneNums: string[]
+): Promise<{ matches: [string, string][]; nextSalt: string | null } | null> {
+  const raw = process.env.EXPO_PUBLIC_MOCK_LANYARD_DISCOVERY;
+  if (!raw) return null;
+  const matches = parseMockDiscoveryEnv(raw, phoneNums);
+  if (!matches) return null;
+  // Simulate network + verifier latency so callers can exercise the
+  // "still discovering" UI state.
+  await new Promise((resolve) => setTimeout(resolve, 8000));
+  logger.log('mocked discoverContacts', { matches });
+  return { matches, nextSalt: '0x0' };
+}
+
 export async function discoverContacts(
   phoneNums: string[],
   storedLastSalt: string | null = null,
   lastPhoneNumberSetSent: string | null = null
 ): Promise<{ matches: [string, string][]; nextSalt: string | null }> {
+  const mocked = await maybeMockDiscovery(phoneNums);
+  if (mocked) return mocked;
+
   try {
     const nums = await diffContactBook(phoneNums, lastPhoneNumberSetSent);
     // because parseUx doesn't actually remove the dots
