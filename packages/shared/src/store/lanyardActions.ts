@@ -208,6 +208,30 @@ export async function updateAttestationDiscoverability({
   }
 }
 
+export type ContactsMatchedHandler = (
+  contactIds: string[]
+) => void | Promise<void>;
+
+let contactsMatchedHandler: ContactsMatchedHandler | null = null;
+
+export function setContactsMatchedHandler(
+  handler: ContactsMatchedHandler | null
+) {
+  contactsMatchedHandler = handler;
+}
+
+export async function invokeContactsMatchedHandler(contactIds: string[]) {
+  if (!contactsMatchedHandler || contactIds.length === 0) return;
+  try {
+    await contactsMatchedHandler(contactIds);
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      error: e,
+      context: 'contactsMatchedHandler',
+    });
+  }
+}
+
 export async function discoverContacts(
   phoneNumbers: string[]
 ): Promise<[string, string][]> {

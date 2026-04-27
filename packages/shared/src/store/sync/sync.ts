@@ -22,7 +22,10 @@ import * as LocalCache from '../cachedData';
 import { addContacts, updateContactMetadata } from '../contactActions';
 import { updateChannelSections } from '../groupActions';
 import { verifyUserInviteLink } from '../inviteActions';
-import { discoverContacts } from '../lanyardActions';
+import {
+  discoverContacts,
+  invokeContactsMatchedHandler,
+} from '../lanyardActions';
 import { useLureState } from '../lure';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
@@ -499,8 +502,18 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
   }
 };
 
-export const syncContactDiscovery = async (ctx?: SyncCtx) => {
+export type ContactDiscoveryResult = {
+  newMatches: [string, string][];
+};
+
+export const syncContactDiscovery = async (
+  ctx?: SyncCtx,
+  opts?: { invokeHandler?: boolean }
+): Promise<ContactDiscoveryResult> => {
   logger.log('syncContactDiscovery: starting');
+  const invokeHandler = opts?.invokeHandler !== false;
+  const empty: ContactDiscoveryResult = { newMatches: [] };
+  const isMocked = !!process.env.EXPO_PUBLIC_MOCK_LANYARD_DISCOVERY;
   const currentUserId = api.getCurrentUserId();
   const currentUserAttestations = await db.getUserAttestations({
     userId: currentUserId,
@@ -509,14 +522,14 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   const hasPhoneAttestation = currentUserAttestations.some(
     (attestation) => attestation.type === 'phone' && attestation.value
   );
-  if (!hasPhoneAttestation) {
+  if (!hasPhoneAttestation && !isMocked) {
     logger.log(
       'syncContactDiscovery: skipping contact discovery since no phone attestation found'
     );
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'no phone attestation found, skipping discovery',
     });
-    return;
+    return empty;
   }
   const systemContacts = await getSystemContacts();
   const phoneNumbers = systemContacts
@@ -532,7 +545,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
     });
     // this should also mean we no-op on web since we don't have any
     // system contacts
-    return;
+    return empty;
   }
 
   try {
@@ -542,6 +555,19 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       )
     ).filter((match) => match[1] !== currentUserId);
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
+
+    const contactIds = matches.map((m) => m[1]);
+    const existingContacts = await db.getContactsBatch({ contactIds });
+    const existingContactIds = new Set(
+      existingContacts.filter((c) => c.isContact).map((c) => c.id)
+    );
+    // Under the dev mock, treat every match as new so repeated test runs
+    // keep surfacing matches even after they've been added as contacts in
+    // a prior run. In production we still filter out already-contacts to
+    // avoid re-notifying about people the user already knows.
+    const newMatches = isMocked
+      ? matches
+      : matches.filter(([, contactId]) => !existingContactIds.has(contactId));
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -554,7 +580,6 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       'syncContactDiscovery: inserted contact discovery matches',
       matches
     );
-    const contactIds = matches.map((m) => m[1]);
     await addContacts(contactIds).catch((e) => {
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
         context: 'failed to add contacts',
@@ -581,6 +606,12 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
         error: e,
       });
     });
+
+    if (invokeHandler && newMatches.length > 0) {
+      await invokeContactsMatchedHandler(newMatches.map(([, id]) => id));
+    }
+
+    return { newMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -588,8 +619,26 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       severity: AnalyticsSeverity.Critical,
       error,
     });
+    return empty;
   }
 };
+
+const CONTACT_DISCOVERY_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let contactDiscoveryTimer: ReturnType<typeof setInterval> | null = null;
+
+function scheduleContactDiscoveryLoop() {
+  if (contactDiscoveryTimer) {
+    clearInterval(contactDiscoveryTimer);
+  }
+  contactDiscoveryTimer = setInterval(() => {
+    syncContactDiscovery().catch((e) => {
+      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+        context: 'periodic syncContactDiscovery failed',
+        error: e,
+      });
+    });
+  }, CONTACT_DISCOVERY_INTERVAL_MS);
+}
 
 export const syncUserAttestations = async (ctx?: SyncCtx) => {
   logger.log('syncing verifications');
@@ -2067,6 +2116,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // post sync initialization work
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
+    scheduleContactDiscoveryLoop();
   } finally {
     updateSession({ phase: 'ready' });
     isSyncing = false;
