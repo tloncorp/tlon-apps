@@ -12,7 +12,171 @@
 +$  message-id   (pair ship time-id)
 +$  message-key  [id=message-id =time]
 ::  |v9: add reactions activity
-++  v9  a
+++  v9
+  =,  v8
+  |%
+  ::  $stream: depends on $event
+  +$  stream  ((mop time event) lte)
+  ::  $on-stream: depends on $event
+  ++  on-stream  ((on time event) lte)
+  ::  $indices: depends on $source and $index
+  +$  indices
+    $~  [[[%base ~] *index] ~ ~]
+    (map source index)
+  ::  $volume-settings: depends on $source and $volume-map
+  +$  volume-settings  (map source volume-map)
+  ::  $full-info: depends on $indices, $activity, $volume-settings
+  +$  full-info  [=indices =activity =volume-settings]
+  ::  $volume-map: depends on $event-type
+  +$  volume-map
+    $~  default-volumes
+    (map event-type volume)
+  ::  $feed: depends on $activity and $activity-bundle
+  +$  feed
+    $:  feed=(list activity-bundle)
+        summaries=activity
+    ==
+  ::  $feed-init: depends on $activity-bundle and $activity
+  +$  feed-init
+    $:  all=(list activity-bundle)
+        mentions=(list activity-bundle)
+        replies=(list activity-bundle)
+        summaries=activity
+    ==
+  ::  $action: depends on $incoming-event, $source, $read-action and $volume-map
+  +$  action
+    $%  [%add =incoming-event]
+        [%bump =source]
+        [%clear-group-invites ~]
+        [%del =source]
+        [%del-event =source event=incoming-event]
+        [%read =source =read-action]
+        [%adjust =source =(unit volume-map)]
+        [%allow-notifications allow=notifications-allowed]
+    ==
+  ::  $read-action: depends on $incoming-event
+  +$  read-action
+    $%  [%item id=time-id]
+        [%event event=incoming-event]
+        [%all time=(unit time) deep=?]
+    ==
+  ::  $update: depends on $source, $activity-summary, $activity,
+  ::           $volume-map and $notifications-allowed
+  +$  update
+    $%  [%add =source time-event]
+        [%del =source]
+        [%read =source =activity-summary]
+        [%activity =activity]
+        [%adjust =source volume-map=(unit volume-map)]
+        [%allow-notifications allow=notifications-allowed]
+    ==
+  ::  $event: depends on $incoming-event
+  +$  event
+    $:  incoming-event
+        notified=?
+        child=?
+    ==
+  ::  $incoming-event: add %react and %dm-react variants
+  ::
+  +$  incoming-event
+    $%  [%post post-event]
+        [%reply reply-event]
+        [%react react-event]
+        [%dm-invite =whom]
+        [%dm-post dm-post-event]
+        [%dm-reply dm-reply-event]
+        [%dm-react dm-react-event]
+        [%group-ask group=flag:gv =ship]
+        [%group-kick group=flag:gv =ship]
+        [%group-join group=flag:gv =ship]
+        [%group-invite group=flag:gv =ship]
+        [%chan-init channel=nest:dv group=flag:gv]
+        [%group-role group=flag:gv =ship roles=(set sect:v0:gv)]
+        [%flag-post key=message-key channel=nest:dv group=flag:gv]
+        [%flag-reply key=message-key parent=message-key channel=nest:dv group=flag:gv]
+        [%contact contact-event]
+    ==
+  ::
+  +$  react-event
+    $:  key=message-key
+        parent=(unit message-key)  :: post or reply
+        channel=nest:dv
+        group=flag:gv
+        =author:v10:dv
+        =react:v10:dv
+    ==
+  ::
+  +$  dm-react-event
+    $:  key=message-key
+        parent=(unit message-key)  ::  either dm or dm-reply
+        =whom
+        =react:c
+    ==
+  ::  $index: depends on $stream
+  +$  index  [=stream =reads bump=time]
+  ::  $activity-bundle: depends on $source
+  +$  activity-bundle
+    $:  =source
+        latest=time
+        events=(list time-event)
+    ==
+  ::  $event-type: add %react and %dm-react
+  ::
+  +$  event-type
+    $?  %chan-init
+        %post
+        %post-mention
+        %reply
+        %reply-mention
+        %react
+        %dm-invite
+        %dm-post
+        %dm-post-mention
+        %dm-reply
+        %dm-reply-mention
+        %dm-react
+        %group-invite
+        %group-kick
+        %group-join
+        %group-ask
+        %group-role
+        %flag-post
+        %flag-reply
+        %contact
+    ==
+  ::  $time-event: depends on $event
+  +$  time-event  [=time =event]
+  ::  $on-event: depends on $event
+  ++  on-event        ((on time event) lte)
+  ::  $ex-event: depends on $event
+  ++  ex-event        ((mp time event) lte)
+  ::  $default-volumes: add %react and %dm-react
+  ::
+  ++  default-volumes
+    ^~
+    ^-  (map event-type volume)
+    %-  my
+    :~  [%post & &]
+        [%reply & |]
+        [%react & |]
+        [%post-mention & &]
+        [%reply-mention & &]
+        [%dm-invite & &]
+        [%dm-post & &]
+        [%dm-post-mention & &]
+        [%dm-reply & &]
+        [%dm-reply-mention & &]
+        [%dm-react & &]
+        [%group-invite & &]
+        [%group-ask & &]
+        [%flag-post & &]
+        [%flag-reply & &]
+        [%group-kick & |]
+        [%group-join & |]
+        [%group-role & |]
+        [%contact | |]
+    ==
+  --
 ::  |v8: add %contact event
 ++  v8
   =,  v7

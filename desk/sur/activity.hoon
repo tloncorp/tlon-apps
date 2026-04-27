@@ -1,7 +1,6 @@
 /-  cv=channels-ver, t=contacts, ch=chat, g=groups, gv=groups-ver, s=story
 /+  mp=mop-extensions
 |%
-+|  %collections
 ::  $stream: the activity stream comprised of events from various agents
 +$  stream  ((mop time event) lte)
 ++  on-stream  ((on time event) lte)
@@ -30,7 +29,6 @@
       replies=(list activity-bundle)
       summaries=activity
   ==
-+|  %actions
 ::  $action: how to interact with our activity stream
 ::
 ::    actions are only ever performed for and by our selves
@@ -65,9 +63,6 @@
       [%event event=incoming-event]
       [%all time=(unit time) deep=?]
   ==
-::
-+|  %updates
-::
 ::  $update: what we hear after an action
 ::
 ::    %add: an event was added to the stream
@@ -221,7 +216,6 @@
       events=(list time-event)
   ==
 ::
-+|  %primitives
 +$  whom
   $%  [%ship p=ship]
       [%club p=id:club:ch]
@@ -252,12 +246,10 @@
       %flag-reply
       %contact
   ==
-+|  %helpers
 +$  time-event  [=time =event]
 ++  on-event        ((on time event) lte)
 ++  ex-event        ((mp time event) lte)
 ++  on-read-items   ((on time ,~) lte)
-+|  %constants
 ++  default-volumes
   ^~
   ^-  (map event-type volume)
