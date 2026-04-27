@@ -289,3 +289,45 @@ export async function scheduleNodeResumeNudge(ship: string) {
 export async function cancelNodeResumeNudge() {
   await Notifications.cancelScheduledNotificationAsync(NODE_RESUME_NUDGE_ID);
 }
+
+export async function presentContactMatchNotification({
+  contactId,
+  name,
+}: {
+  contactId: string;
+  name: string;
+}) {
+  const hasPermission = await requestNotificationPermissionsIfNeeded();
+  if (!hasPermission) {
+    return;
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `${name} is on Tlon`,
+      body: 'Tap to say hi',
+      data: { type: 'contactMatched', contactId },
+    },
+    trigger: null,
+  });
+}
+
+export async function presentContactsMatchedNotification({
+  count,
+}: {
+  count: number;
+}) {
+  const hasPermission = await requestNotificationPermissionsIfNeeded();
+  if (!hasPermission) {
+    return;
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: `${count} of your contacts are on Tlon`,
+      body: 'Tap to see who',
+      data: { type: 'contactsMatched' },
+    },
+    trigger: null,
+  });
+}

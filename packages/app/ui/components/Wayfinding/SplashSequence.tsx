@@ -9,7 +9,11 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { Attachment, DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
-import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
+import {
+  invokeContactsMatchedHandler,
+  uploadAsset,
+  useCanUpload,
+} from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
@@ -1630,6 +1634,8 @@ export function InviteContactsContent(props: {
   systemContacts: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
   completing?: boolean;
+  isDiscovering?: boolean;
+  discoveredMatches?: db.SystemContact[];
 }) {
   const inviteLink = db.personalInviteLink.useValue();
   const handleInviteContact = useInviteSystemContactHandler(
@@ -1637,11 +1643,21 @@ export function InviteContactsContent(props: {
     inviteLink
   );
   const isReady = !!inviteLink;
-  const hasContacts = props.systemContacts && props.systemContacts.length > 0;
 
-  const { displayContacts, handleSearch } = useSystemContactSearch(
-    props.systemContacts ?? []
+  const matchedIds = useMemo(
+    () => new Set((props.discoveredMatches ?? []).map((c) => c.id)),
+    [props.discoveredMatches]
   );
+  const invitableContacts = useMemo(
+    () => props.systemContacts.filter((c) => !matchedIds.has(c.id)),
+    [props.systemContacts, matchedIds]
+  );
+
+  const hasContacts = invitableContacts.length > 0;
+  const hasMatches = (props.discoveredMatches?.length ?? 0) > 0;
+
+  const { displayContacts, handleSearch } =
+    useSystemContactSearch(invitableContacts);
 
   return (
     <YStack flex={1}>
@@ -1657,7 +1673,7 @@ export function InviteContactsContent(props: {
           </ScreenHeader.TextButton>
         }
       />
-      {!hasContacts ? (
+      {!hasContacts && !hasMatches && !props.isDiscovering ? (
         <ShareInviteLinkEmptyState />
       ) : !isReady ? (
         <LoadingState />
@@ -1666,19 +1682,25 @@ export function InviteContactsContent(props: {
           <SplashParagraph marginTop="$l" marginBottom="$xl">
             {INVITE_EXPLANATION_TEXT}
           </SplashParagraph>
-          <SearchBar
-            paddingHorizontal="$xl"
-            flexGrow={0}
-            debounceTime={100}
-            onChangeQuery={handleSearch}
-            placeholder="Search contacts"
-            inputProps={{
-              spellCheck: false,
-              autoCapitalize: 'none',
-              autoComplete: 'off',
-              flex: 1,
-            }}
+          <MatchedContactsSection
+            isDiscovering={!!props.isDiscovering}
+            matches={props.discoveredMatches ?? []}
           />
+          {hasContacts && (
+            <SearchBar
+              paddingHorizontal="$xl"
+              flexGrow={0}
+              debounceTime={100}
+              onChangeQuery={handleSearch}
+              placeholder="Search contacts"
+              inputProps={{
+                spellCheck: false,
+                autoCapitalize: 'none',
+                autoComplete: 'off',
+                flex: 1,
+              }}
+            />
+          )}
           <FlatList
             data={displayContacts}
             keyExtractor={(item) => item.id}
@@ -1697,6 +1719,49 @@ export function InviteContactsContent(props: {
           />
         </>
       )}
+    </YStack>
+  );
+}
+
+function MatchedContactsSection({
+  isDiscovering,
+  matches,
+}: {
+  isDiscovering: boolean;
+  matches: db.SystemContact[];
+}) {
+  if (!isDiscovering && matches.length === 0) {
+    return null;
+  }
+  return (
+    <YStack paddingHorizontal="$xl" marginBottom="$l" gap="$s">
+      {isDiscovering ? (
+        <View flexDirection="row" alignItems="center" gap="$s">
+          <LoadingSpinner size="small" />
+          <Text size="$label/m" color="$secondaryText">
+            Finding your contacts on Tlon…
+          </Text>
+        </View>
+      ) : (
+        <Text size="$label/m" color="$secondaryText">
+          {matches.length === 1
+            ? '1 of your contacts is on Tlon'
+            : `${matches.length} of your contacts are on Tlon`}
+        </Text>
+      )}
+      {matches.map((contact) => (
+        <SystemContactListItem
+          key={contact.id}
+          systemContact={contact}
+          iconProps={{ icon: 'Checkmark' }}
+          endContent={
+            <Text size="$label/s" color="$positiveActionText">
+              On Tlon
+            </Text>
+          }
+          showEndContent
+        />
+      ))}
     </YStack>
   );
 }
@@ -1842,11 +1907,26 @@ export function InvitePane(props: {
   onActionPress: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
   isCompleting?: boolean;
+  /**
+   * Cosmos / dev-fixture escape hatch: when set, the pane skips the contact
+   * permission gate, treats the given list as the user's address book, and
+   * runs discovery against the store as usual. Pair with a stubbed
+   * `syncContactDiscovery` to drive the match flow without device contacts.
+   */
+  __fixtureSystemContacts?: db.SystemContact[];
 }) {
   const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
   const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [discoveredMatches, setDiscoveredMatches] = useState<
+    db.SystemContact[]
+  >([]);
+  const pendingDiscoveryRef = useRef<Promise<{
+    newMatches: [string, string][];
+  }> | null>(null);
+  const hasShownMatchesRef = useRef(false);
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
 
@@ -1856,12 +1936,50 @@ export function InvitePane(props: {
     setShowInviteContacts(true);
   }, []);
 
+  const runDiscovery = useCallback(
+    async (contacts: db.SystemContact[]) => {
+      setIsDiscovering(true);
+      // Reset per-run state so a re-fired discovery doesn't inherit the
+      // "matches already shown" flag from a previous run.
+      hasShownMatchesRef.current = false;
+      const promise = storeContext.syncContactDiscovery(undefined, {
+        invokeHandler: false,
+      });
+      pendingDiscoveryRef.current = promise;
+      try {
+        const { newMatches } = await promise;
+        // Bail if a newer run has superseded us — its results are
+        // authoritative, and ours would clobber state.
+        if (pendingDiscoveryRef.current !== promise) return;
+        if (newMatches.length > 0) {
+          const matchedPhones = new Set(newMatches.map(([phone]) => phone));
+          const matched = contacts.filter(
+            (c) => c.phoneNumber && matchedPhones.has(c.phoneNumber)
+          );
+          setDiscoveredMatches(matched);
+          hasShownMatchesRef.current = true;
+        }
+      } catch (err) {
+        if (pendingDiscoveryRef.current !== promise) return;
+        logger.trackError('Contact discovery failed in InvitePane', {
+          error: err,
+        });
+      } finally {
+        if (pendingDiscoveryRef.current === promise) {
+          setIsDiscovering(false);
+        }
+      }
+    },
+    [storeContext]
+  );
+
   const processContacts = useCallback(async () => {
+    let syncedContacts: db.SystemContact[] = [];
     try {
       setIsProcessing(true);
       await storeContext.syncSystemContacts();
       // Log analytics if no contacts were found
-      const syncedContacts = await db.getSystemContacts();
+      syncedContacts = await db.getSystemContacts();
       setSysContacts(syncedContacts);
       if (!syncedContacts || syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
@@ -1874,7 +1992,42 @@ export function InvitePane(props: {
       setIsProcessing(false);
       setShowInviteContacts(true);
     }
-  }, [storeContext]);
+    // Kick off lanyard discovery in the background once the invite pane
+    // is visible. The user can advance before it completes — if they do,
+    // handleActionPress tails the promise so the match notification
+    // fires normally. If they stay and we surface matches here, we
+    // suppress the notification to avoid double-announcing.
+    if (syncedContacts.length > 0) {
+      void runDiscovery(syncedContacts);
+    }
+  }, [storeContext, runDiscovery]);
+
+  const handleActionPress = useCallback(() => {
+    const pending = pendingDiscoveryRef.current;
+    if (pending && !hasShownMatchesRef.current) {
+      pending
+        .then(({ newMatches }) => {
+          if (newMatches.length === 0) return;
+          return invokeContactsMatchedHandler(newMatches.map(([, id]) => id));
+        })
+        .catch(() => {
+          // errors already tracked in runDiscovery
+        });
+    }
+    props.onActionPress();
+  }, [props]);
+
+  // Fixture path: skip permissions entirely, seed state from the given
+  // contacts, and run discovery once. Runs before the normal permission
+  // useEffect so it can claim hasAutoProcessed and short-circuit it.
+  const fixtureContacts = props.__fixtureSystemContacts;
+  useEffect(() => {
+    if (!fixtureContacts) return;
+    hasAutoProcessed.current = true;
+    setSysContacts(fixtureContacts);
+    setShowInviteContacts(true);
+    void runDiscovery(fixtureContacts);
+  }, [fixtureContacts, runDiscovery]);
 
   useEffect(() => {
     if (isWeb || perms.isLoading || hasAutoProcessed.current) {
@@ -1914,6 +2067,12 @@ export function InvitePane(props: {
         return;
       }
 
+      if (perms.hasPermission) {
+        hasAutoProcessed.current = true;
+        await processContacts();
+        return;
+      }
+
       if (perms.permissionDenied) {
         advanceToInviteContacts();
       }
@@ -1938,10 +2097,12 @@ export function InvitePane(props: {
   if (showInviteContacts) {
     return (
       <InviteContactsContent
-        onComplete={props.onActionPress}
+        onComplete={handleActionPress}
         systemContacts={sysContacts}
         inviteSystemContacts={props.inviteSystemContacts}
         completing={props.isCompleting}
+        isDiscovering={isDiscovering}
+        discoveredMatches={discoveredMatches}
       />
     );
   }

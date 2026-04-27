@@ -3,7 +3,11 @@ import { useNavigation } from '@react-navigation/native';
 import * as api from '@tloncorp/api';
 import * as ub from '@tloncorp/api/urbit';
 import { ActivityIncomingEvent } from '@tloncorp/api/urbit';
-import { connectNotifications } from '@tloncorp/app/lib/notifications';
+import {
+  connectNotifications,
+  presentContactMatchNotification,
+  presentContactsMatchedNotification,
+} from '@tloncorp/app/lib/notifications';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
@@ -15,6 +19,7 @@ import { useIsWindowNarrow } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
   createDevLogger,
+  setContactsMatchedHandler,
   syncDms,
   syncGroups,
 } from '@tloncorp/shared';
@@ -57,9 +62,20 @@ interface GroupJoinRequestNotificationData extends BaseNotificationData {
   groupId: string;
 }
 
+interface ContactMatchedNotificationData extends BaseNotificationData {
+  type: 'contactMatched';
+  contactId: string;
+}
+
+interface ContactsMatchedNotificationData extends BaseNotificationData {
+  type: 'contactsMatched';
+}
+
 type NotificationData =
   | MinimalNotificationData
   | GroupJoinRequestNotificationData
+  | ContactMatchedNotificationData
+  | ContactsMatchedNotificationData
   | UnrecognizedNotificationData;
 
 function payloadFromNotification(
@@ -89,6 +105,25 @@ function payloadFromNotification(
   const baseNotificationData: BaseNotificationData = {
     meta: { errorsFromExtension: payload.notificationServiceExtensionErrors },
   };
+
+  if (
+    payload.type === 'contactMatched' &&
+    typeof payload.contactId === 'string'
+  ) {
+    return {
+      ...baseNotificationData,
+      type: 'contactMatched',
+      contactId: payload.contactId,
+    };
+  }
+
+  if (payload.type === 'contactsMatched') {
+    return {
+      ...baseNotificationData,
+      type: 'contactsMatched',
+    };
+  }
+
   if (
     payload.activityEventJsonString != null &&
     typeof payload.activityEventJsonString === 'string'
@@ -191,12 +226,31 @@ export default function useNotificationListener() {
   const isTlonEmployee = db.isTlonEmployee.useValue();
 
   const [notifToProcess, setNotifToProcess] = useState<
-    MinimalNotificationData | GroupJoinRequestNotificationData | null
+    | MinimalNotificationData
+    | GroupJoinRequestNotificationData
+    | ContactMatchedNotificationData
+    | ContactsMatchedNotificationData
+    | null
   >(null);
 
   // Start notifications prompt
   useEffect(() => {
     connectNotifications();
+    setContactsMatchedHandler(async (contactIds) => {
+      if (contactIds.length === 1) {
+        const [contactId] = contactIds;
+        const systemContacts =
+          await db.getSystemContactsBatchByContactId(contactIds);
+        const sc = systemContacts.find((c) => c.contactId === contactId);
+        const name =
+          [sc?.firstName, sc?.lastName].filter(Boolean).join(' ').trim() ||
+          contactId;
+        await presentContactMatchNotification({ contactId, name });
+      } else {
+        await presentContactsMatchedNotification({ count: contactIds.length });
+      }
+    });
+    return () => setContactsMatchedHandler(null);
   }, []);
 
   const notificationResponse = useLastNotificationResponse();
@@ -252,6 +306,18 @@ export default function useNotificationListener() {
         screen: 'GroupMembers',
         params: { groupId },
       });
+      setNotifToProcess(null);
+      return true;
+    }
+
+    async function goToUserProfile(userId: string) {
+      navigation.navigate('UserProfile', { userId });
+      setNotifToProcess(null);
+      return true;
+    }
+
+    async function goToContacts() {
+      navigation.navigate('Contacts');
       setNotifToProcess(null);
       return true;
     }
@@ -323,11 +389,19 @@ export default function useNotificationListener() {
     }
 
     if (notifToProcess) {
-      const handleNavigate =
-        notifToProcess.type === 'groupJoinRequest'
-          ? () => goToGroupMembers(notifToProcess.groupId)
-          : () =>
+      const handleNavigate = (() => {
+        switch (notifToProcess.type) {
+          case 'groupJoinRequest':
+            return () => goToGroupMembers(notifToProcess.groupId);
+          case 'contactMatched':
+            return () => goToUserProfile(notifToProcess.contactId);
+          case 'contactsMatched':
+            return () => goToContacts();
+          default:
+            return () =>
               gotToChannel(notifToProcess.channelId, notifToProcess.postInfo);
+        }
+      })();
 
       (async () => {
         // First check if we have this channel in local store
