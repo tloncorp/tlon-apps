@@ -59,7 +59,7 @@ diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.
    }
    if (createTextShadowValue !== undefined && (domStyle.textShadowColor || domStyle.textShadowRadius || domStyle.textShadowOffset)) {
      domStyle.textShadow = createTextShadowValue({
-@@ -98,8 +111,12 @@
+@@ -98,8 +111,28 @@
      }
    }
  };
@@ -195,7 +195,7 @@ diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
    }
  
    if (
-@@ -171,6 +198,17 @@
+@@ -171,6 +198,34 @@
    }
  };
  
