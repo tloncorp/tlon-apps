@@ -1,16 +1,11 @@
+import { BottomSheetFlashList } from '@gorhom/bottom-sheet';
 import { FlashList, type ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
-import {
-  ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Platform, useWindowDimensions } from 'react-native';
 import { Text, View, XStack, getTokenValue } from 'tamagui';
 
 import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
-import { ActionSheet } from './ActionSheet';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
 
@@ -22,22 +17,42 @@ type ForwardChannelSelectorProps = {
 
 type ChannelChat = db.Chat & { type: 'channel' };
 
+const ITEM_H = 76;
+const LIST_HEIGHT_RATIO = 0.68;
+const ForwardSheetFlashList = (
+  Platform.OS === 'web' ? FlashList : BottomSheetFlashList
+) as typeof FlashList;
+
+const getItemType = (chat: ChannelChat) =>
+  chat.channel.type === 'dm' || chat.channel.type === 'groupDm'
+    ? 'dm'
+    : chat.channel.group
+      ? 'group'
+      : 'channel';
+
+const overrideItemLayout = (layout: { span?: number; size?: number }) => {
+  layout.size = ITEM_H;
+};
+
 export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
   channelFilter,
 }: ForwardChannelSelectorProps) {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
     null
   );
+
   const { channelChats, isSearching } = useFilteredChannelChats({
+    mode: isOpen ? 'snapshot' : 'live',
     searchQuery: query,
     channelFilter,
   });
+
   const handleQueryChanged = useCallback((newQuery: string) => {
     setQuery(newQuery);
-    // Reset any explicit row selection when the result set changes.
     setSelectedChannelId(null);
   }, []);
 
@@ -67,7 +82,7 @@ export function ForwardChannelSelector({
   );
 
   const renderItem: ListRenderItem<ChannelChat> = useCallback(
-    ({ item }: { item: ChannelChat }) => (
+    ({ item }) => (
       <ForwardChannelListItem
         channel={item.channel}
         selected={highlightedChannelId === item.channel.id}
@@ -85,6 +100,14 @@ export function ForwardChannelSelector({
     []
   );
 
+  const estimatedListSize = useMemo(
+    () => ({
+      width: screenWidth,
+      height: Math.floor(screenHeight * LIST_HEIGHT_RATIO),
+    }),
+    [screenWidth, screenHeight]
+  );
+
   return (
     <>
       <XStack paddingHorizontal="$xl">
@@ -92,30 +115,27 @@ export function ForwardChannelSelector({
           placeholder="Search channels"
           onChangeQuery={handleQueryChanged}
           debounceTime={0}
-        ></SearchBar>
+        />
       </XStack>
 
       {isOpen ? (
-        <View flex={1} minHeight={200}>
+        <View style={estimatedListSize}>
           {isSearching && channelChats.length === 0 ? (
             <Text color="$tertiaryText" textAlign="center" fontFamily="$body">
               No results found
             </Text>
           ) : (
-            <FlashList<ChannelChat>
+            <ForwardSheetFlashList<ChannelChat>
               data={channelChats}
               extraData={highlightedChannelId}
               contentContainerStyle={contentContainerStyle}
+              getItemType={getItemType}
               keyExtractor={(chat) => chat.channel.id}
+              overrideItemLayout={overrideItemLayout}
               renderItem={renderItem}
-              estimatedItemSize={72}
-              renderScrollComponent={(props) => (
-                <ActionSheet.ScrollableContent
-                  {...(props as ComponentProps<
-                    typeof ActionSheet.ScrollableContent
-                  >)}
-                />
-              )}
+              drawDistance={ITEM_H * 8}
+              estimatedItemSize={ITEM_H}
+              estimatedListSize={estimatedListSize}
               keyboardShouldPersistTaps="always"
             />
           )}

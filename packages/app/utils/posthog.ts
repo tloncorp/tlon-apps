@@ -23,6 +23,8 @@ export type OnboardingProperties = {
   email?: string;
   phoneNumber?: string;
   ship?: string;
+  botProvider?: string;
+  botModel?: string;
   telemetryEnabled?: boolean;
   inviteType?: 'user' | 'group';
 };

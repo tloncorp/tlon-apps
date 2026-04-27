@@ -1594,7 +1594,9 @@
 ++  init-posts
   |=  [channels=@ud context=@ud]
   ^-  (map nest:c (unit posts:c))
-  =/  activity
+  =/  =activity:v8:av
+    ?.  .^(? %gu (scry-path %activity /$))
+      *activity:v8:av
     %-  ~(gas by *activity:v8:av)
     .^  (list [source:v8:av activity-summary:v8:av])  %gx
       (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
@@ -1861,8 +1863,6 @@
           |=  [=time reply=(may:d v-reply:d)]
           ?:  ?=(%| -.reply)  |
           =((get-author-ship:utils author.reply) our.bowl)
-      =/  =path  (scry-path %activity /v5/volume-settings/noun)
-      =+  .^(settings=volume-settings:v9:av %gx path)
       =/  =action
         :*  %add  %reply
             [[reply-author id] id]
@@ -1873,8 +1873,11 @@
             mention
         ==
       ::  only follow thread if we haven't adjusted settings already
-      ::  and if we're the author of the post, mentioned, or in the replies
+      ::  and if we're the author of the post, mentioned, or in the replies.
+      ::
       =/  thread=source  [%thread parent-key nest group.perm.channel]
+      =/  =path  (scry-path %activity /v5/volume-settings/noun)
+      =+  .^(settings=volume-settings:v9:av %gx path)
       ?.  ?&  !(~(has by settings) thread)
               ?|  mention
                   in-replies
@@ -3513,13 +3516,16 @@
     =/  =source:v8:av  [%channel nest flag]
     ?.  (can-read:ca-perms our.bowl)
       (send:ca-activity [%adjust source ~] ~)
-    =+  .^(=volume-settings:v9:av %gx (scry-path %activity /v5/volume-settings/noun))
+    =/  setting=(unit volume-map:v9:av)
+      ?.  running:ca-activity  ~
+      =+  .^(=volume-settings:v9:av %gx (scry-path %activity /v5/volume-settings/noun))
+      (~(get by volume-settings) source)
     =.  ca-core
       ::  if we don't have a setting, no-op
-      ?~  setting=(~(get by volume-settings) source)  ca-core
-      ::  if they have a setting that's not mute, retain it otherwise
+      ?~  setting  ca-core
+      ::  if they have a setting that's not mute, retain it. otherwise
       ::  delete setting if it's mute so it defaults
-      ?.  =(u.setting mute:v8:av)  ca-core
+      ?:  !=(u.setting mute:v8:av)  ca-core
       (send:ca-activity [%adjust source ~] ~)
     ::  if our read permissions restored, re-subscribe
     (ca-safe-sub |)
@@ -3531,8 +3537,8 @@
   ::  leave the subscriptions only
   ::
   ++  ca-simple-leave
-    =.  ca-core
-      (unsubscribe (weld ca-area /checkpoint) [ship.nest server])
+    =.  ca-core  (unsubscribe (weld ca-area /backlog) [ship.nest server])
+    =.  ca-core  (unsubscribe (weld ca-area /checkpoint) [ship.nest server])
     (unsubscribe ca-sub-wire [ship.nest server])
   ::
   ::  leave the subscription, tell people about it, and delete our local

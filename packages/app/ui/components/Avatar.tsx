@@ -288,6 +288,25 @@ export const TextAvatar = React.memo(function TextAvatarComponent({
   );
 });
 
+// Hardcoded integer sizes for the inner sigil SVG. Fractional sizes render
+// blurry and can shift the sigil off the pixel grid, especially for tiny
+// avatars where the desktop tokens (14, 22) don't divide evenly. Inner size
+// must also match the outer size's parity so the leftover margin splits evenly
+// on both sides — otherwise the sigil shifts by a subpixel on non-retina.
+function matchParity(value: number, base: number): number {
+  const rounded = Math.floor(value);
+  return rounded % 2 === base % 2 ? rounded : rounded + 1;
+}
+function getDefaultInnerSigilSize(sigilSize: number): number {
+  // small sizes need a larger ratio to be recognizable
+  if (sigilSize <= 16) return matchParity(sigilSize * 0.75, sigilSize);
+  if (sigilSize <= 24) return matchParity(sigilSize * 0.625, sigilSize);
+  // $3xl/$3.5xl: simplified sigils read better with a little color frame.
+  if (sigilSize < 44) return matchParity(sigilSize * 0.55, sigilSize);
+  // $4xl and up render with detail, so give the linework a bit more room.
+  return matchParity(sigilSize * 0.625, sigilSize);
+}
+
 export const SigilAvatar = React.memo(function SigilAvatarComponent({
   contactId,
   contactOverride,
@@ -327,6 +346,15 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       return styles.width ?? styles.height ?? 20;
     }
   }, [size, styles.width, styles.height, props.width, props.height]);
+  const defaultInnerSigilSize = useMemo(
+    () => getDefaultInnerSigilSize(sigilSize),
+    [sigilSize]
+  );
+  const finalInnerSigilSize = innerSigilSize ?? defaultInnerSigilSize;
+  // sigil-js strokes are ~2px up through size 48 and thicken above 64, so
+  // the overlaid detail linework only reads cleanly once the sigil itself is
+  // large enough. Auto-enable it at $4xl and up, unless the caller opts out.
+  const shouldRenderDetail = renderDetail ?? finalInnerSigilSize >= 24;
 
   return (
     <AvatarFrame
@@ -339,9 +367,9 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
       <UrbitSigil
         key={contactId}
         colors={colors}
-        size={innerSigilSize ?? sigilSize * 0.5}
+        size={finalInnerSigilSize}
         contactId={contactId}
-        renderDetail={renderDetail}
+        renderDetail={shouldRenderDetail}
       />
     </AvatarFrame>
   );

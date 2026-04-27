@@ -13,7 +13,7 @@ import { useRequests } from '../../contexts/requests';
 import { useGroupTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import { useContactName } from '../ContactNameV2';
-import { GalleryContentRenderer } from '../GalleryPost';
+import { GalleryContentRenderer } from '../GalleryPost/GalleryContentRenderer';
 import { GroupAvatar } from '../GroupAvatar';
 import { ListItem } from '../ListItem';
 import {

@@ -42,6 +42,7 @@ export interface DraftInputHandle {
  * Shared API for all draft inputs.
  */
 export interface DraftInputContext {
+  canStartDraft?: boolean;
   channel: db.Channel;
   clearDraft: (draftType?: GalleryDraftType) => Promise<void>;
   configuration?: Record<string, JSONValue>;
@@ -64,6 +65,7 @@ export interface DraftInputContext {
   setEditingPost?: (update: db.Post | undefined) => void;
   setShouldBlur: Dispatch<SetStateAction<boolean>>;
   shouldBlur: boolean;
+  startDraft?: DraftInputHandle['startDraft'];
   storeDraft: (
     content: JSONContent,
     draftType?: GalleryDraftType

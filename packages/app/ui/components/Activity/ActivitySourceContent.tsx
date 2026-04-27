@@ -6,6 +6,7 @@ import { Text } from '@tloncorp/ui';
 import { useMemo } from 'react';
 import { ScrollView, YStack, styled } from 'tamagui';
 
+import { ChannelProvider } from '../../contexts/channel';
 import { useContactName } from '../ContactNameV2';
 import { ContentReferenceLoader, PostReference } from '../ContentReference';
 import { GalleryPost } from '../GalleryPost';
@@ -37,17 +38,25 @@ export function ActivitySourceContent({
     );
   }
 
-  return isReply || isChatPost ? (
-    <ChatContentRenderer
-      summary={summary}
-      pressHandler={pressHandler}
-      unreadCount={unreadCount}
-    />
-  ) : (
-    <NotebookOrGalleryContentRenderer
-      summary={summary}
-      pressHandler={pressHandler}
-    />
+  return (
+    <ChannelProvider
+      value={
+        summary.newest.channel ? { channel: summary.newest.channel } : null
+      }
+    >
+      {isReply || isChatPost ? (
+        <ChatContentRenderer
+          summary={summary}
+          pressHandler={pressHandler}
+          unreadCount={unreadCount}
+        />
+      ) : (
+        <NotebookOrGalleryContentRenderer
+          summary={summary}
+          pressHandler={pressHandler}
+        />
+      )}
+    </ChannelProvider>
   );
 }
 
