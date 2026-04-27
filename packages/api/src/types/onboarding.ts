@@ -15,8 +15,14 @@ export interface SignupParams {
   reservedNodeId: string | null;
   bootPhase: NodeBootPhase;
   userWasReadyAt?: number;
+  onboardingFlow?: OnboardingFlow;
+  /**
+   * @deprecated Use onboardingFlow to distinguish signup and revival paths.
+   */
   isGuidedLogin?: boolean;
 }
+
+export type OnboardingFlow = 'signup' | 'traditionalRevival' | 'tlonbotRevival';
 
 export enum NodeBootPhase {
   IDLE = 1,

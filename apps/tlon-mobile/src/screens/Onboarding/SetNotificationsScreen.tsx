@@ -8,7 +8,8 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import { useCallback, useEffect, useState } from 'react';
+import * as db from '@tloncorp/shared/db';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSignupContext } from '../../lib/signupContext';
@@ -24,10 +25,30 @@ const DEFAULT_NOTIFICATION_LEVEL: ub.NotificationLevel = 'medium';
 export const SetNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
   const insets = useSafeAreaInsets();
+  const isRevivalOnboarding =
+    signupContext.onboardingFlow === 'traditionalRevival' ||
+    signupContext.onboardingFlow === 'tlonbotRevival' ||
+    signupContext.isGuidedLogin;
+  const didPrefillNotificationLevel = useRef(false);
 
   const [selectedLevel, setSelectedLevel] = useState<ub.NotificationLevel>(
     DEFAULT_NOTIFICATION_LEVEL
   );
+
+  useEffect(() => {
+    if (!isRevivalOnboarding || didPrefillNotificationLevel.current) {
+      return;
+    }
+
+    didPrefillNotificationLevel.current = true;
+    db.getVolumeSetting('base')
+      .then((setting) => {
+        if (setting?.level) {
+          setSelectedLevel(setting.level);
+        }
+      })
+      .catch(() => {});
+  }, [isRevivalOnboarding]);
 
   const handleNext = useCallback(async () => {
     // Save the notification level, but don't request token yet
@@ -66,8 +87,9 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
       >
         <YStack gap="$2xl" flex={1} justifyContent="center">
           <TlonText.Text size="$body">
-            Tlon works best when you’re notified of messages. You can change
-            these settings any time.
+            {isRevivalOnboarding
+              ? 'Choose how loudly Tlon should notify you. You can change this any time.'
+              : 'Tlon works best when you’re notified of messages. You can change these settings any time.'}
           </TlonText.Text>
 
           <NotificationLevelSelector

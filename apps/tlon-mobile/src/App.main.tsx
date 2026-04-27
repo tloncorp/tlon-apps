@@ -31,8 +31,9 @@ import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -91,6 +92,7 @@ const App = () => {
     isLoading,
     isAuthenticated,
     needsSplashSequence,
+    splashSequenceMode,
     clearNeedsSplashSequence,
   } = useShip();
   const [connected, setConnected] = useState(true);
@@ -103,8 +105,18 @@ const App = () => {
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
 
   const currentlyOnboarding = useMemo(() => {
-    return signupContext.email || signupContext.phoneNumber;
-  }, [signupContext.email, signupContext.phoneNumber]);
+    return (
+      signupContext.email ||
+      signupContext.phoneNumber ||
+      signupContext.isGuidedLogin ||
+      signupContext.onboardingFlow
+    );
+  }, [
+    signupContext.email,
+    signupContext.phoneNumber,
+    signupContext.isGuidedLogin,
+    signupContext.onboardingFlow,
+  ]);
 
   usePreloadedEmojis();
 
@@ -147,14 +159,39 @@ const App = () => {
   // FORCE_SPLASH_SEQUENCE triggers the splash on first render but doesn't
   // prevent it from being dismissed — clearNeedsSplashSequence still works.
   const [forcedSplash, setForcedSplash] = useState(FORCE_SPLASH_SEQUENCE);
+  const didClearRevivalFlagRef = useRef(false);
   const showSplashSequence = useMemo(() => {
     return showAuthenticatedApp && (forcedSplash || needsSplashSequence);
   }, [showAuthenticatedApp, forcedSplash, needsSplashSequence]);
+  const activeSplashSequenceMode = needsSplashSequence
+    ? splashSequenceMode
+    : undefined;
 
   const handleClearSplash = useCallback(() => {
+    const completedSplashMode = activeSplashSequenceMode;
     setForcedSplash(false);
     clearNeedsSplashSequence();
-  }, [clearNeedsSplashSequence]);
+
+    const completedRevivalSplash =
+      completedSplashMode === 'traditionalRevival' ||
+      completedSplashMode === 'tlonbotRevival';
+    if (completedRevivalSplash && !didClearRevivalFlagRef.current) {
+      didClearRevivalFlagRef.current = true;
+      store
+        .clearShipRevivalStatus()
+        .then(() => {
+          splashscreenLogger.trackEvent('Toggled Hosting Revival Status', {
+            splashSequenceMode: completedSplashMode,
+          });
+        })
+        .catch((error) => {
+          splashscreenLogger.trackError('Failed to clear revival status', {
+            error,
+            splashSequenceMode: completedSplashMode,
+          });
+        });
+    }
+  }, [activeSplashSequenceMode, clearNeedsSplashSequence]);
 
   // Splash renders instead of AuthenticatedApp, which is where the urbit
   // client is normally configured. The splash's bot-avatar uploader hits
@@ -180,6 +217,7 @@ const App = () => {
               onCompleted={handleClearSplash}
               inviteSystemContacts={inviteSystemContacts}
               hostingBotEnabled={hostingBotEnabled ?? false}
+              splashSequenceMode={activeSplashSequenceMode}
             />
           </AppDataProvider>
         ) : showAuthenticatedApp ? (

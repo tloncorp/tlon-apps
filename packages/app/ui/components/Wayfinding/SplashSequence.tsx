@@ -103,11 +103,20 @@ function SplashSequenceComponent(props: {
   onCompleted: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
   hostingBotEnabled?: boolean;
+  splashSequenceMode?: db.ShipInfo['splashSequenceMode'];
 }) {
   const store = useStore();
   const canUpload = useCanUpload();
-  const [currentPane, setCurrentPane] = React.useState(SplashPane.Welcome);
-  const { hostingBotEnabled } = props;
+  const [currentPane, setCurrentPane] = React.useState(
+    props.splashSequenceMode === 'tlonbotRevival'
+      ? SplashPane.TlonBot
+      : SplashPane.Welcome
+  );
+  const hostingBotEnabled =
+    props.hostingBotEnabled || props.splashSequenceMode === 'tlonbotRevival';
+  const isRevivalSplash =
+    props.splashSequenceMode === 'tlonbotRevival' ||
+    props.splashSequenceMode === 'traditionalRevival';
   const [botName, setBotName] = React.useState('');
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
     DEFAULT_BOT_CONFIG.avatarUrl
@@ -582,14 +591,16 @@ function SplashSequenceComponent(props: {
         }
       }
 
-      void store.completeWayfindingSplash();
+      void (isRevivalSplash
+        ? store.completeRevivalSplash()
+        : store.completeWayfindingSplash());
       props.onCompleted();
     } finally {
       if (isMountedRef.current) {
         setFinishingSplash(false);
       }
     }
-  }, [customBotSetupStatus, finishingSplash, props, store]);
+  }, [customBotSetupStatus, finishingSplash, isRevivalSplash, props, store]);
 
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>

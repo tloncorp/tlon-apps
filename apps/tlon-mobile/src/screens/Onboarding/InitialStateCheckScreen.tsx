@@ -26,10 +26,14 @@ export function InitialStateCheckScreen({ navigation }: Props) {
         const nodeStoppedWhileLoggedIn =
           await db.nodeStoppedWhileLoggedIn.getValue();
         const hostingUserId = await db.hostingUserId.getValue();
+        const hasPotentialRevivalSession =
+          signupData.isGuidedLogin ||
+          signupData.onboardingFlow === 'traditionalRevival' ||
+          signupData.onboardingFlow === 'tlonbotRevival';
         const hasPotentialSignupSession =
           signupData.email ||
           signupData.phoneNumber ||
-          signupData.isGuidedLogin;
+          hasPotentialRevivalSession;
         const hasPotentialLoggedInSession = !!hostingUserId;
 
         if (nodeStoppedWhileLoggedIn) {
@@ -52,7 +56,9 @@ export function InitialStateCheckScreen({ navigation }: Props) {
           if (didNavigate) {
             return;
           }
-        } else if (hasPotentialLoggedInSession) {
+        }
+
+        if (hasPotentialLoggedInSession) {
           const didNavigate = await reviveLoggedInSession();
           if (didNavigate) {
             return;

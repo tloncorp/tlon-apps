@@ -81,6 +81,21 @@ export async function completeWayfindingSplash() {
   }
 }
 
+export async function completeRevivalSplash() {
+  // Revived users should not get first-run coach marks reset, but marking the
+  // splash complete keeps other clients from showing the modal again.
+  await db.insertSettings({ completedWayfindingSplash: true });
+  try {
+    await withRetry(() => api.setSetting('completedWayfindingSplash', true));
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+      context: 'failed to mark remote setting completed',
+      settingName: 'completedWayfindingSplash',
+      severity: AnalyticsSeverity.High,
+    });
+  }
+}
+
 export async function completeWayfindingTutorial() {
   // optimistic update
   await db.insertSettings({ completedWayfindingTutorial: true });

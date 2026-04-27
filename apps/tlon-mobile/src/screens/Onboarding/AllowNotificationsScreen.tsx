@@ -54,8 +54,12 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
         notificationToken,
       });
 
-      if (signupContext.isGuidedLogin) {
-        signupContext.handlePostSignup();
+      if (
+        signupContext.onboardingFlow === 'traditionalRevival' ||
+        signupContext.onboardingFlow === 'tlonbotRevival' ||
+        signupContext.isGuidedLogin
+      ) {
+        signupContext.handlePostRevivalOnboarding({ notificationToken });
         await db.hostedAccountIsInitialized.setValue(true);
       } else {
         navigation.push('ReserveShip');

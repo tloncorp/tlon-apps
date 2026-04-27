@@ -2,7 +2,12 @@ import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
 import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
 import * as ub from '@tloncorp/api/urbit';
 
-import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
+import {
+  NodeBootPhase,
+  OnboardingFlow,
+  SignupParams,
+  WayfindingProgress,
+} from '../domain';
 import { Lure } from '../logic';
 import { createStorageItem } from './storageItem';
 
@@ -208,6 +213,7 @@ export type ShipInfo = {
   shipUrl: string | undefined;
   authCookie: string | undefined;
   needsSplashSequence?: boolean;
+  splashSequenceMode?: OnboardingFlow;
 };
 
 export const shipInfo = createStorageItem<ShipInfo | null>({

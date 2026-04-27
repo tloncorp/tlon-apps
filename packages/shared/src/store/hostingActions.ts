@@ -174,7 +174,11 @@ export async function logInHostedUser({
 
 export async function checkHostingNodeStatus(
   supressStatusLog?: boolean
-): Promise<{ status: domain.HostedNodeStatus; guideFirstLogin: boolean }> {
+): Promise<{
+  status: domain.HostedNodeStatus;
+  guideFirstLogin: boolean;
+  onboardingFlow?: domain.OnboardingFlow;
+}> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -210,7 +214,18 @@ export async function checkHostingNodeStatus(
       }
     }
 
-    return { status: nodeStatus, guideFirstLogin: showWayfinding };
+    const botEnabled = await db.hostingBotEnabled.getValue();
+    const onboardingFlow = showWayfinding
+      ? botEnabled
+        ? 'tlonbotRevival'
+        : 'traditionalRevival'
+      : undefined;
+
+    return {
+      status: nodeStatus,
+      guideFirstLogin: showWayfinding,
+      onboardingFlow,
+    };
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginDebug, {
       error: e,

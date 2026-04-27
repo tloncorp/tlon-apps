@@ -612,7 +612,7 @@ export const logInHostingUser = async (params: {
           botEnabled: result.botEnabled,
         },
       });
-      sessionStore.botEnabled.setValue(result.botEnabled);
+      await sessionStore.botEnabled.setValue(result.botEnabled);
     }
   }
 

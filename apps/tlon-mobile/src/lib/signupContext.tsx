@@ -35,12 +35,14 @@ interface SignupContext extends SignupParams {
   setOnboardingValues: (newValues: Partial<SignupValues>) => void;
   kickOffBootSequence: () => void;
   handlePostSignup: () => void;
+  handlePostRevivalOnboarding: (newValues?: Partial<SignupValues>) => void;
   clear: () => void;
 }
 
 const defaultMethods = {
   setOnboardingValues: () => {},
   handlePostSignup: () => {},
+  handlePostRevivalOnboarding: () => {},
   kickOffBootSequence: () => {},
   clear: () => {},
 };
@@ -124,6 +126,25 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     resetBootSequence,
   ]);
 
+  const handlePostRevivalOnboarding = useCallback(
+    (newValues?: Partial<SignupValues>) => {
+      const finalValues = { ...values, ...newValues };
+      try {
+        logger.log('running post-revival onboarding actions');
+        runProfileAndNotificationActions({
+          nickname: finalValues.nickname,
+          notificationToken: finalValues.notificationToken,
+          notificationLevel: finalValues.notificationLevel,
+        });
+      } catch (e) {
+        logger.trackError('post revival onboarding error', e);
+      } finally {
+        clear();
+      }
+    },
+    [values, clear]
+  );
+
   useEffect(() => {
     if (
       values.didCompleteOnboarding &&
@@ -143,6 +164,7 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         bootPhase,
         setOnboardingValues,
         handlePostSignup,
+        handlePostRevivalOnboarding,
         kickOffBootSequence,
         clear,
       }}
@@ -170,15 +192,7 @@ async function runPostSignupActions(params: {
   notificationLevel?: string;
   postHog?: PostHog;
 }) {
-  if (params.nickname) {
-    try {
-      await store.updateCurrentUserProfile({
-        nickname: params.nickname,
-      });
-    } catch (e) {
-      logger.trackError('post signup: failed to set nickname', e);
-    }
-  }
+  await runProfileAndNotificationActions(params);
 
   if (typeof params.telemetry !== 'undefined') {
     try {
@@ -194,37 +208,6 @@ async function runPostSignupActions(params: {
       }
     } catch (e) {
       logger.trackError('post signup: failed to set telemetry', e);
-    }
-  }
-
-  if (params.notificationToken) {
-    try {
-      await connectNotifyProvider(params.notificationToken);
-    } catch (e) {
-      logger.trackError('post signup: failed to set notification token', e);
-    }
-  }
-
-  if (params.notificationLevel) {
-    try {
-      await store.setBaseVolumeLevel({
-        level: params.notificationLevel as any,
-      });
-    } catch (e) {
-      logger.trackError('post signup: failed to set notification level', e);
-    }
-  }
-
-  if (params.notificationLevel) {
-    try {
-      await store.setBaseVolumeLevel({
-        level: params.notificationLevel as any,
-      });
-    } catch (e) {
-      logger.trackError('post signup: failed to set notification level', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
     }
   }
 
@@ -251,6 +234,43 @@ async function runPostSignupActions(params: {
       logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
         severity: AnalyticsSeverity.Critical,
         context: 'post-signup phone number verification failed',
+      });
+    }
+  }
+}
+
+async function runProfileAndNotificationActions(params: {
+  nickname?: string;
+  notificationToken?: string;
+  notificationLevel?: string;
+}) {
+  if (params.nickname) {
+    try {
+      await store.updateCurrentUserProfile({
+        nickname: params.nickname,
+      });
+    } catch (e) {
+      logger.trackError('onboarding: failed to set nickname', e);
+    }
+  }
+
+  if (params.notificationToken) {
+    try {
+      await connectNotifyProvider(params.notificationToken);
+    } catch (e) {
+      logger.trackError('onboarding: failed to set notification token', e);
+    }
+  }
+
+  if (params.notificationLevel) {
+    try {
+      await store.setBaseVolumeLevel({
+        level: params.notificationLevel as any,
+      });
+    } catch (e) {
+      logger.trackError('onboarding: failed to set notification level', {
+        errorMessage: e instanceof Error ? e.message : String(e),
+        errorStack: e instanceof Error ? e.stack : undefined,
       });
     }
   }

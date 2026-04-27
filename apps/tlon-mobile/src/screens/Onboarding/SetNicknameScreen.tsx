@@ -36,6 +36,11 @@ const logger = createDevLogger('SetNicknameScreen', false);
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
+  const signupContext = useSignupContext();
+  const isRevivalOnboarding =
+    signupContext.onboardingFlow === 'traditionalRevival' ||
+    signupContext.onboardingFlow === 'tlonbotRevival' ||
+    signupContext.isGuidedLogin;
 
   const facesImage = theme.dark
     ? require('../../../assets/images/faces-dark.png')
@@ -44,15 +49,14 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isValid },
   } = useForm<FormData>({
     mode: 'onChange',
     defaultValues: {
-      nickname: DEFAULT_ONBOARDING_NICKNAME ?? '',
+      nickname: isRevivalOnboarding ? '' : DEFAULT_ONBOARDING_NICKNAME ?? '',
     },
   });
-
-  const signupContext = useSignupContext();
 
   const onSubmit = handleSubmit(({ nickname }) => {
     signupContext.setOnboardingValues({
@@ -116,10 +120,39 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
     [navigation]
   );
 
+  useEffect(() => {
+    if (!isRevivalOnboarding) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const shipId = await db.hostedUserNodeId.getValue();
+      if (!shipId) {
+        return;
+      }
+
+      const currentUser = await db.getContact({ id: `~${shipId}` });
+      const existingNickname =
+        currentUser?.peerNickname?.trim() || currentUser?.nickname?.trim();
+      if (existingNickname && !cancelled) {
+        setValue('nickname', existingNickname, { shouldValidate: true });
+      }
+    })().catch((err) => {
+      logger.trackError('Failed to prefill revival nickname', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isRevivalOnboarding, setValue]);
+
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>
       <ScreenHeader
-        title="Nickname"
+        title={isRevivalOnboarding ? 'Profile' : 'Nickname'}
         backgroundColor="$secondaryBackground"
         rightControls={
           <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
@@ -133,7 +166,9 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
         </XStack>
 
         <TlonText.Text size="$body" padding="$xl">
-          Choose the nickname you want to use on the Tlon network.
+          {isRevivalOnboarding
+            ? 'Choose the nickname you want to use when you return to Tlon.'
+            : 'Choose the nickname you want to use on the Tlon network.'}
         </TlonText.Text>
         <Controller
           control={control}
