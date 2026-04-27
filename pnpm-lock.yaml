@@ -81,9 +81,6 @@ patchedDependencies:
   react-native-reanimated@3.16.7:
     hash: bkesggs2la7eerwvxmnfblt6lu
     path: patches/react-native-reanimated@3.16.7.patch
-  react-native-reanimated@3.8.1:
-    hash: iololnqcieadxwydikuxdlowf4
-    path: patches/react-native-reanimated@3.8.1.patch
   react-native-screens@4.4.0:
     hash: jrpofuww5yjhy4i7zurpm3j7oe
     path: patches/react-native-screens@4.4.0.patch
