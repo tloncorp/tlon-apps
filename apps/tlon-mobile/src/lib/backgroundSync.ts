@@ -1,12 +1,17 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import {
+  presentContactMatchNotification,
+  presentContactsMatchedNotification,
+} from '@tloncorp/app/lib/notifications';
+import {
   SyncPriority,
   createDevLogger,
   flushErrorLogger,
   syncContactDiscovery,
   syncSince,
 } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
@@ -74,14 +79,31 @@ async function performSync() {
 
     // Run lanyard contact discovery as part of the bg cycle so new
     // matches surface even if the user hasn't opened the app recently.
+    // We disable the registered-handler path because in a bg task there's
+    // no React tree (and so no useNotificationListener-registered
+    // handler) — instead we schedule a local notification directly.
     const discoveryStart = Date.now();
-    await syncContactDiscovery().catch((err) => {
+    const discoveryResult = await syncContactDiscovery(undefined, {
+      invokeHandler: false,
+    }).catch((err) => {
       logger.trackError('Background contact discovery failed', {
         error: err instanceof Error ? err : undefined,
         taskExecutionId,
       });
+      return null;
     });
     timings.discoveryDuration = Date.now() - discoveryStart;
+
+    if (discoveryResult && discoveryResult.newMatches.length > 0) {
+      await notifyAboutNewMatches(
+        discoveryResult.newMatches.map(([, contactId]) => contactId)
+      ).catch((err) => {
+        logger.trackError('Background match notification failed', {
+          error: err instanceof Error ? err : undefined,
+          taskExecutionId,
+        });
+      });
+    }
 
     logger.trackEvent('Background sync complete', { taskExecutionId });
     didSucceed = true;
@@ -104,6 +126,33 @@ async function performSync() {
       flushErrorLogger(),
       new Promise<void>((resolve) => setTimeout(resolve, 500)),
     ]).catch(() => {});
+  }
+}
+
+// In foreground, useNotificationListener registers a handler that turns
+// a new-match event into a local notification. In a bg task there's no
+// React tree — and therefore no registered handler — so the bg path
+// schedules the notification directly with the same shape of copy.
+async function notifyAboutNewMatches(contactIds: string[]) {
+  // Don't notify on the very first install sync — the user could have
+  // a phone book full of matches and we don't want to flood. The
+  // foreground syncStart sets userHasCompletedFirstSync to true once
+  // initial sync wraps; subsequent bg runs (this code path) hit that
+  // branch and notify normally.
+  const hasCompletedFirstSync = await db.userHasCompletedFirstSync.getValue();
+  if (!hasCompletedFirstSync) return;
+
+  if (contactIds.length === 1) {
+    const [contactId] = contactIds;
+    const systemContacts =
+      await db.getSystemContactsBatchByContactId(contactIds);
+    const sc = systemContacts.find((c) => c.contactId === contactId);
+    const name =
+      [sc?.firstName, sc?.lastName].filter(Boolean).join(' ').trim() ||
+      contactId;
+    await presentContactMatchNotification({ contactId, name });
+  } else {
+    await presentContactsMatchedNotification({ count: contactIds.length });
   }
 }
 
