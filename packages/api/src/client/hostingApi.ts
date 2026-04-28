@@ -216,6 +216,234 @@ const rawHostingFetch = async (path: string, init?: RequestInit) => {
   return response;
 };
 
+// --- JSON helpers for hosting API requests ---
+
+function jsonInit(method: string, body: unknown): RequestInit {
+  return {
+    method,
+    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+  };
+}
+
+// --- Tlawn (bot) types ---
+
+export interface TlawnProviderConfigInfo {
+  keys: Record<string, string>;
+  models: TlawnModelEntry[];
+  defaultKeys: Record<string, { key: string; id?: string }>;
+}
+
+export interface TlawnModelEntry {
+  provider: string;
+  model: string;
+}
+
+export interface TlawnPrimaryModelUpdate {
+  provider: string;
+  model: string;
+  fallbacks?: TlawnModelEntry[];
+}
+
+export interface TlawnBotInfo {
+  enabled: boolean;
+  provider?: string;
+  model?: string;
+  moon?: string;
+}
+
+export interface TlawnConfig {
+  dmAllowlist: string[];
+  defaultAuthorizedShips: string[];
+  channelRules: Record<string, { mode: string; allowedShips: string[] }>;
+  groupChannels: string[];
+  groupInviteAllowlist: string[];
+  autoAcceptDmInvites: boolean;
+  autoDiscoverChannels: boolean;
+}
+
+// --- Tlawn (bot) user-level endpoints ---
+
+export async function getTlawnProviderKeys(
+  userId: string
+): Promise<TlawnProviderConfigInfo> {
+  return hostingFetch<TlawnProviderConfigInfo>(
+    `/v1/tlawn/users/${userId}/provider-keys`
+  );
+}
+
+export async function setTlawnProviderKey(
+  userId: string,
+  provider: string,
+  key: string
+): Promise<TlawnProviderConfigInfo> {
+  return hostingFetch<TlawnProviderConfigInfo>(
+    `/v1/tlawn/users/${userId}/provider-keys/${provider}`,
+    jsonInit('PUT', { key })
+  );
+}
+
+export async function deleteTlawnProviderKey(
+  userId: string,
+  provider: string
+): Promise<TlawnProviderConfigInfo> {
+  return hostingFetch<TlawnProviderConfigInfo>(
+    `/v1/tlawn/users/${userId}/provider-keys/${provider}`,
+    { method: 'DELETE' }
+  );
+}
+
+export async function setTlawnPrimaryModel(
+  userId: string,
+  update: TlawnPrimaryModelUpdate
+): Promise<TlawnProviderConfigInfo> {
+  return hostingFetch<TlawnProviderConfigInfo>(
+    `/v1/tlawn/users/${userId}/primary-model`,
+    jsonInit('PUT', update)
+  );
+}
+
+export interface TlawnProviderModel {
+  id: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Validate an API key and list available models for a provider.
+ * Returns the raw provider response (e.g. { data: [{ id: "model-id", ... }] }).
+ * Throws on invalid key (401/403) or missing key.
+ */
+export async function getTlawnProviderModels(
+  userId: string,
+  provider: string
+): Promise<{ data: TlawnProviderModel[] }> {
+  return hostingFetch<{ data: TlawnProviderModel[] }>(
+    `/v1/tlawn/users/${userId}/provider-models?provider=${encodeURIComponent(provider)}`
+  );
+}
+
+// --- Tlawn (bot) ship-level endpoints ---
+
+export async function getTlawnBotInfo(ship: string): Promise<TlawnBotInfo> {
+  return hostingFetch<TlawnBotInfo>(`/v1/tlawn/ships/${ship}`);
+}
+
+// These endpoints return `string | null` (not an object) so they can't go
+// through `hostingFetch<T extends object>`. We hit `rawHostingFetch` directly
+// and do the ok/parse bookkeeping here — crucially, throwing a HostingError
+// on 4xx/5xx so callers can surface the failure instead of treating a rejected
+// write as a successful null response.
+async function fetchNullableString(
+  path: string,
+  init?: RequestInit
+): Promise<string | null> {
+  const response = await rawHostingFetch(path, init);
+  const text = await response.text();
+  let parsed: unknown = null;
+  try {
+    parsed = text.length === 0 ? null : JSON.parse(text);
+  } catch {
+    parsed = null;
+  }
+
+  if (!response.ok) {
+    const message =
+      parsed && typeof parsed === 'object' && 'message' in parsed
+        ? String((parsed as { message: unknown }).message)
+        : 'An unknown error has occurred.';
+    const err = new HostingError(message, {
+      method: init?.method ?? 'GET',
+      path,
+      status: response.status,
+    });
+    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
+      details: err.details,
+      errorMessage: err.message,
+      errorStack: err.stack,
+    });
+    throw err;
+  }
+
+  return typeof parsed === 'string' ? parsed : null;
+}
+
+export async function getTlawnNickname(ship: string): Promise<string | null> {
+  return fetchNullableString(`/v1/tlawn/ships/${ship}/nickname`);
+}
+
+export async function setTlawnNickname(
+  ship: string,
+  nickname: string
+): Promise<string | null> {
+  return fetchNullableString(
+    `/v1/tlawn/ships/${ship}/nickname`,
+    jsonInit('PUT', { nickname })
+  );
+}
+
+export async function getTlawnAvatar(ship: string): Promise<string | null> {
+  return fetchNullableString(`/v1/tlawn/ships/${ship}/avatar`);
+}
+
+export async function setTlawnAvatar(
+  ship: string,
+  url: string
+): Promise<string | null> {
+  return fetchNullableString(
+    `/v1/tlawn/ships/${ship}/avatar`,
+    jsonInit('PUT', { url })
+  );
+}
+
+export async function getTlawnConfig(ship: string): Promise<TlawnConfig> {
+  return hostingFetch<TlawnConfig>(`/v1/tlawn/ships/${ship}/config`);
+}
+
+export async function setTlawnConfig(
+  ship: string,
+  config: Partial<TlawnConfig>
+): Promise<TlawnConfig> {
+  return hostingFetch<TlawnConfig>(
+    `/v1/tlawn/ships/${ship}/config`,
+    jsonInit('PUT', config)
+  );
+}
+
+export async function reloadBot(ship: string): Promise<void> {
+  await rawHostingFetch(`/v1/tlawn/ships/${ship}/reload`, {
+    method: 'POST',
+  });
+}
+
+export async function isBotRunning(ship: string): Promise<boolean> {
+  const result = await hostingFetch<{ running: boolean }>(
+    `/v1/tlawn/ships/${ship}/running`
+  );
+  return result.running;
+}
+
+// Poll `isBotRunning` until the bot reports as running or the timeout elapses.
+// Transient errors (the gateway going down during restart) are swallowed so
+// we keep polling. Returns true if running, false on timeout.
+export async function awaitBotRunning(
+  ship: string,
+  {
+    timeoutMs = 30_000,
+    pollIntervalMs = 1500,
+  }: { timeoutMs?: number; pollIntervalMs?: number } = {}
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      if (await isBotRunning(ship)) return true;
+    } catch {
+      // transient — gateway likely restarting
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+  return false;
+}
+
 export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await sessionStore.userId.getValue();
@@ -532,12 +760,13 @@ export const assignShipToUser = async (userId: string) => {
   const isReady = response.ship.status.phase === 'Ready';
   const code = response.code;
   const personalInviteToken = response.personalLureToken || null;
+  const homeGroupInviteToken = response.homeGroupLureToken || null;
 
   if (!nodeId) {
     throw new Error('Invalid ship assignment response');
   }
 
-  return { nodeId, isReady, code, personalInviteToken };
+  return { nodeId, isReady, code, personalInviteToken, homeGroupInviteToken };
 };
 
 export const getReservableShips = async (user: string) =>

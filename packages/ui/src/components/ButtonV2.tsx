@@ -287,6 +287,15 @@ const ButtonFrame = styled(Pressable, {
         elevation: 4,
       },
     },
+    glow: {
+      true: {
+        shadowColor: '$positiveActionText',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.7,
+        shadowRadius: 10,
+        elevation: 4,
+      },
+    },
   } as const,
 
   defaultVariants: {
@@ -364,6 +373,7 @@ type ButtonBaseProps = Omit<
   disabled?: boolean;
   dimmed?: boolean;
   shadow?: boolean;
+  glow?: boolean;
   // Additional props
   centered?: boolean;
   /** Disable haptic feedback on press. */
@@ -408,6 +418,7 @@ const ButtonImpl = React.forwardRef<
     preset,
     centered: centeredProp,
     shadow = false,
+    glow = false,
     disableHaptic,
     onPress,
     ...props
@@ -474,6 +485,7 @@ const ButtonImpl = React.forwardRef<
         disabled={disabled}
         dimmed={disabled && fill !== 'solid'}
         shadow={shadow}
+        glow={glow}
         {...props}
         onPress={handlePress}
       >

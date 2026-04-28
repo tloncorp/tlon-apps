@@ -5,6 +5,11 @@ export const PersonalGroupSlugs = {
   notebookSlug: 'tm-wayfinding-group-notebook',
 };
 
+export const BotHomeGroupSlugs = {
+  slug: 'home-group',
+  chatSlug: 'home-group-chat',
+};
+
 export const PersonalGroupNames = {
   groupTitle: 'Your Group',
   chatTitle: 'Chat',
@@ -17,6 +22,7 @@ export interface WayfindingProgress {
   viewedChatChannel: boolean;
   viewedCollectionChannel: boolean;
   viewedNotebookChannel: boolean;
+  tappedHomeAdd: boolean;
   tappedAddNote: boolean;
   tappedAddCollection: boolean;
   tappedChatInput: boolean;

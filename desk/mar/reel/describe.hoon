@@ -5,7 +5,7 @@
 ++  grab
   |%
   ++  noun  ,[token:reel metadata:v1:reel]
-  ++  json  (ot:dejs:format ~[token+so:dejs:format metadata+dejs-metadata])
+  ++  json  (ot:dejs:format ~[token+so:dejs:format metadata+metadata:dejs])
   --
 ++  grow
   |%
