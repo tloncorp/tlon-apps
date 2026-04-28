@@ -176,3 +176,71 @@ test('addChannelToNavSection is idempotent on replay and does not shift target-s
   const after = await snapshotIndexes();
   expect(after).toEqual(before);
 });
+
+// The handler dedups other-section memberships before inserting into the
+// target section. Both writes must share a transaction: if the insert
+// fails (e.g. the target nav section row hasn't been applied locally yet
+// and FK enforcement rejects the insert), the dedup delete must roll back
+// so the channel isn't left orphaned in no section.
+test('addChannelToNavSection rolls back the dedup delete if the insert fails', async () => {
+  const groupId = '~bus/test-group';
+  const channelId = 'chat/~bus/example';
+  const sectionADbId = `${groupId}-default`;
+  const missingSectionDbId = `${groupId}-not-yet-synced`;
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  // Enable FK enforcement so the insert against a nonexistent target
+  // nav-section row triggers a real FK violation. The migration setup
+  // doesn't enable foreign_keys by default; enabling here keeps the
+  // toggle scoped to this test.
+  client.run($.sql`PRAGMA foreign_keys = ON`);
+
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  });
+  // Only section A exists locally — the event will name a section that
+  // hasn't been applied yet.
+  await client
+    .insert(schema.groupNavSections)
+    .values([{ id: sectionADbId, sectionId: 'default', groupId }]);
+  await client.insert(schema.channels).values({
+    id: channelId,
+    type: 'chat',
+    groupId,
+  });
+  await client.insert(schema.groupNavSectionChannels).values([
+    {
+      groupNavSectionId: sectionADbId,
+      channelId,
+      channelIndex: 0,
+    },
+  ]);
+
+  await expect(
+    batchEffects('test:rollback-fk', async (ctx) => {
+      await handleGroupUpdate(
+        {
+          type: 'addChannelToNavSection',
+          channelId,
+          groupId,
+          navSectionId: missingSectionDbId,
+          sectionId: 'not-yet-synced',
+        },
+        ctx
+      );
+    })
+  ).rejects.toThrow();
+
+  // The dedup delete was rolled back — the channel still belongs to
+  // section A locally instead of being orphaned in no section.
+  const rows = await client.query.groupNavSectionChannels.findMany({
+    where: $.eq(schema.groupNavSectionChannels.channelId, channelId),
+  });
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.groupNavSectionId).toBe(sectionADbId);
+});

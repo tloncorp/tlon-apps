@@ -7,7 +7,7 @@ import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
 import * as db from '../../db';
-import { QueryCtx, batchEffects } from '../../db/query';
+import { QueryCtx, batchEffects, withTransactionCtx } from '../../db/query';
 import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
@@ -1103,25 +1103,32 @@ export async function handleGroupUpdate(
       // up with the same channelId in multiple sections (the schema
       // tolerates this; the product invariant doesn't).
       //
+      // The remove+add is wrapped in a single transaction so an FK
+      // failure on the insert (e.g. the target nav section row doesn't
+      // exist locally yet) rolls back the dedup delete instead of
+      // leaving the channel orphaned in no section.
+      //
       // Note: the event carries both `sectionId` (bare backend zone id) and
       // `navSectionId` (`${groupId}-${sectionId}`, which is the local PK
       // and the FK target on `group_nav_section_channels`). All DB writes
       // here use `navSectionId`.
-      await db.removeChannelFromOtherNavSections(
-        {
-          channelId: update.channelId,
-          keepInSectionId: update.navSectionId,
-        },
-        ctx
-      );
-      await db.addChannelToNavSection(
-        {
-          channelId: update.channelId,
-          groupNavSectionId: update.navSectionId,
-          index: 0,
-        },
-        ctx
-      );
+      await withTransactionCtx(ctx, async (txCtx) => {
+        await db.removeChannelFromOtherNavSections(
+          {
+            channelId: update.channelId,
+            keepInSectionId: update.navSectionId,
+          },
+          txCtx
+        );
+        await db.addChannelToNavSection(
+          {
+            channelId: update.channelId,
+            groupNavSectionId: update.navSectionId,
+            index: 0,
+          },
+          txCtx
+        );
+      });
       break;
     case 'setUnjoinedGroups':
       await db.insertUnjoinedGroups(update.groups, ctx);
