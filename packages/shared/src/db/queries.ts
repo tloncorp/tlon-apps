@@ -1146,6 +1146,21 @@ export const insertGroups = createWriteQuery(
               ),
             });
 
+          // Authoritative reconciliation: a full group payload represents
+          // the backend's complete view of nav-section memberships for this
+          // group, so the local join rows for these sections must match
+          // exactly. Delete any existing rows for this group's nav sections
+          // before inserting the incoming ones — without this, an additive
+          // `onConflictDoNothing` insert would leave stale duplicate
+          // memberships in place if the backend has since moved a channel
+          // between sections.
+          const navSectionIds = group.navSections.map((s) => s.id);
+          await txCtx.db
+            .delete($groupNavSectionChannels)
+            .where(
+              inArray($groupNavSectionChannels.groupNavSectionId, navSectionIds)
+            );
+
           const navSectionChannels = group.navSections.flatMap(
             (s) => s.channels
           );

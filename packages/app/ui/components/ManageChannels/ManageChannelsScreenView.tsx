@@ -5,6 +5,7 @@ import { Icon } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import Sortable, { SortableGridRenderItem } from 'react-native-sortables';
 
+import { useDuplicateMembershipRepair } from '../../../hooks/useDuplicateMembershipRepair';
 import {
   SortableListItem,
   useChannelOrdering,
@@ -41,6 +42,7 @@ export function ManageChannelsScreenView({
       createdRoleId={createdRoleId}
     >
       <ManageChannelsContent
+        groupId={group?.id}
         groupNavSectionsWithChannels={groupNavSectionsWithChannels}
         goToChannelDetails={goToChannelDetails}
         updateGroupNavigation={updateGroupNavigation}
@@ -50,20 +52,24 @@ export function ManageChannelsScreenView({
 }
 
 function ManageChannelsContent({
+  groupId,
   groupNavSectionsWithChannels,
   goToChannelDetails,
   updateGroupNavigation,
 }: {
+  groupId: string | undefined;
   groupNavSectionsWithChannels: ManageChannelsScreenViewProps['groupNavSectionsWithChannels'];
   goToChannelDetails: (channelId: string) => void;
   updateGroupNavigation: ManageChannelsScreenViewProps['updateGroupNavigation'];
 }) {
   const { setSectionMenuSection, isEditMode } = useManageChannelsContext();
   const scrollableRef = useManageChannelsScrollRef();
+  const onDuplicatesDetected = useDuplicateMembershipRepair(groupId);
 
   const { sortableNavItems, handleActiveItemDropped } = useChannelOrdering({
     groupNavSectionsWithChannels,
     updateGroupNavigation,
+    onDuplicatesDetected,
   });
 
   const renderItem: SortableGridRenderItem<SortableListItem> = useCallback(

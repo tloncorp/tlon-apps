@@ -8,7 +8,6 @@ import { handleGroupUpdate } from './sync';
 
 setupDatabaseTestSuite();
 
-// Regression test for TLON-5656 follow-up:
 // `addChannelToNavSection` events carry both a bare backend zone id
 // (`sectionId`) and a prefixed local DB id (`navSectionId =
 // `${groupId}-${sectionId}``). The handler must use `navSectionId` for
@@ -84,7 +83,6 @@ test('addChannelToNavSection writes the prefixed nav-section-id and removes exis
   expect(rowsWithBareZoneId).toHaveLength(0);
 });
 
-// Idempotency regression for TLON-5656 second follow-up:
 // When the channel named by an `addChannelToNavSection` event is already
 // persisted in `update.navSectionId`, processing the event must be a no-op
 // — including not perturbing the `channelIndex` of any other channels in

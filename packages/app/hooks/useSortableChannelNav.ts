@@ -1,9 +1,18 @@
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { GroupNavSectionWithChannels } from '../ui/components/ManageChannels/ManageChannelsShared';
+import {
+  findDuplicateChannelIds,
+  shouldFireDuplicatesCallback,
+} from './useSortableChannelNav.helpers';
+
+export {
+  findDuplicateChannelIds,
+  shouldFireDuplicatesCallback,
+} from './useSortableChannelNav.helpers';
 
 const logger = createDevLogger('useChannelOrdering', false);
 
@@ -56,11 +65,21 @@ interface UseChannelOrderingProps {
       channels: Array<{ channelId: string; channelIndex: number }>;
     }>
   ) => Promise<void>;
+  /**
+   * Optional callback invoked when the hook detects that the input data
+   * contains duplicate `channelId`s across nav sections. Called at most
+   * once per distinct duplicate set so consumers can kick off a forced
+   * group sync (which makes the local DB authoritative against the
+   * backend) without entering a tight retry loop while the duplicate set
+   * is unchanged. Cleared and re-armed once duplicates resolve.
+   */
+  onDuplicatesDetected?: (duplicateChannelIds: string[]) => void;
 }
 
 export function useChannelOrdering({
   groupNavSectionsWithChannels,
   updateGroupNavigation,
+  onDuplicatesDetected,
 }: UseChannelOrderingProps) {
   const sections = useMemo(() => {
     return groupNavSectionsWithChannels.map((s) => ({
@@ -77,6 +96,30 @@ export function useChannelOrdering({
 
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
+
+  const duplicateChannelIds = useMemo(
+    () => findDuplicateChannelIds(sections),
+    [sections]
+  );
+
+  // Fire the repair callback at most once per distinct set of duplicate
+  // ids. See `shouldFireDuplicatesCallback` for the dedup logic; the ref
+  // tracks the last fingerprint we acted on, and is cleared when the
+  // duplicate set goes empty so a future regression re-arms the trigger.
+  const lastReportedDuplicateFingerprint = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onDuplicatesDetected) {
+      return;
+    }
+    const { fingerprint, shouldFire } = shouldFireDuplicatesCallback(
+      duplicateChannelIds,
+      lastReportedDuplicateFingerprint.current
+    );
+    lastReportedDuplicateFingerprint.current = fingerprint;
+    if (shouldFire) {
+      onDuplicatesDetected(duplicateChannelIds);
+    }
+  }, [duplicateChannelIds, onDuplicatesDetected]);
 
   const sortableNavItems = useMemo<SortableListItem[]>(() => {
     const items: SortableListItem[] = [];
@@ -106,11 +149,15 @@ export function useChannelOrdering({
       });
     });
 
-    // Persisted nav data can list the same channelId in multiple sections
-    // (separate data-layer bug). On iOS, react-native-sortables gates drag
-    // activation on every item firing onLayout, but React only mounts one
-    // component per duplicate key — so duplicates would permanently block
-    // activation. Keep the first occurrence and drop later ones.
+    // Persisted nav data can list the same channelId in multiple
+    // sections. On iOS, react-native-sortables gates drag activation on
+    // every item firing onLayout, but React only mounts one component
+    // per duplicate key — so duplicates would permanently block
+    // activation. Keep the first occurrence and drop later ones so the
+    // sortable still functions; the duplicate-membership condition
+    // itself is reported via `duplicateChannelIds` and gates
+    // `handleActiveItemDropped` from persisting an arbitrary
+    // first-occurrence-wins ordering.
     const seen = new Set<string>();
     return items.filter((item) => {
       if (seen.has(item.id)) {
@@ -129,6 +176,22 @@ export function useChannelOrdering({
       indexToKey: string[];
     }) => {
       const { indexToKey } = params;
+
+      // Refuse to persist a reorder while the local nav data is corrupt.
+      // The deduped sortable keyset is fine for activating drag in the
+      // UI, but using it to rebuild the persisted structure would
+      // silently normalize duplicated channels onto whichever section
+      // happened to come first in iteration order — which is not
+      // authoritative. The user sees the drag interaction succeed but
+      // the save is suppressed until the local membership data is
+      // reconciled against the backend.
+      if (duplicateChannelIds.length > 0) {
+        logger.warn(
+          'skipping reorder save: duplicate channel memberships detected',
+          { duplicateChannelIds }
+        );
+        return;
+      }
 
       const reorderedItems = indexToKey
         .map((key) => sortableNavItems.find((item) => item.id === key))
@@ -155,12 +218,13 @@ export function useChannelOrdering({
         logger.error('Failed to update group navigation:', e);
       }
     },
-    [sortableNavItems, sections, updateGroupNavigation]
+    [sortableNavItems, sections, updateGroupNavigation, duplicateChannelIds]
   );
 
   return {
     sortableNavItems,
     handleActiveItemDropped,
+    duplicateChannelIds,
   };
 }
 

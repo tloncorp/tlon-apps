@@ -786,8 +786,6 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
   }
 }
 
-// Exported for tests; internally only consumed by the subscription handler
-// installed in `start()`.
 export async function handleGroupUpdate(
   update: api.GroupUpdate,
   ctx: QueryCtx
