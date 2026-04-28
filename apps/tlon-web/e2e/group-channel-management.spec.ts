@@ -48,36 +48,38 @@ test('should handle channel management operations', async ({ zodPage }) => {
     timeout: 5000,
   });
 
-  // Verify channel count is now 2 by checking for both channels
-  await expect(page.getByTestId('ChannelItem-General-0')).toBeVisible({
+  // Verify channel count is now 2 by checking for both channels.
+  // The backend prepends newly-created channels to a section's `zone.order`,
+  // so the new channel lands at index 0 and General is shifted to index 1.
+  await expect(
+    page.getByTestId('ChannelItem-Second chat channel-0')
+  ).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('ChannelItem-General-1')).toBeVisible({
     timeout: 10000,
   });
-  await expect(
-    page.getByTestId('ChannelItem-Second chat channel-1')
-  ).toBeVisible({ timeout: 10000 });
 
   // Enter sort/edit mode
   await page.getByText('Sort', { exact: true }).click();
   await page.waitForTimeout(500);
 
-  // Drag "General" (at position 0) below "Second chat channel" (at position 1)
+  // Drag "Second chat channel" (at position 0) below "General" (at position 1)
   // Use manual mouse operations on the drag handle for @dnd-kit compatibility
-  const generalDragHandle = page.getByTestId('ChannelDragHandle-General-0');
   const secondDragHandle = page.getByTestId(
-    'ChannelDragHandle-Second chat channel-1'
+    'ChannelDragHandle-Second chat channel-0'
   );
+  const generalDragHandle = page.getByTestId('ChannelDragHandle-General-1');
 
-  const generalHandleBox = await generalDragHandle.boundingBox();
   const secondHandleBox = await secondDragHandle.boundingBox();
+  const generalHandleBox = await generalDragHandle.boundingBox();
 
-  if (generalHandleBox && secondHandleBox) {
-    // Start drag from center of General's drag handle
-    const startX = generalHandleBox.x + generalHandleBox.width / 2;
-    const startY = generalHandleBox.y + generalHandleBox.height / 2;
+  if (secondHandleBox && generalHandleBox) {
+    // Start drag from center of Second chat channel's drag handle
+    const startX = secondHandleBox.x + secondHandleBox.width / 2;
+    const startY = secondHandleBox.y + secondHandleBox.height / 2;
 
-    // End drag below Second chat channel's drag handle
-    const endX = secondHandleBox.x + secondHandleBox.width / 2;
-    const endY = secondHandleBox.y + secondHandleBox.height + 20;
+    // End drag below General's drag handle
+    const endX = generalHandleBox.x + generalHandleBox.width / 2;
+    const endY = generalHandleBox.y + generalHandleBox.height + 20;
 
     await page.mouse.move(startX, startY);
     await page.mouse.down();
@@ -90,30 +92,30 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await page.waitForTimeout(1000);
 
   // Wait for the reorder to take effect
-  await expect(
-    page.getByTestId('ChannelItem-Second chat channel-0')
-  ).toBeVisible({ timeout: 10000 });
-  await expect(page.getByTestId('ChannelItem-General-1')).toBeVisible({
+  await expect(page.getByTestId('ChannelItem-General-0')).toBeVisible({
     timeout: 10000,
   });
+  await expect(
+    page.getByTestId('ChannelItem-Second chat channel-1')
+  ).toBeVisible({ timeout: 10000 });
 
-  // Drag back to original order - drag Second chat channel down below General
+  // Drag back to original order - drag General down below Second chat channel
+  const generalDragHandleNew = page.getByTestId('ChannelDragHandle-General-0');
   const secondDragHandleNew = page.getByTestId(
-    'ChannelDragHandle-Second chat channel-0'
+    'ChannelDragHandle-Second chat channel-1'
   );
-  const generalDragHandleNew = page.getByTestId('ChannelDragHandle-General-1');
 
-  const secondNewBox = await secondDragHandleNew.boundingBox();
   const generalNewBox = await generalDragHandleNew.boundingBox();
+  const secondNewBox = await secondDragHandleNew.boundingBox();
 
-  if (secondNewBox && generalNewBox) {
-    // Start drag from center of Second chat channel's drag handle (now at position 0)
-    const startX = secondNewBox.x + secondNewBox.width / 2;
-    const startY = secondNewBox.y + secondNewBox.height / 2;
+  if (generalNewBox && secondNewBox) {
+    // Start drag from center of General's drag handle (now at position 0)
+    const startX = generalNewBox.x + generalNewBox.width / 2;
+    const startY = generalNewBox.y + generalNewBox.height / 2;
 
-    // End drag below General's drag handle (now at position 1)
-    const endX = generalNewBox.x + generalNewBox.width / 2;
-    const endY = generalNewBox.y + generalNewBox.height + 20;
+    // End drag below Second chat channel's drag handle (now at position 1)
+    const endX = secondNewBox.x + secondNewBox.width / 2;
+    const endY = secondNewBox.y + secondNewBox.height + 20;
 
     await page.mouse.move(startX, startY);
     await page.mouse.down();
@@ -126,12 +128,12 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await page.waitForTimeout(1000);
 
   // Verify back to original order
-  await expect(page.getByTestId('ChannelItem-General-0')).toBeVisible({
+  await expect(
+    page.getByTestId('ChannelItem-Second chat channel-0')
+  ).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('ChannelItem-General-1')).toBeVisible({
     timeout: 10000,
   });
-  await expect(
-    page.getByTestId('ChannelItem-Second chat channel-1')
-  ).toBeVisible({ timeout: 10000 });
 
   // Exit sort/edit mode
   await page.getByText('Done', { exact: true }).click();
@@ -148,7 +150,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
   // Wait for save to complete and verify the renamed channel appears
   await page.waitForTimeout(1000);
   await expect(
-    page.getByTestId('ChannelItem-Testing channel renaming-1')
+    page.getByTestId('ChannelItem-Testing channel renaming-0')
   ).toBeVisible({ timeout: 10000 });
 
   // Create channel section
@@ -292,20 +294,20 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await page.waitForTimeout(2000);
   await page.getByTestId('GroupChannels').click();
 
-  // After renaming, the channel should preserve its position at index 1
-  // Verify the channel is still at position 1 before deleting
+  // After renaming, the channel should preserve its position at index 0
+  // Verify the channel is still at position 0 before deleting
   await expect(
-    page.getByTestId('ChannelItem-Testing channel renaming-1')
+    page.getByTestId('ChannelItem-Testing channel renaming-0')
   ).toBeVisible({ timeout: 5000 });
 
-  await helpers.deleteChannel(page, 'Testing channel renaming', 1);
+  await helpers.deleteChannel(page, 'Testing channel renaming', 0);
 
   // Verify we're still on the Channels screen and the channel was deleted
   await expect(
     page.getByTestId('ScreenHeaderTitle').getByText('Channels')
   ).toBeVisible({ timeout: 5000 });
   await expect(
-    page.getByTestId('ChannelItem-Testing channel renaming-1')
+    page.getByTestId('ChannelItem-Testing channel renaming-0')
   ).not.toBeVisible();
 
   // Navigate back to verify the channel was deleted
