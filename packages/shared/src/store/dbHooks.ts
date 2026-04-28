@@ -680,14 +680,11 @@ export const useShowChatInputWayfinding = (channelId: string) => {
 
 export const useShowBotMentionWayfinding = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isCorrectChan = useMemo(() => {
     return logic.isBotHomeGroupChatChannel(channelId);
   }, [channelId]);
 
-  return (
-    isCorrectChan && !!hostingBotEnabled && !wayfindingProgress.tappedBotMention
-  );
+  return isCorrectChan && !wayfindingProgress.tappedBotMention;
 };
 
 export const useShowHomeAddTooltip = () => {
