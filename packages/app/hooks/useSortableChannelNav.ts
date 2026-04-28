@@ -106,7 +106,20 @@ export function useChannelOrdering({
       });
     });
 
-    return items;
+    // Persisted nav data can list the same channelId in multiple sections
+    // (separate data-layer bug). On iOS, react-native-sortables gates drag
+    // activation on every item firing onLayout, but React only mounts one
+    // component per duplicate key — so duplicates would permanently block
+    // activation. Keep the first occurrence and drop later ones.
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.id)) {
+        logger.warn(`dropping duplicate sortable item id: ${item.id}`);
+        return false;
+      }
+      seen.add(item.id);
+      return true;
+    });
   }, [sections]);
 
   const handleActiveItemDropped = useCallback(

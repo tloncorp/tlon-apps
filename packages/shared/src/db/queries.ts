@@ -2434,6 +2434,20 @@ export const addChannelToNavSection = createWriteQuery(
   ) => {
     logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
     return withTransactionCtx(ctx, async (txCtx) => {
+      // Idempotency: if the exact membership already exists, return early.
+      // Otherwise the index-shift below would mutate ordering metadata on
+      // every replay even though the subsequent insert would no-op via
+      // onConflictDoNothing.
+      const existing = await txCtx.db.query.groupNavSectionChannels.findFirst({
+        where: and(
+          eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId),
+          eq($groupNavSectionChannels.channelId, channelId)
+        ),
+      });
+      if (existing) {
+        return;
+      }
+
       await txCtx.db
         .update($groupNavSectionChannels)
         .set({
@@ -2478,6 +2492,35 @@ export const deleteChannelFromNavSection = createWriteQuery(
         and(
           eq($groupNavSectionChannels.channelId, channelId),
           eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId)
+        )
+      );
+  },
+  ['groupNavSectionChannels']
+);
+
+// A channel is intended to live in exactly one nav section, but the schema
+// composite-PKs on (groupNavSectionId, channelId), so the DB will tolerate
+// duplicate memberships if writers don't clean up first. Use this when an
+// incoming event names the new section authoritatively, to remove the
+// channel from any other section it might still be persisted in.
+export const removeChannelFromOtherNavSections = createWriteQuery(
+  'removeChannelFromOtherNavSections',
+  async (
+    {
+      channelId,
+      keepInSectionId,
+    }: {
+      channelId: string;
+      keepInSectionId: string;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($groupNavSectionChannels)
+      .where(
+        and(
+          eq($groupNavSectionChannels.channelId, channelId),
+          ne($groupNavSectionChannels.groupNavSectionId, keepInSectionId)
         )
       );
   },

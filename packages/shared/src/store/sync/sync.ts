@@ -786,7 +786,12 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
   }
 }
 
-async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
+// Exported for tests; internally only consumed by the subscription handler
+// installed in `start()`.
+export async function handleGroupUpdate(
+  update: api.GroupUpdate,
+  ctx: QueryCtx
+) {
   logger.log('received group update', update.type);
   updateLastActivityTime();
 
@@ -1094,11 +1099,31 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'addChannelToNavSection':
       logger.log('adding channel to nav section', update);
 
-      await db.addChannelToNavSection({
-        channelId: update.channelId,
-        groupNavSectionId: update.sectionId,
-        index: 0,
-      });
+      // Treat the event as authoritative: the channel's nav section is now
+      // `update.navSectionId`. Remove it from any other nav section it may
+      // be persisted in locally before adding, so the local DB doesn't end
+      // up with the same channelId in multiple sections (the schema
+      // tolerates this; the product invariant doesn't).
+      //
+      // Note: the event carries both `sectionId` (bare backend zone id) and
+      // `navSectionId` (`${groupId}-${sectionId}`, which is the local PK
+      // and the FK target on `group_nav_section_channels`). All DB writes
+      // here use `navSectionId`.
+      await db.removeChannelFromOtherNavSections(
+        {
+          channelId: update.channelId,
+          keepInSectionId: update.navSectionId,
+        },
+        ctx
+      );
+      await db.addChannelToNavSection(
+        {
+          channelId: update.channelId,
+          groupNavSectionId: update.navSectionId,
+          index: 0,
+        },
+        ctx
+      );
       break;
     case 'setUnjoinedGroups':
       await db.insertUnjoinedGroups(update.groups, ctx);

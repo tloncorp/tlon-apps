@@ -9,6 +9,7 @@ import {
   SortableListItem,
   useChannelOrdering,
 } from '../../../hooks/useSortableChannelNav';
+import { useManageChannelsScrollRef } from './ManageChannelsScrollContainer';
 import {
   ChannelItem,
   ManageChannelsProvider,
@@ -58,6 +59,7 @@ function ManageChannelsContent({
   updateGroupNavigation: ManageChannelsScreenViewProps['updateGroupNavigation'];
 }) {
   const { setSectionMenuSection, isEditMode } = useManageChannelsContext();
+  const scrollableRef = useManageChannelsScrollRef();
 
   const { sortableNavItems, handleActiveItemDropped } = useChannelOrdering({
     groupNavSectionsWithChannels,
@@ -120,6 +122,7 @@ function ManageChannelsContent({
       sortEnabled={isEditMode}
       dragActivationDelay={0}
       onActiveItemDropped={handleActiveItemDropped}
+      scrollableRef={scrollableRef}
     />
   );
 }
