@@ -2,7 +2,6 @@ import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
-import { hashMatchSet } from '@tloncorp/api/lib/lanyardHash';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
@@ -27,7 +26,6 @@ import {
   discoverContacts,
   invokeContactsMatchedHandler,
 } from '../lanyardActions';
-import { setLanyardMatchState } from '../lanyardSharedStorage';
 import { useLureState } from '../lure';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
@@ -557,11 +555,6 @@ export const syncContactDiscovery = async (
       )
     ).filter((match) => match[1] !== currentUserId);
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
-
-    // Mirror the digest of the latest match set into App Group shared
-    // storage so the iOS silent-push handler can compare incoming
-    // server-driven match events against this state.
-    setLanyardMatchState(hashMatchSet(matches), matches.length);
 
     const contactIds = matches.map((m) => m[1]);
     const existingContacts = await db.getContactsBatch({ contactIds });
