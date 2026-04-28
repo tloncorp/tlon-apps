@@ -1,113 +1,10 @@
-import { type Page, expect } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 import * as helpers from './helpers';
 import { test } from './test-fixtures';
 
 // Increase timeout for these comprehensive tests
 test.setTimeout(90000);
-
-async function expectMentionSelected(
-  page: Page,
-  expectedText: RegExp,
-  selectedMentionTestId: string
-) {
-  const messageInput = page.getByTestId('MessageInput');
-  await expect
-    .poll(async () => (await messageInput.inputValue()).trim())
-    .toMatch(expectedText);
-  await expect(page.getByTestId(selectedMentionTestId)).toBeVisible();
-}
-
-async function expectMessageInputReady(page: Page) {
-  const messageInput = page.getByTestId('MessageInput');
-  const selectedMentions = page.locator('[data-testid^="SelectedMention-"]');
-  let readySince = 0;
-
-  await expect
-    .poll(
-      async () => {
-        const [value, selectedMentionCount] = await Promise.all([
-          messageInput.inputValue(),
-          selectedMentions.count(),
-        ]);
-
-        if (value.trim() !== '' || selectedMentionCount > 0) {
-          readySince = 0;
-          return 'busy';
-        }
-
-        readySince ||= Date.now();
-        return Date.now() - readySince >= 250 ? 'ready' : 'settling';
-      },
-      { timeout: 10000, intervals: [50, 100, 100, 250] }
-    )
-    .toBe('ready');
-}
-
-function waitForChannelPost(page: Page) {
-  return page.waitForResponse(
-    (response) => {
-      const request = response.request();
-      const postData = request.postData();
-
-      return (
-        request.method() === 'PUT' &&
-        response.status() === 204 &&
-        response.url().includes('/~/channel/') &&
-        (!postData ||
-          (postData.includes('"post"') && postData.includes('"add"')))
-      );
-    },
-    { timeout: 10000 }
-  );
-}
-
-function getPostAddFromChannelAction(postData: string | null) {
-  expect(postData).toBeTruthy();
-
-  const events = JSON.parse(postData ?? '[]') as {
-    json?: {
-      channel?: {
-        action?: {
-          post?: {
-            add?: {
-              content?: unknown;
-            };
-          };
-        };
-      };
-    };
-  }[];
-  const postAdd = events.find((event) => event.json?.channel?.action?.post?.add)
-    ?.json?.channel?.action?.post?.add;
-
-  expect(postAdd).toBeTruthy();
-  return postAdd;
-}
-
-async function sendCurrentMessage(
-  page: Page,
-  expectedText: string | RegExp,
-  expectedInline: string,
-  postMentionTestId: string
-) {
-  const postResponse = waitForChannelPost(page);
-  await page.getByTestId('MessageInputSendButton').click({ force: true });
-  const response = await postResponse;
-  const postAdd = getPostAddFromChannelAction(response.request().postData());
-  expect(JSON.stringify(postAdd?.content)).toContain(expectedInline);
-
-  const post = page
-    .getByTestId('Post')
-    .filter({
-      has: page.getByTestId(postMentionTestId),
-      hasText: expectedText,
-    })
-    .first();
-  await expect(post).toBeVisible({ timeout: 10000 });
-  await expect(post.getByTestId(postMentionTestId)).toBeVisible();
-  await expectMessageInputReady(page);
-}
 
 test('should test comprehensive chat functionality', async ({
   zodSetup,
@@ -197,56 +94,37 @@ test('should test comprehensive chat functionality', async ({
   await helpers.editMessage(zodPage, 'Edit this message', 'Edited message');
 
   // Mention a user in a message
-  await expectMessageInputReady(zodPage);
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @ten');
-  await expect(zodPage.getByTestId('~ten-contact')).toBeVisible();
-  await zodPage.getByTestId('~ten-contact').click();
-  await expectMentionSelected(
-    zodPage,
-    /^mentioning [@~]ten$/,
-    'SelectedMention-~ten'
-  );
-  await sendCurrentMessage(
-    zodPage,
-    /mentioning\s+~ten/i,
-    '{"ship":"~ten"}',
-    'PostMention-~ten'
-  );
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @ten',
+    suggestionTestId: '~ten-contact',
+    selectedMentionTestId: 'SelectedMention-~ten',
+    expectedInputText: /^mentioning [@~]ten$/,
+    expectedPostText: /mentioning\s+~ten/i,
+    expectedMentionInline: { ship: '~ten' },
+    postMentionTestId: 'PostMention-~ten',
+  });
 
   // Mention all in a message
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @all');
-  await expect(zodPage.getByTestId('-all--group')).toBeVisible();
-  await zodPage.getByTestId('-all--group').click();
-  await expectMentionSelected(
-    zodPage,
-    /^mentioning @all$/i,
-    'SelectedMention--all-'
-  );
-  await sendCurrentMessage(
-    zodPage,
-    /mentioning\s+@all/i,
-    '{"sect":null}',
-    'PostMention--all-'
-  );
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @all',
+    suggestionTestId: '-all--group',
+    selectedMentionTestId: 'SelectedMention--all-',
+    expectedInputText: /^mentioning @all$/i,
+    expectedPostText: /mentioning\s+@all/i,
+    expectedMentionInline: { sect: null },
+    postMentionTestId: 'PostMention--all-',
+  });
 
   // Mention a role in a message
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @admin');
-  await expect(zodPage.getByTestId('admin-group')).toBeVisible();
-  await zodPage.getByTestId('admin-group').click();
-  await expectMentionSelected(
-    zodPage,
-    /^mentioning @admin$/i,
-    'SelectedMention-admin'
-  );
-  await sendCurrentMessage(
-    zodPage,
-    /mentioning\s+@admin/i,
-    '{"sect":"admin"}',
-    'PostMention-admin'
-  );
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @admin',
+    suggestionTestId: 'admin-group',
+    selectedMentionTestId: 'SelectedMention-admin',
+    expectedInputText: /^mentioning @admin$/i,
+    expectedPostText: /mentioning\s+@admin/i,
+    expectedMentionInline: { sect: 'admin' },
+    postMentionTestId: 'PostMention-admin',
+  });
 });
 
 test('should require confirmation before deleting a message (cancel prevents deletion)', async ({
