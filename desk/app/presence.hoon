@@ -408,7 +408,7 @@
       ?~  p.sign  :_(this [(tell:log %dbug ~['local sub ack ok' >wire<] ~)]~)
       %-  (slog (rap 3 dap.bowl ' rejected by local for ' (spat wire) ~) u.p.sign)
       :_  this
-      [(tell:log %warn ~['local sub nacked' >wire< >u.p.sign<] ~)]~
+      [(tell:log %warn ['local sub nacked' >wire=wire< u.p.sign] ~)]~
     ::
         %fact
       ?.  ?=(%activity-update-4 p.cage.sign)
@@ -454,7 +454,11 @@
         [(tell:log %dbug ~['context poke acked' >src.bowl< >context<] ~)]~
       %-  (slog (rap 3 dap.bowl ': poke-nacked by ' (scot %p src.bowl) ~) u.p.sign)
       :_  this
-      [(tell:log %warn ~['context poke nacked' >src.bowl< >context< >u.p.sign<] ~)]~
+      =-  [(tell:log %warn - ~)]~
+      :*  'context poke nacked'
+          >[src=src.bowl context=context]<
+          u.p.sign
+      ==
     ::
         %kick
       ::  resubscribe after brief wait, prevent hot-looping

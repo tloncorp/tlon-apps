@@ -158,6 +158,11 @@ export const personalInviteLink = createStorageItem<string | null>({
   defaultValue: null,
 });
 
+export const homeGroupInviteLink = createStorageItem<string | null>({
+  key: 'homeGroupInviteLink',
+  defaultValue: null,
+});
+
 export const hasViewedPersonalInvite = createStorageItem<boolean>({
   key: 'hasViewedPersonalInvite',
   defaultValue: false,
@@ -314,6 +319,11 @@ export const userHasPersonalGroup = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const splashNickname = createStorageItem<string>({
+  key: 'splashNickname',
+  defaultValue: '',
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {
@@ -321,6 +331,7 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
     viewedChatChannel: false,
     viewedCollectionChannel: false,
     viewedNotebookChannel: false,
+    tappedHomeAdd: true,
     tappedAddNote: true,
     tappedAddCollection: true,
     tappedChatInput: true,

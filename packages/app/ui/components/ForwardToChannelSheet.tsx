@@ -31,6 +31,12 @@ export function ForwardToChannelSheet({
 }: ForwardToChannelSheetProps) {
   const showSelector = useDelayedClose(open);
 
+  // Unmount after the close window; otherwise the empty sheet shell can
+  // visually resurface during later navigation.
+  if (!open && !showSelector) {
+    return null;
+  }
+
   return (
     <ActionSheet
       open={open}

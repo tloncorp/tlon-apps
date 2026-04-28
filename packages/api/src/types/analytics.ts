@@ -173,6 +173,7 @@ export interface AnalyticsDigest {
   numGroups?: number | null;
   numGroupchats?: number | null;
   numGroupsHosted?: number | null;
+  homeGroupMemberCount?: number | null;
   numChannels?: number | null;
   numDms?: number | null;
   numLegacyGroupDms?: number | null;
