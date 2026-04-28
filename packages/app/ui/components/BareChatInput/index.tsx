@@ -189,6 +189,7 @@ function TextWithMentions({
     textParts.push(
       <Text
         key={`mention-${mention.id}-${index}`}
+        testID={`SelectedMention-${mention.id}`}
         color="$positiveActionText"
         backgroundColor="$positiveBackground"
       >

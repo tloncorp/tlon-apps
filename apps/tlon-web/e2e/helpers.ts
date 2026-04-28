@@ -1401,6 +1401,148 @@ export async function sendMessage(page: Page, message: string) {
   }).toPass({ timeout: 5000, intervals: [100, 200, 500] });
 }
 
+type ExpectedMentionInline = { ship: string } | { sect: string | null };
+
+type SendMentionMessageOptions = {
+  inputText: string;
+  suggestionTestId: string;
+  selectedMentionTestId: string;
+  expectedInputText: RegExp;
+  expectedPostText: string | RegExp;
+  expectedMentionInline: ExpectedMentionInline;
+  postMentionTestId: string;
+};
+
+async function expectMentionSelected(
+  page: Page,
+  expectedText: RegExp,
+  selectedMentionTestId: string
+) {
+  const messageInput = page.getByTestId('MessageInput');
+  await expect
+    .poll(async () => (await messageInput.inputValue()).trim())
+    .toMatch(expectedText);
+  await expect(page.getByTestId(selectedMentionTestId)).toBeVisible();
+}
+
+async function expectMessageInputReady(page: Page) {
+  const messageInput = page.getByTestId('MessageInput');
+  const selectedMentions = page.locator('[data-testid^="SelectedMention-"]');
+  let readySince = 0;
+
+  await expect
+    .poll(
+      async () => {
+        const [value, selectedMentionCount] = await Promise.all([
+          messageInput.inputValue(),
+          selectedMentions.count(),
+        ]);
+
+        if (value.trim() !== '' || selectedMentionCount > 0) {
+          readySince = 0;
+          return 'busy';
+        }
+
+        readySince ||= Date.now();
+        return Date.now() - readySince >= 250 ? 'ready' : 'settling';
+      },
+      { timeout: 10000, intervals: [50, 100, 100, 250] }
+    )
+    .toBe('ready');
+}
+
+function waitForChannelPost(page: Page) {
+  return page.waitForResponse(
+    (response) => {
+      const request = response.request();
+      const postData = request.postData();
+
+      return (
+        request.method() === 'PUT' &&
+        response.status() === 204 &&
+        response.url().includes('/~/channel/') &&
+        (!postData ||
+          (postData.includes('"post"') && postData.includes('"add"')))
+      );
+    },
+    { timeout: 10000 }
+  );
+}
+
+function getPostAddFromChannelAction(postData: string | null) {
+  expect(postData).toBeTruthy();
+
+  const events = JSON.parse(postData ?? '[]') as {
+    json?: {
+      channel?: {
+        action?: {
+          post?: {
+            add?: {
+              content?: unknown;
+            };
+          };
+        };
+      };
+    };
+  }[];
+  const postAdd = events.find((event) => event.json?.channel?.action?.post?.add)
+    ?.json?.channel?.action?.post?.add;
+
+  expect(postAdd).toBeTruthy();
+  return postAdd;
+}
+
+/**
+ * Sends a message containing a rich mention and verifies the selected,
+ * serialized, and rendered mention state.
+ */
+export async function sendMentionMessage(
+  page: Page,
+  {
+    inputText,
+    suggestionTestId,
+    selectedMentionTestId,
+    expectedInputText,
+    expectedPostText,
+    expectedMentionInline,
+    postMentionTestId,
+  }: SendMentionMessageOptions
+) {
+  await waitForSessionStability(page);
+  await expectMessageInputReady(page);
+
+  await page.getByTestId('MessageInput').click();
+  await page.fill('[data-testid="MessageInput"]', inputText);
+  await expect(page.getByTestId(suggestionTestId)).toBeVisible();
+  await page.getByTestId(suggestionTestId).click();
+  await expectMentionSelected(page, expectedInputText, selectedMentionTestId);
+
+  const postResponse = waitForChannelPost(page);
+  await page.getByTestId('MessageInputSendButton').click();
+  const response = await postResponse;
+  const postAdd = getPostAddFromChannelAction(response.request().postData());
+  expect(postAdd?.content).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        inline: expect.arrayContaining([
+          expect.objectContaining(expectedMentionInline),
+        ]),
+      }),
+    ])
+  );
+
+  const post = page
+    .getByTestId('Post')
+    .filter({
+      has: page.getByTestId(postMentionTestId),
+      hasText: expectedPostText,
+    })
+    .first();
+  await expect(post).toBeVisible({ timeout: 10000 });
+  await expect(post.getByTestId(postMentionTestId)).toBeVisible();
+  await expectMessageInputReady(page);
+}
+
 /**
  * Long presses on a message to open the context menu
  */
