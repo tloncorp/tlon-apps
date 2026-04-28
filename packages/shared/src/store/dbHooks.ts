@@ -678,6 +678,15 @@ export const useShowChatInputWayfinding = (channelId: string) => {
   return isCorrectChan && !wayfindingProgress.tappedChatInput;
 };
 
+export const useShowBotMentionWayfinding = (channelId: string) => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const isCorrectChan = useMemo(() => {
+    return logic.isBotHomeGroupChatChannel(channelId);
+  }, [channelId]);
+
+  return isCorrectChan && !wayfindingProgress.tappedBotMention;
+};
+
 export const useShowHomeAddTooltip = () => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
   return wayfindingProgress.tappedHomeAdd === false;

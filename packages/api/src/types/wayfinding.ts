@@ -26,4 +26,5 @@ export interface WayfindingProgress {
   tappedAddNote: boolean;
   tappedAddCollection: boolean;
   tappedChatInput: boolean;
+  tappedBotMention: boolean;
 }
