@@ -517,10 +517,10 @@ describe('mergePendingPosts deleted-overlay synthesis', () => {
       sequenceNum: 0,
       deliveryStatus: 'sent' as const,
       isDeleted: true,
-      // `markPostAsDeleted` clears authorId, so this path must not rely
-      // solely on an author-qualified merge key.
+      // `markPostAsDeleted` clears authorId at runtime, so this path must
+      // not rely solely on an author-qualified merge key.
       authorId: null,
-    } as Post;
+    } as unknown as Post;
 
     const [merged] = mergePendingPosts({
       newPosts: [],
