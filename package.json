@@ -75,7 +75,8 @@
       "expo-task-manager@14.0.9": "patches/expo-task-manager@14.0.9.patch",
       "react-native@0.81.5": "patches/react-native@0.81.5.patch",
       "expo-share-intent@5.1.1": "patches/expo-share-intent@5.1.1.patch",
-      "expo-image-picker@17.0.10": "patches/expo-image-picker@17.0.10.patch"
+      "expo-image-picker@17.0.10": "patches/expo-image-picker@17.0.10.patch",
+      "@gorhom/bottom-sheet@5.2.6": "patches/@gorhom__bottom-sheet@5.2.6.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
