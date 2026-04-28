@@ -504,6 +504,64 @@ describe('mergePendingPosts deleted-overlay synthesis', () => {
     expect(merged.isDeleted).toBe(true);
   });
 
+  test('deleted pending tombstone overlays a stale existing row with the same sentAt', () => {
+    const existing = {
+      ...makePost(10),
+      id: 'existing-row',
+      sequenceNum: 5,
+      deliveryStatus: null,
+    };
+    const pendingTombstone = {
+      ...makePost(10),
+      id: 'pending-tombstone',
+      sequenceNum: 0,
+      deliveryStatus: 'sent' as const,
+      isDeleted: true,
+      // `markPostAsDeleted` clears authorId, so this path must not rely
+      // solely on an author-qualified merge key.
+      authorId: null,
+    } as Post;
+
+    const [merged] = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [pendingTombstone],
+      existingPosts: [existing],
+      deletedPosts: {},
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.id).toBe(existing.id);
+    expect(merged.isDeleted).toBe(true);
+  });
+
+  test('deleted overlay on a sibling pending row applies to the surviving existing row', () => {
+    const existing = {
+      ...makePost(10),
+      id: 'existing-row',
+      sequenceNum: 5,
+      deliveryStatus: null,
+    };
+    const pendingSibling = {
+      ...makePost(10),
+      id: 'pending-sibling',
+      sequenceNum: 0,
+      deliveryStatus: 'sent' as const,
+    };
+
+    const [merged] = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [pendingSibling],
+      existingPosts: [existing],
+      deletedPosts: { [pendingSibling.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.id).toBe(existing.id);
+    expect(merged.isDeleted).toBe(true);
+  });
+
   test('rows not in deletedPosts are passed through untouched', () => {
     const liveRow = {
       ...makePost(10),

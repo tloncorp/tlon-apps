@@ -27,6 +27,28 @@ export const mergePendingPosts = ({
   hasNewest: boolean;
   filterDeleted?: boolean;
 }): db.Post[] => {
+  const postMergeKeys = (post: db.Post) => {
+    const keys = [`${post.channelId}:${post.sentAt}`];
+    if (post.authorId) {
+      keys.push(`${post.channelId}:${post.authorId}:${post.sentAt}`);
+    }
+    return keys;
+  };
+  const deletedPostKeys = new Set<string>();
+  [...newPosts, ...pendingPosts, ...existingPosts].forEach((post) => {
+    if (!post.isDeleted && !deletedPosts[post.id]) {
+      return;
+    }
+    postMergeKeys(post).forEach((key) => deletedPostKeys.add(key));
+  });
+  const hasDeletedOverlay = (post: db.Post) => {
+    return (
+      post.isDeleted ||
+      deletedPosts[post.id] ||
+      postMergeKeys(post).some((key) => deletedPostKeys.has(key))
+    );
+  };
+
   // Drop **truly local-only** rows the user has locally cleared. The send
   // either failed outright or was never acknowledged by the server, so the
   // row can vanish immediately. Rows that are already server-acknowledged
@@ -41,16 +63,17 @@ export const mergePendingPosts = ({
   // arrives, which is strictly after the server-acknowledgement.
   const isLocallyClearedOptimistic = (post: db.Post) =>
     post.sequenceNum === 0 &&
-    deletedPosts[post.id] &&
+    hasDeletedOverlay(post) &&
     post.deliveryStatus === 'failed';
   // Stamp `isDeleted: true` on any surviving row the user has locally
   // cleared. This keeps confirmed echoes visible in the list (so the
-  // tombstone slot is preserved) but flips them to the deleted-rendering
-  // path immediately, without waiting for the paginated query to catch up
-  // to the DB write from `markPostAsDeleted`.
+  // tombstone slot is preserved) but flips them to the deleted-rendering path
+  // immediately. A deleted DB-backed pending row may be filtered out by a
+  // same-sentAt existing post below, so carry deletion by merge key as well as
+  // exact id.
   const applyDeletedOverlay = (posts: db.Post[]) =>
     posts.map((p) =>
-      !p.isDeleted && deletedPosts[p.id] ? { ...p, isDeleted: true } : p
+      !p.isDeleted && hasDeletedOverlay(p) ? { ...p, isDeleted: true } : p
     );
   const finalizePosts = (posts: db.Post[]) =>
     posts.filter((p) => {
