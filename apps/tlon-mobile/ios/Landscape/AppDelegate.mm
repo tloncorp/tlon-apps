@@ -102,6 +102,14 @@
   // Handle notification dismiss actions using our Swift helper
   [[NotificationDismissHandler shared] handleNotificationDismissWithUserInfo:userInfo];
 
+  // Handle silent-push lanyard match events. The handler is responsible
+  // for comparing against the locally-stored digest and deciding
+  // whether to schedule a user-visible notification.
+  NSString *action = userInfo[@"action"];
+  if ([action isKindOfClass:[NSString class]] && [action isEqualToString:@"lanyard-match"]) {
+    [[LanyardMatchPushHandler shared] handleLanyardMatchPushWithUserInfo:userInfo];
+  }
+
   // Call super to maintain existing functionality
   if ([super respondsToSelector:@selector(application:didReceiveRemoteNotification:fetchCompletionHandler:)]) {
     [super application:application didReceiveRemoteNotification:userInfo fetchCompletionHandler:completionHandler];
