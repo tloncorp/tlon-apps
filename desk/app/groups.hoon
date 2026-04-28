@@ -255,13 +255,13 @@
 ++  server  dap.bowl
 ::
 ++  submit-activity
-  |=  =action:v8:av
+  |=  =action:v9:av
   ~>  %spin.['submit-activity']
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  activity-action+!>(`action:v8:av`action)
+  =/  =cage  activity-action-1+!>(`action:v9:av`action)
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 ::  |l: logging core
 ::
@@ -4770,7 +4770,7 @@
     ^+  fi-core
     =.  cor
       %-  submit-activity
-      ^-  action:v8:av
+      ^-  action:v9:av
       [%add %group-invite flag ship.concern]
     fi-core
   ::  +fi-area: foreign base path

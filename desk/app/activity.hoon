@@ -860,21 +860,17 @@
       ==
   ~>  %spin.['give-update']
   ^+  cor
-  =/  v4-paths
-    =/  hose=(list path)  ~[/v4]
-    =/  only=(list path)  ~[[%v4 path.dist]]
+  =/  [v4-paths=(list path) v5-paths=(list path)]
+    =/  v4-hose=(list path)  ~[/v4]
+    =/  v4-only=(list path)  ~[[%v4 path.dist]]
+    =/  v5-hose=(list path)  ~[/v5]
+    =/  v5-only=(list path)  ~[[%v5 path.dist]]
     ?-  -.dist
-      %hose  hose
-      %only  only
-      %both  (weld only hose)
-    ==
-  =/  v5-paths
-    =/  hose=(list path)  ~[/v5]
-    =/  only=(list path)  ~[[%v5 path.dist]]
-    ?-  -.dist
-      %hose  hose
-      %only  only
-      %both  (weld only hose)
+      %hose  [v4-hose v5-hose]
+      %only  [v4-only v5-only]
+      %both
+        :-  (weld v4-only v4-hose)
+        (weld v5-only v5-hose)
     ==
   =/  update-8=(unit update:v8:av)
     (v8:update:v9:ac update)

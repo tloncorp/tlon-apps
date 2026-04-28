@@ -775,7 +775,7 @@
       |=  e=event:v2:av
       %-  pairs
       :_  [notified+b+notified.e]~
-        :-  -<.e
+      :-  -<.e
       ?-  -<.e
         %dm-invite  (whom whom.e)
       ::
