@@ -9,6 +9,46 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## @gorhom/bottom-sheet@5.2.6
+
+Why:
+On the first open of a bottom sheet whose content is a `flex:1` ScrollView/View
+with content larger than the eventual viewport (a long scrollable list with a
+footer/submit button below it), the footer ends up positioned past the bottom
+of the visible sheet. The first frame of `contentMaskContainerAnimatedStyle`
+returns `{}` while the container height is still being measured, so the
+flex:1 child is laid out at intrinsic content size; once the real height
+arrives a frame later, Yoga keeps the stale flex-basis from the unconstrained
+pass and the child overflows.
+
+The patch returns `{ height: 0 }` on the initial frame so children never get
+a chance to lay out at intrinsic size, then snaps the height directly
+(without going through `withTiming`) on the first real layout pass to avoid
+animating the height up from 0. Subsequent transitions use the normal
+animated path.
+
+This is a workaround for an underlying Yoga bug that affects any flex tree
+with the same shape, not just gorhom — see facebook/yoga#1552. The proper RN
+fix (enabling Yoga's `WebFlexBasis` flag) requires building React Native
+from source, which we currently don't do; the writeup is in the closed
+draft PR linked below.
+
+Local patch:
+`patches/@gorhom__bottom-sheet@5.2.6.patch`
+
+Background and reproduction details: PR #5790 (closed, kept for reference).
+
+Validation:
+Open any sheet whose content is a `flex:1` `ScrollView` with content larger
+than the viewport plus a footer (e.g. CreateChatSheet). The footer should be
+visible at the bottom of the sheet on first open.
+
+Removal:
+Drop this patch once we either move to building React Native from source
+(so we can flip the Yoga `WebFlexBasis` flag and fix the bug at the
+layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
+workaround upstream.
+
 ## react-native-screens@4.4.0
 
 Why:
