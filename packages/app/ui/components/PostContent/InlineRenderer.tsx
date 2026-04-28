@@ -95,6 +95,8 @@ export function InlineGroupMention({
   const handlePress = useCallback(() => {
     onGoToGroupSettings?.();
   }, [onGoToGroupSettings]);
+  // All mentions serialize as `{ sect: null }` and render back as group "all",
+  // while newly selected composer mentions use ALL_MENTION_ID.
   const isAllMention =
     inline.group === ALL_MENTION_ID || inline.group === 'all';
   const testIdGroup = isAllMention ? ALL_MENTION_ID : inline.group;

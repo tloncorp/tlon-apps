@@ -1518,7 +1518,7 @@ export async function sendMentionMessage(
   await expectMentionSelected(page, expectedInputText, selectedMentionTestId);
 
   const postResponse = waitForChannelPost(page);
-  await page.getByTestId('MessageInputSendButton').click({ force: true });
+  await page.getByTestId('MessageInputSendButton').click();
   const response = await postResponse;
   const postAdd = getPostAddFromChannelAction(response.request().postData());
   expect(postAdd?.content).toEqual(
