@@ -23,14 +23,7 @@
       %+  turn  ~(tap by indices)
       |=  [=source:v9:av =index:v9:av]
       ^-  [source:v8:av index:v8:av]
-      [(v8:^source source) (v8:^index index)]
-    --
-  ++  source
-    |%
-    ++  v8
-      |=  =source:v9:av
-      ^-  source:v8:av
-      source
+      [`source:v8:av`source (v8:^index index)]
     --
   ++  index
     |%
@@ -57,7 +50,7 @@
       %+  murn  ~(tap by activity)
       |=  [=source:v9:av =activity-summary:v9:av]
       ^-  (unit [source:v8:av activity-summary:v8:av])
-      `[(v8:^source source) (v8:^activity-summary activity-summary)]
+      `[`source:v8:av`source (v8:^activity-summary activity-summary)]
     --
   ++  activity-summary
     |%
@@ -72,7 +65,7 @@
         ::
           %-  ~(gas in *(set source:v8:av))
           %+  turn  ~(tap in children.activity-summary)
-          |=(=source:v9:av (v8:^source source))
+          |=(=source:v9:av `source:v8:av`source)
         ::
           reads.activity-summary
       ==
@@ -86,7 +79,7 @@
       %+  turn  ~(tap by volume-settings)
       |=  [=source:v9:av =volume-map:v9:av]
       ^-  [source:v8:av volume-map:v8:av]
-      [(v8:^source source) (v8:^volume-map volume-map)]
+      [`source:v8:av`source (v8:^volume-map volume-map)]
     --
   ++  feed
     |%
@@ -102,7 +95,7 @@
       |=  =activity-bundle:v9:av
       ^-  (unit activity-bundle:v8:av)
       %-  some
-      :*  (v8:source source.activity-bundle)
+      :*  `source:v8:av`source.activity-bundle
           latest.activity-bundle
           (murn events.activity-bundle v8:time-event)
       ==

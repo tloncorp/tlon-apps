@@ -653,7 +653,7 @@
       %+  turn
         unreads
       |=  [=source:a =activity-summary:a]
-      [(v8:source:v9:ac source) (v8:activity-summary:v9:ac activity-summary)]
+      [`source:v8:av`source (v8:activity-summary:v9:ac activity-summary)]
     ``activity-summary-pairs-4+!>(pairs)
   ::
       [%x %v4 %activity %notified ~]
@@ -666,7 +666,7 @@
       %+  turn
         notified
       |=  [=source:a =activity-summary:a]
-      [(v8:source:v9:ac source) (v8:activity-summary:v9:ac activity-summary)]
+      [`source:v8:av`source (v8:activity-summary:v9:ac activity-summary)]
     ``activity-summary-pairs-4+!>(pairs)
   ::
       [%x ver=?(%v4 %v5) %volume-settings ~]
