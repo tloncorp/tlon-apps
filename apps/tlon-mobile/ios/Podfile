@@ -118,6 +118,8 @@ post_install do |installer|
     :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
   )
 
+  # Work around Xcode 26.4 fmt consteval build failures until React Native updates fmt.
+  # See https://github.com/facebook/react-native/issues/55601
   patch_fmt_consteval_for_xcode_26_4(installer)
 
   # This is necessary for Xcode 14, because it signs resource bundles by default
