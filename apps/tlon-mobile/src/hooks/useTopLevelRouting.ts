@@ -75,9 +75,7 @@ export function useTopLevelRouting() {
   }, [showAuthenticatedApp, forcedSplash, needsSplashSequence]);
   const showTlonbotSetup = useMemo(() => {
     return (
-      showAuthenticatedApp &&
-      !showSplashSequence &&
-      tlonbotRevivalSetup.pending
+      showAuthenticatedApp && !showSplashSequence && tlonbotRevivalSetup.pending
     );
   }, [showAuthenticatedApp, showSplashSequence, tlonbotRevivalSetup.pending]);
   const activeSplashSequenceMode = needsSplashSequence

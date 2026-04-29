@@ -128,11 +128,7 @@ export function TlonbotSetupScreen() {
   return <TlonbotSetupScreenView step={step} />;
 }
 
-export function TlonbotSetupScreenView({
-  step,
-}: {
-  step: TlonbotSetupStep;
-}) {
+export function TlonbotSetupScreenView({ step }: { step: TlonbotSetupStep }) {
   return (
     <View
       flex={1}
@@ -263,10 +259,13 @@ async function applyBotPreferences(
           pollIntervalMs: 1500,
         });
         if (!running) {
-          logger.trackError('TlonBot revival model update readiness timed out', {
-            provider: setup.botProvider,
-            model: setup.botModel,
-          });
+          logger.trackError(
+            'TlonBot revival model update readiness timed out',
+            {
+              provider: setup.botProvider,
+              model: setup.botModel,
+            }
+          );
         }
       })
       .catch((error) => {

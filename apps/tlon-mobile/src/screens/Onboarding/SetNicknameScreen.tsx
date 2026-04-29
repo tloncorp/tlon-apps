@@ -37,8 +37,7 @@ const logger = createDevLogger('SetNicknameScreen', false);
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
   const signupContext = useSignupContext();
-  const isTlonbotRevival =
-    signupContext.onboardingFlow === 'tlonbotRevival';
+  const isTlonbotRevival = signupContext.onboardingFlow === 'tlonbotRevival';
   const isRevivalOnboarding =
     signupContext.onboardingFlow === 'traditionalRevival' ||
     isTlonbotRevival ||
