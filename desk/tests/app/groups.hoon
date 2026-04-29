@@ -62,7 +62,7 @@
     [%gu ship=@ %activity now=@ rest=*]         `!>(|)
     [%gx ship=@ %chat now=@ %blocked %ships ~]  `!>(~)
   ::
-      [%gx ship=@ %groups now=@ %~.~ %negotiate %status ship=@ agent=@ %noun ~]  
+      [%gx ship=@ %groups now=@ %~.~ %negotiate %status ship=@ agent=@ %noun ~]
     `!>(%match)
   ==
 ++  do-groups-init
@@ -82,7 +82,7 @@
 :: ++  ex-update
 ::   |=  [=time =u-group:v7:gv]
 ::   %+  ex-fact
-::     ~[/server/groups/~zod/my-test-group/updates/~zod/(scot %da *@da)]
+::     ~[/server/groups/~zod/my-test-group/updates/~zod/(scot:h136 %da *@da)]
 ::   group-update+!>(`update:g`[time u-group])
 ++  go-area  /groups/(scot %p p:my-flag)/[q:my-flag]
 ++  fi-area  /foreigns/(scot %p p:my-flag)/[q:my-flag]
@@ -232,7 +232,7 @@
     =/  =wire  (weld go-area /updates)
     =/  sub=path
       %+  weld  `path`[%server go-area]
-      /updates/~dev/(scot %da *@da)
+      /updates/~dev/(scot:h136 %da *@da)
     %+  ex-cards  caz
     :~  (ex-task wire [~zod my-agent] %watch sub)
         (ex-foreign-response %*(. *foreign:g progress `%watch))

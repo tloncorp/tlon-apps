@@ -74,7 +74,7 @@
   =/  backlog-wire  (weld negotiate-wire /backlog)
   =/  backlog-path
     %+  welp  /chat/test/checkpoint/time-range
-    /(scot %da *@da)/(scot %da last-post-time)
+    /(scot:h136 %da *@da)/(scot:h136 %da last-post-time)
   =/  backlog-retry  (weld /~/retry (weld sub-wire /backlog))
   ;<  *  bind:m  (do-agent backlog-wire the-dock %watch-ack ~)
   (check-subscription-loop backlog-wire backlog-wire the-dock backlog-path backlog-retry)

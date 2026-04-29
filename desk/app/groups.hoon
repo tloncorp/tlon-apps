@@ -1491,7 +1491,7 @@
       %fact
     ::  we use the same subscription path for client and agent subscriptions.
     ::  here we only process the most recent mark coming from the
-    ::  channel host. 
+    ::  channel host.
     ::
     ?.  =(p.cage.sign %channel-preview-1)  cor
     =+  !<(=channel-preview:v7:gv q.cage.sign)
@@ -3499,7 +3499,7 @@
       ?:  ?=(%pub -.net)  *@da
       time.net
     =/  sub-path=path
-      (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
+      (weld go-server-path /updates/(scot %p our.bowl)/(scot:h136 %da sub-time))
     =.  cor
       %.  delay
       (safe-watch go-sub-wire [p.flag server] sub-path)
