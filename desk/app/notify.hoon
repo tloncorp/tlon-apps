@@ -756,9 +756,8 @@
   |=  [[p=@t q=@t] out=@t]
   =/  key  (crip (en-urlt:html (trip p)))
   =/  val  (crip (en-urlt:html (trip q)))
-  ?:  =(out '')
-    (rap 3 key '=' val ~)
-  (rap 3 out '&' key '=' val ~)
+  =/  pam  ?:(=(out '') '' '&')
+  (rap 3 out pam key '=' val ~)
 ::
 ++  send-notification
   |=  [entry=provider-entry who=@p =update]
