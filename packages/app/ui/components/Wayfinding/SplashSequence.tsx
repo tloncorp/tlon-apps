@@ -150,8 +150,7 @@ function SplashSequenceComponent(props: {
   const [finishingSplash, setFinishingSplash] = React.useState(false);
   const customBotSetupPromiseRef = useRef<Promise<boolean> | null>(null);
   const isMountedRef = useRef(true);
-  const shouldDeferTlonbotSetup =
-    props.splashSequenceMode === 'tlonbotRevival';
+  const shouldDeferTlonbotSetup = props.splashSequenceMode === 'tlonbotRevival';
 
   useEffect(() => {
     return () => {
