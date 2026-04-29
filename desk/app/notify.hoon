@@ -771,9 +771,8 @@
         id+(scot %ud uid.update)
         notify-count+(scot %ud notify-count.update)
         dismiss-source+?.(?=(%dismiss -.action.update) '' source.action.update)
+        message+?.(?=(%message -.action.update) '' message.action.update)
     ==
-  =?  params  ?=(%message -.action.update)
-    [message+message.action.update params]
   %:  post-form
       /send-notification/(scot %uv (sham eny.bowl))
       notify-endpoint.entry
