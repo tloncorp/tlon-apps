@@ -257,7 +257,7 @@
       (~(put by *v-channels:c) *nest:c chan)
     ::
     =.  save  (slot 3 save)  ::  move "through" discipline state
-    =.  save  !<(vase (slot 3 save))  ::  move "through" negotiate state & shenanigans
+    =.  save  (slot 3 save)  ::  move "through" negotiate state
     (ex-equal save !>(fixed-state))
   --
 ::
@@ -369,8 +369,8 @@
         tombstone-fix-test-channel
       (~(put by *v-channels:c) *nest:c chan)
     ::
-    =.  save  (slot 3 save)           ::  lib discipline
-    =.  save  !<(vase (slot 3 save))  ::  lib negotiate
+    =.  save  (slot 3 save)  ::  lib discipline
+    =.  save  (slot 3 save)  ::  lib negotiate
     (ex-equal save !>(fixed-state))
   --
 ::
