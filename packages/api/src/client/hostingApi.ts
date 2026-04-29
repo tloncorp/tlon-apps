@@ -397,17 +397,17 @@ async function fetchVoid(path: string, init?: RequestInit): Promise<void> {
   throw err;
 }
 
-export async function setShipTlonbotEnabled(
-  ship: string,
+export async function setUserTlonbotEnabled(
+  user: string,
   enabled: boolean
 ): Promise<void> {
-  await fetchVoid(`/v1/tlawn/${ship}/bot-enabled/${enabled}`, {
+  await fetchVoid(`/v1/tlawn/users/${user}/bot-enabled/${enabled}`, {
     method: 'PUT',
   });
 }
 
-export async function markShipTlonbotEnabled(ship: string): Promise<void> {
-  await setShipTlonbotEnabled(ship, true);
+export async function markUserTlonbotEnabled(user: string): Promise<void> {
+  await setUserTlonbotEnabled(user, true);
 }
 
 export async function checkNodeIsTlonbotReady(ship: string): Promise<boolean> {

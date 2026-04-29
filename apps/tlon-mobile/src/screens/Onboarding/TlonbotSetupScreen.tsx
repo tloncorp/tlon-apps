@@ -79,10 +79,9 @@ export function TlonbotSetupScreen() {
           !provisioningKickoffStartedRef.current
         ) {
           provisioningKickoffStartedRef.current = true;
-          api
-            .markShipTlonbotEnabled(shipId)
+          store
+            .markCurrentUserTlonbotEnabled()
             .then(async () => {
-              await db.hostingBotEnabled.setValue(true);
               await db.tlonbotRevivalSetup.setValue((current) => ({
                 ...current,
                 provisioningStarted: true,

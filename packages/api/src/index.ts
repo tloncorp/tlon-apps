@@ -8,11 +8,11 @@ export {
   getNodeStatus,
   getShipAccessCode,
   logInHostingUser,
-  markShipTlonbotEnabled,
+  markUserTlonbotEnabled,
   requestLoginOtp,
   requestPhoneVerify,
   setShipRevivalStatus,
-  setShipTlonbotEnabled,
+  setUserTlonbotEnabled,
   signUpHostingUser,
   checkNodeIsTlonbotReady,
 } from './client/hostingApi';

@@ -46,10 +46,10 @@ export {
   resendEmailVerification,
   resumeShip,
   setShipRevivalStatus,
-  setShipTlonbotEnabled,
+  setUserTlonbotEnabled,
   signUpHostingUser,
   verifyEmailDigits,
-  markShipTlonbotEnabled,
+  markUserTlonbotEnabled,
   checkNodeIsTlonbotReady,
   // Tlawn (bot) endpoints
   getTlawnProviderKeys,

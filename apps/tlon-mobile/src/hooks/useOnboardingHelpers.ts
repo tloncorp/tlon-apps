@@ -109,7 +109,7 @@ export function useOnboardingHelpers() {
 
         if (onboardingFlow === 'tlonbotRevival') {
           store
-            .markCurrentShipTlonbotEnabled()
+            .markCurrentUserTlonbotEnabled()
             .then(() =>
               db.tlonbotRevivalSetup.setValue((current) => ({
                 ...current,

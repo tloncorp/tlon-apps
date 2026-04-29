@@ -8,7 +8,7 @@ import {
   getNodeStatus,
   getShipAccessCode,
   logInHostingUser,
-  markShipTlonbotEnabled,
+  markUserTlonbotEnabled,
   requestPhoneVerify as requestPhoneVerifyApi,
   signUpHostingUser,
 } from '@tloncorp/api';
@@ -307,16 +307,16 @@ export async function clearShipRevivalStatus() {
   await clearHostedShipRevivalStatus(nodeId);
 }
 
-export async function markCurrentShipTlonbotEnabled() {
-  const nodeId = await db.hostedUserNodeId.getValue();
-  if (!nodeId) {
+export async function markCurrentUserTlonbotEnabled() {
+  const userId = await db.hostingUserId.getValue();
+  if (!userId) {
     logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
-      context: 'Tried to mark TlonBot enabled without node ID',
+      context: 'Tried to mark TlonBot enabled without user ID',
     });
-    throw new Error('Cannot mark TlonBot enabled, no node ID found');
+    throw new Error('Cannot mark TlonBot enabled, no user ID found');
   }
 
-  await markShipTlonbotEnabled(nodeId);
+  await markUserTlonbotEnabled(userId);
   await db.hostingBotEnabled.setValue(true);
 }
 
