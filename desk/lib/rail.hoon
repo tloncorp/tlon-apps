@@ -184,36 +184,6 @@
 /%  contact-update-0                  %contact-update-0
 /%  contact-update-1                  %contact-update-1
 /%  css                               %css
-/%  curio                             %curio
-/%  curios-diff                       %curios-diff
-/%  diary-action                      %diary-action
-/%  diary-action-0                    %diary-action-0
-/%  diary-action-1                    %diary-action-1
-/%  diary-action-2                    %diary-action-2
-/%  diary-action-3                    %diary-action-3
-/%  diary-brief-update                %diary-brief-update
-/%  diary-briefs                      %diary-briefs
-/%  diary-create                      %diary-create
-/%  diary-denied                      %diary-denied
-/%  diary-leave                       %diary-leave
-/%  diary-logs                        %diary-logs
-/%  diary-logs-0                      %diary-logs-0
-/%  diary-logs-1                      %diary-logs-1
-/%  diary-logs-2                      %diary-logs-2
-/%  diary-logs-3                      %diary-logs-3
-/%  diary-note                        %diary-note
-/%  diary-notes                       %diary-notes
-/%  diary-outline                     %diary-outline
-/%  diary-outlines                    %diary-outlines
-/%  diary-perm                        %diary-perm
-/%  diary-quips                       %diary-quips
-/%  diary-remark-action               %diary-remark-action
-/%  diary-said                        %diary-said
-/%  diary-update                      %diary-update
-/%  diary-update-0                    %diary-update-0
-/%  diary-update-1                    %diary-update-1
-/%  diary-update-2                    %diary-update-2
-/%  diary-update-3                    %diary-update-3
 /%  dm-action                         %dm-action
 /%  dm-archive                        %dm-archive
 /%  dm-diff                           %dm-diff
@@ -222,6 +192,7 @@
 /%  docket-0                          %docket-0
 /%  dude                              %dude
 /%  dummy                             %dummy
+/%  egg-any                           %egg-any
 /%  emojimart                         %emojimart
 /%  epic                              %epic
 /%  flag                              %flag
@@ -286,25 +257,6 @@
 /%  groups-ui-1                       %groups-ui-1
 /%  groups-ui-2                       %groups-ui-2
 /%  growl-summarize                   %growl-summarize
-/%  hark-yarn                         %hark-yarn
-/%  heap-action                       %heap-action
-/%  heap-action-0                     %heap-action-0
-/%  heap-action-1                     %heap-action-1
-/%  heap-brief-update                 %heap-brief-update
-/%  heap-briefs                       %heap-briefs
-/%  heap-create                       %heap-create
-/%  heap-curios                       %heap-curios
-/%  heap-denied                       %heap-denied
-/%  heap-leave                        %heap-leave
-/%  heap-logs                         %heap-logs
-/%  heap-logs-0                       %heap-logs-0
-/%  heap-logs-1                       %heap-logs-1
-/%  heap-perm                         %heap-perm
-/%  heap-remark-action                %heap-remark-action
-/%  heap-said                         %heap-said
-/%  heap-update                       %heap-update
-/%  heap-update-0                     %heap-update-0
-/%  heap-update-1                     %heap-update-1
 /%  hi-ship                           %hi-ship
 /%  hidden-messages                   %hidden-messages
 /%  hidden-posts                      %hidden-posts
@@ -340,10 +292,9 @@
 /%  lanyard-query-1                   %lanyard-query-1
 /%  lanyard-update-1                  %lanyard-update-1
 /%  loob                              %loob
-/%  migrate-map                       %migrate-map
+/%  mass                              %mass
 /%  mime                              %mime
 /%  nest                              %nest
-/%  notes-diff                        %notes-diff
 /%  notify-client-action              %notify-client-action
 /%  notify-provider-action            %notify-provider-action
 /%  notify-update                     %notify-update
@@ -352,7 +303,6 @@
 /%  noun-autodiff                     %noun-autodiff
 /%  path                              %path
 /%  png                               %png
-/%  post-toggle                       %post-toggle
 /%  purl                              %purl
 /%  reel-bait                         %reel-bait
 /%  reel-bite                         %reel-bite
@@ -371,7 +321,6 @@
 /%  sigil                             %sigil
 /%  sole-action                       %sole-action
 /%  sole-effect                       %sole-effect
-/%  stash                             %stash
 /%  svg                               %svg
 /%  tang                              %tang
 /%  tape                              %tape
@@ -979,36 +928,6 @@
     %contact-update-0                  [-.rail !>(+.rail)]
     %contact-update-1                  [-.rail !>(+.rail)]
     %css                               [-.rail !>(+.rail)]
-    %curio                             [-.rail !>(+.rail)]
-    %curios-diff                       [-.rail !>(+.rail)]
-    %diary-action                      [-.rail !>(+.rail)]
-    %diary-action-0                    [-.rail !>(+.rail)]
-    %diary-action-1                    [-.rail !>(+.rail)]
-    %diary-action-2                    [-.rail !>(+.rail)]
-    %diary-action-3                    [-.rail !>(+.rail)]
-    %diary-brief-update                [-.rail !>(+.rail)]
-    %diary-briefs                      [-.rail !>(+.rail)]
-    %diary-create                      [-.rail !>(+.rail)]
-    %diary-denied                      [-.rail !>(+.rail)]
-    %diary-leave                       [-.rail !>(+.rail)]
-    %diary-logs                        [-.rail !>(+.rail)]
-    %diary-logs-0                      [-.rail !>(+.rail)]
-    %diary-logs-1                      [-.rail !>(+.rail)]
-    %diary-logs-2                      [-.rail !>(+.rail)]
-    %diary-logs-3                      [-.rail !>(+.rail)]
-    %diary-note                        [-.rail !>(+.rail)]
-    %diary-notes                       [-.rail !>(+.rail)]
-    %diary-outline                     [-.rail !>(+.rail)]
-    %diary-outlines                    [-.rail !>(+.rail)]
-    %diary-perm                        [-.rail !>(+.rail)]
-    %diary-quips                       [-.rail !>(+.rail)]
-    %diary-remark-action               [-.rail !>(+.rail)]
-    %diary-said                        [-.rail !>(+.rail)]
-    %diary-update                      [-.rail !>(+.rail)]
-    %diary-update-0                    [-.rail !>(+.rail)]
-    %diary-update-1                    [-.rail !>(+.rail)]
-    %diary-update-2                    [-.rail !>(+.rail)]
-    %diary-update-3                    [-.rail !>(+.rail)]
     %dm-action                         [-.rail !>(+.rail)]
     %dm-archive                        [-.rail !>(+.rail)]
     %dm-diff                           [-.rail !>(+.rail)]
@@ -1017,6 +936,7 @@
     %docket-0                          [-.rail !>(+.rail)]
     %dude                              [-.rail !>(+.rail)]
     %dummy                             [-.rail !>(+.rail)]
+    %egg-any                           [-.rail !>(+.rail)]
     %emojimart                         [-.rail !>(+.rail)]
     %epic                              [-.rail !>(+.rail)]
     %flag                              [-.rail !>(+.rail)]
@@ -1081,25 +1001,6 @@
     %groups-ui-1                       [-.rail !>(+.rail)]
     %groups-ui-2                       [-.rail !>(+.rail)]
     %growl-summarize                   [-.rail !>(+.rail)]
-    %hark-yarn                         [-.rail !>(+.rail)]
-    %heap-action                       [-.rail !>(+.rail)]
-    %heap-action-0                     [-.rail !>(+.rail)]
-    %heap-action-1                     [-.rail !>(+.rail)]
-    %heap-brief-update                 [-.rail !>(+.rail)]
-    %heap-briefs                       [-.rail !>(+.rail)]
-    %heap-create                       [-.rail !>(+.rail)]
-    %heap-curios                       [-.rail !>(+.rail)]
-    %heap-denied                       [-.rail !>(+.rail)]
-    %heap-leave                        [-.rail !>(+.rail)]
-    %heap-logs                         [-.rail !>(+.rail)]
-    %heap-logs-0                       [-.rail !>(+.rail)]
-    %heap-logs-1                       [-.rail !>(+.rail)]
-    %heap-perm                         [-.rail !>(+.rail)]
-    %heap-remark-action                [-.rail !>(+.rail)]
-    %heap-said                         [-.rail !>(+.rail)]
-    %heap-update                       [-.rail !>(+.rail)]
-    %heap-update-0                     [-.rail !>(+.rail)]
-    %heap-update-1                     [-.rail !>(+.rail)]
     %hi-ship                           [-.rail !>(+.rail)]
     %hidden-messages                   [-.rail !>(+.rail)]
     %hidden-posts                      [-.rail !>(+.rail)]
@@ -1135,10 +1036,9 @@
     %lanyard-query-1                   [-.rail !>(+.rail)]
     %lanyard-update-1                  [-.rail !>(+.rail)]
     %loob                              [-.rail !>(+.rail)]
-    %migrate-map                       [-.rail !>(+.rail)]
+    %mass                              [-.rail !>(+.rail)]
     %mime                              [-.rail !>(+.rail)]
     %nest                              [-.rail !>(+.rail)]
-    %notes-diff                        [-.rail !>(+.rail)]
     %notify-client-action              [-.rail !>(+.rail)]
     %notify-provider-action            [-.rail !>(+.rail)]
     %notify-update                     [-.rail !>(+.rail)]
@@ -1147,7 +1047,6 @@
     %noun-autodiff                     [-.rail !>(+.rail)]
     %path                              [-.rail !>(+.rail)]
     %png                               [-.rail !>(+.rail)]
-    %post-toggle                       [-.rail !>(+.rail)]
     %purl                              [-.rail !>(+.rail)]
     %reel-bait                         [-.rail !>(+.rail)]
     %reel-bite                         [-.rail !>(+.rail)]
@@ -1166,7 +1065,6 @@
     %sigil                             [-.rail !>(+.rail)]
     %sole-action                       [-.rail !>(+.rail)]
     %sole-effect                       [-.rail !>(+.rail)]
-    %stash                             [-.rail !>(+.rail)]
     %svg                               [-.rail !>(+.rail)]
     %tang                              [-.rail !>(+.rail)]
     %tape                              [-.rail !>(+.rail)]
