@@ -228,11 +228,12 @@
     [cards this]
   ::
   ++  on-poke
-    |=  [=mark =vase]
+    %-  on-poke:guardian
+    |=  =rail
     %-  step:unguard:guardian
     ^-  (quip card _this)
     =^  cards  state
-      abet:(poke:cor mark vase)
+      abet:(poke:cor rail)
     [cards this]
   ++  on-watch
     |=  =path
@@ -252,7 +253,8 @@
     [(fail:log term tang ~)]~
   ::
   ++  on-agent
-    |=  [=wire =sign:agent:gall]
+    %-  on-agent:guardian
+    |=  [=wire =sign:guardian]
     %-  step:unguard:guardian
     ^-  (quip card _this)
     =^  cards  state
@@ -780,16 +782,30 @@
   --
 ::
 ++  poke
-  |=  [=mark =vase]
+  |=  =rail
   ~>  %spin.['poke']
   |^  ^+  cor
-  ?+    mark  ~|(bad-poke/mark !!)
+  ?:  ?=(%unsafe -.rail)
+    ?+  p.cage.rail  ~|(bad-poke/-.rail !!)
+      %chat-migrate-server  ?>(from-self server:migrate)
+      %chat-migrate         ?>(from-self client:migrate)
+    ::
+        %chat-migrate-refs
+      ?>  from-self
+      =+  !<(flag=[ship term] q.cage.rail)
+      (refs:migrate flag)
+    ::
+        %chat-trim
+      ?>  from-self
+      trim:migrate
+    ==
+  ?+    -.rail  ~|(bad-poke/-.rail !!)
       %chat-negotiate
     ::TODO  arguably should just be a /mar/negotiate
-    (emit (exit:guardian (initiate:neg !<(@p vase) dap.bowl)))
+    (emit (exit:guardian (initiate:neg p.rail dap.bowl)))
   ::
       %chat-dm-rsvp
-    =+  !<(=rsvp:dm:c vase)
+    =*  rsvp=rsvp:dm:c  p.rail
     ::NOTE  even though we "soft" here, nacks result in deletions of
     ::      newly inserted dms.
     =/  di-core  (di-abed-soft:di-core ship.rsvp)
@@ -807,48 +823,29 @@
     (has-unblocked src.bowl)
   ::
       %chat-block-ship
-    =+  !<(=ship vase)
+    =*  ship=@p  p.rail
     ?>  from-self
     (block ship)
   ::
       %chat-unblock-ship
-    =+  !<(=ship vase)
+    =*  ship=@p  p.rail
     ?>  from-self
     (unblock ship)
   ::
       %chat-toggle-message
-    =+  !<(toggle=message-toggle:c vase)
-    ?>  from-self
-    (toggle-message toggle)
-  ::
-      %chat-unblocked
-    ?<  from-self
-    (has-unblocked src.bowl)
-  ::
-      %chat-block-ship
-    =+  !<(=ship vase)
-    ?>  from-self
-    (block ship)
-  ::
-      %chat-unblock-ship
-    =+  !<(=ship vase)
-    ?>  from-self
-    (unblock ship)
-  ::
-      %chat-toggle-message
-    =+  !<(toggle=message-toggle:c vase)
+    =*  toggle=message-toggle:c  p.rail
     ?>  from-self
     (toggle-message toggle)
   ::
       %chat-remark-action
-    =+  !<(act=remark-action:c vase)
+    =/  act=remark-action:c  p.rail  ::NOTE  =* brings shenanigans
     ?-  -.p.act
       %ship  di-abet:(di-remark-diff:(di-abed:di-core p.p.act) q.act)
       %club  cu-abet:(cu-remark-diff:(cu-abed:cu-core p.p.act) q.act)
     ==
   ::
       %chat-dm-action-2
-    =+  !<(=action:dm:v7:cv vase)
+    =*  action=action:dm:v7:cv  p.rail
     =.  cor  (emit (tell-log %dbug ~['received dm action' >action<] ~))
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
@@ -859,46 +856,35 @@
     di-abet:(di-proxy:(di-abed-soft:di-core p.action) q.action)
   ::
       %chat-dm-diff-2
-    =+  !<(=diff:dm:v7:cv vase)
+    =*  diff=diff:dm:v7:cv  p.rail
     =.  cor  (emit (tell-log %dbug ~['received dm diff' >diff<] ~))
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-dm-action-1
-    =+  !<(old-action=action:dm:v6:cv vase)
-    ^$(+< chat-dm-action-2+!>((v7:action:dm:v6:cc old-action)))
+    =*  old-action=action:dm:v6:cv  p.rail
+    ^$(+< chat-dm-action-2+(v7:action:dm:v6:cc old-action))
   ::
       %chat-dm-diff-1
-    =+  !<(old-diff=diff:dm:v6:cv vase)
-    ^$(+< chat-dm-diff-2+!>((v7:diff:dm:v6:cc old-diff)))
+    =*  old-diff=diff:dm:v6:cv  p.rail
+    ^$(+< chat-dm-diff-2+(v7:diff:dm:v6:cc old-diff))
     :: =.  cor  (emit (tell:log %dbug ~['received dm diff' >diff<] ~))
     :: di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
   ::
       %chat-club-create
-    cu-abet:(cu-create:cu-core !<(=create:club:c vase))
+    cu-abet:(cu-create:cu-core `create:club:c`p.rail)
   ::
       %chat-club-action-2
-    =+  !<(=action:club:v7:cv vase)
+    =*  action=action:club:v7:cv  p.rail
     =/  cu  (cu-abed p.action)
     cu-abet:(cu-diff:cu q.action)
   ::
       %chat-club-action-1
-    =+  !<(old-action=action:club:v6:cv vase)
-    ^$(+< chat-club-action-2+!>((v7:action-club:v6:cc old-action)))
+    =*  old-action=action:club:v6:cv  p.rail
+    ^$(+< chat-club-action-2+(v7:action-club:v6:cc old-action))
   ::
       %chat-dm-archive
     ?>  from-self
-    di-abet:di-archive:(di-abed:di-core !<(ship vase))
-  ::
-    %chat-migrate-server  ?>(from-self server:migrate)
-    %chat-migrate         ?>(from-self client:migrate)
-  ::
-      %chat-migrate-refs
-    ?>  from-self
-    =+  !<(flag=[ship term] vase)
-    (refs:migrate flag)
-      %chat-trim
-    ?>  from-self
-    trim:migrate
+    di-abet:di-archive:(di-abed:di-core `ship`p.rail)
   ::  backwards compatibility
   ::
   ::  v3 types
@@ -906,19 +892,19 @@
   ::
       %chat-dm-action
     =;  new=action:dm:v4:cv
-      $(mark %chat-dm-action-1, vase !>(new))
-    =+  !<(=action:dm:v3:cv vase)
+      $(rail [%chat-dm-action-1 new])
+    =/  =action:dm:v3:cv  p.rail
     action(q (v4:diff-writs:v3:cc q.action))
   ::
       %chat-dm-diff
     =;  new=diff:dm:v4:cv
-      $(mark %chat-dm-diff-1, vase !>(new))
-    (v4:diff-writs:v3:cc !<(=diff:dm:v3:cv vase))
+      $(rail [%chat-dm-diff-1 new])
+    (v4:diff-writs:v3:cc `diff:dm:v3:cv`p.rail)
   ::
       ?(%chat-club-action %chat-club-action-0)
     =;  new=action:club:v4:cv
-      $(mark %chat-club-action-1, vase !>(new))
-    =+  !<(=action:club:v3:cv vase)
+      $(rail [%chat-club-action-1 new])
+    =/  =action:club:v3:cv  p.rail
     ?.  ?=(%writ -.q.q.action)  action
     action(diff.q.q (v4:diff-writs:v3:cc diff.q.q.action))
   ::  v2 types
@@ -926,23 +912,22 @@
     ::
   ::
       %dm-rsvp
-    =+  `rsvp:dm:c`!<(rsvp:dm:v2:cv vase)  ::NOTE  safety check
-    $(mark %chat-dm-rsvp)
+    $(-.rail %chat-dm-rsvp)
   ::
       %dm-diff
     =;  new=diff:dm:v3:cv
-      $(mark %chat-dm-diff, vase !>(new))
-    (v3:diff-writs:v2:cc !<(=diff:dm:v2:cv vase))
+      $(rail [%chat-dm-diff new])
+    (v3:diff-writs:v2:cc `diff:dm:v2:cv`p.rail)
   ::
       %club-action
     =;  new=action:club:v3:cv
-      $(mark %chat-club-action, vase !>(new))
-    =+  !<(=action:club:v2:cv vase)
+      $(rail [%chat-club-action new])
+    =/  action=action:club:v2:cv  p.rail
     ?.  ?=(%writ -.q.q.action)  action
     action(diff.q.q (v3:diff-writs:v2:cc diff.q.q.action))
   ::
       %egg-any
-    =+  !<(=egg-any:gall vase)
+    =/  egg-any=egg-any:gall  p.rail
     ?-  -.egg-any
         ?(%15 %16)
       ?.  ?=(%live +<.egg-any)
@@ -1098,7 +1083,7 @@
   ==
 ::
 ++  agent
-  |=  [=(pole knot) =sign:agent:gall]
+  |=  [=(pole knot) =sign:guardian]
   ~>  %spin.['agent']
   ^+  cor
   ?+    pole  ~|(bad-agent-wire/pole !!)
@@ -2341,7 +2326,7 @@
     ==
   ::
   ++  cu-agent
-    |=  [=wire =sign:agent:gall]
+    |=  [=wire =sign:guardian]
     ~>  %spin.['cu-agent']
     ^+  cu-core
     ?+    wire  ~|(bad-club-take/wire !!)
@@ -2769,7 +2754,7 @@
     ==
   ::
   ++  di-agent
-    |=  [=wire =sign:agent:gall]
+    |=  [=wire =sign:guardian]
     ~>  %spin.['di-agent']
     ^+  di-core
     ?+    wire  ~|(bad-dm-take/wire !!)

@@ -19,6 +19,21 @@
   $%  $<(%fact gift:agent:gall)
       [%fact paths=(list path) =rail]
   ==
++$  sign
+  $%  $<(%fact sign:agent:gall)
+      [%fact =rail]
+  ==
+::
+++  on-poke
+  |*  f=$-(rail *)
+  |=  =cage
+  (f (en-rail cage))
+::
+++  on-agent
+  |*  f=$-([wire sign] *)
+  |=  [=wire =sign:agent:gall]
+  ?.  ?=(%fact -.sign)  (f wire sign)
+  (f wire sign(cage (en-rail cage.sign)))
 ::
 ++  exit
   |=  cad=card:agent:gall
