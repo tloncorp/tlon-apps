@@ -46,6 +46,8 @@ export {
   resumeShip,
   signUpHostingUser,
   verifyEmailDigits,
+  markShipTlonbotEnabled,
+  checkNodeIsTlonbotReady,
   // Tlawn (bot) endpoints
   getTlawnProviderKeys,
   setTlawnProviderKey,

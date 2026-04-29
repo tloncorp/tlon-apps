@@ -81,6 +81,17 @@ export function useOnboardingHelpers() {
           onboardingFlow,
         });
 
+        if (onboardingFlow === 'tlonbotRevival') {
+          const shipId =
+            inputShipInfo?.ship ?? (await db.hostedUserNodeId.getValue());
+          await db.tlonbotRevivalSetup.setValue((current) => ({
+            ...current,
+            pending: true,
+            applied: false,
+            shipId: shipId ?? undefined,
+          }));
+        }
+
         await db.hostedAccountIsInitialized.setValue(false);
         signupContext.setOnboardingValues({
           isGuidedLogin: true,

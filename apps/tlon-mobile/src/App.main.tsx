@@ -37,6 +37,7 @@ import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
 import { SignupProvider } from './lib/signupContext';
+import { TlonbotSetupScreen } from './screens/Onboarding/TlonbotSetupScreen';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
 
@@ -88,9 +89,11 @@ const App = () => {
     connected,
     showAuthenticatedApp,
     showSplashSequence,
+    showTlonbotSetup,
     activeSplashSequenceMode,
     hostingBotEnabled,
     handleClearSplash,
+    handleTlonbotConfigured,
   } = useTopLevelRouting();
 
   usePreloadedEmojis();
@@ -113,8 +116,11 @@ const App = () => {
               inviteSystemContacts={inviteSystemContacts}
               hostingBotEnabled={hostingBotEnabled}
               splashSequenceMode={activeSplashSequenceMode}
+              onTlonbotConfigured={handleTlonbotConfigured}
             />
           </AppDataProvider>
+        ) : showTlonbotSetup ? (
+          <TlonbotSetupScreen />
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (

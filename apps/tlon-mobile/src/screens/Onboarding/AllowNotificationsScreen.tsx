@@ -59,6 +59,22 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
         signupContext.onboardingFlow === 'tlonbotRevival' ||
         signupContext.isGuidedLogin
       ) {
+        if (signupContext.onboardingFlow === 'tlonbotRevival') {
+          const shipId = await db.hostedUserNodeId.getValue();
+          await db.tlonbotRevivalSetup.setValue((current) => ({
+            ...current,
+            pending: true,
+            applied: false,
+            shipId: shipId ?? current.shipId,
+            nickname: signupContext.nickname,
+            notificationLevel: signupContext.notificationLevel,
+            notificationToken,
+          }));
+          signupContext.clear();
+          await db.hostedAccountIsInitialized.setValue(true);
+          return;
+        }
+
         signupContext.handlePostRevivalOnboarding({ notificationToken });
         await db.hostedAccountIsInitialized.setValue(true);
       } else {

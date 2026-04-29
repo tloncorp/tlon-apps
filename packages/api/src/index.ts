@@ -7,9 +7,11 @@ export {
   getNodeStatus,
   getShipAccessCode,
   logInHostingUser,
+  markShipTlonbotEnabled,
   requestLoginOtp,
   requestPhoneVerify,
   signUpHostingUser,
+  checkNodeIsTlonbotReady,
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {

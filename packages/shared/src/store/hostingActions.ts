@@ -1,5 +1,6 @@
 import {
   HostingError,
+  checkNodeIsTlonbotReady,
   checkPhoneVerify as checkPhoneVerifyApi,
   clearShipRevivalStatus as clearHostedShipRevivalStatus,
   getHostingUser,
@@ -7,6 +8,7 @@ import {
   getNodeStatus,
   getShipAccessCode,
   logInHostingUser,
+  markShipTlonbotEnabled,
   requestPhoneVerify as requestPhoneVerifyApi,
   signUpHostingUser,
 } from '@tloncorp/api';
@@ -214,12 +216,19 @@ export async function checkHostingNodeStatus(
       }
     }
 
-    const botEnabled = await db.hostingBotEnabled.getValue();
-    const onboardingFlow = showWayfinding
-      ? botEnabled
-        ? 'tlonbotRevival'
-        : 'traditionalRevival'
-      : undefined;
+    if (showWayfinding) {
+      try {
+        await markCurrentShipTlonbotEnabled();
+      } catch (error) {
+        logger.trackError(AnalyticsEvent.LoginDebug, {
+          error,
+          context: 'Failed to mark revival ship TlonBot enabled',
+          nodeId,
+        });
+      }
+    }
+
+    const onboardingFlow = showWayfinding ? 'tlonbotRevival' : undefined;
 
     return {
       status: nodeStatus,
@@ -310,4 +319,29 @@ export async function clearShipRevivalStatus() {
   // note: the Hosting api only lets us blindly toggle the revival status,
   // not explicitly clear it
   await clearHostedShipRevivalStatus(nodeId);
+}
+
+export async function markCurrentShipTlonbotEnabled() {
+  const nodeId = await db.hostedUserNodeId.getValue();
+  if (!nodeId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to mark TlonBot enabled without node ID',
+    });
+    throw new Error('Cannot mark TlonBot enabled, no node ID found');
+  }
+
+  await markShipTlonbotEnabled(nodeId);
+  await db.hostingBotEnabled.setValue(true);
+}
+
+export async function checkCurrentNodeIsTlonbotReady() {
+  const nodeId = await db.hostedUserNodeId.getValue();
+  if (!nodeId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to check TlonBot readiness without node ID',
+    });
+    throw new Error('Cannot check TlonBot readiness, no node ID found');
+  }
+
+  return checkNodeIsTlonbotReady(nodeId);
 }

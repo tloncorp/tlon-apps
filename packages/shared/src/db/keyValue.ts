@@ -116,6 +116,26 @@ export const signupData = createStorageItem<SignupParams>({
   },
 });
 
+export type TlonbotRevivalSetup = Pick<
+  SignupParams,
+  'nickname' | 'notificationToken' | 'notificationLevel'
+> & {
+  pending: boolean;
+  applied?: boolean;
+  shipId?: string;
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botProvider?: string;
+  botModel?: string;
+};
+
+export const tlonbotRevivalSetup = createStorageItem<TlonbotRevivalSetup>({
+  key: 'tlonbotRevivalSetup',
+  defaultValue: {
+    pending: false,
+  },
+});
+
 export const lastAppVersion = createStorageItem<string | null>({
   key: 'lastAppVersion',
   defaultValue: null,

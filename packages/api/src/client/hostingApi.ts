@@ -367,6 +367,16 @@ async function fetchNullableString(
   return typeof parsed === 'string' ? parsed : null;
 }
 
+export async function markShipTlonbotEnabled(ship: string): Promise<void> {
+  // stub for now
+  return;
+}
+
+export async function checkNodeIsTlonbotReady(ship: string): Promise<boolean> {
+  // stubbed for now
+  return false;
+}
+
 export async function getTlawnNickname(ship: string): Promise<string | null> {
   return fetchNullableString(`/v1/tlawn/ships/${ship}/nickname`);
 }

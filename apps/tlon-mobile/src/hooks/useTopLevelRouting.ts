@@ -2,6 +2,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
+import type { TlonbotSplashConfig } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -28,6 +29,7 @@ export function useTopLevelRouting() {
   const hostedAccountInitialized = db.hostedAccountIsInitialized.useValue();
   const hostedNodeRunning = db.hostedNodeIsRunning.useValue();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const tlonbotRevivalSetup = db.tlonbotRevivalSetup.useValue();
 
   const currentlyOnboarding = useMemo(() => {
     return (
@@ -71,6 +73,13 @@ export function useTopLevelRouting() {
   const showSplashSequence = useMemo(() => {
     return showAuthenticatedApp && (forcedSplash || needsSplashSequence);
   }, [showAuthenticatedApp, forcedSplash, needsSplashSequence]);
+  const showTlonbotSetup = useMemo(() => {
+    return (
+      showAuthenticatedApp &&
+      !showSplashSequence &&
+      tlonbotRevivalSetup.pending
+    );
+  }, [showAuthenticatedApp, showSplashSequence, tlonbotRevivalSetup.pending]);
   const activeSplashSequenceMode = needsSplashSequence
     ? splashSequenceMode
     : undefined;
@@ -96,10 +105,12 @@ export function useTopLevelRouting() {
     setForcedSplash(false);
     clearNeedsSplashSequence();
 
-    const completedRevivalSplash =
-      completedSplashMode === 'traditionalRevival' ||
-      completedSplashMode === 'tlonbotRevival';
-    if (completedRevivalSplash && revivalFlagClearStateRef.current === 'idle') {
+    const shouldClearRevivalFlagAfterSplash =
+      completedSplashMode === 'traditionalRevival';
+    if (
+      shouldClearRevivalFlagAfterSplash &&
+      revivalFlagClearStateRef.current === 'idle'
+    ) {
       revivalFlagClearStateRef.current = 'pending';
       store
         .clearShipRevivalStatus()
@@ -119,25 +130,41 @@ export function useTopLevelRouting() {
     }
   }, [activeSplashSequenceMode, clearNeedsSplashSequence]);
 
+  const handleTlonbotConfigured = useCallback(
+    async (config: TlonbotSplashConfig) => {
+      if (activeSplashSequenceMode !== 'tlonbotRevival') {
+        return;
+      }
+
+      await db.tlonbotRevivalSetup.setValue((current) => ({
+        ...current,
+        ...config,
+        pending: true,
+      }));
+    },
+    [activeSplashSequenceMode]
+  );
+
   // Splash renders instead of AuthenticatedApp, which is where the urbit
-  // client is normally configured. The splash's bot-avatar uploader hits
-  // storage code that reads the current user via the urbit client, so we
-  // configure it here too.
+  // client is normally configured. The splash and setup screen both hit APIs
+  // that read the current user via the urbit client, so configure it here too.
   const configureClient = useConfigureUrbitClient();
   useEffect(() => {
-    if (showSplashSequence) {
+    if (showSplashSequence || showTlonbotSetup) {
       configureClient();
     }
-  }, [showSplashSequence, configureClient]);
+  }, [showSplashSequence, showTlonbotSetup, configureClient]);
 
   return {
     connected,
     isLoading,
     showAuthenticatedApp,
     showSplashSequence,
+    showTlonbotSetup,
     activeSplashSequenceMode,
     hostingBotEnabled: hostingBotEnabled ?? false,
     handleClearSplash,
+    handleTlonbotConfigured,
   };
 }
 

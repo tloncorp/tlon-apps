@@ -90,6 +90,13 @@ enum SplashPane {
 
 type CustomBotSetupStatus = 'idle' | 'pending' | 'ready' | 'failed';
 
+export type TlonbotSplashConfig = {
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botProvider?: string;
+  botModel?: string;
+};
+
 function getPreviewBotName(userNickname?: string | null) {
   const trimmedNickname = userNickname?.trim();
   if (!trimmedNickname) {
@@ -104,6 +111,7 @@ function SplashSequenceComponent(props: {
   inviteSystemContacts?: InviteSystemContactsFn;
   hostingBotEnabled?: boolean;
   splashSequenceMode?: db.ShipInfo['splashSequenceMode'];
+  onTlonbotConfigured?: (config: TlonbotSplashConfig) => void | Promise<void>;
 }) {
   const store = useStore();
   const canUpload = useCanUpload();
@@ -142,6 +150,8 @@ function SplashSequenceComponent(props: {
   const [finishingSplash, setFinishingSplash] = React.useState(false);
   const customBotSetupPromiseRef = useRef<Promise<boolean> | null>(null);
   const isMountedRef = useRef(true);
+  const shouldDeferTlonbotSetup =
+    props.splashSequenceMode === 'tlonbotRevival';
 
   useEffect(() => {
     return () => {
@@ -245,6 +255,18 @@ function SplashSequenceComponent(props: {
     setAvatarDirty(true);
   }, []);
 
+  const saveDeferredTlonbotConfig = useCallback(
+    (config: TlonbotSplashConfig = {}) => {
+      const resolvedBotName = botName.trim() || 'Tlonbot';
+      return props.onTlonbotConfigured?.({
+        botName: resolvedBotName,
+        botAvatarUrl: avatarDirty ? botAvatarUrl : null,
+        ...config,
+      });
+    },
+    [avatarDirty, botAvatarUrl, botName, props.onTlonbotConfigured]
+  );
+
   const persistBotIdentityInBackground = useCallback(
     ({
       flow,
@@ -318,14 +340,20 @@ function SplashSequenceComponent(props: {
     []
   );
 
-  const handleBotAvatarCompleted = useCallback(() => {
-    persistBotIdentityInBackground({
-      flow: 'identity',
-      provider: botModel || 'unselected',
-      shipId: userShipId ? userShipId.slice(1) : null,
-      nickname: botName,
-      avatarUrl: avatarDirty ? botAvatarUrl : null,
-    });
+  const handleBotAvatarCompleted = useCallback(async () => {
+    if (shouldDeferTlonbotSetup) {
+      await saveDeferredTlonbotConfig({
+        botProvider: botModel || undefined,
+      });
+    } else {
+      persistBotIdentityInBackground({
+        flow: 'identity',
+        provider: botModel || 'unselected',
+        shipId: userShipId ? userShipId.slice(1) : null,
+        nickname: botName,
+        avatarUrl: avatarDirty ? botAvatarUrl : null,
+      });
+    }
     setCurrentPane(SplashPane.BotProvider);
   }, [
     avatarDirty,
@@ -333,6 +361,8 @@ function SplashSequenceComponent(props: {
     botModel,
     botName,
     persistBotIdentityInBackground,
+    saveDeferredTlonbotConfig,
+    shouldDeferTlonbotSetup,
     userShipId,
   ]);
 
@@ -439,7 +469,15 @@ function SplashSequenceComponent(props: {
       if (provider === BASIC_PROVIDER_ID) {
         setDidConfigureBot(true);
         setCustomBotSetupStatus('ready');
-        setCurrentPane(SplashPane.Group);
+        if (shouldDeferTlonbotSetup) {
+          await saveDeferredTlonbotConfig({
+            botProvider: provider,
+            botModel: `${provider}/auto`,
+          });
+        }
+        setCurrentPane(
+          shouldDeferTlonbotSetup ? SplashPane.Invite : SplashPane.Group
+        );
         return;
       }
 
@@ -502,7 +540,13 @@ function SplashSequenceComponent(props: {
         setSavingConfig(false);
       }
     }
-  }, [botApiKey, botModel, providerOptions]);
+  }, [
+    botApiKey,
+    botModel,
+    providerOptions,
+    saveDeferredTlonbotConfig,
+    shouldDeferTlonbotSetup,
+  ]);
 
   // When the user advances from BotProviderPane: if the chosen provider needs
   // a key, step into BotApiKey; otherwise (e.g. the free basic provider) fall
@@ -540,21 +584,39 @@ function SplashSequenceComponent(props: {
         botProvider: provider,
         botModel: model,
       });
-      startCustomBotSetup({ userId, shipId, provider, model });
-      setCurrentPane(SplashPane.Group);
+      if (shouldDeferTlonbotSetup) {
+        setCustomBotSetupStatus('ready');
+        await saveDeferredTlonbotConfig({
+          botProvider: provider,
+          botModel: model,
+        });
+      } else {
+        startCustomBotSetup({ userId, shipId, provider, model });
+      }
+      setCurrentPane(
+        shouldDeferTlonbotSetup ? SplashPane.Invite : SplashPane.Group
+      );
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
       logger.trackError('Wayfinding Bot Reconfigure Failed', {
         step: 'save_handler',
         error: e,
       });
-      setCurrentPane(SplashPane.Group);
+      setCurrentPane(
+        shouldDeferTlonbotSetup ? SplashPane.Invite : SplashPane.Group
+      );
     } finally {
       if (isMountedRef.current) {
         setSavingConfig(false);
       }
     }
-  }, [botModel, botPrimaryModel, startCustomBotSetup]);
+  }, [
+    botModel,
+    botPrimaryModel,
+    saveDeferredTlonbotConfig,
+    shouldDeferTlonbotSetup,
+    startCustomBotSetup,
+  ]);
 
   const handleSplashCompleted = useCallback(async () => {
     if (finishingSplash) return;
