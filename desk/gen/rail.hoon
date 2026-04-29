@@ -3,6 +3,21 @@
 ::TODO  investigate adding a "meta-build" for rune that evaluates the file
 ::      to obtain a hoon ast, which it then compiles into the result
 ::
+=/  non-strict-marks=(set mark)
+  ^~  %-  sy  ^-  (list mark)
+  :~  %chat-changed-writs-1
+      %chat-club-action
+      %chat-club-action-2
+      %chat-dm-action-2
+      %chat-dm-diff-2
+      %chat-heads-4
+      %chat-paged-writs-4
+      %chat-scam-4
+      %chat-scan-4
+      %chat-writ-4
+      %writ-response-4
+  ==
+::
 :-  %say
 |=  $:  [now=@da eny=@uvJ bec=beak]
         ~
@@ -70,7 +85,7 @@
     %+  rap  3
     :~  '$:  %'  m  gap
         ?.(bcls '' (rap 3 '$+  ' m gap ~))
-        '_*vale:'  m  gap  '=='
+        'p=_*vale:'  m  gap  '=='
     ==
     '\0a'
   ::
@@ -91,6 +106,40 @@
     |=  m=mark
     =+  gap=(fil 3 (add 2 (sub max (met 3 m))) ' ')
     (rap 3 '%' m gap '[-.rail !>(+.rail)]' ~)
+    '\0a'
+  ::
+    '''
+      ==
+    ::
+    ++  en-rail
+      |=  cage
+      ^-  rail
+      ?+  p  [%unsafe p q]
+    '''
+  ::
+    %^  rap  3  '\0a    '
+    %+  join    '\0a    '
+    %+  turn  maz
+    |=  m=mark
+    =+  gap=(fil 3 (add 2 (sub max (met 3 m))) ' ')
+    (rap 3 '%' m gap '[p !<(_*vale:' m ' q)]' ~)
+    '\0a'
+  ::
+    '''
+      ==
+    ::
+    ++  discipline
+      ^-  (list [=mark strict=? =type])
+      :~
+    '''
+  ::
+    %^  rap  3  '  '
+    %+  join    '\0a      '
+    %+  turn  maz
+    |=  m=mark
+    =+  gap=(fil 3 (add 2 (sub max (met 3 m))) ' ')
+    =+  sic=?:((~(has in non-strict-marks) m) '|' '&')
+    (rap 3 ':+  %' m gap sic '  -:!>(*vale:' m ')' ~)
     '\0a'
   ::
     '''

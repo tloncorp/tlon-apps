@@ -70,69 +70,7 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-        :~  :+  %chat-blocked-by      &  -:!>(*vale:m-chat-blocked-by)
-            :+  %chat-changed-writs    &  -:!>(*vale:m-chat-changed-writs)
-            ::TODO make strict
-            :+  %chat-changed-writs-1  |  -:!>(*vale:m-chat-changed-writs-1)
-            ::TODO make strict one day (affected by versioning mistake)
-            :+  %chat-club-action     |  -:!>(*vale:m-chat-club-action)
-            :+  %chat-club-action-0   &  -:!>(*vale:m-chat-club-action-0)
-            :+  %chat-club-action-1   &  -:!>(*vale:m-chat-club-action-1)
-            ::TODO make strict
-            :+  %chat-club-action-2   |  -:!>(*vale:m-chat-club-action-2)
-            :+  %chat-dm-action       &  -:!>(*vale:m-chat-dm-action)
-            :+  %chat-dm-action-1     &  -:!>(*vale:m-chat-dm-action-1)
-            ::TODO make strict
-            :+  %chat-dm-action-2     |  -:!>(*vale:m-chat-dm-action-2)
-            :+  %chat-dm-diff         &  -:!>(*vale:m-chat-dm-diff)
-            :+  %chat-dm-diff-1       &  -:!>(*vale:m-chat-dm-diff-1)
-            ::TODO make strict
-            :+  %chat-dm-diff-2       |  -:!>(*vale:m-chat-dm-diff-2)
-            :+  %chat-heads           &  -:!>(*vale:m-chat-heads)
-            :+  %chat-heads-1         &  -:!>(*vale:m-chat-heads-1)
-            :+  %chat-heads-2         &  -:!>(*vale:m-chat-heads-2)
-            :+  %chat-heads-3         &  -:!>(*vale:m-chat-heads-3)
-            ::TODO make strict
-            :+  %chat-heads-4         |  -:!>(*vale:m-chat-heads-4)
-            :+  %chat-paged-writs     &  -:!>(*vale:m-chat-paged-writs)
-            :+  %chat-paged-writs-1   &  -:!>(*vale:m-chat-paged-writs-1)
-            :+  %chat-paged-writs-2   &  -:!>(*vale:m-chat-paged-writs-2)
-            :+  %chat-paged-writs-3   &  -:!>(*vale:m-chat-paged-writs-3)
-            ::TODO make strict
-            :+  %chat-paged-writs-4   |  -:!>(*vale:m-chat-paged-writs-4)
-            :+  %chat-scam            &  -:!>(*vale:m-chat-scam)
-            :+  %chat-scam-1          &  -:!>(*vale:m-chat-scam-1)
-            :+  %chat-scam-2          &  -:!>(*vale:m-chat-scam-2)
-            :+  %chat-scam-3          &  -:!>(*vale:m-chat-scam-3)
-            ::TODO make strict
-            :+  %chat-scam-4          |  -:!>(*vale:m-chat-scam-4)
-            :+  %chat-scan            &  -:!>(*vale:m-chat-scan)
-            :+  %chat-scan-1          &  -:!>(*vale:m-chat-scan-1)
-            :+  %chat-scan-2          &  -:!>(*vale:m-chat-scan-2)
-            :+  %chat-scan-3          &  -:!>(*vale:m-chat-scan-3)
-            ::TODO make strict
-            :+  %chat-scan-4          |  -:!>(*vale:m-chat-scan-4)
-            :+  %chat-toggle-message  &  -:!>(*vale:m-chat-toggle-message)
-            :+  %chat-unblocked-by    &  -:!>(*vale:m-chat-unblocked-by)
-            :+  %chat-unread-update   &  -:!>(*vale:m-chat-unread-update)
-            :+  %chat-unreads         &  -:!>(*vale:m-chat-unreads)
-            :+  %chat-writ-1          &  -:!>(*vale:m-chat-writ-1)
-            :+  %chat-writ-2          &  -:!>(*vale:m-chat-writ-2)
-            :+  %chat-writ-3          &  -:!>(*vale:m-chat-writ-3)
-            ::TODO make strict
-            :+  %chat-writ-4          |  -:!>(*vale:m-chat-writ-4)
-            :+  %clubs                &  -:!>(*vale:m-clubs)
-            :+  %epic                 &  -:!>(*vale:m-epic)
-            :+  %hidden-messages      &  -:!>(*vale:m-hidden-messages)
-            :+  %ships                &  -:!>(*vale:m-ships)
-            :+  %writ                 &  -:!>(*vale:m-writ)
-            :+  %writ-response        &  -:!>(*vale:m-writ-response)
-            :+  %writ-response-1      &  -:!>(*vale:m-writ-response-1)
-            :+  %writ-response-2      &  -:!>(*vale:m-writ-response-2)
-            :+  %writ-response-3      &  -:!>(*vale:m-writ-response-3)
-            ::TODO make strict
-            :+  %writ-response-4      |  -:!>(*vale:m-writ-response-4)
-        ==
+        discipline:guardian
       ::  facts
       ::
       :~  [/ %chat-blocked-by %chat-unblocked-by %chat-toggle-message %chat-club-action %writ-response %ships ~]
