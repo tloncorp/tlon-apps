@@ -1,5 +1,9 @@
 import type * as db from '../types/models';
-import { PersonalGroupNames, PersonalGroupSlugs } from '../types/wayfinding';
+import {
+  BotHomeGroupSlugs,
+  PersonalGroupNames,
+  PersonalGroupSlugs,
+} from '../types/wayfinding';
 import { getChannelKindFromType } from '../urbit';
 
 export function getPersonalGroupKeys(currentUserId: string) {
@@ -81,6 +85,10 @@ export function isPersonalChatChannel(channelId: string): boolean {
   return channelId.includes(PersonalGroupSlugs.chatSlug);
 }
 
+export function isBotHomeGroupChatChannel(channelId: string): boolean {
+  return channelId.includes(BotHomeGroupSlugs.chatSlug);
+}
+
 export function isPersonalCollectionChannel(channelId: string): boolean {
   return channelId.includes(PersonalGroupSlugs.collectionSlug);
 }
@@ -105,7 +113,26 @@ export function personalGroupHasDefaultTitle(group?: db.Group | null) {
   return group.title?.toLowerCase().includes('group');
 }
 
+export function botHomeGroupHasDefaultTitle(group?: db.Group | null) {
+  if (!group) {
+    return false;
+  }
+
+  return (
+    group.title?.toLowerCase().includes('group') ||
+    group.title?.toLowerCase().includes('home')
+  );
+}
+
 export function generatePersonalGroupTitle(contact: {
+  id: string;
+  nickname?: string | null;
+}) {
+  const displayName = contact.nickname || contact.id;
+  return `${displayName}'s Group`;
+}
+
+export function generateBotHomeGroupTitle(contact: {
   id: string;
   nickname?: string | null;
 }) {

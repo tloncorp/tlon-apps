@@ -16,6 +16,7 @@ export function ChatInput({
   const {
     channel,
     clearDraft,
+    draftInputRef,
     editingPost,
     getDraft,
     group,
@@ -28,11 +29,13 @@ export function ChatInput({
 
   const isWindowNarrow = useIsWindowNarrow();
   const showWayfindingTooltip = store.useShowChatInputWayfinding(channel.id);
+  const showBotMentionTooltip = store.useShowBotMentionWayfinding(channel.id);
 
   return (
     <SafeAreaView edges={['right', 'left', 'bottom']}>
       <ParentAgnosticKeyboardAvoidingView>
         <BareChatInput
+          ref={draftInputRef}
           shouldBlur={shouldBlur}
           setShouldBlur={setShouldBlur}
           sendPostFromDraft={sendPostFromDraft}
@@ -50,6 +53,7 @@ export function ChatInput({
           showInlineAttachments
           showAttachmentButton
           showWayfindingTooltip={showWayfindingTooltip}
+          showBotMentionTooltip={showBotMentionTooltip}
         />
       </ParentAgnosticKeyboardAvoidingView>
     </SafeAreaView>

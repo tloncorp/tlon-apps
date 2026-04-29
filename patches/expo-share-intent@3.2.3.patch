@@ -1,8 +1,18 @@
 diff --git a/plugin/build/ios/ShareExtensionViewController.swift b/plugin/build/ios/ShareExtensionViewController.swift
-index 1234567..89abcde 100644
+index a8b001aae14b3a2378360244c3525f247320ab4b..92860e22136473b6dc25f55eda23c9d238fc8ecb 100644
 --- a/plugin/build/ios/ShareExtensionViewController.swift
 +++ b/plugin/build/ios/ShareExtensionViewController.swift
-@@ -13,6 +13,18 @@
+@@ -4,15 +4,28 @@
+  * inspired by :
+  *  - https://ajith-ab.github.io/react-native-receive-sharing-intent/docs/ios#create-share-extension
+  */
++import ImageIO
+ import MobileCoreServices
+ import Photos
+ import Social
+ import UIKit
+ 
+ class ShareViewController: UIViewController {
 -  let hostAppGroupIdentifier = "<GROUPIDENTIFIER>"
 -  let shareProtocol = "<SCHEME>"
 -  let sharedKey = "<SCHEME>ShareKey"
@@ -24,7 +34,7 @@ index 1234567..89abcde 100644
    var sharedMedia: [SharedMediaFile] = []
    var sharedWebUrl: [WebUrl] = []
    var sharedText: [String] = []
-@@ -26,6 +27,7 @@
+@@ -26,6 +39,7 @@ class ShareViewController: UIViewController {
  
    override func viewDidLoad() {
      super.viewDidLoad()
@@ -32,12 +42,77 @@ index 1234567..89abcde 100644
    }
  
    override func viewDidAppear(_ animated: Bool) {
-@@ -382,6 +384,18 @@
-     case text
-     case weburl
-     case file
+@@ -160,6 +174,20 @@ class ShareViewController: UIViewController {
+             url = dataURL
+           } else if let imageData = item as? UIImage {
+             url = self.saveScreenshot(imageData)
++          } else if let imageData = item as? Data {
++            guard let imageExtension = self.getImageDataExtension(imageData) else {
++              NSLog("[ERROR] Cannot identify image data type !\(String(describing: item))")
++              self.dismissWithError(message: "Could not read shared image")
++              return
++            }
++
++            url = self.saveImageData(imageData, fileExtension: imageExtension)
++          }
++
++          guard url != nil else {
++            NSLog("[ERROR] Cannot load image URL content !\(String(describing: item))")
++            self.dismissWithError(message: "Cannot load image URL content")
++            return
+           }
+ 
+           var pixelWidth: Int? = nil
+@@ -221,8 +249,7 @@ class ShareViewController: UIViewController {
+   }
+ 
+   private func documentDirectoryPath() -> URL? {
+-    let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+-    return path.first
++    return FileManager.default.temporaryDirectory
+   }
+ 
+   private func saveScreenshot(_ image: UIImage) -> URL? {
+@@ -236,6 +263,35 @@ class ShareViewController: UIViewController {
+     return screenshotURL
+   }
+ 
++  private func getImageDataExtension(_ data: Data) -> String? {
++    guard let imageSource = CGImageSourceCreateWithData(data as CFData, nil),
++      CGImageSourceGetCount(imageSource) > 0,
++      let imageType = CGImageSourceGetType(imageSource),
++      let imageExtension = UTType(imageType as String)?.preferredFilenameExtension
++    else {
++      return nil
++    }
++
++    return imageExtension
 +  }
 +
++  private func saveImageData(_ data: Data, fileExtension: String) -> URL? {
++    guard
++      let imagePath = documentDirectoryPath()?.appendingPathComponent(
++        "\(UUID().uuidString).\(fileExtension)")
++    else {
++      return nil
++    }
++
++    do {
++      try data.write(to: imagePath)
++      return imagePath
++    } catch {
++      NSLog("Cannot save image data: \(error)")
++      return nil
++    }
++  }
++
+   private func handleVideos(content: NSExtensionItem, attachment: NSItemProvider, index: Int) async
+   {
+     Task.detached {
+@@ -384,29 +440,32 @@ class ShareViewController: UIViewController {
+     case file
+   }
+ 
 +  private func setupLoadingIndicator() {
 +    view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.92)
 +    loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
@@ -48,10 +123,11 @@ index 1234567..89abcde 100644
 +      loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
 +    ])
 +    loadingIndicator.startAnimating()
-   }
- 
++  }
++
    func getExtension(from url: URL, type: SharedMediaType) -> String {
-@@ -390,23 +404,14 @@ class ShareViewController: UIViewController {
+     let parts = url.lastPathComponent.components(separatedBy: ".")
+     var ex: String? = nil
      if parts.count > 1 {
        ex = parts.last
      }
@@ -78,13 +154,3 @@ index 1234567..89abcde 100644
      }
      return name
    }
-@@ -221,8 +221,7 @@ class ShareViewController: UIViewController {
-   }
- 
-   private func documentDirectoryPath() -> URL? {
--    let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
--    return path.first
-+    return FileManager.default.temporaryDirectory
-   }
- 
-   private func saveScreenshot(_ image: UIImage) -> URL? {

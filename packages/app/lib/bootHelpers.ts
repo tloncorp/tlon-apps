@@ -19,8 +19,9 @@ export async function reserveNode(hostingUserId: string): Promise<{
   code?: string;
   isReady: boolean;
   personalInviteToken: string | null;
+  homeGroupInviteToken: string | null;
 }> {
-  const { nodeId, code, isReady, personalInviteToken } =
+  const { nodeId, code, isReady, personalInviteToken, homeGroupInviteToken } =
     await hostingApi.assignShipToUser(hostingUserId);
 
   trackOnboardingAction({
@@ -30,7 +31,13 @@ export async function reserveNode(hostingUserId: string): Promise<{
 
   await db.hostedUserNodeId.setValue(nodeId);
 
-  return { id: nodeId, code, isReady, personalInviteToken };
+  return {
+    id: nodeId,
+    code,
+    isReady,
+    personalInviteToken,
+    homeGroupInviteToken,
+  };
 }
 
 export async function checkNodeBooted(): Promise<boolean> {
@@ -47,6 +54,7 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   tlonTeamDM: db.Channel | null;
   invitedGroup: db.Group | null;
   personalGroup: db.Group | null;
+  botHomeGroup: db.Group | null;
 }> {
   if (!lureMeta) {
     throw new Error('no stored invite found, cannot check');
@@ -70,6 +78,7 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   const invitedGroup = isPersonalInvite
     ? null
     : await db.getGroup({ id: invitedGroupId! });
+  const botHomeGroup = await db.getBotHomeGroup();
 
-  return { invitedDm, invitedGroup, tlonTeamDM, personalGroup };
+  return { invitedDm, invitedGroup, tlonTeamDM, personalGroup, botHomeGroup };
 }
