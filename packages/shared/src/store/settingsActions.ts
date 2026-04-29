@@ -63,6 +63,7 @@ export async function completeWayfindingSplash() {
     tappedAddNote: false,
     tappedAddCollection: false,
     tappedChatInput: false,
+    tappedBotMention: false,
   }));
 
   // optimistic update
