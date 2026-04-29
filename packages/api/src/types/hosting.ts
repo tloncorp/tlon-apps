@@ -43,6 +43,7 @@ export type HostedShipInfo = {
   booting: boolean;
   manualUpdateNeeded?: boolean;
   showWayfinding?: boolean;
+  botReady?: boolean;
   id: string;
 };
 

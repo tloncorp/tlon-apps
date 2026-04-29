@@ -88,6 +88,7 @@ export function useOnboardingHelpers() {
             ...current,
             pending: true,
             applied: false,
+            provisioningStarted: current.provisioningStarted ?? false,
             shipId: shipId ?? undefined,
           }));
         }
@@ -106,8 +107,27 @@ export function useOnboardingHelpers() {
         configureUrbitClient(shipInfoToUse);
         store.syncStart();
 
-        // The Hosting revival flag is non-idempotent, so clear it only after
-        // the user completes the revival splash.
+        if (onboardingFlow === 'tlonbotRevival') {
+          store
+            .markCurrentShipTlonbotEnabled()
+            .then(() =>
+              db.tlonbotRevivalSetup.setValue((current) => ({
+                ...current,
+                provisioningStarted: true,
+              }))
+            )
+            .catch((error) => {
+              logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+                error,
+                context: 'failed to start TlonBot provisioning after auth',
+                during: 'mobile revival onboarding (useOnboardingHelpers)',
+                severity: AnalyticsSeverity.High,
+              });
+            });
+        }
+
+        // Clear the Hosting revival flag only after the user completes revival
+        // onboarding.
       } catch (e) {
         logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           error: e,

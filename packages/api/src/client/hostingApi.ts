@@ -13,7 +13,6 @@ import {
 } from '../types';
 
 const logger = createDevLogger('hostingApi', false);
-
 interface StoredValue<T> {
   getValue: () => Promise<T>;
   setValue: (value: T) => Promise<void>;
@@ -367,13 +366,70 @@ async function fetchNullableString(
   return typeof parsed === 'string' ? parsed : null;
 }
 
+async function fetchVoid(path: string, init?: RequestInit): Promise<void> {
+  const response = await rawHostingFetch(path, init);
+  if (response.ok) {
+    return;
+  }
+
+  const text = await response.text();
+  let parsed: unknown = null;
+  try {
+    parsed = text.length === 0 ? null : JSON.parse(text);
+  } catch {
+    parsed = null;
+  }
+
+  const message =
+    parsed && typeof parsed === 'object' && 'message' in parsed
+      ? String((parsed as { message: unknown }).message)
+      : 'An unknown error has occurred.';
+  const err = new HostingError(message, {
+    method: init?.method ?? 'GET',
+    path,
+    status: response.status,
+  });
+  logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
+    details: err.details,
+    errorMessage: err.message,
+    errorStack: err.stack,
+  });
+  throw err;
+}
+
+export async function setShipTlonbotEnabled(
+  ship: string,
+  enabled: boolean
+): Promise<void> {
+  await fetchVoid(`/v1/tlawn/${ship}/bot-enabled/${enabled}`, {
+    method: 'PUT',
+  });
+}
+
 export async function markShipTlonbotEnabled(ship: string): Promise<void> {
-  // stub for now
-  return;
+  await setShipTlonbotEnabled(ship, true);
 }
 
 export async function checkNodeIsTlonbotReady(ship: string): Promise<boolean> {
-  // stubbed for now
+  const result = await getShip(ship);
+  return result.ship.botReady === true;
+}
+
+export async function awaitNodeTlonbotReady(
+  ship: string,
+  {
+    timeoutMs = 60_000,
+    pollIntervalMs = 5000,
+  }: { timeoutMs?: number; pollIntervalMs?: number } = {}
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await checkNodeIsTlonbotReady(ship)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
   return false;
 }
 
@@ -815,11 +871,17 @@ export const getShip = async (shipId: string) => {
   return ship;
 };
 
-export const clearShipRevivalStatus = async (shipId: string) => {
-  return hostingFetch(`/v1/ships/${shipId}/wayfinding`, {
+export const setShipRevivalStatus = async (
+  shipId: string,
+  enabled: boolean
+) => {
+  return fetchVoid(`/v1/ships/${shipId}/wayfinding/${enabled}`, {
     method: 'PATCH',
   });
 };
+
+export const clearShipRevivalStatus = async (shipId: string) =>
+  setShipRevivalStatus(shipId, false);
 
 export const getShipAccessCode = async (shipId: string) =>
   hostingFetch<{ code: string }>(`/v1/ships/${shipId}/network`);

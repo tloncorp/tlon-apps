@@ -216,18 +216,6 @@ export async function checkHostingNodeStatus(
       }
     }
 
-    if (showWayfinding) {
-      try {
-        await markCurrentShipTlonbotEnabled();
-      } catch (error) {
-        logger.trackError(AnalyticsEvent.LoginDebug, {
-          error,
-          context: 'Failed to mark revival ship TlonBot enabled',
-          nodeId,
-        });
-      }
-    }
-
     const onboardingFlow = showWayfinding ? 'tlonbotRevival' : undefined;
 
     return {
@@ -316,8 +304,6 @@ export async function clearShipRevivalStatus() {
     throw new Error('Cannot clear revival status, no node ID found');
   }
 
-  // note: the Hosting api only lets us blindly toggle the revival status,
-  // not explicitly clear it
   await clearHostedShipRevivalStatus(nodeId);
 }
 

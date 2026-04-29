@@ -1,5 +1,6 @@
 export {
   HostingError,
+  awaitNodeTlonbotReady,
   checkPhoneVerify,
   clearShipRevivalStatus,
   getHostingHeartBeat,
@@ -10,6 +11,8 @@ export {
   markShipTlonbotEnabled,
   requestLoginOtp,
   requestPhoneVerify,
+  setShipRevivalStatus,
+  setShipTlonbotEnabled,
   signUpHostingUser,
   checkNodeIsTlonbotReady,
 } from './client/hostingApi';

@@ -74,11 +74,21 @@ export function TlonbotSetupScreen() {
           throw new Error('No ship ID found during TlonBot revival setup');
         }
 
-        if (!provisioningKickoffStartedRef.current) {
+        if (
+          !setup.provisioningStarted &&
+          !provisioningKickoffStartedRef.current
+        ) {
           provisioningKickoffStartedRef.current = true;
           api
             .markShipTlonbotEnabled(shipId)
-            .then(() => db.hostingBotEnabled.setValue(true))
+            .then(async () => {
+              await db.hostingBotEnabled.setValue(true);
+              await db.tlonbotRevivalSetup.setValue((current) => ({
+                ...current,
+                provisioningStarted: true,
+                shipId: current.shipId ?? shipId,
+              }));
+            })
             .catch((error) => {
               provisioningKickoffStartedRef.current = false;
               logger.trackError('Failed to kick off TlonBot provisioning', {
@@ -88,9 +98,14 @@ export function TlonbotSetupScreen() {
             });
         }
 
-        const isReady = await api.checkNodeIsTlonbotReady(shipId);
+        const isReady = await api.awaitNodeTlonbotReady(shipId, {
+          timeoutMs: 30_000,
+          pollIntervalMs: POLL_INTERVAL_MS,
+        });
         if (isReady) {
-          await applyDeferredSetup(shipId);
+          if (!cancelled) {
+            await applyDeferredSetup(shipId);
+          }
           return;
         }
       } catch (error) {

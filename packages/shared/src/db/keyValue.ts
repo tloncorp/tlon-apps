@@ -122,6 +122,7 @@ export type TlonbotRevivalSetup = Pick<
 > & {
   pending: boolean;
   applied?: boolean;
+  provisioningStarted?: boolean;
   shipId?: string;
   botName?: string;
   botAvatarUrl?: string | null;

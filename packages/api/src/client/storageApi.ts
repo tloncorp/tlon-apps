@@ -136,7 +136,8 @@ export const getStorageCredentials = async (): Promise<StorageCredentials> => {
   return credentials['storage-update'].credentials;
 };
 
-const MEMEX_BASE_URL = 'https://memex.tlon.network';
+// const MEMEX_BASE_URL = 'https://memex.tlon.network';
+const MEMEX_BASE_URL = 'https://memex.test.tlon.systems';
 
 const mimeToExt: Record<string, string> = {
   'image/jpeg': '.jpg',

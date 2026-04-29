@@ -92,7 +92,8 @@ export async function getObjectStorageMethod(): Promise<
   }
 }
 
-const MEMEX_BASE_URL = 'https://memex.tlon.network';
+// const MEMEX_BASE_URL = 'https://memex.tlon.network';
+const MEMEX_BASE_URL = 'https://memex.test.tlon.systems';
 
 export interface MemexUploadParams {
   token: string;
