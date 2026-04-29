@@ -14,9 +14,7 @@
   [(scot %p our) term (scot %da now) spur]
 ::
 ++  summarize-activity
-  ?:  .^(? %gu (scry-path %channels /$))
-    summarize-activity-new-groups
-  summarize-activity-old-groups
+  summarize-activity-new-groups
 ::
 ++  summarize-activity-new-groups
   ^-  $:  sent=@ud
@@ -54,42 +52,6 @@
   |=  [[id-post:c p=(unit post:v8:cv)] s=_s r=_r]
   ?~  p  [s r]
   ?:(=(our author.u.p) [+(s) r] [s +(r)])
-::
-++  summarize-activity-old-groups
-  ^-  $:  sent=@ud
-          received=@ud
-          most-sent-group=@t
-      ==
-  =-  :+  s  r
-      =/  g=flag:chat
-        =<  -
-        ::TODO  crashes if no groups
-        %+  snag  0
-        %+  sort  ~(tap by g)
-        |=([[* a=@ud] [* b=@ud]] (gth a b))
-      =<  title.meta
-      .^  group:v2:gv
-        %gx
-        (scry-path %groups /groups/(scot %p p.g)/[q.g]/group)
-      ==
-  %+  roll
-    %~  tap  by
-    .^  (map flag:chat chat:chat)
-      %gx
-      (scry-path %chat /chats/chats)
-    ==
-  =*  onn  ((on time writ:chat) lte)
-  |=  [[c=flag:chat chat:chat] g=(map flag:chat @ud) s=@ud r=@ud]
-  =+  .^  log=((mop time writ:chat) lte)
-        %gx
-        %+  scry-path  %chat
-        /chat/(scot %p p.c)/[q.c]/writs/newer/(scot %ud (sub now range))/(scot %ud limit)/chat-writs
-      ==
-  :-  %+  ~(put by g)  group.perm
-      (add (~(gut by g) group.perm 0) (wyt:onn log))
-  %+  roll  (tap:onn log)
-  |=  [[time writ:chat] s=_s r=_r]
-  ?:(=(our author) [+(s) r] [s +(r)])
 ::
 ++  summarize-inactivity
   ?:  .^(? %gu (scry-path %channels /$))
