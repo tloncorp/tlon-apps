@@ -417,7 +417,7 @@
         ::  already subscribed
         ?:  ?=(%want sag)
           si-cor
-        =/  pat  [%v1 %contact ?~(for / /at/(scot %da wen.for))]
+        =/  pat  [%v1 %contact ?~(for / /at/(scot:h136 %da wen.for))]
         %_  si-cor
           cor  (pass /contact %agent [who dap.bowl] %watch pat)
           sag  %want
@@ -646,7 +646,7 @@
         :_  (~(put by peers) who fir %want)
         ?:  (~(has by wex.bowl) [/contact who dap.bowl])
           caz
-        =/  =path  [%v1 %contact ?~(fir / /at/(scot %da wen.fir))]
+        =/  =path  [%v1 %contact ?~(fir / /at/(scot:h136 %da wen.fir))]
         :_  caz
         [%pass /contact %agent [who dap.bowl] %watch path]
       [caz state-1]
@@ -661,7 +661,7 @@
         ?:  ?&  =(%want sag)
                 !(~(has by wex.bowl) [/contact who dap.bowl])
             ==
-          =/  =path  [%v1 %contact ?~(for / /at/(scot %da wen.for))]
+          =/  =path  [%v1 %contact ?~(for / /at/(scot:h136 %da wen.for))]
           :_  caz
           [%pass /contact %agent [who dap.bowl] %watch path]
         caz

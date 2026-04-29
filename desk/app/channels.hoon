@@ -2138,7 +2138,7 @@
     ?.  =(our.bowl ship.nest)
       =/  count  ?:(=(%diary kind.nest) '20' '100')
       /[kind.nest]/[name.nest]/checkpoint/before/[count]
-    /[kind.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
+    /[kind.nest]/[name.nest]/checkpoint/time-range/(scot:h136 %da *@da)
   ::
   ++  ca-start-updates
     |=  delay=?
@@ -2148,7 +2148,7 @@
       (bind (ram:on-v-posts:c posts.channel) head)
     %.  delay
     %^  safe-watch  ca-sub-wire  [ship.nest server]
-    /[kind.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
+    /[kind.nest]/[name.nest]/updates/(scot:h136 %da (fall tim *@da))
   ::
   ++  ca-agent
     |=  [=wire =sign:agent:gall]
@@ -2323,7 +2323,7 @@
     %+  welp
       /[kind.nest]/[name.nest]/checkpoint/time-range
     ~|  `*`key.u.checkpoint-start
-    /(scot %da *@da)/(scot %da key.u.checkpoint-start)
+    /(scot:h136 %da *@da)/(scot:h136 %da key.u.checkpoint-start)
   ::
   ++  ca-ingest-backlog
     |=  chk=u-checkpoint:c
