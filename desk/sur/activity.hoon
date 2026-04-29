@@ -155,6 +155,7 @@
   $:  key=message-key
       parent=(unit message-key)  ::  either dm or dm-reply
       =whom
+      =author:ch
       =react:ch
   ==
 +$  contact-event

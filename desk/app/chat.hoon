@@ -1499,7 +1499,7 @@
               [%delete-post key=message-key]
               [%reply key=message-key top=message-key]
               [%delete-reply key=message-key top=message-key]
-              [%react key=message-key top=(unit message-key) =react:c]
+              [%react key=message-key top=(unit message-key) =author:c =react:c]
           ==
           content=story:d
           mention=?
@@ -1538,7 +1538,7 @@
     %post    [%dm-post key.concern whom content mention]
     %reply   [%dm-reply key.concern top.concern whom content mention]
     %invite  [%dm-invite whom]
-    %react   [%dm-react key.concern top.concern whom react.concern]
+    %react   [%dm-react key.concern top.concern whom author.concern react.concern]
   ==
 ::
 ++  make-notice
@@ -1990,7 +1990,7 @@
                 [%delete-post key=message-key]
                 [%reply key=message-key top=message-key]
                 [%delete-reply key=message-key top=message-key]
-                [%react key=message-key top=(unit message-key) =react:c]
+                [%react key=message-key top=(unit message-key) =author:c =react:c]
             ==
             content=story:d
             mention=?
@@ -2192,7 +2192,7 @@
           =/  message-key  [p.diff.delta now.bowl]
           =*  content  content.writ.u.had
           =/  mention  (was-mentioned:utils content our.bowl ~)
-          =/  concern  [%react message-key ~ react.q.diff.delta]
+          =/  concern  [%react message-key ~ [author react]:q.diff.delta]
           (cu-activity concern content mention)
         (cu-give-writs-diff diff.delta)
       ::
@@ -2251,7 +2251,7 @@
             =/  message-key  [id time]:reply.u.reply
             =*  content  content.reply.u.reply
             =/  mention  (was-mentioned:utils content our.bowl ~)
-            =/  concern  [%react message-key `top-key react.delt]
+            =/  concern  [%react message-key `top-key author.delt react.delt]
             (cu-activity concern content mention)
           (cu-give-writs-diff diff.delta)
         ::
@@ -2564,7 +2564,7 @@
                 [%delete-post key=message-key:a]
                 [%reply key=message-key:a top=message-key:a]
                 [%delete-reply key=message-key:a top=message-key:a]
-                [%react key=message-key:a top=(unit message-key:a) =react:c]
+                [%react key=message-key:a top=(unit message-key:a) =author:c =react:c]
             ==
             content=story:d
             mention=?
@@ -2687,7 +2687,7 @@
         =/  message-key  [p.diff now.bowl]
         =*  content  content.writ.u.had
         =/  mention  (was-mentioned:utils content our.bowl ~)
-        =/  concern  [%react message-key ~ react.q.diff]
+        =/  concern  [%react message-key ~ author.q.diff react.q.diff]
         (di-activity concern content mention)
       (di-give-writs-diff diff)
     ::
@@ -2746,7 +2746,7 @@
           =/  message-key  [id time]:reply.u.reply
           =*  content  content.reply.u.reply
           =/  mention  (was-mentioned:utils content our.bowl ~)
-          =/  concern  [%react message-key `top-key react.delta]
+          =/  concern  [%react message-key `top-key author.delta react.delta]
           (di-activity concern content mention)
         (di-give-writs-diff diff)
       ::

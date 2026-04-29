@@ -76,22 +76,7 @@
 ++  migrate-0-to-1
   |=  old=state-0
   ^-  state-1
-  :*  %1
-      owner.old
-      last-owner-msg.old
-      last-owner-msg-id.old
-      status.old
-      boot-id.old
-      lease-until.old
-      last-heartbeat.old
-      last-stop.old
-      last-start.old
-      pending-restart.old
-      last-auto-reply.old
-      last-auto-reply-to.old
-      reply-cooldown.old
-      active-window.old
-  ==
+  old(- %1)
 --
 =|  current-state
 =*  state  -

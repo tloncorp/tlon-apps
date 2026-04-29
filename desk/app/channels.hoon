@@ -1803,11 +1803,14 @@
       (send ~[action])
     ::
     ++  on-post-react
-      |=  [id-post=id-post:d new=reacts:d old=reacts:d]
+      |=  [post=v-post:d new=reacts:d old=reacts:d]
       ~>  %spin.['on-post-react']
       ^+  ca-core
       ?.  running
         ca-core
+      =*  post-author  (get-author-ship:utils author.post)
+      =/  =message-key
+        [[post-author id.post] id.post]
       =/  =source  [%channel nest group.perm.channel]
       =/  actions=(list action)
         %+  roll  ~(tap by new)
@@ -1820,7 +1823,7 @@
           [%read source [%all `now.bowl |]]
         ?:  (blocked author-ship)  actions
         :_  actions
-        [%add %react [[author-ship id-post] id-post] ~ nest group.perm.channel author react]
+        [%add %react message-key ~ nest group.perm.channel author react]
       ?~  actions  ca-core
       (send actions)
     ::
@@ -1888,14 +1891,17 @@
       (send ~[[%adjust thread `vm] action])
     ::
     ++  on-reply-react
-      |=  [parent=v-post:d reply=v-reply:d new=reacts:d old=reacts:d]
+      |=  [post=v-post:d reply=v-reply:d new=reacts:d old=reacts:d]
       ~>  %spin.['on-reply-react']
       ^+  ca-core
       ?.  running
         ca-core
-      =*  parent-author  (get-author-ship:utils author.parent)
+      =*  parent-author  (get-author-ship:utils author.post)
       =/  parent-key=message-key
-        [[parent-author id.parent] id.parent]
+        [[parent-author id.post] id.post]
+      =*  reply-author  (get-author-ship:utils author.reply)
+      =/  reply-key
+        [[reply-author id.reply] id.reply]
       =/  =source  [%thread parent-key nest group.perm.channel]
       =/  actions=(list action)
         %+  roll  ~(tap by new)
@@ -1908,7 +1914,7 @@
           [%read source [%all `now.bowl |]]
         ?:  (blocked author-ship)  actions
         :_  actions
-        [%add %react [[author-ship id.reply] id.reply] `parent-key nest group.perm.channel author react]
+        [%add %react reply-key `parent-key nest group.perm.channel author react]
       ?~  actions  ca-core
       (send actions)
     ::
@@ -2518,7 +2524,7 @@
       ?:  =(merged reacts.u.post)  ca-core
       =.  ca-core
         %^  on-post-react:ca-activity
-            id-post
+            +.u.post
           (uv-reacts:utils merged)
         (uv-reacts:utils reacts.u.post)
       =.  posts.channel

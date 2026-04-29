@@ -110,6 +110,7 @@
     $:  key=message-key
         parent=(unit message-key)  ::  either dm or dm-reply
         =whom
+        =author:c
         =react:c
     ==
   ::  $index: depends on $stream

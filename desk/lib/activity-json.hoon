@@ -135,6 +135,7 @@
         :~  key+(msg-key key.e)
             parent+?~(parent.e ~ (msg-key u.parent.e))
             whom+(whom whom.e)
+            author+(author:v10:enjs:cj author.e)
             react+(react:v8:enjs:cj react.e)
         ==
       ::
@@ -968,6 +969,7 @@
       :~  key/msg-key
           parent/(mu msg-key)
           whom/whom
+          author/author:v10:dejs:cj
           react/react:v9:dejs:cj
       ==
     --
