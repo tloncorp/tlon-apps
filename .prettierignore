@@ -20,6 +20,8 @@ apps/tlon-web/playwright-dev.log
 apps/tlon-web/.playwright-dev.pid
 dump.sqlite3
 .claude
+/cosmos.imports.ts
+/apps/tlon-web/cosmos.imports.ts
 .gitattributes
 clurd
 # From apps/tlon-desktop/.gitignore
