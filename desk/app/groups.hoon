@@ -594,54 +594,50 @@
   ~>  %spin.['run-import']
   ^+  cor
   =.  pimp  ~
-  ?-  -.egg-any
-      ?(%15 %16)
-    ?.  ?=(%live +<.egg-any)
-      ~&  [dap.bowl %egg-any-not-live]
-      cor
-    =/  bak  (load -:!>([*any-state:load ~]) +>.old-state.egg-any)
-    ::  restore any previews & invites we might've had
-    ::
-    =.  foreigns
-      %+  roll  ~(tap by foreigns:bak)
-      |=  [[=flag:g far=foreign:g] =_foreigns]
-      %+  ~(put by foreigns)  flag
-      ?.  (~(has by foreigns) flag)
-        far(lookup ~, progress ~, token ~)
-      =/  hav  (~(got by foreigns) flag)
-      ::  merge foreign:
-      ::  1. join invite lists
-      ::  2. preserve current lookup, progress and token
-      ::  3. prefer current preview
-      ::
-      :*  (weld invites.hav invites.far)
-          lookup.hav
-          ?~(preview.hav preview.far preview.hav)
-          progress.hav
-          token.hav
-      ==
-    ::  restore the groups we were in, taking care to re-establish
-    ::  subscriptions to the group, and to tell %channels to re-establish
-    ::  its subscriptions to the groups' channels as well.
-    ::
-    =.  cor
-      %+  roll  ~(tap by groups:bak)
-      |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
-      ?:  (~(has by groups.cor) flag)
-        cor
-      =.  groups.cor  (~(put by groups.cor) flag gr)
-      =+  goc=(go-abed:go-core:cor flag)
-      =.  goc  (go-safe-sub:goc |)
-      =.  cor  go-abet:goc
-      ::  wake our members if we are the host
-      ::
-      =?  cor  =(p.flag our.bowl)
-        (emil:cor go-wake-members:go-pass:goc)
-      %-  emil:cor
-      %-  join-channels:go-pass:goc
-      ~(tap in ~(key by channels.group.gr))
+  =/  =egg:gall  (latest:egg-aid:gall egg-any)
+  ?.  ?=(%live -.egg)
+    ~&  [dap.bowl %egg-not-live]
     cor
-  ==
+  =/  bak  (load -:!>([*any-state:load ~]) +>.old-state.egg)
+  ::  restore any previews & invites we might've had
+  ::
+  =.  foreigns
+    %+  roll  ~(tap by foreigns:bak)
+    |=  [[=flag:g far=foreign:g] =_foreigns]
+    %+  ~(put by foreigns)  flag
+    ?.  (~(has by foreigns) flag)
+      far(lookup ~, progress ~, token ~)
+    =/  hav  (~(got by foreigns) flag)
+    ::  merge foreign:
+    ::  1. join invite lists
+    ::  2. preserve current lookup, progress and token
+    ::  3. prefer current preview
+    ::
+    :*  (weld invites.hav invites.far)
+        lookup.hav
+        ?~(preview.hav preview.far preview.hav)
+        progress.hav
+        token.hav
+    ==
+  ::  restore the groups we were in, taking care to re-establish
+  ::  subscriptions to the group, and to tell %channels to re-establish
+  ::  its subscriptions to the groups' channels as well.
+  ::
+  %+  roll  ~(tap by groups:bak)
+  |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
+  ?:  (~(has by groups.cor) flag)
+    cor
+  =.  groups.cor  (~(put by groups.cor) flag gr)
+  =+  goc=(go-abed:go-core:cor flag)
+  =.  goc  (go-safe-sub:goc |)
+  =.  cor  go-abet:goc
+  ::  wake our members if we are the host
+  ::
+  =?  cor  =(p.flag our.bowl)
+    (emil:cor go-wake-members:go-pass:goc)
+  %-  emil:cor
+  %-  join-channels:go-pass:goc
+  ~(tap in ~(key by channels.group.gr))
 ::
 ++  channels-scry
   |=  =nest:g
@@ -2660,9 +2656,15 @@
           ==
       ::  clean up ask and pending record
       ::
-      =.  pending.ad   (~(del by pending.ad) ship)
+      =.  pending.ad
+        %-  ~(rep in ships)
+        |=  [=ship =_pending.ad]
+        (~(del by pending) ship)
       ::TODO kick from /ask  sub
-      =.  requests.ad  (~(del by requests.ad) ship)
+      =.  requests.ad
+        %-  ~(rep in ships)
+        |=  [=ship =_requests.ad]
+        (~(del by requests) ship)
       ::TODO if any of the ships was pending and invited,
       ::     cancel their tokens.
       ::
