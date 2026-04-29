@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  ship
+  ++  noun  ^ship
   ++  json  unblock-ship:dejs:j
   --
 --
