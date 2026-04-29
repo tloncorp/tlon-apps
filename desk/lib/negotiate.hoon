@@ -72,12 +72,12 @@
 +$  config    (map dude:gall (map protocol version))
 +$  status    ?(%match %clash %await %unmet)
 +$  state-2
-    $:  %2
-        ours=(map protocol version)
-        know=config
-        heed=(map [gill:gall protocol] (unit version))
-        want=(map gill:gall (map wire path))  ::  un-packed wires
-    ==
+  $:  %2
+      ours=(map protocol version)
+      know=config
+      heed=(map [gill:gall protocol] (unit version))
+      want=(map gill:gall (map wire path))  ::  un-packed wires
+  ==
 ::
 ++  initiate
   |=  =gill:gall
