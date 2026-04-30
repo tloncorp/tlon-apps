@@ -27,14 +27,7 @@ async function performSync() {
   const timings: Record<string, number> = {
     start: Date.now(),
   };
-  logger.log('Loading stored ship info...');
   const shipInfo = await storage.shipInfo.getValue();
-  logger.log('Loaded stored ship info', {
-    hasShipInfo: shipInfo != null,
-    hasShip: shipInfo?.ship != null,
-    hasShipUrl: shipInfo?.shipUrl != null,
-    authType: shipInfo?.authType,
-  });
   if (shipInfo == null) {
     logger.trackEvent('Skipping background sync', {
       context: 'no ship info',
@@ -55,7 +48,6 @@ async function performSync() {
     return;
   }
 
-  logger.trackEvent('Configuring urbit client...');
   configureUrbitClient({
     ship: shipInfo.ship,
     shipUrl: shipInfo.shipUrl,
@@ -74,7 +66,6 @@ async function performSync() {
     // );
 
     const changesStart = Date.now();
-    logger.log('Syncing since last successful sync...');
     await syncSince({
       callCtx: { cause: 'background-sync' },
       syncCtx: {
@@ -88,7 +79,6 @@ async function performSync() {
     // We disable the registered-handler path because in a bg task there's
     // no React tree (and so no useNotificationListener-registered
     // handler) — instead we schedule a local notification directly.
-    logger.log('Running contact discovery...');
     const discoveryStart = Date.now();
     const discoveryResult = await syncContactDiscovery(undefined, {
       invokeHandler: false,
@@ -99,16 +89,9 @@ async function performSync() {
       });
       return null;
     });
-    logger.trackEvent('Background contact discovery complete', {
-      discoveryResult,
-      taskExecutionId,
-    });
     timings.discoveryDuration = Date.now() - discoveryStart;
 
     if (discoveryResult && discoveryResult.newMatches.length > 0) {
-      logger.log('Notifying about new matches...', {
-        newMatches: discoveryResult.newMatches,
-      });
       await notifyAboutNewMatches(
         discoveryResult.newMatches.map(([, contactId]) => contactId)
       ).catch((err) => {
@@ -145,14 +128,11 @@ async function performSync() {
       flushErrorLogger(),
       new Promise<void>((resolve) => setTimeout(resolve, 500)),
     ]).catch(() => {});
-    logger.log('Finished background sync finalization');
   }
 }
 
 export async function runBackgroundSyncFromDebugButton() {
-  logger.log('Debug UI trigger pressed');
   await performSync();
-  logger.log('Debug UI trigger complete');
 }
 
 // In foreground, useNotificationListener registers a handler that turns
@@ -165,12 +145,11 @@ async function notifyAboutNewMatches(contactIds: string[]) {
   // foreground syncStart sets userHasCompletedFirstSync to true once
   // initial sync wraps; subsequent bg runs (this code path) hit that
   // branch and notify normally.
-  logger.log('Checking first-sync gate before match notification', {
-    count: contactIds.length,
-  });
   const hasCompletedFirstSync = await db.userHasCompletedFirstSync.getValue();
-  logger.log('First-sync gate result', { hasCompletedFirstSync });
-  if (!hasCompletedFirstSync) return;
+  if (!hasCompletedFirstSync) {
+    logger.log('Skipping match notification: first sync not complete');
+    return;
+  }
 
   if (contactIds.length === 1) {
     const [contactId] = contactIds;
@@ -180,24 +159,13 @@ async function notifyAboutNewMatches(contactIds: string[]) {
     const name =
       [sc?.firstName, sc?.lastName].filter(Boolean).join(' ').trim() ||
       contactId;
-    logger.log('Presenting single contact match notification', {
-      contactId,
-      name,
-    });
     await presentContactMatchNotification({ contactId, name });
   } else {
-    logger.log('Presenting contacts matched notification', {
-      count: contactIds.length,
-    });
     await presentContactsMatchedNotification({ count: contactIds.length });
   }
 }
 
 const TASK_ID = 'tlon:backgroundSync:v2';
-
-logger.log('backgroundSync module loaded; defining task', {
-  taskId: TASK_ID,
-});
 
 export async function removeLegacyTasks() {
   try {
@@ -223,16 +191,8 @@ export async function removeLegacyTasks() {
 // Define the background task at module scope - this must happen before registration
 TaskManager.defineTask<Record<string, unknown>>(
   TASK_ID,
-  async ({
-    data,
-    error,
-    executionInfo,
-  }): Promise<BackgroundTask.BackgroundTaskResult> => {
-    logger.trackEvent('Running background task', {
-      data,
-      error,
-      executionInfo,
-    });
+  async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
+    logger.trackEvent('Running background task');
     if (error) {
       logger.trackError(`Failed background task`, {
         error,
