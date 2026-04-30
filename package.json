@@ -15,6 +15,7 @@
     "build:packages": "pnpm run build:api && pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
+    "clean:all": "rm -rf apps/tlon-web/node_modules && rm -rf apps/tlon-mobile/node_modules && rm -rf packages/shared/dist && rm -rf packages/shared/node_modules && rm -rf packages/ui/dist && rm -rf packages/ui/node_modules && rm -rf node_modules && rm -rf packages/editor/dist && rm -rf apps/tlon-web-new/node_modules && rm -rf packages/api/node_modules && rm -rf packages/api/dist",
     "cosmos:native": "cosmos-native",
     "cosmos:web": "pnpm --filter 'tlon-web' cosmos",
     "cosmos": "concurrently \"pnpm run cosmos:native\" \"pnpm run cosmos:web\"",
