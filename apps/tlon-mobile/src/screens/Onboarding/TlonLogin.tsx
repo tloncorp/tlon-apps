@@ -9,18 +9,19 @@ import {
 import {
   Field,
   KeyboardAvoidingView,
-  OnboardingTextBlock,
-  Pressable,
   ScreenHeader,
+  SplashParagraph,
+  SplashTitle,
   TextInput,
   TlonText,
   View,
   YStack,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
-import { Button } from '@tloncorp/ui';
+import { Button, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -42,6 +43,7 @@ type EmailFormData = {
 };
 
 export const TlonLoginScreen = ({ navigation, route }: Props) => {
+  const insets = useSafeAreaInsets();
   const [otpMethod, setOtpMethod] = useState<'phone' | 'email'>(
     route.params?.initialLoginMethod ?? 'phone'
   );
@@ -60,7 +62,6 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
     navigation.navigate('EULA');
   }, [navigation]);
 
-  // dev helper: if password prefill set, skip this screen
   useEffect(() => {
     if (DEFAULT_TLON_LOGIN_PASSWORD) {
       navigation.navigate('TlonLoginLegacy');
@@ -174,26 +175,36 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
     navigation.goBack();
   }, [navigation, signupContext]);
 
+  const isFormValid =
+    otpMethod === 'phone'
+      ? phoneForm.formState.isValid
+      : emailForm.formState.isValid;
+
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        title="Tlon Login"
-        loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
-        backAction={goBack}
-      />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
-        <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
-          <OnboardingTextBlock>
-            <TlonText.Text size="$body" color="$primaryText">
-              Enter the {otpMethod === 'phone' ? 'phone number' : 'email'}{' '}
-              associated with your Tlon account.
-            </TlonText.Text>
-            <TlonText.Text size="$body" color="$negativeActionText">
-              {remoteError}
-            </TlonText.Text>
-          </OnboardingTextBlock>
-          <YStack display="flex" gap="$m">
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+      <View
+        flex={1}
+        backgroundColor="$background"
+        paddingTop={insets.top}
+        paddingBottom={insets.bottom}
+      >
+        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+          <View paddingHorizontal="$xl">
+            <ScreenHeader.BackButton onPress={goBack} />
+          </View>
+          <SplashTitle>
+            Welcome <Text color="$positiveActionText">back.</Text>
+          </SplashTitle>
+          <SplashParagraph marginBottom={0}>
+            Enter the {otpMethod === 'phone' ? 'phone number' : 'email'}{' '}
+            associated with your Tlon account.
+          </SplashParagraph>
+          <YStack paddingHorizontal="$xl" gap="$m">
+            {remoteError ? (
+              <TlonText.Text color="$negativeActionText" size="$label/m">
+                {remoteError}
+              </TlonText.Text>
+            ) : null}
             {otpMethod === 'phone' ? (
               <PhoneNumberInput form={phoneForm} />
             ) : (
@@ -225,6 +236,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
                       onSubmitEditing={onSubmit}
+                      autoFocus
                       testID="email-input"
                     />
                   </Field>
@@ -232,96 +244,75 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                 name="email"
               />
             )}
-
-            <Button
-              onPress={onSubmit}
-              loading={isSubmitting}
-              disabled={
-                isSubmitting ||
-                (otpMethod === 'phone'
-                  ? !phoneForm.formState.isValid
-                  : !emailForm.formState.isValid)
-              }
-              label="Send code to log in"
-              centered
-            />
-
-            <TlonText.Text
-              textAlign="center"
-              size="$label/s"
-              color="$tertiaryText"
-              marginTop="$m"
-            >
-              By logging in you agree to Tlon&rsquo;s{' '}
-              <TlonText.RawText
-                pressStyle={{
-                  opacity: 0.5,
-                }}
-                textDecorationLine="underline"
-                textDecorationDistance={10}
-                onPress={handlePressEula}
-              >
-                Terms of Service
-              </TlonText.RawText>
-            </TlonText.Text>
-          </YStack>
-          <View>
             {otpMethod === 'email' ? (
-              <>
-                <TlonText.Text
-                  color="$secondaryText"
-                  marginTop="$xl"
-                  textAlign="center"
-                >
+              <YStack gap="$m" marginTop="$m" alignItems="center">
+                <TlonText.Text size="$label/s" color="$secondaryText">
                   We&apos;ll email you a 6-digit code to log in.
                 </TlonText.Text>
                 <Pressable
                   testID="or-use-password"
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel="Or, log in with a password"
-                  pressStyle={{
-                    opacity: 0.5,
-                  }}
                   onPress={() => navigation.navigate('TlonLoginLegacy')}
-                  marginTop="$s"
                 >
                   <TlonText.Text
+                    size="$label/s"
                     color="$secondaryText"
                     textDecorationLine="underline"
                     textDecorationDistance={10}
-                    textAlign="center"
                   >
                     Or, log in with a password
                   </TlonText.Text>
                 </Pressable>
                 <TlonText.Text
+                  size="$label/s"
                   color="$secondaryText"
-                  onPress={handlePressEmailSignup}
-                  marginTop="$xl"
                   textDecorationLine="underline"
                   textDecorationDistance={10}
-                  textAlign="center"
+                  onPress={handlePressEmailSignup}
                 >
                   Log in with phone number instead
                 </TlonText.Text>
-              </>
+              </YStack>
             ) : (
               <TlonText.Text
                 size="$label/s"
                 color="$secondaryText"
                 textAlign="center"
+                marginTop="$m"
                 onPress={handlePressEmailSignup}
-                marginTop="$xl"
                 textDecorationLine="underline"
                 textDecorationDistance={10}
               >
                 Normally log in with email?
               </TlonText.Text>
             )}
-          </View>
+          </YStack>
         </YStack>
-      </KeyboardAvoidingView>
-    </View>
+        <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
+          <Button
+            onPress={onSubmit}
+            loading={isSubmitting}
+            disabled={isSubmitting || !isFormValid}
+            label={isSubmitting ? 'Sending…' : 'Send code to log in'}
+            preset="hero"
+            shadow={!isSubmitting && isFormValid}
+          />
+          <TlonText.Text
+            textAlign="center"
+            size="$label/s"
+            color="$tertiaryText"
+          >
+            By logging in you agree to Tlon&rsquo;s{' '}
+            <TlonText.RawText
+              pressStyle={{ opacity: 0.5 }}
+              textDecorationLine="underline"
+              textDecorationDistance={10}
+              onPress={handlePressEula}
+            >
+              Terms of Service
+            </TlonText.RawText>
+          </TlonText.Text>
+        </YStack>
+      </View>
+    </KeyboardAvoidingView>
   );
 };

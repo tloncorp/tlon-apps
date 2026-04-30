@@ -23,10 +23,12 @@ export function PhoneNumberInput({
   const theme = useTheme();
 
   useEffect(() => {
-    // wait for transition to complete, then focus
-    if (shouldFocus) {
+    // wait for screen transition to complete, then focus
+    if (!shouldFocus) return;
+    const handle = setTimeout(() => {
       phoneInputRef.current?.focus();
-    }
+    }, 350);
+    return () => clearTimeout(handle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

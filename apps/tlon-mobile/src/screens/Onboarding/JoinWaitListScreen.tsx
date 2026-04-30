@@ -3,7 +3,10 @@ import { addUserToWaitlist } from '@tloncorp/api';
 import { EMAIL_REGEX } from '@tloncorp/app/constants';
 import {
   Field,
+  KeyboardAvoidingView,
   ScreenHeader,
+  SplashParagraph,
+  SplashTitle,
   TextInput,
   TlonText,
   View,
@@ -11,9 +14,11 @@ import {
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
+import { Button, Text } from '@tloncorp/ui';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { OnboardingStackParamList } from '../../types';
 
@@ -26,6 +31,7 @@ type FormData = {
 const logger = createDevLogger('JoinWaitListScreen', true);
 
 export const JoinWaitListScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const [remoteError, setRemoteError] = useState<string | undefined>();
   const {
     control,
@@ -56,56 +62,76 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        title="Join Waitlist"
-        backgroundColor="$secondaryBackground"
-        backAction={() => navigation.goBack()}
-        rightControls={
-          <ScreenHeader.TextButton
-            disabled={!isValid}
-            onPress={handleSubmit(onSubmit)}
-          >
-            Submit
-          </ScreenHeader.TextButton>
-        }
-      />
-      <YStack paddingHorizontal="$2xl" gap="$m">
-        <View padding="$xl">
-          <TlonText.Text size="$body" color="$primaryText">
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+      <View
+        flex={1}
+        backgroundColor="$background"
+        paddingTop={insets.top}
+        paddingBottom={insets.bottom}
+      >
+        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+          <View paddingHorizontal="$xl">
+            <ScreenHeader.BackButton onPress={() => navigation.goBack()} />
+          </View>
+          <SplashTitle>
+            Join the <Text color="$positiveActionText">waitlist.</Text>
+          </SplashTitle>
+          <SplashParagraph marginBottom={0}>
             We&rsquo;ll let you know as soon as space is available.
-          </TlonText.Text>
-        </View>
-        <Controller
-          control={control}
-          name="email"
-          rules={{
-            required: 'Please enter a valid email address.',
-            pattern: {
-              value: EMAIL_REGEX,
-              message: 'Please enter a valid email address.',
-            },
-          }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Field label="Email" error={errors.email?.message} paddingTop="$m">
-              <TextInput
-                placeholder="sampel@pal.net"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </Field>
-          )}
+          </SplashParagraph>
+          <YStack paddingHorizontal="$xl" gap="$m">
+            <Controller
+              control={control}
+              name="email"
+              rules={{
+                required: 'Please enter a valid email address.',
+                pattern: {
+                  value: EMAIL_REGEX,
+                  message: 'Please enter a valid email address.',
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Field error={errors.email?.message}>
+                  <TextInput
+                    placeholder="sampel@pal.net"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoFocus
+                    returnKeyType="send"
+                    enablesReturnKeyAutomatically
+                    onSubmitEditing={handleSubmit(onSubmit)}
+                    frameStyle={{
+                      height: 72,
+                      borderWidth: 0,
+                      paddingLeft: 0,
+                      paddingRight: 0,
+                    }}
+                    style={{ fontSize: 24, fontWeight: '600' }}
+                  />
+                </Field>
+              )}
+            />
+            {remoteError ? (
+              <TlonText.Text size="$label/m" color="$negativeActionText">
+                {remoteError}
+              </TlonText.Text>
+            ) : null}
+          </YStack>
+        </YStack>
+        <Button
+          onPress={handleSubmit(onSubmit)}
+          label="Submit"
+          preset="hero"
+          disabled={!isValid}
+          shadow={isValid}
+          marginHorizontal="$xl"
+          marginTop="$xl"
         />
-        {remoteError ? (
-          <TlonText.Text fontSize="$s" color="$negativeActionText">
-            {remoteError}
-          </TlonText.Text>
-        ) : null}
-      </YStack>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 };

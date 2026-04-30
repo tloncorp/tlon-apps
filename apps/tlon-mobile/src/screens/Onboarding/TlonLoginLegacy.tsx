@@ -8,8 +8,9 @@ import {
 import {
   Field,
   KeyboardAvoidingView,
-  OnboardingTextBlock,
   ScreenHeader,
+  SplashParagraph,
+  SplashTitle,
   TextInput,
   TlonText,
   View,
@@ -17,8 +18,10 @@ import {
 } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import type { OnboardingStackParamList } from '../../types';
@@ -34,6 +37,7 @@ type FormData = {
 const logger = createDevLogger('TlonLoginScreen', true);
 
 export const TlonLoginLegacy = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
   const {
@@ -90,30 +94,31 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
   });
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        title="Tlon Login"
-        loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
-        backAction={() => navigation.goBack()}
-        rightControls={
-          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
-            Submit
-          </ScreenHeader.TextButton>
-        }
-      />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
-        <YStack gap="$m" paddingHorizontal="$2xl">
-          <OnboardingTextBlock>
-            <TlonText.Text size="$body" color="$primaryText">
-              Enter the email and password associated with your Tlon account.
-            </TlonText.Text>
-            <TlonText.Text size="$body" color="$negativeActionText">
-              {remoteError}
-            </TlonText.Text>
-          </OnboardingTextBlock>
-
-          <YStack gap="$2xl">
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+      <View
+        flex={1}
+        backgroundColor="$background"
+        paddingTop={insets.top}
+        paddingBottom={insets.bottom}
+      >
+        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+          <View paddingHorizontal="$xl">
+            <ScreenHeader.BackButton
+              onPress={isSubmitting ? undefined : () => navigation.goBack()}
+            />
+          </View>
+          <SplashTitle>
+            Welcome <Text color="$positiveActionText">back.</Text>
+          </SplashTitle>
+          <SplashParagraph marginBottom={0}>
+            Enter the email and password associated with your Tlon account.
+          </SplashParagraph>
+          <YStack paddingHorizontal="$xl" gap="$2xl">
+            {remoteError ? (
+              <TlonText.Text size="$label/m" color="$negativeActionText">
+                {remoteError}
+              </TlonText.Text>
+            ) : null}
             <Controller
               control={control}
               rules={{
@@ -124,11 +129,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
                 },
               }}
               render={({ field: { onChange, onBlur, value } }) => (
-                <Field
-                  label="Email"
-                  error={errors.email?.message}
-                  paddingTop="$m"
-                >
+                <Field label="Email" error={errors.email?.message}>
                   <TextInput
                     testID="email-input-legacy"
                     placeholder="Email Address"
@@ -182,36 +183,44 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               )}
               name="password"
             />
-            <View paddingBottom="$m">
-              <TlonText.Text
-                size="$label/s"
-                color="$tertiaryText"
-                textAlign="center"
-              >
-                By logging in you agree to Tlon&rsquo;s{' '}
-                <TlonText.RawText
-                  pressStyle={{
-                    opacity: 0.5,
-                  }}
-                  textDecorationLine="underline"
-                  textDecorationDistance={10}
-                  onPress={handlePressEula}
-                >
-                  Terms of Service
-                </TlonText.RawText>
-              </TlonText.Text>
-            </View>
             <TlonText.Text
               size="$label/m"
               color="$secondaryText"
               textAlign="center"
               onPress={handleForgotPassword}
+              textDecorationLine="underline"
+              textDecorationDistance={10}
             >
               Forgot password?
             </TlonText.Text>
           </YStack>
         </YStack>
-      </KeyboardAvoidingView>
-    </View>
+        <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
+          <Button
+            onPress={onSubmit}
+            label={isSubmitting ? 'Logging in…' : 'Log in'}
+            preset="hero"
+            loading={isSubmitting}
+            disabled={!isValid || isSubmitting}
+            shadow={isValid && !isSubmitting}
+          />
+          <TlonText.Text
+            size="$label/s"
+            color="$tertiaryText"
+            textAlign="center"
+          >
+            By logging in you agree to Tlon&rsquo;s{' '}
+            <TlonText.RawText
+              pressStyle={{ opacity: 0.5 }}
+              textDecorationLine="underline"
+              textDecorationDistance={10}
+              onPress={handlePressEula}
+            >
+              Terms of Service
+            </TlonText.RawText>
+          </TlonText.Text>
+        </YStack>
+      </View>
+    </KeyboardAvoidingView>
   );
 };

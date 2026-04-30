@@ -9,8 +9,9 @@ import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   Field,
   KeyboardAvoidingView,
-  OnboardingTextBlock,
   ScreenHeader,
+  SplashParagraph,
+  SplashTitle,
   TextInput,
   TlonText,
   View,
@@ -20,8 +21,10 @@ import { getShipFromCookie } from '@tloncorp/app/utils/ship';
 import { transformShipURL } from '@tloncorp/app/utils/string';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { OnboardingStackParamList } from '../../types';
 
@@ -36,6 +39,7 @@ type FormData = {
 };
 
 export const ShipLoginScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formattedShipUrl, setFormattedShipUrl] = useState<
     string | undefined
@@ -97,8 +101,6 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
 
         navigation.navigate('SetTelemetry');
 
-        // Delay to allow the transition to telemetry screen via Onboarding navigator to complete
-        // before setting auth and potentially triggering a re-render of app.main (which might change nav prop to Root navigator)
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         setShip({
@@ -132,31 +134,31 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
   }, [errors.shipUrl, formattedShipUrl, setFocus, setValue]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        backgroundColor="$secondaryBackground"
-        title="Connect Ship"
-        loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backAction={() => navigation.goBack()}
-        rightControls={
-          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
-            Connect
-          </ScreenHeader.TextButton>
-        }
-      />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
-        <YStack gap="$m" paddingHorizontal="$2xl">
-          <OnboardingTextBlock>
-            <TlonText.Text size="$body" color="$primaryText">
-              Connect a self-hosted ship by entering its URL and access code.
-            </TlonText.Text>
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+      <View
+        flex={1}
+        backgroundColor="$background"
+        paddingTop={insets.top}
+        paddingBottom={insets.bottom}
+      >
+        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+          <View paddingHorizontal="$xl">
+            <ScreenHeader.BackButton
+              onPress={isSubmitting ? undefined : () => navigation.goBack()}
+            />
+          </View>
+          <SplashTitle>
+            Connect your <Text color="$positiveActionText">ship.</Text>
+          </SplashTitle>
+          <SplashParagraph marginBottom={0}>
+            Connect a self-hosted ship by entering its URL and access code.
+          </SplashParagraph>
+          <YStack paddingHorizontal="$xl" gap="$2xl">
             {remoteError ? (
-              <TlonText.Text size="$body" color="$negativeActionText">
+              <TlonText.Text size="$label/m" color="$negativeActionText">
                 {remoteError}
               </TlonText.Text>
             ) : null}
-          </OnboardingTextBlock>
-          <YStack gap="$2xl">
             <Controller
               control={control}
               name="shipUrl"
@@ -174,11 +176,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
                 },
               }}
               render={({ field: { onChange, onBlur, value } }) => (
-                <Field
-                  label="Ship URL"
-                  error={errors.shipUrl?.message}
-                  paddingTop="$m"
-                >
+                <Field label="Ship URL" error={errors.shipUrl?.message}>
                   <TextInput
                     testID="textInput shipUrl"
                     placeholder="https://sampel-palnet.arvo.network"
@@ -236,23 +234,33 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
               )}
             />
           </YStack>
-          <View padding="$xl">
-            <TlonText.Text size="$label/s" color="$tertiaryText">
-              By logging in you agree to Tlon&rsquo;s{' '}
-              <TlonText.RawText
-                pressStyle={{
-                  opacity: 0.5,
-                }}
-                textDecorationLine="underline"
-                textDecorationDistance={10}
-                onPress={handlePressEula}
-              >
-                Terms of Service
-              </TlonText.RawText>
-            </TlonText.Text>
-          </View>
         </YStack>
-      </KeyboardAvoidingView>
-    </View>
+        <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
+          <Button
+            onPress={onSubmit}
+            label={isSubmitting ? 'Connecting…' : 'Connect'}
+            preset="hero"
+            loading={isSubmitting}
+            disabled={!isValid || isSubmitting}
+            shadow={isValid && !isSubmitting}
+          />
+          <TlonText.Text
+            size="$label/s"
+            color="$tertiaryText"
+            textAlign="center"
+          >
+            By logging in you agree to Tlon&rsquo;s{' '}
+            <TlonText.RawText
+              pressStyle={{ opacity: 0.5 }}
+              textDecorationLine="underline"
+              textDecorationDistance={10}
+              onPress={handlePressEula}
+            >
+              Terms of Service
+            </TlonText.RawText>
+          </TlonText.Text>
+        </YStack>
+      </View>
+    </KeyboardAvoidingView>
   );
 };

@@ -81,7 +81,7 @@ export function InitialStateCheckScreen({ navigation }: Props) {
   return (
     <View
       flex={1}
-      backgroundColor="$secondaryBackground"
+      backgroundColor="$background"
       justifyContent="center"
       alignItems="center"
     >

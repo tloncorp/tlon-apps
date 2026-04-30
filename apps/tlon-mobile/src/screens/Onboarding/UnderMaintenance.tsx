@@ -2,19 +2,22 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import {
-  OnboardingTextBlock,
   ScreenHeader,
+  SplashParagraph,
+  SplashTitle,
+  TlonText,
   View,
+  YStack,
   useStore,
 } from '@tloncorp/app/ui';
-import { TlonText } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
-import { Button } from '@tloncorp/ui';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { openComposer } from 'react-native-email-link';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnboardingStackParamList } from '../../types';
 
@@ -26,6 +29,7 @@ type Props = NativeStackScreenProps<
 const logger = createDevLogger('UnderMaintenanceScreen', true);
 
 export function UnderMaintenanceScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const store = useStore();
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
@@ -63,36 +67,59 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
   }, []);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        title="Needs Repair"
-        backgroundColor="$secondaryBackground"
-        leftControls={
-          <ScreenHeader.TextButton onPress={onLogout} disabled={loggingOut}>
-            Log out
-          </ScreenHeader.TextButton>
-        }
-      />
-      <OnboardingTextBlock>
-        <TlonText.Text size="$label/l">
-          Your Peer-to-peer Node needs to undergo maintenance and cannot be
+    <View
+      flex={1}
+      backgroundColor="$background"
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+    >
+      <YStack
+        paddingHorizontal="$xl"
+        paddingTop="$s"
+        alignItems="flex-start"
+      >
+        <ScreenHeader.TextButton
+          onPress={onLogout}
+          disabled={loggingOut}
+          color="$tertiaryText"
+        >
+          Log out
+        </ScreenHeader.TextButton>
+      </YStack>
+      <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+        <SplashTitle>
+          Your node needs <Text color="$positiveActionText">repair.</Text>
+        </SplashTitle>
+        <SplashParagraph marginBottom={0}>
+          Your peer-to-peer node needs to undergo maintenance and cannot be
           started. Our support team has been alerted.
-        </TlonText.Text>
+        </SplashParagraph>
         {checkedAt && (
-          <TlonText.Text size="$label/l" color="$secondaryText">
-            Last checked at {logic.makePrettyTime(checkedAt)}
-          </TlonText.Text>
+          <SplashParagraph marginBottom={0}>
+            <TlonText.RawText color="$secondaryText">
+              Last checked at {logic.makePrettyTime(checkedAt)}
+            </TlonText.RawText>
+          </SplashParagraph>
         )}
+      </YStack>
+      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         <Button
           loading={rechecking}
+          disabled={rechecking}
           onPress={handleRecheckStatus}
-          label="Check Again"
-          centered
+          label={rechecking ? 'Checking…' : 'Check again'}
+          preset="hero"
+          shadow={!rechecking}
         />
         {checkedAt && (
-          <Button onPress={handleEmailSupport} label="Email Support" centered />
+          <Button
+            onPress={handleEmailSupport}
+            label="Email support"
+            preset="secondary"
+            backgroundColor="transparent"
+          />
         )}
-      </OnboardingTextBlock>
+      </YStack>
     </View>
   );
 }

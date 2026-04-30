@@ -6,6 +6,8 @@ import {
 } from '@tloncorp/app/contexts/branch';
 import {
   ScreenHeader,
+  SplashParagraph,
+  SplashTitle,
   TlonText,
   View,
   YStack,
@@ -18,8 +20,9 @@ import {
   createDevLogger,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OTPInput } from '../../components/OnboardingInputs';
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
@@ -40,6 +43,7 @@ const PHONE_CODE_LENGTH = 6;
 const logger = createDevLogger('CheckOTP', true);
 
 export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
+  const insets = useSafeAreaInsets();
   const store = useStore();
   const [otp, setOtp] = useState<string[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -95,7 +99,6 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
           ...accountCreds,
         });
 
-        // clear hosting cookie since we manage manually
         await clearHostingNativeCookie();
 
         trackOnboardingAction({
@@ -246,29 +249,45 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
   };
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        title={mode === 'login' ? 'Tlon Login' : 'Confirm Code'}
-        loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
-        backAction={() => navigation.goBack()}
-      />
-      <YStack padding="$2xl" gap="$6xl">
-        <OTPInput
-          value={otp}
-          length={codeLength}
-          onChange={handleCodeChanged}
-          mode={otpMethod}
-          error={error}
-        />
-        <TlonText.Text
-          size="$label/m"
-          textAlign="center"
-          onPress={handleResend}
-          pressStyle={{ opacity: 0.5 }}
-        >
-          Request a new code
-        </TlonText.Text>
+    <View
+      flex={1}
+      backgroundColor="$background"
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+    >
+      <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+        <View paddingHorizontal="$xl">
+          <ScreenHeader.BackButton
+            onPress={isSubmitting ? undefined : () => navigation.goBack()}
+          />
+        </View>
+        <SplashTitle>
+          Confirm your <Text color="$positiveActionText">code.</Text>
+        </SplashTitle>
+        <SplashParagraph marginBottom={0}>
+          We sent a 6-digit code to your{' '}
+          {otpMethod === 'email' ? 'email' : 'phone'}.
+        </SplashParagraph>
+        <YStack paddingHorizontal="$xl" gap="$6xl" paddingTop="$xl">
+          <OTPInput
+            value={otp}
+            length={codeLength}
+            onChange={handleCodeChanged}
+            mode={otpMethod}
+            error={error}
+          />
+          <TlonText.Text
+            size="$label/m"
+            textAlign="center"
+            color="$secondaryText"
+            onPress={handleResend}
+            pressStyle={{ opacity: 0.5 }}
+            textDecorationLine="underline"
+            textDecorationDistance={10}
+          >
+            Request a new code
+          </TlonText.Text>
+        </YStack>
       </YStack>
     </View>
   );

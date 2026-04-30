@@ -1,13 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as ub from '@tloncorp/api/urbit';
 import {
-  Button,
   NotificationLevelSelector,
-  ScreenHeader,
-  TlonText,
+  SplashParagraph,
+  SplashTitle,
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -30,15 +30,12 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
   );
 
   const handleNext = useCallback(async () => {
-    // Save the notification level, but don't request token yet
-    // That will happen in AllowNotificationsScreen
     signupContext.setOnboardingValues({
       notificationLevel: selectedLevel,
     });
     navigation.push('AllowNotifications');
   }, [selectedLevel, signupContext, navigation]);
 
-  // Disable back button
   useEffect(
     () =>
       navigation.addListener('beforeRemove', (e) => {
@@ -50,34 +47,39 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
   return (
     <View
       flex={1}
+      backgroundColor="$background"
+      paddingTop={insets.top}
       paddingBottom={insets.bottom}
-      backgroundColor="$secondaryBackground"
     >
-      <ScreenHeader
-        title="Notifications"
-        backgroundColor="$secondaryBackground"
-      />
-      <View
-        flex={1}
-        paddingHorizontal="$2xl"
-        maxWidth={600}
-        marginHorizontal="auto"
-        alignContent="center"
-      >
-        <YStack gap="$2xl" flex={1} justifyContent="center">
-          <TlonText.Text size="$body">
-            Tlon works best when you’re notified of messages. You can change
-            these settings any time.
-          </TlonText.Text>
-
+      <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+        <SplashTitle>
+          Pick your <Text color="$positiveActionText">notifications.</Text>
+        </SplashTitle>
+        <SplashParagraph marginBottom={0}>
+          Tlon works best when you&rsquo;re notified of messages. You can change
+          these settings any time.
+        </SplashParagraph>
+        <View
+          paddingHorizontal="$xl"
+          maxWidth={600}
+          width="100%"
+          marginHorizontal="auto"
+        >
           <NotificationLevelSelector
             value={selectedLevel}
             onChange={setSelectedLevel}
             config={{ shortDescriptions: true }}
           />
-        </YStack>
-        <Button preset="hero" shadow label="Next" onPress={handleNext} />
-      </View>
+        </View>
+      </YStack>
+      <Button
+        preset="hero"
+        shadow
+        label="Next"
+        onPress={handleNext}
+        marginHorizontal="$xl"
+        marginTop="$xl"
+      />
     </View>
   );
 };

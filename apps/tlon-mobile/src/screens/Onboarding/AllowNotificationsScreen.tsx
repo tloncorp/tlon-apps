@@ -4,9 +4,16 @@ import {
   requestNotificationToken,
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
-import { Button, ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
+import {
+  SplashParagraph,
+  SplashTitle,
+  TlonText,
+  View,
+  YStack,
+} from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useRef } from 'react';
 import { ImageBackground, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,7 +35,6 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
   const notifPerms = useNotificationPermissions();
   const hasContinued = useRef(false);
 
-  // Select background image based on platform and theme
   const getBackgroundImage = () => {
     if (Platform.OS === 'ios') {
       return isDarkMode
@@ -49,7 +55,6 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
 
       hasContinued.current = true;
 
-      // Save the notification token to signup context
       signupContext.setOnboardingValues({
         notificationToken,
       });
@@ -68,7 +73,6 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
     let notificationToken: string | undefined;
 
     try {
-      // Request notification permission and get token
       notificationToken = await requestNotificationToken();
     } catch (err) {
       console.error('Error requesting notification permission:', err);
@@ -119,36 +123,35 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
   return (
     <View
       flex={1}
+      backgroundColor="$background"
+      paddingTop={insets.top}
       paddingBottom={insets.bottom}
-      backgroundColor="$secondaryBackground"
     >
       <ImageBackground
         source={getBackgroundImage()}
         style={{ flex: 1 }}
         resizeMode="cover"
       >
-        <ScreenHeader
-          backgroundColor="$secondaryBackground"
-          title="Notifications"
-        />
-        <YStack
-          flex={1}
-          paddingHorizontal="$2xl"
-          maxWidth={600}
-          marginHorizontal="auto"
-          justifyContent="space-between"
-        >
-          <YStack gap="$l" marginTop="$6xl">
-            <TlonText.Text textAlign="center" size="$body">
-              On the next screen, make sure you tap
-            </TlonText.Text>
-            <TlonText.Text textAlign="center" size="$body">
-              <TlonText.Text fontWeight={'600'}>“Allow”</TlonText.Text> to
-              enable notifications.
-            </TlonText.Text>
-          </YStack>
-          <Button preset="hero" shadow label="Next" onPress={handleNext} />
+        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+          <SplashTitle>
+            Enable <Text color="$positiveActionText">notifications.</Text>
+          </SplashTitle>
+          <SplashParagraph marginBottom={0}>
+            On the next screen, tap{' '}
+            <TlonText.RawText fontWeight="600" color="$primaryText">
+              &ldquo;Allow&rdquo;
+            </TlonText.RawText>{' '}
+            to enable notifications.
+          </SplashParagraph>
         </YStack>
+        <Button
+          preset="hero"
+          shadow
+          label="Next"
+          onPress={handleNext}
+          marginHorizontal="$xl"
+          marginTop="$xl"
+        />
       </ImageBackground>
     </View>
   );

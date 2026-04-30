@@ -734,13 +734,13 @@ function providerLabel(provider: string): string {
   return PROVIDER_LABELS[provider] ?? provider;
 }
 
-const SplashTitle = styled(Text, {
+export const SplashTitle = styled(Text, {
   fontSize: '$xl',
   fontWeight: '600',
   marginHorizontal: '$xl',
 });
 
-const SplashParagraph = styled(Text, {
+export const SplashParagraph = styled(Text, {
   size: '$body',
   marginHorizontal: '$xl',
   marginBottom: '$2xl',

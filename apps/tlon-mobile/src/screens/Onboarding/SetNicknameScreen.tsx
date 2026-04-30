@@ -1,17 +1,15 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as api from '@tloncorp/api';
 import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import {
   Field,
-  Image,
-  ScreenHeader,
+  KeyboardAvoidingView,
+  SplashParagraph,
+  SplashTitle,
   TextInput,
-  TlonText,
   View,
-  XStack,
   YStack,
-  useTheme,
 } from '@tloncorp/app/ui';
+import { Button, Text } from '@tloncorp/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
@@ -22,6 +20,7 @@ import {
 import * as store from '@tloncorp/shared/store';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
@@ -35,11 +34,7 @@ type FormData = {
 const logger = createDevLogger('SetNicknameScreen', false);
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
-  const theme = useTheme();
-
-  const facesImage = theme.dark
-    ? require('../../../assets/images/faces-dark.png')
-    : require('../../../assets/images/faces.png');
+  const insets = useSafeAreaInsets();
 
   const {
     control,
@@ -62,8 +57,6 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
 
     db.splashNickname.setValue(nickname ?? '');
 
-    // once they've decided on a nickname, we need to re-title their bot
-    // and update the name of their home group
     withRetry(
       async () => {
         const userId = await db.hostedUserNodeId.getValue();
@@ -117,63 +110,78 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   );
 
   return (
-    <View flex={1} backgroundColor={'$secondaryBackground'}>
-      <ScreenHeader
-        title="Nickname"
-        backgroundColor="$secondaryBackground"
-        rightControls={
-          <ScreenHeader.TextButton disabled={!isValid} onPress={onSubmit}>
-            Next
-          </ScreenHeader.TextButton>
-        }
-      />
-      <YStack gap="$xl" paddingHorizontal="$2xl">
-        <XStack justifyContent="center" paddingTop="$l">
-          <Image height={155} aspectRatio={862 / 609} source={facesImage} />
-        </XStack>
-
-        <TlonText.Text size="$body" padding="$xl">
-          Choose the nickname you want to use on the Tlon network.
-        </TlonText.Text>
-        <Controller
-          control={control}
-          name="nickname"
-          rules={{
-            required: 'Please enter a nickname.',
-            minLength: {
-              value: 1,
-              message: 'Please enter a nickname.',
-            },
-            maxLength: {
-              value: 30,
-              message: 'Your nickname is limited to 30 characters',
-            },
-            validate: (value) => {
-              const result = validateNickname(value ?? '', '');
-              if (!result.isValid) {
-                return getNicknameErrorMessage(result.errorType);
-              }
-              return true;
-            },
-          }}
-          render={({ field: { onChange, onBlur, value } }) => (
-            <Field label="Nickname" error={errors.nickname?.message}>
-              <TextInput
-                value={value}
-                placeholder="Sampel Palnet"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                onSubmitEditing={onSubmit}
-                autoFocus
-                autoCapitalize="words"
-                autoComplete="name"
-                returnKeyType="send"
-                enablesReturnKeyAutomatically
-              />
-            </Field>
-          )}
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+      <View
+        flex={1}
+        backgroundColor="$background"
+        paddingTop={insets.top}
+        paddingBottom={insets.bottom}
+      >
+        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+          <SplashTitle>
+            Choose your <Text color="$positiveActionText">nickname.</Text>
+          </SplashTitle>
+          <SplashParagraph marginBottom={0}>
+            Choose the nickname you want to use on the Tlon network.
+          </SplashParagraph>
+          <YStack paddingHorizontal="$xl" gap="$m">
+            <Controller
+              control={control}
+              name="nickname"
+              rules={{
+                required: 'Please enter a nickname.',
+                minLength: {
+                  value: 1,
+                  message: 'Please enter a nickname.',
+                },
+                maxLength: {
+                  value: 30,
+                  message: 'Your nickname is limited to 30 characters',
+                },
+                validate: (value) => {
+                  const result = validateNickname(value ?? '', '');
+                  if (!result.isValid) {
+                    return getNicknameErrorMessage(result.errorType);
+                  }
+                  return true;
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Field error={errors.nickname?.message}>
+                  <TextInput
+                    value={value}
+                    placeholder="Sampel Palnet"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    onSubmitEditing={onSubmit}
+                    autoFocus
+                    autoCapitalize="words"
+                    autoComplete="name"
+                    returnKeyType="send"
+                    enablesReturnKeyAutomatically
+                    frameStyle={{
+                      height: 72,
+                      borderWidth: 0,
+                      paddingLeft: 0,
+                      paddingRight: 0,
+                    }}
+                    style={{ fontSize: 24, fontWeight: '600' }}
+                  />
+                </Field>
+              )}
+            />
+          </YStack>
+        </YStack>
+        <Button
+          onPress={onSubmit}
+          label="Next"
+          preset="hero"
+          disabled={!isValid}
+          shadow={isValid}
+          marginHorizontal="$xl"
+          marginTop="$xl"
         />
-      </YStack>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 };

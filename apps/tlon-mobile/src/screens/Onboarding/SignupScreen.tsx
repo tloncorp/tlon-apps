@@ -13,23 +13,26 @@ import {
   Field,
   KeyboardAvoidingView,
   OnboardingInviteBlock,
-  OnboardingTextBlock,
   ScreenHeader,
+  SplashParagraph,
+  SplashTitle,
   TextInput,
   TlonText,
   View,
   YStack,
 } from '@tloncorp/app/ui';
+import { ScrollView } from 'react-native';
+import { getTokenValue } from 'tamagui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
   createDevLogger,
 } from '@tloncorp/shared';
-import { Button } from '@tloncorp/ui';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -56,6 +59,7 @@ function genDefaultEmail() {
 }
 
 export const SignupScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const [otpMethod, setOtpMethod] = useState<'phone' | 'email'>('phone');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [remoteError, setRemoteError] = useState<string | undefined>();
@@ -160,8 +164,6 @@ export const SignupScreen = ({ navigation }: Props) => {
         }
 
         if (err.details.status === 429) {
-          // hosting timed out on sending OTP's. This means they already received one, so
-          // we should just move them along to the next screen
           handleSuccess();
         }
       } else {
@@ -184,6 +186,7 @@ export const SignupScreen = ({ navigation }: Props) => {
     navigation,
     phoneForm,
     emailForm,
+    lureMeta?.id,
   ]);
 
   const goBack = useCallback(() => {
@@ -192,26 +195,48 @@ export const SignupScreen = ({ navigation }: Props) => {
   }, [navigation, signupContext]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        backgroundColor="$secondaryBackground"
-        title="Accept invite"
-        loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backAction={goBack}
-      />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
-        <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
-          {lureMeta ? <OnboardingInviteBlock metadata={lureMeta} /> : null}
-          {remoteError ? (
-            <OnboardingTextBlock>
-              <TlonText.Text color="$negativeActionText" fontSize="$s">
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+      <View
+        flex={1}
+        backgroundColor="$background"
+        paddingTop={insets.top}
+        paddingBottom={insets.bottom}
+      >
+        <View paddingHorizontal="$xl" paddingTop="$2xl">
+          <ScreenHeader.BackButton onPress={goBack} />
+        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingTop: getTokenValue('$2xl', 'size'),
+            paddingBottom: getTokenValue('$xl', 'size'),
+            gap: getTokenValue('$2xl', 'size'),
+          }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          <SplashTitle>
+            Accept your <Text color="$positiveActionText">invite.</Text>
+          </SplashTitle>
+          <SplashParagraph marginBottom={0}>
+            Enter your{' '}
+            {otpMethod === 'phone' ? 'phone number' : 'email address'} to get
+            started. We&rsquo;ll send a code to verify it&rsquo;s you.
+          </SplashParagraph>
+          <YStack paddingHorizontal="$xl" gap="$m">
+            {lureMeta ? (
+              <View marginBottom="$m">
+                <OnboardingInviteBlock metadata={lureMeta} />
+              </View>
+            ) : null}
+            {remoteError ? (
+              <TlonText.Text color="$negativeActionText" size="$label/m">
                 {remoteError}
               </TlonText.Text>
-            </OnboardingTextBlock>
-          ) : null}
-          <YStack gap="$m" paddingTop="$m">
+            ) : null}
             {otpMethod === 'phone' ? (
-              <PhoneNumberInput form={phoneForm} />
+              <PhoneNumberInput form={phoneForm} shouldFocus={false} />
             ) : (
               <Controller
                 control={emailForm.control}
@@ -247,57 +272,22 @@ export const SignupScreen = ({ navigation }: Props) => {
                       onSubmitEditing={
                         emailForm.formState.isValid ? onSubmit : undefined
                       }
-                      autoFocus
                     />
                   </Field>
                 )}
                 name="email"
               />
             )}
-
-            <Button
-              onPress={onSubmit}
-              loading={isSubmitting}
-              disabled={
-                isSubmitting ||
-                (otpMethod === 'phone'
-                  ? !phoneForm.formState.isValid
-                  : !emailForm.formState.isValid)
-              }
-              label="Sign up"
-              centered
-            />
             <TlonText.Text
+              size="$label/s"
+              color="$tertiaryText"
+              textAlign="center"
               marginTop="$m"
-              textAlign="center"
-              size="$label/s"
-              color="$tertiaryText"
-            >
-              By signing up you agree to Tlon&rsquo;s{' '}
-              <TlonText.RawText
-                pressStyle={{
-                  opacity: 0.5,
-                }}
-                textDecorationLine="underline"
-                textDecorationDistance={10}
-                onPress={handlePressEula}
-              >
-                Terms of Service
-              </TlonText.RawText>
-            </TlonText.Text>
-          </YStack>
-          <View marginLeft="$l" marginTop="$m">
-            <TlonText.Text
-              size="$label/s"
-              color="$tertiaryText"
               onPress={toggleSignupMode}
-              textAlign="center"
             >
-              Or if you&apos;d prefer,{' '}
+              Or if you&rsquo;d prefer,{' '}
               <TlonText.RawText
-                pressStyle={{
-                  opacity: 0.5,
-                }}
+                pressStyle={{ opacity: 0.5 }}
                 textDecorationLine="underline"
                 textDecorationDistance={10}
                 onPress={toggleSignupMode}
@@ -306,9 +296,44 @@ export const SignupScreen = ({ navigation }: Props) => {
                 {otpMethod === 'phone' ? 'an email address' : 'a phone number'}
               </TlonText.RawText>
             </TlonText.Text>
-          </View>
+          </YStack>
+        </ScrollView>
+        <YStack paddingHorizontal="$xl" gap="$l" paddingTop="$m">
+          <TlonText.Text
+            size="$label/s"
+            color="$tertiaryText"
+            textAlign="center"
+          >
+            By signing up you agree to Tlon&rsquo;s{' '}
+            <TlonText.RawText
+              pressStyle={{ opacity: 0.5 }}
+              textDecorationLine="underline"
+              textDecorationDistance={10}
+              onPress={handlePressEula}
+            >
+              Terms of Service
+            </TlonText.RawText>
+          </TlonText.Text>
+          <Button
+            onPress={onSubmit}
+            loading={isSubmitting}
+            disabled={
+              isSubmitting ||
+              (otpMethod === 'phone'
+                ? !phoneForm.formState.isValid
+                : !emailForm.formState.isValid)
+            }
+            label={isSubmitting ? 'Loading…' : 'Sign up'}
+            preset="hero"
+            shadow={
+              !isSubmitting &&
+              (otpMethod === 'phone'
+                ? phoneForm.formState.isValid
+                : emailForm.formState.isValid)
+            }
+          />
         </YStack>
-      </KeyboardAvoidingView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 };

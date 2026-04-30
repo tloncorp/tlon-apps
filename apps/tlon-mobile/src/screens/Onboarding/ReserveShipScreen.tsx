@@ -5,13 +5,15 @@ import {
   IconType,
   ListItem,
   LoadingSpinner,
-  OnboardingTextBlock,
-  ScreenHeader,
+  SplashParagraph,
+  SplashTitle,
   View,
   YStack,
 } from '@tloncorp/app/ui';
 import { NodeBootPhase } from '@tloncorp/shared/domain';
+import { Text } from '@tloncorp/ui';
 import { useEffect, useMemo } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSignupContext } from '../../lib/signupContext';
 import type { OnboardingStackParamList } from '../../types';
@@ -19,10 +21,10 @@ import type { OnboardingStackParamList } from '../../types';
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'ReserveShip'>;
 
 export const ReserveShipScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   const signupContext = useSignupContext();
   const lureMeta = useLureMetadata();
 
-  // Disable back button once you reach this screen
   useEffect(
     () =>
       navigation.addListener('beforeRemove', (e) => {
@@ -38,23 +40,41 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
     signupContext.kickOffBootSequence();
   }, [signupContext]);
 
+  const isReady = signupContext.bootPhase >= NodeBootPhase.READY;
+
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        backgroundColor="$secondaryBackground"
-        title={
-          signupContext.bootPhase < NodeBootPhase.READY
-            ? "We're setting you up"
-            : 'Setup complete!'
-        }
-      />
-      <OnboardingTextBlock marginTop="$5xl" gap="$5xl">
-        <ArvosDiscussing width="100%" height={200} />
-        <BootStepDisplay
-          bootPhase={signupContext.bootPhase}
-          withInvites={Boolean(lureMeta)}
-        />
-      </OnboardingTextBlock>
+    <View
+      flex={1}
+      backgroundColor="$background"
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+    >
+      <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+        <SplashTitle>
+          {isReady ? (
+            <>
+              Setup is <Text color="$positiveActionText">complete.</Text>
+            </>
+          ) : (
+            <>
+              Setting <Text color="$positiveActionText">things up.</Text>
+            </>
+          )}
+        </SplashTitle>
+        <SplashParagraph marginBottom={0}>
+          Your peer-to-peer node is being prepared. This usually takes just a
+          moment.
+        </SplashParagraph>
+        <YStack alignItems="center" paddingTop="$xl">
+          <ArvosDiscussing width="100%" height={200} />
+        </YStack>
+        <View paddingHorizontal="$xl">
+          <BootStepDisplay
+            bootPhase={signupContext.bootPhase}
+            withInvites={Boolean(lureMeta)}
+          />
+        </View>
+      </YStack>
     </View>
   );
 };

@@ -5,14 +5,17 @@ import {
   Field,
   KeyboardAvoidingView,
   ScreenHeader,
-  SizableText,
+  SplashParagraph,
+  SplashTitle,
   TextInput,
   View,
   YStack,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
+import { Button, Text } from '@tloncorp/ui';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { OnboardingStackParamList } from '../../types';
 
@@ -30,6 +33,7 @@ export const ResetPasswordScreen = ({
     params: { email: emailParam },
   },
 }: Props) => {
+  const insets = useSafeAreaInsets();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -65,58 +69,78 @@ export const ResetPasswordScreen = ({
   });
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        title="Reset Password"
-        loadingSubtitle={isSubmitting ? 'Loading…' : null}
-        backgroundColor="$secondaryBackground"
-        backAction={() => navigation.goBack()}
-        rightControls={
-          isValid && (
-            <ScreenHeader.TextButton onPress={onSubmit}>
-              Submit
-            </ScreenHeader.TextButton>
-          )
-        }
-      />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
-        <YStack gap="$2xl" padding="$2xl">
-          <SizableText size="$l">
+    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+      <View
+        flex={1}
+        backgroundColor="$background"
+        paddingTop={insets.top}
+        paddingBottom={insets.bottom}
+      >
+        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+          <View paddingHorizontal="$xl">
+            <ScreenHeader.BackButton
+              onPress={isSubmitting ? undefined : () => navigation.goBack()}
+            />
+          </View>
+          <SplashTitle>
+            Reset your <Text color="$positiveActionText">password.</Text>
+          </SplashTitle>
+          <SplashParagraph marginBottom={0}>
             Enter the email associated with your Tlon account. We&rsquo;ll send
             you a link to reset your password.
-          </SizableText>
-          <Controller
-            control={control}
-            name="email"
-            rules={{
-              required: 'Please enter a valid email address.',
-              pattern: {
-                value: EMAIL_REGEX,
-                message: 'Please enter a valid email address.',
-              },
-            }}
-            render={({ field: { onChange, onBlur, value } }) => (
-              <Field label="Email" error={errors.email?.message}>
-                <TextInput
-                  placeholder="Email Address"
-                  onBlur={() => {
-                    onBlur();
-                    trigger('email');
-                  }}
-                  onChangeText={onChange}
-                  onSubmitEditing={onSubmit}
-                  value={value}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="send"
-                  enablesReturnKeyAutomatically
-                />
-              </Field>
-            )}
-          />
+          </SplashParagraph>
+          <YStack paddingHorizontal="$xl" gap="$m">
+            <Controller
+              control={control}
+              name="email"
+              rules={{
+                required: 'Please enter a valid email address.',
+                pattern: {
+                  value: EMAIL_REGEX,
+                  message: 'Please enter a valid email address.',
+                },
+              }}
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Field error={errors.email?.message}>
+                  <TextInput
+                    placeholder="Email Address"
+                    onBlur={() => {
+                      onBlur();
+                      trigger('email');
+                    }}
+                    onChangeText={onChange}
+                    onSubmitEditing={onSubmit}
+                    value={value}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoFocus
+                    returnKeyType="send"
+                    enablesReturnKeyAutomatically
+                    frameStyle={{
+                      height: 72,
+                      borderWidth: 0,
+                      paddingLeft: 0,
+                      paddingRight: 0,
+                    }}
+                    style={{ fontSize: 24, fontWeight: '600' }}
+                  />
+                </Field>
+              )}
+            />
+          </YStack>
         </YStack>
-      </KeyboardAvoidingView>
-    </View>
+        <Button
+          onPress={onSubmit}
+          label={isSubmitting ? 'Sending…' : 'Submit'}
+          preset="hero"
+          loading={isSubmitting}
+          disabled={!isValid || isSubmitting}
+          shadow={isValid && !isSubmitting}
+          marginHorizontal="$xl"
+          marginTop="$xl"
+        />
+      </View>
+    </KeyboardAvoidingView>
   );
 };

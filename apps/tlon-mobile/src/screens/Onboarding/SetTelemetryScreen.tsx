@@ -1,22 +1,25 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
-  ScreenHeader,
   SizableText,
-  TlonText,
+  SplashParagraph,
+  SplashTitle,
   View,
   XStack,
   YStack,
 } from '@tloncorp/app/ui';
 import { finishingSelfHostedLogin } from '@tloncorp/shared/db';
+import { Button, Text } from '@tloncorp/ui';
 import { usePostHog } from 'posthog-react-native';
 import { useCallback, useState } from 'react';
 import { Switch } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetTelemetry'>;
 
 export const SetTelemetryScreen = () => {
+  const insets = useSafeAreaInsets();
   const posthog = usePostHog();
   const [isEnabled, setIsEnabled] = useState(false);
   const { setValue: setFinishingSelfHostedLogin } =
@@ -30,44 +33,47 @@ export const SetTelemetryScreen = () => {
   }, [isEnabled, posthog, setFinishingSelfHostedLogin]);
 
   return (
-    <View flex={1} backgroundColor="$secondaryBackground">
-      <ScreenHeader
-        backgroundColor="$secondaryBackground"
-        title="Usage Statistics"
-        rightControls={
-          <ScreenHeader.TextButton onPress={handleNext}>
-            Next
-          </ScreenHeader.TextButton>
-        }
-      />
-      <YStack gap="$xl" paddingHorizontal="$2xl">
-        <View padding="$xl">
-          <TlonText.Text size="$body" color="$primaryText" marginBottom="$2xl">
-            We&rsquo;re trying to make the app better and knowing how people use
-            the app really helps.
-          </TlonText.Text>
-          <TlonText.Text size="$body" color="$primaryText">
-            These stats are anonymous, for product development purposes only,
-            and we don&rsquo;t share them with anyone.
-          </TlonText.Text>
+    <View
+      flex={1}
+      backgroundColor="$background"
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+    >
+      <YStack flex={1} gap="$2xl" paddingTop="$2xl">
+        <SplashTitle>
+          Help us improve <Text color="$positiveActionText">Tlon.</Text>
+        </SplashTitle>
+        <SplashParagraph marginBottom={0}>
+          We&rsquo;re trying to make the app better and knowing how people use
+          it really helps. These stats are anonymous, for product development
+          purposes only, and we don&rsquo;t share them with anyone.
+        </SplashParagraph>
+        <View paddingHorizontal="$xl">
+          <XStack
+            backgroundColor="$background"
+            borderRadius="$l"
+            borderWidth={1}
+            borderColor="$border"
+            paddingHorizontal="$xl"
+            paddingVertical="$l"
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <SizableText color="$primaryText">
+              Enable anonymous usage stats
+            </SizableText>
+            <Switch value={isEnabled} onValueChange={setIsEnabled} />
+          </XStack>
         </View>
-
-        <XStack
-          backgroundColor="$background"
-          borderRadius="$l"
-          borderWidth={1}
-          borderColor="$border"
-          paddingHorizontal="$xl"
-          paddingVertical="$l"
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <SizableText color="$primaryText">
-            Enable anonymous usage stats
-          </SizableText>
-          <Switch value={isEnabled} onValueChange={setIsEnabled} />
-        </XStack>
       </YStack>
+      <Button
+        onPress={handleNext}
+        label="Next"
+        preset="hero"
+        shadow
+        marginHorizontal="$xl"
+        marginTop="$xl"
+      />
     </View>
   );
 };

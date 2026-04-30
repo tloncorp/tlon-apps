@@ -1,19 +1,36 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ScreenHeader, SizableText, View, YStack } from '@tloncorp/app/ui';
+import {
+  ScreenHeader,
+  SizableText,
+  SplashTitle,
+  View,
+  YStack,
+} from '@tloncorp/app/ui';
+import { Text } from '@tloncorp/ui';
 import { ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { OnboardingStackParamList } from '../../types';
 
 type Props = NativeStackScreenProps<OnboardingStackParamList, 'EULA'>;
 
 export const EULAScreen = ({ navigation }: Props) => {
+  const insets = useSafeAreaInsets();
   return (
-    <View flex={1} backgroundColor={'$secondaryBackground'}>
-      <ScreenHeader
-        title="EULA"
-        backgroundColor="$secondaryBackground"
-        backAction={() => navigation.goBack()}
-      />
+    <View
+      flex={1}
+      backgroundColor="$background"
+      paddingTop={insets.top}
+      paddingBottom={insets.bottom}
+    >
+      <YStack gap="$2xl" paddingTop="$2xl">
+        <View paddingHorizontal="$xl">
+          <ScreenHeader.BackButton onPress={() => navigation.goBack()} />
+        </View>
+        <SplashTitle>
+          End-User <Text color="$positiveActionText">License Agreement.</Text>
+        </SplashTitle>
+      </YStack>
       <ScrollView style={{ flex: 1 }}>
         <YStack gap="$xl" padding="$2xl">
           <SizableText>
