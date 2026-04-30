@@ -10,7 +10,7 @@ import {
   getCustomThemeName,
   getCustomThemeRuntimeName,
 } from '@tloncorp/shared/utils';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, Slider, XStack, YStack } from 'tamagui';
 import { useTheme } from 'tamagui';
 
@@ -355,20 +355,36 @@ function CustomThemeSlider({
   max: number;
   onValueChange: (value: number) => void;
 }) {
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  const commitValue = useCallback(
+    (nextValue: number) => {
+      const roundedValue = Math.round(nextValue);
+      setLocalValue(roundedValue);
+      onValueChange(roundedValue);
+    },
+    [onValueChange]
+  );
+
   return (
     <YStack gap="$m">
       <XStack justifyContent="space-between" gap="$m">
         <Text color="$primaryText">{label}</Text>
-        <Text color="$secondaryText">{value}</Text>
+        <Text color="$secondaryText">{localValue}</Text>
       </XStack>
       <Slider
-        value={[value]}
+        value={[localValue]}
         min={min}
         max={max}
         step={1}
         onValueChange={([nextValue]) =>
-          onValueChange(Math.round(nextValue ?? value))
+          setLocalValue(Math.round(nextValue ?? localValue))
         }
+        onSlideEnd={(_event, nextValue) => commitValue(nextValue)}
         height="$2xl"
         aria-label={label}
       >
