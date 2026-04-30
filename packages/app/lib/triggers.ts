@@ -127,13 +127,6 @@ END;
 -- and block the main thread via processChanges callbacks. Channel/group
 -- volume reactivity is handled through the existing table-deps invalidation
 -- path for channel/group queries.
---
--- DROP first so upgrading from an earlier version of this branch (which had
--- ungated triggers) replaces them.
-DROP TRIGGER IF EXISTS after_volume_settings_insert;
-DROP TRIGGER IF EXISTS after_volume_settings_update;
-DROP TRIGGER IF EXISTS after_volume_settings_delete;
-
 CREATE TRIGGER IF NOT EXISTS after_volume_settings_insert
 AFTER INSERT ON volume_settings
 WHEN NEW.item_type = 'thread'
