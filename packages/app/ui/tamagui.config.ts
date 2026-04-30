@@ -1,1 +1,1 @@
-export { config } from '@tloncorp/ui/config';
+export { config, registerCustomTheme } from '@tloncorp/ui/config';

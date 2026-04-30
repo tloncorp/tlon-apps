@@ -719,6 +719,14 @@ export const useThemeSettings = () => {
   });
 };
 
+export const useLocalThemePreference = () => {
+  return db.localThemePreference.useStorageItem();
+};
+
+export const useCustomThemes = () => {
+  return db.customThemes.useStorageItem();
+};
+
 export const useTelemetryEnabled = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({

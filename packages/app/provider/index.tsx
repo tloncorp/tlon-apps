@@ -1,11 +1,12 @@
 import * as store from '@tloncorp/shared';
+import { getCustomThemeRuntimeName } from '@tloncorp/shared/utils';
 import React, { useEffect, useMemo, useState } from 'react';
 import { TamaguiProvider, TamaguiProviderProps } from 'tamagui';
 
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { SplashScreenTask, splashScreenProgress } from '../lib/splashscreen';
 import { AppTheme } from '../types/theme';
-import { config } from '../ui/tamagui.config';
+import { config, registerCustomTheme } from '../ui/tamagui.config';
 import { getDisplayTheme, normalizeTheme } from '../ui/utils/themeUtils';
 
 const ThemeContext = React.createContext<{
@@ -58,13 +59,36 @@ function useSyncedAppTheme() {
 
   // Query database for which theme the user has previously set
   const { data: storedThemeRaw, isLoading } = store.useThemeSettings();
+  const {
+    value: localThemePreference,
+    isLoading: isLoadingLocalThemePreference,
+  } = store.useLocalThemePreference();
+  const { value: customThemes, isLoading: isLoadingCustomThemes } =
+    store.useCustomThemes();
+
+  const customThemeNames = useMemo(
+    () => customThemes.map(getCustomThemeRuntimeName),
+    [customThemes]
+  );
+
+  useEffect(() => {
+    customThemes.forEach((customTheme) => {
+      registerCustomTheme(
+        getCustomThemeRuntimeName(customTheme),
+        customTheme.theme
+      );
+    });
+  }, [customThemes]);
 
   const storedTheme = useMemo(() => {
-    if (isLoading) {
+    if (isLoading || isLoadingLocalThemePreference || isLoadingCustomThemes) {
       return { loaded: false } as const;
     }
+    const themePreference = localThemePreference ?? storedThemeRaw;
     const appTheme =
-      storedThemeRaw == null ? 'auto' : normalizeTheme(storedThemeRaw);
+      themePreference == null
+        ? 'auto'
+        : normalizeTheme(themePreference, customThemeNames);
     const tamaguiTheme = getDisplayTheme(appTheme, isDarkMode);
     return {
       loaded: true,
@@ -77,7 +101,15 @@ function useSyncedAppTheme() {
        * one-to-one with color set */
       tamaguiTheme,
     } as const;
-  }, [isLoading, storedThemeRaw, isDarkMode]);
+  }, [
+    isLoading,
+    isLoadingLocalThemePreference,
+    isLoadingCustomThemes,
+    localThemePreference,
+    storedThemeRaw,
+    customThemeNames,
+    isDarkMode,
+  ]);
 
   // Apply stored theme
   useEffect(() => {
