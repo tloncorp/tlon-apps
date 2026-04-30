@@ -804,7 +804,7 @@
         (~(get by book) id+u.id)
       ``contact-page-0+!>(`^page`(fall page *^page))
       ::
-        [%x %v1 %all ~]
+        [%x %v1 %directory ~]
       =|  dir=directory
       ::  export self
       ::
