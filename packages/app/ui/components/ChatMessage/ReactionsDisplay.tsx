@@ -101,12 +101,7 @@ export function ReactionsDisplay({
       <Pressable onPress={() => handleOpenReactions(post)} cursor="default">
         <XStack gap="$2xs" alignItems="center">
           {displayedReactions.map((reaction) => (
-            <Tooltip
-              key={reaction.value}
-              placement="top"
-              delay={0}
-              restMs={25}
-            >
+            <Tooltip key={reaction.value} placement="top" delay={0} restMs={25}>
               <Tooltip.Trigger
                 onPress={() => handleModifyYourReaction(reaction.value)}
                 testID="ReactionDisplay-minimal"
@@ -122,9 +117,7 @@ export function ReactionsDisplay({
                 backgroundColor="$secondaryBackground"
                 borderRadius="$s"
               >
-                <Text size="$label/m">
-                  {firstThreeReactionUsers(reaction)}
-                </Text>
+                <Text size="$label/m">{firstThreeReactionUsers(reaction)}</Text>
               </Tooltip.Content>
             </Tooltip>
           ))}
@@ -147,12 +140,7 @@ export function ReactionsDisplay({
       >
         <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
           {reactionDetails.list.map((reaction) => (
-            <Tooltip
-              key={reaction.value}
-              placement="top"
-              delay={0}
-              restMs={25}
-            >
+            <Tooltip key={reaction.value} placement="top" delay={0} restMs={25}>
               <Tooltip.Trigger
                 borderRadius="$s"
                 cursor="pointer"
@@ -195,9 +183,7 @@ export function ReactionsDisplay({
                 backgroundColor="$secondaryBackground"
                 borderRadius="$s"
               >
-                <Text size="$label/m">
-                  {firstThreeReactionUsers(reaction)}
-                </Text>
+                <Text size="$label/m">{firstThreeReactionUsers(reaction)}</Text>
               </Tooltip.Content>
             </Tooltip>
           ))}
