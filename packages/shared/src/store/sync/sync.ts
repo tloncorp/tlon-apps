@@ -558,16 +558,36 @@ export const syncContactDiscovery = async (
 
     const contactIds = matches.map((m) => m[1]);
     const existingContacts = await db.getContactsBatch({ contactIds });
-    const existingContactIds = new Set(
-      existingContacts.filter((c) => c.isContact).map((c) => c.id)
+    const existingById = new Map(
+      existingContacts.map((c) => [c.id, c] as const)
     );
+    // A contact is "already known" if any signal indicates the user has
+    // a prior relationship with them: explicitly added, surfaced as a
+    // suggestion, or the peer's profile has been fetched (any peer
+    // field set), or the user has already labelled them themselves.
+    // Anyone who matches that bar should not be treated as a fresh
+    // discovery — no notification, no pill, no clobber of existing
+    // metadata.
+    const isAlreadyKnown = (contactId: string): boolean => {
+      const c = existingById.get(contactId);
+      if (!c) return false;
+      return !!(
+        c.isContact ||
+        c.isContactSuggestion ||
+        c.peerNickname ||
+        c.customNickname ||
+        c.peerAvatarImage ||
+        c.bio ||
+        c.status
+      );
+    };
     // Under the dev mock, treat every match as new so repeated test runs
     // keep surfacing matches even after they've been added as contacts in
-    // a prior run. In production we still filter out already-contacts to
-    // avoid re-notifying about people the user already knows.
+    // a prior run. In production we filter out already-known contacts.
     const newMatches = isMocked
       ? matches
-      : matches.filter(([, contactId]) => !existingContactIds.has(contactId));
+      : matches.filter(([, contactId]) => !isAlreadyKnown(contactId));
+    const newMatchIds = newMatches.map(([, id]) => id);
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -580,18 +600,20 @@ export const syncContactDiscovery = async (
       'syncContactDiscovery: inserted contact discovery matches',
       matches
     );
-    await addContacts(contactIds).catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'failed to add contacts',
-        severity: AnalyticsSeverity.Critical,
-        error: e,
+
+    if (newMatchIds.length > 0) {
+      await addContacts(newMatchIds).catch((e) => {
+        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+          context: 'failed to add contacts',
+          severity: AnalyticsSeverity.Critical,
+          error: e,
+        });
       });
-    });
-    logger.log('syncContactDiscovery: added contacts', contactIds);
-    if (newMatches.length > 0) {
+      logger.log('syncContactDiscovery: added contacts', newMatchIds);
+
       await db
         .markContactsAsMatched({
-          contactIds: newMatches.map(([, id]) => id),
+          contactIds: newMatchIds,
           matchedAt: Date.now(),
         })
         .catch((e) => {
@@ -600,28 +622,40 @@ export const syncContactDiscovery = async (
             error: e,
           });
         });
-    }
-    const newContacts = await db.getSystemContactsBatchByContactId(contactIds);
 
-    await Promise.all(
-      newContacts
-        .filter((c) => !!c.contactId)
-        .map((contact) =>
-          updateContactMetadata(contact.contactId!, {
-            nickname:
-              `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
-          })
-        )
-    ).catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'failed to update contact metadata',
-        severity: AnalyticsSeverity.Critical,
-        error: e,
+      // Apply the address-book name as customNickname only for new
+      // matches that don't already have one. Avoids clobbering a name
+      // the user explicitly set in a prior session, and avoids racing
+      // with peer profile fetches that may arrive after our write.
+      const newSystemContacts = await db.getSystemContactsBatchByContactId(
+        newMatchIds
+      );
+      const newMatchSet = new Set(newMatchIds);
+      await Promise.all(
+        newSystemContacts
+          .filter(
+            (c) =>
+              !!c.contactId &&
+              newMatchSet.has(c.contactId) &&
+              !existingById.get(c.contactId)?.customNickname
+          )
+          .map((contact) =>
+            updateContactMetadata(contact.contactId!, {
+              nickname:
+                `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+            })
+          )
+      ).catch((e) => {
+        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+          context: 'failed to update contact metadata',
+          severity: AnalyticsSeverity.Critical,
+          error: e,
+        });
       });
-    });
+    }
 
     if (invokeHandler && newMatches.length > 0) {
-      await invokeContactsMatchedHandler(newMatches.map(([, id]) => id));
+      await invokeContactsMatchedHandler(newMatchIds);
     }
 
     return { newMatches };
