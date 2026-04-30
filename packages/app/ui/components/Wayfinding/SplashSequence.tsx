@@ -29,22 +29,14 @@ import React, {
 } from 'react';
 import { FlatList, Image, Keyboard, ScrollView, Share } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  View,
-  YStack,
-  ZStack,
-  getTokenValue,
-  isWeb,
-  styled,
-  useThemeName,
-} from 'tamagui';
+import { View, YStack, ZStack, getTokenValue, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
 import {
   InviteSystemContactsFn,
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
-import { useActiveTheme } from '../../../provider';
+import { useActiveThemeIsDark } from '../../../provider';
 import {
   AttachmentProvider,
   useAttachmentContext,
@@ -751,9 +743,8 @@ export function WelcomePane(props: {
   onActionPress: () => void;
   hostingBotEnabled?: boolean;
 }) {
-  const activeTheme = useActiveTheme();
+  const isDark = useActiveThemeIsDark();
   const insets = useSafeAreaInsets();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -808,9 +799,8 @@ export function WelcomePane(props: {
 }
 
 export function TlonBotPane(props: { onActionPress: () => void }) {
-  const activeTheme = useActiveTheme();
+  const isDark = useActiveThemeIsDark();
   const insets = useSafeAreaInsets();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <Image
@@ -1428,8 +1418,7 @@ export function GroupsPane(props: {
   botShipId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useActiveThemeIsDark();
   const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
     useHomeGroupInviteLink({
       enabled: !!props.hostingBotEnabled,
@@ -1742,8 +1731,7 @@ function LoadingState() {
 
 function ShareInviteLinkEmptyState() {
   const insets = useSafeAreaInsets();
-  const themeName = useThemeName();
-  const isDark = themeName === 'dark';
+  const isDark = useActiveThemeIsDark();
 
   const facesImage = isDark
     ? isWeb
@@ -2048,8 +2036,7 @@ function PrivacyLevelsDisplay() {
 }
 
 const InviteFriendsDisplay = () => {
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useActiveThemeIsDark();
 
   return (
     <View marginBottom="$2xl" height={410}>

@@ -14,6 +14,16 @@ export const builtInThemeNames = [
 
 export const themePreferenceNames = ['auto', ...builtInThemeNames] as const;
 
+export const darkThemeNames = [
+  'dark',
+  'dracula',
+  'greenscreen',
+  'gruvbox',
+  'monokai',
+  'nord',
+  'solarized',
+] as const satisfies AppThemeName[];
+
 export type CustomThemeName = `custom_${string}`;
 export type ThemePreference =
   | (typeof themePreferenceNames)[number]
@@ -37,6 +47,7 @@ export const builtInThemeOptions = [
 ] as const satisfies BuiltInThemeOption[];
 
 const remoteThemeNameSet = new Set<string>(themePreferenceNames);
+const darkThemeNameSet = new Set<string>(darkThemeNames);
 
 export function isRemoteThemePreference(
   theme: string
@@ -68,7 +79,31 @@ export function normalizeThemePreference(
     return normalizedTheme;
   }
 
+  if (isCustomThemeName(normalizedTheme) && customThemeNames.length === 1) {
+    return customThemeNames[0] as CustomThemeName;
+  }
+
   return isRemoteThemePreference(normalizedTheme) ? normalizedTheme : 'auto';
+}
+
+export function getThemePreferenceMode(
+  theme: ThemePreference,
+  isSystemDark: boolean,
+  customThemes: CustomThemeDefinition[] = []
+): ThemeMode {
+  if (theme === 'auto') {
+    return isSystemDark ? 'dark' : 'light';
+  }
+
+  if (isCustomThemeName(theme)) {
+    const customTheme =
+      customThemes.find(
+        (customTheme) => getCustomThemeRuntimeName(customTheme) === theme
+      ) ?? customThemes[0];
+    return customTheme?.mode ?? (isSystemDark ? 'dark' : 'light');
+  }
+
+  return darkThemeNameSet.has(theme) ? 'dark' : 'light';
 }
 
 export type TlonThemeTokens = {
@@ -127,11 +162,15 @@ export type CustomThemeParams = {
   name: string;
   hue: number;
   mode: ThemeMode;
+  id?: string;
+  createdAt?: number;
   width?: number;
   saturation?: number;
   brightness?: number;
   harmony?: ThemeHarmony;
 };
+
+export const customThemeSlotId = 'custom';
 
 const accentOffsets = {
   base08: 0,
@@ -415,11 +454,13 @@ export function createCustomThemeDefinition(
   params: CustomThemeParams
 ): CustomThemeDefinition {
   const now = Date.now();
-  const id = `${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = params.id ?? customThemeSlotId;
   const normalized = {
     name: params.name.trim() || 'Custom Theme',
     hue: clamp(Math.round(params.hue), 0, 359),
     mode: params.mode,
+    id,
+    createdAt: params.createdAt ?? now,
     width: params.width ?? 72,
     saturation: params.saturation ?? 66,
     brightness: params.brightness ?? 82,
@@ -439,11 +480,11 @@ export function createCustomThemeDefinition(
       harmony: normalized.harmony,
     },
     theme: generateTlonTheme(palette, normalized),
-    createdAt: now,
+    createdAt: normalized.createdAt,
     updatedAt: now,
   };
 }
 
 export function getCustomThemeRuntimeName(theme: CustomThemeDefinition) {
-  return getCustomThemeName(theme.id);
+  return getCustomThemeName(`${theme.id}_${theme.updatedAt}`);
 }

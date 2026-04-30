@@ -5,10 +5,12 @@ import {
   ThemeMode,
   builtInThemeOptions,
   createCustomThemeDefinition,
+  customThemeSlotId,
+  getCustomThemeName,
   getCustomThemeRuntimeName,
 } from '@tloncorp/shared/utils';
-import { useEffect, useMemo, useState } from 'react';
-import { Input, ScrollView, XStack, YStack } from 'tamagui';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { ScrollView, Slider, XStack, YStack } from 'tamagui';
 import { useTheme } from 'tamagui';
 
 import { useIsDarkMode } from '../../hooks/useIsDarkMode';
@@ -39,10 +41,14 @@ export function ThemeScreen(props: Props) {
   const isDarkMode = useIsDarkMode();
   const [selectedTheme, setSelectedTheme] = useState<AppTheme>('auto');
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
-  const [customThemeName, setCustomThemeName] = useState('My Theme');
-  const [customThemeHue, setCustomThemeHue] = useState('210');
+  const [customThemeHue, setCustomThemeHue] = useState(210);
   const [customThemeMode, setCustomThemeMode] = useState<ThemeMode>('dark');
   const [savingCustomTheme, setSavingCustomTheme] = useState(false);
+
+  const savedCustomTheme = customThemes[0];
+  const customThemeValue = savedCustomTheme
+    ? getCustomThemeRuntimeName(savedCustomTheme)
+    : getCustomThemeName(customThemeSlotId);
 
   const customThemeNames = useMemo(
     () => customThemes.map(getCustomThemeRuntimeName),
@@ -57,13 +63,12 @@ export function ThemeScreen(props: Props) {
         subtitle: `Uses system ${isDarkMode ? 'dark' : 'light'} theme`,
       },
       ...builtInThemeOptions,
-      ...customThemes.map((customTheme) => ({
-        title: customTheme.name,
-        value: getCustomThemeRuntimeName(customTheme),
-        subtitle: `Local custom ${customTheme.mode} theme`,
-      })),
+      {
+        title: 'Custom',
+        value: customThemeValue,
+      },
     ],
-    [customThemes, isDarkMode]
+    [customThemeValue, isDarkMode]
   );
 
   const handleThemeChange = async (value: AppTheme) => {
@@ -81,30 +86,53 @@ export function ThemeScreen(props: Props) {
   };
 
   const handleCreateCustomTheme = async () => {
-    if (savingCustomTheme) return;
-
-    const hue = Number.parseInt(customThemeHue, 10);
-    if (!Number.isFinite(hue)) return;
+    if (savingCustomTheme) return null;
 
     setSavingCustomTheme(true);
     try {
       const customTheme = createCustomThemeDefinition({
-        name: customThemeName,
-        hue,
+        name: 'Custom',
+        hue: customThemeHue,
         mode: customThemeMode,
+        createdAt: savedCustomTheme?.createdAt,
       });
       const runtimeName = getCustomThemeRuntimeName(customTheme);
 
-      await setCustomThemes((themes) => [...themes, customTheme]);
+      await setCustomThemes([customTheme]);
       await store.updateThemePreference(runtimeName);
       setSelectedTheme(runtimeName);
-      setCustomThemeName('My Theme');
+      return runtimeName;
     } catch (err) {
       console.error('Failed to create custom theme:', err);
+      return null;
     } finally {
       setSavingCustomTheme(false);
     }
   };
+
+  const handleCustomThemeChange = async () => {
+    if (savedCustomTheme) {
+      await handleThemeChange(customThemeValue);
+      return;
+    }
+
+    await handleCreateCustomTheme();
+  };
+
+  useEffect(() => {
+    if (!savedCustomTheme) {
+      return;
+    }
+
+    setCustomThemeHue(savedCustomTheme.params.hue);
+    setCustomThemeMode(savedCustomTheme.mode);
+  }, [savedCustomTheme]);
+
+  useEffect(() => {
+    if (customThemes.length > 1 && savedCustomTheme) {
+      setCustomThemes([savedCustomTheme]);
+    }
+  }, [customThemes.length, savedCustomTheme, setCustomThemes]);
 
   useEffect(() => {
     if (!isLoading && storedTheme !== undefined) {
@@ -134,76 +162,116 @@ export function ThemeScreen(props: Props) {
         }}
       >
         <YStack flex={1} padding="$l">
-          <YStack
-            gap="$m"
-            padding="$l"
-            borderColor="$border"
-            borderWidth={1}
-            borderRadius="$xl"
-            marginBottom="$l"
-          >
-            <Text fontWeight="$l">Custom theme</Text>
-            <Input
-              value={customThemeName}
-              onChangeText={setCustomThemeName}
-              placeholder="Theme name"
-              backgroundColor="$secondaryBackground"
-              borderColor="$border"
-              color="$primaryText"
-            />
-            <Input
-              value={customThemeHue}
-              onChangeText={setCustomThemeHue}
-              inputMode="numeric"
-              keyboardType="number-pad"
-              placeholder="Hue 0-359"
-              backgroundColor="$secondaryBackground"
-              borderColor="$border"
-              color="$primaryText"
-            />
-            <XStack gap="$s">
-              <Button
-                label="Dark"
-                fill={customThemeMode === 'dark' ? 'solid' : 'outline'}
-                onPress={() => setCustomThemeMode('dark')}
-              />
-              <Button
-                label="Light"
-                fill={customThemeMode === 'light' ? 'solid' : 'outline'}
-                onPress={() => setCustomThemeMode('light')}
-              />
-            </XStack>
-            <Button
-              label={savingCustomTheme ? 'Saving...' : 'Generate and apply'}
-              disabled={savingCustomTheme}
-              onPress={handleCreateCustomTheme}
-            />
-          </YStack>
           {themes.map((theme) => (
-            <Pressable
-              key={theme.value}
-              disabled={loadingTheme !== null}
-              onPress={() => handleThemeChange(theme.value)}
-              borderRadius="$xl"
-            >
-              <ListItem>
-                <ListItem.MainContent>
-                  <ListItem.Title>{theme.title}</ListItem.Title>
-                  {theme.subtitle && (
-                    <ListItem.Subtitle>{theme.subtitle}</ListItem.Subtitle>
-                  )}
-                </ListItem.MainContent>
-                <ListItem.EndContent>
-                  {loadingTheme === theme.value ? (
-                    <View padding="$m">
-                      <LoadingSpinner color="$primaryText" size="small" />
-                    </View>
-                  ) : (
-                    <RadioControl checked={theme.value === selectedTheme} />
-                  )}
-                </ListItem.EndContent>
-              </ListItem>
-            </Pressable>
+            <Fragment key={theme.value}>
+              <Pressable
+                disabled={loadingTheme !== null || savingCustomTheme}
+                onPress={() =>
+                  theme.value === customThemeValue
+                    ? handleCustomThemeChange()
+                    : handleThemeChange(theme.value)
+                }
+                borderRadius="$xl"
+              >
+                <ListItem>
+                  <ListItem.MainContent>
+                    <ListItem.Title>{theme.title}</ListItem.Title>
+                    {theme.subtitle && (
+                      <ListItem.Subtitle>{theme.subtitle}</ListItem.Subtitle>
+                    )}
+                  </ListItem.MainContent>
+                  <ListItem.EndContent>
+                    {loadingTheme === theme.value ||
+                    (theme.value === customThemeValue && savingCustomTheme) ? (
+                      <View padding="$m">
+                        <LoadingSpinner color="$primaryText" size="small" />
+                      </View>
+                    ) : (
+                      <RadioControl checked={theme.value === selectedTheme} />
+                    )}
+                  </ListItem.EndContent>
+                </ListItem>
+              </Pressable>
+              {theme.value === customThemeValue &&
+                selectedTheme === customThemeValue && (
+                  <YStack
+                    gap="$m"
+                    padding="$l"
+                    borderRadius="$xl"
+                    backgroundColor="$secondaryBackground"
+                    marginHorizontal="$l"
+                    marginBottom="$l"
+                  >
+                    <YStack gap="$m">
+                      <XStack justifyContent="space-between" gap="$m">
+                        <Text color="$primaryText">Hue</Text>
+                        <Text color="$secondaryText">{customThemeHue}</Text>
+                      </XStack>
+                      <Slider
+                        value={[customThemeHue]}
+                        min={0}
+                        max={359}
+                        step={1}
+                        onValueChange={([hue]) =>
+                          setCustomThemeHue(Math.round(hue ?? customThemeHue))
+                        }
+                        height="$2xl"
+                        aria-label="Hue"
+                      >
+                        <Slider.Track
+                          height="$xs"
+                          backgroundColor="$secondaryBackground"
+                        >
+                          <Slider.TrackActive backgroundColor="$positiveActionText" />
+                        </Slider.Track>
+                        <Slider.Thumb
+                          index={0}
+                          size="$3xl"
+                          backgroundColor="$primaryBackground"
+                          borderColor="$border"
+                        />
+                      </Slider>
+                    </YStack>
+                    <YStack gap="$xs">
+                      <Pressable
+                        onPress={() => setCustomThemeMode('dark')}
+                        borderRadius="$xl"
+                      >
+                        <ListItem>
+                          <ListItem.MainContent>
+                            <ListItem.Title>Dark</ListItem.Title>
+                          </ListItem.MainContent>
+                          <ListItem.EndContent>
+                            <RadioControl
+                              checked={customThemeMode === 'dark'}
+                            />
+                          </ListItem.EndContent>
+                        </ListItem>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => setCustomThemeMode('light')}
+                        borderRadius="$xl"
+                      >
+                        <ListItem>
+                          <ListItem.MainContent>
+                            <ListItem.Title>Light</ListItem.Title>
+                          </ListItem.MainContent>
+                          <ListItem.EndContent>
+                            <RadioControl
+                              checked={customThemeMode === 'light'}
+                            />
+                          </ListItem.EndContent>
+                        </ListItem>
+                      </Pressable>
+                    </YStack>
+                    <Button
+                      label={savingCustomTheme ? 'Saving...' : 'Apply custom'}
+                      disabled={savingCustomTheme}
+                      onPress={handleCreateCustomTheme}
+                    />
+                  </YStack>
+                )}
+            </Fragment>
           ))}
         </YStack>
       </ScrollView>
