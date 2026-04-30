@@ -295,3 +295,45 @@ describe('mergePendingPosts Edge Cases', () => {
     expect(mergedSentAts).toEqual([5, 3]);
   });
 });
+
+describe('mergePendingPosts locally-cleared optimistic rows', () => {
+  test('drops a deleted optimistic row from newPosts even when filterDeleted is false', () => {
+    const optimistic = {
+      ...makePost(10),
+      id: 'optimistic-1',
+      sequenceNum: 0,
+      deliveryStatus: 'failed' as const,
+    };
+
+    const mergedIds = mergePendingPosts({
+      newPosts: [optimistic],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [optimistic.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    }).map((p) => p.id);
+
+    expect(mergedIds).not.toContain(optimistic.id);
+  });
+
+  test('drops a deleted optimistic row from pendingPosts even when filterDeleted is false', () => {
+    const optimistic = {
+      ...makePost(10),
+      id: 'optimistic-1',
+      sequenceNum: 0,
+      deliveryStatus: 'failed' as const,
+    };
+
+    const mergedIds = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [optimistic],
+      existingPosts: [],
+      deletedPosts: { [optimistic.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    }).map((p) => p.id);
+
+    expect(mergedIds).not.toContain(optimistic.id);
+  });
+});

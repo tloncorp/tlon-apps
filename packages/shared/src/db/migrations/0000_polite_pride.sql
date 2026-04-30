@@ -348,6 +348,7 @@ CREATE TABLE `posts` (
 	`reply_count` integer,
 	`reply_time` integer,
 	`reply_contact_ids` text,
+	`optimistic_reply_bump_count` integer DEFAULT 0 NOT NULL,
 	`text_content` text,
 	`has_app_reference` integer,
 	`has_channel_reference` integer,

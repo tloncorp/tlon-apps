@@ -218,6 +218,7 @@ export function buildPost({
     replies: [],
     replyContactIds: [],
     replyCount: 0,
+    optimisticReplyBumpCount: 0,
     hidden: false,
     syncedAt: Date.now(),
     draft,

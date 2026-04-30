@@ -1109,6 +1109,9 @@ export const posts = sqliteTable(
     replyContactIds: text('reply_contact_ids', {
       mode: 'json',
     }).$type<string[]>(),
+    optimisticReplyBumpCount: integer('optimistic_reply_bump_count')
+      .notNull()
+      .default(0),
     textContent: text('text_content'),
     hasAppReference: boolean('has_app_reference'),
     hasChannelReference: boolean('has_channel_reference'),
