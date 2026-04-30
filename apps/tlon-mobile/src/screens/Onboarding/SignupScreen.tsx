@@ -209,11 +209,12 @@ export const SignupScreen = ({ navigation }: Props) => {
           style={{ flex: 1 }}
           contentContainerStyle={{
             paddingTop: getTokenValue('$2xl', 'size'),
-            paddingBottom: getTokenValue('$xl', 'size'),
+            paddingBottom: getTokenValue('$4xl', 'size'),
             gap: getTokenValue('$2xl', 'size'),
           }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
           <SplashTitle>
@@ -298,7 +299,7 @@ export const SignupScreen = ({ navigation }: Props) => {
             </TlonText.Text>
           </YStack>
         </ScrollView>
-        <YStack paddingHorizontal="$xl" gap="$l" paddingTop="$m">
+        <YStack paddingHorizontal="$xl" gap="$l" paddingTop="$xl">
           <TlonText.Text
             size="$label/s"
             color="$tertiaryText"

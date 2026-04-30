@@ -21,7 +21,9 @@ import { storage } from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getTokenValue } from 'tamagui';
 
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import type { OnboardingStackParamList } from '../../types';
@@ -101,12 +103,23 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
         paddingTop={insets.top}
         paddingBottom={insets.bottom}
       >
-        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
-          <View paddingHorizontal="$xl">
-            <ScreenHeader.BackButton
-              onPress={isSubmitting ? undefined : () => navigation.goBack()}
-            />
-          </View>
+        <View paddingHorizontal="$xl" paddingTop="$2xl">
+          <ScreenHeader.BackButton
+            onPress={isSubmitting ? undefined : () => navigation.goBack()}
+          />
+        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingTop: getTokenValue('$2xl', 'size'),
+            paddingBottom: getTokenValue('$4xl', 'size'),
+            gap: getTokenValue('$2xl', 'size'),
+          }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+          showsVerticalScrollIndicator={false}
+        >
           <SplashTitle>
             Welcome <Text color="$positiveActionText">back.</Text>
           </SplashTitle>
@@ -194,16 +207,8 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               Forgot password?
             </TlonText.Text>
           </YStack>
-        </YStack>
-        <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
-          <Button
-            onPress={onSubmit}
-            label={isSubmitting ? 'Logging in…' : 'Log in'}
-            preset="hero"
-            loading={isSubmitting}
-            disabled={!isValid || isSubmitting}
-            shadow={isValid && !isSubmitting}
-          />
+        </ScrollView>
+        <YStack paddingHorizontal="$xl" gap="$l" paddingTop="$xl">
           <TlonText.Text
             size="$label/s"
             color="$tertiaryText"
@@ -219,6 +224,14 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
               Terms of Service
             </TlonText.RawText>
           </TlonText.Text>
+          <Button
+            onPress={onSubmit}
+            label={isSubmitting ? 'Logging in…' : 'Log in'}
+            preset="hero"
+            loading={isSubmitting}
+            disabled={!isValid || isSubmitting}
+            shadow={isValid && !isSubmitting}
+          />
         </YStack>
       </View>
     </KeyboardAvoidingView>

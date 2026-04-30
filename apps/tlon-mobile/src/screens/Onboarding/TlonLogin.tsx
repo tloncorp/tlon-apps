@@ -21,7 +21,9 @@ import { createDevLogger } from '@tloncorp/shared';
 import { Button, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getTokenValue } from 'tamagui';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -188,10 +190,21 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
         paddingTop={insets.top}
         paddingBottom={insets.bottom}
       >
-        <YStack flex={1} gap="$2xl" paddingTop="$2xl">
-          <View paddingHorizontal="$xl">
-            <ScreenHeader.BackButton onPress={goBack} />
-          </View>
+        <View paddingHorizontal="$xl" paddingTop="$2xl">
+          <ScreenHeader.BackButton onPress={goBack} />
+        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingTop: getTokenValue('$2xl', 'size'),
+            paddingBottom: getTokenValue('$4xl', 'size'),
+            gap: getTokenValue('$2xl', 'size'),
+          }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets
+          showsVerticalScrollIndicator={false}
+        >
           <SplashTitle>
             Welcome <Text color="$positiveActionText">back.</Text>
           </SplashTitle>
@@ -206,7 +219,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               </TlonText.Text>
             ) : null}
             {otpMethod === 'phone' ? (
-              <PhoneNumberInput form={phoneForm} />
+              <PhoneNumberInput form={phoneForm} shouldFocus={false} />
             ) : (
               <Controller
                 control={emailForm.control}
@@ -236,7 +249,6 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
                       returnKeyType="next"
                       enablesReturnKeyAutomatically
                       onSubmitEditing={onSubmit}
-                      autoFocus
                       testID="email-input"
                     />
                   </Field>
@@ -286,16 +298,8 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               </TlonText.Text>
             )}
           </YStack>
-        </YStack>
-        <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
-          <Button
-            onPress={onSubmit}
-            loading={isSubmitting}
-            disabled={isSubmitting || !isFormValid}
-            label={isSubmitting ? 'Sending…' : 'Send code to log in'}
-            preset="hero"
-            shadow={!isSubmitting && isFormValid}
-          />
+        </ScrollView>
+        <YStack paddingHorizontal="$xl" gap="$l" paddingTop="$xl">
           <TlonText.Text
             textAlign="center"
             size="$label/s"
@@ -311,6 +315,14 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
               Terms of Service
             </TlonText.RawText>
           </TlonText.Text>
+          <Button
+            onPress={onSubmit}
+            loading={isSubmitting}
+            disabled={isSubmitting || !isFormValid}
+            label={isSubmitting ? 'Sending…' : 'Send code to log in'}
+            preset="hero"
+            shadow={!isSubmitting && isFormValid}
+          />
         </YStack>
       </View>
     </KeyboardAvoidingView>
