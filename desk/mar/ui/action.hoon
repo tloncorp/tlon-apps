@@ -9,7 +9,7 @@
   --
 ++  grab
   |%
-  ++  noun  (list whom:u)
+  ++  noun  action:u
   ++  json  ui-action:dejs:gj
   --
 --

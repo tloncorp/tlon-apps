@@ -54,7 +54,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, [navigate]);
 
   const onBotSettingsPressed = useCallback(() => {
-    Linking.openURL('https://tlon.network/tlawnbot');
+    Linking.openURL('https://tlon.network/tlonbot');
   }, []);
 
   const onExperimentalFeaturesPressed = useCallback(() => {

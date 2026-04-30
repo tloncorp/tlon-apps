@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as api from '@tloncorp/api';
 import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import {
   Field,
@@ -11,10 +12,14 @@ import {
   YStack,
   useTheme,
 } from '@tloncorp/app/ui';
+import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import {
   getNicknameErrorMessage,
   validateNickname,
+  withRetry,
 } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -26,6 +31,8 @@ type Props = NativeStackScreenProps<OnboardingStackParamList, 'SetNickname'>;
 type FormData = {
   nickname?: string;
 };
+
+const logger = createDevLogger('SetNicknameScreen', false);
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
@@ -51,6 +58,50 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
     signupContext.setOnboardingValues({
       nickname,
       userWasReadyAt: Date.now(),
+    });
+
+    db.splashNickname.setValue(nickname ?? '');
+
+    // once they've decided on a nickname, we need to re-title their bot
+    // and update the name of their home group
+    withRetry(
+      async () => {
+        const userId = await db.hostedUserNodeId.getValue();
+        if (!userId) {
+          throw new Error('No user ID found during nickname setup');
+        }
+
+        if (!nickname) {
+          throw new Error('No nickname provided during nickname setup');
+        }
+
+        await store.updateCurrentUserProfile(
+          { nickname },
+          { shouldThrow: true }
+        );
+      },
+      {
+        startingDelay: 1000,
+        numOfAttempts: 4,
+        maxDelay: 4000,
+        retry: (error, retryNumber) => {
+          if (retryNumber < 4) {
+            logger.trackEvent('Set nickname failed, retrying', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+            return true;
+          }
+
+          return false;
+        },
+      }
+    ).catch((err) => {
+      logger.trackError(
+        'Failed to set nickname on bot ship or update Home Group',
+        {
+          error: err instanceof Error ? err.message : String(err),
+        }
+      );
     });
 
     navigation.push('SetNotifications');
@@ -82,8 +133,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
         </XStack>
 
         <TlonText.Text size="$body" padding="$xl">
-          Choose the nickname you want to use on the Tlon network. By default,
-          you will use a pseudonymous identifier.
+          Choose the nickname you want to use on the Tlon network.
         </TlonText.Text>
         <Controller
           control={control}
@@ -114,6 +164,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
                 onBlur={onBlur}
                 onChangeText={onChange}
                 onSubmitEditing={onSubmit}
+                autoFocus
                 autoCapitalize="words"
                 autoComplete="name"
                 returnKeyType="send"

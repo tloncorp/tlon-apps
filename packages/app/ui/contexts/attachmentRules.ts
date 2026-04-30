@@ -114,17 +114,13 @@ export function canAddAttachment(
     }
   }
 
-  if (nextAttachment.type === 'text') {
-    return { ok: true };
-  }
-
   const hasVideo = prev.some((attachment) => attachment.type === 'video');
-  const hasOtherNonTextMedia = prev.some(
-    (attachment) => attachment.type !== 'text' && attachment.type !== 'video'
+  const hasOtherNonVideoAttachment = prev.some(
+    (attachment) => attachment.type !== 'video'
   );
 
   if (nextAttachment.type === 'video') {
-    if (hasOtherNonTextMedia) {
+    if (hasOtherNonVideoAttachment) {
       return {
         ok: false,
         reason: VIDEO_COMPOSITION_ERROR,

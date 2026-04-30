@@ -254,16 +254,29 @@ export function convertToAscii(str: string): string {
 
 export type RetryConfig = Pick<
   BackoffOptions,
-  'startingDelay' | 'numOfAttempts' | 'maxDelay'
+  'startingDelay' | 'numOfAttempts' | 'maxDelay' | 'timeMultiple' | 'retry'
 >;
 
 export const withRetry = <T>(fn: () => Promise<T>, config?: RetryConfig) => {
-  return backOff(fn, {
+  const options: BackoffOptions = {
     delayFirstAttempt: false,
     startingDelay: config?.startingDelay ?? 1000,
     numOfAttempts: config?.numOfAttempts ?? 4,
-    maxDelay: config?.maxDelay,
-  });
+  };
+
+  if (typeof config?.maxDelay === 'number') {
+    options.maxDelay = config.maxDelay;
+  }
+
+  if (typeof config?.timeMultiple === 'number') {
+    options.timeMultiple = config.timeMultiple;
+  }
+
+  if (config?.retry) {
+    options.retry = config.retry;
+  }
+
+  return backOff(fn, options);
 };
 
 /**

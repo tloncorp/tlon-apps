@@ -3937,6 +3937,26 @@ export const getPersonalGroup = createReadQuery(
   ]
 );
 
+export const getBotHomeGroup = createReadQuery(
+  'getBotHomeGroup',
+  async (ctx: QueryCtx) => {
+    const currentUserId = getCurrentUserId();
+    const groupId = `${currentUserId}/${domain.BotHomeGroupSlugs.slug}`;
+    const group = await getGroup({ id: groupId }, ctx);
+    return group;
+  },
+  [
+    'groups',
+    'channelUnreads',
+    'volumeSettings',
+    'channels',
+    'groupJoinRequests',
+    'groupMemberBans',
+    'groupNavSectionChannels',
+    'groupRoles',
+  ]
+);
+
 export const getGroup = createReadQuery(
   'getGroup',
   async (

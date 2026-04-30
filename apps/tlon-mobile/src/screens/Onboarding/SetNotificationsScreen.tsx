@@ -66,9 +66,8 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
       >
         <YStack gap="$2xl" flex={1} justifyContent="center">
           <TlonText.Text size="$body">
-            Tlon works best when you’re notified of messages–but you’re in
-            control. You can customize these settings anytime for any DM or
-            group.
+            Tlon works best when you’re notified of messages. You can change
+            these settings any time.
           </TlonText.Text>
 
           <NotificationLevelSelector

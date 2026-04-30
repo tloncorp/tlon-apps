@@ -111,6 +111,7 @@ export enum AnalyticsEvent {
   ActionPinChat = 'Pinned Chat',
   ActionUnpinChat = 'Unpinned Chat',
   ActionVisitedChannel = 'Viewed Channel',
+  ProtocolMismatchNoticeSeen = 'Protocol mismatch notice seen',
   ActionTappedChat = 'Tapped Chatlist Item',
   ActionJoinChannel = 'Joined Channel',
   ActionMoveChannel = 'Moved Channel',
@@ -173,6 +174,7 @@ export interface AnalyticsDigest {
   numGroups?: number | null;
   numGroupchats?: number | null;
   numGroupsHosted?: number | null;
+  homeGroupMemberCount?: number | null;
   numChannels?: number | null;
   numDms?: number | null;
   numLegacyGroupDms?: number | null;

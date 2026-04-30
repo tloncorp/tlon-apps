@@ -73,7 +73,11 @@ export function InlineMention({
     onGoToUserProfile?.(inline.contactId);
   }, [onGoToUserProfile, inline.contactId]);
   return (
-    <MentionText onPress={handlePress} color={'$positiveActionText'}>
+    <MentionText
+      testID={`PostMention-${inline.contactId}`}
+      onPress={handlePress}
+      color={'$positiveActionText'}
+    >
       {contactName}
     </MentionText>
   );
@@ -91,16 +95,25 @@ export function InlineGroupMention({
   const handlePress = useCallback(() => {
     onGoToGroupSettings?.();
   }, [onGoToGroupSettings]);
+  // All mentions serialize as `{ sect: null }` and render back as group "all",
+  // while newly selected composer mentions use ALL_MENTION_ID.
+  const isAllMention =
+    inline.group === ALL_MENTION_ID || inline.group === 'all';
+  const testIdGroup = isAllMention ? ALL_MENTION_ID : inline.group;
 
   const prettyRole = useMemo(() => {
     const roles = group?.roles ?? [];
-    return inline.group === ALL_MENTION_ID
+    return isAllMention
       ? 'all'
       : roles.find((role) => role.id === inline.group)?.title || inline.group;
-  }, [group, inline.group]);
+  }, [group, inline.group, isAllMention]);
 
   return (
-    <MentionText onPress={handlePress} color={'$positiveActionText'}>
+    <MentionText
+      testID={`PostMention-${testIdGroup}`}
+      onPress={handlePress}
+      color={'$positiveActionText'}
+    >
       @{prettyRole}
     </MentionText>
   );
