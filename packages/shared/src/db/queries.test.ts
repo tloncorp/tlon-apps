@@ -1,7 +1,7 @@
 import { v0PeersToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
 import type * as ub from '@tloncorp/api/urbit/groups';
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import * as schema from '../db/schema';
 import { syncContacts, syncInitData } from '../store/sync';
@@ -758,4 +758,369 @@ test('setJoinedGroupChannels: does not reset membership for channels not in the 
       `channel ${channelId} should still be joined`
     ).toBe(true);
   }
+});
+
+describe('undoOptimisticReplyBump', () => {
+  const channelId = 'undo-reply-bump-channel';
+  const parentId = 'undo-reply-bump-parent';
+
+  async function seedParent(overrides: Partial<Post>) {
+    await queries.insertChannelPosts({
+      posts: [
+        {
+          id: parentId,
+          type: 'chat',
+          channelId,
+          authorId: '~parent',
+          sentAt: 1000,
+          receivedAt: 1000,
+          sequenceNum: 1,
+          content: JSON.stringify([{ inline: ['parent'] }]),
+          syncedAt: Date.now(),
+          ...overrides,
+        } as unknown as Post,
+      ],
+    });
+  }
+
+  async function seedReply(
+    authorId: string,
+    sentAt: number,
+    overrides: Partial<Post> = {}
+  ) {
+    await queries.insertChannelPosts({
+      posts: [
+        {
+          id: `${authorId}-${sentAt}`,
+          type: 'reply',
+          parentId,
+          channelId,
+          authorId,
+          sentAt,
+          receivedAt: sentAt,
+          sequenceNum: 0,
+          content: JSON.stringify([{ inline: [`reply at ${sentAt}`] }]),
+          syncedAt: Date.now(),
+          isDeleted: false,
+          ...overrides,
+        } as unknown as Post,
+      ],
+    });
+  }
+
+  test('complete local cache: A -> B -> A after deleting the last A recomputes to ["A", "B"] recency (most-recent last)', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedParent({
+      replyCount: 3,
+      replyTime: 1300,
+      replyContactIds: ['~bravo', '~alfa'],
+      optimisticReplyBumpCount: 1,
+    });
+    await seedReply('~alfa', 1100);
+    await seedReply('~bravo', 1200);
+
+    await queries.undoOptimisticReplyBump({ parentId });
+
+    const parent = await queries.getPost({ postId: parentId });
+    expect(parent!.replyCount).toBe(2);
+    expect(parent!.replyTime).toBe(1200);
+    expect(parent!.replyContactIds).toEqual(['~alfa', '~bravo']);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
+  });
+
+  test('partial local cache: preserves server-sourced replyTime / replyContactIds, decrements replyCount', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    const serverContactIds = ['~remote-1', '~remote-2', '~remote-3'];
+    await seedParent({
+      replyCount: 8,
+      replyTime: 9999,
+      replyContactIds: serverContactIds,
+      optimisticReplyBumpCount: 1,
+    });
+
+    await queries.undoOptimisticReplyBump({ parentId });
+
+    const parent = await queries.getPost({ postId: parentId });
+    expect(parent!.replyCount).toBe(7);
+    expect(parent!.replyTime).toBe(9999);
+    expect(parent!.replyContactIds).toEqual(serverContactIds);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
+  });
+
+  test('partial local cache with alive local replies: still preserves server fields', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedParent({
+      replyCount: 5,
+      replyTime: 9999,
+      replyContactIds: ['~remote-1', '~remote-2'],
+      optimisticReplyBumpCount: 1,
+    });
+    await seedReply('~alfa', 1100);
+    await seedReply('~bravo', 1200);
+
+    await queries.undoOptimisticReplyBump({ parentId });
+
+    const parent = await queries.getPost({ postId: parentId });
+    expect(parent!.replyCount).toBe(4);
+    expect(parent!.replyTime).toBe(9999);
+    expect(parent!.replyContactIds).toEqual(['~remote-1', '~remote-2']);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
+  });
+
+  test('replyCount never goes below 0', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedParent({ replyCount: 0, optimisticReplyBumpCount: 1 });
+
+    await queries.undoOptimisticReplyBump({ parentId });
+
+    const parent = await queries.getPost({ postId: parentId });
+    expect(parent!.replyCount).toBe(0);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
+  });
+
+  test('server-authoritative replyMeta override clears optimistic bump tracking, so undo is a no-op', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedParent({
+      replyCount: 4,
+      replyTime: 9999,
+      replyContactIds: ['~remote-1', '~remote-2', '~remote-3'],
+      optimisticReplyBumpCount: 0,
+    });
+    await seedReply('~alfa', 1100, { sequenceNum: 101 });
+    await seedReply('~bravo', 1200, { sequenceNum: 102 });
+    await seedReply('~charlie', 1300, { sequenceNum: 103 });
+
+    await queries.undoOptimisticReplyBump({ parentId });
+
+    const parent = await queries.getPost({ postId: parentId });
+    expect(parent!.replyCount).toBe(4);
+    expect(parent!.replyTime).toBe(9999);
+    expect(parent!.replyContactIds).toEqual([
+      '~remote-1',
+      '~remote-2',
+      '~remote-3',
+    ]);
+    expect(parent!.optimisticReplyBumpCount).toBe(0);
+  });
+});
+
+describe('recomputeChannelLastPost', () => {
+  const channelId = 'preview-test-channel';
+
+  async function seedTopLevel(
+    id: string,
+    receivedAt: number,
+    overrides: Partial<Post> = {}
+  ) {
+    await queries.insertChannelPosts({
+      posts: [
+        {
+          id,
+          type: 'chat',
+          channelId,
+          authorId: '~zod',
+          sentAt: receivedAt,
+          receivedAt,
+          sequenceNum: receivedAt,
+          content: JSON.stringify([{ inline: [`post ${receivedAt}`] }]),
+          syncedAt: Date.now(),
+          ...overrides,
+        } as unknown as Post,
+      ],
+    });
+  }
+
+  test('repoints to the newest remaining non-deleted top-level post', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedTopLevel('post-old', 1000);
+    await seedTopLevel('post-new', 2000);
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: 'post-new',
+      lastPostAt: 2000,
+    });
+
+    await queries.deletePost('post-new');
+    await queries.recomputeChannelLastPost({ channelId });
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBe('post-old');
+    expect(channel!.lastPostAt).toBe(1000);
+  });
+
+  test('clears lastPostId / lastPostAt when no previewable posts remain', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedTopLevel('only-post', 1500);
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: 'only-post',
+      lastPostAt: 1500,
+    });
+
+    await queries.deletePost('only-post');
+    await queries.recomputeChannelLastPost({ channelId });
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBeNull();
+    expect(channel!.lastPostAt).toBeNull();
+  });
+
+  test('skips deleted and reply rows when choosing the channel head', async () => {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+    await seedTopLevel('top-old', 1000);
+    await seedTopLevel('top-new-deleted', 2000, { isDeleted: true });
+    await queries.insertChannelPosts({
+      posts: [
+        {
+          id: 'reply-newest',
+          type: 'reply',
+          parentId: 'top-old',
+          channelId,
+          authorId: '~zod',
+          sentAt: 3000,
+          receivedAt: 3000,
+          sequenceNum: 99,
+          content: JSON.stringify([{ inline: ['reply'] }]),
+          syncedAt: Date.now(),
+        } as unknown as Post,
+      ],
+    });
+
+    await queries.recomputeChannelLastPost({ channelId });
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBe('top-old');
+    expect(channel!.lastPostAt).toBe(1000);
+  });
+
+  test('also repairs parent group lastPostId / lastPostAt when the channel belongs to a group', async () => {
+    const groupId = '~zod/group-with-preview';
+    await queries.insertGroups({
+      groups: [
+        {
+          id: groupId,
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+          hostUserId: '~zod',
+          lastPostId: 'to-be-replaced',
+          lastPostAt: 2000,
+        } as unknown as Parameters<
+          typeof queries.insertGroups
+        >[0]['groups'][number],
+      ],
+    });
+    await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+    await seedTopLevel('group-old', 1000);
+    await seedTopLevel('group-new', 2000);
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: 'group-new',
+      lastPostAt: 2000,
+    });
+
+    await queries.deletePost('group-new');
+    await queries.recomputeChannelLastPost({ channelId });
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBe('group-old');
+    expect(channel!.lastPostAt).toBe(1000);
+
+    const group = await queries.getGroup({ id: groupId });
+    expect(group!.lastPostId).toBe('group-old');
+    expect(group!.lastPostAt).toBe(1000);
+  });
+
+  test('clears parent group lastPostId / lastPostAt when no channel in the group has any previewable post', async () => {
+    const groupId = '~zod/empty-group';
+    await queries.insertGroups({
+      groups: [
+        {
+          id: groupId,
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+          hostUserId: '~zod',
+          lastPostId: 'stale',
+          lastPostAt: 5000,
+        } as unknown as Parameters<
+          typeof queries.insertGroups
+        >[0]['groups'][number],
+      ],
+    });
+    await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+    await seedTopLevel('only-post', 3000);
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: 'only-post',
+      lastPostAt: 3000,
+    });
+
+    await queries.deletePost('only-post');
+    await queries.recomputeChannelLastPost({ channelId });
+
+    const group = await queries.getGroup({ id: groupId });
+    expect(group!.lastPostId).toBeNull();
+    expect(group!.lastPostAt).toBeNull();
+  });
+
+  test('group-head recomputation skips sibling channels with lastPostId = null even when their stale lastPostAt is newest', async () => {
+    const groupId = '~zod/group-sibling-repair';
+    const validSiblingId = 'chat/~zod/group-sibling-valid';
+    const nulledSiblingId = 'chat/~zod/group-sibling-nulled';
+    await queries.insertGroups({
+      groups: [
+        {
+          id: groupId,
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+          hostUserId: '~zod',
+        } as unknown as Parameters<
+          typeof queries.insertGroups
+        >[0]['groups'][number],
+      ],
+    });
+    await queries.insertChannels([
+      { id: channelId, type: 'chat', groupId },
+      { id: validSiblingId, type: 'chat', groupId },
+      { id: nulledSiblingId, type: 'chat', groupId },
+    ]);
+
+    await seedTopLevel('channel-head', 1000);
+    await queries.updateChannel({
+      id: channelId,
+      lastPostId: 'channel-head',
+      lastPostAt: 1000,
+    });
+    await queries.insertChannelPosts({
+      posts: [
+        {
+          id: 'valid-sibling-head',
+          type: 'chat',
+          channelId: validSiblingId,
+          authorId: '~zod',
+          sentAt: 2000,
+          receivedAt: 2000,
+          sequenceNum: 2,
+          content: JSON.stringify([{ inline: ['still valid'] }]),
+          syncedAt: Date.now(),
+        } as unknown as Post,
+      ],
+    });
+    await queries.updateChannel({
+      id: validSiblingId,
+      lastPostId: 'valid-sibling-head',
+      lastPostAt: 2000,
+    });
+    await queries.updateChannel({
+      id: nulledSiblingId,
+      lastPostId: null,
+      lastPostAt: 9999,
+    });
+
+    await queries.deletePost('channel-head');
+    await queries.recomputeChannelLastPost({ channelId });
+
+    const group = await queries.getGroup({ id: groupId });
+    expect(group!.lastPostId).toBe('valid-sibling-head');
+    expect(group!.lastPostAt).toBe(2000);
+  });
 });

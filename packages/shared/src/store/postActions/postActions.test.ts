@@ -12,6 +12,7 @@ import { toPostData } from '../../logic';
 import { getClient, setupDatabaseTestSuite } from '../../test/helpers';
 import { updateSession } from '../session';
 import { setUploadState } from '../storage';
+import * as sync from '../sync';
 import { mergePendingPosts } from '../useMergePendingPosts';
 import {
   deleteFailedPost,
@@ -748,12 +749,145 @@ describe('clearing a failed optimistic post', () => {
     expect(rowAfter!.sequenceNum).toBe(5);
   });
 
-  test('deleteFailedPost() on a failed-send row removes it from the DB', async () => {
+  test('action-menu deletePost() on a failed optimistic reply removes the reply AND recomputes parent reply metadata', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const parent = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 1,
+      content: [{ inline: ['parent'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parent] });
+
+    const failedReply = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: 0,
+        content: [{ inline: ['failed reply'] }],
+        deliveryStatus: 'failed',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+    await sync.handleAddPost(failedReply);
+
+    expect((await fetchPost(parent.id))!.replyCount).toBe(1);
+
+    await deletePost({ post: failedReply });
+
+    expect(await fetchPost(failedReply.id)).toBeUndefined();
+    const threadPosts = await db.getThreadPosts({ parentId: parent.id });
+    expect(threadPosts.map((p) => p.id)).not.toContain(failedReply.id);
+
+    const parentAfter = await fetchPost(parent.id);
+    expect(parentAfter!.replyCount).toBe(0);
+    expect(parentAfter!.replyTime).toBeNull();
+    expect(parentAfter!.replyContactIds).toEqual([]);
+  });
+
+  test('deleteFailedPost on a failed-send row removes it from the DB', async () => {
     const post = await seedFailedOptimisticPost();
 
     await deleteFailedPost({ post });
 
     expect(await fetchPost(post.id)).toBeUndefined();
+  });
+
+  test('deleteFailedPost on a failed-send reply removes the reply AND restores parent reply metadata', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const parent = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 1,
+      content: [{ inline: ['parent'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parent] });
+
+    const failedReply = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: 0,
+        content: [{ inline: ['failed reply'] }],
+        deliveryStatus: 'failed',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+
+    await sync.handleAddPost(failedReply);
+
+    const parentBefore = await fetchPost(parent.id);
+    expect(parentBefore!.replyCount).toBe(1);
+    expect(parentBefore!.replyTime).toBe(failedReply.sentAt);
+    expect(parentBefore!.replyContactIds).toEqual(['~zod']);
+
+    await deleteFailedPost({ post: failedReply });
+
+    expect(await fetchPost(failedReply.id)).toBeUndefined();
+    const threadPosts = await db.getThreadPosts({ parentId: parent.id });
+    expect(threadPosts.map((p) => p.id)).not.toContain(failedReply.id);
+
+    const parentAfter = await fetchPost(parent.id);
+    expect(parentAfter!.replyCount).toBe(0);
+    expect(parentAfter!.replyTime).toBeNull();
+    expect(parentAfter!.replyContactIds).toEqual([]);
+  });
+
+  test('deleteFailedPost on a failed reply leaves sibling reply metadata intact on the parent', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const parent = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 1,
+      content: [{ inline: ['parent'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parent] });
+
+    const survivingReply = {
+      ...db.buildPost({
+        authorId: '~bus',
+        author: null,
+        channel,
+        sequenceNum: 2,
+        content: [{ inline: ['kept reply'] }],
+        deliveryStatus: 'sent',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+    await sync.handleAddPost(survivingReply);
+
+    const failedReply = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: 0,
+        content: [{ inline: ['failed reply'] }],
+        deliveryStatus: 'failed',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+      sentAt: survivingReply.sentAt + 1000,
+    };
+    await sync.handleAddPost(failedReply);
+
+    await deleteFailedPost({ post: failedReply });
+
+    const parentAfter = await fetchPost(parent.id);
+    expect(parentAfter!.replyCount).toBe(1);
+    expect(parentAfter!.replyTime).toBe(survivingReply.sentAt);
+    expect(parentAfter!.replyContactIds).toEqual(['~bus']);
   });
 
   test('deleted failed optimistic rows are excluded from the live merge even when filterDeleted is false', async () => {
@@ -807,6 +941,264 @@ describe('clearing a failed optimistic post', () => {
     }
   );
 
+  test('clearing a failed top-level post repoints channel preview to the previous previewable post', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const previous = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 5,
+      content: [{ inline: ['previous previewable post'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [previous] });
+
+    await db.updateChannel({
+      id: TEST_CHANNEL,
+      lastPostId: previous.id,
+      lastPostAt: previous.receivedAt,
+    });
+
+    const failed = await seedFailedOptimisticPost();
+
+    await deletePost({ post: failed });
+
+    const chan = await db.getChannel({ id: TEST_CHANNEL });
+    expect(chan!.lastPostId).toBe(previous.id);
+    expect(chan!.lastPostAt).toBe(previous.receivedAt);
+  });
+
+  test('clearing a failed top-level post nulls channel preview when no previewable post remains', async () => {
+    const failed = await seedFailedOptimisticPost();
+    await db.updateChannel({
+      id: TEST_CHANNEL,
+      lastPostId: failed.id,
+      lastPostAt: failed.receivedAt,
+    });
+
+    await deletePost({ post: failed });
+
+    const chan = await db.getChannel({ id: TEST_CHANNEL });
+    expect(chan!.lastPostId).toBeNull();
+    expect(chan!.lastPostAt).toBeNull();
+  });
+
+  test('clearing a failed reply does NOT touch the channel preview fields', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const parent = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 3,
+      content: [{ inline: ['parent'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parent] });
+    await db.updateChannel({
+      id: TEST_CHANNEL,
+      lastPostId: parent.id,
+      lastPostAt: parent.receivedAt,
+    });
+
+    const failedReply = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: 0,
+        content: [{ inline: ['failed reply'] }],
+        deliveryStatus: 'failed',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+    await sync.handleAddPost(failedReply);
+
+    await deletePost({ post: failedReply });
+
+    const chan = await db.getChannel({ id: TEST_CHANNEL });
+    expect(chan!.lastPostId).toBe(parent.id);
+    expect(chan!.lastPostAt).toBe(parent.receivedAt);
+  });
+
+  test('clearing a failed reply against a partial thread cache preserves server-known reply summary', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const parent = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 3,
+      content: [{ inline: ['parent'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parent] });
+
+    const serverReplyTime = Date.now() + 60_000;
+    const serverContacts = ['~remote-1', '~remote-2'];
+    await db.updatePost({
+      id: parent.id,
+      replyCount: 8,
+      replyTime: serverReplyTime,
+      replyContactIds: serverContacts,
+    });
+
+    const failedReply = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: 0,
+        content: [{ inline: ['failed reply'] }],
+        deliveryStatus: 'failed',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+    await sync.handleAddPost(failedReply);
+    const parentBefore = await fetchPost(parent.id);
+    expect(parentBefore!.replyCount).toBe(9);
+    expect(parentBefore!.replyTime).toBe(serverReplyTime);
+    expect(parentBefore!.replyContactIds).toEqual([...serverContacts, '~zod']);
+
+    await deletePost({ post: failedReply });
+
+    const parentAfter = await fetchPost(parent.id);
+    expect(parentAfter!.replyCount).toBe(8);
+    expect(parentAfter!.replyTime).toBe(serverReplyTime);
+    expect(parentAfter!.replyContactIds).toEqual([...serverContacts, '~zod']);
+  });
+
+  test('clearing a failed top-level post in a grouped channel repairs both channel and parent group preview', async () => {
+    const GROUP_ID = '~zod/group-preview-repair';
+    const GROUPED_CHANNEL_ID = 'chat/~zod/group-preview-channel';
+    await db.insertGroups({
+      groups: [
+        {
+          id: GROUP_ID,
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+          hostUserId: '~zod',
+          lastPostId: 'seeded-stale',
+          lastPostAt: 2000,
+        } as unknown as Parameters<typeof db.insertGroups>[0]['groups'][number],
+      ],
+    });
+    await db.insertChannels([
+      db.buildChannel({
+        id: GROUPED_CHANNEL_ID,
+        type: 'chat',
+        groupId: GROUP_ID,
+      }),
+    ]);
+    const groupedChannel = (await db.getChannel({ id: GROUPED_CHANNEL_ID }))!;
+
+    const previous = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel: groupedChannel,
+      sequenceNum: 5,
+      content: [{ inline: ['previous previewable post'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [previous] });
+    await db.updateChannel({
+      id: GROUPED_CHANNEL_ID,
+      lastPostId: previous.id,
+      lastPostAt: previous.receivedAt,
+    });
+
+    const failed = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel: groupedChannel,
+      sequenceNum: 0,
+      content: [{ inline: [friendlyUniqueString()] }],
+      deliveryStatus: 'failed',
+    });
+    await db.insertChannelPosts({ posts: [failed] });
+
+    await deletePost({ post: failed });
+
+    const chan = await db.getChannel({ id: GROUPED_CHANNEL_ID });
+    expect(chan!.lastPostId).toBe(previous.id);
+    expect(chan!.lastPostAt).toBe(previous.receivedAt);
+
+    const group = await db.getGroup({ id: GROUP_ID });
+    expect(group!.lastPostId).toBe(previous.id);
+    expect(group!.lastPostAt).toBe(previous.receivedAt);
+  });
+
+  test('clearing a failed reply in a grouped channel does NOT disturb parent group last-post metadata', async () => {
+    const GROUP_ID = '~zod/group-reply-isolate';
+    const GROUPED_CHANNEL_ID = 'chat/~zod/group-reply-channel';
+    await db.insertGroups({
+      groups: [
+        {
+          id: GROUP_ID,
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+          hostUserId: '~zod',
+        } as unknown as Parameters<typeof db.insertGroups>[0]['groups'][number],
+      ],
+    });
+    await db.insertChannels([
+      db.buildChannel({
+        id: GROUPED_CHANNEL_ID,
+        type: 'chat',
+        groupId: GROUP_ID,
+      }),
+    ]);
+    const groupedChannel = (await db.getChannel({ id: GROUPED_CHANNEL_ID }))!;
+
+    const parent = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel: groupedChannel,
+      sequenceNum: 4,
+      content: [{ inline: ['parent'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parent] });
+    await db.updateChannel({
+      id: GROUPED_CHANNEL_ID,
+      lastPostId: parent.id,
+      lastPostAt: parent.receivedAt,
+    });
+    await db.insertGroups({
+      groups: [
+        {
+          id: GROUP_ID,
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+          hostUserId: '~zod',
+          lastPostId: parent.id,
+          lastPostAt: parent.receivedAt,
+        } as unknown as Parameters<typeof db.insertGroups>[0]['groups'][number],
+      ],
+    });
+
+    const failedReply = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel: groupedChannel,
+        sequenceNum: 0,
+        content: [{ inline: ['failed reply'] }],
+        deliveryStatus: 'failed',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+    await sync.handleAddPost(failedReply);
+
+    const groupBefore = await db.getGroup({ id: GROUP_ID });
+    await deletePost({ post: failedReply });
+    const groupAfter = await db.getGroup({ id: GROUP_ID });
+
+    expect(groupAfter!.lastPostId).toBe(groupBefore!.lastPostId);
+    expect(groupAfter!.lastPostAt).toBe(groupBefore!.lastPostAt);
+  });
+
   test('deletePost() re-reads the DB row before hard-delete classification', async () => {
     const post = await seedFailedOptimisticPost();
     const staleSnapshot: db.Post = {
@@ -841,5 +1233,82 @@ describe('clearing a failed optimistic post', () => {
     const rowAfter = await fetchPost(post.id);
     expect(rowAfter).toBeTruthy();
     expect(rowAfter!.sequenceNum).toBe(42);
+  });
+
+  test('deletePost() is a no-op when the row is already gone; does not re-run clearUnsentPost on stale snapshot', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const parent = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 3,
+      content: [{ inline: ['parent'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parent] });
+    await db.updatePost({
+      id: parent.id,
+      replyCount: 5,
+      replyTime: 9999,
+      replyContactIds: ['~alfa', '~bravo'],
+    });
+
+    const staleReplySnapshot: db.Post = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: 0,
+        content: [{ inline: ['ghost reply'] }],
+        deliveryStatus: 'failed',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+    await deletePost({ post: staleReplySnapshot });
+
+    const parentAfter = await fetchPost(parent.id);
+    expect(parentAfter!.replyCount).toBe(5);
+    expect(parentAfter!.replyTime).toBe(9999);
+    expect(parentAfter!.replyContactIds).toEqual(['~alfa', '~bravo']);
+  });
+
+  test('deleteFailedPost() is a no-op when the row is already gone', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const parent = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 3,
+      content: [{ inline: ['parent'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [parent] });
+    await db.updatePost({
+      id: parent.id,
+      replyCount: 5,
+      replyTime: 9999,
+      replyContactIds: ['~alfa', '~bravo'],
+    });
+
+    const staleReplySnapshot: db.Post = {
+      ...db.buildPost({
+        authorId: '~zod',
+        author: null,
+        channel,
+        sequenceNum: 0,
+        content: [{ inline: ['ghost reply'] }],
+        deliveryStatus: 'failed',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+
+    await deleteFailedPost({ post: staleReplySnapshot });
+
+    const parentAfter = await fetchPost(parent.id);
+    expect(parentAfter!.replyCount).toBe(5);
+    expect(parentAfter!.replyTime).toBe(9999);
+    expect(parentAfter!.replyContactIds).toEqual(['~alfa', '~bravo']);
   });
 });

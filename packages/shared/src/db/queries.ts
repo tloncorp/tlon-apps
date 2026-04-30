@@ -3723,19 +3723,200 @@ export const addReplyToPost = createWriteQuery(
           parentPost.replyContactIds ?? [],
           replyAuthor
         );
+        const nextOptimisticReplyBumpCount = replyMeta
+          ? 0
+          : (parentPost.optimisticReplyBumpCount ?? 0) + 1;
+        // Never regress `replyTime` below the server-known value: the parent
+        // should always reflect the newest known reply time. When this is an
+        // optimistic add for a reply older than the parent's current
+        // `replyTime` (e.g., server-sourced `replyMeta` already set a newer
+        // timestamp for replies we do not have locally), keep the existing
+        // value so `undoOptimisticReplyBump` does not have to reconstruct it.
+        const derivedReplyTime = Math.max(parentPost.replyTime ?? 0, replyTime);
         return txCtx.db
           .update($posts)
           .set({
             replyCount:
               replyMeta?.replyCount ?? (parentPost.replyCount ?? 0) + 1,
-            replyTime: replyMeta?.replyTime ?? replyTime,
+            replyTime: replyMeta?.replyTime ?? derivedReplyTime,
             replyContactIds: replyMeta?.replyContactIds ?? newReplyContacts,
+            optimisticReplyBumpCount: nextOptimisticReplyBumpCount,
           })
           .where(eq($posts.id, parentId));
       }
     });
   },
   ['posts']
+);
+
+/**
+ * Undo one optimistic reply-summary bump after a failed reply row is removed.
+ * If the parent row has already been replaced by server-authoritative
+ * `replyMeta`, the optimistic bump count is 0 and this becomes a no-op.
+ * Otherwise, recompute from local replies when the cache is complete; if the
+ * cache is partial, only decrement `replyCount` and preserve server-sourced
+ * summary fields.
+ */
+export const undoOptimisticReplyBump = createWriteQuery(
+  'undoOptimisticReplyBump',
+  async ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      const parentRows = await txCtx.db
+        .select()
+        .from($posts)
+        .where(eq($posts.id, parentId));
+      const parent = parentRows[0];
+      if (!parent) return;
+
+      const optimisticReplyBumpCount = parent.optimisticReplyBumpCount ?? 0;
+      if (optimisticReplyBumpCount <= 0) {
+        return;
+      }
+
+      const aliveReplies = await txCtx.db
+        .select({
+          authorId: $posts.authorId,
+          sentAt: $posts.sentAt,
+        })
+        .from($posts)
+        .where(
+          and(
+            eq($posts.parentId, parentId),
+            or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          )
+        );
+
+      const currentReplyCount = parent.replyCount ?? 0;
+      const aliveCount = aliveReplies.length;
+      // The deleted failed reply row has already been removed from the DB by
+      // the time this helper runs. If the local cache fully backs the parent's
+      // current reply summary, the parent should still be exactly one ahead of
+      // the surviving reply rows; other still-alive optimistic replies are
+      // already included in `aliveCount`.
+      const localCacheIsComplete = currentReplyCount === aliveCount + 1;
+
+      if (localCacheIsComplete) {
+        // Preserve the same recency semantics as the incremental path in
+        // `addReplyToPost` → `appendContactIdToReplies`: fold surviving
+        // replies in chronological order, and for each author remove any
+        // prior occurrence and re-append. Most recent distinct replier
+        // ends up at the end.
+        const sortedReplies = [...aliveReplies].sort(
+          (a, b) => (a.sentAt ?? 0) - (b.sentAt ?? 0)
+        );
+        let replyTime: number | null = null;
+        let replyContactIds: string[] = [];
+        for (const reply of sortedReplies) {
+          if (
+            reply.sentAt != null &&
+            (replyTime == null || reply.sentAt > replyTime)
+          ) {
+            replyTime = reply.sentAt;
+          }
+          if (reply.authorId) {
+            replyContactIds = appendContactIdToReplies(
+              replyContactIds,
+              reply.authorId
+            );
+          }
+        }
+        return txCtx.db
+          .update($posts)
+          .set({
+            replyCount: aliveCount,
+            replyTime,
+            replyContactIds,
+            optimisticReplyBumpCount: Math.max(optimisticReplyBumpCount - 1, 0),
+          })
+          .where(eq($posts.id, parentId));
+      }
+
+      // Partial cache: server-sourced reply summary may cover replies we
+      // never cached locally. Only undo the optimistic `+1` bump and leave
+      // `replyTime` / `replyContactIds` intact.
+      return txCtx.db
+        .update($posts)
+        .set({
+          replyCount: Math.max(currentReplyCount - 1, 0),
+          optimisticReplyBumpCount: Math.max(optimisticReplyBumpCount - 1, 0),
+        })
+        .where(eq($posts.id, parentId));
+    });
+  },
+  ['posts']
+);
+
+/**
+ * Repoint `channels.lastPostId` / `lastPostAt` to the newest remaining
+ * previewable (non-reply, non-deleted) top-level post, or null them if no
+ * such post exists. Used after a hard-delete to keep chat-list / channel
+ * preview state in sync without waiting for a sync repair.
+ */
+export const recomputeChannelLastPost = createWriteQuery(
+  'recomputeChannelLastPost',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      const newest = await txCtx.db
+        .select({ id: $posts.id, receivedAt: $posts.receivedAt })
+        .from($posts)
+        .where(
+          and(
+            eq($posts.channelId, channelId),
+            not(eq($posts.type, 'reply')),
+            or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+          )
+        )
+        .orderBy(desc($posts.receivedAt))
+        .limit(1);
+      const head = newest[0];
+      await txCtx.db
+        .update($channels)
+        .set({
+          lastPostId: head?.id ?? null,
+          lastPostAt: head?.receivedAt ?? null,
+        })
+        .where(eq($channels.id, channelId));
+
+      // If the channel belongs to a group, re-derive the group's
+      // `lastPostId` / `lastPostAt` from the channel with the newest
+      // updated `lastPostAt` in that group. Needed so chat-list and
+      // group-list previews stay consistent immediately after a local
+      // hard-delete, without waiting for a later sync repair.
+      const channelRow = await txCtx.db
+        .select({ groupId: $channels.groupId })
+        .from($channels)
+        .where(eq($channels.id, channelId))
+        .limit(1);
+      const groupId = channelRow[0]?.groupId;
+      if (!groupId) return;
+
+      // Only consider sibling channels that still have a valid preview.
+      // A channel can be in a stale shape where `lastPostId` has already
+      // been nulled but `lastPostAt` still carries the old timestamp; that
+      // row must not win the group-head race and blank out a sibling that
+      // still has a real preview to offer.
+      const newestGroupChannel = await txCtx.db
+        .select({
+          lastPostId: $channels.lastPostId,
+          lastPostAt: $channels.lastPostAt,
+        })
+        .from($channels)
+        .where(
+          and(eq($channels.groupId, groupId), isNotNull($channels.lastPostId))
+        )
+        .orderBy(desc($channels.lastPostAt))
+        .limit(1);
+      const groupHead = newestGroupChannel[0];
+      await txCtx.db
+        .update($groups)
+        .set({
+          lastPostId: groupHead?.lastPostId ?? null,
+          lastPostAt: groupHead?.lastPostAt ?? null,
+        })
+        .where(eq($groups.id, groupId));
+    });
+  },
+  ['channels', 'groups']
 );
 
 export const getPendingPosts = createReadQuery(
