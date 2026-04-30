@@ -62,7 +62,7 @@ export function PersonalInviteButton() {
           </View>
         ) : (
           <ListItem.SystemIcon
-            icon="Send"
+            icon="Link"
             color="$background"
             backgroundColor="unset"
           />
@@ -73,7 +73,7 @@ export function PersonalInviteButton() {
               ? 'Preparing invite link'
               : didCopy
                 ? 'Copied'
-                : 'Share Invite Link'}
+                : 'Share invite link'}
           </ListItem.Title>
         </ListItem.MainContent>
         <ListItem.EndContent>

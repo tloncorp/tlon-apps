@@ -737,12 +737,12 @@ function providerLabel(provider: string): string {
 export const SplashTitle = styled(Text, {
   fontSize: '$xl',
   fontWeight: '600',
-  marginHorizontal: '$xl',
+  marginHorizontal: '$2xl',
 });
 
 export const SplashParagraph = styled(Text, {
   size: '$body',
-  marginHorizontal: '$xl',
+  marginHorizontal: '$2xl',
   marginBottom: '$2xl',
   color: '$secondaryText',
 });
@@ -800,7 +800,7 @@ export function WelcomePane(props: {
         label="Let's get started"
         preset="hero"
         shadow
-        marginHorizontal="$xl"
+        marginHorizontal="$2xl"
         marginTop="$xl"
       />
     </View>
@@ -846,7 +846,7 @@ export function TlonBotPane(props: { onActionPress: () => void }) {
           </SplashParagraph>
         </ScrollView>
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$2xl">
+      <YStack paddingHorizontal="$2xl" gap="$2xl">
         <Button
           onPress={props.onActionPress}
           testID="bot-configure"
@@ -892,7 +892,7 @@ export function BotNamePane(props: {
           <SplashTitle>
             Pick a name for your <Text color="$positiveActionText">bot.</Text>
           </SplashTitle>
-          <YStack paddingHorizontal="$xl" gap="$m">
+          <YStack paddingHorizontal="$2xl" gap="$m">
             <Field error={error ?? undefined}>
               <TextInput
                 value={props.name}
@@ -929,7 +929,7 @@ export function BotNamePane(props: {
           shadow={
             props.name.trim().length > 0 && props.name.trim().length <= 50
           }
-          marginHorizontal="$xl"
+          marginHorizontal="$2xl"
           marginTop="$xl"
         />
       </View>
@@ -1054,7 +1054,7 @@ export function BotAvatarPane(props: {
           </Pressable>
         </YStack>
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
+      <YStack paddingHorizontal="$2xl" gap="$l" marginTop="$xl">
         {hasAvatar ? (
           <>
             <Button
@@ -1141,7 +1141,7 @@ export function BotProviderPane(props: {
           showsVerticalScrollIndicator={false}
           bounces={false}
           contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
+            paddingHorizontal: getTokenValue('$2xl', 'size'),
             gap: getTokenValue('$s', 'size'),
             paddingBottom: getTokenValue('$6xl', 'size'),
           }}
@@ -1182,7 +1182,7 @@ export function BotProviderPane(props: {
         preset="hero"
         loading={loading}
         disabled={loading || !model}
-        marginHorizontal="$xl"
+        marginHorizontal="$2xl"
         marginTop="$xl"
       />
     </View>
@@ -1242,7 +1242,7 @@ export function BotApiKeyPane(props: {
             keyboardDismissMode="on-drag"
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{
-              paddingHorizontal: getTokenValue('$xl', 'size'),
+              paddingHorizontal: getTokenValue('$2xl', 'size'),
               gap: getTokenValue('$2xl', 'size'),
             }}
           >
@@ -1279,7 +1279,7 @@ export function BotApiKeyPane(props: {
           preset="hero"
           loading={loading}
           disabled={loading || !apiKey}
-          marginHorizontal="$xl"
+          marginHorizontal="$2xl"
           marginTop="$xl"
         />
       </View>
@@ -1349,7 +1349,7 @@ export function BotModelPane(props: {
         <SplashTitle>
           Pick a <Text color="$positiveActionText">model.</Text>
         </SplashTitle>
-        <YStack gap="$s" paddingHorizontal="$xl" paddingBottom="$m">
+        <YStack gap="$s" paddingHorizontal="$2xl" paddingBottom="$m">
           <SplashParagraph marginHorizontal={0} marginBottom={0}>
             Your key is valid. Choose which model your Tlonbot should use.
           </SplashParagraph>
@@ -1363,7 +1363,7 @@ export function BotModelPane(props: {
               flex: 1,
             }}
           />
-          <Text size="$label/m" color="$secondaryText" paddingHorizontal="$xs">
+          <Text size="$label/m" color="$tertiaryText" paddingHorizontal="$xs">
             Showing {visibleModels.length} of {models.length} models
           </Text>
         </YStack>
@@ -1375,7 +1375,7 @@ export function BotModelPane(props: {
           keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={handleModelListScrollBeginDrag}
           contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
+            paddingHorizontal: getTokenValue('$2xl', 'size'),
             gap: getTokenValue('$s', 'size'),
           }}
         >
@@ -1411,7 +1411,7 @@ export function BotModelPane(props: {
         preset="hero"
         loading={loading}
         disabled={loading || !selectedModel}
-        marginHorizontal="$xl"
+        marginHorizontal="$2xl"
         marginTop="$xl"
       />
     </View>
@@ -1503,7 +1503,7 @@ export function GroupsPane(props: {
           )}
         </ScrollView>
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
+      <YStack paddingHorizontal="$2xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
           <Button
             onPress={
@@ -1586,7 +1586,7 @@ export function ChannelsPane(props: {
         }
         preset="hero"
         shadow
-        marginHorizontal="$xl"
+        marginHorizontal="$2xl"
         marginTop="$xl"
       />
     </View>
@@ -1629,7 +1629,7 @@ export function PrivacyPane(props: { onActionPress: () => void }) {
           label="Invite your friends"
           preset="hero"
           shadow
-          marginHorizontal="$xl"
+          marginHorizontal="$2xl"
           marginTop="$xl"
         />
       </View>
@@ -1660,6 +1660,15 @@ export function InviteContactsContent(props: {
     props.systemContacts ?? []
   );
 
+  if (!hasContacts) {
+    return (
+      <ShareInviteLinkEmptyState
+        onNext={props.onComplete}
+        completing={props.completing}
+      />
+    );
+  }
+
   return (
     <YStack flex={1}>
       <ScreenHeader
@@ -1674,9 +1683,7 @@ export function InviteContactsContent(props: {
           </ScreenHeader.TextButton>
         }
       />
-      {!hasContacts ? (
-        <ShareInviteLinkEmptyState />
-      ) : !isReady ? (
+      {!isReady ? (
         <LoadingState />
       ) : (
         <>
@@ -1740,7 +1747,10 @@ function LoadingState() {
   );
 }
 
-function ShareInviteLinkEmptyState() {
+function ShareInviteLinkEmptyState(props: {
+  onNext: () => void;
+  completing?: boolean;
+}) {
   const insets = useSafeAreaInsets();
   const themeName = useThemeName();
   const isDark = themeName === 'dark';
@@ -1754,29 +1764,34 @@ function ShareInviteLinkEmptyState() {
       : require(`../../assets/raster/faces.png`);
 
   return (
-    <YStack
-      flex={1}
-      justifyContent="flex-start"
-      alignItems="center"
-      paddingHorizontal="$xl"
-      paddingBottom={insets.bottom}
-    >
-      <YStack alignItems="center" gap="$3xl" width="100%" maxWidth={340}>
-        <View paddingTop="$5xl" paddingBottom={'$2xl'}>
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      <YStack paddingTop="$2xl" flex={1} gap="$2xl">
+        <SplashTitle>
+          Invite your <Text color="$positiveActionText">friends.</Text>
+        </SplashTitle>
+        <SplashParagraph marginBottom={0}>
+          {INVITE_EXPLANATION_TEXT}
+        </SplashParagraph>
+        <View alignItems="center" paddingTop="$3xl" paddingBottom="$2xl">
           <Image
             style={{ width: 200, height: 141 }}
             resizeMode="contain"
             source={facesImage}
           />
         </View>
-        <SplashParagraph marginHorizontal={0}>
-          {INVITE_EXPLANATION_TEXT}
-        </SplashParagraph>
-        <View width="100%">
-          <PersonalInviteButton />
-        </View>
       </YStack>
-    </YStack>
+      <YStack paddingHorizontal="$2xl" gap="$l" marginTop="$xl">
+        <PersonalInviteButton />
+        <Button
+          testID="finish-invites"
+          onPress={props.completing ? undefined : props.onNext}
+          label={props.completing ? 'Finishing…' : 'Next'}
+          preset="secondary"
+          backgroundColor="transparent"
+          disabled={props.completing}
+        />
+      </YStack>
+    </View>
   );
 }
 
@@ -1826,7 +1841,7 @@ function ConnectContactBookContent(props: {
           </YStack>
         )}
       </YStack>
-      <YStack paddingHorizontal="$xl" gap="$l">
+      <YStack paddingHorizontal="$2xl" gap="$l">
         <Button
           data-testid="connect-contact-book"
           onPress={handleAction}

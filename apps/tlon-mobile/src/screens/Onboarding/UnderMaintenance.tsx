@@ -91,7 +91,7 @@ export function UnderMaintenanceScreen({ navigation }: Props) {
           Your node needs <Text color="$positiveActionText">repair.</Text>
         </SplashTitle>
         <SplashParagraph marginBottom={0}>
-          Your peer-to-peer node needs to undergo maintenance and cannot be
+          Your personal server needs to undergo maintenance and cannot be
           started. Our support team has been alerted.
         </SplashParagraph>
         {checkedAt && (

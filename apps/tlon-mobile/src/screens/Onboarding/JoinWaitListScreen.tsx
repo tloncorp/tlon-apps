@@ -79,7 +79,7 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
           <SplashParagraph marginBottom={0}>
             We&rsquo;ll let you know as soon as space is available.
           </SplashParagraph>
-          <YStack paddingHorizontal="$xl" gap="$m">
+          <YStack paddingHorizontal="$2xl" gap="$m">
             <Controller
               control={control}
               name="email"
@@ -128,7 +128,7 @@ export const JoinWaitListScreen = ({ navigation }: Props) => {
           preset="hero"
           disabled={!isValid}
           shadow={isValid}
-          marginHorizontal="$xl"
+          marginHorizontal="$2xl"
           marginTop="$xl"
         />
       </View>

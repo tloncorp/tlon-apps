@@ -34,11 +34,11 @@ export function StoppedNodePushSheet({
           >
             <SigilAvatar contactId="~latter-bolden" size="$9xl" renderDetail />
             <Text size="$label/l" paddingHorizontal="$2xl" textAlign="center">
-              Your P2P node is waking up after a deep sleep.{' '}
+              Your personal server is waking up after a deep sleep.{' '}
               {!notifPerms.hasPermission && !notifPerms.canAskPermission ? (
                 <>
                   If you enable push notifications, we can let you know when
-                  it's ready.
+                  it&#39;s ready.
                 </>
               ) : (
                 <>This usually takes just a few minutes.</>
@@ -58,7 +58,7 @@ export function StoppedNodePushSheet({
               }
             />
             <Text size="$label/s" color="$secondaryText">
-              Feel free to close the app while your node is waking up.
+              Feel free to close the app while your server is waking up.
             </Text>
           </ActionSheet.ContentBlock>
         </AppDataContextProvider>

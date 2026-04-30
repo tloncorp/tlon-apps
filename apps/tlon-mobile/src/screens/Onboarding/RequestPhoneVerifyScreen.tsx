@@ -16,7 +16,7 @@ import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import { Button, Text } from '@tloncorp/ui';
 import { isValidPhoneNumber } from 'libphonenumber-js';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
@@ -46,6 +46,13 @@ export const RequestPhoneVerifyScreen = ({
 
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const phoneInputRef = useRef<PhoneInput>(null);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      phoneInputRef.current?.focus();
+    }, 350);
+    return () => clearTimeout(handle);
+  }, []);
 
   const isDarkMode = useIsDarkMode();
   const theme = useTheme();
@@ -99,7 +106,7 @@ export const RequestPhoneVerifyScreen = ({
             Tlon is a platform for humans. We&rsquo;ll send a verification code
             to the phone number you enter below.
           </SplashParagraph>
-          <YStack paddingHorizontal="$xl" gap="$m">
+          <YStack paddingHorizontal="$2xl" gap="$m">
             {remoteError ? (
               <TlonText.Text color="$negativeActionText" size="$label/m">
                 {remoteError}
@@ -147,7 +154,7 @@ export const RequestPhoneVerifyScreen = ({
           loading={isSubmitting}
           disabled={!isValid || isSubmitting}
           shadow={isValid && !isSubmitting}
-          marginHorizontal="$xl"
+          marginHorizontal="$2xl"
           marginTop="$xl"
         />
       </View>

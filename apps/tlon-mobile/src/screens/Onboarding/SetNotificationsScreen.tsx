@@ -60,7 +60,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
           these settings any time.
         </SplashParagraph>
         <View
-          paddingHorizontal="$xl"
+          paddingHorizontal="$m"
           maxWidth={600}
           width="100%"
           marginHorizontal="auto"
@@ -77,7 +77,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
         shadow
         label="Next"
         onPress={handleNext}
-        marginHorizontal="$xl"
+        marginHorizontal="$2xl"
         marginTop="$xl"
       />
     </View>

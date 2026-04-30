@@ -149,7 +149,7 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
           shadow
           label="Next"
           onPress={handleNext}
-          marginHorizontal="$xl"
+          marginHorizontal="$2xl"
           marginTop="$xl"
         />
       </ImageBackground>

@@ -1,13 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSignupParams } from '@tloncorp/app/contexts/branch';
 import {
-  Icon,
+  IconType,
+  ListItem,
   ScreenHeader,
   SplashParagraph,
   SplashTitle,
-  TlonText,
   View,
-  XStack,
   YStack,
 } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
@@ -65,26 +64,28 @@ export const InventoryCheckScreen = ({ navigation }: Props) => {
           />
         </View>
         <SplashTitle>
-          Welcome to <Text color="$positiveActionText">Tlon.</Text>
+          Welcome to <Text color="$positiveActionText">Tlon Messenger.</Text>
         </SplashTitle>
-        <SplashParagraph marginBottom={0}>
-          Pain-free P2P. Your free account is a cloud computer that you own.
+        <SplashParagraph marginTop="$l" marginBottom={0}>
+          A messenger that you own completely, running on your own personal
+          server.
         </SplashParagraph>
-        <YStack paddingHorizontal="$xl" gap="$2xl">
+        <YStack paddingHorizontal="$l" gap="$2xl" marginTop="$2xl">
           <FeatureRow
-            icon="Bang"
-            title="Tlon operates on a peer-to-peer network."
-            description="Practically, this means your free account is a cloud computer. You can run it yourself, or we can run it for you."
+            icon="Home"
+            title="Tlon runs on your own personal server."
+            description="Your free account is a cloud computer. We run it for you, or you can run it yourself."
           />
           <FeatureRow
             icon="ChannelTalk"
             title="Hassle-free messaging you can trust."
-            description="We'll make sure your computer is online and up-to-date. Interested in self-hosting? You can always change your mind."
+            description="We'll keep your server online and up-to-date. Interested in self-hosting? You can change your mind any time."
           />
           <FeatureRow
-            icon="Send"
-            title="Sign up with your email address."
-            description="We'll ask you a few questions to get you set up."
+            icon="Mail"
+            title="Sign up with email or phone."
+            description="We'll ask a few questions to get you set up."
+            align="center"
           />
         </YStack>
       </YStack>
@@ -106,28 +107,31 @@ function FeatureRow({
   icon,
   title,
   description,
+  align = 'flex-start',
 }: {
-  icon: 'Bang' | 'ChannelTalk' | 'Send';
+  icon: IconType;
   title: string;
   description: string;
+  align?: 'flex-start' | 'center';
 }) {
   return (
-    <XStack gap="$l">
-      <View
-        backgroundColor="$secondaryBackground"
-        borderRadius="$3xl"
-        padding="$m"
-      >
-        <Icon type={icon} />
-      </View>
-      <YStack gap="$xs" flex={1}>
-        <TlonText.Text size="$body" fontWeight="500">
+    <ListItem
+      backgroundColor="unset"
+      padding="$s"
+      height="auto"
+      alignItems={align}
+    >
+      <ListItem.SystemIcon
+        icon={icon}
+        backgroundColor="unset"
+        color="$primaryText"
+      />
+      <ListItem.MainContent height="auto">
+        <ListItem.Title fontWeight="600" marginBottom="$m">
           {title}
-        </TlonText.Text>
-        <TlonText.Text size="$label/m" color="$tertiaryText">
-          {description}
-        </TlonText.Text>
-      </YStack>
-    </XStack>
+        </ListItem.Title>
+        <ListItem.Subtitle numberOfLines={0}>{description}</ListItem.Subtitle>
+      </ListItem.MainContent>
+    </ListItem>
   );
 }

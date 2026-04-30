@@ -126,7 +126,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
           <SplashParagraph marginBottom={0}>
             Enter the email and password associated with your Tlon account.
           </SplashParagraph>
-          <YStack paddingHorizontal="$xl" gap="$2xl">
+          <YStack paddingHorizontal="$2xl" gap="$2xl">
             {remoteError ? (
               <TlonText.Text size="$label/m" color="$negativeActionText">
                 {remoteError}
@@ -208,7 +208,7 @@ export const TlonLoginLegacy = ({ navigation }: Props) => {
             </TlonText.Text>
           </YStack>
         </ScrollView>
-        <YStack paddingHorizontal="$xl" gap="$l" paddingTop="$xl">
+        <YStack paddingHorizontal="$2xl" gap="$l" paddingTop="$xl">
           <TlonText.Text
             size="$label/s"
             color="$tertiaryText"

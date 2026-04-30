@@ -48,7 +48,7 @@ export const SetTelemetryScreen = () => {
           it really helps. These stats are anonymous, for product development
           purposes only, and we don&rsquo;t share them with anyone.
         </SplashParagraph>
-        <View paddingHorizontal="$xl">
+        <View paddingHorizontal="$2xl">
           <XStack
             backgroundColor="$background"
             borderRadius="$l"
@@ -71,7 +71,7 @@ export const SetTelemetryScreen = () => {
         label="Next"
         preset="hero"
         shadow
-        marginHorizontal="$xl"
+        marginHorizontal="$2xl"
         marginTop="$xl"
       />
     </View>

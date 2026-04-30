@@ -21,8 +21,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import { ScrollView } from 'react-native';
-import { getTokenValue } from 'tamagui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import {
   AnalyticsEvent,
@@ -32,7 +30,9 @@ import {
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getTokenValue } from 'tamagui';
 
 import { PhoneNumberInput } from '../../components/OnboardingInputs';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -225,10 +225,13 @@ export const SignupScreen = ({ navigation }: Props) => {
             {otpMethod === 'phone' ? 'phone number' : 'email address'} to get
             started. We&rsquo;ll send a code to verify it&rsquo;s you.
           </SplashParagraph>
-          <YStack paddingHorizontal="$xl" gap="$m">
+          <YStack paddingHorizontal="$2xl" gap="$m">
             {lureMeta ? (
               <View marginBottom="$m">
-                <OnboardingInviteBlock metadata={lureMeta} />
+                <OnboardingInviteBlock
+                  metadata={lureMeta}
+                  backgroundColor={'$secondaryBackground'}
+                />
               </View>
             ) : null}
             {remoteError ? (
@@ -299,7 +302,7 @@ export const SignupScreen = ({ navigation }: Props) => {
             </TlonText.Text>
           </YStack>
         </ScrollView>
-        <YStack paddingHorizontal="$xl" gap="$l" paddingTop="$xl">
+        <YStack paddingHorizontal="$2xl" gap="$l" paddingTop="$xl">
           <TlonText.Text
             size="$label/s"
             color="$tertiaryText"

@@ -27,9 +27,6 @@ export const EULAScreen = ({ navigation }: Props) => {
         <View paddingHorizontal="$xl">
           <ScreenHeader.BackButton onPress={() => navigation.goBack()} />
         </View>
-        <SplashTitle>
-          End-User <Text color="$positiveActionText">License Agreement.</Text>
-        </SplashTitle>
       </YStack>
       <ScrollView style={{ flex: 1 }}>
         <YStack gap="$xl" padding="$2xl">

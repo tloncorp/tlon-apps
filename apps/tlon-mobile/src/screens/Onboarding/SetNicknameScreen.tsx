@@ -9,7 +9,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import { Button, Text } from '@tloncorp/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
@@ -18,6 +17,7 @@ import {
   withRetry,
 } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
+import { Button, Text } from '@tloncorp/ui';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -124,7 +124,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
           <SplashParagraph marginBottom={0}>
             Choose the nickname you want to use on the Tlon network.
           </SplashParagraph>
-          <YStack paddingHorizontal="$xl" gap="$m">
+          <YStack paddingHorizontal="$2xl" gap="$m">
             <Controller
               control={control}
               name="nickname"
@@ -178,7 +178,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
           preset="hero"
           disabled={!isValid}
           shadow={isValid}
-          marginHorizontal="$xl"
+          marginHorizontal="$2xl"
           marginTop="$xl"
         />
       </View>

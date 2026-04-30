@@ -184,11 +184,7 @@ export function GettingNodeReadyScreen({
         paddingTop={insets.top}
         paddingBottom={insets.bottom}
       >
-        <YStack
-          paddingHorizontal="$xl"
-          paddingTop="$s"
-          alignItems="flex-end"
-        >
+        <YStack paddingHorizontal="$xl" paddingTop="$s" alignItems="flex-end">
           <ScreenHeader.TextButton
             onPress={onLogout}
             disabled={loggingOut}
@@ -202,11 +198,12 @@ export function GettingNodeReadyScreen({
             Waking up your <Text color="$positiveActionText">node.</Text>
           </SplashTitle>
           <SplashParagraph marginBottom={0}>
-            Your P2P node is waking up after a deep sleep. This usually takes{' '}
+            Your personal server is waking up after a deep sleep. This usually
+            takes{' '}
             {params.waitType === 'Paused' ? 'just a minute' : 'a few minutes'}.
           </SplashParagraph>
           <ProgressBar progress={progress} />
-          <YStack alignItems="center">
+          <YStack alignItems="center" marginTop="$2xl">
             <ArvosDiscussing width="100%" height={200} />
           </YStack>
         </YStack>
@@ -219,9 +216,7 @@ export function GettingNodeReadyScreen({
               color="$primaryText"
             />
             <ListItem.MainContent>
-              <ListItem.Title>
-                {BOTTOM_WIDGET_TITLES[progress]}
-              </ListItem.Title>
+              <ListItem.Title>{BOTTOM_WIDGET_TITLES[progress]}</ListItem.Title>
             </ListItem.MainContent>
             <ListItem.EndContent width="$3xl" alignItems="center">
               {progress === 3 ? (
@@ -262,7 +257,7 @@ function ProgressBar(props: { progress: number; onPressLogout?: () => void }) {
     []
   );
   return (
-    <YStack gap="$m" paddingHorizontal="$xl">
+    <YStack gap="$m" paddingHorizontal="$2xl">
       <XStack justifyContent="space-between" width="100%">
         <TlonText.Text size="$label/m" fontWeight="500" color="$secondaryText">
           Step {props.progress + 1} of 4

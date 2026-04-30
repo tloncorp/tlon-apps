@@ -62,7 +62,7 @@ export const ReserveShipScreen = ({ navigation }: Props) => {
           )}
         </SplashTitle>
         <SplashParagraph marginBottom={0}>
-          Your peer-to-peer node is being prepared. This usually takes just a
+          Your personal server is being prepared. This usually takes just a
           moment.
         </SplashParagraph>
         <YStack alignItems="center" paddingTop="$xl">

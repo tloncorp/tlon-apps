@@ -212,7 +212,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
             Enter the {otpMethod === 'phone' ? 'phone number' : 'email'}{' '}
             associated with your Tlon account.
           </SplashParagraph>
-          <YStack paddingHorizontal="$xl" gap="$m">
+          <YStack paddingHorizontal="$2xl" gap="$m">
             {remoteError ? (
               <TlonText.Text color="$negativeActionText" size="$label/m">
                 {remoteError}
@@ -299,7 +299,7 @@ export const TlonLoginScreen = ({ navigation, route }: Props) => {
             )}
           </YStack>
         </ScrollView>
-        <YStack paddingHorizontal="$xl" gap="$l" paddingTop="$xl">
+        <YStack paddingHorizontal="$2xl" gap="$l" paddingTop="$xl">
           <TlonText.Text
             textAlign="center"
             size="$label/s"

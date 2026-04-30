@@ -142,7 +142,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           <SplashParagraph marginBottom={0}>
             Enter the invite code or link from someone you know on Tlon.
           </SplashParagraph>
-          <YStack paddingHorizontal="$xl" gap="$m">
+          <YStack paddingHorizontal="$2xl" gap="$m">
             <Controller
               control={control}
               name="inviteLink"
@@ -172,7 +172,7 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
             </XStack>
           </YStack>
         </YStack>
-        <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
+        <YStack paddingHorizontal="$2xl" gap="$l" marginTop="$xl">
           <Button
             preset="secondary"
             backgroundColor="transparent"
