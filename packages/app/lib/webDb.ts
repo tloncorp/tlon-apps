@@ -111,20 +111,12 @@ export class WebDb extends BaseDb {
 
       logger.log('sqlocal instance created', { sqlocal: this.sqlocal });
 
-      // Expose devtools helpers for diagnosing migration/schema state.
+      // Expose devtools helper for diagnosing migration/schema state.
+      // Arbitrary SQL is available via __sql / __sqlRaw from
+      // shared/db/client.ts (registered in setClient).
       try {
         const sqlocal = this.sqlocal;
         const g: any = globalThis;
-        // __tlonRawSql runs arbitrary SQL against the user's local DB —
-        // gate behind __DEV__ so it only exists in dev builds.
-        if (__DEV__) {
-          g.__tlonRawSql = async (query: string) => {
-            const rows = await sqlocal.sql(query);
-            // eslint-disable-next-line no-console
-            console.table(rows);
-            return rows;
-          };
-        }
         g.__tlonDbState = async () => {
           const migrations = await sqlocal.sql(
             `SELECT hash, created_at FROM __drizzle_migrations ORDER BY created_at DESC`

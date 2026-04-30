@@ -21,6 +21,22 @@ let clientInstance: AnySqliteDatabase | null = null;
 
 export function setClient<T extends AnySqliteDatabase>(client: T) {
   clientInstance = client;
+
+  if (__DEV__) {
+    const exec = (strings: TemplateStringsArray, ...values: any[]) =>
+      (client as any).$client.execute(strings.join('?'), values);
+    const execSimple = (strings: TemplateStringsArray, ...values: any[]) => {
+      const result = exec(strings, ...values);
+      return Array(result.rows.length)
+        .fill(0)
+        .map((_, i) => result.rows.item(i));
+    };
+    Object.assign(global, {
+      __db: client,
+      __sql: execSimple,
+      __sqlRaw: exec,
+    });
+  }
 }
 
 export const client = new Proxy(
