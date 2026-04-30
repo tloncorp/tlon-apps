@@ -23,6 +23,14 @@ class NotificationService: UNNotificationServiceExtension {
                 .error(err),
                 .delivery(["uid": .string(uid), "message": .string("Fallback notification delivered successfully")])
             ])
+
+            // iOS suppresses the banner if both title and body are empty, so
+            // ensure there is at least a generic placeholder when rich
+            // rendering fails and the server did not provide any fallback
+            // text in the APS payload.
+            if notification.title.isEmpty && notification.body.isEmpty {
+                notification.body = "You received a notification"
+            }
             return notification
         }
     }
@@ -34,12 +42,14 @@ class NotificationService: UNNotificationServiceExtension {
         // Store the JSON string in notification userInfo
         notification.userInfo["activityEventJsonString"] = activityEventJsonString
 
-        // If we have a preview, make sure to fully replace server-provided title / body.
-        notification.title = ""
-        notification.body = ""
-
         let renderer = NotificationPreviewContentNodeRenderer()
         let preview = try getPreview(rawActivityEvent: rawActivityEvent, uid: uid, activityEventJsonString: activityEventJsonString)
+
+        // Now that we have a preview, fully replace server-provided title / body.
+        // Clearing here (rather than before the throwing render call) preserves
+        // the server's fallback text if rendering fails.
+        notification.title = ""
+        notification.body = ""
         if let title = preview.notification.title {
             notification.title = await renderer.render(title)
         }
