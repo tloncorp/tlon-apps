@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import {
+  ThemeHarmony,
   ThemeMode,
   builtInThemeOptions,
   createCustomThemeDefinition,
@@ -32,6 +33,19 @@ import { normalizeTheme } from '../../ui/utils/themeUtils';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Theme'>;
 
+const harmonyOptions: { title: string; value: ThemeHarmony }[] = [
+  { title: 'Analogous', value: 'analogous' },
+  { title: 'Monochromatic', value: 'monochromatic' },
+  { title: 'Complementary', value: 'complementary' },
+  { title: 'Split complementary', value: 'split-complementary' },
+  { title: 'Triadic', value: 'triadic' },
+];
+
+const modeOptions: { title: string; value: ThemeMode }[] = [
+  { title: 'Dark', value: 'dark' },
+  { title: 'Light', value: 'light' },
+];
+
 export function ThemeScreen(props: Props) {
   const theme = useTheme();
   const { data: storedTheme, isLoading } = useThemeSettings();
@@ -43,6 +57,11 @@ export function ThemeScreen(props: Props) {
   const [loadingTheme, setLoadingTheme] = useState<AppTheme | null>(null);
   const [customThemeHue, setCustomThemeHue] = useState(210);
   const [customThemeMode, setCustomThemeMode] = useState<ThemeMode>('dark');
+  const [customThemeHarmony, setCustomThemeHarmony] =
+    useState<ThemeHarmony>('analogous');
+  const [customThemeAccentSpread, setCustomThemeAccentSpread] = useState(72);
+  const [customThemeSaturation, setCustomThemeSaturation] = useState(66);
+  const [customThemeBrightness, setCustomThemeBrightness] = useState(82);
   const [savingCustomTheme, setSavingCustomTheme] = useState(false);
 
   const savedCustomTheme = customThemes[0];
@@ -94,6 +113,10 @@ export function ThemeScreen(props: Props) {
         name: 'Custom',
         hue: customThemeHue,
         mode: customThemeMode,
+        harmony: customThemeHarmony,
+        width: customThemeAccentSpread,
+        saturation: customThemeSaturation,
+        brightness: customThemeBrightness,
         createdAt: savedCustomTheme?.createdAt,
       });
       const runtimeName = getCustomThemeRuntimeName(customTheme);
@@ -126,6 +149,10 @@ export function ThemeScreen(props: Props) {
 
     setCustomThemeHue(savedCustomTheme.params.hue);
     setCustomThemeMode(savedCustomTheme.mode);
+    setCustomThemeHarmony(savedCustomTheme.params.harmony);
+    setCustomThemeAccentSpread(savedCustomTheme.params.width);
+    setCustomThemeSaturation(savedCustomTheme.params.saturation);
+    setCustomThemeBrightness(savedCustomTheme.params.brightness);
   }, [savedCustomTheme]);
 
   useEffect(() => {
@@ -195,75 +222,56 @@ export function ThemeScreen(props: Props) {
               {theme.value === customThemeValue &&
                 selectedTheme === customThemeValue && (
                   <YStack
-                    gap="$m"
-                    padding="$l"
+                    gap="$l"
+                    paddingVertical="$l"
+                    paddingHorizontal="$xl"
                     borderRadius="$xl"
                     backgroundColor="$secondaryBackground"
                     marginHorizontal="$l"
                     marginBottom="$l"
                   >
-                    <YStack gap="$m">
-                      <XStack justifyContent="space-between" gap="$m">
-                        <Text color="$primaryText">Hue</Text>
-                        <Text color="$secondaryText">{customThemeHue}</Text>
-                      </XStack>
-                      <Slider
-                        value={[customThemeHue]}
-                        min={0}
-                        max={359}
-                        step={1}
-                        onValueChange={([hue]) =>
-                          setCustomThemeHue(Math.round(hue ?? customThemeHue))
-                        }
-                        height="$2xl"
-                        aria-label="Hue"
-                      >
-                        <Slider.Track
-                          height="$xs"
-                          backgroundColor="$secondaryBackground"
-                        >
-                          <Slider.TrackActive backgroundColor="$positiveActionText" />
-                        </Slider.Track>
-                        <Slider.Thumb
-                          index={0}
-                          size="$3xl"
-                          backgroundColor="$primaryBackground"
-                          borderColor="$border"
-                        />
-                      </Slider>
-                    </YStack>
-                    <YStack gap="$xs">
-                      <Pressable
-                        onPress={() => setCustomThemeMode('dark')}
-                        borderRadius="$xl"
-                      >
-                        <ListItem>
-                          <ListItem.MainContent>
-                            <ListItem.Title>Dark</ListItem.Title>
-                          </ListItem.MainContent>
-                          <ListItem.EndContent>
-                            <RadioControl
-                              checked={customThemeMode === 'dark'}
-                            />
-                          </ListItem.EndContent>
-                        </ListItem>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => setCustomThemeMode('light')}
-                        borderRadius="$xl"
-                      >
-                        <ListItem>
-                          <ListItem.MainContent>
-                            <ListItem.Title>Light</ListItem.Title>
-                          </ListItem.MainContent>
-                          <ListItem.EndContent>
-                            <RadioControl
-                              checked={customThemeMode === 'light'}
-                            />
-                          </ListItem.EndContent>
-                        </ListItem>
-                      </Pressable>
-                    </YStack>
+                    <CustomThemeSlider
+                      label="Hue"
+                      value={customThemeHue}
+                      min={0}
+                      max={359}
+                      onValueChange={setCustomThemeHue}
+                    />
+                    <CustomThemeOptionGroup<ThemeHarmony>
+                      label="Harmony"
+                      options={harmonyOptions}
+                      value={customThemeHarmony}
+                      onChange={setCustomThemeHarmony}
+                      presentation="scroll"
+                    />
+                    <CustomThemeSlider
+                      label="Accent spread"
+                      value={customThemeAccentSpread}
+                      min={0}
+                      max={100}
+                      onValueChange={setCustomThemeAccentSpread}
+                    />
+                    <CustomThemeSlider
+                      label="Saturation"
+                      value={customThemeSaturation}
+                      min={0}
+                      max={100}
+                      onValueChange={setCustomThemeSaturation}
+                    />
+                    <CustomThemeSlider
+                      label="Brightness"
+                      value={customThemeBrightness}
+                      min={0}
+                      max={100}
+                      onValueChange={setCustomThemeBrightness}
+                    />
+                    <CustomThemeOptionGroup<ThemeMode>
+                      label="Appearance"
+                      options={modeOptions}
+                      value={customThemeMode}
+                      onChange={setCustomThemeMode}
+                      presentation="segmented"
+                    />
                     <Button
                       label={savingCustomTheme ? 'Saving...' : 'Apply custom'}
                       disabled={savingCustomTheme}
@@ -276,5 +284,105 @@ export function ThemeScreen(props: Props) {
         </YStack>
       </ScrollView>
     </View>
+  );
+}
+
+function CustomThemeOptionGroup<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  presentation,
+}: {
+  label: string;
+  options: { title: string; value: T }[];
+  value: T;
+  onChange: (value: T) => void;
+  presentation: 'scroll' | 'segmented';
+}) {
+  const content = (
+    <XStack
+      gap="$s"
+      flexWrap={presentation === 'segmented' ? 'nowrap' : undefined}
+    >
+      {options.map((option) => {
+        const selected = value === option.value;
+        return (
+          <Button
+            key={option.value}
+            onPress={() => onChange(option.value)}
+            label={option.title}
+            size="small"
+            fill={selected ? 'solid' : 'outline'}
+            intent="primary"
+            centered
+            flex={presentation === 'segmented' ? 1 : undefined}
+            minWidth={presentation === 'segmented' ? undefined : 128}
+          />
+        );
+      })}
+    </XStack>
+  );
+
+  return (
+    <YStack gap="$m">
+      <Text color="$primaryText">{label}</Text>
+      {presentation === 'scroll' ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingRight: 12 }}
+        >
+          {content}
+        </ScrollView>
+      ) : (
+        content
+      )}
+    </YStack>
+  );
+}
+
+function CustomThemeSlider({
+  label,
+  value,
+  min,
+  max,
+  onValueChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onValueChange: (value: number) => void;
+}) {
+  return (
+    <YStack gap="$m">
+      <XStack justifyContent="space-between" gap="$m">
+        <Text color="$primaryText">{label}</Text>
+        <Text color="$secondaryText">{value}</Text>
+      </XStack>
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={1}
+        onValueChange={([nextValue]) =>
+          onValueChange(Math.round(nextValue ?? value))
+        }
+        height="$2xl"
+        aria-label={label}
+      >
+        <Slider.Track height="$xs" backgroundColor="$border">
+          <Slider.TrackActive backgroundColor="$positiveActionText" />
+        </Slider.Track>
+        <Slider.Thumb
+          index={0}
+          size="$3xl"
+          circular
+          backgroundColor="$primaryBackground"
+          borderColor="$border"
+        />
+      </Slider>
+    </YStack>
   );
 }
