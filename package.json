@@ -74,7 +74,9 @@
       "react-native@0.81.5": "patches/react-native@0.81.5.patch",
       "expo-share-intent@5.1.1": "patches/expo-share-intent@5.1.1.patch",
       "expo-image-picker@17.0.10": "patches/expo-image-picker@17.0.10.patch",
-      "@gorhom/bottom-sheet@5.2.6": "patches/@gorhom__bottom-sheet@5.2.6.patch"
+      "@gorhom/bottom-sheet@5.2.6": "patches/@gorhom__bottom-sheet@5.2.6.patch",
+      "@tamagui/web@2.0.0-rc.41": "patches/@tamagui__web@2.0.0-rc.41.patch",
+      "@tamagui/sheet@2.0.0-rc.41": "patches/@tamagui__sheet@2.0.0-rc.41.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
