@@ -1036,17 +1036,17 @@
     (do-agent /contact [~mur %contacts] %fact contact-update-1+!>([%full now.bowl con-mur]))
   ::  peek all: two contacts are found
   ::
-  ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/all)
+  ;<  peek=(unit (unit cage))  b  (get-peek /x/v1/directory)
   =/  cag=cage  (need (need peek))
   ?>  ?=(%contact-directory-0 p.cag)
   =/  dir  !<(directory q.cag)
   ;<  ~  b
     %+  ex-equal
     !>  (~(got by dir) ~sun)
-    !>  (contact-uni:c con-sun con-mod)
+    !>  `marked-page`[& con-sun con-mod]
   %+  ex-equal
   !>  (~(got by dir) ~mur)
-  !>  con-mur
+  !>  `marked-page`[| con-mur ~]
 ::  +test-retry: test resubscription logic
 ::
 ::    scenario
