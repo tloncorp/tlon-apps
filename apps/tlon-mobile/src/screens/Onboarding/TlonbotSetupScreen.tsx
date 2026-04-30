@@ -1,20 +1,29 @@
 import * as api from '@tloncorp/api';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
-import { LoadingSpinner, TlonText, View, YStack } from '@tloncorp/app/ui';
+import { TlonText, View, YStack } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+
+import { FadingTextCarousel } from './FadingTextCarousel';
+import { SegmentedSpinner } from './SegmentedSpinner';
 
 const logger = createDevLogger('TlonbotSetupScreen', true);
 const POLL_INTERVAL_MS = 5000;
 const BASIC_PROVIDER_ID = 'basic';
 
-export type TlonbotSetupStep = 'provisioning' | 'applying';
+const SETUP_MESSAGES = [
+  'This will take up to 5 minutes. Grab a coffee!',
+  "We'll send you a notification when it's ready.",
+  'Mention your bot with @ to use it in groups.',
+  'You can set up recurring reminders with your bot.',
+  'Use your bot to updates from your group chats.',
+  'Your bot can process images and search the web.',
+];
 
 export function TlonbotSetupScreen() {
-  const [step, setStep] = useState<TlonbotSetupStep>('provisioning');
   const applyingRef = useRef(false);
   const provisioningKickoffStartedRef = useRef(false);
 
@@ -24,7 +33,6 @@ export function TlonbotSetupScreen() {
     }
 
     applyingRef.current = true;
-    setStep('applying');
 
     try {
       const setup = await db.tlonbotRevivalSetup.getValue(true);
@@ -49,7 +57,6 @@ export function TlonbotSetupScreen() {
       await db.hostedAccountIsInitialized.setValue(true);
     } catch (error) {
       applyingRef.current = false;
-      setStep('provisioning');
       logger.trackError('TlonBot revival setup failed', { error });
       throw error;
     }
@@ -124,10 +131,10 @@ export function TlonbotSetupScreen() {
     };
   }, [applyDeferredSetup]);
 
-  return <TlonbotSetupScreenView step={step} />;
+  return <TlonbotSetupScreenView />;
 }
 
-export function TlonbotSetupScreenView({ step }: { step: TlonbotSetupStep }) {
+export function TlonbotSetupScreenView() {
   return (
     <View
       flex={1}
@@ -137,16 +144,17 @@ export function TlonbotSetupScreenView({ step }: { step: TlonbotSetupStep }) {
       testID="tlonbot-setup-screen"
     >
       <YStack alignItems="center" gap="$2xl">
-        <LoadingSpinner />
-        <YStack gap="$l">
-          <TlonText.Text size="$title/l" textAlign="center">
-            Setting up your TlonBot...
+        <SegmentedSpinner />
+        <YStack gap="$2xl">
+          <TlonText.Text
+            fontSize="$xl"
+            fontWeight="600"
+            marginHorizontal="$xl"
+            textAlign="center"
+          >
+            Setting up your Tlonbot...
           </TlonText.Text>
-          <TlonText.Text textAlign="center" color="$secondaryText">
-            {step === 'applying'
-              ? 'Finalizing your preferences.'
-              : 'This can take a few minutes.'}
-          </TlonText.Text>
+          <FadingTextCarousel messages={SETUP_MESSAGES} />
         </YStack>
       </YStack>
     </View>
