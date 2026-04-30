@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6da40593-e8b0-4711-9258-01efa9a18159",
+  "id": "fa9a1190-0ad6-45d7-88ec-126ffc01fd21",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2549,8 +2549,8 @@
           ],
           "isUnique": false
         },
-        "cached_posts_index": {
-          "name": "cached_posts_index",
+        "posts_cached_index": {
+          "name": "posts_cached_index",
           "columns": [
             "channel_id",
             "sent_at",

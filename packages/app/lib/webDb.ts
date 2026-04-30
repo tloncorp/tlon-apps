@@ -1,6 +1,10 @@
 import type { Schema } from '@tloncorp/shared/db';
 import { schema, setClient } from '@tloncorp/shared/db';
-import { sqliteContent } from '@tloncorp/shared/db';
+import {
+  changesSyncedAt,
+  headsSyncedAt,
+  sqliteContent,
+} from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
 import { readArrayBufferFromBlob } from '@tloncorp/shared/utils';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
@@ -66,23 +70,26 @@ export class WebDb extends BaseDb {
       // If successful, this will `overwriteDatabaseFile` which will reset the
       // connection to the DB - so make sure we don't do anything until this
       // promise resolves.
+      let loadedFromFile = false;
       if (ENABLE_DB_FILE_LOAD) {
         try {
-          await this.loadDbFromFile();
-          // run a query to get a SQLITE_CORRUPT if loaded DB is corrupt
-          await this.sqlocal.sql`select null`;
+          loadedFromFile = await this.loadDbFromFile();
+          if (loadedFromFile) {
+            // run a query to get a SQLITE_CORRUPT if loaded DB is corrupt
+            await this.sqlocal.sql`select null`;
 
-          const { applied } = await migrate(
-            this.client,
-            migrations,
-            this.sqlocal,
-            { dryRun: true }
-          );
-          if (applied.length > 0) {
-            // We need to apply migrations - since we don't do delta
-            // migrations, we need to purge the DB and start fresh.
-            // We can do this by throwing to the catch below.
-            throw new Error('Loaded DB is outdated, needs migrations');
+            const { applied } = await migrate(
+              this.client,
+              migrations,
+              this.sqlocal,
+              { dryRun: true }
+            );
+            if (applied.length > 0) {
+              // We need to apply migrations - since we don't do delta
+              // migrations, we need to purge the DB and start fresh.
+              // We can do this by throwing to the catch below.
+              throw new Error('Loaded DB is outdated, needs migrations');
+            }
           }
         } catch (e) {
           console.warn(
@@ -90,7 +97,16 @@ export class WebDb extends BaseDb {
             e
           );
           await this.sqlocal.deleteDatabaseFile();
+          loadedFromFile = false;
         }
+      }
+
+      // No persisted DB carried sync state forward, so anything we previously
+      // tracked in localStorage about "what has been synced" is meaningless.
+      // Reset the sync watermarks so the initial sync refetches heads.
+      if (!loadedFromFile) {
+        await headsSyncedAt.resetValue();
+        await changesSyncedAt.resetValue();
       }
 
       logger.log('sqlocal instance created', { sqlocal: this.sqlocal });
@@ -142,9 +158,9 @@ export class WebDb extends BaseDb {
       await this.sqlocal.sql('PRAGMA synchronous=OFF');
       await this.sqlocal.sql('PRAGMA journal_mode=WAL');
 
-      await this.sqlocal.createCallbackFunction('processChanges', async () =>
-        this.processChanges()
-      );
+      await this.sqlocal.createCallbackFunction('processChanges', () => {
+        this.enqueueProcessChanges();
+      });
 
       setClient(this.client);
 
@@ -155,16 +171,18 @@ export class WebDb extends BaseDb {
     }
   }
 
-  /** If no DB exists in storage, does nothing (i.e. should not error). */
-  private async loadDbFromFile() {
+  /** Returns true if a persisted DB was loaded, false if none was found. */
+  private async loadDbFromFile(): Promise<boolean> {
     if (this.sqlocal == null) {
-      return;
+      return false;
     }
 
     const loaded = await sqliteContent.getValue();
-    if (loaded != null) {
-      await this.sqlocal.overwriteDatabaseFile(loaded);
+    if (loaded == null) {
+      return false;
     }
+    await this.sqlocal.overwriteDatabaseFile(loaded);
+    return true;
   }
 
   private saveToFile = debounce(
@@ -240,13 +258,17 @@ export class WebDb extends BaseDb {
   // paying a ~20 ms round-trip even after the first one drains the log.
   // Bundling to a single trailing invocation per event-loop tick turns N
   // callbacks into one.
+  //
+  // Fire-and-forget on purpose: callers proceed immediately and the actual
+  // processChanges drain happens on the next tick. Don't override the base
+  // async processChanges — that signature would lie about completion.
   private pendingProcessChanges: ReturnType<typeof setTimeout> | null = null;
 
-  override async processChanges() {
+  private enqueueProcessChanges() {
     if (this.pendingProcessChanges != null) return;
     this.pendingProcessChanges = setTimeout(async () => {
       this.pendingProcessChanges = null;
-      await super.processChanges();
+      await this.processChanges();
       if (ENABLE_DB_FILE_SAVE) {
         this.saveToFile();
       }
@@ -272,6 +294,8 @@ export class WebDb extends BaseDb {
     logger.log('purging sqlite database');
     this.saveToFile.cancel();
     await sqliteContent.resetValue();
+    await headsSyncedAt.resetValue();
+    await changesSyncedAt.resetValue();
     await this.sqlocal.destroy();
     this.sqlocal = null;
     this.client = null;

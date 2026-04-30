@@ -454,15 +454,10 @@ function ConnectedWebApp() {
     });
 
     const syncStart = async () => {
-      // Only call sync.syncStart once during the app's lifecycle
+      // Only call sync.syncStart once during the app's lifecycle.
+      // headsSyncedAt is reset by webDb.setupDb when the persisted DB doesn't
+      // load (fresh start), so we don't reset it here on every reload.
       if (!hasSyncedRef.current) {
-        // NOTE: we previously reset headsSyncedAt here on the assumption that
-        // web doesn't persist the database. With ENABLE_DB_FILE_LOAD (see
-        // webDb.ts) the DB is actually persisted via sqliteContent, so the
-        // reset is harmful — it forces syncLatestPosts to refetch one head
-        // per channel on every load, producing a 300-channel
-        // insertLatestPosts batch whose setLastPosts spends tens of seconds
-        // recomputing lastPost* columns for channels that haven't changed.
         sync
           .syncStart(false)
           .then(() => sync.syncInitialPosts({ syncSize: 'light' }));

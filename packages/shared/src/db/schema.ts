@@ -1160,7 +1160,7 @@ export const posts = sqliteTable(
     // Replies also carry sequence_number = 0 (see toPostReplyData), so the
     // parent_id IS NULL clause keeps the index tiny — only rows that could
     // actually be replaced by an incoming top-level post.
-    cachedPostsIndex: index('cached_posts_index')
+    cachedPostsIndex: index('posts_cached_index')
       .on(table.channelId, table.sentAt, table.authorId)
       .where(sql`sequence_number = 0 AND parent_id IS NULL`),
     // Supports setLastPosts's "latest previewable post per channel" subqueries
