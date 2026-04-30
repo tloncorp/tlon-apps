@@ -875,14 +875,15 @@ export async function editChannel(
   page: Page,
   channelName: string,
   newTitle?: string,
-  newDescription?: string
+  newDescription?: string,
+  channelIndex = 0
 ) {
   // Ensure session is stable before editing channel
   await waitForSessionStability(page);
 
   // Navigate to Channel info screen
   await page
-    .getByTestId(`ChannelItem-${channelName}-1`)
+    .getByTestId(`ChannelItem-${channelName}-${channelIndex}`)
     .getByTestId('EditChannelButton')
     .first()
     .click();
