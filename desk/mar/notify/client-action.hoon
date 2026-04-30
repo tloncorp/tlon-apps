@@ -18,6 +18,7 @@
     :~  connect-provider+connect-provider
         remove-provider+remove-provider
         connect-provider-with-binding+connect-provider-with-binding
+        send-message+send-message
     ==
     ++  connect-provider
       %-  ot
@@ -36,6 +37,10 @@
       %-  ot
       :~  who+(su fed:ag)
           service+so
+      ==
+    ++  send-message
+      %-  ot
+      :~  message+so
       ==
     --
   --
