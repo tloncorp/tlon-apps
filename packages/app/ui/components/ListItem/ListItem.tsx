@@ -188,6 +188,12 @@ const ListItemCount = ({
     : '$secondaryBackground';
   return (
     <View
+      // Workaround for facebook/react-native#52415: on Android new
+      // arch, a View whose backgroundColor transitions from
+      // transparent to opaque loses its border-radius clipping.
+      // Keying on the visible state forces a fresh mount so the
+      // badge keeps its rounded shape.
+      key={count < 1 ? 'hidden' : notified ? 'notified' : 'normal'}
       opacity={opacity}
       paddingHorizontal={'$m'}
       backgroundColor={count < 1 ? undefined : backgroundColor}
