@@ -1,16 +1,9 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  LoadingSpinner,
-  Pressable,
-  triggerHaptic,
-  useCopy,
-} from '@tloncorp/ui';
+import { Button, triggerHaptic, useCopy } from '@tloncorp/ui';
 import { useCallback } from 'react';
 import { Share } from 'react-native';
-import { View, isWeb } from 'tamagui';
-
-import { ListItem } from './ListItem';
+import { isWeb } from 'tamagui';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 
@@ -29,9 +22,7 @@ export function PersonalInviteButton() {
 
     try {
       triggerHaptic('baseButtonClick');
-      const result = await Share.share({
-        message: inviteLink,
-      });
+      const result = await Share.share({ message: inviteLink });
 
       if (result.action === Share.sharedAction) {
         logger.trackEvent(AnalyticsEvent.InviteShared, {
@@ -42,48 +33,22 @@ export function PersonalInviteButton() {
     } catch (error) {
       console.error('Error sharing:', error);
     }
-    return;
   }, [doCopy, inviteLink, isLoading]);
 
   return (
-    <Pressable onPress={handleInviteButtonPress} disabled={isLoading}>
-      <ListItem backgroundColor="$primaryText" opacity={isLoading ? 0.6 : 1}>
-        {isLoading ? (
-          <View
-            width="$4xl"
-            height="$4xl"
-            borderRadius="$s"
-            justifyContent="center"
-            alignItems="center"
-            flexShrink={0}
-            alignSelf="center"
-          >
-            <LoadingSpinner size="small" color="$background" />
-          </View>
-        ) : (
-          <ListItem.SystemIcon
-            icon="Link"
-            color="$background"
-            backgroundColor="unset"
-          />
-        )}
-        <ListItem.MainContent>
-          <ListItem.Title color="$background">
-            {isLoading
-              ? 'Preparing invite link'
-              : didCopy
-                ? 'Copied'
-                : 'Share invite link'}
-          </ListItem.Title>
-        </ListItem.MainContent>
-        <ListItem.EndContent>
-          <ListItem.SystemIcon
-            icon="ChevronRight"
-            color="$background"
-            backgroundColor="unset"
-          />
-        </ListItem.EndContent>
-      </ListItem>
-    </Pressable>
+    <Button
+      onPress={handleInviteButtonPress}
+      loading={isLoading}
+      disabled={isLoading}
+      label={
+        isLoading
+          ? 'Preparing invite link'
+          : didCopy
+            ? 'Copied'
+            : 'Share invite link'
+      }
+      leadingIcon={isLoading ? undefined : didCopy ? 'Checkmark' : 'Link'}
+      preset="hero"
+    />
   );
 }
