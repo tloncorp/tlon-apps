@@ -36,10 +36,9 @@ export const mergePendingPosts = ({
   };
   const deletedPostKeys = new Set<string>();
   [...newPosts, ...pendingPosts, ...existingPosts].forEach((post) => {
-    if (!post.isDeleted && !deletedPosts[post.id]) {
-      return;
+    if (post.isDeleted || deletedPosts[post.id]) {
+      postMergeKeys(post).forEach((key) => deletedPostKeys.add(key));
     }
-    postMergeKeys(post).forEach((key) => deletedPostKeys.add(key));
   });
   const hasDeletedOverlay = (post: db.Post) => {
     return (
