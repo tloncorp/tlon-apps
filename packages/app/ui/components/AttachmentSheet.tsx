@@ -29,7 +29,7 @@ import {
   getMimeType,
 } from '../../utils/files';
 import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
-import { useAttachmentContext } from '../contexts';
+import { useAttachmentContext } from '../contexts/attachment';
 import {
   createImageAssetFromClipboardData,
   getClipboardImageWithFallbacks,

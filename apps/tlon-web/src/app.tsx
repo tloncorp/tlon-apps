@@ -468,7 +468,6 @@ function ConnectedWebApp() {
   const configureClient = useConfigureUrbitClient();
   const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
-  const hasHandledWayfindingRef = React.useRef(false);
   const telemetry = useTelemetry();
   useFindSuggestedContacts();
 
@@ -496,44 +495,6 @@ function ConnectedWebApp() {
 
       if (!session?.startTime) {
         return;
-      }
-
-      // for new users, make sure the wayfinding tutorial is ready before
-      // showing the app
-      if (!hasHandledWayfindingRef.current) {
-        const personalGroup = await db.getPersonalGroup();
-        const personalGroupReady = !!personalGroup;
-        const allGroups = await db.getGroups({ includeUnjoined: false });
-        const allDms = await db.getAllSingleDms();
-        // "new user" threshold, targets nodes that didn't sign up via Tlon Hosting
-        const hasFewChats = allGroups.length + allDms.length < 3;
-        if (isNewSignup || hasFewChats) {
-          try {
-            if (!personalGroupReady) {
-              await logic.withRetry(() => store.scaffoldPersonalGroup(), {
-                numOfAttempts: 3,
-              });
-            }
-            // only show coach marks if we're confident they're a new user
-            if (isNewSignup) {
-              db.wayfindingProgress.setValue((prev) => ({
-                ...prev,
-                tappedChatInput: false,
-                tappedAddCollection: false,
-                tappedAddNote: false,
-              }));
-            }
-          } catch (e) {
-            telemetry.capture(AnalyticsEvent.ErrorWayfinding, {
-              error: e,
-              context: 'failed to scaffold personal group',
-              during: 'web start sequence',
-              severity: AnalyticsSeverity.Critical,
-            });
-          } finally {
-            hasHandledWayfindingRef.current = true;
-          }
-        }
       }
 
       // we need to check the size of the database here to see if it's not zero

@@ -46,6 +46,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollEnabled = true,
       style,
       listHeaderComponent,
+      listBottomComponent,
     },
     forwardedRef
   ) => {
@@ -268,6 +269,7 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
               {orderedData.length === 0 && (
                 <View style={{ flex: 1 }}>{renderEmptyComponent?.()}</View>
               )}
+              {listBottomComponent}
             </View>
           </div>
         </div>

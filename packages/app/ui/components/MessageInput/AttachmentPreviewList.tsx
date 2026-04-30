@@ -26,21 +26,19 @@ export const AttachmentPreviewList = () => {
       overScrollMode="always"
       horizontal={true}
     >
-      {attachments
-        .filter((a) => a.type !== 'text')
-        .map((attachment, i) => {
-          const hasError =
-            (attachment.type === 'image' || attachment.type === 'video') &&
-            attachment.uploadState?.status === 'error';
-          return (
-            <AttachmentPreview
-              key={i}
-              attachment={attachment}
-              uploading={false}
-              error={hasError}
-            />
-          );
-        })}
+      {attachments.map((attachment, i) => {
+        const hasError =
+          (attachment.type === 'image' || attachment.type === 'video') &&
+          attachment.uploadState?.status === 'error';
+        return (
+          <AttachmentPreview
+            key={i}
+            attachment={attachment}
+            uploading={false}
+            error={hasError}
+          />
+        );
+      })}
     </ScrollView>
   ) : null;
 };
@@ -201,10 +199,6 @@ export function AttachmentPreview({
           />
         </Container>
       );
-    }
-
-    case 'text': {
-      return <Container showSpinner={uploading} />;
     }
 
     case 'file': {

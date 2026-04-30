@@ -15,7 +15,8 @@ import { useForm } from 'react-hook-form';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, useTheme } from 'tamagui';
 
-import { useContact, useCurrentUserId, useStore } from '../contexts';
+import { useContact, useCurrentUserId } from '../contexts/appDataContext';
+import { useStore } from '../contexts/storeContext';
 import { useKeyboardAwareScroll } from '../hooks/useKeyboardAwareScroll';
 import { SigilAvatar } from './Avatar';
 import { EditAttestationsDisplay } from './EditProfile/EditAttestationsDisplay';

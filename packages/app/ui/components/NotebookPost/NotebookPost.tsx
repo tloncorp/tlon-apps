@@ -1,44 +1,29 @@
-import { ChannelAction, makePrettyShortDate } from '@tloncorp/shared';
+import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import {
-  Button,
-  Image,
-  Pressable,
-  Text,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
-import {
-  ComponentProps,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from 'react';
-import {
-  View,
-  ViewStyle,
-  XStack,
-  YStack,
-  createStyledContext,
-  styled,
-} from 'tamagui';
+import { Button, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
+import { useCallback, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
+import { XStack } from 'tamagui';
 
-import { useBlockedAuthor } from '../../../hooks/useBlockedAuthor';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
-import { useChannelContext, useCurrentUserId } from '../../contexts';
-import { MinimalRenderItemProps } from '../../contexts/componentsKits';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import { useChannelContext } from '../../contexts/channel';
+import type { MinimalRenderItemProps } from '../../contexts/componentsKits/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
-import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { ChatMessageReplySummary } from '../ChatMessage/ChatMessageReplySummary';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import { PostErrorMessage } from '../PostErrorMessage';
-
-const IMAGE_HEIGHT = 268;
+import { PostModeration } from '../PostModeration';
+import { NotebookPostContent } from './NotebookPostContent';
+import {
+  NotebookPostContentContainer,
+  NotebookPostFrame,
+  NotebookPostFramePressable,
+  NotebookPostHeader,
+} from './shared';
 
 export function NotebookPost({
   post,
@@ -70,8 +55,7 @@ export function NotebookPost({
     [channel, canWrite]
   );
 
-  const { isAuthorBlocked, showBlockedContent, handleShowAnyway } =
-    useBlockedAuthor(post);
+  const disableLongPress = Platform.OS === 'web';
 
   const handleLongPress = useCallback(() => {
     onLongPress?.(post);
@@ -118,167 +102,92 @@ export function NotebookPost({
     []
   );
 
-  if (!post || post.isDeleted) {
-    return null;
-  }
-
-  if (isAuthorBlocked && !showBlockedContent) {
-    return (
-      <PostErrorMessage
-        message="Post from a blocked user."
-        actionLabel="Show anyway"
-        onAction={handleShowAnyway}
-        actionTestID="ShowBlockedPostButton"
-      />
-    );
-  }
-
-  const hasReplies = post.replyCount && post.replyTime && post.replyContactIds;
   return (
-    <Pressable
-      onPress={handlePress}
-      onMouseEnter={onHoverIn}
-      onMouseLeave={onHoverOut}
-      onLongPress={handleLongPress}
-      pressStyle={{ backgroundColor: '$secondaryBackground' }}
-      borderRadius="$l"
-      maxWidth={600}
-      width={'100%'}
-      marginHorizontal="auto"
-      testID="Post"
-    >
-      <NotebookPostFrame size={size} disabled={viewMode === 'activity'}>
-        {post.hidden ? (
-          <PostErrorMessage message="You have hidden or reported this post." />
-        ) : (
-          <>
-            <NotebookPostHeader
-              post={post}
-              showDate={showDate}
-              showAuthor={showAuthor && viewMode !== 'activity'}
-              testID="NotebookPostHeader"
-            />
+    <PostModeration post={post} disableBypassHiddenContent>
+      {(moderation) => {
+        if (moderation === 'deleted') {
+          return <PostModeration.Deleted />;
+        }
+        if (moderation === 'blocked') {
+          return <PostModeration.Blocked />;
+        }
 
-            {viewMode !== 'activity' && (
-              <Text
-                size="$body"
-                color="$secondaryText"
-                numberOfLines={3}
-                paddingBottom={showReplies && hasReplies ? 0 : '$m'}
-                testID="NotebookPostContentSummary"
-              >
-                {post.textContent}
-              </Text>
-            )}
-
-            {showReplies && hasReplies ? (
-              <ChatMessageReplySummary
-                post={post}
-                showTime={false}
-                textColor="$tertiaryText"
-              />
-            ) : null}
-          </>
-        )}
-
-        {deliveryFailed ? (
-          <Pressable onPress={handleRetryPressed}>
-            <XStack alignItems="center" justifyContent="flex-end">
-              <Text color="$negativeActionText" size="$label/m">
-                {isWindowNarrow ? 'Tap' : 'Click'} to retry
-              </Text>
-            </XStack>
-          </Pressable>
-        ) : null}
-        {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
-          <Pressable
-            position="absolute"
-            zIndex={1000}
-            top={12}
-            right={12}
-            onPress={handleOverflowPress}
+        return (
+          <NotebookPostFramePressable
+            onPress={handlePress}
+            onMouseEnter={onHoverIn}
+            onMouseLeave={onHoverOut}
+            onLongPress={disableLongPress ? undefined : handleLongPress}
+            pressStyle={{ backgroundColor: '$secondaryBackground' }}
+            borderRadius="$l"
+            maxWidth={600}
+            width="100%"
+            alignSelf="center"
+            flex={1}
+            testID="Post"
+            disabled={viewMode === 'activity'}
           >
-            <ChatMessageActions
-              post={post}
-              postActionIds={postActionIds}
-              onDismiss={() => {
-                setIsPopoverOpen(false);
-                setIsHovered(false);
-              }}
-              onOpenChange={setIsPopoverOpen}
-              onEdit={handleEditPostPressed}
-              onReply={handlePress}
-              mode="await-trigger"
-              trigger={
-                <Button
-                  icon="Overflow"
-                  fill="ghost"
-                  type="secondary"
-                  size="small"
-                  width={32}
-                  height={32}
-                  borderRadius="$m"
-                  testID="MessageActionsTrigger"
+            <NotebookPostContentContainer size={size}>
+              {moderation === 'hidden' ? (
+                <PostModeration.Hidden />
+              ) : (
+                <NotebookPostContent
+                  post={post}
+                  showDate={showDate}
+                  viewMode={viewMode}
+                  showReplies={showReplies}
+                  showAuthor={showAuthor}
                 />
-              }
-            />
-          </Pressable>
-        )}
-      </NotebookPostFrame>
-    </Pressable>
-  );
-}
+              )}
 
-function NotebookPostHeader({
-  showDate,
-  showAuthor,
-  post,
-  ...props
-}: {
-  showAuthor?: boolean;
-  showDate?: boolean;
-  post: db.Post;
-} & ComponentProps<typeof NotebookPostHeaderFrame>) {
-  const { size } = useContext(NotebookPostContext);
-  const formattedDate = useMemo(() => {
-    return makePrettyShortDate(new Date(post.receivedAt));
-  }, [post.receivedAt]);
-
-  return (
-    <NotebookPostHeaderFrame {...props}>
-      {!!post.image && size !== '$xs' && (
-        <NotebookPostHeroImage
-          source={{
-            uri:
-              post.editStatus === 'failed' || post.editStatus === 'pending'
-                ? post.lastEditImage ?? undefined
-                : post.image,
-          }}
-        />
-      )}
-
-      <NotebookPostTitle>
-        {post.editStatus === 'failed' || post.editStatus === 'pending'
-          ? post.lastEditTitle ?? 'Untitled Post'
-          : post.title ?? 'Untitled Post'}
-      </NotebookPostTitle>
-
-      {showDate && (
-        <Text size="$body" color="$tertiaryText">
-          {formattedDate}
-        </Text>
-      )}
-
-      {showAuthor && (
-        <DetailViewAuthorRow
-          authorId={post.authorId}
-          isBot={post.isBot ?? undefined}
-          deliveryStatus={post.deliveryStatus}
-          editStatus={post.editStatus}
-          deleteStatus={post.deleteStatus}
-        />
-      )}
-    </NotebookPostHeaderFrame>
+              {deliveryFailed ? (
+                <Pressable onPress={handleRetryPressed}>
+                  <XStack alignItems="center" justifyContent="flex-end">
+                    <Text color="$negativeActionText" size="$label/m">
+                      {isWindowNarrow ? 'Tap' : 'Click'} to retry
+                    </Text>
+                  </XStack>
+                </Pressable>
+              ) : null}
+              {!hideOverflowMenu && (isPopoverOpen || isHovered) && (
+                <Pressable
+                  position="absolute"
+                  zIndex={1000}
+                  top={12}
+                  right={12}
+                  onPress={handleOverflowPress}
+                >
+                  <ChatMessageActions
+                    post={post}
+                    postActionIds={postActionIds}
+                    onDismiss={() => {
+                      setIsPopoverOpen(false);
+                      setIsHovered(false);
+                    }}
+                    onOpenChange={setIsPopoverOpen}
+                    onEdit={handleEditPostPressed}
+                    onReply={handlePress}
+                    mode="await-trigger"
+                    trigger={
+                      <Button
+                        icon="Overflow"
+                        fill="ghost"
+                        type="secondary"
+                        size="small"
+                        width={32}
+                        height={32}
+                        borderRadius="$m"
+                        testID="MessageActionsTrigger"
+                      />
+                    }
+                  />
+                </Pressable>
+              )}
+            </NotebookPostContentContainer>
+          </NotebookPostFramePressable>
+        );
+      }}
+    </PostModeration>
   );
 }
 
@@ -301,37 +210,37 @@ export function NotebookPostDetailView({
 
   return (
     <NotebookPostFrame
-      embedded
-      borderTopWidth={post.image ? 1 : 0}
-      paddingHorizontal={0}
-      paddingTop={post.image ? '$xl' : '$2xl'}
-      width="100%"
-      marginHorizontal="auto"
-      maxWidth={600}
+      hasImage={
+        // This can be an empty string when the post is missing an image, so we
+        // can't check `!= null`.
+        !!post.image
+      }
     >
-      <NotebookPostHeader
-        post={post}
-        showDate
-        showAuthor
-        paddingHorizontal={'$xl'}
-        paddingBottom={'$2xl'}
-        borderBottomWidth={1}
-        borderBottomColor="$border"
-        testID="NotebookPostHeaderDetailView"
-      />
-      <NotebookContentRenderer
-        marginTop="$-l"
-        marginHorizontal="$-l"
-        paddingHorizontal="$xl"
-        testID="NotebookPostContent"
-        onPressImage={handlePressImage}
-        getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
-        content={
-          post.editStatus === 'failed' || post.editStatus === 'pending'
-            ? lastEditContent
-            : content
-        }
-      />
+      <NotebookPostContentContainer>
+        <NotebookPostHeader
+          post={post}
+          showDate
+          showAuthor
+          paddingHorizontal={'$xl'}
+          paddingBottom={'$2xl'}
+          borderBottomWidth={1}
+          borderBottomColor="$border"
+          testID="NotebookPostHeaderDetailView"
+        />
+        <NotebookContentRenderer
+          marginTop="$-l"
+          marginHorizontal="$-l"
+          paddingHorizontal="$xl"
+          testID="NotebookPostContent"
+          onPressImage={handlePressImage}
+          getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
+          content={
+            post.editStatus === 'failed' || post.editStatus === 'pending'
+              ? lastEditContent
+              : content
+          }
+        />
+      </NotebookPostContentContainer>
     </NotebookPostFrame>
   );
 }
@@ -342,65 +251,4 @@ export const NotebookContentRenderer = createContentRenderer({
   inlineRenderers: {
     lineBreak: NotebookLineBreak,
   },
-});
-
-const NotebookPostContext = createStyledContext<{ size: '$l' | '$s' | '$xs' }>({
-  size: '$l',
-});
-
-const NotebookPostFrame = styled(View, {
-  name: 'NotebookPostFrame',
-  context: NotebookPostContext,
-  borderWidth: 1,
-  borderColor: '$border',
-  borderRadius: '$l',
-  gap: '$2xl',
-  padding: '$xl',
-  variants: {
-    embedded: {
-      true: {
-        borderWidth: 0,
-        borderRadius: 0,
-        borderTopWidth: 1,
-        borderBottomWidth: 1,
-        borderColor: '$border',
-        paddingBottom: '$l',
-      },
-    },
-    size: {} as Record<'$s' | '$l' | '$xs', ViewStyle>,
-  } as const,
-});
-
-const NotebookPostHeaderFrame = styled(YStack, {
-  name: 'NotebookHeaderFrame',
-  gap: '$2xl',
-  overflow: 'hidden',
-});
-
-export const NotebookPostHeroImage = styled(Image, {
-  context: NotebookPostContext,
-  width: '100%',
-  height: IMAGE_HEIGHT,
-  borderRadius: '$s',
-  objectFit: 'cover',
-  variants: {
-    size: {
-      $s: {
-        height: IMAGE_HEIGHT / 2,
-      },
-    },
-  } as const,
-});
-
-export const NotebookPostTitle = styled(Text, {
-  context: NotebookPostContext,
-  color: '$primaryText',
-  size: '$title/l',
-  variants: {
-    size: {
-      $s: { size: '$label/2xl' },
-      $l: { size: '$title/l' },
-      $xs: { size: '$label/xl' },
-    },
-  } as const,
 });

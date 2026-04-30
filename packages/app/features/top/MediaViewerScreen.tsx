@@ -36,7 +36,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatePresence, Spinner, View, XStack, YStack, isWeb } from 'tamagui';
+import { Spinner, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 
@@ -635,40 +635,35 @@ function ImageViewer(props: {
             >
               <View flex={1}>{children}</View>
 
-              <AnimatePresence>
-                {showOverlay ? (
-                  <YStack
-                    key="overlay"
-                    transition="simple"
-                    enterStyle={{ opacity: 0 }}
-                    exitStyle={{ opacity: 0 }}
-                    position="absolute"
-                    width="100%"
-                    padding="$xl"
-                    paddingTop={isWeb ? 16 : top}
+              <YStack
+                transition="simple"
+                opacity={showOverlay ? 1 : 0}
+                pointerEvents={showOverlay ? 'auto' : 'none'}
+                position="absolute"
+                width="100%"
+                padding="$xl"
+                paddingTop={isWeb ? 16 : top}
+              >
+                <XStack
+                  justifyContent={isWeb ? 'flex-end' : 'space-between'}
+                  gap="$m"
+                >
+                  <TouchableOpacity
+                    onPress={handleDownloadImage}
+                    activeOpacity={0.8}
                   >
-                    <XStack
-                      justifyContent={isWeb ? 'flex-end' : 'space-between'}
-                      gap="$m"
-                    >
-                      <TouchableOpacity
-                        onPress={handleDownloadImage}
-                        activeOpacity={0.8}
-                      >
-                        <OverlayIconButton icon="ArrowDown" />
-                      </TouchableOpacity>
+                    <OverlayIconButton icon="ArrowDown" />
+                  </TouchableOpacity>
 
-                      <TouchableOpacity
-                        onPress={dismiss}
-                        activeOpacity={0.8}
-                        testID="MediaViewerCloseButton"
-                      >
-                        <OverlayIconButton icon="Close" />
-                      </TouchableOpacity>
-                    </XStack>
-                  </YStack>
-                ) : null}
-              </AnimatePresence>
+                  <TouchableOpacity
+                    onPress={dismiss}
+                    activeOpacity={0.8}
+                    testID="MediaViewerCloseButton"
+                  >
+                    <OverlayIconButton icon="Close" />
+                  </TouchableOpacity>
+                </XStack>
+              </YStack>
             </ZStack>
           </ImageViewerContainer>
         );

@@ -18,12 +18,8 @@ import {
   useMappedImageAttachments,
 } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
-import {
-  AvatarProps,
-  ChannelAvatar,
-  ContactAvatar,
-  GroupAvatar,
-} from './Avatar';
+import { AvatarProps, ChannelAvatar, ContactAvatar } from './Avatar';
+import { GroupAvatar } from './GroupAvatar';
 
 interface Props {
   contact?: db.Contact | null;

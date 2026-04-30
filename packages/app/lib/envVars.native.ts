@@ -71,6 +71,7 @@ export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 export const GIT_HASH = envVars.gitHash ?? 'unknown';
+export const FORCE_SPLASH_SEQUENCE = envVars.forceSplashSequence === 'true';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -106,4 +107,5 @@ export const ENV_VARS = {
   INVITE_SERVICE_IS_DEV,
   GIT_HASH,
   AUTOMATED_TEST,
+  FORCE_SPLASH_SEQUENCE,
 };

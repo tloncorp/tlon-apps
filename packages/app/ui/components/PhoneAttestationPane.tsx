@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
 
-import { useStore } from '../contexts';
+import { useStore } from '../contexts/storeContext';
 import { AttestationPane } from './AttestationPane';
 import { OTPInput } from './Form/OTPInput';
 import { PhoneNumberInput } from './Form/PhoneNumberInput';

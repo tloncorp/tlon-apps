@@ -30,6 +30,7 @@
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
     "test:ci": "npm rebuild better-sqlite3 && pnpm run -r test run",
     "lint:all": "pnpm -r lint",
+    "patch:expo-share-intent": "node scripts/regenerate-expo-share-intent-patch.mjs",
     "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo"
   },
   "dependencies": {

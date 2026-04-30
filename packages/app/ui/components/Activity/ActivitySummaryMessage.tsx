@@ -4,7 +4,7 @@ import { Text } from '@tloncorp/ui';
 import React, { Fragment, useMemo } from 'react';
 import { styled } from 'tamagui';
 
-import { useCurrentUserId } from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { ContactName } from '../ContactNameV2';
 
 function SummaryMessageRaw({

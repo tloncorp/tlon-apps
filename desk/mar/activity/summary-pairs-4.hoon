@@ -1,15 +1,14 @@
-/-  a=activity
+/-  av=activity-ver
 /+  aj=activity-json
-|_  activity=(list [=source:a =activity-summary:a])
-::  this version matches state 4 which is why it skips over versions 2-3
+|_  activity=(list [=source:v8:av =activity-summary:v8:av])
 ++  grad  %noun
 ++  grow
   |%
   ++  noun  activity
-  ++  json  (activity-pairs:enjs:aj activity)
+  ++  json  (activity-pairs:v8:enjs:aj activity)
   --
 ++  grab
   |%
-  ++  noun  (list [source:a activity-summary:a])
+  ++  noun  (list ,[source:v8:av activity-summary:v8:av])
   --
 --

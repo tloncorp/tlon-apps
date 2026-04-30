@@ -2,7 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 import { SizableText, YStack, getVariableValue, useTheme } from 'tamagui';
 
-import { ChannelListItem } from './ListItem';
+import { ChannelListItem } from './listItems';
 
 export default function ChannelNavSection({
   section,

@@ -47,7 +47,7 @@ test('should test comprehensive chat functionality', async ({
 
   // Navigate back to the channel and verify thread reply count
   await helpers.navigateBack(zodPage);
-  await expect(zodPage.getByText('1 reply')).toBeVisible();
+  await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 10000 });
 
   // React to the original message with thumb emoji
   await helpers.reactToMessage(zodPage, 'Hello, world!', 'thumb');
@@ -94,37 +94,37 @@ test('should test comprehensive chat functionality', async ({
   await helpers.editMessage(zodPage, 'Edit this message', 'Edited message');
 
   // Mention a user in a message
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @ten');
-  await expect(zodPage.getByTestId('~ten-contact')).toBeVisible();
-  await zodPage.getByTestId('~ten-contact').click();
-  await zodPage.getByTestId('MessageInputSendButton').click();
-  // Wait for message to appear
-  await expect(
-    zodPage.getByTestId('Post').getByText('mentioning ~ten')
-  ).toBeVisible();
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @ten',
+    suggestionTestId: '~ten-contact',
+    selectedMentionTestId: 'SelectedMention-~ten',
+    expectedInputText: /^mentioning [@~]ten$/,
+    expectedPostText: /mentioning\s+~ten/i,
+    expectedMentionInline: { ship: '~ten' },
+    postMentionTestId: 'PostMention-~ten',
+  });
 
   // Mention all in a message
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @all');
-  await expect(zodPage.getByTestId('-all--group')).toBeVisible();
-  await zodPage.getByTestId('-all--group').click();
-  await zodPage.getByTestId('MessageInputSendButton').click();
-  // Wait for message to appear
-  await expect(
-    zodPage.getByTestId('Post').getByText('mentioning @all')
-  ).toBeVisible();
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @all',
+    suggestionTestId: '-all--group',
+    selectedMentionTestId: 'SelectedMention--all-',
+    expectedInputText: /^mentioning @all$/i,
+    expectedPostText: /mentioning\s+@all/i,
+    expectedMentionInline: { sect: null },
+    postMentionTestId: 'PostMention--all-',
+  });
 
   // Mention a role in a message
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @admin');
-  await expect(zodPage.getByTestId('admin-group')).toBeVisible();
-  await zodPage.getByTestId('admin-group').click();
-  await zodPage.getByTestId('MessageInputSendButton').click();
-  // Wait for message to appear
-  await expect(
-    zodPage.getByTestId('Post').getByText('mentioning @admin')
-  ).toBeVisible();
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @admin',
+    suggestionTestId: 'admin-group',
+    selectedMentionTestId: 'SelectedMention-admin',
+    expectedInputText: /^mentioning @admin$/i,
+    expectedPostText: /mentioning\s+@admin/i,
+    expectedMentionInline: { sect: 'admin' },
+    postMentionTestId: 'PostMention-admin',
+  });
 });
 
 test('should require confirmation before deleting a message (cancel prevents deletion)', async ({

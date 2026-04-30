@@ -3,7 +3,7 @@ import { debounce } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TextArea, View } from 'tamagui';
 
-import { useCurrentUserId } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
 import { RenderItemType } from '../contexts/componentsKits';
 import { ChatAuthorRow } from './AuthorRow';
 

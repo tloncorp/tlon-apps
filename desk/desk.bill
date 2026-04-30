@@ -19,4 +19,5 @@
     %expose
     %metagrab
     %gateway-status
+    %presence
 ==

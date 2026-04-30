@@ -8,7 +8,6 @@ import {
   AnalyticsSeverity,
   HostedNodeStatus,
   createDevLogger,
-  scaffoldPersonalGroup,
   withRetry,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';

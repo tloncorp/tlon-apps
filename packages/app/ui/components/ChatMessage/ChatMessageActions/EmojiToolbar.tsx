@@ -7,7 +7,7 @@ import { Pressable } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
 import { XStack } from 'tamagui';
 
-import { useCurrentUserId } from '../../../contexts';
+import { useCurrentUserId } from '../../../contexts/appDataContext';
 import useOnEmojiSelect from '../../../hooks/useOnEmojiSelect';
 import { ReactionDetails, useReactionDetails } from '../../../utils/postUtils';
 import { EmojiPickerSheet } from '../../Emoji/EmojiPickerSheet';

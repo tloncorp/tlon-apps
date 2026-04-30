@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import { View, YStack, useTheme } from 'tamagui';
 
-import { useStore } from '../contexts';
+import { useStore } from '../contexts/storeContext';
 import { ActionSheet } from './ActionSheet';
 import { ListItem } from './ListItem';
 import { PersonalInviteButton } from './PersonalInviteButton';

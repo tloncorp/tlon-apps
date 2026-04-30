@@ -13,10 +13,11 @@ import {
   useState,
 } from 'react';
 
-import { useCurrentUserId } from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
-import { ContactAvatar, GroupAvatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
 import ConnectionStatus from '../ConnectionStatus';
+import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {

@@ -8,7 +8,7 @@
 ::    note: all subscriptions are handled by the subscriber library so
 ::    we can have resubscribe loop protection.
 ::
-/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, activity, story
+/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, a=activity, av=activity-ver, story
 /-  meta
 /+  default-agent, verb, dbug,
     neg=negotiate, discipline, logs,
@@ -1594,10 +1594,11 @@
 ++  init-posts
   |=  [channels=@ud context=@ud]
   ^-  (map nest:c (unit posts:c))
-  =*  a  activity
-  =/  activity
-    %-  ~(gas by *activity:a)
-    .^  (list [source:a activity-summary:a])  %gx
+  =/  =activity:v8:av
+    ?.  .^(? %gu (scry-path %activity /$))
+      *activity:v8:av
+    %-  ~(gas by *activity:v8:av)
+    .^  (list [source:v8:av activity-summary:v8:av])  %gx
       (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
     ==
   %-  ~(gas by *(map nest:c (unit posts:c)))
@@ -1769,7 +1770,7 @@
     (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+!>([nest ca-unread]))
   ::
   ++  ca-activity
-    =,  activity
+    =,  v8:av
     |%
     ++  blocked
       |=  who=ship
@@ -1839,8 +1840,6 @@
           |=  [=time reply=(may:c v-reply:c)]
           ?:  ?=(%| -.reply)  |
           =((get-author-ship:utils author.reply) our.bowl)
-      =/  =path  (scry-path %activity /volume-settings/noun)
-      =+  .^(settings=volume-settings %gx path)
       =/  =action
         :*  %add  %reply
             [[reply-author id] id]
@@ -1851,8 +1850,11 @@
             mention
         ==
       ::  only follow thread if we haven't adjusted settings already
-      ::  and if we're the author of the post, mentioned, or in the replies
+      ::  and if we're the author of the post, mentioned, or in the replies.
+      ::
       =/  thread=source  [%thread parent-key nest group.perm.channel]
+      =/  =path  (scry-path %activity /v4/volume-settings/noun)
+      =+  .^(settings=volume-settings %gx path)
       ?.  ?&  !(~(has by settings) thread)
               ?|  mention
                   in-replies
@@ -1964,13 +1966,13 @@
         ca-core
       =?  debounce  ?=(%add -.c-post.a-channel)
         (~(put ju debounce) nest sent.essay.c-post.a-channel)
-      =/  source=(unit source:activity)
+      =/  source=(unit source:a)
         ?.  ?=(%reply -.c-post.a-channel)
           `[%channel nest group.perm.channel]
         =/  id  id.c-post.a-channel
         =/  post  (got:on-v-posts:c posts.channel id)
         ?:  ?=(%| -.post)  ~
-        =/  =message-key:activity
+        =/  =message-key:a
           [[(get-author-ship:utils author.post) id] id]
         `[%thread [message-key nest group.perm.channel]]
       =?  ca-core  ?=(^ source)  (send:ca-activity [%bump u.source] ~)
@@ -2430,7 +2432,9 @@
             %|  seq.post.u-post
           ==
         =?  pending.channel  ?=(%& -.post.u-post)
-          =/  client-id  [author sent]:post.u-post
+          =/  =client-id:c
+            :_  sent.post.u-post
+            (get-author-ship:utils author.post.u-post)
           pending.channel(posts (~(del by posts.pending.channel) client-id))
         (ca-response %post id-post %set post)
       ::
@@ -2506,7 +2510,9 @@
           (on-reply:ca-activity post +.reply.u-reply)
         =?  pending.channel  ?=(%& -.reply.u-reply)
           =/  reply-essay  +>+.reply.u-reply
-          =/  client-id  [author sent]:reply-essay
+          =/  =client-id:c
+            :_  sent.reply-essay
+            (get-author-ship:utils author.reply-essay)
           =/  new-replies  (~(del by replies.pending.channel) [id-post client-id])
           pending.channel(replies new-replies)
         (put-reply reply.u-reply %set reply)
@@ -3449,16 +3455,19 @@
     =+  .^(group=group:v9:gv %gx path)
     ?.  (~(has by channels.group) nest)  ca-core
     ::  toggle the volume based on permissions
-    =/  =source:activity  [%channel nest flag]
+    =/  =source:v8:av  [%channel nest flag]
     ?.  (can-read:ca-perms our.bowl)
       (send:ca-activity [%adjust source ~] ~)
-    =+  .^(=volume-settings:activity %gx (scry-path %activity /volume-settings/noun))
+    =/  setting=(unit volume-map:v8:av)
+      ?.  running:ca-activity  ~
+      =+  .^(=volume-settings:v8:av %gx (scry-path %activity /v4/volume-settings/noun))
+      (~(get by volume-settings) source)
     =.  ca-core
       ::  if we don't have a setting, no-op
-      ?~  setting=(~(get by volume-settings) source)  ca-core
-      ::  if they have a setting that's not mute, retain it otherwise
+      ?~  setting  ca-core
+      ::  if they have a setting that's not mute, retain it. otherwise
       ::  delete setting if it's mute so it defaults
-      ?.  =(setting mute:activity)  ca-core
+      ?:  !=(u.setting mute:v8:av)  ca-core
       (send:ca-activity [%adjust source ~] ~)
     ::  if our read permissions restored, re-subscribe
     (ca-safe-sub |)
@@ -3470,8 +3479,8 @@
   ::  leave the subscriptions only
   ::
   ++  ca-simple-leave
-    =.  ca-core
-      (unsubscribe (weld ca-area /checkpoint) [ship.nest server])
+    =.  ca-core  (unsubscribe (weld ca-area /backlog) [ship.nest server])
+    =.  ca-core  (unsubscribe (weld ca-area /checkpoint) [ship.nest server])
     (unsubscribe ca-sub-wire [ship.nest server])
   ::
   ::  leave the subscription, tell people about it, and delete our local

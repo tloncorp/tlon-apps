@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/react-native';
 
-import { posthog } from './posthog';
+import { posthog } from './posthogSingleton';
 
 /**
  * Identifies a user across both PostHog and Sentry telemetry systems.

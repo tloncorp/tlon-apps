@@ -2,12 +2,15 @@ import crashlytics from '@react-native-firebase/crashlytics';
 import * as Sentry from '@sentry/react-native';
 import { useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import PostHog from 'posthog-react-native';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
-import { GIT_HASH, POST_HOG_API_KEY, POST_HOG_IN_DEV } from '../constants';
+import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
+import { identifyUser } from './identifyUser';
+import { posthog } from './posthogSingleton';
 import { createSentryErrorLogger } from './sentry';
 import { UrbitModuleSpec } from './urbitModule';
+
+export { posthog } from './posthogSingleton';
 
 export type OnboardingProperties = {
   actionName: string;
@@ -20,32 +23,11 @@ export type OnboardingProperties = {
   email?: string;
   phoneNumber?: string;
   ship?: string;
+  botProvider?: string;
+  botModel?: string;
   telemetryEnabled?: boolean;
   inviteType?: 'user' | 'group';
 };
-
-export const posthogEnabled = (() => {
-  if (process.env.NODE_ENV === 'test') return false;
-  if (process.env.NODE_ENV === 'development') {
-    return POST_HOG_IN_DEV;
-  }
-  return true;
-})();
-
-export const posthog: PostHog = new PostHog(
-  // PostHog complains on passing an empty string. Allow omitting PostHog key
-  // when PostHog is disabled by passing a dummy key and then disabling the client.
-  // (If PostHog is enabled, pass the empty string to get a nice error message.)
-  POST_HOG_API_KEY !== ''
-    ? POST_HOG_API_KEY
-    : posthogEnabled
-      ? ''
-      : 'dummy-key',
-  {
-    host: 'https://data-bridge-v1.vercel.app/ingest',
-    disabled: !posthogEnabled,
-  }
-);
 
 if (posthog) {
   const distinctId = posthog.getDistinctId();
@@ -117,7 +99,5 @@ export const identifyTlonEmployee = () => {
   }
 
   const UUID = posthog.getDistinctId();
-  // Import at top of function to avoid circular dependency
-  const { identifyUser } = require('./identifyUser');
   identifyUser(UUID, { isTlonEmployee: true });
 };

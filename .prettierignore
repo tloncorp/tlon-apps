@@ -22,7 +22,7 @@ apps/tlon-web/.playwright-dev.pid
 dump.sqlite3
 .claude
 .gitattributes
-clurd/
+clurd
 # From apps/tlon-desktop/.gitignore
 /apps/tlon-desktop/build/
 /apps/tlon-desktop/dist/

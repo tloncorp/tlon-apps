@@ -3,11 +3,9 @@ import { APP_SCHEME } from '@tloncorp/app/constants';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import { screenNameFromChannelId } from '@tloncorp/app/navigation/utils';
 import type { ChannelShareIntent } from '@tloncorp/app/types/shareIntent';
-import {
-  ChannelShareIntentProvider,
-  ForwardToChannelSheet,
-  useForwardToChannelSheet,
-} from '@tloncorp/app/ui';
+import { ForwardToChannelSheet } from '@tloncorp/app/ui/components/ForwardToChannelSheet';
+import { useForwardToChannelSheet } from '@tloncorp/app/ui/components/useForwardToChannelSheet';
+import { ChannelShareIntentProvider } from '@tloncorp/app/ui/contexts/shareIntent';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useMutableRef } from '@tloncorp/shared/logic';
@@ -200,6 +198,7 @@ export function ShareIntentForwardSheetProvider({
         open={isOpen}
         onOpenChange={handleOpenChange}
         title="Send to channel"
+        subtitle="Select where to send it"
         onChannelSelected={handleChannelSelected}
         channelFilter={(channel) => channel.type !== 'notebook'}
         footerComponent={renderFooter}
