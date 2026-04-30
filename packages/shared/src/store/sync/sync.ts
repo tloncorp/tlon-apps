@@ -627,9 +627,8 @@ export const syncContactDiscovery = async (
       // matches that don't already have one. Avoids clobbering a name
       // the user explicitly set in a prior session, and avoids racing
       // with peer profile fetches that may arrive after our write.
-      const newSystemContacts = await db.getSystemContactsBatchByContactId(
-        newMatchIds
-      );
+      const newSystemContacts =
+        await db.getSystemContactsBatchByContactId(newMatchIds);
       const newMatchSet = new Set(newMatchIds);
       await Promise.all(
         newSystemContacts

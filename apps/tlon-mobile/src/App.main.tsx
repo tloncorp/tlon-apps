@@ -206,8 +206,7 @@ const App = () => {
         backgroundColor={isDarkMode ? 'black' : 'white'}
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
       />
-      {__DEV__ &&
-      process.env.EXPO_PUBLIC_DEBUG_BG_SYNC_BUTTON === 'true' ? (
+      {__DEV__ && process.env.EXPO_PUBLIC_DEBUG_BG_SYNC_BUTTON === 'true' ? (
         <DebugBackgroundSyncButton />
       ) : null}
     </View>
