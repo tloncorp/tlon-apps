@@ -12,7 +12,12 @@ import { toPostData } from '../../logic';
 import { getClient, setupDatabaseTestSuite } from '../../test/helpers';
 import { updateSession } from '../session';
 import { setUploadState } from '../storage';
-import { finalizeAndSendPost } from './postActions';
+import { mergePendingPosts } from '../useMergePendingPosts';
+import {
+  deleteFailedPost,
+  deletePost,
+  finalizeAndSendPost,
+} from './postActions';
 
 const TEST_CHANNEL = '~zod';
 const LOCAL_URI = 'LOCAL_URI';
@@ -676,3 +681,165 @@ function unsafe_extractUploadKey(att: Attachment): Attachment.UploadIntent.Key {
   }
   return Attachment.UploadIntent.extractKey(uploadIntent);
 }
+
+describe('clearing a failed optimistic post', () => {
+  beforeEach(async () => {
+    await db.insertChannels([
+      db.buildChannel({ id: TEST_CHANNEL, type: 'chat' }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.mocked(poke).mockClear();
+    updateSession(null);
+  });
+
+  async function seedFailedOptimisticPost(
+    overrides: Partial<db.Post> = {}
+  ): Promise<db.Post> {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 0,
+      content: [{ inline: [friendlyUniqueString()] }],
+      deliveryStatus: 'failed',
+    });
+    const merged = { ...post, ...overrides } as db.Post;
+    await db.insertChannelPosts({ posts: [merged] });
+    return merged;
+  }
+
+  test('action-menu deletePost() on a failed optimistic row hard-deletes the row', async () => {
+    const post = await seedFailedOptimisticPost();
+
+    expect((await db.getPendingPosts(TEST_CHANNEL)).map((p) => p.id)).toContain(
+      post.id
+    );
+
+    await deletePost({ post });
+
+    expect(await fetchPost(post.id)).toBeUndefined();
+    expect(
+      (await db.getPendingPosts(TEST_CHANNEL)).map((p) => p.id)
+    ).not.toContain(post.id);
+  });
+
+  test('action-menu deletePost() on a confirmed post still marks deleted locally', async () => {
+    const channel = (await db.getChannel({ id: TEST_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: '~zod',
+      author: null,
+      channel,
+      sequenceNum: 5,
+      content: [{ inline: ['confirmed post'] }],
+      deliveryStatus: 'sent',
+    });
+    await db.insertChannelPosts({ posts: [post] });
+
+    await deletePost({ post });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.isDeleted).toBe(true);
+    expect(rowAfter!.sequenceNum).toBe(5);
+  });
+
+  test('deleteFailedPost() on a failed-send row removes it from the DB', async () => {
+    const post = await seedFailedOptimisticPost();
+
+    await deleteFailedPost({ post });
+
+    expect(await fetchPost(post.id)).toBeUndefined();
+  });
+
+  test('deleted failed optimistic rows are excluded from the live merge even when filterDeleted is false', async () => {
+    const post = await seedFailedOptimisticPost();
+
+    const merged = mergePendingPosts({
+      newPosts: [post],
+      pendingPosts: await db.getPendingPosts(TEST_CHANNEL),
+      existingPosts: [],
+      deletedPosts: { [post.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.map((p) => p.id)).not.toContain(post.id);
+  });
+
+  test.each([
+    {
+      label: 'needs_verification row',
+      postOverrides: { deliveryStatus: 'needs_verification' as const },
+      seedExistingPost: undefined,
+      expectedSequenceNum: 0,
+    },
+    {
+      label: 'failed-edit confirmed row',
+      postOverrides: { deliveryStatus: 'sent' as const, sequenceNum: 5 },
+      seedExistingPost: async (id: string) =>
+        db.updatePost({ id, editStatus: 'failed' }),
+      expectedSequenceNum: 5,
+    },
+    {
+      label: 'failed-delete confirmed row',
+      postOverrides: { deliveryStatus: 'sent' as const, sequenceNum: 7 },
+      seedExistingPost: async (id: string) =>
+        db.updatePost({ id, deleteStatus: 'failed' }),
+      expectedSequenceNum: 7,
+    },
+  ])(
+    'deleteFailedPost() on a $label does not hard-delete',
+    async ({ postOverrides, seedExistingPost, expectedSequenceNum }) => {
+      const post = await seedFailedOptimisticPost(postOverrides);
+      await seedExistingPost?.(post.id);
+
+      await deleteFailedPost({ post: { ...post, ...postOverrides } });
+
+      const rowAfter = await fetchPost(post.id);
+      expect(rowAfter).toBeTruthy();
+      expect(rowAfter!.isDeleted).toBe(true);
+      expect(rowAfter!.sequenceNum).toBe(expectedSequenceNum);
+    }
+  );
+
+  test('deletePost() re-reads the DB row before hard-delete classification', async () => {
+    const post = await seedFailedOptimisticPost();
+    const staleSnapshot: db.Post = {
+      ...post,
+      deliveryStatus: 'failed',
+      sequenceNum: 0,
+    };
+    await db.updatePost({ id: post.id, deliveryStatus: 'enqueued' });
+
+    await deletePost({ post: staleSnapshot });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.isDeleted).toBe(true);
+  });
+
+  test('deleteFailedPost() re-reads the DB row before hard-delete classification', async () => {
+    const post = await seedFailedOptimisticPost();
+    const staleSnapshot: db.Post = {
+      ...post,
+      deliveryStatus: 'failed',
+      sequenceNum: 0,
+    };
+    await db.updatePost({
+      id: post.id,
+      deliveryStatus: 'sent',
+      sequenceNum: 42,
+    });
+
+    await deleteFailedPost({ post: staleSnapshot });
+
+    const rowAfter = await fetchPost(post.id);
+    expect(rowAfter).toBeTruthy();
+    expect(rowAfter!.sequenceNum).toBe(42);
+  });
+});

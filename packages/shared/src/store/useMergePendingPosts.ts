@@ -27,12 +27,18 @@ export const mergePendingPosts = ({
   hasNewest: boolean;
   filterDeleted?: boolean;
 }): db.Post[] => {
+  const isLocallyClearedOptimistic = (post: db.Post) =>
+    post.sequenceNum === 0 &&
+    deletedPosts[post.id] &&
+    post.deliveryStatus === 'failed';
   const sentAtMap = new Map<number, db.Post>();
-  [...newPosts, ...pendingPosts].forEach((post) => {
-    if (!sentAtMap.has(post.sentAt)) {
-      sentAtMap.set(post.sentAt, post);
-    }
-  });
+  [...newPosts, ...pendingPosts]
+    .filter((post) => !isLocallyClearedOptimistic(post))
+    .forEach((post) => {
+      if (!sentAtMap.has(post.sentAt)) {
+        sentAtMap.set(post.sentAt, post);
+      }
+    });
   const newAndPendingPosts = Array.from(sentAtMap.values()).sort((a, b) => {
     const aUnconfirmed = a.sequenceNum === 0;
     const bUnconfirmed = b.sequenceNum === 0;
