@@ -13,6 +13,16 @@ import { connectNotifyProvider } from './notificationsApi';
 
 const logger = createDevLogger('notifications', true);
 
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: false,
+      shouldSetBadge: true,
+    }),
+  });
+}
+
 /** Returns true if notification permission is thought to be granted, false otherwise */
 async function requestNotificationPermissionsIfNeeded(): Promise<boolean> {
   // Fetch current permissions
@@ -302,13 +312,17 @@ export async function presentContactMatchNotification({
     return;
   }
 
-  await Notifications.scheduleNotificationAsync({
+  const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: `${name} is on Tlon`,
       body: 'Tap to say hi',
       data: { type: 'contactMatched', contactId },
     },
     trigger: null,
+  });
+  console.log('[notifications] scheduled contact match notification', {
+    notificationId,
+    contactId,
   });
 }
 
@@ -322,12 +336,16 @@ export async function presentContactsMatchedNotification({
     return;
   }
 
-  await Notifications.scheduleNotificationAsync({
+  const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: `${count} of your contacts are on Tlon`,
       body: 'Tap to see who',
       data: { type: 'contactsMatched' },
     },
     trigger: null,
+  });
+  console.log('[notifications] scheduled contacts matched notification', {
+    notificationId,
+    count,
   });
 }

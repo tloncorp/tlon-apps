@@ -33,12 +33,15 @@ import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, StatusBar } from 'react-native';
+import { Platform, Pressable, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
-import { registerBackgroundSyncTask } from './lib/backgroundSync';
+import {
+  registerBackgroundSyncTask,
+  runBackgroundSyncFromDebugButton,
+} from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
 
@@ -203,7 +206,71 @@ const App = () => {
         backgroundColor={isDarkMode ? 'black' : 'white'}
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
       />
+      {__DEV__ &&
+      process.env.EXPO_PUBLIC_DEBUG_BG_SYNC_BUTTON === 'true' ? (
+        <DebugBackgroundSyncButton />
+      ) : null}
     </View>
+  );
+};
+
+const DebugBackgroundSyncButton = () => {
+  const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>(
+    'idle'
+  );
+
+  const handlePress = useCallback(async () => {
+    if (status === 'running') return;
+
+    setStatus('running');
+    try {
+      await runBackgroundSyncFromDebugButton();
+      setStatus('done');
+      setTimeout(() => setStatus('idle'), 2500);
+    } catch (err) {
+      console.warn('[BG SYNC] Debug UI trigger failed', err);
+      setStatus('error');
+    }
+  }, [status]);
+
+  const label =
+    status === 'running'
+      ? 'Syncing...'
+      : status === 'done'
+        ? 'Sync done'
+        : status === 'error'
+          ? 'Sync failed'
+          : 'Run bg sync';
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Run background sync"
+      disabled={status === 'running'}
+      onPress={handlePress}
+      style={{
+        position: 'absolute',
+        right: 16,
+        bottom: 36,
+        zIndex: 1000,
+        minHeight: 44,
+        minWidth: 116,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 8,
+        paddingHorizontal: 14,
+        backgroundColor: status === 'error' ? '#B42318' : '#1D4ED8',
+        opacity: status === 'running' ? 0.75 : 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      }}
+    >
+      <Text color="white" fontSize="$s" fontWeight="600">
+        {label}
+      </Text>
+    </Pressable>
   );
 };
 
