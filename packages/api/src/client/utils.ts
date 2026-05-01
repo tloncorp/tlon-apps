@@ -151,7 +151,7 @@ export function getPrettyAppName(kind: 'chat' | 'diary' | 'heap') {
     case 'chat':
       return 'Chat';
     case 'diary':
-      return 'Bulletin';
+      return 'Notebook';
     case 'heap':
       return 'Gallery';
   }

@@ -1,6 +1,6 @@
 import { useConnectionStatus, useDebouncedValue } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useContact } from '@tloncorp/shared/store';
+import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
@@ -119,13 +119,14 @@ export function ChannelHeader({
   // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
   const dmContactId = channel.type === 'dm' ? channel.contactId : null;
   const { data: dmContact } = useContact({ id: dmContactId || '' });
+  const { data: notesAvailable = false } = useNotesDeskAvailable();
 
   const getChannelTypeName = (channelType: db.Channel['type']) => {
     switch (channelType) {
       case 'chat':
         return 'Chat channel';
       case 'notebook':
-        return 'Bulletin channel';
+        return notesAvailable ? 'Bulletin channel' : 'Notebook channel';
       case 'notes':
         return 'Notebook channel';
       case 'gallery':

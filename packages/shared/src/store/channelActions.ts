@@ -153,6 +153,7 @@ async function createNotesChannel({
   }
 
   const channelId = `notes/${newEntry.host}/${newEntry.flagName}`;
+  const flag = `${newEntry.host}/${newEntry.flagName}`;
 
   logger.trackEvent(
     AnalyticsEvent.ActionCreateChannel,
@@ -161,6 +162,23 @@ async function createNotesChannel({
       group: { id: groupId },
     })
   );
+
+  // Default new notebooks to public so any group member can join. We don't
+  // yet propagate group membership to the notebook's per-member ACL, so
+  // private would lock everyone but the owner out.
+  try {
+    await api.poke({
+      app: 'notes',
+      mark: 'notes-action',
+      json: {
+        type: 'notebook',
+        flag,
+        action: { type: 'visibility', visibility: 'public' },
+      },
+    });
+  } catch (e) {
+    logger.error('Failed to set notebook visibility to public', e);
+  }
 
   // Pick a section to add this channel to. Tlon-created groups conventionally
   // have a 'default' section, but we'll prefer whatever the first section is
