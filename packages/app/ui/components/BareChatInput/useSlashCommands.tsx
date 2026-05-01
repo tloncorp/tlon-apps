@@ -215,7 +215,7 @@ export const useSlashCommands = (
       !spaceAfterSlash &&
       !isDismissedTrigger &&
       (cursorPosition === lastSlashIndex + 1 ||
-        (cursorPosition > lastSlashIndex && !afterCursor.includes(' ')))
+        (cursorPosition > lastSlashIndex && !/\s/.test(afterCursor)))
     ) {
       setIsSlashCommandModeActive(true);
       setSlashCommandStartIndex(lastSlashIndex);
