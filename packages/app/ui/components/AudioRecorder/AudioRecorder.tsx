@@ -8,7 +8,6 @@ import {
   getRecordingPermissionsAsync,
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
-import { useAppStatusChange } from 'packages/app/hooks/useAppStatusChange';
 import {
   ComponentProps,
   forwardRef,
@@ -23,6 +22,7 @@ import {
 import { Alert, StyleSheet } from 'react-native';
 import { useTheme } from 'tamagui';
 
+import { useAppStatusChange } from '../../../hooks/useAppStatusChange';
 import {
   FinishMode,
   IWaveformRef,
