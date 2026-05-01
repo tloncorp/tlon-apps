@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 
 import { clearHostingNativeCookie } from '../lib/hostingAuth';
 import { useSignupContext } from '../lib/signupContext';
+import { prejoinTlonbotRevivalGroups } from '../lib/tlonbotRevival';
 import { OnboardingStackParamList } from '../types';
 
 const logger = createDevLogger('useOnboardingHelpers', true);
@@ -108,6 +109,7 @@ export function useOnboardingHelpers() {
         store.syncStart();
 
         if (onboardingFlow === 'tlonbotRevival') {
+          prejoinTlonbotRevivalGroups();
           store
             .markCurrentUserTlonbotEnabled()
             .then(() =>

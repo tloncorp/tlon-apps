@@ -2,6 +2,7 @@ import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
 import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
 import * as ub from '@tloncorp/api/urbit';
 
+import type { Attachment } from '../domain';
 import {
   NodeBootPhase,
   OnboardingFlow,
@@ -126,6 +127,7 @@ export type TlonbotRevivalSetup = Pick<
   shipId?: string;
   botName?: string;
   botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
   botProvider?: string;
   botModel?: string;
 };

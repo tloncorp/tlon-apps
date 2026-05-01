@@ -1,12 +1,13 @@
 import * as api from '@tloncorp/api';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import { TlonText, View, YStack } from '@tloncorp/app/ui';
-import { createDevLogger } from '@tloncorp/shared';
+import { Attachment, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef } from 'react';
 
+import { prejoinTlonbotRevivalGroups } from '../../lib/tlonbotRevival';
 import { FadingTextCarousel } from './FadingTextCarousel';
 import { SegmentedSpinner } from './SegmentedSpinner';
 
@@ -86,6 +87,7 @@ export function TlonbotSetupScreen() {
           !provisioningKickoffStartedRef.current
         ) {
           provisioningKickoffStartedRef.current = true;
+          prejoinTlonbotRevivalGroups();
           store
             .markCurrentUserTlonbotEnabled()
             .then(async () => {
@@ -225,8 +227,9 @@ async function applyBotPreferences(
     });
   }
 
-  if (setup.botAvatarUrl) {
-    await withRetry(() => api.setTlawnAvatar(shipId, setup.botAvatarUrl!), {
+  const botAvatarUrl = await resolveDeferredBotAvatarUrl(setup);
+  if (botAvatarUrl) {
+    await withRetry(() => api.setTlawnAvatar(shipId, botAvatarUrl), {
       startingDelay: 750,
       numOfAttempts: 4,
       maxDelay: 4000,
@@ -279,4 +282,46 @@ async function applyBotPreferences(
         logger.trackError('TlonBot revival model update failed', { error });
       });
   }
+}
+
+async function resolveDeferredBotAvatarUrl(setup: db.TlonbotRevivalSetup) {
+  if (setup.botAvatarUploadIntent) {
+    return withRetry(
+      async () => {
+        const uploadIntent = setup.botAvatarUploadIntent!;
+        const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
+        await store.uploadAsset(uploadIntent);
+        const uploadStates = await store.waitForUploads([uploadKey]);
+        const uploadState = uploadStates[uploadKey];
+
+        if (uploadState?.status !== 'success') {
+          throw new Error('Deferred avatar upload did not finish successfully');
+        }
+
+        return uploadState.remoteUri;
+      },
+      {
+        startingDelay: 1000,
+        numOfAttempts: 3,
+        maxDelay: 4000,
+      }
+    ).catch((error) => {
+      logger.trackError('TlonBot revival deferred avatar upload failed', {
+        error,
+      });
+      return null;
+    });
+  }
+
+  if (setup.botAvatarUrl && /^(?!file|data).+/.test(setup.botAvatarUrl)) {
+    return setup.botAvatarUrl;
+  }
+
+  if (setup.botAvatarUrl) {
+    logger.trackError('TlonBot revival bot avatar update failed', {
+      step: 'missing_upload_intent',
+    });
+  }
+
+  return null;
 }

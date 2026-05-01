@@ -93,6 +93,7 @@ type CustomBotSetupStatus = 'idle' | 'pending' | 'ready' | 'failed';
 export type TlonbotSplashConfig = {
   botName?: string;
   botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
   botProvider?: string;
   botModel?: string;
 };
@@ -129,6 +130,8 @@ function SplashSequenceComponent(props: {
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
     DEFAULT_BOT_CONFIG.avatarUrl
   );
+  const [botAvatarUploadIntent, setBotAvatarUploadIntent] =
+    React.useState<Attachment.UploadIntent | null>(null);
   const [botModel, setBotModel] = React.useState('');
   const [botApiKey, setBotApiKey] = React.useState('');
   const [userShipId, setUserShipId] = React.useState<string | null>(null);
@@ -249,10 +252,17 @@ function SplashSequenceComponent(props: {
     };
   }, []);
 
-  const handleAvatarUrlChange = useCallback((url: string | null) => {
-    setBotAvatarUrl(url);
-    setAvatarDirty(true);
-  }, []);
+  const handleAvatarUrlChange = useCallback(
+    (
+      url: string | null,
+      uploadIntent?: Attachment.UploadIntent | null
+    ) => {
+      setBotAvatarUrl(url);
+      setBotAvatarUploadIntent(uploadIntent ?? null);
+      setAvatarDirty(true);
+    },
+    []
+  );
 
   const saveDeferredTlonbotConfig = useCallback(
     (config: TlonbotSplashConfig = {}) => {
@@ -260,10 +270,17 @@ function SplashSequenceComponent(props: {
       return props.onTlonbotConfigured?.({
         botName: resolvedBotName,
         botAvatarUrl: avatarDirty ? botAvatarUrl : null,
+        botAvatarUploadIntent: avatarDirty ? botAvatarUploadIntent : null,
         ...config,
       });
     },
-    [avatarDirty, botAvatarUrl, botName, props.onTlonbotConfigured]
+    [
+      avatarDirty,
+      botAvatarUploadIntent,
+      botAvatarUrl,
+      botName,
+      props.onTlonbotConfigured,
+    ]
   );
 
   const persistBotIdentityInBackground = useCallback(
@@ -693,6 +710,7 @@ function SplashSequenceComponent(props: {
         {currentPane === SplashPane.BotAvatar && (
           <BotAvatarPane
             avatarUrl={avatarDirty ? botAvatarUrl : null}
+            deferUpload={shouldDeferTlonbotSetup}
             onAvatarUrlChange={handleAvatarUrlChange}
             onBackPress={() => setCurrentPane(SplashPane.BotName)}
             onActionPress={handleBotAvatarCompleted}
@@ -1011,7 +1029,11 @@ export function BotNamePane(props: {
 
 export function BotAvatarPane(props: {
   avatarUrl?: string | null;
-  onAvatarUrlChange: (url: string | null) => void;
+  deferUpload?: boolean;
+  onAvatarUrlChange: (
+    url: string | null,
+    uploadIntent?: Attachment.UploadIntent | null
+  ) => void;
   onBackPress?: () => void;
   onActionPress: () => void;
 }) {
@@ -1019,18 +1041,25 @@ export function BotAvatarPane(props: {
   const { canUpload } = useAttachmentContext();
   const showToast = useToast();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const shouldDeferUpload = props.deferUpload ?? false;
 
   // Local URIs (file:// or data:) mean the upload is still pending; once the
   // attachment pipeline swaps in the remote CDN URL, the avatar is safe to
   // persist. Same check used in EditProfileScreenView.
   const hasAvatar = !!props.avatarUrl;
-  const isUploading = hasAvatar && !/^(?!file|data).+/.test(props.avatarUrl!);
+  const isUploading =
+    !shouldDeferUpload &&
+    hasAvatar &&
+    !/^(?!file|data).+/.test(props.avatarUrl!);
 
   const { attachment } = useMappedImageAttachments(
-    props.avatarUrl ? { attachment: props.avatarUrl } : {}
+    !shouldDeferUpload && props.avatarUrl
+      ? { attachment: props.avatarUrl }
+      : {}
   );
 
   useEffect(() => {
+    if (shouldDeferUpload) return;
     if (!attachment) return;
     if (attachment.uploadState?.status === 'success') {
       const remote = attachment.uploadState.remoteUri;
@@ -1045,10 +1074,10 @@ export function BotAvatarPane(props: {
       });
       props.onAvatarUrlChange(null);
     }
-  }, [attachment, props, showToast]);
+  }, [attachment, props, shouldDeferUpload, showToast]);
 
   const openSheet = useCallback(() => {
-    if (!canUpload) {
+    if (!canUpload && !shouldDeferUpload) {
       showToast({
         message: 'Please configure storage settings to upload images',
         duration: 3000,
@@ -1056,17 +1085,21 @@ export function BotAvatarPane(props: {
       return;
     }
     setSheetOpen(true);
-  }, [canUpload, showToast]);
+  }, [canUpload, shouldDeferUpload, showToast]);
 
   const handleImageSelected = useCallback(
     (assets: Attachment.UploadIntent[]) => {
+      const uploadIntent = assets[0];
       const uri =
         Attachment.UploadIntent.extractImagePickerAssets(assets)[0]?.uri;
       if (uri) {
-        props.onAvatarUrlChange(uri);
+        props.onAvatarUrlChange(
+          uri,
+          shouldDeferUpload ? uploadIntent : null
+        );
       }
     },
-    [props]
+    [props, shouldDeferUpload]
   );
 
   return (
@@ -1086,7 +1119,10 @@ export function BotAvatarPane(props: {
           Pick an avatar for your Tlonbot, or skip and add one later.
         </SplashParagraph>
         <YStack flex={1} alignItems="center" justifyContent="center">
-          <Pressable onPress={openSheet} disabled={!canUpload || isUploading}>
+          <Pressable
+            onPress={openSheet}
+            disabled={(!canUpload && !shouldDeferUpload) || isUploading}
+          >
             <View
               width={160}
               height={160}
@@ -1134,7 +1170,7 @@ export function BotAvatarPane(props: {
               label="Change photo"
               preset="secondary"
               backgroundColor="transparent"
-              disabled={!canUpload || isUploading}
+              disabled={(!canUpload && !shouldDeferUpload) || isUploading}
             />
             <Button
               onPress={props.onActionPress}
@@ -1152,7 +1188,7 @@ export function BotAvatarPane(props: {
               label="Upload photo"
               preset="hero"
               shadow
-              disabled={!canUpload}
+              disabled={!canUpload && !shouldDeferUpload}
             />
             <Button
               onPress={props.onActionPress}
@@ -1170,6 +1206,7 @@ export function BotAvatarPane(props: {
         showClearOption={hasAvatar}
         onClearAttachments={() => props.onAvatarUrlChange(null)}
         mediaType="image"
+        attachToContext={!shouldDeferUpload}
       />
     </View>
   );
