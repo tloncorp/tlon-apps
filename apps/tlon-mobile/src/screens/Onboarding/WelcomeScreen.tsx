@@ -15,11 +15,19 @@ import {
 } from '@tloncorp/app/ui';
 import { trackOnboardingAction } from '@tloncorp/app/utils/posthog';
 import { finishingSelfHostedLogin as selfHostedLoginStatus } from '@tloncorp/shared/db';
-import { useCallback, useEffect, useState } from 'react';
+import { useEventListener } from 'expo';
+import { VideoView, useVideoPlayer } from 'expo-video';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useCheckAppInstalled } from '../../hooks/analytics';
 import type { OnboardingStackParamList } from '../../types';
+
+const WELCOME_BG_VIDEO = {
+  uri: 'https://storage.googleapis.com/tlon-messenger-public-assets/welcome-bg.mp4',
+};
+const WELCOME_BG_POSTER = require('../../../assets/images/welcome-bg-poster.jpg');
 
 export const Text = TlonText.Text;
 
@@ -31,6 +39,30 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   const [open, setOpen] = useState(false);
   const { isAuthenticated } = useShip();
   const finishingSelfHostedLogin = selfHostedLoginStatus.useValue();
+
+  const videoPlayer = useVideoPlayer(WELCOME_BG_VIDEO, (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
+
+  const [videoReady, setVideoReady] = useState(false);
+  const videoOpacity = useRef(new Animated.Value(0)).current;
+
+  useEventListener(videoPlayer, 'statusChange', ({ status }) => {
+    if (status === 'readyToPlay') {
+      setVideoReady(true);
+    }
+  });
+
+  useEffect(() => {
+    if (!videoReady) return;
+    Animated.timing(videoOpacity, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [videoReady, videoOpacity]);
 
   useCheckAppInstalled();
 
@@ -58,15 +90,30 @@ export const WelcomeScreen = ({ navigation }: Props) => {
   });
 
   return (
-    <View flex={1} backgroundColor={'$secondaryBackground'} paddingTop={top}>
-      <View flex={1} justifyContent="center" alignItems="center" gap={'$3.5xl'}>
-        <Image
-          width={200}
-          height={200}
-          source={require('../../../assets/images/welcome-icon.png')}
-        />
-        <TlonText.Text size="$label/xl">Tlon Messenger</TlonText.Text>
-      </View>
+    <View flex={1} paddingTop={top}>
+      {WELCOME_BG_VIDEO ? (
+        <>
+          <Image
+            source={WELCOME_BG_POSTER}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+          <Animated.View
+            style={[StyleSheet.absoluteFill, { opacity: videoOpacity }]}
+            pointerEvents="none"
+          >
+            <VideoView
+              style={StyleSheet.absoluteFill}
+              player={videoPlayer}
+              contentFit="cover"
+              nativeControls={false}
+              allowsFullscreen={false}
+              allowsPictureInPicture={false}
+            />
+          </Animated.View>
+        </>
+      ) : null}
+      <YStack flex={1} gap="$2xl" paddingTop="$2xl"></YStack>
       <View
         paddingBottom={bottom + 16}
         justifyContent={'flex-end'}
@@ -116,9 +163,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               }}
               onPress={() => setOpen(true)}
             >
-              <SizableText color="$primaryText">
-                Have an account? Log in
-              </SizableText>
+              <SizableText color="$white">Have an account? Log in</SizableText>
             </Pressable>
           </XStack>
         </YStack>

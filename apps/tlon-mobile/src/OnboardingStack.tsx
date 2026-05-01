@@ -33,6 +33,7 @@ export function OnboardingStack() {
   const onboardingScreenOptions = {
     ...screenOptions,
     headerShown: false,
+    animation: 'fade' as const,
   };
 
   return (
