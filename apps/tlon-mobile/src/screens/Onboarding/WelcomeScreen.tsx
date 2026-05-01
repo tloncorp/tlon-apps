@@ -8,6 +8,7 @@ import {
   OnboardingInviteBlock,
   Pressable,
   SizableText,
+  SplashTitle,
   TlonText,
   View,
   XStack,
@@ -113,7 +114,27 @@ export const WelcomeScreen = ({ navigation }: Props) => {
           </Animated.View>
         </>
       ) : null}
-      <YStack flex={1} gap="$2xl" paddingTop="$2xl"></YStack>
+      <YStack
+        flex={1}
+        gap="$2xl"
+        paddingTop="$2xl"
+        alignItems="center"
+        justifyContent="center"
+      >
+        <View
+          rotate={'-4deg'}
+          shadowColor={'$shadow'}
+          shadowOpacity={0.8}
+          shadowRadius={'$5xl'}
+        >
+          <Image
+            source={require('../../../assets/images/welcome-icon.png')}
+            width={200}
+            height={200}
+          />
+        </View>
+        <SplashTitle color={'$white'}>Tlon Messenger</SplashTitle>
+      </YStack>
       <View
         paddingBottom={bottom + 16}
         justifyContent={'flex-end'}
