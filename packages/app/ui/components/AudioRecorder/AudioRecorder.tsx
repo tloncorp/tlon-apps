@@ -8,6 +8,7 @@ import {
   getRecordingPermissionsAsync,
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
+import { useAppStatusChange } from 'packages/app/hooks/useAppStatusChange';
 import {
   ComponentProps,
   forwardRef,
@@ -345,6 +346,19 @@ export const AudioRecorder = forwardRef<
   const progressLabel = useMemo(
     () => makePrettyTimeFromMs(elapsedMs ?? 0),
     [elapsedMs]
+  );
+
+  useAppStatusChange(
+    useCallback(
+      (status) => {
+        if (status === 'background') {
+          refApi.stopRecording().catch((error) => {
+            console.error('Failed to stop recording on app background', error);
+          });
+        }
+      },
+      [refApi]
+    )
   );
 
   return (
