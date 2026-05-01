@@ -24,10 +24,10 @@ export default ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <TamaguiProvider defaultTheme={'light'} config={config}>
-      <StoreProvider stub={store}>
-        <SafeAreaProvider>{children}</SafeAreaProvider>
-      </StoreProvider>
-    </TamaguiProvider>
+    <SafeAreaProvider>
+      <TamaguiProvider defaultTheme={'light'} config={config}>
+        <StoreProvider stub={store}>{children}</StoreProvider>
+      </TamaguiProvider>
+    </SafeAreaProvider>
   );
 };
