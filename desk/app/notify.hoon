@@ -346,6 +346,22 @@
         =/  pact=provider-action  [%client-leave service.act]
         :_  state
         [(poke:pass [who.act %notify] %notify-provider-action !>(pact))]~
+      ::
+          %send-message
+        =+  .^(=activity:v8:av %gx (scry:io %activity /v4/activity/activity-summary-4))
+        =/  notify-count=@ud
+          notify-count:(~(gut by activity) [%base ~] *activity-summary:a)
+        =/  v1-paths
+          %+  murn  ~(tap by sup.bowl)
+          |=  [duct ship =path]
+          ?:  ?=([%notify *] path)  ~
+          `path
+        ?~  v1-paths
+          [~ state]
+        =/  =update:v1
+          [notify-count `@`(sham eny.bowl) %message message.act]
+        :_  state
+        ~[(fact:io notify-update-1+!>(update) v1-paths)]
       ==
     ::
     ++  handle-http-request
@@ -738,9 +754,10 @@
   ^-  @t
   %+  roll  data
   |=  [[p=@t q=@t] out=@t]
-  ?:  =(out '')
-    (rap 3 p '=' q ~)
-  (rap 3 out '&' p '=' q ~)
+  =/  key  (crip (en-urlt:html (trip p)))
+  =/  val  (crip (en-urlt:html (trip q)))
+  =/  pam  ?:(=(out '') '' '&')
+  (rap 3 out pam key '=' val ~)
 ::
 ++  send-notification
   |=  [entry=provider-entry who=@p =update]
@@ -754,6 +771,7 @@
         id+(scot %ud uid.update)
         notify-count+(scot %ud notify-count.update)
         dismiss-source+?.(?=(%dismiss -.action.update) '' source.action.update)
+        message+?.(?=(%message -.action.update) '' message.action.update)
     ==
   %:  post-form
       /send-notification/(scot %uv (sham eny.bowl))

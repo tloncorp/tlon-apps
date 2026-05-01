@@ -23,6 +23,7 @@ import io.tlon.landscape.notifications.TalkNotificationManager
 import io.tlon.landscape.notifications.NotificationMessagesCache
 import io.tlon.landscape.notifications.buildMessagingTappable
 import io.tlon.landscape.notifications.processNotificationBlocking
+import io.tlon.landscape.notifications.showGenericNotification
 import io.tlon.landscape.notifications.toBasicBundle
 import android.service.notification.StatusBarNotification
 import io.tlon.landscape.utils.UvParser
@@ -99,6 +100,22 @@ class TalkMessagingService : FirebaseMessagingService() {
                     } catch (e: NotificationException) {
                         NotificationLogger.logError(e)
                         showFallbackNotification(this, e, remoteMessage)
+                    }
+                }
+
+                if (data["action"] == "message") {
+                    data["uid"]?.let { uid ->
+                        val bundle = remoteMessage.toBasicBundle()
+                        val message = data["message"] ?: bundle.getString("body")
+                        if (message != null) {
+                            showGenericNotification(
+                                this,
+                                uid,
+                                bundle.getString("title") ?: getString(R.string.app_name),
+                                message,
+                                bundle
+                            )
+                        }
                     }
                 }
 

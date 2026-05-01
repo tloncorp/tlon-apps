@@ -12,6 +12,7 @@ import NotificationCenter
 @objc final class PushNotificationManager: NSObject {
     enum ParseNotificationResult {
         case notify(uid: String, event: Any)
+        case message(uid: String, message: String)
         case dismiss
         case invalid
         case failedFetchContents(Error)
@@ -34,6 +35,11 @@ import NotificationCenter
             } catch {
                 return .failedFetchContents(error)
             }
+        case "message":
+            guard let message = userInfo["message"] as? String else {
+                return .invalid
+            }
+            return .message(uid: uid, message: message)
         case "dismiss":
             return .dismiss
 
