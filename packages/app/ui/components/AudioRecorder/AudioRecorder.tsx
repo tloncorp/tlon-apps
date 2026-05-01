@@ -351,13 +351,17 @@ export const AudioRecorder = forwardRef<
   useAppStatusChange(
     useCallback(
       (status) => {
-        if (status === 'background') {
+        if (
+          status === 'background' &&
+          state.live &&
+          state.recorderState === RecorderState.recording
+        ) {
           refApi.stopRecording().catch((error) => {
             console.error('Failed to stop recording on app background', error);
           });
         }
       },
-      [refApi]
+      [refApi, state]
     )
   );
 
