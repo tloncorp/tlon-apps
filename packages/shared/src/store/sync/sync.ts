@@ -1766,7 +1766,11 @@ export async function syncChannelWithBackoff({
   channelId: string;
 }): Promise<boolean> {
   async function isStillPending() {
-    return (await db.getPendingPosts(channelId)).length > 0;
+    // Delivery polling uses the dedicated `getDeliveryPendingPosts` query:
+    // it keeps in-flight `enqueued` / `pending` rows visible even when the
+    // user has locally cleared them, so mid-flight deletes still reconcile
+    // against the server. UI ghost-row filtering lives in `getPendingPosts`.
+    return (await db.getDeliveryPendingPosts(channelId)).length > 0;
   }
 
   const checkDelivered = async () => {

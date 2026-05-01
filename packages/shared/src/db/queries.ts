@@ -3750,12 +3750,36 @@ export const addReplyToPost = createWriteQuery(
 );
 
 /**
- * Undo one optimistic reply-summary bump after a failed reply row is removed.
- * If the parent row has already been replaced by server-authoritative
- * `replyMeta`, the optimistic bump count is 0 and this becomes a no-op.
- * Otherwise, recompute from local replies when the cache is complete; if the
- * cache is partial, only decrement `replyCount` and preserve server-sourced
- * summary fields.
+ * Undo a single optimistic reply bump on a parent post after the optimistic
+ * reply row has been hard-deleted.
+ *
+ * This is the inverse of the optimistic side of `addReplyToPost` (which
+ * increments `replyCount`, sets `replyTime`, and appends to
+ * `replyContactIds` when the caller does not provide server-sourced
+ * `replyMeta`).
+ *
+ * Server-authoritative `replyMeta` updates reset `optimisticReplyBumpCount`
+ * to 0. When that has already happened, this helper becomes a no-op: the
+ * parent's reply summary no longer includes the failed local reply.
+ *
+ * Otherwise there are two regimes:
+ *
+ * 1. **Local cache is complete** — the parent's `replyCount` equals the
+ *    number of local undeleted replies + 1 (the one we just deleted). In
+ *    that case the local rows are authoritative and we can recompute all
+ *    three fields from them, using `appendContactIdToReplies` so ordering
+ *    matches the incremental path.
+ *
+ * 2. **Local cache is partial** — the parent's `replyCount` is larger than
+ *    (local undeleted replies + 1). That means the parent carries
+ *    server-sourced `replyMeta` for replies we have not cached locally.
+ *    We decrement `replyCount` by 1 (the optimistic +1 we applied at send
+ *    time) and leave `replyTime` / `replyContactIds` untouched so we do
+ *    not collapse server-known thread summary to a partial local view.
+ *
+ * Caller must have already removed the deleted reply row from the `posts`
+ * table before invoking this helper; the "alive replies" count is taken
+ * from the current DB state.
  */
 export const undoOptimisticReplyBump = createWriteQuery(
   'undoOptimisticReplyBump',
@@ -3926,7 +3950,59 @@ export const getPendingPosts = createReadQuery(
       where: and(
         eq($posts.channelId, channelId),
         isNotNull($posts.deliveryStatus),
-        not(eq($posts.type, 'reply'))
+        not(eq($posts.type, 'reply')),
+        // Exclude only truly local-only deleted sends. Deleted rows whose
+        // `deliveryStatus` is `'sent'` or `'needs_verification'` may still
+        // be server-backed but not yet sequenced; keep them as a DB-backed
+        // tombstone source so the channel remount path still renders them
+        // before the sequenced `addPost` arrives. Enqueued / pending rows
+        // are still in-flight and also remain visible — they either reach
+        // `'sent'` (stay as tombstone) or `'failed'` (vanish on next tick).
+        //
+        // SQL NULL handling: `isDeleted` is a nullable boolean. A bare
+        // `not(and(eq(isDeleted, true), ...))` would evaluate to NULL for
+        // rows where `isDeleted IS NULL`, which SQL treats as filter-out.
+        // Enumerate the keep condition explicitly instead.
+        or(
+          isNull($posts.isDeleted),
+          eq($posts.isDeleted, false),
+          not(eq($posts.deliveryStatus, 'failed'))
+        )
+      ),
+    });
+  },
+  ['posts']
+);
+
+/**
+ * Rows that are still in-flight from the sender's perspective, used by
+ * `syncChannelWithBackoff` to decide whether delivery polling should
+ * continue. Unlike `getPendingPosts` (UI merge input), this does NOT
+ * exclude `isDeleted` rows — a user can delete a post mid-flight, and the
+ * server still needs to acknowledge the original send before anything is
+ * truly settled. `failed` and `needs_verification` are handled by dedicated
+ * retry / verification flows, so they are not treated as "still delivering".
+ *
+ * Server-acknowledged but unsequenced rows (`deliveryStatus: 'sent'` while
+ * still `sequenceNum === 0`) are also included: `markPostSent` sets the
+ * status before the sequenced `addPost` event arrives with a real sequence
+ * number, and if that follow-up event is delayed or lost the delivery loop
+ * must keep polling `syncPosts` until the row reconciles. Once the
+ * sequenced `addPost` lands (`sequenceNum > 0`), the row drops out of this
+ * query and the backoff can settle.
+ */
+export const getDeliveryPendingPosts = createReadQuery(
+  'getDeliveryPendingPosts',
+  (channelId: string, ctx: QueryCtx) => {
+    return ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        not(eq($posts.type, 'reply')),
+        or(
+          eq($posts.deliveryStatus, 'enqueued'),
+          eq($posts.deliveryStatus, 'pending'),
+          and(eq($posts.deliveryStatus, 'sent'), eq($posts.sequenceNum, 0))
+        )
       ),
     });
   },
