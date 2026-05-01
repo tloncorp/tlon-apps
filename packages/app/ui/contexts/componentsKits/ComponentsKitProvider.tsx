@@ -68,7 +68,7 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   },
   [PostContentRendererId.yell]: YellPost,
   [PostContentRendererId.scratchpad]: EditableNotePostContent,
-  [PostContentRendererId.urbitNotes]: NotesPostContent,
+  [PostContentRendererId.notes]: NotesPostContent,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
@@ -89,7 +89,7 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   ),
   [DraftInputId.mic]: MicInput,
   [DraftInputId.color]: ColorInput,
-  [DraftInputId.urbitNotes]: NotesDraftInput,
+  [DraftInputId.notes]: NotesDraftInput,
 };
 const BUILTIN_COLLECTION_RENDERERS: {
   [id in CollectionRendererId]: IPostCollectionView;
@@ -103,7 +103,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.boardroom]: BoardroomPostCollectionView,
   [CollectionRendererId.strobe]: StrobePostCollectionView,
   [CollectionRendererId.summaries]: PostSummaryCollectionView,
-  [CollectionRendererId.urbitNotes]: NotesPostCollection,
+  [CollectionRendererId.notes]: NotesPostCollection,
 };
 
 export function ComponentsKitProvider({

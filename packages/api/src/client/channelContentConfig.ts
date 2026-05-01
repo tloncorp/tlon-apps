@@ -58,9 +58,9 @@ export const allCollectionRenderers = {
     enumTag: 'notebook',
     parametersSchema: standardCollectionParameters(),
   },
-  'tlon.r0.collection.urbit-notes': {
+  'tlon.r0.collection.notes': {
     displayName: 'Notes',
-    enumTag: 'urbitNotes',
+    enumTag: 'notes',
   },
   'tlon.r0.collection.carousel': {
     displayName: 'Carousel',
@@ -129,9 +129,9 @@ export const allDraftInputs = {
     displayName: 'Notebook',
     enumTag: 'notebook',
   },
-  'tlon.r0.input.urbit-notes': {
+  'tlon.r0.input.notes': {
     displayName: 'Notes',
-    enumTag: 'urbitNotes',
+    enumTag: 'notes',
   },
   'tlon.r0.input.yo': {
     displayName: 'Yo',
@@ -186,9 +186,9 @@ export const allContentRenderers = {
     displayName: 'Notebook',
     enumTag: 'notebook',
   },
-  'tlon.r0.content.urbit-notes': {
+  'tlon.r0.content.notes': {
     displayName: 'Notes',
-    enumTag: 'urbitNotes',
+    enumTag: 'notes',
   },
   'tlon.r0.content.audio': {
     displayName: 'Audio',

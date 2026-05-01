@@ -139,7 +139,7 @@ export function getChannelType(channelId: string) {
   } else if (app === 'diary') {
     return 'notebook';
   } else if (app === 'notes') {
-    return 'urbit-notes';
+    return 'notes';
   } else {
     return 'chat';
   }
@@ -154,7 +154,7 @@ export function getChannelKindFromType(
     return 'heap';
   } else if (type === 'notebook') {
     return 'diary';
-  } else if (type === 'urbit-notes') {
+  } else if (type === 'notes') {
     return 'notes';
   } else {
     return 'chat';

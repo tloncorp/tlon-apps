@@ -125,6 +125,8 @@ export function ChannelHeader({
       case 'chat':
         return 'Chat channel';
       case 'notebook':
+        return 'Bulletin channel';
+      case 'notes':
         return 'Notebook channel';
       case 'gallery':
         return 'Gallery channel';

@@ -16,8 +16,8 @@ function fallbackRendererIdForChannelType(
   type: db.Channel['type']
 ): CollectionRendererId | null {
   switch (type) {
-    case 'urbit-notes':
-      return CollectionRendererId.urbitNotes;
+    case 'notes':
+      return CollectionRendererId.notes;
     default:
       return null;
   }

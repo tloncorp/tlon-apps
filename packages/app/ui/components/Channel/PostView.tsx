@@ -49,7 +49,7 @@ export const PostView: RenderItemType = (props) => {
       case 'gallery':
         return GalleryPost;
 
-      case 'urbit-notes':
+      case 'notes':
         // Notes channels are rendered entirely by the collection WebView; no
         // per-post content is shown, but we still need something to return.
         return ChatMessage;

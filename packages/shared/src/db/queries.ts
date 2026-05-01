@@ -2619,7 +2619,7 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    // urbit-notes channels aren't tracked by %channels, so they never appear
+    // notes channels aren't tracked by %channels, so they never appear
     // in joinedChannelIds. Force them joined here (idempotent) so they aren't
     // flipped to currentUserIsMember=false, and so previously-broken rows get
     // repaired on next init.

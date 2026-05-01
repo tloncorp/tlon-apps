@@ -45,7 +45,7 @@ export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   }
 }
 
-export type ChannelTypeName = 'chat' | 'notebook' | 'gallery';
+export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'notes';
 
 const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
   {
@@ -56,6 +56,12 @@ const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
   },
   {
     title: 'Notebook',
+    subtitle: 'Collaborative markdown notebooks (requires %notes desk)',
+    value: 'notes',
+    icon: 'ChannelNotebooks',
+  },
+  {
+    title: 'Bulletin',
     subtitle: 'Longform publishing and discussion',
     value: 'notebook',
     icon: 'ChannelNotebooks',
