@@ -1,5 +1,5 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
-import { JSONContent, Story } from '@tloncorp/api/urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
@@ -17,12 +17,15 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
-import { MentionOption } from '../BareChatInput/useMentions';
-import { MentionPopupRef } from '../MentionPopup';
+import { type MentionOption } from '../BareChatInput/useMentions';
+import { type SlashCommandOption } from '../BareChatInput/useSlashCommands';
+import { type MentionPopupRef } from '../MentionPopup';
+import { type SlashCommandPopupRef } from '../SlashCommandPopup';
 import Notices from '../Wayfinding/Notices';
-import { GalleryDraftType, useDraftInputContext } from '../draftInputs/shared';
+import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
+import InputSlashCommandPopup from './InputSlashCommandPopup';
 
 export interface MessageInputProps {
   shouldBlur: boolean;
@@ -83,6 +86,7 @@ export const MessageInputContainer = memo(
     containerHeight,
     sendError,
     isMentionModeActive = false,
+    isSlashCommandModeActive = false,
     showAttachmentButton = true,
     floatingActionButton = false,
     showWayfindingTooltip = false,
@@ -90,12 +94,15 @@ export const MessageInputContainer = memo(
     isSending = false,
     mentionText,
     mentionOptions,
+    slashCommandOptions = [],
     onSelectMention,
+    onSelectSlashCommand,
     isEditing = false,
     cancelEditing,
     onPressEdit,
     goBack,
     mentionRef,
+    slashCommandRef,
     frameless = false,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
@@ -103,6 +110,7 @@ export const MessageInputContainer = memo(
     containerHeight: number;
     sendError: boolean;
     isMentionModeActive?: boolean;
+    isSlashCommandModeActive?: boolean;
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
     showWayfindingTooltip?: boolean;
@@ -110,12 +118,15 @@ export const MessageInputContainer = memo(
     isSending?: boolean;
     mentionText?: string;
     mentionOptions: MentionOption[];
+    slashCommandOptions?: SlashCommandOption[];
     onSelectMention: (option: MentionOption) => void;
+    onSelectSlashCommand?: (option: SlashCommandOption) => void;
     isEditing?: boolean;
     cancelEditing?: () => void;
     onPressEdit?: () => void;
     goBack?: () => void;
     mentionRef?: MentionPopupRef;
+    slashCommandRef?: SlashCommandPopupRef;
     frameless?: boolean;
   }>) => {
     const { canUpload } = useAttachmentContext();
@@ -140,6 +151,15 @@ export const MessageInputContainer = memo(
           onSelectMention={onSelectMention}
           ref={mentionRef}
         />
+        {onSelectSlashCommand ? (
+          <InputSlashCommandPopup
+            containerHeight={containerHeight}
+            isSlashCommandModeActive={isSlashCommandModeActive}
+            options={slashCommandOptions}
+            onSelectSlashCommand={onSelectSlashCommand}
+            ref={slashCommandRef}
+          />
+        ) : null}
         {!frameless ? (
           <XStack
             paddingVertical="$s"
