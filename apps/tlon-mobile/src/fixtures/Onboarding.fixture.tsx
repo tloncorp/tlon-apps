@@ -5,7 +5,7 @@ import { exampleContacts } from '@tloncorp/app/fixtures/contentHelpers';
 import { group } from '@tloncorp/app/fixtures/fakeData';
 import { Theme } from '@tloncorp/app/ui';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
-import { PropsWithChildren, useState } from 'react';
+import { PropsWithChildren, useEffect, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -41,25 +41,31 @@ const sampleUser = {
   requirePhoneNumberVerification: false,
 };
 
+function buildSampleLure(): AppInvite {
+  return {
+    id: group.id,
+    shouldAutoJoin: true,
+    inviterUserId: exampleContacts.ed.id,
+    inviterNickname: exampleContacts.ed.nickname,
+    invitedGroupId: group.id,
+    invitedGroupTitle: group.title ?? undefined,
+    invitedGroupDescription: group.description ?? undefined,
+    invitedGroupIconImageUrl: group.iconImage ?? undefined,
+    invitedGroupiconImageColor: group.iconImageColor ?? undefined,
+  };
+}
+
 function OnboardingFixture({
   hasGroupInvite,
   children,
 }: PropsWithChildren<{ hasGroupInvite: boolean }>) {
   const [lure, setLure] = useState<AppInvite | undefined>(
-    hasGroupInvite
-      ? {
-          id: group.id,
-          shouldAutoJoin: true,
-          inviterUserId: exampleContacts.ed.id,
-          inviterNickname: exampleContacts.ed.nickname,
-          invitedGroupId: group.id,
-          invitedGroupTitle: group.title ?? undefined,
-          invitedGroupDescription: group.description ?? undefined,
-          invitedGroupIconImageUrl: group.iconImage ?? undefined,
-          invitedGroupiconImageColor: group.iconImageColor ?? undefined,
-        }
-      : undefined
+    hasGroupInvite ? buildSampleLure() : undefined
   );
+
+  useEffect(() => {
+    setLure(hasGroupInvite ? buildSampleLure() : undefined);
+  }, [hasGroupInvite]);
 
   const [theme] = useFixtureSelect('themeName', {
     options: ['light', 'dark'],
@@ -126,13 +132,15 @@ function SingleScreenFixture<T extends keyof OnboardingStackParamList>({
   routeName,
   params,
   Component,
+  hasGroupInvite = true,
 }: {
   routeName: T;
   params?: OnboardingStackParamList[T];
   Component: React.ComponentType<any>;
+  hasGroupInvite?: boolean;
 }) {
   return (
-    <OnboardingFixture hasGroupInvite={true}>
+    <OnboardingFixture hasGroupInvite={hasGroupInvite}>
       <OnboardingStackNavigator.Navigator
         screenOptions={{ headerShown: false }}
       >
@@ -143,6 +151,20 @@ function SingleScreenFixture<T extends keyof OnboardingStackParamList>({
         />
       </OnboardingStackNavigator.Navigator>
     </OnboardingFixture>
+  );
+}
+
+function WelcomeFixture() {
+  const [invite] = useFixtureSelect('invite', {
+    options: ['preloaded', 'cold start'],
+    defaultValue: 'preloaded',
+  });
+  return (
+    <SingleScreenFixture
+      routeName="Welcome"
+      Component={WelcomeScreen}
+      hasGroupInvite={invite === 'preloaded'}
+    />
   );
 }
 
@@ -213,9 +235,7 @@ export default {
       Component={AllowNotificationsScreen}
     />
   ),
-  Welcome: (
-    <SingleScreenFixture routeName={'Welcome'} Component={WelcomeScreen} />
-  ),
+  Welcome: <WelcomeFixture />,
   InventoryCheck: (
     <SingleScreenFixture
       routeName={'InventoryCheck'}
