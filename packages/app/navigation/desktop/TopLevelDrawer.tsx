@@ -3,7 +3,6 @@ import {
   createDrawerNavigator,
 } from '@react-navigation/drawer';
 import { DrawerNavigationState } from '@react-navigation/native';
-import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import {
   Image,
@@ -23,6 +22,10 @@ import {
   useFocusedDesk,
   useOpenApps,
 } from '../../hooks/useOpenApps';
+import {
+  openPersonalInviteSheet,
+  usePersonalInviteSheetStore,
+} from '../../hooks/usePersonalInviteSheet';
 import {
   AvatarNavIcon,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
@@ -150,7 +153,8 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
   const lastHomeStateRef =
     useRef<DrawerNavigationState<RootDrawerParamList> | null>(null);
   const { isOpen, setIsOpen } = useGlobalSearch();
-  const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
+  const personalInviteOpen = usePersonalInviteSheetStore((s) => s.open);
+  const setPersonalInviteOpen = usePersonalInviteSheetStore((s) => s.setOpen);
 
   const isRouteActive = useCallback(
     (routeName: keyof RootDrawerParamList) => {
@@ -192,8 +196,7 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
   }, [props.navigation, isRouteActive]);
 
   const handlePersonalInvitePress = useCallback(() => {
-    db.hasViewedPersonalInvite.setValue(true);
-    setPersonalInviteOpen(true);
+    openPersonalInviteSheet();
   }, []);
 
   const openAppDesks = useOpenApps();
@@ -273,17 +276,6 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
             });
           }}
         />
-        <AvatarNavIcon
-          id={userId}
-          focused={isRouteActive('Contacts')}
-          onPress={() => {
-            saveHomeState();
-            props.navigation.reset({
-              index: 0,
-              routes: [{ name: 'Contacts' }],
-            });
-          }}
-        />
         {webAppNeedsUpdate && (
           <NavIcon
             backgroundColor="$yellow"
@@ -325,12 +317,16 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
         </YStack>
       </ScrollView>
       <YStack gap="$xl" alignItems="center">
-        <NavIcon
-          type="AddPerson"
-          isActive={false}
-          shouldShowUnreads={false}
-          onPress={handlePersonalInvitePress}
-          testID="PersonalInviteNavIcon"
+        <AvatarNavIcon
+          id={userId}
+          focused={isRouteActive('Contacts')}
+          onPress={() => {
+            saveHomeState();
+            props.navigation.reset({
+              index: 0,
+              routes: [{ name: 'Contacts' }],
+            });
+          }}
         />
         <NavIcon
           type="Settings"

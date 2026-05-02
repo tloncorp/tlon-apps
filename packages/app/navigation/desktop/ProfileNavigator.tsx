@@ -13,6 +13,7 @@ import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
 import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { openPersonalInviteSheet } from '../../hooks/usePersonalInviteSheet';
 import {
   ContactsScreenView,
   DESKTOP_SIDEBAR_WIDTH,
@@ -72,6 +73,13 @@ function DrawerContent(props: DrawerContentComponentProps) {
     <View height="100%">
       <ScreenHeader
         title="Contacts"
+        leftControls={
+          <ScreenHeader.IconButton
+            type="AddPerson"
+            testID="PersonalInviteButton"
+            onPress={openPersonalInviteSheet}
+          />
+        }
         rightControls={
           <ScreenHeader.IconButton
             type="Add"

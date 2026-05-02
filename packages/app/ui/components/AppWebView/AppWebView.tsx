@@ -31,6 +31,9 @@ interface AppWebViewProps {
   // the host screen is unfocused on desktop so ResizeObserver bursts during
   // drawer transitions don't thrash layout. The cached iframe is preserved.
   paused?: boolean;
+  // Called with the embedded document's title once it's loaded (web only;
+  // requires same-origin iframe).
+  onTitleChange?: (title: string) => void;
 }
 
 function PortalLoadingOverlay({
@@ -88,7 +91,12 @@ function InlineLoadingOverlay() {
   );
 }
 
-function AppWebViewWeb({ path, cacheKey, paused }: AppWebViewProps) {
+function AppWebViewWeb({
+  path,
+  cacheKey,
+  paused,
+  onTitleChange,
+}: AppWebViewProps) {
   const slotRef = useRef<HTMLDivElement | null>(null);
   const [showSpinner, setShowSpinner] = useState(false);
   const [overlayRect, setOverlayRect] = useState<{
@@ -117,6 +125,8 @@ function AppWebViewWeb({ path, cacheKey, paused }: AppWebViewProps) {
     if (handle.isLoaded()) {
       setShowSpinner(false);
       setOverlayRect(null);
+      const cachedTitle = handle.getTitle()?.trim();
+      if (cachedTitle && onTitleChange) onTitleChange(cachedTitle);
       return () => handle.detach();
     }
 
@@ -147,6 +157,8 @@ function AppWebViewWeb({ path, cacheKey, paused }: AppWebViewProps) {
         0,
         SPINNER_MIN_DURATION_MS - (Date.now() - startedAt)
       );
+      const loadedTitle = handle.getTitle()?.trim();
+      if (loadedTitle && onTitleChange) onTitleChange(loadedTitle);
       hideTimer = setTimeout(() => {
         setShowSpinner(false);
         setOverlayRect(null);
@@ -161,7 +173,7 @@ function AppWebViewWeb({ path, cacheKey, paused }: AppWebViewProps) {
       window.removeEventListener('scroll', sync, true);
       if (hideTimer) clearTimeout(hideTimer);
     };
-  }, [cacheKey, path, paused]);
+  }, [cacheKey, path, paused, onTitleChange]);
 
   return (
     <View flex={1} backgroundColor="$background">

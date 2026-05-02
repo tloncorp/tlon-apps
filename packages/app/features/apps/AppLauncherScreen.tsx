@@ -1,6 +1,6 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import * as store from '@tloncorp/shared/store';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useOpenApp } from '../../hooks/useOpenApps';
@@ -12,6 +12,9 @@ export function AppLauncherScreen() {
   const currentUserId = useCurrentUserId();
   const { data: apps = [], isLoading } = store.useInstalledApps();
   const openApp = useOpenApp();
+  useEffect(() => {
+    navigation.setOptions({ title: 'Apps' });
+  }, [navigation]);
 
   const handleSelectApp = useCallback(
     (app: store.InstalledApp) => {

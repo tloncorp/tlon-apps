@@ -8,7 +8,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { useSetFocusedDesk } from '../../hooks/useOpenApps';
@@ -45,6 +45,19 @@ export function AppViewerScreen() {
       return () => setFocusedDesk(null);
     }, [desk, setFocusedDesk])
   );
+
+  // Title falls back to the charge title; once the iframe loads we override
+  // with the embedded document's title (e.g., the page title set by the
+  // app's router). Pushed via `setOptions` so the documentTitle formatter
+  // (in app.tsx) honors it instead of defaulting to the screen name.
+  const [iframeTitle, setIframeTitle] = useState<string | null>(null);
+  useEffect(() => {
+    setIframeTitle(null);
+  }, [desk]);
+  const screenTitle = iframeTitle || charge?.title || desk || null;
+  useEffect(() => {
+    if (screenTitle) navigation.setOptions({ title: screenTitle });
+  }, [navigation, screenTitle]);
 
   // Native needs an absolute URL; web uses a relative path served by the same
   // ship that hosts Tlon.
@@ -86,6 +99,7 @@ export function AppViewerScreen() {
         path={path}
         cacheKey={`app:${desk}`}
         paused={!isFocused}
+        onTitleChange={setIframeTitle}
       />
     </View>
   );

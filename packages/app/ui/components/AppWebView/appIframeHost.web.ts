@@ -114,6 +114,9 @@ function forwardLeapShortcut(iframe: HTMLIFrameElement) {
 export interface AppIframeHandle {
   isLoaded: () => boolean;
   onLoad: (cb: () => void) => () => void;
+  // Title of the embedded document, or null if unavailable (cross-origin or
+  // not yet loaded).
+  getTitle: () => string | null;
   detach: () => void;
 }
 
@@ -167,6 +170,13 @@ export function mountAppIframe(
       }
       entry.loadListeners.add(cb);
       return () => entry.loadListeners.delete(cb);
+    },
+    getTitle: () => {
+      try {
+        return iframe.contentDocument?.title ?? null;
+      } catch {
+        return null;
+      }
     },
     detach: () => {
       if (detached) return;

@@ -4,6 +4,7 @@
 export interface AppIframeHandle {
   isLoaded: () => boolean;
   onLoad: (cb: () => void) => () => void;
+  getTitle: () => string | null;
   detach: () => void;
 }
 
