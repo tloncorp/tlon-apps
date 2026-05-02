@@ -1,4 +1,3 @@
-// tamagui-ignore
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Icon, Pressable, Text } from '@tloncorp/ui';

@@ -1,0 +1,20 @@
+diff --git a/dist/extractor/createExtractor.cjs b/dist/extractor/createExtractor.cjs
+index c4c98ccfe174026689f29ed3cbd1576650e30c19..61ea6c233b7eeae062794a27d54dd993f2867e7b 100644
+--- a/dist/extractor/createExtractor.cjs
++++ b/dist/extractor/createExtractor.cjs
+@@ -854,6 +854,7 @@ function createExtractor({
+                   if (isTargetingHTML) {
+                     out = reactNativeWebInternals.createDOMProps(isTextView ? "span" : "div", out);
+                     delete out.className;
++                    delete out.style;
+                   }
+                 }
+                 let didInline = false;
+@@ -1483,6 +1484,7 @@ function createExtractor({
+                       const cn = out.className;
+                       out = reactNativeWebInternals.createDOMProps(isTextView ? "span" : "div", out);
+                       out.className = cn;
++                      delete out.style;
+                     }
+                     if (shouldPrintDebug) {
+                       logger.info([" - expanded variant", name, out].join(" "));
