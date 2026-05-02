@@ -1,10 +1,10 @@
 // Persistent iframe host (web only).
 //
-// Mounting and unmounting the notes WebView inside a screen would force the
-// iframe to reload on every channel visit. Instead, we keep one iframe per
-// notebook flag alive in a top-level fixed-position container and sync its
-// bounding box to a placeholder slot rendered by the channel screen. When the
-// screen unmounts, we just hide the iframe — its state is preserved.
+// Mounting and unmounting an embedded Urbit app inside a screen would force
+// the iframe to reload on every visit. Instead, we keep one iframe per cache
+// key alive in a top-level fixed-position container and sync its bounding box
+// to a placeholder slot rendered by the screen. When the screen unmounts, we
+// just hide the iframe — its state is preserved.
 
 interface CachedIframe {
   iframe: HTMLIFrameElement;
@@ -19,24 +19,27 @@ let hostContainer: HTMLDivElement | null = null;
 function getHost(): HTMLDivElement {
   if (!hostContainer) {
     hostContainer = document.createElement('div');
-    hostContainer.setAttribute('data-notes-iframe-host', '');
+    hostContainer.setAttribute('data-app-iframe-host', '');
     hostContainer.style.position = 'fixed';
     hostContainer.style.top = '0';
     hostContainer.style.left = '0';
     hostContainer.style.width = '0';
     hostContainer.style.height = '0';
     hostContainer.style.pointerEvents = 'none';
+    // Iframes are appended to <body> as siblings of the React root, so we
+    // pin them low in the stacking order; in-app overlays (Leap, sheets)
+    // can claim higher z-index values.
+    hostContainer.style.zIndex = '0';
     document.body.appendChild(hostContainer);
   }
   return hostContainer;
 }
 
 function getOrCreate(key: string, src: string): CachedIframe {
-  let entry = iframes.get(key);
+  const entry = iframes.get(key);
   if (entry && entry.src === src) {
     return entry;
   }
-  // If src changed for the same key, drop and recreate.
   if (entry && entry.iframe.parentNode) {
     entry.iframe.parentNode.removeChild(entry.iframe);
   }
@@ -47,6 +50,7 @@ function getOrCreate(key: string, src: string): CachedIframe {
   iframe.style.border = 'none';
   iframe.style.background = 'transparent';
   iframe.style.display = 'none';
+  iframe.style.zIndex = '0';
   getHost().appendChild(iframe);
 
   const created: CachedIframe = {
@@ -63,17 +67,17 @@ function getOrCreate(key: string, src: string): CachedIframe {
   return created;
 }
 
-export interface NotesIframeHandle {
+export interface AppIframeHandle {
   isLoaded: () => boolean;
   onLoad: (cb: () => void) => () => void;
   detach: () => void;
 }
 
-export function mountNotesIframe(
+export function mountAppIframe(
   key: string,
   src: string,
   slot: HTMLElement
-): NotesIframeHandle {
+): AppIframeHandle {
   const entry = getOrCreate(key, src);
   const { iframe } = entry;
 
@@ -93,7 +97,6 @@ export function mountNotesIframe(
   const ro =
     typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
   ro?.observe(slot);
-  // Also observe the body so layout shifts elsewhere keep the iframe aligned.
   ro?.observe(document.body);
   window.addEventListener('resize', sync);
   window.addEventListener('scroll', sync, true);
@@ -103,7 +106,6 @@ export function mountNotesIframe(
     isLoaded: () => entry.loaded,
     onLoad: (cb) => {
       if (entry.loaded) {
-        // Fire on next tick so callers can complete their setup first.
         const id = window.setTimeout(cb, 0);
         return () => window.clearTimeout(id);
       }

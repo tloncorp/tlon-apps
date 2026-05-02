@@ -1,3 +1,4 @@
+export * from './color';
 export * from './storage';
 export * from './haptics';
 export * from './formatUtils';

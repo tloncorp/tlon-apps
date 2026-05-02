@@ -1,7 +1,11 @@
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import type * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import { Portal } from 'tamagui';
 
+import { useOpenApp } from '../../hooks/useOpenApps';
+import type { CombinedParamList } from '../../navigation/types';
 import {
   TextInput,
   TextInputRef,
@@ -11,7 +15,7 @@ import {
   YStack,
   useGlobalSearch,
 } from '../../ui';
-import { FilteredChatList, FilteredChatListRef } from './FilteredChatList';
+import { FilteredLeapList, FilteredLeapListRef } from './FilteredLeapList';
 
 export interface GlobalSearchProps {
   navigateToGroup: (id: string) => void;
@@ -25,7 +29,9 @@ export function GlobalSearch({
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<TextInputRef>(null);
-  const listRef = useRef<FilteredChatListRef>(null);
+  const listRef = useRef<FilteredLeapListRef>(null);
+  const navigation = useNavigation<NavigationProp<CombinedParamList>>();
+  const openApp = useOpenApp();
 
   const onPressItem = useCallback(
     async (item: db.Chat) => {
@@ -38,6 +44,25 @@ export function GlobalSearch({
     },
     [navigateToGroup, navigateToChannel, setIsOpen]
   );
+
+  const onPressApp = useCallback(
+    (desk: string, alreadyOpen: boolean) => {
+      if (!alreadyOpen) openApp(desk);
+      // The drawer 'Apps' route nests an inner stack; on mobile we navigate
+      // directly to the AppViewer screen registered on the root stack.
+      navigation.navigate('Apps', {
+        screen: 'AppViewer',
+        params: { desk },
+      });
+      setIsOpen(false);
+    },
+    [navigation, openApp, setIsOpen]
+  );
+
+  const onPressLauncher = useCallback(() => {
+    navigation.navigate('Apps', { screen: 'AppLauncher' });
+    setIsOpen(false);
+  }, [navigation, setIsOpen]);
 
   const handleNavigationKey = useCallback(
     (key: string) => {
@@ -116,7 +141,7 @@ export function GlobalSearch({
   if (!isOpen) return null;
 
   return (
-    <>
+    <Portal>
       <View
         // eslint-disable-next-line
         onPress={() => {
@@ -129,7 +154,7 @@ export function GlobalSearch({
           right: 0,
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 50,
+          zIndex: 9999,
         }}
       />
 
@@ -138,7 +163,7 @@ export function GlobalSearch({
         top="20%"
         left="50%"
         borderRadius="$l"
-        zIndex={51}
+        zIndex={10000}
         backgroundColor="$background"
         transform="translateX(-50%)"
         padding="$l"
@@ -169,10 +194,12 @@ export function GlobalSearch({
         />
         <YStack gap="$m" style={{ maxHeight: 400, overflowY: 'scroll' }}>
           {isOpen && (
-            <FilteredChatList
+            <FilteredLeapList
               searchQuery={searchQuery}
               ref={listRef}
-              onPressItem={onPressItem}
+              onPressApp={onPressApp}
+              onPressChat={onPressItem}
+              onPressLauncher={onPressLauncher}
             />
           )}
         </YStack>
@@ -210,6 +237,6 @@ export function GlobalSearch({
           </XStack>
         </XStack>
       </YStack>
-    </>
+    </Portal>
   );
 }

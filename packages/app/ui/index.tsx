@@ -1,7 +1,9 @@
 export * from './components/ActionSheet';
 export * from './components/Activity/ActivityScreenView';
 export * from './components/AddContactsView';
+export * from './components/AppLauncherView';
 export * from './components/AppSetting';
+export * from './components/AppWebView';
 export * from './components/ArvosDiscussing';
 export * from './components/Avatar';
 export { GroupAvatar } from './components/GroupAvatar';

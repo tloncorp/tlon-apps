@@ -10,12 +10,14 @@ export const NavBarView = ({
   navigateToHome,
   navigateToNotifications,
   navigateToContacts,
+  navigateToApps,
   currentRoute,
   currentUserId,
 }: {
   navigateToHome: () => void;
   navigateToNotifications: () => void;
   navigateToContacts?: () => void;
+  navigateToApps?: () => void;
   currentRoute: string;
   currentUserId: string;
   showContactsTab?: boolean;
@@ -67,6 +69,14 @@ export const NavBarView = ({
         isActive={isRouteActive('Activity')}
         onPress={navigateToNotifications}
       />
+      {navigateToApps && (
+        <NavIcon
+          type="Discover"
+          isActive={isRouteActive(['AppLauncher', 'AppViewer'])}
+          hasUnreads={false}
+          onPress={navigateToApps}
+        />
+      )}
       <AvatarNavIcon
         id={currentUserId}
         focused={isRouteActive('Contacts')}

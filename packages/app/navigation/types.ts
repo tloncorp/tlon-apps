@@ -11,6 +11,8 @@ export type RootStackParamList = {
   ChatList: { previewGroupId: string } | undefined;
   Activity: undefined;
   Settings: undefined;
+  AppLauncher: undefined;
+  AppViewer: { desk: string };
   DM: {
     channelId: string;
     selectedPostId?: string | null;
@@ -113,6 +115,7 @@ export type RootStackNavigationProp = NavigationProp<RootStackParamList>;
 export type RootDrawerParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList>;
   Messages: NavigatorScreenParams<HomeDrawerParamList>;
+  Apps: NavigatorScreenParams<AppsDrawerParamList>;
 } & Pick<RootStackParamList, 'Activity' | 'Contacts' | 'Settings'>;
 
 // hack: adding the true contacts types causes lots of tsc failures that need
@@ -145,6 +148,10 @@ export type ProfileDrawerParamList = Pick<
   RootStackParamList,
   'Contacts' | 'AddContacts' | 'UserProfile'
 >;
+
+export type AppsDrawerParamList = {
+  AppLauncher: undefined;
+} & Pick<RootStackParamList, 'AppViewer'>;
 
 export type SettingsDrawerParamList = Pick<
   RootStackParamList,

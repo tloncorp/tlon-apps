@@ -136,6 +136,9 @@ export default function ContactsScreen(props: Props) {
             navigateToNotifications={() => {
               navigate('Activity');
             }}
+            navigateToApps={() => {
+              navigate('AppLauncher');
+            }}
             currentRoute="Contacts"
             currentUserId={currentUser}
           />
