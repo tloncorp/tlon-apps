@@ -11,6 +11,7 @@ import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 
+import { useSetFocusedDesk } from '../../hooks/useOpenApps';
 import {
   AppWebView,
   ScreenHeader,
@@ -35,10 +36,14 @@ export function AppViewerScreen() {
     [apps, desk]
   );
 
+  const setFocusedDesk = useSetFocusedDesk();
   useFocusEffect(
     useCallback(() => {
-      if (desk) store.recordVisit({ kind: 'app', id: desk });
-    }, [desk])
+      if (!desk) return;
+      store.recordVisit({ kind: 'app', id: desk });
+      setFocusedDesk(desk);
+      return () => setFocusedDesk(null);
+    }, [desk, setFocusedDesk])
   );
 
   // Native needs an absolute URL; web uses a relative path served by the same

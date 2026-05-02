@@ -51,6 +51,12 @@ function getOrCreate(key: string, src: string): CachedIframe {
   iframe.style.background = 'transparent';
   iframe.style.display = 'none';
   iframe.style.zIndex = '0';
+  // Hide the iframe until its document fires `load`. The embedded page's
+  // body usually paints solid white before content renders, which would
+  // otherwise cover the spinner the React side shows during loading.
+  // opacity:0 (vs display:none) keeps the document loading in browsers
+  // that throttle hidden iframes.
+  iframe.style.opacity = '0';
   getHost().appendChild(iframe);
 
   const created: CachedIframe = {
@@ -61,10 +67,48 @@ function getOrCreate(key: string, src: string): CachedIframe {
   };
   iframe.addEventListener('load', () => {
     created.loaded = true;
+    iframe.style.opacity = '1';
+    forwardLeapShortcut(iframe);
     created.loadListeners.forEach((fn) => fn());
   });
   iframes.set(key, created);
   return created;
+}
+
+// Cmd/Ctrl+K pressed inside the embedded app's document needs to open Leap
+// in the parent. Tlon's iframes are same-origin (served by the same ship),
+// so we attach a capture-phase keydown listener on the iframe's document
+// and stop propagation so the embedded app's own Cmd+K binding (e.g.
+// Landscape's Leap) never sees the event. The captured event is re-fired
+// on the host document so Tlon's GlobalSearch listener picks it up. The
+// try/catch protects against any future cross-origin iframe.
+function forwardLeapShortcut(iframe: HTMLIFrameElement) {
+  try {
+    const innerDoc = iframe.contentDocument;
+    if (!innerDoc) return;
+    innerDoc.addEventListener(
+      'keydown',
+      (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          document.dispatchEvent(
+            new KeyboardEvent('keydown', {
+              key: 'k',
+              metaKey: e.metaKey,
+              ctrlKey: e.ctrlKey,
+              bubbles: true,
+              cancelable: true,
+            })
+          );
+        }
+      },
+      true
+    );
+  } catch {
+    // cross-origin: nothing we can do
+  }
 }
 
 export interface AppIframeHandle {
@@ -83,6 +127,7 @@ export function mountAppIframe(
 
   iframe.style.display = 'block';
   iframe.style.pointerEvents = 'auto';
+  iframe.style.opacity = entry.loaded ? '1' : '0';
 
   // Layout sync is RAF-throttled. Without this, ResizeObserver bursts during
   // a drawer transition cause synchronous getBoundingClientRect + style

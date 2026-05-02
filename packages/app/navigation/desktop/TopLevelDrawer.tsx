@@ -18,7 +18,11 @@ import { ScrollView, Square, View, getVariableValue, useTheme } from 'tamagui';
 
 import { GlobalSearch } from '../../features/chat-list/GlobalSearch';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import { useCloseApp, useOpenApps } from '../../hooks/useOpenApps';
+import {
+  useCloseApp,
+  useFocusedDesk,
+  useOpenApps,
+} from '../../hooks/useOpenApps';
 import {
   AvatarNavIcon,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
@@ -201,17 +205,10 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
       .filter((a): a is store.InstalledApp => !!a);
   }, [openAppDesks, installedApps]);
 
-  // Read the currently-focused desk from the nested Apps stack so we can
-  // highlight the matching sidebar tile.
-  const activeDesk = useMemo<string | null>(() => {
-    const appsRoute = props.state.routes.find((r) => r.name === 'Apps');
-    const stack = appsRoute?.state;
-    if (!stack || stack.index == null) return null;
-    const focused = stack.routes[stack.index];
-    if (focused?.name !== 'AppViewer') return null;
-    const params = focused.params as { desk?: string } | undefined;
-    return params?.desk ?? null;
-  }, [props.state]);
+  // Driven by AppViewerScreen's useFocusEffect — more reliable than reading
+  // the nested drawer state, which doesn't always reflect changes made via
+  // navigation calls from outside the drawer (e.g. from Leap).
+  const activeDesk = useFocusedDesk();
 
   const goToOpenApp = useCallback(
     (desk: string) => {
