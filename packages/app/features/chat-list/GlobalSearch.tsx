@@ -33,36 +33,46 @@ export function GlobalSearch({
   const navigation = useNavigation<NavigationProp<CombinedParamList>>();
   const openApp = useOpenApp();
 
+  // Close Leap immediately, then fire navigation on the next frame so
+  // React can finish unmounting the heavy FlashList before the destination
+  // screen starts mounting. Without this defer, both happen in the same
+  // commit and feel like a 100–300ms hitch on Enter.
+  const deferNavigate = useCallback((fn: () => void) => {
+    setIsOpen(false);
+    requestAnimationFrame(fn);
+  }, [setIsOpen]);
+
   const onPressItem = useCallback(
-    async (item: db.Chat) => {
-      if (item.type === 'group') {
-        navigateToGroup(item.group.id);
-      } else {
-        navigateToChannel(item.channel);
-      }
-      setIsOpen(false);
+    (item: db.Chat) => {
+      deferNavigate(() => {
+        if (item.type === 'group') {
+          navigateToGroup(item.group.id);
+        } else {
+          navigateToChannel(item.channel);
+        }
+      });
     },
-    [navigateToGroup, navigateToChannel, setIsOpen]
+    [navigateToGroup, navigateToChannel, deferNavigate]
   );
 
   const onPressApp = useCallback(
     (desk: string, alreadyOpen: boolean) => {
       if (!alreadyOpen) openApp(desk);
-      // The drawer 'Apps' route nests an inner stack; on mobile we navigate
-      // directly to the AppViewer screen registered on the root stack.
-      navigation.navigate('Apps', {
-        screen: 'AppViewer',
-        params: { desk },
+      deferNavigate(() => {
+        navigation.navigate('Apps', {
+          screen: 'AppViewer',
+          params: { desk },
+        });
       });
-      setIsOpen(false);
     },
-    [navigation, openApp, setIsOpen]
+    [navigation, openApp, deferNavigate]
   );
 
   const onPressLauncher = useCallback(() => {
-    navigation.navigate('Apps', { screen: 'AppLauncher' });
-    setIsOpen(false);
-  }, [navigation, setIsOpen]);
+    deferNavigate(() => {
+      navigation.navigate('Apps', { screen: 'AppLauncher' });
+    });
+  }, [navigation, deferNavigate]);
 
   const handleNavigationKey = useCallback(
     (key: string) => {
@@ -138,6 +148,19 @@ export function GlobalSearch({
     }
   }, [isOpen]);
 
+  // The FlashList of recents/apps/chats is the slowest part of Leap on first
+  // open. Defer mounting it one frame so the panel chrome paints first and
+  // the input is immediately usable.
+  const [listMounted, setListMounted] = useState(false);
+  useEffect(() => {
+    if (!isOpen) {
+      setListMounted(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => setListMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -147,6 +170,7 @@ export function GlobalSearch({
         onPress={() => {
           setIsOpen(false);
         }}
+        pointerEvents="auto"
         style={{
           position: 'fixed',
           top: 0,
@@ -160,6 +184,7 @@ export function GlobalSearch({
 
       <YStack
         position="absolute"
+        pointerEvents="auto"
         top="20%"
         left="50%"
         borderRadius="$l"
@@ -193,7 +218,7 @@ export function GlobalSearch({
           autoCapitalize="none"
         />
         <YStack gap="$m" style={{ maxHeight: 400, overflowY: 'scroll' }}>
-          {isOpen && (
+          {isOpen && listMounted && (
             <FilteredLeapList
               searchQuery={searchQuery}
               ref={listRef}

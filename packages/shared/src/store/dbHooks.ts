@@ -91,6 +91,21 @@ export const useInstalledApps = () => {
   });
 };
 
+// Recents log used by Leap (recently-visited channels/apps) and by mention
+// autocomplete (recently-mentioned contacts). Pure recency ordering, with
+// frequency tracked alongside if we want to layer in frecency later.
+export const useRecents = (args: {
+  scope: string;
+  kind?: string;
+  limit?: number;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getRecents);
+  return useQuery({
+    queryKey: ['recents', deps, args.scope, args.kind, args.limit ?? 10],
+    queryFn: () => db.getRecents(args),
+  });
+};
+
 // Scry %notes once to detect whether the notes desk is installed on the
 // user's ship. Used to gate notes-specific UI (channel-creation option,
 // 'Bulletin' rename, etc.). Defaults to false until the scry resolves.

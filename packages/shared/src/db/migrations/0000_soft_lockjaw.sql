@@ -378,6 +378,15 @@ CREATE INDEX `posts_channel_id` ON `posts` (`channel_id`,`id`);--> statement-bre
 CREATE INDEX `posts_group_id` ON `posts` (`group_id`,`id`);--> statement-breakpoint
 CREATE INDEX `posts_author_id_index` ON `posts` (`author_id`);--> statement-breakpoint
 CREATE INDEX `posts_parent_id_index` ON `posts` (`parent_id`);--> statement-breakpoint
+CREATE TABLE `recents` (
+	`scope` text NOT NULL,
+	`kind` text NOT NULL,
+	`target_id` text NOT NULL,
+	`last_visited_at` integer NOT NULL,
+	`count` integer DEFAULT 1 NOT NULL,
+	PRIMARY KEY(`scope`, `kind`, `target_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `settings` (
 	`id` text PRIMARY KEY DEFAULT 'settings' NOT NULL,
 	`theme` text,

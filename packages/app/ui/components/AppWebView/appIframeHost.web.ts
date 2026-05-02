@@ -84,7 +84,12 @@ export function mountAppIframe(
   iframe.style.display = 'block';
   iframe.style.pointerEvents = 'auto';
 
-  const sync = () => {
+  // Layout sync is RAF-throttled. Without this, ResizeObserver bursts during
+  // a drawer transition cause synchronous getBoundingClientRect + style
+  // writes on every event, thrashing layout on the main thread.
+  let rafId = 0;
+  const doSync = () => {
+    rafId = 0;
     if (!slot.isConnected) return;
     const rect = slot.getBoundingClientRect();
     iframe.style.left = `${rect.left}px`;
@@ -92,7 +97,13 @@ export function mountAppIframe(
     iframe.style.width = `${rect.width}px`;
     iframe.style.height = `${rect.height}px`;
   };
-  sync();
+  const sync = () => {
+    if (rafId !== 0) return;
+    rafId = window.requestAnimationFrame(doSync);
+  };
+  // Initial position is synchronous so the iframe doesn't flash at a wrong
+  // location before the first frame runs.
+  doSync();
 
   const ro =
     typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null;
@@ -115,6 +126,10 @@ export function mountAppIframe(
     detach: () => {
       if (detached) return;
       detached = true;
+      if (rafId !== 0) {
+        window.cancelAnimationFrame(rafId);
+        rafId = 0;
+      }
       ro?.disconnect();
       window.removeEventListener('resize', sync);
       window.removeEventListener('scroll', sync, true);

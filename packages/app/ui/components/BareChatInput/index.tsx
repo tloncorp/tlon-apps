@@ -12,6 +12,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
+import * as sharedStore from '@tloncorp/shared/store';
 import {
   HEADER_HEIGHT,
   LoadingSpinner,
@@ -403,6 +404,12 @@ function BareChatInput(
 
       if (!newText) {
         return;
+      }
+
+      // Track recently-mentioned contacts so future mention autocomplete can
+      // surface them. Skip group mentions (roles, "All").
+      if (option.type === 'contact') {
+        sharedStore.recordMention({ kind: 'contact', id: option.id });
       }
 
       setControlledText(newText);

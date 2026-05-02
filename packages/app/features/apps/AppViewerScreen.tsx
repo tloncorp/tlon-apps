@@ -1,8 +1,14 @@
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import {
+  RouteProp,
+  useFocusEffect,
+  useIsFocused,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
 
 import {
@@ -19,6 +25,7 @@ export function AppViewerScreen() {
   const route = useRoute<RouteProp<AppViewerRouteParams, 'AppViewer'>>();
   const navigation = useNavigation();
   const isWindowNarrow = useIsWindowNarrow();
+  const isFocused = useIsFocused();
   const { data: apps = [] } = store.useInstalledApps();
   const shipInfo = db.shipInfo.useValue();
 
@@ -26,6 +33,12 @@ export function AppViewerScreen() {
   const charge = useMemo(
     () => apps.find((app) => app.desk === desk),
     [apps, desk]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (desk) store.recordVisit({ kind: 'app', id: desk });
+    }, [desk])
   );
 
   // Native needs an absolute URL; web uses a relative path served by the same
@@ -67,6 +80,7 @@ export function AppViewerScreen() {
         shipUrl={shipUrl}
         path={path}
         cacheKey={`app:${desk}`}
+        paused={!isFocused}
       />
     </View>
   );

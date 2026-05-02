@@ -83,6 +83,7 @@ export default function ChannelScreen(props: Props) {
       // Mark the channel as visited when we unfocus/leave this screen
       if (!channelIsPending) {
         store.markChannelVisited(channelId);
+        store.recordVisit({ kind: 'channel', id: channelId });
       }
 
       // Mark wayfinding channels as visited if needed

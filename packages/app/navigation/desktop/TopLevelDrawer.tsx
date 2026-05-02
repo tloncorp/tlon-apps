@@ -303,10 +303,10 @@ const DrawerContent = (props: DrawerContentComponentProps) => {
           testID="AppsNavIcon"
           onPress={() => {
             saveHomeState();
-            props.navigation.reset({
-              index: 0,
-              routes: [{ name: 'Apps' }],
-            });
+            // Explicit nested navigation pops any open AppViewer back to
+            // the launcher so the icon's active state matches what's
+            // actually rendered.
+            props.navigation.navigate('Apps', { screen: 'AppLauncher' });
           }}
         />
       </YStack>

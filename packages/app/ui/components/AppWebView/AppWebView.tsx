@@ -17,6 +17,10 @@ interface AppWebViewProps {
   // Identity for iframe caching on web. Two AppWebViews with the same key
   // will share an iframe across mount/unmount cycles, preserving state.
   cacheKey: string;
+  // When true, detach the iframe (display: none + observers off). Used while
+  // the host screen is unfocused on desktop so ResizeObserver bursts during
+  // drawer transitions don't thrash layout. The cached iframe is preserved.
+  paused?: boolean;
 }
 
 function LoadingOverlay() {
@@ -37,11 +41,12 @@ function LoadingOverlay() {
   );
 }
 
-function AppWebViewWeb({ path, cacheKey }: AppWebViewProps) {
+function AppWebViewWeb({ path, cacheKey, paused }: AppWebViewProps) {
   const slotRef = useRef<HTMLDivElement | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    if (paused) return;
     const slot = slotRef.current;
     if (!slot) return;
     const handle = mountAppIframe(cacheKey, path, slot);
@@ -51,12 +56,12 @@ function AppWebViewWeb({ path, cacheKey }: AppWebViewProps) {
       unsubscribe();
       handle.detach();
     };
-  }, [cacheKey, path]);
+  }, [cacheKey, path, paused]);
 
   return (
     <View flex={1} backgroundColor="$background">
       <div ref={slotRef} style={{ flex: 1, width: '100%', height: '100%' }} />
-      {!loaded && <LoadingOverlay />}
+      {!loaded && !paused && <LoadingOverlay />}
     </View>
   );
 }

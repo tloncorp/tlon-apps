@@ -204,48 +204,84 @@ export const FilteredLeapList = React.memo(
     const { data: installed = [] } = store.useInstalledApps();
     const openDesks = useOpenApps();
     const openSet = useMemo(() => new Set(openDesks), [openDesks]);
+    const { data: recents = [] } = store.useRecents({
+      scope: 'visit',
+      limit: 8,
+    });
+
+    // Index installed apps and chats by id so we can resolve a recents row
+    // (which only carries a target_id) into a renderable model. Chats that
+    // no longer exist (left channel, etc.) and apps that aren't installed
+    // anymore are silently skipped.
+    const appByDesk = useMemo(() => {
+      const map = new Map<string, store.InstalledApp>();
+      for (const app of installed) map.set(app.desk, app);
+      return map;
+    }, [installed]);
+    const chatById = useMemo(() => {
+      const map = new Map<string, db.Chat>();
+      const all = [
+        ...resolvedChats.pinned,
+        ...resolvedChats.unpinned,
+      ];
+      for (const chat of all) map.set(chat.id, chat);
+      return map;
+    }, [resolvedChats]);
 
     const items = useMemo<LeapItem[]>(() => {
       const q = searchQuery.trim().toLowerCase();
-      const matches = (a: store.InstalledApp) =>
-        !q ||
-        a.title.toLowerCase().includes(q) ||
-        a.desk.toLowerCase().includes(q);
-
-      const active: store.InstalledApp[] = [];
-      const others: store.InstalledApp[] = [];
-      for (const app of installed) {
-        if (!matches(app)) continue;
-        if (openSet.has(app.desk)) active.push(app);
-        else others.push(app);
-      }
-
       const out: LeapItem[] = [];
-      if (active.length > 0) {
-        out.push({ type: 'header', title: 'Active', key: 'header:active' });
-        for (const app of active) {
-          out.push({
-            type: 'app',
-            app,
-            isOpen: true,
-            key: `app:${app.desk}`,
-          });
-        }
-      }
 
       if (!q) {
-        // No query: collapse the rest of the apps into a single "open
-        // launcher" entry instead of listing them individually.
+        // No query: lead with the recents log, then a launcher entry, then
+        // the full chat list.
+        const recentItems: LeapItem[] = [];
+        for (const r of recents) {
+          if (r.kind === 'app') {
+            const app = appByDesk.get(r.targetId);
+            if (!app) continue;
+            recentItems.push({
+              type: 'app',
+              app,
+              isOpen: openSet.has(app.desk),
+              key: `recent:app:${app.desk}`,
+            });
+          } else if (r.kind === 'channel') {
+            const chat = chatById.get(r.targetId);
+            if (!chat) continue;
+            recentItems.push({
+              type: 'chat',
+              chat,
+              key: `recent:chat:${chat.type}:${chat.id}`,
+            });
+          }
+        }
+        if (recentItems.length > 0) {
+          out.push({ type: 'header', title: 'Recents', key: 'header:recents' });
+          out.push(...recentItems);
+        }
         out.push({ type: 'launcher', key: 'launcher' });
-      } else if (others.length > 0) {
-        out.push({ type: 'header', title: 'Apps', key: 'header:apps' });
-        for (const app of others) {
-          out.push({
-            type: 'app',
-            app,
-            isOpen: false,
-            key: `app:${app.desk}`,
-          });
+      } else {
+        // Query present: surface individual matching apps so they can be
+        // launched/switched directly.
+        const matches = (a: store.InstalledApp) =>
+          a.title.toLowerCase().includes(q) ||
+          a.desk.toLowerCase().includes(q);
+
+        const matched: store.InstalledApp[] = [];
+        for (const app of installed) {
+          if (matches(app)) matched.push(app);
+        }
+        if (matched.length > 0) {
+          out.push({ type: 'header', title: 'Apps', key: 'header:apps' });
+          for (const app of matched) {
+            out.push({
+              type: 'app',
+              app,
+              isOpen: openSet.has(app.desk),
+              key: `app:${app.desk}`,
+            });
+          }
         }
       }
 
@@ -261,7 +297,15 @@ export const FilteredLeapList = React.memo(
         }
       }
       return out;
-    }, [chatSections, installed, openSet, searchQuery]);
+    }, [
+      appByDesk,
+      chatById,
+      chatSections,
+      installed,
+      openSet,
+      recents,
+      searchQuery,
+    ]);
 
     const firstSelectableIndex = useMemo(() => {
       const i = items.findIndex(isSelectable);
