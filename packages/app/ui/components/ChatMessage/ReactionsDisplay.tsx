@@ -145,7 +145,6 @@ export function ReactionsDisplay({
                 borderRadius="$s"
                 cursor="pointer"
                 onPress={() => handleModifyYourReaction(reaction.value)}
-                onLongPress={() => handleOpenReactions(post)}
                 testID="ReactionDisplay"
               >
                 <XStack
