@@ -319,6 +319,11 @@ export const userHasPersonalGroup = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const splashNickname = createStorageItem<string>({
+  key: 'splashNickname',
+  defaultValue: '',
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {
@@ -330,6 +335,7 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
     tappedAddNote: true,
     tappedAddCollection: true,
     tappedChatInput: true,
+    tappedBotMention: true,
   },
 });
 

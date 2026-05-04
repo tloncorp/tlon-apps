@@ -295,3 +295,358 @@ describe('mergePendingPosts Edge Cases', () => {
     expect(mergedSentAts).toEqual([5, 3]);
   });
 });
+
+// TLON-5606 consumer contract: optimistic rows explicitly cleared by the user
+// (via `deleteFromChannelPosts` → `deletedPosts[postId] = true`) must not
+// re-enter the merged output from `newPosts` or `pendingPosts`, even in
+// chat-style views where `filterDeleted` is false. Confirmed-row tombstones
+// from `existingPosts` are unaffected.
+describe('mergePendingPosts locally-cleared optimistic rows', () => {
+  test('drops a deleted optimistic row from newPosts even when filterDeleted is false', () => {
+    const optimistic = {
+      ...makePost(10),
+      id: 'optimistic-1',
+      sequenceNum: 0,
+      deliveryStatus: 'failed' as const,
+    };
+
+    const mergedIds = mergePendingPosts({
+      newPosts: [optimistic],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [optimistic.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    }).map((p) => p.id);
+
+    expect(mergedIds).not.toContain(optimistic.id);
+  });
+
+  test('drops a deleted optimistic row from pendingPosts even when filterDeleted is false', () => {
+    const optimistic = {
+      ...makePost(10),
+      id: 'optimistic-1',
+      sequenceNum: 0,
+      deliveryStatus: 'failed' as const,
+    };
+
+    const mergedIds = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [optimistic],
+      existingPosts: [],
+      deletedPosts: { [optimistic.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    }).map((p) => p.id);
+
+    expect(mergedIds).not.toContain(optimistic.id);
+  });
+
+  test('leaves confirmed existingPosts rows in place even if they share an id with deletedPosts', () => {
+    // Confirmed tombstones are meant to keep rendering in chat-like views.
+    // `deletedPosts` is the session-local signal for optimistic clears, so we
+    // only filter the live merge inputs, not `existingPosts`.
+    const confirmed = {
+      ...makePost(10),
+      id: 'confirmed-1',
+      sequenceNum: 5,
+    };
+    const mergedIds = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [],
+      existingPosts: [confirmed],
+      deletedPosts: { [confirmed.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    }).map((p) => p.id);
+
+    expect(mergedIds).toContain(confirmed.id);
+  });
+
+  test('keeps a confirmed server-echo row in newPosts during the catch-up window even when deletedPosts[id] is true', () => {
+    // `newPosts` transiently holds confirmed echoes before the main query
+    // catches up. Deleting one of those mid-session should not make the row
+    // disappear entirely — chat / DM views still want to render it as a
+    // tombstone. Only the unconfirmed (`sequenceNum === 0`) rows should be
+    // filtered out by the session-local `deletedPosts` overlay.
+    const confirmedEcho = {
+      ...makePost(10),
+      id: 'confirmed-echo-1',
+      sequenceNum: 42,
+    };
+    const optimistic = {
+      ...makePost(20),
+      id: 'optimistic-1',
+      sequenceNum: 0,
+      deliveryStatus: 'failed' as const,
+    };
+    const mergedIds = mergePendingPosts({
+      newPosts: [optimistic, confirmedEcho],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: {
+        [confirmedEcho.id]: true,
+        [optimistic.id]: true,
+      },
+      hasNewest: true,
+      filterDeleted: false,
+    }).map((p) => p.id);
+
+    expect(mergedIds).toContain(confirmedEcho.id);
+    expect(mergedIds).not.toContain(optimistic.id);
+  });
+
+  test('filterDeleted=true still removes confirmed tombstones, including newPosts echoes', () => {
+    // Notebook / gallery keep the original semantics: `isDeleted || deletedPosts[id]`
+    // both filter out rows. The narrowed live-merge check must not affect this.
+    const confirmedEcho = {
+      ...makePost(10),
+      id: 'confirmed-echo-1',
+      sequenceNum: 42,
+    };
+    const anchor = {
+      ...makePost(1),
+      id: 'anchor-1',
+      sequenceNum: 1,
+    };
+    const mergedIds = mergePendingPosts({
+      newPosts: [confirmedEcho],
+      pendingPosts: [],
+      existingPosts: [anchor],
+      deletedPosts: { [confirmedEcho.id]: true },
+      hasNewest: true,
+      filterDeleted: true,
+    }).map((p) => p.id);
+
+    expect(mergedIds).not.toContain(confirmedEcho.id);
+    expect(mergedIds).toContain(anchor.id);
+  });
+
+  test('filterDeleted=true also removes deleted overlays when existingPosts is empty', () => {
+    const confirmedEcho = {
+      ...makePost(10),
+      id: 'confirmed-echo-empty-1',
+      sequenceNum: 42,
+    };
+    const mergedIds = mergePendingPosts({
+      newPosts: [confirmedEcho],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [confirmedEcho.id]: true },
+      hasNewest: true,
+      filterDeleted: true,
+    }).map((p) => p.id);
+
+    expect(mergedIds).not.toContain(confirmedEcho.id);
+  });
+});
+
+// TLON-5606 / post-review 6: chat-style rendering keys off `post.isDeleted`
+// to decide whether to show a tombstone. When a confirmed echo is kept in
+// `newPosts` under `deletedPosts[id]`, mergePendingPosts must synthesize
+// `isDeleted: true` on the returned object so the row renders as a
+// tombstone immediately, without waiting for the paginated query to catch
+// up with the DB write from `markPostAsDeleted`.
+describe('mergePendingPosts deleted-overlay synthesis', () => {
+  test('confirmed echo in newPosts with deletedPosts[id] surfaces as isDeleted:true', () => {
+    const confirmedEcho = {
+      ...makePost(10),
+      id: 'confirmed-echo-1',
+      sequenceNum: 42,
+      content: JSON.stringify([{ inline: ['real message body'] }]),
+    };
+    const [merged] = mergePendingPosts({
+      newPosts: [confirmedEcho],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [confirmedEcho.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.id).toBe(confirmedEcho.id);
+    expect(merged.isDeleted).toBe(true);
+  });
+
+  test('does not mutate the input post object', () => {
+    const confirmedEcho = {
+      ...makePost(10),
+      id: 'confirmed-echo-1',
+      sequenceNum: 42,
+    };
+    const before = { ...confirmedEcho };
+    mergePendingPosts({
+      newPosts: [confirmedEcho],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [confirmedEcho.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+    expect(confirmedEcho.isDeleted).toBe(before.isDeleted);
+  });
+
+  test('confirmed existingPosts row with deletedPosts[id] also gets overlayed', () => {
+    const confirmed = {
+      ...makePost(10),
+      id: 'confirmed-1',
+      sequenceNum: 5,
+    };
+    const [merged] = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [],
+      existingPosts: [confirmed],
+      deletedPosts: { [confirmed.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+    expect(merged.id).toBe(confirmed.id);
+    expect(merged.isDeleted).toBe(true);
+  });
+
+  test('deleted pending tombstone overlays a stale existing row with the same sentAt', () => {
+    const existing = {
+      ...makePost(10),
+      id: 'existing-row',
+      sequenceNum: 5,
+      deliveryStatus: null,
+    };
+    const pendingTombstone = {
+      ...makePost(10),
+      id: 'pending-tombstone',
+      sequenceNum: 0,
+      deliveryStatus: 'sent' as const,
+      isDeleted: true,
+      // `markPostAsDeleted` clears authorId at runtime, so this path must
+      // not rely solely on an author-qualified merge key.
+      authorId: null,
+    } as unknown as Post;
+
+    const [merged] = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [pendingTombstone],
+      existingPosts: [existing],
+      deletedPosts: {},
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.id).toBe(existing.id);
+    expect(merged.isDeleted).toBe(true);
+  });
+
+  test('deleted overlay on a sibling pending row applies to the surviving existing row', () => {
+    const existing = {
+      ...makePost(10),
+      id: 'existing-row',
+      sequenceNum: 5,
+      deliveryStatus: null,
+    };
+    const pendingSibling = {
+      ...makePost(10),
+      id: 'pending-sibling',
+      sequenceNum: 0,
+      deliveryStatus: 'sent' as const,
+    };
+
+    const [merged] = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [pendingSibling],
+      existingPosts: [existing],
+      deletedPosts: { [pendingSibling.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.id).toBe(existing.id);
+    expect(merged.isDeleted).toBe(true);
+  });
+
+  test('rows not in deletedPosts are passed through untouched', () => {
+    const liveRow = {
+      ...makePost(10),
+      id: 'live-1',
+      sequenceNum: 5,
+      isDeleted: false,
+    };
+    const [merged] = mergePendingPosts({
+      newPosts: [],
+      pendingPosts: [],
+      existingPosts: [liveRow],
+      deletedPosts: {},
+      hasNewest: true,
+      filterDeleted: false,
+    });
+    expect(merged).toBe(liveRow);
+  });
+});
+
+// TLON-5606 / post-review 7: in the `markPostSent` catch-up window a row
+// is already server-acknowledged (`deliveryStatus: 'sent'`) but still
+// temporarily has `sequenceNum === 0` until the sequenced `addPost` event
+// arrives. Deleting in that window must not drop the row from the merged
+// output — the server has it, so the tombstone slot must stay visible.
+describe('mergePendingPosts markPostSent catch-up window', () => {
+  test('keeps a sent-but-unsequenced row visible as a tombstone when deletedPosts[id] is true', () => {
+    const sentCatchUp = {
+      ...makePost(10),
+      id: 'marked-sent-1',
+      sequenceNum: 0,
+      deliveryStatus: 'sent' as const,
+    };
+    const merged = mergePendingPosts({
+      newPosts: [sentCatchUp],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [sentCatchUp.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].id).toBe(sentCatchUp.id);
+    expect(merged[0].isDeleted).toBe(true);
+  });
+
+  test('keeps a needs_verification row visible as a tombstone when deletedPosts[id] is true', () => {
+    // `needs_verification` rows may have reached the server too; same
+    // rationale as the markPostSent case.
+    const nv = {
+      ...makePost(10),
+      id: 'needs-verify-1',
+      sequenceNum: 0,
+      deliveryStatus: 'needs_verification' as const,
+    };
+    const merged = mergePendingPosts({
+      newPosts: [nv],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [nv.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].id).toBe(nv.id);
+    expect(merged[0].isDeleted).toBe(true);
+  });
+
+  test('still drops a failed, locally-cleared optimistic row (TLON-5606 regression guard)', () => {
+    const failed = {
+      ...makePost(10),
+      id: 'failed-1',
+      sequenceNum: 0,
+      deliveryStatus: 'failed' as const,
+    };
+    const merged = mergePendingPosts({
+      newPosts: [failed],
+      pendingPosts: [],
+      existingPosts: [],
+      deletedPosts: { [failed.id]: true },
+      hasNewest: true,
+      filterDeleted: false,
+    });
+
+    expect(merged.map((p) => p.id)).not.toContain(failed.id);
+  });
+});
