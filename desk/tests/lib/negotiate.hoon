@@ -11,7 +11,7 @@
   ==
 ::
 +$  libstate
-  $:  %1
+  $:  %2
       ours=(map protocol:libn version:libn)
       know=config:libn
       heed=(map [gill:gall protocol:libn] (unit version:libn))
@@ -118,7 +118,7 @@
   =/  m  (mare ,libstate)
   ^-  form:m
   ;<  state=vase  bind:m  get-save
-  (pure:m o:!<([[%negotiate o=libstate] vase] state))
+  (pure:m o:!<([%negotiate o=libstate] (slot 2 state)))
 ::
 ++  perform-hear-version
   |=  [=gill:gall =protocol:libn =version:libn]

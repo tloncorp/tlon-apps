@@ -64,7 +64,7 @@
   ::  self-join the group
   ::
   ;<  *  bind:m  (do-poke group-command+!>([%join my-flag ~]))
-  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot %da *@da)))
+  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot:h136 %da *@da)))
   ;<  =bowl:gall  bind:m  get-bowl
   (pure:m caz)
 ::
@@ -85,7 +85,7 @@
   ::  self-join the group
   ::
   ;<  *  bind:m  (do-poke group-command+!>([%join my-flag ~]))
-  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot %da *@da)))
+  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot:h136 %da *@da)))
   ;<  =bowl:gall  bind:m  get-bowl
   (pure:m caz)
 ::
@@ -131,7 +131,7 @@
 ++  ex-update
   |=  [=time =u-group:v9:gv]
   %+  ex-fact
-    ~[/server/groups/~zod/my-test-group/updates/~zod/(scot %da *@da)]
+    ~[/server/groups/~zod/my-test-group/updates/~zod/(scot:h136 %da *@da)]
   group-update+!>(`update:g`[time u-group])
 ::
 ++  ex-arvo-token-expire
