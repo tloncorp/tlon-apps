@@ -43,6 +43,14 @@ export interface BottomSheetWrapperProps {
 
   // Disable keyboard avoidance for sheets with inputs
   disableKeyboardAvoidance?: boolean;
+
+  /**
+   * When `true`, the wrapper unmounts the underlying sheet subtree after each
+   * close (allowing the close animation to play first), and re-mounts a fresh
+   * subtree on each subsequent open. Native-only; ignored on web. Use this for
+   * sheets that exhibit Android render desync after close (TLON-5664).
+   */
+  unmountOnClose?: boolean;
 }
 
 export interface BottomSheetScrollViewProps {

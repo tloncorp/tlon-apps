@@ -15,6 +15,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 import { Keyboard } from 'react-native';
 import { useTheme } from 'tamagui';
@@ -144,6 +145,7 @@ export const BottomSheetWrapper = forwardRef<
       hasScrollableContent = false,
       enableContentPanningGesture,
       enableDynamicSizing,
+      unmountOnClose = false,
     },
     ref
   ) => {
@@ -156,7 +158,21 @@ export const BottomSheetWrapper = forwardRef<
      * sheet transitions.
      */
     const isProgrammaticChange = useRef(false);
+    // Default-path callers (unmountOnClose=false) start mounted=true regardless
+    // of `open`, mirroring today's render-immediately behavior. Opt-in callers
+    // start mounted === open.
+    const [mounted, setMounted] = useState<boolean>(open || !unmountOnClose);
+    const [mountKey, setMountKey] = useState(0);
+    const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const prevOpenRef = useRef<boolean>(open);
     const theme = useTheme();
+
+    const clearCloseTimer = useCallback(() => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    }, []);
 
     const backgroundColor = useMemo(
       () => theme.background.val,
@@ -223,30 +239,91 @@ export const BottomSheetWrapper = forwardRef<
       return true;
     }, [enableDynamicSizing, snapPointsMode]);
 
+    // Read `.current` at call time so methods stay correct across `mountKey`
+    // remounts under `unmountOnClose`.
     React.useImperativeHandle(
       ref,
-      () => {
-        const modalRef = bottomSheetModalRef.current;
-        const sheetRef = bottomSheetRef.current;
-
-        return {
-          present: () => (modal ? modalRef?.present() : sheetRef?.expand()),
-          dismiss: () => (modal ? modalRef?.dismiss() : sheetRef?.close()),
-          close: () => (modal ? modalRef?.dismiss() : sheetRef?.close()),
-          expand: () => (modal ? modalRef?.present() : sheetRef?.expand()),
-          collapse: () => (modal ? modalRef?.dismiss() : sheetRef?.collapse()),
+      () =>
+        ({
+          present: () =>
+            modal
+              ? bottomSheetModalRef.current?.present()
+              : bottomSheetRef.current?.expand(),
+          dismiss: () =>
+            modal
+              ? bottomSheetModalRef.current?.dismiss()
+              : bottomSheetRef.current?.close(),
+          close: () =>
+            modal
+              ? bottomSheetModalRef.current?.dismiss()
+              : bottomSheetRef.current?.close(),
+          expand: () =>
+            modal
+              ? bottomSheetModalRef.current?.present()
+              : bottomSheetRef.current?.expand(),
+          collapse: () =>
+            modal
+              ? bottomSheetModalRef.current?.dismiss()
+              : bottomSheetRef.current?.collapse(),
           snapToIndex: (index: number) =>
-            modal ? modalRef?.snapToIndex(index) : sheetRef?.snapToIndex(index),
+            modal
+              ? bottomSheetModalRef.current?.snapToIndex(index)
+              : bottomSheetRef.current?.snapToIndex(index),
           snapToPosition: (position: string | number) =>
             modal
-              ? modalRef?.snapToPosition(position)
-              : sheetRef?.snapToPosition(position),
+              ? bottomSheetModalRef.current?.snapToPosition(position)
+              : bottomSheetRef.current?.snapToPosition(position),
           forceClose: () =>
-            modal ? modalRef?.forceClose() : sheetRef?.forceClose(),
-        } as any;
-      },
+            modal
+              ? bottomSheetModalRef.current?.forceClose()
+              : bottomSheetRef.current?.forceClose(),
+        }) as any,
       [modal]
     );
+
+    // Opt-in lifecycle: when `unmountOnClose === true`, mount the subtree on
+    // open, schedule an unmount after the close-grace window on close, and bump
+    // `mountKey` on every real `false → true` transition so each subsequent
+    // open mounts a fresh Gorhom instance. Default path (unmountOnClose=false)
+    // snaps `mounted=true` and is otherwise inert.
+    useEffect(() => {
+      if (!unmountOnClose) {
+        clearCloseTimer();
+        setMounted(true);
+        prevOpenRef.current = open;
+        return;
+      }
+      clearCloseTimer();
+      if (open) {
+        setMounted(true);
+        if (!prevOpenRef.current) {
+          // Real false → true edge.
+          //
+          // Note: for the current ActionSheet-mounted consumer, the very first
+          // open does not bump key 0 because ActionSheet does not mount this
+          // wrapper until first `open=true` (so `prevOpenRef.current` was
+          // initialised to `true` by `useRef(open)` above). For a future
+          // direct BottomSheetWrapper consumer that mounts with `open=false`
+          // initially, the first `false → true` transition would bump key 0
+          // to key 1; that is harmless because the render gate keeps
+          // `mounted=false` until this same effect run sets it `true`, so
+          // the bumped key is the first key actually rendered.
+          setMountKey((k) => k + 1);
+        }
+        prevOpenRef.current = open;
+        return;
+      }
+      // open === false
+      closeTimerRef.current = setTimeout(() => {
+        setMounted(false);
+        closeTimerRef.current = null;
+      }, ANIMATION_CONFIGS[animation].duration + 100);
+      prevOpenRef.current = open;
+      return () => clearCloseTimer();
+    }, [open, unmountOnClose, animation, clearCloseTimer]);
+
+    // Cancel any pending close timer when the wrapper unmounts.
+    useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
 
     // Handle modal sheet open/close
     useEffect(() => {
@@ -263,7 +340,7 @@ export const BottomSheetWrapper = forwardRef<
         isProgrammaticChange.current = true;
         bottomSheetModalRef.current?.dismiss();
       }
-    }, [open, modal]);
+    }, [open, modal, mountKey]);
 
     // Handle non-modal sheet open/close
     useEffect(() => {
@@ -275,7 +352,7 @@ export const BottomSheetWrapper = forwardRef<
       } else {
         bottomSheetRef.current?.expand();
       }
-    }, [open, modal]);
+    }, [open, modal, mountKey]);
 
     useEffect(() => {
       if (!open) {
@@ -394,9 +471,15 @@ export const BottomSheetWrapper = forwardRef<
       footerComponent || hasScrollableContent
     );
 
+    // Opt-in render gate: only return null when the caller explicitly asked for
+    // unmount-on-close AND the close-grace timer has already fired. Default
+    // callers (unmountOnClose=false) never hit this branch.
+    const gateUnmounted = unmountOnClose && !mounted;
+
     if (modal) {
-      return (
+      return gateUnmounted ? null : (
         <BottomSheetModal
+          key={mountKey}
           ref={bottomSheetModalRef}
           accessibilityViewIsModal={true}
           {...commonProps}
@@ -417,7 +500,7 @@ export const BottomSheetWrapper = forwardRef<
       );
     }
 
-    return (
+    return gateUnmounted ? null : (
       <View
         position="absolute"
         left={0}
@@ -428,7 +511,7 @@ export const BottomSheetWrapper = forwardRef<
         pointerEvents="box-none"
         accessible={false}
       >
-        <BottomSheet ref={bottomSheetRef} {...nonModalProps}>
+        <BottomSheet key={mountKey} ref={bottomSheetRef} {...nonModalProps}>
           {/* BottomSheetView only for simple static content, not for layouts with footers */}
           <NonModalChildrenWrapper
             useBottomSheetView={useBottomSheetViewForNonModal}
