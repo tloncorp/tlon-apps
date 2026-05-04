@@ -139,6 +139,12 @@ export const tlonbotRevivalSetup = createStorageItem<TlonbotRevivalSetup>({
   },
 });
 
+export const didClearPreviousInstall = createStorageItem<boolean>({
+  key: 'didClearPreviousInstall',
+  defaultValue: false,
+  persistAfterLogout: true,
+});
+
 export const lastAppVersion = createStorageItem<string | null>({
   key: 'lastAppVersion',
   defaultValue: null,

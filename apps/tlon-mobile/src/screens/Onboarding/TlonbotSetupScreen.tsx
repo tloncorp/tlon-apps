@@ -1,11 +1,13 @@
 import * as api from '@tloncorp/api';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
+import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
-import { TlonText, View, YStack } from '@tloncorp/app/ui';
+import { ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
 import { Attachment, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { prejoinTlonbotRevivalGroups } from '../../lib/tlonbotRevival';
 import { FadingTextCarousel } from './FadingTextCarousel';
@@ -14,6 +16,7 @@ import { SegmentedSpinner } from './SegmentedSpinner';
 const logger = createDevLogger('TlonbotSetupScreen', true);
 const POLL_INTERVAL_MS = 5000;
 const BASIC_PROVIDER_ID = 'basic';
+const noop = () => {};
 
 const SETUP_MESSAGES = [
   'This will take up to 5 minutes. Grab a coffee!',
@@ -27,6 +30,15 @@ const SETUP_MESSAGES = [
 export function TlonbotSetupScreen() {
   const applyingRef = useRef(false);
   const provisioningKickoffStartedRef = useRef(false);
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const onLogout = useCallback(async () => {
+    logger.trackEvent('Logged out before Tlonbot setup completed');
+    setLoggingOut(true);
+    await handleLogout();
+  }, [handleLogout]);
 
   const applyDeferredSetup = useCallback(async (shipId: string) => {
     if (applyingRef.current) {
@@ -133,21 +145,34 @@ export function TlonbotSetupScreen() {
     };
   }, [applyDeferredSetup]);
 
-  return <TlonbotSetupScreenView />;
+  return <TlonbotSetupScreenView onLogout={onLogout} loggingOut={loggingOut} />;
 }
 
-export function TlonbotSetupScreenView() {
+export function TlonbotSetupScreenView(props: {
+  onLogout?: () => void;
+  loggingOut?: boolean;
+}) {
   return (
     <View
       flex={1}
       backgroundColor="$secondaryBackground"
-      justifyContent="center"
-      paddingHorizontal="$2xl"
       testID="tlonbot-setup-screen"
     >
-      <YStack alignItems="center" gap="$2xl">
+      <ScreenHeader
+        backgroundColor="$secondaryBackground"
+        leftControls={
+          <ScreenHeader.TextButton
+            onPress={props.onLogout ?? noop}
+            disabled={props.loggingOut}
+            color="$tertiaryText"
+          >
+            Log out
+          </ScreenHeader.TextButton>
+        }
+      />
+      <YStack flex={1} alignItems="center" justifyContent="center" gap="$2xl">
         <SegmentedSpinner />
-        <YStack gap="$2xl">
+        <YStack gap="$2xl" paddingHorizontal="$2xl">
           <TlonText.Text
             fontSize="$xl"
             fontWeight="600"

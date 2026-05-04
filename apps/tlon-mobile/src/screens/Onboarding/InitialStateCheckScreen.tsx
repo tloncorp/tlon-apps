@@ -22,6 +22,14 @@ export function InitialStateCheckScreen({ navigation }: Props) {
   useEffect(() => {
     async function checkInitialState() {
       try {
+        const didClearPreviousInstall =
+          await db.didClearPreviousInstall.getValue();
+        if (!didClearPreviousInstall) {
+          logger.log('clearing previous install state');
+          await db.clearAllStorageItems();
+          await db.didClearPreviousInstall.setValue(true);
+        }
+
         const signupData = await db.signupData.getValue();
         const nodeStoppedWhileLoggedIn =
           await db.nodeStoppedWhileLoggedIn.getValue();
