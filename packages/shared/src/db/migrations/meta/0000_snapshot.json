@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fa9a1190-0ad6-45d7-88ec-126ffc01fd21",
+  "id": "247996fd-ea77-4159-b2d6-1db53a544650",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2342,6 +2342,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "optimistic_reply_bump_count": {
+          "name": "optimistic_reply_bump_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "text_content": {
           "name": "text_content",
