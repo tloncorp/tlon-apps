@@ -36,6 +36,7 @@
     "@tamagui/animations-moti": "~1.126.12",
     "@tamagui/get-token": "~1.126.12",
     "@tamagui/image": "~1.126.12",
+    "@tamagui/theme": "~1.126.12",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@uidotdev/usehooks": "^2.4.1",

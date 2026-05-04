@@ -1,13 +1,13 @@
 import { darken, hsla, lighten, parseToHsla, parseToRgba } from 'color2k';
 import { useMemo } from 'react';
 import { useTheme } from 'tamagui';
-import { ThemeName, useThemeName } from 'tamagui';
 
 export const useSigilColors = (accentColor: string | null = '#000000') => {
-  const theme = useThemeName();
+  const isDarkTheme = useIsDarkTheme();
+  const themeMode = isDarkTheme ? 'dark' : 'light';
   const backgroundColor = useMemo(
-    () => adjustColorContrastForTheme(accentColor || '#000000', theme),
-    [accentColor, theme]
+    () => adjustColorContrastForTheme(accentColor || '#000000', themeMode),
+    [accentColor, themeMode]
   );
   const foregroundColor = useMemo(
     () => getContrastingColor(backgroundColor),
@@ -28,7 +28,7 @@ export const getContrastingColor = (background: string): 'black' | 'white' => {
 
 export function adjustColorContrastForTheme(
   color: string,
-  theme: ThemeName
+  theme: 'dark' | 'light'
 ): string {
   const hslaColor = parseInputAsHsla(color);
   const lightness = hslaColor[2];

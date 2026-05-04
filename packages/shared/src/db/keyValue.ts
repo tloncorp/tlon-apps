@@ -4,6 +4,7 @@ import * as ub from '@tloncorp/api/urbit';
 
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
+import type { CustomThemeDefinition } from '../utils';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =
@@ -188,6 +189,16 @@ export const lastVisitedChannelId = (groupId: string) => {
 export const themeSettings = createStorageItem<AppThemeName | null>({
   key: '@user_theme',
   defaultValue: null,
+});
+
+export const localThemePreference = createStorageItem<string | null>({
+  key: 'settings:localThemePreference',
+  defaultValue: null,
+});
+
+export const customThemes = createStorageItem<CustomThemeDefinition[]>({
+  key: 'settings:customThemes',
+  defaultValue: [],
 });
 
 export type ChannelSortPreference = 'recency' | 'arranged';

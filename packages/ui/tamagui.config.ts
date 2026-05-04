@@ -1,5 +1,7 @@
 import { createAnimations } from '@tamagui/animations-moti';
 import { createMedia } from '@tamagui/react-native-media-driver';
+import { addTheme } from '@tamagui/theme';
+import type { TlonThemeTokens } from '@tloncorp/shared/utils';
 import { Platform } from 'react-native';
 import { createFont, createTamagui, createTokens } from 'tamagui';
 
@@ -573,3 +575,7 @@ export const config =
       });
 
 export type Conf = typeof config;
+
+export function registerCustomTheme(name: string, theme: TlonThemeTokens) {
+  addTheme({ name, theme });
+}

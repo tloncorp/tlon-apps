@@ -7,6 +7,7 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
+import { isRemoteThemePreference } from '../utils';
 
 const logger = createDevLogger('SettingsActions', false);
 
@@ -151,6 +152,23 @@ export async function updateTheme(theme: AppTheme) {
     });
     await db.insertSettings({ theme: oldTheme });
     throw new Error('Failed to update theme setting');
+  }
+}
+
+export async function updateThemePreference(theme: string) {
+  const previousLocalPreference = await db.localThemePreference.getValue(true);
+
+  try {
+    await db.localThemePreference.setValue(theme);
+
+    if (isRemoteThemePreference(theme)) {
+      await updateTheme(theme);
+    } else {
+      logger.trackEvent(AnalyticsEvent.ActionThemeUpdate, { theme });
+    }
+  } catch (error) {
+    await db.localThemePreference.setValue(previousLocalPreference);
+    throw error;
   }
 }
 

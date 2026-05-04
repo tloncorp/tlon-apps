@@ -13,6 +13,7 @@ export * from './files';
 export * from './omit';
 export * from './useEventEmitter';
 export * from './useMockedQuery';
+export * from './appTheme';
 export * from '@tloncorp/api/lib/ProgressManager';
 export * from '@tloncorp/api/lib/telemetryFormatters';
 export * from '@tloncorp/api/lib/spyOn';
