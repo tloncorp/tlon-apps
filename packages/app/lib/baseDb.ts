@@ -56,7 +56,7 @@ export abstract class BaseDb {
   protected async processChanges() {
     if (!this.client) return;
 
-    const stop = perfMark('processChanges');
+    const perfStop = perfMark('processChanges');
     try {
       const changes = await this.client.select().from(changeLogTable).all();
       for (const change of changes) {
@@ -67,10 +67,10 @@ export abstract class BaseDb {
         });
       }
       await this.client.delete(changeLogTable).run();
-      stop({ changes: changes.length });
+      perfStop({ changes: changes.length });
     } catch (e) {
       logger.error('failed to process changes:', e);
-      stop({ error: 'true' });
+      perfStop({ error: 'true' });
     }
   }
 

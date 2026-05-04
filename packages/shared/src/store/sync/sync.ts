@@ -12,7 +12,7 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
-import { perfMark } from '../../perfLog';
+import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -308,19 +308,22 @@ export const syncLatestChanges = async ({
     };
   }
 
-  const stopTotal = perfMark('syncLatestChanges.total');
-  const stopFetch = perfMark('syncLatestChanges.fetch');
-  const result = await syncQueue.add('latestChanges', syncCtx, () => {
-    return fetchChangesSince(syncFrom);
-  });
-  stopFetch({
-    posts: result.posts.length,
-    groups: result.groups.length,
-    contacts: result.contacts.length,
-    channelUnreads: result.unreads.channelUnreads.length,
-    groupUnreads: result.unreads.groupUnreads.length,
-    threadUnreads: result.unreads.threadActivity.length,
-  });
+  const perfStop = perfMark('syncLatestChanges.total');
+  const result = await perfTime(
+    'syncLatestChanges.fetch',
+    () =>
+      syncQueue.add('latestChanges', syncCtx, () =>
+        fetchChangesSince(syncFrom)
+      ),
+    (r) => ({
+      posts: r.posts.length,
+      groups: r.groups.length,
+      contacts: r.contacts.length,
+      channelUnreads: r.unreads.channelUnreads.length,
+      groupUnreads: r.unreads.groupUnreads.length,
+      threadUnreads: r.unreads.threadActivity.length,
+    })
+  );
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
     ...callCtx,
@@ -344,12 +347,16 @@ export const syncLatestChanges = async ({
     );
   }
 
-  const stopInsert = perfMark('syncLatestChanges.insertChanges');
-  await db.insertChanges(result, queryCtx);
-  stopInsert({ posts: result.posts.length });
-  const stopNotify = perfMark('syncLatestChanges.notifyListeners');
-  notifyChannelPostListenersFromLatestChanges(topLevelPosts);
-  stopNotify({ topLevelPosts: topLevelPosts.length });
+  await perfTime(
+    'syncLatestChanges.insertChanges',
+    () => db.insertChanges(result, queryCtx),
+    { posts: result.posts.length }
+  );
+  await perfTime(
+    'syncLatestChanges.notifyListeners',
+    async () => notifyChannelPostListenersFromLatestChanges(topLevelPosts),
+    { topLevelPosts: topLevelPosts.length }
+  );
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -390,7 +397,7 @@ export const syncLatestChanges = async ({
   const groupUnreadCounts = Object.fromEntries(
     result.unreads.groupUnreads.map((u) => [u.groupId, u.count ?? 0])
   );
-  stopTotal({
+  perfStop({
     posts: result.posts.length,
     topLevelPosts: topLevelPosts.length,
     hadChanges: String(hadChanges),
@@ -492,18 +499,22 @@ export const syncAppInfo = async (ctx?: SyncCtx) => {
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
-  const stopFetch = perfMark('syncVolumeSettings.fetch');
-  const volumeSettings = await syncQueue.add('volumeSettings', ctx, () =>
-    api.getVolumeSettings()
+  const clientVolumes = await perfTime(
+    'syncVolumeSettings.fetch',
+    async () => {
+      const volumeSettings = await syncQueue.add('volumeSettings', ctx, () =>
+        api.getVolumeSettings()
+      );
+      return extractClientVolumes(volumeSettings);
+    },
+    (cv) => ({
+      total: cv.length,
+      threadScoped: cv.filter((v) => v.itemType === 'thread').length,
+    })
   );
-  const clientVolumes = extractClientVolumes(volumeSettings);
-  stopFetch({
-    total: clientVolumes.length,
-    threadScoped: clientVolumes.filter((v) => v.itemType === 'thread').length,
-  });
-  const stopWrite = perfMark('syncVolumeSettings.setVolumes');
-  await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
-  stopWrite();
+  await perfTime('syncVolumeSettings.setVolumes', () =>
+    db.setVolumes({ volumes: clientVolumes, deleteOthers: true })
+  );
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {
@@ -783,25 +794,26 @@ export const syncStorageSettings = (ctx?: SyncCtx) => {
 };
 
 export const resetActivity = async (syncCtx?: SyncCtx) => {
-  const stopFetch = perfMark('resetActivity.fetch');
-  const { relevantUnreads, events } = await syncQueue.add(
-    'getInitialActivity',
-    syncCtx,
-    () => api.getInitialActivity()
+  const { relevantUnreads, events } = await perfTime(
+    'resetActivity.fetch',
+    () =>
+      syncQueue.add('getInitialActivity', syncCtx, () =>
+        api.getInitialActivity()
+      ),
+    (r) => ({
+      events: r.events.length,
+      threadUnreads: r.relevantUnreads.threadActivity.length,
+      channelUnreads: r.relevantUnreads.channelUnreads.length,
+      groupUnreads: r.relevantUnreads.groupUnreads.length,
+    })
   );
-  stopFetch({
-    events: events.length,
-    threadUnreads: relevantUnreads.threadActivity.length,
-    channelUnreads: relevantUnreads.channelUnreads.length,
-    groupUnreads: relevantUnreads.groupUnreads.length,
-  });
-  const stopWrite = perfMark('resetActivity.write');
-  await batchEffects('resetActivity', async (ctx) => {
-    await db.clearActivityEvents(ctx);
-    await db.insertActivityEvents(events, ctx);
-    await persistUnreads({ unreads: relevantUnreads, ctx });
-  });
-  stopWrite();
+  await perfTime('resetActivity.write', () =>
+    batchEffects('resetActivity', async (ctx) => {
+      await db.clearActivityEvents(ctx);
+      await db.insertActivityEvents(events, ctx);
+      await persistUnreads({ unreads: relevantUnreads, ctx });
+    })
+  );
   resetActivityFetchers();
 };
 
@@ -1581,60 +1593,58 @@ export async function handleAddPost(
   ctx?: QueryCtx
 ) {
   logger.log('event: add post', post);
-  const stopTotal = perfMark('handleAddPost.total');
-  // We frequently get duplicate addPost events from the api,
-  // so skip if we've just added this.
-  if (post.id === lastAdded) {
-    logger.log('skipping duplicate post.');
-  } else {
-    lastAdded = post.id;
-  }
+  await perfTime(
+    'handleAddPost.total',
+    async () => {
+      // We frequently get duplicate addPost events from the api,
+      // so skip if we've just added this.
+      if (post.id === lastAdded) {
+        logger.log('skipping duplicate post.');
+      } else {
+        lastAdded = post.id;
+      }
 
-  // first check if it's a reply. If it is and we haven't already cached
-  // it, we need to add it to the parent post
-  if (post.parentId) {
-    const cachedReply = await db.getPostByCacheId({
+      // first check if it's a reply. If it is and we haven't already cached
+      // it, we need to add it to the parent post
+      if (post.parentId) {
+        const cachedReply = await db.getPostByCacheId({
+          channelId: post.channelId,
+          sentAt: post.sentAt,
+          authorId: post.authorId,
+        });
+        if (!cachedReply) {
+          await perfTime('handleAddPost.addReplyToPost', () =>
+            db.addReplyToPost(
+              {
+                parentId: post.parentId!,
+                replyAuthor: post.authorId,
+                replyTime: post.sentAt,
+                replyMeta,
+              },
+              ctx
+            )
+          );
+        }
+        await perfTime(
+          'handleAddPost.insertChannelPosts',
+          () => db.insertChannelPosts({ posts: [post] }, ctx),
+          { isReply: 'true' }
+        );
+      } else {
+        addToChannelPosts(post);
+        await perfTime(
+          'handleAddPost.insertChannelPosts',
+          () => db.insertChannelPosts({ posts: [post] }, ctx),
+          { isReply: 'false' }
+        );
+      }
+      updateLastActivityTime();
+    },
+    {
+      isReply: post.parentId ? 'true' : 'false',
       channelId: post.channelId,
-      sentAt: post.sentAt,
-      authorId: post.authorId,
-    });
-    if (!cachedReply) {
-      const stopAddReply = perfMark('handleAddPost.addReplyToPost');
-      await db.addReplyToPost(
-        {
-          parentId: post.parentId,
-          replyAuthor: post.authorId,
-          replyTime: post.sentAt,
-          replyMeta,
-        },
-        ctx
-      );
-      stopAddReply();
     }
-    const stopInsert = perfMark('handleAddPost.insertChannelPosts');
-    await db.insertChannelPosts(
-      {
-        posts: [post],
-      },
-      ctx
-    );
-    stopInsert({ isReply: 'true' });
-  } else {
-    addToChannelPosts(post);
-    const stopInsert = perfMark('handleAddPost.insertChannelPosts');
-    await db.insertChannelPosts(
-      {
-        posts: [post],
-      },
-      ctx
-    );
-    stopInsert({ isReply: 'false' });
-  }
-  updateLastActivityTime();
-  stopTotal({
-    isReply: post.parentId ? 'true' : 'false',
-    channelId: post.channelId,
-  });
+  );
 }
 
 export async function syncSequencedPosts(

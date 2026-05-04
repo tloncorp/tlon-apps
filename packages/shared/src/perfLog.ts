@@ -75,3 +75,46 @@ export const perfMark = (label: string): ((extra?: Extra) => void) => {
     console.log(format(label, { ms, ...extra }));
   };
 };
+
+/**
+ * Callback form of perfMark. Times `fn`, logs duration on resolve or reject,
+ * and re-throws on error. Prefer this over `perfMark` when the perf scope is
+ * a single await — `finally` guarantees the timer logs even on throw, and
+ * the label sits next to the work it measures instead of as a `stopX` local.
+ *
+ * `extra` may be a static record or a function of the resolved value, for
+ * cases where the metric depends on the result (e.g. counts derived from a
+ * fetched payload). The function form is only invoked on success.
+ */
+export async function perfTime<T>(
+  label: string,
+  fn: () => Promise<T> | T,
+  extra?: Extra | ((result: T) => Extra)
+): Promise<T> {
+  if (!perfEnabled()) return await fn();
+  const now = () =>
+    typeof performance !== 'undefined' && performance.now
+      ? performance.now()
+      : Date.now();
+  const start = now();
+  let errored = false;
+  let result: T;
+  try {
+    result = await fn();
+    return result;
+  } catch (e) {
+    errored = true;
+    throw e;
+  } finally {
+    const ms = +(now() - start).toFixed(1);
+    const resolved: Extra | undefined = errored
+      ? undefined
+      : typeof extra === 'function'
+        ? extra(result!)
+        : extra;
+    // eslint-disable-next-line no-console
+    console.log(
+      format(label, errored ? { ms, error: 'true' } : { ms, ...resolved })
+    );
+  }
+}
