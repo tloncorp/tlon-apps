@@ -9,7 +9,7 @@ import { desig } from '@tloncorp/api/lib/urbit';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
-import { AnalyticsEvent, getConstants } from '../domain';
+import { AnalyticsEvent, HostedShipInfo, getConstants } from '../domain';
 import * as logic from '../logic';
 import {
   checkInviteServiceLinkExists,
@@ -22,6 +22,93 @@ import {
 import { syncGroupPreviews } from './sync/syncGroupPreviews';
 
 const logger = createDevLogger('inviteActions', false);
+
+export async function initializeCachedHostedInviteLinks({
+  personalLureToken,
+  homeGroupLureToken,
+  nodeId,
+  source,
+}: {
+  personalLureToken?: HostedShipInfo['personalLureToken'] | null;
+  homeGroupLureToken?: HostedShipInfo['homeGroupLureToken'] | null;
+  nodeId?: string | null;
+  source: string;
+}) {
+  await Promise.all([
+    initializeCachedHostedInviteLink({
+      token: personalLureToken,
+      storageItem: db.personalInviteLink,
+      label: 'personal',
+      nodeId,
+      source,
+    }),
+    initializeCachedHostedInviteLink({
+      token: homeGroupLureToken,
+      storageItem: db.homeGroupInviteLink,
+      label: 'homeGroup',
+      nodeId,
+      source,
+    }),
+  ]);
+}
+
+async function initializeCachedHostedInviteLink({
+  token,
+  storageItem,
+  label,
+  nodeId,
+  source,
+}: {
+  token?: string | null;
+  storageItem: typeof db.personalInviteLink;
+  label: 'personal' | 'homeGroup';
+  nodeId?: string | null;
+  source: string;
+}) {
+  const existingInviteLink = await storageItem.getValue();
+  if (existingInviteLink) {
+    return;
+  }
+
+  if (!token) {
+    return;
+  }
+
+  if (!token.startsWith('0v')) {
+    logger.trackError('Hosted invite token invalid', {
+      label,
+      nodeId,
+      source,
+      tokenReceived: token,
+    });
+    return;
+  }
+
+  const env = getConstants();
+  const inviteLink = extractNormalizedInviteLink(
+    `https://${env.BRANCH_DOMAIN}/${token}`
+  );
+
+  if (!inviteLink) {
+    logger.trackError('Hosted invite token normalization failed', {
+      label,
+      nodeId,
+      source,
+      tokenReceived: token,
+    });
+    return;
+  }
+
+  const latestInviteLink = await storageItem.getValue();
+  if (!latestInviteLink) {
+    logger.trackEvent('Cached invite link from hosting', {
+      label,
+      nodeId,
+      source,
+    });
+    await storageItem.setValue(inviteLink);
+  }
+}
 
 export async function verifyUserInviteLink() {
   try {

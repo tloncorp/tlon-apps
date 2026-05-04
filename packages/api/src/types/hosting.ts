@@ -43,6 +43,8 @@ export type HostedShipInfo = {
   booting: boolean;
   manualUpdateNeeded?: boolean;
   showWayfinding?: boolean;
+  personalLureToken?: string;
+  homeGroupLureToken?: string;
   botReady?: boolean;
   id: string;
 };

@@ -902,7 +902,11 @@ export const bootShip = async (shipId: string) =>
 
 export const getNodeStatus = async (
   nodeId: string
-): Promise<{ status: domain.HostedNodeStatus; showWayfinding: boolean }> => {
+): Promise<{
+  status: domain.HostedNodeStatus;
+  showWayfinding: boolean;
+  ship?: domain.HostedShipInfo;
+}> => {
   let result = null;
   try {
     result = await getShip(nodeId);
@@ -914,10 +918,11 @@ export const getNodeStatus = async (
   const isBooting = result.ship?.booting;
   const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
   const showWayfinding = result.ship?.showWayfinding ?? false;
+  const ship = result.ship;
 
   // If user has a ready ship, let's use it
   if (nodeStatus === 'Ready') {
-    return { status: domain.HostedNodeStatus.Running, showWayfinding };
+    return { status: domain.HostedNodeStatus.Running, showWayfinding, ship };
   }
 
   // If user has a paused ship, resume it
@@ -925,11 +930,15 @@ export const getNodeStatus = async (
     if (!isBooting) {
       await resumeShip(nodeId);
     }
-    return { status: domain.HostedNodeStatus.Paused, showWayfinding };
+    return { status: domain.HostedNodeStatus.Paused, showWayfinding, ship };
   }
 
   if (nodeStatus === 'UnderMaintenance' || manualUpdateNeeded) {
-    return { status: domain.HostedNodeStatus.UnderMaintenance, showWayfinding };
+    return {
+      status: domain.HostedNodeStatus.UnderMaintenance,
+      showWayfinding,
+      ship,
+    };
   }
 
   // If user has a suspended ship, boot it
@@ -947,15 +956,16 @@ export const getNodeStatus = async (
           return {
             status: domain.HostedNodeStatus.UnderMaintenance,
             showWayfinding,
+            ship,
           };
         }
         throw err;
       }
     }
-    return { status: domain.HostedNodeStatus.Suspended, showWayfinding };
+    return { status: domain.HostedNodeStatus.Suspended, showWayfinding, ship };
   }
 
-  return { status: domain.HostedNodeStatus.Unknown, showWayfinding };
+  return { status: domain.HostedNodeStatus.Unknown, showWayfinding, ship };
 };
 
 export const inviteShipWithLure = async (params: {

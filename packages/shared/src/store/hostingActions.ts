@@ -1,11 +1,11 @@
 import {
   HostingError,
-  checkNodeIsTlonbotReady,
   checkPhoneVerify as checkPhoneVerifyApi,
   clearShipRevivalStatus as clearHostedShipRevivalStatus,
   getHostingUser,
   getLandscapeAuthCookie,
   getNodeStatus,
+  getShip as getHostedShip,
   getShipAccessCode,
   logInHostingUser,
   markUserTlonbotEnabled,
@@ -19,6 +19,7 @@ import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
+import { initializeCachedHostedInviteLinks } from './inviteActions';
 
 const logger = createDevLogger('hostingActions', true);
 
@@ -190,7 +191,18 @@ export async function checkHostingNodeStatus(
   }
 
   try {
-    const { status: nodeStatus, showWayfinding } = await getNodeStatus(nodeId);
+    const {
+      status: nodeStatus,
+      showWayfinding,
+      ship,
+    } = await getNodeStatus(nodeId);
+    await initializeCachedHostedInviteLinks({
+      personalLureToken: ship?.personalLureToken,
+      homeGroupLureToken: ship?.homeGroupLureToken,
+      nodeId,
+      source: 'checkHostingNodeStatus',
+    });
+
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
     }
@@ -329,5 +341,13 @@ export async function checkCurrentNodeIsTlonbotReady() {
     throw new Error('Cannot check TlonBot readiness, no node ID found');
   }
 
-  return checkNodeIsTlonbotReady(nodeId);
+  const result = await getHostedShip(nodeId);
+  await initializeCachedHostedInviteLinks({
+    personalLureToken: result.ship.personalLureToken,
+    homeGroupLureToken: result.ship.homeGroupLureToken,
+    nodeId,
+    source: 'checkCurrentNodeIsTlonbotReady',
+  });
+
+  return result.ship.botReady === true;
 }
