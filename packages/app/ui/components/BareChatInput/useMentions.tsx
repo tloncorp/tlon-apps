@@ -292,6 +292,14 @@ export const useMentions = ({
     setLastDismissedTriggerIndex(mentionStartIndex);
   };
 
+  // Light dismiss for gestures like tapping outside the popup. Unlike
+  // handleMentionEscape (which "poisons" the current trigger index so the
+  // popup doesn't reopen as the user keeps typing), this just hides the
+  // popup; the next keystroke re-evaluates the mention trigger normally.
+  const handleMentionSoftDismiss = () => {
+    setIsMentionModeActive(false);
+  };
+
   return {
     mentions,
     validOptions,
@@ -303,6 +311,7 @@ export const useMentions = ({
     isMentionModeActive,
     setIsMentionModeActive,
     handleMentionEscape,
+    handleMentionSoftDismiss,
     hasMentionCandidates,
   };
 };
