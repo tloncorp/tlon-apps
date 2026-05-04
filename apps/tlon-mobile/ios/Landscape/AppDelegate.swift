@@ -113,12 +113,10 @@ class AppDelegate: ExpoAppDelegate {
     // Handle notification dismiss actions
     NotificationDismissHandler.shared.handleNotificationDismiss(userInfo: userInfo)
 
-    // Call super to maintain existing functionality
-    if super.responds(to: #selector(application(_:didReceiveRemoteNotification:fetchCompletionHandler:))) {
-      super.application(application, didReceiveRemoteNotification: userInfo, fetchCompletionHandler: completionHandler)
-    } else {
-      completionHandler(.noData)
-    }
+    // Forward to ExpoAppDelegate so expo-notifications and other subscribers
+    // can process the push (including the silent `content-available` payload
+    // the notify-provider uses to wake the NSE).
+    super.application(application, didReceiveRemoteNotification: userInfo, fetchCompletionHandler: completionHandler)
   }
 }
 
