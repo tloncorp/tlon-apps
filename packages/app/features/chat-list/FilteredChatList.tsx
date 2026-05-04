@@ -10,7 +10,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { LayoutChangeEvent } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
 import { TabName, useFilteredChats } from '../../hooks/useFilteredChats';
@@ -130,28 +129,6 @@ export const FilteredChatList = React.memo(
       },
     }));
 
-    const sizeRefs = useRef({
-      sectionHeader: 28,
-      chatListItem: 72,
-    });
-
-    const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
-      sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
-    }, []);
-
-    const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
-      sizeRefs.current.chatListItem = e.nativeEvent.layout.height;
-    }, []);
-
-    const handleOverrideLayout = useCallback(
-      (layout: { span?: number; size?: number }, item: ChatListItemData) => {
-        layout.size = isSectionHeader(item)
-          ? sizeRefs.current.sectionHeader
-          : sizeRefs.current.chatListItem;
-      },
-      []
-    );
-
     const activeSelectionStyles = useMemo(
       () => ({
         backgroundColor: '$positiveBackground',
@@ -164,7 +141,7 @@ export const FilteredChatList = React.memo(
       ({ item }) => {
         if (isSectionHeader(item)) {
           return (
-            <SectionListHeader onLayout={handleHeaderLayout}>
+            <SectionListHeader>
               <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
             </SectionListHeader>
           );
@@ -174,7 +151,6 @@ export const FilteredChatList = React.memo(
               disableOptimization
               model={item}
               onPress={onPressItem}
-              onLayout={handleItemLayout}
               // We're rendering the ChatListItem outside of the ChatOptionsProvider, so we need to disable the options
               disableOptions
               showGroupTitle={true}
@@ -189,14 +165,7 @@ export const FilteredChatList = React.memo(
           );
         }
       },
-      [
-        handleHeaderLayout,
-        onPressItem,
-        handleItemLayout,
-        listItems,
-        selectedIndex,
-        activeSelectionStyles,
-      ]
+      [onPressItem, listItems, selectedIndex, activeSelectionStyles]
     );
 
     const contentContainerStyle = useMemo(
@@ -221,7 +190,6 @@ export const FilteredChatList = React.memo(
             keyExtractor={getChatKey}
             renderItem={renderItem}
             getItemType={getItemType}
-            overrideItemLayout={handleOverrideLayout}
             extraData={selectedIndex}
             {...listProps}
           />

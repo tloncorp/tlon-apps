@@ -30,10 +30,6 @@ const getItemType = (chat: ChannelChat) =>
       ? 'group'
       : 'channel';
 
-const overrideItemLayout = (layout: { span?: number; size?: number }) => {
-  layout.size = ITEM_H;
-};
-
 export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
@@ -131,7 +127,6 @@ export function ForwardChannelSelector({
               contentContainerStyle={contentContainerStyle}
               getItemType={getItemType}
               keyExtractor={(chat) => chat.channel.id}
-              overrideItemLayout={overrideItemLayout}
               renderItem={renderItem}
               drawDistance={ITEM_H * 8}
               keyboardShouldPersistTaps="always"

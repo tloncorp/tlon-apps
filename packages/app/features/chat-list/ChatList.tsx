@@ -1,8 +1,7 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { LayoutChangeEvent } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
 import { getTokenValue } from 'tamagui';
 
 import { SectionedChatData } from '../../hooks/useFilteredChats';
@@ -12,7 +11,6 @@ import {
   InteractableChatListItem,
   SectionListHeader,
   useChatOptions,
-  useIsWindowNarrow,
 } from '../../ui';
 
 type SectionHeaderData = { type: 'sectionHeader'; title: string };
@@ -56,35 +54,6 @@ export const ChatList = React.memo(function ChatListComponent({
     paddingBottom: 100, // bottom nav height + some cushion
   };
 
-  const isNarrow = useIsWindowNarrow();
-  const sizeRefs = useRef({
-    sectionHeader: isNarrow ? 28 : 24.55,
-    chatListItem: isNarrow ? 72 : 64,
-  });
-
-  // update the sizeRefs when the window size changes
-  useEffect(() => {
-    sizeRefs.current.sectionHeader = isNarrow ? 28 : 24.55;
-    sizeRefs.current.chatListItem = isNarrow ? 72 : 64;
-  }, [isNarrow]);
-
-  const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
-    sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
-  }, []);
-
-  const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
-    sizeRefs.current.chatListItem = e.nativeEvent.layout.height;
-  }, []);
-
-  const handleOverrideLayout = useCallback(
-    (layout: { span?: number; size?: number }, item: ChatListItemData) => {
-      layout.size = isSectionHeader(item)
-        ? sizeRefs.current.sectionHeader
-        : sizeRefs.current.chatListItem;
-    },
-    []
-  );
-
   const listItemHoverStyle = useMemo(
     () => ({ backgroundColor: '$secondaryBackground' }),
     []
@@ -94,7 +63,7 @@ export const ChatList = React.memo(function ChatListComponent({
     ({ item }) => {
       if (isSectionHeader(item)) {
         return (
-          <SectionListHeader onLayout={handleHeaderLayout}>
+          <SectionListHeader>
             <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
           </SectionListHeader>
         );
@@ -104,7 +73,6 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             hoverStyle={listItemHoverStyle}
             testID={`ChatListItem-${item.channel.title ?? item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
@@ -115,7 +83,6 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             hoverStyle={listItemHoverStyle}
             testID={`ChatListItem-${item.group.title ?? item.group.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
@@ -126,20 +93,13 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             disableOptions={item.isPending}
             hoverStyle={listItemHoverStyle}
           />
         );
       }
     },
-    [
-      handleHeaderLayout,
-      onPressItem,
-      handleLongPress,
-      handleItemLayout,
-      listItemHoverStyle,
-    ]
+    [onPressItem, handleLongPress, listItemHoverStyle]
   );
 
   useRenderCount('ChatList');
@@ -151,7 +111,6 @@ export const ChatList = React.memo(function ChatListComponent({
       keyExtractor={getChatKey}
       renderItem={renderItem}
       getItemType={getItemType}
-      overrideItemLayout={handleOverrideLayout}
       onLoad={onLoad ? () => onLoad() : undefined}
     />
   );
