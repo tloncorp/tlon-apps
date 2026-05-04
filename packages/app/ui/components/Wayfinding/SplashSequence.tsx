@@ -317,10 +317,7 @@ function SplashSequenceComponent(props: {
   }, []);
 
   const handleAvatarUrlChange = useCallback(
-    (
-      url: string | null,
-      uploadIntent?: Attachment.UploadIntent | null
-    ) => {
+    (url: string | null, uploadIntent?: Attachment.UploadIntent | null) => {
       setBotAvatarUrl(url);
       setBotAvatarUploadIntent(uploadIntent ?? null);
       setAvatarDirty(true);
@@ -340,12 +337,7 @@ function SplashSequenceComponent(props: {
         ...config,
       }));
     },
-    [
-      avatarDirty,
-      botAvatarUploadIntent,
-      botAvatarUrl,
-      botName,
-    ]
+    [avatarDirty, botAvatarUploadIntent, botAvatarUrl, botName]
   );
 
   const persistBotIdentityInBackground = useCallback(
@@ -1347,9 +1339,7 @@ export function BotAvatarPane(props: {
     !/^(?!file|data).+/.test(props.avatarUrl!);
 
   const { attachment } = useMappedImageAttachments(
-    !shouldDeferUpload && props.avatarUrl
-      ? { attachment: props.avatarUrl }
-      : {}
+    !shouldDeferUpload && props.avatarUrl ? { attachment: props.avatarUrl } : {}
   );
 
   useEffect(() => {
@@ -1387,10 +1377,7 @@ export function BotAvatarPane(props: {
       const uri =
         Attachment.UploadIntent.extractImagePickerAssets(assets)[0]?.uri;
       if (uri) {
-        props.onAvatarUrlChange(
-          uri,
-          shouldDeferUpload ? uploadIntent : null
-        );
+        props.onAvatarUrlChange(uri, shouldDeferUpload ? uploadIntent : null);
       }
     },
     [props, shouldDeferUpload]
@@ -1852,9 +1839,12 @@ function TlonBotSetupPane(props: {
 
         if (!setup.applied) {
           await syncStart(true).catch((error) => {
-            logger.trackError('TlonBot revival sync failed before setup apply', {
-              error,
-            });
+            logger.trackError(
+              'TlonBot revival sync failed before setup apply',
+              {
+                error,
+              }
+            );
           });
 
           await applyProfileAndNotificationPreferences(setup);
