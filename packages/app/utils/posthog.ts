@@ -6,11 +6,11 @@ import { Platform, TurboModuleRegistry } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
 import { identifyUser } from './identifyUser';
-import { posthog } from './posthogSingleton';
+import { posthog, posthogEnabled } from './posthogSingleton';
 import { createSentryErrorLogger } from './sentry';
 import { UrbitModuleSpec } from './urbitModule';
 
-export { posthog } from './posthogSingleton';
+export { posthog, posthogEnabled } from './posthogSingleton';
 
 export type OnboardingProperties = {
   actionName: string;
@@ -29,7 +29,7 @@ export type OnboardingProperties = {
   inviteType?: 'user' | 'group';
 };
 
-if (posthog) {
+if (posthogEnabled) {
   const distinctId = posthog.getDistinctId();
 
   crashlytics().setAttribute('analyticsId', distinctId);
@@ -73,14 +73,6 @@ if (posthog) {
 }
 
 const capture = (event: string, properties?: { [key: string]: any }) => {
-  if (!posthog) {
-    console.debug('Capturing event before PostHog is initialized:', {
-      event,
-      properties,
-    });
-    return;
-  }
-
   try {
     posthog.capture(event, properties);
   } catch (error) {
@@ -93,11 +85,6 @@ export const trackOnboardingAction = (properties: OnboardingProperties) =>
 
 export const identifyTlonEmployee = () => {
   db.isTlonEmployee.setValue(true);
-  if (!posthog) {
-    console.debug('Identifying as Tlon employee before PostHog is initialized');
-    return;
-  }
-
   const UUID = posthog.getDistinctId();
   identifyUser(UUID, { isTlonEmployee: true });
 };
