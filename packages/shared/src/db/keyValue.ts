@@ -117,6 +117,12 @@ export const signupData = createStorageItem<SignupParams>({
   },
 });
 
+export type TlonbotRevivalStage =
+  | 'collecting'
+  | 'settingUp'
+  | 'group'
+  | 'invite';
+
 export type TlonbotRevivalSetup = Pick<
   SignupParams,
   'nickname' | 'notificationToken' | 'notificationLevel'
@@ -124,6 +130,7 @@ export type TlonbotRevivalSetup = Pick<
   pending: boolean;
   applied?: boolean;
   provisioningStarted?: boolean;
+  stage?: TlonbotRevivalStage;
   shipId?: string;
   botName?: string;
   botAvatarUrl?: string | null;

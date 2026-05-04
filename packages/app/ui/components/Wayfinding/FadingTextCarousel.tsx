@@ -1,4 +1,4 @@
-import { TlonText } from '@tloncorp/app/ui';
+import { TlonText } from '@tloncorp/ui';
 import { useEffect, useState } from 'react';
 import Animated, {
   Easing,

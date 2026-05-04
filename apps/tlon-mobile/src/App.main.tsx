@@ -11,7 +11,9 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
@@ -25,9 +27,10 @@ import {
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
 import { createDevLogger } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -37,7 +40,6 @@ import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
 import { SignupProvider } from './lib/signupContext';
-import { TlonbotSetupScreen } from './screens/Onboarding/TlonbotSetupScreen';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
 
@@ -89,12 +91,16 @@ const App = () => {
     connected,
     showAuthenticatedApp,
     showSplashSequence,
-    showTlonbotSetup,
     activeSplashSequenceMode,
     hostingBotEnabled,
     handleClearSplash,
-    handleTlonbotConfigured,
   } = useTopLevelRouting();
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
+  const handleSplashLogout = useCallback(async () => {
+    await db.clearSessionStorageItems();
+    await handleLogout();
+  }, [handleLogout]);
 
   usePreloadedEmojis();
 
@@ -116,11 +122,9 @@ const App = () => {
               inviteSystemContacts={inviteSystemContacts}
               hostingBotEnabled={hostingBotEnabled}
               splashSequenceMode={activeSplashSequenceMode}
-              onTlonbotConfigured={handleTlonbotConfigured}
+              onLogout={handleSplashLogout}
             />
           </AppDataProvider>
-        ) : showTlonbotSetup ? (
-          <TlonbotSetupScreen />
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (

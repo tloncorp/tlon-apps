@@ -90,6 +90,7 @@ export function useOnboardingHelpers() {
             pending: true,
             applied: false,
             provisioningStarted: current.provisioningStarted ?? false,
+            stage: current.stage ?? 'collecting',
             shipId: shipId ?? undefined,
           }));
         }

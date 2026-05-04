@@ -9,7 +9,16 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { Attachment, DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
-import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
+import {
+  clearShipRevivalStatus,
+  markCurrentUserTlonbotEnabled,
+  setBaseVolumeLevel,
+  syncStart,
+  updateCurrentUserProfile,
+  uploadAsset,
+  useCanUpload,
+  waitForUploads,
+} from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
@@ -44,6 +53,7 @@ import {
   InviteSystemContactsFn,
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
+import { connectNotifyProvider } from '../../../lib/notificationsApi';
 import { useActiveTheme } from '../../../provider';
 import {
   AttachmentProvider,
@@ -60,6 +70,7 @@ import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
+import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
 import { validateProviderKey } from './providerKeyValidation';
 import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
@@ -70,6 +81,8 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  * Bot-enabled flow:
  *   Welcome → TlonBot → BotName → BotAvatar → BotProvider
  *     → (BotApiKey if provider requires key) → BotModel → Group → Invite
+ *
+ * TlonBot revival delays Group → Invite until the revival setup wait finishes.
  *
  * Standard flow:
  *   Welcome → Group → Channels → Privacy → Invite
@@ -85,6 +98,7 @@ enum SplashPane {
   BotProvider = 'BotProvider',
   BotApiKey = 'BotApiKey',
   BotModel = 'BotModel',
+  TlonBotSetup = 'TlonBotSetup',
   Invite = 'Invite',
 }
 
@@ -96,6 +110,7 @@ export type TlonbotSplashConfig = {
   botAvatarUploadIntent?: Attachment.UploadIntent | null;
   botProvider?: string;
   botModel?: string;
+  stage?: db.TlonbotRevivalStage;
 };
 
 function getPreviewBotName(userNickname?: string | null) {
@@ -109,13 +124,14 @@ function getPreviewBotName(userNickname?: string | null) {
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
+  onLogout?: () => void | Promise<void>;
   inviteSystemContacts?: InviteSystemContactsFn;
   hostingBotEnabled?: boolean;
   splashSequenceMode?: db.ShipInfo['splashSequenceMode'];
-  onTlonbotConfigured?: (config: TlonbotSplashConfig) => void | Promise<void>;
 }) {
   const store = useStore();
   const canUpload = useCanUpload();
+  const tlonbotRevivalSetup = db.tlonbotRevivalSetup.useValue();
   const [currentPane, setCurrentPane] = React.useState(
     props.splashSequenceMode === 'tlonbotRevival'
       ? SplashPane.TlonBot
@@ -166,6 +182,54 @@ function SplashSequenceComponent(props: {
       pane: currentPane,
     });
   }, [currentPane]);
+
+  useEffect(() => {
+    if (!shouldDeferTlonbotSetup) {
+      return;
+    }
+
+    if (tlonbotRevivalSetup.botName) {
+      setBotName(tlonbotRevivalSetup.botName);
+    }
+    if (tlonbotRevivalSetup.botAvatarUrl) {
+      setBotAvatarUrl(tlonbotRevivalSetup.botAvatarUrl);
+      setAvatarDirty(true);
+    }
+    if (tlonbotRevivalSetup.botAvatarUploadIntent) {
+      setBotAvatarUploadIntent(tlonbotRevivalSetup.botAvatarUploadIntent);
+    }
+    if (
+      tlonbotRevivalSetup.botProvider &&
+      tlonbotRevivalSetup.botProvider !== botModel
+    ) {
+      setBotModel(tlonbotRevivalSetup.botProvider);
+    }
+  }, [
+    botModel,
+    shouldDeferTlonbotSetup,
+    tlonbotRevivalSetup.botAvatarUploadIntent,
+    tlonbotRevivalSetup.botAvatarUrl,
+    tlonbotRevivalSetup.botName,
+    tlonbotRevivalSetup.botProvider,
+  ]);
+
+  useEffect(() => {
+    if (!shouldDeferTlonbotSetup) {
+      return;
+    }
+
+    switch (tlonbotRevivalSetup.stage) {
+      case 'settingUp':
+        setCurrentPane(SplashPane.TlonBotSetup);
+        break;
+      case 'group':
+        setCurrentPane(SplashPane.Group);
+        break;
+      case 'invite':
+        setCurrentPane(SplashPane.Invite);
+        break;
+    }
+  }, [shouldDeferTlonbotSetup, tlonbotRevivalSetup.stage]);
 
   // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
@@ -267,19 +331,20 @@ function SplashSequenceComponent(props: {
   const saveDeferredTlonbotConfig = useCallback(
     (config: TlonbotSplashConfig = {}) => {
       const resolvedBotName = botName.trim() || 'Tlonbot';
-      return props.onTlonbotConfigured?.({
+      return db.tlonbotRevivalSetup.setValue((current) => ({
+        ...current,
         botName: resolvedBotName,
         botAvatarUrl: avatarDirty ? botAvatarUrl : null,
         botAvatarUploadIntent: avatarDirty ? botAvatarUploadIntent : null,
+        pending: true,
         ...config,
-      });
+      }));
     },
     [
       avatarDirty,
       botAvatarUploadIntent,
       botAvatarUrl,
       botName,
-      props.onTlonbotConfigured,
     ]
   );
 
@@ -489,11 +554,12 @@ function SplashSequenceComponent(props: {
           await saveDeferredTlonbotConfig({
             botProvider: provider,
             botModel: `${provider}/auto`,
+            stage: 'settingUp',
           });
+          setCurrentPane(SplashPane.TlonBotSetup);
+        } else {
+          setCurrentPane(SplashPane.Group);
         }
-        setCurrentPane(
-          shouldDeferTlonbotSetup ? SplashPane.Invite : SplashPane.Group
-        );
         return;
       }
 
@@ -578,6 +644,27 @@ function SplashSequenceComponent(props: {
     handleValidateProvider();
   }, [botModel, providerOptions, handleValidateProvider]);
 
+  const handleTlonbotSetupComplete = useCallback(async () => {
+    await db.tlonbotRevivalSetup.setValue((current) => ({
+      ...current,
+      pending: true,
+      applied: true,
+      stage: 'group',
+    }));
+    setCurrentPane(SplashPane.Group);
+  }, []);
+
+  const handleTlonbotGroupCompleted = useCallback(async () => {
+    if (shouldDeferTlonbotSetup) {
+      await db.tlonbotRevivalSetup.setValue((current) => ({
+        ...current,
+        pending: true,
+        stage: 'invite',
+      }));
+    }
+    setCurrentPane(SplashPane.Invite);
+  }, [shouldDeferTlonbotSetup]);
+
   const handleModelBackPress = useCallback(() => {
     const provider = botModel || BASIC_PROVIDER_ID;
     const selected = providerOptions.find((p) => p.provider === provider);
@@ -605,13 +692,13 @@ function SplashSequenceComponent(props: {
         await saveDeferredTlonbotConfig({
           botProvider: provider,
           botModel: model,
+          stage: 'settingUp',
         });
+        setCurrentPane(SplashPane.TlonBotSetup);
       } else {
         startCustomBotSetup({ userId, shipId, provider, model });
+        setCurrentPane(SplashPane.Group);
       }
-      setCurrentPane(
-        shouldDeferTlonbotSetup ? SplashPane.Invite : SplashPane.Group
-      );
     } catch (e) {
       console.error('Failed to save bot config during onboarding:', e);
       logger.trackError('Wayfinding Bot Reconfigure Failed', {
@@ -619,7 +706,7 @@ function SplashSequenceComponent(props: {
         error: e,
       });
       setCurrentPane(
-        shouldDeferTlonbotSetup ? SplashPane.Invite : SplashPane.Group
+        shouldDeferTlonbotSetup ? SplashPane.TlonBotSetup : SplashPane.Group
       );
     } finally {
       if (isMountedRef.current) {
@@ -669,16 +756,34 @@ function SplashSequenceComponent(props: {
         }
       }
 
-      void (isRevivalSplash
-        ? store.completeRevivalSplash()
-        : store.completeWayfindingSplash());
-      props.onCompleted();
+      if (isRevivalSplash) {
+        await store.completeRevivalSplash();
+        props.onCompleted();
+        if (shouldDeferTlonbotSetup) {
+          await db.tlonbotRevivalSetup.resetValue();
+          clearShipRevivalStatus().catch((error) => {
+            logger.trackError('Failed to clear TlonBot revival status', {
+              error,
+            });
+          });
+        }
+      } else {
+        await store.completeWayfindingSplash();
+        props.onCompleted();
+      }
     } finally {
       if (isMountedRef.current) {
         setFinishingSplash(false);
       }
     }
-  }, [customBotSetupStatus, finishingSplash, isRevivalSplash, props, store]);
+  }, [
+    customBotSetupStatus,
+    finishingSplash,
+    isRevivalSplash,
+    props,
+    shouldDeferTlonbotSetup,
+    store,
+  ]);
 
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
@@ -753,12 +858,19 @@ function SplashSequenceComponent(props: {
           />
         )}
 
+        {currentPane === SplashPane.TlonBotSetup && (
+          <TlonBotSetupPane
+            onComplete={handleTlonbotSetupComplete}
+            onLogout={props.onLogout}
+          />
+        )}
+
         {currentPane === SplashPane.Group && (
           <GroupsPane
-            onActionPress={() =>
-              setCurrentPane(
-                hostingBotEnabled ? SplashPane.Invite : SplashPane.Channels
-              )
+            onActionPress={
+              hostingBotEnabled
+                ? handleTlonbotGroupCompleted
+                : () => setCurrentPane(SplashPane.Channels)
             }
             hostingBotEnabled={hostingBotEnabled}
             botName={botName || 'Tlonbot'}
@@ -796,6 +908,188 @@ function SplashSequenceComponent(props: {
 export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
+const TLONBOT_SETUP_POLL_INTERVAL_MS = 5000;
+const TLONBOT_REVIVAL_GROUP_IDS = [
+  '~ramlud-bintun/v1l3qcoq',
+  '~wittyr-witbes/v3s2kbd7',
+];
+
+function prejoinTlonbotRevivalGroups() {
+  TLONBOT_REVIVAL_GROUP_IDS.forEach((groupId) => {
+    api.joinGroup(groupId).catch((error) => {
+      logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+        error,
+        context: 'failed to prejoin TlonBot revival group',
+        groupId,
+        during: 'TlonBot revival splash',
+        severity: AnalyticsSeverity.High,
+      });
+    });
+  });
+}
+
+async function applyProfileAndNotificationPreferences(
+  setup: db.TlonbotRevivalSetup
+) {
+  if (setup.nickname) {
+    await withRetry(
+      () =>
+        updateCurrentUserProfile(
+          { nickname: setup.nickname },
+          { shouldThrow: true }
+        ),
+      {
+        startingDelay: 1000,
+        numOfAttempts: 4,
+        maxDelay: 4000,
+      }
+    ).catch((error) => {
+      logger.trackError('TlonBot revival profile update failed', { error });
+    });
+  }
+
+  if (setup.notificationToken) {
+    await withRetry(() => connectNotifyProvider(setup.notificationToken!), {
+      startingDelay: 1000,
+      numOfAttempts: 4,
+      maxDelay: 4000,
+    }).catch((error) => {
+      logger.trackError('TlonBot revival notification token update failed', {
+        error,
+      });
+    });
+  }
+
+  if (setup.notificationLevel) {
+    await withRetry(
+      () => setBaseVolumeLevel({ level: setup.notificationLevel! }),
+      {
+        startingDelay: 1000,
+        numOfAttempts: 4,
+        maxDelay: 4000,
+      }
+    ).catch((error) => {
+      logger.trackError('TlonBot revival notification level update failed', {
+        error,
+      });
+    });
+  }
+}
+
+async function applyBotPreferences(
+  shipId: string,
+  setup: db.TlonbotRevivalSetup
+) {
+  if (setup.botName) {
+    await withRetry(() => api.setTlawnNickname(shipId, setup.botName!), {
+      startingDelay: 750,
+      numOfAttempts: 4,
+      maxDelay: 4000,
+    }).catch((error) => {
+      logger.trackError('TlonBot revival bot nickname update failed', {
+        error,
+      });
+    });
+  }
+
+  const botAvatarUrl = await resolveDeferredBotAvatarUrl(setup);
+  if (botAvatarUrl) {
+    await withRetry(() => api.setTlawnAvatar(shipId, botAvatarUrl), {
+      startingDelay: 750,
+      numOfAttempts: 4,
+      maxDelay: 4000,
+    }).catch((error) => {
+      logger.trackError('TlonBot revival bot avatar update failed', { error });
+    });
+  }
+
+  if (
+    setup.botProvider &&
+    setup.botProvider !== BASIC_PROVIDER_ID &&
+    setup.botModel
+  ) {
+    const userId = await db.hostingUserId.getValue();
+    if (!userId) {
+      logger.trackError('TlonBot revival model update failed', {
+        step: 'missing_user_id',
+      });
+      return;
+    }
+
+    await withRetry(
+      () =>
+        api.setTlawnPrimaryModel(userId, {
+          provider: setup.botProvider!,
+          model: setup.botModel!,
+        }),
+      {
+        startingDelay: 750,
+        numOfAttempts: 4,
+        maxDelay: 4000,
+      }
+    )
+      .then(async () => {
+        const running = await api.awaitBotRunning(shipId, {
+          timeoutMs: 30_000,
+          pollIntervalMs: 1500,
+        });
+        if (!running) {
+          logger.trackError(
+            'TlonBot revival model update readiness timed out',
+            {
+              provider: setup.botProvider,
+              model: setup.botModel,
+            }
+          );
+        }
+      })
+      .catch((error) => {
+        logger.trackError('TlonBot revival model update failed', { error });
+      });
+  }
+}
+
+async function resolveDeferredBotAvatarUrl(setup: db.TlonbotRevivalSetup) {
+  if (setup.botAvatarUploadIntent) {
+    return withRetry(
+      async () => {
+        const uploadIntent = setup.botAvatarUploadIntent!;
+        const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
+        await uploadAsset(uploadIntent);
+        const uploadStates = await waitForUploads([uploadKey]);
+        const uploadState = uploadStates[uploadKey];
+
+        if (uploadState?.status !== 'success') {
+          throw new Error('Deferred avatar upload did not finish successfully');
+        }
+
+        return uploadState.remoteUri;
+      },
+      {
+        startingDelay: 1000,
+        numOfAttempts: 3,
+        maxDelay: 4000,
+      }
+    ).catch((error) => {
+      logger.trackError('TlonBot revival deferred avatar upload failed', {
+        error,
+      });
+      return null;
+    });
+  }
+
+  if (setup.botAvatarUrl && /^(?!file|data).+/.test(setup.botAvatarUrl)) {
+    return setup.botAvatarUrl;
+  }
+
+  if (setup.botAvatarUrl) {
+    logger.trackError('TlonBot revival bot avatar update failed', {
+      step: 'missing_upload_intent',
+    });
+  }
+
+  return null;
+}
 
 async function shareTlonbotGroupInvite(homeGroupInviteLink: string) {
   if (isWeb) {
@@ -1524,6 +1818,137 @@ export function BotModelPane(props: {
         marginTop="$xl"
       />
     </View>
+  );
+}
+
+function TlonBotSetupPane(props: {
+  onComplete: () => void | Promise<void>;
+  onLogout?: () => void | Promise<void>;
+}) {
+  const { onComplete, onLogout } = props;
+  const applyingRef = useRef(false);
+  const provisioningKickoffStartedRef = useRef(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = useCallback(async () => {
+    if (!onLogout) {
+      return;
+    }
+
+    setLoggingOut(true);
+    await onLogout();
+  }, [onLogout]);
+
+  const applyDeferredSetup = useCallback(
+    async (shipId: string) => {
+      if (applyingRef.current) {
+        return;
+      }
+
+      applyingRef.current = true;
+
+      try {
+        const setup = await db.tlonbotRevivalSetup.getValue(true);
+
+        if (!setup.applied) {
+          await syncStart(true).catch((error) => {
+            logger.trackError('TlonBot revival sync failed before setup apply', {
+              error,
+            });
+          });
+
+          await applyProfileAndNotificationPreferences(setup);
+          await applyBotPreferences(shipId, setup);
+          await db.tlonbotRevivalSetup.setValue((current) => ({
+            ...current,
+            applied: true,
+          }));
+        }
+
+        await onComplete();
+      } catch (error) {
+        applyingRef.current = false;
+        logger.trackError('TlonBot revival setup failed', { error });
+        throw error;
+      }
+    },
+    [onComplete]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleNextCheck = () => {
+      if (!cancelled) {
+        timeout = setTimeout(checkReadiness, TLONBOT_SETUP_POLL_INTERVAL_MS);
+      }
+    };
+
+    const checkReadiness = async () => {
+      try {
+        const setup = await db.tlonbotRevivalSetup.getValue();
+        const shipId = setup.shipId ?? (await db.hostedUserNodeId.getValue());
+
+        if (!shipId) {
+          throw new Error('No ship ID found during TlonBot revival setup');
+        }
+
+        if (
+          !setup.provisioningStarted &&
+          !provisioningKickoffStartedRef.current
+        ) {
+          provisioningKickoffStartedRef.current = true;
+          prejoinTlonbotRevivalGroups();
+          markCurrentUserTlonbotEnabled()
+            .then(async () => {
+              await db.tlonbotRevivalSetup.setValue((current) => ({
+                ...current,
+                provisioningStarted: true,
+                shipId: current.shipId ?? shipId,
+              }));
+            })
+            .catch((error) => {
+              provisioningKickoffStartedRef.current = false;
+              logger.trackError('Failed to kick off TlonBot provisioning', {
+                error,
+                shipId,
+              });
+            });
+        }
+
+        const isReady = await api.awaitNodeTlonbotReady(shipId, {
+          timeoutMs: 30_000,
+          pollIntervalMs: TLONBOT_SETUP_POLL_INTERVAL_MS,
+        });
+        if (isReady) {
+          if (!cancelled) {
+            await applyDeferredSetup(shipId);
+          }
+          return;
+        }
+      } catch (error) {
+        logger.trackError('TlonBot readiness check failed', { error });
+      }
+
+      scheduleNextCheck();
+    };
+
+    checkReadiness();
+
+    return () => {
+      cancelled = true;
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [applyDeferredSetup]);
+
+  return (
+    <TlonBotSetupPaneView
+      onLogout={onLogout ? handleLogout : undefined}
+      loggingOut={loggingOut}
+    />
   );
 }
 
