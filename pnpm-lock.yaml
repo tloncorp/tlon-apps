@@ -41,7 +41,7 @@ patchedDependencies:
     hash: rrgfswpnlffjgwznvmxhq42uem
     path: patches/@tamagui__sheet@2.0.0-rc.41.patch
   '@tamagui/static@2.0.0-rc.41':
-    hash: mhqx747fdvgvhf5lo3i7h7vzyi
+    hash: 5ozepaupfyg4qamrtb3jyqfati
     path: patches/@tamagui__static@2.0.0-rc.41.patch
   '@tamagui/web@2.0.0-rc.41':
     hash: rxhysekm4l6xmolkjzbtoa5oo4
@@ -12767,14 +12767,17 @@ packages:
 
   uuid@7.0.3:
     resolution: {integrity: sha512-DPSke0pXhTZgoF/d+WSt2QaKMCFSfx7QegxEWT+JOuHF5aWrKEn0G+ztjuJg/gG8/ItK+rbPCD/yNv8yyih6Cg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@9.0.0:
     resolution: {integrity: sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   v8-to-istanbul@9.3.0:
@@ -19387,7 +19390,7 @@ snapshots:
   '@tamagui/static-sync@2.0.0-rc.41(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react-native-gesture-handler@2.28.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(sf-symbols-typescript@2.2.0)':
     dependencies:
       '@babel/core': 7.29.0
-      '@tamagui/static': 2.0.0-rc.41(patch_hash=mhqx747fdvgvhf5lo3i7h7vzyi)(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react-native-gesture-handler@2.28.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(sf-symbols-typescript@2.2.0)
+      '@tamagui/static': 2.0.0-rc.41(patch_hash=5ozepaupfyg4qamrtb3jyqfati)(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react-native-gesture-handler@2.28.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(sf-symbols-typescript@2.2.0)
       '@tamagui/types': 2.0.0-rc.41
       synckit: 0.9.3
     transitivePeerDependencies:
@@ -19410,7 +19413,7 @@ snapshots:
 
   '@tamagui/static-worker@2.0.0-rc.41(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react-native-gesture-handler@2.28.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(sf-symbols-typescript@2.2.0)':
     dependencies:
-      '@tamagui/static': 2.0.0-rc.41(patch_hash=mhqx747fdvgvhf5lo3i7h7vzyi)(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react-native-gesture-handler@2.28.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(sf-symbols-typescript@2.2.0)
+      '@tamagui/static': 2.0.0-rc.41(patch_hash=5ozepaupfyg4qamrtb3jyqfati)(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react-native-gesture-handler@2.28.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(sf-symbols-typescript@2.2.0)
       '@tamagui/types': 2.0.0-rc.41
       piscina: 4.9.2
     transitivePeerDependencies:
@@ -19431,7 +19434,7 @@ snapshots:
       - supports-color
       - zeego
 
-  '@tamagui/static@2.0.0-rc.41(patch_hash=mhqx747fdvgvhf5lo3i7h7vzyi)(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react-native-gesture-handler@2.28.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(sf-symbols-typescript@2.2.0)':
+  '@tamagui/static@2.0.0-rc.41(patch_hash=5ozepaupfyg4qamrtb3jyqfati)(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react-native-gesture-handler@2.28.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-safe-area-context@5.6.2(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(sf-symbols-typescript@2.2.0)':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/generator': 7.29.0
