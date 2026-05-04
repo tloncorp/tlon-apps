@@ -12,6 +12,7 @@ import {
   BuildOptions,
   Plugin,
   PluginOption,
+  ProxyOptions,
   defineConfig,
   loadEnv,
 } from 'vite';
@@ -187,7 +188,7 @@ export default ({ mode }: { mode: string }) => {
       : process.env.VITE_PORT
         ? parseInt(process.env.VITE_PORT)
         : 3000;
-  const urbitProxy: Record<string, any> = {
+  const urbitProxy: Record<string, ProxyOptions> = {
     '/apps/groups/~/metagrab/': {
       target: targetShipUrl,
       changeOrigin: true,
