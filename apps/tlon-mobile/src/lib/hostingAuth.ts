@@ -11,7 +11,7 @@ const logger = createDevLogger('refreshHostingAuth', false);
 // Authentication for hosting uses a token that can last up to a year, but
 // expires after 30 days of without use. We don't regularly interact with hosting after login,
 // so we attempt to manually refresh the token regularly
-export async function refreshHostingAuth() {
+export async function refreshHostingAuth(options: { force?: boolean } = {}) {
   logger.log(`checking hosting auth`);
 
   if (__DEV__) {
@@ -26,7 +26,7 @@ export async function refreshHostingAuth() {
     return;
   }
 
-  if (wasMoreThanDayAgo(lastCheck)) {
+  if (options.force || wasMoreThanDayAgo(lastCheck)) {
     const isOnline = await deviceIsOnline();
     if (isOnline) {
       logger.log('online and more than a day since last check, refreshing');

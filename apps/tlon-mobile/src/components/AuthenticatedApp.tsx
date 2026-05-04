@@ -46,12 +46,14 @@ import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
 import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
+import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
 
 function AuthenticatedApp() {
   const telemetry = useTelemetry();
   const checkNodeStopped = useCheckNodeStopped();
+  const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
@@ -88,7 +90,8 @@ function AuthenticatedApp() {
         startChatListSettleMeasurement(status);
         await checkForCachedChanges();
         telemetry.captureAppActive();
-        checkNodeStopped();
+        const nodeCheck = await checkNodeStopped();
+        await maybeShowPrompt(nodeCheck);
         refreshHostingAuth();
         checkAnalyticsDigest();
       }
@@ -103,7 +106,7 @@ function AuthenticatedApp() {
           });
       }
     },
-    [checkForCachedChanges, checkNodeStopped, telemetry]
+    [checkForCachedChanges, checkNodeStopped, maybeShowPrompt, telemetry]
   );
 
   useAppStatusChange(handleAppStatusChange);
@@ -142,6 +145,7 @@ function AuthenticatedApp() {
       <RootStack />
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {poorUxReportModal}
+      {promptSheet}
     </ZStack>
   );
 }
