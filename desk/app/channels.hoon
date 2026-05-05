@@ -2432,7 +2432,9 @@
             %|  seq.post.u-post
           ==
         =?  pending.channel  ?=(%& -.post.u-post)
-          =/  client-id  [author sent]:post.u-post
+          =/  =client-id:c
+            :_  sent.post.u-post
+            (get-author-ship:utils author.post.u-post)
           pending.channel(posts (~(del by posts.pending.channel) client-id))
         (ca-response %post id-post %set post)
       ::
@@ -2508,7 +2510,9 @@
           (on-reply:ca-activity post +.reply.u-reply)
         =?  pending.channel  ?=(%& -.reply.u-reply)
           =/  reply-essay  +>+.reply.u-reply
-          =/  client-id  [author sent]:reply-essay
+          =/  =client-id:c
+            :_  sent.reply-essay
+            (get-author-ship:utils author.reply-essay)
           =/  new-replies  (~(del by replies.pending.channel) [id-post client-id])
           pending.channel(replies new-replies)
         (put-reply reply.u-reply %set reply)

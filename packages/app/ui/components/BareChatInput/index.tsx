@@ -189,6 +189,7 @@ function TextWithMentions({
     textParts.push(
       <Text
         key={`mention-${mention.id}-${index}`}
+        testID={`SelectedMention-${mention.id}`}
         color="$positiveActionText"
         backgroundColor="$positiveBackground"
       >
@@ -251,6 +252,7 @@ function BareChatInput(
     goBack,
     shouldAutoFocus,
     showWayfindingTooltip,
+    showBotMentionTooltip,
     sendPostFromDraft,
   }: MessageInputProps,
   ref: ForwardedRef<DraftInputHandle>
@@ -838,6 +840,12 @@ function BareChatInput(
         tappedChatInput: true,
       }));
     }
+    if (logic.isBotHomeGroupChatChannel(channelId)) {
+      db.wayfindingProgress.setValue((prev) => ({
+        ...prev,
+        tappedBotMention: true,
+      }));
+    }
   }, [channelId]);
 
   const handleKeyPress = useCallback(
@@ -901,6 +909,7 @@ function BareChatInput(
       disableSend={disableSend}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}
+      showBotMentionTooltip={showBotMentionTooltip}
       isMentionModeActive={isMentionModeActive}
       mentionText={mentionSearchText}
       mentionOptions={validOptions}

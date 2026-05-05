@@ -12,6 +12,7 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -310,9 +311,22 @@ export const syncLatestChanges = async ({
     };
   }
 
-  const result = await syncQueue.add('latestChanges', syncCtx, () => {
-    return fetchChangesSince(syncFrom);
-  });
+  const perfStop = perfMark('syncLatestChanges.total');
+  const result = await perfTime(
+    'syncLatestChanges.fetch',
+    () =>
+      syncQueue.add('latestChanges', syncCtx, () =>
+        fetchChangesSince(syncFrom)
+      ),
+    (r) => ({
+      posts: r.posts.length,
+      groups: r.groups.length,
+      contacts: r.contacts.length,
+      channelUnreads: r.unreads.channelUnreads.length,
+      groupUnreads: r.unreads.groupUnreads.length,
+      threadUnreads: r.unreads.threadActivity.length,
+    })
+  );
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
     ...callCtx,
@@ -336,8 +350,16 @@ export const syncLatestChanges = async ({
     );
   }
 
-  await db.insertChanges(result, queryCtx);
-  notifyChannelPostListenersFromLatestChanges(topLevelPosts);
+  await perfTime(
+    'syncLatestChanges.insertChanges',
+    () => db.insertChanges(result, queryCtx),
+    { posts: result.posts.length }
+  );
+  await perfTime(
+    'syncLatestChanges.notifyListeners',
+    async () => notifyChannelPostListenersFromLatestChanges(topLevelPosts),
+    { topLevelPosts: topLevelPosts.length }
+  );
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -378,6 +400,11 @@ export const syncLatestChanges = async ({
   const groupUnreadCounts = Object.fromEntries(
     result.unreads.groupUnreads.map((u) => [u.groupId, u.count ?? 0])
   );
+  perfStop({
+    posts: result.posts.length,
+    topLevelPosts: topLevelPosts.length,
+    hadChanges: String(hadChanges),
+  });
   return {
     hadChanges,
     nodeBusyStatus: result.nodeBusyStatus ?? null,
@@ -475,11 +502,22 @@ export const syncAppInfo = async (ctx?: SyncCtx) => {
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
-  const volumeSettings = await syncQueue.add('volumeSettings', ctx, () =>
-    api.getVolumeSettings()
+  const clientVolumes = await perfTime(
+    'syncVolumeSettings.fetch',
+    async () => {
+      const volumeSettings = await syncQueue.add('volumeSettings', ctx, () =>
+        api.getVolumeSettings()
+      );
+      return extractClientVolumes(volumeSettings);
+    },
+    (cv) => ({
+      total: cv.length,
+      threadScoped: cv.filter((v) => v.itemType === 'thread').length,
+    })
   );
-  const clientVolumes = extractClientVolumes(volumeSettings);
-  await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
+  await perfTime('syncVolumeSettings.setVolumes', () =>
+    db.setVolumes({ volumes: clientVolumes, deleteOthers: true })
+  );
 };
 
 export const syncSystemContacts = async (_ctx?: SyncCtx) => {
@@ -836,16 +874,26 @@ export const syncStorageSettings = (ctx?: SyncCtx) => {
 };
 
 export const resetActivity = async (syncCtx?: SyncCtx) => {
-  const { relevantUnreads, events } = await syncQueue.add(
-    'getInitialActivity',
-    syncCtx,
-    () => api.getInitialActivity()
+  const { relevantUnreads, events } = await perfTime(
+    'resetActivity.fetch',
+    () =>
+      syncQueue.add('getInitialActivity', syncCtx, () =>
+        api.getInitialActivity()
+      ),
+    (r) => ({
+      events: r.events.length,
+      threadUnreads: r.relevantUnreads.threadActivity.length,
+      channelUnreads: r.relevantUnreads.channelUnreads.length,
+      groupUnreads: r.relevantUnreads.groupUnreads.length,
+    })
   );
-  await batchEffects('resetActivity', async (ctx) => {
-    await db.clearActivityEvents(ctx);
-    await db.insertActivityEvents(events, ctx);
-    await persistUnreads({ unreads: relevantUnreads, ctx });
-  });
+  await perfTime('resetActivity.write', () =>
+    batchEffects('resetActivity', async (ctx) => {
+      await db.clearActivityEvents(ctx);
+      await db.insertActivityEvents(events, ctx);
+      await persistUnreads({ unreads: relevantUnreads, ctx });
+    })
+  );
   resetActivityFetchers();
 };
 
@@ -1625,49 +1673,58 @@ export async function handleAddPost(
   ctx?: QueryCtx
 ) {
   logger.log('event: add post', post);
-  // We frequently get duplicate addPost events from the api,
-  // so skip if we've just added this.
-  if (post.id === lastAdded) {
-    logger.log('skipping duplicate post.');
-  } else {
-    lastAdded = post.id;
-  }
+  await perfTime(
+    'handleAddPost.total',
+    async () => {
+      // We frequently get duplicate addPost events from the api,
+      // so skip if we've just added this.
+      if (post.id === lastAdded) {
+        logger.log('skipping duplicate post.');
+      } else {
+        lastAdded = post.id;
+      }
 
-  // first check if it's a reply. If it is and we haven't already cached
-  // it, we need to add it to the parent post
-  if (post.parentId) {
-    const cachedReply = await db.getPostByCacheId({
+      // first check if it's a reply. If it is and we haven't already cached
+      // it, we need to add it to the parent post
+      if (post.parentId) {
+        const cachedReply = await db.getPostByCacheId({
+          channelId: post.channelId,
+          sentAt: post.sentAt,
+          authorId: post.authorId,
+        });
+        if (!cachedReply) {
+          await perfTime('handleAddPost.addReplyToPost', () =>
+            db.addReplyToPost(
+              {
+                parentId: post.parentId!,
+                replyAuthor: post.authorId,
+                replyTime: post.sentAt,
+                replyMeta,
+              },
+              ctx
+            )
+          );
+        }
+        await perfTime(
+          'handleAddPost.insertChannelPosts',
+          () => db.insertChannelPosts({ posts: [post] }, ctx),
+          { isReply: 'true' }
+        );
+      } else {
+        addToChannelPosts(post);
+        await perfTime(
+          'handleAddPost.insertChannelPosts',
+          () => db.insertChannelPosts({ posts: [post] }, ctx),
+          { isReply: 'false' }
+        );
+      }
+      updateLastActivityTime();
+    },
+    {
+      isReply: post.parentId ? 'true' : 'false',
       channelId: post.channelId,
-      sentAt: post.sentAt,
-      authorId: post.authorId,
-    });
-    if (!cachedReply) {
-      await db.addReplyToPost(
-        {
-          parentId: post.parentId,
-          replyAuthor: post.authorId,
-          replyTime: post.sentAt,
-          replyMeta,
-        },
-        ctx
-      );
     }
-    await db.insertChannelPosts(
-      {
-        posts: [post],
-      },
-      ctx
-    );
-  } else {
-    addToChannelPosts(post);
-    await db.insertChannelPosts(
-      {
-        posts: [post],
-      },
-      ctx
-    );
-  }
-  updateLastActivityTime();
+  );
 }
 
 export async function syncSequencedPosts(
@@ -1820,24 +1877,34 @@ export async function syncChannelMessageDelivery({
 }: {
   channelId: string;
 }) {
-  if (currentPendingMessageSyncs.has(channelId)) {
+  // Dedupe: if a delivery-sync is already in flight for this channel, reuse
+  // it. The existing loop's isStillPending check already covers any messages
+  // sent while it was running. Without this guard, rapid sends stack up
+  // independent backoff loops, each firing its own syncPosts poll under load.
+  const existing = currentPendingMessageSyncs.get(channelId);
+  if (existing) {
     logger.log(`message delivery sync already in progress for ${channelId}`);
+    return existing;
   }
 
-  try {
-    logger.log(`syncing messsage delivery for ${channelId}`);
-    const syncPromise = syncChannelWithBackoff({ channelId });
-    currentPendingMessageSyncs.set(channelId, syncPromise);
-    await syncPromise;
-    logger.crumb(`all messages in channel are delivered`);
-    logger.sensitiveCrumb(`channelId: ${channelId}`);
-  } catch (e) {
-    logger.error(
-      `some messages in ${channelId} still undelivered, is the channel offline?`
-    );
-  } finally {
-    currentPendingMessageSyncs.delete(channelId);
-  }
+  const syncPromise = (async () => {
+    try {
+      logger.log(`syncing messsage delivery for ${channelId}`);
+      const result = await syncChannelWithBackoff({ channelId });
+      logger.crumb(`all messages in channel are delivered`);
+      logger.sensitiveCrumb(`channelId: ${channelId}`);
+      return result;
+    } catch (e) {
+      logger.error(
+        `some messages in ${channelId} still undelivered, is the channel offline?`
+      );
+      return false;
+    } finally {
+      currentPendingMessageSyncs.delete(channelId);
+    }
+  })();
+  currentPendingMessageSyncs.set(channelId, syncPromise);
+  return syncPromise;
 }
 
 export async function syncChannelWithBackoff({
@@ -1846,7 +1913,11 @@ export async function syncChannelWithBackoff({
   channelId: string;
 }): Promise<boolean> {
   async function isStillPending() {
-    return (await db.getPendingPosts(channelId)).length > 0;
+    // Delivery polling uses the dedicated `getDeliveryPendingPosts` query:
+    // it keeps in-flight `enqueued` / `pending` rows visible even when the
+    // user has locally cleared them, so mid-flight deletes still reconcile
+    // against the server. UI ghost-row filtering lives in `getPendingPosts`.
+    return (await db.getDeliveryPendingPosts(channelId)).length > 0;
   }
 
   const checkDelivered = async () => {

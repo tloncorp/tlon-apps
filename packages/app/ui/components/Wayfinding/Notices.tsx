@@ -24,6 +24,7 @@ const WayfindingNotice = {
   CustomizeGroup,
   HomeAddTooltip,
   ChatInputTooltip,
+  BotMentionTooltip,
   CollectionInputTooltip,
   NotebookInputTooltip,
 };
@@ -210,6 +211,29 @@ export function ChatInputTooltip() {
         >
           <Text size="$label/l" color="$white">
             Send a message here.
+          </Text>
+        </View>
+        <XStack width="100%" justifyContent="flex-end">
+          <Circle backgroundColor="$positiveActionText" size="$2xl" />
+        </XStack>
+      </YStack>
+    </View>
+  );
+}
+
+export function BotMentionTooltip() {
+  return (
+    <View position="absolute" bottom={35} right={50}>
+      <YStack gap="$l">
+        <View
+          padding={20}
+          width={240}
+          backgroundColor="$positiveActionText"
+          borderRadius="$l"
+          testID="BotMentionWayfindingTooltip"
+        >
+          <Text size="$label/l" color="$white">
+            @-mention your bot here to use it in this group.
           </Text>
         </View>
         <XStack width="100%" justifyContent="flex-end">
