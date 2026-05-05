@@ -8,6 +8,12 @@ there is no need to reinitialize it unless:
 1. Aqua state has been reset.
 2. We want the pill to incorporate some changes, such as an updated desk or additional files.
 
+In the latter case, we also have a choice to prepare an aqua snapshot with desk sync enabled,
+that will contain the updated desk irrespective of the version frozen in the pill.
+This is usually preferrable, unless we plan to generate multiple snapshots. In that case,
+generating a new pill containing updated desk will usually be faster than the accumulated
+cost of syncing virtual desks for each ship in a snapshot.
+
 To initialize aqua with a fresh pill, we poke aqua with an assembled pill. This
 can be done in one go by using the brass pill generator.
 ```
