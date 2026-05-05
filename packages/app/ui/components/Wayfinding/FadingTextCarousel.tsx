@@ -15,6 +15,7 @@ interface FadingTextCarouselProps {
   holdMs?: number;
   fadeMs?: number;
   travelDistance?: number;
+  maxWidth?: number;
 }
 
 export function FadingTextCarousel({
@@ -22,6 +23,7 @@ export function FadingTextCarousel({
   holdMs = 2400,
   fadeMs = 600,
   travelDistance = 12,
+  maxWidth,
 }: FadingTextCarouselProps) {
   const [index, setIndex] = useState(0);
   const opacity = useSharedValue(0);
@@ -80,7 +82,7 @@ export function FadingTextCarousel({
   }
 
   return (
-    <Animated.View style={animatedStyle}>
+    <Animated.View style={[animatedStyle, { maxWidth, alignSelf: 'center' }]}>
       <TlonText.Text textAlign="center" color="$secondaryText">
         {messages[index]}
       </TlonText.Text>
