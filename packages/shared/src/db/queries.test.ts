@@ -1326,18 +1326,24 @@ describe('recomputeChannelLastPost', () => {
 // handled separately and should not drive the delivery loop.
 describe('getDeliveryPendingPosts', () => {
   const channelId = 'delivery-test-channel';
+  // Monotonic counter ensures every seeded row gets a unique sentAt so it
+  // can't collide with a sibling on the (channelId, authorId, sentAt,
+  // sequenceNum) cache_id unique index. Date.now() alone collides when
+  // successive inserts complete inside the same millisecond.
+  let seedCounter = 0;
 
   async function seedPost(overrides: Partial<Post>) {
+    const t = Date.now() + seedCounter++;
     const base: Post = {
       id: `d-${overrides.id ?? Math.random()}`,
       type: 'chat',
       channelId,
       authorId: '~zod',
-      sentAt: Date.now(),
-      receivedAt: Date.now(),
+      sentAt: t,
+      receivedAt: t,
       sequenceNum: 0,
       content: JSON.stringify([{ inline: ['seed'] }]),
-      syncedAt: Date.now(),
+      syncedAt: t,
       ...overrides,
     } as Post;
     await queries.insertChannelPosts({ posts: [base] });
