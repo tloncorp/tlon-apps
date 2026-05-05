@@ -251,7 +251,7 @@ function SplashSequenceComponent(props: {
             ]);
           if (!cancelled) {
             const resolvedUserNickname =
-              userContact?.nickname?.trim() || cachedNickname?.trim();
+              cachedNickname?.trim() || userContact?.nickname?.trim();
             if (resolvedUserNickname) {
               setUserNickname(resolvedUserNickname);
             }
