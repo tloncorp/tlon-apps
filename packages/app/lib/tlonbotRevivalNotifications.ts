@@ -67,7 +67,9 @@ async function markNotificationRestorePending(desiredLevel: NotificationLevel) {
   }));
 }
 
-async function temporarilyMuteNodeNotifications(restoreLevel: NotificationLevel) {
+async function temporarilyMuteNodeNotifications(
+  restoreLevel: NotificationLevel
+) {
   await markNotificationRestorePending(restoreLevel);
 
   await withRetry(
@@ -121,7 +123,10 @@ export async function prepareTlonbotRevivalNotificationsForProvisioning(
     notificationLevel: current.notificationLevel ?? restoreLevel,
   }));
 
-  await prepareTlonbotRevivalNotifications(setup.notificationToken, restoreLevel);
+  await prepareTlonbotRevivalNotifications(
+    setup.notificationToken,
+    restoreLevel
+  );
 }
 
 export function getTlonbotRevivalRestoreNotificationLevel(
