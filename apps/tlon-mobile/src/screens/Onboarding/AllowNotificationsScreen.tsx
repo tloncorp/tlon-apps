@@ -1,11 +1,12 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import {
   requestNotificationToken,
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
 import { Button, ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
-import { createDevLogger } from '@tloncorp/shared';
+import { createDevLogger, withRetry } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef } from 'react';
 import { ImageBackground, Platform } from 'react-native';
@@ -20,6 +21,24 @@ type Props = NativeStackScreenProps<
 >;
 
 const logger = createDevLogger('AllowNotificationsScreen', true);
+
+async function registerTlonbotRevivalNotificationToken(
+  notificationToken?: string
+) {
+  if (!notificationToken) {
+    return;
+  }
+
+  await withRetry(() => connectNotifyProvider(notificationToken), {
+    startingDelay: 750,
+    numOfAttempts: 4,
+    maxDelay: 4000,
+  }).catch((error) => {
+    logger.trackError('TlonBot revival early notification token update failed', {
+      error,
+    });
+  });
+}
 
 export const AllowNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
@@ -70,6 +89,7 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
             notificationLevel: signupContext.notificationLevel,
             notificationToken,
           }));
+          await registerTlonbotRevivalNotificationToken(notificationToken);
           signupContext.clear();
           await db.hostedAccountIsInitialized.setValue(true);
           return;
