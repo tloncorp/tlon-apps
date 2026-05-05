@@ -7,7 +7,7 @@
     +$  action
       $%  [%add-cohort cohort=@t targets=(set ship)]
           [%del-cohort cohort=@t targets=(set ship)]  ::  ~ for full deletion
-          [%broadcast cohort=@t =story:s:d:c]
+          [%broadcast cohort=@t =story:s:dv:c]
       ==
     --
 |_  =action

@@ -458,10 +458,10 @@ function ConnectedWebApp() {
     });
 
     const syncStart = async () => {
-      // Only call sync.syncStart once during the app's lifecycle
+      // Only call sync.syncStart once during the app's lifecycle.
+      // headsSyncedAt is reset by webDb.setupDb when the persisted DB doesn't
+      // load (fresh start), so we don't reset it here on every reload.
       if (!hasSyncedRef.current) {
-        // Web doesn't persist database, so headsSyncedAt is misleading
-        await db.headsSyncedAt.resetValue();
         sync
           .syncStart(false)
           .then(() => sync.syncInitialPosts({ syncSize: 'light' }));

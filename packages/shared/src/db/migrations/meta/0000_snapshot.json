@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "bd363824-c7d3-4b04-b4f7-9f5421710d4d",
+  "id": "b7c48706-1de4-4ec9-b222-fe5ba2b34e40",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2343,6 +2343,14 @@
           "notNull": false,
           "autoincrement": false
         },
+        "optimistic_reply_bump_count": {
+          "name": "optimistic_reply_bump_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "text_content": {
           "name": "text_content",
           "type": "text",
@@ -2548,6 +2556,34 @@
             "parent_id"
           ],
           "isUnique": false
+        },
+        "posts_cached_index": {
+          "name": "posts_cached_index",
+          "columns": [
+            "channel_id",
+            "sent_at",
+            "author_id"
+          ],
+          "isUnique": false,
+          "where": "sequence_number = 0 AND parent_id IS NULL"
+        },
+        "posts_channel_last_preview": {
+          "name": "posts_channel_last_preview",
+          "columns": [
+            "channel_id",
+            "received_at"
+          ],
+          "isUnique": false,
+          "where": "type != 'reply' AND (is_deleted IS NULL OR is_deleted = 0)"
+        },
+        "posts_channel_last_seq": {
+          "name": "posts_channel_last_seq",
+          "columns": [
+            "channel_id",
+            "sequence_number"
+          ],
+          "isUnique": false,
+          "where": "type != 'reply' AND sequence_number IS NOT NULL"
         }
       },
       "foreignKeys": {},

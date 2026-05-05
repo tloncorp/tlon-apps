@@ -9,8 +9,11 @@ import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits/componentsKits';
+import { useRequests } from '../../contexts/requests';
 import { useCanWrite } from '../../utils/channelUtils';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
+import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
+import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
   usePostContent,
@@ -198,8 +201,11 @@ export function NotebookPostDetailView({
   post: db.Post;
   onPressImage?: (post: db.Post, uri?: string) => void;
 }) {
+  const { usePost } = useRequests();
+  const { data: livePost } = usePost({ id: post.id });
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
+  const [viewReactionsOpen, setViewReactionsOpen] = useState(false);
 
   const handlePressImage = useCallback(
     (src: string) => {
@@ -207,6 +213,10 @@ export function NotebookPostDetailView({
     },
     [onPressImage, post]
   );
+
+  const handleViewPostReactions = useCallback(() => {
+    setViewReactionsOpen(true);
+  }, []);
 
   return (
     <NotebookPostFrame
@@ -240,7 +250,19 @@ export function NotebookPostDetailView({
               : content
           }
         />
+        <XStack paddingHorizontal="$xl" paddingVertical="$m">
+          <ReactionsDisplay
+            post={livePost ?? post}
+            minimal={false}
+            onViewPostReactions={handleViewPostReactions}
+          />
+        </XStack>
       </NotebookPostContentContainer>
+      <ViewReactionsSheet
+        post={post}
+        open={viewReactionsOpen}
+        onOpenChange={setViewReactionsOpen}
+      />
     </NotebookPostFrame>
   );
 }

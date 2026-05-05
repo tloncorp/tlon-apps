@@ -22,6 +22,7 @@ import {
 import { Alert, StyleSheet } from 'react-native';
 import { useTheme } from 'tamagui';
 
+import { useAppStatusChange } from '../../../hooks/useAppStatusChange';
 import {
   FinishMode,
   IWaveformRef,
@@ -345,6 +346,23 @@ export const AudioRecorder = forwardRef<
   const progressLabel = useMemo(
     () => makePrettyTimeFromMs(elapsedMs ?? 0),
     [elapsedMs]
+  );
+
+  useAppStatusChange(
+    useCallback(
+      (status) => {
+        if (
+          status === 'background' &&
+          state.live &&
+          state.recorderState === RecorderState.recording
+        ) {
+          refApi.stopRecording().catch((error) => {
+            console.error('Failed to stop recording on app background', error);
+          });
+        }
+      },
+      [refApi, state]
+    )
   );
 
   return (
