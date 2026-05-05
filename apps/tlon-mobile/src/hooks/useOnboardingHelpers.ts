@@ -15,7 +15,6 @@ import { useCallback } from 'react';
 
 import { clearHostingNativeCookie } from '../lib/hostingAuth';
 import { useSignupContext } from '../lib/signupContext';
-import { prejoinTlonbotRevivalGroups } from '../lib/tlonbotRevival';
 import { OnboardingStackParamList } from '../types';
 
 const logger = createDevLogger('useOnboardingHelpers', true);
@@ -111,26 +110,6 @@ export function useOnboardingHelpers() {
           : { shipName: ship, shipUrl }; // default to existing if none passed in
         configureUrbitClient(shipInfoToUse);
         store.syncStart();
-
-        if (onboardingFlow === 'tlonbotRevival') {
-          prejoinTlonbotRevivalGroups();
-          store
-            .markCurrentUserTlonbotEnabled()
-            .then(() =>
-              db.tlonbotRevivalSetup.setValue((current) => ({
-                ...current,
-                provisioningStarted: true,
-              }))
-            )
-            .catch((error) => {
-              logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
-                error,
-                context: 'failed to start TlonBot provisioning after auth',
-                during: 'mobile revival onboarding (useOnboardingHelpers)',
-                severity: AnalyticsSeverity.High,
-              });
-            });
-        }
 
         // Clear the Hosting revival flag only after the user completes revival
         // onboarding.

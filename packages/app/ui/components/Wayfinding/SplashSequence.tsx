@@ -54,6 +54,10 @@ import {
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
 import { connectNotifyProvider } from '../../../lib/notificationsApi';
+import {
+  getTlonbotRevivalRestoreNotificationLevel,
+  prepareTlonbotRevivalNotificationsForProvisioning,
+} from '../../../lib/tlonbotRevivalNotifications';
 import { useActiveTheme } from '../../../provider';
 import {
   AttachmentProvider,
@@ -952,20 +956,27 @@ async function applyProfileAndNotificationPreferences(
     });
   }
 
-  if (setup.notificationLevel) {
-    await withRetry(
-      () => setBaseVolumeLevel({ level: setup.notificationLevel! }),
-      {
-        startingDelay: 1000,
-        numOfAttempts: 4,
-        maxDelay: 4000,
-      }
-    ).catch((error) => {
+  const restoreNotificationLevel =
+    getTlonbotRevivalRestoreNotificationLevel(setup);
+  await withRetry(
+    () => setBaseVolumeLevel({ level: restoreNotificationLevel }),
+    {
+      startingDelay: 1000,
+      numOfAttempts: 4,
+      maxDelay: 4000,
+    }
+  )
+    .then(() => {
+      logger.trackEvent('Tlonbot revival notifications restored', {
+        restoreNotificationLevel,
+      });
+    })
+    .catch((error) => {
       logger.trackError('TlonBot revival notification level update failed', {
         error,
+        restoreNotificationLevel,
       });
     });
-  }
 }
 
 async function applyBotPreferences(
@@ -1889,6 +1900,11 @@ function TlonBotSetupPane(props: {
           !provisioningKickoffStartedRef.current
         ) {
           provisioningKickoffStartedRef.current = true;
+          await prepareTlonbotRevivalNotificationsForProvisioning(setup);
+          if (cancelled) {
+            return;
+          }
+
           prejoinTlonbotRevivalGroups();
           markCurrentUserTlonbotEnabled()
             .then(async () => {
@@ -1902,7 +1918,6 @@ function TlonBotSetupPane(props: {
               provisioningKickoffStartedRef.current = false;
               logger.trackError('Failed to kick off TlonBot provisioning', {
                 error,
-                shipId,
               });
             });
         }
@@ -1913,7 +1928,11 @@ function TlonBotSetupPane(props: {
         });
         if (isReady) {
           if (!cancelled) {
-            await applyDeferredSetup(shipId);
+            await applyDeferredSetup(shipId).catch((error) =>
+              logger.trackError('Deferred Tlonbot setup failed', {
+                error,
+              })
+            );
           }
           return;
         }
