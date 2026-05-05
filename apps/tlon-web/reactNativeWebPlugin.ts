@@ -2,9 +2,7 @@
 import type { Plugin as ESBuildPlugin } from 'esbuild';
 // @ts-expect-error - flow-remove-types is not typed
 import flowRemoveTypes from 'flow-remove-types';
-import { existsSync } from 'fs';
 import fs from 'fs/promises';
-import path from 'path';
 import { fileURLToPath } from 'url';
 import { transformWithEsbuild } from 'vite';
 import type { Plugin as VitePlugin } from 'vite';
@@ -121,37 +119,6 @@ const reactNativeWeb =
         },
       },
     }),
-
-    // Ensure .web.* index files are preferred for directory imports.
-    // Vite's resolve.extensions works for file imports but not for
-    // directory/index resolution inside node_modules, which causes
-    // issues with packages like expo-modules-core that have both
-    // index.ts (noop) and index.web.ts (web polyfill) files.
-    resolveId: {
-      order: 'pre' as const,
-      handler(source, importer) {
-        if (!importer) return null;
-
-        // Only handle relative imports
-        if (!source.startsWith('.')) {
-          return null;
-        }
-
-        const dir = path.dirname(importer);
-        const resolved = path.resolve(dir, source);
-
-        // Check if the resolved path is a directory with web-specific index files
-        const webExtensions = ['.web.tsx', '.web.ts', '.web.jsx', '.web.js'];
-        for (const ext of webExtensions) {
-          const webIndex = path.join(resolved, `index${ext}`);
-          if (existsSync(webIndex)) {
-            return { id: webIndex, moduleSideEffects: true };
-          }
-        }
-
-        return null;
-      },
-    },
 
     async transform(code, id) {
       if (!filter.test(id)) return code;
