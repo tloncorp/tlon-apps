@@ -1,3 +1,4 @@
+import EmojiData, { type EmojiMartData } from '@emoji-mart/data';
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
 
@@ -17,6 +18,24 @@ export interface ReactionDetails {
   };
   aggregate: Record<string, ReactionListItem>;
   list: ReactionListItem[];
+}
+
+const SHORTCODE_REACTION_REGEX = /^:?([a-zA-Z0-9_+-]+):?$/;
+const NATIVE_EMOJI_BY_SHORTCODE = Object.freeze(
+  Object.entries((EmojiData as EmojiMartData).emojis).reduce(
+    (acc, [key, emoji]) => {
+      acc[key] = emoji.skins[0]?.native;
+      return acc;
+    },
+    {} as Record<string, string | undefined>
+  )
+);
+
+export function normalizeReactionValue(value: string): string {
+  const shortcode = value.match(SHORTCODE_REACTION_REGEX)?.[1];
+  return (
+    (shortcode ? NATIVE_EMOJI_BY_SHORTCODE[shortcode] : undefined) ?? value
+  );
 }
 
 function resolveContactName(
@@ -48,15 +67,17 @@ export function computeReactionDetails(
   } as ReactionDetails;
 
   reactions.forEach((reaction) => {
-    if (details.aggregate[reaction.value]) {
-      details.aggregate[reaction.value].count++;
-      details.aggregate[reaction.value].users.push({
+    const reactionValue = normalizeReactionValue(reaction.value);
+
+    if (details.aggregate[reactionValue]) {
+      details.aggregate[reactionValue].count++;
+      details.aggregate[reactionValue].users.push({
         id: reaction.contactId,
         name: resolveContactName(reaction.contact, reaction.contactId),
       });
     } else {
-      details.aggregate[reaction.value] = {
-        value: reaction.value,
+      details.aggregate[reactionValue] = {
+        value: reactionValue,
         count: 1,
         users: [
           {
@@ -68,7 +89,7 @@ export function computeReactionDetails(
     }
     if (reaction.contactId === ourId) {
       details.self.didReact = true;
-      details.self.value = reaction.value;
+      details.self.value = reactionValue;
     }
     details.list = Object.values(details.aggregate);
   });
@@ -91,22 +112,28 @@ export type GroupedReactions = Record<
   { value: string; userId: string }[]
 >;
 
+export function groupReactionsByValue(
+  reactions: db.Reaction[]
+): GroupedReactions {
+  const groupedReactions: GroupedReactions = {};
+
+  reactions.forEach((reaction) => {
+    const reactionValue = normalizeReactionValue(reaction.value);
+
+    if (!groupedReactions[reactionValue]) {
+      groupedReactions[reactionValue] = [];
+    }
+    groupedReactions[reactionValue].push({
+      value: reactionValue,
+      userId: reaction.contactId,
+    });
+  });
+
+  return groupedReactions;
+}
+
 export function useGroupedReactions(
   reactions: db.Reaction[]
 ): GroupedReactions {
-  return useMemo(() => {
-    const groupedReactions: GroupedReactions = {};
-
-    reactions.forEach((reaction) => {
-      if (!groupedReactions[reaction.value]) {
-        groupedReactions[reaction.value] = [];
-      }
-      groupedReactions[reaction.value].push({
-        value: reaction.value,
-        userId: reaction.contactId,
-      });
-    });
-
-    return groupedReactions;
-  }, [reactions]);
+  return useMemo(() => groupReactionsByValue(reactions), [reactions]);
 }

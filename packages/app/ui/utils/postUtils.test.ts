@@ -1,7 +1,11 @@
 import * as db from '@tloncorp/shared/db';
 import { describe, expect, test } from 'vitest';
 
-import { computeReactionDetails } from './postUtils';
+import {
+  computeReactionDetails,
+  groupReactionsByValue,
+  normalizeReactionValue,
+} from './postUtils';
 
 describe('computeReactionDetails', () => {
   describe('contact name resolution', () => {
@@ -243,6 +247,59 @@ describe('computeReactionDetails', () => {
   });
 
   describe('reaction aggregation', () => {
+    test('should normalize shortcode reactions before aggregating', () => {
+      const reactions: db.Reaction[] = [
+        {
+          postId: 'post-1',
+          contactId: '~zod',
+          value: ':heart:',
+          contact: null,
+        },
+        {
+          postId: 'post-1',
+          contactId: '~bus',
+          value: '❤️',
+          contact: null,
+        },
+      ];
+
+      const result = computeReactionDetails(reactions, '~zod');
+
+      expect(result.list).toHaveLength(1);
+      expect(result.list[0].value).toBe('❤️');
+      expect(result.list[0].count).toBe(2);
+      expect(result.self.value).toBe('❤️');
+    });
+
+    test('should leave unknown shortcode-like reactions unchanged', () => {
+      expect(normalizeReactionValue(':not-a-real-emoji:')).toBe(
+        ':not-a-real-emoji:'
+      );
+    });
+
+    test('should group shortcode and native reactions together', () => {
+      const reactions: db.Reaction[] = [
+        {
+          postId: 'post-1',
+          contactId: '~zod',
+          value: ':+1:',
+          contact: null,
+        },
+        {
+          postId: 'post-1',
+          contactId: '~bus',
+          value: '👍',
+          contact: null,
+        },
+      ];
+
+      const result = groupReactionsByValue(reactions);
+
+      expect(Object.keys(result)).toEqual(['👍']);
+      expect(result['👍']).toHaveLength(2);
+      expect(result['👍'][0].value).toBe('👍');
+    });
+
     test('should aggregate reactions by value', () => {
       const reactions: db.Reaction[] = [
         {
