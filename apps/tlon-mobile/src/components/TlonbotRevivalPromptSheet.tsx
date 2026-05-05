@@ -59,6 +59,10 @@ export function useTlonbotRevivalPrompt() {
       return;
     }
 
+    logger.trackEvent(AnalyticsEvent.InitiatedTlonbotRevival, {
+      source: 'authenticated_prompt',
+    });
+
     setShip({
       authCookie,
       authType: authType ?? 'hosted',

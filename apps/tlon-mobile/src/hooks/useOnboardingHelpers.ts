@@ -85,6 +85,9 @@ export function useOnboardingHelpers() {
         if (onboardingFlow === 'tlonbotRevival') {
           const shipId =
             inputShipInfo?.ship ?? (await db.hostedUserNodeId.getValue());
+          logger.trackEvent(AnalyticsEvent.InitiatedTlonbotRevival, {
+            source: 'post_login',
+          });
           await db.tlonbotRevivalSetup.setValue((current) => ({
             ...current,
             pending: true,

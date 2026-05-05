@@ -59,6 +59,7 @@ export enum AnalyticsEvent {
   WebAppOpened = 'Web App Opened',
   WebConsoleError = 'Web Console Error',
   WayfindingDebug = 'Wayfinding Debug',
+  InitiatedTlonbotRevival = 'Initiated Tlonbot Revival',
   AttachmentUploadSuccess = 'Attachment Upload Success',
   VideoUploadStarted = 'Video Upload Started',
   VideoUploadFailed = 'Video Upload Failed',
