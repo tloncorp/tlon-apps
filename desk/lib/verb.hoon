@@ -152,9 +152,10 @@
   =/  =echo:logs
     ?-  -.event
         %fail
-      [leaf+"fail {<desc.event>}" trace.event]
+      [leaf+"[<our.bowl>] fail {<desc.event>}" trace.event]
     ::
-      %tell  echo.event
+        %tell  
+      [leaf+"[<our.bowl>]" echo.event]
     ==
   %-  %-  %*(. slog pri val)
     echo

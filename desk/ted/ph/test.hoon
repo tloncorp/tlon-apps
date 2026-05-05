@@ -1,4 +1,7 @@
-::  ph test runner
+::  run aqua tests
+::
+::  pax=(unit path)  optional test path
+::  snap=@t          aqua fleet snapshot
 ::
 /-  spider, aquarium
 /+  *strandio, ph-io, ph-test
@@ -76,8 +79,7 @@
   ^-  test
   [(weld path /[name.test-arm]) strand.test-arm]
 ::  +await-test-thread: run and return result of an aqua test thread
-::TODO implement timeout, and if it is exceeded kill the thread and
-::     report timeout failure.
+::
 ++  await-test-thread
   |=  [file=path =test-strand]
   =/  m  (strand ,thread-result)
@@ -99,57 +101,22 @@
     ==
   ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])
   ;<  ~      bind:m  (poke-our %spider %spider-inline !>(inline-args))
+  ::TODO implement timeout
   ;<  =cage  bind:m  (take-fact /awaiting/[tid])
   ;<  ~      bind:m  (take-kick /awaiting/[tid])
   ?+  p.cage  ~|([%strange-thread-result p.cage file tid] !!)
     %thread-done  (pure:m %& q.cage)
     %thread-fail  (pure:m %| !<([term tang] q.cage))
   ==
-::  +sync-desk: sync aqua ship desk to host
-::  host ship -> sync desk to virtual ship
-::  %groups -> aqua %groups
-++  sync-desk
-  |=  [her=ship desk=@tas]
-  =/  m  (strand ,~)
-  ^-  form:m
-  ;<  =bowl:strand  bind:m  get-bowl
-  =/  sab=path
-    /(scot %p our.bowl)/[desk]/(scot %da now.bowl)
-  =|  =path
-  =|  raw-files=(list [^path page:clay])
-  =.  raw-files
-    |-
-    =*  loop  $
-    =+  .^(=arch %cy (weld sab path))
-    =.  raw-files
-      %+  roll  ~(tap in ~(key by dir.arch))
-      |=  [dir=@ta =_raw-files]
-      (welp loop(path (snoc path dir)) raw-files)
-    ?~  fil.arch  raw-files
-    =+  .^(=page:clay %cs (weld sab /blob/(scot %uv u.fil.arch)))
-    :_  raw-files
-    [path page]
-  =/  files
-    %+  turn  raw-files
-    |=  [=^path =page:clay]
-    =+  .^(=dais:clay %cb (snoc sab p.page))
-    =+  .^(=tube:clay %cc (weld sab /[p.page]/mime))
-    =+  !<(=mime (tube (vale:dais q.page)))
-    [path ~ mime]
-  =/  =beam  [[her desk ud+1] /]
-  ;<  ~  bind:m  (send-events:ph-io [%event her /c/mount/0v1abc [%mont desk beam]]~)
-  =/   =task:clay
-    [%into desk & files]
-  ;<  ~  bind:m  (send-events:ph-io [%event her /c/sync/0v1abc task]~)
-  ;<  ~  bind:m  (sleep ~s0)
-  (pure:m ~)
 --
-::
 ^-  thread:spider
 |=  args=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<(pax=(unit path) args)
+=+  !<(args=(unit [pax=(unit path) snap=@t]) args)
+=/  [pax=(unit path) snap=@]
+  ?~  args  ~|(%no-args-found !!)
+  [pax.u.args snap.u.args]
 ;<  =bowl:spider  bind:m  get-bowl
 =/  [byk=beak pax=path]
   ?~  pax
@@ -162,9 +129,10 @@
   [ship desk da+date]
 =?  pax  ?=(~ pax)
   /tests
-=/  =arch  .^(arch %cy (weld /(scot %p p.byk)/[q.byk]/(scot %da +.r.byk) pax))
 ::  if the path does not point into a directory, assume last component
 ::  is a pattern.
+::
+=/  =arch  .^(arch %cy (weld /(scot %p p.byk)/[q.byk]/(scot %da +.r.byk) pax))
 =/  [arm-pat=(unit @ta) pax=path]
   ?:  ?=(^ dir.arch)
     [~ pax]
@@ -195,44 +163,6 @@
   ~>  %slog.2^leaf+"No suitable aqua tests found"
   (pure:m !>(~))
 ~>  %slog.1^leaf+"{<num>} test {?:((gth num 1) "threads" "thread")} built"
-~>  %slog.1^'Booting ships...'
-;<  vane-tids=(map term tid:spider)  bind:m  start-simple:ph-io
-::  test ships
-::
-;<  ~  bind:m  (init-ship:ph-io ~zod &)
-;<  ~  bind:m  (init-ship:ph-io ~bud &)
-;<  ~  bind:m  (init-ship:ph-io ~nec &)
-::  provider ships
-::
-::  bait provider
-;<  ~  bind:m  (init-ship:ph-io ~fen &)
-::  notify provider
-;<  ~  bind:m  (init-ship:ph-io ~dem &)
-::
-~>  %slog.1^(crip "Syncing {<q.byk>} desk to ships...")
-;<  ~  bind:m  (sync-desk ~zod %groups)
-;<  ~  bind:m  (sync-desk ~bud %groups)
-;<  ~  bind:m  (sync-desk ~nec %groups)
-;<  ~  bind:m  (sync-desk ~fen %groups)
-;<  ~  bind:m  (sync-desk ~dem %groups)
-::  setup bait provider
-::
-~>  %slog.1^(crip "Setting ~fen as lure provider...")
-;<  ~  bind:m  ph-test-init:ph-test
-;<  ~  bind:m  (poke-app:ph-test [~zod %reel] reel-command+[%set-ship ~fen])
-;<  ~  bind:m  (poke-app:ph-test [~bud %reel] reel-command+[%set-ship ~fen])
-;<  ~  bind:m  (poke-app:ph-test [~nec %reel] reel-command+[%set-ship ~fen])
-;<  ~  bind:m  (poke-app:ph-test [~fen %reel] reel-command+[%set-ship ~fen])
-;<  ~  bind:m  (poke-app:ph-test [~dem %reel] reel-command+[%set-ship ~fen])
-;<  ~  bind:m  (sleep ~s0)
-;<  ~  bind:m  ph-test-shut:ph-test
-;<  ~  bind:m  (end:ph-io vane-tids)
-::  TODO notify agent does not support swapping a provider
-;<  =bowl:spider  bind:m  get-bowl
-=+  snap-id=(end 3^4 (sham eny.bowl))
-=+  snap=(cat 3 'aqua-tests-' (scot %uv snap-id))
-~>  %slog.1^(crip "Taking snapshot...")
-;<  ~  bind:m  (send-events:ph-io [%snap-ships snap ~[~zod ~bud ~nec ~fen ~dem]]~)
 ~>  %slog.1^'Running tests...'
 =/  n  (strand (list (pair path thread-result)))
 ;<  results=(list (pair path thread-result))  bind:m
@@ -256,8 +186,6 @@
     [(div diff s) (div (mod diff s) ms)]
   ~>  %slog.1^leaf+"{(trip name)} took {<took-s>}.{((d-co:co 3) took-ms)}s"
   $(tests t.tests, results [[path.test thread-result] results])
-::TODO fix aqua to only clear a particular snap
-;<  ~  bind:m  (poke-our %aqua noun+!>([%clear-snap snap]))
 =+  ok=&
 |-
 ?~  results  (pure:m !>(ok))
