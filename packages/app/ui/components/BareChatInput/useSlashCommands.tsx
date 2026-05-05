@@ -11,6 +11,12 @@ export interface SlashCommandOption {
   insertText?: string;
 }
 
+export interface SlashCommandSelection {
+  text: string;
+  startIndex: number;
+  delta: number;
+}
+
 export const DEFAULT_SLASH_COMMANDS: SlashCommandOption[] = [
   {
     command: '/owner-listen',
@@ -228,24 +234,28 @@ export const useSlashCommands = (
   const handleSelectSlashCommand = (
     option: SlashCommandOption,
     text: string
-  ) => {
+  ): SlashCommandSelection | undefined => {
     if (slashCommandStartIndex === null) {
       return;
     }
 
     const insertText = option.insertText ?? option.command;
+    const replacedLength = slashCommandSearchText.length + 1;
     const beforeSlash = text.slice(0, slashCommandStartIndex);
-    const afterSlash = text.slice(
-      slashCommandStartIndex + slashCommandSearchText.length + 1
-    );
+    const afterSlash = text.slice(slashCommandStartIndex + replacedLength);
     const spacer = insertText.endsWith(' ') ? '' : ' ';
     const newText = `${beforeSlash}${insertText}${spacer}${afterSlash}`;
+    const delta = insertText.length + spacer.length - replacedLength;
 
     resetSlashCommand();
     setWasDismissedByEscape(false);
     setLastDismissedTriggerIndex(null);
 
-    return newText;
+    return {
+      text: newText,
+      startIndex: slashCommandStartIndex,
+      delta,
+    };
   };
 
   const handleSlashCommandEscape = () => {

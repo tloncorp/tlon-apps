@@ -482,22 +482,43 @@ function BareChatInput(
 
   const onSlashCommandSelect = useCallback(
     (option: SlashCommandOption) => {
-      const newText = handleSelectSlashCommand(option, controlledText);
+      const selection = handleSelectSlashCommand(option, controlledText);
 
-      if (!newText) {
+      if (!selection) {
         return;
       }
 
-      setControlledText(newText);
+      const newText = selection.text;
+      const updatedMentions =
+        selection.delta === 0
+          ? mentions
+          : mentions.map((mention) =>
+              mention.start >= selection.startIndex
+                ? {
+                    ...mention,
+                    start: mention.start + selection.delta,
+                    end: mention.end + selection.delta,
+                  }
+                : mention
+            );
 
-      const jsonContent = textAndMentionsToContent(newText, mentions);
+      setControlledText(newText);
+      setMentions(updatedMentions);
+
+      const jsonContent = textAndMentionsToContent(newText, updatedMentions);
       bareChatInputLogger.log('setting draft', jsonContent);
       storeDraft(jsonContent);
 
       // Force focus back to input after slash command selection
       inputRef.current?.focus();
     },
-    [handleSelectSlashCommand, controlledText, mentions, storeDraft]
+    [
+      handleSelectSlashCommand,
+      controlledText,
+      mentions,
+      setMentions,
+      storeDraft,
+    ]
   );
 
   const sendMessage = useCallback(
@@ -943,7 +964,7 @@ function BareChatInput(
       }
 
       if (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') {
-        if (isSlashCommandModeActive) {
+        if (isSlashCommandModeActive && hasSlashCommandCandidates) {
           e.preventDefault?.();
           slashCommandRef.current?.handleSlashCommandKey(keyEvent.key);
           return;
@@ -957,7 +978,7 @@ function BareChatInput(
       }
 
       if (keyEvent.key === 'Escape') {
-        if (isSlashCommandModeActive) {
+        if (isSlashCommandModeActive && hasSlashCommandCandidates) {
           e.preventDefault?.();
           handleSlashCommandEscape();
           return;
