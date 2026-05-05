@@ -8,6 +8,6 @@
   --
 ++  grab
   |%
-  ++  noun  [=nest:c =template:h]
+  ++  noun  ,[=nest:c =template:h]
   --
 --

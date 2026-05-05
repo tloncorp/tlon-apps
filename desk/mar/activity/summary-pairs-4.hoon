@@ -9,6 +9,6 @@
   --
 ++  grab
   |%
-  ++  noun  (list [source:v8:av activity-summary:v8:av])
+  ++  noun  (list ,[source:v8:av activity-summary:v8:av])
   --
 --
