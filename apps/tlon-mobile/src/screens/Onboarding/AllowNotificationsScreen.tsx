@@ -71,7 +71,10 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
             notificationLevel: signupContext.notificationLevel,
             notificationToken,
           }));
-          void prepareTlonbotRevivalNotifications(notificationToken);
+          prepareTlonbotRevivalNotifications(
+            notificationToken,
+            signupContext.notificationLevel
+          );
           signupContext.clear();
           await db.hostedAccountIsInitialized.setValue(true);
           return;

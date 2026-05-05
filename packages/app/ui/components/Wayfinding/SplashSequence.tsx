@@ -12,7 +12,6 @@ import { withRetry } from '@tloncorp/shared/logic';
 import {
   clearShipRevivalStatus,
   markCurrentUserTlonbotEnabled,
-  setBaseVolumeLevel,
   syncStart,
   updateCurrentUserProfile,
   uploadAsset,
@@ -57,6 +56,7 @@ import { connectNotifyProvider } from '../../../lib/notificationsApi';
 import {
   getTlonbotRevivalRestoreNotificationLevel,
   prepareTlonbotRevivalNotificationsForProvisioning,
+  restoreTlonbotRevivalNotificationLevel,
 } from '../../../lib/tlonbotRevivalNotifications';
 import { useActiveTheme } from '../../../provider';
 import {
@@ -958,25 +958,10 @@ async function applyProfileAndNotificationPreferences(
 
   const restoreNotificationLevel =
     getTlonbotRevivalRestoreNotificationLevel(setup);
-  await withRetry(
-    () => setBaseVolumeLevel({ level: restoreNotificationLevel }),
-    {
-      startingDelay: 1000,
-      numOfAttempts: 4,
-      maxDelay: 4000,
-    }
-  )
-    .then(() => {
-      logger.trackEvent('Tlonbot revival notifications restored', {
-        restoreNotificationLevel,
-      });
-    })
-    .catch((error) => {
-      logger.trackError('TlonBot revival notification level update failed', {
-        error,
-        restoreNotificationLevel,
-      });
-    });
+  await restoreTlonbotRevivalNotificationLevel(
+    restoreNotificationLevel,
+    'post_wait_setup'
+  );
 }
 
 async function applyBotPreferences(

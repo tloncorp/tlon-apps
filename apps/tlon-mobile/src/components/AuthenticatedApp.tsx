@@ -18,6 +18,7 @@ import {
   markPushNotifTapMeasurementAbandoned,
   markPushNotifTapSyncSinceComplete,
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
+import { recoverTlonbotRevivalNotificationLevel } from '@tloncorp/app/lib/tlonbotRevivalNotifications';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -88,6 +89,7 @@ function AuthenticatedApp() {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
         startChatListSettleMeasurement(status);
+        recoverTlonbotRevivalNotificationLevel(status);
         await checkForCachedChanges();
         telemetry.captureAppActive();
         const nodeCheck = await checkNodeStopped();

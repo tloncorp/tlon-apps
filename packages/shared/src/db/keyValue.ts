@@ -146,6 +146,23 @@ export const tlonbotRevivalSetup = createStorageItem<TlonbotRevivalSetup>({
   },
 });
 
+export type TlonbotRevivalNotificationRestore = {
+  pending: boolean;
+  desiredLevel?: ub.NotificationLevel;
+  createdAt?: number;
+  lastAttemptAt?: number;
+  lastErrorAt?: number;
+  lastErrorMessage?: string;
+};
+
+export const tlonbotRevivalNotificationRestore =
+  createStorageItem<TlonbotRevivalNotificationRestore>({
+    key: 'tlonbotRevivalNotificationRestore',
+    defaultValue: {
+      pending: false,
+    },
+  });
+
 export const didClearPreviousInstall = createStorageItem<boolean>({
   key: 'didClearPreviousInstall',
   defaultValue: false,
