@@ -513,7 +513,9 @@ export const syncContactDiscovery = async (
   logger.log('syncContactDiscovery: starting');
   const invokeHandler = opts?.invokeHandler !== false;
   const empty: ContactDiscoveryResult = { newMatches: [] };
-  const isMocked = !!process.env.EXPO_PUBLIC_MOCK_LANYARD_DISCOVERY;
+  const isMocked =
+    typeof process !== 'undefined' &&
+    !!process.env?.EXPO_PUBLIC_MOCK_LANYARD_DISCOVERY;
   const currentUserId = api.getCurrentUserId();
   const currentUserAttestations = await db.getUserAttestations({
     userId: currentUserId,
