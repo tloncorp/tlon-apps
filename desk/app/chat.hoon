@@ -939,6 +939,14 @@
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%dm-action poke failed: only allowed from self" !!)
+    ::  bad clients may submit shortcode strings as reactions,
+    ::  as opposed to the direct unicode emoji.
+    ::  reject their action when they do.
+    ::
+    ?<  ?&  ?=([%add-react * @] q.q.action)
+              (gth (met 3 react.q.q.action) 1)
+              =(':' (end 3^1 react.q.q.action))
+          ==
     ::  don't proxy to self, creates an infinite loop
     ?:  =(p.action our.bowl)
       di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
