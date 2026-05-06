@@ -3,7 +3,7 @@ import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import React, { useCallback } from 'react';
 import { ListItemProps } from 'tamagui';
-import { Stack, View, XStack } from 'tamagui';
+import { View, XStack } from 'tamagui';
 
 import { triggerHaptic } from '../utils';
 import { ContactName } from './ContactNameV2';
@@ -74,7 +74,7 @@ function ContactRowItemRaw({
         </ListItem.MainContent>
         {selectable && (
           <ListItem.EndContent>
-            <Stack
+            <View
               justifyContent="center"
               alignItems="center"
               height="$4xl"
@@ -96,7 +96,7 @@ function ContactRowItemRaw({
                   width="$3xl"
                 />
               )}
-            </Stack>
+            </View>
           </ListItem.EndContent>
         )}
       </ListItem>

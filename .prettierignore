@@ -16,6 +16,7 @@ gha-creds-*
 tsconfig.tsbuildinfo
 launch.json
 expo-env.d.ts
+.expo
 apps/tlon-web/playwright-dev.log
 apps/tlon-web/.playwright-dev.pid
 dump.sqlite3
