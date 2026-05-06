@@ -986,18 +986,34 @@
         posts.chan
       |=  post=(may:v10:cv v-post:v10:cv)
       ?.  ?=(%& -.post)  post
-      post(reacts (reacts reacts.post))
+      %_  post
+        reacts   (reacts reacts.post)
+        replies  (run:on-v-replies:v10:cv replies.post reply)
+      ==
     ::
         log
       %+  run:log-on:v10:cv
         log.chan
       |=  upd=u-channel:v10:cv
-      ?.  ?=([%post * ?([%set %& *] [%reacts *])] upd)  upd
+      ?.  ?=([%post * ?([%set %& *] [%reacts *] [%reply *])] upd)
+        upd
       ?-  -.u-post.upd
         %set     upd(reacts.post.u-post (reacts reacts.post.u-post.upd))
         %reacts  upd(reacts.u-post (reacts reacts.u-post.upd))
+      ::
+          %reply
+        ?+  u-reply.u-post.upd  upd
+          [%set %& *]  upd(reacts.reply.u-reply.u-post (reacts reacts.reply.u-reply.u-post.upd))
+          [%reacts *]  upd(reacts.u-reply.u-post (reacts reacts.u-reply.u-post.upd))
+        ==
       ==
     ==
+  ::
+  ++  reply
+    |=  reply=(may:v10:cv v-reply:v10:cv)
+    ^+  reply
+    ?.  ?=(%& -.reply)  reply
+    reply(reacts (reacts reacts.reply))
   ::
   ++  reacts
     |=  reacts=v-reacts:v10:cv

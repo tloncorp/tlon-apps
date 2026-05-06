@@ -531,7 +531,14 @@
     ++  writ
       |=  writ=(may:v7:cv writ:v7:cv)
       ?.  ?=(%& -.writ)  writ
-      writ(reacts (~(run by reacts.writ) react))
+      %_  writ
+        reacts   (~(run by reacts.writ) react)
+        replies  (run:on:replies:v7:cv replies.writ reply)
+      ==
+    ++  reply
+      |=  reply=(may:v7:cv reply:v7:cv)
+      ?.  ?=(%& -.reply)  reply
+      reply(reacts (~(run by reacts.reply) react))
     ++  react
       |=  =react:v7:cv
       ^+  react
