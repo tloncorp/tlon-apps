@@ -7,7 +7,7 @@ import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
 import * as db from '../../db';
-import { QueryCtx, batchEffects } from '../../db/query';
+import { QueryCtx, batchEffects, withTransactionCtx } from '../../db/query';
 import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
@@ -915,7 +915,10 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
   }
 }
 
-async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
+export async function handleGroupUpdate(
+  update: api.GroupUpdate,
+  ctx: QueryCtx
+) {
   logger.log('received group update', update.type);
   updateLastActivityTime();
 
@@ -1223,10 +1226,37 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'addChannelToNavSection':
       logger.log('adding channel to nav section', update);
 
-      await db.addChannelToNavSection({
-        channelId: update.channelId,
-        groupNavSectionId: update.sectionId,
-        index: 0,
+      // Treat the event as authoritative: the channel's nav section is now
+      // `update.navSectionId`. Remove it from any other nav section it may
+      // be persisted in locally before adding, so the local DB doesn't end
+      // up with the same channelId in multiple sections (the schema
+      // tolerates this; the product invariant doesn't).
+      //
+      // The remove+add is wrapped in a single transaction so an FK
+      // failure on the insert (e.g. the target nav section row doesn't
+      // exist locally yet) rolls back the dedup delete instead of
+      // leaving the channel orphaned in no section.
+      //
+      // Note: the event carries both `sectionId` (bare backend zone id) and
+      // `navSectionId` (`${groupId}-${sectionId}`, which is the local PK
+      // and the FK target on `group_nav_section_channels`). All DB writes
+      // here use `navSectionId`.
+      await withTransactionCtx(ctx, async (txCtx) => {
+        await db.removeChannelFromOtherNavSections(
+          {
+            channelId: update.channelId,
+            keepInSectionId: update.navSectionId,
+          },
+          txCtx
+        );
+        await db.addChannelToNavSection(
+          {
+            channelId: update.channelId,
+            groupNavSectionId: update.navSectionId,
+            index: 0,
+          },
+          txCtx
+        );
       });
       break;
     case 'setUnjoinedGroups':

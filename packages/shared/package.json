@@ -97,7 +97,7 @@
     "drizzle-orm": "0.39.3",
     "expo-contacts": "*",
     "expo-localization": "*",
-    "react": "^18.2.0",
+    "react": "^19.1.0",
     "zustand": "^3.7.2"
   }
 }

@@ -114,7 +114,7 @@ export default function ContactsScreen(props: Props) {
                 type="Settings"
                 testID="ContactsSettingsButton"
                 onPress={() => {
-                  navigate('Settings');
+                  navigate('Settings', undefined, { pop: true });
                 }}
               />
             }
@@ -136,13 +136,13 @@ export default function ContactsScreen(props: Props) {
           />
           <NavBarView
             navigateToContacts={() => {
-              navigate('Contacts');
+              navigate('Contacts', undefined, { pop: true });
             }}
             navigateToHome={() => {
-              navigate('ChatList');
+              navigate('ChatList', undefined, { pop: true });
             }}
             navigateToNotifications={() => {
-              navigate('Activity');
+              navigate('Activity', undefined, { pop: true });
             }}
             currentRoute="Contacts"
             currentUserId={currentUser}

@@ -1,3 +1,4 @@
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import NetInfo from '@react-native-community/netinfo';
 import {
   AppStatus,
@@ -180,17 +181,21 @@ export default function ConnectedAuthenticatedApp() {
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-      {/* 
-        This portal provider overrides the root portal provider 
-        to ensure that sheets have access to `AppDataContext`
+      {/*
+        These providers override the root providers to ensure that
+        modal sheets have access to `AppDataContext`. PortalProvider
+        covers Tamagui sheets; BottomSheetModalProvider covers
+        @gorhom/bottom-sheet modal sheets.
       */}
-      <PortalProvider>
-        <ForwardPostSheetProvider>
-          <ShareIntentForwardSheetProvider enabled={clientReady}>
-            {clientReady && <AuthenticatedApp />}
-          </ShareIntentForwardSheetProvider>
-        </ForwardPostSheetProvider>
-      </PortalProvider>
+      <BottomSheetModalProvider>
+        <PortalProvider>
+          <ForwardPostSheetProvider>
+            <ShareIntentForwardSheetProvider enabled={clientReady}>
+              {clientReady && <AuthenticatedApp />}
+            </ShareIntentForwardSheetProvider>
+          </ForwardPostSheetProvider>
+        </PortalProvider>
+      </BottomSheetModalProvider>
     </AppDataProvider>
   );
 }

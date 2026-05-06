@@ -32,7 +32,7 @@ vi.mock('@react-native-community/netinfo', () => {
   };
 });
 
-vi.mock('expo-file-system', () => ({
+vi.mock('expo-file-system/legacy', () => ({
   uploadAsync: vi.fn(),
 }));
 
