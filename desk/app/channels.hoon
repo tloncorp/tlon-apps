@@ -1966,6 +1966,19 @@
         ca-core
       =?  debounce  ?=(%add -.c-post.a-channel)
         (~(put ju debounce) nest sent.essay.c-post.a-channel)
+      ::  bad clients may submit shortcode strings as reactions,
+      ::  as opposed to the direct unicode emoji.
+      ::  reject their action when they do.
+      ::
+      ?<  ?|  ?&  ?=([%add-react * * @] c-post.a-channel)
+                  (gth (met 3 q.c-post.a-channel) 1)
+                  =(':' (end 3^1 q.c-post.a-channel))
+              ==
+              ?&  ?=([%reply * %add-react * * @] c-post.a-channel)
+                  (gth (met 3 q.c-reply.c-post.a-channel) 1)
+                  =(':' (end 3^1 q.c-reply.c-post.a-channel))
+              ==
+          ==
       =/  source=(unit source:a)
         ?.  ?=(%reply -.c-post.a-channel)
           `[%channel nest group.perm.channel]
