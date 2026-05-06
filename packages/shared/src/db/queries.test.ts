@@ -1,6 +1,7 @@
 import { v0PeersToClientProfiles } from '@tloncorp/api';
 import { toClientGroupsV7 } from '@tloncorp/api';
 import type * as ub from '@tloncorp/api/urbit/groups';
+import * as $ from 'drizzle-orm';
 import { describe, expect, test } from 'vitest';
 
 import * as schema from '../db/schema';
@@ -39,6 +40,101 @@ test('inserts all groups', async () => {
   await queries.insertGroups({ groups: groupsData });
   const groups = await queries.getGroups({});
   expect(groups.length).toEqual(groupsData.length);
+});
+
+// A full group payload is authoritative for nav-section memberships, so
+// the local `group_nav_section_channels` rows for those sections must
+// match the incoming payload exactly. Without an explicit delete in
+// `insertGroups`, an additive `onConflictDoNothing` insert would leave
+// any stale local row in place even when the backend's view differs.
+test('full group payload reconciles stale duplicate nav-section memberships', async () => {
+  const groupId = '~bus/reconcile-test';
+  const channelId = 'chat/~bus/reconcile-test/general';
+  const sectionADbId = `${groupId}-default`;
+  const sectionBDbId = `${groupId}-abc`;
+
+  // Helper to build a synthetic group payload. The cast through unknown
+  // avoids dragging in the full inferred Group relation tree; only the
+  // fields read by `insertGroups` (id, hostUserId, channels, navSections,
+  // and membership flags) need to be present.
+  const makeGroup = (
+    sectionAChannels: Array<{ channelIndex: number }>,
+    sectionBChannels: Array<{ channelIndex: number }>
+  ) =>
+    ({
+      id: groupId,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~bus',
+      channels: [{ id: channelId, type: 'chat', groupId }],
+      navSections: [
+        {
+          id: sectionADbId,
+          sectionId: 'default',
+          groupId,
+          channels: sectionAChannels.map((c) => ({
+            groupNavSectionId: sectionADbId,
+            channelId,
+            channelIndex: c.channelIndex,
+          })),
+        },
+        {
+          id: sectionBDbId,
+          sectionId: 'abc',
+          groupId,
+          channels: sectionBChannels.map((c) => ({
+            groupNavSectionId: sectionBDbId,
+            channelId,
+            channelIndex: c.channelIndex,
+          })),
+        },
+      ],
+    }) as unknown as Parameters<
+      typeof queries.insertGroups
+    >[0]['groups'][number];
+
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  // Seed: local rows have the channel in BOTH sections.
+  await queries.insertGroups({
+    groups: [makeGroup([{ channelIndex: 0 }], [{ channelIndex: 0 }])],
+  });
+  const seeded = await client.query.groupNavSectionChannels.findMany({
+    where: $.eq(schema.groupNavSectionChannels.channelId, channelId),
+  });
+  expect(seeded).toHaveLength(2);
+
+  // Process a clean payload: backend says the channel is in 'abc' only,
+  // at channelIndex 5.
+  await queries.insertGroups({
+    groups: [makeGroup([], [{ channelIndex: 5 }])],
+  });
+
+  const afterReconcile = await client.query.groupNavSectionChannels.findMany({
+    where: $.eq(schema.groupNavSectionChannels.channelId, channelId),
+  });
+  expect(afterReconcile).toHaveLength(1);
+  expect(afterReconcile[0]).toMatchObject({
+    groupNavSectionId: sectionBDbId,
+    channelId,
+    channelIndex: 5,
+  });
+
+  // Idempotency: replaying the same clean payload leaves the same single
+  // row in place.
+  await queries.insertGroups({
+    groups: [makeGroup([], [{ channelIndex: 5 }])],
+  });
+  const afterReplay = await client.query.groupNavSectionChannels.findMany({
+    where: $.eq(schema.groupNavSectionChannels.channelId, channelId),
+  });
+  expect(afterReplay).toHaveLength(1);
+  expect(afterReplay[0]).toMatchObject({
+    groupNavSectionId: sectionBDbId,
+    channelId,
+    channelIndex: 5,
+  });
 });
 
 test('uses init data to get chat list', async () => {
@@ -766,18 +862,23 @@ test('setJoinedGroupChannels: does not reset membership for channels not in the 
 describe('getPendingPosts', () => {
   const channelId = 'pending-test-channel';
   const authorId = '~zod';
+  // Keep seeded rows distinct on the (channelId, authorId, sentAt,
+  // sequenceNum) cache_id unique index, even when inserts happen in the same
+  // millisecond on fast CI runners.
+  let seedCounter = 0;
 
   async function seedPost(overrides: Partial<Post>): Promise<Post> {
+    const t = Date.now() + seedCounter++;
     const base: Post = {
-      id: `post-${overrides.sentAt ?? Date.now()}-${Math.random()}`,
+      id: `post-${overrides.sentAt ?? t}-${Math.random()}`,
       type: 'chat',
       channelId,
       authorId,
-      sentAt: Date.now(),
-      receivedAt: Date.now(),
+      sentAt: t,
+      receivedAt: t,
       sequenceNum: 0,
       content: JSON.stringify([{ inline: ['seed'] }]),
-      syncedAt: Date.now(),
+      syncedAt: t,
       ...overrides,
     } as Post;
     await queries.insertChannelPosts({ posts: [base] });

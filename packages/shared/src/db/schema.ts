@@ -1,4 +1,4 @@
-import { ChannelContentConfiguration } from '@tloncorp/api';
+import type { ChannelContentConfiguration } from '@tloncorp/api/client/channelContentConfig';
 import {
   BASE_UNREADS_SINGLETON_KEY as API_BASE_UNREADS_SINGLETON_KEY,
   SETTINGS_SINGLETON_KEY as API_SETTINGS_SINGLETON_KEY,

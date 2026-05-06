@@ -1,4 +1,3 @@
-import { parseGroupId } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { SectionListHeader } from '@tloncorp/ui';
 import Fuse from 'fuse.js';
@@ -11,7 +10,7 @@ import { useIsAdmin } from '../utils';
 import { ContactList } from './ContactList';
 import { TextInput } from './Form';
 import { GroupJoinRequestSheet } from './GroupJoinRequestSheet';
-import { ProfileSheet } from './ProfileSheet';
+import { GroupMemberProfileSheet } from './GroupMemberProfileSheet';
 import { ScreenHeader } from './ScreenHeader';
 
 type GroupPrivacy = db.schema.GroupPrivacy;
@@ -25,15 +24,9 @@ export function GroupMembersScreenView({
   joinRequests,
   groupPrivacyType,
   currentUserId,
-  onPressKick,
-  onPressRevokeInvite,
-  onPressBan,
-  onPressUnban,
   onPressAcceptJoinRequest,
   onPressRejectJoinRequest,
   onPressGoToProfile,
-  onPressAssignRole,
-  onPressRemoveRole,
 }: {
   goBack: () => void;
   members: db.ChatMember[];
@@ -43,15 +36,9 @@ export function GroupMembersScreenView({
   bannedUsers: db.GroupMemberBan[];
   joinRequests: db.GroupJoinRequest[];
   groupPrivacyType: GroupPrivacy;
-  onPressKick: (contactId: string) => void;
-  onPressRevokeInvite: (contactId: string) => void;
-  onPressBan: (contactId: string) => void;
-  onPressUnban: (contactId: string) => void;
   onPressAcceptJoinRequest: (contactId: string) => void;
   onPressRejectJoinRequest: (contactId: string) => void;
   onPressGoToProfile: (contactId: string) => void;
-  onPressAssignRole: (contactId: string, roleId: string) => void;
-  onPressRemoveRole: (contactId: string, roleId: string) => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
@@ -254,16 +241,6 @@ export function GroupMembersScreenView({
     [roles]
   );
 
-  const selectedUserRoles = useMemo(
-    () =>
-      members
-        .find((m) => m.contactId === selectedContact)
-        ?.roles?.map((r) => r.roleId),
-    [members, selectedContact]
-  );
-
-  const { host: groupHostId } = parseGroupId(groupId);
-
   const handlePressClear = useCallback(() => {
     setSearchQuery('');
   }, []);
@@ -307,39 +284,11 @@ export function GroupMembersScreenView({
         />
       </View>
       {selectedContact !== null && !selectedIsRequest && (
-        <ProfileSheet
-          open={true}
-          currentUserIsAdmin={currentUserIsAdmin}
-          groupHostId={groupHostId}
-          userIsBanned={bannedUsers.some(
-            (b) => b.contactId === selectedContact
-          )}
-          userIsInvited={invitedMembers.some(
-            (m) => m.contactId === selectedContact
-          )}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedContact(null);
-            }
-          }}
-          contactId={selectedContact}
-          contact={contacts.find((c) => c.id === selectedContact)}
-          onPressKick={() => onPressKick(selectedContact)}
-          onPressRevokeInvite={() => onPressRevokeInvite(selectedContact)}
-          onPressBan={() => onPressBan(selectedContact)}
-          onPressUnban={() => onPressUnban(selectedContact)}
-          onPressGoToProfile={() => {
-            setSelectedContact(null);
-            onPressGoToProfile(selectedContact);
-          }}
-          onPressAsignRole={(roleId: string) =>
-            onPressAssignRole(selectedContact, roleId)
-          }
-          onPressRemoveRole={(roleId: string) =>
-            onPressRemoveRole(selectedContact, roleId)
-          }
-          roles={roles}
-          selectedUserRoles={selectedUserRoles}
+        <GroupMemberProfileSheet
+          selectedContact={selectedContact}
+          onDismiss={() => setSelectedContact(null)}
+          groupId={groupId}
+          onPressGoToProfile={onPressGoToProfile}
         />
       )}
       {selectedContact !== null && selectedIsRequest && (

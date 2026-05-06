@@ -16,9 +16,14 @@ jest.mock('@gorhom/bottom-sheet', () => ({
 // Silence the warning: Animated: `useNativeDriver` is not supported because the native animated module is missing
 jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
 
-jest.mock('@react-native-clipboard/clipboard', () =>
-  require('@react-native-clipboard/clipboard/jest/clipboard-mock.js')
-);
+jest.mock('expo-clipboard', () => ({
+  getStringAsync: jest.fn(async () => ''),
+  setStringAsync: jest.fn(async () => {}),
+  hasStringAsync: jest.fn(async () => false),
+  getImageAsync: jest.fn(async () => null),
+  hasImageAsync: jest.fn(async () => false),
+  setImageAsync: jest.fn(async () => {}),
+}));
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')

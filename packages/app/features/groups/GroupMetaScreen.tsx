@@ -16,14 +16,10 @@ import {
   MetaEditorScreenView,
   YStack,
   useGroupTitle,
+  useIsWindowNarrow,
 } from '../../ui';
 
-type Props = NativeStackScreenProps<
-  GroupSettingsStackParamList,
-  'GroupMeta'
-> & {
-  navigateToHome: () => void;
-};
+type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'GroupMeta'>;
 
 export function GroupMetaScreen(props: Props) {
   const { groupId, fromBlankChannel, fromChatDetails } = props.route.params;
@@ -35,9 +31,10 @@ export function GroupMetaScreen(props: Props) {
   const canUpload = useCanUpload();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const currentUserId = useCurrentUserId();
+  const isWindowNarrow = useIsWindowNarrow();
 
   const navigateToHome = useCallback(() => {
-    navigation.getParent()?.navigate('ChatList');
+    navigation.getParent()?.navigate('ChatList', undefined, { pop: true });
   }, [navigation]);
 
   const handleGoBack = useHandleGoBack(navigation, {
@@ -53,10 +50,19 @@ export function GroupMetaScreen(props: Props) {
       if (fromBlankChannel) {
         navigation.goBack();
       } else if (fromChatDetails) {
-        navigation.getParent()?.navigate('ChatDetails', {
-          chatType: 'group',
-          chatId: groupId,
-        });
+        // Same RN7 issue as the back path in useHandleGoBack: on narrow,
+        // the old navigate('ChatDetails', ...) pushed a duplicate route
+        // instead of popping to the existing one, so pop the GroupSettings
+        // stack with goBack() to return to the sibling ChatDetails. Wide
+        // keeps the pre-existing cross-navigator navigate, which already
+        // worked correctly for this flow.
+        if (isWindowNarrow) {
+          navigation.goBack();
+        } else {
+          navigation
+            .getParent()
+            ?.navigate('ChatDetails', { chatType: 'group', chatId: groupId });
+        }
       } else {
         onPressChatDetails({ type: 'group', id: groupId });
       }
@@ -67,6 +73,7 @@ export function GroupMetaScreen(props: Props) {
       onPressChatDetails,
       fromBlankChannel,
       fromChatDetails,
+      isWindowNarrow,
       navigation,
     ]
   );

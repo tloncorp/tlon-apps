@@ -118,8 +118,8 @@ export function NotebookPost({
         return (
           <NotebookPostFramePressable
             onPress={handlePress}
-            onHoverIn={onHoverIn}
-            onHoverOut={onHoverOut}
+            onMouseEnter={onHoverIn}
+            onMouseLeave={onHoverOut}
             onLongPress={disableLongPress ? undefined : handleLongPress}
             pressStyle={{ backgroundColor: '$secondaryBackground' }}
             borderRadius="$l"

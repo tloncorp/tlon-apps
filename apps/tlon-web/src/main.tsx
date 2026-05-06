@@ -1,3 +1,11 @@
+// sort-imports-ignore
+// MUST be the first import. Sets up globalThis.expo before any expo modules
+// load. ES module execution order follows the dependency graph depth-first,
+// so this import has to be first in the source to guarantee its side effect
+// runs before any transitive expo-modules-core consumer.
+// See expo-polyfill.ts for details on why this is needed.
+import './expo-polyfill';
+
 // if (import.meta.env.VITE_ENABLE_WDYR) {
 //   import.meta.glob('./wdyr.ts', { eager: true });
 // }

@@ -1,14 +1,21 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Modal } from '@tloncorp/ui';
-import { ElementRef, RefObject, useCallback, useRef, useState } from 'react';
+import {
+  ElementRef,
+  ReactElement,
+  RefObject,
+  useCallback,
+  useRef,
+  useState,
+} from 'react';
 import { useMemo } from 'react';
 import { View as RNView } from 'react-native';
 
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 
 interface PostContextMenuPresentation {
-  anchorRef: RefObject<ElementRef<typeof RNView>>;
+  anchorRef: RefObject<ElementRef<typeof RNView> | null>;
   postActionIds: ChannelAction.Id[];
   post: db.Post;
 }
@@ -81,7 +88,7 @@ export function ContextGestureListener({
   menuApi,
   presentationCandidate,
 }: {
-  children: (api: { present: () => void }) => JSX.Element;
+  children: (api: { present: () => void }) => ReactElement;
   menuApi: {
     present: (opts: PostContextMenuPresentation) => void;
     dismiss: () => void;
