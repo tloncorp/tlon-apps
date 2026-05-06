@@ -2586,7 +2586,14 @@
     ^-  v-reacts:c
     %-  (~(uno by old) new)
     |=  [* a=(rev:c (unit react:c)) b=(rev:c (unit react:c))]
-    +:(apply-rev:c a b)
+    =/  [changed=? rac=(rev:c (unit react:c))]
+      (apply-rev:c a b)
+    ?.  changed  rac
+    ::  if the received react is a shortcode, sanitize it into its unicode.
+    ::  (ones in state were already migrated, and channels-server sanitizes
+    ::  on-ingress too... but old servers might not!)
+    ::
+    (react:recover-emoji:utils rac)
   ::
   ++  ca-apply-replies
     |=  [old=v-replies:c new=v-replies:c]

@@ -1102,6 +1102,15 @@
         ?~  react.p.result
           [%del-react id.c-post ship.p.result]
         [%add-react id.c-post [ship u.react]:p.result]
+      ::  if we get reacts trying to pass shortcodes off as unicode
+      ::  (due to stupid dumb clients putting garbage in the field)
+      ::  detect those and replace the shortcode with its unicode.
+      ::  we assume %any to be intentional and leave it untouched.
+      ::
+      =?  new  ?=(%add-react -.new)
+        ?^  q.new                new
+        ?~  moj=(kill:em q.new)  new
+        new(q u.moj)
       ::  log shortcode reactions for posts
       ::
       =?  ca-core  ?=(%add-react -.new)
@@ -1135,6 +1144,15 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
+      ::  if we get reacts trying to pass shortcodes off as unicode
+      ::  (due to stupid dumb clients putting garbage in the field)
+      ::  detect those and replace the shortcode with its unicode.
+      ::  we assume %any to be intentional and leave it untouched.
+      ::
+      =?  c-reply.c-post  ?=(%add-react -.c-reply.c-post)
+        ?^  q.c-reply.c-post                c-reply.c-post
+        ?~  moj=(kill:em q.c-reply.c-post)  c-reply.c-post
+        c-reply.c-post(q u.moj)
       ::  log shortcode reactions for replies
       ::
       =?  ca-core  ?=(%add-react -.c-reply.c-post)

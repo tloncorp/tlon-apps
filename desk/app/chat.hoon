@@ -2167,6 +2167,15 @@
         ?~  had  ~
         ?:  ?=(%| -.writ.u.had)  ~
         (get-reply:cu-pact id.q.diff.delta replies.writ.u.had)
+      ::  if we get reacts trying to pass shortcodes off as unicode
+      ::  (due to stupid dumb clients putting garbage in the field)
+      ::  detect those and replace the shortcode with its unicode.
+      ::  we assume %any to be intentional and leave it untouched.
+      ::
+      =?  q.diff.delta  ?=(%add-react -.q.diff.delta)
+        ?^  react.q.diff.delta                q.diff.delta
+        ?~  moj=(kill:em react.q.diff.delta)  q.diff.delta
+        q.diff.delta(react u.moj)
       ::  log shortcode reactions for group DMs
       ::
       =?  cor  ?=(%add-react -.q.diff.delta)
@@ -2214,6 +2223,15 @@
         ?~  entry  cu-core
         ?:  ?=(%| -.writ.u.entry)  cu-core
         =.  meta.q.diff.delta  `reply-meta.writ.u.entry
+        ::  if we get reacts trying to pass shortcodes off as unicode
+        ::  (due to stupid dumb clients putting garbage in the field)
+        ::  detect those and replace the shortcode with its unicode.
+        ::  we assume %any to be intentional and leave it untouched.
+        ::
+        =?  delt  ?=(%add-react -.delt)
+          ?^  react.delt                delt
+          ?~  moj=(kill:em react.delt)  delt
+          delt(react u.moj)
         ::  log shortcode reactions for group DM replies
         ::
         =?  cor  ?=(%add-react -.delt)
@@ -2638,6 +2656,15 @@
       ?~  had  ~
       ?:  ?=(%| -.writ.u.had)  ~
       (get-reply:di-pact id.q.diff replies.writ.u.had)
+    ::  if we get reacts trying to pass shortcodes off as unicode
+    ::  (due to stupid dumb clients putting garbage in the field)
+    ::  detect those and replace the shortcode with its unicode.
+    ::  we assume %any to be intentional and leave it untouched.
+    ::
+    =?  q.diff  ?=(%add-react -.q.diff)
+      ?^  react.q.diff                q.diff
+      ?~  moj=(kill:em react.q.diff)  q.diff
+      q.diff(react u.moj)
     ::  log shortcode reactions for regular DMs
     ::
     =?  cor  ?=(%add-react -.q.diff)
@@ -2689,6 +2716,15 @@
       ?~  entry  di-core
       ?:  ?=(%| -.writ.u.entry)  di-core
       =.  meta.q.diff  `reply-meta.writ:(need entry)
+      ::  if we get reacts trying to pass shortcodes off as unicode
+      ::  (due to stupid dumb clients putting garbage in the field)
+      ::  detect those and replace the shortcode with its unicode.
+      ::  we assume %any to be intentional and leave it untouched.
+      ::
+      =?  delta  ?=(%add-react -.delta)
+        ?^  react.delta                delta
+        ?~  moj=(kill:em react.delta)  delta
+        delta(react u.moj)
       ::  log shortcode reactions for regular DM replies
       ::
       =?  cor  ?=(%add-react -.delta)
