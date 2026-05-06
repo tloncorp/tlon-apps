@@ -862,18 +862,23 @@ test('setJoinedGroupChannels: does not reset membership for channels not in the 
 describe('getPendingPosts', () => {
   const channelId = 'pending-test-channel';
   const authorId = '~zod';
+  // Keep seeded rows distinct on the (channelId, authorId, sentAt,
+  // sequenceNum) cache_id unique index, even when inserts happen in the same
+  // millisecond on fast CI runners.
+  let seedCounter = 0;
 
   async function seedPost(overrides: Partial<Post>): Promise<Post> {
+    const t = Date.now() + seedCounter++;
     const base: Post = {
-      id: `post-${overrides.sentAt ?? Date.now()}-${Math.random()}`,
+      id: `post-${overrides.sentAt ?? t}-${Math.random()}`,
       type: 'chat',
       channelId,
       authorId,
-      sentAt: Date.now(),
-      receivedAt: Date.now(),
+      sentAt: t,
+      receivedAt: t,
       sequenceNum: 0,
       content: JSON.stringify([{ inline: ['seed'] }]),
-      syncedAt: Date.now(),
+      syncedAt: t,
       ...overrides,
     } as Post;
     await queries.insertChannelPosts({ posts: [base] });
