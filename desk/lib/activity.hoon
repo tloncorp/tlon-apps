@@ -295,7 +295,8 @@
     =*  is-init  ?=(?(%dm-invite %chan-init) -<.event)
     =*  is-flag  ?=(?(%flag-post %flag-reply) -<.event)
     =*  is-group  ?=(?(%group-ask %group-invite) -<.event)
-    =*  supported  |(is-msg is-init is-flag is-group)
+    =*  is-react  ?=(?(%react %dm-react) -<.event)
+    =*  supported  |(is-msg is-react is-init is-flag is-group)
     ?.  supported  $(stream rest)
     =?  notified  &(notify.volume notified.event)  &
     =?  notify-count  &(notify.volume notified.event)  +(notify-count)
