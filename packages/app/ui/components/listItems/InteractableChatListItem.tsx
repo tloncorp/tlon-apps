@@ -18,7 +18,7 @@ import Animated, {
   SharedValue,
   useAnimatedStyle,
 } from 'react-native-reanimated';
-import { ColorTokens, Stack, View, getTokenValue, isWeb } from 'tamagui';
+import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
 
 import * as utils from '../../utils';
 import { ListItemProps } from '../ListItem';
@@ -33,9 +33,6 @@ function BaseInteractableChatRow({
   ...props
 }: ListItemProps<db.Chat> & { onLayout?: (e: any) => void }) {
   const swipeableRef = useRef<SwipeableMethods>(null);
-  const [currentSwipeDirection, setCurrentSwipeDirection] = useState<
-    'left' | 'right' | null
-  >(null);
 
   const isMuted = useMemo(() => {
     return logic.isMuted(model.volumeSettings?.level, model.type);
@@ -78,19 +75,11 @@ function BaseInteractableChatRow({
     }
   );
 
-  const onSwipeableWillOpen = useCallback((direction: 'left' | 'right') => {
-    setCurrentSwipeDirection(direction);
-  }, []);
-
-  const onSwipeableClose = useCallback(() => {
-    setCurrentSwipeDirection(null);
-  }, []);
-
   const renderLeftActions = useCallback(
     (progress: SharedValue<number>, drag: SharedValue<number>) => {
       const hasUnread = model.unreadCount > 0;
 
-      if (currentSwipeDirection === 'right' || !hasUnread) {
+      if (!hasUnread) {
         return <View />;
       }
 
@@ -102,15 +91,11 @@ function BaseInteractableChatRow({
         />
       );
     },
-    [model.unreadCount, currentSwipeDirection, handleAction]
+    [model.unreadCount, handleAction]
   );
 
   const renderRightActions = useCallback(
     (progress: SharedValue<number>, drag: SharedValue<number>) => {
-      if (currentSwipeDirection === 'left') {
-        return <View />;
-      }
-
       return (
         <RightActions
           progress={progress}
@@ -120,7 +105,7 @@ function BaseInteractableChatRow({
         />
       );
     },
-    [handleAction, mutedState, currentSwipeDirection]
+    [handleAction, mutedState]
   );
 
   if (!isWeb) {
@@ -129,8 +114,6 @@ function BaseInteractableChatRow({
         ref={swipeableRef}
         renderLeftActions={renderLeftActions}
         renderRightActions={renderRightActions}
-        onSwipeableWillOpen={onSwipeableWillOpen}
-        onSwipeableClose={onSwipeableClose}
         leftThreshold={1}
         rightThreshold={1}
         friction={1.5}
@@ -269,7 +252,7 @@ function Action({
   handleAction,
   color,
   iconType,
-}: ComponentProps<typeof Stack> & {
+}: ComponentProps<typeof View> & {
   backgroundColor: string;
   color: string;
   iconType: IconType;

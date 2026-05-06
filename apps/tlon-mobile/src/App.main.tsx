@@ -7,15 +7,20 @@ import {
   DefaultTheme,
   NavigationContainer,
   NavigationContainerRefWithCurrent,
+  NavigationState,
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
+import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
+import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   LoadingSpinner,
@@ -25,11 +30,12 @@ import {
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
+import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -141,9 +147,28 @@ const App = () => {
     isAuthenticated,
   ]);
 
+  // FORCE_SPLASH_SEQUENCE triggers the splash on first render but doesn't
+  // prevent it from being dismissed — clearNeedsSplashSequence still works.
+  const [forcedSplash, setForcedSplash] = useState(FORCE_SPLASH_SEQUENCE);
   const showSplashSequence = useMemo(() => {
-    return showAuthenticatedApp && needsSplashSequence;
-  }, [showAuthenticatedApp, needsSplashSequence]);
+    return showAuthenticatedApp && (forcedSplash || needsSplashSequence);
+  }, [showAuthenticatedApp, forcedSplash, needsSplashSequence]);
+
+  const handleClearSplash = useCallback(() => {
+    setForcedSplash(false);
+    clearNeedsSplashSequence();
+  }, [clearNeedsSplashSequence]);
+
+  // Splash renders instead of AuthenticatedApp, which is where the urbit
+  // client is normally configured. The splash's bot-avatar uploader hits
+  // storage code that reads the current user via the urbit client, so we
+  // configure it here too.
+  const configureClient = useConfigureUrbitClient();
+  useEffect(() => {
+    if (showSplashSequence) {
+      configureClient();
+    }
+  }, [showSplashSequence, configureClient]);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
@@ -153,11 +178,13 @@ const App = () => {
             <LoadingSpinner />
           </View>
         ) : showSplashSequence ? (
-          <SplashSequence
-            onCompleted={clearNeedsSplashSequence}
-            inviteSystemContacts={inviteSystemContacts}
-            hostingBotEnabled={hostingBotEnabled ?? false}
-          />
+          <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
+            <SplashSequence
+              onCompleted={handleClearSplash}
+              inviteSystemContacts={inviteSystemContacts}
+              hostingBotEnabled={hostingBotEnabled ?? false}
+            />
+          </AppDataProvider>
         ) : showAuthenticatedApp ? (
           <AuthenticatedApp />
         ) : (
@@ -186,14 +213,41 @@ const App = () => {
 export default function ConnectedApp() {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
+  const routeNameRef = useRef<string>(undefined);
   const migrationState = useMigrations();
   const splashIsHidden = useSplashHider();
+  const navigationLogging = useNavigationLogging();
+
+  const onReady = () => {
+    routeNameRef.current =
+      navigationContainerRef.current?.getCurrentRoute()?.name;
+
+    const state = navigationContainerRef.current?.getState();
+    navigationLogging.onReady(state);
+  };
+
+  const onStateChange = (state: NavigationState | undefined) => {
+    const previousRouteName = routeNameRef.current;
+    const currentRouteName =
+      navigationContainerRef.current?.getCurrentRoute()?.name;
+
+    if (currentRouteName != null && previousRouteName !== currentRouteName) {
+      posthog?.screen(currentRouteName);
+    }
+
+    routeNameRef.current = currentRouteName;
+
+    navigationLogging.onStateChange(state);
+  };
 
   return (
     <FeatureFlagConnectedInstrumentationProvider>
       <NavigationContainer
         theme={isDarkMode ? DarkTheme : DefaultTheme}
         ref={navigationContainerRef}
+        onReady={onReady}
+        onStateChange={onStateChange}
+        navigationInChildEnabled
       >
         <BaseProviderStack migrationState={migrationState}>
           <ErrorBoundary>

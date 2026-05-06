@@ -408,7 +408,7 @@
       ?~  p.sign  :_(this [(tell:log %dbug ~['local sub ack ok' >wire<] ~)]~)
       %-  (slog (rap 3 dap.bowl ' rejected by local for ' (spat wire) ~) u.p.sign)
       :_  this
-      [(tell:log %warn ~['local sub nacked' >wire< >u.p.sign<] ~)]~
+      [(tell:log %warn ['local sub nacked' >wire=wire< u.p.sign] ~)]~
     ::
         %fact
       ?.  ?=(%activity-update-4 p.cage.sign)
@@ -454,7 +454,11 @@
         [(tell:log %dbug ~['context poke acked' >src.bowl< >context<] ~)]~
       %-  (slog (rap 3 dap.bowl ': poke-nacked by ' (scot %p src.bowl) ~) u.p.sign)
       :_  this
-      [(tell:log %warn ~['context poke nacked' >src.bowl< >context< >u.p.sign<] ~)]~
+      =-  [(tell:log %warn - ~)]~
+      :*  'context poke nacked'
+          >[src=src.bowl context=context]<
+          u.p.sign
+      ==
     ::
         %kick
       ::  resubscribe after brief wait, prevent hot-looping
@@ -470,8 +474,12 @@
         [(tell:log %dbug ~['context sub ack ok' >src.bowl< >context<] ~)]~
       ::  nacked, can't do anything, drop desire
       ::
-      :_  this(want (~(del by want) src.bowl context))
-      [(tell:log %warn ~['context sub nacked, dropping desire' >src.bowl< >context< >u.p.sign<] ~)]~
+      :_  this(want (~(del in want) src.bowl context))
+      =-  [(tell:log %warn - ~)]~
+      :*  'context sub nacked, dropping desire'
+          >[src=src.bowl context=context]<
+          u.p.sign
+      ==
     ::
         %fact
       ?.  ?=(%presence-update-1 p.cage.sign)
@@ -583,7 +591,7 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  ::TODO  want to ~(del by want) if ?=(%fact term) but don't know the wire...
+  ::TODO  want to ~(del in want) if ?=(%fact term) but don't know the wire...
   %.  [~ this]
   (slog (rap 3 dap.bowl ': +on-fail: ' term ~) tang)
 ::

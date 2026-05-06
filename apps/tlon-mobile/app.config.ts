@@ -58,6 +58,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     inviteServiceIsDev: process.env.INVITE_SERVICE_IS_DEV,
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
     automatedTest: process.env.AUTOMATED_TEST,
+    forceSplashSequence: process.env.FORCE_SPLASH_SEQUENCE,
   },
   ios: {
     runtimeVersion: '4.0.2',
@@ -72,6 +73,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     runtimeVersion: '4.0.2',
+    blockedPermissions: [
+      'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+    ],
   },
   plugins: [
     'expo-asset',
@@ -94,6 +98,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/perf',
+    '@sentry/react-native',
+    'expo-background-task',
+    'expo-mail-composer',
     [
       'expo-image-picker',
       {

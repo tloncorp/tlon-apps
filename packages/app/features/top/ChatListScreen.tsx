@@ -40,6 +40,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+import WayfindingNotice from '../../ui/components/Wayfinding/Notices';
 import { identifyTlonEmployee } from '../../utils/posthog';
 import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
@@ -65,20 +66,7 @@ export function ChatListScreenView({
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [personalInviteOpen, setPersonalInviteOpen] = useState(false);
   const personalInvite = db.personalInviteLink.useValue();
-  const viewedPersonalInvite = db.hasViewedPersonalInvite.useValue();
   const { isOpen, setIsOpen } = useGlobalSearch();
-  const theme = useTheme();
-  const inviteButtonColor = useMemo(
-    () =>
-      (viewedPersonalInvite
-        ? theme?.primaryText?.val
-        : theme?.positiveActionText?.val) as ColorTokens,
-    [
-      theme?.positiveActionText?.val,
-      theme?.primaryText?.val,
-      viewedPersonalInvite,
-    ]
-  );
 
   const [activeTab, setActiveTab] = useState<TabName>('home');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
@@ -127,7 +115,7 @@ export function ChatListScreenView({
   }, [syncLoadingSubtitle, chats]);
 
   /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
-  const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+  const connectionTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectionAttempts = useRef(0);
 
   useEffect(() => {
@@ -194,6 +182,10 @@ export function ChatListScreenView({
   );
 
   const handlePressAddChat = useCallback(() => {
+    db.wayfindingProgress.setValue((prev) => ({
+      ...prev,
+      tappedHomeAdd: true,
+    }));
     createChatSheetRef.current?.open();
   }, []);
 
@@ -235,6 +227,7 @@ export function ChatListScreenView({
   const [searchQuery, setSearchQuery] = useState('');
 
   const isWindowNarrow = useIsWindowNarrow();
+  const showHomeAddTooltip = store.useShowHomeAddTooltip();
 
   const handleSearchInputToggled = useCallback(() => {
     if (isWindowNarrow) {
@@ -308,7 +301,6 @@ export function ChatListScreenView({
                 personalInvite ? (
                   <ScreenHeader.IconButton
                     type="AddPerson"
-                    color={inviteButtonColor}
                     onPress={handlePersonalInvitePress}
                   />
                 ) : undefined
@@ -320,11 +312,26 @@ export function ChatListScreenView({
                     onPress={handleSearchInputToggled}
                   />
                   {isWindowNarrow ? (
-                    <ScreenHeader.IconButton
-                      type="Add"
-                      onPress={handlePressAddChat}
-                      testID="CreateChatSheetTrigger"
-                    />
+                    <View position="relative" alignItems="flex-end">
+                      <ScreenHeader.IconButton
+                        type="Add"
+                        onPress={handlePressAddChat}
+                        testID="CreateChatSheetTrigger"
+                        color={
+                          isWindowNarrow && showHomeAddTooltip
+                            ? '$positiveActionText'
+                            : '$primaryText'
+                        }
+                        backgroundColor={
+                          isWindowNarrow && showHomeAddTooltip
+                            ? '$positiveBackground'
+                            : 'transparent'
+                        }
+                      />
+                      {isWindowNarrow && showHomeAddTooltip && (
+                        <WayfindingNotice.HomeAddTooltip />
+                      )}
+                    </View>
                   ) : (
                     <CreateChatSheet
                       ref={createChatSheetRef}
@@ -373,13 +380,13 @@ export function ChatListScreenView({
         {displayData && <SystemNotices.NotificationsPrompt />}
         <NavBarView
           navigateToContacts={() => {
-            navigation.navigate('Contacts');
+            navigation.navigate('Contacts', undefined, { pop: true });
           }}
           navigateToHome={() => {
-            navigation.navigate('ChatList');
+            navigation.navigate('ChatList', undefined, { pop: true });
           }}
           navigateToNotifications={() => {
-            navigation.navigate('Activity');
+            navigation.navigate('Activity', undefined, { pop: true });
           }}
           currentRoute="ChatList"
           currentUserId={currentUser}

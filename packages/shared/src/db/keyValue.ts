@@ -1,6 +1,10 @@
-import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
-import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
+import type { StorageConfiguration } from '@tloncorp/api/client/upload';
 import * as ub from '@tloncorp/api/urbit';
+import type { AppThemeName } from '@tloncorp/api/urbit/settings';
+import type {
+  StorageCredentials,
+  StorageService,
+} from '@tloncorp/api/urbit/storage';
 
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
@@ -155,6 +159,11 @@ export const lastAddedSuggestionsAt = createStorageItem<number>({
 
 export const personalInviteLink = createStorageItem<string | null>({
   key: 'personalInviteLink',
+  defaultValue: null,
+});
+
+export const homeGroupInviteLink = createStorageItem<string | null>({
+  key: 'homeGroupInviteLink',
   defaultValue: null,
 });
 
@@ -314,6 +323,11 @@ export const userHasPersonalGroup = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const splashNickname = createStorageItem<string>({
+  key: 'splashNickname',
+  defaultValue: '',
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {
@@ -321,9 +335,11 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
     viewedChatChannel: false,
     viewedCollectionChannel: false,
     viewedNotebookChannel: false,
+    tappedHomeAdd: true,
     tappedAddNote: true,
     tappedAddCollection: true,
     tappedChatInput: true,
+    tappedBotMention: true,
   },
 });
 

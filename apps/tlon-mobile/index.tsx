@@ -23,7 +23,7 @@ import { useDbReady } from './src/hooks/useDbReady';
 import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
-BigInt.prototype.toJSON = function () {
+(BigInt.prototype as any).toJSON = function () {
   return Number(this);
 };
 
@@ -43,13 +43,13 @@ const UrbitModule =
 
 function signalJsReady() {
   try {
-    UrbitModule?.signalJsReady?.();
+    (UrbitModule as any)?.signalJsReady?.();
   } catch (e) {
     // Ignore errors
   }
 }
 
-function useJsHeartbeat(enabled) {
+function useJsHeartbeat(enabled: boolean) {
   const appStateRef = useRef(AppState.currentState);
 
   useEffect(() => {
@@ -71,7 +71,7 @@ function useJsHeartbeat(enabled) {
   }, [enabled]);
 }
 
-function MainInner(props) {
+function MainInner() {
   const { dbInitError, isDbReady } = useDbReady();
 
   if (dbInitError) {
@@ -91,15 +91,15 @@ function MainInner(props) {
 
   return (
     <TailwindProvider utilities={utilities}>
-      {isDbReady ? <App {...props} /> : null}
+      {isDbReady ? <App /> : null}
     </TailwindProvider>
   );
 }
 
-function Main(props) {
+function Main() {
   return (
     <RootErrorBoundary>
-      <MainInner {...props} />
+      <MainInner />
     </RootErrorBoundary>
   );
 }

@@ -88,6 +88,7 @@ export const GroupAvatar = React.memo(function GroupAvatarComponent({
 
   return (
     <ImageAvatar
+      key={model.iconImage ?? 'fallback'}
       imageUrl={model.iconImage ?? undefined}
       fallback={fallback}
       isGroupIcon={true}

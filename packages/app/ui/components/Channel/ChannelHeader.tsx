@@ -4,6 +4,7 @@ import { useContact } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
+  ReactElement,
   createContext,
   useCallback,
   useContext,
@@ -20,8 +21,8 @@ import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {
-  registerItem: (options: { item: JSX.Element }) => { remove: () => void };
-  items: readonly JSX.Element[];
+  registerItem: (options: { item: ReactElement }) => { remove: () => void };
+  items: readonly ReactElement[];
 }
 
 const ChannelHeaderItemsContext =
@@ -40,11 +41,11 @@ const ChannelHeaderItemsContext =
 export function ChannelHeaderItemsProvider({
   children,
 }: {
-  children: JSX.Element;
+  children: ReactElement;
 }) {
-  const [items, setItems] = useState<JSX.Element[]>([]);
+  const [items, setItems] = useState<ReactElement[]>([]);
   const registerItem = useCallback(
-    ({ item }: { item: JSX.Element }) => {
+    ({ item }: { item: ReactElement }) => {
       setItems((prev) => [...prev, item]);
       return {
         remove: () => {
@@ -61,7 +62,7 @@ export function ChannelHeaderItemsProvider({
   );
 }
 
-export function useRegisterChannelHeaderItem(item: JSX.Element | null) {
+export function useRegisterChannelHeaderItem(item: ReactElement | null) {
   const registerItem = useContext(ChannelHeaderItemsContext)?.registerItem;
 
   // NB: Since we're mutating the ChannelHeaderItemsContext in this effect, we

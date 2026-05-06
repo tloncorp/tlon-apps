@@ -28,6 +28,7 @@ export const INVITE_PROVIDER =
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
+export const POST_HOG_IN_DEV = envVars.postHogInDev === 'true';
 export const SENTRY_DSN = envVars.sentryDsn ?? '';
 export const APP_VARIANT = envVars.appVariant ?? 'production';
 const configuredScheme = Constants.expoConfig?.scheme;
@@ -70,6 +71,7 @@ export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 export const GIT_HASH = envVars.gitHash ?? 'unknown';
+export const FORCE_SPLASH_SEQUENCE = envVars.forceSplashSequence === 'true';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -105,4 +107,5 @@ export const ENV_VARS = {
   INVITE_SERVICE_IS_DEV,
   GIT_HASH,
   AUTOMATED_TEST,
+  FORCE_SPLASH_SEQUENCE,
 };

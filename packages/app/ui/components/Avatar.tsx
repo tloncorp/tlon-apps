@@ -2,13 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { UrbitSigil } from '@tloncorp/ui';
-import {
-  ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import React from 'react';
 import {
   ColorTokens,
@@ -23,11 +17,7 @@ import {
 import { useCalm, useContact } from '../contexts/appDataContext';
 import * as utils from '../utils';
 import { getChannelTypeIcon } from '../utils';
-import {
-  getContrastingColor,
-  getFallbackSigilColor,
-  useSigilColors,
-} from '../utils/colorUtils';
+import { getContrastingColor, useSigilColors } from '../utils/colorUtils';
 
 export const AvatarFrame = styled(View, {
   width: '$4xl',
@@ -234,11 +224,6 @@ export const ImageAvatar = function ImageAvatarComponent({
   const shouldShowImage =
     isGroupIcon || ignoreCalm || !calmSettings.disableAvatars;
 
-  useEffect(() => {
-    setLoadFailed(false);
-    setIsLoading(!!imageUrl);
-  }, [imageUrl]);
-
   return imageUrl &&
     imageUrl !== '' &&
     !isSVG &&
@@ -337,16 +322,7 @@ export const SigilAvatar = React.memo(function SigilAvatarComponent({
 } & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
-  const accentColor = useMemo(() => {
-    // Urbit's default unset sigil color is `0x0`, which normalizes to
-    // `#000000`. Treat that as "no color set" so the fallback fires for
-    // every ship that hasn't picked one.
-    if (!contact?.color || contact.color.toLowerCase() === '#000000') {
-      return getFallbackSigilColor(contactId);
-    }
-    return contact.color;
-  }, [contact?.color, contactId]);
-  const colors = useSigilColors(accentColor);
+  const colors = useSigilColors(contact?.color);
   const styles = useStyle(props, { resolveValues: 'value' });
   const sigilSize = useMemo(() => {
     if (size && size !== 'custom') {

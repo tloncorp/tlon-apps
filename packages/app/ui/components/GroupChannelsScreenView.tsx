@@ -9,8 +9,7 @@ import {
 } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
 import { capitalize } from 'lodash';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { LayoutChangeEvent } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -115,19 +114,6 @@ export const GroupChannelsScreenView = React.memo(
     const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
     const isWindowNarrow = useIsWindowNarrow();
 
-    const sizeRefs = useRef({
-      sectionHeader: isWindowNarrow ? 28 : 24.55,
-      channelItem: isWindowNarrow ? 72 : 64,
-    });
-
-    const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
-      sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
-    }, []);
-
-    const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
-      sizeRefs.current.channelItem = e.nativeEvent.layout.height;
-    }, []);
-
     const listItems: ChannelListData[] = useMemo(() => {
       if (!group || !group.channels || group.channels.length === 0) {
         return [];
@@ -214,7 +200,7 @@ export const GroupChannelsScreenView = React.memo(
       ({ item }) => {
         if (isSectionHeader(item)) {
           return (
-            <SectionListHeader onLayout={handleHeaderLayout}>
+            <SectionListHeader>
               <SectionListHeader.Text color={listSectionTitleColor}>
                 {item.title}
               </SectionListHeader.Text>
@@ -234,7 +220,6 @@ export const GroupChannelsScreenView = React.memo(
             useTypeIcon={true}
             dimmed={isUnjoined}
             disableOptions={isUnjoined}
-            onLayout={handleItemLayout}
             EndContent={
               isUnjoined ? (
                 <View justifyContent="center">
@@ -251,8 +236,6 @@ export const GroupChannelsScreenView = React.memo(
         onChannelPressed,
         handleOpenChannelOptions,
         listSectionTitleColor,
-        handleHeaderLayout,
-        handleItemLayout,
       ]
     );
 
@@ -263,16 +246,6 @@ export const GroupChannelsScreenView = React.memo(
     const getItemType = useCallback((item: ChannelListData) => {
       return isSectionHeader(item) ? 'sectionHeader' : 'channel';
     }, []);
-
-    // Override layout function for FlashList
-    const handleOverrideLayout = useCallback(
-      (layout: { span?: number; size?: number }, item: ChannelListData) => {
-        layout.size = isSectionHeader(item)
-          ? sizeRefs.current.sectionHeader
-          : sizeRefs.current.channelItem;
-      },
-      []
-    );
 
     return (
       <View flex={1}>
@@ -295,7 +268,6 @@ export const GroupChannelsScreenView = React.memo(
             group && isGroupAdmin ? (
               <ScreenHeader.IconButton
                 type="EditList"
-                color="$positiveActionText"
                 onPress={() => onPressManageChannels(group.id, false)}
                 disabled={!canEdit}
                 aria-label="Edit channels"
@@ -322,8 +294,6 @@ export const GroupChannelsScreenView = React.memo(
               renderItem={renderItem}
               keyExtractor={keyExtractor}
               getItemType={getItemType}
-              estimatedItemSize={sizeRefs.current.channelItem}
-              overrideItemLayout={handleOverrideLayout}
               contentContainerStyle={{
                 paddingTop: getTokenValue('$l'),
                 paddingHorizontal: getTokenValue('$l'),
