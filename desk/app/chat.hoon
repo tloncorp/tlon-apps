@@ -2218,22 +2218,6 @@
         ?^  react.q.diff.delta                q.diff.delta
         ?~  moj=(kill:em react.q.diff.delta)  q.diff.delta
         q.diff.delta(react u.moj)
-      ::  log shortcode reactions for group DMs
-      ::
-      =?  cor  ?=(%add-react -.q.diff.delta)
-        =/  react-text
-          ?@  react.q.diff.delta  react.q.diff.delta
-          p.react.q.diff.delta
-        ?^  (kill:em react-text)
-          =/  message  ~[leaf+"Shortcode reaction detected in chat backend (group DM)"]
-          =/  metadata
-            :~  'event'^s+'Backend Shortcode Reaction Chat GroupDM'
-                'context'^s+'chat_server_group_dm_add_react'
-                'club_id'^s+(scot %uv id)
-                'react'^s+react-text
-            ==
-          (emit (tell:log %crit message metadata))
-        cor
       =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
       ?-  -.q.diff.delta
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
@@ -2274,24 +2258,6 @@
           ?^  react.delt                delt
           ?~  moj=(kill:em react.delt)  delt
           delt(react u.moj)
-        ::  log shortcode reactions for group DM replies
-        ::
-        =?  cor  ?=(%add-react -.delt)
-          =/  react-text
-            ?@  react.delt  react.delt
-            p.react.delt
-          ?^  (kill:em react-text)
-            =/  message  ~[leaf+"Shortcode reaction detected in chat backend (group DM reply)"]
-            =/  metadata
-              :~  'event'^s+'Backend Shortcode Reaction Chat GroupDM Reply'
-                  'context'^s+'chat_server_group_dm_reply_add_react'
-                  'club_id'^s+(scot %uv id)
-                  'reply_ship'^s+(scot %p p.reply-id)
-                  'reply_time'^s+(scot %ud q.reply-id)
-                  'react'^s+react-text
-              ==
-            (emit (tell:log %crit message metadata))
-          cor
         ?-  -.delt
             ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
         ::
@@ -2707,22 +2673,6 @@
       ?^  react.q.diff                q.diff
       ?~  moj=(kill:em react.q.diff)  q.diff
       q.diff(react u.moj)
-    ::  log shortcode reactions for regular DMs
-    ::
-    =?  cor  ?=(%add-react -.q.diff)
-      =/  react-text
-        ?@  react.q.diff  react.q.diff
-        p.react.q.diff
-      ?^  (kill:em react-text)
-        =/  message  ~[leaf+"Shortcode reaction detected in chat backend (regular DM)"]
-        =/  metadata
-          :~  'event'^s+'Backend Shortcode Reaction Chat DM'
-              'context'^s+'chat_server_dm_add_react'
-              'ship'^s+(scot %p ship)
-              'react'^s+react-text
-          ==
-        (emit (tell:log %crit message metadata))
-      cor
     =.  pact.dm  (reduce:di-pact now.bowl from-self diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       =.  dms  (~(put by dms) ship dm)  ::NOTE  +give-invites needs latest state
@@ -2767,24 +2717,6 @@
         ?^  react.delta                delta
         ?~  moj=(kill:em react.delta)  delta
         delta(react u.moj)
-      ::  log shortcode reactions for regular DM replies
-      ::
-      =?  cor  ?=(%add-react -.delta)
-        =/  react-text
-          ?@  react.delta  react.delta
-          p.react.delta
-        ?^  (kill:em react-text)
-          =/  message  ~[leaf+"Shortcode reaction detected in chat backend (regular DM reply)"]
-          =/  metadata
-            :~  'event'^s+'Backend Shortcode Reaction Chat DM Reply'
-                'context'^s+'chat_server_dm_reply_add_react'
-                'ship'^s+(scot %p ship)
-                'reply_ship'^s+(scot %p p.id.q.diff)
-                'reply_time'^s+(scot %ud q.id.q.diff)
-                'react'^s+react-text
-            ==
-          (emit (tell:log %crit message metadata))
-        cor
       ?-  -.delta
           ?(%add-react %del-react)  (di-give-writs-diff diff)
       ::
