@@ -1,4 +1,21 @@
-# Aqua tests
+# Aqua
+
+Aqua is a virtual urbit runtime implemented in Hoon.
+It virtualizes arvo instances and allows a virtual urbit ship to be
+hosted inside the host arvo at a fraction of the memory cost.
+
+## Aqua tests
+
+Aqua is an ideal urbit testing environment.
+It allows us to run fleets of virtual ships in a reproducible manner.
+There is no need to implement stubs for any of the kernel components, given
+that virtual arvo is just a copy of the real arvo running on the host.
+
+The only deficiency is that aqua currently does not implement all of the
+runtime effects. However, while this might pose some difficulties when running
+a virtual ship indented to interface with the urbit livenet,
+all the functionality needed to perform tests on a self-contained
+fleet of virtual ships is there.
 
 ## Preparing aqua pill
 
@@ -90,14 +107,15 @@ The test runner will display test result and time taken after run of each test c
 The aqua virtual runtime is currently quite verbose, and will display a lot of noise,
 primarily about unhandled effects.
 
-Running virtual ships will also display logging messages. 
+Running virtual ships will also display logging messages.
 These messages are associated with a priority:
-| prefix    | priority |
-|-----------|----------|
+| prefix    | priority                     |
+|-----------|------------------------------|
 | no prefix | `%dbug` debug priority       |
 | `>`       | `%info` information priority |
 | `>>`      | `%warn` warning priority     |
 | `>>>`     | `%crit` critical priority    |
+
 Each logging message is prefix by the virtual source ship and agent names.
 
 An example error message
@@ -113,12 +131,24 @@ the location indicated in the message. In the above example, that would
 be the `+se-u-groups` arm somewhere in the agent's source code or its libraries.
 If that does not yield results, searching for constant parts of the messsage in relevant files usually.
 
-## Listing tests
-To find available aqua tests, use `-ph-test-ls path` command.
-It will compile all files present at the path and assemble a list
-of test arms that would be run by the test runner.
+## Checking tests
+
+While developing tests, it is useful to have a way to verify any compilation errors
+separately before triggering the actual test run. This can be done using
+`-ph-test-ls path` command, which will find all aqua tests available at the
+path and build them.
+
+There are two kind of errors that can occur at compilation time.
+A `FAILED BUILD` error indicates the test file did not build.
+The compiler error is shown directly above, because it is coming from clay.
+A `FAILED MINT` error indicates that a test arm in a successfully compiled test
+file does not resolve properly. Usually this indicates that the arm resolved
+to a type that does not match the test signature, which should be a form of the strand `(strand ,~)`.
+The possible compiler error is also displayed right the error line, for consistency
+with file build errors.
 
 ## Cancelling a test run
+
 The test runner is a thread, so in order to stop an ongoing test run you must
 cancel the runner thread. In dojo, this is simply done by pressing a backspace.
 
