@@ -317,7 +317,7 @@ export default function useNotificationListener() {
     }
 
     async function goToContacts() {
-      navigation.navigate('Contacts');
+      navigation.navigate('Contacts', undefined, { pop: true });
       setNotifToProcess(null);
       return true;
     }
