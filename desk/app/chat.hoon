@@ -938,10 +938,14 @@
     ::  as opposed to the direct unicode emoji.
     ::  reject their action when they do.
     ::
-    ?<  ?&  ?=([%add-react * @] q.q.action)
-              (gth (met 3 react.q.q.action) 1)
-              =(':' (end 3^1 react.q.q.action))
-          ==
+    ?<  ?|  ?&  ?=([%add-react * @] q.q.action)
+                (gth (met 3 react.q.q.action) 1)
+                =(':' (end 3^1 react.q.q.action))
+            ==
+            ?&  ?=([%reply * * %add-react * @] q.q.action)
+                (gth (met 3 react.delta.q.q.action) 1)
+                =(':' (end 3^1 react.delta.q.q.action))
+        ==  ==
     ::  don't proxy to self, creates an infinite loop
     ?:  =(p.action our.bowl)
       di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
