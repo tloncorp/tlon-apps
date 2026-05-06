@@ -1,5 +1,4 @@
 // tamagui-ignore
-import Clipboard from '@react-native-clipboard/clipboard';
 import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
@@ -9,6 +8,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { Attachment, DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import {
   Button,
@@ -17,8 +17,10 @@ import {
   LoadingSpinner,
   Pressable,
   Text,
+  ZStack,
   useToast,
 } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import React, {
   ComponentProps,
   useCallback,
@@ -32,7 +34,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   YStack,
-  ZStack,
   getTokenValue,
   isWeb,
   styled,
@@ -1213,7 +1214,7 @@ export function BotApiKeyPane(props: {
     try {
       const clipboardContents = isWeb
         ? await navigator.clipboard.readText()
-        : await Clipboard.getString();
+        : await Clipboard.getStringAsync();
       onApiKeyChange(clipboardContents.trim());
     } catch (error) {
       logger.trackError('Wayfinding Bot API Key Paste Failed', {

@@ -18,7 +18,7 @@ import { GestureMediaViewer } from './GestureMediaViewer';
 const CarouselContext = React.createContext<{
   direction: 'horizontal' | 'vertical';
   rect: { width: number; height: number } | null;
-  setOverlay: (overlay: JSX.Element) => () => void;
+  setOverlay: (overlay: React.ReactElement) => () => void;
   visibleIndex: number;
 } | null>(null);
 
@@ -64,7 +64,7 @@ const _Carousel = React.forwardRef<
     initialVisibleIndex ?? 0
   );
   const [isOverlayShown, setIsOverlayShown] = React.useState(false);
-  const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
+  const [overlay, setOverlay] = React.useState<React.ReactElement | null>(null);
   const tap = Gesture.Tap()
     .onEnd((_event, success) => {
       success && runOnJS(setIsOverlayShown)(!isOverlayShown);
@@ -79,9 +79,12 @@ const _Carousel = React.forwardRef<
     () => ({
       direction: scrollDirection,
       rect,
-      setOverlay: (overlay: JSX.Element) => {
+      setOverlay: (overlay: React.ReactElement) => {
         setOverlay(overlay);
-        return () => setOverlay((prev) => (prev === overlay ? null : prev));
+        return () =>
+          setOverlay((prev: React.ReactElement | null) =>
+            prev === overlay ? null : prev
+          );
       },
       visibleIndex,
     }),
@@ -189,7 +192,7 @@ const _Carousel = React.forwardRef<
           {(!hideOverlayOnTap || isOverlayShown) && (
             <View
               key="overlay"
-              animation="simple"
+              transition="simple"
               enterStyle={{ opacity: 0 }}
               exitStyle={{ opacity: 0 }}
               flex={1}
@@ -226,7 +229,7 @@ function Item({
      * If provided, shows the provided element over the scroll viewport when
      * this item is visible.
      */
-    overlay?: JSX.Element;
+    overlay?: React.ReactElement;
   }
 >) {
   const ctxValue = React.useContext(CarouselContext);
@@ -260,8 +263,8 @@ function Overlay({
   header,
   footer,
 }: {
-  header?: JSX.Element;
-  footer?: JSX.Element;
+  header?: React.ReactElement;
+  footer?: React.ReactElement;
 }) {
   return (
     <>

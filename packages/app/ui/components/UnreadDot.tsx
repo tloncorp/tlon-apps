@@ -6,6 +6,7 @@ export function UnreadDot(
 ) {
   return (
     <Circle
+      key={props.color ?? 'primary'}
       size="$m"
       backgroundColor={
         props.color === 'neutral' ? '$neutralUnreadDot' : '$positiveActionText'

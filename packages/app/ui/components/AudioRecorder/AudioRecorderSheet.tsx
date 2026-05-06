@@ -55,13 +55,13 @@ export function AudioRecorderSheet({
 
   return (
     <Sheet
-      animation="simple"
+      transition="simple"
       modal
       dismissOnOverlayPress={false}
       {...forwardedProps}
       onOpenChange={onAnyOpenChange}
     >
-      <Sheet.Overlay animation="simple" />
+      <Sheet.Overlay transition="simple" />
       <Sheet.Frame
         borderRadius="$3.5xl"
         backgroundColor="$background"
@@ -82,7 +82,6 @@ export function AudioRecorderSheet({
               if (typeof ref === 'function') {
                 ref(elm);
               } else {
-                // @ts-expect-error - need to write to readonly property `current`
                 ref.current = elm;
               }
             }

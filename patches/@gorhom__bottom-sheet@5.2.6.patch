@@ -1,0 +1,55 @@
+diff --git a/src/components/bottomSheet/BottomSheetContent.tsx b/src/components/bottomSheet/BottomSheetContent.tsx
+index a615d7db599a0e4e675e68b547e1c37cd709eb4c..066566bf2ddf15cd7b75a86bd3acd5d6c63c7ca5 100644
+--- a/src/components/bottomSheet/BottomSheetContent.tsx
++++ b/src/components/bottomSheet/BottomSheetContent.tsx
+@@ -4,6 +4,7 @@ import Animated, {
+   type AnimatedStyle,
+   useAnimatedStyle,
+   useDerivedValue,
++  useSharedValue,
+ } from 'react-native-reanimated';
+ import {
+   INITIAL_LAYOUT_VALUE,
+@@ -179,6 +180,7 @@ function BottomSheetContentComponent({
+   ]);
+   //#endregion
+ 
++  const isInitialLayout = useSharedValue(true);
+   //#region styles
+   const contentMaskContainerAnimatedStyle = useAnimatedStyle(() => {
+     const { containerHeight, contentHeight } = animatedLayoutState.get();
+@@ -186,7 +188,8 @@ function BottomSheetContentComponent({
+      * if container height is not yet calculated, then we exit the method
+      */
+     if (containerHeight === INITIAL_LAYOUT_VALUE) {
+-      return {};
++      isInitialLayout.value = true;
++      return { height: 0 };
+     }
+ 
+     /**
+@@ -194,12 +197,23 @@ function BottomSheetContentComponent({
+      * is still not set, then we exit method.
+      */
+     if (enableDynamicSizing && contentHeight === INITIAL_LAYOUT_VALUE) {
+-      return {};
++      isInitialLayout.value = true;
++      return { height: 0 };
+     }
+ 
++    const wasInitialLayout = isInitialLayout.value;
++    isInitialLayout.value = false;
++
+     const paddingBottom = detached ? 0 : animatedPaddingBottom.get();
+     const height = animatedContentHeightMax.get() + paddingBottom;
+ 
++    if (wasInitialLayout) {
++      return {
++        paddingBottom,
++        height,
++      };
++    }
++
+     return {
+       paddingBottom: animate({
+         point: paddingBottom,

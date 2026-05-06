@@ -22,6 +22,7 @@ import {
 } from '@tloncorp/ui';
 import {
   type ForwardedRef,
+  ReactElement,
   forwardRef,
   useCallback,
   useEffect,
@@ -131,6 +132,8 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
               uri,
               height: img.height,
               width: img.width,
+              mimeType: file.type || undefined,
+              fileSize: file.size,
             },
           });
         };
@@ -176,7 +179,7 @@ function TextWithMentions({
   }
 
   const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
-  const textParts: JSX.Element[] = [];
+  const textParts: ReactElement[] = [];
 
   if (sortedMentions[0].start > 0) {
     textParts.push(
@@ -967,7 +970,7 @@ function BareChatInput(
               letterSpacing: -0.032,
               color: inputTextColor,
               ...(isWeb ? placeholderTextColor : {}),
-              ...(isWeb ? { outlineStyle: 'none' } : {}),
+              ...(isWeb ? ({ outlineStyle: 'none' } as any) : {}),
             }}
             // Hack to prevent @p's getting squiggled on web
             spellCheck={!mentions.length}

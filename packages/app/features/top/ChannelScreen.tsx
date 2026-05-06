@@ -375,8 +375,10 @@ export default function ChannelScreen(props: Props) {
   const handleGoToGroupSettings = useCallback(() => {
     if (group) {
       navigationRef.current.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
+        state: {
+          routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
+          index: 0,
+        },
       });
     }
   }, [group, navigationRef]);

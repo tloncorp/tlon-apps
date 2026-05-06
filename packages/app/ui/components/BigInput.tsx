@@ -62,7 +62,7 @@ function useMarkdownMode({
 }: {
   editingPost?: db.Post;
   markdownNotebooksEnabled: boolean;
-  editorRef: RefObject<{ editor: TlonEditorBridge | null }>;
+  editorRef: RefObject<{ editor: TlonEditorBridge | null } | null>;
   showToast: (opts: { message: string; duration: number }) => void;
 }) {
   // Default to markdown mode if feature flag is enabled and this is a new post

@@ -3,9 +3,11 @@ import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
+  NavigationContainerRefWithCurrent,
   NavigationState,
   PartialState,
   Route,
+  useNavigationContainerRef,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
@@ -13,13 +15,18 @@ import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
 import { useFindSuggestedContacts } from '@tloncorp/app/hooks/useFindSuggestedContacts';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
 import { useRenderCount } from '@tloncorp/app/hooks/useRenderCount';
 import { useTelemetry } from '@tloncorp/app/hooks/useTelemetry';
 import {
   SplashScreenTask,
   splashScreenProgress,
 } from '@tloncorp/app/lib/splashscreen';
-import { BasePathNavigator } from '@tloncorp/app/navigation/BasePathNavigator';
+import {
+  BasePathNavigator,
+  DesktopBasePathStackParamList,
+  MobileBasePathStackParamList,
+} from '@tloncorp/app/navigation/BasePathNavigator';
 import {
   getNavigationIntentFromState,
   getStateFromNavigationIntent,
@@ -58,7 +65,6 @@ import React, {
 } from 'react';
 import { Helmet } from 'react-helmet';
 
-import EyrieMenu from '@/eyrie/EyrieMenu';
 import useAppUpdates from '@/logic/useAppUpdates';
 import useErrorHandler from '@/logic/useErrorHandler';
 import useIsStandaloneMode from '@/logic/useIsStandaloneMode';
@@ -150,6 +156,9 @@ function AppRoutes() {
   const { needsUpdate, triggerUpdate } = useAppUpdates();
   const [currentRouteParams, setCurrentRouteParams] = useState<any>(null);
   const currentRouteRef = useRef<any>(null);
+  const navigationRef = useNavigationContainerRef<
+    MobileBasePathStackParamList | DesktopBasePathStackParamList
+  >();
 
   const channelId = useMemo(
     () => currentRouteParams?.channelId,
@@ -310,6 +319,13 @@ function AppRoutes() {
     isMobile ? 'mobile' : 'desktop'
   );
 
+  const navigationLogging = useNavigationLogging();
+
+  const handleNavigationReady = useCallback(() => {
+    const state = navigationRef.current?.getState();
+    navigationLogging.onReady(state);
+  }, [navigationLogging, navigationRef]);
+
   const platformHandleStateChange = isMobile
     ? handleStateChangeMobile
     : handleStateChangeDesktop;
@@ -317,8 +333,9 @@ function AppRoutes() {
     (state: NavigationState<CombinedParamList> | undefined) => {
       platformHandleStateChange(state);
       onNavigationStateChange(state);
+      navigationLogging.onStateChange(state);
     },
-    [platformHandleStateChange, onNavigationStateChange]
+    [platformHandleStateChange, onNavigationStateChange, navigationLogging]
   );
 
   return (
@@ -326,37 +343,49 @@ function AppRoutes() {
       webAppNeedsUpdate={needsUpdate}
       triggerWebAppUpdate={triggerUpdate}
     >
-      <ForwardPostSheetProvider>
-        {isMobile ? (
-          <NavigationContainer
-            key="mobile"
-            initialState={initialStateRef.current.mobile}
-            linking={mobileLinkingConfig}
-            theme={theme}
-            onStateChange={combinedStateChangeHandler}
-            documentTitle={{
-              enabled: true,
-              formatter: documentTitleFormatterMobile,
-            }}
-          >
+      {isMobile ? (
+        <NavigationContainer<MobileBasePathStackParamList>
+          key="mobile"
+          ref={
+            navigationRef as NavigationContainerRefWithCurrent<MobileBasePathStackParamList>
+          }
+          initialState={initialStateRef.current.mobile}
+          linking={mobileLinkingConfig}
+          theme={theme}
+          onReady={handleNavigationReady}
+          onStateChange={combinedStateChangeHandler}
+          documentTitle={{
+            enabled: true,
+            formatter: documentTitleFormatterMobile,
+          }}
+          navigationInChildEnabled
+        >
+          <ForwardPostSheetProvider>
             <BasePathNavigator isMobile={true} />
-          </NavigationContainer>
-        ) : (
-          <NavigationContainer
-            key="desktop"
-            initialState={initialStateRef.current.desktop}
-            linking={desktopLinkingConfig}
-            theme={theme}
-            onStateChange={combinedStateChangeHandler}
-            documentTitle={{
-              enabled: true,
-              formatter: documentTitleFormatterDesktop,
-            }}
-          >
+          </ForwardPostSheetProvider>
+        </NavigationContainer>
+      ) : (
+        <NavigationContainer<DesktopBasePathStackParamList>
+          key="desktop"
+          ref={
+            navigationRef as NavigationContainerRefWithCurrent<DesktopBasePathStackParamList>
+          }
+          initialState={initialStateRef.current.desktop}
+          linking={desktopLinkingConfig}
+          theme={theme}
+          onReady={handleNavigationReady}
+          onStateChange={combinedStateChangeHandler}
+          documentTitle={{
+            enabled: true,
+            formatter: documentTitleFormatterDesktop,
+          }}
+          navigationInChildEnabled
+        >
+          <ForwardPostSheetProvider>
             <BasePathNavigator isMobile={false} />
-          </NavigationContainer>
-        )}
-      </ForwardPostSheetProvider>
+          </ForwardPostSheetProvider>
+        </NavigationContainer>
+      )}
     </AppDataProvider>
   );
 }

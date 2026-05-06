@@ -16,7 +16,6 @@ import {
   Button,
   ScreenHeader,
   SizableText,
-  Stack,
   Text,
   View,
   XStack,
@@ -188,13 +187,13 @@ export function AppInfoScreen(props: Props) {
           </XStack>
 
           {enabled && logs.length > 0 && (
-            <Stack>
+            <View>
               <Button
                 preset="outline"
                 onPress={onUploadLogs}
                 label={`Upload logs (${logs.length})`}
               />
-            </Stack>
+            </View>
           )}
           {enabled && logId && !hasClients && (
             <YStack padding="$l">
