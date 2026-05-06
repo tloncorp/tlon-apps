@@ -148,6 +148,7 @@ const ActionSheetComponent = ({
   dialogContentProps,
   closeButton,
   footerComponent,
+  unmountOnClose,
   ...props
 }: PropsWithChildren<
   ActionSheetProps &
@@ -157,6 +158,7 @@ const ActionSheetComponent = ({
       | 'enableContentPanningGesture'
       | 'hasScrollableContent'
       | 'keyboardBehavior'
+      | 'unmountOnClose'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -354,6 +356,7 @@ const ActionSheetComponent = ({
       keyboardBehavior={props.keyboardBehavior}
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}
+      unmountOnClose={unmountOnClose}
       frameStyle={{}}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
