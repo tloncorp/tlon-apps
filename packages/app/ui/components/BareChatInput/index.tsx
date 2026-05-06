@@ -131,6 +131,8 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
               uri,
               height: img.height,
               width: img.width,
+              mimeType: file.type || undefined,
+              fileSize: file.size,
             },
           });
         };
