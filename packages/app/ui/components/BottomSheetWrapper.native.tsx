@@ -300,10 +300,10 @@ export const BottomSheetWrapper = forwardRef<
       closeTimerRef.current = setTimeout(() => {
         setMounted(false);
         closeTimerRef.current = null;
-      }, ANIMATION_CONFIGS[animation].duration + 100);
+      }, ANIMATION_CONFIGS[transition].duration + 100);
       prevOpenRef.current = open;
       return () => clearCloseTimer();
-    }, [open, unmountOnClose, animation, clearCloseTimer]);
+    }, [open, unmountOnClose, transition, clearCloseTimer]);
 
     // Cancel any pending close timer when the wrapper unmounts.
     useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
