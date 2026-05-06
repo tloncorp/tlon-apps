@@ -354,11 +354,6 @@
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
   ?>  ?=(%13 -.old)
-  =/  x
-    ~>  %bout.[0 'chat migr']
-    =+  (~(run by dms.old) dm:recover-emoji)
-    =+  (~(run by clubs.old) club:recover-emoji)
-    ~
   =.  state  old
   =.  cor
     (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
