@@ -63,7 +63,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %14
+    $:  %15
         =v-channels:v10:cv
         =hooks:h
         =pimp:imp
@@ -164,12 +164,14 @@
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
-  ?>  ?=(%14 -.old)
+  =?  old  ?=(%14 -.old)  (state-14-to-15 old)
+  ?>  ?=(%15 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-14
+    $%  state-15
+        state-14
         state-13
         state-12
         state-11
@@ -185,7 +187,8 @@
         state-1
         state-0
     ==
-  +$  state-14  current-state
+  +$  state-15  current-state
+  +$  state-14  _%*(. *state-15 - %14)
   +$  state-13
     $:  %13
         =v-channels:v9:cv
@@ -222,6 +225,14 @@
     $:  %6
       =v-channels:v7:cv
       =pimp:imp
+    ==
+  ::
+  ++  state-14-to-15
+    |=  =state-14
+    ~>  %spin.['state-14-to-15']
+    ^-  state-15
+    %=  state-14  -  %15
+      v-channels  (~(run by v-channels.state-14) channel:recover-emoji:utils)
     ==
   ::
   ++  state-13-to-14

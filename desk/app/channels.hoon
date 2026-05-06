@@ -252,7 +252,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %17
+    $:  %18
         =v-channels:v10:cv
         voc=(map [nest:cv plan:cv] (unit said:v10:cv))
         hidden-posts=(set id-post:cv)
@@ -402,7 +402,8 @@
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   =?  old  ?=(%15 -.old)  (state-15-to-16 old)
   =?  old  ?=(%16 -.old)  (state-16-to-17 old)
-  ?>  ?=(%17 -.old)
+  =?  old  ?=(%17 -.old)  (state-17-to-18 old)
+  ?>  ?=(%18 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -410,7 +411,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-17
+    $%  state-18
+        state-17
         state-16
         state-15
         state-14
@@ -429,7 +431,8 @@
         state-1
         state-0
     ==
-  +$  state-17  current-state
+  +$  state-18  current-state
+  +$  state-17  _%*(. *state-18 - %17)
   +$  state-16
     $:  %16
         =v-channels:v9:cv
@@ -519,6 +522,13 @@
         :: delayed resubscribes
         =^subs:s
         =pimp:imp
+    ==
+  ::
+  ++  state-17-to-18
+    |=  =state-17
+    ^-  state-18
+    %=  state-17  -  %18
+      v-channels  (~(run by v-channels.state-17) channel:recover-emoji:utils)
     ==
   ::
   ++  state-16-to-17

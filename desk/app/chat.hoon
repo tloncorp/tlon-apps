@@ -247,7 +247,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %12
+    $:  %13
         dms=(map ship dm:v7:cv)
         clubs=(map id:club:c club:v7:cv)
         pins=(list whom:c)
@@ -352,14 +352,21 @@
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
-  ?>  ?=(%12 -.old)
+  =?  old  ?=(%12 -.old)  (state-12-to-13 old)
+  ?>  ?=(%13 -.old)
+  =/  x
+    ~>  %bout.[0 'chat migr']
+    =+  (~(run by dms.old) dm:recover-emoji)
+    =+  (~(run by clubs.old) club:recover-emoji)
+    ~
   =.  state  old
   =.  cor
     (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
   rectify-club-state
   ::
   +$  versioned-state
-    $%  state-12
+    $%  state-13
+        state-12
         state-11
         state-10
         state-9
@@ -509,7 +516,34 @@
         old-pins=(list whom:v2:cv)
     ==
   ::
-  +$  state-12  current-state
+  +$  state-13  current-state
+  +$  state-12  _%*(. *state-13 - %12)
+  ::
+  ++  state-12-to-13
+    |=  =state-12
+    ^-  state-13
+    ~>  %spin.['state-12-to-13']
+    %=  state-12  -  %13
+      dms    (~(run by dms.state-12) dm:recover-emoji)
+      clubs  (~(run by clubs.state-12) club:recover-emoji)
+    ==
+  ::
+  ++  recover-emoji
+    |%
+    ++  dm    |=(=dm:v7:cv dm(pact (pact pact.dm)))
+    ++  club  |=(=club:v7:cv club(pact (pact pact.club)))
+    ++  pact  |=(=pact:v7:cv pact(wit (run:on:writs:v7:cv wit.pact writ)))
+    ++  writ
+      |=  writ=(may:v7:cv writ:v7:cv)
+      ?.  ?=(%& -.writ)  writ
+      writ(reacts (~(run by reacts.writ) react))
+    ++  react
+      |=  =react:v7:cv
+      ^+  react
+      ?^  react  react
+      =+  moj=(kill:em react)
+      ?~(moj react u.moj)
+    --
   ::
   ++  state-11-to-12
     |=  =state-11
