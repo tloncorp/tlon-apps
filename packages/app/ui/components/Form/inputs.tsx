@@ -49,19 +49,25 @@ import {
   getBorderVariantStyle as getBackgroundTypeVariantStyle,
 } from './formUtils';
 
+// lineHeight on single-line TextInput is buggy on iOS; restore it for
+// multiline inputs below where line spacing matters.
+const { lineHeight: mobileInputLineHeight, ...mobileInputTypeStyles } =
+  mobileTypeStyles['$label/xl'];
+const { lineHeight: desktopInputLineHeight, ...desktopInputTypeStyles } =
+  desktopTypeStyles['$label/xl'];
+
 // Common text input styling configuration
 // Only contains style properties and Tamagui-specific config (name, variants, media queries)
 const textInputStyleConfig = {
   name: 'RawTextInput',
-  ...mobileTypeStyles['$label/xl'],
-  lineHeight: 'unset',
+  ...mobileInputTypeStyles,
   context: FieldContext,
   color: '$primaryText',
   fontFamily: '$body',
   textAlignVertical: 'top' as const,
   paddingVertical: '$l',
   '$platform-web': { outlineStyle: 'none' },
-  $gtSm: desktopTypeStyles['$label/xl'],
+  $gtSm: desktopInputTypeStyles,
   variants: {
     accent: {
       negative: {
@@ -143,7 +149,10 @@ const TextInputComponent = RawTextInput.styleable<{
   rightControls?: ReactNode;
   frameStyle?: ViewStyle;
 }>(
-  ({ icon, accent, backgroundType, frameStyle, ...props }, ref) => {
+  (
+    { icon, accent, backgroundType, frameStyle, rightControls, ...props },
+    ref
+  ) => {
     const fieldContext = useContext(FieldContext);
     const actionSheetContext = useContext(ActionSheetContext);
 
@@ -151,34 +160,43 @@ const TextInputComponent = RawTextInput.styleable<{
     const shouldUseBottomSheetInput =
       actionSheetContext?.isInsideSheet && Platform.OS !== 'web';
 
+    const isMultiline =
+      !!props.multiline ||
+      (props.numberOfLines != null && props.numberOfLines !== 1);
+
     // Shared props for both input components
     // Type cast needed because Tamagui's styled() wrapper adds broader types (like boxShadow: array)
     // that don't exactly match TextInput's narrower prop types (boxShadow: string only)
     const sharedInputProps = {
       flex: 1,
       ...textInputDefaultProps,
+      ...(isMultiline
+        ? {
+            lineHeight: mobileInputLineHeight,
+            $gtSm: { lineHeight: desktopInputLineHeight },
+          }
+        : {}),
       ...props,
     } as GetProps<typeof RawTextInput>;
 
     return (
       <InputFrame
         accent={accent ?? fieldContext.accent}
-        {...(props.numberOfLines && props.numberOfLines !== 1
-          ? { height: 'unset' }
-          : {})}
+        {...(isMultiline ? { height: 'unset' } : {})}
         backgroundType={backgroundType ?? fieldContext.backgroundType}
         {...frameStyle}
       >
         {icon ? <Icon type={icon} size="$m" /> : null}
         {shouldUseBottomSheetInput ? (
           <RawBottomSheetTextInput
-            ref={ref}
+            // TODO: See if this can be fixed properly.
+            ref={ref as any}
             {...(sharedInputProps as GetProps<typeof RawBottomSheetTextInput>)}
           />
         ) : (
           <RawTextInput ref={ref} {...sharedInputProps} />
         )}
-        {props.rightControls}
+        {rightControls}
       </InputFrame>
     );
   },
@@ -536,7 +554,7 @@ export const RadioInput = <T,>({
   }[];
   value?: T;
   onChange?: (value: T) => void;
-} & ComponentProps<typeof YStack>) => {
+} & Omit<ComponentProps<typeof YStack>, 'onChange'>) => {
   return (
     <YStack {...props}>
       {options.map((option) => (

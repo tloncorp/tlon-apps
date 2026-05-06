@@ -1,7 +1,7 @@
 import { firebase } from '@react-native-firebase/perf';
 import { InstrumentationProvider } from '@tloncorp/shared';
 import { PerformanceMonitoringEndpoint } from '@tloncorp/shared/perf';
-import { useMemo } from 'react';
+import { ReactElement, useMemo } from 'react';
 
 import { useFeatureFlag } from '../lib/featureFlags';
 
@@ -30,7 +30,7 @@ class FirebasePerformanceMonitoringEndpoint
 export function FeatureFlagConnectedInstrumentationProvider({
   children,
 }: {
-  children: JSX.Element;
+  children: ReactElement;
 }) {
   const [isPerformanceCollectionEnabled] = useFeatureFlag(
     'instrumentationEnabled'

@@ -13,7 +13,7 @@ import {
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as utils from '@tloncorp/shared/utils';
-import * as LibPhone from 'libphonenumber-js';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import PostHog, { usePostHog } from 'posthog-react-native';
 import {
   createContext,
@@ -235,9 +235,7 @@ async function runPostSignupActions(params: {
       logger.trackEvent(AnalyticsEvent.DebugAttestation, {
         context: 'initiating post-signup phone number registration',
       });
-      const parsedPhone = LibPhone.parsePhoneNumberFromString(
-        params.phoneNumber
-      );
+      const parsedPhone = parsePhoneNumberFromString(params.phoneNumber);
       if (!parsedPhone) {
         logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
           context:

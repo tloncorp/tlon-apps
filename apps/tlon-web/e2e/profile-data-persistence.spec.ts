@@ -81,7 +81,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(bioInput).toHaveValue('Zod Testing bio');
 
   // Cancel without making changes to verify we maintained correct data
-  await zodPage.getByTestId('HeaderBackButton').click();
+  await helpers.navigateBack(zodPage);
 
   // Part 4: ~ten also verifies no data persistence when editing profiles
   // First ~ten sets their own profile
@@ -157,7 +157,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(tenBioInput).toHaveValue('Ten Bio');
 
   // Cancel without changes
-  await tenPage.getByTestId('HeaderBackButton').click();
+  await helpers.navigateBack(tenPage);
 
   // Clean up
   await helpers.cleanupOwnProfile(tenPage);
