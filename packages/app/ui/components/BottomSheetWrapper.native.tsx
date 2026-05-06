@@ -243,41 +243,24 @@ export const BottomSheetWrapper = forwardRef<
     // remounts under `unmountOnClose`.
     React.useImperativeHandle(
       ref,
-      () =>
-        ({
-          present: () =>
-            modal
-              ? bottomSheetModalRef.current?.present()
-              : bottomSheetRef.current?.expand(),
-          dismiss: () =>
-            modal
-              ? bottomSheetModalRef.current?.dismiss()
-              : bottomSheetRef.current?.close(),
-          close: () =>
-            modal
-              ? bottomSheetModalRef.current?.dismiss()
-              : bottomSheetRef.current?.close(),
-          expand: () =>
-            modal
-              ? bottomSheetModalRef.current?.present()
-              : bottomSheetRef.current?.expand(),
-          collapse: () =>
-            modal
-              ? bottomSheetModalRef.current?.dismiss()
-              : bottomSheetRef.current?.collapse(),
+      () => {
+        const m = () => bottomSheetModalRef.current;
+        const s = () => bottomSheetRef.current;
+        return {
+          present: () => (modal ? m()?.present() : s()?.expand()),
+          dismiss: () => (modal ? m()?.dismiss() : s()?.close()),
+          close: () => (modal ? m()?.dismiss() : s()?.close()),
+          expand: () => (modal ? m()?.present() : s()?.expand()),
+          collapse: () => (modal ? m()?.dismiss() : s()?.collapse()),
           snapToIndex: (index: number) =>
-            modal
-              ? bottomSheetModalRef.current?.snapToIndex(index)
-              : bottomSheetRef.current?.snapToIndex(index),
+            modal ? m()?.snapToIndex(index) : s()?.snapToIndex(index),
           snapToPosition: (position: string | number) =>
             modal
-              ? bottomSheetModalRef.current?.snapToPosition(position)
-              : bottomSheetRef.current?.snapToPosition(position),
-          forceClose: () =>
-            modal
-              ? bottomSheetModalRef.current?.forceClose()
-              : bottomSheetRef.current?.forceClose(),
-        }) as any,
+              ? m()?.snapToPosition(position)
+              : s()?.snapToPosition(position),
+          forceClose: () => (modal ? m()?.forceClose() : s()?.forceClose()),
+        } as any;
+      },
       [modal]
     );
 
