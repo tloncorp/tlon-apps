@@ -2168,6 +2168,19 @@
     =^  uid  cu-core
       ?:  |(from-self (lte uid club-eq))  cu-uid
       [uid cu-core]
+    ::  if we get reacts trying to pass shortcodes off as unicode
+    ::  (due to stupid dumb clients putting garbage in the field)
+    ::  detect those and replace the shortcode with its unicode.
+    ::  we assume %any to be intentional and leave it untouched.
+    ::
+    =?  delta  ?=([%writ * %add-react *] delta)
+      ?^  react.q.diff.delta                delta
+      ?~  moj=(kill:em react.q.diff.delta)  delta
+      delta(react.q.diff u.moj)
+    =?  delta  ?=([%writ * %reply * * %add-react *] delta)
+      ?^  react.delta.q.diff.delta                delta
+      ?~  moj=(kill:em react.delta.q.diff.delta)  delta
+      delta(react.delta.q.diff u.moj)
     =/  diff  [uid delta]
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
@@ -2209,15 +2222,6 @@
         ?~  had  ~
         ?:  ?=(%| -.writ.u.had)  ~
         (get-reply:cu-pact id.q.diff.delta replies.writ.u.had)
-      ::  if we get reacts trying to pass shortcodes off as unicode
-      ::  (due to stupid dumb clients putting garbage in the field)
-      ::  detect those and replace the shortcode with its unicode.
-      ::  we assume %any to be intentional and leave it untouched.
-      ::
-      =?  q.diff.delta  ?=(%add-react -.q.diff.delta)
-        ?^  react.q.diff.delta                q.diff.delta
-        ?~  moj=(kill:em react.q.diff.delta)  q.diff.delta
-        q.diff.delta(react u.moj)
       =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
       ?-  -.q.diff.delta
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
@@ -2249,15 +2253,6 @@
         ?~  entry  cu-core
         ?:  ?=(%| -.writ.u.entry)  cu-core
         =.  meta.q.diff.delta  `reply-meta.writ.u.entry
-        ::  if we get reacts trying to pass shortcodes off as unicode
-        ::  (due to stupid dumb clients putting garbage in the field)
-        ::  detect those and replace the shortcode with its unicode.
-        ::  we assume %any to be intentional and leave it untouched.
-        ::
-        =?  delt  ?=(%add-react -.delt)
-          ?^  react.delt                delt
-          ?~  moj=(kill:em react.delt)  delt
-          delt(react u.moj)
         ?-  -.delt
             ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
         ::
@@ -2653,6 +2648,20 @@
     ~>  %spin.['di-ingest-diff']
     ^+  di-core
     =.  last-updated  (~(put ol last-updated) [%ship ship] now.bowl)
+    ::  if we get reacts trying to pass shortcodes off as unicode
+    ::  (due to stupid dumb clients putting garbage in the field)
+    ::  detect those and replace the shortcode with its unicode.
+    ::  we assume %any to be intentional and leave it untouched.
+    ::
+    =?  q.diff  ?=([%add-react *] q.diff)
+      ?^  react.q.diff                q.diff
+      ?~  moj=(kill:em react.q.diff)  q.diff
+      q.diff(react u.moj)
+    =?  q.diff  ?=([%reply * * %add-react *] q.diff)
+      ?^  react.delta.q.diff                q.diff
+      ?~  moj=(kill:em react.delta.q.diff)  q.diff
+      q.diff(react.delta u.moj)
+    ::
     =/  =wire  /contacts/(scot %p ship)
     =/  =cage  contact-action-1+!>(`action:contacts`[%meet ~[ship]])
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke cage)
@@ -2664,15 +2673,6 @@
       ?~  had  ~
       ?:  ?=(%| -.writ.u.had)  ~
       (get-reply:di-pact id.q.diff replies.writ.u.had)
-    ::  if we get reacts trying to pass shortcodes off as unicode
-    ::  (due to stupid dumb clients putting garbage in the field)
-    ::  detect those and replace the shortcode with its unicode.
-    ::  we assume %any to be intentional and leave it untouched.
-    ::
-    =?  q.diff  ?=(%add-react -.q.diff)
-      ?^  react.q.diff                q.diff
-      ?~  moj=(kill:em react.q.diff)  q.diff
-      q.diff(react u.moj)
     =.  pact.dm  (reduce:di-pact now.bowl from-self diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       =.  dms  (~(put by dms) ship dm)  ::NOTE  +give-invites needs latest state
@@ -2708,15 +2708,6 @@
       ?~  entry  di-core
       ?:  ?=(%| -.writ.u.entry)  di-core
       =.  meta.q.diff  `reply-meta.writ:(need entry)
-      ::  if we get reacts trying to pass shortcodes off as unicode
-      ::  (due to stupid dumb clients putting garbage in the field)
-      ::  detect those and replace the shortcode with its unicode.
-      ::  we assume %any to be intentional and leave it untouched.
-      ::
-      =?  delta  ?=(%add-react -.delta)
-        ?^  react.delta                delta
-        ?~  moj=(kill:em react.delta)  delta
-        delta(react u.moj)
       ?-  -.delta
           ?(%add-react %del-react)  (di-give-writs-diff diff)
       ::
