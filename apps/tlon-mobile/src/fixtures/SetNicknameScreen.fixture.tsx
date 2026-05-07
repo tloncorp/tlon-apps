@@ -16,7 +16,7 @@ const GroupMetaScreenFixture = () => {
   >;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer navigationInChildEnabled>
       <FixtureWrapper safeArea={false}>
         <SetNicknameScreen
           navigation={mockNavigation}

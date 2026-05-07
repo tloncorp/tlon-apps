@@ -84,7 +84,10 @@ export function OTPInput({
             right: 0,
             bottom: 0,
             opacity: 1,
-            color: 'transparent',
+            // Use #ffffff00 instead of 'transparent' to work around
+            // https://github.com/facebook/react-native/issues/53343
+            // (fixed upstream by https://github.com/facebook/react-native/pull/55380, not yet merged).
+            color: '#ffffff00',
             fontSize: 48,
             letterSpacing: 35,
             paddingLeft: 18,

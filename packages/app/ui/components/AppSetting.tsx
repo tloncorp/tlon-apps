@@ -1,6 +1,6 @@
-import Clipboard from '@react-native-clipboard/clipboard';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import { useCallback, useState } from 'react';
 
 import { ListItem } from './ListItem';
@@ -14,9 +14,9 @@ interface Props {
 export function AppSetting({ title, value, copyable = true }: Props) {
   const [didCopy, setDidCopy] = useState(false);
 
-  const copy = useCallback(() => {
+  const copy = useCallback(async () => {
     if (didCopy) return;
-    Clipboard.setString(value);
+    await Clipboard.setStringAsync(value);
     setDidCopy(true);
     setTimeout(() => {
       setDidCopy(false);

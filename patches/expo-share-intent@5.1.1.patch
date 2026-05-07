@@ -1,0 +1,99 @@
+diff --git a/plugin/build/ios/ShareExtensionViewController.swift b/plugin/build/ios/ShareExtensionViewController.swift
+index 0911a9e80f9556353e47324a7244daee704aaf71..d295f7713cc13d79bd6020f87e9b69180e7d1b8b 100644
+--- a/plugin/build/ios/ShareExtensionViewController.swift
++++ b/plugin/build/ios/ShareExtensionViewController.swift
+@@ -10,9 +10,21 @@ import Social
+ import UIKit
+ 
+ class ShareViewController: UIViewController {
+-  let hostAppGroupIdentifier = "<GROUPIDENTIFIER>"
+-  let shareProtocol = "<SCHEME>"
+-  let sharedKey = "<SCHEME>ShareKey"
++  var hostAppGroupIdentifier: String {
++    (Bundle.main.object(forInfoDictionaryKey: "AppGroupIdentifier") as? String)
++      ?? "<GROUPIDENTIFIER>"
++  }
++
++  var shareProtocol: String {
++    let bundleId = Bundle.main.bundleIdentifier ?? "<SCHEME>.share-extension"
++    return bundleId.replacingOccurrences(of: ".share-extension", with: "")
++  }
++
++  var sharedKey: String {
++    "\(shareProtocol)ShareKey"
++  }
++
++  private let loadingIndicator = UIActivityIndicatorView(style: .large)
+   var sharedMedia: [SharedMediaFile] = []
+   var sharedWebUrl: [WebUrl] = []
+   var sharedText: [String] = []
+@@ -28,6 +40,7 @@ class ShareViewController: UIViewController {
+ 
+   override func viewDidLoad() {
+     super.viewDidLoad()
++    setupLoadingIndicator()
+   }
+ 
+   override func viewDidAppear(_ animated: Bool) {
+@@ -315,14 +328,7 @@ class ShareViewController: UIViewController {
+   }
+ 
+   private func documentDirectoryPath() -> URL? {
+-    let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+-    
+-    if let firstPath = paths.first {
+-      _ = FileManager.default.fileExists(atPath: firstPath.path)
+-      return firstPath
+-    } else {
+-      return nil
+-    }
++    return FileManager.default.temporaryDirectory
+   }
+ 
+   private func saveScreenshot(_ image: UIImage) -> URL? {
+@@ -504,30 +510,32 @@ class ShareViewController: UIViewController {
+     case file
+   }
+ 
++  private func setupLoadingIndicator() {
++    view.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.92)
++    loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
++    loadingIndicator.hidesWhenStopped = false
++    view.addSubview(loadingIndicator)
++    NSLayoutConstraint.activate([
++      loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
++      loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
++    ])
++    loadingIndicator.startAnimating()
++  }
++
+   func getExtension(from url: URL, type: SharedMediaType) -> String {
+     let parts = url.lastPathComponent.components(separatedBy: ".")
+     var ex: String? = nil
+     if parts.count > 1 {
+       ex = parts.last
+     }
+-    if ex == nil {
+-      switch type {
+-      case .image:
+-        ex = "PNG"
+-      case .video:
+-        ex = "MP4"
+-      case .file:
+-        ex = "TXT"
+-        if url.lastPathComponent.lowercased().contains("pkpass") { ex = "pkpass" }
+-      }
+-    }
+-    return ex ?? "Unknown"
++    return ex ?? ""
+   }
+ 
+   func getFileName(from url: URL, type: SharedMediaType) -> String {
+     var name = url.lastPathComponent
+     if name == "" {
+-      name = UUID().uuidString + "." + getExtension(from: url, type: type)
++      let fileExtension = getExtension(from: url, type: type)
++      name = fileExtension.isEmpty ? UUID().uuidString : "\(UUID().uuidString).\(fileExtension)"
+     }
+     return name
+   }
