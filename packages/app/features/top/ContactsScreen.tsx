@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo } from 'react';
@@ -19,6 +20,8 @@ import {
   useInviteSystemContacts,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
+
+const logger = createDevLogger('ContactsScreen', false);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
 
@@ -51,7 +54,11 @@ export default function ContactsScreen(props: Props) {
   // a chance to see them.
   useEffect(() => {
     return () => {
-      db.clearContactsMatchedAt().catch(() => {});
+      db.clearContactsMatchedAt().catch((err) => {
+        logger.trackError('Failed to clear contact match pills', {
+          error: err instanceof Error ? err : undefined,
+        });
+      });
     };
   }, []);
 

@@ -41,7 +41,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
-import { DebugBackgroundSyncButton } from './components/DebugBackgroundSyncButton';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
 import { SignupProvider, useSignupContext } from './lib/signupContext';
@@ -207,7 +206,6 @@ const App = () => {
         backgroundColor={isDarkMode ? 'black' : 'white'}
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
       />
-      <DebugBackgroundSyncButton />
     </View>
   );
 };

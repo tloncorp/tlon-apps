@@ -1,4 +1,9 @@
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  AnalyticsSeverity,
+  createDevLogger,
+  syncContactDiscovery,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
@@ -321,7 +326,7 @@ export async function presentContactMatchNotification({
     },
     trigger: null,
   });
-  console.log('[notifications] scheduled contact match notification', {
+  logger.log('scheduled contact match notification', {
     notificationId,
     contactId,
   });
@@ -345,8 +350,74 @@ export async function presentContactsMatchedNotification({
     },
     trigger: null,
   });
-  console.log('[notifications] scheduled contacts matched notification', {
+  logger.log('scheduled contacts matched notification', {
     notificationId,
     count,
   });
+}
+
+// In foreground, useNotificationListener registers a handler that turns
+// new-match events into local notifications. Background tasks have no
+// React tree — and so no registered handler — so they fall through to
+// this helper, which schedules the same notifications directly.
+//
+// Skips the very first sync-after-install: a brand-new user could have
+// a phone book full of matches and we don't want to flood. The
+// foreground sync sets userHasCompletedFirstSync to true once initial
+// sync wraps; subsequent runs hit the normal notify path.
+export async function notifyAboutMatchedContacts(contactIds: string[]) {
+  if (contactIds.length === 0) return;
+  const hasCompletedFirstSync = await db.userHasCompletedFirstSync.getValue();
+  if (!hasCompletedFirstSync) {
+    logger.log('Skipping match notification: first sync not complete');
+    return;
+  }
+
+  if (contactIds.length === 1) {
+    const [contactId] = contactIds;
+    const systemContacts =
+      await db.getSystemContactsBatchByContactId(contactIds);
+    const sc = systemContacts.find((c) => c.contactId === contactId);
+    const name =
+      [sc?.firstName, sc?.lastName].filter(Boolean).join(' ').trim() ||
+      contactId;
+    await presentContactMatchNotification({ contactId, name });
+  } else {
+    await presentContactsMatchedNotification({ count: contactIds.length });
+  }
+}
+
+// Bg-task entry point: run lanyard discovery with the registered-handler
+// path disabled (there's no React tree in a bg task) and surface any new
+// matches as local notifications directly. Returns the count of new
+// matches so the caller can record telemetry.
+export async function discoverContactsAndNotify({
+  context,
+}: {
+  context?: Record<string, unknown>;
+} = {}): Promise<{ newMatchCount: number }> {
+  const result = await syncContactDiscovery(undefined, {
+    invokeHandler: false,
+  }).catch((err) => {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      severity: AnalyticsSeverity.Critical,
+      context: 'bg-task: discoverContactsAndNotify failed in discovery',
+      error: err instanceof Error ? err : undefined,
+      ...context,
+    });
+    return null;
+  });
+  if (!result || result.newMatches.length === 0) {
+    return { newMatchCount: 0 };
+  }
+  const ids = result.newMatches.map(([, contactId]) => contactId);
+  await notifyAboutMatchedContacts(ids).catch((err) => {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      severity: AnalyticsSeverity.Critical,
+      context: 'bg-task: discoverContactsAndNotify failed in notification',
+      error: err instanceof Error ? err : undefined,
+      ...context,
+    });
+  });
+  return { newMatchCount: ids.length };
 }

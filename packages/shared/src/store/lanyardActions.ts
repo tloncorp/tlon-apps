@@ -232,6 +232,49 @@ export async function invokeContactsMatchedHandler(contactIds: string[]) {
   }
 }
 
+// A contact is "already known" if any signal indicates the user has a
+// prior relationship: explicitly added, surfaced as a suggestion, the
+// peer's profile has been fetched (any peer field set), or the user
+// labelled them. Anyone who matches that bar should not be treated as a
+// fresh discovery — no notification, no pill, no clobber of existing
+// metadata.
+export function isAlreadyKnownContact(contact: db.Contact): boolean {
+  return !!(
+    contact.isContact ||
+    contact.isContactSuggestion ||
+    contact.peerNickname ||
+    contact.customNickname ||
+    contact.peerAvatarImage ||
+    contact.bio ||
+    contact.status
+  );
+}
+
+// Splits raw lanyard matches into "new" (unseen by the user) vs.
+// already-known. Under the dev mock, treat every match as new so
+// repeated test runs keep surfacing matches even after they've been
+// added as contacts in a prior run.
+export async function partitionDiscoveryMatches(
+  matches: [string, string][],
+  { isMocked }: { isMocked: boolean }
+): Promise<{
+  newMatches: [string, string][];
+  existingById: Map<string, db.Contact>;
+}> {
+  const contactIds = matches.map((m) => m[1]);
+  const existingContacts = await db.getContactsBatch({ contactIds });
+  const existingById = new Map(
+    existingContacts.map((c) => [c.id, c] as const)
+  );
+  const newMatches = isMocked
+    ? matches
+    : matches.filter(([, contactId]) => {
+        const c = existingById.get(contactId);
+        return !c || !isAlreadyKnownContact(c);
+      });
+  return { newMatches, existingById };
+}
+
 export async function discoverContacts(
   phoneNumbers: string[]
 ): Promise<[string, string][]> {

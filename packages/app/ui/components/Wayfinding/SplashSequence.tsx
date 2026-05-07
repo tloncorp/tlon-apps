@@ -9,11 +9,7 @@ import * as db from '@tloncorp/shared/db';
 import { Attachment, DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import {
-  invokeContactsMatchedHandler,
-  uploadAsset,
-  useCanUpload,
-} from '@tloncorp/shared/store';
+import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import {
   Button,
   Icon,
@@ -44,6 +40,7 @@ import {
   useThemeName,
 } from 'tamagui';
 
+import { useContactDiscovery } from '../../../hooks/useContactDiscovery';
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
 import {
   InviteSystemContactsFn,
@@ -1937,14 +1934,12 @@ export function InvitePane(props: {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
   const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
-  const [isDiscovering, setIsDiscovering] = useState(false);
-  const [discoveredMatches, setDiscoveredMatches] = useState<
-    db.SystemContact[]
-  >([]);
-  const pendingDiscoveryRef = useRef<Promise<{
-    newMatches: [string, string][];
-  }> | null>(null);
-  const hasShownMatchesRef = useRef(false);
+  const {
+    isDiscovering,
+    discoveredMatches,
+    runDiscovery,
+    tailFireHandlerOnAdvance,
+  } = useContactDiscovery();
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
 
@@ -1953,43 +1948,6 @@ export function InvitePane(props: {
     setSysContacts([]);
     setShowInviteContacts(true);
   }, []);
-
-  const runDiscovery = useCallback(
-    async (contacts: db.SystemContact[]) => {
-      setIsDiscovering(true);
-      // Reset per-run state so a re-fired discovery doesn't inherit the
-      // "matches already shown" flag from a previous run.
-      hasShownMatchesRef.current = false;
-      const promise = storeContext.syncContactDiscovery(undefined, {
-        invokeHandler: false,
-      });
-      pendingDiscoveryRef.current = promise;
-      try {
-        const { newMatches } = await promise;
-        // Bail if a newer run has superseded us — its results are
-        // authoritative, and ours would clobber state.
-        if (pendingDiscoveryRef.current !== promise) return;
-        if (newMatches.length > 0) {
-          const matchedPhones = new Set(newMatches.map(([phone]) => phone));
-          const matched = contacts.filter(
-            (c) => c.phoneNumber && matchedPhones.has(c.phoneNumber)
-          );
-          setDiscoveredMatches(matched);
-          hasShownMatchesRef.current = true;
-        }
-      } catch (err) {
-        if (pendingDiscoveryRef.current !== promise) return;
-        logger.trackError('Contact discovery failed in InvitePane', {
-          error: err,
-        });
-      } finally {
-        if (pendingDiscoveryRef.current === promise) {
-          setIsDiscovering(false);
-        }
-      }
-    },
-    [storeContext]
-  );
 
   const processContacts = useCallback(async () => {
     let syncedContacts: db.SystemContact[] = [];
@@ -2021,19 +1979,9 @@ export function InvitePane(props: {
   }, [storeContext, runDiscovery]);
 
   const handleActionPress = useCallback(() => {
-    const pending = pendingDiscoveryRef.current;
-    if (pending && !hasShownMatchesRef.current) {
-      pending
-        .then(({ newMatches }) => {
-          if (newMatches.length === 0) return;
-          return invokeContactsMatchedHandler(newMatches.map(([, id]) => id));
-        })
-        .catch(() => {
-          // errors already tracked in runDiscovery
-        });
-    }
+    tailFireHandlerOnAdvance();
     props.onActionPress();
-  }, [props]);
+  }, [props, tailFireHandlerOnAdvance]);
 
   // Fixture path: skip permissions entirely, seed state from the given
   // contacts, and run discovery once. Runs before the normal permission

@@ -26,6 +26,7 @@ import { verifyUserInviteLink } from '../inviteActions';
 import {
   discoverContacts,
   invokeContactsMatchedHandler,
+  partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
@@ -596,37 +597,10 @@ export const syncContactDiscovery = async (
     ).filter((match) => match[1] !== currentUserId);
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
-    const contactIds = matches.map((m) => m[1]);
-    const existingContacts = await db.getContactsBatch({ contactIds });
-    const existingById = new Map(
-      existingContacts.map((c) => [c.id, c] as const)
+    const { newMatches, existingById } = await partitionDiscoveryMatches(
+      matches,
+      { isMocked }
     );
-    // A contact is "already known" if any signal indicates the user has
-    // a prior relationship with them: explicitly added, surfaced as a
-    // suggestion, or the peer's profile has been fetched (any peer
-    // field set), or the user has already labelled them themselves.
-    // Anyone who matches that bar should not be treated as a fresh
-    // discovery — no notification, no pill, no clobber of existing
-    // metadata.
-    const isAlreadyKnown = (contactId: string): boolean => {
-      const c = existingById.get(contactId);
-      if (!c) return false;
-      return !!(
-        c.isContact ||
-        c.isContactSuggestion ||
-        c.peerNickname ||
-        c.customNickname ||
-        c.peerAvatarImage ||
-        c.bio ||
-        c.status
-      );
-    };
-    // Under the dev mock, treat every match as new so repeated test runs
-    // keep surfacing matches even after they've been added as contacts in
-    // a prior run. In production we filter out already-known contacts.
-    const newMatches = isMocked
-      ? matches
-      : matches.filter(([, contactId]) => !isAlreadyKnown(contactId));
     const newMatchIds = newMatches.map(([, id]) => id);
 
     await db.linkSystemContacts({ matches }).catch((e) => {

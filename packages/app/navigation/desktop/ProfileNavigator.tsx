@@ -4,6 +4,7 @@ import {
 } from '@react-navigation/drawer';
 import { NavigationState } from '@react-navigation/routers';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect } from 'react';
@@ -22,6 +23,8 @@ import {
 } from '../../ui';
 import { ProfileDrawerParamList } from '../types';
 
+const logger = createDevLogger('ProfileNavigator', false);
+
 const ProfileDrawer = createDrawerNavigator();
 
 function DrawerContent(props: DrawerContentComponentProps) {
@@ -36,7 +39,11 @@ function DrawerContent(props: DrawerContentComponentProps) {
   // has had a chance to see them.
   useEffect(() => {
     return () => {
-      db.clearContactsMatchedAt().catch(() => {});
+      db.clearContactsMatchedAt().catch((err) => {
+        logger.trackError('Failed to clear contact match pills', {
+          error: err instanceof Error ? err : undefined,
+        });
+      });
     };
   }, []);
 

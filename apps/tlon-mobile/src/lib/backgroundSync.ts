@@ -1,17 +1,16 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import {
-  presentContactMatchNotification,
-  presentContactsMatchedNotification,
-} from '@tloncorp/app/lib/notifications';
+  DEV_ACTION_RUN_BACKGROUND_SYNC,
+  registerDevAction,
+} from '@tloncorp/app/lib/devActions';
+import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import {
   SyncPriority,
   createDevLogger,
   flushErrorLogger,
-  syncContactDiscovery,
   syncSince,
 } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
@@ -48,6 +47,7 @@ async function performSync() {
     return;
   }
 
+  logger.trackEvent('Configuring urbit client...');
   configureUrbitClient({
     ship: shipInfo.ship,
     shipUrl: shipInfo.shipUrl,
@@ -76,33 +76,14 @@ async function performSync() {
 
     // Run lanyard contact discovery as part of the bg cycle so new
     // matches surface even if the user hasn't opened the app recently.
-    // We disable the registered-handler path because in a bg task there's
-    // no React tree (and so no useNotificationListener-registered
-    // handler) — instead we schedule a local notification directly.
     const discoveryStart = Date.now();
-    const discoveryResult = await syncContactDiscovery(undefined, {
-      invokeHandler: false,
-    }).catch((err) => {
-      logger.trackError('Background contact discovery failed', {
-        error: err instanceof Error ? err : undefined,
-        taskExecutionId,
-      });
-      return null;
+    const { newMatchCount } = await discoverContactsAndNotify({
+      context: { taskExecutionId },
     });
     timings.discoveryDuration = Date.now() - discoveryStart;
-
-    if (discoveryResult && discoveryResult.newMatches.length > 0) {
-      await notifyAboutNewMatches(
-        discoveryResult.newMatches.map(([, contactId]) => contactId)
-      ).catch((err) => {
-        logger.trackError('Background match notification failed', {
-          error: err instanceof Error ? err : undefined,
-          taskExecutionId,
-        });
-      });
-
+    if (newMatchCount > 0) {
       logger.trackEvent('New matches notification', {
-        count: discoveryResult.newMatches.length,
+        count: newMatchCount,
         taskExecutionId,
       });
     }
@@ -131,38 +112,8 @@ async function performSync() {
   }
 }
 
-export async function runBackgroundSyncFromDebugButton() {
-  await performSync();
-}
-
-// In foreground, useNotificationListener registers a handler that turns
-// a new-match event into a local notification. In a bg task there's no
-// React tree — and therefore no registered handler — so the bg path
-// schedules the notification directly with the same shape of copy.
-async function notifyAboutNewMatches(contactIds: string[]) {
-  // Don't notify on the very first install sync — the user could have
-  // a phone book full of matches and we don't want to flood. The
-  // foreground syncStart sets userHasCompletedFirstSync to true once
-  // initial sync wraps; subsequent bg runs (this code path) hit that
-  // branch and notify normally.
-  const hasCompletedFirstSync = await db.userHasCompletedFirstSync.getValue();
-  if (!hasCompletedFirstSync) {
-    logger.log('Skipping match notification: first sync not complete');
-    return;
-  }
-
-  if (contactIds.length === 1) {
-    const [contactId] = contactIds;
-    const systemContacts =
-      await db.getSystemContactsBatchByContactId(contactIds);
-    const sc = systemContacts.find((c) => c.contactId === contactId);
-    const name =
-      [sc?.firstName, sc?.lastName].filter(Boolean).join(' ').trim() ||
-      contactId;
-    await presentContactMatchNotification({ contactId, name });
-  } else {
-    await presentContactsMatchedNotification({ count: contactIds.length });
-  }
+if (__DEV__) {
+  registerDevAction(DEV_ACTION_RUN_BACKGROUND_SYNC, performSync);
 }
 
 const TASK_ID = 'tlon:backgroundSync:v2';
