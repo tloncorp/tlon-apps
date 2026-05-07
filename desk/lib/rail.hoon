@@ -200,6 +200,7 @@
 /%  foreign-1                         %foreign-1
 /%  foreign-2                         %foreign-2
 /%  foreigns-1                        %foreigns-1
+/%  foreigns-2                        %foreigns-2
 /%  gangs                             %gangs
 /%  group                             %group
 /%  group-1                           %group-1
@@ -571,6 +572,7 @@
       $:  %foreign-1                         $+  foreign-1                         p=_*vale:foreign-1                         ==
       $:  %foreign-2                         $+  foreign-2                         p=_*vale:foreign-2                         ==
       $:  %foreigns-1                        $+  foreigns-1                        p=_*vale:foreigns-1                        ==
+      $:  %foreigns-2                        $+  foreigns-2                        p=_*vale:foreigns-2                        ==
       $:  %gangs                             $+  gangs                             p=_*vale:gangs                             ==
       $:  %group                             $+  group                             p=_*vale:group                             ==
       $:  %group-1                           $+  group-1                           p=_*vale:group-1                           ==
@@ -944,6 +946,7 @@
     %foreign-1                         [-.rail !>(+.rail)]
     %foreign-2                         [-.rail !>(+.rail)]
     %foreigns-1                        [-.rail !>(+.rail)]
+    %foreigns-2                        [-.rail !>(+.rail)]
     %gangs                             [-.rail !>(+.rail)]
     %group                             [-.rail !>(+.rail)]
     %group-1                           [-.rail !>(+.rail)]
@@ -1315,6 +1318,7 @@
     %foreign-1                         [p !<(_*vale:foreign-1 q)]
     %foreign-2                         [p !<(_*vale:foreign-2 q)]
     %foreigns-1                        [p !<(_*vale:foreigns-1 q)]
+    %foreigns-2                        [p !<(_*vale:foreigns-2 q)]
     %gangs                             [p !<(_*vale:gangs q)]
     %group                             [p !<(_*vale:group q)]
     %group-1                           [p !<(_*vale:group-1 q)]
@@ -1684,6 +1688,7 @@
       :+  %foreign-1                         &  -:!>(*vale:foreign-1)
       :+  %foreign-2                         &  -:!>(*vale:foreign-2)
       :+  %foreigns-1                        &  -:!>(*vale:foreigns-1)
+      :+  %foreigns-2                        &  -:!>(*vale:foreigns-2)
       :+  %gangs                             &  -:!>(*vale:gangs)
       :+  %group                             &  -:!>(*vale:group)
       :+  %group-1                           &  -:!>(*vale:group-1)

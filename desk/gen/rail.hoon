@@ -16,6 +16,35 @@
       %chat-scan-4
       %chat-writ-4
       %writ-response-4
+    ::
+      ::TODO  make strict one day
+      %channel-changed-posts
+      %channel-changed-posts-1
+      %channel-post
+      %channel-post-5
+      %channel-posts
+      %channel-posts-4
+      %channel-posts-5
+      %channel-replies-5
+      %channel-said-3
+      %channel-scan-4
+      %channel-scam-4
+      %channels-2
+      %channels-5
+    ::
+      %channel-checkpoint
+      %channel-denied
+      %channel-logs
+      %channel-said-1
+      %channel-said-2
+      %channel-update
+      %hook-channel-preview
+      %hook-full
+      %hook-response-0
+      %hook-template
+    ::
+      %group-update
+      %group-log
   ==
 ::
 :-  %say
