@@ -12,7 +12,7 @@ const logger = createDevLogger('stopped node checker', true);
 
 export type NodeStatusCheckResult = {
   nodeStatus: HostedNodeStatus;
-  guideFirstLogin: boolean;
+  onboardingFlow?: Extract<db.ShipInfo['splashSequenceMode'], 'tlonbotRevival'>;
   didStopNode: boolean;
 };
 
@@ -33,7 +33,7 @@ export function useCheckNodeStopped() {
 
       try {
         const supressLog = true;
-        const { status: nodeStatus, guideFirstLogin } =
+        const { status: nodeStatus, onboardingFlow } =
           await store.checkHostingNodeStatus(supressLog);
         if (
           [
@@ -49,10 +49,10 @@ export function useCheckNodeStopped() {
 
           // delete Urbit auth and without clearing hosting auth, kick back to unauthenticated view
           clearShip();
-          return { nodeStatus, guideFirstLogin, didStopNode: true };
+          return { nodeStatus, onboardingFlow, didStopNode: true };
         }
 
-        return { nodeStatus, guideFirstLogin, didStopNode: false };
+        return { nodeStatus, onboardingFlow, didStopNode: false };
       } catch (e) {
         logger.trackError('Failed to confirm logged in node is running', e);
         // fall through

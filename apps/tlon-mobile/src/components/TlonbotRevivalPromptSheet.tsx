@@ -25,7 +25,7 @@ export function useTlonbotRevivalPrompt() {
     async (nodeCheck: NodeStatusCheckResult | null) => {
       if (
         nodeCheck?.nodeStatus !== HostedNodeStatus.Running ||
-        !nodeCheck.guideFirstLogin ||
+        nodeCheck.onboardingFlow !== 'tlonbotRevival' ||
         nodeCheck.didStopNode ||
         snoozed
       ) {

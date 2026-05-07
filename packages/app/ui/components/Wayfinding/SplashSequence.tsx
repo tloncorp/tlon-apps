@@ -143,9 +143,7 @@ function SplashSequenceComponent(props: {
   );
   const hostingBotEnabled =
     props.hostingBotEnabled || props.splashSequenceMode === 'tlonbotRevival';
-  const isRevivalSplash =
-    props.splashSequenceMode === 'tlonbotRevival' ||
-    props.splashSequenceMode === 'traditionalRevival';
+  const isRevivalSplash = props.splashSequenceMode === 'tlonbotRevival';
   const [botName, setBotName] = React.useState('');
   const [botAvatarUrl, setBotAvatarUrl] = React.useState<string | null>(
     DEFAULT_BOT_CONFIG.avatarUrl

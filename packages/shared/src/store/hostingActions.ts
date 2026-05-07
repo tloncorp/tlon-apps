@@ -179,8 +179,7 @@ export async function checkHostingNodeStatus(
   supressStatusLog?: boolean
 ): Promise<{
   status: domain.HostedNodeStatus;
-  guideFirstLogin: boolean;
-  onboardingFlow?: domain.OnboardingFlow;
+  onboardingFlow?: Extract<domain.OnboardingFlow, 'tlonbotRevival'>;
 }> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
@@ -232,7 +231,6 @@ export async function checkHostingNodeStatus(
 
     return {
       status: nodeStatus,
-      guideFirstLogin: showWayfinding,
       onboardingFlow,
     };
   } catch (e) {
@@ -240,7 +238,7 @@ export async function checkHostingNodeStatus(
       error: e,
       context: 'Failed to get node status',
     });
-    return { status: domain.HostedNodeStatus.Unknown, guideFirstLogin: false };
+    return { status: domain.HostedNodeStatus.Unknown };
   }
 }
 

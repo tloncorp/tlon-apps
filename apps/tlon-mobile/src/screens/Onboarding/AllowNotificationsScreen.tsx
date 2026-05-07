@@ -55,33 +55,24 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
         notificationToken,
       });
 
-      if (
-        signupContext.onboardingFlow === 'traditionalRevival' ||
-        signupContext.onboardingFlow === 'tlonbotRevival' ||
-        signupContext.isGuidedLogin
-      ) {
-        if (signupContext.onboardingFlow === 'tlonbotRevival') {
-          const shipId = await db.hostedUserNodeId.getValue();
-          await db.tlonbotRevivalSetup.setValue((current) => ({
-            ...current,
-            pending: true,
-            applied: false,
-            shipId: shipId ?? current.shipId,
-            nickname: signupContext.nickname,
-            notificationLevel: signupContext.notificationLevel,
-            notificationToken,
-          }));
-          prepareTlonbotRevivalNotifications(
-            notificationToken,
-            signupContext.notificationLevel
-          );
-          signupContext.clear();
-          await db.hostedAccountIsInitialized.setValue(true);
-          return;
-        }
-
-        signupContext.handlePostRevivalOnboarding({ notificationToken });
+      if (signupContext.onboardingFlow === 'tlonbotRevival') {
+        const shipId = await db.hostedUserNodeId.getValue();
+        await db.tlonbotRevivalSetup.setValue((current) => ({
+          ...current,
+          pending: true,
+          applied: false,
+          shipId: shipId ?? current.shipId,
+          nickname: signupContext.nickname,
+          notificationLevel: signupContext.notificationLevel,
+          notificationToken,
+        }));
+        prepareTlonbotRevivalNotifications(
+          notificationToken,
+          signupContext.notificationLevel
+        );
+        signupContext.clear();
         await db.hostedAccountIsInitialized.setValue(true);
+        return;
       } else {
         navigation.push('ReserveShip');
       }

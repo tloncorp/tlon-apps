@@ -74,12 +74,9 @@ export function useReviveSavedOnboarding() {
   const executeRevive = useCallback(async () => {
     const savedSignup = await signupData.getValue();
     const savedOnboardingFlow =
-      savedSignup.onboardingFlow === 'tlonbotRevival' ||
-      savedSignup.onboardingFlow === 'traditionalRevival'
+      savedSignup.onboardingFlow === 'tlonbotRevival'
         ? savedSignup.onboardingFlow
-        : savedSignup.isGuidedLogin
-          ? 'traditionalRevival'
-          : undefined;
+        : undefined;
     if (
       !savedSignup.email &&
       !savedSignup.phoneNumber &&
@@ -93,13 +90,9 @@ export function useReviveSavedOnboarding() {
       if (savedOnboardingFlow) {
         logger.log('recovering revival onboarding session');
         signupContext.setOnboardingValues({
-          isGuidedLogin: true,
           onboardingFlow: savedOnboardingFlow,
         });
-        onboardingHelpers.handleRevivalOnboarding(
-          undefined,
-          savedOnboardingFlow
-        );
+        onboardingHelpers.handleRevivalOnboarding();
         return true;
       } else {
         logger.log(

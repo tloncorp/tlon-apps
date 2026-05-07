@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as api from '@tloncorp/api';
 import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import {
   Field,
@@ -38,10 +37,7 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
   const signupContext = useSignupContext();
   const isTlonbotRevival = signupContext.onboardingFlow === 'tlonbotRevival';
-  const isRevivalOnboarding =
-    signupContext.onboardingFlow === 'traditionalRevival' ||
-    isTlonbotRevival ||
-    signupContext.isGuidedLogin;
+  const isRevivalOnboarding = isTlonbotRevival;
 
   const facesImage = theme.dark
     ? require('../../../assets/images/faces-dark.png')
@@ -69,8 +65,8 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
 
     if (!isTlonbotRevival) {
       // Once they've decided on a nickname, keep the existing best-effort
-      // profile update for signup/traditional revival. TlonBot revival defers
-      // this until Hosting reports the bot home group is provisioned.
+      // profile update for signup. TlonBot revival defers this until Hosting
+      // reports the bot home group is provisioned.
       withRetry(
         async () => {
           const userId = await db.hostedUserNodeId.getValue();

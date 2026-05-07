@@ -25,10 +25,7 @@ const DEFAULT_NOTIFICATION_LEVEL: ub.NotificationLevel = 'medium';
 export const SetNotificationsScreen = ({ navigation }: Props) => {
   const signupContext = useSignupContext();
   const insets = useSafeAreaInsets();
-  const isRevivalOnboarding =
-    signupContext.onboardingFlow === 'traditionalRevival' ||
-    signupContext.onboardingFlow === 'tlonbotRevival' ||
-    signupContext.isGuidedLogin;
+  const isRevivalOnboarding = signupContext.onboardingFlow === 'tlonbotRevival';
   const didPrefillNotificationLevel = useRef(false);
 
   const [selectedLevel, setSelectedLevel] = useState<ub.NotificationLevel>(

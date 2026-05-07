@@ -70,36 +70,30 @@ export function useOnboardingHelpers() {
   }, [navigation, store]);
 
   const handleRevivalOnboarding = useCallback(
-    async (
-      inputShipInfo?: db.ShipInfo,
-      onboardingFlow: db.ShipInfo['splashSequenceMode'] = inputShipInfo?.splashSequenceMode ??
-        'traditionalRevival'
-    ) => {
+    async (inputShipInfo?: db.ShipInfo) => {
+      const onboardingFlow = 'tlonbotRevival';
       try {
         logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
           context: 'revival onboarding: starting',
           onboardingFlow,
         });
 
-        if (onboardingFlow === 'tlonbotRevival') {
-          const shipId =
-            inputShipInfo?.ship ?? (await db.hostedUserNodeId.getValue());
-          logger.trackEvent(AnalyticsEvent.InitiatedTlonbotRevival, {
-            source: 'post_login',
-          });
-          await db.tlonbotRevivalSetup.setValue((current) => ({
-            ...current,
-            pending: true,
-            applied: false,
-            provisioningStarted: current.provisioningStarted ?? false,
-            stage: current.stage ?? 'collecting',
-            shipId: shipId ?? undefined,
-          }));
-        }
+        const shipId =
+          inputShipInfo?.ship ?? (await db.hostedUserNodeId.getValue());
+        logger.trackEvent(AnalyticsEvent.InitiatedTlonbotRevival, {
+          source: 'post_login',
+        });
+        await db.tlonbotRevivalSetup.setValue((current) => ({
+          ...current,
+          pending: true,
+          applied: false,
+          provisioningStarted: current.provisioningStarted ?? false,
+          stage: current.stage ?? 'collecting',
+          shipId: shipId ?? undefined,
+        }));
 
         await db.hostedAccountIsInitialized.setValue(false);
         signupContext.setOnboardingValues({
-          isGuidedLogin: true,
           onboardingFlow,
         });
         navigation.navigate('SetNickname');
@@ -171,13 +165,9 @@ export function useOnboardingHelpers() {
       // Step 2: Verify node status
       const nodeId = await db.hostedUserNodeId.getValue();
       console.log('checking node status', nodeId);
-      const {
-        status: nodeStatus,
-        guideFirstLogin,
-        onboardingFlow,
-      } = await store.checkHostingNodeStatus();
-      const revivalFlow =
-        onboardingFlow ?? (guideFirstLogin ? 'traditionalRevival' : undefined);
+      const { status: nodeStatus, onboardingFlow } =
+        await store.checkHostingNodeStatus();
+      const revivalFlow = onboardingFlow;
       if (nodeStatus !== HostedNodeStatus.Running) {
         if (nodeStatus === HostedNodeStatus.UnderMaintenance) {
           logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
@@ -225,7 +215,7 @@ export function useOnboardingHelpers() {
 
       // Step 4: if they're being revived, collect profile and notification prefs
       if (revivalFlow) {
-        handleRevivalOnboarding(nextShipInfo, revivalFlow);
+        handleRevivalOnboarding(nextShipInfo);
       }
     },
     [handleRevivalOnboarding, navigation, setShip, signupContext, store]
@@ -233,7 +223,6 @@ export function useOnboardingHelpers() {
 
   return {
     handleLogin,
-    handleGuidedLogin: handleRevivalOnboarding,
     handleRevivalOnboarding,
     checkAccountStatusAndNavigate,
     reviveLoggedInSession,

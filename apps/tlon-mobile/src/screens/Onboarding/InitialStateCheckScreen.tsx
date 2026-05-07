@@ -35,8 +35,6 @@ export function InitialStateCheckScreen({ navigation }: Props) {
           await db.nodeStoppedWhileLoggedIn.getValue();
         const hostingUserId = await db.hostingUserId.getValue();
         const hasPotentialRevivalSession =
-          signupData.isGuidedLogin ||
-          signupData.onboardingFlow === 'traditionalRevival' ||
           signupData.onboardingFlow === 'tlonbotRevival';
         const hasPotentialSignupSession =
           signupData.email ||

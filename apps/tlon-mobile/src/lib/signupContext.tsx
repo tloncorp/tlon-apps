@@ -35,14 +35,12 @@ interface SignupContext extends SignupParams {
   setOnboardingValues: (newValues: Partial<SignupValues>) => void;
   kickOffBootSequence: () => void;
   handlePostSignup: () => void;
-  handlePostRevivalOnboarding: (newValues?: Partial<SignupValues>) => void;
   clear: () => void;
 }
 
 const defaultMethods = {
   setOnboardingValues: () => {},
   handlePostSignup: () => {},
-  handlePostRevivalOnboarding: () => {},
   kickOffBootSequence: () => {},
   clear: () => {},
 };
@@ -126,25 +124,6 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
     resetBootSequence,
   ]);
 
-  const handlePostRevivalOnboarding = useCallback(
-    (newValues?: Partial<SignupValues>) => {
-      const finalValues = { ...values, ...newValues };
-      try {
-        logger.log('running post-revival onboarding actions');
-        runProfileAndNotificationActions({
-          nickname: finalValues.nickname,
-          notificationToken: finalValues.notificationToken,
-          notificationLevel: finalValues.notificationLevel,
-        });
-      } catch (e) {
-        logger.trackError('post revival onboarding error', e);
-      } finally {
-        clear();
-      }
-    },
-    [values, clear]
-  );
-
   useEffect(() => {
     if (
       values.didCompleteOnboarding &&
@@ -164,7 +143,6 @@ export const SignupProvider = ({ children }: { children: React.ReactNode }) => {
         bootPhase,
         setOnboardingValues,
         handlePostSignup,
-        handlePostRevivalOnboarding,
         kickOffBootSequence,
         clear,
       }}
