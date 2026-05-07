@@ -1,4 +1,4 @@
-::  call as *%%%/groups/0/lib/rail/hoon +groups!rail
+::  call as *=groups=/lib/rail/hoon +groups!rail
 ::
 ::TODO  investigate adding a "meta-build" for rune that evaluates the file
 ::      to obtain a hoon ast, which it then compiles into the result
@@ -72,13 +72,14 @@
     %-  (slog (cat 3 'rail dropping "reserved" name: %' mar) ~)
     [maz max]
   [(snor mar maz aor) (^max (met 3 mar) max)]
+~&  maz=maz
 ::
 %+  rap  3
 :~  '''
     ::  THIS FILE IS AUTO-GENERATED, DO NOT MODIFY IT DIRECTLY
     ::
     ::  to update it, pulling in *all* marks in your current %groups desk, run:
-    ::  *%%%/groups/0/lib/rail/hoon +groups!rail
+    ::  *=groups=/lib/rail/hoon +groups!rail
     ::
     ::  BE VERY CAREFUL, if there are mark files in your desk that are not in
     ::  the "stock" distribution, the generated file will fail to built on
