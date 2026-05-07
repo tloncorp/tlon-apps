@@ -12,29 +12,35 @@ import {
   SectionListHeader,
   useChatOptions,
 } from '../../ui';
+import {
+  ChatListItemData,
+  buildChatListFlashListProps,
+  getChatKey,
+  getItemType,
+  isSectionHeader,
+} from './ChatList.helpers';
 
-type SectionHeaderData = { type: 'sectionHeader'; title: string };
-export type ChatListItemData = db.Chat | SectionHeaderData;
+export type { ChatListItemData } from './ChatList.helpers';
+export { getChatKey, getItemType, isSectionHeader } from './ChatList.helpers';
 
 export const ChatList = React.memo(function ChatListComponent({
   data,
   onPressItem,
   onLoad,
+  disableScrollAnchoring,
+  scrollerTestID,
 }: {
   data: SectionedChatData;
   onPressItem?: (chat: db.Chat) => void;
   onLoad?: () => void;
+  disableScrollAnchoring?: boolean;
+  scrollerTestID?: string;
 }) {
-  const listItems: ChatListItemData[] = useMemo(
-    () =>
-      data.flatMap((section) => {
-        return [
-          { title: section.title, type: 'sectionHeader' },
-          ...section.data,
-        ];
-      }),
-    [data]
+  const flashListProps = useMemo(
+    () => buildChatListFlashListProps({ data, disableScrollAnchoring }),
+    [data, disableScrollAnchoring]
   );
+  const listItems: ChatListItemData[] = flashListProps.data;
 
   const { open } = useChatOptions();
   const handleLongPress = useCallback(
@@ -112,28 +118,13 @@ export const ChatList = React.memo(function ChatListComponent({
       renderItem={renderItem}
       getItemType={getItemType}
       onLoad={onLoad ? () => onLoad() : undefined}
+      testID={scrollerTestID}
+      {...(flashListProps.maintainVisibleContentPosition
+        ? {
+            maintainVisibleContentPosition:
+              flashListProps.maintainVisibleContentPosition,
+          }
+        : null)}
     />
   );
 }, isEqual);
-
-export function getItemType(item: ChatListItemData) {
-  return isSectionHeader(item) ? 'sectionHeader' : item.type;
-}
-
-export function isSectionHeader(
-  data: ChatListItemData
-): data is SectionHeaderData {
-  return 'type' in data && data.type === 'sectionHeader';
-}
-
-export function getChatKey(chatItem: ChatListItemData) {
-  if (!chatItem || typeof chatItem !== 'object') {
-    return 'invalid-item';
-  }
-
-  if (isSectionHeader(chatItem)) {
-    return chatItem.title;
-  }
-
-  return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
-}
