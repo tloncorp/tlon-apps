@@ -263,9 +263,7 @@ export async function partitionDiscoveryMatches(
 }> {
   const contactIds = matches.map((m) => m[1]);
   const existingContacts = await db.getContactsBatch({ contactIds });
-  const existingById = new Map(
-    existingContacts.map((c) => [c.id, c] as const)
-  );
+  const existingById = new Map(existingContacts.map((c) => [c.id, c] as const));
   const newMatches = isMocked
     ? matches
     : matches.filter(([, contactId]) => {
