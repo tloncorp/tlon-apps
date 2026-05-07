@@ -224,7 +224,7 @@
       ?.  (lth -.old-state %7)  ~
       [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
-    =?  caz  (lth %8 -.old-state)
+    =?  caz  (lth -.old-state %8)
       :~  [%pass /activity %agent [our.bowl %activity] %leave ~]
           [%pass /reads %agent [our.bowl %activity] %leave ~]
           (~(watch-our pass:io /activity) %activity /v5/notifications)

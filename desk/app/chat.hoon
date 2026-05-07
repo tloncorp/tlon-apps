@@ -1514,8 +1514,14 @@
     =/  =cage  activity-action-1+!>(action)
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
   ?:  ?&  ?=(?(%post %reply %react) -.concern)
-          .=  our.bowl
-          p.id:?-(-.concern %post key.concern, %reply key.concern, %react key.concern)
+        ::
+          =/  author-ship=@p
+            ?-  -.concern
+              %post   p.id.key.concern
+              %reply  p.id.key.concern
+              %react  (get-author-ship:utils author.concern)
+            ==
+          =(our.bowl author-ship)
       ==
     =/  =source
       ?-  -.concern
