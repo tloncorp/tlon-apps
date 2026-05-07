@@ -78,7 +78,8 @@
       "@gorhom/bottom-sheet@5.2.6": "patches/@gorhom__bottom-sheet@5.2.6.patch",
       "@tamagui/web@2.0.0-rc.41": "patches/@tamagui__web@2.0.0-rc.41.patch",
       "@tamagui/sheet@2.0.0-rc.41": "patches/@tamagui__sheet@2.0.0-rc.41.patch",
-      "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch"
+      "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch",
+      "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
