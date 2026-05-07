@@ -1922,13 +1922,6 @@ export function InvitePane(props: {
   onActionPress: () => void;
   inviteSystemContacts?: InviteSystemContactsFn;
   isCompleting?: boolean;
-  /**
-   * Cosmos / dev-fixture escape hatch: when set, the pane skips the contact
-   * permission gate, treats the given list as the user's address book, and
-   * runs discovery against the store as usual. Pair with a stubbed
-   * `syncContactDiscovery` to drive the match flow without device contacts.
-   */
-  __fixtureSystemContacts?: db.SystemContact[];
 }) {
   const storeContext = useStore();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -1953,11 +1946,9 @@ export function InvitePane(props: {
     let syncedContacts: db.SystemContact[] = [];
     try {
       setIsProcessing(true);
-      await storeContext.syncSystemContacts();
-      // Log analytics if no contacts were found
-      syncedContacts = await db.getSystemContacts();
+      syncedContacts = await storeContext.syncSystemContacts();
       setSysContacts(syncedContacts);
-      if (!syncedContacts || syncedContacts.length === 0) {
+      if (syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
           reason: 'no_contacts_synced',
         });
@@ -1982,18 +1973,6 @@ export function InvitePane(props: {
     tailFireHandlerOnAdvance();
     props.onActionPress();
   }, [props, tailFireHandlerOnAdvance]);
-
-  // Fixture path: skip permissions entirely, seed state from the given
-  // contacts, and run discovery once. Runs before the normal permission
-  // useEffect so it can claim hasAutoProcessed and short-circuit it.
-  const fixtureContacts = props.__fixtureSystemContacts;
-  useEffect(() => {
-    if (!fixtureContacts) return;
-    hasAutoProcessed.current = true;
-    setSysContacts(fixtureContacts);
-    setShowInviteContacts(true);
-    void runDiscovery(fixtureContacts);
-  }, [fixtureContacts, runDiscovery]);
 
   useEffect(() => {
     if (isWeb || perms.isLoading || hasAutoProcessed.current) {

@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
+import { isLanyardMockEnabled } from '@tloncorp/api/dev/lanyardMock';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
@@ -521,7 +522,9 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   );
 };
 
-export const syncSystemContacts = async (_ctx?: SyncCtx) => {
+export const syncSystemContacts = async (
+  _ctx?: SyncCtx
+): Promise<db.SystemContact[]> => {
   const systemContacts = await getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
@@ -529,6 +532,7 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
       context: 'inserted system contacts',
       numContacts: systemContacts.length,
     });
+    return systemContacts;
   } catch (error) {
     logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
       context: 'failed to insert system contacts',
@@ -552,8 +556,7 @@ export const syncContactDiscovery = async (
   logger.log('syncContactDiscovery: starting');
   const invokeHandler = opts?.invokeHandler !== false;
   const empty: ContactDiscoveryResult = { newMatches: [] };
-  const isMocked =
-    typeof process !== 'undefined' && !!process.env?.MOCK_LANYARD_DISCOVERY;
+  const isMocked = isLanyardMockEnabled();
   const currentUserId = api.getCurrentUserId();
   const currentUserAttestations = await db.getUserAttestations({
     userId: currentUserId,

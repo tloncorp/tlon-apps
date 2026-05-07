@@ -210,7 +210,11 @@ function InvitePaneFixture() {
       // The store object isn't typed for these stubs cleanly; cast to keep
       // the fixture readable.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      spyOn(base, 'syncSystemContacts', (async () => {}) as any),
+      spyOn(
+        base,
+        'syncSystemContacts',
+        (async () => initialSystemContacts) as any
+      ),
       'syncContactDiscovery',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (async () => {
@@ -226,10 +230,7 @@ function InvitePaneFixture() {
   return (
     <FixtureWrapper fillWidth fillHeight>
       <StoreProvider stub={stubStore}>
-        <InvitePane
-          onActionPress={handleAction}
-          __fixtureSystemContacts={initialSystemContacts}
-        />
+        <InvitePane onActionPress={handleAction} />
       </StoreProvider>
     </FixtureWrapper>
   );

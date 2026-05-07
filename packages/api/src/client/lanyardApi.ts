@@ -1,6 +1,10 @@
 import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
+import {
+  isLanyardMockEnabled,
+  runLanyardMockDiscovery,
+} from '../dev/lanyardMock';
 import { createDevLogger } from '../lib/logger';
 import { Json, getFrondValue, getPatp } from '../lib/noun';
 import { simpleHash } from '../lib/utils';
@@ -61,50 +65,14 @@ export async function checkAttestedSignature(signData: string) {
   return false;
 }
 
-// Dev-only: when MOCK_LANYARD_DISCOVERY is set to a positive integer
-// N, skip the real lanyard query and fake N matches against the first
-// N phone numbers in the submitted set, rotating through
-// MOCK_DISCOVERY_SHIPS. Computer-class ships so accounts that already
-// have galaxies as contacts (common on Tlon staging) don't filter the
-// matches out as "already a contact".
-const MOCK_DISCOVERY_SHIPS = [
-  '~ravmel-ropdyl',
-  '~palfun-foslup',
-  '~bisbex-radmev',
-  '~watter-parner',
-  '~rilfun-lidlen',
-];
-
-async function maybeMockDiscovery(
-  phoneNums: string[]
-): Promise<{ matches: [string, string][]; nextSalt: string | null } | null> {
-  const raw = process.env.MOCK_LANYARD_DISCOVERY;
-  if (!raw) return null;
-  const count = parseInt(raw, 10);
-  if (!Number.isFinite(count) || count <= 0) return null;
-  const matches = phoneNums
-    .slice(0, count)
-    .map(
-      (phone, i) =>
-        [phone, MOCK_DISCOVERY_SHIPS[i % MOCK_DISCOVERY_SHIPS.length]] as [
-          string,
-          string,
-        ]
-    );
-  // Simulate network + verifier latency so callers can exercise the
-  // "still discovering" UI state.
-  await new Promise((resolve) => setTimeout(resolve, 8000));
-  logger.log('mocked discoverContacts', { matches });
-  return { matches, nextSalt: '0x0' };
-}
-
 export async function discoverContacts(
   phoneNums: string[],
   storedLastSalt: string | null = null,
   lastPhoneNumberSetSent: string | null = null
 ): Promise<{ matches: [string, string][]; nextSalt: string | null }> {
-  const mocked = await maybeMockDiscovery(phoneNums);
-  if (mocked) return mocked;
+  if (isLanyardMockEnabled()) {
+    return runLanyardMockDiscovery(phoneNums);
+  }
 
   try {
     const nums = await diffContactBook(phoneNums, lastPhoneNumberSetSent);
