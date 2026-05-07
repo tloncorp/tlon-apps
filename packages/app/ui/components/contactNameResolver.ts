@@ -1,4 +1,4 @@
-import * as db from '@tloncorp/shared/db';
+import type * as db from '@tloncorp/shared/db';
 
 import { formatUserId } from '../utils/user';
 
