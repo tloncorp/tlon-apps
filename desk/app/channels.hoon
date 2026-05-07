@@ -1812,7 +1812,14 @@
       =/  =message-key
         [[post-author id.post] id.post]
       =/  =source  [%channel nest group.perm.channel]
-      =/  actions=(list action)
+      =/  del-actions=(list action)
+        %+  roll  ~(tap by old)
+        |=  [[=author:d =react:d] actions=(list action)]
+        =/  new-react=(unit react:d)  (~(get by new) author)
+        ?:  =(new-react `react)  actions
+        :_  actions
+        [%del-event source [%react message-key ~ nest group.perm.channel author react]]
+      =/  add-actions=(list action)
         %+  roll  ~(tap by new)
         |=  [[=author:d =react:d] actions=(list action)]
         =/  old-react=(unit react:d)  (~(get by old) author)
@@ -1824,6 +1831,7 @@
         ?:  (blocked author-ship)  actions
         :_  actions
         [%add %react message-key ~ nest group.perm.channel author react]
+      =/  actions=(list action)  (welp del-actions add-actions)
       ?~  actions  ca-core
       (send actions)
     ::
@@ -1903,7 +1911,14 @@
       =/  reply-key
         [[reply-author id.reply] id.reply]
       =/  =source  [%thread parent-key nest group.perm.channel]
-      =/  actions=(list action)
+      =/  del-actions=(list action)
+        %+  roll  ~(tap by old)
+        |=  [[=author:d =react:d] actions=(list action)]
+        =/  new-react=(unit react:d)  (~(get by new) author)
+        ?:  =(new-react `react)  actions
+        :_  actions
+        [%del-event source [%react reply-key `parent-key nest group.perm.channel author react]]
+      =/  add-actions=(list action)
         %+  roll  ~(tap by new)
         |=  [[=author:d =react:d] actions=(list action)]
         =/  old-react=(unit react:d)  (~(get by old) author)
@@ -1915,6 +1930,7 @@
         ?:  (blocked author-ship)  actions
         :_  actions
         [%add %react reply-key `parent-key nest group.perm.channel author react]
+      =/  actions=(list action)  (welp del-actions add-actions)
       ?~  actions  ca-core
       (send actions)
     ::
