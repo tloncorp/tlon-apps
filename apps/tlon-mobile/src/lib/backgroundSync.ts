@@ -1,8 +1,4 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
-import {
-  DEV_ACTION_RUN_BACKGROUND_SYNC,
-  registerDevAction,
-} from '@tloncorp/app/lib/devActions';
 import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
 import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import {
@@ -14,6 +10,7 @@ import {
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
+import { registerDevMenuItems } from 'expo-dev-menu';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -113,7 +110,18 @@ async function performSync() {
 }
 
 if (__DEV__) {
-  registerDevAction(DEV_ACTION_RUN_BACKGROUND_SYNC, performSync);
+  // Surface a "Run background sync" entry in Expo's dev menu (shake or
+  // ⌘+D). Lets us exercise the bg-task code path against the live
+  // bundle without waiting on iOS BGTaskScheduler heuristics.
+  registerDevMenuItems([
+    {
+      name: 'Run background sync',
+      callback: () => {
+        void performSync();
+      },
+      shouldCollapse: true,
+    },
+  ]).catch(() => {});
 }
 
 const TASK_ID = 'tlon:backgroundSync:v2';

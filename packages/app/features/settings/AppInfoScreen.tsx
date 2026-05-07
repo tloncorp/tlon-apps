@@ -10,10 +10,6 @@ import { getEmailClients, openComposer } from 'react-native-email-link';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
-import {
-  DEV_ACTION_RUN_BACKGROUND_SYNC,
-  getDevAction,
-} from '../../lib/devActions';
 import { RootStackParamList } from '../../navigation/types';
 import {
   AppSetting,
@@ -96,25 +92,6 @@ export function AppInfoScreen(props: Props) {
     },
     [setDebugEnabled]
   );
-
-  const [bgSyncStatus, setBgSyncStatus] = useState<
-    'idle' | 'running' | 'done' | 'error'
-  >('idle');
-  const runBackgroundSync = __DEV__
-    ? getDevAction(DEV_ACTION_RUN_BACKGROUND_SYNC)
-    : undefined;
-  const onRunBackgroundSync = useCallback(async () => {
-    if (!runBackgroundSync || bgSyncStatus === 'running') return;
-    setBgSyncStatus('running');
-    try {
-      await runBackgroundSync();
-      setBgSyncStatus('done');
-      setTimeout(() => setBgSyncStatus('idle'), 2500);
-    } catch (err) {
-      console.warn('[bg-sync-debug] trigger failed', err);
-      setBgSyncStatus('error');
-    }
-  }, [runBackgroundSync, bgSyncStatus]);
 
   const onUploadLogs = useCallback(async () => {
     const id = uploadLogs();
@@ -224,25 +201,6 @@ export function AppInfoScreen(props: Props) {
               <Text>{logId}</Text>
             </YStack>
           )}
-
-          {runBackgroundSync ? (
-            <View>
-              <Button
-                preset="outline"
-                onPress={onRunBackgroundSync}
-                disabled={bgSyncStatus === 'running'}
-                label={
-                  bgSyncStatus === 'running'
-                    ? 'Running background sync…'
-                    : bgSyncStatus === 'done'
-                      ? 'Background sync done'
-                      : bgSyncStatus === 'error'
-                        ? 'Background sync failed'
-                        : 'Run background sync'
-                }
-              />
-            </View>
-          ) : null}
         </YStack>
       </ScrollView>
     </View>
