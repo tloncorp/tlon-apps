@@ -94,10 +94,12 @@
     ++  v8
       |=  =activity-bundle:v9:av
       ^-  (unit activity-bundle:v8:av)
+      ?~  events=(murn events.activity-bundle v8:time-event)
+        ~
       %-  some
       :*  `source:v8:av`source.activity-bundle
           latest.activity-bundle
-          (murn events.activity-bundle v8:time-event)
+          events
       ==
     --
   ++  feed-init
