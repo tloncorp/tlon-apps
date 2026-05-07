@@ -119,12 +119,9 @@ export const ChatList = React.memo(function ChatListComponent({
       getItemType={getItemType}
       onLoad={onLoad ? () => onLoad() : undefined}
       testID={scrollerTestID}
-      {...(flashListProps.maintainVisibleContentPosition
-        ? {
-            maintainVisibleContentPosition:
-              flashListProps.maintainVisibleContentPosition,
-          }
-        : null)}
+      maintainVisibleContentPosition={
+        flashListProps.maintainVisibleContentPosition
+      }
     />
   );
 }, isEqual);
