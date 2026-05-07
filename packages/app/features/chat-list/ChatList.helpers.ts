@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 
-import { SectionedChatData } from '../../hooks/useFilteredChats';
+import type { SectionedChatData } from '../../hooks/useFilteredChats';
 
 export type SectionHeaderData = { type: 'sectionHeader'; title: string };
 export type ChatListItemData = db.Chat | SectionHeaderData;
