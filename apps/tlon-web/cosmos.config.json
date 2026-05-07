@@ -1,12 +1,11 @@
 {
   "$schema": "http://json.schemastore.org/cosmos-config",
   "vite": {
-    "configPath": "./vite.config.mts"
+    "configPath": "./vite.cosmos.config.mts"
   },
   "dom": {
     "containerQuerySelector": "#app"
   },
   "fixturesLocation": "../../packages/app/fixtures",
-  "rendererUrl": "http://localhost:5050/apps/groups/",
   "plugins": ["react-cosmos-plugin-vite"]
 }

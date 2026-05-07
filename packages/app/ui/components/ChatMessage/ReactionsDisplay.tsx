@@ -4,6 +4,7 @@ import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
+import { Platform, type ViewStyle } from 'react-native';
 import { Tooltip, View, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -11,7 +12,85 @@ import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { triggerHaptic } from '../../utils';
 import { useCanWrite } from '../../utils/channelUtils';
 import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
+import { useContactName } from '../ContactNameV2';
 import { EmojiPickerSheet } from '../Emoji';
+import {
+  TOOLTIP_MAX_WIDTH_PX,
+  TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX,
+  TOOLTIP_VIEWPORT_GUTTER_PX,
+  getReactionTooltipDisplayPlan,
+} from './reactionTooltipUtils';
+
+// Web-only style; native receives `undefined` and falls back to the numeric maxWidth prop.
+// Tamagui's stricter style typing rejects unknown CSS function strings, so cast at the
+// boundary to keep the clamp web-only without leaking onto native.
+const tooltipWebViewportClamp: ViewStyle | undefined =
+  Platform.OS === 'web'
+    ? ({
+        maxWidth: `min(${TOOLTIP_MAX_WIDTH_PX}px, calc(100vw - ${TOOLTIP_VIEWPORT_GUTTER_PX}px))`,
+      } as unknown as ViewStyle)
+    : undefined;
+
+function ReactionTooltipName({
+  contactId,
+  trailingComma,
+}: {
+  contactId: string;
+  trailingComma: boolean;
+}) {
+  const name = useContactName({ contactId, expandLongIds: true });
+  return (
+    <Text
+      size="$label/m"
+      whiteSpace="nowrap"
+      maxWidth={TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX}
+      numberOfLines={1}
+    >
+      {name}
+      {trailingComma ? ',' : ''}
+    </Text>
+  );
+}
+
+function ReactionTooltipContent({ reaction }: { reaction: ReactionListItem }) {
+  const { displayed, moreCount } = getReactionTooltipDisplayPlan(
+    reaction.users ?? []
+  );
+  if (displayed.length === 0) return null;
+
+  return (
+    <Tooltip.Content
+      padding="$s"
+      backgroundColor="$secondaryBackground"
+      borderRadius="$s"
+      maxWidth={TOOLTIP_MAX_WIDTH_PX}
+      style={tooltipWebViewportClamp}
+    >
+      <XStack
+        flexWrap="wrap"
+        rowGap="$2xs"
+        columnGap="$xs"
+        alignItems="baseline"
+      >
+        {displayed.map((user, i) => {
+          const trailingComma = i < displayed.length - 1;
+          return (
+            <ReactionTooltipName
+              key={user.id}
+              contactId={user.id}
+              trailingComma={trailingComma}
+            />
+          );
+        })}
+        {moreCount > 0 ? (
+          <Text size="$label/m" whiteSpace="nowrap">
+            +{moreCount} more
+          </Text>
+        ) : null}
+      </XStack>
+    </Tooltip.Content>
+  );
+}
 
 export function ReactionsDisplay({
   post,
@@ -72,24 +151,6 @@ export function ReactionsDisplay({
     ]
   );
 
-  const firstThreeReactionUsers = useCallback((reaction: ReactionListItem) => {
-    if (!reaction.users || reaction.users.length === 0) {
-      return '';
-    }
-
-    const userNames = reaction.users
-      .slice(0, 3)
-      .map((user) => {
-        // Defensive logic: ensure we have a valid name or fall back to id
-        const name = user.name && user.name.trim() !== '' ? user.name : user.id;
-        return name || 'Unknown'; // Final fallback if both are somehow empty
-      })
-      .join(', ');
-
-    const moreCount = reaction.users.length - 3;
-    return userNames + (moreCount > 0 ? ` +${moreCount} more` : '');
-  }, []);
-
   if (minimal) {
     if (reactionDetails.list.length === 0) {
       return null;
@@ -112,13 +173,7 @@ export function ReactionsDisplay({
                   <SizableEmoji emojiInput={reaction.value} fontSize="$s" />
                 </XStack>
               </Tooltip.Trigger>
-              <Tooltip.Content
-                padding="$s"
-                backgroundColor="$secondaryBackground"
-                borderRadius="$s"
-              >
-                <Text size="$label/m">{firstThreeReactionUsers(reaction)}</Text>
-              </Tooltip.Content>
+              <ReactionTooltipContent reaction={reaction} />
             </Tooltip>
           ))}
           {remainingCount > 0 && (
@@ -177,13 +232,7 @@ export function ReactionsDisplay({
                   )}
                 </XStack>
               </Tooltip.Trigger>
-              <Tooltip.Content
-                padding="$s"
-                backgroundColor="$secondaryBackground"
-                borderRadius="$s"
-              >
-                <Text size="$label/m">{firstThreeReactionUsers(reaction)}</Text>
-              </Tooltip.Content>
+              <ReactionTooltipContent reaction={reaction} />
             </Tooltip>
           ))}
         </XStack>
