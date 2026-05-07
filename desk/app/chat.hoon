@@ -2189,7 +2189,7 @@
       ?-    -.q.diff.delta
           %add-react
         =?  cu-core  &(?=(^ had) ?=(%& -.writ.u.had))
-          =/  message-key  [p.diff.delta now.bowl]
+          =/  message-key  [p.diff.delta time.u.had]
           =*  content  content.writ.u.had
           =/  mention  (was-mentioned:utils content our.bowl ~)
           =/  concern  [%react message-key ~ [author react]:q.diff.delta]
@@ -2684,7 +2684,7 @@
     ?-    -.q.diff
          %add-react
       =?  di-core  &(?=(^ had) ?=(%& -.writ.u.had))
-        =/  message-key  [p.diff now.bowl]
+        =/  message-key  [p.diff time.u.had]
         =*  content  content.writ.u.had
         =/  mention  (was-mentioned:utils content our.bowl ~)
         =/  concern  [%react message-key ~ author.q.diff react.q.diff]
