@@ -1,8 +1,9 @@
-diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.js
---- a/lib/module/js-reanimated/index.js
-+++ b/lib/module/js-reanimated/index.js
-@@ -20,8 +20,11 @@
- };
+diff --git a/lib/module/ReanimatedModule/js-reanimated/index.js b/lib/module/ReanimatedModule/js-reanimated/index.js
+index 4ea519d..679b1e2 100644
+--- a/lib/module/ReanimatedModule/js-reanimated/index.js
++++ b/lib/module/ReanimatedModule/js-reanimated/index.js
+@@ -6,8 +6,11 @@ export { createJSReanimatedModule } from './JSReanimated';
+ // TODO: Move these functions outside of index file.
  export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
    if (viewRef) {
 -    const component = viewRef.getAnimatableRef ? viewRef.getAnimatableRef() : viewRef;
@@ -15,7 +16,7 @@ diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.
        const value = updates[key];
        const index = typeof value === 'function' ? 1 : 0;
        acc[index][key] = value;
-@@ -32,11 +35,11 @@
+@@ -18,11 +21,11 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
        // Also, some components (e.g. from react-native-svg) don't have styles
        // and always provide setNativeProps function instead (even on React Native Web 0.19+).
        setNativeProps(component, rawStyles, isAnimatedProps);
@@ -29,7 +30,7 @@ diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.
        Object.keys(component.props).forEach(key => {
          if (!rawStyles[key]) {
            return;
-@@ -50,6 +53,16 @@
+@@ -36,6 +39,16 @@ export const _updatePropsJS = (updates, viewRef, isAnimatedProps) => {
      }
    }
  };
@@ -45,8 +46,8 @@ diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.
 +};
  const setNativeProps = (component, newProps, isAnimatedProps) => {
    if (isAnimatedProps) {
-     const uiProps = {};
-@@ -79,9 +92,9 @@
+     // Only update UI props directly on the component,
+@@ -59,9 +72,9 @@ const updatePropsDOM = (component, style, isAnimatedProps) => {
      ...style
    };
    component.previousStyle = currentStyle;
@@ -59,7 +60,7 @@ diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.
    }
    if (createTextShadowValue !== undefined && (domStyle.textShadowColor || domStyle.textShadowRadius || domStyle.textShadowOffset)) {
      domStyle.textShadow = createTextShadowValue({
-@@ -98,8 +111,28 @@
+@@ -85,4 +98,24 @@ const updatePropsDOM = (component, style, isAnimatedProps) => {
      }
    }
  };
@@ -83,17 +84,57 @@ diff --git a/lib/module/js-reanimated/index.js b/lib/module/js-reanimated/index.
 +  const unit = typeof value === 'number' ? TRANSFORM_UNITS[key] ?? '' : '';
 +  return `${key}(${value}${unit})`;
 +}).filter(Boolean).join(' ');
- function isNativeProp(propName) {
-   return !!PropsAllowlists.NATIVE_THREAD_PROPS_WHITELIST[propName];
- }
- export default reanimatedJS;
--//# sourceMappingURL=index.js.map
+ //# sourceMappingURL=index.js.map
 \ No newline at end of file
-+//# sourceMappingURL=index.js.map
-diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
---- a/src/js-reanimated/index.ts
-+++ b/src/js-reanimated/index.ts
-@@ -40,8 +40,8 @@
+diff --git a/lib/module/createAnimatedComponent/InlinePropManager.js b/lib/module/createAnimatedComponent/InlinePropManager.js
+index 5828da9..cc3052e 100644
+--- a/lib/module/createAnimatedComponent/InlinePropManager.js
++++ b/lib/module/createAnimatedComponent/InlinePropManager.js
+@@ -12,11 +12,13 @@ function isInlineStyleTransform(transform) {
+   return transform.some(t => hasInlineStyles(t));
+ }
+ function inlinePropsHasChanged(styles1, styles2) {
+-  if (Object.keys(styles1).length !== Object.keys(styles2).length) {
++  const s1 = styles1 ?? {};
++  const s2 = styles2 ?? {};
++  if (Object.keys(s1).length !== Object.keys(s2).length) {
+     return true;
+   }
+-  for (const key of Object.keys(styles1)) {
+-    if (styles1[key] !== styles2[key]) {
++  for (const key of Object.keys(s1)) {
++    if (s1[key] !== s2[key]) {
+       return true;
+     }
+   }
+@@ -78,6 +80,9 @@ export function getInlineStyle(style, isFirstRender) {
+     return getInlinePropsUpdate(style);
+   }
+   const newStyle = {};
++  if (style == null) {
++    return newStyle;
++  }
+   for (const [key, styleValue] of Object.entries(style)) {
+     if (!isSharedValue(styleValue) && !(key === 'transform' && isInlineStyleTransform(styleValue))) {
+       newStyle[key] = styleValue;
+diff --git a/lib/module/createAnimatedComponent/PropsFilter.js b/lib/module/createAnimatedComponent/PropsFilter.js
+index df36641..af397fc 100644
+--- a/lib/module/createAnimatedComponent/PropsFilter.js
++++ b/lib/module/createAnimatedComponent/PropsFilter.js
+@@ -42,7 +42,7 @@ export class PropsFilter {
+         const animatedPropsProp = inputProps.animatedProps;
+         const animatedPropsArray = flattenArray(animatedPropsProp ?? []);
+         animatedPropsArray.forEach(animatedProps => {
+-          if (animatedProps?.viewDescriptors && animatedProps.initial) {
++          if (animatedProps?.viewDescriptors && animatedProps.initial && animatedProps.initial.value != null) {
+             Object.keys(animatedProps.initial.value).forEach(initialValueKey => {
+               props[initialValueKey] = animatedProps.initial?.value[initialValueKey];
+             });
+diff --git a/src/ReanimatedModule/js-reanimated/index.ts b/src/ReanimatedModule/js-reanimated/index.ts
+index 5025db2..1ad34fc 100644
+--- a/src/ReanimatedModule/js-reanimated/index.ts
++++ b/src/ReanimatedModule/js-reanimated/index.ts
+@@ -14,8 +14,8 @@ interface JSReanimatedComponent {
    previousStyle: StyleProps;
    setNativeProps?: (style: StyleProps) => void;
    style?: StyleProps;
@@ -104,7 +145,7 @@ diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
      setAttribute: (key: string, props: unknown) => void;
    };
  }
-@@ -49,8 +49,8 @@
+@@ -23,8 +23,8 @@ interface JSReanimatedComponent {
  export interface ReanimatedHTMLElement extends HTMLElement {
    previousStyle: StyleProps;
    setNativeProps?: (style: StyleProps) => void;
@@ -114,22 +155,24 @@ diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
 +  _touchableNode?: {
      setAttribute: (key: string, props: unknown) => void;
    };
-   reanimatedDummy?: boolean;
-@@ -66,9 +66,10 @@
+   isDummy?: boolean;
+@@ -41,10 +41,11 @@ export const _updatePropsJS = (
    isAnimatedProps?: boolean
  ): void => {
    if (viewRef) {
 -    const component = viewRef.getAnimatableRef
 -      ? viewRef.getAnimatableRef()
 -      : viewRef;
+-    const [rawStyles] = Object.keys(updates).reduce(
 +    const component = getComponentFromRef(viewRef);
 +    if (!component) {
 +      return;
 +    }
-     const [rawStyles] = Object.keys(updates).reduce(
++    const [rawStyles] = Object.keys(updates ?? {}).reduce(
        (acc: [StyleProps, AnimatedStyle<any>], key) => {
          const value = updates[key];
-@@ -84,14 +85,15 @@
+         const index = typeof value === 'function' ? 1 : 0;
+@@ -59,20 +60,21 @@ export const _updatePropsJS = (
        // Also, some components (e.g. from react-native-svg) don't have styles
        // and always provide setNativeProps function instead (even on React Native Web 0.19+).
        setNativeProps(component, rawStyles, isAnimatedProps);
@@ -150,7 +193,14 @@ diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
        Object.keys(component.props).forEach((key) => {
          if (!rawStyles[key]) {
            return;
-@@ -109,6 +111,27 @@
+         }
+         const dashedKey = key.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
+-        component._touchableNode.setAttribute(dashedKey, rawStyles[key]);
++        component._touchableNode!.setAttribute(dashedKey, rawStyles[key]);
+       });
+     } else {
+       const componentName =
+@@ -84,6 +86,29 @@ export const _updatePropsJS = (
    }
  };
  
@@ -172,13 +222,15 @@ diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
 +  if ('host' in component && component.host) {
 +    return component.host;
 +  }
-+  return 'current' in component ? component.current?.host ?? component : component;
++  return 'current' in component
++    ? component.current?.host ?? component
++    : component;
 +};
 +
  const setNativeProps = (
    component: JSReanimatedComponent | ReanimatedHTMLElement,
    newProps: StyleProps,
-@@ -144,9 +167,13 @@
+@@ -113,9 +138,13 @@ const updatePropsDOM = (
    const currentStyle = { ...previousStyle, ...style };
    (component as JSReanimatedComponent).previousStyle = currentStyle;
  
@@ -195,10 +247,11 @@ diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
    }
  
    if (
-@@ -171,6 +198,34 @@
+@@ -146,3 +175,31 @@ const updatePropsDOM = (
+     }
    }
  };
- 
++
 +const TRANSFORM_UNITS: Partial<Record<string, string>> = {
 +  perspective: 'px',
 +  rotate: 'deg',
@@ -226,7 +279,52 @@ diff --git a/src/js-reanimated/index.ts b/src/js-reanimated/index.ts
 +    })
 +    .filter(Boolean)
 +    .join(' ');
-+
- function isNativeProp(propName: string): boolean {
-   return !!PropsAllowlists.NATIVE_THREAD_PROPS_WHITELIST[propName];
- }
+diff --git a/src/createAnimatedComponent/InlinePropManager.ts b/src/createAnimatedComponent/InlinePropManager.ts
+index 3f37da9..7594c57 100644
+--- a/src/createAnimatedComponent/InlinePropManager.ts
++++ b/src/createAnimatedComponent/InlinePropManager.ts
+@@ -25,12 +25,14 @@ function inlinePropsHasChanged(
+   styles1: StyleProps,
+   styles2: StyleProps
+ ): boolean {
+-  if (Object.keys(styles1).length !== Object.keys(styles2).length) {
++  const s1 = styles1 ?? {};
++  const s2 = styles2 ?? {};
++  if (Object.keys(s1).length !== Object.keys(s2).length) {
+     return true;
+   }
+ 
+-  for (const key of Object.keys(styles1)) {
+-    if (styles1[key] !== styles2[key]) {
++  for (const key of Object.keys(s1)) {
++    if (s1[key] !== s2[key]) {
+       return true;
+     }
+   }
+@@ -111,6 +113,9 @@ export function getInlineStyle(
+     return getInlinePropsUpdate(style) as Record<string, unknown>;
+   }
+   const newStyle: StyleProps = {};
++  if (style == null) {
++    return newStyle;
++  }
+   for (const [key, styleValue] of Object.entries(style)) {
+     if (
+       !isSharedValue(styleValue) &&
+diff --git a/src/createAnimatedComponent/PropsFilter.tsx b/src/createAnimatedComponent/PropsFilter.tsx
+index 2002e4f..0a226d4 100644
+--- a/src/createAnimatedComponent/PropsFilter.tsx
++++ b/src/createAnimatedComponent/PropsFilter.tsx
+@@ -64,7 +64,11 @@ export class PropsFilter implements IPropsFilter {
+         >(animatedPropsProp ?? []);
+ 
+         animatedPropsArray.forEach((animatedProps) => {
+-          if (animatedProps?.viewDescriptors && animatedProps.initial) {
++          if (
++            animatedProps?.viewDescriptors &&
++            animatedProps.initial &&
++            animatedProps.initial.value != null
++          ) {
+             Object.keys(animatedProps.initial.value).forEach(
+               (initialValueKey) => {
+                 props[initialValueKey] =

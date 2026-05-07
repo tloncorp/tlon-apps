@@ -42,6 +42,7 @@ import {
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
@@ -1145,6 +1146,21 @@ export const insertGroups = createWriteQuery(
                 $groupNavSections.description
               ),
             });
+
+          // Authoritative reconciliation: a full group payload represents
+          // the backend's complete view of nav-section memberships for this
+          // group, so the local join rows for these sections must match
+          // exactly. Delete any existing rows for this group's nav sections
+          // before inserting the incoming ones — without this, an additive
+          // `onConflictDoNothing` insert would leave stale duplicate
+          // memberships in place if the backend has since moved a channel
+          // between sections.
+          const navSectionIds = group.navSections.map((s) => s.id);
+          await txCtx.db
+            .delete($groupNavSectionChannels)
+            .where(
+              inArray($groupNavSectionChannels.groupNavSectionId, navSectionIds)
+            );
 
           const navSectionChannels = group.navSections.flatMap(
             (s) => s.channels
@@ -2434,6 +2450,20 @@ export const addChannelToNavSection = createWriteQuery(
   ) => {
     logger.log('addChannelToNavSection', channelId, groupNavSectionId, index);
     return withTransactionCtx(ctx, async (txCtx) => {
+      // Idempotency: if the exact membership already exists, return early.
+      // Otherwise the index-shift below would mutate ordering metadata on
+      // every replay even though the subsequent insert would no-op via
+      // onConflictDoNothing.
+      const existing = await txCtx.db.query.groupNavSectionChannels.findFirst({
+        where: and(
+          eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId),
+          eq($groupNavSectionChannels.channelId, channelId)
+        ),
+      });
+      if (existing) {
+        return;
+      }
+
       await txCtx.db
         .update($groupNavSectionChannels)
         .set({
@@ -2478,6 +2508,35 @@ export const deleteChannelFromNavSection = createWriteQuery(
         and(
           eq($groupNavSectionChannels.channelId, channelId),
           eq($groupNavSectionChannels.groupNavSectionId, groupNavSectionId)
+        )
+      );
+  },
+  ['groupNavSectionChannels']
+);
+
+// A channel is intended to live in exactly one nav section, but the schema
+// composite-PKs on (groupNavSectionId, channelId), so the DB will tolerate
+// duplicate memberships if writers don't clean up first. Use this when an
+// incoming event names the new section authoritatively, to remove the
+// channel from any other section it might still be persisted in.
+export const removeChannelFromOtherNavSections = createWriteQuery(
+  'removeChannelFromOtherNavSections',
+  async (
+    {
+      channelId,
+      keepInSectionId,
+    }: {
+      channelId: string;
+      keepInSectionId: string;
+    },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($groupNavSectionChannels)
+      .where(
+        and(
+          eq($groupNavSectionChannels.channelId, channelId),
+          ne($groupNavSectionChannels.groupNavSectionId, keepInSectionId)
         )
       );
   },
@@ -3198,18 +3257,53 @@ export const insertChanges = createWriteQuery(
   'insertChanges',
   async (input: ChangesResult, ctx: QueryCtx) => {
     try {
-      await withTransactionCtx(ctx, async (txCtx) => {
-        await insertChannelPosts({ posts: input.posts }, txCtx);
-        await insertGroups({ groups: input.groups }, txCtx);
-        await insertContacts(input.contacts, txCtx);
-        await deleteChannels(input.deletedChannelIds, txCtx);
-        await insertGroupUnreads(input.unreads.groupUnreads, ctx);
-        await insertChannelUnreads(input.unreads.channelUnreads, ctx);
-        await insertThreadUnreads(input.unreads.threadActivity, ctx);
-        if (input.unreads.baseUnread) {
-          await insertBaseUnread(input.unreads.baseUnread, ctx);
-        }
-      });
+      await perfTime(
+        'insertChanges.transaction',
+        () =>
+          withTransactionCtx(ctx, async (txCtx) => {
+            await perfTime(
+              'insertChanges.channelPosts',
+              () => insertChannelPosts({ posts: input.posts }, txCtx),
+              { count: input.posts.length }
+            );
+            await perfTime(
+              'insertChanges.groups',
+              () => insertGroups({ groups: input.groups }, txCtx),
+              { count: input.groups.length }
+            );
+            await perfTime(
+              'insertChanges.contacts',
+              () => insertContacts(input.contacts, txCtx),
+              { count: input.contacts.length }
+            );
+            await perfTime(
+              'insertChanges.deleteChannels',
+              () => deleteChannels(input.deletedChannelIds, txCtx),
+              { count: input.deletedChannelIds.length }
+            );
+            await perfTime(
+              'insertChanges.groupUnreads',
+              () => insertGroupUnreads(input.unreads.groupUnreads, ctx),
+              { count: input.unreads.groupUnreads.length }
+            );
+            await perfTime(
+              'insertChanges.channelUnreads',
+              () => insertChannelUnreads(input.unreads.channelUnreads, ctx),
+              { count: input.unreads.channelUnreads.length }
+            );
+            await perfTime(
+              'insertChanges.threadUnreads',
+              () => insertThreadUnreads(input.unreads.threadActivity, ctx),
+              { count: input.unreads.threadActivity.length }
+            );
+            if (input.unreads.baseUnread) {
+              await perfTime('insertChanges.baseUnread', () =>
+                insertBaseUnread(input.unreads.baseUnread!, ctx)
+              );
+            }
+          }),
+        { posts: input.posts.length }
+      );
     } catch (e) {
       logger.trackError('failed to insert changes', {
         errorMessage: e instanceof Error ? e.message : e.toString(),
@@ -3277,82 +3371,111 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
-  await ctx.db
-    .insert($posts)
-    .values(
-      posts.map((p) => ({
-        ...p,
-        groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
-      }))
-    )
-    .onConflictDoUpdate({
-      target: $posts.id,
-      set: conflictUpdateSetAll($posts, ['hidden']),
-    })
-    .onConflictDoUpdate({
-      target: [
-        $posts.authorId,
-        $posts.channelId,
-        $posts.sentAt,
-        $posts.sequenceNum,
-      ],
-      set: conflictUpdateSetAll($posts, ['hidden']),
-    });
+  const uniqueChannels = new Set(posts.map((p) => p.channelId)).size;
+  await perfTime(
+    'insertPostsBatch.total',
+    async () => {
+      await perfTime(
+        'insertPostsBatch.insertPosts',
+        () =>
+          ctx.db
+            .insert($posts)
+            .values(
+              posts.map((p) => ({
+                ...p,
+                groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${p.channelId})`,
+              }))
+            )
+            .onConflictDoUpdate({
+              target: $posts.id,
+              set: conflictUpdateSetAll($posts, ['hidden']),
+            })
+            .onConflictDoUpdate({
+              target: [
+                $posts.authorId,
+                $posts.channelId,
+                $posts.sentAt,
+                $posts.sequenceNum,
+              ],
+              set: conflictUpdateSetAll($posts, ['hidden']),
+            }),
+        { count: posts.length, channels: uniqueChannels }
+      );
 
-  const reactions = posts
-    .filter((p) => p.reactions && p.reactions.length > 0)
-    .flatMap((p) => p.reactions) as Reaction[];
-  logger.log('inserting post reactions', reactions);
-  if (reactions.length) {
-    await ctx.db
-      .insert($postReactions)
-      .values(reactions)
-      .onConflictDoUpdate({
-        target: [$postReactions.contactId, $postReactions.postId],
-        set: conflictUpdateSetAll($postReactions),
-      });
-  }
+      const reactions = posts
+        .filter((p) => p.reactions && p.reactions.length > 0)
+        .flatMap((p) => p.reactions) as Reaction[];
+      logger.log('inserting post reactions', reactions);
+      if (reactions.length) {
+        await perfTime(
+          'insertPostsBatch.insertReactions',
+          () =>
+            ctx.db
+              .insert($postReactions)
+              .values(reactions)
+              .onConflictDoUpdate({
+                target: [$postReactions.contactId, $postReactions.postId],
+                set: conflictUpdateSetAll($postReactions),
+              }),
+          { count: reactions.length }
+        );
+      }
 
-  await deleteReplacedCachedPosts(ctx);
+      // Only real top-level posts (sequenceNum > 0) can replace an optimistic
+      // cached row. Optimistic-send batches and reply-only batches are all
+      // sequenceNum = 0 and can skip the scan entirely.
+      const cacheReplacers = posts.filter(
+        (p) => p.type !== 'reply' && (p.sequenceNum ?? 0) > 0
+      );
+      if (cacheReplacers.length) {
+        await perfTime(
+          'insertPostsBatch.deleteReplacedCachedPosts',
+          () => deleteReplacedCachedPosts(cacheReplacers, ctx),
+          { candidates: cacheReplacers.length }
+        );
+      }
 
-  logger.log('inserted posts');
-  await setLastPosts(posts, ctx);
-  logger.log('set last posts');
-  await clearMatchedPendingPosts(
-    posts.filter((p) => p.deliveryStatus !== 'pending'),
-    ctx
+      logger.log('inserted posts');
+      await perfTime(
+        'insertPostsBatch.setLastPosts',
+        () => setLastPosts(posts, ctx),
+        { channels: uniqueChannels }
+      );
+      logger.log('set last posts');
+      await perfTime('insertPostsBatch.clearMatchedPendingPosts', () =>
+        clearMatchedPendingPosts(
+          posts.filter((p) => p.deliveryStatus !== 'pending'),
+          ctx
+        )
+      );
+      logger.log('clear matched pending');
+    },
+    { count: posts.length, channels: uniqueChannels }
   );
-  logger.log('clear matched pending');
 }
 
-async function deleteReplacedCachedPosts(ctx: QueryCtx) {
-  const $cachedPosts = ctx.db
-    .select()
-    .from($posts)
-    .where(eq($posts.sequenceNum, 0))
-    .as('cached_posts');
-
-  const receivedPosts = await ctx.db
-    .select({
-      id: $cachedPosts.id,
-    })
-    .from($posts)
-    .innerJoin(
-      $cachedPosts,
-      and(
-        ne($posts.sequenceNum, 0),
-        eq($posts.channelId, $cachedPosts.channelId),
-        eq($posts.sentAt, $cachedPosts.sentAt),
-        eq($posts.authorId, $cachedPosts.authorId)
-      )
-    );
-
-  await ctx.db.delete($posts).where(
-    inArray(
-      $posts.id,
-      receivedPosts.map((p) => p.id)
+async function deleteReplacedCachedPosts(replacers: Post[], ctx: QueryCtx) {
+  if (!replacers.length) return;
+  // Delete outstanding optimistic top-level rows whose (channelId, sentAt,
+  // authorId) tuple matches an incoming real post.
+  //
+  // Replies also have sequence_number = 0 (see toPostReplyData), so we also
+  // require parent_id IS NULL — keeps the lookup scoped to the
+  // posts_cached_index partial index (which shares this predicate) and rules
+  // out the theoretical case where a reply and a real top-level post share
+  // the composite tuple.
+  const matches = replacers.map((p) =>
+    and(
+      eq($posts.channelId, p.channelId),
+      eq($posts.sentAt, p.sentAt),
+      eq($posts.authorId, p.authorId)
     )
   );
+  await ctx.db
+    .delete($posts)
+    .where(
+      and(eq($posts.sequenceNum, 0), isNull($posts.parentId), or(...matches))
+    );
 }
 
 export const resetHiddenPosts = createWriteQuery(
@@ -3383,12 +3506,23 @@ export const getHiddenPosts = createReadQuery(
 );
 
 async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
-  const channelIds = newPosts?.map((p) => p.channelId) ?? [];
+  if (!newPosts?.length) return;
 
-  if (channelIds.length === 0) return;
+  const uniqueChannels = new Set(newPosts.map((p) => p.channelId));
 
-  // Combine channel and group updates in a single transaction
-  // Update channels
+  // Single-channel fast path — the common receive case.
+  // Monotonic UPDATE driven by the incoming batch avoids the 3 correlated
+  // subqueries the multi-channel path runs. Only advances lastPost* forward.
+  // Paths that need a full recompute after a delete/edit (e.g.
+  // markPostAsDeleted in sync.ts) already explicitly reset lastPostId.
+  if (uniqueChannels.size === 1) {
+    await setLastPostsMonotonic(newPosts, ctx);
+    return;
+  }
+
+  const channelIds = Array.from(uniqueChannels);
+
+  // Multi-channel batched fallback (sync bursts spanning many channels).
   // lastPostId/lastPostAt: point to the newest *previewable* post (not deleted)
   // lastPostSequenceNum: always the newest post for syncing (even if deleted)
   await ctx.db
@@ -3491,6 +3625,74 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         )
       )
     );
+}
+
+async function setLastPostsMonotonic(newPosts: Post[], ctx: QueryCtx) {
+  const channelId = newPosts[0].channelId;
+
+  // Find the newest relevant posts in the batch:
+  // - `previewable`: newest non-reply non-deleted post (drives lastPostId/At)
+  // - `sequenced`: newest non-reply post with a sequenceNum (drives
+  //   lastPostSequenceNum — a delete still counts for seq tracking, matching
+  //   the original subquery semantics)
+  let previewable: Post | undefined;
+  let sequenced: Post | undefined;
+  for (const p of newPosts) {
+    if (p.type === 'reply') continue;
+    if (!p.isDeleted) {
+      if (!previewable || p.receivedAt > previewable.receivedAt) {
+        previewable = p;
+      }
+    }
+    if (p.sequenceNum != null) {
+      if (!sequenced || (p.sequenceNum ?? 0) > (sequenced.sequenceNum ?? 0)) {
+        sequenced = p;
+      }
+    }
+  }
+
+  if (!previewable && !sequenced) return;
+
+  const setClauses: Parameters<
+    ReturnType<typeof ctx.db.update<typeof $channels>>['set']
+  >[0] = {};
+  if (previewable) {
+    const newAt = previewable.receivedAt;
+    const newId = previewable.id;
+    setClauses.lastPostId = sql`CASE WHEN ${$channels.lastPostAt} IS NULL OR ${newAt} > ${$channels.lastPostAt} THEN ${newId} ELSE ${$channels.lastPostId} END`;
+    setClauses.lastPostAt = sql`CASE WHEN ${$channels.lastPostAt} IS NULL OR ${newAt} > ${$channels.lastPostAt} THEN ${newAt} ELSE ${$channels.lastPostAt} END`;
+  }
+  if (sequenced && sequenced.sequenceNum != null) {
+    const newSeq = sequenced.sequenceNum;
+    setClauses.lastPostSequenceNum = sql`CASE WHEN ${$channels.lastPostSequenceNum} IS NULL OR ${newSeq} > ${$channels.lastPostSequenceNum} THEN ${newSeq} ELSE ${$channels.lastPostSequenceNum} END`;
+  }
+
+  await ctx.db
+    .update($channels)
+    .set(setClauses)
+    .where(eq($channels.id, channelId));
+
+  // Mirror to the parent group's lastPost* if applicable. Skip when there's
+  // no previewable (e.g., all-deleted batch) — groups only care about the
+  // visible newest.
+  if (!previewable) return;
+  const [channel] = await ctx.db
+    .select({ groupId: $channels.groupId })
+    .from($channels)
+    .where(eq($channels.id, channelId))
+    .limit(1);
+  const groupId = channel?.groupId;
+  if (!groupId) return;
+
+  const newAt = previewable.receivedAt;
+  const newId = previewable.id;
+  await ctx.db
+    .update($groups)
+    .set({
+      lastPostId: sql`CASE WHEN ${$groups.lastPostAt} IS NULL OR ${newAt} > ${$groups.lastPostAt} THEN ${newId} ELSE ${$groups.lastPostId} END`,
+      lastPostAt: sql`CASE WHEN ${$groups.lastPostAt} IS NULL OR ${newAt} > ${$groups.lastPostAt} THEN ${newAt} ELSE ${$groups.lastPostAt} END`,
+    })
+    .where(eq($groups.id, groupId));
 }
 
 // Delete any pending posts whose sentAt matches the incoming sentAt.
@@ -4041,7 +4243,11 @@ export const getPostWithRelations = createReadQuery(
       })
       .then(returnNullIfUndefined);
   },
-  ['posts', 'postReactions', 'threadUnreads', 'volumeSettings']
+  // Invalidation for ['post', id] queries is driven by changeListener's
+  // per-post events (see db/changeListener.ts). The broad table-level
+  // invalidation path would re-stale every cached per-post entry on any
+  // posts-table mutation; the targeted path only touches the specific post.
+  []
 );
 
 export const getPersonalGroup = createReadQuery(

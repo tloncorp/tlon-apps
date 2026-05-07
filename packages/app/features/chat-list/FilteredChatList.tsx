@@ -1,4 +1,4 @@
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import { FlashList, FlashListRef, ListRenderItem } from '@shopify/flash-list';
 import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import React, {
@@ -10,7 +10,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { LayoutChangeEvent } from 'react-native';
 import { getTokenValue } from 'tamagui';
 
 import { TabName, useFilteredChats } from '../../hooks/useFilteredChats';
@@ -43,7 +42,7 @@ export const FilteredChatList = React.memo(
     { searchQuery, listType, listProps, onPressItem },
     ref
   ) {
-    const listRef = useRef<FlashList<ChatListItemData>>(null);
+    const listRef = useRef<FlashListRef<ChatListItemData>>(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
 
     const { data: chats } = store.useCurrentChats();
@@ -130,28 +129,6 @@ export const FilteredChatList = React.memo(
       },
     }));
 
-    const sizeRefs = useRef({
-      sectionHeader: 28,
-      chatListItem: 72,
-    });
-
-    const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
-      sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
-    }, []);
-
-    const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
-      sizeRefs.current.chatListItem = e.nativeEvent.layout.height;
-    }, []);
-
-    const handleOverrideLayout = useCallback(
-      (layout: { span?: number; size?: number }, item: ChatListItemData) => {
-        layout.size = isSectionHeader(item)
-          ? sizeRefs.current.sectionHeader
-          : sizeRefs.current.chatListItem;
-      },
-      []
-    );
-
     const activeSelectionStyles = useMemo(
       () => ({
         backgroundColor: '$positiveBackground',
@@ -164,7 +141,7 @@ export const FilteredChatList = React.memo(
       ({ item }) => {
         if (isSectionHeader(item)) {
           return (
-            <SectionListHeader onLayout={handleHeaderLayout}>
+            <SectionListHeader>
               <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
             </SectionListHeader>
           );
@@ -174,7 +151,6 @@ export const FilteredChatList = React.memo(
               disableOptimization
               model={item}
               onPress={onPressItem}
-              onLayout={handleItemLayout}
               // We're rendering the ChatListItem outside of the ChatOptionsProvider, so we need to disable the options
               disableOptions
               showGroupTitle={true}
@@ -189,14 +165,7 @@ export const FilteredChatList = React.memo(
           );
         }
       },
-      [
-        handleHeaderLayout,
-        onPressItem,
-        handleItemLayout,
-        listItems,
-        selectedIndex,
-        activeSelectionStyles,
-      ]
+      [onPressItem, listItems, selectedIndex, activeSelectionStyles]
     );
 
     const contentContainerStyle = useMemo(
@@ -221,8 +190,6 @@ export const FilteredChatList = React.memo(
             keyExtractor={getChatKey}
             renderItem={renderItem}
             getItemType={getItemType}
-            estimatedItemSize={sizeRefs.current.chatListItem}
-            overrideItemLayout={handleOverrideLayout}
             extraData={selectedIndex}
             {...listProps}
           />

@@ -6,11 +6,11 @@ import { Platform, TurboModuleRegistry } from 'react-native';
 
 import { GIT_HASH, POST_HOG_API_KEY } from '../constants';
 import { identifyUser } from './identifyUser';
-import { posthog, posthogAsync } from './posthogSingleton';
+import { posthog, posthogEnabled } from './posthogSingleton';
 import { createSentryErrorLogger } from './sentry';
 import { UrbitModuleSpec } from './urbitModule';
 
-export { posthog, posthogAsync } from './posthogSingleton';
+export { posthog, posthogEnabled } from './posthogSingleton';
 
 export type OnboardingProperties = {
   actionName: string;
@@ -29,8 +29,8 @@ export type OnboardingProperties = {
   inviteType?: 'user' | 'group';
 };
 
-posthogAsync?.then((client) => {
-  const distinctId = client.getDistinctId();
+if (posthogEnabled) {
+  const distinctId = posthog.getDistinctId();
 
   crashlytics().setAttribute('analyticsId', distinctId);
 
@@ -39,7 +39,7 @@ posthogAsync?.then((client) => {
   const compositeLogger = {
     capture: (event: string, data: Record<string, unknown>) => {
       // Always send to PostHog (analytics + errors)
-      client.capture(event, data);
+      posthog.capture(event, data as Record<string, any>);
 
       // Only send errors to Sentry (not general analytics events)
       // Until logging is refactored to consistently use 'app_error',
@@ -52,11 +52,11 @@ posthogAsync?.then((client) => {
         sentryLogger.capture(event, data);
       }
     },
-    flush: async () => client.flush(),
+    flush: async () => posthog.flush(),
   };
 
   useDebugStore.getState().initializeErrorLogger(compositeLogger);
-  client.register({
+  posthog.register({
     gitHash: GIT_HASH,
   });
 
@@ -70,17 +70,9 @@ posthogAsync?.then((client) => {
     const UrbitModule = TurboModuleRegistry.get('UrbitModule');
     (UrbitModule as UrbitModuleSpec)?.setPostHogApiKey(POST_HOG_API_KEY);
   }
-});
+}
 
 const capture = (event: string, properties?: { [key: string]: any }) => {
-  if (!posthog) {
-    console.debug('Capturing event before PostHog is initialized:', {
-      event,
-      properties,
-    });
-    return;
-  }
-
   try {
     posthog.capture(event, properties);
   } catch (error) {
@@ -93,11 +85,6 @@ export const trackOnboardingAction = (properties: OnboardingProperties) =>
 
 export const identifyTlonEmployee = () => {
   db.isTlonEmployee.setValue(true);
-  if (!posthog) {
-    console.debug('Identifying as Tlon employee before PostHog is initialized');
-    return;
-  }
-
   const UUID = posthog.getDistinctId();
   identifyUser(UUID, { isTlonEmployee: true });
 };

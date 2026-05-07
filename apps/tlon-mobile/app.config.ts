@@ -98,6 +98,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/perf',
+    '@sentry/react-native',
+    'expo-background-task',
+    'expo-mail-composer',
     [
       'expo-image-picker',
       {

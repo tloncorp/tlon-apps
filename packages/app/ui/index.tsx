@@ -61,6 +61,7 @@ export * from './components/PhoneAttestationPane';
 export * from './components/PostContent';
 export * from './components/PostScreenView';
 export * from './components/ProfileSheet';
+export * from './components/GroupMemberProfileSheet';
 export * from './components/ScreenHeader';
 export * from './components/SearchBar';
 export * from './components/SettingsScreenView';
@@ -92,7 +93,6 @@ export {
   ScrollView,
   SizableText,
   Spinner,
-  Stack,
   Text,
   TextArea,
   Theme,
@@ -100,7 +100,6 @@ export {
   XStack,
   YGroup,
   YStack,
-  ZStack,
   isWeb,
   setupDev,
   useStyle,

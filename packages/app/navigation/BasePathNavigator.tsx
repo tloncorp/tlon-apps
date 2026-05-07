@@ -2,7 +2,6 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { memo, useMemo } from 'react';
 
-import { useNavigationLogging } from '../hooks/useNavigationLogger';
 import { useRenderCount } from '../hooks/useRenderCount';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
@@ -29,8 +28,6 @@ export const BasePathNavigator = memo(({ isMobile }: { isMobile: boolean }) => {
   const Navigator = isMobile
     ? MobileBasePathStackNavigator
     : DesktopBasePathStackNavigator;
-
-  useNavigationLogging();
 
   const component = useMemo(() => {
     if (isMobile) {

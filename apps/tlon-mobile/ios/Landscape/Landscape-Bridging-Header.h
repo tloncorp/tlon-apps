@@ -5,4 +5,5 @@
 //  Created by Alec Ananian on 7/6/23.
 //
 
-#import <React/RCTBridgeModule.h>
+#import <React/RCTBundleURLProvider.h>
+#import <React/RCTLinkingManager.h>

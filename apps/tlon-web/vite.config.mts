@@ -78,7 +78,7 @@ export default ({ mode }: { mode: string }) => {
           babel: {
             plugins: [
               '@babel/plugin-proposal-export-namespace-from',
-              'react-native-reanimated/plugin',
+              'react-native-worklets/plugin',
             ],
           },
           jsxImportSource: '@welldone-software/why-did-you-render',
@@ -110,7 +110,7 @@ export default ({ mode }: { mode: string }) => {
           // https://docs.swmansion.com/react-native-reanimated/docs/guides/web-support/
           plugins: [
             '@babel/plugin-proposal-export-namespace-from',
-            'react-native-reanimated/plugin',
+            'react-native-worklets/plugin',
           ],
         },
         jsxImportSource: '@welldone-software/why-did-you-render',
@@ -235,6 +235,9 @@ export default ({ mode }: { mode: string }) => {
   };
 
   return defineConfig({
+    // @tamagui/vite-plugin overrides envPrefix to ["TAMAGUI_"], blocking VITE_* env vars.
+    // Explicitly set both prefixes so VITE_* vars remain available in import.meta.env.
+    envPrefix: ['VITE_', 'TAMAGUI_'],
     base: base(mode),
     server: {
       host: 'localhost',

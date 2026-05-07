@@ -156,7 +156,7 @@ export function usePoorUxShakeReport() {
                 Report Poor UX
               </Text>
               <TextArea
-                minHeight={120}
+                numberOfLines={5}
                 backgroundColor="$background"
                 borderColor="$secondaryBorder"
                 borderWidth={1}
@@ -168,7 +168,7 @@ export function usePoorUxShakeReport() {
                 multiline
                 textAlignVertical="top"
                 placeholder="What went wrong?"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="$gray400"
                 value={details}
                 onChangeText={setDetails}
               />
