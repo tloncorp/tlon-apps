@@ -314,7 +314,11 @@ export async function clearShipRevivalStatus() {
     throw new Error('Cannot clear revival status, no node ID found');
   }
 
-  await clearHostedShipRevivalStatus(nodeId);
+  await withRetry(() => clearHostedShipRevivalStatus(nodeId), {
+    startingDelay: 1000,
+    numOfAttempts: 4,
+    maxDelay: 4000,
+  });
 }
 
 export async function markCurrentUserTlonbotEnabled() {

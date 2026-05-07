@@ -715,69 +715,74 @@ function SplashSequenceComponent(props: {
     startCustomBotSetup,
   ]);
 
+  const completeSplash = useCallback(async () => {
+    if (isRevivalSplash) {
+      await store.completeRevivalSplash();
+      if (shouldDeferTlonbotSetup) {
+        await db.tlonbotRevivalSetup.resetValue();
+        clearShipRevivalStatus().catch((error) => {
+          logger.trackError('Failed to clear TlonBot revival status', {
+            error,
+          });
+        });
+      }
+    } else {
+      await store.completeWayfindingSplash();
+    }
+  }, [isRevivalSplash, shouldDeferTlonbotSetup, store]);
+
   const handleSplashCompleted = useCallback(async () => {
     if (finishingSplash) return;
 
+    const pendingCustomBotSetup = customBotSetupPromiseRef.current;
+    if (customBotSetupStatus !== 'pending' || !pendingCustomBotSetup) {
+      props.onCompleted();
+      completeSplash().catch((error) => {
+        logger.trackError('Failed to complete wayfinding splash', {
+          error,
+          splashSequenceMode: props.splashSequenceMode,
+        });
+      });
+      return;
+    }
+
     setFinishingSplash(true);
     try {
-      const pendingCustomBotSetup = customBotSetupPromiseRef.current;
-      if (customBotSetupStatus === 'pending' && pendingCustomBotSetup) {
-        logger.trackEvent('Wayfinding Bot Exit Wait Started', {
+      logger.trackEvent('Wayfinding Bot Exit Wait Started', {
+        timeoutMs: 7000,
+      });
+      const exitWaitResult = await Promise.race([
+        pendingCustomBotSetup.then((ready) => ({
+          kind: 'resolved' as const,
+          ready,
+        })),
+        new Promise<{ kind: 'timeout' }>((resolve) => {
+          setTimeout(() => resolve({ kind: 'timeout' }), 7000);
+        }),
+      ]);
+
+      if (exitWaitResult.kind === 'resolved' && exitWaitResult.ready) {
+        logger.trackEvent('Wayfinding Bot Exit Wait Succeeded', {
           timeoutMs: 7000,
         });
-        const exitWaitResult = await Promise.race([
-          pendingCustomBotSetup.then((ready) => ({
-            kind: 'resolved' as const,
-            ready,
-          })),
-          new Promise<{ kind: 'timeout' }>((resolve) => {
-            setTimeout(() => resolve({ kind: 'timeout' }), 7000);
-          }),
-        ]);
-
-        if (exitWaitResult.kind === 'resolved' && exitWaitResult.ready) {
-          logger.trackEvent('Wayfinding Bot Exit Wait Succeeded', {
-            timeoutMs: 7000,
-          });
-        } else if (exitWaitResult.kind === 'resolved') {
-          logger.trackEvent('Wayfinding Bot Exit Wait Finished Unready', {
-            timeoutMs: 7000,
-          });
-        } else {
-          logger.trackEvent('Wayfinding Bot Exit Wait Timed Out', {
-            timeoutMs: 7000,
-          });
-        }
-      }
-
-      if (isRevivalSplash) {
-        await store.completeRevivalSplash();
-        props.onCompleted();
-        if (shouldDeferTlonbotSetup) {
-          await db.tlonbotRevivalSetup.resetValue();
-          clearShipRevivalStatus().catch((error) => {
-            logger.trackError('Failed to clear TlonBot revival status', {
-              error,
-            });
-          });
-        }
+      } else if (exitWaitResult.kind === 'resolved') {
+        logger.trackEvent('Wayfinding Bot Exit Wait Finished Unready', {
+          timeoutMs: 7000,
+        });
       } else {
-        await store.completeWayfindingSplash();
-        props.onCompleted();
+        logger.trackEvent('Wayfinding Bot Exit Wait Timed Out', {
+          timeoutMs: 7000,
+        });
       }
+
+      await completeSplash();
+      props.onCompleted();
     } finally {
       if (isMountedRef.current) {
         setFinishingSplash(false);
       }
     }
-  }, [
-    customBotSetupStatus,
-    finishingSplash,
-    isRevivalSplash,
-    props,
-    shouldDeferTlonbotSetup,
-    store,
-  ]);
+  }, [completeSplash, customBotSetupStatus, finishingSplash, props]);
 
   return (
     <AttachmentProvider canUpload={canUpload} uploadAsset={uploadAsset}>
