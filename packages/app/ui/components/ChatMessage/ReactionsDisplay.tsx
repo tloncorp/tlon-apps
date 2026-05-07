@@ -40,15 +40,12 @@ function ReactionTooltipName({
 }) {
   const name = useContactName({ contactId, expandLongIds: true });
   return (
-    <Text
-      size="$label/m"
-      whiteSpace="nowrap"
-      maxWidth={TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX}
-      numberOfLines={1}
-    >
-      {name}
-      {trailingComma ? ',' : ''}
-    </Text>
+    <XStack alignItems="baseline" maxWidth={TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX}>
+      <Text size="$label/m" whiteSpace="nowrap" numberOfLines={1} minWidth={0}>
+        {name}
+      </Text>
+      {trailingComma ? <Text size="$label/m">,</Text> : null}
+    </XStack>
   );
 }
 
