@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { describe, expect, it } from 'vitest';
 
-import { SectionedChatData } from '../../hooks/useFilteredChats';
+import type { SectionedChatData } from '../../hooks/useFilteredChats';
 import {
   buildChatListFlashListProps,
   buildChatListItems,
