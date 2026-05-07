@@ -54,6 +54,7 @@ import {
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
 import { hydrateEditPost } from '../MessageInput/helpers';
+import { type SlashCommandController } from '../SlashCommandPopup';
 import type { DraftInputHandle } from '../draftInputs/shared';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
@@ -61,10 +62,51 @@ import {
   createMentionRoleOptions,
   useMentions,
 } from './useMentions';
+import { type SlashCommandOption, useSlashCommands } from './useSlashCommands';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
 const DEFAULT_KEYBOARD_HEIGHT = 300;
+
+type WebTextInputRef = TextInput & { selectionStart?: number };
+
+type TextInputSizeEvent = {
+  target?: unknown;
+};
+
+type ResizableTextInputTarget = {
+  style: { height: string | number };
+  offsetHeight: number;
+  clientHeight: number;
+  scrollHeight: number;
+};
+
+type ComposerKeyPressEvent = {
+  preventDefault?: () => void;
+  nativeEvent: {
+    key: string;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+    ctrlKey?: boolean;
+  };
+};
+
+function isResizableTextInputTarget(
+  target: unknown
+): target is ResizableTextInputTarget {
+  if (typeof target !== 'object' || target === null) {
+    return false;
+  }
+
+  const candidate = target as Partial<ResizableTextInputTarget>;
+  return (
+    typeof candidate.style === 'object' &&
+    candidate.style !== null &&
+    typeof candidate.offsetHeight === 'number' &&
+    typeof candidate.clientHeight === 'number' &&
+    typeof candidate.scrollHeight === 'number'
+  );
+}
 
 function useKeyboardHeight(maxInputHeightBasic: number) {
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
@@ -298,6 +340,14 @@ function BareChatInput(
     handleSelectMention,
     handleMentionEscape,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
+  const {
+    validSlashCommands,
+    isSlashCommandModeActive,
+    hasSlashCommandCandidates,
+    handleSlashCommand,
+    handleSelectSlashCommand,
+    handleSlashCommandEscape,
+  } = useSlashCommands();
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
@@ -348,6 +398,17 @@ function BareChatInput(
 
   const lastProcessedRef = useRef('');
   const mentionRef = useRef<MentionController>(null);
+  const slashCommandRef = useRef<SlashCommandController>(null);
+
+  const getWebSelectionStart = useCallback(() => {
+    if (!isWeb) {
+      return undefined;
+    }
+
+    const selectionStart = (inputRef.current as WebTextInputRef | null)
+      ?.selectionStart;
+    return typeof selectionStart === 'number' ? selectionStart : undefined;
+  }, []);
 
   const handleTextChange = useCallback(
     (newText: string) => {
@@ -363,15 +424,14 @@ function BareChatInput(
       if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
         lastProcessedRef.current = newText;
         const textWithoutRefs = processReferences(newText);
-        const cursorPos = isWeb
-          ? (inputRef.current as any)?.selectionStart
-          : undefined;
+        const cursorPos = getWebSelectionStart();
         const adjustedCursorPos =
           cursorPos != null
             ? Math.max(0, cursorPos - (newText.length - textWithoutRefs.length))
             : undefined;
         setControlledText(textWithoutRefs);
         handleMention(oldText, textWithoutRefs, adjustedCursorPos);
+        handleSlashCommand(oldText, textWithoutRefs, adjustedCursorPos);
 
         const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
@@ -388,18 +448,25 @@ function BareChatInput(
         }
       } else if (!REF_REGEX.test(newText)) {
         // if there's no reference to process, just update normally
-        const cursorPos = isWeb
-          ? (inputRef.current as any)?.selectionStart
-          : undefined;
+        const cursorPos = getWebSelectionStart();
         setControlledText(newText);
         handleMention(oldText, newText, cursorPos);
+        handleSlashCommand(oldText, newText, cursorPos);
 
         const jsonContent = textAndMentionsToContent(newText, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
         storeDraft(jsonContent);
       }
     },
-    [controlledText, processReferences, handleMention, mentions, storeDraft]
+    [
+      controlledText,
+      processReferences,
+      getWebSelectionStart,
+      handleMention,
+      handleSlashCommand,
+      mentions,
+      storeDraft,
+    ]
   );
 
   const onMentionSelect = useCallback(
@@ -416,6 +483,47 @@ function BareChatInput(
       inputRef.current?.focus();
     },
     [handleSelectMention, controlledText]
+  );
+
+  const onSlashCommandSelect = useCallback(
+    (option: SlashCommandOption) => {
+      const selection = handleSelectSlashCommand(option, controlledText);
+
+      if (!selection) {
+        return;
+      }
+
+      const newText = selection.text;
+      const updatedMentions =
+        selection.delta === 0
+          ? mentions
+          : mentions.map((mention) =>
+              mention.start >= selection.startIndex
+                ? {
+                    ...mention,
+                    start: mention.start + selection.delta,
+                    end: mention.end + selection.delta,
+                  }
+                : mention
+            );
+
+      setControlledText(newText);
+      setMentions(updatedMentions);
+
+      const jsonContent = textAndMentionsToContent(newText, updatedMentions);
+      bareChatInputLogger.log('setting draft', jsonContent);
+      storeDraft(jsonContent);
+
+      // Force focus back to input after slash command selection
+      inputRef.current?.focus();
+    },
+    [
+      handleSelectSlashCommand,
+      controlledText,
+      mentions,
+      setMentions,
+      storeDraft,
+    ]
   );
 
   const sendMessage = useCallback(
@@ -815,14 +923,14 @@ function BareChatInput(
   };
   const inputTextColor = getVariableValue(theme.primaryText);
 
-  const adjustTextInputSize = (e: any) => {
+  const adjustTextInputSize = (e: TextInputSizeEvent) => {
     if (!isWeb) {
       return;
     }
 
-    const el = e?.target;
-    if (el && 'style' in el && 'height' in el.style) {
-      el.style.height = 0;
+    const el = e.target;
+    if (isResizableTextInputTarget(el)) {
+      el.style.height = '0px';
       const newHeight = el.offsetHeight - el.clientHeight + el.scrollHeight;
       el.style.height = `${newHeight}px`;
       setInputHeight(newHeight);
@@ -852,38 +960,53 @@ function BareChatInput(
   }, [channelId]);
 
   const handleKeyPress = useCallback(
-    (e: any) => {
-      const keyEvent = e.nativeEvent as unknown as KeyboardEvent;
+    (e: ComposerKeyPressEvent) => {
+      const keyEvent = e.nativeEvent;
       if (!isWeb) return;
 
       if (
         (keyEvent.metaKey || keyEvent.ctrlKey) &&
         keyEvent.key.toLowerCase() === 'k'
       ) {
-        e.preventDefault();
+        e.preventDefault?.();
         inputRef.current?.blur();
         setIsOpen(true);
         return;
       }
 
-      if (
-        (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') &&
-        isMentionModeActive
-      ) {
-        e.preventDefault();
-        mentionRef.current?.handleMentionKey(keyEvent.key);
+      if (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') {
+        if (isSlashCommandModeActive && hasSlashCommandCandidates) {
+          e.preventDefault?.();
+          slashCommandRef.current?.handleSlashCommandKey(keyEvent.key);
+          return;
+        }
+
+        if (isMentionModeActive) {
+          e.preventDefault?.();
+          mentionRef.current?.handleMentionKey(keyEvent.key);
+          return;
+        }
       }
 
       if (keyEvent.key === 'Escape') {
+        if (isSlashCommandModeActive && hasSlashCommandCandidates) {
+          e.preventDefault?.();
+          handleSlashCommandEscape();
+          return;
+        }
+
         if (isMentionModeActive) {
-          e.preventDefault();
+          e.preventDefault?.();
           handleMentionEscape();
+          return;
         }
       }
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
-        e.preventDefault();
-        if (isMentionModeActive && hasMentionCandidates) {
+        e.preventDefault?.();
+        if (isSlashCommandModeActive && hasSlashCommandCandidates) {
+          slashCommandRef.current?.handleSlashCommandKey('Enter');
+        } else if (isMentionModeActive && hasMentionCandidates) {
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
@@ -894,9 +1017,12 @@ function BareChatInput(
     },
     [
       isMentionModeActive,
+      isSlashCommandModeActive,
       setIsOpen,
       handleMentionEscape,
+      handleSlashCommandEscape,
       hasMentionCandidates,
+      hasSlashCommandCandidates,
       editingPost,
       disableSend,
       handleEdit,
@@ -914,10 +1040,14 @@ function BareChatInput(
       showWayfindingTooltip={showWayfindingTooltip}
       showBotMentionTooltip={showBotMentionTooltip}
       isMentionModeActive={isMentionModeActive}
+      isSlashCommandModeActive={isSlashCommandModeActive}
       mentionText={mentionSearchText}
       mentionOptions={validOptions}
+      slashCommandOptions={validSlashCommands}
       mentionRef={mentionRef}
+      slashCommandRef={slashCommandRef}
       onSelectMention={onMentionSelect}
+      onSelectSlashCommand={onSlashCommandSelect}
       showAttachmentButton={showAttachmentButton}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
