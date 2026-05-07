@@ -811,17 +811,19 @@ export const SimpleActionSheet = ({
   icon,
   actions,
   accent,
+  modal,
 }: {
   title?: string;
   subtitle?: string;
   icon?: ReactElement;
   actions: Action[];
   accent?: Accent;
+  modal?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal={modal}>
       {title || subtitle ? (
         <SimpleActionSheetHeader
           title={title}
