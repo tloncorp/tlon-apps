@@ -174,7 +174,15 @@
   =?  old  ?=(%8 -.old)
     old(- %9)
   =?  old  ?=(%9 -.old)
-    (state-9-to-10 old)
+    ::  insert missing volume defaults to %base
+    ::
+    =/  base-volume=volume-map:v9:av
+      (~(gut by volume-settings.old) [%base ~] default-volumes:v8:av)
+    =/  =volume-settings:v9:av
+      %+  ~(put by `volume-settings:v9:av`volume-settings.old)  [%base ~]
+      (~(uni by default-volumes:v9:av) base-volume)
+    =.  allowed.old  %all
+    old(- %10, volume-settings volume-settings)
   ?>  ?=(%10 -.old)
   =.  state  old
   refresh-all-summaries
@@ -239,10 +247,6 @@
   +$  state-1
     [%1 =indices:v3:av =activity:v2:av =volume-settings:v3:av]
   ::
-  ++  state-9-to-10
-    |=  old=state-9
-    ^-  state-10
-    [%10 allowed indices activity volume-settings]:old
   ++  state-5-to-6
     |=  old=state-5
     ~>  %spin.['state-5-to-6']

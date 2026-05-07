@@ -257,7 +257,7 @@
   %-  my
   :~  [%post & &]
       [%reply & |]
-      [%react & |]
+      [%react | &]
       [%post-mention & &]
       [%reply-mention & &]
       [%dm-invite & &]
@@ -265,7 +265,7 @@
       [%dm-post-mention & &]
       [%dm-reply & &]
       [%dm-reply-mention & &]
-      [%dm-react & &]
+      [%dm-react | &]
       [%group-invite & &]
       [%group-ask & &]
       [%flag-post & &]

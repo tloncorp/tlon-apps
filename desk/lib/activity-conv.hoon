@@ -157,6 +157,14 @@
       ?:  ?=(?(%react %dm-react) -<.event.time-event)  ~
       `time-event
     --
+  ++  event
+    |%
+    ++  v8
+      |=  =event:v9:av
+      ^-  (unit event:v8:av)
+      ?:  ?=(?(%react %dm-react) -<.event)  ~
+      `event
+    --
   --
 ++  v8
   |%

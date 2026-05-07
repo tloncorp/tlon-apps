@@ -1513,13 +1513,16 @@
     |=  =action:v9:av
     =/  =cage  activity-action-1+!>(action)
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
-  ?:  ?&  ?=(?(%post %reply) -.concern)
+  ?:  ?&  ?=(?(%post %reply %react) -.concern)
           .=  our.bowl
-          p.id:?-(-.concern %post key.concern, %reply key.concern)
+          p.id:?-(-.concern %post key.concern, %reply key.concern, %react key.concern)
       ==
     =/  =source
-      ?:  ?=(%post -.concern)  [%dm whom]
-      [%dm-thread top.concern whom]
+      ?-  -.concern
+        %post    [%dm whom]
+        %reply   [%dm-thread top.concern whom]
+        %react   ?^(top.concern [%dm-thread u.top.concern whom] [%dm whom])
+      ==
     :~  [%read source [%all `now.bowl |]]
         [%bump source]
     ==

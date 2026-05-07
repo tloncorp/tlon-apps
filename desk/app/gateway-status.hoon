@@ -275,7 +275,7 @@
     ::
         %kick
       ::infinite loop
-      (emit %pass /activity %agent [our.bowl %activity] %watch /v4)
+      (emit %pass /activity %agent [our.bowl %activity] %watch /v5)
     ::
         %watch-ack
       ?~  p.sign  cor

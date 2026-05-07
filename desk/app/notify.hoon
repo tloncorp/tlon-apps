@@ -2,6 +2,7 @@
 /-  *notify, resource, a=activity, av=activity-ver, c=channels, meta
 /+  cu=channel-utils, logs, aj=activity-json, ac=activity-conv,
     default-agent, verb, dbug, agentio
+/$  activity-event-to-json    %activity-event    %json
 /$  activity-event-to-json-1  %activity-event-1  %json
 ::
 |%
@@ -223,7 +224,7 @@
       ?.  (lth -.old-state %7)  ~
       [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
-    =?  caz  =(%7 -.old-state)
+    =?  caz  (lth %8 -.old-state)
       :~  [%pass /activity %agent [our.bowl %activity] %leave ~]
           [%pass /reads %agent [our.bowl %activity] %leave ~]
           (~(watch-our pass:io /activity) %activity /v5/notifications)
@@ -382,7 +383,7 @@
         [~ state]
       =/  [[ext=(unit @ta) site=(pole @t)] args=*]
         (rash url.request ;~(plug apat:de-purl:html yque:de-purl:html))
-      ?.  ?=([%apps %groups %'~' %notify %note uid=@ format=?(%activity-event-1 %hark-yarn) ~] site)
+      ?.  ?=([%apps %groups %'~' %notify %note uid=@ format=?(%activity-event-1 %activity-event %hark-yarn) ~] site)
         [~ state]
       ?.  ?=([~ %json] ext)
         [~ state]
@@ -397,6 +398,15 @@
       :_  state
       %+  give-simple-payload  eyre-id
       ?-  format.site
+          %activity-event
+        ?~  event-8=(v8:event:v9:ac event.u.event)
+          [[404 ~] ~]
+        :-  [200 ['content-type' 'application-json'] ~]
+        %-  some
+        %-  as-octs:mimes:html
+        %-  en:json:html
+        (activity-event-to-json time-id u.event-8)
+      ::
           %activity-event-1
         :-  [200 ['content-type' 'application-json'] ~]
         %-  some
