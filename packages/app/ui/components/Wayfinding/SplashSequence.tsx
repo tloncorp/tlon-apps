@@ -35,7 +35,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FlatList, Image, Keyboard, ScrollView, Share } from 'react-native';
+import {
+  AppState,
+  FlatList,
+  Image,
+  Keyboard,
+  ScrollView,
+  Share,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -1813,6 +1820,7 @@ function TlonBotSetupPane(props: {
 }) {
   const { onComplete, onLogout } = props;
   const applyingRef = useRef(false);
+  const foregroundReadinessCheckRef = useRef(false);
   const provisioningKickoffStartedRef = useRef(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -1863,6 +1871,49 @@ function TlonBotSetupPane(props: {
     },
     [onComplete]
   );
+
+  const checkReadinessNow = useCallback(async () => {
+    if (foregroundReadinessCheckRef.current || applyingRef.current) {
+      return;
+    }
+
+    foregroundReadinessCheckRef.current = true;
+    try {
+      const setup = await db.tlonbotRevivalSetup.getValue();
+      const shipId = setup.shipId ?? (await db.hostedUserNodeId.getValue());
+
+      if (!shipId) {
+        return;
+      }
+
+      const isReady = await api.checkNodeIsTlonbotReady(shipId);
+      if (isReady) {
+        await applyDeferredSetup(shipId).catch((error) =>
+          logger.trackError('Deferred Tlonbot setup failed', {
+            error,
+          })
+        );
+      }
+    } catch (error) {
+      logger.trackError('TlonBot foreground readiness check failed', {
+        error,
+      });
+    } finally {
+      foregroundReadinessCheckRef.current = false;
+    }
+  }, [applyDeferredSetup]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') {
+        checkReadinessNow();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [checkReadinessNow]);
 
   useEffect(() => {
     let cancelled = false;
