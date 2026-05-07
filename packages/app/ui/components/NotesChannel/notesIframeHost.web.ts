@@ -32,7 +32,7 @@ function getHost(): HTMLDivElement {
 }
 
 function getOrCreate(key: string, src: string): CachedIframe {
-  let entry = iframes.get(key);
+  const entry = iframes.get(key);
   if (entry && entry.src === src) {
     return entry;
   }
