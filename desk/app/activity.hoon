@@ -921,7 +921,7 @@
         %dm-react
       =.  cor  (add-to-index source time-id event)
       =?  cor  ?=(^ parent.event)
-        ::  reaction in a dm-thread
+        ::  reaction in a dm-thread, add event to parent
         (add-to-index [%dm whom.event] time-id event(child &))
       cor
     ::

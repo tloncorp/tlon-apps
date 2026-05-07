@@ -1500,6 +1500,7 @@
               [%reply key=message-key top=message-key]
               [%delete-reply key=message-key top=message-key]
               [%react key=message-key top=(unit message-key) =author:c =react:c]
+              [%delete-react key=message-key top=(unit message-key) =author:c =react:c]
           ==
           content=story:d
           mention=?
@@ -1541,6 +1542,13 @@
     :~  [%del %dm-thread key.concern whom]
         [%del-event [%dm whom] [%dm-post key.concern whom content mention]]
     ==
+  ?:  ?=(%delete-react -.concern)
+    =/  =source:v9:av
+      ?~  top.concern
+        [%dm whom]
+      [%dm-thread u.top.concern whom]
+    =,  concern
+    [%del-event source [%dm-react key top whom author react]]~
   :_  ~
   :-  %add
   ?-  -.concern
@@ -2000,6 +2008,7 @@
                 [%reply key=message-key top=message-key]
                 [%delete-reply key=message-key top=message-key]
                 [%react key=message-key top=(unit message-key) =author:c =react:c]
+                [%delete-react key=message-key top=(unit message-key) =author:c =react:c]
             ==
             content=story:d
             mention=?
@@ -2200,13 +2209,21 @@
         =?  cu-core  &(?=(^ had) ?=(%& -.writ.u.had))
           =/  message-key  [p.diff.delta time.u.had]
           =*  content  content.writ.u.had
-          =/  mention  (was-mentioned:utils content our.bowl ~)
           =/  concern  [%react message-key ~ [author react]:q.diff.delta]
-          (cu-activity concern content mention)
+          (cu-activity concern content |)
         (cu-give-writs-diff diff.delta)
       ::
-          %del-react  (cu-give-writs-diff diff.delta)
-        ::
+          %del-react
+        =?  cu-core  &(?=(^ had) ?=(%& -.writ.u.had))
+          =/  message-key  [p.diff.delta time.u.had]
+          =*  content  content.writ.u.had
+          =*  react-author  author.q.diff.delta
+          ?~  react=(~(get by reacts.writ.u.had) react-author)
+            cu-core
+          =/  concern  [%delete-react message-key ~ react-author u.react]
+          (cu-activity concern content |)
+        (cu-give-writs-diff diff.delta)
+      ::
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         =*  essay   essay.q.diff.delta
@@ -2259,12 +2276,21 @@
             =/  top-key  [id time]:writ.u.entry
             =/  message-key  [id time]:reply.u.reply
             =*  content  content.reply.u.reply
-            =/  mention  (was-mentioned:utils content our.bowl ~)
             =/  concern  [%react message-key `top-key author.delt react.delt]
-            (cu-activity concern content mention)
+            (cu-activity concern content |)
           (cu-give-writs-diff diff.delta)
         ::
-            %del-react  (cu-give-writs-diff diff.delta)
+            %del-react
+          =?  cu-core  ?&(?=(^ reply) ?=(%& -.reply.u.reply))
+            =/  top-key  [id time]:writ.u.entry
+            =/  message-key  [id time]:reply.u.reply
+            =*  content  content.reply.u.reply
+            =*  react-author  author.delt
+            ?~  react=(~(get by reacts.reply.u.reply) react-author)
+              cu-core
+            =/  concern  [%delete-react message-key `top-key react-author u.react]
+            (cu-activity concern content |)
+          (cu-give-writs-diff diff.delta)
         ::
             %del
           =?  cu-core  &(?=(^ reply) ?=(%& -.reply.u.reply))
@@ -2574,6 +2600,7 @@
                 [%reply key=message-key:a top=message-key:a]
                 [%delete-reply key=message-key:a top=message-key:a]
                 [%react key=message-key:a top=(unit message-key:a) =author:c =react:c]
+                [%delete-react key=message-key:a top=(unit message-key:a) =author:c =react:c]
             ==
             content=story:d
             mention=?
@@ -2695,12 +2722,20 @@
       =?  di-core  &(?=(^ had) ?=(%& -.writ.u.had))
         =/  message-key  [p.diff time.u.had]
         =*  content  content.writ.u.had
-        =/  mention  (was-mentioned:utils content our.bowl ~)
         =/  concern  [%react message-key ~ author.q.diff react.q.diff]
-        (di-activity concern content mention)
+        (di-activity concern content |)
       (di-give-writs-diff diff)
     ::
-        %del-react  (di-give-writs-diff diff)
+        %del-react
+      =?  di-core  &(?=(^ had) ?=(%& -.writ.u.had))
+        =/  message-key  [p.diff time.u.had]
+        =*  content  content.writ.u.had
+        =*  react-author  author.q.diff
+        ?~  react=(~(get by reacts.writ.u.had) react-author)
+          di-core
+        =/  concern  [%delete-react message-key ~ react-author u.react]
+        (di-activity concern content |)
+      (di-give-writs-diff diff)
     ::
         %add
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
@@ -2759,7 +2794,17 @@
           (di-activity concern content mention)
         (di-give-writs-diff diff)
       ::
-        %del-react  (di-give-writs-diff diff)
+          %del-react
+        =?  di-core  ?&(?=(^ reply) ?=(%& -.reply.u.reply))
+          =/  top-key  [id time]:writ.u.entry
+          =/  message-key  [id time]:reply.u.reply
+          =*  content  content.reply.u.reply
+          =*  react-author  author.delta
+          ?~  react=(~(get by reacts.reply.u.reply) react-author)
+            di-core
+          =/  concern  [%delete-react message-key `top-key react-author u.react]
+          (di-activity concern content |)
+        (di-give-writs-diff diff)
       ::
           %del
         =?  di-core  &(?=(^ reply) ?=(%& -.reply.u.reply))
