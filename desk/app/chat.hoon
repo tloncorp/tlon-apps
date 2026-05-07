@@ -2175,7 +2175,7 @@
       ?:  |(from-self (lte uid club-eq))  cu-uid
       [uid cu-core]
     ::  if we get reacts trying to pass shortcodes off as unicode
-    ::  (due to stupid dumb clients putting garbage in the field)
+    ::  (due to non-compliant clients putting garbage in the field)
     ::  detect those and replace the shortcode with its unicode.
     ::  we assume %any to be intentional and leave it untouched.
     ::
@@ -2655,7 +2655,7 @@
     ^+  di-core
     =.  last-updated  (~(put ol last-updated) [%ship ship] now.bowl)
     ::  if we get reacts trying to pass shortcodes off as unicode
-    ::  (due to stupid dumb clients putting garbage in the field)
+    ::  (due to non-compliant clients putting garbage in the field)
     ::  detect those and replace the shortcode with its unicode.
     ::  we assume %any to be intentional and leave it untouched.
     ::

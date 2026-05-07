@@ -1114,7 +1114,7 @@
           [%del-react id.c-post ship.p.result]
         [%add-react id.c-post [ship u.react]:p.result]
       ::  if we get reacts trying to pass shortcodes off as unicode
-      ::  (due to stupid dumb clients putting garbage in the field)
+      ::  (due to non-compliant clients putting garbage in the field)
       ::  detect those and replace the shortcode with its unicode.
       ::  we assume %any to be intentional and leave it untouched.
       ::
@@ -1138,7 +1138,7 @@
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
       ::  if we get reacts trying to pass shortcodes off as unicode
-      ::  (due to stupid dumb clients putting garbage in the field)
+      ::  (due to non-compliant clients putting garbage in the field)
       ::  detect those and replace the shortcode with its unicode.
       ::  we assume %any to be intentional and leave it untouched.
       ::
