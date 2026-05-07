@@ -176,7 +176,7 @@ test('home sidebar mounts at the top with the Pinned section visible', async ({
 
     await assertPinnedAboveAllAndAtTop(page);
   } finally {
-    // Cleanup every title actually created, in reverse order so PinnedScroll-Pin
+    // Cleanup every title actually created, in reverse order so PScroll-Target
     // (the only pinned row) is unpinned before its filler neighbors are
     // touched. cleanupNamedGroup is best-effort and re-routes to Home before
     // each delete, so a mid-test failure can't strand fixtures.
