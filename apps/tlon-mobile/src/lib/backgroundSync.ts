@@ -10,7 +10,6 @@ import {
 import { storage } from '@tloncorp/shared/db';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
-import { registerDevMenuItems } from 'expo-dev-menu';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -107,21 +106,6 @@ async function performSync() {
       new Promise<void>((resolve) => setTimeout(resolve, 500)),
     ]).catch(() => {});
   }
-}
-
-if (__DEV__) {
-  // Surface a "Run background sync" entry in Expo's dev menu (shake or
-  // ⌘+D). Lets us exercise the bg-task code path against the live
-  // bundle without waiting on iOS BGTaskScheduler heuristics.
-  registerDevMenuItems([
-    {
-      name: 'Run background sync',
-      callback: () => {
-        void performSync();
-      },
-      shouldCollapse: true,
-    },
-  ]).catch(() => {});
 }
 
 const TASK_ID = 'tlon:backgroundSync:v2';

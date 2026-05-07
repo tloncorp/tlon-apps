@@ -61,12 +61,12 @@ export async function checkAttestedSignature(signData: string) {
   return false;
 }
 
-// Dev-only: when EXPO_PUBLIC_MOCK_LANYARD_DISCOVERY is set to a
-// positive integer N, skip the real lanyard query and fake N matches
-// against the first N phone numbers in the submitted set, rotating
-// through MOCK_DISCOVERY_SHIPS. Computer-class ships so accounts that
-// already have galaxies as contacts (common on Tlon staging) don't
-// filter the matches out as "already a contact".
+// Dev-only: when MOCK_LANYARD_DISCOVERY is set to a positive integer
+// N, skip the real lanyard query and fake N matches against the first
+// N phone numbers in the submitted set, rotating through
+// MOCK_DISCOVERY_SHIPS. Computer-class ships so accounts that already
+// have galaxies as contacts (common on Tlon staging) don't filter the
+// matches out as "already a contact".
 const MOCK_DISCOVERY_SHIPS = [
   '~ravmel-ropdyl',
   '~palfun-foslup',
@@ -78,7 +78,7 @@ const MOCK_DISCOVERY_SHIPS = [
 async function maybeMockDiscovery(
   phoneNums: string[]
 ): Promise<{ matches: [string, string][]; nextSalt: string | null } | null> {
-  const raw = process.env.EXPO_PUBLIC_MOCK_LANYARD_DISCOVERY;
+  const raw = process.env.MOCK_LANYARD_DISCOVERY;
   if (!raw) return null;
   const count = parseInt(raw, 10);
   if (!Number.isFinite(count) || count <= 0) return null;
