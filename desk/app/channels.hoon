@@ -1124,7 +1124,7 @@
   |=  =(pole knot)
   ~>  %spin.['watch']
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
     [?(%v0 %v1 %v2 %v3 %v4) ~]  ?>(from-self cor)
