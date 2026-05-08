@@ -5,7 +5,7 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo, useState } from 'react';
 import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, View } from 'tamagui';
+import { View } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -225,7 +225,7 @@ export function SystemIconRow({
         iconProps={{ backgroundColor: '$border' }}
         showEndContent
         endContent={
-          <Stack justifyContent="center" alignItems="center" height="$4xl">
+          <View justifyContent="center" alignItems="center" height="$4xl">
             {previouslyInvited ? (
               <Badge
                 text="Invited"
@@ -245,10 +245,9 @@ export function SystemIconRow({
                 width="$3xl"
               />
             ) : null}
-          </Stack>
+          </View>
         }
       />
     </BlockSectionList.ItemWrapper>
   );
 }
-

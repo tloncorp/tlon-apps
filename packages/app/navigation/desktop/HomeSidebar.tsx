@@ -1,6 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
-import { createDevLogger } from '@tloncorp/shared';
 import { markInvitesRead } from '@tloncorp/api';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Text } from '@tloncorp/ui';
@@ -69,7 +69,9 @@ export const HomeSidebar = memo(
     );
 
     /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
-    const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+    const connectionTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
     const connectionAttempts = useRef(0);
 
     useEffect(() => {
@@ -257,7 +259,12 @@ export const HomeSidebar = memo(
                     </Text>
                   </View>
                 ) : (
-                  <ChatList data={displayData} onPressItem={onPressChat} />
+                  <ChatList
+                    data={displayData}
+                    onPressItem={onPressChat}
+                    disableScrollAnchoring
+                    scrollerTestID="HomeSidebarChatScroller"
+                  />
                 )}
               </View>
               <MobileAppPromoBanner />

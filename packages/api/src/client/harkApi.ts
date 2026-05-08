@@ -1,7 +1,12 @@
-import { createDevLogger } from './logger';
-import { getCanonicalPostId } from './apiUtils';
+import { createDevLogger } from '../lib/logger';
+import { getCanonicalPostId, isCanonicalPostId } from './apiUtils';
 
 const logger = createDevLogger('harkApi', true);
+
+const toCanonicalOrNull = (raw: string): string | null => {
+  const id = getCanonicalPostId(raw);
+  return isCanonicalPostId(id) ? id : null;
+};
 
 export const getPostInfoFromWer = (
   wer: string
@@ -17,19 +22,15 @@ export const getPostInfoFromWer = (
     }
 
     if (isDm && parts[5]) {
-      return {
-        id: getCanonicalPostId(parts[5]),
-        authorId: parts[4],
-        isDm,
-      };
+      const id = toCanonicalOrNull(parts[5]);
+      if (!id) return null;
+      return { id, authorId: parts[4], isDm };
     }
 
     if (isChannelPost && isGroupChannelReply && parts[9]) {
-      return {
-        id: getCanonicalPostId(parts[9]),
-        authorId: '',
-        isDm,
-      };
+      const id = toCanonicalOrNull(parts[9]);
+      if (!id) return null;
+      return { id, authorId: '', isDm };
     }
 
     return null;

@@ -1,11 +1,12 @@
 import * as api from '@tloncorp/api';
 import type { AppTheme } from '@tloncorp/api';
+import type { TalkSidebarFilter } from '@tloncorp/api/urbit';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
-import type { TalkSidebarFilter } from '@tloncorp/api/urbit';
 
 const logger = createDevLogger('SettingsActions', false);
 
@@ -52,6 +53,19 @@ export async function updateCalmSetting(
 }
 
 export async function completeWayfindingSplash() {
+  await db.wayfindingProgress.setValue((prev) => ({
+    ...prev,
+    viewedPersonalGroup: false,
+    viewedChatChannel: false,
+    viewedCollectionChannel: false,
+    viewedNotebookChannel: false,
+    tappedHomeAdd: false,
+    tappedAddNote: false,
+    tappedAddCollection: false,
+    tappedChatInput: false,
+    tappedBotMention: false,
+  }));
+
   // optimistic update
   await db.insertSettings({ completedWayfindingSplash: true });
   try {

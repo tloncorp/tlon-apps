@@ -20,12 +20,7 @@ export {
   type PokeHandlers,
   type Scry,
 } from './http-api';
-export type {
-  Contact,
-  Group,
-  Channel,
-  Post,
-} from './types/models';
+export type { Contact, Group, Channel, Post } from './types/models';
 export type {
   AppReference,
   ChannelReference,
@@ -34,11 +29,8 @@ export type {
 } from './types/references';
 export {
   checkNest,
-  desig,
   getChannelType,
-  getTextContent,
   nestToFlag,
-  preSig,
   whomIsDm,
   whomIsMultiDm,
   type AppTheme,
@@ -56,6 +48,7 @@ export {
   type WritResponseDelta,
   type WritDelta,
   type WritDiff,
+  type GatewayStatusAction,
 } from './urbit';
 export {
   appendFileUploadToPostBlob,
@@ -68,5 +61,5 @@ export {
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
-} from './lib/content-helpers';
+} from './client/content-helpers';
 export * from './client';

@@ -1,6 +1,7 @@
 import type { S3Client } from '@aws-sdk/client-s3';
 
 import type { ImageAsset } from '../types/attachment';
+import type { StorageCredentials, StorageService } from '../urbit';
 
 export type RNFile = {
   blob: Blob;
@@ -101,8 +102,6 @@ export interface FileStore {
   getMostRecent: (uploader: string) => Upload | null;
 }
 
-export type StorageService = 'presigned-url' | 'credentials';
-
 export interface StorageConfiguration {
   buckets: string[];
   currentBucket: string;
@@ -110,12 +109,6 @@ export interface StorageConfiguration {
   publicUrlBase: string;
   presignedUrl: string;
   service: StorageService;
-}
-
-export interface StorageCredentials {
-  endpoint: string;
-  accessKeyId: string;
-  secretAccessKey: string;
 }
 
 export interface StorageState {

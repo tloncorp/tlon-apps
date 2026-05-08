@@ -43,6 +43,7 @@ export interface MessageInputProps {
   setShowBigInput?: (showBigInput: boolean) => void;
   showAttachmentButton?: boolean;
   showWayfindingTooltip?: boolean;
+  showBotMentionTooltip?: boolean;
   floatingActionButton?: boolean;
   paddingHorizontal?: SpaceTokens;
   backgroundColor?: ThemeTokens;
@@ -86,6 +87,7 @@ export const MessageInputContainer = memo(
     showAttachmentButton = true,
     floatingActionButton = false,
     showWayfindingTooltip = false,
+    showBotMentionTooltip = false,
     disableSend = false,
     isSending = false,
     mentionText,
@@ -106,6 +108,7 @@ export const MessageInputContainer = memo(
     showAttachmentButton?: boolean;
     floatingActionButton?: boolean;
     showWayfindingTooltip?: boolean;
+    showBotMentionTooltip?: boolean;
     disableSend?: boolean;
     isSending?: boolean;
     mentionText?: string;
@@ -171,9 +174,7 @@ export const MessageInputContainer = memo(
             ) : null}
             {canUpload && showAttachmentButton ? (
               <AttachmentButtonContainer>
-                <AttachmentButton
-                  setShouldBlur={setShouldBlur}
-                />
+                <AttachmentButton setShouldBlur={setShouldBlur} />
               </AttachmentButtonContainer>
             ) : null}
             {children}
@@ -196,6 +197,7 @@ export const MessageInputContainer = memo(
             ) : (
               <View marginBottom="$xs">
                 {showWayfindingTooltip && <Notices.ChatInputTooltip />}
+                {showBotMentionTooltip && <Notices.BotMentionTooltip />}
                 <Button
                   preset="secondary"
                   disabled={disableSend}

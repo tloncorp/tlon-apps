@@ -1,10 +1,9 @@
 import { da } from '@urbit/aura';
 import { backOff } from 'exponential-backoff';
 
+import { createDevLogger, runIfDev } from '../lib/logger';
 import type * as db from '../types/models';
 import { BASE_UNREADS_SINGLETON_KEY } from '../types/models';
-import { createDevLogger, runIfDev } from './logger';
-import { normalizeUrbitColor } from '../lib/utils';
 import * as ub from '../urbit';
 import {
   formatUd,
@@ -15,6 +14,7 @@ import {
   udToDate,
 } from './apiUtils';
 import { poke, scry, subscribe } from './urbit';
+import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('activityApi', false);
 
@@ -42,9 +42,9 @@ export async function getThreadUnreadsByChannel(channel: db.Channel) {
       channelParts.host,
       channelParts.name,
     ].join('/');
-    scryPath = `/${pathParts}/`;
+    scryPath = `/${pathParts}`;
   } else {
-    scryPath = `/v4/activity/dm-threads/${channel.id}/`;
+    scryPath = `/v4/activity/dm-threads/${channel.id}`;
   }
   const activity = await scry<ub.Activity>({
     app: 'activity',
@@ -105,7 +105,7 @@ export async function getPagedActivityByBucket({
     cursor
   );
   const urbitCursor = formatUd(da.fromUnix(cursor).toString());
-  const path = `/v5/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}/`;
+  const path = `/v5/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}`;
   const { feed, summaries } = await scry<ub.ActivityFeed>({
     app: 'activity',
     path,

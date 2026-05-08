@@ -1,3 +1,4 @@
+import { Block, Inline, constructStory } from '@tloncorp/api/urbit';
 import {
   Attachment,
   createDevLogger,
@@ -10,7 +11,6 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
-import { Block, Inline, constructStory } from '@tloncorp/api/urbit';
 import {
   Button,
   Icon,
@@ -20,17 +20,20 @@ import {
   useIsWindowNarrow,
   useToast,
 } from '@tloncorp/ui';
-import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  TouchableOpacity,
-} from 'react-native';
+  RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
 import { useFeatureFlag } from '../../lib/featureFlags';
-import { useAttachmentContext } from '../contexts';
+import { useAttachmentContext } from '../contexts/attachment';
 import AttachmentSheet from './AttachmentSheet';
 import { useRegisterChannelHeaderItem } from './Channel/ChannelHeader';
 import { MarkdownEditor } from './MarkdownEditor';
@@ -59,7 +62,7 @@ function useMarkdownMode({
 }: {
   editingPost?: db.Post;
   markdownNotebooksEnabled: boolean;
-  editorRef: RefObject<{ editor: TlonEditorBridge | null }>;
+  editorRef: RefObject<{ editor: TlonEditorBridge | null } | null>;
   showToast: (opts: { message: string; duration: number }) => void;
 }) {
   // Default to markdown mode if feature flag is enabled and this is a new post

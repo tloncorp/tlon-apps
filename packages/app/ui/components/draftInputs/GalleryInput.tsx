@@ -1,4 +1,8 @@
-import { extractContentTypesFromPost } from '@tloncorp/shared';
+import { JSONContent } from '@tloncorp/api/urbit';
+import {
+  PLACEHOLDER_ASSET_URI,
+  extractContentTypesFromPost,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
@@ -28,6 +32,12 @@ import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { LinkInput, LinkInputSaveParams } from './LinkInput';
 import { DraftInputContext, GalleryRoute } from './shared';
 
+const isPlaceholderImageAttachment = (attachment: domain.Attachment) =>
+  attachment.type === 'image' && attachment.file.uri === PLACEHOLDER_ASSET_URI;
+
+const getDraftText = (draft: JSONContent | null): string =>
+  draft?.content?.[0]?.content?.[0]?.text || '';
+
 export function GalleryInput({
   draftInputContext,
 }: {
@@ -48,10 +58,19 @@ export function GalleryInput({
   const safeAreaInsets = useSafeAreaInsets();
   const { attachments, resetAttachments, addAttachment, attachAssets } =
     useAttachmentContext();
+  // Attachment review is postable whenever there is a real attachment, but we
+  // still ignore the placeholder image we attach during media selection.
+  const hasRealAttachments = useMemo(
+    () =>
+      attachments.some(
+        (attachment) => !isPlaceholderImageAttachment(attachment)
+      ),
+    [attachments]
+  );
 
   const [route, setRoute] = useState<GalleryRoute>('gallery');
-  const [canPost, setCanPost] = useState(false);
   const [caption, setCaption] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const isEditingPost = editingPost != null;
 
@@ -108,7 +127,6 @@ export function GalleryInput({
             mockAttachment.file
           ),
         ]);
-        setCanPost(true);
       } else if (blocks.length > 0 && 'link' in blocks[0]) {
         // This is a link gallery post
         const linkBlock = blocks[0].link as { url: string };
@@ -118,7 +136,6 @@ export function GalleryInput({
         };
         addAttachment(mockAttachment);
         setRoute('link');
-        setCanPost(true);
       } else {
         // This is a text gallery post (blocks with paragraphs, bullet points, etc.)
         // Use the BigInput for editing text gallery posts
@@ -133,21 +150,25 @@ export function GalleryInput({
 
   // Reset all gallery-related state
   const resetGalleryState = useCallback(() => {
-    setCanPost(false);
     setCaption('');
+    setLinkUrl('');
     clearDraft('caption');
+    clearDraft('link');
     resetAttachments([]);
     setRoute('gallery');
-    // Don't call setEditingPost here, as it's now handled in handlePost
-    // This prevents the blank BigInput from showing after saving
   }, [clearDraft, resetAttachments]);
+
+  const resetAndExit = useCallback(() => {
+    resetGalleryState();
+    setEditingPost?.(undefined);
+    onPresentationModeChange?.('inline');
+  }, [resetGalleryState, setEditingPost, onPresentationModeChange]);
 
   // Handle image selection
   const handleGalleryImageSet = useCallback(
     (assets?: domain.Attachment.UploadIntent[] | null) => {
       const hasAssets = assets != null && assets.length > 0;
       setRoute(hasAssets ? 'review-attachment' : 'gallery');
-      setCanPost(hasAssets);
     },
     []
   );
@@ -164,7 +185,9 @@ export function GalleryInput({
 
     if (
       hasAttachments &&
-      (route === 'gallery' || route === 'add-post' || route === 'add-attachment')
+      (route === 'gallery' ||
+        route === 'add-post' ||
+        route === 'add-attachment')
     ) {
       setRoute('review-attachment');
       return;
@@ -172,7 +195,6 @@ export function GalleryInput({
 
     if (!hasAttachments && route === 'review-attachment') {
       setRoute('gallery');
-      setCanPost(false);
     }
   }, [attachments.length, editingPost, route]);
 
@@ -181,11 +203,16 @@ export function GalleryInput({
     if (!(route === 'review-attachment' && !editingPost)) return;
 
     getDraft('caption').then((draft) => {
-      if (!draft || typeof draft !== 'object' || !('content' in draft)) return;
-
-      const text = draft.content?.[0]?.content?.[0]?.text || '';
-      setCaption(text);
+      setCaption(getDraftText(draft));
     });
+  }, [route, editingPost, getDraft]);
+
+  useEffect(() => {
+    if (route === 'link' && !editingPost) {
+      getDraft('link').then((draft) => {
+        setLinkUrl(getDraftText(draft));
+      });
+    }
   }, [route, editingPost, getDraft]);
 
   // Store caption in draft when it changes
@@ -282,12 +309,13 @@ export function GalleryInput({
       () =>
         route !== 'gallery' && route !== 'add-post' ? null : (
           <>
-            <ScreenHeader.IconButton
+            <ScreenHeader.TextButton
               key="gallery"
-              type="Add"
               onPress={handleAdd}
               testID="AddGalleryPost"
-            />
+            >
+              New
+            </ScreenHeader.TextButton>
             <Notices.CollectionInputTooltip channelId={channel.id} />
           </>
         ),
@@ -295,40 +323,20 @@ export function GalleryInput({
     )
   );
 
-  // Expose methods to parent component through the ref
-  // useImperativeHandle allows the parent component to call these methods via the draftInputRef
-  // This creates a controlled interface for the parent to manage this component's state
   useImperativeHandle(
     draftInputRef,
     () => ({
-      // exitFullscreen: Called by parent when user presses back or after saving a post
-      // Handles proper cleanup and state reset to ensure smooth UI transitions
-      exitFullscreen: () => {
-        if (route === 'review-attachment') {
-          // First reset gallery state
-          resetGalleryState();
-
-          // Then clear editing state to prevent BigInput from showing
-          if (isEditingPost && setEditingPost) {
-            setEditingPost(undefined);
-          }
-
-          // Force inline presentation mode
-          onPresentationModeChange?.('inline');
-        } else {
-          setRoute('gallery');
+      exitFullscreen: resetAndExit,
+      startDraft: (mode) => {
+        if (mode === 'text' || mode === 'link') {
+          setRoute(mode);
+          return;
         }
+
+        setRoute('add-post');
       },
-      // startDraft: Called by parent when user wants to create a new gallery post
-      startDraft: () => setRoute('add-post'),
     }),
-    [
-      resetGalleryState,
-      isEditingPost,
-      route,
-      setEditingPost,
-      onPresentationModeChange,
-    ]
+    [resetAndExit]
   );
 
   const setShowBigInput = useCallback((open: boolean) => {
@@ -336,23 +344,8 @@ export function GalleryInput({
   }, []);
 
   const onAttachmentPostSent = useCallback(() => {
-    // IMPORTANT: The order of these operations is critical to prevent unwanted UI transitions
-    // First reset all gallery-related state to clean up the editing environment
-    resetGalleryState();
-    setEditingPost?.(undefined);
-    onPresentationModeChange?.('inline');
-
-    // TODO: I don't think this is necessary
-    // // If editing, force inline presentation mode to return to the gallery view
-    // if (isEditingPost) {
-    //   if (setEditingPost) {
-    //     setEditingPost(undefined);
-    //   }
-    //   onPresentationModeChange?.('inline');
-    // }
-    // // Reset posting state after a short delay
-    // setTimeout(() => setIsPosting(false), 500);
-  }, [resetGalleryState, setEditingPost, onPresentationModeChange]);
+    resetAndExit();
+  }, [resetAndExit]);
 
   return (
     <>
@@ -363,6 +356,7 @@ export function GalleryInput({
             ...draftInputContext,
             editingPost,
           }}
+          draftType="text"
           setShowBigInput={setShowBigInput}
           overrideChannelType="gallery"
         />
@@ -376,7 +370,7 @@ export function GalleryInput({
           caption={caption}
           setCaption={setCaption}
           onPostSent={onAttachmentPostSent}
-          canPost={canPost}
+          canPost={hasRealAttachments}
           flex={1}
           width={'100%'}
           bottom={safeAreaInsets.bottom}
@@ -386,6 +380,7 @@ export function GalleryInput({
       {/* Link input - shown when creating/editing rich link posts that contain metadata */}
       {route === 'link' && (
         <LinkInput
+          initialUrl={linkUrl}
           isPosting={isPosting}
           editingPost={editingPost}
           onSave={handleLinkPost}

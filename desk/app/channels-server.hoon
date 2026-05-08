@@ -2,7 +2,8 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, h=hooks, m=meta
+/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, av=activity-ver,
+    h=hooks, m=meta
 /+  ccv=channel-conv, utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
     guardian,
@@ -43,7 +44,7 @@
   +$  card  card:guardian
   +$  rail  rail:guardian
   +$  current-state
-    $:  %14
+    $:  %15
         =v-channels:v10:cv
         =hooks:h
         =pimp:imp
@@ -152,12 +153,14 @@
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
-  ?>  ?=(%14 -.old)
+  =?  old  ?=(%14 -.old)  (state-14-to-15 old)
+  ?>  ?=(%15 -.old)
   =.  state  old
   inflate-io
   ::
   +$  versioned-state
-    $%  state-14
+    $%  state-15
+        state-14
         state-13
         state-12
         state-11
@@ -173,7 +176,8 @@
         state-1
         state-0
     ==
-  +$  state-14  current-state
+  +$  state-15  current-state
+  +$  state-14  _%*(. *state-15 - %14)
   +$  state-13
     $:  %13
         =v-channels:v9:cv
@@ -210,6 +214,14 @@
     $:  %6
       =v-channels:v7:cv
       =pimp:imp
+    ==
+  ::
+  ++  state-14-to-15
+    |=  =state-14
+    ~>  %spin.['state-14-to-15']
+    ^-  state-15
+    %=  state-14  -  %15
+      v-channels  (~(run by v-channels.state-14) channel:recover-emoji:utils)
     ==
   ::
   ++  state-13-to-14
@@ -1092,24 +1104,15 @@
         ?~  react.p.result
           [%del-react id.c-post ship.p.result]
         [%add-react id.c-post [ship u.react]:p.result]
-      ::  log shortcode reactions for posts
+      ::  if we get reacts trying to pass shortcodes off as unicode
+      ::  (due to non-compliant clients putting garbage in the field)
+      ::  detect those and replace the shortcode with its unicode.
+      ::  we assume %any to be intentional and leave it untouched.
       ::
-      =?  ca-core  ?=(%add-react -.new)
-        =/  react-text
-          ?@  q.new  q.new
-          p.q.new
-        ?^  (kill:em react-text)
-          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (post)"]
-          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
-          =/  post-id    (scot %uv id.c-post)
-          =/  metadata
-            :~  'context'^s+'channels_server_post_add_react'
-                'nest'^s+nest-path
-                'post_id'^s+post-id
-                'react'^s+react-text
-            ==
-          (emit (exit:guardian (tell:log %crit message metadata)))
-        ca-core
+      =?  new  ?=(%add-react -.new)
+        ?^  q.new                new
+        ?~  moj=(kill:em q.new)  new
+        new(q u.moj)
       =/  [update=? reacts=v-reacts:c]
         (ca-c-react reacts.u.post new)
       ?.  update  no-op
@@ -1125,24 +1128,15 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ::  log shortcode reactions for replies
+      ::  if we get reacts trying to pass shortcodes off as unicode
+      ::  (due to non-compliant clients putting garbage in the field)
+      ::  detect those and replace the shortcode with its unicode.
+      ::  we assume %any to be intentional and leave it untouched.
       ::
-      =?  ca-core  ?=(%add-react -.c-reply.c-post)
-        =/  react-text
-          ?@  q.c-reply.c-post  q.c-reply.c-post
-          p.q.c-reply.c-post
-        ?^  (kill:em react-text)
-          =/  message  ~[leaf+"Shortcode reaction detected in channels-server (reply)"]
-          =/  nest-path  (spat [kind.nest (scot %p ship.nest) name.nest ~])
-          =/  post-id    (scot %uv id.c-post)
-          =/  metadata
-            :~  'context'^s+'channels_server_reply_add_react'
-                'nest'^s+nest-path
-                'post_id'^s+post-id
-                'react'^s+react-text
-            ==
-          (emit (exit:guardian (tell:log %crit message metadata)))
-        ca-core
+      =?  c-reply.c-post  ?=(%add-react -.c-reply.c-post)
+        ?^  q.c-reply.c-post                c-reply.c-post
+        ?~  moj=(kill:em q.c-reply.c-post)  c-reply.c-post
+        c-reply.c-post(q u.moj)
       =^  update=(unit u-post:c)  replies.u.post
         (ca-c-reply +.u.post c-reply.c-post)
       ?~  update  no-op
@@ -1643,7 +1637,7 @@
     (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke rail])
   ::
       %activity
-    =/  =rail  activity-action+action.effect
+    =/  =rail  activity-action+`action:v8:av`action.effect
     (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke rail])
   ::
       %dm

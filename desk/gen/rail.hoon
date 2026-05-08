@@ -45,6 +45,18 @@
     ::
       %group-update
       %group-log
+    ::
+      %activity-feed
+      %activity-feed-init
+      %activity-full
+      %activity-full-1
+      %activity-summary
+      %activity-summary-1
+      %activity-update
+      %activity-update-1
+      %aqua-effect
+      %ui-init-2
+      %ui-init-3
   ==
 ::
 :-  %say

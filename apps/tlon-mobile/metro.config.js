@@ -7,24 +7,17 @@ const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
-const config = getSentryExpoConfig(projectRoot);
+const baseConfig = getSentryExpoConfig(projectRoot);
 
-module.exports = mergeConfig(config, {
-  watchFolders: [workspaceRoot],
+/**
+ * Metro configuration
+ * https://reactnative.dev/docs/metro
+ *
+ * @type {import('@react-native/metro-config').MetroConfig}
+ */
+const config = {
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
-    getTransformOptions: async () => ({
-      transform: {
-        experimentalImportSupport: false,
-        inlineRequires: false,
-        nonInlinedRequires: [
-          '@react-native-community/async-storage',
-          'React',
-          'react',
-          'react-native',
-        ],
-      },
-    }),
   },
   server: {
     enhanceMiddleware: (metroMiddleware) => {
@@ -101,8 +94,7 @@ module.exports = mergeConfig(config, {
     },
   },
   resolver: {
-    assetExts: config.resolver.assetExts.filter((ext) => ext !== 'svg'),
-    disableHierarchicalLookup: true,
+    assetExts: baseConfig.resolver.assetExts.filter((ext) => ext !== 'svg'),
     // requireCycleIgnorePatterns needs to cover ContentReference, as
     // that require cycle can't be avoided without a major refactor.
     requireCycleIgnorePatterns: [
@@ -120,15 +112,15 @@ module.exports = mergeConfig(config, {
       // without this.
       path.resolve(workspaceRoot, 'node_modules/tamagui/node_modules'),
     ],
-    sourceExts: [...config.resolver.sourceExts, 'svg', 'sql'],
+    sourceExts: [...baseConfig.resolver.sourceExts, 'svg', 'sql'],
 
     // Enables importing alternative package exports, e.g. `react-tweet/api`
     unstable_enablePackageExports: true,
     // Removes import, which causes issues for zustand
     // This is the default setting in newer versions of react-native
-    unstable_conditionNames: ['source', 'require'],
+    unstable_conditionNames: ['tlon-source', 'source', 'require'],
   },
-});
+};
 
 function openDrizzleStudio(dbPath) {
   console.log('Opening Drizzle Studio at', dbPath);
@@ -153,3 +145,5 @@ function openDrizzleStudio(dbPath) {
     open('http://local.drizzle.studio')
   );
 }
+
+module.exports = mergeConfig(baseConfig, config);

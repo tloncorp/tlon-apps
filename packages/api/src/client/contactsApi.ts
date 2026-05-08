@@ -1,12 +1,13 @@
-import type * as db from '../types/models';
-import { createDevLogger } from './logger';
+import { render } from '@urbit/aura';
+
+import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent } from '../types/analytics';
-import { normalizeUrbitColor } from '../lib/utils';
+import type * as db from '../types/models';
 import * as ub from '../urbit';
 import { parseAttestationId } from './lanyardApi';
 import * as NounParsers from './nounParsers';
 import { getCurrentUserId, poke, scry, subscribe } from './urbit';
-import { render } from '@urbit/aura';
+import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('contactsApi', false);
 

@@ -1,7 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as store from '@tloncorp/shared/store';
 import * as ub from '@tloncorp/api/urbit';
+import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -39,7 +39,11 @@ export function ChatVolumeScreen(props: Props) {
       }}
       {...chatSettings}
     >
-      <ChatVolumeScreenView chatType={chatType} chatId={chatId} groupId={groupId} />
+      <ChatVolumeScreenView
+        chatType={chatType}
+        chatId={chatId}
+        groupId={groupId}
+      />
     </ChatOptionsProvider>
   );
 }
@@ -98,7 +102,14 @@ function ChatVolumeScreenView({
     } else {
       navigateToChatDetails({ type: chatType, id: chatId, groupId });
     }
-  }, [navigateToChatDetails, navigation, chatType, chatId, groupId, isWindowNarrow]);
+  }, [
+    navigateToChatDetails,
+    navigation,
+    chatType,
+    chatId,
+    groupId,
+    isWindowNarrow,
+  ]);
 
   return (
     <View backgroundColor={'$secondaryBackground'} flex={1}>

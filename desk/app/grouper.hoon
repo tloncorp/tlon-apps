@@ -1,4 +1,4 @@
-/-  reel, gv=groups-ver, c=chat, ch=channels, story
+/-  reel, gv=groups-ver, c=chat, cv=chat-ver, ch=channels, story
 /+  gj=groups-json, default-agent, verb, logs, dbug
 ::
 |%
@@ -24,21 +24,12 @@
     |=  [desc=term trace=tang]
     =/  =card
       (~(fail logs our /logs) desc trace deez)
-    %-  %-  %*(. slog pri 3)  [leaf+"fail" trace]
     (link card)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
     =/  =card
       (~(tell logs our /logs) vol echo (weld log-data deez))
-    =/  pri
-      ?-  vol
-        %dbug  0
-        %info  1
-        %warn  2
-        %crit  3
-      ==
-    %-  %-  %*(. slog pri pri)  echo
     (link card)
   ::  +deez: log message details
   ::
@@ -170,7 +161,7 @@
       ?~  p.sign  `this
       %-  (slog leaf/"Poke failed {<wire>}" u.p.sign)
       `this
-    =*  joiner  i.t.wire
+    =*  joiner  `@t`i.t.wire
     =*  token  i.t.t.wire
     ?~  p.sign
       %-  %^  tell:log  %info
@@ -228,10 +219,10 @@
       =/  =id:c  [our now]:bowl
       =/  =memo:ch
         [~[[%inline ~[[%ship joiner.bite] ' has joined the network']]] id]
-      =/  =action:dm:c
+      =/  =action:dm:v7:cv
         :-  joiner.bite
         [id %add %*(. *essay:ch - memo, kind [%chat %notice ~]) ~]
-      =/  =cage  chat-dm-action-1+!>(`action:dm:c`action)
+      =/  =cage  chat-dm-action-2+!>(action)
       :_  this
       [%pass wir %agent dock %poke cage]~
     ::

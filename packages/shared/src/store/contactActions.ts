@@ -1,10 +1,12 @@
 import * as api from '@tloncorp/api';
+
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import * as GroupActions from './groupActions';
-import { syncContacts, syncGroup } from './sync';
+import { syncContacts } from './sync/syncContacts';
+import { syncGroup } from './sync/syncGroup';
 
 const logger = createDevLogger('ContactActions', false);
 
@@ -286,7 +288,10 @@ export async function updateContactMetadata(
   }
 }
 
-export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
+export async function updateCurrentUserProfile(
+  update: api.ProfileUpdate,
+  config?: { shouldThrow?: boolean }
+) {
   const currentUserId = api.getCurrentUserId();
   const currentUserContact = await db.getContact({ id: currentUserId });
 
@@ -330,16 +335,44 @@ export async function updateCurrentUserProfile(update: api.ProfileUpdate) {
           id: currentUserId,
           nickname: update.nickname,
         });
-        await GroupActions.updateGroupMeta({
-          ...personalGroup,
-          title: newTitle,
+        await GroupActions.updateGroupMeta(
+          {
+            ...personalGroup,
+            title: newTitle,
+          },
+          config
+        );
+      }
+    }
+
+    // handle updating the home group title if user sets their nickname
+    const homeGroup = await db.getBotHomeGroup();
+    if (homeGroup) {
+      const hasDefaultTitle = logic.botHomeGroupHasDefaultTitle(homeGroup);
+      const changedNickname =
+        currentUserContact?.peerNickname !== update.nickname;
+
+      if (hasDefaultTitle && changedNickname) {
+        const newTitle = logic.generateBotHomeGroupTitle({
+          id: currentUserId,
+          nickname: update.nickname,
         });
+        await GroupActions.updateGroupMeta(
+          {
+            ...homeGroup,
+            title: newTitle,
+          },
+          config
+        );
       }
     }
   } catch (e) {
     console.error('Error updating profile', e);
     // Rollback the update
     await db.updateContact({ id: currentUserId, ...startFields });
+    if (config?.shouldThrow) {
+      throw e;
+    }
   }
 }
 

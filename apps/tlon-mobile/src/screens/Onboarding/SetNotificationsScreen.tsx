@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as ub from '@tloncorp/api/urbit';
 import {
   Button,
   NotificationLevelSelector,
@@ -7,7 +8,6 @@ import {
   View,
   YStack,
 } from '@tloncorp/app/ui';
-import * as ub from '@tloncorp/api/urbit';
 import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -66,9 +66,8 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
       >
         <YStack gap="$2xl" flex={1} justifyContent="center">
           <TlonText.Text size="$body">
-            Tlon works best when you’re notified of messages–but you’re in
-            control. You can customize these settings anytime for any DM or
-            group.
+            Tlon works best when you’re notified of messages. You can change
+            these settings any time.
           </TlonText.Text>
 
           <NotificationLevelSelector
@@ -77,12 +76,7 @@ export const SetNotificationsScreen = ({ navigation }: Props) => {
             config={{ shortDescriptions: true }}
           />
         </YStack>
-        <Button
-          preset="hero"
-          shadow
-          label="Next"
-          onPress={handleNext}
-        />
+        <Button preset="hero" shadow label="Next" onPress={handleNext} />
       </View>
     </View>
   );

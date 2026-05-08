@@ -1,9 +1,10 @@
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { Icon, Pressable, Text } from '@tloncorp/ui';
+import { useCallback, useMemo } from 'react';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
-import { useStore } from '../../contexts';
+import { useStore } from '../../contexts/storeContext';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 const NoticeContainer = styled(YStack, {
@@ -21,7 +22,9 @@ const WayfindingNotice = {
   EmptyChannel,
   GroupChannels,
   CustomizeGroup,
+  HomeAddTooltip,
   ChatInputTooltip,
+  BotMentionTooltip,
   CollectionInputTooltip,
   NotebookInputTooltip,
 };
@@ -152,6 +155,50 @@ function CustomizeGroup() {
   );
 }
 
+export function HomeAddTooltip() {
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const isHostedUser = getCurrentUserIsHosted();
+  const botEnabled = isHostedUser && hostingBotEnabled;
+
+  const handleDismiss = useCallback(() => {
+    db.wayfindingProgress.setValue((prev) => ({
+      ...prev,
+      tappedHomeAdd: true,
+    }));
+  }, []);
+
+  return (
+    <View position="absolute" top={36} right={18}>
+      <YStack alignItems="flex-end">
+        <Pressable
+          testID="HomeAddWayfindingTooltip"
+          onPress={handleDismiss}
+          paddingVertical={20}
+          paddingLeft={20}
+          paddingRight={44}
+          width={220}
+          backgroundColor="$positiveActionText"
+          borderRadius="$l"
+        >
+          <Text size="$label/l" color="$white">
+            {botEnabled
+              ? 'Tap here to create a new group and invite your Tlonbot.'
+              : 'Tap here to create a new group.'}
+          </Text>
+          <View position="absolute" top={8} right={8} padding={4}>
+            <Icon
+              type="Close"
+              size="$s"
+              color="$white"
+              testID="HomeAddWayfindingTooltipDismiss"
+            />
+          </View>
+        </Pressable>
+      </YStack>
+    </View>
+  );
+}
+
 export function ChatInputTooltip() {
   return (
     <View position="absolute" bottom={35} right={50}>
@@ -164,6 +211,29 @@ export function ChatInputTooltip() {
         >
           <Text size="$label/l" color="$white">
             Send a message here.
+          </Text>
+        </View>
+        <XStack width="100%" justifyContent="flex-end">
+          <Circle backgroundColor="$positiveActionText" size="$2xl" />
+        </XStack>
+      </YStack>
+    </View>
+  );
+}
+
+export function BotMentionTooltip() {
+  return (
+    <View position="absolute" bottom={35} right={50}>
+      <YStack gap="$l">
+        <View
+          padding={20}
+          width={240}
+          backgroundColor="$positiveActionText"
+          borderRadius="$l"
+          testID="BotMentionWayfindingTooltip"
+        >
+          <Text size="$label/l" color="$white">
+            @-mention your bot here to use it in this group.
           </Text>
         </View>
         <XStack width="100%" justifyContent="flex-end">

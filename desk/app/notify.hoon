@@ -1,5 +1,5 @@
 ::
-/-  *notify, resource, a=activity, c=channels, meta
+/-  *notify, resource, a=activity, av=activity-ver, c=channels, meta
 /+  cu=channel-utils, logs, aj=activity-json,
     default-agent, verb, dbug, agentio
 /$  activity-event-to-json  %activity-event  %json
@@ -185,7 +185,7 @@
   ::
   ++  on-init
     :_  this
-    :*  (~(watch-our pass:io /activity) %activity /notifications)
+    :*  (~(watch-our pass:io /activity) %activity /v4/notifications)
         (~(watch-our pass:io /reads) %activity /v4/reads)
         (~(wait pass:io /clear) (add now.bowl clear-interval))
         [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]
@@ -204,7 +204,7 @@
       [%pass /eyre %arvo %e %connect [~ /apps/groups/~/notify] dap.bowl]~
     =/  migrated  (migrate-state old-state)
     =?  caz  !(~(has by wex.bowl) [/activity our.bowl %activity])
-      :-  (~(watch-our pass:io /activity) %activity /notifications)
+      :-  (~(watch-our pass:io /activity) %activity /v4/notifications)
       ?.  =(~rivfur-livmet our.bowl)  caz
       :_  caz
       [%pass / %agent [our.bowl %notify] %poke %provider-state-message !>(0)]
@@ -471,7 +471,7 @@
         ?.  ?=(%activity-event p.cage.sign)
           `this
         =+  !<([=time-id:a =event:a] q.cage.sign)
-        =+  .^(=activity:a %gx (scry:io %activity /v4/activity/activity-summary-4))
+        =+  .^(=activity:v8:av %gx (scry:io %activity /v4/activity/activity-summary-4))
         =/  notify-count=@ud
           notify-count:(~(gut by activity) [%base ~] *activity-summary:a)
         =/  [v0-paths=(list path) v1-paths=(list path)]
@@ -495,7 +495,7 @@
           %kick
         %-  (tell:l %info 'notify activity kick' ~)
         :_  this
-        [%pass wire %agent [our.bowl %activity] %watch /notifications]~
+        [%pass wire %agent [our.bowl %activity] %watch /v4/notifications]~
       ==
     ::
         [%reads ~]
@@ -503,13 +503,13 @@
           %fact
         ?.  ?=(%activity-update-4 p.cage.sign)
           `this
-        =+  !<(=update:a q.cage.sign)
+        =+  !<(=update:v8:av q.cage.sign)
         ?.  ?=(%read -.update)
           %-  (tell:l %crit (crip "unexpected fact {<-.update>}") ~)
           `this
         ?^  unread.activity-summary.update
           `this
-        =+  .^(=activity:a %gx (scry:io %activity /v4/activity/activity-summary-4))
+        =+  .^(=activity:v8:av %gx (scry:io %activity /v4/activity/activity-summary-4))
         =/  notify-count=@ud
           notify-count:(~(gut by activity) [%base ~] *activity-summary:a)
         :_  this

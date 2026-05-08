@@ -1,5 +1,5 @@
 /-  c=chat, cv=chat-ver, d=channels, dv=channels-ver, g=groups
-/-  u=ui, e=epic, a=activity, s=story, meta
+/-  u=ui, e=epic, a=activity, av=activity-ver, s=story, meta
 /-  contacts
 /+  default-agent, verb, dbug,
     guardian,
@@ -187,7 +187,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %12
+    $:  %13
         dms=(map ship dm:v7:cv)
         clubs=(map id:club:c club:v7:cv)
         pins=(list whom:c)
@@ -302,14 +302,16 @@
   =?  old  ?=(%9 -.old)  (state-9-to-10 old)
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
-  ?>  ?=(%12 -.old)
+  =?  old  ?=(%12 -.old)  (state-12-to-13 old)
+  ?>  ?=(%13 -.old)
   =.  state  old
   =.  cor
     (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
   rectify-club-state
   ::
   +$  versioned-state
-    $%  state-12
+    $%  state-13
+        state-12
         state-11
         state-10
         state-9
@@ -459,7 +461,41 @@
         old-pins=(list whom:v2:cv)
     ==
   ::
-  +$  state-12  current-state
+  +$  state-13  current-state
+  +$  state-12  _%*(. *state-13 - %12)
+  ::
+  ++  state-12-to-13
+    |=  =state-12
+    ^-  state-13
+    ~>  %spin.['state-12-to-13']
+    %=  state-12  -  %13
+      dms    (~(run by dms.state-12) dm:recover-emoji)
+      clubs  (~(run by clubs.state-12) club:recover-emoji)
+    ==
+  ::
+  ++  recover-emoji
+    |%
+    ++  dm    |=(=dm:v7:cv dm(pact (pact pact.dm)))
+    ++  club  |=(=club:v7:cv club(pact (pact pact.club)))
+    ++  pact  |=(=pact:v7:cv pact(wit (run:on:writs:v7:cv wit.pact writ)))
+    ++  writ
+      |=  writ=(may:v7:cv writ:v7:cv)
+      ?.  ?=(%& -.writ)  writ
+      %_  writ
+        reacts   (~(run by reacts.writ) react)
+        replies  (run:on:replies:v7:cv replies.writ reply)
+      ==
+    ++  reply
+      |=  reply=(may:v7:cv reply:v7:cv)
+      ?.  ?=(%& -.reply)  reply
+      reply(reacts (~(run by reacts.reply) react))
+    ++  react
+      |=  =react:v7:cv
+      ^+  react
+      ?^  react  react
+      =+  moj=(kill:em react)
+      ?~(moj react u.moj)
+    --
   ::
   ++  state-11-to-12
     |=  =state-11
@@ -845,11 +881,23 @@
     ==
   ::
       %chat-dm-action-2
-    =*  action=action:dm:v7:cv  p.rail
+    =/  action=action:dm:v7:cv  p.rail
     =.  cor  (emit (tell-log %dbug ~['received dm action' >action<] ~))
     ::  don't allow anyone else to proxy through us
     ?.  =(src.bowl our.bowl)
       ~|("%dm-action poke failed: only allowed from self" !!)
+    ::  bad clients may submit shortcode strings as reactions,
+    ::  as opposed to the direct unicode emoji.
+    ::  reject their action when they do.
+    ::
+    ?<  ?|  ?&  ?=([%add-react * @] q.q.action)
+                (gth (met 3 react.q.q.action) 1)
+                =(':' (end 3^1 react.q.q.action))
+            ==
+            ?&  ?=([%reply * * %add-react * @] q.q.action)
+                (gth (met 3 react.delta.q.q.action) 1)
+                =(':' (end 3^1 react.delta.q.q.action))
+        ==  ==
     ::  don't proxy to self, creates an infinite loop
     ?:  =(p.action our.bowl)
       di-abet:(di-ingest-diff:(di-abed-soft:di-core p.action) q.action)
@@ -1288,8 +1336,8 @@
     =+  channels=(slav %ud i.t.t.t.path)
     =+  context=(slav %ud i.t.t.t.t.path)
     =/  activity
-      %-  ~(gas by *activity:a)
-      .^  (list [source:a activity-summary:a])  %gx
+      %-  ~(gas by *activity:v8:av)
+      .^  (list [source:v8:av activity-summary:v8:av])  %gx
         (scry-path %activity /v4/activity/unreads/activity-summary-pairs-4)
       ==
     =;  changes=(map whom:c (unit writs:c))
@@ -1348,14 +1396,14 @@
     =/  =ship  (slav %p i.t.t.path)
     (di-peek:(di-abed:di-core ship) %x %v0 t.t.t.path)
   ::
-      [%x ?(%v1 %v2 %v3) %dm @ *]
+      [%x ?(%v1 %v2 %v3 %v4) %dm @ *]
     =/  =ship  (slav %p i.t.t.t.path)
     (di-peek:(di-abed:di-core ship) %x i.t.path t.t.t.t.path)
   ::
       [%x %club @ *]
     (cu-peek:(cu-abed (slav %uv i.t.t.path)) %x %v0 t.t.t.path)
   ::
-      [%x ?(%v1 %v2 %v3) %club @ *]
+      [%x ?(%v1 %v2 %v3 %v4) %club @ *]
     (cu-peek:(cu-abed (slav %uv i.t.t.t.path)) %x i.t.path t.t.t.t.path)
   ::
       [%u %dm @ *]
@@ -1426,7 +1474,7 @@
   (give %fact ~[/unreads] chat-unread-update+[whom unread])
 ::
 ++  pass-activity
-  =,  a
+  =,  v8:av
   |=  $:  =whom
           $=  concern
           $%  [%invite ~]
@@ -1444,7 +1492,7 @@
   =;  actions=(list action)
     %-  emil
     %+  turn  actions
-    |=  =action
+    |=  =action:v8:av
     =/  =rail  activity-action+action
     [%pass /activity/submit %agent [our.bowl %activity] %poke rail]
   ?:  ?&  ?=(?(%post %reply) -.concern)
@@ -1458,8 +1506,8 @@
         [%bump source]
     ==
   ?:  ?=(%delete-reply -.concern)
-    =/  =source:a  [%dm-thread top.concern whom]
-    =/  =incoming-event:a
+    =/  =source:v8:av  [%dm-thread top.concern whom]
+    =/  =incoming-event:v8:av
       [%dm-reply key.concern top.concern whom content mention]
     [%del-event source incoming-event]~
   ?:  ?=(%delete-post -.concern)
@@ -1884,7 +1932,7 @@
       cor
     =.  clubs  (~(del by clubs) id)
     ::  if we're leaving a DM we're in, make sure we delete the activity
-    =/  =action:a  [%del %dm %club id]
+    =/  =action:v8:av  [%del %dm %club id]
     =/  =rail  activity-action+action
     (emit [%pass /activity/submit %agent [our.bowl %activity] %poke rail])
   ++  cu-abed
@@ -2060,6 +2108,19 @@
     =^  uid  cu-core
       ?:  |(from-self (lte uid club-eq))  cu-uid
       [uid cu-core]
+    ::  if we get reacts trying to pass shortcodes off as unicode
+    ::  (due to non-compliant clients putting garbage in the field)
+    ::  detect those and replace the shortcode with its unicode.
+    ::  we assume %any to be intentional and leave it untouched.
+    ::
+    =?  delta  ?=([%writ * %add-react *] delta)
+      ?^  react.q.diff.delta                delta
+      ?~  moj=(kill:em react.q.diff.delta)  delta
+      delta(react.q.diff u.moj)
+    =?  delta  ?=([%writ * %reply * * %add-react *] delta)
+      ?^  react.delta.q.diff.delta                delta
+      ?~  moj=(kill:em react.delta.q.diff.delta)  delta
+      delta(react.delta.q.diff u.moj)
     =/  diff  [uid delta]
     ?:  (~(has in heard.club) uid)  cu-core
     =.  heard.club  (~(put in heard.club) uid)
@@ -2101,22 +2162,6 @@
         ?~  had  ~
         ?:  ?=(%| -.writ.u.had)  ~
         (get-reply:cu-pact id.q.diff.delta replies.writ.u.had)
-      ::  log shortcode reactions for group DMs
-      ::
-      =?  cor  ?=(%add-react -.q.diff.delta)
-        =/  react-text
-          ?@  react.q.diff.delta  react.q.diff.delta
-          p.react.q.diff.delta
-        ?^  (kill:em react-text)
-          =/  message  ~[leaf+"Shortcode reaction detected in chat backend (group DM)"]
-          =/  metadata
-            :~  'event'^s+'Backend Shortcode Reaction Chat GroupDM'
-                'context'^s+'chat_server_group_dm_add_react'
-                'club_id'^s+(scot %uv id)
-                'react'^s+react-text
-            ==
-          (emit (tell-log %crit message metadata))
-        cor
       =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
       ?-  -.q.diff.delta
           ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
@@ -2148,24 +2193,6 @@
         ?~  entry  cu-core
         ?:  ?=(%| -.writ.u.entry)  cu-core
         =.  meta.q.diff.delta  `reply-meta.writ.u.entry
-        ::  log shortcode reactions for group DM replies
-        ::
-        =?  cor  ?=(%add-react -.delt)
-          =/  react-text
-            ?@  react.delt  react.delt
-            p.react.delt
-          ?^  (kill:em react-text)
-            =/  message  ~[leaf+"Shortcode reaction detected in chat backend (group DM reply)"]
-            =/  metadata
-              :~  'event'^s+'Backend Shortcode Reaction Chat GroupDM Reply'
-                  'context'^s+'chat_server_group_dm_reply_add_react'
-                  'club_id'^s+(scot %uv id)
-                  'reply_ship'^s+(scot %p p.reply-id)
-                  'reply_time'^s+(scot %ud q.reply-id)
-                  'react'^s+react-text
-              ==
-            (emit (tell-log %crit message metadata))
-          cor
         ?-  -.delt
             ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
         ::
@@ -2440,7 +2467,7 @@
       cor
     =.  dms  (~(del by dms) ship)
     ::  if we're leaving a DM we're in, make sure we delete the activity
-    =/  =action:a  [%del %dm %ship ship]
+    =/  =action:v8:av  [%del %dm %ship ship]
     =/  =rail  activity-action+action
     (emit [%pass /activity/submit %agent [our.bowl %activity] %poke rail])
   ++  di-abed
@@ -2561,6 +2588,20 @@
     ~>  %spin.['di-ingest-diff']
     ^+  di-core
     =.  last-updated  (~(put ol last-updated) [%ship ship] now.bowl)
+    ::  if we get reacts trying to pass shortcodes off as unicode
+    ::  (due to non-compliant clients putting garbage in the field)
+    ::  detect those and replace the shortcode with its unicode.
+    ::  we assume %any to be intentional and leave it untouched.
+    ::
+    =?  q.diff  ?=([%add-react *] q.diff)
+      ?^  react.q.diff                q.diff
+      ?~  moj=(kill:em react.q.diff)  q.diff
+      q.diff(react u.moj)
+    =?  q.diff  ?=([%reply * * %add-react *] q.diff)
+      ?^  react.delta.q.diff                q.diff
+      ?~  moj=(kill:em react.delta.q.diff)  q.diff
+      q.diff(react.delta u.moj)
+    ::
     =/  =wire  /contacts/(scot %p ship)
     =/  =rail  contact-action-1+`action:contacts`[%meet ~[ship]]
     =.  cor  (emit %pass wire %agent [our.bowl %contacts] %poke rail)
@@ -2572,22 +2613,6 @@
       ?~  had  ~
       ?:  ?=(%| -.writ.u.had)  ~
       (get-reply:di-pact id.q.diff replies.writ.u.had)
-    ::  log shortcode reactions for regular DMs
-    ::
-    =?  cor  ?=(%add-react -.q.diff)
-      =/  react-text
-        ?@  react.q.diff  react.q.diff
-        p.react.q.diff
-      ?^  (kill:em react-text)
-        =/  message  ~[leaf+"Shortcode reaction detected in chat backend (regular DM)"]
-        =/  metadata
-          :~  'event'^s+'Backend Shortcode Reaction Chat DM'
-              'context'^s+'chat_server_dm_add_react'
-              'ship'^s+(scot %p ship)
-              'react'^s+react-text
-          ==
-        (emit (tell-log %crit message metadata))
-      cor
     =.  pact.dm  (reduce:di-pact now.bowl from-self diff)
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       =.  dms  (~(put by dms) ship dm)  ::NOTE  +give-invites needs latest state
@@ -2623,24 +2648,6 @@
       ?~  entry  di-core
       ?:  ?=(%| -.writ.u.entry)  di-core
       =.  meta.q.diff  `reply-meta.writ:(need entry)
-      ::  log shortcode reactions for regular DM replies
-      ::
-      =?  cor  ?=(%add-react -.delta)
-        =/  react-text
-          ?@  react.delta  react.delta
-          p.react.delta
-        ?^  (kill:em react-text)
-          =/  message  ~[leaf+"Shortcode reaction detected in chat backend (regular DM reply)"]
-          =/  metadata
-            :~  'event'^s+'Backend Shortcode Reaction Chat DM Reply'
-                'context'^s+'chat_server_dm_reply_add_react'
-                'ship'^s+(scot %p ship)
-                'reply_ship'^s+(scot %p p.id.q.diff)
-                'reply_time'^s+(scot %ud q.id.q.diff)
-                'react'^s+react-text
-            ==
-          (emit (tell-log %crit message metadata))
-        cor
       ?-  -.delta
           ?(%add-react %del-react)  (di-give-writs-diff diff)
       ::
@@ -2977,25 +2984,25 @@
 ++  rectify-activity
   ?.  .^(? %gu (scry-path %activity /$))
     cor
-  =+  .^(full-info:a %gx (scry-path %activity /v4/noun))
+  =+  .^(full-info:v8:av %gx (scry-path %activity /v4/noun))
   %-  emil
   %+  roll
     ~(tap by indices)
-  |=  [[=source:a *] caz=(list card)]
+  |=  [[=source:v8:av *] caz=(list card)]
   ?.  ?=(%dm -.source)
     caz
   ?:  ?=(%club -.whom.source)
     =*  id  p.whom.source
     ::  only remove activity if club is gone
     ?:  (~(has by clubs) id)  caz
-    =/  =action:a  [%del %dm %club id]
+    =/  =action:v8:av  [%del %dm %club id]
     =/  =rail  activity-action+action
     :_  caz
     [%pass /activity/submit %agent [our.bowl %activity] %poke rail]
   =*  ship  p.whom.source
   ::  only remove activity if dm is gone
   ?:  (~(has by dms) ship)  caz
-  =/  =action:a  [%del %dm %ship ship]
+  =/  =action:v8:av  [%del %dm %ship ship]
   =/  =rail  activity-action+action
   :_  caz
   [%pass /activity/submit %agent [our.bowl %activity] %poke rail]

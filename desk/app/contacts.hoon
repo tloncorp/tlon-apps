@@ -1,4 +1,4 @@
-/-  activity
+/-  activity-ver
 /+  default-agent, dbug, verb, neg=negotiate,
     guardian
 /+  *contacts, kol
@@ -117,7 +117,7 @@
     |=  [who=ship field=(pair @tas value)]
     ~>  %spin.['pass-activity']
     ^-  card
-    =/  =rail  activity-action+`action:activity`[%add %contact who field]
+    =/  =rail  activity-action+`action:v8:activity-ver`[%add %contact who field]
     [%pass /activity %agent [our.bowl %activity] %poke rail]
   ::
   ::  +pub: publication management

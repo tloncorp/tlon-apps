@@ -1,9 +1,7 @@
 import { NavigationProp } from '@react-navigation/native';
-import {
-  NativeStackNavigationProp,
-  createNativeStackNavigator,
-} from '@react-navigation/native-stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { ChannelInfoScreen } from '../features/groups/ChannelInfoScreen';
 import { CreateChannelPermissionsScreen } from '../features/groups/CreateChannelPermissionsScreen';
 import { EditChannelMetaScreen } from '../features/groups/EditChannelMetaScreen';
 import { EditChannelPrivacyScreen } from '../features/groups/EditChannelPrivacyScreen';
@@ -15,47 +13,20 @@ import { ManageChannelsScreen } from '../features/groups/ManageChannelsScreen';
 import { RoleFormScreen } from '../features/groups/RoleFormScreen';
 import { SelectChannelRolesScreen } from '../features/groups/SelectChannelRolesScreen';
 import { SelectRoleMembersScreen } from '../features/groups/SelectRoleMembersScreen';
-import { ChannelInfoScreen } from '../features/groups/ChannelInfoScreen';
 import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import { GroupSettingsStackParamList } from './types';
 
 const GroupSettings = createNativeStackNavigator<GroupSettingsStackParamList>();
-
-type GroupMetaProps = {
-  navigation: NativeStackNavigationProp<
-    GroupSettingsStackParamList,
-    'GroupMeta'
-  >;
-  route: {
-    key: string;
-    name: 'GroupMeta';
-    params: {
-      groupId: string;
-      fromBlankChannel?: boolean;
-    };
-  };
-};
 
 export function GroupSettingsStack({
   navigation,
 }: {
   navigation: NavigationProp<GroupSettingsStackParamList>;
 }) {
-  const navigateToHome = () => {
-    navigation.navigate('ChatList' as never);
-  };
-
   return (
     <GroupSettings.Navigator screenOptions={{ headerShown: false }}>
-      <GroupSettings.Screen name="GroupMeta">
-        {(props: GroupMetaProps) => (
-          <GroupMetaScreen {...props} navigateToHome={navigateToHome} />
-        )}
-      </GroupSettings.Screen>
-      <GroupSettings.Screen
-        name="ChannelInfo"
-        component={ChannelInfoScreen}
-      />
+      <GroupSettings.Screen name="GroupMeta" component={GroupMetaScreen} />
+      <GroupSettings.Screen name="ChannelInfo" component={ChannelInfoScreen} />
       <GroupSettings.Screen
         name="GroupMembers"
         component={GroupMembersScreen}

@@ -125,28 +125,24 @@ export function ProfileSheet({
   const handleKickUser = useCallback(() => {
     const displayName = contact?.nickname || contactId;
     const message = `This user will be removed from the group.\n\nWarning: Kicking this user will invalidate all the invitations they've sent.`;
-    
+
     if (isWeb) {
       const confirmed = window.confirm(`Kick ${displayName}?\n\n${message}`);
       if (confirmed) {
         onPressKick?.();
       }
     } else {
-      Alert.alert(
-        `Kick ${displayName}?`,
-        message,
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Kick User',
-            style: 'destructive',
-            onPress: onPressKick,
-          },
-        ]
-      );
+      Alert.alert(`Kick ${displayName}?`, message, [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Kick User',
+          style: 'destructive',
+          onPress: onPressKick,
+        },
+      ]);
     }
     onOpenChange(false);
   }, [contact, contactId, onOpenChange, onPressKick]);
@@ -225,7 +221,7 @@ export function ProfileSheet({
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
           <ProfileBlock

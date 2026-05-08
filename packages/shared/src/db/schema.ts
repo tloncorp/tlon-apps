@@ -1,14 +1,4 @@
-import { SQL, relations, sql } from 'drizzle-orm';
-import {
-  index,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from 'drizzle-orm/sqlite-core';
-
-import { ChannelContentConfiguration } from '@tloncorp/api';
+import type { ChannelContentConfiguration } from '@tloncorp/api/client/channelContentConfig';
 import {
   BASE_UNREADS_SINGLETON_KEY as API_BASE_UNREADS_SINGLETON_KEY,
   SETTINGS_SINGLETON_KEY as API_SETTINGS_SINGLETON_KEY,
@@ -24,7 +14,20 @@ import type {
   PinType as ApiPinType,
   PostDeliveryStatus as ApiPostDeliveryStatus,
 } from '@tloncorp/api/types/models';
-import { ExtendedEventType, NotificationLevel, Rank } from '@tloncorp/api/urbit';
+import {
+  ExtendedEventType,
+  NotificationLevel,
+  Rank,
+} from '@tloncorp/api/urbit';
+import { SQL, relations, sql } from 'drizzle-orm';
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 const boolean = (name: string) => {
   return integer(name, { mode: 'boolean' });
@@ -1106,6 +1109,9 @@ export const posts = sqliteTable(
     replyContactIds: text('reply_contact_ids', {
       mode: 'json',
     }).$type<string[]>(),
+    optimisticReplyBumpCount: integer('optimistic_reply_bump_count')
+      .notNull()
+      .default(0),
     textContent: text('text_content'),
     hasAppReference: boolean('has_app_reference'),
     hasChannelReference: boolean('has_channel_reference'),
@@ -1153,6 +1159,24 @@ export const posts = sqliteTable(
     groupId: index('posts_group_id').on(table.groupId, table.id),
     authorIdIndex: index('posts_author_id_index').on(table.authorId),
     parentIdIndex: index('posts_parent_id_index').on(table.parentId),
+    // Partial index over outstanding optimistic top-level writes.
+    // Replies also carry sequence_number = 0 (see toPostReplyData), so the
+    // parent_id IS NULL clause keeps the index tiny — only rows that could
+    // actually be replaced by an incoming top-level post.
+    cachedPostsIndex: index('posts_cached_index')
+      .on(table.channelId, table.sentAt, table.authorId)
+      .where(sql`sequence_number = 0 AND parent_id IS NULL`),
+    // Supports setLastPosts's "latest previewable post per channel" subqueries
+    // (lastPostId, lastPostAt). Partial so only top-level, non-deleted rows
+    // are indexed — keeps size down and turns the subqueries into seeks.
+    lastPreviewablePostIndex: index('posts_channel_last_preview')
+      .on(table.channelId, table.receivedAt)
+      .where(sql`type != 'reply' AND (is_deleted IS NULL OR is_deleted = 0)`),
+    // Supports setLastPosts's lastPostSequenceNum subquery and
+    // getLatestChannelSequenceNum.
+    lastSequencedPostIndex: index('posts_channel_last_seq')
+      .on(table.channelId, table.sequenceNum)
+      .where(sql`type != 'reply' AND sequence_number IS NOT NULL`),
   })
 );
 

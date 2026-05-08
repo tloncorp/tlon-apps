@@ -28,8 +28,13 @@ export const INVITE_PROVIDER =
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
+export const POST_HOG_IN_DEV = envVars.postHogInDev === 'true';
 export const SENTRY_DSN = envVars.sentryDsn ?? '';
 export const APP_VARIANT = envVars.appVariant ?? 'production';
+const configuredScheme = Constants.expoConfig?.scheme;
+export const APP_SCHEME = Array.isArray(configuredScheme)
+  ? configuredScheme[0]
+  : configuredScheme ?? 'io.tlon.groups';
 export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
 export const API_AUTH_USERNAME = envVars.apiAuthUsername;
 export const API_AUTH_PASSWORD = envVars.apiAuthPassword;
@@ -66,6 +71,7 @@ export const INVITE_SERVICE_ENDPOINT = envVars.inviteServiceEndpoint ?? '';
 export const INVITE_SERVICE_IS_DEV =
   envVars.inviteServiceIsDev === 'true' ? true : undefined;
 export const GIT_HASH = envVars.gitHash ?? 'unknown';
+export const FORCE_SPLASH_SEQUENCE = envVars.forceSplashSequence === 'true';
 
 export const ENV_VARS = {
   DEV_SHIP_URL,
@@ -75,6 +81,7 @@ export const ENV_VARS = {
   POST_HOG_API_KEY,
   SENTRY_DSN,
   APP_VARIANT,
+  APP_SCHEME,
   API_URL,
   API_AUTH_USERNAME,
   API_AUTH_PASSWORD,
@@ -100,4 +107,5 @@ export const ENV_VARS = {
   INVITE_SERVICE_IS_DEV,
   GIT_HASH,
   AUTOMATED_TEST,
+  FORCE_SPLASH_SEQUENCE,
 };

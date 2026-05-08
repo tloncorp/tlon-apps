@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Controller, UseFormReturn } from 'react-hook-form';
 import { CountryPicker } from 'react-native-country-codes-picker';
 import PhoneInput from 'react-native-phone-input';
+import { useTheme } from 'tamagui';
 
-import { Field, useTheme } from '../../';
+import { Field } from './Field';
 
 export function PhoneNumberInput({
   form,
@@ -50,9 +51,9 @@ export function PhoneNumberInput({
                 borderRadius: 8,
                 backgroundColor: theme.background.val,
               }}
+              // @ts-expect-error removes browser outline on web
               textStyle={{
                 color: theme.primaryText.val,
-                // @ts-expect-error removes browser outline on web
                 outlineStyle: 'none',
               }}
               initialCountry="us"

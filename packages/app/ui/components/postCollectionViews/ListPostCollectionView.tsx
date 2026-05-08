@@ -14,10 +14,12 @@ import {
   useState,
 } from 'react';
 
-import { useCurrentUserId } from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { EmptyChannelNotice } from '../Channel/EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from '../Channel/Scroller';
+import { ThinkingState } from '../Channel/ThinkingState';
+import { useShouldShowThinkingState } from '../Channel/useShouldShowThinkingState';
 import { IPostCollectionView } from './shared';
 
 interface ScrollerHandle {
@@ -34,6 +36,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const ctx = usePostCollectionContext();
     const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
     const currentUserId = useCurrentUserId();
+    const shouldShowThinkingState = useShouldShowThinkingState(ctx.channel);
     const scrollerRef = useRef<ScrollerHandle>(null);
     const collectionLayoutType = useMemo(
       () => layoutTypeFromChannel(ctx.channel),
@@ -42,6 +45,13 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const collectionLayout = useMemo(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
+    );
+    const listBottomComponent = useMemo(
+      () =>
+        shouldShowThinkingState ? (
+          <ThinkingState conversationId={ctx.channel.id} />
+        ) : undefined,
+      [shouldShowThinkingState, ctx.channel.id]
     );
 
     const renderEmptyComponent = useCallback(() => {
@@ -158,6 +168,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
         highlightPostId={highlightPostId}
+        listBottomComponent={listBottomComponent}
       />
     );
   }

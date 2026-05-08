@@ -1,0 +1,89 @@
+diff --git a/build/ImagePicker.types.d.ts b/build/ImagePicker.types.d.ts
+index 6bdeeda45c413a883434fac67f6f9e86047e6501..66aa4d4208ad513dce694a31167d8c01ac905d3a 100644
+--- a/build/ImagePicker.types.d.ts
++++ b/build/ImagePicker.types.d.ts
+@@ -519,6 +519,17 @@ export type ImagePickerOptions = {
+      * @default false
+      */
+     legacy?: boolean;
++    /**
++     * When enabled, allows the picker to access and download media from iCloud or other remote sources
++     * if the asset is not stored locally on the device.
++     *
++     * For videos, this option applies only when [`videoExportPreset`](#videoexportpreset) is set to `Passthrough`.
++     * In all other cases, the video will be downloaded from iCloud automatically.
++     *
++     * @platform ios
++     * @default false
++     */
++    shouldDownloadFromNetwork?: boolean;
+ };
+ /**
+  * @hidden
+diff --git a/ios/ImagePickerOptions.swift b/ios/ImagePickerOptions.swift
+index 38bfea97b7c20fe49e6957ea62866ad7d31a8bcf..7235c85b1b10b56ef9c1b76ee0a68c4a1f493425 100644
+--- a/ios/ImagePickerOptions.swift
++++ b/ios/ImagePickerOptions.swift
+@@ -55,6 +55,9 @@ internal struct ImagePickerOptions: Record {
+   @Field
+   var orderedSelection: Bool = false
+ 
++  @Field
++  var shouldDownloadFromNetwork: Bool = false
++
+   func toMediaTypesArray() -> [String] {
+     var mediaTypesArray = mediaTypes.map { mediaType in
+       mediaType.toUTTypeString()
+diff --git a/ios/MediaHandler.swift b/ios/MediaHandler.swift
+index 6e4fbe1b3921173a1cc4e6eff626b0749e8bab14..a8925138b257de1d8ab36371b96cc5b95eb2bf6b 100644
+--- a/ios/MediaHandler.swift
++++ b/ios/MediaHandler.swift
+@@ -310,10 +310,13 @@ internal struct MediaHandler {
+         let fileExtension = getFileExtension(from: originalFilename)
+         let destinationUrl = try generateUrl(withFileExtension: fileExtension)
+ 
++        let resourceOptions = PHAssetResourceRequestOptions()
++        resourceOptions.isNetworkAccessAllowed = options.shouldDownloadFromNetwork
++
+         try await PHAssetResourceManager.default().writeData(
+           for: resource,
+           toFile: destinationUrl,
+-          options: nil
++          options: resourceOptions
+         )
+ 
+         let mimeType = getMimeType(from: destinationUrl.pathExtension)
+@@ -389,7 +392,10 @@ internal struct MediaHandler {
+ 
+           // Stream the resource into our cache directory. This API is asynchronous but doesn't require
+           // a temporary file like `loadFileRepresentation`.
+-          try await PHAssetResourceManager.default().writeData(for: resource, toFile: destinationUrl, options: nil)
++          let resourceOptions = PHAssetResourceRequestOptions()
++          resourceOptions.isNetworkAccessAllowed = options.shouldDownloadFromNetwork
++
++          try await PHAssetResourceManager.default().writeData(for: resource, toFile: destinationUrl, options: resourceOptions)
+ 
+           // Build and return the result using the helper.
+           let mimeType = getMimeType(from: destinationUrl.pathExtension)
+diff --git a/src/ImagePicker.types.ts b/src/ImagePicker.types.ts
+index 84f1a16ff1e108bb43075fd99aa7697eaf41d679..1440510d6d3470a4c8ad885ebd7cc68356d60d3b 100644
+--- a/src/ImagePicker.types.ts
++++ b/src/ImagePicker.types.ts
+@@ -548,6 +548,17 @@ export type ImagePickerOptions = {
+    * @default false
+    */
+   legacy?: boolean;
++  /**
++   * When enabled, allows the picker to access and download media from iCloud or other remote sources
++   * if the asset is not stored locally on the device.
++   *
++   * For videos, this option applies only when [`videoExportPreset`](#videoexportpreset) is set to `Passthrough`.
++   * In all other cases, the video will be downloaded from iCloud automatically.
++   *
++   * @platform ios
++   * @default false
++   */
++  shouldDownloadFromNetwork?: boolean;
+ };
+ 
+ /**

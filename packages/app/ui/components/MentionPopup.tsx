@@ -11,13 +11,13 @@ import { Platform } from 'react-native';
 import { MentionOption } from './BareChatInput/useMentions';
 import { ContactList } from './ContactList';
 import ContactName from './ContactName';
-import { ListItem } from './ListItem/ListItem';
-import { useBoundHandler } from './ListItem/listItemUtils';
+import { ListItem } from './ListItem';
+import { useBoundHandler } from './listItems/listItemUtils';
 
 export interface MentionController {
   handleMentionKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;
 }
-export type MentionPopupRef = React.RefObject<MentionController>;
+export type MentionPopupRef = React.RefObject<MentionController | null>;
 
 function MentionOptionItem({
   selected,
@@ -87,7 +87,10 @@ function MentionPopupInternal(
   }>
 ) {
   const maxResults = Platform.OS === 'web' ? 7 : 4;
-  const subSet = useMemo(() => options.slice(0, maxResults), [options, maxResults]);
+  const subSet = useMemo(
+    () => options.slice(0, maxResults),
+    [options, maxResults]
+  );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 

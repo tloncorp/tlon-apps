@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
   createChannel,
@@ -5,7 +6,6 @@ import {
   deleteChannel,
   useChannelHooksPreview,
 } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { Button } from '@tloncorp/ui';
@@ -15,7 +15,8 @@ import { Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, YStack } from 'tamagui';
 
-import { useCurrentUserId, useGroups } from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useGroups } from '../contexts/groups';
 import { useAlphabeticallySegmentedGroups } from '../hooks/groupsSorters';
 import * as Form from './Form';
 import { GroupSelector } from './GroupSelector';

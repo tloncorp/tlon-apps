@@ -1,8 +1,8 @@
 // tamagui-ignore
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer } from '@react-navigation/native';
-import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { internalConfigureClient } from '@tloncorp/api';
+import { QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { type PropsWithChildren, useEffect, useState } from 'react';
 import { useFixtureSelect } from 'react-cosmos/client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -46,7 +46,7 @@ function MockedUrbitClientProvider({ children }: PropsWithChildren<object>) {
 export const FixtureWrapper = (props: FixtureWrapperProps) => {
   return (
     <ToastProvider>
-      <NavigationContainer>
+      <NavigationContainer navigationInChildEnabled>
         <MockedUrbitClientProvider>
           <InnerWrapper {...props} />
         </MockedUrbitClientProvider>
@@ -97,7 +97,9 @@ const InnerWrapper = ({
                     paddingTop={safeArea ? insets.top : 0}
                   >
                     <View
-                      backgroundColor={backgroundColor ?? '$secondaryBackground'}
+                      backgroundColor={
+                        backgroundColor ?? '$secondaryBackground'
+                      }
                       flex={1}
                       flexDirection="column"
                       width={fillWidth ? '100%' : 'unset'}

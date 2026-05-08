@@ -17,7 +17,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(zodPage.getByText('Profile')).toBeVisible();
   await zodPage.getByTestId('ContactEditButton').click();
   await expect(zodPage.getByText('Edit Profile')).toBeVisible();
-  
+
   await zodPage.getByTestId('ProfileNicknameInput').click();
   await zodPage
     .getByTestId('ProfileNicknameInput')
@@ -31,7 +31,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
     .getByRole('textbox', { name: 'About yourself' })
     .fill('Zod Testing bio');
   await zodPage.getByText('Save').click();
-  
+
   // TODO: figure out why we need to reload here. This should be fixed.
   await zodPage.reload();
 
@@ -81,8 +81,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await expect(bioInput).toHaveValue('Zod Testing bio');
 
   // Cancel without making changes to verify we maintained correct data
-  await zodPage.getByTestId('HeaderBackButton').click();
-
+  await helpers.navigateBack(zodPage);
 
   // Part 4: ~ten also verifies no data persistence when editing profiles
   // First ~ten sets their own profile
@@ -90,7 +89,7 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   await tenPage.getByText('You').click();
   await tenPage.getByTestId('ContactEditButton').click();
   await expect(tenPage.getByText('Edit Profile')).toBeVisible();
-  
+
   await tenPage.getByTestId('ProfileNicknameInput').click();
   await tenPage.getByTestId('ProfileNicknameInput').fill('Ten Own Nickname');
   await tenPage.getByRole('textbox', { name: 'Hanging out...' }).click();
@@ -149,21 +148,23 @@ test('should verify profile data does not persist between users (TLON-4641)', as
   // Ensure it doesn't have ~zod's custom nickname
   await expect(tenNicknameInput).not.toHaveValue('Zod from Ten perspective');
 
-  const tenStatusInput = tenPage.getByRole('textbox', { name: 'Hanging out...' });
+  const tenStatusInput = tenPage.getByRole('textbox', {
+    name: 'Hanging out...',
+  });
   await expect(tenStatusInput).toHaveValue('Ten Status');
 
   const tenBioInput = tenPage.getByRole('textbox', { name: 'About yourself' });
   await expect(tenBioInput).toHaveValue('Ten Bio');
 
   // Cancel without changes
-  await tenPage.getByTestId('HeaderBackButton').click();
+  await helpers.navigateBack(tenPage);
 
   // Clean up
   await helpers.cleanupOwnProfile(tenPage);
   await helpers.cleanupContactNicknames(tenPage);
   await helpers.cleanupOwnProfile(zodPage);
   await helpers.cleanupContactNicknames(zodPage);
-  
+
   await zodPage.waitForTimeout(3000);
   await tenPage.waitForTimeout(3000);
 });

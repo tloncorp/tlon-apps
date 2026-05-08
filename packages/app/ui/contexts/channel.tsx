@@ -1,19 +1,11 @@
 import * as db from '@tloncorp/shared/db';
 import { ReactNode, createContext, useContext } from 'react';
 
-export type ChannelState = {
+type ChannelState = {
   channel: db.Channel;
-};
+} | null;
 
-type ContextValue = ChannelState;
-
-const defaultState: ChannelState = {
-  channel: {} as db.Channel,
-};
-
-const Context = createContext({
-  ...defaultState,
-} as ContextValue);
+const Context = createContext<ChannelState>(null);
 
 export const useChannelContext = () => {
   const context = useContext(Context);

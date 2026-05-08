@@ -30,17 +30,18 @@ import {
 } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
-import { useNavigation as useContextNavigation } from '../contexts';
-import { useContact, useCurrentUserId } from '../contexts';
+import { useContact, useCurrentUserId } from '../contexts/appDataContext';
+import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
-import { ContactAvatar, GroupAvatar } from './Avatar';
+import { ContactAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
-import { useBoundHandler } from './ListItem/listItemUtils';
+import { GroupAvatar } from './GroupAvatar';
 import {
   PhoneAttestDisplay,
   TwitterAttestDisplay,
 } from './Profile/ConnectedAccountsWidget';
 import { WidgetPane } from './WidgetPane';
+import { useBoundHandler } from './listItems/listItemUtils';
 
 interface Props {
   userId: string;
@@ -429,7 +430,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
-  const queryClient = store.queryClient;
+  const queryClient = db.queryClient;
 
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
@@ -533,8 +534,6 @@ export function ProfileButton({
     >
       <Button.Text
         color={hero ? '$background' : '$primaryText'}
-        textWrap="nowrap"
-        wordWrap="unset"
         whiteSpace="nowrap"
         trimmed={false}
       >

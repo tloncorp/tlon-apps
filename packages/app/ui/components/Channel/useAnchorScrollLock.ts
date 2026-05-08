@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { FlatList } from 'react-native';
 
-import { ScrollAnchor } from './Scroller';
+import { ScrollAnchor } from './scrollerTypes';
 
 const logger = createDevLogger('useAnchorScrollLock', false);
 
@@ -62,7 +62,7 @@ export function useAnchorScrollLock({
   collectionLayoutType,
   columnsCount,
 }: {
-  flatListRef: RefObject<FlatList<db.Post>>;
+  flatListRef: RefObject<FlatList<db.Post> | null>;
   posts: db.Post[] | null;
   anchor: ScrollAnchor | null | undefined;
   hasNewerPosts?: boolean;
@@ -79,14 +79,16 @@ export function useAnchorScrollLock({
   const currentAnchorId = useRef<string | undefined>(anchor?.postId);
   const renderedPostsRef = useRef(new Set<string>());
   const scrollPhaseRef = useRef<'idle' | 'scrolled' | 'done'>('idle');
-  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const failureRetryCountRef = useRef(0);
   const userHasScrolledRef = useRef(userHasScrolled);
   userHasScrolledRef.current = userHasScrolled;
   const readyToDisplayPosts =
     !anchor?.postId || didAnchorSearchTimeout || didScrollToAnchor;
 
-  const showPostsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const showPostsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   useEffect(() => {
     if (posts?.length && !showPostsTimeoutRef.current && !readyToDisplayPosts) {
       showPostsTimeoutRef.current = setTimeout(() => {

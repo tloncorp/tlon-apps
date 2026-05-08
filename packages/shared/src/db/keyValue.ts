@@ -1,12 +1,13 @@
-import {
-  AppThemeName,
-  StorageConfiguration,
+import type { StorageConfiguration } from '@tloncorp/api/client/upload';
+import * as ub from '@tloncorp/api/urbit';
+import type { AppThemeName } from '@tloncorp/api/urbit/settings';
+import type {
   StorageCredentials,
   StorageService,
-} from '@tloncorp/api';
+} from '@tloncorp/api/urbit/storage';
+
 import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
 import { Lure } from '../logic';
-import * as ub from '@tloncorp/api/urbit';
 import { createStorageItem } from './storageItem';
 
 export const pushNotificationSettings =
@@ -161,6 +162,11 @@ export const personalInviteLink = createStorageItem<string | null>({
   defaultValue: null,
 });
 
+export const homeGroupInviteLink = createStorageItem<string | null>({
+  key: 'homeGroupInviteLink',
+  defaultValue: null,
+});
+
 export const hasViewedPersonalInvite = createStorageItem<boolean>({
   key: 'hasViewedPersonalInvite',
   defaultValue: false,
@@ -168,7 +174,7 @@ export const hasViewedPersonalInvite = createStorageItem<boolean>({
 
 export const postDraft = (opts: {
   key: string;
-  type: 'caption' | 'text' | undefined; // matches GalleryDraftType
+  type: 'caption' | 'link' | 'text' | undefined; // matches GalleryDraftType
 }) => {
   return createStorageItem<ub.JSONContent | null>({
     key: `draft-${opts.key}${opts.type ? `-${opts.type}` : ''}`,
@@ -317,6 +323,11 @@ export const userHasPersonalGroup = createStorageItem<boolean>({
   defaultValue: false,
 });
 
+export const splashNickname = createStorageItem<string>({
+  key: 'splashNickname',
+  defaultValue: '',
+});
+
 export const wayfindingProgress = createStorageItem<WayfindingProgress>({
   key: 'wayfindingProgress',
   defaultValue: {
@@ -324,9 +335,11 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
     viewedChatChannel: false,
     viewedCollectionChannel: false,
     viewedNotebookChannel: false,
+    tappedHomeAdd: true,
     tappedAddNote: true,
     tappedAddCollection: true,
     tappedChatInput: true,
+    tappedBotMention: true,
   },
 });
 
@@ -411,20 +424,26 @@ const defaultNagState: NagState = {
 
 // Cache nag storage items to avoid creating new instances on every render
 // This prevents race conditions from multiple updateLock instances
-const nagStorageItemCache = new Map<string, ReturnType<typeof createStorageItem<NagState>>>();
+const nagStorageItemCache = new Map<
+  string,
+  ReturnType<typeof createStorageItem<NagState>>
+>();
 
-export const createNagStorageItem = (key: string, persistAfterLogout = true) => {
+export const createNagStorageItem = (
+  key: string,
+  persistAfterLogout = true
+) => {
   const cached = nagStorageItemCache.get(key);
   if (cached) {
     return cached;
   }
-  
+
   const storageItem = createStorageItem<NagState>({
     key: `nag:${key}`,
     defaultValue: defaultNagState,
     persistAfterLogout,
   });
-  
+
   nagStorageItemCache.set(key, storageItem);
   return storageItem;
 };

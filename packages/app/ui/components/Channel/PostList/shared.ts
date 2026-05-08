@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 
-import type { ScrollAnchor } from '../Scroller';
+import type { ScrollAnchor } from '../scrollerTypes';
 
 export interface PostWithNeighbors {
   post: db.Post;
@@ -51,7 +51,7 @@ export type PostListComponentProps = {
   onStartReached?: () => void;
   onStartReachedThreshold?: number;
   postsWithNeighbors: PostWithNeighbors[];
-  renderEmptyComponent?: () => JSX.Element;
+  renderEmptyComponent?: () => React.ReactElement;
   renderItem: (opts: {
     item: PostWithNeighbors;
     index: number;
@@ -66,6 +66,10 @@ export type PostListComponentProps = {
    * Mapped to ListFooterComponent when inverted, ListHeaderComponent otherwise.
    */
   listHeaderComponent?: React.ReactElement;
+  /**
+   * Content to display at the visual bottom of the list (below all items).
+   */
+  listBottomComponent?: React.ReactElement;
 };
 
 export type PostListComponent = ReturnType<

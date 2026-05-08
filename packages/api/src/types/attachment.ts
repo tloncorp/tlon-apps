@@ -1,9 +1,9 @@
 import _ from 'lodash';
 
-const { memoize, uniqueId } = _;
-
 import { ContentReference } from './references';
 import { UploadState } from './uploads';
+
+const { memoize, uniqueId } = _;
 
 export type LinkMetadata = PageMetadata | FileMetadata;
 
@@ -161,18 +161,12 @@ export namespace UploadedVideoAttachment {
   }
 }
 
-export type TextAttachment = {
-  type: 'text';
-  text: string;
-};
-
 export type Attachment =
   | ReferenceAttachment
   | ImageAttachment
   | FileAttachment
   | VideoAttachment
   | VoiceMemoAttachment
-  | TextAttachment
   | LinkAttachment;
 
 export type FinalizedAttachment =
@@ -181,7 +175,6 @@ export type FinalizedAttachment =
   | UploadedFileAttachment
   | UploadedVideoAttachment
   | UploadedVoiceMemoAttachment
-  | TextAttachment
   | LinkAttachment;
 
 export namespace Attachment {
@@ -242,9 +235,10 @@ export namespace Attachment {
       }
     }
 
-    export function getVideoUploadMetadata(
-      uploadIntent: UploadIntent
-    ): { isVideo: boolean; posterUri?: string } {
+    export function getVideoUploadMetadata(uploadIntent: UploadIntent): {
+      isVideo: boolean;
+      posterUri?: string;
+    } {
       const videoMetadata =
         uploadIntent.type === 'file' || uploadIntent.type === 'fileUri'
           ? uploadIntent.video
@@ -259,7 +253,8 @@ export namespace Attachment {
           return { isVideo: false };
         case 'file':
           return {
-            isVideo: !!videoMetadata || uploadIntent.file.type.startsWith('video/'),
+            isVideo:
+              !!videoMetadata || uploadIntent.file.type.startsWith('video/'),
             posterUri,
           };
         case 'fileUri':
@@ -273,9 +268,7 @@ export namespace Attachment {
       }
     }
 
-    export function extractImagePickerAssets(
-      xs: UploadIntent[]
-    ): ImageAsset[] {
+    export function extractImagePickerAssets(xs: UploadIntent[]): ImageAsset[] {
       return xs
         .filter((x): x is ImageUploadIntent => x.type === 'image')
         .map((x) => x.asset);
@@ -512,8 +505,6 @@ export namespace Attachment {
             waveformPreview: attachment.waveformPreview,
           },
         };
-      case 'text':
-      // fallthrough
       case 'link':
       // fallthrough
       case 'reference':
@@ -712,7 +703,8 @@ function withUploadState(
     (attachment.posterUri && Attachment.isRemoteUri(attachment.posterUri)
       ? attachment.posterUri
       : undefined);
-  const { posterUri: _ignoredPosterUri, ...attachmentWithoutPoster } = attachment;
+  const { posterUri: _ignoredPosterUri, ...attachmentWithoutPoster } =
+    attachment;
 
   return {
     ...attachmentWithoutPoster,

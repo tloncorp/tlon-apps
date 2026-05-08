@@ -3,16 +3,16 @@ import {
   UseQueryResult,
   useQuery,
 } from '@tanstack/react-query';
-import { isMatch, pick } from 'lodash';
-import { useEffect, useMemo } from 'react';
-
 import * as api from '@tloncorp/api';
 import { getMessagesFilter } from '@tloncorp/api';
 import { getConstants } from '@tloncorp/api/types/constants';
+import * as ub from '@tloncorp/api/urbit';
+import { isMatch, pick } from 'lodash';
+import { useEffect, useMemo } from 'react';
+
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
-import * as ub from '@tloncorp/api/urbit';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -248,6 +248,30 @@ export const useLiveThreadUnread = (unread: db.ThreadUnreadState | null) => {
   });
 };
 
+/**
+ * Reactively tracks the unread state for a thread, keyed by the parent post's
+ * ID. Unlike `useLiveThreadUnread` (which requires a `ThreadUnreadState` seed
+ * and goes dormant when the seed is null), this hook always tracks reactively
+ * as long as `parentPostId` is non-null — even when the thread starts with no
+ * unread row.
+ */
+export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
+  const depsKey = useMemo(
+    () => (parentPostId ? keyFromQueryDeps(db.getThreadUnreadState) : null),
+    [parentPostId]
+  );
+
+  return useQuery({
+    queryKey: ['liveUnreadCount', depsKey, 'thread', parentPostId],
+    queryFn: async () => {
+      if (parentPostId) {
+        return db.getThreadUnreadState({ parentId: parentPostId });
+      }
+      return null;
+    },
+  });
+};
+
 export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
   const depsKey = useMemo(
     () => (unread ? keyFromQueryDeps(db.getChannelUnread) : null),
@@ -477,9 +501,15 @@ export const usePostReference = ({
   replyId?: string;
   enabled?: boolean;
 }) => {
-  const deps = useKeyFromQueryDeps(db.getPostWithRelations, postId);
   const postQuery = useQuery({
-    queryKey: [['postReference', postId], deps],
+    // Share the ['post', id] prefix with usePostWithRelations /
+    // usePostWithThreadUnreads so changeListener's per-post invalidations
+    // (keyed on ['post', id]) partial-match references via React Query's
+    // prefix semantics. The 'reference' suffix keeps this a distinct cache
+    // entry from the plain per-post hooks, since the queryFn has a
+    // syncPostReference fallback that the others don't.
+    queryKey: ['post', postId, 'reference'],
+    gcTime: PER_POST_GC_TIME_MS,
     enabled: enabled && !!postId,
     queryFn: async () => {
       if (!postId) {
@@ -548,11 +578,20 @@ export const useChannel = (options: { id?: string }) => {
   });
 };
 
+// Transient per-post queries can accumulate in the cache after threads/action
+// menus close. The default 5m gcTime keeps them sitting in the invalidation
+// scan set. Shorten so unused entries age out quickly.
+const PER_POST_GC_TIME_MS = 30_000;
+
+// Per-post queries invalidate via changeListener's per-post events instead of
+// the table-level invalidation path. The queryKey must be a flat
+// ['post', id] so changeListener's invalidateQueries({ queryKey: ['post', id] })
+// actually matches (partial-key matching is positional).
 export const usePostWithThreadUnreads = (options: { id: string }) => {
-  const tableDeps = useKeyFromQueryDeps(db.getPostWithRelations);
   return useQuery({
-    queryKey: [['post', options.id], tableDeps],
+    queryKey: ['post', options.id],
     staleTime: Infinity,
+    gcTime: PER_POST_GC_TIME_MS,
     queryFn: () => db.getPostWithRelations(options),
   });
 };
@@ -561,11 +600,11 @@ export const usePostWithRelations = (
   options: { id: string } | null,
   initialData?: db.Post
 ) => {
-  const deps = useKeyFromQueryDeps(db.getPostWithRelations, options?.id);
   return useQuery({
     enabled: options != null,
-    queryKey: [['post', options?.id], deps],
+    queryKey: ['post', options?.id],
     staleTime: Infinity,
+    gcTime: PER_POST_GC_TIME_MS,
     ...(initialData ? { initialData } : {}),
     queryFn: () => (options == null ? null : db.getPostWithRelations(options)),
   });
@@ -652,6 +691,20 @@ export const useShowChatInputWayfinding = (channelId: string) => {
   }, [channelId]);
 
   return isCorrectChan && !wayfindingProgress.tappedChatInput;
+};
+
+export const useShowBotMentionWayfinding = (channelId: string) => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  const isCorrectChan = useMemo(() => {
+    return logic.isBotHomeGroupChatChannel(channelId);
+  }, [channelId]);
+
+  return isCorrectChan && !wayfindingProgress.tappedBotMention;
+};
+
+export const useShowHomeAddTooltip = () => {
+  const wayfindingProgress = db.wayfindingProgress.useValue();
+  return wayfindingProgress.tappedHomeAdd === false;
 };
 
 export const useShowCollectionAddTooltip = (channelId: string) => {

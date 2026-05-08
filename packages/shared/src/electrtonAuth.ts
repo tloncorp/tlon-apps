@@ -28,7 +28,7 @@ export const storeAuthInfo = async (authInfo: AuthInfo): Promise<boolean> => {
     try {
       // Use type assertion to tell TypeScript to trust us
       const api = (window as any).electronAPI;
-      return await api?.storeAuthInfo?.(authInfo) ?? false;
+      return (await api?.storeAuthInfo?.(authInfo)) ?? false;
     } catch (error) {
       logger.error('Failed to store auth info:', error);
       return false;
@@ -45,7 +45,7 @@ export const getAuthInfo = async (): Promise<AuthInfo | null> => {
   if (isElectronEnv()) {
     try {
       const api = (window as any).electronAPI;
-      return await api?.getAuthInfo?.() ?? null;
+      return (await api?.getAuthInfo?.()) ?? null;
     } catch (error) {
       logger.error('Failed to get auth info:', error);
       return null;
@@ -62,7 +62,7 @@ export const clearAuthInfo = async (): Promise<boolean> => {
   if (isElectronEnv()) {
     try {
       const api = (window as any).electronAPI;
-      return await api?.clearAuthInfo?.() ?? false;
+      return (await api?.clearAuthInfo?.()) ?? false;
     } catch (error) {
       logger.error('Failed to clear auth info:', error);
       return false;

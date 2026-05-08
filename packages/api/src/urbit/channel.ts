@@ -3,7 +3,7 @@ import bigInt, { BigInteger } from 'big-integer';
 import _ from 'lodash';
 import BTree from 'sorted-btree';
 
-import { parseIdNumber } from '../client/apiUtils';
+import type { Poke } from '../http-api';
 import type { Stringified } from '../lib/utilityTypes';
 import {
   Block,
@@ -11,11 +11,12 @@ import {
   Inline,
   isBlock,
   isBlockquote,
-  isImage,
   isBreak,
+  isImage,
 } from './content';
 import { Flag } from './hark';
 import { Metadata } from './meta';
+import { parseIdNumber } from './utils';
 
 export interface CacheId {
   author: string;
@@ -723,3 +724,19 @@ export type ChannelHead = {
 export type ChannelHeadsResponse = ChannelHead[];
 
 export type ChannelHooksPreview = { name: string; meta: Metadata }[];
+
+export function channelAction(
+  channelId: string,
+  action: Action
+): Poke<ChannelsAction> {
+  return {
+    app: 'channels',
+    mark: 'channel-action-2',
+    json: {
+      channel: {
+        nest: channelId,
+        action,
+      },
+    },
+  };
+}

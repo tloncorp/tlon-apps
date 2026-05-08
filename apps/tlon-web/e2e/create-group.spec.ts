@@ -16,7 +16,10 @@ async function testGroupCreation({
   page: Page;
   groupType: 'quick' | 'basic' | string;
   expectedTitle: string;
-  expectedChannels: Array<{ title: string; type: 'chat' | 'notebook' | 'gallery' }>;
+  expectedChannels: Array<{
+    title: string;
+    type: 'chat' | 'notebook' | 'gallery';
+  }>;
   hasWelcomeMessage?: boolean;
 }) {
   await expect(page.getByText('Home')).toBeVisible();
@@ -50,7 +53,10 @@ async function testGroupCreation({
   await helpers.navigateBack(page);
   await helpers.navigateBack(page);
   await helpers.openGroupSettings(page);
-  await helpers.deleteGroup(page, expectedTitle !== 'Untitled group' ? expectedTitle : undefined);
+  await helpers.deleteGroup(
+    page,
+    expectedTitle !== 'Untitled group' ? expectedTitle : undefined
+  );
 
   await expect(page.getByText('Home')).toBeVisible();
   await expect(page.getByText(expectedTitle)).not.toBeVisible();

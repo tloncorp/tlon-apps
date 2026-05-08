@@ -14,6 +14,7 @@
     "./db": "./src/db/index.ts",
     "./db/client": "./src/db/client.ts",
     "./db/migrations": "./src/db/migrations/index.ts",
+    "./db/reactQuery": "./src/db/reactQuery.ts",
     "./db/schema": "./src/db/schema.ts",
     "./db/types": "./src/db/types.ts",
     "./logic": "./src/logic/index.ts",
@@ -24,8 +25,8 @@
     "./logic/pinning": "./src/logic/index.ts",
     "./logic/*": "./src/logic/*.ts",
     "./perf": "./src/perf.ts",
+    "./perfLog": "./src/perfLog.ts",
     "./store": "./src/store/index.ts",
-    "./store/reactQuery": "./src/store/reactQuery.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/activity": "./src/urbit/activity.ts",
     "./urbit/channel": "./src/urbit/channel.ts",
@@ -96,7 +97,7 @@
     "drizzle-orm": "0.39.3",
     "expo-contacts": "*",
     "expo-localization": "*",
-    "react": "^18.2.0",
+    "react": "^19.1.0",
     "zustand": "^3.7.2"
   }
 }

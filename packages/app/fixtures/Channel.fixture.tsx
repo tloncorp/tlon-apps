@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  ChannelContentConfiguration,
+  CollectionRendererId,
+} from '@tloncorp/api';
+import {
   useChannelPreview,
   useGroupPreview,
   usePostWithRelations,
 } from '@tloncorp/shared';
-import {
-  ChannelContentConfiguration,
-  CollectionRendererId,
-} from '@tloncorp/api';
 import type * as db from '@tloncorp/shared/db';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
@@ -405,7 +405,7 @@ function DebugChannelConfigurator({
 
   return (
     <>
-      <Sheet open={open} animation={'simple'} snapPointsMode="fit">
+      <Sheet open={open} transition={'simple'} snapPointsMode="fit">
         <ChannelConfigurationBar
           channel={channel}
           onPressDone={() => setOpen(false)}

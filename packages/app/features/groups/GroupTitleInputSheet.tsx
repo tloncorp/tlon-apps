@@ -55,16 +55,22 @@ export function GroupTitleInputSheet({
   );
 
   const nextButton = (
-    <Button preset="primary" disabled={!title.trim()} onPress={handleNext} label="Next" centered />
+    <Button
+      preset="primary"
+      disabled={!title.trim()}
+      onPress={handleNext}
+      label="Next"
+      centered
+    />
   );
 
   const content = isWindowNarrow ? (
-    <YStack flex={1} gap="$l">
+    <YStack gap="$l">
       {header}
       <YStack paddingHorizontal="$xl">{input}</YStack>
-      <YStack flex={1} />
       <YStack
         padding="$xl"
+        paddingTop="$2xl"
         paddingBottom={bottom + getTokenValue('$xl', 'size')}
       >
         {nextButton}
@@ -83,10 +89,7 @@ export function GroupTitleInputSheet({
   );
 
   const actionSheetProps = isWindowNarrow
-    ? {
-        snapPoints: [50],
-        snapPointsMode: 'percent' as const,
-      }
+    ? {}
     : {
         mode: 'dialog' as const,
         closeButton: true,
@@ -94,7 +97,11 @@ export function GroupTitleInputSheet({
       };
 
   return (
-    <ActionSheet open={open} onOpenChange={handleOpenChange} {...actionSheetProps}>
+    <ActionSheet
+      open={open}
+      onOpenChange={handleOpenChange}
+      {...actionSheetProps}
+    >
       {isWindowNarrow ? content : <View padding="$m">{content}</View>}
     </ActionSheet>
   );

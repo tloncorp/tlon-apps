@@ -20,10 +20,10 @@ import {
 
 const logger = createDevLogger('PoorUxReport', false);
 const SHAKE_UPDATE_INTERVAL_MS = 250;
-const SHAKE_DELTA_THRESHOLD = 1.1;
-const SHAKE_HITS_REQUIRED = 2;
-const SHAKE_HITS_WINDOW_MS = 700;
-const SHAKE_COOLDOWN_MS = 1500;
+const SHAKE_DELTA_THRESHOLD = 2.5;
+const SHAKE_HITS_REQUIRED = 3;
+const SHAKE_HITS_WINDOW_MS = 1000;
+const SHAKE_COOLDOWN_MS = 3000;
 const FOREGROUND_SHAKE_GRACE_MS = 1500;
 
 export function usePoorUxShakeReport() {
@@ -69,32 +69,32 @@ export function usePoorUxShakeReport() {
         if (appStateRef.current !== 'active') {
           return;
         }
-      if (now < ignoreShakesUntilRef.current) {
-        return;
-      }
-      if (now < cooldownUntil) {
-        return;
-      }
+        if (now < ignoreShakesUntilRef.current) {
+          return;
+        }
+        if (now < cooldownUntil) {
+          return;
+        }
 
-      const magnitude = Math.sqrt(x * x + y * y + z * z);
-      const delta = Math.abs(magnitude - lastMagnitude);
-      lastMagnitude = magnitude;
+        const magnitude = Math.sqrt(x * x + y * y + z * z);
+        const delta = Math.abs(magnitude - lastMagnitude);
+        lastMagnitude = magnitude;
 
-      if (delta < SHAKE_DELTA_THRESHOLD) {
-        return;
-      }
+        if (delta < SHAKE_DELTA_THRESHOLD) {
+          return;
+        }
 
-      if (now - lastHitAt > SHAKE_HITS_WINDOW_MS) {
-        shakeHits = 0;
-      }
-      lastHitAt = now;
-      shakeHits += 1;
+        if (now - lastHitAt > SHAKE_HITS_WINDOW_MS) {
+          shakeHits = 0;
+        }
+        lastHitAt = now;
+        shakeHits += 1;
 
-      if (shakeHits >= SHAKE_HITS_REQUIRED) {
-        cooldownUntil = now + SHAKE_COOLDOWN_MS;
-        shakeHits = 0;
-        setVisible((prev) => (prev ? prev : true));
-      }
+        if (shakeHits >= SHAKE_HITS_REQUIRED) {
+          cooldownUntil = now + SHAKE_COOLDOWN_MS;
+          shakeHits = 0;
+          setVisible((prev) => (prev ? prev : true));
+        }
       }
     );
 
@@ -156,7 +156,7 @@ export function usePoorUxShakeReport() {
                 Report Poor UX
               </Text>
               <TextArea
-                minHeight={120}
+                numberOfLines={5}
                 backgroundColor="$background"
                 borderColor="$secondaryBorder"
                 borderWidth={1}
@@ -168,12 +168,13 @@ export function usePoorUxShakeReport() {
                 multiline
                 textAlignVertical="top"
                 placeholder="What went wrong?"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="$gray400"
                 value={details}
                 onChangeText={setDetails}
               />
               <Text fontSize="$xs" color="$tertiaryText">
-                sync: {session?.phase ?? 'n/a'} | changes: {session?.isSyncing ? 'syncing' : 'idle'}
+                sync: {session?.phase ?? 'n/a'} | changes:{' '}
+                {session?.isSyncing ? 'syncing' : 'idle'}
               </Text>
               <XStack justifyContent="flex-end" gap="$s" paddingVertical="$m">
                 <Button

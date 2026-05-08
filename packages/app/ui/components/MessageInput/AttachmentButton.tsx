@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { isWeb } from 'tamagui';
 
 import { pickFile } from '../../../utils/filepicker';
-import { useAttachmentContext } from '../../contexts';
+import { useAttachmentContext } from '../../contexts/attachment';
 import AttachmentSheet from '../AttachmentSheet';
 
 export default function AttachmentButton({
@@ -34,11 +34,7 @@ export default function AttachmentButton({
 
   return (
     <>
-      <Button
-        preset="secondary"
-        icon="Add"
-        onPress={handlePress}
-      />
+      <Button preset="secondary" icon="Add" onPress={handlePress} />
       <AttachmentSheet
         isOpen={showInputSelector}
         onOpenChange={setShowInputSelector}

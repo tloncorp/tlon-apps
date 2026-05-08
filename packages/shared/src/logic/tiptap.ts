@@ -5,13 +5,14 @@ import {
   PasteRule,
 } from '@tiptap/core';
 import { JSONContent } from '@tiptap/react';
-import { valid } from '@urbit/aura';
-import { isEqual, reduce } from 'lodash';
-
+import { desig } from '@tloncorp/api/lib/urbit';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { Story } from '@tloncorp/api/urbit/channel';
 import { Block, Cite, HeaderLevel, Listing } from '@tloncorp/api/urbit/content';
 import { Inline, InlineKey, Link, Task } from '@tloncorp/api/urbit/content';
-import { citeToPath, pathToCite, preSig, desig } from '@tloncorp/api/urbit/utils';
+import { citeToPath, pathToCite } from '@tloncorp/api/urbit/utils';
+import { valid } from '@urbit/aura';
+import { isEqual, reduce } from 'lodash';
 
 export const ALL_MENTION_ID = '-all-';
 
@@ -493,10 +494,7 @@ export function JSONToListing(
 export const makeText = (t: string) => ({ type: 'text', text: t });
 const makeLink = (link: Link['link'], ctx?: JSONContent) => ({
   type: 'text',
-  marks: [
-    { type: 'link', attrs: { href: link.href } },
-    ...(ctx?.marks || []),
-  ],
+  marks: [{ type: 'link', attrs: { href: link.href } }, ...(ctx?.marks || [])],
   text: link.content,
 });
 export const makeMention = (id: string) => ({

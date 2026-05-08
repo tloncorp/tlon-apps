@@ -11,8 +11,8 @@ import React, { ComponentProps, useMemo, useState } from 'react';
 import { LayoutRectangle } from 'react-native';
 import { XStack, YStack } from 'tamagui';
 
-import { useNavigation } from '../contexts';
-import { Reference } from './ContentReference';
+import { useNavigation } from '../contexts/navigation';
+import { Reference } from './ContentReference/Reference';
 import { BlockquoteSideBorder } from './PostContent/BlockquoteSideBorder';
 
 function FileNameLabel({

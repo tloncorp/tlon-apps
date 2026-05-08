@@ -30,8 +30,8 @@ test('format moon', () => {
   const moon = '~livnex-tarlup-pondus-watbel';
   const formatted = formatUserId(moon);
 
-  expect(formatted?.display).toBe('~pondus^watbel');
-  expect(formatted?.ariaLabel).toBe('pondus ^ watbel');
+  expect(formatted?.display).toBe('~livnex-tarlup-pondus-watbel');
+  expect(formatted?.ariaLabel).toBe('livnex - tarlup - pondus - watbel');
 });
 
 test('format moon (full)', () => {
@@ -40,6 +40,22 @@ test('format moon (full)', () => {
 
   expect(formatted?.display).toBe('~livnex-tarlup-pondus-watbel');
   expect(formatted?.ariaLabel).toBe('livnex - tarlup - pondus - watbel');
+});
+
+test('format star moon', () => {
+  const starMoon = '~sampel-sampel-dozzod-bacwyd';
+  const formatted = formatUserId(starMoon);
+
+  expect(formatted?.display).toBe('~sampel-sampel-dozzod-bacwyd');
+  expect(formatted?.ariaLabel).toBe('sampel - sampel - dozzod - bacwyd');
+});
+
+test('format galaxy moon', () => {
+  const galaxyMoon = '~sampel-sampel-dozzod-dozzod';
+  const formatted = formatUserId(galaxyMoon);
+
+  expect(formatted?.display).toBe('~sampel-sampel-dozzod-dozzod');
+  expect(formatted?.ariaLabel).toBe('sampel - sampel - dozzod - dozzod');
 });
 
 test('format comet', () => {

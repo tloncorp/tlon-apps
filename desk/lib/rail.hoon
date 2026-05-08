@@ -159,7 +159,6 @@
 /%  chat-writ-2                       %chat-writ-2
 /%  chat-writ-3                       %chat-writ-3
 /%  chat-writ-4                       %chat-writ-4
-/%  chat-writs                        %chat-writs
 /%  club-action                       %club-action
 /%  clubs                             %clubs
 /%  contact                           %contact
@@ -202,6 +201,8 @@
 /%  foreigns-1                        %foreigns-1
 /%  foreigns-2                        %foreigns-2
 /%  gangs                             %gangs
+/%  gateway-status-action-1           %gateway-status-action-1
+/%  gateway-status-update-1           %gateway-status-update-1
 /%  group                             %group
 /%  group-1                           %group-1
 /%  group-2                           %group-2
@@ -215,7 +216,6 @@
 /%  group-changed-groups-1            %group-changed-groups-1
 /%  group-changed-groups-2            %group-changed-groups-2
 /%  group-command                     %group-command
-/%  group-create                      %group-create
 /%  group-create-thread               %group-create-thread
 /%  group-foreign-1                   %group-foreign-1
 /%  group-foreign-2                   %group-foreign-2
@@ -227,8 +227,6 @@
 /%  group-init-4                      %group-init-4
 /%  group-invite                      %group-invite
 /%  group-invite-1                    %group-invite-1
-/%  group-invites                     %group-invites
-/%  group-invites-1                   %group-invites-1
 /%  group-join                        %group-join
 /%  group-knock                       %group-knock
 /%  group-leave                       %group-leave
@@ -237,7 +235,6 @@
 /%  group-preview-1                   %group-preview-1
 /%  group-preview-2                   %group-preview-2
 /%  group-preview-3                   %group-preview-3
-/%  group-preview-update              %group-preview-update
 /%  group-previews                    %group-previews
 /%  group-previews-1                  %group-previews-1
 /%  group-rescind                     %group-rescind
@@ -295,6 +292,7 @@
 /%  loob                              %loob
 /%  mass                              %mass
 /%  mime                              %mime
+/%  negotiate-reset                   %negotiate-reset
 /%  nest                              %nest
 /%  notify-client-action              %notify-client-action
 /%  notify-provider-action            %notify-provider-action
@@ -304,6 +302,10 @@
 /%  noun-autodiff                     %noun-autodiff
 /%  path                              %path
 /%  png                               %png
+/%  presence-action-1                 %presence-action-1
+/%  presence-command-1                %presence-command-1
+/%  presence-response-1               %presence-response-1
+/%  presence-update-1                 %presence-update-1
 /%  purl                              %purl
 /%  reel-bait                         %reel-bait
 /%  reel-bite                         %reel-bite
@@ -355,6 +357,7 @@
 /%  umd                               %umd
 /%  urb                               %urb
 /%  urbit                             %urbit
+/%  verb                              %verb
 /%  verb-event                        %verb-event
 /%  verb-event-plus                   %verb-event-plus
 /%  vere                              %vere
@@ -368,7 +371,6 @@
 /%  webmanifest                       %webmanifest
 /%  woff2                             %woff2
 /%  writ                              %writ
-/%  writ-diff                         %writ-diff
 /%  writ-response                     %writ-response
 /%  writ-response-1                   %writ-response-1
 /%  writ-response-2                   %writ-response-2
@@ -531,7 +533,6 @@
       $:  %chat-writ-2                       $+  chat-writ-2                       p=_*vale:chat-writ-2                       ==
       $:  %chat-writ-3                       $+  chat-writ-3                       p=_*vale:chat-writ-3                       ==
       $:  %chat-writ-4                       $+  chat-writ-4                       p=_*vale:chat-writ-4                       ==
-      $:  %chat-writs                        $+  chat-writs                        p=_*vale:chat-writs                        ==
       $:  %club-action                       $+  club-action                       p=_*vale:club-action                       ==
       $:  %clubs                             $+  clubs                             p=_*vale:clubs                             ==
       $:  %contact                           $+  contact                           p=_*vale:contact                           ==
@@ -574,6 +575,8 @@
       $:  %foreigns-1                        $+  foreigns-1                        p=_*vale:foreigns-1                        ==
       $:  %foreigns-2                        $+  foreigns-2                        p=_*vale:foreigns-2                        ==
       $:  %gangs                             $+  gangs                             p=_*vale:gangs                             ==
+      $:  %gateway-status-action-1           $+  gateway-status-action-1           p=_*vale:gateway-status-action-1           ==
+      $:  %gateway-status-update-1           $+  gateway-status-update-1           p=_*vale:gateway-status-update-1           ==
       $:  %group                             $+  group                             p=_*vale:group                             ==
       $:  %group-1                           $+  group-1                           p=_*vale:group-1                           ==
       $:  %group-2                           $+  group-2                           p=_*vale:group-2                           ==
@@ -587,7 +590,6 @@
       $:  %group-changed-groups-1            $+  group-changed-groups-1            p=_*vale:group-changed-groups-1            ==
       $:  %group-changed-groups-2            $+  group-changed-groups-2            p=_*vale:group-changed-groups-2            ==
       $:  %group-command                     $+  group-command                     p=_*vale:group-command                     ==
-      $:  %group-create                      $+  group-create                      p=_*vale:group-create                      ==
       $:  %group-create-thread               $+  group-create-thread               p=_*vale:group-create-thread               ==
       $:  %group-foreign-1                   $+  group-foreign-1                   p=_*vale:group-foreign-1                   ==
       $:  %group-foreign-2                   $+  group-foreign-2                   p=_*vale:group-foreign-2                   ==
@@ -599,8 +601,6 @@
       $:  %group-init-4                      $+  group-init-4                      p=_*vale:group-init-4                      ==
       $:  %group-invite                      $+  group-invite                      p=_*vale:group-invite                      ==
       $:  %group-invite-1                    $+  group-invite-1                    p=_*vale:group-invite-1                    ==
-      $:  %group-invites                     $+  group-invites                     p=_*vale:group-invites                     ==
-      $:  %group-invites-1                   $+  group-invites-1                   p=_*vale:group-invites-1                   ==
       $:  %group-join                        $+  group-join                        p=_*vale:group-join                        ==
       $:  %group-knock                       $+  group-knock                       p=_*vale:group-knock                       ==
       $:  %group-leave                       $+  group-leave                       p=_*vale:group-leave                       ==
@@ -609,7 +609,6 @@
       $:  %group-preview-1                   $+  group-preview-1                   p=_*vale:group-preview-1                   ==
       $:  %group-preview-2                   $+  group-preview-2                   p=_*vale:group-preview-2                   ==
       $:  %group-preview-3                   $+  group-preview-3                   p=_*vale:group-preview-3                   ==
-      $:  %group-preview-update              $+  group-preview-update              p=_*vale:group-preview-update              ==
       $:  %group-previews                    $+  group-previews                    p=_*vale:group-previews                    ==
       $:  %group-previews-1                  $+  group-previews-1                  p=_*vale:group-previews-1                  ==
       $:  %group-rescind                     $+  group-rescind                     p=_*vale:group-rescind                     ==
@@ -667,6 +666,7 @@
       $:  %loob                              $+  loob                              p=_*vale:loob                              ==
       $:  %mass                              $+  mass                              p=_*vale:mass                              ==
       $:  %mime                              $+  mime                              p=_*vale:mime                              ==
+      $:  %negotiate-reset                   $+  negotiate-reset                   p=_*vale:negotiate-reset                   ==
       $:  %nest                              $+  nest                              p=_*vale:nest                              ==
       $:  %notify-client-action              $+  notify-client-action              p=_*vale:notify-client-action              ==
       $:  %notify-provider-action            $+  notify-provider-action            p=_*vale:notify-provider-action            ==
@@ -676,6 +676,10 @@
       $:  %noun-autodiff                     $+  noun-autodiff                     p=_*vale:noun-autodiff                     ==
       $:  %path                              $+  path                              p=_*vale:path                              ==
       $:  %png                               $+  png                               p=_*vale:png                               ==
+      $:  %presence-action-1                 $+  presence-action-1                 p=_*vale:presence-action-1                 ==
+      $:  %presence-command-1                $+  presence-command-1                p=_*vale:presence-command-1                ==
+      $:  %presence-response-1               $+  presence-response-1               p=_*vale:presence-response-1               ==
+      $:  %presence-update-1                 $+  presence-update-1                 p=_*vale:presence-update-1                 ==
       $:  %purl                              $+  purl                              p=_*vale:purl                              ==
       $:  %reel-bait                         $+  reel-bait                         p=_*vale:reel-bait                         ==
       $:  %reel-bite                         $+  reel-bite                         p=_*vale:reel-bite                         ==
@@ -727,6 +731,7 @@
       $:  %umd                               $+  umd                               p=_*vale:umd                               ==
       $:  %urb                               $+  urb                               p=_*vale:urb                               ==
       $:  %urbit                             $+  urbit                             p=_*vale:urbit                             ==
+      $:  %verb                              $+  verb                              p=_*vale:verb                              ==
       $:  %verb-event                        $+  verb-event                        p=_*vale:verb-event                        ==
       $:  %verb-event-plus                   $+  verb-event-plus                   p=_*vale:verb-event-plus                   ==
       $:  %vere                              $+  vere                              p=_*vale:vere                              ==
@@ -740,7 +745,6 @@
       $:  %webmanifest                       $+  webmanifest                       p=_*vale:webmanifest                       ==
       $:  %woff2                             $+  woff2                             p=_*vale:woff2                             ==
       $:  %writ                              $+  writ                              p=_*vale:writ                              ==
-      $:  %writ-diff                         $+  writ-diff                         p=_*vale:writ-diff                         ==
       $:  %writ-response                     $+  writ-response                     p=_*vale:writ-response                     ==
       $:  %writ-response-1                   $+  writ-response-1                   p=_*vale:writ-response-1                   ==
       $:  %writ-response-2                   $+  writ-response-2                   p=_*vale:writ-response-2                   ==
@@ -905,7 +909,6 @@
     %chat-writ-2                       [-.rail !>(+.rail)]
     %chat-writ-3                       [-.rail !>(+.rail)]
     %chat-writ-4                       [-.rail !>(+.rail)]
-    %chat-writs                        [-.rail !>(+.rail)]
     %club-action                       [-.rail !>(+.rail)]
     %clubs                             [-.rail !>(+.rail)]
     %contact                           [-.rail !>(+.rail)]
@@ -948,6 +951,8 @@
     %foreigns-1                        [-.rail !>(+.rail)]
     %foreigns-2                        [-.rail !>(+.rail)]
     %gangs                             [-.rail !>(+.rail)]
+    %gateway-status-action-1           [-.rail !>(+.rail)]
+    %gateway-status-update-1           [-.rail !>(+.rail)]
     %group                             [-.rail !>(+.rail)]
     %group-1                           [-.rail !>(+.rail)]
     %group-2                           [-.rail !>(+.rail)]
@@ -961,7 +966,6 @@
     %group-changed-groups-1            [-.rail !>(+.rail)]
     %group-changed-groups-2            [-.rail !>(+.rail)]
     %group-command                     [-.rail !>(+.rail)]
-    %group-create                      [-.rail !>(+.rail)]
     %group-create-thread               [-.rail !>(+.rail)]
     %group-foreign-1                   [-.rail !>(+.rail)]
     %group-foreign-2                   [-.rail !>(+.rail)]
@@ -973,8 +977,6 @@
     %group-init-4                      [-.rail !>(+.rail)]
     %group-invite                      [-.rail !>(+.rail)]
     %group-invite-1                    [-.rail !>(+.rail)]
-    %group-invites                     [-.rail !>(+.rail)]
-    %group-invites-1                   [-.rail !>(+.rail)]
     %group-join                        [-.rail !>(+.rail)]
     %group-knock                       [-.rail !>(+.rail)]
     %group-leave                       [-.rail !>(+.rail)]
@@ -983,7 +985,6 @@
     %group-preview-1                   [-.rail !>(+.rail)]
     %group-preview-2                   [-.rail !>(+.rail)]
     %group-preview-3                   [-.rail !>(+.rail)]
-    %group-preview-update              [-.rail !>(+.rail)]
     %group-previews                    [-.rail !>(+.rail)]
     %group-previews-1                  [-.rail !>(+.rail)]
     %group-rescind                     [-.rail !>(+.rail)]
@@ -1041,6 +1042,7 @@
     %loob                              [-.rail !>(+.rail)]
     %mass                              [-.rail !>(+.rail)]
     %mime                              [-.rail !>(+.rail)]
+    %negotiate-reset                   [-.rail !>(+.rail)]
     %nest                              [-.rail !>(+.rail)]
     %notify-client-action              [-.rail !>(+.rail)]
     %notify-provider-action            [-.rail !>(+.rail)]
@@ -1050,6 +1052,10 @@
     %noun-autodiff                     [-.rail !>(+.rail)]
     %path                              [-.rail !>(+.rail)]
     %png                               [-.rail !>(+.rail)]
+    %presence-action-1                 [-.rail !>(+.rail)]
+    %presence-command-1                [-.rail !>(+.rail)]
+    %presence-response-1               [-.rail !>(+.rail)]
+    %presence-update-1                 [-.rail !>(+.rail)]
     %purl                              [-.rail !>(+.rail)]
     %reel-bait                         [-.rail !>(+.rail)]
     %reel-bite                         [-.rail !>(+.rail)]
@@ -1101,6 +1107,7 @@
     %umd                               [-.rail !>(+.rail)]
     %urb                               [-.rail !>(+.rail)]
     %urbit                             [-.rail !>(+.rail)]
+    %verb                              [-.rail !>(+.rail)]
     %verb-event                        [-.rail !>(+.rail)]
     %verb-event-plus                   [-.rail !>(+.rail)]
     %vere                              [-.rail !>(+.rail)]
@@ -1114,7 +1121,6 @@
     %webmanifest                       [-.rail !>(+.rail)]
     %woff2                             [-.rail !>(+.rail)]
     %writ                              [-.rail !>(+.rail)]
-    %writ-diff                         [-.rail !>(+.rail)]
     %writ-response                     [-.rail !>(+.rail)]
     %writ-response-1                   [-.rail !>(+.rail)]
     %writ-response-2                   [-.rail !>(+.rail)]
@@ -1277,7 +1283,6 @@
     %chat-writ-2                       [p !<(_*vale:chat-writ-2 q)]
     %chat-writ-3                       [p !<(_*vale:chat-writ-3 q)]
     %chat-writ-4                       [p !<(_*vale:chat-writ-4 q)]
-    %chat-writs                        [p !<(_*vale:chat-writs q)]
     %club-action                       [p !<(_*vale:club-action q)]
     %clubs                             [p !<(_*vale:clubs q)]
     %contact                           [p !<(_*vale:contact q)]
@@ -1320,6 +1325,8 @@
     %foreigns-1                        [p !<(_*vale:foreigns-1 q)]
     %foreigns-2                        [p !<(_*vale:foreigns-2 q)]
     %gangs                             [p !<(_*vale:gangs q)]
+    %gateway-status-action-1           [p !<(_*vale:gateway-status-action-1 q)]
+    %gateway-status-update-1           [p !<(_*vale:gateway-status-update-1 q)]
     %group                             [p !<(_*vale:group q)]
     %group-1                           [p !<(_*vale:group-1 q)]
     %group-2                           [p !<(_*vale:group-2 q)]
@@ -1333,7 +1340,6 @@
     %group-changed-groups-1            [p !<(_*vale:group-changed-groups-1 q)]
     %group-changed-groups-2            [p !<(_*vale:group-changed-groups-2 q)]
     %group-command                     [p !<(_*vale:group-command q)]
-    %group-create                      [p !<(_*vale:group-create q)]
     %group-create-thread               [p !<(_*vale:group-create-thread q)]
     %group-foreign-1                   [p !<(_*vale:group-foreign-1 q)]
     %group-foreign-2                   [p !<(_*vale:group-foreign-2 q)]
@@ -1345,8 +1351,6 @@
     %group-init-4                      [p !<(_*vale:group-init-4 q)]
     %group-invite                      [p !<(_*vale:group-invite q)]
     %group-invite-1                    [p !<(_*vale:group-invite-1 q)]
-    %group-invites                     [p !<(_*vale:group-invites q)]
-    %group-invites-1                   [p !<(_*vale:group-invites-1 q)]
     %group-join                        [p !<(_*vale:group-join q)]
     %group-knock                       [p !<(_*vale:group-knock q)]
     %group-leave                       [p !<(_*vale:group-leave q)]
@@ -1355,7 +1359,6 @@
     %group-preview-1                   [p !<(_*vale:group-preview-1 q)]
     %group-preview-2                   [p !<(_*vale:group-preview-2 q)]
     %group-preview-3                   [p !<(_*vale:group-preview-3 q)]
-    %group-preview-update              [p !<(_*vale:group-preview-update q)]
     %group-previews                    [p !<(_*vale:group-previews q)]
     %group-previews-1                  [p !<(_*vale:group-previews-1 q)]
     %group-rescind                     [p !<(_*vale:group-rescind q)]
@@ -1413,6 +1416,7 @@
     %loob                              [p !<(_*vale:loob q)]
     %mass                              [p !<(_*vale:mass q)]
     %mime                              [p !<(_*vale:mime q)]
+    %negotiate-reset                   [p !<(_*vale:negotiate-reset q)]
     %nest                              [p !<(_*vale:nest q)]
     %notify-client-action              [p !<(_*vale:notify-client-action q)]
     %notify-provider-action            [p !<(_*vale:notify-provider-action q)]
@@ -1422,6 +1426,10 @@
     %noun-autodiff                     [p !<(_*vale:noun-autodiff q)]
     %path                              [p !<(_*vale:path q)]
     %png                               [p !<(_*vale:png q)]
+    %presence-action-1                 [p !<(_*vale:presence-action-1 q)]
+    %presence-command-1                [p !<(_*vale:presence-command-1 q)]
+    %presence-response-1               [p !<(_*vale:presence-response-1 q)]
+    %presence-update-1                 [p !<(_*vale:presence-update-1 q)]
     %purl                              [p !<(_*vale:purl q)]
     %reel-bait                         [p !<(_*vale:reel-bait q)]
     %reel-bite                         [p !<(_*vale:reel-bite q)]
@@ -1473,6 +1481,7 @@
     %umd                               [p !<(_*vale:umd q)]
     %urb                               [p !<(_*vale:urb q)]
     %urbit                             [p !<(_*vale:urbit q)]
+    %verb                              [p !<(_*vale:verb q)]
     %verb-event                        [p !<(_*vale:verb-event q)]
     %verb-event-plus                   [p !<(_*vale:verb-event-plus q)]
     %vere                              [p !<(_*vale:vere q)]
@@ -1486,7 +1495,6 @@
     %webmanifest                       [p !<(_*vale:webmanifest q)]
     %woff2                             [p !<(_*vale:woff2 q)]
     %writ                              [p !<(_*vale:writ q)]
-    %writ-diff                         [p !<(_*vale:writ-diff q)]
     %writ-response                     [p !<(_*vale:writ-response q)]
     %writ-response-1                   [p !<(_*vale:writ-response-1 q)]
     %writ-response-2                   [p !<(_*vale:writ-response-2 q)]
@@ -1501,23 +1509,23 @@
   :~  :+  %activity-action                   &  -:!>(*vale:activity-action)
       :+  %activity-allowed                  &  -:!>(*vale:activity-allowed)
       :+  %activity-event                    &  -:!>(*vale:activity-event)
-      :+  %activity-feed                     &  -:!>(*vale:activity-feed)
+      :+  %activity-feed                     |  -:!>(*vale:activity-feed)
       :+  %activity-feed-5                   &  -:!>(*vale:activity-feed-5)
-      :+  %activity-feed-init                &  -:!>(*vale:activity-feed-init)
+      :+  %activity-feed-init                |  -:!>(*vale:activity-feed-init)
       :+  %activity-feed-init-5              &  -:!>(*vale:activity-feed-init-5)
-      :+  %activity-full                     &  -:!>(*vale:activity-full)
-      :+  %activity-full-1                   &  -:!>(*vale:activity-full-1)
+      :+  %activity-full                     |  -:!>(*vale:activity-full)
+      :+  %activity-full-1                   |  -:!>(*vale:activity-full-1)
       :+  %activity-full-4                   &  -:!>(*vale:activity-full-4)
       :+  %activity-settings                 &  -:!>(*vale:activity-settings)
       :+  %activity-stream                   &  -:!>(*vale:activity-stream)
-      :+  %activity-summary                  &  -:!>(*vale:activity-summary)
-      :+  %activity-summary-1                &  -:!>(*vale:activity-summary-1)
+      :+  %activity-summary                  |  -:!>(*vale:activity-summary)
+      :+  %activity-summary-1                |  -:!>(*vale:activity-summary-1)
       :+  %activity-summary-4                &  -:!>(*vale:activity-summary-4)
       :+  %activity-summary-pairs-4          &  -:!>(*vale:activity-summary-pairs-4)
-      :+  %activity-update                   &  -:!>(*vale:activity-update)
-      :+  %activity-update-1                 &  -:!>(*vale:activity-update-1)
+      :+  %activity-update                   |  -:!>(*vale:activity-update)
+      :+  %activity-update-1                 |  -:!>(*vale:activity-update-1)
       :+  %activity-update-4                 &  -:!>(*vale:activity-update-4)
-      :+  %aqua-effect                       &  -:!>(*vale:aqua-effect)
+      :+  %aqua-effect                       |  -:!>(*vale:aqua-effect)
       :+  %atom                              &  -:!>(*vale:atom)
       :+  %bait-acknowledge                  &  -:!>(*vale:bait-acknowledge)
       :+  %bait-describe                     &  -:!>(*vale:bait-describe)
@@ -1647,7 +1655,6 @@
       :+  %chat-writ-2                       &  -:!>(*vale:chat-writ-2)
       :+  %chat-writ-3                       &  -:!>(*vale:chat-writ-3)
       :+  %chat-writ-4                       |  -:!>(*vale:chat-writ-4)
-      :+  %chat-writs                        &  -:!>(*vale:chat-writs)
       :+  %club-action                       &  -:!>(*vale:club-action)
       :+  %clubs                             &  -:!>(*vale:clubs)
       :+  %contact                           &  -:!>(*vale:contact)
@@ -1690,6 +1697,8 @@
       :+  %foreigns-1                        &  -:!>(*vale:foreigns-1)
       :+  %foreigns-2                        &  -:!>(*vale:foreigns-2)
       :+  %gangs                             &  -:!>(*vale:gangs)
+      :+  %gateway-status-action-1           &  -:!>(*vale:gateway-status-action-1)
+      :+  %gateway-status-update-1           &  -:!>(*vale:gateway-status-update-1)
       :+  %group                             &  -:!>(*vale:group)
       :+  %group-1                           &  -:!>(*vale:group-1)
       :+  %group-2                           &  -:!>(*vale:group-2)
@@ -1703,7 +1712,6 @@
       :+  %group-changed-groups-1            &  -:!>(*vale:group-changed-groups-1)
       :+  %group-changed-groups-2            &  -:!>(*vale:group-changed-groups-2)
       :+  %group-command                     &  -:!>(*vale:group-command)
-      :+  %group-create                      &  -:!>(*vale:group-create)
       :+  %group-create-thread               &  -:!>(*vale:group-create-thread)
       :+  %group-foreign-1                   &  -:!>(*vale:group-foreign-1)
       :+  %group-foreign-2                   &  -:!>(*vale:group-foreign-2)
@@ -1715,8 +1723,6 @@
       :+  %group-init-4                      &  -:!>(*vale:group-init-4)
       :+  %group-invite                      &  -:!>(*vale:group-invite)
       :+  %group-invite-1                    &  -:!>(*vale:group-invite-1)
-      :+  %group-invites                     &  -:!>(*vale:group-invites)
-      :+  %group-invites-1                   &  -:!>(*vale:group-invites-1)
       :+  %group-join                        &  -:!>(*vale:group-join)
       :+  %group-knock                       &  -:!>(*vale:group-knock)
       :+  %group-leave                       &  -:!>(*vale:group-leave)
@@ -1725,7 +1731,6 @@
       :+  %group-preview-1                   &  -:!>(*vale:group-preview-1)
       :+  %group-preview-2                   &  -:!>(*vale:group-preview-2)
       :+  %group-preview-3                   &  -:!>(*vale:group-preview-3)
-      :+  %group-preview-update              &  -:!>(*vale:group-preview-update)
       :+  %group-previews                    &  -:!>(*vale:group-previews)
       :+  %group-previews-1                  &  -:!>(*vale:group-previews-1)
       :+  %group-rescind                     &  -:!>(*vale:group-rescind)
@@ -1783,6 +1788,7 @@
       :+  %loob                              &  -:!>(*vale:loob)
       :+  %mass                              &  -:!>(*vale:mass)
       :+  %mime                              &  -:!>(*vale:mime)
+      :+  %negotiate-reset                   &  -:!>(*vale:negotiate-reset)
       :+  %nest                              &  -:!>(*vale:nest)
       :+  %notify-client-action              &  -:!>(*vale:notify-client-action)
       :+  %notify-provider-action            &  -:!>(*vale:notify-provider-action)
@@ -1792,6 +1798,10 @@
       :+  %noun-autodiff                     &  -:!>(*vale:noun-autodiff)
       :+  %path                              &  -:!>(*vale:path)
       :+  %png                               &  -:!>(*vale:png)
+      :+  %presence-action-1                 &  -:!>(*vale:presence-action-1)
+      :+  %presence-command-1                &  -:!>(*vale:presence-command-1)
+      :+  %presence-response-1               &  -:!>(*vale:presence-response-1)
+      :+  %presence-update-1                 &  -:!>(*vale:presence-update-1)
       :+  %purl                              &  -:!>(*vale:purl)
       :+  %reel-bait                         &  -:!>(*vale:reel-bait)
       :+  %reel-bite                         &  -:!>(*vale:reel-bite)
@@ -1830,8 +1840,8 @@
       :+  %ui-import-pals                    &  -:!>(*vale:ui-import-pals)
       :+  %ui-init                           &  -:!>(*vale:ui-init)
       :+  %ui-init-1                         &  -:!>(*vale:ui-init-1)
-      :+  %ui-init-2                         &  -:!>(*vale:ui-init-2)
-      :+  %ui-init-3                         &  -:!>(*vale:ui-init-3)
+      :+  %ui-init-2                         |  -:!>(*vale:ui-init-2)
+      :+  %ui-init-3                         |  -:!>(*vale:ui-init-3)
       :+  %ui-init-4                         &  -:!>(*vale:ui-init-4)
       :+  %ui-init-5                         &  -:!>(*vale:ui-init-5)
       :+  %ui-init-6                         &  -:!>(*vale:ui-init-6)
@@ -1843,6 +1853,7 @@
       :+  %umd                               &  -:!>(*vale:umd)
       :+  %urb                               &  -:!>(*vale:urb)
       :+  %urbit                             &  -:!>(*vale:urbit)
+      :+  %verb                              &  -:!>(*vale:verb)
       :+  %verb-event                        &  -:!>(*vale:verb-event)
       :+  %verb-event-plus                   &  -:!>(*vale:verb-event-plus)
       :+  %vere                              &  -:!>(*vale:vere)
@@ -1856,7 +1867,6 @@
       :+  %webmanifest                       &  -:!>(*vale:webmanifest)
       :+  %woff2                             &  -:!>(*vale:woff2)
       :+  %writ                              &  -:!>(*vale:writ)
-      :+  %writ-diff                         &  -:!>(*vale:writ-diff)
       :+  %writ-response                     &  -:!>(*vale:writ-response)
       :+  %writ-response-1                   &  -:!>(*vale:writ-response-1)
       :+  %writ-response-2                   &  -:!>(*vale:writ-response-2)

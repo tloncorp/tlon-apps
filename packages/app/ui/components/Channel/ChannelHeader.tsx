@@ -4,6 +4,7 @@ import { useContact } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
+  ReactElement,
   createContext,
   useCallback,
   useContext,
@@ -12,15 +13,16 @@ import {
   useState,
 } from 'react';
 
-import { useCurrentUserId } from '../../contexts';
+import { useCurrentUserId } from '../../contexts/appDataContext';
 import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
-import { ContactAvatar, GroupAvatar } from '../Avatar';
+import { ContactAvatar } from '../Avatar';
 import ConnectionStatus from '../ConnectionStatus';
+import { GroupAvatar } from '../GroupAvatar';
 import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {
-  registerItem: (options: { item: JSX.Element }) => { remove: () => void };
-  items: readonly JSX.Element[];
+  registerItem: (options: { item: ReactElement }) => { remove: () => void };
+  items: readonly ReactElement[];
 }
 
 const ChannelHeaderItemsContext =
@@ -39,11 +41,11 @@ const ChannelHeaderItemsContext =
 export function ChannelHeaderItemsProvider({
   children,
 }: {
-  children: JSX.Element;
+  children: ReactElement;
 }) {
-  const [items, setItems] = useState<JSX.Element[]>([]);
+  const [items, setItems] = useState<ReactElement[]>([]);
   const registerItem = useCallback(
-    ({ item }: { item: JSX.Element }) => {
+    ({ item }: { item: ReactElement }) => {
       setItems((prev) => [...prev, item]);
       return {
         remove: () => {
@@ -60,7 +62,7 @@ export function ChannelHeaderItemsProvider({
   );
 }
 
-export function useRegisterChannelHeaderItem(item: JSX.Element | null) {
+export function useRegisterChannelHeaderItem(item: ReactElement | null) {
   const registerItem = useContext(ChannelHeaderItemsContext)?.registerItem;
 
   // NB: Since we're mutating the ChannelHeaderItemsContext in this effect, we
@@ -315,7 +317,14 @@ export function ChannelHeader({
   return (
     <ScreenHeader
       title={displayTitle}
-      titleIcon={avatarElement || titleIcon}
+      titleIcon={
+        <>
+          {avatarElement || titleIcon}
+          {channelHost && !isWindowNarrow && (
+            <ConnectionStatus contactId={channelHost} type="indicator" />
+          )}
+        </>
+      }
       subtitle={displaySubtitle}
       testID="ChannelHeaderTitle"
       showSubtitle
@@ -326,12 +335,6 @@ export function ChannelHeader({
       leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
       rightControls={
         <>
-          {channelHost && !isWindowNarrow && (
-            <ConnectionStatus
-              contactId={channelHost}
-              type="indicator-with-text"
-            />
-          )}
           {showSearchButton && (
             <ScreenHeader.IconButton type="Search" onPress={goToSearch} />
           )}
@@ -340,11 +343,13 @@ export function ChannelHeader({
             <Fragment key={index}>{item}</Fragment>
           ))}
           {showEditButton && (
-            <ScreenHeader.IconButton
+            <ScreenHeader.TextButton
               onPress={goToEdit}
               testID="ChannelHeaderEditButton"
-              type="Settings"
-            />
+              color="$primaryText"
+            >
+              Edit
+            </ScreenHeader.TextButton>
           )}
         </>
       }

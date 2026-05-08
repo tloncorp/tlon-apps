@@ -1,4 +1,3 @@
-import { ImageZoom } from '@likashefqet/react-native-image-zoom';
 import * as React from 'react';
 import {
   FlatList,
@@ -14,11 +13,12 @@ import { Edges, SafeAreaView } from 'react-native-safe-area-context';
 import { AnimatePresence, View, withStaticProperties } from 'tamagui';
 
 import { ForwardingProps } from '../utils/react';
+import { GestureMediaViewer } from './GestureMediaViewer';
 
 const CarouselContext = React.createContext<{
   direction: 'horizontal' | 'vertical';
   rect: { width: number; height: number } | null;
-  setOverlay: (overlay: JSX.Element) => () => void;
+  setOverlay: (overlay: React.ReactElement) => () => void;
   visibleIndex: number;
 } | null>(null);
 
@@ -64,7 +64,7 @@ const _Carousel = React.forwardRef<
     initialVisibleIndex ?? 0
   );
   const [isOverlayShown, setIsOverlayShown] = React.useState(false);
-  const [overlay, setOverlay] = React.useState<JSX.Element | null>(null);
+  const [overlay, setOverlay] = React.useState<React.ReactElement | null>(null);
   const tap = Gesture.Tap()
     .onEnd((_event, success) => {
       success && runOnJS(setIsOverlayShown)(!isOverlayShown);
@@ -79,9 +79,12 @@ const _Carousel = React.forwardRef<
     () => ({
       direction: scrollDirection,
       rect,
-      setOverlay: (overlay: JSX.Element) => {
+      setOverlay: (overlay: React.ReactElement) => {
         setOverlay(overlay);
-        return () => setOverlay((prev) => (prev === overlay ? null : prev));
+        return () =>
+          setOverlay((prev: React.ReactElement | null) =>
+            prev === overlay ? null : prev
+          );
       },
       visibleIndex,
     }),
@@ -158,7 +161,6 @@ const _Carousel = React.forwardRef<
               data={childrenArray}
               decelerationRate="fast"
               disableIntervalMomentum
-              scrollEnabled={!disableCarouselInteraction}
               initialScrollIndex={initialVisibleIndex}
               style={[
                 {
@@ -181,6 +183,7 @@ const _Carousel = React.forwardRef<
               )}
               getItemLayout={getItemLayout}
               maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+              scrollEnabled={!disableCarouselInteraction}
               {...flatListProps}
             />
           )}
@@ -189,7 +192,7 @@ const _Carousel = React.forwardRef<
           {(!hideOverlayOnTap || isOverlayShown) && (
             <View
               key="overlay"
-              animation="simple"
+              transition="simple"
               enterStyle={{ opacity: 0 }}
               exitStyle={{ opacity: 0 }}
               flex={1}
@@ -226,7 +229,7 @@ function Item({
      * If provided, shows the provided element over the scroll viewport when
      * this item is visible.
      */
-    overlay?: JSX.Element;
+    overlay?: React.ReactElement;
   }
 >) {
   const ctxValue = React.useContext(CarouselContext);
@@ -260,8 +263,8 @@ function Overlay({
   header,
   footer,
 }: {
-  header?: JSX.Element;
-  footer?: JSX.Element;
+  header?: React.ReactElement;
+  footer?: React.ReactElement;
 }) {
   return (
     <>
@@ -289,13 +292,27 @@ function ContentImage({
   uri: string;
   safeAreaEdges?: Edges;
 }) {
+  const items = React.useMemo(
+    () => [
+      {
+        type: 'image' as const,
+        uri,
+      },
+    ],
+    [uri]
+  );
+
   if (Platform.OS === 'web') {
     return null;
   }
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={safeAreaEdges}>
-      <ImageZoom style={{ flex: 1 }} resizeMode="contain" uri={uri} />
+      <GestureMediaViewer
+        items={items}
+        enableDismissGesture={false}
+        enableSwipeGesture={false}
+      />
     </SafeAreaView>
   );
 }

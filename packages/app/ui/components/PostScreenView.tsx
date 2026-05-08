@@ -29,13 +29,11 @@ import { Text, View, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useIsUserActive } from '../../hooks/useUserActivity';
-import {
-  ChannelProvider,
-  NavigationProvider,
-  useAttachmentContext,
-  useCurrentUserId,
-  useStore,
-} from '../contexts';
+import { useCurrentUserId } from '../contexts/appDataContext';
+import { useAttachmentContext } from '../contexts/attachment';
+import { ChannelProvider } from '../contexts/channel';
+import { NavigationProvider } from '../contexts/navigation';
+import { useStore } from '../contexts/storeContext';
 import * as utils from '../utils';
 import BareChatInput from './BareChatInput';
 import { BigInput } from './BigInput';
@@ -49,7 +47,10 @@ import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
 import { DraftInputContext } from './draftInputs';
-import { DraftInputContextProvider } from './draftInputs/shared';
+import {
+  DraftInputContextProvider,
+  DraftInputHandle,
+} from './draftInputs/shared';
 
 const noop = async () => {};
 
@@ -482,32 +483,44 @@ function useMarkThreadAsReadEffect(
     channel: db.Channel;
     parent: db.Post;
     mostRecentlyReceivedReply: db.Post;
+    hasThreadUnreads: boolean;
   } | null
 ) {
   const store = useStore();
-  const markRead = useCallback(() => {
-    if (opts == null) {
-      return;
-    }
+  const shouldMarkRead = opts?.shouldMarkRead ?? false;
+  const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
+  const hasThreadUnreads = opts?.hasThreadUnreads ?? false;
 
-    const { channel, parent, mostRecentlyReceivedReply } = opts;
-    if (channel && parent && mostRecentlyReceivedReply) {
+  // Ref captures the latest opts so the effect can read current values
+  // without depending on the unstable inline object identity.
+  const optsRef = useRef(opts);
+  optsRef.current = opts;
+
+  // Single effect with two trigger signals:
+  //   - hasThreadUnreads: authoritative signal (SSE pushed unread count > 0).
+  //   - latestReplyId: secondary signal (thread sync delivered a new post,
+  //     allowing immediate mark-read if hasThreadUnreads is already true).
+  //
+  // Guard: only acts when hasThreadUnreads is true.
+  //   - false -> true: guard passes, marks read.
+  //   - true -> false (unread state cleared): guard returns early, no poke sent.
+  // This directly mirrors Channel/index.tsx:292-301's `if (hasUnreads && ...)`.
+  useEffect(() => {
+    if (!shouldMarkRead || !hasThreadUnreads) return;
+    const current = optsRef.current;
+    if (current == null) return;
+    const { channel, parent, mostRecentlyReceivedReply } = current;
+    if (!channel || !parent || !mostRecentlyReceivedReply) return;
+
+    const timeoutId = setTimeout(() => {
       store.markThreadRead({
         channel,
         parentPost: parent,
         post: mostRecentlyReceivedReply,
       });
-    }
-  }, [opts, store]);
-
-  const shouldMarkRead = opts?.shouldMarkRead ?? false;
-  useEffect(() => {
-    if (shouldMarkRead) {
-      markRead();
-    }
-    // Only want to trigger once per set of params
-    // eslint-disable-next-line
-  }, [shouldMarkRead]);
+    }, 150);
+    return () => clearTimeout(timeoutId);
+  }, [shouldMarkRead, hasThreadUnreads, latestReplyId, store]);
 }
 
 function SinglePostView({
@@ -563,6 +576,7 @@ function SinglePostView({
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
   });
+  const replyDraftInputRef = useRef<DraftInputHandle>(null);
 
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
   // time
@@ -575,6 +589,13 @@ function SinglePostView({
     }
     initializeChannelUnread();
   }, [parentPost.id]);
+
+  const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
+    parentPost.id
+  );
+  const hasThreadUnreads = !!(
+    liveThreadUnread?.count && liveThreadUnread.count > 0
+  );
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
@@ -602,7 +623,7 @@ function SinglePostView({
 
   // --- Chat-thread highlight + fast-path handle ---
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
-  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const highlightPost = useCallback((postId: string) => {
     setHighlightPostId(postId);
@@ -699,12 +720,18 @@ function SinglePostView({
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
           shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
+          hasThreadUnreads,
         }
   );
 
-  const sendReplyFromDraft = useCallback(
+  const sendFromThreadComposer = useCallback(
     async (draft: domain.PostDataDraft) => {
       setEditingPost?.(undefined);
+      if (draft.isEdit) {
+        await store.finalizeAndSendPost(draft);
+        return;
+      }
+
       draft.replyToPostId = parentPost.id;
       await store.finalizeAndSendPost(draft);
       scrollToNewReply();
@@ -720,29 +747,46 @@ function SinglePostView({
     [channel.type]
   );
 
-  const replyDraftInputContext = useMemo(
+  const startReplyDraft = useCallback((mode?: 'text' | 'link') => {
+    replyDraftInputRef.current?.startDraft?.(mode);
+  }, []);
+
+  const canRenderReplyInput =
+    negotiationMatch &&
+    canWrite &&
+    !(
+      isEditingParent &&
+      (channel.type === 'notebook' || channel.type === 'gallery')
+    );
+
+  const threadComposerContext = useMemo(
     (): DraftInputContext => ({
+      canStartDraft: canRenderReplyInput && !editingPost,
       channel,
       clearDraft,
+      draftInputRef: replyDraftInputRef,
       editingPost,
       getDraft,
       group,
-      sendPostFromDraft: sendReplyFromDraft,
+      sendPostFromDraft: sendFromThreadComposer,
       setEditingPost,
       setShouldBlur: setInputShouldBlur,
       shouldBlur: inputShouldBlur,
+      startDraft: startReplyDraft,
       storeDraft,
       replyToPost: { id: parentPost.id },
     }),
     [
+      canRenderReplyInput,
       channel,
       clearDraft,
       editingPost,
       getDraft,
       group,
-      sendReplyFromDraft,
+      sendFromThreadComposer,
       setEditingPost,
       inputShouldBlur,
+      startReplyDraft,
       storeDraft,
       parentPost.id,
     ]
@@ -750,52 +794,48 @@ function SinglePostView({
 
   return (
     <YStack flex={1}>
-      {parentPost ? (
-        <DetailView
-          post={parentPost}
-          channel={channel}
-          initialPostUnread={initialThreadUnread}
-          anchor={threadAnchor}
-          onPressImage={handleGoToImage}
-          editingPost={editingPost}
-          setEditingPost={setEditingPost}
-          onPressRetry={onPressRetry}
-          onPressDelete={onPressDelete}
-          posts={postsWithoutParent}
-          goBack={goBack}
-          activeMessage={activeMessage}
-          setActiveMessage={setActiveMessage}
-          highlightPostId={highlightPostId}
-          scrollerRef={scrollerRef}
-        />
-      ) : null}
+      {/* Thread composer context sends new drafts as replies; edits preserve their original target. */}
+      <DraftInputContextProvider value={threadComposerContext}>
+        {parentPost ? (
+          <DetailView
+            post={parentPost}
+            channel={channel}
+            initialPostUnread={initialThreadUnread}
+            anchor={threadAnchor}
+            onPressImage={handleGoToImage}
+            editingPost={editingPost}
+            setEditingPost={setEditingPost}
+            onPressRetry={onPressRetry}
+            onPressDelete={onPressDelete}
+            posts={postsWithoutParent}
+            goBack={goBack}
+            activeMessage={activeMessage}
+            setActiveMessage={setActiveMessage}
+            highlightPostId={highlightPostId}
+            scrollerRef={scrollerRef}
+          />
+        ) : null}
 
-      {negotiationMatch &&
-        channel &&
-        canWrite &&
-        !(
-          isEditingParent &&
-          (channel.type === 'notebook' || channel.type === 'gallery')
-        ) && (
+        {canRenderReplyInput && (
           <View id="reply-container" {...containingProperties}>
-            <DraftInputContextProvider value={replyDraftInputContext}>
-              <BareChatInput
-                {...replyDraftInputContext}
-                placeholder="Reply"
-                channelId={replyDraftInputContext.channel.id}
-                groupId={replyDraftInputContext.channel.groupId}
-                groupMembers={groupMembers}
-                groupRoles={groupRoles}
-                channelType="chat"
-                showAttachmentButton={isChatLike}
-                showInlineAttachments
-                shouldAutoFocus={
-                  (isChatLike && parentPost?.replyCount === 0) || !!editingPost
-                }
-              />
-            </DraftInputContextProvider>
+            <BareChatInput
+              ref={replyDraftInputRef}
+              {...threadComposerContext}
+              placeholder="Reply"
+              channelId={threadComposerContext.channel.id}
+              groupId={threadComposerContext.channel.groupId}
+              groupMembers={groupMembers}
+              groupRoles={groupRoles}
+              channelType="chat"
+              showAttachmentButton={isChatLike}
+              showInlineAttachments
+              shouldAutoFocus={
+                (isChatLike && parentPost?.replyCount === 0) || !!editingPost
+              }
+            />
           </View>
         )}
+      </DraftInputContextProvider>
       {!negotiationMatch && channel && canWrite && (
         <View
           position={isChatChannel ? undefined : 'absolute'}

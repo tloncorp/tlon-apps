@@ -130,9 +130,9 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
-# Patch the broken +await-thread in /lib/strandio.hoon
 patch -f $pier/base/lib/strandio.hoon `dirname $0`/strandio.patch
 rm -f $pier/base/lib/strandio.hoon.rej
+rm -f $pier/base/lib/strandio.hoon.orig
 
 echo "Updating base desk..."
 $run_click $pier <<EOF
@@ -145,8 +145,16 @@ EOF
 # TODO: We should figure out the source ship for this file and delete it
 rm -f $pier/groups/tests/lib/diary-graph.hoon
 
-# Update the desk
+# Update the groups desk
 rsync -r desk/ $pier/groups
+
+result=$( $run_click -t 3 $pier <<EOF
+=/  m  (strand ,vase)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+(pure:m !>(hash))  
+EOF
+)
+desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 
 echo "Updating groups desk"
 ${run_click} $pier <<EOF
@@ -157,15 +165,30 @@ ${run_click} $pier <<EOF
 EOF
 
 echo "Awaiting desk update..."
-sleep 10
+sleep 5
 while ! curl -s "http://localhost:$http_port"
 do
   sleep 3
 done
 
+result=$( $run_click -t 3 $pier <<EOF
+=/  m  (strand ,vase)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+(pure:m !>(hash))  
+EOF
+)
+desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+
+if [ $desk_hash_a == $desk_hash_b ]
+then
+  echo "Desk upgrade failed ❌"
+  kill -TERM $vere_pid
+  exit 1
+fi
+
 # Run the unit tests
 echo "Running tests..."
-result=$( $run_click -t 180 $pier <<EOF
+result=$( $run_click -t 420 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  

@@ -1,7 +1,12 @@
 import { IS_ANDROID } from '@tloncorp/app/constants';
 import { LoadingSpinner } from '@tloncorp/app/ui';
 import { type Ref, useCallback, useEffect, useRef } from 'react';
-import { Alert, BackHandler, View } from 'react-native';
+import {
+  Alert,
+  BackHandler,
+  NativeEventSubscription,
+  View,
+} from 'react-native';
 import type WebView from 'react-native-webview';
 import type { WebViewProps } from 'react-native-webview';
 
@@ -19,14 +24,18 @@ export const useWebView = (): WebViewProps & {
   }, []);
 
   useEffect(() => {
+    let subscription: NativeEventSubscription | undefined;
     // Start Android back button listener
     if (IS_ANDROID) {
-      BackHandler.addEventListener('hardwareBackPress', handleBackPressed);
+      subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        handleBackPressed
+      );
     }
 
     return () => {
       // Clean up listeners
-      BackHandler.removeEventListener('hardwareBackPress', handleBackPressed);
+      subscription?.remove();
     };
   }, [handleBackPressed]);
 

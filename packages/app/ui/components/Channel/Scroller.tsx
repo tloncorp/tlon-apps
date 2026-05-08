@@ -42,7 +42,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
-import { RenderItemType } from '../../contexts/componentsKits';
+import type { RenderItemType } from '../../contexts/componentsKits';
 import { useLivePost } from '../../contexts/requests';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -50,6 +50,7 @@ import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
 import { ChannelDivider } from './ChannelDivider';
 import { PostList, PostListMethods } from './PostList';
+import type { ScrollAnchor } from './scrollerTypes';
 
 interface PostWithNeighbors {
   post: db.Post;
@@ -59,10 +60,7 @@ interface PostWithNeighbors {
 
 const logger = createDevLogger('scroller', false);
 
-export type ScrollAnchor = {
-  type: 'unread' | 'selected';
-  postId: string;
-};
+export type { ScrollAnchor } from './scrollerTypes';
 
 /**
  * This scroller makes some assumptions you should not break!
@@ -99,6 +97,7 @@ const Scroller = forwardRef(
       isLoading,
       onPressScrollToBottom,
       listHeaderComponent,
+      listBottomComponent,
       highlightPostId,
     }: {
       anchor?: ScrollAnchor | null;
@@ -136,6 +135,7 @@ const Scroller = forwardRef(
       hasOlderPosts?: boolean;
       onPressScrollToBottom?: () => void;
       listHeaderComponent?: React.ReactElement;
+      listBottomComponent?: React.ReactElement;
       highlightPostId?: string | null;
     },
     ref
@@ -206,7 +206,9 @@ const Scroller = forwardRef(
       }
     };
 
-    const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
+    const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
+      {}
+    );
 
     const handleSetActive = useCallback((active: db.Post) => {
       if (active.type !== 'notice') {
@@ -535,6 +537,7 @@ const Scroller = forwardRef(
             scrollEnabled={!editingPost}
             style={style}
             listHeaderComponent={listHeaderComponent}
+            listBottomComponent={listBottomComponent}
           />
         )}
         {activeMessage !== null && !emojiPickerOpen && (
@@ -658,7 +661,7 @@ const BaseScrollerItem = ({
   onShowEmojiPicker: (post: db.Post) => void;
   onPressEdit?: (post: db.Post) => void;
   activeMessage?: db.Post | null;
-  messageRef: RefObject<RNView>;
+  messageRef: RefObject<RNView | null>;
   isSelected: boolean;
   displayDebugMode?: boolean;
   isLastPostOfBlock: boolean;

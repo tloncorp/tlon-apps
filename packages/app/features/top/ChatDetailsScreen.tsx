@@ -1,7 +1,7 @@
-import Clipboard from '@react-native-clipboard/clipboard';
 import { useRoute } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
+import * as Clipboard from 'expo-clipboard';
 import { capitalize } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -215,13 +215,14 @@ function ChatDetailsScreenView() {
         title={getTitle()}
         rightControls={
           currentUserIsAdmin ? (
-            <ScreenHeader.IconButton
-              aria-label="Edit"
+            <ScreenHeader.TextButton
               onPress={!actionsEnabled ? undefined : handlePressEdit}
               disabled={!actionsEnabled}
-              type="Draw"
+              color="$primaryText"
               testID="DetailsEditButton"
-            />
+            >
+              Rename
+            </ScreenHeader.TextButton>
           ) : null
         }
       />
@@ -293,6 +294,7 @@ function ChatDetailsScreenView() {
             <MembersList
               entityType={chatType}
               members={members}
+              group={group}
               canInvite={canInviteToGroup}
               canManage={currentUserIsAdmin && actionsEnabled}
             />
@@ -327,8 +329,8 @@ function GroupQuickActions({
     forwardGroupSheet.open(group);
   }, [forwardGroupSheet, group]);
 
-  const handleCopyShortcode = useCallback(() => {
-    Clipboard.setString(group.id);
+  const handleCopyShortcode = useCallback(async () => {
+    await Clipboard.setStringAsync(group.id);
     toast({ message: 'Copied!', duration: 1500 });
   }, [group.id, toast]);
 

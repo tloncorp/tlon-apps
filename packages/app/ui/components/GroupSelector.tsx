@@ -7,10 +7,11 @@ import {
   NativeSyntheticEvent,
   SectionListRenderItemInfo,
 } from 'react-native';
-import { Stack, View } from 'tamagui';
+import { View } from 'tamagui';
 
 import { AlphaSegmentedGroups } from '../hooks/groupsSorters';
-import { GroupListItem, ListItem } from './ListItem';
+import { ListItem } from './ListItem';
+import { GroupListItem } from './listItems';
 
 interface Props {
   onSelect?: (group: db.Group) => void;
@@ -89,7 +90,7 @@ function SelectableGroupItemComponent(props: {
       EndContent={
         props.selectable ? (
           <ListItem.EndContent>
-            <Stack
+            <View
               justifyContent="center"
               alignItems="center"
               height="$4xl"
@@ -107,7 +108,7 @@ function SelectableGroupItemComponent(props: {
                   width="$3xl"
                 />
               )}
-            </Stack>
+            </View>
           </ListItem.EndContent>
         ) : null
       }

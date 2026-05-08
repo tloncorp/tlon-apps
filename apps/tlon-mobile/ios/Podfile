@@ -63,6 +63,41 @@ def shared(podfile_properties)
   )
 end
 
+def xcode_version
+  output = `xcodebuild -version 2>/dev/null`
+  version = output[/Xcode\s+(\d+(?:\.\d+)*)/, 1]
+  version ? Gem::Version.new(version) : Gem::Version.new('0')
+rescue
+  Gem::Version.new('0')
+end
+
+def patch_fmt_consteval_for_xcode_26_4(installer)
+  return unless xcode_version >= Gem::Version.new('26.4')
+
+  fmt_base = File.join(
+    installer.sandbox.pod_dir('fmt'),
+    'include',
+    'fmt',
+    'base.h'
+  )
+
+  unless File.exist?(fmt_base)
+    Pod::UI.warn "Skipping fmt consteval patch: #{fmt_base} not found"
+    return
+  end
+
+  content = File.read(fmt_base)
+  patched = content.gsub(/^(\s*#\s*define\s+FMT_USE_CONSTEVAL\s+)1(\s*)$/) do
+    "#{$1}0#{$2}"
+  end
+
+  if patched != content
+    File.chmod(0644, fmt_base)
+    File.write(fmt_base, patched)
+    Pod::UI.puts 'Patched fmt FMT_USE_CONSTEVAL for Xcode 26.4+'
+  end
+end
+
 target 'Landscape' do
   Pod::UI.puts 'Building Landscape'
   shared(podfile_properties)
@@ -82,6 +117,10 @@ post_install do |installer|
     :mac_catalyst_enabled => false,
     :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
   )
+
+  # Work around Xcode 26.4 fmt consteval build failures until React Native updates fmt.
+  # See https://github.com/facebook/react-native/issues/55601
+  patch_fmt_consteval_for_xcode_26_4(installer)
 
   # This is necessary for Xcode 14, because it signs resource bundles by default
   # when building for devices.

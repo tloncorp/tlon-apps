@@ -18,6 +18,7 @@ import { Icon } from '@tloncorp/ui';
 import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { View, YStack } from 'tamagui';
 
+import { useDuplicateMembershipRepair } from '../../../hooks/useDuplicateMembershipRepair';
 import {
   SortableListItem,
   useChannelOrdering,
@@ -40,9 +41,12 @@ export function ManageChannelsScreenView({
   updateNavSection,
   updateGroupNavigation,
 }: ManageChannelsScreenViewProps) {
+  const onDuplicatesDetected = useDuplicateMembershipRepair(group?.id);
+
   const { sortableNavItems, handleActiveItemDropped } = useChannelOrdering({
     groupNavSectionsWithChannels,
     updateGroupNavigation,
+    onDuplicatesDetected,
   });
 
   const [localItems, setLocalItems] =

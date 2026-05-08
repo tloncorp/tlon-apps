@@ -1,9 +1,9 @@
 // This signup context lives here in the mobile app because this path can only
 // be reached by the mobile app and it's only used by the mobile app.
+import * as api from '@tloncorp/api';
 import { useBootSequence } from '@tloncorp/app/hooks/useBootSequence';
 import { connectNotifyProvider } from '@tloncorp/app/lib/notificationsApi';
 import { createDevLogger } from '@tloncorp/shared';
-import * as api from '@tloncorp/api';
 import { didSignUp, signupData } from '@tloncorp/shared/db';
 import {
   AnalyticsEvent,
@@ -13,7 +13,7 @@ import {
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import * as utils from '@tloncorp/shared/utils';
-import * as LibPhone from 'libphonenumber-js';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import PostHog, { usePostHog } from 'posthog-react-native';
 import {
   createContext,
@@ -207,7 +207,9 @@ async function runPostSignupActions(params: {
 
   if (params.notificationLevel) {
     try {
-      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+      await store.setBaseVolumeLevel({
+        level: params.notificationLevel as any,
+      });
     } catch (e) {
       logger.trackError('post signup: failed to set notification level', e);
     }
@@ -215,7 +217,9 @@ async function runPostSignupActions(params: {
 
   if (params.notificationLevel) {
     try {
-      await store.setBaseVolumeLevel({ level: params.notificationLevel as any });
+      await store.setBaseVolumeLevel({
+        level: params.notificationLevel as any,
+      });
     } catch (e) {
       logger.trackError('post signup: failed to set notification level', {
         errorMessage: e.message,
@@ -231,9 +235,7 @@ async function runPostSignupActions(params: {
       logger.trackEvent(AnalyticsEvent.DebugAttestation, {
         context: 'initiating post-signup phone number registration',
       });
-      const parsedPhone = LibPhone.parsePhoneNumberFromString(
-        params.phoneNumber
-      );
+      const parsedPhone = parsePhoneNumberFromString(params.phoneNumber);
       if (!parsedPhone) {
         logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
           context:

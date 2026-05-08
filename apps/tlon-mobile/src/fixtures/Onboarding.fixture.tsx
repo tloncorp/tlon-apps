@@ -6,8 +6,8 @@ import { group } from '@tloncorp/app/fixtures/fakeData';
 import { Theme } from '@tloncorp/app/ui';
 import { AppInvite, QueryClientProvider, queryClient } from '@tloncorp/shared';
 import { PropsWithChildren, useState } from 'react';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFixtureSelect } from 'react-cosmos/client';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack, OnboardingStackNavigator } from '../OnboardingStack';
 import { OnboardingProvider } from '../lib/OnboardingContext';
@@ -110,7 +110,7 @@ function OnboardingFixture({
           >
             <GestureHandlerRootView style={{ flex: 1 }}>
               <BottomSheetModalProvider>
-                <NavigationContainer>
+                <NavigationContainer navigationInChildEnabled>
                   {children ?? <OnboardingStack />}
                 </NavigationContainer>
               </BottomSheetModalProvider>

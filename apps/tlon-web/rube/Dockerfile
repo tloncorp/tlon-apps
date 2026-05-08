@@ -17,10 +17,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (match version from .nvmrc)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && npm install -g n \
-    && n 20.11.0 \
+    && n 22.22.0 \
     && hash -r
 
 # Install pnpm
@@ -55,12 +55,10 @@ COPY ../../../patches/ /workspace/patches/
 # Copy .npmrc if it exists (for npm configurations)
 COPY ../../../.npmrc* /workspace/
 
-# Install dependencies (with cache mount for faster rebuilds).
+# Install dependencies.
 # Ignore lifecycle scripts in this dependency-only layer to avoid running
 # desktop postinstall hooks (electron native rebuilds) during web E2E image build.
-# Use copy import method to avoid hard-link collisions on layered container filesystems.
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --ignore-scripts --package-import-method=copy
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # Install Playwright browsers and dependencies (before source copy for better caching)
 WORKDIR /workspace/apps/tlon-web
@@ -73,10 +71,10 @@ WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
-        "https://bootstrap.urbit.org/rube-zod23.tgz zod.tgz" \
+        "https://bootstrap.urbit.org/rube-zod25.tgz zod.tgz" \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
-        "https://bootstrap.urbit.org/rube-ten23.tgz ten.tgz" \
-        "https://bootstrap.urbit.org/rube-mug23.tgz mug.tgz" \
+        "https://bootstrap.urbit.org/rube-ten25.tgz ten.tgz" \
+        "https://bootstrap.urbit.org/rube-mug25.tgz mug.tgz" \
         "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \

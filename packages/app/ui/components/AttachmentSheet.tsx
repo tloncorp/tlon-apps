@@ -28,10 +28,8 @@ import {
   getFileSize,
   getMimeType,
 } from '../../utils/files';
-import {
-  normalizeImagePickerAssetForUpload,
-} from '../../utils/imagePickerAsset';
-import { useAttachmentContext } from '../contexts';
+import { normalizeImagePickerAssetForUpload } from '../../utils/imagePickerAsset';
+import { useAttachmentContext } from '../contexts/attachment';
 import {
   createImageAssetFromClipboardData,
   getClipboardImageWithFallbacks,
@@ -250,20 +248,21 @@ export default function AttachmentSheet({
   const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
+      const audioFileUri = filePathToFileUri(audioFilePath);
       const duration = await (async () => {
         try {
-          return await getAudioFileDurationSeconds(audioFilePath);
+          return await getAudioFileDurationSeconds(audioFileUri);
         } catch {
           return undefined;
         }
       })();
       const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
-        localUri: filePathToFileUri(audioFilePath),
-        size: getFileSize(audioFilePath) ?? -1,
+        localUri: audioFileUri,
+        size: getFileSize(audioFileUri) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
-        mimeType: getMimeType(audioFilePath) ?? undefined,
+        mimeType: getMimeType(audioFileUri) ?? undefined,
       };
       audioRecorder.dismiss();
 
@@ -326,12 +325,12 @@ export default function AttachmentSheet({
           allowsEditing: false,
           quality: 0.5,
           exif: false,
+          shouldDownloadFromNetwork: true,
         });
 
         if (!result.canceled) {
           const realAsset = result.assets[0];
-          const normalizedAsset =
-            normalizeImagePickerAssetForUpload(realAsset);
+          const normalizedAsset = normalizeImagePickerAssetForUpload(realAsset);
 
           const { uploadIntents: normalizedUploadIntents, errorMessage } =
             await normalizeUploadIntents([
@@ -407,9 +406,7 @@ export default function AttachmentSheet({
           // The sheet is only shown on mobile — on web, AttachmentButton
           // skips straight to the system file picker.
           {
-            title: useVideoInMediaPicker
-              ? 'Media Library'
-              : 'Photo Library',
+            title: useVideoInMediaPicker ? 'Media Library' : 'Photo Library',
             description: useVideoInMediaPicker
               ? 'Choose a photo or video from your library'
               : 'Choose a photo from your library',

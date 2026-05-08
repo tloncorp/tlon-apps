@@ -85,8 +85,6 @@
       [%adjust =source volume-map=(unit volume-map)]
       [%allow-notifications allow=notifications-allowed]
   ==
-::
-+|  %basics
 ::  $event: a single point of activity, from one of our sources
 ::
 ::    $incoming-event: the event that was sent to us
@@ -272,98 +270,4 @@
 ++  mute
   ^~
   (~(run by default-volumes) |=(* [| |]))
-::
-+|  %old-types
-++  old
-  |%
-  ++  v7
-    |%
-    +$  stream  ((mop time event) lte)
-    +$  event
-      $:  incoming-event
-          notified=?
-          child=?
-      ==
-    +$  incoming-event
-      $%  [%post post-event]
-          [%reply reply-event]
-          [%dm-invite =whom]
-          [%dm-post dm-post-event]
-          [%dm-reply dm-reply-event]
-          [%group-ask group=flag:g =ship]
-          [%group-kick group=flag:g =ship]
-          [%group-join group=flag:g =ship]
-          [%group-invite group=flag:g =ship]
-          [%chan-init channel=nest:c group=flag:g]
-          [%group-role group=flag:g =ship roles=(set role-id:g)]
-          [%flag-post key=message-key channel=nest:c group=flag:g]
-          [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
-      ==
-    +$  source
-      $%  [%base ~]
-          [%group =flag:g]
-          [%channel =nest:c group=flag:g]
-          [%thread key=message-key channel=nest:c group=flag:g]
-          [%dm =whom]
-          [%dm-thread key=message-key =whom]
-      ==
-    +$  index  [=stream =reads bump=time]
-    --
-  ++  v4
-    |%
-    +$  feed  (list activity-bundle)
-    --
-  ++  v3
-    |%
-    +$  index  [=stream =reads]
-    +$  indices  (map source index)
-    +$  update
-      $%  [%add =source time-event]
-          [%del =source]
-          [%read =source =activity-summary]
-          [%adjust =source volume-map=(unit volume-map)]
-          [%allow-notifications allow=notifications-allowed]
-      ==
-    +$  full-info
-      $:  =indices
-          =activity
-          =volume-settings
-      ==
-    +$  activity  (map source activity-summary)
-    +$  activity-summary
-      $~  [*@da 0 0 | ~ ~ [*@da ~]]
-      $:  newest=time
-          count=@ud
-          notify-count=@ud
-          notify=_|
-          unread=(unit unread-point)
-          children=(unit activity)
-          =reads
-      ==
-    --
-  ++  v2
-    |%
-    +$  update
-      $%  [%add =source time-event]
-          [%del =source]
-          [%read =source =activity-summary]
-          [%adjust =source volume-map=(unit volume-map)]
-          [%allow-notifications allow=notifications-allowed]
-      ==
-    +$  full-info
-      $:  =indices:v3
-          activity=activity
-          =volume-settings
-      ==
-    +$  activity  (map source activity-summary)
-    +$  activity-summary
-      $~  [*@da 0 | ~ ~]
-      $:  newest=time
-          count=@ud
-          notify=_|
-          unread=(unit unread-point)
-          children=(unit activity)
-      ==
-    --
-  --
 --

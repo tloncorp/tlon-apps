@@ -128,7 +128,7 @@ test('should manage contacts and edit contact nicknames', async ({
   await helpers.cleanupOwnProfile(zodPage);
   await helpers.cleanupContactNicknames(zodPage);
   await helpers.cleanupContactNicknames(tenPage);
-  
+
   // Add a longer wait to ensure profile changes propagate
   await zodPage.waitForTimeout(3000);
   await tenPage.waitForTimeout(3000);

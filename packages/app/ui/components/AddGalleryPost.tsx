@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { isWeb } from 'tamagui';
 
 import { pickFile } from '../../utils/filepicker';
-import { useAttachmentContext } from '../contexts';
+import { useAttachmentContext } from '../contexts/attachment';
 import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import { GalleryRoute } from './draftInputs/shared';
@@ -79,6 +79,7 @@ export default function AddGalleryPost({
         open={route === 'add-post'}
         onOpenChange={onClose}
         actions={actions}
+        modal
       />
       {/* On web, "Media or File" opens the system file picker directly,
           so AttachmentSheet is only needed on mobile. */}

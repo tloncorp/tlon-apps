@@ -47,7 +47,7 @@ test('should test comprehensive chat functionality', async ({
 
   // Navigate back to the channel and verify thread reply count
   await helpers.navigateBack(zodPage);
-  await expect(zodPage.getByText('1 reply')).toBeVisible();
+  await expect(zodPage.getByText('1 reply')).toBeVisible({ timeout: 10000 });
 
   // React to the original message with thumb emoji
   await helpers.reactToMessage(zodPage, 'Hello, world!', 'thumb');
@@ -94,35 +94,115 @@ test('should test comprehensive chat functionality', async ({
   await helpers.editMessage(zodPage, 'Edit this message', 'Edited message');
 
   // Mention a user in a message
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @ten');
-  await expect(zodPage.getByTestId('~ten-contact')).toBeVisible();
-  await zodPage.getByTestId('~ten-contact').click();
-  await zodPage.getByTestId('MessageInputSendButton').click();
-  // Wait for message to appear
-  await expect(
-    zodPage.getByTestId('Post').getByText('mentioning ~ten')
-  ).toBeVisible();
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @ten',
+    suggestionTestId: '~ten-contact',
+    selectedMentionTestId: 'SelectedMention-~ten',
+    expectedInputText: /^mentioning [@~]ten$/,
+    expectedPostText: /mentioning\s+~ten/i,
+    expectedMentionInline: { ship: '~ten' },
+    postMentionTestId: 'PostMention-~ten',
+  });
 
   // Mention all in a message
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @all');
-  await expect(zodPage.getByTestId('-all--group')).toBeVisible();
-  await zodPage.getByTestId('-all--group').click();
-  await zodPage.getByTestId('MessageInputSendButton').click();
-  // Wait for message to appear
-  await expect(
-    zodPage.getByTestId('Post').getByText('mentioning @all')
-  ).toBeVisible();
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @all',
+    suggestionTestId: '-all--group',
+    selectedMentionTestId: 'SelectedMention--all-',
+    expectedInputText: /^mentioning @all$/i,
+    expectedPostText: /mentioning\s+@all/i,
+    expectedMentionInline: { sect: null },
+    postMentionTestId: 'PostMention--all-',
+  });
 
   // Mention a role in a message
-  await zodPage.getByTestId('MessageInput').click();
-  await zodPage.fill('[data-testid="MessageInput"]', 'mentioning @admin');
-  await expect(zodPage.getByTestId('admin-group')).toBeVisible();
-  await zodPage.getByTestId('admin-group').click();
-  await zodPage.getByTestId('MessageInputSendButton').click();
-  // Wait for message to appear
+  await helpers.sendMentionMessage(zodPage, {
+    inputText: 'mentioning @admin',
+    suggestionTestId: 'admin-group',
+    selectedMentionTestId: 'SelectedMention-admin',
+    expectedInputText: /^mentioning @admin$/i,
+    expectedPostText: /mentioning\s+@admin/i,
+    expectedMentionInline: { sect: 'admin' },
+    postMentionTestId: 'PostMention-admin',
+  });
+});
+
+test('should require confirmation before deleting a message (cancel prevents deletion)', async ({
+  zodSetup,
+}) => {
+  const zodPage = zodSetup.page;
+
+  // Assert that we're on the Home page
+  await expect(zodPage.getByText('Home')).toBeVisible();
+
+  // Create a new group
+  await helpers.createGroup(zodPage);
+
+  // Navigate back to Home and navigate to group
+  await helpers.navigateToGroupByTestId(zodPage);
+
+  // Send a message
+  await helpers.sendMessage(zodPage, 'Cancel delete test message');
+
+  // Open action menu and click delete
+  await helpers.longPressMessage(zodPage, 'Cancel delete test message');
+  helpers.dismissDeleteConfirmation(zodPage, 'message');
+  await zodPage.getByText('Delete message').click();
+
+  // Action menu should still be visible (Cancel leaves menu open)
+  await expect(zodPage.getByTestId('ChatMessageActions')).toBeVisible();
+
+  // Message should still be present
   await expect(
-    zodPage.getByTestId('Post').getByText('mentioning @admin')
+    zodPage.getByText('Cancel delete test message', { exact: true })
   ).toBeVisible();
+});
+
+test('should allow admin to delete another user message with confirmation', async ({
+  zodSetup,
+  tenSetup,
+}) => {
+  const zodPage = zodSetup.page;
+  const tenPage = tenSetup.page;
+
+  // Assert that we're on the Home page
+  await expect(zodPage.getByText('Home')).toBeVisible();
+
+  // Create a new group
+  await helpers.createGroup(zodPage);
+  const groupName = '~ten, ~zod';
+
+  await helpers.inviteMembersToGroup(zodPage, ['ten']);
+
+  // Navigate back to Home and navigate to group
+  await zodPage.getByTestId('HomeNavIcon').click();
+  await helpers.navigateToGroupByTestId(zodPage, {
+    expectedDisplayName: groupName,
+  });
+
+  // ~ten accepts group invite and sends a message
+  await expect(tenPage.getByText('Home')).toBeVisible();
+  await helpers.acceptGroupInvite(tenPage, groupName);
+  await helpers.navigateToChannel(tenPage, 'General');
+  await helpers.sendMessage(tenPage, 'Admin delete target message');
+
+  // Wait for message to sync to ~zod
+  await expect(
+    zodPage.getByText('Admin delete target message', { exact: true })
+  ).toBeVisible({ timeout: 15000 });
+
+  // ~zod (admin) opens action menu on ~ten's message
+  await helpers.longPressMessage(zodPage, 'Admin delete target message');
+
+  // Verify admin delete label appears
+  await expect(zodPage.getByText('Admin: Delete message')).toBeVisible();
+
+  // Click admin delete
+  helpers.acceptDeleteConfirmation(zodPage, 'message');
+  await zodPage.getByText('Admin: Delete message').click();
+
+  // Message should be deleted
+  await expect(
+    zodPage.getByText('Admin delete target message', { exact: true })
+  ).not.toBeVisible();
 });

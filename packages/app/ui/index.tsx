@@ -4,6 +4,8 @@ export * from './components/AddContactsView';
 export * from './components/AppSetting';
 export * from './components/ArvosDiscussing';
 export * from './components/Avatar';
+export { GroupAvatar } from './components/GroupAvatar';
+export type { GroupImageShim } from './components/Avatar';
 export * from './components/BigInput';
 export * from './components/BlockedContactsWidget';
 export * from './components/Channel';
@@ -34,6 +36,8 @@ export * from './components/Form';
 export * as Form from './components/Form';
 export * from './components/ForwardPostSheet';
 export * from './components/ForwardGroupSheet';
+export * from './components/ForwardToChannelSheet';
+export * from './components/useForwardToChannelSheet';
 export * from './components/GalleryPost';
 export * from './components/GroupChannelsScreenView';
 export * from './components/GroupMembersScreenView';
@@ -41,6 +45,7 @@ export * from './components/GroupPreviewSheet';
 export * from './components/InviteUsersSheet';
 export * from './components/InviteUsersWidget';
 export * from './components/ListItem';
+export * from './components/listItems';
 export * from './components/LongPressDisclosure';
 export * from './components/ManageChannels/ManageChannelsScreenView';
 export * from './components/MessageInput';
@@ -56,6 +61,7 @@ export * from './components/PhoneAttestationPane';
 export * from './components/PostContent';
 export * from './components/PostScreenView';
 export * from './components/ProfileSheet';
+export * from './components/GroupMemberProfileSheet';
 export * from './components/ScreenHeader';
 export * from './components/SearchBar';
 export * from './components/SettingsScreenView';
@@ -67,7 +73,15 @@ export * from './components/Wayfinding/SplashSequence';
 export * from './components/postCollectionViews/SummaryCollectionView';
 export * from './components/WidgetPane';
 export { ConnectedPostView } from './components/postCollectionViews/shared';
-export * from './contexts';
+export * from './contexts/groups';
+export * from './contexts/chatOptions';
+export * from './contexts/navigation';
+export * from './contexts/thread';
+export * from './contexts/channel';
+export * from './contexts/appDataContext';
+export * from './contexts/attachment';
+export * from './contexts/requests';
+export * from './contexts/storeContext';
 export { PostCollectionContext } from './contexts/postCollection';
 export * from './tamagui.config';
 export * from './utils';
@@ -79,7 +93,6 @@ export {
   ScrollView,
   SizableText,
   Spinner,
-  Stack,
   Text,
   TextArea,
   Theme,
@@ -87,7 +100,6 @@ export {
   XStack,
   YGroup,
   YStack,
-  ZStack,
   isWeb,
   setupDev,
   useStyle,
