@@ -1,6 +1,8 @@
 ::  guardian: custom card types for compile-time marked-data guard rails
 ::
-::    xx
+::    integrates /lib/rail's type-safe cages into the gall agent card type,
+::    and provides helpers for translating between safe and unsafe cards,
+::    agent function and output.
 ::
 /+  *rail
 ::
