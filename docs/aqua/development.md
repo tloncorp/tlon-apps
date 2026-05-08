@@ -3,10 +3,10 @@
 Aqua tests allow a test to execute in a reproducible, virtual urbit environment.
 When a test runs, it is presented with:
 1. A clean slate fleet of virtual ships, usually galaxies.
-2. A connection to the aqua virtual runtime, which allows to
+2. A connection to the aqua virtual runtime, which allows it to
    interface with running virtual ships.
 
-A single test file can define multiple tests. Between the run of each test,
+A single test file can define any number tests. Between the run of each test,
 the test runner thread `-ph-test` takes care of resetting the test environment.
 
 ## Updating the desk
@@ -64,37 +64,142 @@ It also contains test assertions, such as `+ex-equal`, `+ex-not-equal`.
 
 ## Developing Aqua Tests
 
-When developing a new aqua tests, we start by defining the scope of the test. The scope could encompass
+When developing a new aqua test, we start by specifying the scope of the test. The scope could encompass
 a single system component, such as a single gall agent, or target multiple system components involved
 in the process under testing.
 
-Once we have identified the components, we then prepare appropriate snapshot with a fleet size big enough
+Once we have identified the components we then prepare appropriate snapshot with a fleet size big enough
 to accommodate test scenarios.
 
 While we develop the test, we can use a snapshot targeted to our use case.
 However, when the new test ships to production, we must make sure that the snapshot used in production
-has a big enough fleet size.
+has a big enough fleet size. If that is not the case, the production
+test runner must be updated.
 
 ### Test scenarios
 
-For each test scenario of the system, we start by writing a conscise description
-of the test at the top of an appropriately named test arm. It should contain
-1. A clear one line description of the test.
-2. The test scenario, written from a third-person perspective. It should
-   contain the most important expect assertions involved in the test.
-
-Here is an example test arm for the group join process
+Each test arm should correspond to a single test scenario.
+When developing a new test, we start out by describing the scenario
+in the comment directly above the test arm. The test scenario should be
+be brief and written from third-person perspective. It should not
+overwhelm the reader with too much detail, but should contain essential
+information about assertion made during the test. 
+Here is an example test arm for the group join process:
 ```hoon
 ::  +ph-test-group-join: test group joins
 ::
 ::  scenario
 ::
-::  ~zod hosts a group. ~bud joins the group. we verify
-::  that the subscription lifecycle follows through %watch, and then %done.
-::  finally, the group creation response is received.
-::
+::  ~zod hosts a group and sends an invitation to ~bud.
+::  ~bud receives the invitation and joins the group successfully,
+::  receiving the group creation fact.
 ::
 ++  ph-test-group-join
   =/  m  (strand ,~)
   ^-  form:m
+::...
 ```
+
+### Test assertions
+
+Aqua tests do not have direct access to the underlying gall agent. The
+test can only interface with the virtual ship through arvo tasks.
+The perspective is that of a client integrating with a particular system component.
+
+When testing gall agents, we have essentially two ways to approach test
+assertions. The first one is to establish a subscription and assert on
+facts. The second is to directly query an agent state with a scry.
+
+Here is the full group join test
+```hoon
+++  ph-test-group-join
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ::  ~zod hosts a group and invites ~bud
+  ::
+  =/  =create-group:g
+    :*  %my-test-group
+        ['My Test Group' 'My testing group' '' '']
+        %secret
+        [~ ~]
+        (my ~bud^~ ~)
+    ==
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-command+[%create create-group])
+  ::  ~bud joins the group using received invite token
+  ::
+  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
+  ?>  =(%foreigns-1 p.kag)
+  =+  !<(=foreigns:v8:gv q.kag)
+  =+  foreign=(~(got by foreigns) my-test-flag)
+  ?>  ?=(^ invites.foreign)
+  =/  =a-foreigns:v8:gv
+    [%foreign my-test-flag %join token.i.invites.foreign]
+  ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
+  ;<  ~  bind:m  (ex-r-groups-fact ~bud ~zod^%my-test-group %create)
+  (pure:m ~)
+```
+We first establish two app subscriptions to `%groups` on `~bud`.
+After `~zod` created the group, we expect `~bud` to first receive the
+group invitation on the foreigns subscription. After we have verified
+that an invitation has indeed been received, we poke `~bud` to join the
+group. We verify that the group has been successfully joined by
+expecting a group creation response on the groups subscription.
+
+### Test assertions and Hoon assertions
+
+When asserting on a value expected by the test, we have two choices.
+We can aqua assertion, such as `+ex-equal`. This will terminate the
+thread with an appropriate error message, describing the discrepancy
+between expected and actual values. Alternatively, we can use any of the
+Hoon assertions such as `?>` or `?<`, which will simply crash the thread
+without a specific error message. The obvious downside of Hoon
+assertions is that they don't carry any information about the way
+assertion has failed.
+
+We should generally use aqua assertions. However, when asserting on
+things that are considered unchengable parts of an interface, and do not in
+themselves implement any logic which could be broken, using
+Hoon assertions is permissible. One example is asserting on marks of
+received facts. Since these are generally considered fixed, crashing
+with a Hoon assertions is more ergonomic. 
+
+Sometimes we might be tempted to use Hoon assertions out of pure convenience, 
+such using crashing map getter `+get:by`, or unpacking a unit using `?>`. 
+However, taking such shortcuts will simply make for a later inconvenience when debugging a
+broken test. 
+
+When investigating a test failing on a Hoon assertion, which does not
+display any values, using the debug print rune `~&` can be a good way to
+investigate the problem. If the test failure does not stem from an
+originally wrong implementation, it is likely the case that it could be
+broken in the future and we should consider to convert it to an aqua
+assertion.
+
+### Implementing a test
+
+We have so far talked about the structure of an aqua test. It is
+composed of a prose description, followed by the test strand
+implementation, which essentially is a sequence of events send to the aqua runtime 
+or assertions on various effects received.
+
+We are now going to focus on the test implementation. Once we have
+specified the test scenario, how do we go about implementing it?
+In some cases, it might be enough to look at relevant portions of the code to
+be able to specify the sequence of events and assertions. However,
+discerning the exact test process and data involved is not always easy just
+by reading the code. Sometimes, the functionality might be spread across many libraries
+or agents.
+
+Fortunately, we can observe the running system by enabling debugging mode.
+Any agent that integrates the logging library, together with the verb wrapper, will
+display debugging messages when enabled. To enable debugging mode, we adjust the logging
+volume
+```
+> :agent &verb [%volume volume]
+```
+where volume can be any of `%dbug`, `%info`, `%warn` and `%crit`.
+Adjusting the volume to `%dbug` will enable printing of all log messages at that priority or above.
+
+

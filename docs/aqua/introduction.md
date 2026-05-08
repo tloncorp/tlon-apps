@@ -80,6 +80,28 @@ and `~rivfur-livmet` respectively. In addition, virtual ames/mesa networking req
 the parent galaxies to be present. In this case, we must add `~fen` and `~dem` to the
 fleet. This is handled by the `-ph-fleet` thread
 
+When a host ship accumulated enough snapshots to be a memory burden, we
+can delete all existing snapshots using an aqua poke:
+```
+> :aqua &noun [%clear-snap snap-id]
+```
+
+**Important**: at present aqua does not handle the snap-id argument, and will delete
+all snapshots upon receiving this poke.
+
+## Updating the desk
+
+When changes have been made in the repository and are ready to be tested
+on a running ship, use `rsync` or equivalent command to copy the `desk/` in the repository
+to an appropriate pier. This will put the files into the ship's desk unix mount point directory.
+To make the changes visible on the ship, you must also issue `|commit` command, which
+will detect any changes in the unix mount point directory. `|commit` can display `sync` spinner,
+which indicates the commit is still ongoing.
+
+Important: do not delete files not present in the repository at the destination.
+Running urbit desks are usually supplemented with other neccessary files not present
+in the repository.
+
 ## Running tests
 
 To run aqua tests use the `-ph-test` test runner supplied with the desk.
@@ -109,6 +131,7 @@ primarily about unhandled effects.
 
 Running virtual ships will also display logging messages.
 These messages are associated with a priority:
+
 | prefix    | priority                     |
 |-----------|------------------------------|
 | no prefix | `%dbug` debug priority       |
@@ -151,4 +174,8 @@ with file build errors.
 
 The test runner is a thread, so in order to stop an ongoing test run you must
 cancel the runner thread. In dojo, this is simply done by pressing a backspace.
+
+## Developing aqua tests
+
+To learn how to develop aqua tests, see ./docs/aqua/development.md
 
