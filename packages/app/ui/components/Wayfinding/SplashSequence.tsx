@@ -1,6 +1,7 @@
 // tamagui-ignore
 import Clipboard from '@react-native-clipboard/clipboard';
 import * as api from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
@@ -177,6 +178,7 @@ function SplashSequenceComponent(props: {
     React.useState<CustomBotSetupStatus>('idle');
   const [finishingSplash, setFinishingSplash] = React.useState(false);
   const customBotSetupPromiseRef = useRef<Promise<boolean> | null>(null);
+  const didHydrateTlonbotRevivalConfigRef = useRef(false);
   const isMountedRef = useRef(true);
   const shouldDeferTlonbotSetup = props.splashSequenceMode === 'tlonbotRevival';
 
@@ -193,9 +195,21 @@ function SplashSequenceComponent(props: {
   }, [currentPane]);
 
   useEffect(() => {
-    if (!shouldDeferTlonbotSetup) {
+    if (!shouldDeferTlonbotSetup || didHydrateTlonbotRevivalConfigRef.current) {
       return;
     }
+
+    const hasDeferredConfig =
+      !!tlonbotRevivalSetup.botName ||
+      !!tlonbotRevivalSetup.botAvatarUrl ||
+      !!tlonbotRevivalSetup.botAvatarUploadIntent ||
+      !!tlonbotRevivalSetup.botProvider;
+
+    if (!hasDeferredConfig) {
+      return;
+    }
+
+    didHydrateTlonbotRevivalConfigRef.current = true;
 
     if (tlonbotRevivalSetup.botName) {
       setBotName(tlonbotRevivalSetup.botName);
@@ -207,14 +221,10 @@ function SplashSequenceComponent(props: {
     if (tlonbotRevivalSetup.botAvatarUploadIntent) {
       setBotAvatarUploadIntent(tlonbotRevivalSetup.botAvatarUploadIntent);
     }
-    if (
-      tlonbotRevivalSetup.botProvider &&
-      tlonbotRevivalSetup.botProvider !== botModel
-    ) {
+    if (tlonbotRevivalSetup.botProvider) {
       setBotModel(tlonbotRevivalSetup.botProvider);
     }
   }, [
-    botModel,
     shouldDeferTlonbotSetup,
     tlonbotRevivalSetup.botAvatarUploadIntent,
     tlonbotRevivalSetup.botAvatarUrl,
@@ -919,6 +929,7 @@ const TLONBOT_REVIVAL_GROUP_IDS = [
   '~ramlud-bintun/v1l3qcoq',
   '~wittyr-witbes/v3s2kbd7',
 ];
+const BOT_PREVIEW_FALLBACK_USER_SHIP_ID = '~nec';
 
 function prejoinTlonbotRevivalGroups() {
   TLONBOT_REVIVAL_GROUP_IDS.forEach((groupId) => {
@@ -2018,16 +2029,58 @@ export function GroupsPane(props: {
     });
   const groupInviteIsLoading = homeGroupInviteState === 'loading';
   const groupInviteIsReady = homeGroupInviteState === 'ready';
+  const [resolvedBotShipId, setResolvedBotShipId] = useState(
+    props.botShipId ?? null
+  );
+  const previewUserShipId =
+    props.userShipId ?? BOT_PREVIEW_FALLBACK_USER_SHIP_ID;
+  const fallbackBotShipId = useMemo(
+    () => `~pinser-botter-${desig(previewUserShipId)}`,
+    [previewUserShipId]
+  );
+
+  useEffect(() => {
+    if (!props.hostingBotEnabled) {
+      return;
+    }
+
+    if (props.botShipId) {
+      setResolvedBotShipId(props.botShipId);
+      return;
+    }
+
+    if (!props.userShipId) {
+      return;
+    }
+
+    let cancelled = false;
+    const shipId = props.userShipId.replace(/^~/, '');
+    api
+      .getTlawnBotInfo(shipId)
+      .then((botInfo) => {
+        if (!cancelled && botInfo?.moon) {
+          setResolvedBotShipId(`~${botInfo.moon}-${shipId}`);
+        }
+      })
+      .catch((error) => {
+        logger.trackError('Failed to refresh TlonBot preview ship ID', {
+          error,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [props.botShipId, props.hostingBotEnabled, props.userShipId]);
+
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       {props.hostingBotEnabled ? (
         <View style={{ width: '100%', height: 368 }}>
-          {props.userShipId && props.botShipId ? (
-            <BotChatPreview
-              userShipId={props.userShipId}
-              botShipId={props.botShipId}
-            />
-          ) : null}
+          <BotChatPreview
+            userShipId={previewUserShipId}
+            botShipId={resolvedBotShipId ?? fallbackBotShipId}
+          />
         </View>
       ) : (
         <ZStack height={368}>
