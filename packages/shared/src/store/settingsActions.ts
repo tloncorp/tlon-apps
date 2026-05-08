@@ -83,8 +83,14 @@ export async function completeWayfindingSplash() {
 }
 
 export async function completeRevivalSplash() {
-  // Revived users should not get first-run coach marks reset, but marking the
-  // splash complete keeps other clients from showing the modal again.
+  // Revived users should only get the home add tooltip, not the full first-run
+  // coach mark sequence.
+  await db.wayfindingProgress.setValue((prev) => ({
+    ...prev,
+    tappedHomeAdd: false,
+  }));
+
+  // Marking the splash complete keeps other clients from showing the modal again.
   await db.insertSettings({ completedWayfindingSplash: true });
   try {
     await withRetry(() => api.setSetting('completedWayfindingSplash', true));
