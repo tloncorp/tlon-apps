@@ -108,7 +108,7 @@ To run aqua tests use the `-ph-test` test runner supplied with the desk.
 ```
 > -desk!ph-test `path snap
 ```
-The `path` is a directory containing aqua tests. Supply `~` to run from the default directory.
+The `path` is a directory containing aqua tests (remember to include the backtick). Supply `~` to run from the default directory.
 It will be scanned recursively, and any tests found will be build and scheduled to be run.
 
 `snap` is the aqua snapshot on which tests are going to run.
@@ -159,7 +159,14 @@ If that does not yield results, searching for constant parts of the messsage in 
 While developing tests, it is useful to have a way to verify any compilation errors
 separately before triggering the actual test run. This can be done using
 `-ph-test-ls path` command, which will find all aqua tests available at the
-path and build them.
+path and build them. For example, to list all aqua files in the groups desk, we would run
+```
+> -groups!ph-test-ls /=groups=/tests/ph
+```
+, and to list tests for a particular agent we would use
+```
+> -groups!ph-test-ls /=groups=/tests/ph/app/contacts
+```
 
 There are two kind of errors that can occur at compilation time.
 A `FAILED BUILD` error indicates the test file did not build.

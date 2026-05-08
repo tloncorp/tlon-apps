@@ -1,5 +1,6 @@
 ::  list aqua tests
 ::
+::  arguments:
 ::  pax=(unit path)  optional test path
 ::
 ::  returns & if all tests build successfully, | otherwise.

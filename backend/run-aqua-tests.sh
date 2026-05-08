@@ -209,7 +209,7 @@ then
   exit 1
 fi
 
-echo "Starting %aqua..."
+echo "Starting aqua..."
 ${run_click} $pier "/lib/pill/hoon"<<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl    
@@ -224,7 +224,12 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 (pure:m !>(%ok))  
 EOF
 
+echo "Preparing aqua snapshot"
+# The snap thread needs to accept id argument.
+
 # Run the unit tests
+#
+# Update to use the generated test snapshot
 echo "Running tests..."
 result=$( $run_click -t 1200 $pier <<EOF
 =/  m  (strand ,vase)  

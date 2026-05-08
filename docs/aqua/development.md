@@ -9,18 +9,6 @@ When a test runs, it is presented with:
 A single test file can define any number tests. Between the run of each test,
 the test runner thread `-ph-test` takes care of resetting the test environment.
 
-## Updating the desk
-
-When changes have been made in the repository and are ready to be tested
-on a running ship, use `rsync` or equivalent command to copy the `desk/` in the repository
-to appropriate pier. This will put the files into the ship's desk unix mount point.
-To make the changes visible on the ship, you must also issue `|commit` command, which
-will detect any changes in the unix mount point directory.
-
-Important: do not delete files not present in the repository at the destination.
-Running urbit desks are usually supplemented with other neccessary files not present
-in the repository.
-
 ## The Structure of Aqua Tests
 
 Each aqua tests is a core with test arms, where each
@@ -83,7 +71,7 @@ When developing a new test, we start out by describing the scenario
 in the comment directly above the test arm. The test scenario should be
 be brief and written from third-person perspective. It should not
 overwhelm the reader with too much detail, but should contain essential
-information about assertion made during the test. 
+information about assertion made during the test.
 Here is an example test arm for the group join process:
 ```hoon
 ::  +ph-test-group-join: test group joins
@@ -99,6 +87,23 @@ Here is an example test arm for the group join process:
   ^-  form:m
 ::...
 ```
+
+## Comment style guide
+
+Following a long maritime tradition, Urbit ships generally use feminine pronouns.
+However for galaxies, which hold authority over the network, use masculine pronouns.
+
+In comments describing a sequence of assertions, try to use sequential
+language. For instance, prefer "then" rather than "and" to describe a
+sequence of events happening one after another. This is rule is not absolute,
+sometimes, especially when talking about events concerning the same
+ship, we might profitably employ "and".
+
+Prefer "and" to "then" especially if two events logically follow one another
+in the context of the test. For example, we prefer to use "and" in "~zod hosts a
+group and invites ~bud", since in the context of the test, there is no
+decision on `~zod`'s part involved: the group was created _so that_
+`~bud` could join it.
 
 ### Test assertions
 
@@ -163,12 +168,12 @@ things that are considered unchengable parts of an interface, and do not in
 themselves implement any logic which could be broken, using
 Hoon assertions is permissible. One example is asserting on marks of
 received facts. Since these are generally considered fixed, crashing
-with a Hoon assertions is more ergonomic. 
+with a Hoon assertions is more ergonomic.
 
-Sometimes we might be tempted to use Hoon assertions out of pure convenience, 
-such using crashing map getter `+get:by`, or unpacking a unit using `?>`. 
+Sometimes we might be tempted to use Hoon assertions out of pure convenience,
+such using crashing map getter `+get:by`, or unpacking a unit using `?>`.
 However, taking such shortcuts will simply make for a later inconvenience when debugging a
-broken test. 
+broken test.
 
 When investigating a test failing on a Hoon assertion, which does not
 display any values, using the debug print rune `~&` can be a good way to
@@ -181,7 +186,7 @@ assertion.
 
 We have so far talked about the structure of an aqua test. It is
 composed of a prose description, followed by the test strand
-implementation, which essentially is a sequence of events send to the aqua runtime 
+implementation, which essentially is a sequence of events send to the aqua runtime
 or assertions on various effects received.
 
 We are now going to focus on the test implementation. Once we have
