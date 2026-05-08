@@ -177,6 +177,7 @@ function SplashSequenceComponent(props: {
     React.useState<CustomBotSetupStatus>('idle');
   const [finishingSplash, setFinishingSplash] = React.useState(false);
   const customBotSetupPromiseRef = useRef<Promise<boolean> | null>(null);
+  const didHydrateTlonbotRevivalConfigRef = useRef(false);
   const isMountedRef = useRef(true);
   const shouldDeferTlonbotSetup = props.splashSequenceMode === 'tlonbotRevival';
 
@@ -193,9 +194,21 @@ function SplashSequenceComponent(props: {
   }, [currentPane]);
 
   useEffect(() => {
-    if (!shouldDeferTlonbotSetup) {
+    if (!shouldDeferTlonbotSetup || didHydrateTlonbotRevivalConfigRef.current) {
       return;
     }
+
+    const hasDeferredConfig =
+      !!tlonbotRevivalSetup.botName ||
+      !!tlonbotRevivalSetup.botAvatarUrl ||
+      !!tlonbotRevivalSetup.botAvatarUploadIntent ||
+      !!tlonbotRevivalSetup.botProvider;
+
+    if (!hasDeferredConfig) {
+      return;
+    }
+
+    didHydrateTlonbotRevivalConfigRef.current = true;
 
     if (tlonbotRevivalSetup.botName) {
       setBotName(tlonbotRevivalSetup.botName);
@@ -207,14 +220,10 @@ function SplashSequenceComponent(props: {
     if (tlonbotRevivalSetup.botAvatarUploadIntent) {
       setBotAvatarUploadIntent(tlonbotRevivalSetup.botAvatarUploadIntent);
     }
-    if (
-      tlonbotRevivalSetup.botProvider &&
-      tlonbotRevivalSetup.botProvider !== botModel
-    ) {
+    if (tlonbotRevivalSetup.botProvider) {
       setBotModel(tlonbotRevivalSetup.botProvider);
     }
   }, [
-    botModel,
     shouldDeferTlonbotSetup,
     tlonbotRevivalSetup.botAvatarUploadIntent,
     tlonbotRevivalSetup.botAvatarUrl,
