@@ -72,7 +72,6 @@
     %-  (slog (cat 3 'rail dropping "reserved" name: %' mar) ~)
     [maz max]
   [(snor mar maz aor) (^max (met 3 mar) max)]
-~&  maz=maz
 ::
 %+  rap  3
 :~  '''
