@@ -1,5 +1,6 @@
 export {
   HostingError,
+  awaitNodeTlonbotReady,
   checkPhoneVerify,
   clearShipRevivalStatus,
   getHostingHeartBeat,
@@ -7,9 +8,13 @@ export {
   getNodeStatus,
   getShipAccessCode,
   logInHostingUser,
+  markUserTlonbotEnabled,
   requestLoginOtp,
   requestPhoneVerify,
+  setShipRevivalStatus,
+  setUserTlonbotEnabled,
   signUpHostingUser,
+  checkNodeIsTlonbotReady,
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {

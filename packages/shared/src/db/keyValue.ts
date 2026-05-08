@@ -2,7 +2,13 @@ import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
 import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
 import * as ub from '@tloncorp/api/urbit';
 
-import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
+import type { Attachment } from '../domain';
+import {
+  NodeBootPhase,
+  OnboardingFlow,
+  SignupParams,
+  WayfindingProgress,
+} from '../domain';
 import { Lure } from '../logic';
 import { createStorageItem } from './storageItem';
 
@@ -111,6 +117,58 @@ export const signupData = createStorageItem<SignupParams>({
   },
 });
 
+export type TlonbotRevivalStage =
+  | 'collecting'
+  | 'settingUp'
+  | 'group'
+  | 'invite';
+
+export type TlonbotRevivalSetup = Pick<
+  SignupParams,
+  'nickname' | 'notificationToken' | 'notificationLevel'
+> & {
+  pending: boolean;
+  applied?: boolean;
+  provisioningStarted?: boolean;
+  stage?: TlonbotRevivalStage;
+  shipId?: string;
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
+  botProvider?: string;
+  botModel?: string;
+};
+
+export const tlonbotRevivalSetup = createStorageItem<TlonbotRevivalSetup>({
+  key: 'tlonbotRevivalSetup',
+  defaultValue: {
+    pending: false,
+  },
+});
+
+export type TlonbotRevivalNotificationRestore = {
+  pending: boolean;
+  desiredLevel?: ub.NotificationLevel;
+  createdAt?: number;
+  lastAttemptAt?: number;
+  lastErrorAt?: number;
+  lastErrorMessage?: string;
+};
+
+export const tlonbotRevivalNotificationRestore =
+  createStorageItem<TlonbotRevivalNotificationRestore>({
+    key: 'tlonbotRevivalNotificationRestore',
+    defaultValue: {
+      pending: false,
+    },
+  });
+
+export const didClearPreviousInstall = createStorageItem<boolean>({
+  key: 'didClearPreviousInstall',
+  defaultValue: false,
+  persistAfterLogout: true,
+});
+
 export const lastAppVersion = createStorageItem<string | null>({
   key: 'lastAppVersion',
   defaultValue: null,
@@ -208,6 +266,7 @@ export type ShipInfo = {
   shipUrl: string | undefined;
   authCookie: string | undefined;
   needsSplashSequence?: boolean;
+  splashSequenceMode?: OnboardingFlow;
 };
 
 export const shipInfo = createStorageItem<ShipInfo | null>({

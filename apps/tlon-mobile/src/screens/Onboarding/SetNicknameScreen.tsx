@@ -1,5 +1,4 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as api from '@tloncorp/api';
 import { DEFAULT_ONBOARDING_NICKNAME } from '@tloncorp/app/constants';
 import {
   Field,
@@ -36,6 +35,9 @@ const logger = createDevLogger('SetNicknameScreen', false);
 
 export const SetNicknameScreen = ({ navigation }: Props) => {
   const theme = useTheme();
+  const signupContext = useSignupContext();
+  const isTlonbotRevival = signupContext.onboardingFlow === 'tlonbotRevival';
+  const isRevivalOnboarding = isTlonbotRevival;
 
   const facesImage = theme.dark
     ? require('../../../assets/images/faces-dark.png')
@@ -44,15 +46,14 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
   const {
     control,
     handleSubmit,
+    setValue,
     formState: { errors, isValid },
   } = useForm<FormData>({
     mode: 'onChange',
     defaultValues: {
-      nickname: DEFAULT_ONBOARDING_NICKNAME ?? '',
+      nickname: isRevivalOnboarding ? '' : DEFAULT_ONBOARDING_NICKNAME ?? '',
     },
   });
-
-  const signupContext = useSignupContext();
 
   const onSubmit = handleSubmit(({ nickname }) => {
     signupContext.setOnboardingValues({
@@ -62,47 +63,50 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
 
     db.splashNickname.setValue(nickname ?? '');
 
-    // once they've decided on a nickname, we need to re-title their bot
-    // and update the name of their home group
-    withRetry(
-      async () => {
-        const userId = await db.hostedUserNodeId.getValue();
-        if (!userId) {
-          throw new Error('No user ID found during nickname setup');
-        }
-
-        if (!nickname) {
-          throw new Error('No nickname provided during nickname setup');
-        }
-
-        await store.updateCurrentUserProfile(
-          { nickname },
-          { shouldThrow: true }
-        );
-      },
-      {
-        startingDelay: 1000,
-        numOfAttempts: 4,
-        maxDelay: 4000,
-        retry: (error, retryNumber) => {
-          if (retryNumber < 4) {
-            logger.trackEvent('Set nickname failed, retrying', {
-              error: error instanceof Error ? error.message : String(error),
-            });
-            return true;
+    if (!isTlonbotRevival) {
+      // Once they've decided on a nickname, keep the existing best-effort
+      // profile update for signup. TlonBot revival defers this until Hosting
+      // reports the bot home group is provisioned.
+      withRetry(
+        async () => {
+          const userId = await db.hostedUserNodeId.getValue();
+          if (!userId) {
+            throw new Error('No user ID found during nickname setup');
           }
 
-          return false;
+          if (!nickname) {
+            throw new Error('No nickname provided during nickname setup');
+          }
+
+          await store.updateCurrentUserProfile(
+            { nickname },
+            { shouldThrow: true }
+          );
         },
-      }
-    ).catch((err) => {
-      logger.trackError(
-        'Failed to set nickname on bot ship or update Home Group',
         {
-          error: err instanceof Error ? err.message : String(err),
+          startingDelay: 1000,
+          numOfAttempts: 4,
+          maxDelay: 4000,
+          retry: (error, retryNumber) => {
+            if (retryNumber < 4) {
+              logger.trackEvent('Set nickname failed, retrying', {
+                error: error instanceof Error ? error.message : String(error),
+              });
+              return true;
+            }
+
+            return false;
+          },
         }
-      );
-    });
+      ).catch((err) => {
+        logger.trackError(
+          'Failed to set nickname on bot ship or update Home Group',
+          {
+            error: err instanceof Error ? err.message : String(err),
+          }
+        );
+      });
+    }
 
     navigation.push('SetNotifications');
   });
@@ -115,6 +119,35 @@ export const SetNicknameScreen = ({ navigation }: Props) => {
       }),
     [navigation]
   );
+
+  useEffect(() => {
+    if (!isRevivalOnboarding) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const shipId = await db.hostedUserNodeId.getValue();
+      if (!shipId) {
+        return;
+      }
+
+      const currentUser = await db.getContact({ id: `~${shipId}` });
+      const existingNickname =
+        currentUser?.peerNickname?.trim() || currentUser?.nickname?.trim();
+      if (existingNickname && !cancelled) {
+        setValue('nickname', existingNickname, { shouldValidate: true });
+      }
+    })().catch((err) => {
+      logger.trackError('Failed to prefill revival nickname', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isRevivalOnboarding, setValue]);
 
   return (
     <View flex={1} backgroundColor={'$secondaryBackground'}>

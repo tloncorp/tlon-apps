@@ -2,51 +2,53 @@
 // only edit if you know what you're doing.
 import { RendererConfig, UserModuleWrappers } from 'react-cosmos-core';
 
-import * as fixture75 from './apps/tlon-mobile/src/App.fixture';
-import * as fixture78 from './apps/tlon-mobile/src/fixtures/InputToolbar.fixture';
-import * as fixture77 from './apps/tlon-mobile/src/fixtures/Onboarding.fixture';
-import * as fixture76 from './apps/tlon-mobile/src/fixtures/SetNicknameScreen.fixture';
+import * as fixture76 from './apps/tlon-mobile/src/App.fixture';
+import * as fixture80 from './apps/tlon-mobile/src/fixtures/InputToolbar.fixture';
+import * as fixture79 from './apps/tlon-mobile/src/fixtures/Onboarding.fixture';
+import * as fixture78 from './apps/tlon-mobile/src/fixtures/SetNicknameScreen.fixture';
+import * as fixture77 from './apps/tlon-mobile/src/fixtures/TlonbotSetupScreen.fixture';
 import * as decorator1 from './apps/tlon-mobile/src/fixtures/cosmos.decorator';
-import * as fixture74 from './packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture';
-import * as fixture73 from './packages/app/fixtures/ActionSheet/AttachmentSheet.fixture';
-import * as fixture72 from './packages/app/fixtures/ActionSheet/CreateChannelSheet.fixture';
-import * as fixture71 from './packages/app/fixtures/ActionSheet/EditSectionNameSheet.fixture';
-import * as fixture70 from './packages/app/fixtures/ActionSheet/GenericActionSheet.fixture';
-import * as fixture69 from './packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture';
-import * as fixture68 from './packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture';
-import * as fixture67 from './packages/app/fixtures/ActionSheet/ProfileSheet.fixture';
-import * as fixture63 from './packages/app/fixtures/Activity.fixture';
-import * as fixture62 from './packages/app/fixtures/AddContactsView.fixture';
-import * as fixture61 from './packages/app/fixtures/AttachmentPreviewList.fixture';
-import * as fixture60 from './packages/app/fixtures/AttestationPane.fixture';
-import * as fixture59 from './packages/app/fixtures/AudioEmbed.fixture';
-import * as fixture58 from './packages/app/fixtures/AudioRecorder.fixture';
-import * as fixture57 from './packages/app/fixtures/Avatar.fixture';
-import * as fixture56 from './packages/app/fixtures/BlockSectionList.fixture';
-import * as fixture55 from './packages/app/fixtures/Button.fixture';
-import * as fixture54 from './packages/app/fixtures/ButtonV2.fixture';
-import * as fixture53 from './packages/app/fixtures/Carousel.fixture';
-import * as fixture52 from './packages/app/fixtures/Channel.fixture';
-import * as fixture51 from './packages/app/fixtures/ChannelConfigurationBar.fixture';
-import * as fixture50 from './packages/app/fixtures/ChannelDivider.fixture';
-import * as fixture49 from './packages/app/fixtures/ChannelHeader.fixture';
-import * as fixture48 from './packages/app/fixtures/ChannelListItem.fixture';
-import * as fixture47 from './packages/app/fixtures/ChatMessage.fixture';
-import * as fixture46 from './packages/app/fixtures/ChatOptionsSheet.fixture';
-import * as fixture45 from './packages/app/fixtures/ConfirmDialog.fixture';
-import * as fixture44 from './packages/app/fixtures/ContactList.fixture';
-import * as fixture43 from './packages/app/fixtures/CreateChatSheet.fixture';
-import * as fixture66 from './packages/app/fixtures/DetailView/ChatDetailView.fixture';
-import * as fixture65 from './packages/app/fixtures/DetailView/GalleryDetailView.fixture';
-import * as fixture64 from './packages/app/fixtures/DetailView/NotebookDetailView.fixture';
-import * as fixture42 from './packages/app/fixtures/DmInviteOptions.fixture';
-import * as fixture41 from './packages/app/fixtures/EditProfileScreen.fixture';
-import * as fixture40 from './packages/app/fixtures/EmbedContent.fixture';
-import * as fixture39 from './packages/app/fixtures/EmptyChannelNotice.fixture';
-import * as fixture38 from './packages/app/fixtures/FacePile.fixture';
-import * as fixture37 from './packages/app/fixtures/Form.fixture';
-import * as fixture36 from './packages/app/fixtures/ForwardChannelListItem.fixture';
-import * as fixture35 from './packages/app/fixtures/GalleryPost.fixture';
+import * as fixture75 from './packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture';
+import * as fixture74 from './packages/app/fixtures/ActionSheet/AttachmentSheet.fixture';
+import * as fixture73 from './packages/app/fixtures/ActionSheet/CreateChannelSheet.fixture';
+import * as fixture72 from './packages/app/fixtures/ActionSheet/EditSectionNameSheet.fixture';
+import * as fixture71 from './packages/app/fixtures/ActionSheet/GenericActionSheet.fixture';
+import * as fixture70 from './packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture';
+import * as fixture69 from './packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture';
+import * as fixture68 from './packages/app/fixtures/ActionSheet/ProfileSheet.fixture';
+import * as fixture64 from './packages/app/fixtures/Activity.fixture';
+import * as fixture63 from './packages/app/fixtures/AddContactsView.fixture';
+import * as fixture62 from './packages/app/fixtures/AttachmentPreviewList.fixture';
+import * as fixture61 from './packages/app/fixtures/AttestationPane.fixture';
+import * as fixture60 from './packages/app/fixtures/AudioEmbed.fixture';
+import * as fixture59 from './packages/app/fixtures/AudioRecorder.fixture';
+import * as fixture58 from './packages/app/fixtures/Avatar.fixture';
+import * as fixture57 from './packages/app/fixtures/BlockSectionList.fixture';
+import * as fixture56 from './packages/app/fixtures/Button.fixture';
+import * as fixture55 from './packages/app/fixtures/ButtonV2.fixture';
+import * as fixture54 from './packages/app/fixtures/Carousel.fixture';
+import * as fixture53 from './packages/app/fixtures/Channel.fixture';
+import * as fixture52 from './packages/app/fixtures/ChannelConfigurationBar.fixture';
+import * as fixture51 from './packages/app/fixtures/ChannelDivider.fixture';
+import * as fixture50 from './packages/app/fixtures/ChannelHeader.fixture';
+import * as fixture49 from './packages/app/fixtures/ChannelListItem.fixture';
+import * as fixture48 from './packages/app/fixtures/ChatMessage.fixture';
+import * as fixture47 from './packages/app/fixtures/ChatOptionsSheet.fixture';
+import * as fixture46 from './packages/app/fixtures/ConfirmDialog.fixture';
+import * as fixture45 from './packages/app/fixtures/ContactList.fixture';
+import * as fixture44 from './packages/app/fixtures/CreateChatSheet.fixture';
+import * as fixture67 from './packages/app/fixtures/DetailView/ChatDetailView.fixture';
+import * as fixture66 from './packages/app/fixtures/DetailView/GalleryDetailView.fixture';
+import * as fixture65 from './packages/app/fixtures/DetailView/NotebookDetailView.fixture';
+import * as fixture43 from './packages/app/fixtures/DmInviteOptions.fixture';
+import * as fixture42 from './packages/app/fixtures/EditProfileScreen.fixture';
+import * as fixture41 from './packages/app/fixtures/EmbedContent.fixture';
+import * as fixture40 from './packages/app/fixtures/EmptyChannelNotice.fixture';
+import * as fixture39 from './packages/app/fixtures/FacePile.fixture';
+import * as fixture38 from './packages/app/fixtures/Form.fixture';
+import * as fixture37 from './packages/app/fixtures/ForwardChannelListItem.fixture';
+import * as fixture36 from './packages/app/fixtures/GalleryPost.fixture';
+import * as fixture35 from './packages/app/fixtures/GestureMediaViewer.fixture';
 import * as fixture34 from './packages/app/fixtures/GroupListItem.fixture';
 import * as fixture33 from './packages/app/fixtures/Input.fixture';
 import * as fixture32 from './packages/app/fixtures/InviteFriendsToTlonButton.fixture';
@@ -135,81 +137,85 @@ const fixtures = {
   },
   'packages/app/fixtures/Input.fixture.tsx': { module: fixture33 },
   'packages/app/fixtures/GroupListItem.fixture.tsx': { module: fixture34 },
-  'packages/app/fixtures/GalleryPost.fixture.tsx': { module: fixture35 },
+  'packages/app/fixtures/GestureMediaViewer.fixture.tsx': { module: fixture35 },
+  'packages/app/fixtures/GalleryPost.fixture.tsx': { module: fixture36 },
   'packages/app/fixtures/ForwardChannelListItem.fixture.tsx': {
-    module: fixture36,
+    module: fixture37,
   },
-  'packages/app/fixtures/Form.fixture.tsx': { module: fixture37 },
-  'packages/app/fixtures/FacePile.fixture.tsx': { module: fixture38 },
-  'packages/app/fixtures/EmptyChannelNotice.fixture.tsx': { module: fixture39 },
-  'packages/app/fixtures/EmbedContent.fixture.tsx': { module: fixture40 },
-  'packages/app/fixtures/EditProfileScreen.fixture.tsx': { module: fixture41 },
-  'packages/app/fixtures/DmInviteOptions.fixture.tsx': { module: fixture42 },
-  'packages/app/fixtures/CreateChatSheet.fixture.tsx': { module: fixture43 },
-  'packages/app/fixtures/ContactList.fixture.tsx': { module: fixture44 },
-  'packages/app/fixtures/ConfirmDialog.fixture.tsx': { module: fixture45 },
-  'packages/app/fixtures/ChatOptionsSheet.fixture.tsx': { module: fixture46 },
-  'packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture47 },
-  'packages/app/fixtures/ChannelListItem.fixture.tsx': { module: fixture48 },
-  'packages/app/fixtures/ChannelHeader.fixture.tsx': { module: fixture49 },
-  'packages/app/fixtures/ChannelDivider.fixture.tsx': { module: fixture50 },
+  'packages/app/fixtures/Form.fixture.tsx': { module: fixture38 },
+  'packages/app/fixtures/FacePile.fixture.tsx': { module: fixture39 },
+  'packages/app/fixtures/EmptyChannelNotice.fixture.tsx': { module: fixture40 },
+  'packages/app/fixtures/EmbedContent.fixture.tsx': { module: fixture41 },
+  'packages/app/fixtures/EditProfileScreen.fixture.tsx': { module: fixture42 },
+  'packages/app/fixtures/DmInviteOptions.fixture.tsx': { module: fixture43 },
+  'packages/app/fixtures/CreateChatSheet.fixture.tsx': { module: fixture44 },
+  'packages/app/fixtures/ContactList.fixture.tsx': { module: fixture45 },
+  'packages/app/fixtures/ConfirmDialog.fixture.tsx': { module: fixture46 },
+  'packages/app/fixtures/ChatOptionsSheet.fixture.tsx': { module: fixture47 },
+  'packages/app/fixtures/ChatMessage.fixture.tsx': { module: fixture48 },
+  'packages/app/fixtures/ChannelListItem.fixture.tsx': { module: fixture49 },
+  'packages/app/fixtures/ChannelHeader.fixture.tsx': { module: fixture50 },
+  'packages/app/fixtures/ChannelDivider.fixture.tsx': { module: fixture51 },
   'packages/app/fixtures/ChannelConfigurationBar.fixture.tsx': {
-    module: fixture51,
+    module: fixture52,
   },
-  'packages/app/fixtures/Channel.fixture.tsx': { module: fixture52 },
-  'packages/app/fixtures/Carousel.fixture.tsx': { module: fixture53 },
-  'packages/app/fixtures/ButtonV2.fixture.tsx': { module: fixture54 },
-  'packages/app/fixtures/Button.fixture.tsx': { module: fixture55 },
-  'packages/app/fixtures/BlockSectionList.fixture.tsx': { module: fixture56 },
-  'packages/app/fixtures/Avatar.fixture.tsx': { module: fixture57 },
-  'packages/app/fixtures/AudioRecorder.fixture.tsx': { module: fixture58 },
-  'packages/app/fixtures/AudioEmbed.fixture.tsx': { module: fixture59 },
-  'packages/app/fixtures/AttestationPane.fixture.tsx': { module: fixture60 },
+  'packages/app/fixtures/Channel.fixture.tsx': { module: fixture53 },
+  'packages/app/fixtures/Carousel.fixture.tsx': { module: fixture54 },
+  'packages/app/fixtures/ButtonV2.fixture.tsx': { module: fixture55 },
+  'packages/app/fixtures/Button.fixture.tsx': { module: fixture56 },
+  'packages/app/fixtures/BlockSectionList.fixture.tsx': { module: fixture57 },
+  'packages/app/fixtures/Avatar.fixture.tsx': { module: fixture58 },
+  'packages/app/fixtures/AudioRecorder.fixture.tsx': { module: fixture59 },
+  'packages/app/fixtures/AudioEmbed.fixture.tsx': { module: fixture60 },
+  'packages/app/fixtures/AttestationPane.fixture.tsx': { module: fixture61 },
   'packages/app/fixtures/AttachmentPreviewList.fixture.tsx': {
-    module: fixture61,
+    module: fixture62,
   },
-  'packages/app/fixtures/AddContactsView.fixture.tsx': { module: fixture62 },
-  'packages/app/fixtures/Activity.fixture.tsx': { module: fixture63 },
+  'packages/app/fixtures/AddContactsView.fixture.tsx': { module: fixture63 },
+  'packages/app/fixtures/Activity.fixture.tsx': { module: fixture64 },
   'packages/app/fixtures/DetailView/NotebookDetailView.fixture.tsx': {
-    module: fixture64,
-  },
-  'packages/app/fixtures/DetailView/GalleryDetailView.fixture.tsx': {
     module: fixture65,
   },
-  'packages/app/fixtures/DetailView/ChatDetailView.fixture.tsx': {
+  'packages/app/fixtures/DetailView/GalleryDetailView.fixture.tsx': {
     module: fixture66,
   },
-  'packages/app/fixtures/ActionSheet/ProfileSheet.fixture.tsx': {
+  'packages/app/fixtures/DetailView/ChatDetailView.fixture.tsx': {
     module: fixture67,
   },
-  'packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture.tsx': {
+  'packages/app/fixtures/ActionSheet/ProfileSheet.fixture.tsx': {
     module: fixture68,
   },
-  'packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture.tsx': {
+  'packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture.tsx': {
     module: fixture69,
   },
-  'packages/app/fixtures/ActionSheet/GenericActionSheet.fixture.tsx': {
+  'packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture.tsx': {
     module: fixture70,
   },
-  'packages/app/fixtures/ActionSheet/EditSectionNameSheet.fixture.tsx': {
+  'packages/app/fixtures/ActionSheet/GenericActionSheet.fixture.tsx': {
     module: fixture71,
   },
-  'packages/app/fixtures/ActionSheet/CreateChannelSheet.fixture.tsx': {
+  'packages/app/fixtures/ActionSheet/EditSectionNameSheet.fixture.tsx': {
     module: fixture72,
   },
-  'packages/app/fixtures/ActionSheet/AttachmentSheet.fixture.tsx': {
+  'packages/app/fixtures/ActionSheet/CreateChannelSheet.fixture.tsx': {
     module: fixture73,
   },
-  'packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture.tsx': {
+  'packages/app/fixtures/ActionSheet/AttachmentSheet.fixture.tsx': {
     module: fixture74,
   },
-  'apps/tlon-mobile/src/App.fixture.tsx': { module: fixture75 },
-  'apps/tlon-mobile/src/fixtures/SetNicknameScreen.fixture.tsx': {
-    module: fixture76,
+  'packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture.tsx': {
+    module: fixture75,
   },
-  'apps/tlon-mobile/src/fixtures/Onboarding.fixture.tsx': { module: fixture77 },
-  'apps/tlon-mobile/src/fixtures/InputToolbar.fixture.tsx': {
+  'apps/tlon-mobile/src/App.fixture.tsx': { module: fixture76 },
+  'apps/tlon-mobile/src/fixtures/TlonbotSetupScreen.fixture.tsx': {
+    module: fixture77,
+  },
+  'apps/tlon-mobile/src/fixtures/SetNicknameScreen.fixture.tsx': {
     module: fixture78,
+  },
+  'apps/tlon-mobile/src/fixtures/Onboarding.fixture.tsx': { module: fixture79 },
+  'apps/tlon-mobile/src/fixtures/InputToolbar.fixture.tsx': {
+    module: fixture80,
   },
 };
 

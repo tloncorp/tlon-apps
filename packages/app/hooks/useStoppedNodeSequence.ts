@@ -1,8 +1,4 @@
-import {
-  AnalyticsEvent,
-  AnalyticsSeverity,
-  createDevLogger,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,7 +27,8 @@ export function useStoppedNodeSequence(params: {
 
   const [phase, setPhase] = useState(NodeResumeState.WaitingForRunning);
   const [shipInfo, setShipInfo] = useState<db.ShipInfo | null>(null);
-  const [isGuidedFirstLogin, setIsGuidedFirstLogin] = useState(false);
+  const [splashSequenceMode, setSplashSequenceMode] =
+    useState<db.ShipInfo['splashSequenceMode']>();
 
   const isRunningRef = useRef(false);
   const lastRunPhaseRef = useRef(NodeResumeState.WaitingForRunning);
@@ -43,7 +40,7 @@ export function useStoppedNodeSequence(params: {
       // don't be too noisy with logging
       const supressStatusLog = bootStepCounter % 5 !== 0;
 
-      const { status, guideFirstLogin } =
+      const { status, onboardingFlow } =
         await store.checkHostingNodeStatus(supressStatusLog);
       if (status === HostedNodeStatus.UnderMaintenance) {
         return NodeResumeState.UnderMaintenance;
@@ -51,7 +48,7 @@ export function useStoppedNodeSequence(params: {
       if (status === HostedNodeStatus.Running) {
         logger.crumb('confirmed node is running');
         setBootedAt(Date.now());
-        setIsGuidedFirstLogin(guideFirstLogin);
+        setSplashSequenceMode(onboardingFlow);
         return NodeResumeState.Authenticating;
       }
 
@@ -86,13 +83,17 @@ export function useStoppedNodeSequence(params: {
         unit: 'seconds',
       });
 
-      setShipInfo({ ...shipInfo, needsSplashSequence: isGuidedFirstLogin });
+      setShipInfo({
+        ...shipInfo,
+        needsSplashSequence: !!splashSequenceMode,
+        splashSequenceMode,
+      });
       return NodeResumeState.Ready;
     } catch (e) {
       logger.crumb('getting auth threw', e);
       return NodeResumeState.Authenticating;
     }
-  }, [bootedAt, isGuidedFirstLogin, params.waitType, store]);
+  }, [bootedAt, params.waitType, splashSequenceMode, store]);
 
   const runPhase = useCallback(
     async (currPhase: NodeResumeState) => {
@@ -110,6 +111,7 @@ export function useStoppedNodeSequence(params: {
   const resetSequence = useCallback(() => {
     setPhase(NodeResumeState.WaitingForRunning);
     setShipInfo(null);
+    setSplashSequenceMode(undefined);
     sequenceStartTimeRef.current = 0;
     setBootedAt(0);
   }, []);

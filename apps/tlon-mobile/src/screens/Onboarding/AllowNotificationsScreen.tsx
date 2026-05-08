@@ -4,6 +4,7 @@ import {
   requestNotificationToken,
   useNotificationPermissions,
 } from '@tloncorp/app/lib/notifications';
+import { prepareTlonbotRevivalNotifications } from '@tloncorp/app/lib/tlonbotRevivalNotifications';
 import { Button, ScreenHeader, TlonText, View, YStack } from '@tloncorp/app/ui';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -54,9 +55,24 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
         notificationToken,
       });
 
-      if (signupContext.isGuidedLogin) {
-        signupContext.handlePostSignup();
+      if (signupContext.onboardingFlow === 'tlonbotRevival') {
+        const shipId = await db.hostedUserNodeId.getValue();
+        await db.tlonbotRevivalSetup.setValue((current) => ({
+          ...current,
+          pending: true,
+          applied: false,
+          shipId: shipId ?? current.shipId,
+          nickname: signupContext.nickname,
+          notificationLevel: signupContext.notificationLevel,
+          notificationToken,
+        }));
+        prepareTlonbotRevivalNotifications(
+          notificationToken,
+          signupContext.notificationLevel
+        );
+        signupContext.clear();
         await db.hostedAccountIsInitialized.setValue(true);
+        return;
       } else {
         navigation.push('ReserveShip');
       }

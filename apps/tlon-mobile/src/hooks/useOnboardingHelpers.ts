@@ -8,7 +8,6 @@ import {
   AnalyticsSeverity,
   HostedNodeStatus,
   createDevLogger,
-  withRetry,
 } from '@tloncorp/shared';
 import { storage } from '@tloncorp/shared/db';
 import * as db from '@tloncorp/shared/db';
@@ -70,14 +69,33 @@ export function useOnboardingHelpers() {
     return true;
   }, [navigation, store]);
 
-  const handleGuidedLogin = useCallback(
+  const handleRevivalOnboarding = useCallback(
     async (inputShipInfo?: db.ShipInfo) => {
+      const onboardingFlow = 'tlonbotRevival';
       try {
         logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
-          context: 'revival login: starting',
+          context: 'revival onboarding: starting',
+          onboardingFlow,
         });
 
-        signupContext.setOnboardingValues({ isGuidedLogin: true });
+        const shipId =
+          inputShipInfo?.ship ?? (await db.hostedUserNodeId.getValue());
+        logger.trackEvent(AnalyticsEvent.InitiatedTlonbotRevival, {
+          source: 'post_login',
+        });
+        await db.tlonbotRevivalSetup.setValue((current) => ({
+          ...current,
+          pending: true,
+          applied: false,
+          provisioningStarted: current.provisioningStarted ?? false,
+          stage: current.stage ?? 'collecting',
+          shipId: shipId ?? undefined,
+        }));
+
+        await db.hostedAccountIsInitialized.setValue(false);
+        signupContext.setOnboardingValues({
+          onboardingFlow,
+        });
         navigation.navigate('SetNickname');
 
         // we won't have set up the connection yet, so do that first
@@ -87,29 +105,18 @@ export function useOnboardingHelpers() {
         configureUrbitClient(shipInfoToUse);
         store.syncStart();
 
-        // finally, reset the ships revival status in Hosting
-        store
-          .clearShipRevivalStatus()
-          .then(() => {
-            logger.trackEvent('Toggled Hosting Revival Status');
-          })
-          .catch((e) => {
-            logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
-              error: e,
-              context: 'failed to clear revival status',
-              severity: AnalyticsSeverity.High,
-            });
-          });
+        // Clear the Hosting revival flag only after the user completes revival
+        // onboarding.
       } catch (e) {
         logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
           error: e,
-          context: 'failed to scaffold personal group',
-          during: 'mobile revival login (useOnboardingHelpers)',
+          context: 'failed to start revival onboarding',
+          during: 'mobile revival onboarding (useOnboardingHelpers)',
           severity: AnalyticsSeverity.Critical,
         });
       }
     },
-    [configureUrbitClient, navigation, signupContext, store]
+    [configureUrbitClient, navigation, ship, shipUrl, signupContext, store]
   );
 
   const handleLogin = useCallback(
@@ -158,8 +165,9 @@ export function useOnboardingHelpers() {
       // Step 2: Verify node status
       const nodeId = await db.hostedUserNodeId.getValue();
       console.log('checking node status', nodeId);
-      const { status: nodeStatus, guideFirstLogin } =
+      const { status: nodeStatus, onboardingFlow } =
         await store.checkHostingNodeStatus();
+      const revivalFlow = onboardingFlow;
       if (nodeStatus !== HostedNodeStatus.Running) {
         if (nodeStatus === HostedNodeStatus.UnderMaintenance) {
           logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
@@ -181,7 +189,9 @@ export function useOnboardingHelpers() {
         }
       }
 
-      if (!guideFirstLogin) {
+      if (revivalFlow) {
+        await db.hostedAccountIsInitialized.setValue(false);
+      } else {
         await db.hostedAccountIsInitialized.setValue(true);
       }
       await db.hostedNodeIsRunning.setValue(true);
@@ -195,20 +205,25 @@ export function useOnboardingHelpers() {
       }
       logger.log('authenticated with node', shipInfo);
 
-      // make sure we show them the wayfinding splash if they're being revived
-      setShip({ ...shipInfo, needsSplashSequence: guideFirstLogin });
+      // make sure we show them the right splash if they're being revived
+      const nextShipInfo = {
+        ...shipInfo,
+        needsSplashSequence: !!revivalFlow,
+        splashSequenceMode: revivalFlow,
+      };
+      setShip(nextShipInfo);
 
-      // Step 4: if they're being revived, attempt to scaffold the personal group
-      if (guideFirstLogin) {
-        handleGuidedLogin(shipInfo);
+      // Step 4: if they're being revived, collect profile and notification prefs
+      if (revivalFlow) {
+        handleRevivalOnboarding(nextShipInfo);
       }
     },
-    [handleGuidedLogin, navigation, setShip, signupContext, store]
+    [handleRevivalOnboarding, navigation, setShip, signupContext, store]
   );
 
   return {
     handleLogin,
-    handleGuidedLogin,
+    handleRevivalOnboarding,
     checkAccountStatusAndNavigate,
     reviveLoggedInSession,
   };

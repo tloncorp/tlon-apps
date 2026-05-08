@@ -86,6 +86,18 @@ object NotificationMessagesCache {
 
 private const val NOTIFICATION_MANAGER = "NotificationManager"
 
+private fun getNotificationId(identifier: String): Int {
+    return if (identifier.startsWith("0v")) {
+        try {
+            UvParser.getIntCompatibleFromUv(identifier)
+        } catch (e: Exception) {
+            identifier.hashCode()
+        }
+    } else {
+        identifier.hashCode()
+    }
+}
+
 suspend fun processNotification(context: Context, uid: String, id: String) {
     val api = TalkApi(context)
     var activityEvent: JSONObject? = null
@@ -203,12 +215,12 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
 
 fun showGenericNotification(
     context: Context,
-    uid: String,
+    identifier: String,
     title: String,
     message: String,
     extras: Bundle
 ) {
-    val id = UvParser.getIntCompatibleFromUv(uid)
+    val id = getNotificationId(identifier)
     if (ActivityCompat.checkSelfPermission(
             context,
             Manifest.permission.POST_NOTIFICATIONS
@@ -217,7 +229,7 @@ fun showGenericNotification(
         NotificationLogger.logError(
             NotificationException(
                 message = "Lacking notification permissions",
-                uid = uid
+                uid = identifier
             )
         )
         Log.w(NOTIFICATION_MANAGER, "Cannot show notification - no permission")
@@ -225,7 +237,7 @@ fun showGenericNotification(
     }
 
     if (!extras.containsKey("id")) {
-        extras.putString("id", uid)
+        extras.putString("id", identifier)
     }
     extras.putString("genericMessage", message)
 
@@ -237,7 +249,7 @@ fun showGenericNotification(
 
     NotificationManagerCompat.from(context).notify(id, builder.build())
     NotificationLogger.logDelivery(mapOf(
-        "uid" to uid,
+        "uid" to identifier,
         "message" to "Generic notification delivered successfully"
     ))
 }

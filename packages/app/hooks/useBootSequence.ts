@@ -1,17 +1,11 @@
 import * as api from '@tloncorp/api';
 import { preSig } from '@tloncorp/api/lib/urbit';
-import {
-  AnalyticsEvent,
-  createDevLogger,
-  extractNormalizedInviteLink,
-  withRetry,
-} from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, withRetry } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import {
   AnalyticsSeverity,
   BootPhaseNames,
   NodeBootPhase,
-  getConstants,
 } from '@tloncorp/shared/domain';
 import * as store from '@tloncorp/shared/store';
 import { verifyUserInviteLink } from '@tloncorp/shared/store';
@@ -64,6 +58,7 @@ export function useBootSequence() {
     code?: string;
     isReady?: boolean;
     personalInviteToken: string | null;
+    homeGroupInviteToken: string | null;
   } | null>(null);
   const [report, setReport] = useState<BootSequenceReport | null>(null);
 
@@ -94,39 +89,12 @@ export function useBootSequence() {
       logger.crumb(`reserved node`, reservedNode.id);
       db.hostedAccountIsInitialized.setValue(true);
 
-      // handle personal DM invite cacheing if available
-      if (
-        reservedNode.personalInviteToken &&
-        reservedNode.personalInviteToken.startsWith('0v')
-      ) {
-        const env = getConstants();
-        const inviteLink = extractNormalizedInviteLink(
-          `https://${env.BRANCH_DOMAIN}/${reservedNode.personalInviteToken}`
-        );
-        await db.personalInviteLink.setValue(inviteLink);
-      } else {
-        logger.trackError('Signup missing DM invite token', {
-          nodeId: reservedNode.id,
-          tokenReceived: reservedNode.personalInviteToken,
-        });
-      }
-
-      // handle home group invite cacheing if available
-      if (
-        reservedNode.homeGroupInviteToken &&
-        reservedNode.homeGroupInviteToken.startsWith('0v')
-      ) {
-        const env = getConstants();
-        const inviteLink = extractNormalizedInviteLink(
-          `https://${env.BRANCH_DOMAIN}/${reservedNode.homeGroupInviteToken}`
-        );
-        await db.homeGroupInviteLink.setValue(inviteLink);
-      } else {
-        logger.trackError('Signup missing home group invite token', {
-          nodeId: reservedNode.id,
-          tokenReceived: reservedNode.homeGroupInviteToken,
-        });
-      }
+      await store.initializeCachedHostedInviteLinks({
+        personalLureToken: reservedNode.personalInviteToken,
+        homeGroupLureToken: reservedNode.homeGroupInviteToken,
+        nodeId: reservedNode.id,
+        source: 'signup',
+      });
 
       return NodeBootPhase.BOOTING;
     }
@@ -169,7 +137,11 @@ export function useBootSequence() {
         if (!shipInfo) {
           throw new Error('Could not authenticate with node');
         }
-        setShip({ ...shipInfo, needsSplashSequence: true });
+        setShip({
+          ...shipInfo,
+          needsSplashSequence: true,
+          splashSequenceMode: 'signup',
+        });
         telemetry?.identify(preSig(shipInfo.ship!), {
           isHostedUser: true,
           userId: preSig(shipInfo.ship!),

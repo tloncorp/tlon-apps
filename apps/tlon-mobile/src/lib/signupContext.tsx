@@ -170,15 +170,7 @@ async function runPostSignupActions(params: {
   notificationLevel?: string;
   postHog?: PostHog;
 }) {
-  if (params.nickname) {
-    try {
-      await store.updateCurrentUserProfile({
-        nickname: params.nickname,
-      });
-    } catch (e) {
-      logger.trackError('post signup: failed to set nickname', e);
-    }
-  }
+  await runProfileAndNotificationActions(params);
 
   if (typeof params.telemetry !== 'undefined') {
     try {
@@ -194,37 +186,6 @@ async function runPostSignupActions(params: {
       }
     } catch (e) {
       logger.trackError('post signup: failed to set telemetry', e);
-    }
-  }
-
-  if (params.notificationToken) {
-    try {
-      await connectNotifyProvider(params.notificationToken);
-    } catch (e) {
-      logger.trackError('post signup: failed to set notification token', e);
-    }
-  }
-
-  if (params.notificationLevel) {
-    try {
-      await store.setBaseVolumeLevel({
-        level: params.notificationLevel as any,
-      });
-    } catch (e) {
-      logger.trackError('post signup: failed to set notification level', e);
-    }
-  }
-
-  if (params.notificationLevel) {
-    try {
-      await store.setBaseVolumeLevel({
-        level: params.notificationLevel as any,
-      });
-    } catch (e) {
-      logger.trackError('post signup: failed to set notification level', {
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
     }
   }
 
@@ -251,6 +212,43 @@ async function runPostSignupActions(params: {
       logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
         severity: AnalyticsSeverity.Critical,
         context: 'post-signup phone number verification failed',
+      });
+    }
+  }
+}
+
+async function runProfileAndNotificationActions(params: {
+  nickname?: string;
+  notificationToken?: string;
+  notificationLevel?: string;
+}) {
+  if (params.nickname) {
+    try {
+      await store.updateCurrentUserProfile({
+        nickname: params.nickname,
+      });
+    } catch (e) {
+      logger.trackError('onboarding: failed to set nickname', e);
+    }
+  }
+
+  if (params.notificationToken) {
+    try {
+      await connectNotifyProvider(params.notificationToken);
+    } catch (e) {
+      logger.trackError('onboarding: failed to set notification token', e);
+    }
+  }
+
+  if (params.notificationLevel) {
+    try {
+      await store.setBaseVolumeLevel({
+        level: params.notificationLevel as any,
+      });
+    } catch (e) {
+      logger.trackError('onboarding: failed to set notification level', {
+        errorMessage: e instanceof Error ? e.message : String(e),
+        errorStack: e instanceof Error ? e.stack : undefined,
       });
     }
   }
