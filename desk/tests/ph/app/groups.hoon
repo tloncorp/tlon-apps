@@ -27,31 +27,6 @@
   ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(flag))
   ;<  ~  bind:m  (ex-equal !>(`@tas`-.r-group.rep) !>(tag))
   (pure:m ~)
-::  +ex-r-groups-meta: expect group metadata response fact
-::
-++  ex-r-groups-meta
-  |=  [=ship =flag:gv meta=data:meta:g]
-  =/  m  (strand ,~)
-  ^-  form:m
-  ;<  kag=cage  bind:m  (wait-for-app-fact /(scot %p ship)/groups/v1/groups [ship %groups])
-  ?>  =(%group-response-1 p.kag)
-  =+  !<(rep=r-groups:v10:gv q.kag)
-  ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(flag))
-  ?>  ?=(%meta -.r-group.rep)
-  ;<  ~  bind:m  (ex-equal !>(meta.r-group.rep) !>(meta))
-  (pure:m ~)
-::  +scry-test-group: scry group state from a virtual ship
-::
-++  scry-test-group
-  |=  =ship
-  =/  m  (strand group:g)
-  ^-  form:m
-  ;<  =bowl:strand  bind:m  get-bowl
-  =/  aqua-pax
-    /gx/(scot %p ship)/groups/(scot %da now.bowl)/v2/groups/~zod/my-test-group/group-2
-  ;<  group=(unit group:v9:gv)  bind:m
-    (scry-aqua (unit group:v9:gv) ship aqua-pax)
-  (pure:m `group:g`(need group))
 ::  +ph-test-group-join: test group joins
 ::
 ::  scenario

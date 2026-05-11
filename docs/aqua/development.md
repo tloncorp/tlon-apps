@@ -11,7 +11,7 @@ the test runner thread `-ph-test` takes care of resetting the test environment.
 
 ## The Structure of Aqua Tests
 
-Each aqua tests is a core with test arms, where each
+An aqua test is a core with test arms, where each
 test arm has the prefix `ph-test` and resolves to a strand with the signature `(strand ,~)`.
 
 The thread runner builds a test file, extracts and builds all matching test arms.
@@ -181,6 +181,16 @@ investigate the problem. If the test failure does not stem from an
 originally wrong implementation, it is likely the case that it could be
 broken in the future and we should consider to convert it to an aqua
 assertion.
+
+### Interfacing with gall agents
+
+The only interface exposed by aqua is that of an Urbit runtime, with its
+4 standard arms. Aqua exposes an interface to poke and scry virtual
+arvo, as well as receive effects.
+It is therefore not possible to interface directly through gall API with apps running inside virtual ships.
+Instead, we use arvo tasks to pass messages to vanes running on a
+virtual ship. To receive effects, we can subscribe to a generic aqua
+endpoint, and also target a specific type of arvo effects by using a specific subscription path.
 
 ### Implementing a test
 
