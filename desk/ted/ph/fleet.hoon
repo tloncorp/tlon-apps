@@ -1,6 +1,8 @@
 ::  prepare aqua fleet snapshot
 ::
+::  snap-id=(unit @t)
 ::  fleet=(list ship)
+::  sync=?
 ::
 /-  spider, aquarium
 /+  *strandio, ph-io, ph-test
@@ -48,10 +50,10 @@
 |=  args=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<(args=(unit [fleet=(list ship) sync=?]) args)
-=/  [fleet=(list ship) sync=?]
+=+  !<(args=(unit [snap-id=(unit @t) fleet=(list ship) sync=?]) args)
+=/  [snap-id=(unit @t) fleet=(list ship) sync=?]
   ?~  args  ~|(%no-args-found !!)
-  [fleet sync]:u.args
+  [snap-id fleet sync]:u.args
 =.  fleet
   ^-  (list ship)
   :*  ~loshut-lonreg  ::  bait provider
@@ -79,9 +81,11 @@
   ;<  ~  bind:n  (sync-desk i.fleet %groups)
   $(fleet t.fleet)
 ;<  =bowl:spider  bind:m  get-bowl
-=+  snap-id=(end 3^4 (sham eny.bowl))
-=/  snap=@t
-  (cat 3 'aqua-tests-' (scot %uv snap-id))
-~>  %slog.1^(crip "Taking snapshot...")
-;<  ~  bind:m  (send-events:ph-io [%snap-ships snap fleet]~)
-(pure:m !>(snap))
+=/  snap-id=@t
+  ?~  snap-id  
+    =+  eny=(end 3^4 (sham eny.bowl))
+    (cat 3 'aqua-tests-' (scot %uv eny))
+  u.snap-id
+~>  %slog.1^(crip "Taking snapshot {<snap-id>}...")
+;<  ~  bind:m  (send-events:ph-io [%snap-ships snap-id fleet]~)
+(pure:m !>(snap-id))

@@ -2,7 +2,7 @@
 /+  *ph-io, *ph-test
 =,  strand=strand:spider
 |%
-++  test-profile
+++  my-broadcast-profile
   ^-  contact:c
   %-  ~(gas by *(map @tas value:c))
   :~  [%nickname text+'Zod Test']
@@ -10,7 +10,7 @@
       [%status text+'testing contacts']
       [%color tint+0xff.0000]
   ==
-++  typed-profile
+++  my-typed-profile
   ^-  contact:c
   %-  ~(gas by *(map @tas value:c))
   :~  [%nickname text+'Zod Typed']
@@ -47,13 +47,13 @@
   ;<  ~  bind:m  (ex-equal !>(who.res) !>(~zod))
   ::  ~zod updates his public profile, then ~bud receives the broadcast.
   ::
-  ;<  ~  bind:m  (poke-app [~zod %contacts] contact-action-1+[%self test-profile])
+  ;<  ~  bind:m  (poke-app [~zod %contacts] contact-action-1+[%self my-broadcast-profile])
   ;<  pay=cage  bind:m  (wait-for-app-fact /~bud/contacts/v1/news [~bud %contacts])
   ?>  =(%contact-response-0 p.pay)
   =+  !<(res=response:c q.pay)
   ?>  ?=(%peer -.res)
   ;<  ~  bind:m  (ex-equal !>(who.res) !>(~zod))
-  ;<  ~  bind:m  (ex-equal !>(con.res) !>(test-profile))
+  ;<  ~  bind:m  (ex-equal !>(con.res) !>(my-broadcast-profile))
   (pure:m ~)
 ::  +ph-test-profile-field-types: test profile field value types
 ::
@@ -75,18 +75,18 @@
   ;<  ~  bind:m  (watch-app /~zod/contacts/v1/news [~zod %contacts] /v1/news)
   ::  ~zod sets every contact value type and receives the local response.
   ::
-  ;<  ~  bind:m  (poke-app [~zod %contacts] contact-action-1+[%self typed-profile])
+  ;<  ~  bind:m  (poke-app [~zod %contacts] contact-action-1+[%self my-typed-profile])
   ;<  pay=cage  bind:m  (wait-for-app-fact /~zod/contacts/v1/news [~zod %contacts])
   ?>  =(%contact-response-0 p.pay)
   =+  !<(res=response:c q.pay)
   ?>  ?=(%self -.res)
-  ;<  ~  bind:m  (ex-equal !>(con.res) !>(typed-profile))
+  ;<  ~  bind:m  (ex-equal !>(con.res) !>(my-typed-profile))
   ::  ~zod then publishes his full updated profile to contact subscribers.
   ::
   ;<  pay=cage  bind:m  (wait-for-app-fact /~zod/contacts/v1/contact [~zod %contacts])
   ?>  =(%contact-update-1 p.pay)
   =+  !<(upd=update:c q.pay)
   ?>  ?=(%full -.upd)
-  ;<  ~  bind:m  (ex-equal !>(con.upd) !>(typed-profile))
+  ;<  ~  bind:m  (ex-equal !>(con.upd) !>(my-typed-profile))
   (pure:m ~)
 --
