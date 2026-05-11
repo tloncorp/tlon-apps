@@ -93,9 +93,7 @@ function NotesWebViewNative(props: NotesWebViewProps) {
         domStorageEnabled
         style={{ flex: 1 }}
         onLoadEnd={handleLoad}
-        onShouldStartLoadWithRequest={(request) =>
-          request.url.startsWith(base)
-        }
+        onShouldStartLoadWithRequest={(request) => request.url.startsWith(base)}
       />
       {!loaded && <LoadingOverlay />}
     </View>

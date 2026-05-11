@@ -34,11 +34,7 @@ export const NotesPostCollection: IPostCollectionView = forwardRef(
     }));
 
     return (
-      <NotesWebView
-        shipUrl={shipUrl}
-        notebookFlag={notebookFlag}
-        hideHeader
-      />
+      <NotesWebView shipUrl={shipUrl} notebookFlag={notebookFlag} hideHeader />
     );
   }
 );
