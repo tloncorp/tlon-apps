@@ -163,7 +163,7 @@
 =+  num=(lent tests)
 ?:  =(num 0)
   ~>  %slog.2^leaf+"No suitable aqua tests found"
-  (pure:m !>(&))
+  (pure:m !>(|))
 ~>  %slog.1^leaf+"{<num>} test {?:((gth num 1) "threads" "thread")} built"
 ~>  %slog.1^'Running tests...'
 =/  n  (strand (list (pair path thread-result)))
