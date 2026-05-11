@@ -82,7 +82,8 @@ export function isGroupChannelId(channelId: string) {
   return (
     channelId.startsWith('chat') ||
     channelId.startsWith('diary') ||
-    channelId.startsWith('heap')
+    channelId.startsWith('heap') ||
+    channelId.startsWith('notes')
   );
 }
 

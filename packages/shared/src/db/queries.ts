@@ -28,6 +28,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lt,
   lte,
   max,
@@ -2677,6 +2678,17 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
+    // notes channels aren't tracked by %channels, so they never appear
+    // in joinedChannelIds. Force them joined here (idempotent) so they aren't
+    // flipped to currentUserIsMember=false, and so previously-broken rows get
+    // repaired on next init.
+    const notesChannel = like($channels.id, 'notes/%');
+    await ctx.db
+      .update($channels)
+      .set({ currentUserIsMember: true })
+      .where(and(isNotNull($channels.groupId), notesChannel));
+
+    const notNotesChannel = not(notesChannel);
     if (joinedChannelIds.length === 0) {
       return await ctx.db
         .update($channels)
@@ -2684,7 +2696,8 @@ export const setLeftGroupChannels = createWriteQuery(
         .where(
           and(
             isNotNull($channels.groupId),
-            eq($channels.currentUserIsMember, true)
+            eq($channels.currentUserIsMember, true),
+            notNotesChannel
           )
         );
     }
@@ -2697,7 +2710,8 @@ export const setLeftGroupChannels = createWriteQuery(
         and(
           notInArray($channels.id, joinedChannelIds),
           isNotNull($channels.groupId),
-          eq($channels.currentUserIsMember, true)
+          eq($channels.currentUserIsMember, true),
+          notNotesChannel
         )
       );
   },
