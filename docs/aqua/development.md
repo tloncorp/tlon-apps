@@ -88,6 +88,11 @@ Here is an example test arm for the group join process:
 ::...
 ```
 
+Important: when naming arms anywhere in the outer core, avoid names
+starting with the `test` prefix. This would cause the `-test` unit test
+runner to attempt to resolve the arm as a unit test, which would break
+the unit test suite.
+
 ## Comment style guide
 
 Following a long maritime tradition, Urbit ships generally use feminine pronouns.

@@ -70,6 +70,7 @@ You can save it to a dojo variable with
 ```
 > =snap-id -desk!ph-fleet fleet sync
 ```
+to avoid having to retype each time tests are run.
 
 In addition to galaxy test ships, a test may require a number of _provider_
 ships to be running, to allow components of the system to properly integrate
@@ -122,6 +123,8 @@ You can also target a particular test by appending the test name, such as
 The current virtual ames driver is inefficient. This make a single test run take
 about `~20s`, or more, depending on the number of networked interactions between
 virtual ships.
+
+As a general note, arguments for threads in dojo can be listed one after another.
 
 ### Understanding test output
 While tests run, information will be displayed from a variety of sources.
