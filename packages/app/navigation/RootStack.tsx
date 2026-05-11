@@ -3,6 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Platform, StatusBar } from 'react-native';
 
 import { InviteUsersScreen } from '../features/InviteUsersScreen';
+import { AppLauncherScreen } from '../features/apps/AppLauncherScreen';
+import { AppViewerScreen } from '../features/apps/AppViewerScreen';
 import { ChannelMembersScreen } from '../features/channels/ChannelMembersScreen';
 import { ChannelMetaScreen } from '../features/channels/ChannelMetaScreen';
 import { ChannelTemplateScreen } from '../features/channels/ChannelTemplateScreen';
@@ -87,6 +89,12 @@ export function RootStack() {
           gestureEnabled: false,
         }}
       />
+      <Root.Screen
+        name="AppLauncher"
+        component={AppLauncherScreen}
+        options={{ animation: 'none', gestureEnabled: false }}
+      />
+      <Root.Screen name="AppViewer" component={AppViewerScreen} />
 
       {/* individual screens */}
       <Root.Screen name="AddContacts" component={AddContactsScreen} />

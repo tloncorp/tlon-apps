@@ -260,6 +260,16 @@ export interface Pikes {
   [desk: string]: Pike;
 }
 
+// Returns all installed apps known to %docket, keyed by desk name. Each entry
+// includes title, color, image, href and chad (install status).
+export async function getCharges(): Promise<{ [desk: string]: Charge }> {
+  const res = await scry<ChargeUpdateInitial>({
+    app: 'docket',
+    path: '/charges',
+  });
+  return res.initial ?? {};
+}
+
 export async function getAppInfo(): Promise<db.AppInfo> {
   const pikes = await scry<Pikes>({
     app: 'hood',

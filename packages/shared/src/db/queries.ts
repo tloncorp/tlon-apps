@@ -77,6 +77,7 @@ import {
   groupUnreads as $groupUnreads,
   groups as $groups,
   pins as $pins,
+  recents as $recents,
   postReactions as $postReactions,
   posts as $posts,
   settings as $settings,
@@ -768,6 +769,58 @@ export const getPins = createReadQuery(
     return ctx.db.query.pins.findMany();
   },
   ['pins']
+);
+
+export interface RecentArgs {
+  scope: string;
+  kind: string;
+  targetId: string;
+}
+
+export const setRecent = createWriteQuery(
+  'setRecent',
+  async (args: RecentArgs, ctx: QueryCtx) => {
+    const now = Date.now();
+    return ctx.db
+      .insert($recents)
+      .values({
+        scope: args.scope,
+        kind: args.kind,
+        targetId: args.targetId,
+        lastVisitedAt: now,
+        count: 1,
+      })
+      .onConflictDoUpdate({
+        target: [$recents.scope, $recents.kind, $recents.targetId],
+        set: {
+          lastVisitedAt: now,
+          count: sql`${$recents.count} + 1`,
+        },
+      });
+  },
+  ['recents']
+);
+
+export const getRecents = createReadQuery(
+  'getRecents',
+  async (
+    args: { scope: string; kind?: string; limit?: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.recents.findMany({
+      where(fields, { and, eq }) {
+        if (args.kind) {
+          return and(eq(fields.scope, args.scope), eq(fields.kind, args.kind));
+        }
+        return eq(fields.scope, args.scope);
+      },
+      orderBy(fields, { desc }) {
+        return desc(fields.lastVisitedAt);
+      },
+      limit: args.limit ?? 10,
+    });
+  },
+  ['recents']
 );
 
 export const getAllChannels = createReadQuery(

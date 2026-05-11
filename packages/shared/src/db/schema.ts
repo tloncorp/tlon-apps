@@ -1263,3 +1263,25 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
+
+// Generic recency log used by Leap (recently-visited chats/channels/apps)
+// and by mention autocomplete (recently-mentioned contacts). `scope`
+// distinguishes the use case ('visit', 'mention'); `kind` further
+// disambiguates within a scope ('app', 'channel', 'contact', ...).
+export const recents = sqliteTable(
+  'recents',
+  {
+    scope: text('scope').notNull(),
+    kind: text('kind').notNull(),
+    targetId: text('target_id').notNull(),
+    lastVisitedAt: integer('last_visited_at').notNull(),
+    count: integer('count').notNull().default(1),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({
+        columns: [table.scope, table.kind, table.targetId],
+      }),
+    };
+  }
+);

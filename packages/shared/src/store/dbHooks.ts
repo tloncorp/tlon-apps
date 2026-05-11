@@ -45,6 +45,67 @@ export const useCurrentChats = (
   });
 };
 
+// Scry %docket for the list of apps installed on the user's ship. Excludes
+// the Tlon desks themselves since they're already represented by the host UI,
+// and apps in a broken install state.
+const HIDDEN_DESKS = new Set(['groups', 'talk', 'landscape']);
+
+export interface InstalledApp {
+  desk: string;
+  title: string;
+  info?: string;
+  color: string | null;
+  image?: string;
+  version: string;
+  href: api.DocketHref;
+}
+
+export const useInstalledApps = () => {
+  return useQuery({
+    queryKey: ['installedApps'],
+    queryFn: async (): Promise<InstalledApp[]> => {
+      try {
+        const charges = await api.getCharges();
+        return Object.entries(charges)
+          .filter(([desk, charge]) => {
+            if (HIDDEN_DESKS.has(desk)) return false;
+            // Skip apps in clearly-broken states; allow glob/site/install
+            // through so the user sees the same set landscape would.
+            return !('hung' in charge.chad || 'suspend' in charge.chad);
+          })
+          .map(([desk, charge]) => ({
+            desk,
+            title: charge.title,
+            info: charge.info,
+            color: api.normalizeUrbitColor(charge.color),
+            image: charge.image,
+            version: charge.version,
+            href: charge.href,
+          }))
+          .sort((a, b) => a.title.localeCompare(b.title));
+      } catch (e) {
+        return [];
+      }
+    },
+    staleTime: 60_000,
+  });
+};
+
+// Recents log used by Leap (recently-visited channels/apps) and by mention
+// autocomplete (recently-mentioned contacts). Pure recency ordering, with
+// frequency tracked alongside if we want to layer in frecency later.
+export const useRecents = (args: {
+  scope: string;
+  kind?: string;
+  limit?: number;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getRecents);
+  return useQuery({
+    queryKey: ['recents', deps, args.scope, args.kind, args.limit ?? 10],
+    queryFn: () => db.getRecents(args),
+  });
+};
+
 // Scry %notes once to detect whether the notes desk is installed on the
 // user's ship. Used to gate notes-specific UI (channel-creation option,
 // 'Bulletin' rename, etc.). Defaults to false until the scry resolves.

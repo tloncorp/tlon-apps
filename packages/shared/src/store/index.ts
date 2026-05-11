@@ -19,6 +19,7 @@ export * from './contactActions';
 export * from './clientActions';
 export * from './lure';
 export * from './presence';
+export * from './recents';
 export * from './inviteActions';
 export * from './hostingActions';
 export * from './lanyardActions';

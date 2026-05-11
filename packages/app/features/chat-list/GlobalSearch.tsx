@@ -1,7 +1,11 @@
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import type * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NativeSyntheticEvent, TextInputKeyPressEventData } from 'react-native';
+import { Portal } from 'tamagui';
 
+import { useOpenApp } from '../../hooks/useOpenApps';
+import type { CombinedParamList } from '../../navigation/types';
 import {
   TextInput,
   TextInputRef,
@@ -11,7 +15,7 @@ import {
   YStack,
   useGlobalSearch,
 } from '../../ui';
-import { FilteredChatList, FilteredChatListRef } from './FilteredChatList';
+import { FilteredLeapList, FilteredLeapListRef } from './FilteredLeapList';
 
 export interface GlobalSearchProps {
   navigateToGroup: (id: string) => void;
@@ -25,19 +29,50 @@ export function GlobalSearch({
   const { isOpen, setIsOpen } = useGlobalSearch();
   const [searchQuery, setSearchQuery] = useState('');
   const inputRef = useRef<TextInputRef>(null);
-  const listRef = useRef<FilteredChatListRef>(null);
+  const listRef = useRef<FilteredLeapListRef>(null);
+  const navigation = useNavigation<NavigationProp<CombinedParamList>>();
+  const openApp = useOpenApp();
+
+  // Close Leap immediately, then fire navigation on the next frame so
+  // React can finish unmounting the heavy FlashList before the destination
+  // screen starts mounting. Without this defer, both happen in the same
+  // commit and feel like a 100–300ms hitch on Enter.
+  const deferNavigate = useCallback((fn: () => void) => {
+    setIsOpen(false);
+    requestAnimationFrame(fn);
+  }, [setIsOpen]);
 
   const onPressItem = useCallback(
-    async (item: db.Chat) => {
-      if (item.type === 'group') {
-        navigateToGroup(item.group.id);
-      } else {
-        navigateToChannel(item.channel);
-      }
-      setIsOpen(false);
+    (item: db.Chat) => {
+      deferNavigate(() => {
+        if (item.type === 'group') {
+          navigateToGroup(item.group.id);
+        } else {
+          navigateToChannel(item.channel);
+        }
+      });
     },
-    [navigateToGroup, navigateToChannel, setIsOpen]
+    [navigateToGroup, navigateToChannel, deferNavigate]
   );
+
+  const onPressApp = useCallback(
+    (desk: string, alreadyOpen: boolean) => {
+      if (!alreadyOpen) openApp(desk);
+      deferNavigate(() => {
+        navigation.navigate('Apps', {
+          screen: 'AppViewer',
+          params: { desk },
+        });
+      });
+    },
+    [navigation, openApp, deferNavigate]
+  );
+
+  const onPressLauncher = useCallback(() => {
+    deferNavigate(() => {
+      navigation.navigate('Apps', { screen: 'AppLauncher' });
+    });
+  }, [navigation, deferNavigate]);
 
   const handleNavigationKey = useCallback(
     (key: string) => {
@@ -113,15 +148,29 @@ export function GlobalSearch({
     }
   }, [isOpen]);
 
+  // The FlashList of recents/apps/chats is the slowest part of Leap on first
+  // open. Defer mounting it one frame so the panel chrome paints first and
+  // the input is immediately usable.
+  const [listMounted, setListMounted] = useState(false);
+  useEffect(() => {
+    if (!isOpen) {
+      setListMounted(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => setListMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
-    <>
+    <Portal>
       <View
         // eslint-disable-next-line
         onPress={() => {
           setIsOpen(false);
         }}
+        pointerEvents="auto"
         style={{
           position: 'fixed',
           top: 0,
@@ -129,16 +178,17 @@ export function GlobalSearch({
           right: 0,
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 50,
+          zIndex: 9999,
         }}
       />
 
       <YStack
         position="absolute"
+        pointerEvents="auto"
         top="20%"
         left="50%"
         borderRadius="$l"
-        zIndex={51}
+        zIndex={10000}
         backgroundColor="$background"
         transform="translateX(-50%)"
         padding="$l"
@@ -168,11 +218,13 @@ export function GlobalSearch({
           autoCapitalize="none"
         />
         <YStack gap="$m" style={{ maxHeight: 400, overflowY: 'scroll' }}>
-          {isOpen && (
-            <FilteredChatList
+          {isOpen && listMounted && (
+            <FilteredLeapList
               searchQuery={searchQuery}
               ref={listRef}
-              onPressItem={onPressItem}
+              onPressApp={onPressApp}
+              onPressChat={onPressItem}
+              onPressLauncher={onPressLauncher}
             />
           )}
         </YStack>
@@ -210,6 +262,6 @@ export function GlobalSearch({
           </XStack>
         </XStack>
       </YStack>
-    </>
+    </Portal>
   );
 }

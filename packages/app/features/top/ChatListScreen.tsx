@@ -388,6 +388,9 @@ export function ChatListScreenView({
           navigateToNotifications={() => {
             navigation.navigate('Activity', undefined, { pop: true });
           }}
+          navigateToApps={() => {
+            navigation.navigate('AppLauncher');
+          }}
           currentRoute="ChatList"
           currentUserId={currentUser}
         />

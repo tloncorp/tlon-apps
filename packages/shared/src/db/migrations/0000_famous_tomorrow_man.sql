@@ -382,6 +382,15 @@ CREATE INDEX `posts_parent_id_index` ON `posts` (`parent_id`);--> statement-brea
 CREATE INDEX `posts_cached_index` ON `posts` (`channel_id`,`sent_at`,`author_id`) WHERE sequence_number = 0 AND parent_id IS NULL;--> statement-breakpoint
 CREATE INDEX `posts_channel_last_preview` ON `posts` (`channel_id`,`received_at`) WHERE type != 'reply' AND (is_deleted IS NULL OR is_deleted = 0);--> statement-breakpoint
 CREATE INDEX `posts_channel_last_seq` ON `posts` (`channel_id`,`sequence_number`) WHERE type != 'reply' AND sequence_number IS NOT NULL;--> statement-breakpoint
+CREATE TABLE `recents` (
+	`scope` text NOT NULL,
+	`kind` text NOT NULL,
+	`target_id` text NOT NULL,
+	`last_visited_at` integer NOT NULL,
+	`count` integer DEFAULT 1 NOT NULL,
+	PRIMARY KEY(`scope`, `kind`, `target_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `settings` (
 	`id` text PRIMARY KEY DEFAULT 'settings' NOT NULL,
 	`theme` text,

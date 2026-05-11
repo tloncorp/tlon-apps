@@ -218,7 +218,11 @@ function AppRoutes() {
   }, []);
 
   const documentTitleFormatterMobile = useCallback(
-    (_options: any, route: Route<string>) => {
+    (options: any, route: Route<string>) => {
+      // Honor any explicit title set via navigation.setOptions on the
+      // focused screen — that way screens like AppViewer / AppLauncher can
+      // manage their own title without us hardcoding cases here.
+      if (options?.title) return options.title;
       if (!route?.name) return 'Tlon';
 
       if (route.name === 'GroupChannels') {
@@ -265,7 +269,8 @@ function AppRoutes() {
   );
 
   const documentTitleFormatterDesktop = useCallback(
-    (_options: any, route: Route<string>) => {
+    (options: any, route: Route<string>) => {
+      if (options?.title) return options.title;
       if (!route?.name) return 'Tlon';
 
       // For channel routes

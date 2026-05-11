@@ -1,4 +1,5 @@
 export { udToDate } from './apiUtils';
+export { normalizeUrbitColor } from './utils';
 export * from './channelContentConfig';
 export * from './channelsApi';
 export * from './chatApi';
