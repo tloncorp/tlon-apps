@@ -1,13 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
+import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   AppDataContextProvider,
@@ -20,8 +20,6 @@ import {
   useInviteSystemContacts,
 } from '../../ui';
 import SystemNotices from '../../ui/components/SystemNotices';
-
-const logger = createDevLogger('ContactsScreen', false);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Contacts'>;
 
@@ -50,17 +48,7 @@ export default function ContactsScreen(props: Props) {
     [systemContacts]
   );
 
-  // Clear "new match" pills when leaving the screen — the user has had
-  // a chance to see them.
-  useEffect(() => {
-    return () => {
-      db.clearContactsMatchedAt().catch((err) => {
-        logger.trackError('Failed to clear contact match pills', {
-          error: err instanceof Error ? err : undefined,
-        });
-      });
-    };
-  }, []);
+  useMarkMatchesSeen();
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {

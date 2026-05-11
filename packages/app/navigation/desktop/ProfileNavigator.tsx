@@ -4,16 +4,16 @@ import {
 } from '@react-navigation/drawer';
 import { NavigationState } from '@react-navigation/routers';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
-import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { Alert } from 'react-native';
 
 import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
 import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import {
   ContactsScreenView,
   DESKTOP_SIDEBAR_WIDTH,
@@ -22,8 +22,6 @@ import {
   isWeb,
 } from '../../ui';
 import { ProfileDrawerParamList } from '../types';
-
-const logger = createDevLogger('ProfileNavigator', false);
 
 const ProfileDrawer = createDrawerNavigator();
 
@@ -35,17 +33,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const { data: userContacts } = store.useUserContacts();
   const { data: suggestions } = store.useSuggestedContacts();
 
-  // Clear "new match" pills when the contacts pane unmounts — the user
-  // has had a chance to see them.
-  useEffect(() => {
-    return () => {
-      db.clearContactsMatchedAt().catch((err) => {
-        logger.trackError('Failed to clear contact match pills', {
-          error: err instanceof Error ? err : undefined,
-        });
-      });
-    };
-  }, []);
+  useMarkMatchesSeen();
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
