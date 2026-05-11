@@ -203,7 +203,12 @@ export const MessagesSidebar = memo(
                 }
               />
               {chats && chats.unpinned.length ? (
-                <ChatList data={displayData} onPressItem={onPressChat} />
+                <ChatList
+                  data={displayData}
+                  onPressItem={onPressChat}
+                  disableScrollAnchoring
+                  scrollerTestID="MessagesSidebarChatScroller"
+                />
               ) : null}
               <GroupPreviewSheet
                 open={!!selectedGroup}
