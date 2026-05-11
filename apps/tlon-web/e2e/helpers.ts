@@ -1484,16 +1484,24 @@ function getPostAddFromChannelAction(postData: string | null) {
       channel?: {
         action?: {
           post?: {
-            add?: {
-              content?: unknown;
+            add?: { content?: unknown };
+            reply?: {
+              action?: {
+                add?: { content?: unknown };
+              };
             };
           };
         };
       };
     };
   }[];
-  const postAdd = events.find((event) => event.json?.channel?.action?.post?.add)
-    ?.json?.channel?.action?.post?.add;
+  const event = events.find(
+    (event) =>
+      event.json?.channel?.action?.post?.add ||
+      event.json?.channel?.action?.post?.reply?.action?.add
+  );
+  const post = event?.json?.channel?.action?.post;
+  const postAdd = post?.add ?? post?.reply?.action?.add;
 
   expect(postAdd).toBeTruthy();
   return postAdd;
