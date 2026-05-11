@@ -1043,10 +1043,10 @@
   ;<  ~  b
     %+  ex-equal
     !>  (~(got by dir) ~sun)
-    !>  `marked-page`[& con-sun con-mod]
+    !>  `leaf`[& con-sun con-mod]
   %+  ex-equal
   !>  (~(got by dir) ~mur)
-  !>  `marked-page`[| con-mur ~]
+  !>  `leaf`[| con-mur ~]
 ::  +test-retry: test resubscription logic
 ::
 ::    scenario
