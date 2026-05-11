@@ -1931,7 +1931,7 @@ export function InvitePane(props: {
     isDiscovering,
     discoveredMatches,
     runDiscovery,
-    tailFireHandlerOnAdvance,
+    notifyPendingMatches,
   } = useContactDiscovery();
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
@@ -1970,9 +1970,9 @@ export function InvitePane(props: {
   }, [storeContext, runDiscovery]);
 
   const handleActionPress = useCallback(() => {
-    tailFireHandlerOnAdvance();
+    notifyPendingMatches();
     props.onActionPress();
-  }, [props, tailFireHandlerOnAdvance]);
+  }, [props, notifyPendingMatches]);
 
   useEffect(() => {
     if (isWeb || perms.isLoading || hasAutoProcessed.current) {

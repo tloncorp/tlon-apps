@@ -11,15 +11,15 @@ const logger = createDevLogger('useContactDiscovery', false);
  * Drives a single lanyard discovery run from the foreground (e.g. the
  * InvitePane during onboarding). Owns the state needed to render an
  * inline match list — `isDiscovering` and `discoveredMatches` — and
- * handles the "advance early" tail-fire path: if the user dismisses the
- * UI before discovery resolves, callers invoke `tailFireHandlerOnAdvance`
- * to surface matches via the registered handler instead of dropping
- * them on the floor.
+ * handles the "advance early" path: if the user dismisses the UI
+ * before discovery resolves, callers invoke `notifyPendingMatches` to
+ * surface matches via the registered handler instead of dropping them
+ * on the floor.
  *
  * `invokeHandler: false` is passed to discovery so we never double-announce
  * — when the UI has shown matches inline (`hasShownMatchesRef`), we
- * suppress the handler; when it hasn't, advance-tail invokes it
- * directly.
+ * suppress the handler; when it hasn't, `notifyPendingMatches` invokes
+ * it directly.
  */
 export function useContactDiscovery() {
   const storeContext = useStore();
@@ -69,7 +69,7 @@ export function useContactDiscovery() {
     [storeContext]
   );
 
-  const tailFireHandlerOnAdvance = useCallback(() => {
+  const notifyPendingMatches = useCallback(() => {
     const pending = pendingDiscoveryRef.current;
     if (!pending || hasShownMatchesRef.current) return;
     pending
@@ -86,6 +86,6 @@ export function useContactDiscovery() {
     isDiscovering,
     discoveredMatches,
     runDiscovery,
-    tailFireHandlerOnAdvance,
+    notifyPendingMatches,
   };
 }
