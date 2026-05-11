@@ -61,10 +61,10 @@
     |=  =directory:c
     %-  pairs
     %+  turn  ~(tap by directory)
-    |=  [who=@p =marked-page:c]
+    |=  [who=@p =leaf:c]
     :-  (scot %p who)
     %-   pairs
-    =,  marked-page
+    =,  leaf
     :~  'isContact'^b+contact
         contact+(^contact con)
         mod+(^contact mod)
