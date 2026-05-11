@@ -3,6 +3,8 @@ import { BlockData, convertContent } from '@tloncorp/shared/logic';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
+import type { A2UIActionSource, A2UIUserActionEnvelope } from './a2uiActions';
+
 export function usePostContent(post: Post): BlockData[] {
   return useMemo(() => {
     try {
@@ -30,6 +32,11 @@ export interface ContentContextProps {
   onPressImage?: (src: string) => void;
   onLongPress?: () => void;
   searchQuery?: string;
+  a2uiSource?: A2UIActionSource;
+  onA2UIUserAction?: (
+    envelope: A2UIUserActionEnvelope,
+    source?: A2UIActionSource
+  ) => void | Promise<void>;
 }
 
 export const ContentContext = createStyledContext<ContentContextProps>();

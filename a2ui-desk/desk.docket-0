@@ -1,0 +1,8 @@
+:~  title+'A2UI'
+    info+'Stores A2UI user actions emitted by Tlon Messenger inline agent UIs.'
+    color+0xde.dede
+    base+'a2ui'
+    version+[0 1 0]
+    website+'https://tlon.io'
+    license+'Apache-2.0'
+==

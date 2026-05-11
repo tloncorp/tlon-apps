@@ -1,7 +1,6 @@
-import type { ChannelType, PostMetadata } from '../types/models';
-import { createDevLogger } from '../client/logger';
 import isURL from 'validator/lib/isURL.js';
 
+import { createDevLogger } from '../client/logger';
 import {
   FinalizedAttachment,
   LinkAttachment,
@@ -11,6 +10,7 @@ import {
   UploadedVideoAttachment,
   uploadStateUri,
 } from '../types';
+import type { ChannelType, PostMetadata } from '../types/models';
 import {
   Block,
   Inline,
@@ -639,6 +639,24 @@ export type PostBlobDataEntry =
         /** local preview URI (optional in v1) */
         posterUri?: string;
       }
+    >
+  | BuildPostBlobDataEntry<
+      'a2ui',
+      { version: 1 },
+      {
+        protocolVersion?: string;
+        catalogId: string;
+        root: string;
+        title: string;
+        icon?: string;
+        emoji?: string;
+        actionHostShip?: string;
+        surfaceId: string;
+        recipe?: string;
+        components: unknown[];
+        dataModel?: Record<string, unknown>;
+        fallbackText?: string;
+      }
     >;
 
 type PostBlobData = PostBlobDataEntry[];
@@ -736,6 +754,17 @@ export function parsePostBlob(blob: string): ClientPostBlobData {
       return entry;
     }
     if (entry.type === 'video' && entry.version === 1) {
+      return entry;
+    }
+    if (
+      entry.type === 'a2ui' &&
+      entry.version === 1 &&
+      typeof entry.catalogId === 'string' &&
+      typeof entry.root === 'string' &&
+      typeof entry.title === 'string' &&
+      typeof entry.surfaceId === 'string' &&
+      Array.isArray(entry.components)
+    ) {
       return entry;
     }
     logger.trackError('Failed to parse PostBlobDataEntry', { entry });

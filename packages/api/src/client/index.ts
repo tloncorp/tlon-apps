@@ -1,4 +1,5 @@
 export { udToDate } from './apiUtils';
+export * from './a2uiApi';
 export * from './channelContentConfig';
 export * from './channelsApi';
 export * from './chatApi';

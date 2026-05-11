@@ -67,21 +67,22 @@ import * as fixture60 from './packages/app/fixtures/AttestationPane.fixture';
 import * as fixture61 from './packages/app/fixtures/AttachmentPreviewList.fixture';
 import * as fixture62 from './packages/app/fixtures/AddContactsView.fixture';
 import * as fixture63 from './packages/app/fixtures/Activity.fixture';
-import * as fixture64 from './packages/app/fixtures/DetailView/NotebookDetailView.fixture';
-import * as fixture65 from './packages/app/fixtures/DetailView/GalleryDetailView.fixture';
-import * as fixture66 from './packages/app/fixtures/DetailView/ChatDetailView.fixture';
-import * as fixture67 from './packages/app/fixtures/ActionSheet/ProfileSheet.fixture';
-import * as fixture68 from './packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture';
-import * as fixture69 from './packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture';
-import * as fixture70 from './packages/app/fixtures/ActionSheet/GenericActionSheet.fixture';
-import * as fixture71 from './packages/app/fixtures/ActionSheet/EditSectionNameSheet.fixture';
-import * as fixture72 from './packages/app/fixtures/ActionSheet/CreateChannelSheet.fixture';
-import * as fixture73 from './packages/app/fixtures/ActionSheet/AttachmentSheet.fixture';
-import * as fixture74 from './packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture';
-import * as fixture75 from './apps/tlon-mobile/src/App.fixture';
-import * as fixture76 from './apps/tlon-mobile/src/fixtures/SetNicknameScreen.fixture';
-import * as fixture77 from './apps/tlon-mobile/src/fixtures/Onboarding.fixture';
-import * as fixture78 from './apps/tlon-mobile/src/fixtures/InputToolbar.fixture';
+import * as fixture64 from './packages/app/fixtures/A2UI.fixture';
+import * as fixture65 from './packages/app/fixtures/DetailView/NotebookDetailView.fixture';
+import * as fixture66 from './packages/app/fixtures/DetailView/GalleryDetailView.fixture';
+import * as fixture67 from './packages/app/fixtures/DetailView/ChatDetailView.fixture';
+import * as fixture68 from './packages/app/fixtures/ActionSheet/ProfileSheet.fixture';
+import * as fixture69 from './packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture';
+import * as fixture70 from './packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture';
+import * as fixture71 from './packages/app/fixtures/ActionSheet/GenericActionSheet.fixture';
+import * as fixture72 from './packages/app/fixtures/ActionSheet/EditSectionNameSheet.fixture';
+import * as fixture73 from './packages/app/fixtures/ActionSheet/CreateChannelSheet.fixture';
+import * as fixture74 from './packages/app/fixtures/ActionSheet/AttachmentSheet.fixture';
+import * as fixture75 from './packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture';
+import * as fixture76 from './apps/tlon-mobile/src/App.fixture';
+import * as fixture77 from './apps/tlon-mobile/src/fixtures/SetNicknameScreen.fixture';
+import * as fixture78 from './apps/tlon-mobile/src/fixtures/Onboarding.fixture';
+import * as fixture79 from './apps/tlon-mobile/src/fixtures/InputToolbar.fixture';
 
 import * as decorator0 from './packages/app/fixtures/cosmos.decorator';
 import * as decorator1 from './apps/tlon-mobile/src/fixtures/cosmos.decorator';
@@ -156,21 +157,22 @@ const fixtures = {
   'packages/app/fixtures/AttachmentPreviewList.fixture.tsx': { module: fixture61 },
   'packages/app/fixtures/AddContactsView.fixture.tsx': { module: fixture62 },
   'packages/app/fixtures/Activity.fixture.tsx': { module: fixture63 },
-  'packages/app/fixtures/DetailView/NotebookDetailView.fixture.tsx': { module: fixture64 },
-  'packages/app/fixtures/DetailView/GalleryDetailView.fixture.tsx': { module: fixture65 },
-  'packages/app/fixtures/DetailView/ChatDetailView.fixture.tsx': { module: fixture66 },
-  'packages/app/fixtures/ActionSheet/ProfileSheet.fixture.tsx': { module: fixture67 },
-  'packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture.tsx': { module: fixture68 },
-  'packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture.tsx': { module: fixture69 },
-  'packages/app/fixtures/ActionSheet/GenericActionSheet.fixture.tsx': { module: fixture70 },
-  'packages/app/fixtures/ActionSheet/EditSectionNameSheet.fixture.tsx': { module: fixture71 },
-  'packages/app/fixtures/ActionSheet/CreateChannelSheet.fixture.tsx': { module: fixture72 },
-  'packages/app/fixtures/ActionSheet/AttachmentSheet.fixture.tsx': { module: fixture73 },
-  'packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture.tsx': { module: fixture74 },
-  'apps/tlon-mobile/src/App.fixture.tsx': { module: fixture75 },
-  'apps/tlon-mobile/src/fixtures/SetNicknameScreen.fixture.tsx': { module: fixture76 },
-  'apps/tlon-mobile/src/fixtures/Onboarding.fixture.tsx': { module: fixture77 },
-  'apps/tlon-mobile/src/fixtures/InputToolbar.fixture.tsx': { module: fixture78 }
+  'packages/app/fixtures/A2UI.fixture.tsx': { module: fixture64 },
+  'packages/app/fixtures/DetailView/NotebookDetailView.fixture.tsx': { module: fixture65 },
+  'packages/app/fixtures/DetailView/GalleryDetailView.fixture.tsx': { module: fixture66 },
+  'packages/app/fixtures/DetailView/ChatDetailView.fixture.tsx': { module: fixture67 },
+  'packages/app/fixtures/ActionSheet/ProfileSheet.fixture.tsx': { module: fixture68 },
+  'packages/app/fixtures/ActionSheet/GroupPreviewSheet.fixture.tsx': { module: fixture69 },
+  'packages/app/fixtures/ActionSheet/GroupJoinRequestSheet.fixture.tsx': { module: fixture70 },
+  'packages/app/fixtures/ActionSheet/GenericActionSheet.fixture.tsx': { module: fixture71 },
+  'packages/app/fixtures/ActionSheet/EditSectionNameSheet.fixture.tsx': { module: fixture72 },
+  'packages/app/fixtures/ActionSheet/CreateChannelSheet.fixture.tsx': { module: fixture73 },
+  'packages/app/fixtures/ActionSheet/AttachmentSheet.fixture.tsx': { module: fixture74 },
+  'packages/app/fixtures/ActionSheet/AddGalleryPostSheet.fixture.tsx': { module: fixture75 },
+  'apps/tlon-mobile/src/App.fixture.tsx': { module: fixture76 },
+  'apps/tlon-mobile/src/fixtures/SetNicknameScreen.fixture.tsx': { module: fixture77 },
+  'apps/tlon-mobile/src/fixtures/Onboarding.fixture.tsx': { module: fixture78 },
+  'apps/tlon-mobile/src/fixtures/InputToolbar.fixture.tsx': { module: fixture79 }
 };
 
 const decorators = {

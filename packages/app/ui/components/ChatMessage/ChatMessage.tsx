@@ -1,5 +1,7 @@
+import { submitA2UIUserAction } from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import type { PostContent } from '@tloncorp/shared/logic';
 import { Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -13,6 +15,10 @@ import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
+import type {
+  A2UIActionSource,
+  A2UIUserActionEnvelope,
+} from '../PostContent/a2uiActions';
 import {
   usePostContent,
   usePostLastEditContent,
@@ -23,6 +29,19 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+
+function getA2UIActionHostShip(content: PostContent): string | undefined {
+  for (const block of content) {
+    if (
+      block.type === 'a2ui' &&
+      typeof block.a2ui.actionHostShip === 'string' &&
+      block.a2ui.actionHostShip.trim()
+    ) {
+      return block.a2ui.actionHostShip.trim();
+    }
+  }
+  return undefined;
+}
 
 const ChatMessage = ({
   post,
@@ -140,6 +159,25 @@ const ChatMessage = ({
 
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
+  const renderedContent =
+    post.editStatus === 'failed' ? lastEditContent : content;
+  const actionHostShip =
+    getA2UIActionHostShip(renderedContent) ?? post.authorId;
+  const a2uiSource = useMemo(
+    () => ({
+      postId: post.id,
+      channelId: post.channelId,
+      authorId: post.authorId,
+      actionHostShip,
+    }),
+    [actionHostShip, post.authorId, post.channelId, post.id]
+  );
+  const handleA2UIUserAction = useCallback(
+    async (envelope: A2UIUserActionEnvelope, source?: A2UIActionSource) => {
+      await submitA2UIUserAction({ envelope, source });
+    },
+    []
+  );
 
   if (!post) {
     return null;
@@ -272,11 +310,13 @@ const ChatMessage = ({
             </Text>
           ) : (
             <ChatContentRenderer
-              content={post.editStatus === 'failed' ? lastEditContent : content}
+              content={renderedContent}
               isNotice={post.type === 'notice'}
               onPressImage={handleImagePressed}
               onLongPress={handleLongPress}
               searchQuery={searchQuery}
+              a2uiSource={a2uiSource}
+              onA2UIUserAction={handleA2UIUserAction}
             />
           )}
         </View>
@@ -314,9 +354,7 @@ const ChatMessage = ({
             onEdit={handleEditPressed}
             onViewReactions={setViewReactionsPost}
             onShowEmojiPicker={handleEmojiPickerPressed}
-            trigger={
-              <OverflowTriggerButton testID="MessageActionsTrigger" />
-            }
+            trigger={<OverflowTriggerButton testID="MessageActionsTrigger" />}
             mode="await-trigger"
           />
         </View>

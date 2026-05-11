@@ -1,8 +1,6 @@
 import { Noun } from '@urbit/nockjs';
 import _ from 'lodash';
 
-import { createDevLogger, escapeLog, runIfDev } from './logger';
-import { getConstants } from '../types/constants';
 import {
   AuthError,
   ChannelStatus,
@@ -11,10 +9,12 @@ import {
   Thread,
   Urbit,
 } from '../http-api';
-import { preSig } from '../urbit';
-import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
 import { AnalyticsEvent } from '../types/analytics';
+import { getConstants } from '../types/constants';
 import * as Hosting from '../types/hosting';
+import { desig, preSig } from '../urbit';
+import { AuthFailureError, getLandscapeAuthCookie } from './landscapeApi';
+import { createDevLogger, escapeLog, runIfDev } from './logger';
 
 const logger = createDevLogger('urbit', false);
 
@@ -44,6 +44,7 @@ interface Watcher {
 type Watchers = Record<string, Map<string, Watcher>>;
 
 export type PokeParams = {
+  ship?: string;
   app: string;
   mark: string;
   json: any;
@@ -163,7 +164,8 @@ export function internalConfigureClient({
   onChannelStatusChange,
   client: injectedClient,
 }: ClientParams) {
-  config.client = injectedClient || config.client || new Urbit(shipUrl, '', '', fetchFn);
+  config.client =
+    injectedClient || config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
   config.shipUrl = shipUrl;
@@ -427,7 +429,7 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   }
 }
 
-export async function poke({ app, mark, json }: PokeParams) {
+export async function poke({ ship, app, mark, json }: PokeParams) {
   logger.log('poke', app, mark, json);
   const trackDuration = createDurationTracker(AnalyticsEvent.Poke, {
     app,
@@ -442,6 +444,7 @@ export async function poke({ app, mark, json }: PokeParams) {
     }
     return config.client.poke({
       ...params,
+      ...(ship ? { ship: desig(ship) } : {}),
       app,
       mark,
       json,

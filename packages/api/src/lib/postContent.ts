@@ -106,6 +106,11 @@ export type VoiceMemoBlockData = {
   voiceMemo: Extract<PostBlobDataEntry, { type: 'voicememo' }>;
 };
 
+export type A2UIBlockData = {
+  type: 'a2ui';
+  a2ui: Extract<PostBlobDataEntry, { type: 'a2ui' }>;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -154,6 +159,7 @@ export type BlockData =
   | VideoBlockData
   | FileUploadBlockData
   | VoiceMemoBlockData
+  | A2UIBlockData
   | LinkBlockData
   | ReferenceBlockData
   | CodeBlockData
@@ -176,6 +182,74 @@ export interface PlaintextPreviewConfig {
   includeLinebreaks: boolean;
   includeRefTag: boolean;
   indentDepth?: number;
+}
+
+function inlineToFallbackText(inline: InlineData): string {
+  switch (inline.type) {
+    case 'text':
+      return inline.text;
+    case 'style':
+    case 'task':
+      return inline.children.map(inlineToFallbackText).join('');
+    case 'mention':
+      return inline.contactId;
+    case 'groupMention':
+      return inline.group === 'all' ? '@all' : inline.group;
+    case 'lineBreak':
+      return '\n';
+    case 'link':
+      return inline.text;
+    default:
+      return assertNever(inline);
+  }
+}
+
+function inlineListToFallbackText(inlines: InlineData[]): string {
+  return inlines.map(inlineToFallbackText).join('');
+}
+
+function listToFallbackText(list: ListData): string {
+  const own = inlineListToFallbackText(list.content);
+  const children = list.children?.map(listToFallbackText) ?? [];
+  return [own, ...children].filter(Boolean).join('\n');
+}
+
+function blockToFallbackText(block: BlockData): string {
+  switch (block.type) {
+    case 'paragraph':
+    case 'blockquote':
+      return inlineListToFallbackText(block.content);
+    case 'header':
+      return inlineListToFallbackText(block.children);
+    case 'list':
+      return listToFallbackText(block.list);
+    case 'bigEmoji':
+      return block.emoji;
+    case 'code':
+      return block.content;
+    default:
+      return '';
+  }
+}
+
+function normalizeFallbackText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function isA2UIFallbackStory(
+  blocks: PostContent,
+  fallbackTexts: string[]
+): boolean {
+  const storyText = normalizeFallbackText(
+    blocks.map(blockToFallbackText).filter(Boolean).join('\n')
+  );
+  if (!storyText) {
+    return true;
+  }
+
+  return fallbackTexts.some(
+    (fallbackText) => normalizeFallbackText(fallbackText) === storyText
+  );
 }
 
 function toContentReference(cite: ub.Cite): ContentReference | null {
@@ -351,6 +425,7 @@ export function convertContent(
   blob: string | undefined | null
 ): PostContent {
   const out: PostContent = [];
+  const a2uiFallbackTexts: string[] = [];
 
   if (blob != null) {
     const blobData = parsePostBlob(blob);
@@ -385,6 +460,17 @@ export function convertContent(
           break;
         }
 
+        case 'a2ui': {
+          if (typeof entry.fallbackText === 'string') {
+            a2uiFallbackTexts.push(entry.fallbackText);
+          }
+          out.push({
+            type: 'a2ui',
+            a2ui: entry,
+          });
+          break;
+        }
+
         case 'unknown': {
           out.push({
             type: 'blockquote',
@@ -409,7 +495,15 @@ export function convertContent(
     return out;
   }
 
-  out.push(...convertContentSafe(story));
+  const storyContent = convertContentSafe(story);
+  if (
+    a2uiFallbackTexts.length > 0 &&
+    isA2UIFallbackStory(storyContent, a2uiFallbackTexts)
+  ) {
+    return out;
+  }
+
+  out.push(...storyContent);
   return out;
 }
 
@@ -555,9 +649,7 @@ function convertBlock(block: ub.Block): BlockData {
       };
     }
     case is(block, 'cite'): {
-      return (
-        toContentReference(block.cite) ?? errorMessage('Failed to parse')
-      );
+      return toContentReference(block.cite) ?? errorMessage('Failed to parse');
     }
     case is(block, 'link'): {
       return {
