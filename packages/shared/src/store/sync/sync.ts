@@ -599,10 +599,9 @@ export const syncContactDiscovery = async (
     ).filter((match) => match[1] !== currentUserId);
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
 
-    const { newMatches, existingById } = await partitionDiscoveryMatches(
-      matches,
-      { isMocked }
-    );
+    const { newMatches } = await partitionDiscoveryMatches(matches, {
+      isMocked,
+    });
     const newMatchIds = newMatches.map(([, id]) => id);
 
     await db.linkSystemContacts({ matches }).catch((e) => {
@@ -640,26 +639,16 @@ export const syncContactDiscovery = async (
         });
 
       // Apply the address-book name as customNickname only for new
-      // matches that don't already have one. Avoids clobbering a name
-      // the user explicitly set in a prior session, and avoids racing
-      // with peer profile fetches that may arrive after our write.
-      const newSystemContacts =
-        await db.getSystemContactsBatchByContactId(newMatchIds);
-      const newMatchSet = new Set(newMatchIds);
+      // matches whose contact doesn't already have one. The query
+      // does the join + filter, so we just map to API calls here.
+      const contactsToName =
+        await db.getUnnamedSystemContactsByContactId(newMatchIds);
       await Promise.all(
-        newSystemContacts
-          .filter(
-            (c) =>
-              !!c.contactId &&
-              newMatchSet.has(c.contactId) &&
-              !existingById.get(c.contactId)?.customNickname
-          )
-          .map((contact) =>
-            updateContactMetadata(contact.contactId!, {
-              nickname:
-                `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
-            })
-          )
+        contactsToName.map((c) =>
+          updateContactMetadata(c.contactId, {
+            nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
+          })
+        )
       ).catch((e) => {
         logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
           context: 'failed to update contact metadata',

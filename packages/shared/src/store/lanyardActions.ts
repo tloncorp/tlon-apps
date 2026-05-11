@@ -257,20 +257,16 @@ export function isAlreadyKnownContact(contact: db.Contact): boolean {
 export async function partitionDiscoveryMatches(
   matches: [string, string][],
   { isMocked }: { isMocked: boolean }
-): Promise<{
-  newMatches: [string, string][];
-  existingById: Map<string, db.Contact>;
-}> {
+): Promise<{ newMatches: [string, string][] }> {
+  if (isMocked) return { newMatches: matches };
   const contactIds = matches.map((m) => m[1]);
   const existingContacts = await db.getContactsBatch({ contactIds });
   const existingById = new Map(existingContacts.map((c) => [c.id, c] as const));
-  const newMatches = isMocked
-    ? matches
-    : matches.filter(([, contactId]) => {
-        const c = existingById.get(contactId);
-        return !c || !isAlreadyKnownContact(c);
-      });
-  return { newMatches, existingById };
+  const newMatches = matches.filter(([, contactId]) => {
+    const c = existingById.get(contactId);
+    return !c || !isAlreadyKnownContact(c);
+  });
+  return { newMatches };
 }
 
 export async function discoverContacts(
