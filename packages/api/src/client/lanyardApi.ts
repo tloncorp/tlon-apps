@@ -1,6 +1,10 @@
 import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, dwim, enjs } from '@urbit/nockjs';
 
+import {
+  isLanyardMockEnabled,
+  runLanyardMockDiscovery,
+} from '../dev/lanyardMock';
 import { createDevLogger } from '../lib/logger';
 import { Json, getFrondValue, getPatp } from '../lib/noun';
 import { simpleHash } from '../lib/utils';
@@ -66,6 +70,10 @@ export async function discoverContacts(
   storedLastSalt: string | null = null,
   lastPhoneNumberSetSent: string | null = null
 ): Promise<{ matches: [string, string][]; nextSalt: string | null }> {
+  if (isLanyardMockEnabled()) {
+    return runLanyardMockDiscovery(phoneNums);
+  }
+
   try {
     const nums = await diffContactBook(phoneNums, lastPhoneNumberSetSent);
     // because parseUx doesn't actually remove the dots

@@ -164,6 +164,7 @@ export const contacts = sqliteTable(
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),
     systemContactId: text('systemContactId'),
+    matchedAt: timestamp('matched_at'),
   },
   (table) => {
     return {

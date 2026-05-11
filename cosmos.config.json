@@ -1,0 +1,5 @@
+{
+  "$schema": "http://json.schemastore.org/cosmos-config",
+  "hostname": "0.0.0.0",
+  "port": 5556
+}
