@@ -80,6 +80,11 @@
   ?~  fleet  (pure:n ~)
   ;<  ~  bind:n  (sync-desk i.fleet %groups)
   $(fleet t.fleet)
+::  allow agents time to cool down. it takes about a minute
+::  for ames connections to be established.
+::
+~>  %slog.1^(crip "Cooling down %groups agents...")
+;<  ~  bind:m  (sleep ~m1)
 ;<  =bowl:spider  bind:m  get-bowl
 =/  snap-id=@t
   ?~  snap-id  
