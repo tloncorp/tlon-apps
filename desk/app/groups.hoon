@@ -10,7 +10,7 @@
     av=activity-ver
 /-  meta
 /+  default-agent, verb, dbug,
-    guardian
+    guard
 /+  gc=groups-conv, cu=channel-utils, v=volume, s=subscriber, imp=import-aid, logs,
     t=contacts
 /+  of
@@ -24,7 +24,7 @@
 %-  %-  discipline
   :+  ::  marks
       ::
-      discipline:guardian
+      discipline:guard
     ::  facts
     ::
     :~  [/server/groups/$/$/updates/$/$ %group-update %group-log ~]
@@ -106,8 +106,8 @@
 ^-  agent:gall
 =>
   |%
-  +$  card  card:guardian
-  +$  rail  rail:guardian
+  +$  card  card:guard
+  +$  rail  rail:guard
   +$  current-state
     $:  %11
         groups=net-groups:v9:gv
@@ -131,7 +131,7 @@
       log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -140,7 +140,7 @@
   ++  on-save  !>([state ~])
   ++  on-load
     |=  =vase
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(load:cor vase)
@@ -148,14 +148,14 @@
   ::
   ++  on-poke
     |=  [=mark =vase]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(poke:cor mark vase)
     [cards this]
   ++  on-watch
     |=  =path
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(watch:cor path)
@@ -166,22 +166,22 @@
   ++  on-leave   on-leave:def
   ++  on-fail
     |=  [=term =tang]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     %-  (slog term tang)
     :_  this
-    [(exit:guardian (fail:log term tang ~))]~
+    [(exit:guard (fail:log term tang ~))]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(agent:cor wire sign)
     [cards this]
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(arvo:cor wire sign)
@@ -192,7 +192,7 @@
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
-++  give  |=(=gift:guardian (emit %give gift))
+++  give  |=(=gift:guard (emit %give gift))
 ++  server  dap.bowl
 ::
 ++  submit-activity
@@ -212,7 +212,7 @@
     |=  [desc=term =tang]
     ~>  %spin.['fail']
     =/  =card
-      %-  exit:guardian
+      %-  exit:guard
       (~(fail logs our.bowl /logs) desc tang deez)
     (emit card)
   ::
@@ -220,7 +220,7 @@
     |=  [vol=volume:logs =echo:logs]
     ~>  %spin.['tell']
     =/  =card
-      %-  exit:guardian
+      %-  exit:guard
       (~(tell logs our.bowl /logs) vol echo deez)
     (emit card)
   ::  +deez: log message details
@@ -647,7 +647,7 @@
     ?.  ?=([%epic ~] wire)  cor
     =^  caz=(list card:agent:gall)  subs.cor
       (~(unsubscribe s [subs bowl]) wire dock)
-    (emil:cor (turn caz exit:guardian))
+    (emil:cor (turn caz exit:guard))
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =^  caz-6-to-7=(list card)  old
@@ -661,7 +661,7 @@
     =/  =dock  [our.bowl %contacts]
     =^  caz=(list card:agent:gall)  subs.cor
       (~(unsubscribe s [subs bowl]) /contact dock)
-    (emil:cor (turn caz exit:guardian))
+    (emil:cor (turn caz exit:guard))
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =^  caz-9-to-10=(list card)  old
     ?.  ?=(%9 -.old)  [~ old]
@@ -1129,7 +1129,7 @@
 ++  peek
   |=  =(pole knot)
   ~>  %spin.['peek']
-  %-  peek:unguard:guardian
+  %-  peek:un:guard
   |^  ^-  (unit (unit rail))
   ?+    pole  [~ ~]
   ::
@@ -1469,7 +1469,7 @@
       [%~.~ %retry rest=*]
     =^  caz=(list card:agent:gall)  subs
       (~(handle-wakeup s [subs bowl]) pole)
-    (emil (turn caz exit:guardian))
+    (emil (turn caz exit:guard))
   ::
       :: initialize .active-channels in $group
       ::
@@ -1637,7 +1637,7 @@
   ?:  (~(has by wex.bowl) wire dock)  cor
   =^  caz=(list card:agent:gall)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
-  (emil (turn caz exit:guardian))
+  (emil (turn caz exit:guard))
 ::  +eager-leave: eagerly unsubscribe from a path
 ::
 ::  deletes the subscription entry from wex.bowl
@@ -1651,7 +1651,7 @@
   =.  wex.bowl  (~(del by wex.bowl) wire dock)
   =^  caz=(list card:agent:gall)  subs
     (~(unsubscribe s [subs bowl]) wire dock)
-  (emil (turn caz exit:guardian))
+  (emil (turn caz exit:guard))
 ::
 ++  watch-channels
   (safe-watch /channels [our.bowl %channels] /v1)
@@ -1752,7 +1752,7 @@
   ::
   ++  se-core  .
   ++  emit  |=(=card se-core(cor cor(cards [card cards])))
-  ++  give  |=(=gift:guardian (emit %give gift))
+  ++  give  |=(=gift:guard (emit %give gift))
   ::  +se-abed: init
   ::
   ++  se-abed
@@ -2751,7 +2751,7 @@
       |=  [=ship ivl=(list ship) =_se-core]
       ?.  (can-poke:neg bowl ship %groups)
         =.  se-core
-          (emit:se-core (exit:guardian (initiate:neg [ship dap.bowl])))
+          (emit:se-core (exit:guard (initiate:neg [ship dap.bowl])))
         ::  retry .retry times with doubling .delay
         ::
         =+  delay=~h1
@@ -4700,7 +4700,7 @@
       =^  caz=(list card:agent:gall)  subs
         =/  =dock  [p.flag dap.bowl]
         (~(unsubscribe s [subs bowl]) (weld fi-area /preview) dock)
-      (emil (turn caz exit:guardian))
+      (emil (turn caz exit:guard))
     =?  fi-core  |(?=(~ old-foreign) !=(u.old-foreign foreign))
       fi-give-update
     cor
@@ -4801,7 +4801,7 @@
     ~>  %spin.['fi-join']
     ^+  fi-core
     =*  log  ~(. l `%group-join)
-    =.  cor  (emit (exit:guardian (initiate:neg [p.flag server])))
+    =.  cor  (emit (exit:guard (initiate:neg [p.flag server])))
     ::  leave the ask subscription in case it has not yet closed
     ::
     =?  cor  ?=([~ %ask] progress)
@@ -4832,7 +4832,7 @@
     |=  story=(unit story:s:g)
     ~>  %spin.['fi-ask']
     ^+  fi-core
-    =.  cor  (emit (exit:guardian (initiate:neg [p.flag server])))
+    =.  cor  (emit (exit:guard (initiate:neg [p.flag server])))
     ?:  (~(has by groups) flag)  fi-core
     ?:  ?&  ?=(^ progress)
             ?=(?(%ask %join %watch %done) u.progress)

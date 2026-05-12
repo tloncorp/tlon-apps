@@ -1,6 +1,6 @@
 /-  activity-ver
 /+  default-agent, dbug, verb, neg=negotiate,
-    guardian
+    guard
 /+  *contacts, kol
 ::
 ::  performance, keep warm
@@ -17,8 +17,8 @@
 ::    .sag: foreign subscription state
 ::
 +|  %types
-+$  card  card:guardian
-+$  rail  rail:guardian
++$  card  card:guard
++$  rail  rail:guard
 +$  state-4
   $:  %4
       rof=profile
@@ -43,7 +43,7 @@
         cor   ~(. raw bowl)
     ::
     ++  on-init
-      %-  step:unguard:guardian
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:init:cor
       [cards this]
@@ -52,21 +52,21 @@
     ::
     ++  on-load
       |=  old=vase
-      %-  step:unguard:guardian
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(load:cor old)
       [cards this]
     ::
     ++  on-watch
       |=  =path
-      %-  step:unguard:guardian
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(peer:cor path)
       [cards this]
     ::
     ++  on-poke
       |=  [=mark =vase]
-      %-  step:unguard:guardian
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(poke:cor mark vase)
       [cards this]
@@ -76,14 +76,14 @@
     ::
     ++  on-agent
       |=  [=wire =sign:agent:gall]
-      %-  step:unguard:guardian
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(agent:cor wire sign)
       [cards this]
     ::
     ++  on-arvo
       |=  [=wire sign=sign-arvo]
-      %-  step:unguard:guardian
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(arvo:cor wire sign)
       [cards this]
@@ -108,8 +108,8 @@
   ++  cor   .
   ++  emit  |=(c=card cor(out [c out]))
   ++  emil  |=(c=(list card) cor(out (weld (flop c) out)))
-  ++  give  |=(=gift:guardian (emit %give gift))
-  ++  pass  |=([=wire =note:guardian] (emit %pass wire note))
+  ++  give  |=(=gift:guard (emit %give gift))
+  ++  pass  |=([=wire =note:guard] (emit %pass wire note))
   ::
   +|  %operations
   ::
@@ -161,7 +161,7 @@
         ++  fact
           |=  [pat=(set path) u=update]
           ~>  %spin.['fact']
-          ^-  gift:guardian
+          ^-  gift:guard
           [%fact ~(tap in pat) contact-update-1+u]
         --
     ::
@@ -753,7 +753,7 @@
   ++  peek
     |=  pat=(pole knot)
     ~>  %spin.['peek']
-    %-  peek:unguard:guardian
+    %-  peek:un:guard
     ^-  (unit (unit rail))
     ?+    pat  [~ ~]
       ::

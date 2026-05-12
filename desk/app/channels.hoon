@@ -11,7 +11,7 @@
 /-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, a=activity, av=activity-ver, story
 /-  meta
 /+  default-agent, verb, dbug,
-    guardian,
+    guard,
     neg=negotiate, discipline, logs,
     sparse, kol, imp=import-aid
 /+  utils=channel-utils, volume, s=subscriber,
@@ -22,7 +22,7 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-        discipline:guardian
+        discipline:guard
       ::  facts
       ::
       :~  [/ %channel-response %toggle-post ~]
@@ -128,8 +128,8 @@
 ^-  agent:gall
 =>
   |%
-  +$  card  card:guardian
-  +$  rail  rail:guardian
+  +$  card  card:guard
+  +$  rail  rail:guard
   +$  current-state
     $:  %18
         =v-channels:v10:cv
@@ -155,7 +155,7 @@
       log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -164,16 +164,16 @@
   ++  on-save  !>([state])
   ++  on-load
     |=  =vase
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(load:cor vase)
     [cards this]
   ::
   ++  on-poke
-    %-  on-poke:guardian
+    %-  on-poke:guard
     |=  =rail
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(poke:cor rail)
@@ -181,7 +181,7 @@
   ::
   ++  on-watch
     |=  =path
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(watch:cor path)
@@ -191,15 +191,15 @@
   ++  on-leave   on-leave:def
   ++  on-fail
     |=  [=term =tang]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     :_  this
-    [(exit:guardian (fail:log term tang ~))]~
+    [(exit:guard (fail:log term tang ~))]~
   ::
   ++  on-agent
-    %-  on-agent:guardian
-    |=  [=wire =sign:guardian]
-    %-  step:unguard:guardian
+    %-  on-agent:guard
+    |=  [=wire =sign:guard]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(agent:cor wire sign)
@@ -207,7 +207,7 @@
   ::
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(arvo:cor wire sign)
@@ -218,10 +218,10 @@
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  plog  ~(. logs [our.bowl /logs])
-++  tell-plog  (cork tell:plog exit:guardian)
+++  tell-plog  (cork tell:plog exit:guard)
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
-++  give  |=(=gift:guardian (emit %give gift))
+++  give  |=(=gift:guard (emit %give gift))
 ++  server  (cat 3 dap.bowl '-server')
 ++  log
   |=  msg=(trap tape)
@@ -240,7 +240,7 @@
   ?:  (~(has by wex.bowl) wire dock)  cor
   =^  caz=(list card:agent:gall)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
-  (emil (turn caz exit:guardian))
+  (emil (turn caz exit:guard))
 ::
 ++  load
   |^  |=  =vase
@@ -744,7 +744,7 @@
   ^+  cor
   =^  caz=(list card:agent:gall)  subs
     (~(unsubscribe s [subs bowl]) wire dock)
-  (emil (turn caz exit:guardian))
+  (emil (turn caz exit:guard))
 ++  inflate-io
   ::  leave all subscriptions we don't recognize
   ::
@@ -1019,7 +1019,7 @@
     =.  v-channels    (~(uni by v-channels:bak) v-channels)
     =.  voc           (~(uni by voc:bak) voc)
     =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
-    (emil (turn (prod-next:imp [our dap]:bowl) exit:guardian))
+    (emil (turn (prod-next:imp [our dap]:bowl) exit:guard))
   ==
 ++  watch
   |=  =(pole knot)
@@ -1095,7 +1095,7 @@
   ?~(q.plan / /(scot %ud u.q.plan))
 ::
 ++  take-said
-  |=  [=nest:c =plan:c =sign:guardian]
+  |=  [=nest:c =plan:c =sign:guard]
   ~>  %spin.['take-said']
   =/  =path  (said-path nest plan)
   ^+  cor
@@ -1176,7 +1176,7 @@
   ==
 ::
 ++  agent
-  |=  [=(pole knot) =sign:guardian]
+  |=  [=(pole knot) =sign:guard]
   ~>  %spin.['agent']
   ^+  cor
   ~|  `wire`pole
@@ -1293,7 +1293,7 @@
 ++  peek
   |=  =(pole knot)
   ~>  %spin.['peek']
-  %-  peek:unguard:guardian
+  %-  peek:un:guard
   ^-  (unit (unit rail))
   ?>  ?=(^ pole)
   =?  +.pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5 %v6) *] +.pole)
@@ -1574,7 +1574,7 @@
       [%~.~ %retry rest=*]
     =^  caz=(list card:agent:gall)  subs
       (~(handle-wakeup s [subs bowl]) pole)
-    (emil (turn caz exit:guardian))
+    (emil (turn caz exit:guard))
   ::
       [?(%numbers %tombstones) kind=?(%chat %diary %heap) ship=@ name=@ ~]
     =/  host=ship  (slav %p ship.pole)
@@ -1644,7 +1644,7 @@
   ++  ca-core  .
   ++  emit  |=(=card ca-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
-  ++  give  |=(=gift:guardian ca-core(cor (^give gift)))
+  ++  give  |=(=gift:guard ca-core(cor (^give gift)))
   ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
   ++  safe-watch
     |=  [=wire =dock =path]
@@ -2069,7 +2069,7 @@
     /[kind.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
   ::
   ++  ca-agent
-    |=  [=wire =sign:guardian]
+    |=  [=wire =sign:guard]
     ~>  %spin.['ca-agent']
     ^+  ca-core
     =?  last-updated  ?=(%fact -.sign)
@@ -2087,7 +2087,7 @@
     ==
   ::
   ++  ca-take-create
-    |=  =sign:guardian
+    |=  =sign:guard
     ~>  %spin.['ca-take-create']
     ^+  ca-core
     ?-    -.sign
@@ -2119,7 +2119,7 @@
     ==
   ::
   ++  ca-take-update
-    |=  =sign:guardian
+    |=  =sign:guard
     ~>  %spin.['ca-take-update']
     ^+  ca-core
     ?+    -.sign  ca-core
@@ -2138,7 +2138,7 @@
     ==
   ::
   ++  ca-take-checkpoint
-    |=  =sign:guardian
+    |=  =sign:guard
     ~>  %spin.['ca-take-checkpoint']
     ^+  ca-core
     ?+    -.sign  ca-core
@@ -2158,7 +2158,7 @@
     ==
   ::
   ++  ca-take-backlog
-    |=  =sign:guardian
+    |=  =sign:guard
     ~>  %spin.['ca-take-backlog']
     ^+  ca-core
     ?+    -.sign  ca-core

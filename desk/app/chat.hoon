@@ -2,7 +2,7 @@
 /-  u=ui, e=epic, a=activity, av=activity-ver, s=story, meta
 /-  contacts
 /+  default-agent, verb, dbug,
-    guardian,
+    guard,
     neg=negotiate, discipline, logs,
     em=emojimart
 /+  pac=dm
@@ -70,7 +70,7 @@
 %-  %-  discipline
     :+  ::  marks
         ::
-        discipline:guardian
+        discipline:guard
       ::  facts
       ::
       :~  [/ %chat-blocked-by %chat-unblocked-by %chat-toggle-message %chat-club-action %writ-response %ships ~]
@@ -176,8 +176,8 @@
 ^-  agent:gall
 =>
   |%
-  +$  card  card:guardian
-  +$  rail  rail:guardian
+  +$  card  card:guard
+  +$  rail  rail:guard
   ++  okay  `epic:e`1
   ++  wood-state
     ^-  state:wood-lib
@@ -212,7 +212,7 @@
       log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -221,23 +221,23 @@
   ++  on-save  !>([state okay])
   ++  on-load
     |=  =vase
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(load:cor vase)
     [cards this]
   ::
   ++  on-poke
-    %-  on-poke:guardian
+    %-  on-poke:guard
     |=  =rail
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(poke:cor rail)
     [cards this]
   ++  on-watch
     |=  =path
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(watch:cor path)
@@ -253,16 +253,16 @@
     [(fail:log term tang ~)]~
   ::
   ++  on-agent
-    %-  on-agent:guardian
-    |=  [=wire =sign:guardian]
-    %-  step:unguard:guardian
+    %-  on-agent:guard
+    |=  [=wire =sign:guard]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(agent:cor wire sign)
     [cards this]
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(arvo:cor wire sign)
@@ -273,13 +273,13 @@
     log   ~(. logs [our.bowl /logs])
     ol    (kol gte)
     log      ~(. logs [our.bowl /logs])
-    tell-log  (cork tell:log exit:guardian)
-    fail-log  (cork fail:log exit:guardian)
+    tell-log  (cork tell:log exit:guard)
+    fail-log  (cork fail:log exit:guard)
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
-++  give  |=(=gift:guardian (emit %give gift))
+++  give  |=(=gift:guard (emit %give gift))
 ++  now-id   `id:c`[our now]:bowl
 ++  scry-path
   |=  [agent=term =path]
@@ -838,7 +838,7 @@
   ?+    -.rail  ~|(bad-poke/-.rail !!)
       %chat-negotiate
     ::TODO  arguably should just be a /mar/negotiate
-    (emit (exit:guardian (initiate:neg p.rail dap.bowl)))
+    (emit (exit:guard (initiate:neg p.rail dap.bowl)))
   ::
       %chat-dm-rsvp
     =*  rsvp=rsvp:dm:c  p.rail
@@ -1131,7 +1131,7 @@
   ==
 ::
 ++  agent
-  |=  [=(pole knot) =sign:guardian]
+  |=  [=(pole knot) =sign:guard]
   ~>  %spin.['agent']
   ^+  cor
   ?+    pole  ~|(bad-agent-wire/pole !!)
@@ -1215,7 +1215,7 @@
 ++  peek
   |=  =path
   ~>  %spin.['peek']
-  %-  peek:unguard:guardian
+  %-  peek:un:guard
   ^-  (unit (unit rail))
   ?+  path  [~ ~]
     [%x %full ~]  ``noun+[dms clubs]
@@ -2353,7 +2353,7 @@
     ==
   ::
   ++  cu-agent
-    |=  [=wire =sign:guardian]
+    |=  [=wire =sign:guard]
     ~>  %spin.['cu-agent']
     ^+  cu-core
     ?+    wire  ~|(bad-club-take/wire !!)
@@ -2701,7 +2701,7 @@
                  (can-poke:neg bowl [ship dap.bowl])
              ==
       (emit (proxy-rsvp:di-pass ok))
-    =.  cor  (emit (exit:guardian (initiate:neg [ship dap.bowl])))
+    =.  cor  (emit (exit:guard (initiate:neg [ship dap.bowl])))
     ?.  ok
       ::  reject or leave the dm
       ::
@@ -2761,7 +2761,7 @@
     ==
   ::
   ++  di-agent
-    |=  [=wire =sign:guardian]
+    |=  [=wire =sign:guard]
     ~>  %spin.['di-agent']
     ^+  di-core
     ?+    wire  ~|(bad-dm-take/wire !!)
@@ -2956,7 +2956,7 @@
   ++  di-pass
     |%
     ++  pass
-      |=  [=wire =dock =task:guardian]
+      |=  [=wire =dock =task:guard]
       ~>  %spin.['pass']
       ^-  card
       [%pass (welp di-area wire) %agent dock task]

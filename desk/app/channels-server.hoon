@@ -6,14 +6,14 @@
     h=hooks, m=meta
 /+  ccv=channel-conv, utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
-    guardian,
+    guard,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
 ::
 %-  %-  discipline
     :+  ::  marks
         ::
-        discipline:guardian
+        discipline:guard
       ::  facts
       ::
       :~  [/$/$/checkpoint %channel-checkpoint ~]
@@ -41,8 +41,8 @@
 ^-  agent:gall
 =>
   |%
-  +$  card  card:guardian
-  +$  rail  rail:guardian
+  +$  card  card:guard
+  +$  rail  rail:guard
   +$  current-state
     $:  %15
         =v-channels:v10:cv
@@ -59,7 +59,7 @@
       log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~ ~])
   ++  on-init
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -68,7 +68,7 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(load:cor vase)
@@ -76,7 +76,7 @@
   ::
   ++  on-poke
     |=  [=mark =vase]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(poke:cor mark vase)
@@ -84,7 +84,7 @@
   ::
   ++  on-watch
     |=  =path
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(watch:cor path)
@@ -94,16 +94,16 @@
   ++  on-leave   on-leave:def
   ++  on-fail
     |=  [=term =tang]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     %-  (slog term tang)
     :_  this
-    [(exit:guardian (fail:log term tang ~))]~
+    [(exit:guard (fail:log term tang ~))]~
   ::
   ++  on-agent
-    %-  on-agent:guardian
-    |=  [=wire =sign:guardian]
-    %-  step:unguard:guardian
+    %-  on-agent:guard
+    |=  [=wire =sign:guard]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(agent:cor wire sign)
@@ -111,7 +111,7 @@
   ::
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
-    %-  step:unguard:guardian
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(arvo:cor wire sign)
@@ -125,7 +125,7 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  emit-late  |=(=card cor(cards-late [card cards-late]))
 ++  emil-late  |=(caz=(list card) cor(cards-late (welp (flop caz) cards-late)))
-++  give  |=(=gift:guardian (emit %give gift))
+++  give  |=(=gift:guard (emit %give gift))
 ++  log   ~(. logs [our.bowl /logs])
 ++  safe-watch
   |=  [=wire =dock =path]
@@ -494,11 +494,11 @@
         [%send-sequence-numbers *]
       =+  ;;([%send-sequence-numbers =nest:c] q.vase)
       =.  cor
-        (emit (exit:guardian (tell:log %dbug ~[>[%got-poke %send-sequence-numbers nest]<] ~)))
+        (emit (exit:guard (tell:log %dbug ~[>[%got-poke %send-sequence-numbers nest]<] ~)))
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =rail
         %-  emil
-        :~  (exit:guardian (tell:log %dbug ~[>[%sending-sequence-numbers src.bowl]<] ~))
+        :~  (exit:guard (tell:log %dbug ~[>[%sending-sequence-numbers src.bowl]<] ~))
             [%pass /numbers %agent [src.bowl %channels] %poke rail]
         ==
       :-  %noun
@@ -511,11 +511,11 @@
     ::
         [%send-tombstones *]
       =+  ;;([%send-tombstones =nest:c] q.vase)
-      =.  cor  (emit (exit:guardian (tell:log %dbug ~[>[%got-poke %send-tombstones nest]<] ~)))
+      =.  cor  (emit (exit:guard (tell:log %dbug ~[>[%got-poke %send-tombstones nest]<] ~)))
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =rail
         %-  emil
-        :~  (exit:guardian (tell:log %dbug ~[>[%sending-tombstones src.bowl]<] ~))
+        :~  (exit:guard (tell:log %dbug ~[>[%sending-tombstones src.bowl]<] ~))
             [%pass /tombstones %agent [src.bowl %channels] %poke rail]
         ==
       :-  %noun
@@ -631,7 +631,7 @@
     ::  wrt them.
     ::
     =.  v-channels  (~(uni by v-channels:bak) v-channels)
-    (emil (turn (prod-next:imp [our dap]:bowl) exit:guardian))
+    (emil (turn (prod-next:imp [our dap]:bowl) exit:guard))
   ==
 ::
 ++  watch
@@ -701,7 +701,7 @@
   ==
 ::
 ++  agent
-  |=  [=(pole knot) =sign:guardian]
+  |=  [=(pole knot) =sign:guard]
   ~>  %spin.['agent']
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
@@ -767,7 +767,7 @@
 ++  peek
   |=  =(pole knot)
   ~>  %spin.['peek']
-  %-  peek:unguard:guardian
+  %-  peek:un:guard
   ^-  (unit (unit rail))
   =?  +.pole  !?=([%v0 *] +.pole)
     [%v0 +.pole]
@@ -865,7 +865,7 @@
   ++  ca-core  .
   ++  emit  |=(=card ca-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
-  ++  give  |=(=gift:guardian ca-core(cor (^give gift)))
+  ++  give  |=(=gift:guard ca-core(cor (^give gift)))
   ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
   ++  ca-abet
     %_  cor
@@ -1401,7 +1401,7 @@
   ++  ho-core  .
   ++  emit  |=(=card ho-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ho-core(cor (^emil caz)))
-  ++  give  |=(=gift:guardian ho-core(cor (^give gift)))
+  ++  give  |=(=gift:guard ho-core(cor (^give gift)))
   ++  ho-abet
     %_  cor
         hooks.hooks

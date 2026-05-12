@@ -1,5 +1,5 @@
 /-  c=chat, cv=chat-ver, d=channels, s=story, meta
-/+  mp=mop-extensions, cc=chat-conv, cu=channel-utils, guardian
+/+  mp=mop-extensions, cc=chat-conv, cu=channel-utils, guard
 |_  pac=pact:c
 ++  size-limit  256.000  :: 256KB
 ++  mope  ((mp time (may:c writ:c)) lte)
@@ -252,7 +252,7 @@
 ++  give-paged-writs
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3 %v4) ls=(list [time (may:c writ:c)])]
   ~>  %spin.['libdm-give-paged-writs']
-  ^-  (unit (unit rail:guardian))
+  ^-  (unit (unit rail:guard))
   =;  p=paged-writs:c
     ?-  ver
       %v0  ``chat-paged-writs+(v3:paged-writs:v4:cc (v4:paged-writs:v7:cc p))
@@ -293,7 +293,7 @@
 ++  get-around
   |=  [mode=?(%light %heavy) ver=?(%v0 %v1 %v2 %v3 %v4) =time count=@ud]
   ~>  %spin.['libdm-get-around']
-  ^-  (unit (unit rail:guardian))
+  ^-  (unit (unit rail:guard))
   =/  older  (bat:mope wit.pac `time count)
   =/  newer  (tab:on:writs:c wit.pac `time count)
   =/  writ   (get:on:writs:c wit.pac time)
@@ -323,7 +323,7 @@
 ++  peek
   |=  [care=@tas ver=?(%v0 %v1 %v2 %v3 %v4) =(pole knot)]
   ~>  %spin.['libdm-peek']
-  ^-  (unit (unit rail:guardian))
+  ^-  (unit (unit rail:guard))
   =*  on   on:writs:c
   ?+    pole  [~ ~]
   ::
