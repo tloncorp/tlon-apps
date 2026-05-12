@@ -1,6 +1,5 @@
 require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
-require File.join(File.dirname(`node --print "require.resolve('@react-native-community/cli-platform-ios/package.json')"`), "native_modules")
 
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
@@ -9,9 +8,9 @@ ENV['RCT_NEW_ARCH_ENABLED'] = podfile_properties['newArchEnabled'] == 'true' ? '
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = '1' if podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR'] == 'true'
 
 if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
-  config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
+  $config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
 else
-  config_command = [
+  $config_command = [
     'node',
     '--no-warnings',
       '--eval',
@@ -31,7 +30,7 @@ prepare_react_native_project!
 
 def shared(podfile_properties)
   use_expo_modules!
-  $config = use_native_modules!
+  $config = use_native_modules!($config_command)
 
   pod 'PostHog', '~> 3.0'
   pod 'sqlite3', '~> 3.50.3'

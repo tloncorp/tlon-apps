@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
+import { isLanyardMockEnabled } from '@tloncorp/api/dev/lanyardMock';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
@@ -23,7 +24,11 @@ import * as LocalCache from '../cachedData';
 import { addContacts, updateContactMetadata } from '../contactActions';
 import { updateChannelSections } from '../groupActions';
 import { verifyUserInviteLink } from '../inviteActions';
-import { discoverContacts } from '../lanyardActions';
+import {
+  discoverContacts,
+  invokeContactsMatchedHandler,
+  partitionDiscoveryMatches,
+} from '../lanyardActions';
 import { useLureState } from '../lure';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
@@ -517,7 +522,9 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   );
 };
 
-export const syncSystemContacts = async (_ctx?: SyncCtx) => {
+export const syncSystemContacts = async (
+  _ctx?: SyncCtx
+): Promise<db.SystemContact[]> => {
   const systemContacts = await getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
@@ -525,6 +532,7 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
       context: 'inserted system contacts',
       numContacts: systemContacts.length,
     });
+    return systemContacts;
   } catch (error) {
     logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
       context: 'failed to insert system contacts',
@@ -537,8 +545,18 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
   }
 };
 
-export const syncContactDiscovery = async (ctx?: SyncCtx) => {
+export type ContactDiscoveryResult = {
+  newMatches: [string, string][];
+};
+
+export const syncContactDiscovery = async (
+  ctx?: SyncCtx,
+  opts?: { invokeHandler?: boolean }
+): Promise<ContactDiscoveryResult> => {
   logger.log('syncContactDiscovery: starting');
+  const invokeHandler = opts?.invokeHandler !== false;
+  const empty: ContactDiscoveryResult = { newMatches: [] };
+  const isMocked = isLanyardMockEnabled();
   const currentUserId = api.getCurrentUserId();
   const currentUserAttestations = await db.getUserAttestations({
     userId: currentUserId,
@@ -547,14 +565,14 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   const hasPhoneAttestation = currentUserAttestations.some(
     (attestation) => attestation.type === 'phone' && attestation.value
   );
-  if (!hasPhoneAttestation) {
+  if (!hasPhoneAttestation && !isMocked) {
     logger.log(
       'syncContactDiscovery: skipping contact discovery since no phone attestation found'
     );
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'no phone attestation found, skipping discovery',
     });
-    return;
+    return empty;
   }
   const systemContacts = await getSystemContacts();
   const phoneNumbers = systemContacts
@@ -570,7 +588,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
     });
     // this should also mean we no-op on web since we don't have any
     // system contacts
-    return;
+    return empty;
   }
 
   try {
@@ -580,6 +598,11 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       )
     ).filter((match) => match[1] !== currentUserId);
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
+
+    const { newMatches } = await partitionDiscoveryMatches(matches, {
+      isMocked,
+    });
+    const newMatchIds = newMatches.map(([, id]) => id);
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -592,33 +615,54 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       'syncContactDiscovery: inserted contact discovery matches',
       matches
     );
-    const contactIds = matches.map((m) => m[1]);
-    await addContacts(contactIds).catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'failed to add contacts',
-        severity: AnalyticsSeverity.Critical,
-        error: e,
-      });
-    });
-    logger.log('syncContactDiscovery: added contacts', contactIds);
-    const newContacts = await db.getSystemContactsBatchByContactId(contactIds);
 
-    await Promise.all(
-      newContacts
-        .filter((c) => !!c.contactId)
-        .map((contact) =>
-          updateContactMetadata(contact.contactId!, {
-            nickname:
-              `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+    if (newMatchIds.length > 0) {
+      await addContacts(newMatchIds).catch((e) => {
+        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+          context: 'failed to add contacts',
+          severity: AnalyticsSeverity.Critical,
+          error: e,
+        });
+      });
+      logger.log('syncContactDiscovery: added contacts', newMatchIds);
+
+      await db
+        .markContactsAsMatched({
+          contactIds: newMatchIds,
+          matchedAt: Date.now(),
+        })
+        .catch((e) => {
+          logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+            context: 'failed to mark contacts as matched',
+            error: e,
+          });
+        });
+
+      // Apply the address-book name as customNickname only for new
+      // matches whose contact doesn't already have one. The query
+      // does the join + filter, so we just map to API calls here.
+      const contactsToName =
+        await db.getUnnamedSystemContactsByContactId(newMatchIds);
+      await Promise.all(
+        contactsToName.map((c) =>
+          updateContactMetadata(c.contactId, {
+            nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
           })
         )
-    ).catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'failed to update contact metadata',
-        severity: AnalyticsSeverity.Critical,
-        error: e,
+      ).catch((e) => {
+        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+          context: 'failed to update contact metadata',
+          severity: AnalyticsSeverity.Critical,
+          error: e,
+        });
       });
-    });
+    }
+
+    if (invokeHandler && newMatches.length > 0) {
+      await invokeContactsMatchedHandler(newMatchIds);
+    }
+
+    return { newMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -626,6 +670,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       severity: AnalyticsSeverity.Critical,
       error,
     });
+    return empty;
   }
 };
 

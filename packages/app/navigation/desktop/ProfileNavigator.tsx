@@ -13,6 +13,7 @@ import { AddContactsScreen } from '../../features/contacts/AddContactsScreen';
 import { AttestationScreen } from '../../features/profile/AttestationScreen';
 import { EditProfileScreen } from '../../features/settings/EditProfileScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
+import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import { openPersonalInviteSheet } from '../../hooks/usePersonalInviteSheet';
 import {
   ContactsScreenView,
@@ -32,6 +33,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
 
   const { data: userContacts } = store.useUserContacts();
   const { data: suggestions } = store.useSuggestedContacts();
+
+  useMarkMatchesSeen();
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {

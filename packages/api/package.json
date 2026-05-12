@@ -5,6 +5,7 @@
   "files": [
     "dist",
     "src/client",
+    "src/dev",
     "src/http-api",
     "src/lib",
     "src/types",
@@ -22,6 +23,7 @@
     "./api/*": "./src/client/*.ts",
     "./client": "./src/client/index.ts",
     "./client/*": "./src/client/*.ts",
+    "./dev/*": "./src/dev/*.ts",
     "./lib/*": "./src/lib/*.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/*": "./src/urbit/*.ts",

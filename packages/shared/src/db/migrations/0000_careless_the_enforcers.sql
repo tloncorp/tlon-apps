@@ -175,7 +175,8 @@ CREATE TABLE `contacts` (
 	`blocked` integer,
 	`isContact` integer,
 	`isContactSuggestion` integer,
-	`systemContactId` text
+	`systemContactId` text,
+	`matched_at` integer
 );
 --> statement-breakpoint
 CREATE INDEX `contacts_system_contact_id_index` ON `contacts` (`systemContactId`);--> statement-breakpoint
