@@ -45,6 +45,7 @@
       %hook-response-0
       %hook-template
     ::
+      %group-command
       %group-update
       %group-log
     ::
