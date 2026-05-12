@@ -83,11 +83,12 @@ export async function completeWayfindingSplash() {
 }
 
 export async function completeRevivalSplash() {
-  // Revived users should only get the home add tooltip, not the full first-run
-  // coach mark sequence.
+  // Revived users should get the home add and Tlonbot chat tooltips, not the
+  // full first-run coach mark sequence.
   await db.wayfindingProgress.setValue((prev) => ({
     ...prev,
     tappedHomeAdd: false,
+    tappedBotMention: false,
   }));
 
   // Marking the splash complete keeps other clients from showing the modal again.
