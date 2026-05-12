@@ -20,6 +20,9 @@ import {
   constructStory,
   pathToCite,
 } from '../urbit';
+import { PostBlobDataEntryA2UISchema } from './a2ui';
+
+export * from './a2ui';
 
 const logger = createDevLogger('content-helpers', false);
 
@@ -679,6 +682,7 @@ const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
+  PostBlobDataEntryA2UISchema,
 ] as const;
 
 export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);

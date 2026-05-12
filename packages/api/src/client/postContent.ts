@@ -1,3 +1,4 @@
+import type { PostBlobDataEntryA2UI } from '../client/a2ui';
 import { formatUd } from '../client/apiUtils';
 import {
   PostBlobDataEntryFile,
@@ -116,6 +117,11 @@ export type VoiceMemoBlockData = {
   voiceMemo: PostBlobDataEntryVoiceMemo;
 };
 
+export type A2UIBlockData = {
+  type: 'a2ui';
+  a2ui: PostBlobDataEntryA2UI;
+};
+
 export type LinkBlockData = {
   type: 'link';
   url: string;
@@ -161,6 +167,7 @@ export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
   | ImageBlockData
+  | A2UIBlockData
   | VideoBlockData
   | FileUploadBlockData
   | VoiceMemoBlockData
@@ -393,6 +400,14 @@ export function convertContent(
               duration: entry.duration,
               posterUri: entry.posterUri,
             },
+          });
+          break;
+        }
+
+        case 'a2ui': {
+          out.push({
+            type: 'a2ui',
+            a2ui: entry,
           });
           break;
         }

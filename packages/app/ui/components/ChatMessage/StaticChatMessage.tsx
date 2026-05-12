@@ -12,7 +12,9 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
+import type { A2UIEvent } from '../PostContent/contentUtils';
 import { SentTimeText } from '../SentTimeText';
+import { useDraftInputContext } from '../draftInputs/shared';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -55,6 +57,7 @@ export function StaticChatMessage({
   showReplies?: boolean;
 }) {
   const isNotice = post.type === 'notice';
+  const draftInputContext = useDraftInputContext();
 
   if (isNotice) {
     showAuthor = false;
@@ -87,6 +90,29 @@ export function StaticChatMessage({
       console.error('Failed to retry post', e);
     }
   }, [onPressRetry, post]);
+
+  const handleA2UIEvent = useCallback(
+    async (event: A2UIEvent) => {
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        return;
+      }
+
+      const text = event.text.trim();
+      if (!text) {
+        return;
+      }
+
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [text],
+        attachments: [],
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
+    },
+    [draftInputContext]
+  );
 
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
@@ -162,6 +188,11 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
+            onA2UIEvent={
+              draftInputContext && draftInputContext.canStartDraft !== false
+                ? handleA2UIEvent
+                : undefined
+            }
             searchQuery={searchQuery}
           />
         )}
