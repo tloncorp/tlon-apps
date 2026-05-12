@@ -15,7 +15,7 @@ function getTextSize(component: cn.A2UITextComponent) {
     case 'h1':
       return '$title/l';
     case 'h2':
-      return '$label/2xl';
+      return '$label/xl';
     case 'h3':
       return '$label/xl';
     case 'caption':
@@ -29,16 +29,45 @@ function getTextColor(component: cn.A2UITextComponent) {
   return component.variant === 'caption' ? '$secondaryText' : '$primaryText';
 }
 
+function getComponentGap(
+  component: cn.A2UIContainerComponent,
+  components: Map<string, cn.A2UIComponent>
+) {
+  const hasButton = component.children.some(
+    (child) => components.get(child)?.component === 'Button'
+  );
+  const isTextOnly = component.children.every(
+    (child) => components.get(child)?.component === 'Text'
+  );
+
+  if (hasButton) {
+    return '$m';
+  }
+
+  if (isTextOnly) {
+    return component.component === 'Row' ? '$s' : '$xs';
+  }
+
+  return '$m';
+}
+
+function hasButtonChild(
+  component: cn.A2UIContainerComponent,
+  components: Map<string, cn.A2UIComponent>
+) {
+  return component.children.some(
+    (child) => components.get(child)?.component === 'Button'
+  );
+}
+
 function getButtonTreatment(component: cn.A2UIButtonComponent) {
   switch (component.variant) {
     case 'primary':
       return { fill: 'solid', intent: 'primary' } as const;
     case 'secondary':
-      return { fill: 'outline', intent: 'secondary' } as const;
     case 'borderless':
-      return { fill: 'ghost', intent: 'secondary' } as const;
     default:
-      return { fill: 'outline', intent: 'secondary' } as const;
+      return { fill: 'ghost', intent: 'secondary' } as const;
   }
 }
 
@@ -166,7 +195,10 @@ export function A2UIBlock({
           return (
             <XStack
               key={component.id}
-              gap="$m"
+              gap={getComponentGap(component, components)}
+              marginTop={
+                hasButtonChild(component, components) ? '$l' : undefined
+              }
               alignItems={getAlignItems(component.align)}
               justifyContent={getJustifyContent(component.justify)}
               flexWrap="wrap"
@@ -178,14 +210,11 @@ export function A2UIBlock({
               )}
             </XStack>
           );
-        case 'Column':
-          const isTextOnlyColumn = component.children.every(
-            (child) => components.get(child)?.component === 'Text'
-          );
+        case 'Column': {
           return (
             <YStack
               key={component.id}
-              gap={isTextOnlyColumn ? '$xs' : '$l'}
+              gap={getComponentGap(component, components)}
               alignItems={getAlignItems(component.align, 'stretch')}
               justifyContent={getJustifyContent(component.justify)}
               flex={getComponentFlex(component)}
@@ -195,6 +224,7 @@ export function A2UIBlock({
               )}
             </YStack>
           );
+        }
         case 'Card': {
           const isNestedCard = Boolean(options.cardDepth);
           return (
@@ -206,7 +236,7 @@ export function A2UIBlock({
               backgroundColor={
                 isNestedCard ? '$background' : '$secondaryBackground'
               }
-              padding={isNestedCard ? '$2xl' : '$m'}
+              padding={isNestedCard ? '$2xl' : '$l'}
               gap={isNestedCard ? '$l' : '$m'}
               shadowColor="$shadow"
               shadowOffset={{ width: 0, height: 8 }}
@@ -228,7 +258,7 @@ export function A2UIBlock({
             <View
               key={component.id}
               height={1}
-              backgroundColor="$secondaryBackground"
+              backgroundColor="$border"
               marginVertical="$xs"
               width="100%"
               flex={getComponentFlex(component)}
