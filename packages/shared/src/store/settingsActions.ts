@@ -63,7 +63,7 @@ export async function completeWayfindingSplash() {
     tappedAddNote: false,
     tappedAddCollection: false,
     tappedChatInput: false,
-    tappedBotMention: false,
+    tappedHomeGroupHint: false,
   }));
 
   // optimistic update
@@ -88,7 +88,7 @@ export async function completeRevivalSplash() {
   await db.wayfindingProgress.setValue((prev) => ({
     ...prev,
     tappedHomeAdd: false,
-    tappedBotMention: false,
+    tappedHomeGroupHint: false,
   }));
 
   // Marking the splash complete keeps other clients from showing the modal again.

@@ -843,7 +843,7 @@ function BareChatInput(
     if (logic.isBotHomeGroupChatChannel(getCurrentUserId(), channelId)) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
-        tappedBotMention: true,
+        tappedHomeGroupHint: true,
       }));
     }
   }, [channelId]);
