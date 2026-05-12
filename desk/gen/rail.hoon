@@ -1,6 +1,8 @@
-::  call as *=groups=/lib/rail/hoon +groups!rail
+::  rail: code generator for /lib/rail.hoon
 ::
-::TODO  investigate adding a "meta-build" for rune that evaluates the file
+::    call as *=groups=/lib/rail/hoon +groups!rail
+::
+::TODO  investigate adding a "meta-build" ford rune that evaluates the file
 ::      to obtain a hoon ast, which it then compiles into the result
 ::
 =/  non-strict-marks=(set mark)
