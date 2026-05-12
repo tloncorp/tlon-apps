@@ -98,7 +98,7 @@
     ^-  (quip card _this)
     %-  (slog term tang)
     :_  this
-    [(exit:guard (fail:log term tang ~))]~
+    [(unsafe:guard (fail:log term tang ~))]~
   ::
   ++  on-agent
     %-  on-agent:guard
@@ -494,11 +494,11 @@
         [%send-sequence-numbers *]
       =+  ;;([%send-sequence-numbers =nest:c] q.vase)
       =.  cor
-        (emit (exit:guard (tell:log %dbug ~[>[%got-poke %send-sequence-numbers nest]<] ~)))
+        (emit (unsafe:guard (tell:log %dbug ~[>[%got-poke %send-sequence-numbers nest]<] ~)))
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =rail
         %-  emil
-        :~  (exit:guard (tell:log %dbug ~[>[%sending-sequence-numbers src.bowl]<] ~))
+        :~  (unsafe:guard (tell:log %dbug ~[>[%sending-sequence-numbers src.bowl]<] ~))
             [%pass /numbers %agent [src.bowl %channels] %poke rail]
         ==
       :-  %noun
@@ -511,11 +511,11 @@
     ::
         [%send-tombstones *]
       =+  ;;([%send-tombstones =nest:c] q.vase)
-      =.  cor  (emit (exit:guard (tell:log %dbug ~[>[%got-poke %send-tombstones nest]<] ~)))
+      =.  cor  (emit (unsafe:guard (tell:log %dbug ~[>[%got-poke %send-tombstones nest]<] ~)))
       ?~  can=(~(get by v-channels) nest)  cor
       =;  =rail
         %-  emil
-        :~  (exit:guard (tell:log %dbug ~[>[%sending-tombstones src.bowl]<] ~))
+        :~  (unsafe:guard (tell:log %dbug ~[>[%sending-tombstones src.bowl]<] ~))
             [%pass /tombstones %agent [src.bowl %channels] %poke rail]
         ==
       :-  %noun
@@ -631,7 +631,7 @@
     ::  wrt them.
     ::
     =.  v-channels  (~(uni by v-channels:bak) v-channels)
-    (emil (turn (prod-next:imp [our dap]:bowl) exit:guard))
+    (emil (turn (prod-next:imp [our dap]:bowl) unsafe:guard))
   ==
 ::
 ++  watch

@@ -170,7 +170,7 @@
     ^-  (quip card _this)
     %-  (slog term tang)
     :_  this
-    [(exit:guard (fail:log term tang ~))]~
+    [(unsafe:guard (fail:log term tang ~))]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -212,7 +212,7 @@
     |=  [desc=term =tang]
     ~>  %spin.['fail']
     =/  =card
-      %-  exit:guard
+      %-  unsafe:guard
       (~(fail logs our.bowl /logs) desc tang deez)
     (emit card)
   ::
@@ -220,7 +220,7 @@
     |=  [vol=volume:logs =echo:logs]
     ~>  %spin.['tell']
     =/  =card
-      %-  exit:guard
+      %-  unsafe:guard
       (~(tell logs our.bowl /logs) vol echo deez)
     (emit card)
   ::  +deez: log message details
@@ -647,7 +647,7 @@
     ?.  ?=([%epic ~] wire)  cor
     =^  caz=(list card:agent:gall)  subs.cor
       (~(unsubscribe s [subs bowl]) wire dock)
-    (emil:cor (turn caz exit:guard))
+    (emil:cor (turn caz unsafe:guard))
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =^  caz-6-to-7=(list card)  old
@@ -661,7 +661,7 @@
     =/  =dock  [our.bowl %contacts]
     =^  caz=(list card:agent:gall)  subs.cor
       (~(unsubscribe s [subs bowl]) /contact dock)
-    (emil:cor (turn caz exit:guard))
+    (emil:cor (turn caz unsafe:guard))
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =^  caz-9-to-10=(list card)  old
     ?.  ?=(%9 -.old)  [~ old]
@@ -1469,7 +1469,7 @@
       [%~.~ %retry rest=*]
     =^  caz=(list card:agent:gall)  subs
       (~(handle-wakeup s [subs bowl]) pole)
-    (emil (turn caz exit:guard))
+    (emil (turn caz unsafe:guard))
   ::
       :: initialize .active-channels in $group
       ::
@@ -1637,7 +1637,7 @@
   ?:  (~(has by wex.bowl) wire dock)  cor
   =^  caz=(list card:agent:gall)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
-  (emil (turn caz exit:guard))
+  (emil (turn caz unsafe:guard))
 ::  +eager-leave: eagerly unsubscribe from a path
 ::
 ::  deletes the subscription entry from wex.bowl
@@ -1651,7 +1651,7 @@
   =.  wex.bowl  (~(del by wex.bowl) wire dock)
   =^  caz=(list card:agent:gall)  subs
     (~(unsubscribe s [subs bowl]) wire dock)
-  (emil (turn caz exit:guard))
+  (emil (turn caz unsafe:guard))
 ::
 ++  watch-channels
   (safe-watch /channels [our.bowl %channels] /v1)
@@ -2751,7 +2751,7 @@
       |=  [=ship ivl=(list ship) =_se-core]
       ?.  (can-poke:neg bowl ship %groups)
         =.  se-core
-          (emit:se-core (exit:guard (initiate:neg [ship dap.bowl])))
+          (emit:se-core (unsafe:guard (initiate:neg [ship dap.bowl])))
         ::  retry .retry times with doubling .delay
         ::
         =+  delay=~h1
@@ -4700,7 +4700,7 @@
       =^  caz=(list card:agent:gall)  subs
         =/  =dock  [p.flag dap.bowl]
         (~(unsubscribe s [subs bowl]) (weld fi-area /preview) dock)
-      (emil (turn caz exit:guard))
+      (emil (turn caz unsafe:guard))
     =?  fi-core  |(?=(~ old-foreign) !=(u.old-foreign foreign))
       fi-give-update
     cor
@@ -4801,7 +4801,7 @@
     ~>  %spin.['fi-join']
     ^+  fi-core
     =*  log  ~(. l `%group-join)
-    =.  cor  (emit (exit:guard (initiate:neg [p.flag server])))
+    =.  cor  (emit (unsafe:guard (initiate:neg [p.flag server])))
     ::  leave the ask subscription in case it has not yet closed
     ::
     =?  cor  ?=([~ %ask] progress)
@@ -4832,7 +4832,7 @@
     |=  story=(unit story:s:g)
     ~>  %spin.['fi-ask']
     ^+  fi-core
-    =.  cor  (emit (exit:guard (initiate:neg [p.flag server])))
+    =.  cor  (emit (unsafe:guard (initiate:neg [p.flag server])))
     ?:  (~(has by groups) flag)  fi-core
     ?:  ?&  ?=(^ progress)
             ?=(?(%ask %join %watch %done) u.progress)

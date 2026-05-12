@@ -37,7 +37,7 @@
   ?.  ?=(%fact -.sign)  (f wire sign)
   (f wire sign(cage (en-rail cage.sign)))
 ::
-++  exit
+++  unsafe  ::  gall-style card into unsafe guard-style card
   |=  cad=card:agent:gall
   ^-  card
   ?<  ?=(%slip -.cad)

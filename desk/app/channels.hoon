@@ -194,7 +194,7 @@
     %-  step:un:guard
     ^-  (quip card _this)
     :_  this
-    [(exit:guard (fail:log term tang ~))]~
+    [(unsafe:guard (fail:log term tang ~))]~
   ::
   ++  on-agent
     %-  on-agent:guard
@@ -218,7 +218,7 @@
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  plog  ~(. logs [our.bowl /logs])
-++  tell-plog  (cork tell:plog exit:guard)
+++  tell-plog  (cork tell:plog unsafe:guard)
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:guard (emit %give gift))
@@ -240,7 +240,7 @@
   ?:  (~(has by wex.bowl) wire dock)  cor
   =^  caz=(list card:agent:gall)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
-  (emil (turn caz exit:guard))
+  (emil (turn caz unsafe:guard))
 ::
 ++  load
   |^  |=  =vase
@@ -744,7 +744,7 @@
   ^+  cor
   =^  caz=(list card:agent:gall)  subs
     (~(unsubscribe s [subs bowl]) wire dock)
-  (emil (turn caz exit:guard))
+  (emil (turn caz unsafe:guard))
 ++  inflate-io
   ::  leave all subscriptions we don't recognize
   ::
@@ -1019,7 +1019,7 @@
     =.  v-channels    (~(uni by v-channels:bak) v-channels)
     =.  voc           (~(uni by voc:bak) voc)
     =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
-    (emil (turn (prod-next:imp [our dap]:bowl) exit:guard))
+    (emil (turn (prod-next:imp [our dap]:bowl) unsafe:guard))
   ==
 ++  watch
   |=  =(pole knot)
@@ -1574,7 +1574,7 @@
       [%~.~ %retry rest=*]
     =^  caz=(list card:agent:gall)  subs
       (~(handle-wakeup s [subs bowl]) pole)
-    (emil (turn caz exit:guard))
+    (emil (turn caz unsafe:guard))
   ::
       [?(%numbers %tombstones) kind=?(%chat %diary %heap) ship=@ name=@ ~]
     =/  host=ship  (slav %p ship.pole)

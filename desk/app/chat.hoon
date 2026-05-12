@@ -273,8 +273,8 @@
     log   ~(. logs [our.bowl /logs])
     ol    (kol gte)
     log      ~(. logs [our.bowl /logs])
-    tell-log  (cork tell:log exit:guard)
-    fail-log  (cork fail:log exit:guard)
+    tell-log  (cork tell:log unsafe:guard)
+    fail-log  (cork fail:log unsafe:guard)
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -838,7 +838,7 @@
   ?+    -.rail  ~|(bad-poke/-.rail !!)
       %chat-negotiate
     ::TODO  arguably should just be a /mar/negotiate
-    (emit (exit:guard (initiate:neg p.rail dap.bowl)))
+    (emit (unsafe:guard (initiate:neg p.rail dap.bowl)))
   ::
       %chat-dm-rsvp
     =*  rsvp=rsvp:dm:c  p.rail
@@ -2701,7 +2701,7 @@
                  (can-poke:neg bowl [ship dap.bowl])
              ==
       (emit (proxy-rsvp:di-pass ok))
-    =.  cor  (emit (exit:guard (initiate:neg [ship dap.bowl])))
+    =.  cor  (emit (unsafe:guard (initiate:neg [ship dap.bowl])))
     ?.  ok
       ::  reject or leave the dm
       ::
