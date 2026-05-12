@@ -1484,16 +1484,24 @@ function getPostAddFromChannelAction(postData: string | null) {
       channel?: {
         action?: {
           post?: {
-            add?: {
-              content?: unknown;
+            add?: { content?: unknown };
+            reply?: {
+              action?: {
+                add?: { content?: unknown };
+              };
             };
           };
         };
       };
     };
   }[];
-  const postAdd = events.find((event) => event.json?.channel?.action?.post?.add)
-    ?.json?.channel?.action?.post?.add;
+  const event = events.find(
+    (event) =>
+      event.json?.channel?.action?.post?.add ||
+      event.json?.channel?.action?.post?.reply?.action?.add
+  );
+  const post = event?.json?.channel?.action?.post;
+  const postAdd = post?.add ?? post?.reply?.action?.add;
 
   expect(postAdd).toBeTruthy();
   return postAdd;
@@ -1548,6 +1556,97 @@ export async function sendMentionMessage(
   await expect(post).toBeVisible({ timeout: 10000 });
   await expect(post.getByTestId(postMentionTestId)).toBeVisible();
   await expectMessageInputReady(page);
+}
+
+function flattenInlineText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(flattenInlineText).join('');
+  }
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if ('inline' in obj) {
+      return flattenInlineText(obj.inline);
+    }
+    if (typeof obj.text === 'string') {
+      return obj.text;
+    }
+    return Object.values(obj).map(flattenInlineText).join('');
+  }
+  return '';
+}
+
+function containsRichMentionInline(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsRichMentionInline);
+  }
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if ('ship' in obj || 'sect' in obj) {
+      return true;
+    }
+    return Object.values(obj).some(containsRichMentionInline);
+  }
+  return false;
+}
+
+/**
+ * Types an active mention query, clicks the send button without selecting
+ * the suggestion, and asserts that the message sends as literal text and
+ * the mention popup dismisses.
+ */
+export async function sendUnselectedMentionMessage(
+  page: Page,
+  {
+    inputText,
+    suggestionTestId,
+    expectedLiteralText,
+    containerSelector,
+  }: {
+    inputText: string;
+    suggestionTestId: string;
+    expectedLiteralText: string | RegExp;
+    containerSelector?: string;
+  }
+) {
+  await waitForSessionStability(page);
+
+  const root = containerSelector ? page.locator(containerSelector) : page;
+  const messageInput = root.getByTestId('MessageInput');
+  const sendButton = root.getByTestId('MessageInputSendButton');
+  const suggestion = root.getByTestId(suggestionTestId);
+
+  if (!containerSelector) {
+    await expectMessageInputReady(page);
+  }
+
+  await messageInput.click();
+  await messageInput.fill(inputText);
+  await expect(suggestion).toBeVisible();
+
+  const postResponse = waitForChannelPost(page);
+  await sendButton.click();
+  const response = await postResponse;
+  const postAdd = getPostAddFromChannelAction(response.request().postData());
+
+  const flattened = flattenInlineText(postAdd?.content);
+  expect(flattened).toMatch(expectedLiteralText);
+  expect(containsRichMentionInline(postAdd?.content)).toBe(false);
+
+  const post = page
+    .getByTestId('Post')
+    .filter({ hasText: expectedLiteralText })
+    .first();
+  await expect(post).toBeVisible({ timeout: 10000 });
+
+  await expect(suggestion).toBeHidden();
+  await expect(messageInput).toHaveValue('');
+
+  if (!containerSelector) {
+    await expectMessageInputReady(page);
+  }
 }
 
 /**
