@@ -14,6 +14,11 @@ import { useContactName } from '../../components/ContactNameV2';
 import { EditableNotePostContent } from '../../components/EditableNotePostContent';
 import { GalleryPost } from '../../components/GalleryPost';
 import { NotebookPost } from '../../components/NotebookPost';
+import {
+  NotesDraftInput,
+  NotesPostCollection,
+  NotesPostContent,
+} from '../../components/NotesChannel';
 import { YellPost } from '../../components/YellPost';
 import {
   ChatInput,
@@ -63,6 +68,7 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   },
   [PostContentRendererId.yell]: YellPost,
   [PostContentRendererId.scratchpad]: EditableNotePostContent,
+  [PostContentRendererId.notes]: NotesPostContent,
 };
 const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   [DraftInputId.chat]: ChatInput,
@@ -83,6 +89,7 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
   ),
   [DraftInputId.mic]: MicInput,
   [DraftInputId.color]: ColorInput,
+  [DraftInputId.notes]: NotesDraftInput,
 };
 const BUILTIN_COLLECTION_RENDERERS: {
   [id in CollectionRendererId]: IPostCollectionView;
@@ -96,6 +103,7 @@ const BUILTIN_COLLECTION_RENDERERS: {
   [CollectionRendererId.boardroom]: BoardroomPostCollectionView,
   [CollectionRendererId.strobe]: StrobePostCollectionView,
   [CollectionRendererId.summaries]: PostSummaryCollectionView,
+  [CollectionRendererId.notes]: NotesPostCollection,
 };
 
 export function ComponentsKitProvider({

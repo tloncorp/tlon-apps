@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "247996fd-ea77-4159-b2d6-1db53a544650",
+  "id": "5d867ea6-039f-46ef-9dd8-d5eb65eb1838",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1192,6 +1192,13 @@
         "systemContactId": {
           "name": "systemContactId",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "matched_at": {
+          "name": "matched_at",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

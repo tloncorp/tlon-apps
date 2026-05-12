@@ -7,6 +7,7 @@ import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
+import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   AppDataContextProvider,
@@ -46,6 +47,8 @@ export default function ContactsScreen(props: Props) {
     () => systemContacts?.filter((contact) => !contact.contactId),
     [systemContacts]
   );
+
+  useMarkMatchesSeen();
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
