@@ -1,10 +1,9 @@
-import * as db from '@tloncorp/shared/db';
+import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { Platform, type ViewStyle } from 'react-native';
 import { Tooltip, View, XStack } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -14,22 +13,10 @@ import { useCanWrite } from '../../utils/channelUtils';
 import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
 import { useContactName } from '../ContactNameV2';
 import { EmojiPickerSheet } from '../Emoji';
-import {
-  TOOLTIP_MAX_WIDTH_PX,
-  TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX,
-  TOOLTIP_VIEWPORT_GUTTER_PX,
-  getReactionTooltipDisplayPlan,
-} from './reactionTooltipUtils';
 
-// Web-only style; native receives `undefined` and falls back to the numeric maxWidth prop.
-// Tamagui's stricter style typing rejects unknown CSS function strings, so cast at the
-// boundary to keep the clamp web-only without leaking onto native.
-const tooltipWebViewportClamp: ViewStyle | undefined =
-  Platform.OS === 'web'
-    ? ({
-        maxWidth: `min(${TOOLTIP_MAX_WIDTH_PX}px, calc(100vw - ${TOOLTIP_VIEWPORT_GUTTER_PX}px))`,
-      } as unknown as ViewStyle)
-    : undefined;
+const TOOLTIP_USER_DISPLAY_COUNT = 3;
+const TOOLTIP_MAX_WIDTH_PX = 320;
+const TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX = 280;
 
 function ReactionTooltipName({
   contactId,
@@ -50,9 +37,9 @@ function ReactionTooltipName({
 }
 
 function ReactionTooltipContent({ reaction }: { reaction: ReactionListItem }) {
-  const { displayed, moreCount } = getReactionTooltipDisplayPlan(
-    reaction.users ?? []
-  );
+  const users = reaction.users ?? [];
+  const displayed = users.slice(0, TOOLTIP_USER_DISPLAY_COUNT);
+  const moreCount = Math.max(0, users.length - displayed.length);
   if (displayed.length === 0) return null;
 
   return (
@@ -61,7 +48,6 @@ function ReactionTooltipContent({ reaction }: { reaction: ReactionListItem }) {
       backgroundColor="$secondaryBackground"
       borderRadius="$s"
       maxWidth={TOOLTIP_MAX_WIDTH_PX}
-      style={tooltipWebViewportClamp}
     >
       <XStack
         flexWrap="wrap"
