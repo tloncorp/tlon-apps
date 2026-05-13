@@ -233,10 +233,6 @@ export function A2UIBlock({
               }
               padding={isNestedCard ? '$2xl' : '$l'}
               gap={isNestedCard ? '$l' : '$m'}
-              shadowColor="$shadow"
-              shadowOffset={{ width: 0, height: 8 }}
-              shadowOpacity={isNestedCard ? 0.04 : 0.08}
-              shadowRadius={isNestedCard ? 12 : 20}
               flex={getComponentFlex(component)}
               width={isNestedCard ? '100%' : undefined}
               alignSelf={isNestedCard ? 'stretch' : 'flex-start'}
