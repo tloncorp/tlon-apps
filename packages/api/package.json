@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/api",
-  "version": "0.0.8-a2ui.1",
+  "version": "0.0.8",
   "type": "module",
   "files": [
     "dist",
