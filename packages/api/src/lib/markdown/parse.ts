@@ -1,4 +1,4 @@
-import { Story } from '@tloncorp/api/urbit/channel';
+import { Story } from '../../urbit/channel';
 import type { Root } from 'mdast';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';

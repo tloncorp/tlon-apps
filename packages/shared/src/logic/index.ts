@@ -6,7 +6,7 @@ export * as featureFlags from '@tloncorp/api/lib/featureFlags';
 export * from './tiptap';
 export * from '@tloncorp/api/lib/hosting';
 export * from '@tloncorp/api/lib/noun';
-export * from './markdown';
+export * from '@tloncorp/api/lib/markdown';
 export * from '@tloncorp/api/lib/pinning';
 export * from '@tloncorp/api/client/activity';
 export * from '@tloncorp/api/client/branch';

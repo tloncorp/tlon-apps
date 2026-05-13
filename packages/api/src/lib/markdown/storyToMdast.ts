@@ -1,4 +1,4 @@
-import { Story, Verse, isBlockVerse } from '@tloncorp/api/urbit/channel';
+import { Story, Verse, isBlockVerse } from '../../urbit/channel';
 import {
   Block,
   Blockquote,
@@ -35,7 +35,7 @@ import {
   isShip,
   isStrikethrough,
   isTask,
-} from '@tloncorp/api/urbit/content';
+} from '../../urbit/content';
 import type {
   Delete,
   Emphasis,

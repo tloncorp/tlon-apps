@@ -3,7 +3,7 @@ import {
   Verse,
   VerseBlock,
   VerseInline,
-} from '@tloncorp/api/urbit/channel';
+} from '../../urbit/channel';
 import {
   Block,
   Blockquote,
@@ -26,7 +26,7 @@ import {
   Ship,
   Strikethrough,
   Task,
-} from '@tloncorp/api/urbit/content';
+} from '../../urbit/content';
 import type {
   Delete,
   Emphasis,

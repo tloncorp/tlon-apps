@@ -1,5 +1,5 @@
-import { Story } from '@tloncorp/api/urbit/channel';
-import { Block, Inline } from '@tloncorp/api/urbit/content';
+import { Story } from '../../urbit/channel';
+import { Block, Inline } from '../../urbit/content';
 import type { Node, PhrasingContent, Root, RootContent } from 'mdast';
 import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';

@@ -6,6 +6,7 @@ import {
   parsePostBlob,
 } from '../client/content-helpers';
 import { assertNever } from '../lib/assertNever';
+import { extractTablesFromContent } from '../lib/markdown/extractTables';
 import { VIDEO_REGEX, containsOnlyEmoji } from '../lib/utils';
 import type { ContentReference } from '../types/references';
 import * as ub from '../urbit';
@@ -376,7 +377,7 @@ export function plaintextPreviewOfInline(
  * The format is very loosely inspired by ProseMirror's internal representation,
  * and could be converted to be compatible pretty easily.
  */
-export function convertContentRaw(
+export function convertContent(
   input: unknown,
   blob: string | undefined | null
 ): PostContent {
@@ -442,11 +443,11 @@ export function convertContentRaw(
   }
 
   out.push(...convertContentSafe(story));
-  return out;
+  return extractTablesFromContent(out);
 }
 
 /**
- * Same as `convertContentRaw`, but does not parse the input, and
+ * Same as `convertContent`, but does not parse the input, and
  * applies more type strictness at callsite.
  */
 export function convertContentSafe(

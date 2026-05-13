@@ -6,9 +6,8 @@ import {
   TableAlignment,
   TableBlockData,
   TableRowData,
-  convertContentRaw,
   convertInlineContent,
-} from '@tloncorp/api/client/postContent';
+} from '../../client/postContent';
 import type {
   Table as MdastTable,
   TableCell as MdastTableCell,
@@ -413,11 +412,4 @@ export function extractTablesFromContent(content: PostContent): PostContent {
     }
   }
   return out;
-}
-
-export function convertContent(
-  input: unknown,
-  blob: string | undefined | null
-): PostContent {
-  return extractTablesFromContent(convertContentRaw(input, blob));
 }
