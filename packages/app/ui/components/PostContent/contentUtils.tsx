@@ -1,5 +1,5 @@
 import { Post } from '@tloncorp/shared/db';
-import { BlockData, convertContent, type A2UI } from '@tloncorp/shared/logic';
+import { type A2UI, BlockData, convertContent } from '@tloncorp/shared/logic';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
