@@ -338,7 +338,8 @@ const confirmationA2UI = makeApprovalA2UI({
   title: 'Allow Sam Palnet to DM the bot?',
   metadata: ['Sender: Sam Palnet (~sampel-palnet)'],
   copy: 'Message: "Hello, I would like to chat with your bot..."',
-  allowNote: 'The bot will be able to read and reply to future DMs from this user.',
+  allowNote:
+    'The bot will be able to read and reply to future DMs from this user.',
   requestId: 'da1b2',
 });
 
@@ -352,7 +353,8 @@ const channelApprovalA2UI = makeApprovalA2UI({
     'Group: Garden Club',
   ],
   copy: 'Message: "@bearclawd can you review this build before I merge?"',
-  allowNote: 'The bot will be able to read and reply to this user in this channel.',
+  allowNote:
+    'The bot will be able to read and reply to this user in this channel.',
   requestId: 'c3d4e',
 });
 
@@ -468,7 +470,12 @@ const basicComponentsA2UI: PostBlobDataEntryA2UI = {
             justify: 'center',
             children: ['centerA', 'centerB'],
           },
-          { id: 'centerA', component: 'Text', variant: 'caption', text: 'center' },
+          {
+            id: 'centerA',
+            component: 'Text',
+            variant: 'caption',
+            text: 'center',
+          },
           { id: 'centerB', component: 'Text', text: 'aligned row' },
           {
             id: 'rowEnd',
@@ -476,7 +483,12 @@ const basicComponentsA2UI: PostBlobDataEntryA2UI = {
             justify: 'end',
             children: ['endLabel', 'endValue'],
           },
-          { id: 'endLabel', component: 'Text', variant: 'caption', text: 'end' },
+          {
+            id: 'endLabel',
+            component: 'Text',
+            variant: 'caption',
+            text: 'end',
+          },
           { id: 'endValue', component: 'Text', text: 'aligned row' },
           { id: 'buttonDivider', component: 'Divider' },
           {
