@@ -15,5 +15,9 @@ export { storyToMdast, inlinesToPhrasing } from './storyToMdast';
 export { remarkShipMentions, parseShipMentions } from './shipMentionPlugin';
 export type { ShipMention } from './shipMentionPlugin';
 
+// Group mention plugin
+export { remarkGroupMentions, parseGroupMentions } from './groupMentionPlugin';
+export type { GroupMention } from './groupMentionPlugin';
+
 // Table extraction (post-processing for message rendering)
 export { convertContent, extractTablesFromContent } from './extractTables';

@@ -22,6 +22,7 @@ import {
   Listing,
   ListingBlock,
   Rule,
+  Sect,
   Ship,
   Strikethrough,
   Task,
@@ -45,6 +46,7 @@ import type {
   ThematicBreak,
 } from 'mdast';
 
+import type { GroupMention } from './groupMentionPlugin';
 import type { ShipMention } from './shipMentionPlugin';
 
 /**
@@ -55,6 +57,17 @@ function isShipMention(node: unknown): node is ShipMention {
     typeof node === 'object' &&
     node !== null &&
     (node as { type?: string }).type === 'shipMention'
+  );
+}
+
+/**
+ * Check if a node is a group mention (custom node type from our plugin).
+ */
+function isGroupMention(node: unknown): node is GroupMention {
+  return (
+    typeof node === 'object' &&
+    node !== null &&
+    (node as { type?: string }).type === 'groupMention'
   );
 }
 
@@ -78,6 +91,14 @@ export function phrasingToInlines(nodes: PhrasingContent[]): Inline[] {
     if (isShipMention(node)) {
       const ship: Ship = { ship: (node as ShipMention).value };
       result.push(ship);
+      continue;
+    }
+
+    // Group mentions: `@all` → { sect: null }, `@admin` → { sect: 'admin' }
+    if (isGroupMention(node)) {
+      const value = (node as GroupMention).value;
+      const sect: Sect = { sect: value === 'all' ? null : value };
+      result.push(sect);
       continue;
     }
 

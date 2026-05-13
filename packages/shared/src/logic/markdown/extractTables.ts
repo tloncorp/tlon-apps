@@ -9,7 +9,11 @@ import {
   convertContentRaw,
   convertInlineContent,
 } from '@tloncorp/api/client/postContent';
+import { gfmToMarkdown } from 'mdast-util-gfm';
+import { toMarkdown } from 'mdast-util-to-markdown';
 import type {
+  Paragraph,
+  PhrasingContent,
   Root,
   Table as MdastTable,
   TableCell as MdastTableCell,
@@ -19,6 +23,7 @@ import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
+import { remarkGroupMentions } from './groupMentionPlugin';
 import { phrasingToInlines } from './mdastToStory';
 import { remarkShipMentions } from './shipMentionPlugin';
 
@@ -28,48 +33,130 @@ import { remarkShipMentions } from './shipMentionPlugin';
 const SEPARATOR_LINE =
   /^[ \t]*\|?[ \t]*:?-{3,}:?[ \t]*(\|[ \t]*:?-{3,}:?[ \t]*)*\|?[ \t]*$/;
 
-// Serializes a local InlineData back to its markdown source form. Used when
-// reassembling paragraph text for table detection so that structured inlines
-// inside a table cell (bold, links, mentions) survive the round trip through
-// remark-gfm — they get re-parsed as proper mdast nodes and emerge as
-// structured cell content again.
-function inlineDataToMarkdown(inline: InlineData): string {
+// toMarkdown handlers for our custom inline node types. Registered on both
+// directions (parse via remarkShipMentions / remarkGroupMentions, serialize
+// via these handlers) so that ship and group mentions round-trip cleanly
+// through the table-cell parse pipeline. Cast through `unknown` because
+// mdast-util-to-markdown's `Handlers` only enumerates the canonical mdast
+// types — our custom nodes aren't in the union.
+const mentionHandlers = {
+  handlers: {
+    shipMention(node: { value: string }) {
+      return `~${node.value}`;
+    },
+    groupMention(node: { value: string }) {
+      return `@${node.value}`;
+    },
+  },
+} as unknown as NonNullable<Parameters<typeof toMarkdown>[1]>;
+
+// Convert one local InlineData node to an mdast PhrasingContent node.
+// `task` doesn't have an inline mdast equivalent — GFM's task-list marker
+// is only recognized at the start of a list item, not in arbitrary
+// phrasing — so we degrade to plain text representing the marker. The
+// structure is lost in the round trip; the rendered text is preserved.
+function inlineDataToPhrasing(inline: InlineData): PhrasingContent {
+  switch (inline.type) {
+    case 'text':
+      return { type: 'text', value: inline.text };
+    case 'lineBreak':
+      return { type: 'break' };
+    case 'style': {
+      const children = inline.children.map(inlineDataToPhrasing);
+      switch (inline.style) {
+        case 'bold':
+          return { type: 'strong', children };
+        case 'italic':
+          return { type: 'emphasis', children };
+        case 'strikethrough':
+          return { type: 'delete', children };
+        case 'code': {
+          const text =
+            inline.children[0]?.type === 'text' ? inline.children[0].text : '';
+          return { type: 'inlineCode', value: text };
+        }
+      }
+    }
+    // eslint-disable-next-line no-fallthrough
+    case 'link':
+      return {
+        type: 'link',
+        url: inline.href,
+        children: [{ type: 'text', value: inline.text }],
+      };
+    case 'mention':
+      return {
+        type: 'shipMention',
+        value: inline.contactId.replace(/^~/, ''),
+      } as unknown as PhrasingContent;
+    case 'groupMention':
+      return {
+        type: 'groupMention',
+        value: inline.group,
+      } as unknown as PhrasingContent;
+    case 'task': {
+      const inner = inline.children.map(inlineDataChildText).join('');
+      return {
+        type: 'text',
+        value: `${inline.checked ? '[x]' : '[ ]'} ${inner}`,
+      };
+    }
+  }
+}
+
+function inlineDataChildText(inline: InlineData): string {
   switch (inline.type) {
     case 'text':
       return inline.text;
     case 'lineBreak':
       return '\n';
-    case 'style': {
-      const inner = inline.children.map(inlineDataToMarkdown).join('');
-      switch (inline.style) {
-        case 'bold':
-          return `**${inner}**`;
-        case 'italic':
-          return `*${inner}*`;
-        case 'strikethrough':
-          return `~~${inner}~~`;
-        case 'code':
-          return `\`${inner}\``;
-      }
-    }
-    // eslint-disable-next-line no-fallthrough
+    case 'style':
+      return inline.children.map(inlineDataChildText).join('');
     case 'link':
-      return `[${inline.text}](${inline.href})`;
+      return inline.text;
     case 'mention':
       return inline.contactId;
     case 'groupMention':
       return `@${inline.group}`;
-    case 'task': {
-      const inner = inline.children.map(inlineDataToMarkdown).join('');
-      return `${inline.checked ? '[x]' : '[ ]'} ${inner}`;
-    }
+    case 'task':
+      return `${inline.checked ? '[x]' : '[ ]'} ${inline.children
+        .map(inlineDataChildText)
+        .join('')}`;
   }
+}
+
+// Serializes a local InlineData back to its markdown source form.
+//
+// `text` is emitted verbatim because the wire format's `|` characters are
+// load-bearing table syntax — escaping them would break detection. (Wire-
+// format text that contains literal markdown syntax is an acknowledged
+// edge case; structural inlines are emitted as proper InlineData and
+// preserved through this function.)
+//
+// `lineBreak` is emitted as a literal `\n` so paragraphs reassemble into
+// multi-line text the table regex can scan.
+//
+// Everything else goes through mdast-util-to-markdown + gfm so structural
+// inlines (links, bold, mentions, …) get proper escaping and survive the
+// round trip through remark-gfm without breaking the table grid.
+function inlineDataToMarkdown(inline: InlineData): string {
+  if (inline.type === 'text') return inline.text;
+  if (inline.type === 'lineBreak') return '\n';
+  const paragraph: Paragraph = {
+    type: 'paragraph',
+    children: [inlineDataToPhrasing(inline)],
+  };
+  const md = toMarkdown(paragraph, {
+    extensions: [gfmToMarkdown(), mentionHandlers],
+  });
+  return md.replace(/\n+$/, '');
 }
 
 const tableProcessor = unified()
   .use(remarkParse)
   .use(remarkGfm)
-  .use(remarkShipMentions);
+  .use(remarkShipMentions)
+  .use(remarkGroupMentions);
 
 type InlineMapping = {
   text: string;

@@ -191,6 +191,71 @@ describe('extractTablesFromContent', () => {
     ]);
   });
 
+  it('preserves group mentions inside cells', () => {
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: '| Who | Note |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '|---|---|' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| ' },
+          { type: 'groupMention', group: 'all' },
+          { type: 'text', text: ' | everyone |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| ' },
+          { type: 'groupMention', group: 'admin' },
+          { type: 'text', text: ' | staff |' },
+        ],
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    expect(table.rows[0].cells[0].content).toEqual([
+      { type: 'groupMention', group: 'all' },
+    ]);
+    expect(table.rows[1].cells[0].content).toEqual([
+      { type: 'groupMention', group: 'admin' },
+    ]);
+  });
+
+  it('preserves link text containing markdown-special characters', () => {
+    // `]` in link text would have broken the old hand-written serializer;
+    // mdast-util-to-markdown escapes it properly.
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: '| Source |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '|---|' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| ' },
+          {
+            type: 'link',
+            href: 'https://example.com',
+            text: 'foo [bar] baz',
+          },
+          { type: 'text', text: ' |' },
+        ],
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    expect(table.rows[0].cells[0].content).toEqual([
+      {
+        type: 'link',
+        href: 'https://example.com',
+        text: 'foo [bar] baz',
+      },
+    ]);
+  });
+
   it('splits paragraph around a table', () => {
     const result = extractTablesFromContent([
       {
