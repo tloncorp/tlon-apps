@@ -19,6 +19,7 @@ import React, {
   memo,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -712,6 +713,18 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
   const [phase, setPhase] = useState<TablePhase>('measure-natural');
   const [columnWidths, setColumnWidths] = useState<number[] | null>(null);
   const [rowHeights, setRowHeights] = useState<number[] | null>(null);
+
+  // Reset measurement state when the block changes — ContentRenderer keys
+  // children by array index, so an edited post can land a new table at the
+  // same index and reuse this component instance.
+  useEffect(() => {
+    setPhase('measure-natural');
+    setColumnWidths(null);
+    setRowHeights(null);
+    naturalDimsRef.current.clear();
+    finalHeightsRef.current.clear();
+    pendingRef.current.clear();
+  }, [block]);
 
   const finalizeHeights = useCallback(() => {
     const heights: number[] = [];
