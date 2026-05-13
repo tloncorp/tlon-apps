@@ -178,20 +178,40 @@ const weatherA2UI: PostBlobDataEntryA2UI = {
 
 function makeApprovalA2UI({
   surfaceId,
+  eyebrow,
   title,
+  metadata,
   copy,
   allowNote,
   requestId,
 }: {
   surfaceId: string;
+  eyebrow: string;
   title: string;
+  metadata: string[];
   copy?: string;
   allowNote: string;
   requestId: string;
 }): PostBlobDataEntryA2UI {
+  const metadataChildren = metadata.map((_, index) => `metadata-${index}`);
   const bodyChildren = copy
-    ? ['eyebrow', 'title', 'copy', 'divider', 'details', 'actions']
-    : ['eyebrow', 'title', 'divider', 'details', 'actions'];
+    ? [
+        'eyebrow',
+        'title',
+        ...metadataChildren,
+        'copy',
+        'divider',
+        'details',
+        'actions',
+      ]
+    : [
+        'eyebrow',
+        'title',
+        ...metadataChildren,
+        'divider',
+        'details',
+        'actions',
+      ];
 
   return {
     type: 'a2ui',
@@ -220,7 +240,7 @@ function makeApprovalA2UI({
               id: 'eyebrow',
               component: 'Text',
               variant: 'caption',
-              text: 'Approval request',
+              text: eyebrow,
             },
             {
               id: 'title',
@@ -228,6 +248,15 @@ function makeApprovalA2UI({
               variant: 'h3',
               text: title,
             },
+            ...metadata.map(
+              (line, index) =>
+                ({
+                  id: `metadata-${index}`,
+                  component: 'Text',
+                  variant: 'caption',
+                  text: line,
+                }) as const
+            ),
             ...(copy
               ? [
                   {
@@ -242,25 +271,13 @@ function makeApprovalA2UI({
             {
               id: 'details',
               component: 'Column',
-              children: ['allowNote', 'rejectNote', 'banNote'],
+              children: ['allowNote'],
             },
             {
               id: 'allowNote',
               component: 'Text',
               variant: 'caption',
               text: allowNote,
-            },
-            {
-              id: 'rejectNote',
-              component: 'Text',
-              variant: 'caption',
-              text: 'Reject declines this request. They can try again later.',
-            },
-            {
-              id: 'banNote',
-              component: 'Text',
-              variant: 'caption',
-              text: 'Ban blocks this ship from contacting the bot.',
             },
             {
               id: 'actions',
@@ -304,7 +321,7 @@ function makeApprovalA2UI({
                 },
               },
             },
-            { id: 'banLabel', component: 'Text', text: 'Ban' },
+            { id: 'banLabel', component: 'Text', text: 'Block' },
           ],
         },
       },
@@ -314,25 +331,30 @@ function makeApprovalA2UI({
 
 const confirmationA2UI = makeApprovalA2UI({
   surfaceId: 'confirm-dm-sampel',
-  title: 'DM request from ~sampel-palnet',
+  eyebrow: 'DM access',
+  title: 'Allow ~sampel-palnet to DM the bot?',
+  metadata: ['Sender: ~sampel-palnet'],
   copy: 'Message: "Hello, I would like to chat with your bot..."',
-  allowNote: 'Allow lets the bot process and respond to DMs from this user.',
+  allowNote: 'The bot will be able to read and reply to future DMs from this user.',
   requestId: 'da1b2',
 });
 
 const channelApprovalA2UI = makeApprovalA2UI({
   surfaceId: 'confirm-channel-littel',
-  title: '~littel-wolfur mentioned the bot in Design',
+  eyebrow: 'Channel access',
+  title: 'Let the bot reply to ~littel-wolfur?',
+  metadata: ['Sender: ~littel-wolfur', 'Channel: Design in Garden Club'],
   copy: 'Message: "@bearclawd can you review this build before I merge?"',
-  allowNote: 'Allow lets the bot process and respond to this ship in this channel.',
+  allowNote: 'The bot will be able to read and reply to this user in this channel.',
   requestId: 'c3d4e',
 });
 
 const groupApprovalA2UI = makeApprovalA2UI({
   surfaceId: 'confirm-group-robin',
-  title: 'Group invite from ~robin-dasler',
-  copy: 'Garden Club (~robin-dasler/garden-club)',
-  allowNote: 'Allow joins this group so the bot can participate there.',
+  eyebrow: 'Group invite',
+  title: 'Let the bot join Garden Club?',
+  metadata: ['Inviter: ~robin-dasler', 'Group ID: ~robin-dasler/garden-club'],
+  allowNote: 'The bot will be able to read and respond in channels it joins.',
   requestId: 'g5f6a',
 });
 
