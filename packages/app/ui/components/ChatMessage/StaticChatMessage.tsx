@@ -193,11 +193,7 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
-            onA2UIAction={
-              draftInputContext && draftInputContext.canStartDraft !== false
-                ? handleA2UIAction
-                : undefined
-            }
+            onA2UIAction={handleA2UIAction}
             searchQuery={searchQuery}
           />
         )}
