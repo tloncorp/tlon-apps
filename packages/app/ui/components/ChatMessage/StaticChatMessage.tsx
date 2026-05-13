@@ -93,11 +93,11 @@ export function StaticChatMessage({
 
   const handleA2UIAction = useCallback(
     async (action: A2UI.Button['action'], fallbackText: string) => {
-      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+      if (action.event.name !== A2UI.action.sendMessage) {
         return;
       }
 
-      if (action.event.name !== A2UI.action.sendMessage) {
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
         return;
       }
 
