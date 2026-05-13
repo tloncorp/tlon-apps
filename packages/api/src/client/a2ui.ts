@@ -179,40 +179,23 @@ function validateComponent(component: unknown): component is A2UI.Component {
   }
 }
 
-export function getUpdateMessage(
-  entry: A2UI.BlobEntry
-): A2UI.UpdateComponentsMessage | null {
-  return (
-    entry.messages.find(
-      (message): message is A2UI.UpdateComponentsMessage =>
-        'updateComponents' in message
-    ) ?? null
-  );
-}
+type ValidatedEnvelope = {
+  createMessage: A2UI.CreateSurfaceMessage;
+  updateMessage: A2UI.UpdateComponentsMessage;
+  components: A2UI.Component[];
+};
 
-export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
-  const update = getUpdateMessage(entry);
-  if (!update) {
-    return null;
-  }
-  return (
-    update.updateComponents.root ??
-    update.updateComponents.components[0]?.id ??
-    null
-  );
-}
-
-export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
+function validateEnvelope(entry: unknown): ValidatedEnvelope | null {
   if (!isPlainObject(entry) || entry.type !== 'a2ui' || entry.version !== 1) {
-    return false;
+    return null;
   }
 
   if (JSON.stringify(entry).length > LIMITS.maxBytes) {
-    return false;
+    return null;
   }
 
   if (!Array.isArray(entry.messages)) {
-    return false;
+    return null;
   }
 
   const createMessage = entry.messages.find(
@@ -232,7 +215,7 @@ export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
     !isPlainObject(createMessage.createSurface) ||
     !isPlainObject(updateMessage.updateComponents)
   ) {
-    return false;
+    return null;
   }
 
   const surfaceId = createMessage.createSurface.surfaceId;
@@ -248,20 +231,26 @@ export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
     components.length === 0 ||
     components.length > LIMITS.maxComponents
   ) {
-    return false;
+    return null;
   }
 
   if (!components.every(validateComponent)) {
-    return false;
+    return null;
   }
 
+  return { createMessage, updateMessage, components };
+}
+
+function indexComponents(
+  components: A2UI.Component[]
+): Map<string, A2UI.Component> | null {
   const byId = new Map<string, A2UI.Component>();
   let buttonCount = 0;
   let totalTextLength = 0;
 
   for (const component of components) {
     if (byId.has(component.id)) {
-      return false;
+      return null;
     }
     byId.set(component.id, component);
     if (component.component === 'Button') {
@@ -276,11 +265,17 @@ export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
     buttonCount > LIMITS.maxButtons ||
     totalTextLength > LIMITS.maxTotalTextLength
   ) {
-    return false;
+    return null;
   }
 
-  const root = updateMessage.updateComponents.root ?? components[0]?.id;
-  if (!isNonEmptyString(root) || !byId.has(root)) {
+  return byId;
+}
+
+function validateReachableTree(
+  root: string,
+  components: Map<string, A2UI.Component>
+): boolean {
+  if (!isNonEmptyString(root) || !components.has(root)) {
     return false;
   }
 
@@ -294,7 +289,7 @@ export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
     if (visited.has(id)) {
       return true;
     }
-    const component = byId.get(id);
+    const component = components.get(id);
     if (!component) {
       return false;
     }
@@ -319,6 +314,45 @@ export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
   }
 
   return visit(root, 1);
+}
+
+export function getUpdateMessage(
+  entry: A2UI.BlobEntry
+): A2UI.UpdateComponentsMessage | null {
+  return (
+    entry.messages.find(
+      (message): message is A2UI.UpdateComponentsMessage =>
+        'updateComponents' in message
+    ) ?? null
+  );
+}
+
+export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
+  const update = getUpdateMessage(entry);
+  if (!update) {
+    return null;
+  }
+  return (
+    update.updateComponents.root ??
+    update.updateComponents.components[0]?.id ??
+    null
+  );
+}
+
+export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
+  const envelope = validateEnvelope(entry);
+  if (!envelope) {
+    return false;
+  }
+
+  const components = indexComponents(envelope.components);
+  if (!components) {
+    return false;
+  }
+
+  const root =
+    envelope.updateMessage.updateComponents.root ?? envelope.components[0]?.id;
+  return validateReachableTree(root, components);
 }
 
 export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
