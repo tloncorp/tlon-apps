@@ -152,6 +152,18 @@ async function clearDeferredFields(fields: DeferredField[]) {
   });
 }
 
+function isRemoteAvatarUrl(url: string) {
+  return /^(?!file|data).+/.test(url);
+}
+
+function hasUnrecoverableBotAvatar(config: db.TlonbotRevivalDeferredConfig) {
+  return !!(
+    config.botAvatarUrl &&
+    !config.botAvatarUploadIntent &&
+    !isRemoteAvatarUrl(config.botAvatarUrl)
+  );
+}
+
 async function resolveDeferredBotAvatarUrl(
   config: db.TlonbotRevivalDeferredConfig
 ) {
@@ -169,7 +181,7 @@ async function resolveDeferredBotAvatarUrl(
     return uploadState.remoteUri;
   }
 
-  if (config.botAvatarUrl && /^(?!file|data).+/.test(config.botAvatarUrl)) {
+  if (config.botAvatarUrl && isRemoteAvatarUrl(config.botAvatarUrl)) {
     return config.botAvatarUrl;
   }
 
@@ -280,7 +292,13 @@ export async function recoverTlonbotRevivalDeferredConfig(
       });
     }
 
-    if (config.botAvatarUploadIntent || config.botAvatarUrl) {
+    if (hasUnrecoverableBotAvatar(config)) {
+      logger.trackError('TlonBot revival bot avatar update skipped', {
+        source,
+        step: 'missing_upload_intent',
+      });
+      await clearDeferredFields(['botAvatarUrl', 'botAvatarUploadIntent']);
+    } else if (config.botAvatarUploadIntent || config.botAvatarUrl) {
       await runAction(
         'botAvatar',
         source,
