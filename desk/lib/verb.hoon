@@ -133,7 +133,7 @@
   same
 ::
 ++  print-logs
-  |=  =cage
+  |=  [=bowl:gall =cage]
   |*  etc=*
   ?.  ?=(%log-action p.cage)  etc
   =+  !<(=a-log:logs q.cage)
@@ -152,9 +152,10 @@
   =/  =echo:logs
     ?-  -.event
         %fail
-      [leaf+"fail {<desc.event>}" trace.event]
+      [leaf+"[{<our.bowl>}/{<dap.bowl>}] fail {<desc.event>}" trace.event]
     ::
-      %tell  echo.event
+        %tell  
+      [leaf+"[{<our.bowl>}/{<dap.bowl>}]" echo.event]
     ==
   %-  %-  %*(. slog pri val)
     echo
@@ -182,7 +183,7 @@
     ::  intercept logging cards and print
     ::
     %-  ?:  &(=(%logs name) =(ship our.bowl))
-          (print-logs cage)
+          (print-logs bowl cage)
         same
     [%poke p.card [ship name] p.cage `@`(mug q.q.cage)]
   ::

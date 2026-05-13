@@ -221,7 +221,7 @@ export function ProfileSheet({
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       <ActionSheet.ScrollableContent>
         <ActionSheet.ContentBlock>
           <ProfileBlock

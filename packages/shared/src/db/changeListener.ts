@@ -3,21 +3,27 @@ import { createDevLogger } from '../debug';
 
 const logger = createDevLogger('db:changeListener', false);
 
-let postEvents: Record<string, string[]> = {};
+let postEvents = new Set<string>();
+
+type ChangeRow = {
+  id?: string;
+  post_id?: string;
+  thread_id?: string;
+  item_type?: string;
+  item_id?: string;
+};
 
 /**
  * Flush current pending change batch
  */
 export function flush() {
-  if (Object.keys(postEvents).length) {
-    Object.keys(postEvents).forEach((k) => {
-      postEvents[k].forEach((id) => {
-        queryClient.invalidateQueries({
-          queryKey: ['post', id],
-        });
+  if (postEvents.size) {
+    postEvents.forEach((id) => {
+      queryClient.invalidateQueries({
+        queryKey: ['post', id],
       });
     });
-    postEvents = {};
+    postEvents = new Set<string>();
   }
 }
 
@@ -30,34 +36,44 @@ export function handleChange({
   operation: 'INSERT' | 'UPDATE' | 'DELETE';
   /** Set on insert and update, contains raw data for updated row w/ snake case
    * keys (`id`, `channel_id`, 'group_id`, etc.) */
-  row?: any;
+  row?: ChangeRow;
 }) {
   logger.log('handleChange, Received change', { table, operation, row });
-  // If a post is updated, we need to refetch the post. If it's a new post, we
-  // no-op because there's no query to invalidate.
-  if (table === 'posts' && row && !row.parent_id && operation !== 'INSERT') {
-    postEvents[row.channel_id] ||= [];
-    if (postEvents[row.channel_id].includes(row.id)) {
-      // We already have this post in the batch, no need to add it again.
-      // Without this check, we could end up with duplicate post IDs in the
-      // batch, which would cause the query to be invalidated multiple times.
-      return;
-    }
-    postEvents[row.channel_id].push(row.id);
+  // A post-specific query can already be cached as `null` before sync inserts
+  // the row. Invalidate the exact key for inserts too, without falling back to
+  // broad table-level invalidation for every cached post query.
+  if (table === 'posts' && row?.id) {
+    postEvents.add(row.id);
   }
-  // We count updates to a post's reaction as post updates so that they trigger
-  // channel refresh.
+  // Reactions, thread unreads, and thread-scoped volume settings all feed
+  // data that's joined into ['post', id] queries. invalidateQueries uses
+  // prefix matching, so ['post', id] also covers usePostReference's
+  // ['post', id, 'reference'] entries. Use invalidateQueries (not refetch)
+  // so only queries with observers actually refetch — the rest just get
+  // marked stale for next mount.
   if (table === 'post_reactions' && row) {
     logger.log('handleChange, Received post reaction change:', row);
-    queryClient.refetchQueries({
+    queryClient.invalidateQueries({
       queryKey: ['post', row.post_id],
     });
   }
 
-  // Same for changes to that post's thread unread
   if (table === 'thread_unreads' && row) {
-    queryClient.refetchQueries({
+    queryClient.invalidateQueries({
       queryKey: ['post', row.thread_id],
+    });
+  }
+
+  // Volume settings use item_id as the scope key; for thread volumes that's
+  // the parent post id, which matches our ['post', id] queryKey directly.
+  if (
+    table === 'volume_settings' &&
+    row &&
+    row.item_type === 'thread' &&
+    row.item_id
+  ) {
+    queryClient.invalidateQueries({
+      queryKey: ['post', row.item_id],
     });
   }
 }

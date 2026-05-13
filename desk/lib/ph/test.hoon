@@ -1,6 +1,7 @@
 /-  spider
 /+  *strandio, *ph-io, test
 =,  strand=strand:spider
+=+  timeout=~s15
 |%
 ::  +ph-test-init: setup test strand environment
 ::
@@ -10,6 +11,7 @@
 ::
 ++  ph-test-shut
   (leave-our /effect/unto %aqua)
+::  +take-effect: receive aqua effect on a .wire
 ::
 ++  take-effect
   |=  =wire
@@ -19,6 +21,14 @@
   ?>  ?=(%aqua-effect p.res)
   =+  !<(=aqua-effect q.res)
   (pure:m aqua-effect)
+::  +poke-app: poke a gall agent on a virtual ship
+::
+::  .dock: target virtual ship and agent
+::  .page: poke payload
+::
+::  note that the poke is a $page, not a $vase.
+::  this is because pokes to virtual ships are injected
+::  into arvo, and thus need to pass through an untyped interface.
 ::
 ++  poke-app
   |=  [=dock =page]
@@ -38,6 +48,10 @@
   ?^  p.sign
     (strand-fail %poke-ack u.p.sign)
   (pure:m ~)
+::  +watch-app: watch a gall subscription to a virtual ship
+::
+::  the resulting facts are received as aqua effects.
+::  see +wait-for-app-fact.
 ::
 ++  watch-app
   |=  [=wire =dock =path]
@@ -60,6 +74,7 @@
   ?^  p.sign
     (strand-fail %watch-ack u.p.sign)
   (pure:m ~)
+::  +leave-app: leave a gall subscription to a virtual ship
 ::
 ++  leave-app
   |=  [=wire =dock]
@@ -71,6 +86,7 @@
     [%event p.dock [%g wire] task]
   ;<  ~  bind:m  (send-events ~[aqua-event])
   (pure:m ~)
+::  +wait-for-app-fact: receive a gall fact from a virtual ship
 ::
 ++  wait-for-app-fact
   |=  [=wire [our=ship dap=term]]
@@ -89,6 +105,7 @@
   =+  .^(=dais:clay %cb /(scot %p our.bowl)/groups/(scot %da now.bowl)/[mark])
   =/  =vase  (vale:dais noun.p.q.unix-effect)
   (pure:m [mark vase])
+::  +ex-equal: expect .actual to be equal to .expected
 ::
 ++  ex-equal
   |=  [actual=vase expected=vase]
@@ -99,6 +116,7 @@
   ?~  tang
     `[%done ~]
   `[%fail %ex-equal tang]
+::  +ex-not-equal: expect .actual not to be equal to .expected
 ::
 ++  ex-not-equal
   |=  [actual=vase expected=vase]

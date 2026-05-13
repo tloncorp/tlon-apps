@@ -206,7 +206,9 @@ const Scroller = forwardRef(
       }
     };
 
-    const activeMessageRefs = useRef<Record<string, RefObject<RNView>>>({});
+    const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
+      {}
+    );
 
     const handleSetActive = useCallback((active: db.Post) => {
       if (active.type !== 'notice') {
@@ -659,7 +661,7 @@ const BaseScrollerItem = ({
   onShowEmojiPicker: (post: db.Post) => void;
   onPressEdit?: (post: db.Post) => void;
   activeMessage?: db.Post | null;
-  messageRef: RefObject<RNView>;
+  messageRef: RefObject<RNView | null>;
   isSelected: boolean;
   displayDebugMode?: boolean;
   isLastPostOfBlock: boolean;
