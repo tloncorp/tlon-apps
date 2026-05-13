@@ -157,6 +157,23 @@ export type ListData = {
   children?: ListData[];
 };
 
+export type TableAlignment = 'left' | 'center' | 'right';
+
+export type TableCellData = {
+  content: InlineData[];
+};
+
+export type TableRowData = {
+  cells: TableCellData[];
+};
+
+export type TableBlockData = {
+  type: 'table';
+  header: TableRowData;
+  rows: TableRowData[];
+  align: (TableAlignment | null)[];
+};
+
 export type BlockData =
   | BlockquoteBlockData
   | ParagraphBlockData
@@ -170,7 +187,8 @@ export type BlockData =
   | HeaderBlockData
   | RuleBlockData
   | ListBlockData
-  | BigEmojiBlockData;
+  | BigEmojiBlockData
+  | TableBlockData;
 
 export type BlockType = BlockData['type'];
 
@@ -263,6 +281,8 @@ export function plaintextPreviewOf(
           return plaintextPreviewOfListData(block.list, config);
         case 'bigEmoji':
           return block.emoji;
+        case 'table':
+          return '(Table)';
       }
     })
     .join(config.blockSeparator)
@@ -356,7 +376,7 @@ export function plaintextPreviewOfInline(
  * The format is very loosely inspired by ProseMirror's internal representation,
  * and could be converted to be compatible pretty easily.
  */
-export function convertContent(
+export function convertContentRaw(
   input: unknown,
   blob: string | undefined | null
 ): PostContent {
@@ -426,7 +446,7 @@ export function convertContent(
 }
 
 /**
- * Same as `convertContent`, but does not parse the input, and
+ * Same as `convertContentRaw`, but does not parse the input, and
  * applies more type strictness at callsite.
  */
 export function convertContentSafe(
@@ -604,7 +624,7 @@ function convertListing(listing: ub.Listing): ListData {
   }
 }
 
-function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
+export function convertInlineContent(inlines: ub.Inline[]): InlineData[] {
   const nodes: InlineData[] = [];
   inlines.forEach((inline, i) => {
     if (typeof inline === 'string') {

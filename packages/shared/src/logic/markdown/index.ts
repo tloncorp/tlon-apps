@@ -14,3 +14,6 @@ export { storyToMdast, inlinesToPhrasing } from './storyToMdast';
 // Ship mention plugin
 export { remarkShipMentions, parseShipMentions } from './shipMentionPlugin';
 export type { ShipMention } from './shipMentionPlugin';
+
+// Table extraction (post-processing for message rendering)
+export { convertContent, extractTablesFromContent } from './extractTables';

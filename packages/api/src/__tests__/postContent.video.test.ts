@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
 
-import { convertContent } from '../client/postContent';
+import { convertContentRaw } from '../client/postContent';
 
-test('convertContent keeps both blob and story videos when src matches', () => {
+test('convertContentRaw keeps both blob and story videos when src matches', () => {
   const src = 'https://cdn.example.com/clip.mp4';
   const blob = JSON.stringify([
     {
@@ -30,7 +30,7 @@ test('convertContent keeps both blob and story videos when src matches', () => {
     },
   ];
 
-  const content = convertContent(story, blob);
+  const content = convertContentRaw(story, blob);
   const videos = content.filter((block) => block.type === 'video');
   expect(videos).toHaveLength(2);
   expect(videos[0]).toMatchObject({
@@ -55,7 +55,7 @@ test('convertContent keeps both blob and story videos when src matches', () => {
   });
 });
 
-test('convertContent keeps distinct blob and story videos when src differs', () => {
+test('convertContentRaw keeps distinct blob and story videos when src differs', () => {
   const blob = JSON.stringify([
     {
       type: 'video',
@@ -77,7 +77,7 @@ test('convertContent keeps distinct blob and story videos when src differs', () 
     },
   ];
 
-  const content = convertContent(story, blob);
+  const content = convertContentRaw(story, blob);
   const videoSrcs = content
     .flatMap((block) => (block.type === 'video' ? [block.video.src] : []))
     .sort();
