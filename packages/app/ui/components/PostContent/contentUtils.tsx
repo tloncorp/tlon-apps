@@ -34,7 +34,6 @@ export interface ContentContextProps {
     action: A2UI.Button['action'],
     fallbackText: string
   ) => void | Promise<void>;
-  canHandleA2UIAction?: boolean;
   searchQuery?: string;
 }
 
