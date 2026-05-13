@@ -3,11 +3,12 @@
   "hostname": "localhost",
   "port": 5555,
   "vite": {
-    "configPath": "./vite.cosmos.config.mts"
+    "configPath": "./vite.config.mts"
   },
   "dom": {
     "containerQuerySelector": "#app"
   },
   "fixturesLocation": "../../packages/app/fixtures",
+  "rendererUrl": "http://localhost:5050/apps/groups/",
   "plugins": ["react-cosmos-plugin-vite"]
 }

@@ -12,7 +12,6 @@ import {
   usePostContent,
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
-import type { A2UIEvent } from '../PostContent/contentUtils';
 import { SentTimeText } from '../SentTimeText';
 import { useDraftInputContext } from '../draftInputs/shared';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
@@ -91,13 +90,13 @@ export function StaticChatMessage({
     }
   }, [onPressRetry, post]);
 
-  const handleA2UIEvent = useCallback(
-    async (event: A2UIEvent) => {
+  const handleA2UISendMessage = useCallback(
+    async (message: string) => {
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
         return;
       }
 
-      const text = event.text.trim();
+      const text = message.trim();
       if (!text) {
         return;
       }
@@ -188,9 +187,9 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
-            onA2UIEvent={
+            onA2UISendMessage={
               draftInputContext && draftInputContext.canStartDraft !== false
-                ? handleA2UIEvent
+                ? handleA2UISendMessage
                 : undefined
             }
             searchQuery={searchQuery}

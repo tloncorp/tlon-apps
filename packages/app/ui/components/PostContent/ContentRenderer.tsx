@@ -56,7 +56,7 @@ function ContentRenderer({
   onPressImage,
   getImageViewerId,
   onLongPress,
-  onA2UIEvent,
+  onA2UISendMessage,
   isNotice,
   searchQuery,
   ...rest
@@ -68,7 +68,7 @@ function ContentRenderer({
       onPressImage={onPressImage}
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
-      onA2UIEvent={onA2UIEvent}
+      onA2UISendMessage={onA2UISendMessage}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >

@@ -160,11 +160,7 @@ export function A2UIBlock({
         return;
       }
 
-      context.onA2UIEvent?.({
-        name: component.action.event.name,
-        text,
-        sourceComponentId: component.id,
-      });
+      context.onA2UISendMessage?.(text);
     },
     [components, context]
   );
@@ -265,7 +261,7 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
-          const disabled = component.disabled || !context.onA2UIEvent;
+          const disabled = component.disabled || !context.onA2UISendMessage;
           const label = getA2UIComponentText(
             components.get(component.child),
             components
@@ -295,7 +291,7 @@ export function A2UIBlock({
         }
       }
     },
-    [components, context.onA2UIEvent, handleButtonPress]
+    [components, context.onA2UISendMessage, handleButtonPress]
   );
 
   if (!root) {

@@ -30,15 +30,9 @@ export interface ContentContextProps {
   onPressImage?: (src: string) => void;
   getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
-  onA2UIEvent?: (event: A2UIEvent) => void | Promise<void>;
+  onA2UISendMessage?: (text: string) => void | Promise<void>;
   searchQuery?: string;
 }
-
-export type A2UIEvent = {
-  name: 'tlon.sendMessage';
-  text: string;
-  sourceComponentId: string;
-};
 
 export const ContentContext = createStyledContext<ContentContextProps>();
 
