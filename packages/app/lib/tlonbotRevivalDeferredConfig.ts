@@ -18,7 +18,7 @@ import { setAndConfirmTlonbotRevivalNotificationLevel } from './tlonbotRevivalNo
 const logger = createDevLogger('tlonbotRevivalDeferredConfig', false);
 
 const BASIC_PROVIDER_ID = 'basic';
-const RECOVERY_RETRY_DELAY_MS = 30_000;
+const RECOVERY_RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 30_000];
 const RECOVERY_RETRY_CONFIG = {
   startingDelay: 1000,
   numOfAttempts: 6,
@@ -38,6 +38,7 @@ type DeferredField = keyof db.TlonbotRevivalDeferredConfig;
 let recoveryPromise: Promise<boolean> | null = null;
 let recoveryTimer: ReturnType<typeof setTimeout> | null = null;
 let connectionUnsubscribe: (() => void) | null = null;
+let recoveryRetryIndex = 0;
 
 function hasBotModelConfig(config: db.TlonbotRevivalDeferredConfig) {
   return !!(
@@ -80,6 +81,19 @@ function runScheduledRecovery(source: string) {
   });
 }
 
+function nextRecoveryRetryDelay() {
+  const delay =
+    RECOVERY_RETRY_DELAYS_MS[
+      Math.min(recoveryRetryIndex, RECOVERY_RETRY_DELAYS_MS.length - 1)
+    ];
+  recoveryRetryIndex += 1;
+  return delay;
+}
+
+function resetRecoveryRetryDelay() {
+  recoveryRetryIndex = 0;
+}
+
 function clearRecoverySchedule() {
   if (recoveryTimer) {
     clearTimeout(recoveryTimer);
@@ -97,10 +111,11 @@ function scheduleTimedRecovery() {
     return;
   }
 
+  const delay = nextRecoveryRetryDelay();
   recoveryTimer = setTimeout(() => {
     recoveryTimer = null;
     runScheduledRecovery('scheduled_retry');
-  }, RECOVERY_RETRY_DELAY_MS);
+  }, delay);
 }
 
 function scheduleConnectionRecovery() {
@@ -203,6 +218,7 @@ export async function stageTlonbotRevivalDeferredConfig(
     botProvider: shouldSetBotModel ? setup.botProvider : undefined,
     botModel: shouldSetBotModel ? setup.botModel : undefined,
   }));
+  resetRecoveryRetryDelay();
 }
 
 export async function recoverTlonbotRevivalDeferredConfig(
@@ -219,6 +235,7 @@ export async function recoverTlonbotRevivalDeferredConfig(
       if (Object.keys(config).length > 0) {
         await db.tlonbotRevivalDeferredConfig.resetValue();
       }
+      resetRecoveryRetryDelay();
       return false;
     }
     if (!hasActiveConnection()) {
@@ -324,6 +341,7 @@ export async function recoverTlonbotRevivalDeferredConfig(
     const remaining = await db.tlonbotRevivalDeferredConfig.getValue(true);
     if (!hasPendingConfig(remaining)) {
       await db.tlonbotRevivalDeferredConfig.resetValue();
+      resetRecoveryRetryDelay();
       return true;
     }
 
