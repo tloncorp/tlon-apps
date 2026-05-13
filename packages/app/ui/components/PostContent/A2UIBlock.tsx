@@ -1,4 +1,4 @@
-import * as cn from '@tloncorp/shared/logic';
+import { A2UI, type A2UIBlockData } from '@tloncorp/shared/logic';
 import { Button, Text } from '@tloncorp/ui';
 import React, { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack } from 'tamagui';
@@ -7,10 +7,10 @@ import { useContentContext } from './contentUtils';
 
 type RenderOptions = {
   cardDepth?: number;
-  parentAlign?: cn.A2UIContainerComponent['align'];
+  parentAlign?: A2UI.Container['align'];
 };
 
-function getTextSize(component: cn.A2UITextComponent) {
+function getTextSize(component: A2UI.Text) {
   switch (component.variant) {
     case 'h1':
       return '$title/l';
@@ -25,13 +25,13 @@ function getTextSize(component: cn.A2UITextComponent) {
   }
 }
 
-function getTextColor(component: cn.A2UITextComponent) {
+function getTextColor(component: A2UI.Text) {
   return component.variant === 'caption' ? '$secondaryText' : '$primaryText';
 }
 
 function getComponentGap(
-  component: cn.A2UIContainerComponent,
-  components: Map<string, cn.A2UIComponent>
+  component: A2UI.Container,
+  components: Map<string, A2UI.Component>
 ) {
   const hasButton = component.children.some(
     (child) => components.get(child)?.component === 'Button'
@@ -52,15 +52,15 @@ function getComponentGap(
 }
 
 function hasButtonChild(
-  component: cn.A2UIContainerComponent,
-  components: Map<string, cn.A2UIComponent>
+  component: A2UI.Container,
+  components: Map<string, A2UI.Component>
 ) {
   return component.children.some(
     (child) => components.get(child)?.component === 'Button'
   );
 }
 
-function getButtonTreatment(component: cn.A2UIButtonComponent) {
+function getButtonTreatment(component: A2UI.Button) {
   switch (component.variant) {
     case 'primary':
       return { fill: 'solid', intent: 'primary' } as const;
@@ -71,7 +71,7 @@ function getButtonTreatment(component: cn.A2UIButtonComponent) {
   }
 }
 
-function getJustifyContent(justify?: cn.A2UIContainerComponent['justify']) {
+function getJustifyContent(justify?: A2UI.Container['justify']) {
   switch (justify) {
     case 'center':
       return 'center';
@@ -87,7 +87,7 @@ function getJustifyContent(justify?: cn.A2UIContainerComponent['justify']) {
 }
 
 function getAlignItems(
-  align?: cn.A2UIContainerComponent['align'],
+  align?: A2UI.Container['align'],
   fallback: 'center' | 'stretch' = 'center'
 ) {
   switch (align) {
@@ -102,17 +102,17 @@ function getAlignItems(
   }
 }
 
-function getComponentFlex(component: cn.A2UIComponent) {
+function getComponentFlex(component: A2UI.Component) {
   return component.weight === undefined ? undefined : component.weight;
 }
 
-function getTextAlign(align?: cn.A2UIContainerComponent['align']) {
+function getTextAlign(align?: A2UI.Container['align']) {
   return align === 'center' ? 'center' : undefined;
 }
 
-function getA2UIComponentText(
-  component: cn.A2UIComponent | undefined,
-  components: Map<string, cn.A2UIComponent>
+function getComponentText(
+  component: A2UI.Component | undefined,
+  components: Map<string, A2UI.Component>
 ): string {
   if (!component) {
     return '';
@@ -122,11 +122,11 @@ function getA2UIComponentText(
       return component.text;
     case 'Button':
     case 'Card':
-      return getA2UIComponentText(components.get(component.child), components);
+      return getComponentText(components.get(component.child), components);
     case 'Row':
     case 'Column':
       return component.children
-        .map((child) => getA2UIComponentText(components.get(child), components))
+        .map((child) => getComponentText(components.get(child), components))
         .filter(Boolean)
         .join(' ');
     case 'Divider':
@@ -137,10 +137,10 @@ function getA2UIComponentText(
 export function A2UIBlock({
   block,
   ...props
-}: { block: cn.A2UIBlockData } & ComponentProps<typeof YStack>) {
+}: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
   const context = useContentContext();
-  const update = cn.getA2UIUpdateMessage(block.a2ui);
-  const root = cn.getA2UIRootComponentId(block.a2ui);
+  const update = A2UI.getUpdateMessage(block.a2ui);
+  const root = A2UI.getRootComponentId(block.a2ui);
   const components = useMemo(() => {
     return new Map(
       update?.updateComponents.components.map((component) => [
@@ -151,10 +151,10 @@ export function A2UIBlock({
   }, [update]);
 
   const handleButtonPress = useCallback(
-    (component: cn.A2UIButtonComponent) => {
+    (component: A2UI.Button) => {
       const text =
         component.action.event.context?.text ??
-        getA2UIComponentText(components.get(component.child), components);
+        getComponentText(components.get(component.child), components);
 
       if (!text.trim()) {
         return;
@@ -261,7 +261,7 @@ export function A2UIBlock({
           );
         case 'Button': {
           const disabled = component.disabled || !context.onA2UISendMessage;
-          const label = getA2UIComponentText(
+          const label = getComponentText(
             components.get(component.child),
             components
           );

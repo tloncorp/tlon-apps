@@ -1,7 +1,7 @@
 // tamagui-ignore
 import type { JSONContent } from '@tloncorp/api/urbit';
 import type { JSONValue } from '@tloncorp/shared';
-import type { PostBlobDataEntryA2UI } from '@tloncorp/shared/logic';
+import type { A2UI } from '@tloncorp/shared/logic';
 import { appendToPostBlob } from '@tloncorp/shared/logic';
 import React, { PropsWithChildren, useMemo, useState } from 'react';
 
@@ -15,7 +15,7 @@ import { FixtureWrapper } from './FixtureWrapper';
 import { exampleContacts, makePost, verse } from './contentHelpers';
 import { group, tlonLocalIntros } from './fakeData';
 
-const weatherA2UI: PostBlobDataEntryA2UI = {
+const weatherA2UI: A2UI.BlobEntry = {
   type: 'a2ui',
   version: 1,
   messages: [
@@ -192,7 +192,7 @@ function makeApprovalA2UI({
   copy?: string;
   allowNote: string;
   requestId: string;
-}): PostBlobDataEntryA2UI {
+}): A2UI.BlobEntry {
   const metadataChildren = metadata.map((_, index) => `metadata-${index}`);
   const bodyChildren = copy
     ? [
@@ -367,7 +367,7 @@ const groupApprovalA2UI = makeApprovalA2UI({
   requestId: 'g5f6a',
 });
 
-const basicComponentsA2UI: PostBlobDataEntryA2UI = {
+const basicComponentsA2UI: A2UI.BlobEntry = {
   type: 'a2ui',
   version: 1,
   messages: [

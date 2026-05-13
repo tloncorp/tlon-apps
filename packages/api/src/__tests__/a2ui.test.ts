@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-import type { PostBlobDataEntryA2UI } from '../client/a2ui';
-import { validateA2UIBlobEntry } from '../client/a2ui';
+import { A2UI } from '../client/a2ui';
 import { appendToPostBlob, parsePostBlob } from '../client/content-helpers';
 
-const a2uiBlobEntry: PostBlobDataEntryA2UI = {
+const a2uiBlobEntry: A2UI.BlobEntry = {
   type: 'a2ui',
   version: 1,
   messages: [
@@ -49,7 +48,7 @@ const a2uiBlobEntry: PostBlobDataEntryA2UI = {
 
 describe('a2ui blob entries', () => {
   test('validates supported a2ui payloads', () => {
-    expect(validateA2UIBlobEntry(a2uiBlobEntry)).toBe(true);
+    expect(A2UI.validateBlobEntry(a2uiBlobEntry)).toBe(true);
   });
 
   test('parsePostBlob parses supported a2ui entries', () => {

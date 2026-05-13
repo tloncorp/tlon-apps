@@ -1,85 +1,80 @@
 import { z } from 'zod';
 
-export const TLON_A2UI_ACTION_SEND_MESSAGE = 'tlon.sendMessage';
+const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
 
-type A2UIComponentBase = {
+type ComponentBase = {
   id: string;
   weight?: number;
 };
 
-export type A2UITextComponent = A2UIComponentBase & {
-  component: 'Text';
-  text: string;
-  variant?: 'body' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5';
-};
+export namespace A2UI {
+  export type Text = ComponentBase & {
+    component: 'Text';
+    text: string;
+    variant?: 'body' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5';
+  };
 
-export type A2UIContainerComponent = A2UIComponentBase & {
-  component: 'Row' | 'Column';
-  children: string[];
-  justify?: 'start' | 'center' | 'end' | 'spaceBetween' | 'spaceAround';
-  align?: 'start' | 'center' | 'end' | 'stretch';
-};
+  export type Container = ComponentBase & {
+    component: 'Row' | 'Column';
+    children: string[];
+    justify?: 'start' | 'center' | 'end' | 'spaceBetween' | 'spaceAround';
+    align?: 'start' | 'center' | 'end' | 'stretch';
+  };
 
-export type A2UICardComponent = A2UIComponentBase & {
-  component: 'Card';
-  child: string;
-};
+  export type Card = ComponentBase & {
+    component: 'Card';
+    child: string;
+  };
 
-export type A2UIDividerComponent = A2UIComponentBase & {
-  component: 'Divider';
-};
+  export type Divider = ComponentBase & {
+    component: 'Divider';
+  };
 
-export type A2UIButtonComponent = A2UIComponentBase & {
-  component: 'Button';
-  child: string;
-  disabled?: boolean;
-  variant?: 'default' | 'primary' | 'secondary' | 'borderless';
-  action: {
-    event: {
-      name: typeof TLON_A2UI_ACTION_SEND_MESSAGE;
-      context?: {
-        text?: string;
+  export type Button = ComponentBase & {
+    component: 'Button';
+    child: string;
+    disabled?: boolean;
+    variant?: 'default' | 'primary' | 'secondary' | 'borderless';
+    action: {
+      event: {
+        name: typeof ACTION_SEND_MESSAGE;
+        context?: {
+          text?: string;
+        };
       };
     };
   };
-};
 
-export type A2UIComponent =
-  | A2UITextComponent
-  | A2UIContainerComponent
-  | A2UICardComponent
-  | A2UIDividerComponent
-  | A2UIButtonComponent;
+  export type Component = Text | Container | Card | Divider | Button;
 
-export type A2UICreateSurfaceMessage = {
-  version: 'v0.9';
-  createSurface: {
-    surfaceId: string;
-    catalogId: string;
+  export type CreateSurfaceMessage = {
+    version: 'v0.9';
+    createSurface: {
+      surfaceId: string;
+      catalogId: string;
+    };
   };
-};
 
-export type A2UIUpdateComponentsMessage = {
-  version: 'v0.9';
-  updateComponents: {
-    surfaceId: string;
-    components: A2UIComponent[];
-    root?: string;
+  export type UpdateComponentsMessage = {
+    version: 'v0.9';
+    updateComponents: {
+      surfaceId: string;
+      components: Component[];
+      root?: string;
+    };
   };
-};
 
-export type A2UIMessage =
-  | A2UICreateSurfaceMessage
-  | A2UIUpdateComponentsMessage;
+  export type Message = CreateSurfaceMessage | UpdateComponentsMessage;
 
-export type PostBlobDataEntryA2UI = {
-  type: 'a2ui';
-  version: 1;
-  messages: A2UIMessage[];
-  recipe?: unknown;
-};
+  export type BlobEntry = {
+    type: 'a2ui';
+    version: 1;
+    messages: Message[];
+    recipe?: unknown;
+  };
+}
 
-const A2UI_LIMITS = {
+const LIMITS = {
   maxBytes: 32 * 1024,
   maxComponents: 50,
   maxDepth: 8,
@@ -90,7 +85,7 @@ const A2UI_LIMITS = {
   maxTotalTextLength: 8000,
 } as const;
 
-const A2UI_CONTAINER_JUSTIFY_VALUES = [
+const CONTAINER_JUSTIFY_VALUES = [
   'start',
   'center',
   'end',
@@ -98,12 +93,7 @@ const A2UI_CONTAINER_JUSTIFY_VALUES = [
   'spaceAround',
 ] as const;
 
-const A2UI_CONTAINER_ALIGN_VALUES = [
-  'start',
-  'center',
-  'end',
-  'stretch',
-] as const;
+const CONTAINER_ALIGN_VALUES = ['start', 'center', 'end', 'stretch'] as const;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -126,8 +116,8 @@ function isValidWeight(value: unknown): boolean {
 function isValidContainerJustify(value: unknown): boolean {
   return (
     value === undefined ||
-    A2UI_CONTAINER_JUSTIFY_VALUES.includes(
-      value as (typeof A2UI_CONTAINER_JUSTIFY_VALUES)[number]
+    CONTAINER_JUSTIFY_VALUES.includes(
+      value as (typeof CONTAINER_JUSTIFY_VALUES)[number]
     )
   );
 }
@@ -135,13 +125,13 @@ function isValidContainerJustify(value: unknown): boolean {
 function isValidContainerAlign(value: unknown): boolean {
   return (
     value === undefined ||
-    A2UI_CONTAINER_ALIGN_VALUES.includes(
-      value as (typeof A2UI_CONTAINER_ALIGN_VALUES)[number]
+    CONTAINER_ALIGN_VALUES.includes(
+      value as (typeof CONTAINER_ALIGN_VALUES)[number]
     )
   );
 }
 
-function validateA2UIComponent(component: unknown): component is A2UIComponent {
+function validateComponent(component: unknown): component is A2UI.Component {
   if (!isPlainObject(component) || !isNonEmptyString(component.id)) {
     return false;
   }
@@ -153,13 +143,13 @@ function validateA2UIComponent(component: unknown): component is A2UIComponent {
     case 'Text':
       return (
         typeof component.text === 'string' &&
-        component.text.length <= A2UI_LIMITS.maxTextNodeLength
+        component.text.length <= LIMITS.maxTextNodeLength
       );
     case 'Row':
     case 'Column':
       return (
         Array.isArray(component.children) &&
-        component.children.length <= A2UI_LIMITS.maxChildren &&
+        component.children.length <= LIMITS.maxChildren &&
         component.children.every((child) => isNonEmptyString(child)) &&
         isValidContainerJustify(component.justify) &&
         isValidContainerAlign(component.align)
@@ -176,12 +166,12 @@ function validateA2UIComponent(component: unknown): component is A2UIComponent {
         isNonEmptyString(component.child) &&
         isPlainObject(action) &&
         isPlainObject(event) &&
-        event.name === TLON_A2UI_ACTION_SEND_MESSAGE &&
+        event.name === ACTION_SEND_MESSAGE &&
         (context === undefined || isPlainObject(context)) &&
         (context === undefined ||
           context.text === undefined ||
           (typeof context.text === 'string' &&
-            context.text.length <= A2UI_LIMITS.maxButtonMessageLength))
+            context.text.length <= LIMITS.maxButtonMessageLength))
       );
     }
     default:
@@ -189,21 +179,19 @@ function validateA2UIComponent(component: unknown): component is A2UIComponent {
   }
 }
 
-export function getA2UIUpdateMessage(
-  entry: PostBlobDataEntryA2UI
-): A2UIUpdateComponentsMessage | null {
+export function getUpdateMessage(
+  entry: A2UI.BlobEntry
+): A2UI.UpdateComponentsMessage | null {
   return (
     entry.messages.find(
-      (message): message is A2UIUpdateComponentsMessage =>
+      (message): message is A2UI.UpdateComponentsMessage =>
         'updateComponents' in message
     ) ?? null
   );
 }
 
-export function getA2UIRootComponentId(
-  entry: PostBlobDataEntryA2UI
-): string | null {
-  const update = getA2UIUpdateMessage(entry);
+export function getRootComponentId(entry: A2UI.BlobEntry): string | null {
+  const update = getUpdateMessage(entry);
   if (!update) {
     return null;
   }
@@ -214,14 +202,12 @@ export function getA2UIRootComponentId(
   );
 }
 
-export function validateA2UIBlobEntry(
-  entry: unknown
-): entry is PostBlobDataEntryA2UI {
+export function validateBlobEntry(entry: unknown): entry is A2UI.BlobEntry {
   if (!isPlainObject(entry) || entry.type !== 'a2ui' || entry.version !== 1) {
     return false;
   }
 
-  if (JSON.stringify(entry).length > A2UI_LIMITS.maxBytes) {
+  if (JSON.stringify(entry).length > LIMITS.maxBytes) {
     return false;
   }
 
@@ -230,11 +216,11 @@ export function validateA2UIBlobEntry(
   }
 
   const createMessage = entry.messages.find(
-    (message): message is A2UICreateSurfaceMessage =>
+    (message): message is A2UI.CreateSurfaceMessage =>
       isPlainObject(message) && 'createSurface' in message
   );
   const updateMessage = entry.messages.find(
-    (message): message is A2UIUpdateComponentsMessage =>
+    (message): message is A2UI.UpdateComponentsMessage =>
       isPlainObject(message) && 'updateComponents' in message
   );
 
@@ -260,16 +246,16 @@ export function validateA2UIBlobEntry(
     !isNonEmptyString(catalogId) ||
     !Array.isArray(components) ||
     components.length === 0 ||
-    components.length > A2UI_LIMITS.maxComponents
+    components.length > LIMITS.maxComponents
   ) {
     return false;
   }
 
-  if (!components.every(validateA2UIComponent)) {
+  if (!components.every(validateComponent)) {
     return false;
   }
 
-  const byId = new Map<string, A2UIComponent>();
+  const byId = new Map<string, A2UI.Component>();
   let buttonCount = 0;
   let totalTextLength = 0;
 
@@ -287,8 +273,8 @@ export function validateA2UIBlobEntry(
   }
 
   if (
-    buttonCount > A2UI_LIMITS.maxButtons ||
-    totalTextLength > A2UI_LIMITS.maxTotalTextLength
+    buttonCount > LIMITS.maxButtons ||
+    totalTextLength > LIMITS.maxTotalTextLength
   ) {
     return false;
   }
@@ -302,7 +288,7 @@ export function validateA2UIBlobEntry(
   const visited = new Set<string>();
 
   function visit(id: string, depth: number): boolean {
-    if (depth > A2UI_LIMITS.maxDepth || visiting.has(id)) {
+    if (depth > LIMITS.maxDepth || visiting.has(id)) {
       return false;
     }
     if (visited.has(id)) {
@@ -319,7 +305,7 @@ export function validateA2UIBlobEntry(
         : component.component === 'Card' || component.component === 'Button'
           ? [component.child]
           : [];
-    if (children.length > A2UI_LIMITS.maxChildren) {
+    if (children.length > LIMITS.maxChildren) {
       return false;
     }
     for (const child of children) {
@@ -335,6 +321,14 @@ export function validateA2UIBlobEntry(
   return visit(root, 1);
 }
 
-export const PostBlobDataEntryA2UISchema = z.custom<PostBlobDataEntryA2UI>(
-  validateA2UIBlobEntry
-);
+export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
+
+export const A2UI = {
+  action: {
+    sendMessage: ACTION_SEND_MESSAGE,
+  },
+  getUpdateMessage,
+  getRootComponentId,
+  validateBlobEntry,
+  blobEntrySchema,
+} as const;

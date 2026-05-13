@@ -1,4 +1,4 @@
-import type { PostBlobDataEntryA2UI } from '../client/a2ui';
+import type { A2UI } from '../client/a2ui';
 import { formatUd } from '../client/apiUtils';
 import {
   PostBlobDataEntryFile,
@@ -119,7 +119,7 @@ export type VoiceMemoBlockData = {
 
 export type A2UIBlockData = {
   type: 'a2ui';
-  a2ui: PostBlobDataEntryA2UI;
+  a2ui: A2UI.BlobEntry;
 };
 
 export type LinkBlockData = {
