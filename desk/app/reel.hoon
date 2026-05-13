@@ -117,6 +117,19 @@
     |*  [caz=(list card) etc=*]
     [[cad caz] etc]
   --
+::  +group-og-title: render the open-graph title for a group invite.
+::  empty group title falls back to "a Groupchat".
+::
+++  group-og-title
+  |=  [nickname=(unit @t) group-title=@t]
+  ^-  @t
+  =/  gt=@t
+    ?:  =('' group-title)  'a Groupchat'
+    group-title
+  %-  crip
+  ?:  |(?=(~ nickname) =('' u.nickname))
+    "Tlon Messenger: You're Invited to {(trip gt)}"
+  "Tlon Messenger: {(trip u.nickname)} invited you to {(trip gt)}"
 --
 |_  =bowl:gall
 +*  this  .
@@ -445,16 +458,9 @@
         ::
         =+  type=(~(get by fields.meta) %'inviteType')
         ?:  |(?=(~ type) =('group' u.type))
-          =/  group-title=@t
-            =+  til=(~(get by fields.meta) %'invitedGroupTitle')
-            ?:  |(?=(~ til) =('' u.til))
-              'a Groupchat'
-            u.til
           =/  title=@t
-            %-  crip
-            ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You're Invited to {(trip group-title)}"
-            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
+            %+  group-og-title  nickname
+            (fall (~(get by fields.meta) %'invitedGroupTitle') '')
           =.  fields.update
             (~(put by fields.update) %'$og_title' title)
           =.  fields.update
@@ -499,15 +505,9 @@
         ?+    -.r-group.r-groups  ~
             %meta
           =*  meta  meta.r-group.r-groups
-          =+  nickname=(~(get cy:t our-profile) %nickname %text)
-          =/  group-title=@t
-            ?:  =('' title.meta)  'a Groupchat'
-            title.meta
           =/  title=@t
-            %-  crip
-            ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You're Invited to {(trip group-title)}"
-            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
+            %-  group-og-title
+            [(~(get cy:t our-profile) %nickname %text) title.meta]
           %-  ~(gas by *(map field:reel cord))
           :~  %'invitedGroupTitle'^title.meta
               %'invitedGroupDescription'^description.meta
