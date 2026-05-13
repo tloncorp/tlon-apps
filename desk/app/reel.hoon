@@ -230,6 +230,57 @@
           [%'inviterUserId' (scot %p src.bowl)]
           [%'invitedGroupId' id]
       ==
+    ::  gap-fill open-graph metadata from server state when the caller
+    ::  didn't provide it: title / description / image from %groups,
+    ::  and nickname / avatar from our cached profile. Caller-provided
+    ::  values always win; scry failures are tolerated.
+    ::
+    =/  type=(unit @t)  (~(get by fields.metadata) %'inviteType')
+    =?  fields.metadata  |(?=(~ type) =('group' u.type))
+      =/  fld  fields.metadata
+      ::  inviter fields from our-profile
+      ::
+      =/  nickname=(unit @t)  (~(get cy:t our-profile) %nickname %text)
+      =/  avatar=(unit @t)    (~(get cy:t our-profile) %avatar %look)
+      =?  fld
+          ?&  ?=(^ nickname)
+              !=('' u.nickname)
+              =(~ (~(get by fld) %'inviterNickname'))
+          ==
+        (~(put by fld) %'inviterNickname' u.nickname)
+      =?  fld
+          ?&  ?=(^ avatar)
+              !=('' u.avatar)
+              =(~ (~(get by fld) %'inviterAvatarImage'))
+          ==
+        (~(put by fld) %'inviterAvatarImage' u.avatar)
+      ::  group meta from %groups; only attempt when id parses as a flag
+      ::
+      =/  parsed=(unit flag:v0:groups-ver)  (rush id flag)
+      ?~  parsed  fld
+      =/  grp=(unit group:v9:groups-ver)
+        %-  mole  |.
+        .^  group:v9:groups-ver  %gx
+          /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p p.u.parsed)/[q.u.parsed]/group-2
+        ==
+      ?~  grp  fld
+      =*  gmeta  meta.u.grp
+      =?  fld
+          ?&  !=('' title.gmeta)
+              =(~ (~(get by fld) %'invitedGroupTitle'))
+          ==
+        (~(put by fld) %'invitedGroupTitle' title.gmeta)
+      =?  fld
+          ?&  !=('' description.gmeta)
+              =(~ (~(get by fld) %'invitedGroupDescription'))
+          ==
+        (~(put by fld) %'invitedGroupDescription' description.gmeta)
+      =?  fld
+          ?&  !=('' image.gmeta)
+              =(~ (~(get by fld) %'invitedGroupIconImageUrl'))
+          ==
+        (~(put by fld) %'invitedGroupIconImageUrl' image.gmeta)
+      fld
     ::  the nonce here is a temporary identifier for the metadata.
     ::  a new one will be assigned by the bait provider and returned to us.
     ::
@@ -402,7 +453,7 @@
           =/  title=@t
             %-  crip
             ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You're Invited to a Groupchat"
+              "Tlon Messenger: You're Invited to {(trip group-title)}"
             "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
           =.  fields.update
             (~(put by fields.update) %'$og_title' title)
@@ -455,7 +506,7 @@
           =/  title=@t
             %-  crip
             ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You're Invited to a Groupchat"
+              "Tlon Messenger: You're Invited to {(trip group-title)}"
             "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
           %-  ~(gas by *(map field:reel cord))
           :~  %'invitedGroupTitle'^title.meta

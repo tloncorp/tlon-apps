@@ -46,6 +46,16 @@
   %-  ~(gas by *contact:t)
   :~  %nickname^text+'Sampel Palnet'
   ==
+::  scry mock for the gap-fill path in %reel-describe. returns an empty
+::  group so the agent's gap-fill checks (!=('' title.gmeta) etc.) all
+::  fall through and no fields are added.
+::
+++  scry
+  |=  =(pole knot)
+  ?+  pole  ~|(`path`pole !!)
+    [%gx @ %groups @ %v2 %groups host=@ term=@ %group-2 ~]
+      `!>(*group:v9:gv)
+  ==
 ++  do-register-invite
   |=  [=token:reel =metadata:reel]
   =/  m  (mare ,(list card))
@@ -134,6 +144,7 @@
   ^-  form:m
   ;<  *  bind:m  (do-init dap reel-agent)
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(now ~2025.9.3, our ~sampel-palnet)))
+  ;<  ~  bind:m  (set-scry-gate scry)
   ::  a group invite can be requested from reel
   ::
   =/  =nonce:reel  (scot %da ~2025.9.3)
@@ -186,6 +197,7 @@
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
   ;<  caz=(list card)  bind:m  (do-init dap reel-agent)
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  *  bind:m  (do-agent /contacts [~sampel-palnet %contacts] %watch-ack ~)
   ;<  *  bind:m  (do-agent /groups [~sampel-palnet %groups] %watch-ack ~)
   ;<  *  bind:m  (do-register-invite ~.0v1 group-invite-meta)
@@ -214,8 +226,8 @@
     :~  %'invitedGroupTitle'^'Early Sunrise'
         %'invitedGroupDescription'^'Sunrise, sunset.'
         %'invitedGroupIconImageUrl'^'https://sampel-palnet.arvo.network/early-sunrise.jpg'
-        %'$og_title'^'Tlon Messenger: You\'re Invited to a Groupchat'
-        %'$twitter_title'^'Tlon Messenger: You\'re Invited to a Groupchat'
+        %'$og_title'^'Tlon Messenger: You\'re Invited to Early Sunrise'
+        %'$twitter_title'^'Tlon Messenger: You\'re Invited to Early Sunrise'
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -294,6 +306,7 @@
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~sampel-palnet)))
   ;<  caz=(list card)  bind:m  (do-init dap reel-agent)
+  ;<  ~  bind:m  (set-scry-gate scry)
   ;<  *  bind:m  (do-agent /contacts [~sampel-palnet %contacts] %watch-ack ~)
   ;<  *  bind:m  (do-register-invite ~.0v1 group-invite-meta)
   ;<  *  bind:m  (do-register-invite ~.0v2 personal-invite-meta)
