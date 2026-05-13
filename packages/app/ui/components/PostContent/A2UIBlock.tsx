@@ -63,11 +63,11 @@ function hasButtonChild(
 function getButtonTreatment(component: A2UI.Button) {
   switch (component.variant) {
     case 'primary':
-      return { fill: 'solid', intent: 'primary' } as const;
+      return { fill: 'solid', intent: 'positive' } as const;
     case 'secondary':
     case 'borderless':
     default:
-      return { fill: 'ghost', intent: 'secondary' } as const;
+      return { fill: 'outline', intent: 'secondary' } as const;
   }
 }
 
