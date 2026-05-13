@@ -96,13 +96,25 @@ export function useOnboardingHelpers() {
         signupContext.setOnboardingValues({
           onboardingFlow,
         });
-        navigation.navigate('SetNickname');
 
         // we won't have set up the connection yet, so do that first
         const shipInfoToUse = inputShipInfo
           ? { shipName: inputShipInfo.ship, shipUrl: inputShipInfo.shipUrl }
           : { shipName: ship, shipUrl }; // default to existing if none passed in
         configureUrbitClient(shipInfoToUse);
+
+        // Pull fresh contacts from the ship so SetNickname's revival prefill
+        // reads an up-to-date nickname rather than a stale local cache.
+        try {
+          await store.syncContacts();
+        } catch (e) {
+          logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+            context: 'revival onboarding: contact pre-sync failed',
+            error: e,
+          });
+        }
+
+        navigation.navigate('SetNickname');
         store.syncStart();
 
         // Clear the Hosting revival flag only after the user completes revival
