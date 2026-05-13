@@ -9,16 +9,16 @@ import {
   convertContentRaw,
   convertInlineContent,
 } from '@tloncorp/api/client/postContent';
-import { gfmToMarkdown } from 'mdast-util-gfm';
-import { toMarkdown } from 'mdast-util-to-markdown';
 import type {
-  Paragraph,
-  PhrasingContent,
-  Root,
   Table as MdastTable,
   TableCell as MdastTableCell,
   TableRow as MdastTableRow,
+  Paragraph,
+  PhrasingContent,
+  Root,
 } from 'mdast';
+import { gfmToMarkdown } from 'mdast-util-gfm';
+import { toMarkdown } from 'mdast-util-to-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
@@ -184,8 +184,7 @@ function sliceInlines(
     if (pos.end <= offsetStart) continue;
     if (pos.start >= offsetEnd) continue;
 
-    const fullyContained =
-      pos.start >= offsetStart && pos.end <= offsetEnd;
+    const fullyContained = pos.start >= offsetStart && pos.end <= offsetEnd;
 
     if (fullyContained) {
       result.push(pos.inline);
@@ -221,9 +220,7 @@ function trimEdgeLineBreaks(
 }
 
 function isEffectivelyEmpty(inlines: InlineData[]): boolean {
-  return inlines.every(
-    (i) => i.type === 'text' && i.text.trim() === ''
-  );
+  return inlines.every((i) => i.type === 'text' && i.text.trim() === '');
 }
 
 type Region = { start: number; end: number };
@@ -286,9 +283,7 @@ function findTableRegions(text: string): Region[] {
   return regions;
 }
 
-function normalizeAlign(
-  align: MdastTable['align']
-): (TableAlignment | null)[] {
+function normalizeAlign(align: MdastTable['align']): (TableAlignment | null)[] {
   if (!align) return [];
   return align.map((a) =>
     a === 'left' || a === 'center' || a === 'right' ? a : null
@@ -364,9 +359,7 @@ function parseTableCandidate(text: string): MdastTable | null {
   return first as MdastTable;
 }
 
-function extractTablesFromParagraph(
-  block: ParagraphBlockData
-): BlockData[] {
+function extractTablesFromParagraph(block: ParagraphBlockData): BlockData[] {
   const mapping = inlinesToText(block.content);
   const regions = findTableRegions(mapping.text);
   if (regions.length === 0) return [block];

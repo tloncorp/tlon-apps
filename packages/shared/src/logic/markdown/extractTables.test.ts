@@ -50,7 +50,10 @@ describe('extractTablesFromContent', () => {
           { type: 'lineBreak' },
           { type: 'text', text: '|---|---|---|' },
           { type: 'lineBreak' },
-          { type: 'text', text: '| alpha | beta | Lorem ipsum dolor sit amet,' },
+          {
+            type: 'text',
+            text: '| alpha | beta | Lorem ipsum dolor sit amet,',
+          },
           { type: 'lineBreak' },
           { type: 'text', text: 'consectetur adipiscing elit. |' },
         ],
