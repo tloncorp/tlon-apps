@@ -342,6 +342,9 @@ export async function recoverTlonbotRevivalDeferredConfig(
     if (!hasPendingConfig(remaining)) {
       await db.tlonbotRevivalDeferredConfig.resetValue();
       resetRecoveryRetryDelay();
+      logger.trackEvent('TlonBot revival deferred config completed', {
+        source,
+      });
       return true;
     }
 
