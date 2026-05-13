@@ -783,23 +783,13 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
 
   return (
     <ScrollView horizontal width="100%" maxWidth="100%">
-      <XStack
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$s"
-        overflow="hidden"
-        opacity={phase === 'done' ? 1 : 0}
-      >
+      <XStack opacity={phase === 'done' ? 1 : 0}>
         {Array.from({ length: columnCount }).map((_, colIdx) => {
           const align = block.align[colIdx] ?? null;
           const textAlign = alignToTextAlign(align);
           const colWidth = columnWidths?.[colIdx];
           return (
-            <YStack
-              key={colIdx}
-              borderRightWidth={colIdx < columnCount - 1 ? 1 : 0}
-              borderColor="$border"
-            >
+            <YStack key={colIdx}>
               {allRows.map((row, rowIdx) => {
                 const cell = row.cells[colIdx] ?? { content: [] };
                 const isHeader = rowIdx === 0;
@@ -807,21 +797,20 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
                 return (
                   <View
                     key={rowIdx}
-                    paddingVertical="$m"
-                    paddingHorizontal="$l"
+                    paddingVertical="$xl"
+                    paddingLeft={colIdx === 0 ? 0 : '$l'}
+                    paddingRight="$l"
                     borderBottomWidth={rowIdx < allRows.length - 1 ? 1 : 0}
                     borderColor="$border"
                     {...(colWidth != null ? { width: colWidth } : {})}
                     {...(rowHeight != null ? { minHeight: rowHeight } : {})}
-                    {...(isHeader
-                      ? { backgroundColor: '$secondaryBackground' }
-                      : {})}
                     onLayout={handleCellLayout(rowIdx, colIdx)}
                   >
                     <LineRenderer
                       inlines={cell.content}
+                      size="$label/m"
                       textAlign={textAlign}
-                      {...(isHeader ? { fontWeight: 'bold' } : {})}
+                      {...(isHeader ? { color: '$tertiaryText' } : {})}
                     />
                   </View>
                 );
