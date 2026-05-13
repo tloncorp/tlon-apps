@@ -252,7 +252,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %17
+    $:  %18
         =v-channels:v10:cv
         voc=(map [nest:cv plan:cv] (unit said:v10:cv))
         hidden-posts=(set id-post:cv)
@@ -402,7 +402,8 @@
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   =?  old  ?=(%15 -.old)  (state-15-to-16 old)
   =?  old  ?=(%16 -.old)  (state-16-to-17 old)
-  ?>  ?=(%17 -.old)
+  =?  old  ?=(%17 -.old)  (state-17-to-18 old)
+  ?>  ?=(%18 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -410,7 +411,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-17
+    $%  state-18
+        state-17
         state-16
         state-15
         state-14
@@ -429,7 +431,8 @@
         state-1
         state-0
     ==
-  +$  state-17  current-state
+  +$  state-18  current-state
+  +$  state-17  _%*(. *state-18 - %17)
   +$  state-16
     $:  %16
         =v-channels:v9:cv
@@ -519,6 +522,13 @@
         :: delayed resubscribes
         =^subs:s
         =pimp:imp
+    ==
+  ::
+  ++  state-17-to-18
+    |=  =state-17
+    ^-  state-18
+    %=  state-17  -  %18
+      v-channels  (~(run by v-channels.state-17) channel:recover-emoji:utils)
     ==
   ::
   ++  state-16-to-17
@@ -1124,7 +1134,7 @@
   |=  =(pole knot)
   ~>  %spin.['watch']
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
     [?(%v0 %v1 %v2 %v3 %v4) ~]  ?>(from-self cor)
@@ -1966,6 +1976,19 @@
         ca-core
       =?  debounce  ?=(%add -.c-post.a-channel)
         (~(put ju debounce) nest sent.essay.c-post.a-channel)
+      ::  bad clients may submit shortcode strings as reactions,
+      ::  as opposed to the direct unicode emoji.
+      ::  reject their action when they do.
+      ::
+      ?<  ?|  ?&  ?=([%add-react * * @] c-post.a-channel)
+                  (gth (met 3 q.c-post.a-channel) 1)
+                  =(':' (end 3^1 q.c-post.a-channel))
+              ==
+              ?&  ?=([%reply * %add-react * * @] c-post.a-channel)
+                  (gth (met 3 q.c-reply.c-post.a-channel) 1)
+                  =(':' (end 3^1 q.c-reply.c-post.a-channel))
+              ==
+          ==
       =/  source=(unit source:a)
         ?.  ?=(%reply -.c-post.a-channel)
           `[%channel nest group.perm.channel]
@@ -2586,7 +2609,14 @@
     ^-  v-reacts:c
     %-  (~(uno by old) new)
     |=  [* a=(rev:c (unit react:c)) b=(rev:c (unit react:c))]
-    +:(apply-rev:c a b)
+    =/  [changed=? rac=(rev:c (unit react:c))]
+      (apply-rev:c a b)
+    ?.  changed  rac
+    ::  if the received react is a shortcode, sanitize it into its unicode.
+    ::  (ones in state were already migrated, and channels-server sanitizes
+    ::  on-ingress too... but old servers might not!)
+    ::
+    (react:recover-emoji:utils rac)
   ::
   ++  ca-apply-replies
     |=  [old=v-replies:c new=v-replies:c]

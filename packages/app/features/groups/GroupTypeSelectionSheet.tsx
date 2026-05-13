@@ -60,8 +60,8 @@ const GroupTypeCard = ({
             </XStack>
           </YStack>
           <ListItem.MainContent flex={0}>
-            <ListItem.Title>{title}</ListItem.Title>
-            <ListItem.Subtitle>{subtitle}</ListItem.Subtitle>
+            <ListItem.Title trimmed={false}>{title}</ListItem.Title>
+            <ListItem.Subtitle trimmed={false}>{subtitle}</ListItem.Subtitle>
           </ListItem.MainContent>
         </YStack>
       )}

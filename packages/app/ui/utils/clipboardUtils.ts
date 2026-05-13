@@ -1,14 +1,17 @@
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
 export const tryGetImageWithFormat = async (
-  getter: () => Promise<string>,
+  getter: () => Promise<{ data: string } | null>,
   mimeType: string
 ): Promise<{ data: string; mimeType: string } | null> => {
   try {
-    const data = await getter();
-    return { data, mimeType };
+    const result = await getter();
+    if (result?.data) {
+      return { data: result.data, mimeType };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -18,13 +21,21 @@ export const getClipboardImageWithFallbacks = async (): Promise<{
   data: string;
   mimeType: string;
 } | null> => {
-  if (Platform.OS === 'android' || !(await Clipboard.hasImage())) return null;
+  if (Platform.OS === 'android' || !(await Clipboard.hasImageAsync()))
+    return null;
 
   // Try iOS-specific methods first, then fall back to generic
   const attempts = [
-    () => tryGetImageWithFormat(() => Clipboard.getImagePNG(), 'image/png'),
-    () => tryGetImageWithFormat(() => Clipboard.getImageJPG(), 'image/jpeg'),
-    () => tryGetImageWithFormat(() => Clipboard.getImage(), 'image/png'),
+    () =>
+      tryGetImageWithFormat(
+        () => Clipboard.getImageAsync({ format: 'png' }),
+        'image/png'
+      ),
+    () =>
+      tryGetImageWithFormat(
+        () => Clipboard.getImageAsync({ format: 'jpeg' }),
+        'image/jpeg'
+      ),
   ];
 
   for (const attempt of attempts) {

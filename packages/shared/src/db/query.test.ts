@@ -64,7 +64,7 @@ describe('withTransactionCtx', () => {
     const result = await withTransactionCtx(testCtx, async (outerTx) => {
       // This should run in the same transaction context
       return await withTransactionCtx(outerTx, async (innerTx) => {
-        expect(innerTx.meta.rootTransaction).toBe('test-transaction');
+        expect(innerTx.rootTransaction).toBe('test-transaction');
         return 'nested transaction successful';
       });
     });

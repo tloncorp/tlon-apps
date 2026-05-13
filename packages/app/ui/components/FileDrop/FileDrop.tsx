@@ -57,7 +57,7 @@ export const FileDrop: FileDropComponent = ({
       {/*  @ts-expect-error web-only props */}
       <View
         {...getInputProps()}
-        tag="input"
+        render="input"
         width={0}
         height={0}
         position="absolute"

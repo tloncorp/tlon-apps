@@ -9,6 +9,46 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## @gorhom/bottom-sheet@5.2.6
+
+Why:
+On the first open of a bottom sheet whose content is a `flex:1` ScrollView/View
+with content larger than the eventual viewport (a long scrollable list with a
+footer/submit button below it), the footer ends up positioned past the bottom
+of the visible sheet. The first frame of `contentMaskContainerAnimatedStyle`
+returns `{}` while the container height is still being measured, so the
+flex:1 child is laid out at intrinsic content size; once the real height
+arrives a frame later, Yoga keeps the stale flex-basis from the unconstrained
+pass and the child overflows.
+
+The patch returns `{ height: 0 }` on the initial frame so children never get
+a chance to lay out at intrinsic size, then snaps the height directly
+(without going through `withTiming`) on the first real layout pass to avoid
+animating the height up from 0. Subsequent transitions use the normal
+animated path.
+
+This is a workaround for an underlying Yoga bug that affects any flex tree
+with the same shape, not just gorhom — see facebook/yoga#1552. The proper RN
+fix (enabling Yoga's `WebFlexBasis` flag) requires building React Native
+from source, which we currently don't do; the writeup is in the closed
+draft PR linked below.
+
+Local patch:
+`patches/@gorhom__bottom-sheet@5.2.6.patch`
+
+Background and reproduction details: PR #5790 (closed, kept for reference).
+
+Validation:
+Open any sheet whose content is a `flex:1` `ScrollView` with content larger
+than the viewport plus a footer (e.g. CreateChatSheet). The footer should be
+visible at the bottom of the sheet on first open.
+
+Removal:
+Drop this patch once we either move to building React Native from source
+(so we can flip the Yoga `WebFlexBasis` flag and fix the bug at the
+layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
+workaround upstream.
+
 ## react-native-screens@4.4.0
 
 Why:
@@ -103,3 +143,47 @@ Removal:
 Remove this patch once we upgrade off the old `0.5.x` web bundle and confirm
 the replacement no longer vendors the legacy HTML link paste fallback or needs
 the local asset export stripping.
+
+## react-native-reanimated@4.1.6
+
+Why:
+- Fixes production-only web crashes in Reanimated's JS web updater
+  (`ReanimatedModule/js-reanimated/index.js`) when animated refs resolve to
+  wrapper objects without `props` or `_touchableNode`
+- Unwraps refs more defensively (`getComponentFromRef`) so the DOM-style
+  branch is taken on React Native Web 0.19+ regardless of whether
+  `createReactDOMStyle` is exported, with a transform serializer fallback
+- Guards `InlinePropManager.inlinePropsHasChanged` and `getInlineStyle`
+  against null inputs, and `PropsFilter.animatedProps` against
+  `initial.value == null`, so `Object.keys`/`Object.entries` calls in those
+  hot paths no longer throw
+- Works with the web bundler alias in `apps/tlon-web/vite.config.mts` that
+  keeps Vite on the patched top-level Reanimated package instead of a stale
+  nested copy
+
+Note: 4.x already fixed the older v3 `getInlinePropsUpdate` recursion bug
+(`typeof null === 'object'`), so that part of the v3 patch is no longer
+needed.
+
+Local patch:
+`patches/react-native-reanimated@4.1.6.patch`
+
+Upstream:
+- repo: `software-mansion/react-native-reanimated`
+- matching issue: `software-mansion/react-native-reanimated#6775`
+- as of May 7, 2026, upstream `main` still has the same vulnerable web
+  updater structure
+
+Validation:
+- Build web production with `pnpm --filter tlon-web exec vite build`
+- Open a production build or `vite preview` session and verify channel open
+  and sidebar switches no longer emit `Cannot convert undefined or null to
+  object` from Reanimated bundles
+- Confirm the emitted web bundle contains the patch markers
+  (`getComponentFromRef`, `createTransformValueFallback`, and the
+  `initial.value != null` guard)
+
+Removal:
+Remove this patch once we upgrade to a Reanimated version that includes an
+upstream fix for the web JS updater path and confirm production web no longer
+needs the local guards or transform fallback.
