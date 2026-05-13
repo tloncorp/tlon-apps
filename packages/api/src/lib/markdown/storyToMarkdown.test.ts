@@ -1,3 +1,5 @@
+import { describe, expect, test } from 'vitest';
+
 import { Story } from '../../urbit/channel';
 import {
   Block,
@@ -17,13 +19,7 @@ import {
   Strikethrough,
   Task,
 } from '../../urbit/content';
-import { describe, expect, test } from 'vitest';
-
-import {
-  blockToMarkdown,
-  inlinesToMarkdown,
-  storyToMarkdown,
-} from './index';
+import { blockToMarkdown, inlinesToMarkdown, storyToMarkdown } from './index';
 
 describe('inlinesToMarkdown', () => {
   test('converts plain string', () => {

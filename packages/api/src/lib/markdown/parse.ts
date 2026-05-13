@@ -1,9 +1,9 @@
-import { Story } from '../../urbit/channel';
 import type { Root } from 'mdast';
 import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
+import { Story } from '../../urbit/channel';
 import { mdastToStory } from './mdastToStory';
 import { remarkShipMentions } from './shipMentionPlugin';
 

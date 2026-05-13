@@ -1,10 +1,10 @@
-import { Story } from '../../urbit/channel';
-import { Block, Inline } from '../../urbit/content';
 import type { Node, PhrasingContent, Root, RootContent } from 'mdast';
 import remarkGfm from 'remark-gfm';
 import remarkStringify from 'remark-stringify';
 import { unified } from 'unified';
 
+import { Story } from '../../urbit/channel';
+import { Block, Inline } from '../../urbit/content';
 import { visit, visitAll } from './astUtils';
 import type { ShipMention } from './shipMentionPlugin';
 import { inlinesToPhrasing, storyToMdast } from './storyToMdast';

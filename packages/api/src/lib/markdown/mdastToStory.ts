@@ -1,9 +1,23 @@
-import {
-  Story,
-  Verse,
-  VerseBlock,
-  VerseInline,
-} from '../../urbit/channel';
+import type {
+  Delete,
+  Emphasis,
+  Heading,
+  Blockquote as MdastBlockquote,
+  Code as MdastCode,
+  Image as MdastImage,
+  InlineCode as MdastInlineCode,
+  Link as MdastLink,
+  List as MdastList,
+  ListItem as MdastListItem,
+  Paragraph,
+  PhrasingContent,
+  RootContent,
+  Strong,
+  Text,
+  ThematicBreak,
+} from 'mdast';
+
+import { Story, Verse, VerseBlock, VerseInline } from '../../urbit/channel';
 import {
   Block,
   Blockquote,
@@ -27,25 +41,6 @@ import {
   Strikethrough,
   Task,
 } from '../../urbit/content';
-import type {
-  Delete,
-  Emphasis,
-  Heading,
-  Blockquote as MdastBlockquote,
-  Code as MdastCode,
-  Image as MdastImage,
-  InlineCode as MdastInlineCode,
-  Link as MdastLink,
-  List as MdastList,
-  ListItem as MdastListItem,
-  Paragraph,
-  PhrasingContent,
-  RootContent,
-  Strong,
-  Text,
-  ThematicBreak,
-} from 'mdast';
-
 import type { GroupMention } from './groupMentionPlugin';
 import type { ShipMention } from './shipMentionPlugin';
 

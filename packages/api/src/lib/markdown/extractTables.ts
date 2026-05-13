@@ -1,13 +1,3 @@
-import {
-  BlockData,
-  InlineData,
-  ParagraphBlockData,
-  PostContent,
-  TableAlignment,
-  TableBlockData,
-  TableRowData,
-  convertInlineContent,
-} from '../../client/postContent';
 import type {
   Table as MdastTable,
   TableCell as MdastTableCell,
@@ -22,6 +12,16 @@ import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
+import {
+  BlockData,
+  InlineData,
+  ParagraphBlockData,
+  PostContent,
+  TableAlignment,
+  TableBlockData,
+  TableRowData,
+  convertInlineContent,
+} from '../../client/postContent';
 import { remarkGroupMentions } from './groupMentionPlugin';
 import { phrasingToInlines } from './mdastToStory';
 import { remarkShipMentions } from './shipMentionPlugin';
