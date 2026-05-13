@@ -234,8 +234,18 @@ function mdastTableToBlockData(node: MdastTable): TableBlockData {
 // long cell content emit lines that don't start with `|` mid-table; without
 // this, remark-gfm treats those fragments as phantom one-cell rows and the
 // wrapped portion of the real row's last cell is lost.
+//
+// Only applied to tables that use outer pipes (separator line starts with
+// `|`). GFM also allows tables to omit outer pipes — e.g. `A | B / ---|--- /
+// 1 | 2` — and in that form data rows legitimately don't start with `|`, so
+// merging them would corrupt the table.
 function normalizeTableCandidate(text: string): string {
   const lines = text.split('\n');
+  const sepIdx = lines.findIndex((l) => SEPARATOR_LINE.test(l));
+  if (sepIdx === -1) return text;
+  const usesOuterPipes = lines[sepIdx].trimStart().startsWith('|');
+  if (!usesOuterPipes) return text;
+
   const out: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];

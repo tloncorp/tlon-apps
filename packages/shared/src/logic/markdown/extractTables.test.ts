@@ -97,6 +97,36 @@ describe('extractTablesFromContent', () => {
     ]);
   });
 
+  it('extracts tables that omit outer pipes', () => {
+    // GFM allows tables without leading/trailing pipes. The continuation-line
+    // normalizer must not merge data rows here, since no row starts with `|`.
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: 'A | B' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '---|---' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '1 | 2' },
+        ],
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    expect(table.header.cells).toEqual([
+      { content: [{ type: 'text', text: 'A' }] },
+      { content: [{ type: 'text', text: 'B' }] },
+    ]);
+    expect(table.rows).toHaveLength(1);
+    expect(table.rows[0].cells).toEqual([
+      { content: [{ type: 'text', text: '1' }] },
+      { content: [{ type: 'text', text: '2' }] },
+    ]);
+  });
+
   it('leaves non-table paragraphs untouched', () => {
     const input = [
       {
