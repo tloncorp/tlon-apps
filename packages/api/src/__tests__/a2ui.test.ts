@@ -96,4 +96,68 @@ describe('a2ui blob entries', () => {
       )
     ).toEqual([{ type: 'unknown' }, { type: 'unknown' }]);
   });
+
+  test('rejects malformed a2ui button optional fields', () => {
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                {
+                  id: 'root',
+                  component: 'Button',
+                  child: 'label',
+                  disabled: 'false',
+                  action: {
+                    event: {
+                      name: 'tlon.sendMessage',
+                      context: { text: 'refresh weather' },
+                    },
+                  },
+                },
+                { id: 'label', component: 'Text', text: 'Refresh' },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                {
+                  id: 'root',
+                  component: 'Button',
+                  child: 'label',
+                  variant: 'danger',
+                  action: {
+                    event: {
+                      name: 'tlon.sendMessage',
+                      context: { text: 'refresh weather' },
+                    },
+                  },
+                },
+                { id: 'label', component: 'Text', text: 'Refresh' },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
 });

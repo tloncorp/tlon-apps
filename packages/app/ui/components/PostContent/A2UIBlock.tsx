@@ -256,7 +256,10 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
-          const disabled = component.disabled || !context.onA2UIAction;
+          const disabled =
+            component.disabled ||
+            !context.onA2UIAction ||
+            context.canHandleA2UIAction === false;
           const label = getComponentText(
             components.get(component.child),
             components
@@ -286,7 +289,12 @@ export function A2UIBlock({
         }
       }
     },
-    [components, context.onA2UIAction, handleButtonPress]
+    [
+      components,
+      context.canHandleA2UIAction,
+      context.onA2UIAction,
+      handleButtonPress,
+    ]
   );
 
   if (!root) {

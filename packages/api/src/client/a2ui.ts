@@ -101,6 +101,13 @@ const CONTAINER_JUSTIFY_VALUES = [
 
 const CONTAINER_ALIGN_VALUES = ['start', 'center', 'end', 'stretch'] as const;
 
+const BUTTON_VARIANT_VALUES = [
+  'default',
+  'primary',
+  'secondary',
+  'borderless',
+] as const;
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -133,6 +140,15 @@ function isValidContainerAlign(value: unknown): boolean {
     value === undefined ||
     CONTAINER_ALIGN_VALUES.includes(
       value as (typeof CONTAINER_ALIGN_VALUES)[number]
+    )
+  );
+}
+
+function isValidButtonVariant(value: unknown): boolean {
+  return (
+    value === undefined ||
+    BUTTON_VARIANT_VALUES.includes(
+      value as (typeof BUTTON_VARIANT_VALUES)[number]
     )
   );
 }
@@ -170,6 +186,9 @@ function validateComponent(component: unknown): component is A2UI.Component {
       const context = isPlainObject(event) ? event.context : undefined;
       return (
         isNonEmptyString(component.child) &&
+        (component.disabled === undefined ||
+          typeof component.disabled === 'boolean') &&
+        isValidButtonVariant(component.variant) &&
         isPlainObject(action) &&
         isPlainObject(event) &&
         event.name === ACTION_SEND_MESSAGE &&
