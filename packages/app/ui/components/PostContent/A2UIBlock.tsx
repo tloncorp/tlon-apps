@@ -179,7 +179,6 @@ export function A2UIBlock({
               key={component.id}
               size={getTextSize(component)}
               color={getTextColor(component)}
-              lineHeight={component.variant === 'h1' ? 44 : undefined}
               textAlign={getTextAlign(options.parentAlign)}
               flex={getComponentFlex(component)}
             >

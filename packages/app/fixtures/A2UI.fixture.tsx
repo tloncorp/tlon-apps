@@ -198,6 +198,7 @@ function makeApprovalA2UI({
     ? [
         'eyebrow',
         'title',
+        'titleDivider',
         ...metadataChildren,
         'copy',
         'divider',
@@ -207,6 +208,7 @@ function makeApprovalA2UI({
     : [
         'eyebrow',
         'title',
+        'titleDivider',
         ...metadataChildren,
         'divider',
         'details',
@@ -248,6 +250,7 @@ function makeApprovalA2UI({
               variant: 'h3',
               text: title,
             },
+            { id: 'titleDivider', component: 'Divider' },
             ...metadata.map(
               (line, index) =>
                 ({
@@ -332,8 +335,8 @@ function makeApprovalA2UI({
 const confirmationA2UI = makeApprovalA2UI({
   surfaceId: 'confirm-dm-sampel',
   eyebrow: 'DM access',
-  title: 'Allow ~sampel-palnet to DM the bot?',
-  metadata: ['Sender: ~sampel-palnet'],
+  title: 'Allow Sam Palnet to DM the bot?',
+  metadata: ['Sender: Sam Palnet (~sampel-palnet)'],
   copy: 'Message: "Hello, I would like to chat with your bot..."',
   allowNote: 'The bot will be able to read and reply to future DMs from this user.',
   requestId: 'da1b2',
@@ -342,8 +345,12 @@ const confirmationA2UI = makeApprovalA2UI({
 const channelApprovalA2UI = makeApprovalA2UI({
   surfaceId: 'confirm-channel-littel',
   eyebrow: 'Channel access',
-  title: 'Let the bot reply to ~littel-wolfur?',
-  metadata: ['Sender: ~littel-wolfur', 'Channel: Design in Garden Club'],
+  title: 'Let the bot reply to Littel Wolfur in Design?',
+  metadata: [
+    'Sender: Littel Wolfur (~littel-wolfur)',
+    'Channel: Design',
+    'Group: Garden Club',
+  ],
   copy: 'Message: "@bearclawd can you review this build before I merge?"',
   allowNote: 'The bot will be able to read and reply to this user in this channel.',
   requestId: 'c3d4e',
@@ -353,7 +360,7 @@ const groupApprovalA2UI = makeApprovalA2UI({
   surfaceId: 'confirm-group-robin',
   eyebrow: 'Group invite',
   title: 'Let the bot join Garden Club?',
-  metadata: ['Inviter: ~robin-dasler', 'Group ID: ~robin-dasler/garden-club'],
+  metadata: ['Inviter: Robin Dasler (~robin-dasler)', 'Group: Garden Club'],
   allowNote: 'The bot will be able to read and respond in channels it joins.',
   requestId: 'g5f6a',
 });
@@ -566,19 +573,19 @@ const weatherPost = makePost(
 
 const confirmationPost = makePost(
   exampleContacts.groupAdmin,
-  [verse.inline('DM request from ~sampel-palnet')],
+  [verse.inline('DM request from Sam Palnet (~sampel-palnet)')],
   { blob: appendToPostBlob(undefined, confirmationA2UI), replyCount: 0 }
 );
 
 const channelApprovalPost = makePost(
   exampleContacts.mark,
-  [verse.inline('Channel mention request from ~littel-wolfur')],
+  [verse.inline('Channel mention request from Littel Wolfur (~littel-wolfur)')],
   { blob: appendToPostBlob(undefined, channelApprovalA2UI), replyCount: 0 }
 );
 
 const groupApprovalPost = makePost(
   exampleContacts.groupAdmin,
-  [verse.inline('Group invite request from ~robin-dasler')],
+  [verse.inline('Group invite request from Robin Dasler (~robin-dasler)')],
   { blob: appendToPostBlob(undefined, groupApprovalA2UI), replyCount: 0 }
 );
 
