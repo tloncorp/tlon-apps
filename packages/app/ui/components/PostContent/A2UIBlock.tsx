@@ -152,15 +152,15 @@ export function A2UIBlock({
 
   const handleButtonPress = useCallback(
     (component: A2UI.Button) => {
-      const text =
+      const fallbackText =
         component.action.event.context?.text ??
         getComponentText(components.get(component.child), components);
 
-      if (!text.trim()) {
+      if (!fallbackText.trim()) {
         return;
       }
 
-      context.onA2UISendMessage?.(text);
+      context.onA2UIAction?.(component.action, fallbackText);
     },
     [components, context]
   );
@@ -260,7 +260,7 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
-          const disabled = component.disabled || !context.onA2UISendMessage;
+          const disabled = component.disabled || !context.onA2UIAction;
           const label = getComponentText(
             components.get(component.child),
             components
@@ -290,7 +290,7 @@ export function A2UIBlock({
         }
       }
     },
-    [components, context.onA2UISendMessage, handleButtonPress]
+    [components, context.onA2UIAction, handleButtonPress]
   );
 
   if (!root) {

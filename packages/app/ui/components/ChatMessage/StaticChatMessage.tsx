@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { A2UI } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -90,12 +91,17 @@ export function StaticChatMessage({
     }
   }, [onPressRetry, post]);
 
-  const handleA2UISendMessage = useCallback(
-    async (message: string) => {
+  const handleA2UIAction = useCallback(
+    async (action: A2UI.Button['action'], fallbackText: string) => {
       if (!draftInputContext || draftInputContext.canStartDraft === false) {
         return;
       }
 
+      if (action.event.name !== A2UI.action.sendMessage) {
+        return;
+      }
+
+      const message = action.event.context?.text ?? fallbackText;
       const text = message.trim();
       if (!text) {
         return;
@@ -187,9 +193,9 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
-            onA2UISendMessage={
+            onA2UIAction={
               draftInputContext && draftInputContext.canStartDraft !== false
-                ? handleA2UISendMessage
+                ? handleA2UIAction
                 : undefined
             }
             searchQuery={searchQuery}
