@@ -11,8 +11,6 @@ const logger = createDevLogger('tlonbotRevivalNotifications', true);
 const TEMPORARY_PROVISIONING_NOTIFICATION_LEVEL: NotificationLevel = 'hush';
 const DEFAULT_RESTORE_NOTIFICATION_LEVEL: NotificationLevel = 'medium';
 
-let recoveryPromise: Promise<boolean> | null = null;
-
 function normalizeBaseVolumeLevel(level: NotificationLevel): NotificationLevel {
   return level === 'default' ? 'medium' : level;
 }
@@ -25,7 +23,9 @@ async function getRemoteBaseVolumeLevel(): Promise<NotificationLevel | null> {
     : null;
 }
 
-async function setAndConfirmBaseVolumeLevel(level: NotificationLevel) {
+export async function setAndConfirmTlonbotRevivalNotificationLevel(
+  level: NotificationLevel
+) {
   await setBaseVolumeLevel({ level });
 
   const expectedLevel = normalizeBaseVolumeLevel(level);
@@ -56,25 +56,23 @@ async function registerNotificationToken(notificationToken?: string) {
   });
 }
 
-async function markNotificationRestorePending(desiredLevel: NotificationLevel) {
-  await db.tlonbotRevivalNotificationRestore.setValue((current) => ({
+async function stageNotificationRestore(desiredLevel: NotificationLevel) {
+  await db.tlonbotRevivalDeferredConfig.setValue((current) => ({
     ...current,
-    pending: true,
-    desiredLevel,
-    createdAt: current.createdAt ?? Date.now(),
-    lastErrorAt: undefined,
-    lastErrorMessage: undefined,
+    notificationLevel: desiredLevel,
   }));
 }
 
 async function temporarilyMuteNodeNotifications(
   restoreLevel: NotificationLevel
 ) {
-  await markNotificationRestorePending(restoreLevel);
+  await stageNotificationRestore(restoreLevel);
 
   await withRetry(
     () =>
-      setAndConfirmBaseVolumeLevel(TEMPORARY_PROVISIONING_NOTIFICATION_LEVEL),
+      setAndConfirmTlonbotRevivalNotificationLevel(
+        TEMPORARY_PROVISIONING_NOTIFICATION_LEVEL
+      ),
     {
       startingDelay: 750,
       numOfAttempts: 4,
@@ -102,11 +100,11 @@ export async function prepareTlonbotRevivalNotifications(
 }
 
 async function getFallbackRestoreNotificationLevel(): Promise<NotificationLevel> {
-  const pendingRestore = await db.tlonbotRevivalNotificationRestore
+  const pendingConfig = await db.tlonbotRevivalDeferredConfig
     .getValue(true)
     .catch(() => null);
-  if (pendingRestore?.desiredLevel) {
-    return pendingRestore.desiredLevel;
+  if (pendingConfig?.notificationLevel) {
+    return pendingConfig.notificationLevel;
   }
 
   return DEFAULT_RESTORE_NOTIFICATION_LEVEL;
@@ -127,77 +125,4 @@ export async function prepareTlonbotRevivalNotificationsForProvisioning(
     setup.notificationToken,
     restoreLevel
   );
-}
-
-export function getTlonbotRevivalRestoreNotificationLevel(
-  setup: Pick<db.TlonbotRevivalSetup, 'notificationLevel'>
-): NotificationLevel {
-  return setup.notificationLevel ?? DEFAULT_RESTORE_NOTIFICATION_LEVEL;
-}
-
-export async function restoreTlonbotRevivalNotificationLevel(
-  restoreLevel: NotificationLevel,
-  source: string
-): Promise<boolean> {
-  await db.tlonbotRevivalNotificationRestore.setValue((current) => ({
-    ...current,
-    pending: true,
-    desiredLevel: restoreLevel,
-    lastAttemptAt: Date.now(),
-  }));
-
-  try {
-    await withRetry(() => setAndConfirmBaseVolumeLevel(restoreLevel), {
-      startingDelay: 1000,
-      numOfAttempts: 4,
-      maxDelay: 4000,
-    });
-
-    await db.tlonbotRevivalNotificationRestore.resetValue();
-    logger.trackEvent('Tlonbot revival notifications restored', {
-      restoreNotificationLevel: restoreLevel,
-      source,
-    });
-    return true;
-  } catch (error) {
-    await db.tlonbotRevivalNotificationRestore.setValue((current) => ({
-      ...current,
-      pending: true,
-      desiredLevel: restoreLevel,
-      lastErrorAt: Date.now(),
-      lastErrorMessage: error instanceof Error ? error.message : String(error),
-    }));
-    logger.trackError('TlonBot revival notification level restore failed', {
-      error,
-      restoreNotificationLevel: restoreLevel,
-      source,
-    });
-    return false;
-  }
-}
-
-export async function recoverTlonbotRevivalNotificationLevel(
-  source: string
-): Promise<boolean> {
-  if (recoveryPromise) {
-    return recoveryPromise;
-  }
-
-  recoveryPromise = (async () => {
-    const pendingRestore =
-      await db.tlonbotRevivalNotificationRestore.getValue(true);
-
-    if (!pendingRestore.pending || !pendingRestore.desiredLevel) {
-      return false;
-    }
-
-    return restoreTlonbotRevivalNotificationLevel(
-      pendingRestore.desiredLevel,
-      source
-    );
-  })().finally(() => {
-    recoveryPromise = null;
-  });
-
-  return recoveryPromise;
 }

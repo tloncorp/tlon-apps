@@ -14,10 +14,8 @@ import {
   clearShipRevivalStatus,
   markCurrentUserTlonbotEnabled,
   syncStart,
-  updateCurrentUserProfile,
   uploadAsset,
   useCanUpload,
-  waitForUploads,
 } from '@tloncorp/shared/store';
 import {
   Button,
@@ -60,12 +58,11 @@ import {
   InviteSystemContactsFn,
   useInviteSystemContactHandler,
 } from '../../../hooks/useInviteSystemContactHandler';
-import { connectNotifyProvider } from '../../../lib/notificationsApi';
 import {
-  getTlonbotRevivalRestoreNotificationLevel,
-  prepareTlonbotRevivalNotificationsForProvisioning,
-  restoreTlonbotRevivalNotificationLevel,
-} from '../../../lib/tlonbotRevivalNotifications';
+  recoverTlonbotRevivalDeferredConfig,
+  stageTlonbotRevivalDeferredConfig,
+} from '../../../lib/tlonbotRevivalDeferredConfig';
+import { prepareTlonbotRevivalNotificationsForProvisioning } from '../../../lib/tlonbotRevivalNotifications';
 import { useActiveTheme } from '../../../provider';
 import {
   AttachmentProvider,
@@ -945,161 +942,6 @@ function prejoinTlonbotRevivalGroups() {
   });
 }
 
-async function applyProfileAndNotificationPreferences(
-  setup: db.TlonbotRevivalSetup
-) {
-  if (setup.nickname) {
-    await withRetry(
-      () =>
-        updateCurrentUserProfile(
-          { nickname: setup.nickname },
-          { shouldThrow: true }
-        ),
-      {
-        startingDelay: 1000,
-        numOfAttempts: 4,
-        maxDelay: 4000,
-      }
-    ).catch((error) => {
-      logger.trackError('TlonBot revival profile update failed', { error });
-    });
-  }
-
-  if (setup.notificationToken) {
-    await withRetry(() => connectNotifyProvider(setup.notificationToken!), {
-      startingDelay: 1000,
-      numOfAttempts: 4,
-      maxDelay: 4000,
-    }).catch((error) => {
-      logger.trackError('TlonBot revival notification token update failed', {
-        error,
-      });
-    });
-  }
-
-  const restoreNotificationLevel =
-    getTlonbotRevivalRestoreNotificationLevel(setup);
-  await restoreTlonbotRevivalNotificationLevel(
-    restoreNotificationLevel,
-    'post_wait_setup'
-  );
-}
-
-async function applyBotPreferences(
-  shipId: string,
-  setup: db.TlonbotRevivalSetup
-) {
-  if (setup.botName) {
-    await withRetry(() => api.setTlawnNickname(shipId, setup.botName!), {
-      startingDelay: 750,
-      numOfAttempts: 4,
-      maxDelay: 4000,
-    }).catch((error) => {
-      logger.trackError('TlonBot revival bot nickname update failed', {
-        error,
-      });
-    });
-  }
-
-  const botAvatarUrl = await resolveDeferredBotAvatarUrl(setup);
-  if (botAvatarUrl) {
-    await withRetry(() => api.setTlawnAvatar(shipId, botAvatarUrl), {
-      startingDelay: 750,
-      numOfAttempts: 4,
-      maxDelay: 4000,
-    }).catch((error) => {
-      logger.trackError('TlonBot revival bot avatar update failed', { error });
-    });
-  }
-
-  if (
-    setup.botProvider &&
-    setup.botProvider !== BASIC_PROVIDER_ID &&
-    setup.botModel
-  ) {
-    const userId = await db.hostingUserId.getValue();
-    if (!userId) {
-      logger.trackError('TlonBot revival model update failed', {
-        step: 'missing_user_id',
-      });
-      return;
-    }
-
-    await withRetry(
-      () =>
-        api.setTlawnPrimaryModel(userId, {
-          provider: setup.botProvider!,
-          model: setup.botModel!,
-        }),
-      {
-        startingDelay: 750,
-        numOfAttempts: 4,
-        maxDelay: 4000,
-      }
-    )
-      .then(async () => {
-        const running = await api.awaitBotRunning(shipId, {
-          timeoutMs: 30_000,
-          pollIntervalMs: 1500,
-        });
-        if (!running) {
-          logger.trackError(
-            'TlonBot revival model update readiness timed out',
-            {
-              provider: setup.botProvider,
-              model: setup.botModel,
-            }
-          );
-        }
-      })
-      .catch((error) => {
-        logger.trackError('TlonBot revival model update failed', { error });
-      });
-  }
-}
-
-async function resolveDeferredBotAvatarUrl(setup: db.TlonbotRevivalSetup) {
-  if (setup.botAvatarUploadIntent) {
-    return withRetry(
-      async () => {
-        const uploadIntent = setup.botAvatarUploadIntent!;
-        const uploadKey = Attachment.UploadIntent.extractKey(uploadIntent);
-        await uploadAsset(uploadIntent);
-        const uploadStates = await waitForUploads([uploadKey]);
-        const uploadState = uploadStates[uploadKey];
-
-        if (uploadState?.status !== 'success') {
-          throw new Error('Deferred avatar upload did not finish successfully');
-        }
-
-        return uploadState.remoteUri;
-      },
-      {
-        startingDelay: 1000,
-        numOfAttempts: 3,
-        maxDelay: 4000,
-      }
-    ).catch((error) => {
-      logger.trackError('TlonBot revival deferred avatar upload failed', {
-        error,
-      });
-      return null;
-    });
-  }
-
-  if (setup.botAvatarUrl && /^(?!file|data).+/.test(setup.botAvatarUrl)) {
-    return setup.botAvatarUrl;
-  }
-
-  if (setup.botAvatarUrl) {
-    logger.trackError('TlonBot revival bot avatar update failed', {
-      step: 'missing_upload_intent',
-    });
-  }
-
-  return null;
-}
-
 async function shareTlonbotGroupInvite(homeGroupInviteLink: string) {
   if (isWeb) {
     try {
@@ -1844,44 +1686,43 @@ function TlonBotSetupPane(props: {
     await onLogout();
   }, [onLogout]);
 
-  const applyDeferredSetup = useCallback(
-    async (shipId: string) => {
-      if (applyingRef.current) {
-        return;
-      }
+  const applyDeferredSetup = useCallback(async () => {
+    if (applyingRef.current) {
+      return;
+    }
 
-      applyingRef.current = true;
+    applyingRef.current = true;
 
-      try {
-        const setup = await db.tlonbotRevivalSetup.getValue(true);
+    try {
+      const setup = await db.tlonbotRevivalSetup.getValue(true);
 
-        if (!setup.applied) {
-          await syncStart(true).catch((error) => {
-            logger.trackError(
-              'TlonBot revival sync failed before setup apply',
-              {
-                error,
-              }
-            );
+      if (!setup.applied) {
+        await stageTlonbotRevivalDeferredConfig(setup);
+        syncStart(true).catch((error) => {
+          logger.trackError('TlonBot revival sync failed after setup apply', {
+            error,
           });
+        });
 
-          await applyProfileAndNotificationPreferences(setup);
-          await applyBotPreferences(shipId, setup);
-          await db.tlonbotRevivalSetup.setValue((current) => ({
-            ...current,
-            applied: true,
-          }));
-        }
-
-        await onComplete();
-      } catch (error) {
-        applyingRef.current = false;
-        logger.trackError('TlonBot revival setup failed', { error });
-        throw error;
+        recoverTlonbotRevivalDeferredConfig('post_wait_setup').catch((error) =>
+          logger.trackError('TlonBot revival deferred config recovery failed', {
+            error,
+            source: 'post_wait_setup',
+          })
+        );
+        await db.tlonbotRevivalSetup.setValue((current) => ({
+          ...current,
+          applied: true,
+        }));
       }
-    },
-    [onComplete]
-  );
+
+      await onComplete();
+    } catch (error) {
+      applyingRef.current = false;
+      logger.trackError('TlonBot revival setup failed', { error });
+      throw error;
+    }
+  }, [onComplete]);
 
   const checkReadinessNow = useCallback(async () => {
     if (foregroundReadinessCheckRef.current || applyingRef.current) {
@@ -1890,8 +1731,7 @@ function TlonBotSetupPane(props: {
 
     foregroundReadinessCheckRef.current = true;
     try {
-      const setup = await db.tlonbotRevivalSetup.getValue();
-      const shipId = setup.shipId ?? (await db.hostedUserNodeId.getValue());
+      const shipId = await db.hostedUserNodeId.getValue();
 
       if (!shipId) {
         return;
@@ -1899,7 +1739,7 @@ function TlonBotSetupPane(props: {
 
       const isReady = await api.checkNodeIsTlonbotReady(shipId);
       if (isReady) {
-        await applyDeferredSetup(shipId).catch((error) =>
+        await applyDeferredSetup().catch((error) =>
           logger.trackError('Deferred Tlonbot setup failed', {
             error,
           })
@@ -1939,7 +1779,7 @@ function TlonBotSetupPane(props: {
     const checkReadiness = async () => {
       try {
         const setup = await db.tlonbotRevivalSetup.getValue();
-        const shipId = setup.shipId ?? (await db.hostedUserNodeId.getValue());
+        const shipId = await db.hostedUserNodeId.getValue();
 
         if (!shipId) {
           throw new Error('No ship ID found during TlonBot revival setup');
@@ -1961,7 +1801,6 @@ function TlonBotSetupPane(props: {
               await db.tlonbotRevivalSetup.setValue((current) => ({
                 ...current,
                 provisioningStarted: true,
-                shipId: current.shipId ?? shipId,
               }));
             })
             .catch((error) => {
@@ -1978,7 +1817,7 @@ function TlonBotSetupPane(props: {
         });
         if (isReady) {
           if (!cancelled) {
-            await applyDeferredSetup(shipId).catch((error) =>
+            await applyDeferredSetup().catch((error) =>
               logger.trackError('Deferred Tlonbot setup failed', {
                 error,
               })

@@ -131,7 +131,6 @@ export type TlonbotRevivalSetup = Pick<
   applied?: boolean;
   provisioningStarted?: boolean;
   stage?: TlonbotRevivalStage;
-  shipId?: string;
   botName?: string;
   botAvatarUrl?: string | null;
   botAvatarUploadIntent?: Attachment.UploadIntent | null;
@@ -146,21 +145,21 @@ export const tlonbotRevivalSetup = createStorageItem<TlonbotRevivalSetup>({
   },
 });
 
-export type TlonbotRevivalNotificationRestore = {
-  pending: boolean;
-  desiredLevel?: ub.NotificationLevel;
-  createdAt?: number;
-  lastAttemptAt?: number;
-  lastErrorAt?: number;
-  lastErrorMessage?: string;
+export type TlonbotRevivalDeferredConfig = {
+  profileNickname?: string;
+  notificationToken?: string;
+  notificationLevel?: ub.NotificationLevel;
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
+  botProvider?: string;
+  botModel?: string;
 };
 
-export const tlonbotRevivalNotificationRestore =
-  createStorageItem<TlonbotRevivalNotificationRestore>({
-    key: 'tlonbotRevivalNotificationRestore',
-    defaultValue: {
-      pending: false,
-    },
+export const tlonbotRevivalDeferredConfig =
+  createStorageItem<TlonbotRevivalDeferredConfig>({
+    key: 'tlonbotRevivalDeferredConfig',
+    defaultValue: {},
   });
 
 export const didClearPreviousInstall = createStorageItem<boolean>({

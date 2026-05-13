@@ -56,12 +56,10 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
       });
 
       if (signupContext.onboardingFlow === 'tlonbotRevival') {
-        const shipId = await db.hostedUserNodeId.getValue();
         await db.tlonbotRevivalSetup.setValue((current) => ({
           ...current,
           pending: true,
           applied: false,
-          shipId: shipId ?? current.shipId,
           nickname: signupContext.nickname,
           notificationLevel: signupContext.notificationLevel,
           notificationToken,
