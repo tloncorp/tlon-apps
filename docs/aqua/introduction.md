@@ -103,6 +103,29 @@ Important: do not delete files not present in the repository at the destination.
 Running urbit desks are usually supplemented with other neccessary files not present
 in the repository.
 
+## Checking tests
+
+While developing tests, it is useful to have a way to verify any compilation errors
+separately before triggering the actual test run. This can be done using
+`-ph-test-ls path` command, which will find all aqua tests available at the
+path and build them. For example, to list all aqua files in the groups desk, we would run
+```
+> -groups!ph-test-ls /=groups=/tests/ph
+```
+, and to list tests for a particular agent we would use
+```
+> -groups!ph-test-ls /=groups=/tests/ph/app/contacts
+```
+
+There are two kind of errors that can occur at compilation time.
+A `FAILED BUILD` error indicates the test file did not build.
+The compiler error is shown directly above, because it is coming from clay.
+A `FAILED MINT` error indicates that a test arm in a successfully compiled test
+file does not resolve properly. Usually this indicates that the arm resolved
+to a type that does not match the test signature, which should be a form of the strand `(strand ,~)`.
+The possible compiler error is also displayed right the error line, for consistency
+with file build errors.
+
 ## Running tests
 
 To run aqua tests use the `-ph-test` test runner supplied with the desk.
@@ -111,7 +134,6 @@ To run aqua tests use the `-ph-test` test runner supplied with the desk.
 ```
 The `path` is a directory containing aqua tests (remember to include the backtick). Supply `~` to run from the default directory.
 It will be scanned recursively, and any tests found will be build and scheduled to be run.
-
 `snap` is the aqua snapshot on which tests are going to run.
 
 The standard location for aqua tests is in the desk's `/tests/ph` directory.
@@ -156,29 +178,6 @@ in the source code, to find the originating location we can either start with
 the location indicated in the message. In the above example, that would
 be the `+se-u-groups` arm somewhere in the agent's source code or its libraries.
 If that does not yield results, searching for constant parts of the messsage in relevant files usually.
-
-## Checking tests
-
-While developing tests, it is useful to have a way to verify any compilation errors
-separately before triggering the actual test run. This can be done using
-`-ph-test-ls path` command, which will find all aqua tests available at the
-path and build them. For example, to list all aqua files in the groups desk, we would run
-```
-> -groups!ph-test-ls /=groups=/tests/ph
-```
-, and to list tests for a particular agent we would use
-```
-> -groups!ph-test-ls /=groups=/tests/ph/app/contacts
-```
-
-There are two kind of errors that can occur at compilation time.
-A `FAILED BUILD` error indicates the test file did not build.
-The compiler error is shown directly above, because it is coming from clay.
-A `FAILED MINT` error indicates that a test arm in a successfully compiled test
-file does not resolve properly. Usually this indicates that the arm resolved
-to a type that does not match the test signature, which should be a form of the strand `(strand ,~)`.
-The possible compiler error is also displayed right the error line, for consistency
-with file build errors.
 
 ## Cancelling a test run
 

@@ -85,6 +85,7 @@
 ::
 ~>  %slog.1^(crip "Cooling down %groups agents...")
 ;<  ~  bind:m  (sleep ~m1)
+;<  ~  bind:m  (end-test:ph-io vane-tids)
 ;<  =bowl:spider  bind:m  get-bowl
 =/  snap-id=@t
   ?~  snap-id  

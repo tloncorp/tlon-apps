@@ -135,6 +135,8 @@
   =((cut 3 [0 len] name.test-arm) u.arm-pat)
 |-
 ?~  test-sets
+  ?.  ?=(~ failed-builds)
+    (pure:m !>(|))
   (pure:m !>(&))
 =*  path  -.i.test-sets
 =*  test-arms  +.i.test-sets
