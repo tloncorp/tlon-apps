@@ -30,19 +30,25 @@ export namespace A2UI {
     component: 'Divider';
   };
 
+  export type SendMessageEvent = {
+    name: typeof ACTION_SEND_MESSAGE;
+    context?: {
+      text?: string;
+    };
+  };
+
+  export type EventAction = {
+    event: SendMessageEvent;
+  };
+
+  export type ButtonAction = EventAction;
+
   export type Button = ComponentBase & {
     component: 'Button';
     child: string;
     disabled?: boolean;
     variant?: 'default' | 'primary' | 'secondary' | 'borderless';
-    action: {
-      event: {
-        name: typeof ACTION_SEND_MESSAGE;
-        context?: {
-          text?: string;
-        };
-      };
-    };
+    action: ButtonAction;
   };
 
   export type Component = Text | Container | Card | Divider | Button;
