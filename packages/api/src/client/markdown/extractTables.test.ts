@@ -268,7 +268,10 @@ describe('extractTablesFromContent', () => {
           { type: 'lineBreak' },
           { type: 'text', text: '|---|---|---|' },
           { type: 'lineBreak' },
-          { type: 'text', text: '| (@all) | @admin, others | email@example.com |' },
+          {
+            type: 'text',
+            text: '| (@all) | @admin, others | email@example.com |',
+          },
         ],
       },
     ]);
