@@ -1,5 +1,6 @@
 import { configureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { discoverContactsAndNotify } from '@tloncorp/app/lib/notifications';
 import {
   SyncPriority,
   createDevLogger,
@@ -11,8 +12,6 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
-
-import { refreshHostingAuth } from './hostingAuth';
 
 const logger = createDevLogger('backgroundSync', true);
 
@@ -70,6 +69,21 @@ async function performSync() {
       },
     });
     timings.changesDuration = Date.now() - changesStart;
+
+    // Run lanyard contact discovery as part of the bg cycle so new
+    // matches surface even if the user hasn't opened the app recently.
+    const discoveryStart = Date.now();
+    const { newMatchCount } = await discoverContactsAndNotify({
+      context: { taskExecutionId },
+    });
+    timings.discoveryDuration = Date.now() - discoveryStart;
+    if (newMatchCount > 0) {
+      logger.trackEvent('New matches notification', {
+        count: newMatchCount,
+        taskExecutionId,
+      });
+    }
+
     logger.trackEvent('Background sync complete', { taskExecutionId });
     didSucceed = true;
 
@@ -121,7 +135,7 @@ export async function removeLegacyTasks() {
 TaskManager.defineTask<Record<string, unknown>>(
   TASK_ID,
   async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
-    logger.trackEvent(`Running background task`);
+    logger.trackEvent('Running background task');
     if (error) {
       logger.trackError(`Failed background task`, {
         error,

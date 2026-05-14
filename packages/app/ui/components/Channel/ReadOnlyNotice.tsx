@@ -1,6 +1,14 @@
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  useConnectionStatus,
+} from '@tloncorp/shared';
 import { Icon } from '@tloncorp/ui';
+import { useEffect, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SizableText, View, YStack } from 'tamagui';
+
+const logger = createDevLogger('ReadOnlyNotice', false);
 
 export function ReadOnlyNotice({
   type,
@@ -14,6 +22,26 @@ export function ReadOnlyNotice({
     | 'channel-deleted'
     | 'group-deleted';
 }) {
+  const connectionStatus = useConnectionStatus();
+  const hasTrackedProtocolMismatchNotice = useRef(false);
+  const isProtocolMismatch =
+    type === 'dm-mismatch' ||
+    type === 'group-dm-mismatch' ||
+    type === 'channel-mismatch';
+
+  useEffect(() => {
+    if (!isProtocolMismatch || hasTrackedProtocolMismatchNotice.current) {
+      return;
+    }
+
+    hasTrackedProtocolMismatchNotice.current = true;
+    logger.trackEvent(AnalyticsEvent.ProtocolMismatchNoticeSeen, {
+      noticeType: type,
+      connectionStatus,
+      isShipConnectionStatusConnected: connectionStatus === 'Connected',
+    });
+  }, [connectionStatus, isProtocolMismatch, type]);
+
   const Message =
     type === 'read-only' ? (
       <>This channel is read-only for you.</>

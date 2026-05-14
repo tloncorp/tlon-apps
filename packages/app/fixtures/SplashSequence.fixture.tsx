@@ -1,7 +1,10 @@
+import { spyOn } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import React, { useEffect } from 'react';
+import { setContactsMatchedHandler } from '@tloncorp/shared/store';
+import React, { useEffect, useMemo } from 'react';
 import { useValue } from 'react-cosmos/client';
 
+import { StoreProvider, createNoOpStore } from '../ui';
 import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
@@ -21,6 +24,14 @@ import {
 } from '../ui/components/Wayfinding/SplashSequence';
 import { FixtureWrapper } from './FixtureWrapper';
 import { initialSystemContacts } from './fakeData';
+
+const FIXTURE_MOCK_SHIPS = [
+  '~ravmel-ropdyl',
+  '~palfun-foslup',
+  '~bisbex-radmev',
+  '~watter-parner',
+  '~rilfun-lidlen',
+];
 
 function SplashSequenceFixture() {
   const handleCompleted = React.useCallback(() => {
@@ -46,6 +57,10 @@ function InviteContactsFixture() {
   const [showEmptyState] = useValue('Show Empty State (Share Link)', {
     defaultValue: false,
   });
+  const [isDiscovering] = useValue('Discovering Matches', {
+    defaultValue: false,
+  });
+  const [matchCount] = useValue('Match Count', { defaultValue: 0 });
 
   const handleComplete = React.useCallback(() => {
     console.log('Invite contacts completed');
@@ -62,12 +77,21 @@ function InviteContactsFixture() {
   }, [isLoading]);
 
   const contacts = showEmptyState ? [] : initialSystemContacts;
+  const clampedCount = Math.max(
+    0,
+    Math.min(matchCount, initialSystemContacts.length)
+  );
+  const discoveredMatches = showEmptyState
+    ? []
+    : initialSystemContacts.slice(0, clampedCount);
 
   return (
     <FixtureWrapper fillWidth fillHeight>
       <InviteContactsContent
         onComplete={handleComplete}
         systemContacts={contacts}
+        isDiscovering={isDiscovering}
+        discoveredMatches={discoveredMatches}
       />
     </FixtureWrapper>
   );
@@ -149,13 +173,65 @@ function TlonBotPaneFixture() {
 }
 
 function InvitePaneFixture() {
+  const [matchCount] = useValue('Match Count', { defaultValue: 3 });
+  const [latencyMs] = useValue('Discovery Latency (ms)', {
+    defaultValue: 1500,
+  });
+  const [discoveryFails] = useValue('Discovery Fails', { defaultValue: false });
+
+  // Register a logging match handler so the "advanced before discovery
+  // resolved" tail path is observable in Cosmos. In the real mobile app
+  // this is set by useNotificationListener to fire a local notification.
+  useEffect(() => {
+    setContactsMatchedHandler((ids) =>
+      console.log('[fixture] would notify for contacts:', ids)
+    );
+    return () => setContactsMatchedHandler(null);
+  }, []);
+
   const handleAction = React.useCallback(() => {
     console.log('Invite pane action pressed');
   }, []);
 
+  const stubStore = useMemo(() => {
+    const base = createNoOpStore();
+    const phones = initialSystemContacts
+      .map((c) => c.phoneNumber)
+      .filter((p): p is string => !!p);
+    const cap = Math.max(0, Math.min(matchCount, phones.length));
+    const newMatches: [string, string][] = phones
+      .slice(0, cap)
+      .map((phone, i) => [
+        phone,
+        FIXTURE_MOCK_SHIPS[i % FIXTURE_MOCK_SHIPS.length],
+      ]);
+
+    return spyOn(
+      // The store object isn't typed for these stubs cleanly; cast to keep
+      // the fixture readable.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      spyOn(
+        base,
+        'syncSystemContacts',
+        (async () => initialSystemContacts) as any
+      ),
+      'syncContactDiscovery',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (async () => {
+        await new Promise((r) => setTimeout(r, latencyMs));
+        if (discoveryFails) {
+          throw new Error('fixture: discovery failed');
+        }
+        return { newMatches };
+      }) as any
+    );
+  }, [matchCount, latencyMs, discoveryFails]);
+
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <InvitePane onActionPress={handleAction} />
+      <StoreProvider stub={stubStore}>
+        <InvitePane onActionPress={handleAction} />
+      </StoreProvider>
     </FixtureWrapper>
   );
 }

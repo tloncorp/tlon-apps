@@ -2659,9 +2659,15 @@
           ==
       ::  clean up ask and pending record
       ::
-      =.  pending.ad   (~(del by pending.ad) ship)
+      =.  pending.ad
+        %-  ~(rep in ships)
+        |=  [=ship =_pending.ad]
+        (~(del by pending) ship)
       ::TODO kick from /ask  sub
-      =.  requests.ad  (~(del by requests.ad) ship)
+      =.  requests.ad
+        %-  ~(rep in ships)
+        |=  [=ship =_requests.ad]
+        (~(del by requests) ship)
       ::TODO if any of the ships was pending and invited,
       ::     cancel their tokens.
       ::

@@ -18,6 +18,6 @@
   --
 ++  grab
   |%
-  ++  noun  (map kip:c (unit page:c))
+  ++  noun  (map kip:c ,[(unit contact:c) (unit contact:c)])
   --
 --
