@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
-		13B07FC11A68108700A75B9A /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
+		0C9C9CAB2F2BD797004BFACB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */; };
+		0C9C9CAC2F2BD797004BFACB /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */; };
 		1A74C9DBAC9D4949A040EA55 /* ShareExtensionPreview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3507AE1D048346668887E8DE /* ShareExtensionPreview.appex */; };
 		24E7CA9B2CC448F48B8737F0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1E325AC599214F3CA5B91BA4 /* PrivacyInfo.xcprivacy */; };
 		2B491A3280B249B4A1A337DC /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4AAB945CECE149D893E29730 /* MainInterface.storyboard */; };
@@ -146,7 +146,6 @@
 		70D3866C2A60A38400AFB46E /* Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D3866A2A60A38400AFB46E /* Group.swift */; };
 		70D3866F2A60A3B300AFB46E /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70D3866E2A60A3B300AFB46E /* UrsusSigil */; };
 		70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386702A60A3E600AFB46E /* UIColor+Extension.swift */; };
-		70D386722A61F2E400AFB46E /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 008F07F21AC5B25A0029DE68 /* main.jsbundle */; };
 		70DBBFEA2B7C60B50021EA96 /* UrbitAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386552A609BFC00AFB46E /* UrbitAPI.swift */; };
 		70DBBFEB2B7C60B50021EA96 /* Club.swift in Sources */ = {isa = PBXBuildFile; fileRef = 709FC0EC2AC1E25D00B0644D /* Club.swift */; };
 		70DBBFEC2B7C60B50021EA96 /* TlonError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7083A16B2AFB01A30022404A /* TlonError.swift */; };
@@ -165,15 +164,12 @@
 		70DBBFF92B7C60B50021EA96 /* ClubStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3552ACD17600020A9FB /* ClubStore.swift */; };
 		70DBBFFA2B7C60B50021EA96 /* PocketChatAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70D386612A609CE100AFB46E /* PocketChatAPI.swift */; };
 		70DBBFFB2B7C60B50021EA96 /* GroupChannelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7036E3512ACD08E30020A9FB /* GroupChannelStore.swift */; };
-		70DBBFFC2B7C60B50021EA96 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB01A68108700A75B9A /* AppDelegate.mm */; };
-		70DBBFFD2B7C60B50021EA96 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 13B07FB71A68108700A75B9A /* main.m */; };
 		70DBBFFF2B7C60B50021EA96 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
 		70DBC0002B7C60B50021EA96 /* ContactStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700B63612A71E0D70017F40F /* ContactStore.swift */; };
 		70DBC0032B7C60B50021EA96 /* UrsusSigil in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE42B7C60B50021EA96 /* UrsusSigil */; };
 		70DBC0042B7C60B50021EA96 /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 70DBBFE22B7C60B50021EA96 /* Alamofire */; };
 		70DBC0082B7C60B50021EA96 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */ = {isa = PBXBuildFile; fileRef = 008F07F21AC5B25A0029DE68 /* main.jsbundle */; };
 		70DBC0182B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist in Resources */ = {isa = PBXBuildFile; fileRef = 70DBC0172B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist */; };
 		70EAEAB52A57A99100FE96E4 /* UrbitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB42A57A99100FE96E4 /* UrbitModule.swift */; };
 		70EAEAB92A57CE2A00FE96E4 /* UrbitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 70EAEAB62A57AAF200FE96E4 /* UrbitModule.m */; };
@@ -204,8 +200,8 @@
 		9800D0CF75B94AF4B4F91344 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9042C1EE9669440FB104FA17 /* ShareViewController.swift */; };
 		9F3F596CE47E4B2AAFE7F156 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4AAB945CECE149D893E29730 /* MainInterface.storyboard */; };
 		AA0FE320B86E4AD5A2E68DE9 /* bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = 6354B01B2DA4510400A00356 /* bundle.js */; };
-		AC9B29734DA146748D2BEDC9 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9042C1EE9669440FB104FA17 /* ShareViewController.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		AC9B29734DA146748D2BEDC9 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9042C1EE9669440FB104FA17 /* ShareViewController.swift */; };
 		C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */ = {isa = PBXBuildFile; fileRef = C184662B2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist */; };
 		C4DCBC2505E8483F971EF4DE /* ShareExtensionPreprocessor.js in Resources */ = {isa = PBXBuildFile; fileRef = 7921BAA51C1F4AB0927D16A9 /* ShareExtensionPreprocessor.js */; };
 		C5AA2DA09E0243819EFF88B6 /* bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = 6354B01B2DA4510400A00356 /* bundle.js */; };
@@ -311,14 +307,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		008F07F21AC5B25A0029DE68 /* main.jsbundle */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = main.jsbundle; sourceTree = "<group>"; };
 		0F80B9E935DB48E096A2A289 /* ShareExtension-Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = "ShareExtension-Info.plist"; path = "ShareExtension-Info.plist"; sourceTree = "<group>"; };
+		0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Landscape/AppDelegate.swift; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Landscape.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Landscape.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FAF1A68108700A75B9A /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = Landscape/AppDelegate.h; sourceTree = "<group>"; };
-		13B07FB01A68108700A75B9A /* AppDelegate.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = AppDelegate.mm; path = Landscape/AppDelegate.mm; sourceTree = "<group>"; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Landscape/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Landscape/Info.plist; sourceTree = "<group>"; };
-		13B07FB71A68108700A75B9A /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = main.m; path = Landscape/main.m; sourceTree = "<group>"; };
 		1E325AC599214F3CA5B91BA4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = PrivacyInfo.xcprivacy; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3507AE1D048346668887E8DE /* ShareExtensionPreview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = undefined; name = ShareExtensionPreview.appex; path = ShareExtensionPreview.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B0B210E999A7E0E1A345468 /* Pods-Landscape-preview.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.release.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.release.xcconfig"; sourceTree = "<group>"; };
@@ -471,19 +464,16 @@
 		13B07FAE1A68108700A75B9A /* Landscape */ = {
 			isa = PBXGroup;
 			children = (
+				0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */,
 				5A277C4D2E8B36AA0030DB0E /* NotificationDismissHandler.swift */,
 				5A829AAF2E70CE0E0044507C /* NotificationLogProcessor.swift */,
 				63EC5CBF2CD049540098C343 /* SQLiteDB.swift */,
 				635BCB092CC6F954004D52AA /* Intents */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
-				008F07F21AC5B25A0029DE68 /* main.jsbundle */,
-				13B07FAF1A68108700A75B9A /* AppDelegate.h */,
-				13B07FB01A68108700A75B9A /* AppDelegate.mm */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				705D26472B7ECE5400F98AD6 /* Images-preview.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				704095A92BBBBC5600BC61A8 /* Info-preview.plist */,
-				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				70EAEAB72A57AB8400FE96E4 /* Landscape-Bridging-Header.h */,
 				630DE0B82C51A1500053603B /* LandscapePreview-Bridging-Header.h */,
@@ -894,26 +884,16 @@
 				LastUpgradeCheck = 1130;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
-						DevelopmentTeam = XU9PR2N722;
 						LastSwiftMigration = 1250;
-						ProvisioningStyle = Automatic;
 					};
 					630DE0BD2C51A8780053603B = {
-						DevelopmentTeam = XU9PR2N722;
 						LastSwiftMigration = 1620;
-						ProvisioningStyle = Automatic;
 					};
 					6374ACDE2C49DA9600E637C0 = {
 						CreatedOnToolsVersion = 15.0;
-						DevelopmentTeam = XU9PR2N722;
 						LastSwiftMigration = 1620;
-						ProvisioningStyle = Automatic;
 					};
 					64210DE667CC422A9D8996CA = {
-						DevelopmentTeam = XU9PR2N722;
-						ProvisioningStyle = Automatic;
-					};
-					70DBBFDF2B7C60B50021EA96 = {
 						DevelopmentTeam = XU9PR2N722;
 						ProvisioningStyle = Automatic;
 					};
@@ -966,7 +946,6 @@
 				705D26452B7ECDF200F98AD6 /* Images.xcassets in Resources */,
 				C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				70D386722A61F2E400AFB46E /* main.jsbundle in Resources */,
 				C5AA2DA09E0243819EFF88B6 /* bundle.js in Resources */,
 				4ACCD7281520ED84DDC2759A /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -1006,7 +985,6 @@
 				705D26482B7ECE5400F98AD6 /* Images-preview.xcassets in Resources */,
 				70DBC00B2B7C60B50021EA96 /* SplashScreen.storyboard in Resources */,
 				70DBC0182B7C61130021EA96 /* GoogleService-Info-io.tlon.groups.preview.plist in Resources */,
-				70DBC00C2B7C60B50021EA96 /* main.jsbundle in Resources */,
 				AA0FE320B86E4AD5A2E68DE9 /* bundle.js in Resources */,
 				855125DEE814E6B0DFE6229D /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -1165,11 +1143,16 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/Landscape/Landscape-preview.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Landscape-preview/expo-configure-project.sh",
 			);
 			name = "[Expo] Configure project";
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Landscape-preview/ExpoModulesProvider.swift",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -1220,6 +1203,7 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/SDWebImage/SDWebImage.bundle",
@@ -1255,6 +1239,7 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Promises_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SDWebImage.bundle",
@@ -1354,6 +1339,7 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/PromisesSwift/Promises_Privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/SDWebImage/SDWebImage.bundle",
@@ -1389,6 +1375,7 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Promises_Privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SDWebImage.bundle",
@@ -1472,11 +1459,16 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
+				"$(SRCROOT)/.xcode.env",
+				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/Landscape/Landscape.entitlements",
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Landscape/expo-configure-project.sh",
 			);
 			name = "[Expo] Configure project";
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(SRCROOT)/Pods/Target Support Files/Pods-Landscape/ExpoModulesProvider.swift",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -1540,6 +1532,7 @@
 				700B63602A71E0810017F40F /* SettingsStore.swift in Sources */,
 				5A55792F2E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				5A277C542E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
+				0C9C9CAB2F2BD797004BFACB /* AppDelegate.swift in Sources */,
 				635BCB0B2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				D35BB44A2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
 				70D386712A60A3E600AFB46E /* UIColor+Extension.swift in Sources */,
@@ -1549,8 +1542,6 @@
 				7036E3562ACD17600020A9FB /* ClubStore.swift in Sources */,
 				70D386622A609CE100AFB46E /* PocketChatAPI.swift in Sources */,
 				7036E3522ACD08E30020A9FB /* GroupChannelStore.swift in Sources */,
-				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
-				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				638753082CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
 				63EC5CC02CD0495B0098C343 /* SQLiteDB.swift in Sources */,
 				D32B35932E5B5A32002707E2 /* BackgroundCache.m in Sources */,
@@ -1685,6 +1676,7 @@
 				63A5A04E2CD05CB900928EED /* ChannelEntity.swift in Sources */,
 				70DBBFF72B7C60B50021EA96 /* UIColor+Extension.swift in Sources */,
 				5A277C552E8B38320030DB0E /* JSValue+Extension.swift in Sources */,
+				0C9C9CAC2F2BD797004BFACB /* AppDelegate.swift in Sources */,
 				5A5579302E7A16BC004DD85A /* NotificationLogging.swift in Sources */,
 				635BCB0C2CC6F969004D52AA /* OpenAppIntent.swift in Sources */,
 				D35BB44E2E973E6F00E12E42 /* UrbitDateFormatter.swift in Sources */,
@@ -1695,8 +1687,6 @@
 				70DBBFF92B7C60B50021EA96 /* ClubStore.swift in Sources */,
 				70DBBFFA2B7C60B50021EA96 /* PocketChatAPI.swift in Sources */,
 				70DBBFFB2B7C60B50021EA96 /* GroupChannelStore.swift in Sources */,
-				70DBBFFC2B7C60B50021EA96 /* AppDelegate.mm in Sources */,
-				70DBBFFD2B7C60B50021EA96 /* main.m in Sources */,
 				638753092CC7036C003942F5 /* ShortcutsManager.swift in Sources */,
 				63EC5CC12CD0495B0098C343 /* SQLiteDB.swift in Sources */,
 				D32B35912E5B5A32002707E2 /* BackgroundCache.m in Sources */,
@@ -1793,8 +1783,6 @@
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 108;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = Tlon;
@@ -1838,8 +1826,6 @@
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Landscape/Landscape.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 108;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = Tlon;
@@ -1881,7 +1867,6 @@
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = "Notifications/Notifications-preview.entitlements";
-				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -1932,7 +1917,6 @@
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = "Notifications/Notifications-preview.entitlements";
-				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1978,7 +1962,6 @@
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
@@ -2029,7 +2012,6 @@
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_ENTITLEMENTS = Notifications/Notifications.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
@@ -2070,8 +2052,6 @@
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Landscape/Landscape-preview.entitlements";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 108;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = "Tlon - Preview";
@@ -2112,8 +2092,6 @@
 				CLANG_DEBUG_INFORMATION_LEVEL = "DWARF with dSYM File";
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Landscape/Landscape-preview.entitlements";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 108;
 				DEVELOPMENT_TEAM = XU9PR2N722;
 				DISPLAY_NAME = "Tlon - Preview";
@@ -2336,6 +2314,8 @@
 					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon/ReactCommon.framework/Headers",
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-Fabric/React_Fabric.framework/Headers/react/renderer/components/view/platform/cxx",
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-runtimeexecutor/React_runtimeexecutor.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-runtimeexecutor/React_runtimeexecutor.framework/Headers/platform/ios",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD = "";
@@ -2435,6 +2415,8 @@
 					"${PODS_CONFIGURATION_BUILD_DIR}/ReactCommon/ReactCommon.framework/Headers",
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-Fabric/React_Fabric.framework/Headers/react/renderer/components/view/platform/cxx",
 					"${PODS_CONFIGURATION_BUILD_DIR}/React-graphics/React_graphics.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-runtimeexecutor/React_runtimeexecutor.framework/Headers",
+					"${PODS_CONFIGURATION_BUILD_DIR}/React-runtimeexecutor/React_runtimeexecutor.framework/Headers/platform/ios",
 				);
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD = "";

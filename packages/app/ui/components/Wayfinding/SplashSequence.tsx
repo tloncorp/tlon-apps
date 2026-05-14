@@ -1,5 +1,4 @@
 // tamagui-ignore
-import Clipboard from '@react-native-clipboard/clipboard';
 import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
@@ -9,6 +8,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { Attachment, DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { uploadAsset, useCanUpload } from '@tloncorp/shared/store';
 import {
   Button,
@@ -17,8 +17,10 @@ import {
   LoadingSpinner,
   Pressable,
   Text,
+  ZStack,
   useToast,
 } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import React, {
   ComponentProps,
   useCallback,
@@ -32,13 +34,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   YStack,
-  ZStack,
   getTokenValue,
   isWeb,
   styled,
   useThemeName,
 } from 'tamagui';
 
+import { useContactDiscovery } from '../../../hooks/useContactDiscovery';
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
 import {
   InviteSystemContactsFn,
@@ -1213,7 +1215,7 @@ export function BotApiKeyPane(props: {
     try {
       const clipboardContents = isWeb
         ? await navigator.clipboard.readText()
-        : await Clipboard.getString();
+        : await Clipboard.getStringAsync();
       onApiKeyChange(clipboardContents.trim());
     } catch (error) {
       logger.trackError('Wayfinding Bot API Key Paste Failed', {
@@ -1647,6 +1649,8 @@ export function InviteContactsContent(props: {
   systemContacts: db.SystemContact[];
   inviteSystemContacts?: InviteSystemContactsFn;
   completing?: boolean;
+  isDiscovering?: boolean;
+  discoveredMatches?: db.SystemContact[];
 }) {
   const inviteLink = db.personalInviteLink.useValue();
   const handleInviteContact = useInviteSystemContactHandler(
@@ -1654,11 +1658,21 @@ export function InviteContactsContent(props: {
     inviteLink
   );
   const isReady = !!inviteLink;
-  const hasContacts = props.systemContacts && props.systemContacts.length > 0;
 
-  const { displayContacts, handleSearch } = useSystemContactSearch(
-    props.systemContacts ?? []
+  const matchedIds = useMemo(
+    () => new Set((props.discoveredMatches ?? []).map((c) => c.id)),
+    [props.discoveredMatches]
   );
+  const invitableContacts = useMemo(
+    () => props.systemContacts.filter((c) => !matchedIds.has(c.id)),
+    [props.systemContacts, matchedIds]
+  );
+
+  const hasContacts = invitableContacts.length > 0;
+  const hasMatches = (props.discoveredMatches?.length ?? 0) > 0;
+
+  const { displayContacts, handleSearch } =
+    useSystemContactSearch(invitableContacts);
 
   return (
     <YStack flex={1}>
@@ -1674,7 +1688,7 @@ export function InviteContactsContent(props: {
           </ScreenHeader.TextButton>
         }
       />
-      {!hasContacts ? (
+      {!hasContacts && !hasMatches && !props.isDiscovering ? (
         <ShareInviteLinkEmptyState />
       ) : !isReady ? (
         <LoadingState />
@@ -1683,19 +1697,25 @@ export function InviteContactsContent(props: {
           <SplashParagraph marginTop="$l" marginBottom="$xl">
             {INVITE_EXPLANATION_TEXT}
           </SplashParagraph>
-          <SearchBar
-            paddingHorizontal="$xl"
-            flexGrow={0}
-            debounceTime={100}
-            onChangeQuery={handleSearch}
-            placeholder="Search contacts"
-            inputProps={{
-              spellCheck: false,
-              autoCapitalize: 'none',
-              autoComplete: 'off',
-              flex: 1,
-            }}
+          <MatchedContactsSection
+            isDiscovering={!!props.isDiscovering}
+            matches={props.discoveredMatches ?? []}
           />
+          {hasContacts && (
+            <SearchBar
+              paddingHorizontal="$xl"
+              flexGrow={0}
+              debounceTime={100}
+              onChangeQuery={handleSearch}
+              placeholder="Search contacts"
+              inputProps={{
+                spellCheck: false,
+                autoCapitalize: 'none',
+                autoComplete: 'off',
+                flex: 1,
+              }}
+            />
+          )}
           <FlatList
             data={displayContacts}
             keyExtractor={(item) => item.id}
@@ -1714,6 +1734,49 @@ export function InviteContactsContent(props: {
           />
         </>
       )}
+    </YStack>
+  );
+}
+
+function MatchedContactsSection({
+  isDiscovering,
+  matches,
+}: {
+  isDiscovering: boolean;
+  matches: db.SystemContact[];
+}) {
+  if (!isDiscovering && matches.length === 0) {
+    return null;
+  }
+  return (
+    <YStack paddingHorizontal="$xl" marginBottom="$l" gap="$s">
+      {isDiscovering ? (
+        <View flexDirection="row" alignItems="center" gap="$s">
+          <LoadingSpinner size="small" />
+          <Text size="$label/m" color="$secondaryText">
+            Finding your contacts on Tlon…
+          </Text>
+        </View>
+      ) : (
+        <Text size="$label/m" color="$secondaryText">
+          {matches.length === 1
+            ? '1 of your contacts is on Tlon'
+            : `${matches.length} of your contacts are on Tlon`}
+        </Text>
+      )}
+      {matches.map((contact) => (
+        <SystemContactListItem
+          key={contact.id}
+          systemContact={contact}
+          iconProps={{ icon: 'Checkmark' }}
+          endContent={
+            <Text size="$label/s" color="$positiveActionText">
+              On Tlon
+            </Text>
+          }
+          showEndContent
+        />
+      ))}
     </YStack>
   );
 }
@@ -1864,6 +1927,12 @@ export function InvitePane(props: {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showInviteContacts, setShowInviteContacts] = useState(false);
   const [sysContacts, setSysContacts] = useState<db.SystemContact[]>([]);
+  const {
+    isDiscovering,
+    discoveredMatches,
+    runDiscovery,
+    notifyPendingMatches,
+  } = useContactDiscovery();
   const hasAutoProcessed = useRef(false);
   const perms = useContactPermissions();
 
@@ -1874,13 +1943,12 @@ export function InvitePane(props: {
   }, []);
 
   const processContacts = useCallback(async () => {
+    let syncedContacts: db.SystemContact[] = [];
     try {
       setIsProcessing(true);
-      await storeContext.syncSystemContacts();
-      // Log analytics if no contacts were found
-      const syncedContacts = await db.getSystemContacts();
+      syncedContacts = await storeContext.syncSystemContacts();
       setSysContacts(syncedContacts);
-      if (!syncedContacts || syncedContacts.length === 0) {
+      if (syncedContacts.length === 0) {
         logger.trackEvent(AnalyticsEvent.ActionContactBookSkipped, {
           reason: 'no_contacts_synced',
         });
@@ -1891,7 +1959,20 @@ export function InvitePane(props: {
       setIsProcessing(false);
       setShowInviteContacts(true);
     }
-  }, [storeContext]);
+    // Kick off lanyard discovery in the background once the invite pane
+    // is visible. The user can advance before it completes — if they do,
+    // handleActionPress tails the promise so the match notification
+    // fires normally. If they stay and we surface matches here, we
+    // suppress the notification to avoid double-announcing.
+    if (syncedContacts.length > 0) {
+      void runDiscovery(syncedContacts);
+    }
+  }, [storeContext, runDiscovery]);
+
+  const handleActionPress = useCallback(() => {
+    notifyPendingMatches();
+    props.onActionPress();
+  }, [props, notifyPendingMatches]);
 
   useEffect(() => {
     if (isWeb || perms.isLoading || hasAutoProcessed.current) {
@@ -1931,6 +2012,12 @@ export function InvitePane(props: {
         return;
       }
 
+      if (perms.hasPermission) {
+        hasAutoProcessed.current = true;
+        await processContacts();
+        return;
+      }
+
       if (perms.permissionDenied) {
         advanceToInviteContacts();
       }
@@ -1955,10 +2042,12 @@ export function InvitePane(props: {
   if (showInviteContacts) {
     return (
       <InviteContactsContent
-        onComplete={props.onActionPress}
+        onComplete={handleActionPress}
         systemContacts={sysContacts}
         inviteSystemContacts={props.inviteSystemContacts}
         completing={props.isCompleting}
+        isDiscovering={isDiscovering}
+        discoveredMatches={discoveredMatches}
       />
     );
   }

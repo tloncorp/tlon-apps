@@ -25,6 +25,7 @@
     "./logic/pinning": "./src/logic/index.ts",
     "./logic/*": "./src/logic/*.ts",
     "./perf": "./src/perf.ts",
+    "./perfLog": "./src/perfLog.ts",
     "./store": "./src/store/index.ts",
     "./urbit": "./src/urbit/index.ts",
     "./urbit/activity": "./src/urbit/activity.ts",
@@ -96,7 +97,7 @@
     "drizzle-orm": "0.39.3",
     "expo-contacts": "*",
     "expo-localization": "*",
-    "react": "^18.2.0",
+    "react": "^19.1.0",
     "zustand": "^3.7.2"
   }
 }

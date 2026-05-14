@@ -1,0 +1,30 @@
+diff --git a/ReactCommon/react/renderer/components/textinput/BaseTextInputShadowNode.h b/ReactCommon/react/renderer/components/textinput/BaseTextInputShadowNode.h
+index 8c8a225eaa98ac3efe5f3194d53560c68c21a052..f6502e9b96bf9a76ff730f0d92fbb9207727a186 100644
+--- a/ReactCommon/react/renderer/components/textinput/BaseTextInputShadowNode.h
++++ b/ReactCommon/react/renderer/components/textinput/BaseTextInputShadowNode.h
+@@ -210,6 +210,25 @@ class BaseTextInputShadowNode : public ConcreteViewShadowNode<
+                 .fontSizeMultiplier == layoutContext.fontSizeMultiplier;
+     if (meaningfulState) {
+       const auto& stateData = BaseShadowNode::getStateData();
++      const auto& props = BaseShadowNode::getConcreteProps();
++
++      // For uncontrolled TextInputs (no value prop), the react tree attributed
++      // string may have diverged from state if children changed since the last
++      // native state update. In that case, prefer the react tree for measurement
++      // since attributedStringBox may contain stale native text.
++      if (props.text.empty()) {
++        const auto& reactTreeAttributedString =
++            getAttributedString(layoutContext);
++        if (!stateData.reactTreeAttributedString.isContentEqual(
++                reactTreeAttributedString)) {
++          auto attributedString = reactTreeAttributedString;
++          if (attributedString.isEmpty()) {
++            attributedString = getPlaceholderAttributedString(layoutContext);
++          }
++          return AttributedStringBox{attributedString};
++        }
++      }
++
+       auto attributedStringBox = stateData.attributedStringBox;
+       if (attributedStringBox.getMode() ==
+               AttributedStringBox::Mode::OpaquePointer ||

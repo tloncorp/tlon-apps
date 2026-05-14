@@ -1,0 +1,39 @@
+diff --git a/dist/extractor/createExtractor.cjs b/dist/extractor/createExtractor.cjs
+index c4c98ccfe174026689f29ed3cbd1576650e30c19..2d3a25b76e9bb6ea340037abeb3142bb4fda00ed 100644
+--- a/dist/extractor/createExtractor.cjs
++++ b/dist/extractor/createExtractor.cjs
+@@ -854,6 +854,7 @@ function createExtractor({
+                   if (isTargetingHTML) {
+                     out = reactNativeWebInternals.createDOMProps(isTextView ? "span" : "div", out);
+                     delete out.className;
++                    delete out.style;
+                   }
+                 }
+                 let didInline = false;
+@@ -873,6 +874,18 @@ function createExtractor({
+                   if (import_validHTMLAttributes.validHTMLAttributes[key] || key.startsWith("aria-") || key.startsWith("data-") ||
+                   // this is debug stuff added by vite / new jsx transform
+                   key === "__source" || key === "__self") {
++                    if (styleValue === import_constants.FAILED_EVAL && key !== name && t.isJSXAttribute(attr.value)) {
++                      // createDOMProps renamed the prop (e.g. testID -> data-testid).
++                      // Preserve the original expression but use the new attribute name.
++                      // Restricted to FAILED_EVAL because the later `case "attr"` rename
++                      // pass only runs on statically-evaluable values; for static values
++                      // that pass intentionally preserves some prop names (e.g. focusable
++                      // in v2) instead of doing the createDOMProps rename.
++                      return {
++                        type: "attr",
++                        value: t.jsxAttribute(t.jsxIdentifier(key), attr.value.value)
++                      };
++                    }
+                     return attr;
+                   }
+                   if (shouldPrintDebug) {
+@@ -1483,6 +1496,7 @@ function createExtractor({
+                       const cn = out.className;
+                       out = reactNativeWebInternals.createDOMProps(isTextView ? "span" : "div", out);
+                       out.className = cn;
++                      delete out.style;
+                     }
+                     if (shouldPrintDebug) {
+                       logger.info([" - expanded variant", name, out].join(" "));

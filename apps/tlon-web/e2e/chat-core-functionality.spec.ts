@@ -125,6 +125,24 @@ test('should test comprehensive chat functionality', async ({
     expectedMentionInline: { sect: 'admin' },
     postMentionTestId: 'PostMention-admin',
   });
+
+  // Send with the mention popup open but no suggestion selected (TLON-5709):
+  // outgoing payload should be the literal typed text and the popup should dismiss.
+  await helpers.sendUnselectedMentionMessage(zodPage, {
+    inputText: 'TLON-5709 unselected @all',
+    suggestionTestId: '-all--group',
+    expectedLiteralText: /TLON-5709 unselected @all/,
+  });
+
+  // Same case in a thread reply composer.
+  await helpers.startThread(zodPage, 'Hello, world!');
+  await helpers.sendUnselectedMentionMessage(zodPage, {
+    inputText: 'TLON-5709 thread unselected @all',
+    suggestionTestId: '-all--group',
+    expectedLiteralText: /TLON-5709 thread unselected @all/,
+    containerSelector: '#reply-container',
+  });
+  await helpers.navigateBack(zodPage);
 });
 
 test('should require confirmation before deleting a message (cancel prevents deletion)', async ({

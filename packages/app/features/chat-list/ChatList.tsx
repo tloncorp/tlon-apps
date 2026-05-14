@@ -1,8 +1,7 @@
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { LayoutChangeEvent } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
 import { getTokenValue } from 'tamagui';
 
 import { SectionedChatData } from '../../hooks/useFilteredChats';
@@ -12,31 +11,36 @@ import {
   InteractableChatListItem,
   SectionListHeader,
   useChatOptions,
-  useIsWindowNarrow,
 } from '../../ui';
+import {
+  ChatListItemData,
+  buildChatListFlashListProps,
+  getChatKey,
+  getItemType,
+  isSectionHeader,
+} from './ChatList.helpers';
 
-type SectionHeaderData = { type: 'sectionHeader'; title: string };
-export type ChatListItemData = db.Chat | SectionHeaderData;
+export type { ChatListItemData } from './ChatList.helpers';
+export { getChatKey, getItemType, isSectionHeader } from './ChatList.helpers';
 
 export const ChatList = React.memo(function ChatListComponent({
   data,
   onPressItem,
   onLoad,
+  disableScrollAnchoring,
+  scrollerTestID,
 }: {
   data: SectionedChatData;
   onPressItem?: (chat: db.Chat) => void;
   onLoad?: () => void;
+  disableScrollAnchoring?: boolean;
+  scrollerTestID?: string;
 }) {
-  const listItems: ChatListItemData[] = useMemo(
-    () =>
-      data.flatMap((section) => {
-        return [
-          { title: section.title, type: 'sectionHeader' },
-          ...section.data,
-        ];
-      }),
-    [data]
+  const flashListProps = useMemo(
+    () => buildChatListFlashListProps({ data, disableScrollAnchoring }),
+    [data, disableScrollAnchoring]
   );
+  const listItems: ChatListItemData[] = flashListProps.data;
 
   const { open } = useChatOptions();
   const handleLongPress = useCallback(
@@ -56,35 +60,6 @@ export const ChatList = React.memo(function ChatListComponent({
     paddingBottom: 100, // bottom nav height + some cushion
   };
 
-  const isNarrow = useIsWindowNarrow();
-  const sizeRefs = useRef({
-    sectionHeader: isNarrow ? 28 : 24.55,
-    chatListItem: isNarrow ? 72 : 64,
-  });
-
-  // update the sizeRefs when the window size changes
-  useEffect(() => {
-    sizeRefs.current.sectionHeader = isNarrow ? 28 : 24.55;
-    sizeRefs.current.chatListItem = isNarrow ? 72 : 64;
-  }, [isNarrow]);
-
-  const handleHeaderLayout = useCallback((e: LayoutChangeEvent) => {
-    sizeRefs.current.sectionHeader = e.nativeEvent.layout.height;
-  }, []);
-
-  const handleItemLayout = useCallback((e: LayoutChangeEvent) => {
-    sizeRefs.current.chatListItem = e.nativeEvent.layout.height;
-  }, []);
-
-  const handleOverrideLayout = useCallback(
-    (layout: { span?: number; size?: number }, item: ChatListItemData) => {
-      layout.size = isSectionHeader(item)
-        ? sizeRefs.current.sectionHeader
-        : sizeRefs.current.chatListItem;
-    },
-    []
-  );
-
   const listItemHoverStyle = useMemo(
     () => ({ backgroundColor: '$secondaryBackground' }),
     []
@@ -94,7 +69,7 @@ export const ChatList = React.memo(function ChatListComponent({
     ({ item }) => {
       if (isSectionHeader(item)) {
         return (
-          <SectionListHeader onLayout={handleHeaderLayout}>
+          <SectionListHeader>
             <SectionListHeader.Text>{item.title}</SectionListHeader.Text>
           </SectionListHeader>
         );
@@ -104,7 +79,6 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             hoverStyle={listItemHoverStyle}
             testID={`ChatListItem-${item.channel.title ?? item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
@@ -115,7 +89,6 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             hoverStyle={listItemHoverStyle}
             testID={`ChatListItem-${item.group.title ?? item.group.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
@@ -126,20 +99,13 @@ export const ChatList = React.memo(function ChatListComponent({
             model={item}
             onPress={onPressItem}
             onLongPress={handleLongPress}
-            onLayout={handleItemLayout}
             disableOptions={item.isPending}
             hoverStyle={listItemHoverStyle}
           />
         );
       }
     },
-    [
-      handleHeaderLayout,
-      onPressItem,
-      handleLongPress,
-      handleItemLayout,
-      listItemHoverStyle,
-    ]
+    [onPressItem, handleLongPress, listItemHoverStyle]
   );
 
   useRenderCount('ChatList');
@@ -151,31 +117,11 @@ export const ChatList = React.memo(function ChatListComponent({
       keyExtractor={getChatKey}
       renderItem={renderItem}
       getItemType={getItemType}
-      estimatedItemSize={sizeRefs.current.chatListItem}
-      overrideItemLayout={handleOverrideLayout}
       onLoad={onLoad ? () => onLoad() : undefined}
+      testID={scrollerTestID}
+      maintainVisibleContentPosition={
+        flashListProps.maintainVisibleContentPosition
+      }
     />
   );
 }, isEqual);
-
-export function getItemType(item: ChatListItemData) {
-  return isSectionHeader(item) ? 'sectionHeader' : item.type;
-}
-
-export function isSectionHeader(
-  data: ChatListItemData
-): data is SectionHeaderData {
-  return 'type' in data && data.type === 'sectionHeader';
-}
-
-export function getChatKey(chatItem: ChatListItemData) {
-  if (!chatItem || typeof chatItem !== 'object') {
-    return 'invalid-item';
-  }
-
-  if (isSectionHeader(chatItem)) {
-    return chatItem.title;
-  }
-
-  return `${chatItem.id}-${chatItem.pin?.itemId ?? ''}`;
-}

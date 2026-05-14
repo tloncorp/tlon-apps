@@ -13,8 +13,8 @@ import type * as ubg from './groups';
 
 const logger = createDevLogger('urbitUtils', false);
 
-type App = 'chat' | 'heap' | 'diary';
-const APP_PREFIXES = ['chat', 'heap', 'diary'];
+type App = 'chat' | 'heap' | 'diary' | 'notes';
+const APP_PREFIXES = ['chat', 'heap', 'diary', 'notes'];
 
 export function checkNest(nest: string): boolean {
   const parts = nest.split('/');
@@ -138,6 +138,8 @@ export function getChannelType(channelId: string) {
     return 'gallery';
   } else if (app === 'diary') {
     return 'notebook';
+  } else if (app === 'notes') {
+    return 'notes';
   } else {
     return 'chat';
   }
@@ -152,6 +154,8 @@ export function getChannelKindFromType(
     return 'heap';
   } else if (type === 'notebook') {
     return 'diary';
+  } else if (type === 'notes') {
+    return 'notes';
   } else {
     return 'chat';
   }
