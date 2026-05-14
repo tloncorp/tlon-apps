@@ -2,7 +2,7 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, av=activity-ver,
+/-  c=channels, cv=channels-ver, chv=chat-ver, g=groups, gv=groups-ver, av=activity-ver,
     h=hooks, m=meta
 /+  ccv=channel-conv, utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
@@ -1650,11 +1650,11 @@
     (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke cage])
   ::
       %dm
-    =/  =cage  chat-dm-action+!>(action.effect)
+    =/  =cage  chat-dm-action+!>(`action:dm:v3:chv`action.effect)
     (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
   ::
       %club
-    =/  =cage  chat-club-action+!>(action.effect)
+    =/  =cage  chat-club-action+!>(`action:club:v3:chv`action.effect)
     (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
   ::
       %contacts

@@ -1,12 +1,12 @@
 ::  tests for %gateway-status agent
 ::
-/-  gs=gateway-status, a=activity
+/-  gs=gateway-status, a=activity, av=activity-ver
 /+  *test-agent
 /=  agent  /app/gateway-status
 |%
 ++  dap  %gateway-status
-+$  state-0
-  $:  %0
++$  state-1
+  $:  %1
       owner=(unit ship)
       last-owner-msg=@da
       last-owner-msg-id=(unit message-key:a)
@@ -47,7 +47,7 @@
   =/  =source:a  [%dm %ship sender]
   =/  =event:a  [[%dm-post message-key [%ship sender] ~[[%inline ~['hello']]] %.n] %.n %.n]
   =/  =update:a  [%add source t event]
-  [/activity [~dev %activity] [%fact %activity-update-4 !>(update)]]
+  [/activity [~dev %activity] [%fact %activity-update-5 !>(`update:v9:av`update)]]
 ++  test-init-subscribes-to-activity
   %-  eval-mare
   =/  m  (mare ,~)
@@ -56,7 +56,7 @@
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
   ;<  caz=(list card)  bind:m  (do-init dap agent)
   %+  ex-cards  caz
-  :~  (ex-task /activity [~dev %activity] %watch /v4)
+  :~  (ex-task /activity [~dev %activity] %watch /v5)
   ==
 ++  test-configure-sets-owner
   %-  eval-mare
@@ -69,7 +69,7 @@
     :~  (ex-fact ~[/v1] %gateway-status-update-1 !>(`update:v1:gs`[%status %unknown ~]))
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`~bus))
   (ex-equal !>(active-window.st) !>(~m5))
 ++  test-unconfigured-ignores-everything
@@ -172,7 +172,7 @@
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-start 'boot-1' lease-time]))
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%down))
   (ex-equal !>(pending-restart.st) !>(&))
 ++  test-gateway-start-clears-pending-notice
@@ -185,12 +185,12 @@
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-start 'boot-1' lease-time]))
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%up))
   (ex-equal !>(pending-restart.st) !>(|))
 ++  test-gateway-start-sets-status-up
@@ -202,7 +202,7 @@
   =/  lease-time  (add ~2024.1.1 ~s90)
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-start 'boot-1' lease-time]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%up))
   (ex-equal !>(lease-until.st) !>(`lease-time))
 ++  test-lease-expiry-precondition
@@ -214,7 +214,7 @@
   =/  lease-time  (add ~2024.1.1 ~s90)
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-start 'boot-1' lease-time]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%up))
   (ex-equal !>(pending-restart.st) !>(|))
 ++  test-heartbeat-restores-up-after-expiry
@@ -230,7 +230,7 @@
   =/  new-lease  (add ~2024.1.1 ~m5)
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.st) !>(|))
   (ex-equal !>(lease-until.st) !>(`new-lease))
@@ -244,7 +244,7 @@
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-start 'boot-1' lease-time]))
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-stop 'boot-old' 'stale']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(boot-id.st) !>(`'boot-1'))
   (ex-equal !>(pending-restart.st) !>(|))
@@ -260,7 +260,7 @@
   =/  new-lease  (add ~2024.1.1 ~m5)
   ;<  *  bind:m  (do-poke %gateway-status-action-1 !>(`action:v1:gs`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(boot-id.st) !>(~))
   (ex-equal !>(pending-restart.st) !>(&))

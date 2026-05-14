@@ -1,7 +1,6 @@
-/-  c=channels, t=contacts, ch=chat, g=groups, gv=groups-ver, s=story
+/-  cv=channels-ver, t=contacts, ch=chat, g=groups, gv=groups-ver, s=story
 /+  mp=mop-extensions
 |%
-+|  %collections
 ::  $stream: the activity stream comprised of events from various agents
 +$  stream  ((mop time event) lte)
 ++  on-stream  ((on time event) lte)
@@ -30,7 +29,6 @@
       replies=(list activity-bundle)
       summaries=activity
   ==
-+|  %actions
 ::  $action: how to interact with our activity stream
 ::
 ::    actions are only ever performed for and by our selves
@@ -65,9 +63,6 @@
       [%event event=incoming-event]
       [%all time=(unit time) deep=?]
   ==
-::
-+|  %updates
-::
 ::  $update: what we hear after an action
 ::
 ::    %add: an event was added to the stream
@@ -99,24 +94,26 @@
 +$  incoming-event
   $%  [%post post-event]
       [%reply reply-event]
+      [%react react-event]
       [%dm-invite =whom]
       [%dm-post dm-post-event]
       [%dm-reply dm-reply-event]
-      [%group-ask group=flag:g =ship]
-      [%group-kick group=flag:g =ship]
-      [%group-join group=flag:g =ship]
-      [%group-invite group=flag:g =ship]
-      [%chan-init channel=nest:c group=flag:g]
-      [%group-role group=flag:g =ship roles=(set sect:v0:gv)]
-      [%flag-post key=message-key channel=nest:c group=flag:g]
-      [%flag-reply key=message-key parent=message-key channel=nest:c group=flag:g]
+      [%dm-react dm-react-event]
+      [%group-ask group=flag:gv =ship]
+      [%group-kick group=flag:gv =ship]
+      [%group-join group=flag:gv =ship]
+      [%group-invite group=flag:gv =ship]
+      [%chan-init channel=nest:cv group=flag:gv]
+      [%group-role group=flag:gv =ship roles=(set sect:v0:gv)]
+      [%flag-post key=message-key channel=nest:cv group=flag:gv]
+      [%flag-reply key=message-key parent=message-key channel=nest:cv group=flag:gv]
       [%contact contact-event]
   ==
 ::
 +$  post-event
   $:  key=message-key
-      channel=nest:c
-      group=flag:g
+      channel=nest:cv
+      group=flag:gv
       content=story:s
       mention=?
   ==
@@ -124,10 +121,19 @@
 +$  reply-event
   $:  key=message-key
       parent=message-key
-      channel=nest:c
-      group=flag:g
+      channel=nest:cv
+      group=flag:gv
       content=story:s
       mention=?
+  ==
+::
++$  react-event
+  $:  key=message-key
+      parent=(unit message-key)  :: post or reply
+      channel=nest:cv
+      group=flag:gv
+      =author:v10:cv
+      =react:v10:cv
   ==
 ::
 +$  dm-post-event
@@ -144,6 +150,14 @@
       content=story:s
       mention=?
   ==
+::
++$  dm-react-event
+  $:  key=message-key
+      parent=(unit message-key)  ::  either dm or dm-reply
+      =whom
+      =author:ch
+      =react:ch
+  ==
 +$  contact-event
   $:  who=ship
       update=(pair @tas value:t)
@@ -152,9 +166,9 @@
 ::  $source: where the activity is happening
 +$  source
   $%  [%base ~]
-      [%group =flag:g]
-      [%channel =nest:c group=flag:g]
-      [%thread key=message-key channel=nest:c group=flag:g]
+      [%group =flag:gv]
+      [%channel =nest:cv group=flag:gv]
+      [%thread key=message-key channel=nest:cv group=flag:gv]
       [%dm =whom]
       [%dm-thread key=message-key =whom]
       [%contact who=ship]
@@ -203,7 +217,6 @@
       events=(list time-event)
   ==
 ::
-+|  %primitives
 +$  whom
   $%  [%ship p=ship]
       [%club p=id:club:ch]
@@ -218,11 +231,13 @@
       %post-mention
       %reply
       %reply-mention
+      %react
       %dm-invite
       %dm-post
       %dm-post-mention
       %dm-reply
       %dm-reply-mention
+      %dm-react
       %group-invite
       %group-kick
       %group-join
@@ -232,25 +247,25 @@
       %flag-reply
       %contact
   ==
-+|  %helpers
 +$  time-event  [=time =event]
 ++  on-event        ((on time event) lte)
 ++  ex-event        ((mp time event) lte)
 ++  on-read-items   ((on time ,~) lte)
-+|  %constants
 ++  default-volumes
   ^~
   ^-  (map event-type volume)
   %-  my
   :~  [%post & &]
       [%reply & |]
-      [%dm-reply & &]
+      [%react | &]
       [%post-mention & &]
       [%reply-mention & &]
       [%dm-invite & &]
       [%dm-post & &]
       [%dm-post-mention & &]
+      [%dm-reply & &]
       [%dm-reply-mention & &]
+      [%dm-react | &]
       [%group-invite & &]
       [%group-ask & &]
       [%flag-post & &]
