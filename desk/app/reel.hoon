@@ -246,11 +246,18 @@
     ::  gap-fill open-graph metadata from server state when the caller
     ::  didn't provide it: title / description / image from %groups,
     ::  and nickname / avatar from our cached profile. Caller-provided
-    ::  values always win; scry failures are tolerated.
+    ::  values always win.
     ::
     =/  type=(unit @t)  (~(get by fields.metadata) %'inviteType')
     =?  fields.metadata  |(?=(~ type) =('group' u.type))
       =/  fld  fields.metadata
+      ::  treat absent or empty-string fields as gap-fillable.
+      ::
+      =/  blank
+        |=  [m=(map cord cord) k=cord]
+        ^-  ?
+        =/  v  (~(get by m) k)
+        ?|(?=(~ v) =('' u.v))
       ::  inviter fields from our-profile
       ::
       =/  nickname=(unit @t)  (~(get cy:t our-profile) %nickname %text)
@@ -258,39 +265,41 @@
       =?  fld
           ?&  ?=(^ nickname)
               !=('' u.nickname)
-              =(~ (~(get by fld) %'inviterNickname'))
+              (blank fld %'inviterNickname')
           ==
         (~(put by fld) %'inviterNickname' u.nickname)
       =?  fld
           ?&  ?=(^ avatar)
               !=('' u.avatar)
-              =(~ (~(get by fld) %'inviterAvatarImage'))
+              (blank fld %'inviterAvatarImage')
           ==
         (~(put by fld) %'inviterAvatarImage' u.avatar)
       ::  group meta from %groups; only attempt when id parses as a flag
+      ::  and the group exists locally.
       ::
       =/  parsed=(unit flag:v0:groups-ver)  (rush id flag)
       ?~  parsed  fld
-      =/  grp=(unit group:v9:groups-ver)
-        %-  mole  |.
+      =/  base  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+      ?.  .^(? %gu (weld base /groups/(scot %p p.u.parsed)/[q.u.parsed]))
+        fld
+      =/  grp=group:v9:groups-ver
         .^  group:v9:groups-ver  %gx
-          /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p p.u.parsed)/[q.u.parsed]/group-2
+          (weld base /v2/groups/(scot %p p.u.parsed)/[q.u.parsed]/group-2)
         ==
-      ?~  grp  fld
-      =*  gmeta  meta.u.grp
+      =*  gmeta  meta.grp
       =?  fld
           ?&  !=('' title.gmeta)
-              =(~ (~(get by fld) %'invitedGroupTitle'))
+              (blank fld %'invitedGroupTitle')
           ==
         (~(put by fld) %'invitedGroupTitle' title.gmeta)
       =?  fld
           ?&  !=('' description.gmeta)
-              =(~ (~(get by fld) %'invitedGroupDescription'))
+              (blank fld %'invitedGroupDescription')
           ==
         (~(put by fld) %'invitedGroupDescription' description.gmeta)
       =?  fld
           ?&  !=('' image.gmeta)
-              =(~ (~(get by fld) %'invitedGroupIconImageUrl'))
+              (blank fld %'invitedGroupIconImageUrl')
           ==
         (~(put by fld) %'invitedGroupIconImageUrl' image.gmeta)
       fld
