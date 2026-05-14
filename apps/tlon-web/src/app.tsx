@@ -10,6 +10,7 @@ import {
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
+import useBrowserNotifications from '@tloncorp/app/hooks/useBrowserNotifications';
 import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
 import { useCurrentUserId } from '@tloncorp/app/hooks/useCurrentUser';
 import useDesktopNotifications from '@tloncorp/app/hooks/useDesktopNotifications';
@@ -469,6 +470,7 @@ function ConnectedWebApp() {
   const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
   const telemetry = useTelemetry();
+  useBrowserNotifications(dbIsLoaded);
 
   const isNewSignup = useMemo(() => {
     return logic.detectWebSignup();
