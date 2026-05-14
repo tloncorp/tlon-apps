@@ -11,10 +11,11 @@ export interface GroupMention extends Literal {
   value: string; // group/role name without the @
 }
 
-// `@` followed by an identifier-like token. Lookbehind ensures we don't match
-// inside emails or other adjacent contexts — the @ must be at the start of the
-// string or follow whitespace.
-const GROUP_MENTION_PATTERN = /(?<=^|\s)@([a-z][a-z0-9-]*)/g;
+// `@` followed by an identifier-like token. Negative lookbehind rejects `@`
+// preceded by an alphanumeric character so we don't match inside emails
+// (`user@example.com`) or IDs (`abc123@foo`); punctuation and table syntax
+// like `(@all)`, `,@all,`, `|@all|` all proceed to match.
+const GROUP_MENTION_PATTERN = /(?<![A-Za-z0-9])@([a-z][a-z0-9-]*)/g;
 
 /**
  * Parse text content and extract group mentions.

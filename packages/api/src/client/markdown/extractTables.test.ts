@@ -256,6 +256,52 @@ describe('extractTablesFromContent', () => {
     ]);
   });
 
+  it('catches group mentions adjacent to punctuation in cells', () => {
+    // remark-gfm leaves cell text intact, so a cell written as `(@all)` or
+    // `@all,` shows up as a text node with `@` next to non-alphanumeric
+    // punctuation. The lookbehind has to permit those cases.
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: '| A | B | C |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '|---|---|---|' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| (@all) | @admin, others | email@example.com |' },
+        ],
+      },
+    ]);
+
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    const [paren, comma, email] = table.rows[0].cells;
+
+    // `(@all)` → `(` text, groupMention, `)` text
+    expect(paren.content).toEqual([
+      { type: 'text', text: '(' },
+      { type: 'groupMention', group: 'all' },
+      { type: 'text', text: ')' },
+    ]);
+
+    // `@admin, others` → groupMention, then the trailing text
+    expect(comma.content).toEqual([
+      { type: 'groupMention', group: 'admin' },
+      { type: 'text', text: ', others' },
+    ]);
+
+    // `email@example.com` is autolinked by remark-gfm, so the `@` is inside
+    // a link node, not a text node — the group-mention scan never sees it.
+    // Even if it did, the negative lookbehind rejects `@` after `l`.
+    expect(email.content).toEqual([
+      {
+        type: 'link',
+        href: 'mailto:email@example.com',
+        text: 'email@example.com',
+      },
+    ]);
+  });
+
   it('preserves link text containing markdown-special characters', () => {
     // `]` in link text would have broken the old hand-written serializer;
     // mdast-util-to-markdown escapes it properly.
