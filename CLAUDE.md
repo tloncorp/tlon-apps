@@ -222,6 +222,19 @@ To identify which component to modify:
 -   Builds on top of web application
 -   Uses Electron for native desktop features
 
+### Windows Development
+
+Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -p`). `.npmrc` routes pnpm's `script-shell` through `${TLON_SHELL-/bin/bash}` so those scripts work everywhere:
+
+-   **macOS/Linux**: nothing to do — `TLON_SHELL` is unset and pnpm falls back to `/bin/bash`.
+-   **Windows**: install [Git for Windows](https://git-scm.com/download/win), then point pnpm at its bash:
+    ```powershell
+    [System.Environment]::SetEnvironmentVariable("TLON_SHELL", "C:\Program Files\Git\bin\bash.exe", "User")
+    ```
+    Open a fresh terminal so the env var is loaded. Do **not** rely on bare `bash` on PATH — on Windows it usually resolves to `C:\Windows\System32\bash.exe` (WSL), which runs scripts inside Linux with the wrong filesystem view.
+
+Also: use the pinned Node version (`.nvmrc` → 22.22.0). Node 24+ has no prebuilt binaries for `better-sqlite3@11.x` and will fall back to compiling via node-gyp, which needs VS Build Tools + Windows SDK installed.
+
 ### Shell Script Compatibility
 
 When writing or modifying bash scripts, ensure compatibility with both macOS and Linux:
