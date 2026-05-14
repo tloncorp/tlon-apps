@@ -171,7 +171,7 @@
   ::  we drop hooks cores and state to avoid vase migration shenanigans
   ::
   ++  recompile-hooks
-    |=  s=state-14
+    |=  s=state-15
     ^-  current-state
     %=  s
         hooks.hooks
@@ -238,8 +238,24 @@
         state-1
         state-0
     ==
-  +$  state-15  current-state
-  +$  state-14  _%*(. *state-15 - %14)
+  ::  NOTE: the current state and state-15 should technically
+  ::        be the same type. however, to accommodate the hoon $type
+  ::        migration, we need to load the state at any version with
+  ::        hooks blinded. once the we transitioned to the new kelvin,
+  ::        we should use typed hooks in the next state version.
+  ::
+  +$  state-15
+    $:  %15
+        =v-channels:v10:cv
+        hooks=hooks-blind
+        =pimp:imp
+    ==
+  +$  state-14
+    $:  %14
+        =v-channels:v10:cv
+        hooks=hooks-blind
+        =pimp:imp
+    ==
   +$  state-13
     $:  %13
         =v-channels:v9:cv
