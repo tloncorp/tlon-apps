@@ -130,6 +130,37 @@ describe('extractTablesFromContent', () => {
     ]);
   });
 
+  it('does not split a table when a data row looks like a separator', () => {
+    // `| --- | --- |` matches the separator-row regex but inside a table
+    // body it's just a data row of dash strings. The scan must not bail
+    // out here.
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: '| H1 | H2 |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '|---|---|' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| a | b |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| --- | --- |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| c | d |' },
+        ],
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    expect(table.rows).toHaveLength(3);
+    expect(table.rows[1].cells.map((c) => c.content)).toEqual([
+      [{ type: 'text', text: '---' }],
+      [{ type: 'text', text: '---' }],
+    ]);
+  });
+
   it('leaves non-table paragraphs untouched', () => {
     const input = [
       {

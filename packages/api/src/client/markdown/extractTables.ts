@@ -236,12 +236,14 @@ function findTableRegions(text: string): Region[] {
   }
 
   // Returns the index of the next line whose contents look like part of the
-  // table (contains `|`, isn't blank, isn't another separator), or -1 if
-  // no such line exists before the next blank line.
+  // table (contains `|`, isn't blank), or -1 if no such line exists before
+  // the next blank line. We deliberately don't check for `SEPARATOR_LINE`
+  // here — a GFM table has only one separator row (between header and body),
+  // so any later line that happens to match the separator pattern (e.g.
+  // a data row with cells of `---`) is just another row.
   const nextTableLine = (from: number): number => {
     for (let k = from; k < lines.length; k++) {
       if (lines[k].trim() === '') return -1;
-      if (SEPARATOR_LINE.test(lines[k])) return -1;
       if (lines[k].includes('|')) return k;
     }
     return -1;
@@ -260,7 +262,9 @@ function findTableRegions(text: string): Region[] {
     const headerLineIdx = i - 1;
     let endLineIdx = i;
     let j = i + 1;
-    while (j < lines.length && !SEPARATOR_LINE.test(lines[j])) {
+    // Once we're past the separator we don't bail on lines that also match
+    // the separator pattern — see `nextTableLine` for the rationale.
+    while (j < lines.length) {
       if (lines[j].includes('|')) {
         endLineIdx = j;
         j++;
