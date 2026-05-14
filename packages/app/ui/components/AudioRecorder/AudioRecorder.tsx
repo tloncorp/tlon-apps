@@ -22,6 +22,7 @@ import {
 import { Alert, StyleSheet } from 'react-native';
 import { useTheme } from 'tamagui';
 
+import { useAppStatusChange } from '../../../hooks/useAppStatusChange';
 import {
   FinishMode,
   IWaveformRef,
@@ -347,6 +348,23 @@ export const AudioRecorder = forwardRef<
     [elapsedMs]
   );
 
+  useAppStatusChange(
+    useCallback(
+      (status) => {
+        if (
+          status === 'background' &&
+          state.live &&
+          state.recorderState === RecorderState.recording
+        ) {
+          refApi.stopRecording().catch((error) => {
+            console.error('Failed to stop recording on app background', error);
+          });
+        }
+      },
+      [refApi, state]
+    )
+  );
+
   return (
     <View
       flexDirection="row"
@@ -479,7 +497,7 @@ function useTimer({
     }
 
     // Wait for the next aligned tick (setTimeout), then schedule regular ticks (setInterval).
-    let intervalId: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
     const remainder = (Date.now() - start.getTime()) % intervalMs;
     const nextTickTime = (intervalMs - remainder) % intervalMs;
     const timeoutId = setTimeout(() => {

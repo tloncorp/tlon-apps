@@ -974,6 +974,61 @@
     (~(has in roles.u.seat) `role-id:v7:gv`p.inline)
   ==
 ::
+++  recover-emoji
+  |%
+  ++  channel
+    |=  chan=v-channel:v10:cv
+    ~>  %spin.['libcu-rem-channel']
+    ^+  chan
+    %_  chan
+        posts
+      %+  run:on-v-posts:v10:cv
+        posts.chan
+      |=  post=(may:v10:cv v-post:v10:cv)
+      ?.  ?=(%& -.post)  post
+      %_  post
+        reacts   (reacts reacts.post)
+        replies  (run:on-v-replies:v10:cv replies.post reply)
+      ==
+    ::
+        log
+      %+  run:log-on:v10:cv
+        log.chan
+      |=  upd=u-channel:v10:cv
+      ?.  ?=([%post * ?([%set %& *] [%reacts *] [%reply *])] upd)
+        upd
+      ?-  -.u-post.upd
+        %set     upd(reacts.post.u-post (reacts reacts.post.u-post.upd))
+        %reacts  upd(reacts.u-post (reacts reacts.u-post.upd))
+      ::
+          %reply
+        ?+  u-reply.u-post.upd  upd
+          [%set %& *]  upd(reacts.reply.u-reply.u-post (reacts reacts.reply.u-reply.u-post.upd))
+          [%reacts *]  upd(reacts.u-reply.u-post (reacts reacts.u-reply.u-post.upd))
+        ==
+      ==
+    ==
+  ::
+  ++  reply
+    |=  reply=(may:v10:cv v-reply:v10:cv)
+    ^+  reply
+    ?.  ?=(%& -.reply)  reply
+    reply(reacts (reacts reacts.reply))
+  ::
+  ++  reacts
+    |=  reacts=v-reacts:v10:cv
+    ~>  %spin.['libcu-rem-reacts']
+    ^+  reacts
+    (~(run by reacts) react)
+  ::
+  ++  react
+    |=  rac=(rev:v10:cv (unit react:v10:cv))
+    ^+  rac
+    ?.  ?=([~ @] +.rac)  rac
+    =+  moj=(kill:em u.rac)
+    ?~(moj rac rac(u u.moj))
+  --
+::
 ++  drop-bad-links
   |%
   ++  channel

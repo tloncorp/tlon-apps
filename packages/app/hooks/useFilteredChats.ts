@@ -1,4 +1,4 @@
-import { TalkSidebarFilter } from '@tloncorp/api/urbit';
+import type { TalkSidebarFilter } from '@tloncorp/api/urbit';
 import { useMessagesFilter } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useMemo } from 'react';
@@ -132,6 +132,10 @@ function filterChats(
         return true;
       }
 
+      if (chat.channel.type === 'chat' && !!chat.pin) {
+        return true;
+      }
+
       if (filter === 'Direct Messages') {
         return chat.channel.type === 'dm' || chat.channel.type === 'groupDm';
       }
@@ -151,7 +155,8 @@ function filterChats(
       return (
         chat.type === 'group' ||
         (chat.type === 'channel' && chat.channel.type === 'dm') ||
-        (chat.type === 'channel' && chat.channel.type === 'groupDm')
+        (chat.type === 'channel' && chat.channel.type === 'groupDm') ||
+        (chat.type === 'channel' && chat.channel.type === 'chat' && !!chat.pin)
       );
     }
 

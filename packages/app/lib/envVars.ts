@@ -44,7 +44,7 @@ export const INVITE_PROVIDER =
 export const NOTIFY_PROVIDER = envVars.notifyProvider ?? 'rivfur-livmet';
 export const NOTIFY_SERVICE = envVars.notifyService ?? 'groups-native';
 export const POST_HOG_API_KEY = envVars.postHogApiKey ?? '';
-export const POST_HOG_IN_DEV = Boolean(envVars.postHogInDev);
+export const POST_HOG_IN_DEV = envVars.postHogInDev === 'true';
 export const APP_SCHEME = 'io.tlon.groups';
 export const API_URL = envVars.apiUrl ?? 'https://tlon.network';
 export const API_AUTH_USERNAME = envVars.apiAuthUsername;

@@ -625,6 +625,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         draftInputRef.current != null
       ) {
         draftInputRef.current.exitFullscreen();
+        setDraftInputPresentationMode('inline');
         setEditingPost?.(undefined);
       } else {
         goBack();

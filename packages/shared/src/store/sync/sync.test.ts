@@ -40,6 +40,7 @@ import {
 } from '../../test/helpers';
 import rawGroupsInit2 from '../../test/init.json';
 import {
+  syncChannelWithBackoff,
   syncDms,
   syncGroups,
   syncInitData,
@@ -104,6 +105,166 @@ test('syncs pins', async () => {
     (a, b) => a.index - b.index
   );
   expect(savedItems).toEqual(outputData);
+});
+
+// TLON-5606: after a user clears a failed send, `syncChannelWithBackoff`
+// must not treat the deleted optimistic row as a still-pending message.
+// The invariant the backoff relies on is
+// `getDeliveryPendingPosts(channelId).length` going to zero once the only
+// failed row has `isDeleted: true`.
+test('syncChannelWithBackoff resolves when the only failed post was locally cleared', async () => {
+  const channelId = 'backoff-test-channel';
+  await db.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  // Seed a row that would have ghosted the backoff loop before the fix.
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'cleared-failed',
+        type: 'chat',
+        channelId,
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 0,
+        content: JSON.stringify([{ inline: ['will be cleared'] }]),
+        deliveryStatus: 'failed',
+        isDeleted: true,
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+
+  // Delivery polling explicitly excludes `failed` rows (they are handled
+  // by the retry/delete flow), so the backoff's `isStillPending` short-
+  // circuits on the first tick.
+  expect((await db.getDeliveryPendingPosts(channelId)).length).toBe(0);
+
+  // `backOff` uses setTimeout, so fake timers let the test resolve without
+  // waiting for the 3s startingDelay.
+  vi.useFakeTimers();
+  try {
+    const promise = syncChannelWithBackoff({ channelId });
+    await vi.advanceTimersByTimeAsync(3_100);
+    await expect(promise).resolves.toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+// TLON-5606 / post-review 5: a user can delete an optimistic post while its
+// original send is still in flight (`enqueued` or `pending`). Those rows
+// must stay visible to the delivery-polling path so the server round trip
+// still reconciles — otherwise the delete silently strands the in-flight
+// message until some unrelated sync repairs it. Under the post-review 8
+// contract, they also surface from `getPendingPosts` as a DB-backed
+// tombstone source (only `failed + isDeleted` is excluded from the UI).
+test('syncChannelWithBackoff keeps polling when a deleted row is still in flight', async () => {
+  const channelId = 'backoff-inflight-channel';
+  await db.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'deleted-but-still-pending',
+        type: 'chat',
+        channelId,
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 0,
+        content: JSON.stringify([{ inline: ['in flight'] }]),
+        deliveryStatus: 'pending',
+        // User deleted the optimistic post mid-flight.
+        isDeleted: true,
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+
+  // Delivery polling query keeps the row visible — still in flight.
+  expect((await db.getDeliveryPendingPosts(channelId)).length).toBe(1);
+  // UI query also surfaces it as a tombstone source so remount renders a
+  // "Message deleted" row instead of a gap while the send reconciles.
+  expect((await db.getPendingPosts(channelId)).length).toBe(1);
+});
+
+// TLON-5606 regression guard: deleted rows with the final local-only shape
+// (`failed + isDeleted`) must stay out of BOTH the UI pending source AND
+// the delivery-polling source — failed sends do not re-poll, and leaving
+// them in the UI would re-introduce the original ghost-at-bottom bug.
+test('deleted failed rows are excluded from both UI and delivery queries', async () => {
+  const channelId = 'backoff-failed-channel';
+  await db.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'deleted-failed',
+        type: 'chat',
+        channelId,
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 0,
+        content: JSON.stringify([{ inline: ['failed'] }]),
+        deliveryStatus: 'failed',
+        isDeleted: true,
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+
+  expect((await db.getPendingPosts(channelId)).length).toBe(0);
+  expect((await db.getDeliveryPendingPosts(channelId)).length).toBe(0);
+});
+
+// TLON-5606 / post-review 9: after `markPostSent` flips a row to
+// `deliveryStatus: 'sent'` the sequenced `addPost` event carries the real
+// sequence number. If that follow-up event is delayed or missed, the row
+// can strand as `sent + sequenceNum:0`. The delivery loop must keep
+// polling across that catch-up window and only settle once the row is
+// reconciled with a real `sequenceNum`.
+test('syncChannelWithBackoff keeps polling across the markPostSent catch-up window', async () => {
+  const channelId = 'backoff-catchup-channel';
+  await db.insertChannels([{ id: channelId, type: 'chat' }]);
+
+  const catchUpId = 'sent-catchup';
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: catchUpId,
+        type: 'chat',
+        channelId,
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 0,
+        content: JSON.stringify([{ inline: ['server acked, no seq yet'] }]),
+        deliveryStatus: 'sent',
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+
+  // Precondition: the row is still visible to the delivery-polling path.
+  expect(
+    (await db.getDeliveryPendingPosts(channelId)).map((p) => p.id)
+  ).toContain(catchUpId);
+
+  // Simulate the sequenced `addPost` finally arriving: the row is
+  // reconciled in place with a real `sequenceNum` and the deliveryStatus
+  // transition that normally follows.
+  await db.updatePost({
+    id: catchUpId,
+    sequenceNum: 42,
+    deliveryStatus: null,
+  });
+
+  // The polling query must now drop the row — nothing left to reconcile.
+  expect(
+    (await db.getDeliveryPendingPosts(channelId)).map((p) => p.id)
+  ).not.toContain(catchUpId);
 });
 
 test('syncs contacts', async () => {

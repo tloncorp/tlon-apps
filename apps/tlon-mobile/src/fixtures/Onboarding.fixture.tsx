@@ -110,7 +110,7 @@ function OnboardingFixture({
           >
             <GestureHandlerRootView style={{ flex: 1 }}>
               <BottomSheetModalProvider>
-                <NavigationContainer>
+                <NavigationContainer navigationInChildEnabled>
                   {children ?? <OnboardingStack />}
                 </NavigationContainer>
               </BottomSheetModalProvider>

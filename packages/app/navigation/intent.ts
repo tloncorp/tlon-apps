@@ -206,11 +206,11 @@ export function getStateFromNavigationIntent(
     return null;
   }
 
-  // @ts-expect-error - `getStateFromPath` from react-navigation uses a
-  // non-parameterized type, despite being tied to the passed in `options`
-  return navigatorType === 'mobile'
-    ? getStateFromPath(url, getMobileLinkingConfig('').config) ?? null
-    : getStateFromPath(url, getDesktopLinkingConfig('').config) ?? null;
+  return (
+    navigatorType === 'mobile'
+      ? getStateFromPath(url, getMobileLinkingConfig('').config) ?? null
+      : getStateFromPath(url, getDesktopLinkingConfig('').config) ?? null
+  ) as PartialState<NavigationState<CombinedParamList>> | null;
 }
 
 // stubs to be replaced by https://github.com/tloncorp/tlon-apps/pull/4803

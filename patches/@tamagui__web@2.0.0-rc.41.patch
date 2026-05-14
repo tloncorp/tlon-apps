@@ -1,0 +1,132 @@
+diff --git a/dist/cjs/createTamagui.cjs b/dist/cjs/createTamagui.cjs
+index 135f1a2fed975cec5bd3ee5f97327792d11231ab..3e4eb16ac7bb7d806926b5836efc04b821b0b7b6 100644
+--- a/dist/cjs/createTamagui.cjs
++++ b/dist/cjs/createTamagui.cjs
+@@ -144,6 +144,8 @@ ${JSON.stringify(variable, null, 2)}`);
+     position: defaultPositionSetting
+   };
+   const defaultFontToken = defaultFont ? `$${defaultFont}` : "";
++  const unset = { ...configIn.unset };
++  if (!unset.fontFamily && defaultFont) unset.fontFamily = defaultFontToken;
+   const inputAnimations = configIn.animations;
+   const resolvedDriver = (0, import_resolveAnimationDriver.resolveAnimationDriver)(inputAnimations);
+   const isMultiDriver = resolvedDriver !== null && resolvedDriver !== inputAnimations;
+@@ -155,6 +157,7 @@ ${JSON.stringify(variable, null, 2)}`);
+     fontLanguages: [],
+     media: {},
+     ...configIn,
++    unset,
+     animations: resolvedAnimations ?? import_defaultAnimationDriver.defaultAnimationDriver,
+     animationDrivers,
+     defaultProps,
+diff --git a/dist/cjs/createTamagui.native.js b/dist/cjs/createTamagui.native.js
+index 46ae7fef8cb66169bc6e5e5e6aca2c5696a2cba3..90ccc9dc012d17f10623d855b8e6ada0151ae19d 100644
+--- a/dist/cjs/createTamagui.native.js
++++ b/dist/cjs/createTamagui.native.js
+@@ -177,6 +177,8 @@ ${JSON.stringify(variable, null, 2)}`);
+   !((_configIn_settings1 = configIn.settings) === null || _configIn_settings1 === void 0) && _configIn_settings1.defaultPosition;
+   var defaultProps = configIn.defaultProps || {};
+   var defaultFontToken = defaultFont ? `$${defaultFont}` : "";
++  var unset = { ...configIn.unset };
++  if (!unset.fontFamily && defaultFont) unset.fontFamily = defaultFontToken;
+   var inputAnimations = configIn.animations;
+   var resolvedDriver = (0, import_resolveAnimationDriver.resolveAnimationDriver)(inputAnimations);
+   var isMultiDriver = resolvedDriver !== null && resolvedDriver !== inputAnimations;
+@@ -188,6 +190,7 @@ ${JSON.stringify(variable, null, 2)}`);
+     fontLanguages: [],
+     media: {},
+     ...configIn,
++    unset,
+     animations: resolvedAnimations !== null && resolvedAnimations !== void 0 ? resolvedAnimations : import_defaultAnimationDriver.defaultAnimationDriver,
+     animationDrivers,
+     defaultProps,
+diff --git a/dist/cjs/helpers/propMapper.cjs b/dist/cjs/helpers/propMapper.cjs
+index 4c0155e615acf0bfcb26046eb5bd0ce0a8ecbcdf..e2decd4a3625023a7cc32f79830c12605999b0d3 100644
+--- a/dist/cjs/helpers/propMapper.cjs
++++ b/dist/cjs/helpers/propMapper.cjs
+@@ -49,6 +49,11 @@ const propMapper = (key, value, styleState, disabled, map) => {
+     styleProps,
+     staticConfig
+   } = styleState;
++  if (value === "unset") {
++    const unsetVal = conf.unset?.[key];
++    if (unsetVal != null) value = unsetVal;
++    else return;
++  }
+   const {
+     variants
+   } = staticConfig;
+diff --git a/dist/esm/createTamagui.mjs b/dist/esm/createTamagui.mjs
+index 274fd1e7bde45cf67e9338f130a3a394b6300406..0cfee83109475b3699e7c2883c1ff5b4592538e7 100644
+--- a/dist/esm/createTamagui.mjs
++++ b/dist/esm/createTamagui.mjs
+@@ -115,6 +115,8 @@ ${JSON.stringify(variable, null, 2)}`);
+     position: defaultPositionSetting
+   };
+   const defaultFontToken = defaultFont ? `$${defaultFont}` : "";
++  const unset = { ...configIn.unset };
++  if (!unset.fontFamily && defaultFont) unset.fontFamily = defaultFontToken;
+   const inputAnimations = configIn.animations;
+   const resolvedDriver = resolveAnimationDriver(inputAnimations);
+   const isMultiDriver = resolvedDriver !== null && resolvedDriver !== inputAnimations;
+@@ -126,6 +128,7 @@ ${JSON.stringify(variable, null, 2)}`);
+     fontLanguages: [],
+     media: {},
+     ...configIn,
++    unset,
+     animations: resolvedAnimations ?? defaultAnimationDriver,
+     animationDrivers,
+     defaultProps,
+diff --git a/dist/esm/createTamagui.native.js b/dist/esm/createTamagui.native.js
+index 2ff00ee2b7d5665796e40ef53758f41520f8817e..deccc0a44e67a984425cc743f2822c87f12f3b05 100644
+--- a/dist/esm/createTamagui.native.js
++++ b/dist/esm/createTamagui.native.js
+@@ -145,6 +145,8 @@ ${JSON.stringify(variable, null, 2)}`);
+   !((_configIn_settings1 = configIn.settings) === null || _configIn_settings1 === void 0) && _configIn_settings1.defaultPosition;
+   var defaultProps = configIn.defaultProps || {};
+   var defaultFontToken = defaultFont ? `$${defaultFont}` : "";
++  var unset = { ...configIn.unset };
++  if (!unset.fontFamily && defaultFont) unset.fontFamily = defaultFontToken;
+   var inputAnimations = configIn.animations;
+   var resolvedDriver = resolveAnimationDriver(inputAnimations);
+   var isMultiDriver = resolvedDriver !== null && resolvedDriver !== inputAnimations;
+@@ -156,6 +158,7 @@ ${JSON.stringify(variable, null, 2)}`);
+     fontLanguages: [],
+     media: {},
+     ...configIn,
++    unset,
+     animations: resolvedAnimations !== null && resolvedAnimations !== void 0 ? resolvedAnimations : defaultAnimationDriver,
+     animationDrivers,
+     defaultProps,
+diff --git a/dist/esm/helpers/propMapper.mjs b/dist/esm/helpers/propMapper.mjs
+index b57769d7c45adafcc5a6c5f7e8d5a71cd8379c1d..c0c08b3ebf64c99e2557bb4f72a31b1b4b6bdf41 100644
+--- a/dist/esm/helpers/propMapper.mjs
++++ b/dist/esm/helpers/propMapper.mjs
+@@ -20,6 +20,11 @@ const propMapper = (key, value, styleState, disabled, map) => {
+     styleProps,
+     staticConfig
+   } = styleState;
++  if (value === "unset") {
++    const unsetVal = conf.unset?.[key];
++    if (unsetVal != null) value = unsetVal;
++    else return;
++  }
+   const {
+     variants
+   } = staticConfig;
+diff --git a/dist/esm/helpers/propMapper.native.js b/dist/esm/helpers/propMapper.native.js
+index 23ebd181279c0578015ee642b3988e3858feec4a..61cf4b34609396d92e9566da9177324497df2290 100644
+--- a/dist/esm/helpers/propMapper.native.js
++++ b/dist/esm/helpers/propMapper.native.js
+@@ -27,6 +27,11 @@ var propMapper = function (key, value, styleState, disabled, map) {
+     styleProps,
+     staticConfig
+   } = styleState;
++  if (value === "unset") {
++    var unsetVal = conf.unset?.[key];
++    if (unsetVal != null) value = unsetVal;
++    else return;
++  }
+   var {
+     variants
+   } = staticConfig;
