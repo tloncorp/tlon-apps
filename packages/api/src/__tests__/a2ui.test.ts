@@ -160,4 +160,56 @@ describe('a2ui blob entries', () => {
       })
     ).toBe(false);
   });
+
+  test('rejects malformed a2ui text optional fields', () => {
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                {
+                  id: 'root',
+                  component: 'Text',
+                  text: 'Weather',
+                  variant: 999,
+                },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('rejects duplicate child references in containers', () => {
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                {
+                  id: 'root',
+                  component: 'Column',
+                  children: ['summary', 'summary'],
+                },
+                { id: 'summary', component: 'Text', text: '72F and clear' },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
 });

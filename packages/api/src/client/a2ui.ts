@@ -101,6 +101,16 @@ const CONTAINER_JUSTIFY_VALUES = [
 
 const CONTAINER_ALIGN_VALUES = ['start', 'center', 'end', 'stretch'] as const;
 
+const TEXT_VARIANT_VALUES = [
+  'body',
+  'caption',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+] as const;
+
 const BUTTON_VARIANT_VALUES = [
   'default',
   'primary',
@@ -144,6 +154,13 @@ function isValidContainerAlign(value: unknown): boolean {
   );
 }
 
+function isValidTextVariant(value: unknown): boolean {
+  return (
+    value === undefined ||
+    TEXT_VARIANT_VALUES.includes(value as (typeof TEXT_VARIANT_VALUES)[number])
+  );
+}
+
 function isValidButtonVariant(value: unknown): boolean {
   return (
     value === undefined ||
@@ -165,7 +182,8 @@ function validateComponent(component: unknown): component is A2UI.Component {
     case 'Text':
       return (
         typeof component.text === 'string' &&
-        component.text.length <= LIMITS.maxTextNodeLength
+        component.text.length <= LIMITS.maxTextNodeLength &&
+        isValidTextVariant(component.variant)
       );
     case 'Row':
     case 'Column':
@@ -173,6 +191,7 @@ function validateComponent(component: unknown): component is A2UI.Component {
         Array.isArray(component.children) &&
         component.children.length <= LIMITS.maxChildren &&
         component.children.every((child) => isNonEmptyString(child)) &&
+        new Set(component.children).size === component.children.length &&
         isValidContainerJustify(component.justify) &&
         isValidContainerAlign(component.align)
       );
