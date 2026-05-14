@@ -3,11 +3,16 @@ import { desig } from '@tloncorp/api/lib/urbit';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
-import { withRetry } from '@tloncorp/shared/logic';
+import {
+  botHomeGroupHasDefaultTitle,
+  generateBotHomeGroupTitle,
+  withRetry,
+} from '@tloncorp/shared/logic';
 import {
   getSession,
   subscribeToSession,
   syncGroups,
+  updateGroupMeta,
   updateCurrentUserProfile,
   uploadAsset,
   waitForUploads,
@@ -66,6 +71,30 @@ function requireString(value: string | null | undefined, message: string) {
     throw new Error(message);
   }
   return value;
+}
+
+async function ensureBotHomeGroupTitleForNickname(nickname: string) {
+  const homeGroup = await db.getBotHomeGroup();
+  if (!homeGroup || !botHomeGroupHasDefaultTitle(homeGroup)) {
+    return;
+  }
+
+  const title = generateBotHomeGroupTitle({
+    id: api.getCurrentUserId(),
+    nickname,
+  });
+
+  if (homeGroup.title === title) {
+    return;
+  }
+
+  await updateGroupMeta(
+    {
+      ...homeGroup,
+      title,
+    },
+    { shouldThrow: true }
+  );
 }
 
 function hasActiveConnection() {
@@ -278,11 +307,13 @@ export async function recoverTlonbotRevivalDeferredConfig(
         source,
         ['profileNickname'],
         async () => {
+          const nickname = config.profileNickname!;
           await syncGroups();
           await updateCurrentUserProfile(
-            { nickname: config.profileNickname! },
+            { nickname },
             { shouldThrow: true }
           );
+          await ensureBotHomeGroupTitleForNickname(nickname);
         }
       );
     }
