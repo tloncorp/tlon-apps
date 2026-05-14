@@ -12,8 +12,8 @@ import {
   getSession,
   subscribeToSession,
   syncGroups,
-  updateGroupMeta,
   updateCurrentUserProfile,
+  updateGroupMeta,
   uploadAsset,
   waitForUploads,
 } from '@tloncorp/shared/store';
@@ -309,10 +309,7 @@ export async function recoverTlonbotRevivalDeferredConfig(
         async () => {
           const nickname = config.profileNickname!;
           await syncGroups();
-          await updateCurrentUserProfile(
-            { nickname },
-            { shouldThrow: true }
-          );
+          await updateCurrentUserProfile({ nickname }, { shouldThrow: true });
           await ensureBotHomeGroupTitleForNickname(nickname);
         }
       );
