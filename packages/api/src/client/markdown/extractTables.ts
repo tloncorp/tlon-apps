@@ -12,6 +12,7 @@ import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
+import { assertNever } from '../../lib/assertNever';
 import type {
   BlockData,
   InlineData,
@@ -74,9 +75,10 @@ function inlineDataToPhrasing(inline: InlineData): PhrasingContent {
             inline.children[0]?.type === 'text' ? inline.children[0].text : '';
           return { type: 'inlineCode', value: text };
         }
+        default:
+          return assertNever(inline.style);
       }
     }
-    // eslint-disable-next-line no-fallthrough
     case 'link':
       return {
         type: 'link',
@@ -188,8 +190,9 @@ function sliceInlines(
     if (fullyContained) {
       result.push(pos.inline);
     } else if (pos.inline.type === 'text') {
-      // Only text inlines can straddle a boundary (lineBreaks and structured
-      // placeholders are single-character).
+      // Region boundaries are at line edges and the inlines we serialize
+      // (text, lineBreak as `\n`, structured-as-markdown) don't span lines,
+      // so straddling shouldn't happen. Slice defensively if it ever does.
       const sliceStart = Math.max(0, offsetStart - pos.start);
       const sliceEnd = Math.min(pos.inline.text.length, offsetEnd - pos.start);
       const slicedText = pos.inline.text.slice(sliceStart, sliceEnd);
@@ -197,8 +200,8 @@ function sliceInlines(
         result.push({ type: 'text', text: slicedText });
       }
     }
-    // Non-text inlines that aren't fully contained are skipped — but this
-    // shouldn't happen since they're single-character placeholders.
+    // Non-text inlines that straddle are dropped — same rationale: they
+    // shouldn't straddle a line edge in the first place.
   }
   return result;
 }
