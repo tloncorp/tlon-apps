@@ -926,7 +926,7 @@ const TLONBOT_REVIVAL_GROUP_IDS = [
   '~ramlud-bintun/v1l3qcoq',
   '~wittyr-witbes/v3s2kbd7',
 ];
-const BOT_PREVIEW_FALLBACK_USER_SHIP_ID = '~nec';
+const BOT_PREVIEW_FALLBACK_USER_SHIP_ID = '~lidlen-pillex';
 
 function prejoinTlonbotRevivalGroups() {
   TLONBOT_REVIVAL_GROUP_IDS.forEach((groupId) => {
