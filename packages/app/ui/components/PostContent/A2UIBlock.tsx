@@ -201,7 +201,10 @@ export function A2UIBlock({
               flex={getComponentFlex(component)}
             >
               {component.children.map((child) =>
-                renderComponent(child, { parentAlign: component.align })
+                renderComponent(child, {
+                  cardDepth: options.cardDepth,
+                  parentAlign: component.align,
+                })
               )}
             </XStack>
           );
@@ -215,7 +218,10 @@ export function A2UIBlock({
               flex={getComponentFlex(component)}
             >
               {component.children.map((child) =>
-                renderComponent(child, { parentAlign: component.align })
+                renderComponent(child, {
+                  cardDepth: options.cardDepth,
+                  parentAlign: component.align,
+                })
               )}
             </YStack>
           );
