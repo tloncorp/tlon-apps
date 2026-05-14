@@ -35,6 +35,7 @@ import {
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { A2UIBlock } from './A2UIBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
@@ -698,6 +699,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   lineText: LineText,
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
+  a2ui: A2UIBlock,
   link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
@@ -720,6 +722,7 @@ export type DefaultRendererProps = {
   lineText: Partial<ComponentProps<typeof LineText>>;
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
+  a2ui: BlockSettings<typeof A2UIBlock>;
   link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;

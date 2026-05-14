@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import { A2UI } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
@@ -13,6 +14,7 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { SentTimeText } from '../SentTimeText';
+import { useDraftInputContext } from '../draftInputs/shared';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -55,6 +57,7 @@ export function StaticChatMessage({
   showReplies?: boolean;
 }) {
   const isNotice = post.type === 'notice';
+  const draftInputContext = useDraftInputContext();
 
   if (isNotice) {
     showAuthor = false;
@@ -87,6 +90,34 @@ export function StaticChatMessage({
       console.error('Failed to retry post', e);
     }
   }, [onPressRetry, post]);
+
+  const handleA2UIAction = useCallback(
+    async (action: A2UI.Button['action'], fallbackText: string) => {
+      if (action.event.name !== A2UI.action.sendMessage) {
+        return;
+      }
+
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        return;
+      }
+
+      const message = action.event.context?.text ?? fallbackText;
+      const text = message.trim();
+      if (!text) {
+        return;
+      }
+
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [text],
+        attachments: [],
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
+    },
+    [draftInputContext]
+  );
 
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
@@ -162,6 +193,7 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
+            onA2UIAction={handleA2UIAction}
             searchQuery={searchQuery}
           />
         )}
