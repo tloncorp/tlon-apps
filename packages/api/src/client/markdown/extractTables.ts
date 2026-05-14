@@ -370,6 +370,15 @@ function parseTableCandidate(text: string): MdastTable | null {
 }
 
 function extractTablesFromParagraph(block: ParagraphBlockData): BlockData[] {
+  // Cheap short-circuit: a table requires at least one `|` in plain text
+  // content (cell delimiters live in `text` inlines; structured inlines
+  // get their pipes escaped at serialization). Avoids the cost of
+  // reassembly + regex + remark for the common no-table case.
+  const hasPipe = block.content.some(
+    (i) => i.type === 'text' && i.text.includes('|')
+  );
+  if (!hasPipe) return [block];
+
   const mapping = inlinesToText(block.content);
   const regions = findTableRegions(mapping.text);
   if (regions.length === 0) return [block];
