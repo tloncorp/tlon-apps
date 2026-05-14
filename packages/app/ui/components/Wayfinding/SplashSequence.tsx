@@ -75,7 +75,7 @@ import {
 import { useStore } from '../../contexts/storeContext';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
-import { Field, TextInput } from '../Form';
+import { Field, TextInput, TextInputRef } from '../Form';
 import { ListItem } from '../ListItem';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
@@ -1260,6 +1260,7 @@ export function BotNamePane(props: {
 }) {
   const insets = useSafeAreaInsets();
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<TextInputRef>(null);
   const handleNameChange = (value: string) => {
     setError(null);
     props.onNameChange(value);
@@ -1278,8 +1279,12 @@ export function BotNamePane(props: {
     props.onActionPress();
   };
 
+  const refocusInput = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
+
   return (
-    <KeyboardAvoidingView keyboardVerticalOffset={0}>
+    <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={0}>
       <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
         <YStack flex={1} gap="$2xl" paddingTop="$2xl">
           <SplashTitle>
@@ -1288,8 +1293,10 @@ export function BotNamePane(props: {
           <YStack paddingHorizontal="$xl" gap="$m">
             <Field error={error ?? undefined}>
               <TextInput
+                ref={inputRef}
                 value={props.name}
                 onChangeText={handleNameChange}
+                onBlur={refocusInput}
                 autoCapitalize="none"
                 autoCorrect={false}
                 returnKeyType="done"
