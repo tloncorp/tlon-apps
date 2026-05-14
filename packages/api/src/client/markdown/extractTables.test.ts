@@ -302,6 +302,46 @@ describe('extractTablesFromContent', () => {
     ]);
   });
 
+  it('preserves pipes inside structured inlines (inline code, links)', () => {
+    // Inline code containing `|` (e.g. shell pipes, urbit ++mark commands)
+    // would otherwise be interpreted by remark-gfm as a cell delimiter and
+    // shift the row's cell count.
+    const result = extractTablesFromContent([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'text', text: '| Command | Notes |' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '|---|---|' },
+          { type: 'lineBreak' },
+          { type: 'text', text: '| ' },
+          {
+            type: 'style',
+            style: 'code',
+            children: [{ type: 'text', text: 'awk -F | print' }],
+          },
+          { type: 'text', text: ' | filters input |' },
+        ],
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    const table = result[0];
+    if (table.type !== 'table') throw new Error('unreachable');
+    expect(table.rows).toHaveLength(1);
+    expect(table.rows[0].cells).toHaveLength(2);
+    expect(table.rows[0].cells[0].content).toEqual([
+      {
+        type: 'style',
+        style: 'code',
+        children: [{ type: 'text', text: 'awk -F | print' }],
+      },
+    ]);
+    expect(table.rows[0].cells[1].content).toEqual([
+      { type: 'text', text: 'filters input' },
+    ]);
+  });
+
   it('preserves link text containing markdown-special characters', () => {
     // `]` in link text would have broken the old hand-written serializer;
     // mdast-util-to-markdown escapes it properly.

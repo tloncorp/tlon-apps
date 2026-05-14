@@ -150,7 +150,11 @@ function inlineDataToMarkdown(inline: InlineData): string {
   const md = toMarkdown(paragraph, {
     extensions: [gfmToMarkdown(), mentionHandlers],
   });
-  return md.replace(/\n+$/, '');
+  // Every `|` in `md` is content (cell delimiters live only in `text`
+  // inlines, which take the early-return path above). Escape them so
+  // remark-gfm doesn't treat e.g. inline code `awk -F | print` as a
+  // cell boundary when this string gets reassembled into a row.
+  return md.replace(/\n+$/, '').replace(/\|/g, '\\|');
 }
 
 const tableProcessor = unified()
