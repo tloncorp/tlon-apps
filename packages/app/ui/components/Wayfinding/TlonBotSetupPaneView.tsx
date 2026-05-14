@@ -8,7 +8,7 @@ import { SegmentedSpinner } from './SegmentedSpinner';
 const noop = () => {};
 
 const SETUP_MESSAGES = [
-  'This will take up to 5 minutes. Grab a coffee!',
+  'This will take a bit. Feel free to background the app.',
   "We'll send you a notification when it's ready.",
   'Mention your bot with @ to use it in groups.',
   'You can set up recurring reminders with your bot.',
