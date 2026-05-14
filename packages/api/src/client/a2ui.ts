@@ -324,14 +324,16 @@ function validateReachableTree(
   }
 
   const visiting = new Set<string>();
-  const visited = new Set<string>();
+  let expandedComponentCount = 0;
+  const maxExpandedComponents = LIMITS.maxComponents * LIMITS.maxChildren;
 
   function visit(id: string, depth: number): boolean {
     if (depth > LIMITS.maxDepth || visiting.has(id)) {
       return false;
     }
-    if (visited.has(id)) {
-      return true;
+    expandedComponentCount += 1;
+    if (expandedComponentCount > maxExpandedComponents) {
+      return false;
     }
     const component = components.get(id);
     if (!component) {
@@ -353,7 +355,6 @@ function validateReachableTree(
       }
     }
     visiting.delete(id);
-    visited.add(id);
     return true;
   }
 
@@ -366,7 +367,7 @@ export function getUpdateMessage(
   return (
     entry.messages.find(
       (message): message is A2UI.UpdateComponentsMessage =>
-        'updateComponents' in message
+        isPlainObject(message) && 'updateComponents' in message
     ) ?? null
   );
 }

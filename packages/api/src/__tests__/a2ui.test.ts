@@ -212,4 +212,53 @@ describe('a2ui blob entries', () => {
       })
     ).toBe(false);
   });
+
+  test('rejects shared child references that expand beyond render limits', () => {
+    const layerIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((prefix) =>
+      Array.from({ length: 7 }, (_, index) => `${prefix}${index}`)
+    );
+    const components: A2UI.Component[] = [
+      { id: 'root', component: 'Column', children: layerIds[0] },
+      ...layerIds.flatMap((ids, layerIndex) =>
+        ids.map((id) =>
+          layerIndex === layerIds.length - 1
+            ? ({ id, component: 'Text', text: 'x' } as const)
+            : ({
+                id,
+                component: 'Column',
+                children: layerIds[layerIndex + 1],
+              } as const)
+        )
+      ),
+    ];
+
+    expect(components).toHaveLength(50);
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components,
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('ignores non-object messages when finding update message', () => {
+    const entry = {
+      ...a2uiBlobEntry,
+      messages: [42, ...a2uiBlobEntry.messages],
+    } as unknown as A2UI.BlobEntry;
+
+    expect(A2UI.validateBlobEntry(entry)).toBe(true);
+    expect(A2UI.getUpdateMessage(entry)).toEqual(a2uiBlobEntry.messages[1]);
+    expect(A2UI.getRootComponentId(entry)).toBe('root');
+  });
 });

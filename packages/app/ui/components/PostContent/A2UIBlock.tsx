@@ -93,6 +93,8 @@ function getAlignItems(
   switch (align) {
     case 'start':
       return 'flex-start';
+    case 'center':
+      return 'center';
     case 'end':
       return 'flex-end';
     case 'stretch':
