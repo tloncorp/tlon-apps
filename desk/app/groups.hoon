@@ -9,7 +9,8 @@
 /-  g=groups, gv=groups-ver, c=chat, d=channels, dv=channels-ver, s=story,
     av=activity-ver
 /-  meta
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug,
+    guard
 /+  gc=groups-conv, cu=channel-utils, v=volume, s=subscriber, imp=import-aid, logs,
     t=contacts
 /+  of
@@ -17,81 +18,13 @@
 ::  performance, keep warm
 /+  groups-json
 /=  create-thread          /ted/group/create
-/%  m-group-create-thread  %group-create-thread
-/%  m-group-ui-1           %group-ui-1
-::
-::
-/%  m-noun               %noun
-/%  m-group              %group
-/%  m-group-1            %group-1
-/%  m-group-2            %group-2
-/%  m-groups             %groups
-/%  m-groups-1           %groups-1
-/%  m-groups-2           %groups-2
-/%  m-groups-ui          %groups-ui
-/%  m-groups-ui-1        %groups-ui-1
-/%  m-groups-ui-2        %groups-ui-2
-/%  m-group-changed-groups-1  %group-changed-groups-1
-/%  m-group-changed-groups-2  %group-changed-groups-2
-/%  m-group-preview      %group-preview
-/%  m-group-preview-3    %group-preview-3
-/%  m-group-previews     %group-previews
-/%  m-group-previews-1   %group-previews-1
-/%  m-group-update       %group-update
-/%  m-group-log          %group-log
-/%  m-group-token        %group-token
-/%  m-channel-preview    %channel-preview
-/%  m-channel-preview-1  %channel-preview-1
-/%  m-group-response-1   %group-response-1
-/%  m-group-action-3     %group-action-3
-/%  m-gangs              %gangs
-/%  m-foreign-1          %foreign-1
-/%  m-foreigns-1         %foreigns-1
 ::
 /*  commit  %txt  /commit/txt
 ::
 %-  %-  discipline
   :+  ::  marks
       ::
-      :~  :+  %noun               &  -:!>(*vale:m-noun)
-          :+  %group              &  -:!>(*vale:m-group)
-          :+  %group-1            &  -:!>(*vale:m-group-1)
-          :+  %group-2            &  -:!>(*vale:m-group-2)
-        ::
-          :+  %groups             &  -:!>(*vale:m-groups)
-          :+  %groups-1           &  -:!>(*vale:m-groups-1)
-          :+  %groups-2           &  -:!>(*vale:m-groups-2)
-        ::
-          :+  %groups-ui          &  -:!>(*vale:m-groups-ui)
-          :+  %groups-ui-1        &  -:!>(*vale:m-groups-ui-1)
-          :+  %groups-ui-2        &  -:!>(*vale:m-groups-ui-2)
-        ::
-          :+  %group-changed-groups-1  &  -:!>(*vale:m-group-changed-groups-1)
-          :+  %group-changed-groups-2  &  -:!>(*vale:m-group-changed-groups-2)
-        ::
-          :+  %group-preview      &  -:!>(*vale:m-group-preview)
-          :+  %group-preview      &  -:!>(*vale:m-group-preview)
-          :+  %group-preview-3    &  -:!>(*vale:m-group-preview-3)
-        ::
-          :+  %group-previews     &  -:!>(*vale:m-group-previews)
-          :+  %group-previews-1   &  -:!>(*vale:m-group-previews-1)
-        ::
-          :+  %group-update       |  -:!>(*vale:m-group-update)
-          :+  %group-log          |  -:!>(*vale:m-group-log)
-        ::
-          :+  %group-token        &  -:!>(*vale:m-group-token)
-        ::
-          :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
-          :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
-        ::
-          :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
-          :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
-        ::
-          :+  %gangs              &  -:!>(*vale:m-gangs)
-        ::
-          :+  %foreign-1          &  -:!>(*vale:m-foreign-1)
-          :+  %foreigns-1         &  -:!>(*vale:m-foreigns-1)
-      ==
+      discipline:guard
     ::  facts
     ::
     :~  [/server/groups/$/$/updates/$/$ %group-update %group-log ~]
@@ -173,7 +106,8 @@
 ^-  agent:gall
 =>
   |%
-  +$  card  card:agent:gall
+  +$  card  card:guard
+  +$  rail  rail:guard
   +$  current-state
     $:  %11
         groups=net-groups:v9:gv
@@ -197,6 +131,7 @@
       log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~])
   ++  on-init
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -205,6 +140,7 @@
   ++  on-save  !>([state ~])
   ++  on-load
     |=  =vase
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(load:cor vase)
@@ -212,12 +148,14 @@
   ::
   ++  on-poke
     |=  [=mark =vase]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(poke:cor mark vase)
     [cards this]
   ++  on-watch
     |=  =path
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(watch:cor path)
@@ -228,19 +166,22 @@
   ++  on-leave   on-leave:def
   ++  on-fail
     |=  [=term =tang]
+    %-  step:un:guard
     ^-  (quip card _this)
     %-  (slog term tang)
     :_  this
-    [(fail:log term tang ~)]~
+    [(unsafe:guard (fail:log term tang ~))]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(agent:cor wire sign)
     [cards this]
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(arvo:cor wire sign)
@@ -251,7 +192,7 @@
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
-++  give  |=(=gift:agent:gall (emit %give gift))
+++  give  |=(=gift:guard (emit %give gift))
 ++  server  dap.bowl
 ::
 ++  submit-activity
@@ -261,8 +202,8 @@
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  activity-action+!>(`action:v8:av`action)
-  [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
+  =/  =rail  activity-action+`action:v8:av`action
+  [%pass /activity/submit %agent [our.bowl %activity] %poke rail]
 ::  |l: logging core
 ::
 ++  l
@@ -271,6 +212,7 @@
     |=  [desc=term =tang]
     ~>  %spin.['fail']
     =/  =card
+      %-  unsafe:guard
       (~(fail logs our.bowl /logs) desc tang deez)
     (emit card)
   ::
@@ -278,6 +220,7 @@
     |=  [vol=volume:logs =echo:logs]
     ~>  %spin.['tell']
     =/  =card
+      %-  unsafe:guard
       (~(tell logs our.bowl /logs) vol echo deez)
     (emit card)
   ::  +deez: log message details
@@ -583,8 +526,8 @@
     =/  pax=path                 /http-response/[id]
     =/  pay=simple-payload:http  [[307 ['location' '/apps/groups/']~] ~]
     %-  emil
-    :~  [%give %fact ~[pax] %http-response-header !>(response-header.pay)]
-        [%give %fact ~[pax] %http-response-data !>(data.pay)]
+    :~  [%give %fact ~[pax] [%unsafe %http-response-header !>(response-header.pay)]]
+        [%give %fact ~[pax] [%unsafe %http-response-data !>(data.pay)]]
         [%give %kick ~[pax] ~]
     ==
   ==
@@ -671,16 +614,16 @@
       =/  wire  /groups
       =/  dock  [our.bowl dap.bowl]
       =/  =c-groups:g  [%group flag [%channel nest %del-readers readers.channel]]
-      =/  cage  group-command+!>(c-groups)
-      [%pass wire %agent dock %poke cage]
+      =/  =rail  group-command+c-groups
+      [%pass wire %agent dock %poke rail]
     ^-  card
     =/  =path  (welp (channels-scry nest) /perm/noun)
     =/  perms  .^(perm:d %gx path)
     =/  =c-channels:d  [%channel nest %del-writers writers.perms]
     =/  =wire  /channels/command
     =/  =dock  [our.bowl %channels-server]
-    =/  =cage  channel-command+!>(c-channels)
-    [%pass wire %agent dock %poke cage]
+    =/  =rail  channel-command+c-channels
+    [%pass wire %agent dock %poke rail]
   core
 ::  +init: initialize agent
 ++  init
@@ -702,9 +645,9 @@
     %+  roll  ~(tap by wex.bowl)
     |=  [[[=wire =dock] *] =_cor]
     ?.  ?=([%epic ~] wire)  cor
-    =^  caz=(list card)  subs.cor
+    =^  caz=(list card:agent:gall)  subs.cor
       (~(unsubscribe s [subs bowl]) wire dock)
-    (emil:cor caz)
+    (emil:cor (turn caz unsafe:guard))
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
   =?  old  ?=(%5 -.old)  (state-5-to-6 old)
   =^  caz-6-to-7=(list card)  old
@@ -716,9 +659,9 @@
   ::
   =?  cor  ?=(%8 -.old)
     =/  =dock  [our.bowl %contacts]
-    =^  caz=(list card)  subs.cor
+    =^  caz=(list card:agent:gall)  subs.cor
       (~(unsubscribe s [subs bowl]) /contact dock)
-    (emil:cor caz)
+    (emil:cor (turn caz unsafe:guard))
   =?  old  ?=(%8 -.old)  (state-8-to-9 old)
   =^  caz-9-to-10=(list card)  old
     ?.  ?=(%9 -.old)  [~ old]
@@ -1085,12 +1028,12 @@
       ?:  (se-is-banned:se-core src.bowl)
         =/  =preview-update:v7:gv  ~
         =.  cor
-          (emit %give %fact ~ group-preview-3+!>(preview-update))
+          (emit %give %fact ~ group-preview-3+preview-update)
         (emit %give %kick ~ ~)
       se-abet:(se-watch:(se-abed:se-core [our.bowl name.pole]) /preview)
     =/  =preview-update:v7:gv  ~
     =.  cor
-      (emit %give %fact ~ group-preview-3+!>(preview-update))
+      (emit %give %fact ~ group-preview-3+preview-update)
     (emit %give %kick ~ ~)
   ::
       [%server %groups ship=@ name=@ rest=*]
@@ -1141,17 +1084,17 @@
     [%gangs %updates ~]  ?>(from-self cor)
   ::
     :: deprecated
-    [%epic ~]  (give %fact ~ epic+!>(okay:g))
+    [%epic ~]  (give %fact ~ epic+okay:g)
   ==
 ::  +server-watch-index: handle groups index watch request
 ::
 ++  server-watch-index
   ^+  cor
-  =;  =cage
-    =.  se-core  (emit %give %fact ~ cage)
+  =;  =rail
+    =.  se-core  (emit %give %fact ~ rail)
     (emit %give %kick ~ ~)
   :-  %group-previews-1
-  !>  ^-  previews:v7:gv
+  ^-  previews:v7:gv
   %-  ~(gas by *previews:v7:gv)
   %+  murn  ~(tap by groups)
   |=  [=flag:g =net:g =group:g]
@@ -1186,8 +1129,8 @@
 ++  peek
   |=  =(pole knot)
   ~>  %spin.['peek']
-  ^-  (unit (unit cage))
-  |^
+  %-  peek:un:guard
+  |^  ^-  (unit (unit rail))
   ?+    pole  [~ ~]
   ::
     ::
@@ -1219,7 +1162,7 @@
       :-  flag
       %-  gang:v2:foreign:v7:gc
       (v7:foreign:v10:gc foreign)
-    ``noun+!>([groups-light-ui-2 gangs-2])
+    ``noun+[groups-light-ui-2 gangs-2]
   ::
       [%x %v2 %init ~]
     =/  groups-light-ui-7=(map flag:v7:gv group-ui:v7:gv)
@@ -1232,7 +1175,7 @@
       -(member-count ~(wyt by seats.group))
     =/  foreigns-8=foreigns:v8:gv
       (~(run by foreigns) v8:foreign:v10:gc)
-    ``noun+!>([groups-light-ui-7 foreigns-8])
+    ``noun+[groups-light-ui-7 foreigns-8]
   ::
       [%x %v3 %init ~]
     =/  groups-light-ui-9=(map flag:v9:gv group-ui:v9:gv)
@@ -1245,14 +1188,14 @@
       -(member-count ~(wyt by seats.group))
     =/  foreigns-8=foreigns:v8:gv
       (~(run by foreigns) v8:foreign:v10:gc)
-    ``noun+!>([groups-light-ui-9 foreigns-8])
+    ``noun+[groups-light-ui-9 foreigns-8]
   ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
     =/  groups-9=groups:v9:gv  (~(run by groups) tail)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
-        %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
-        %v2  ``groups-2+!>(groups-9)
+        %v0  ``groups+(~(run by groups-9) v2:group:v9:gc)
+        %v1  ``groups-1+(~(run by groups-9) v5:group:v9:gc)
+        %v2  ``groups-2+groups-9
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %light %groups ~]
@@ -1261,24 +1204,24 @@
       |=  [=net:v9:gv =group:v9:gv]
       (drop-seats:group:v9:gc group our.bowl)
     ?-    ver.pole
-        %v0  ``groups+!>((~(run by groups-9) v2:group:v9:gc))
-        %v1  ``groups-1+!>((~(run by groups-9) v5:group:v9:gc))
-        %v2  ``groups-2+!>(groups-9)
+        %v0  ``groups+(~(run by groups-9) v2:group:v9:gc)
+        %v1  ``groups-1+(~(run by groups-9) v5:group:v9:gc)
+        %v2  ``groups-2+groups-9
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %ui %groups ~]
     =/  net-groups-9=net-groups:v9:gv  groups
     ?-    ver.pole
         %v0
-      =-  ``groups-ui+!>(-)
+      =-  ``groups-ui+-
       %-  ~(urn by net-groups-9)
       |=  [=flag:g =net:v9:gv =group:v9:gv]
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
       (group-ui:v2:group:v9:gc status net group)
     ::
-      %v1  ``groups-ui-1+!>((~(run by net-groups-9) group-ui:v5:group:v9:gc))
-      %v2  ``groups-ui-2+!>((~(run by net-groups-9) group-ui:group:v9:gc))
+      %v1  ``groups-ui-1+(~(run by net-groups-9) group-ui:v5:group:v9:gc)
+      %v2  ``groups-ui-2+(~(run by net-groups-9) group-ui:group:v9:gc)
     ==
   ::
     ::  deprecated
@@ -1290,13 +1233,13 @@
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-1
-    !>((~(run by (changes since)) group-ui:v5:group:v9:gc))
+    (~(run by (changes since)) group-ui:v5:group:v9:gc)
   ::
       [%x %v2 %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
     :^  ~  ~
       %group-changed-groups-2
-    !>((~(run by (changes since)) group-ui:group:v9:gc))
+    (~(run by (changes since)) group-ui:group:v9:gc)
   ::
       [%x ver=?(%v0 %v1 %v2) %groups ship=@ name=@ rest=*]
     =+  ship=(slav %p ship.pole)
@@ -1307,13 +1250,13 @@
       (go-peek:(go-abed:go-core ship name.pole) ver.pole rest.pole)
     ?-    ver.pole
         %v0
-      ``group+!>((v2:group:v9:gc +.u.net-group))
+      ``group+(v2:group:v9:gc +.u.net-group)
     ::
         %v1
-      ``group-1+!>((v5:group:v9:gc +.u.net-group))
+      ``group-1+(v5:group:v9:gc +.u.net-group)
     ::
         %v2
-      ``group-2+!>(`group:v9:gv`+.u.net-group)
+      ``group-2+`group:v9:gv`+.u.net-group
     ==
   ::
       [%x ver=?(%v0 %v1 %v2) %ui %groups ship=@ name=@ rest=*]
@@ -1330,13 +1273,13 @@
         %v0
       =/  =status:neg
         (read-status:neg bowl [p.flag %groups])
-      ``group-ui+!>((group-ui:v2:group:v9:gc status u.net-group))
+      ``group-ui+(group-ui:v2:group:v9:gc status u.net-group)
     ::
         %v1
-      ``group-ui-1+!>((group-ui:v5:group:v9:gc u.net-group))
+      ``group-ui-1+(group-ui:v5:group:v9:gc u.net-group)
     ::
         %v2
-      ``group-ui-2+!>((group-ui:group:v9:gc u.net-group))
+      ``group-ui-2+(group-ui:group:v9:gc u.net-group)
     ==
   ::
       ::  deprecated
@@ -1345,18 +1288,18 @@
   ::
       [%u %groups ship=@ name=@ ~]
     =+  ship=(slav %p ship.pole)
-    ``loob+!>((~(has by groups) [ship name.pole]))
+    ``loob+(~(has by groups) [ship name.pole])
   ::
       [%x ver=?(%v1 %v2) %foreigns ~]
     ?-    ver.pole
         %v1
       =/  foreigns-8=foreigns:v8:gv
         (~(run by foreigns) v8:foreign:v10:gc)
-      ``foreigns-1+!>(foreigns-8)
+      ``foreigns-1+foreigns-8
     ::
         %v2
       =/  foreigns-10=foreigns:v10:gv  foreigns
-      ``foreigns-2+!>(foreigns-10)
+      ``foreigns-2+foreigns-10
     ==
   ::
       [%x ver=?(%v1 %v2) %foreigns ship=@ name=@ ~]
@@ -1365,10 +1308,10 @@
     ?~  far=(~(get by foreigns) flag)  [~ ~]
     ?-    ver.pole
         %v1
-      ``foreign-1+!>((v8:foreign:v10:gc u.far))
+      ``foreign-1+(v8:foreign:v10:gc u.far)
     ::
         %v2
-      ``foreign-2+!>(`foreign:v10:gv`u.far)
+      ``foreign-2+`foreign:v10:gv`u.far
     ==
   ==
   ++  changes
@@ -1495,7 +1438,7 @@
       %fact
     ::  we use the same subscription path for client and agent subscriptions.
     ::  here we only process the most recent mark coming from the
-    ::  channel host. 
+    ::  channel host.
     ::
     ?.  =(p.cage.sign %channel-preview-1)  cor
     =+  !<(=channel-preview:v7:gv q.cage.sign)
@@ -1512,7 +1455,7 @@
   =/  preview-7=channel-preview:v7:gv  channel-preview
   =/  path-1=path
     /v1/channels/[p.nest]/(scot %p p.q.nest)/[q.q.nest]/preview
-  =.  cor  (emit %give %fact ~[path-1] channel-preview-1+!>(preview-7))
+  =.  cor  (emit %give %fact ~[path-1] channel-preview-1+preview-7)
   =.  cor  (emit %give %kick ~[path-1] ~)
   cor
 ::
@@ -1524,9 +1467,9 @@
       [%~.~ %cancel-retry rest=*]  cor
   ::
       [%~.~ %retry rest=*]
-    =^  caz=(list card)  subs
+    =^  caz=(list card:agent:gall)  subs
       (~(handle-wakeup s [subs bowl]) pole)
-    (emil caz)
+    (emil (turn caz unsafe:guard))
   ::
       :: initialize .active-channels in $group
       ::
@@ -1692,9 +1635,9 @@
   |=  delay=?
   ^+  cor
   ?:  (~(has by wex.bowl) wire dock)  cor
-  =^  caz=(list card)  subs
+  =^  caz=(list card:agent:gall)  subs
     (~(subscribe s [subs bowl]) wire dock path delay)
-  (emil caz)
+  (emil (turn caz unsafe:guard))
 ::  +eager-leave: eagerly unsubscribe from a path
 ::
 ::  deletes the subscription entry from wex.bowl
@@ -1706,9 +1649,9 @@
   ~>  %spin.['eager-leave']
   ^+  cor
   =.  wex.bowl  (~(del by wex.bowl) wire dock)
-  =^  caz=(list card)  subs
+  =^  caz=(list card:agent:gall)  subs
     (~(unsubscribe s [subs bowl]) wire dock)
-  (emil caz)
+  (emil (turn caz unsafe:guard))
 ::
 ++  watch-channels
   (safe-watch /channels [our.bowl %channels] /v1)
@@ -1809,7 +1752,7 @@
   ::
   ++  se-core  .
   ++  emit  |=(=card se-core(cor cor(cards [card cards])))
-  ++  give  |=(=gift:agent:gall (emit %give gift))
+  ++  give  |=(=gift:guard (emit %give gift))
   ::  +se-abed: init
   ::
   ++  se-abed
@@ -1905,26 +1848,26 @@
       =/  =wire  (weld se-area /invite/send/(scot %p ship))
       =/  =a-foreigns:v9:gv
         [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+a-foreigns]
     ++  send-old-invite
       |=  [=ship =invite:v7:gv]
       ~>  %spin.['send-old-invite']
       =/  =wire  (weld se-area /invite/send/(scot %p ship)/old)
       =/  =a-foreigns:v7:gv
         [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+a-foreigns]
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
       ~>  %spin.['revoke-invite']
       =/  =wire  (weld se-area /invite/revoke/(scot %p ship))
       =/  =a-foreigns:v9:gv  [%revoke flag tok]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+a-foreigns]
     ++  reject-ask
       |=  =ship
       ~>  %spin.['reject-ask']
       =/  =wire  (weld se-area /ask/reject/(scot %p ship))
       =/  =a-foreigns:v9:gv  [%reject flag]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+a-foreigns]
     --
   ::  +se-is-joined: check if the ship has already joined the group
   ::
@@ -1991,7 +1934,7 @@
         se-admin-subscription-paths
       se-subscription-paths
     ?:  =(~ paths)  se-core
-    (give %fact paths group-update+!>(update))
+    (give %fact paths group-update+update)
   ::  +se-c-create: create a group
   ::
   ++  se-c-create
@@ -2569,10 +2512,10 @@
           (~(del by requests.admissions.group.se-core) ship)
         =^  tok=(unit token:g)  se-core
           (se-c-entry-token:se-core %add [personal+ship ~ ~ |])
-        =/  =cage  group-token+!>(tok)
+        =/  =rail  group-token+tok
         =/  =path  (weld se-area /ask/(scot %p ship))
         =.  se-core
-          (give:se-core %fact ~[path] cage)
+          (give:se-core %fact ~[path] rail)
         (give:se-core %kick ~[path] ~)
       (se-update [%entry %ask %del reqs])
     ::
@@ -2717,7 +2660,7 @@
         ?~  update=(ram:log-on:g log)  now.bowl
         -.u.update
       =/  =update:g  [time %create group]
-      (give %fact paths group-update+!>(update))
+      (give %fact paths group-update+update)
     ::
         %del-roles
       =.  seats.group
@@ -2808,7 +2751,7 @@
       |=  [=ship ivl=(list ship) =_se-core]
       ?.  (can-poke:neg bowl ship %groups)
         =.  se-core
-          (emit:se-core (initiate:neg [ship dap.bowl]))
+          (emit:se-core (unsafe:guard (initiate:neg [ship dap.bowl])))
         ::  retry .retry times with doubling .delay
         ::
         =+  delay=~h1
@@ -2906,7 +2849,7 @@
         ?~  update=(ram:log-on:g log)  now.bowl
         -.u.update
       =/  =update:g  [time %create group]
-      (give %fact paths group-update+!>(update))
+      (give %fact paths group-update+update)
     ::
         %del-admin
       =.  admins.group  (~(dif in admins.group) roles)
@@ -3165,14 +3108,14 @@
       =.  invited.admissions.group  ~
       ::  clear .active-channels, as this is updated locally
       =.  active-channels.group  ~
-      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
+      (give %fact ~ group-log+`log:g`[now.bowl^[%create group] ~ ~])
     ::
     =/  =log:g  (lot:log-on:g log `da ~)
     ::  filter out admin updates
     ::
     =?  log  !(se-is-admin ship)
       (se-log-exclude log se-is-admin-update)
-    (give %fact ~ group-log+!>(log))
+    (give %fact ~ group-log+log)
   ::  +se-log-exclude: exclusively filter update log
   ::
   ++  se-log-exclude
@@ -3213,7 +3156,7 @@
       ?.  allow  ~
       `se-preview
     =.  se-core
-      (give %fact ~ group-preview-3+!>(`preview-update:v7:gv`preview-update))
+      (give %fact ~ group-preview-3+`preview-update:v7:gv`preview-update)
     (give %kick ~ ~)
   ::  +se-preview: the group preview
   ::
@@ -3234,7 +3177,7 @@
     :: prevent inviting banned
     =^  tok=(unit token:g)  se-core
       (se-c-entry-token %add [personal+ship ~ ~ &])
-    =.  se-core  (give %fact ~ group-token+!>(tok))
+    =.  se-core  (give %fact ~ group-token+tok)
     (give %kick ~ ~)
   ::  +se-watch-ask: handle a group ask request
   ::
@@ -3247,7 +3190,7 @@
       se-core
     ::  for a public group we send back an null token
     ::
-    =.  se-core  (give %fact ~ group-token+!>(~))
+    =.  se-core  (give %fact ~ group-token+~)
     (give %kick ~ ~)
   ::  +se-agent: handle server signs
   ::
@@ -3399,21 +3342,21 @@
       =/  =wire  (weld go-area /invite/send/(scot %p ship))
       =/  =a-foreigns:v8:gv
         [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+a-foreigns]
     ++  send-old-invite
       |=  [=ship =invite:v7:gv]
       ~>  %spin.['send-old-invite']
       =/  =wire  (weld go-area /invite/send/(scot %p ship)/old)
       =/  =a-foreigns:v7:gv
         [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+a-foreigns]
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
       ~>  %spin.['revoke-invite']
       =/  =wire  (weld go-area /invite/revoke/(scot %p ship))
       =/  =a-foreigns:v8:gv
         [%revoke flag tok]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
+      [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+a-foreigns]
     ++  request-token
       |=  =ship
       ~>  %spin.['request-token']
@@ -3428,7 +3371,7 @@
       ^-  card
       =/  =wire  (weld go-area /command/leave)
       =/  =dock  [p.flag server]
-      [%pass wire %agent dock %poke group-command+!>(`c-groups:g`[%leave flag])]
+      [%pass wire %agent dock %poke group-command+`c-groups:g`[%leave flag]]
     ::
     ++  leave-channels
       |=  nests=(list nest:g)
@@ -3442,9 +3385,9 @@
         ~
       =/  =dock  [our.bowl %channels]
       =/  action=a-channels:v9:dv  [%channel nes %leave ~]
-      =/  =cage  channel-action-1+!>(action)
+      =/  =rail  channel-action-1+action
       =/  =wire  (snoc go-area %leave-channels)
-      `[%pass wire %agent dock %poke cage]
+      `[%pass wire %agent dock %poke rail]
     ::
     ++  join-channels
       |=  nests=(list nest:g)
@@ -3458,9 +3401,9 @@
         ~
       =/  =dock  [our.bowl %channels]
       =/  action=a-channels:v9:dv  [%channel nes %join flag]
-      =/  =cage  channel-action-1+!>(action)
+      =/  =rail  channel-action-1+action
       =/  =wire  (snoc go-area %join-channels)
-      `[%pass wire %agent dock %poke cage]
+      `[%pass wire %agent dock %poke rail]
     ::
     ++  go-wake-members
       ~>  %spin.['go-wake-members']
@@ -3470,8 +3413,8 @@
       |=  who=ship
       ^-  card
       =/  =wire  (snoc go-area %wake)
-      =/  =cage  noun+!>([%group-wake flag])
-      [%pass wire %agent [who dap.bowl] %poke cage]
+      =/  =rail  noun+[%group-wake flag]
+      [%pass wire %agent [who dap.bowl] %poke rail]
     --
   ::  +go-has-sub: check if we are subscribed to the group
   ::
@@ -3670,8 +3613,8 @@
     ~>  %spin.['go-send-command']
     ^+  go-core
     =/  =^wire  (weld go-area wire)
-    =/  =cage  group-command+!>(`c-groups:g`[%group flag c-group])
-    (emit %pass wire %agent [p.flag server] %poke cage)
+    =/  =rail  group-command+`c-groups:g`[%group flag c-group]
+    (emit %pass wire %agent [p.flag server] %poke rail)
   ::  +go-a-navigation: process navigation action
   ::
   ++  go-a-navigation
@@ -4591,7 +4534,7 @@
     ::
     =/  r-groups-9=r-groups:v9:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
-    =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
+    =.  cor  (give %fact v1-paths group-response-1+r-groups-9)
     ::  v0 backcompat
     ::
     =/  diffs-2=(list diff:v2:gv)
@@ -4600,14 +4543,14 @@
       %+  roll  diffs-2
       |=  [=diff:v2:gv =_cor]
       =/  action-2=action:v2:gv  [flag now.bowl diff]
-      (give:cor %fact ~[/groups/ui] group-action-3+!>(action-2))
+      (give:cor %fact ~[/groups/ui] group-action-3+action-2)
     go-core
   ::  +go-peek: handle group scry request
   ::
   ++  go-peek
     |=  [ver=?(%v0 %v1 %v2) =(pole knot)]
     ~>  %spin.['go-peek']
-    ^-  (unit (unit cage))
+    ^-  (unit (unit rail))
     ::TODO some of these should be versioned, at least
     ::     those used by the client.
     ::
@@ -4615,25 +4558,25 @@
     ::
       ::  local preview
       [%preview ~]
-    ``noun+!>(go-preview)
+    ``noun+go-preview
     ::
       ::
       ::  seats queries
       ::
         [%seats %ships ~]
-      ``ships+!>(~(key by seats.group))
+      ``ships+~(key by seats.group)
     ::
         [%seats ship=@ ~]
       =+  ship=(slav %p ship.pole)
-      ``noun+!>((~(get by seats.group) ship))
+      ``noun+(~(get by seats.group) ship)
     ::
         [%seats ship=@ %is-admin ~]
       =+  ship=(slav %p ship.pole)
-      ``loob+!>((go-is-admin ship))
+      ``loob+(go-is-admin ship)
     ::
         [%seats ship=@ %is-banned ~]
       =+  ship=(slav %p ship.pole)
-      ``loob+!>((go-is-banned ship))
+      ``loob+(go-is-banned ship)
     ::
       ::
       ::  channels queries
@@ -4643,16 +4586,16 @@
       ?+    rest.pole  [~ ~]
           [%can-read ship=@ ~]
         ?~  channel=(~(get by channels.group) nest)
-          ``loob+!>(|)
+          ``loob+|
         =+  ship=(slav %p ship.rest.pole)
-        ``loob+!>((go-can-read ship u.channel))
+        ``loob+(go-can-read ship u.channel)
       ::
           [%can-write ship=@ ~]
         =+  ship=(slav %p ship.rest.pole)
-        ^-  (unit (unit cage))
+        ^-  (unit (unit rail))
         ?~  seat=(~(get by seats.group) ship)  [~ ~]
         ?:  (go-is-banned ship)  [~ ~]
-        =-  ``noun+!>(-)
+        =-  ``noun+-
         %-  some
         :-  admin=(go-is-admin ship)
         roles=roles.u.seat
@@ -4661,7 +4604,7 @@
         ?~  channel=(~(get by channels.group) nest)
           [~ ~]
         =;  ships=(set ship)
-          ``ships+!>(ships)
+          ``ships+ships
         %-  silt
         ^-  (list ship)
         %+  skim  ~(tap in ~(key by seats.group))
@@ -4676,7 +4619,7 @@
           /(scot %p our.bowl)/channels/(scot %da now.bowl)/[app.pole]/[ship.pole]/[name.pole]
         =+  .^(=perm:d %gx (weld channels-scry /perm/noun))
         =;  ships=(set ship)
-          ``ships+!>(ships)
+          ``ships+ships
         %-  ~(rep by seats.group)
         |=  [[=ship =seat:g] writers=(set ship)]
         ::  if we can't read the channel, we will not receive
@@ -4692,7 +4635,7 @@
       ==
     ::
         [%channels %can-read ~]
-      =-  ``noun+!>(-)
+      =-  ``noun+-
       ^-  $-([ship nest:gv] ?)
       |=  [=ship =nest:gv]
       ?~  chan=(~(get by channels.group) nest)  |
@@ -4702,7 +4645,7 @@
       ::  admissions queries
       ::
         [%entry %tokens ~]
-      ``noun+!>(tokens.ad)
+      ``noun+tokens.ad
     ==
   ++  go-can-read
     |=  [=ship =channel:g]
@@ -4754,10 +4697,10 @@
     ::  cancel a possible preview
     ::
     =?  cor  done
-      =^  caz=(list card)  subs
+      =^  caz=(list card:agent:gall)  subs
         =/  =dock  [p.flag dap.bowl]
         (~(unsubscribe s [subs bowl]) (weld fi-area /preview) dock)
-      (emil caz)
+      (emil (turn caz unsafe:guard))
     =?  fi-core  |(?=(~ old-foreign) !=(u.old-foreign foreign))
       fi-give-update
     cor
@@ -4768,8 +4711,8 @@
       %-  gang:v2:foreign:v7:gc
       (v7:foreign:v10:gc foreign)
     =/  foreign-8  (v8:foreign:v10:gc foreign)
-    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my flag^foreign-8 ~)))
-    =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
+    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+`foreigns:v8:gv`(my flag^foreign-8 ~))
+    =.  cor  (give %fact ~[/gangs/updates] gangs+`gangs:v2:gv`(my flag^gang-2 ~))
     fi-core
   ::
   ++  fi-activity
@@ -4796,16 +4739,16 @@
       ^-  card
       =/  =wire  (weld fi-area /command/leave)
       =/  =dock  [p.flag server]
-      [%pass wire %agent dock %poke group-command+!>(`c-groups:g`[%leave flag])]
+      [%pass wire %agent dock %poke group-command+`c-groups:g`[%leave flag]]
     ::
     ++  join
       |=  tok=(unit token:g)
       ~>  %spin.['join']
       ^-  card
       =/  =wire  (weld fi-area /join/[?~(tok %public (scot %uv u.tok))])
-      =/  =cage
-        group-command+!>(`c-groups:g`[%join flag tok])
-      [%pass wire %agent [p.flag server] %poke cage]
+      =/  =rail
+        group-command+`c-groups:g`[%join flag tok]
+      [%pass wire %agent [p.flag server] %poke rail]
     ::
     ++  ask
       |=  story=(unit story:s:g)  ::XX something is broken with story import
@@ -4813,9 +4756,9 @@
       ^-  (list card)
       =/  =wire  (weld fi-area /ask)
       =/  =path  (weld fi-server-path /ask/(scot %p our.bowl))
-      =/  =cage
-        group-command+!>(`c-groups:g`[%ask flag story])
-      :~  [%pass wire %agent [p.flag server] %poke cage]
+      =/  =rail
+        group-command+`c-groups:g`[%ask flag story]
+      :~  [%pass wire %agent [p.flag server] %poke rail]
           [%pass wire %agent [p.flag server] %watch path]
       ==
     ::
@@ -4858,7 +4801,7 @@
     ~>  %spin.['fi-join']
     ^+  fi-core
     =*  log  ~(. l `%group-join)
-    =.  cor  (emit (initiate:neg [p.flag server]))
+    =.  cor  (emit (unsafe:guard (initiate:neg [p.flag server])))
     ::  leave the ask subscription in case it has not yet closed
     ::
     =?  cor  ?=([~ %ask] progress)
@@ -4889,7 +4832,7 @@
     |=  story=(unit story:s:g)
     ~>  %spin.['fi-ask']
     ^+  fi-core
-    =.  cor  (emit (initiate:neg [p.flag server]))
+    =.  cor  (emit (unsafe:guard (initiate:neg [p.flag server])))
     ?:  (~(has by groups) flag)  fi-core
     ?:  ?&  ?=(^ progress)
             ?=(?(%ask %join %watch %done) u.progress)
@@ -5191,7 +5134,7 @@
             %-  emil
             :~  :: v0
                 ::
-                [%give %fact ~[path-0] group-preview+!>((v2:preview:v7:gc u.preview))]
+                [%give %fact ~[path-0] group-preview+(v2:preview:v7:gc u.preview)]
                 [%give %kick ~[path-0] ~]
             ==
           %-  emil
@@ -5199,7 +5142,7 @@
               ::
               :^  %give  %fact
                 ~[path-1]
-              group-preview-3+!>(`preview-update:v7:gv`preview-update)
+              group-preview-3+`preview-update:v7:gv`preview-update
               [%give %kick ~[path-1] ~]
           ==
         fi-core
@@ -5241,7 +5184,7 @@
       =.  cor  %-  emil
         :~  :^  %give  %fact
               ~[path-1]
-            group-previews-1+!>(`previews:v7:gv`previews)
+            group-previews-1+`previews:v7:gv`previews
           ::
             [%give %kick ~[path-1] ~]
         ==
@@ -5253,7 +5196,7 @@
       =.  cor  %-  emil
         :~  :^  %give  %fact
               ~[path-0]
-            group-previews+!>(previews-2)
+            group-previews+previews-2
           ::
             [%give %kick ~[path-0] ~]
         ==
