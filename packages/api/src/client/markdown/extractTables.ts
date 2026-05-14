@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
-import {
+import type {
   BlockData,
   InlineData,
   ParagraphBlockData,
@@ -20,8 +20,8 @@ import {
   TableAlignment,
   TableBlockData,
   TableRowData,
-  convertInlineContent,
-} from '../../client/postContent';
+} from '../postContent';
+import { convertInlineContent } from '../postContentInlines';
 import { remarkGroupMentions } from './groupMentionPlugin';
 import { phrasingToInlines } from './mdastToStory';
 import { remarkShipMentions } from './shipMentionPlugin';

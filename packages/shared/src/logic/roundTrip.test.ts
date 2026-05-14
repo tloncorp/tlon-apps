@@ -1,4 +1,7 @@
-import { markdownToStory, storyToMarkdown } from '@tloncorp/api/lib/markdown';
+import {
+  markdownToStory,
+  storyToMarkdown,
+} from '@tloncorp/api/client/markdown';
 import { JSONContent } from '@tloncorp/api/urbit';
 import { Story, constructStory } from '@tloncorp/api/urbit/channel';
 import {
