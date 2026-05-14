@@ -7,6 +7,7 @@ import { withRetry } from '@tloncorp/shared/logic';
 import {
   getSession,
   subscribeToSession,
+  syncGroups,
   updateCurrentUserProfile,
   uploadAsset,
   waitForUploads,
@@ -272,11 +273,17 @@ export async function recoverTlonbotRevivalDeferredConfig(
     }
 
     if (config.profileNickname) {
-      await runAction('profileNickname', source, ['profileNickname'], () =>
-        updateCurrentUserProfile(
-          { nickname: config.profileNickname! },
-          { shouldThrow: true }
-        )
+      await runAction(
+        'profileNickname',
+        source,
+        ['profileNickname'],
+        async () => {
+          await syncGroups();
+          await updateCurrentUserProfile(
+            { nickname: config.profileNickname! },
+            { shouldThrow: true }
+          );
+        }
       );
     }
 
