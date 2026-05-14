@@ -283,8 +283,13 @@ export function plaintextPreviewOf(
           return plaintextPreviewOfListData(block.list, config);
         case 'bigEmoji':
           return block.emoji;
-        case 'table':
-          return '(Table)';
+        case 'table': {
+          const headerText = block.header.cells
+            .map((cell) => plaintextPreviewOfInlineString(cell.content, config))
+            .filter((text) => text.length > 0)
+            .join(' | ');
+          return headerText || '(Table)';
+        }
       }
     })
     .join(config.blockSeparator)
