@@ -1279,8 +1279,6 @@ export function BotNamePane(props: {
     props.onActionPress();
   };
 
-  // Keep the input focused at all times: blur/refocus cycles trigger an
-  // Android layout shift that pushes the title off-screen on this pane.
   const refocusInput = useCallback(() => {
     inputRef.current?.focus();
   }, []);
