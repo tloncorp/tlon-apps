@@ -149,7 +149,8 @@
 |=  args=vase
 =/  m  (strand ,vase)
 ^-  form:m
-=+  !<(pax=(unit path) args)
+=+  ~|  %no-args-found
+  (need !<((unit [pax=(unit path) snap=@t]) args))
 ;<  =bowl:spider  bind:m  get-bowl
 =/  [byk=beak pax=path]
   ?~  pax
