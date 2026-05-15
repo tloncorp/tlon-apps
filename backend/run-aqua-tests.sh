@@ -268,7 +268,7 @@ result=$( $run_click -t 1200 $pier <<EOF
   [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]  
 =/  args  
   [\`ph-tests %ci-aqua-tests]  
-=+  ted=~.ci-ph-test  
+=+  tid=~.ci-ph-test  
 =/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`args)])  
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
