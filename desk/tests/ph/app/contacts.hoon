@@ -59,34 +59,34 @@
 ::
 ::  scenario
 ::
-::  ~zod starts with an empty contact profile.
+::  ~bud subscribes to ~zod's contact profile.
 ::  ~zod updates his profile with fields covering every contact value type,
 ::  then publishes the updated profile to local subscribers.
 ::
 ++  ph-test-profile-field-types
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (watch-app /~zod/contacts/v1/contact [~zod %contacts] /v1/contact)
-  ;<  pay=cage  bind:m  (wait-for-app-fact /~zod/contacts/v1/contact [~zod %contacts])
-  ?>  =(%contact-update-1 p.pay)
-  =+  !<(upd=update:c q.pay)
-  ?>  ?=(%full -.upd)
-  ;<  ~  bind:m  (ex-equal !>(con.upd) !>(*contact:c))
   ;<  ~  bind:m  (watch-app /~zod/contacts/v1/news [~zod %contacts] /v1/news)
+  ;<  ~  bind:m  (watch-app /~bud/contacts/v1/news [~bud %contacts] /v1/news)
+  ::  ~bud meets ~zod, creating a real subscriber for ~zod's profile.
+  ::
+  ;<  ~  bind:m  (poke-app [~bud %contacts] contact-action-1+[%meet ~[~zod]])
+  ;<  ~  bind:m
+    %^  ex-app-fact  /~bud/contacts/v1/news
+      [~bud %contacts]
+    contact-response-0+!>([%peer ~zod *contact:c])
   ::  ~zod sets every contact value type and receives the local response.
   ::
   ;<  ~  bind:m  (poke-app [~zod %contacts] contact-action-1+[%self my-typed-profile])
-  ;<  pay=cage  bind:m  (wait-for-app-fact /~zod/contacts/v1/news [~zod %contacts])
-  ?>  =(%contact-response-0 p.pay)
-  =+  !<(res=response:c q.pay)
-  ?>  ?=(%self -.res)
-  ;<  ~  bind:m  (ex-equal !>(con.res) !>(my-typed-profile))
-  ::  ~zod then publishes his full updated profile to contact subscribers.
+  ;<  ~  bind:m
+    %^  ex-app-fact  /~zod/contacts/v1/news
+      [~zod %contacts]
+    contact-response-0+!>([%self my-typed-profile])
+  ::  ~bud receives a local news fact about ~zod's updated profile.
   ::
-  ;<  pay=cage  bind:m  (wait-for-app-fact /~zod/contacts/v1/contact [~zod %contacts])
-  ?>  =(%contact-update-1 p.pay)
-  =+  !<(upd=update:c q.pay)
-  ?>  ?=(%full -.upd)
-  ;<  ~  bind:m  (ex-equal !>(con.upd) !>(my-typed-profile))
+  ;<  ~  bind:m
+    %^  ex-app-fact  /~bud/contacts/v1/news
+      [~bud %contacts]
+    contact-response-0+!>([%peer ~zod my-typed-profile])
   (pure:m ~)
 --
