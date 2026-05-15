@@ -78,8 +78,6 @@ export function useOnboardingHelpers() {
           onboardingFlow,
         });
 
-        const shipId =
-          inputShipInfo?.ship ?? (await db.hostedUserNodeId.getValue());
         logger.trackEvent(AnalyticsEvent.InitiatedTlonbotRevival, {
           source: 'post_login',
         });
@@ -89,7 +87,6 @@ export function useOnboardingHelpers() {
           applied: false,
           provisioningStarted: current.provisioningStarted ?? false,
           stage: current.stage ?? 'collecting',
-          shipId: shipId ?? undefined,
         }));
 
         await db.hostedAccountIsInitialized.setValue(false);
