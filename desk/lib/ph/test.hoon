@@ -10,6 +10,33 @@
 ::
 ++  ph-test-shut
   (leave-our /effect/unto %aqua)
+::  +set-timeout-err: set timeout with error message
+::
+++  set-timeout-err
+  |*  computation-result=mold
+  =/  m  (strand ,computation-result)
+  |=  [time=@dr error=tang computation=form:m]
+  ^-  form:m
+  ;<  now=@da  bind:m  get-time
+  =/  when  (add now time)
+  =/  =card:agent:gall
+    [%pass /timeout/(scot %da when) %arvo %b %wait when]
+  ;<  ~        bind:m  (send-raw-card card)
+  |=  tin=strand-input:strand
+  =*  loop  $
+  ?:  ?&  ?=([~ %sign [%timeout @ ~] %behn %wake *] in.tin)
+          =((scot %da when) i.t.wire.u.in.tin)
+      ==
+    `[%fail %timeout error]
+  =/  c-res  (computation tin)
+  ?:  ?=(%cont -.next.c-res)
+    c-res(self.next ..loop(computation self.next.c-res))
+  ?:  ?=(%done -.next.c-res)
+    =/  =card:agent:gall
+      [%pass /timeout/(scot %da when) %arvo %b %rest when]
+    c-res(cards [card cards.c-res])
+  c-res
+::  +take-effect: receive aqua effect on a .wire
 ::
 ++  take-effect
   |=  =wire
@@ -86,6 +113,8 @@
   ?.  =(wire p.unix-effect)  loop
   ?.  ?=([%unto %raw-fact *] q.unix-effect)  loop
   =*  mark  mark.p.q.unix-effect
+  ::  note: this assumes that the marks on the virtual ship and the host match
+  ::
   =+  .^(=dais:clay %cb /(scot %p our.bowl)/groups/(scot %da now.bowl)/[mark])
   =/  =vase  (vale:dais noun.p.q.unix-effect)
   (pure:m [mark vase])
@@ -109,4 +138,34 @@
   ?~  tang
     `[%fail %ex-not-equal tang]
   `[%done ~]
+::  +ex-app-fact: expect app fact on a wire with a timeout
+::
+++  ex-app-fact
+  |=  [=wire =dock ex-fact=cage]
+  =/  m  (strand ,~)
+  ^-  form:m
+  %^  (set-timeout-err ,~)  timeout
+    :~  'ex-app-fact'
+        leaf+"expected a fact from {<p.dock>}/{<q.dock>}:"
+        leaf+"mark {<p.ex-fact>}"
+        (sell q.ex-fact)
+    ==
+  ;<  fact=cage  bind:m  (wait-for-app-fact wire dock)
+  ;<  ~  bind:m  
+    %+  (map-err ,~)
+      |=  [=term =tang]
+      :-  'ex-app-fact'
+      ^-  ^tang
+      :-  leaf+"mark mismatch from {<p.dock>}/{<q.dock>}"
+      tang
+    (ex-equal !>(p.fact) !>(p.ex-fact))
+  ;<  ~  bind:m  
+    %+  (map-err ,~)
+      |=  [=term =tang]
+      :-  'ex-app-fact'
+      ^-  ^tang
+      :-  leaf+"fact value mismatch from {<p.dock>}/{<q.dock>}"
+      tang
+    (ex-equal q.fact q.ex-fact)
+  (pure:m ~)
 --
