@@ -18,7 +18,8 @@ afterEvaluate {
     ) {
         description = "Bundle JS for TalkMessagingService"
         workingDir workspaceRoot
-        commandLine "pnpm", "run", "--filter", "scripts", "build"
+        def pnpmExe = org.gradle.internal.os.OperatingSystem.current().isWindows() ? "pnpm.cmd" : "pnpm"
+        commandLine pnpmExe, "run", "--filter", "scripts", "build"
     }
     def copyTask = tasks.create(
             name: "copyNotificationServiceJsBundle",
