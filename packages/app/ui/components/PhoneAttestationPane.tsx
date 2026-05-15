@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import { Button, LoadingSpinner, Text, triggerHaptic } from '@tloncorp/ui';
-import * as LibPhone from 'libphonenumber-js';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View, YStack } from 'tamagui';
@@ -85,7 +85,7 @@ function SubmitPhoneNumPane(props: { attestation: db.Attestation | null }) {
       setIsSubmitting(true);
       setRemoteError(undefined);
       await phoneForm.handleSubmit(async ({ phoneNumber }) => {
-        const parsedPhone = LibPhone.parsePhoneNumberFromString(phoneNumber);
+        const parsedPhone = parsePhoneNumberFromString(phoneNumber);
         if (!parsedPhone) {
           setRemoteError('Please enter a valid phone number.');
           return;

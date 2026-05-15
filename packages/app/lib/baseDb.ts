@@ -1,5 +1,6 @@
 import { createDevLogger } from '@tloncorp/shared';
 import { handleChange } from '@tloncorp/shared/db';
+import { perfMark } from '@tloncorp/shared/perfLog';
 import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { useEffect, useMemo, useState } from 'react';
@@ -55,6 +56,7 @@ export abstract class BaseDb {
   protected async processChanges() {
     if (!this.client) return;
 
+    const perfStop = perfMark('processChanges');
     try {
       const changes = await this.client.select().from(changeLogTable).all();
       for (const change of changes) {
@@ -65,8 +67,10 @@ export abstract class BaseDb {
         });
       }
       await this.client.delete(changeLogTable).run();
+      perfStop({ changes: changes.length });
     } catch (e) {
       logger.error('failed to process changes:', e);
+      perfStop({ error: 'true' });
     }
   }
 

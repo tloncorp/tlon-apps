@@ -1,13 +1,12 @@
 import { NavigationAction, useLinkProps } from '@react-navigation/native';
-import { To } from '@react-navigation/native/lib/typescript/src/useLinkTo';
 import { forwardRef, useMemo } from 'react';
 import { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
-import { Stack, StackProps, isWeb } from 'tamagui';
+import { View, ViewProps, isWeb } from 'tamagui';
 
 type PressHandler = ((event: GestureResponderEvent) => void) | undefined | null;
 
 type PressableProps = Omit<
-  StackProps,
+  ViewProps,
   'onPress' | 'onLongPress' | 'onPressIn' | 'onPressOut'
 > & {
   onLongPress?: PressHandler;
@@ -15,7 +14,7 @@ type PressableProps = Omit<
   onPressIn?: PressHandler;
   onPressOut?: PressHandler;
   onLayout?: (event: LayoutChangeEvent) => void;
-  to?: To;
+  to?: string;
   action?: NavigationAction;
   children?: React.ReactNode;
 };
@@ -28,7 +27,7 @@ const StackComponent = forwardRef<any, PressableProps>(
     // On web, bypass all mobile-specific logic and act like a simple Stack
     if (isWeb) {
       return (
-        <Stack
+        <View
           ref={ref}
           // eslint-disable-next-line no-restricted-syntax
           onPress={onPress}
@@ -36,7 +35,7 @@ const StackComponent = forwardRef<any, PressableProps>(
           {...stackProps}
         >
           {children}
-        </Stack>
+        </View>
       );
     }
 
@@ -44,7 +43,7 @@ const StackComponent = forwardRef<any, PressableProps>(
     const longPressHandler = onLongPress;
 
     return (
-      <Stack
+      <View
         ref={ref}
         pressStyle={{ opacity: 0.5 }}
         {...stackProps}
@@ -58,7 +57,7 @@ const StackComponent = forwardRef<any, PressableProps>(
         onLongPress={longPressHandler}
       >
         {children}
-      </Stack>
+      </View>
     );
   }
 );
@@ -99,8 +98,8 @@ const Pressable = forwardRef<any, PressableProps>(
   ) => {
     const longPressHandler = isWeb ? undefined : onLongPress;
     const { onPress: onPressLink, ...linkProps } = useLinkProps({
-      to: to ?? '',
-      action,
+      href: to ?? '',
+      action: action!,
     });
 
     // Check for interaction handlers - only needed on mobile for touch bubbling
@@ -118,7 +117,7 @@ const Pressable = forwardRef<any, PressableProps>(
     // are attached.
     const disabled = propDisabled || !hasInteractionHandler;
 
-    const style = useMemo<StackProps['style']>(
+    const style = useMemo<ViewProps['style']>(
       () => [
         propStyle,
         // @ts-expect-error - we're trying to fit the Pressable

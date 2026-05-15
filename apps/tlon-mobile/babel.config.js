@@ -1,7 +1,7 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: [['babel-preset-expo', { jsxRuntime: 'automatic' }]],
+    presets: [['babel-preset-expo', { unstable_transformImportMeta: true }]],
     plugins: [
       // Allow sql imports so that we can bundle drizzle migrations.
       [
@@ -10,7 +10,6 @@ module.exports = function (api) {
           extensions: ['.sql'],
         },
       ],
-      'react-native-reanimated/plugin',
       [
         '@tamagui/babel-plugin',
         {
@@ -19,6 +18,7 @@ module.exports = function (api) {
           experimentalFlattenThemesOnNative: true,
         },
       ],
+      'react-native-worklets/plugin',
     ],
   };
 };

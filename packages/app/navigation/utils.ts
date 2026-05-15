@@ -152,11 +152,15 @@ function useNavigateToChannel() {
     (channel: db.Channel, selectedPostId?: string) => {
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
-        navigation.navigate(screenName, {
-          channelId: channel.id,
-          selectedPostId,
-          ...(channel.groupId ? { groupId: channel.groupId } : {}),
-        });
+        navigation.navigate(
+          screenName,
+          {
+            channelId: channel.id,
+            selectedPostId,
+            ...(channel.groupId ? { groupId: channel.groupId } : {}),
+          },
+          { pop: true }
+        );
       } else {
         const tab = getTab(navigation, lastOpenTab);
         const channelRoute = getDesktopChannelRoute(
@@ -203,17 +207,21 @@ export function useNavigateToPost() {
         const tab = getTab(navigation, lastOpenTab);
         logger.log('navigateToPost', tab, postParams);
 
-        navigation.navigate(tab, {
-          screen: 'Channel',
-          params: {
-            screen: 'Post',
-            params: postParams,
+        navigation.navigate(
+          tab,
+          {
+            screen: 'Channel',
+            params: {
+              screen: 'Post',
+              params: postParams,
+            },
           },
-        });
+          { pop: true }
+        );
         return;
       }
 
-      navigation.navigate('Post', postParams);
+      navigation.navigate('Post', postParams, { pop: true });
     },
     [isWindowNarrow, currentScreenIsActivity, navigation, lastOpenTab]
   );
@@ -245,25 +253,33 @@ export function useNavigateBackFromPost() {
         return;
       }
       if (lastScreenWasActivity) {
-        navigation.navigate('Activity');
+        navigation.navigate('Activity', undefined, { pop: true });
         return;
       }
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
-        navigation.navigate(screenName, {
-          channelId: channel.id,
-          // we don't want to highlight the selected post we're returning from
-          // if we aren't in a chat
-          selectedPostId: isChatShaped ? postId : undefined,
-          ...(channel.groupId ? { groupId: channel.groupId } : {}),
-        });
+        navigation.navigate(
+          screenName,
+          {
+            channelId: channel.id,
+            // we don't want to highlight the selected post we're returning from
+            // if we aren't in a chat
+            selectedPostId: isChatShaped ? postId : undefined,
+            ...(channel.groupId ? { groupId: channel.groupId } : {}),
+          },
+          { pop: true }
+        );
       } else {
-        // @ts-expect-error - ChannelRoot is fine here.
-        navigation.navigate('ChannelRoot', {
-          channelId: channel.id,
-          selectedPostId: isChatShaped ? postId : undefined,
-          groupId: channel.groupId ?? undefined,
-        });
+        navigation.navigate(
+          // @ts-expect-error - ChannelRoot is fine here.
+          'ChannelRoot',
+          {
+            channelId: channel.id,
+            selectedPostId: isChatShaped ? postId : undefined,
+            groupId: channel.groupId ?? undefined,
+          },
+          { pop: true }
+        );
       }
     },
     [navigation, isWindowNarrow, lastScreenWasActivity]
@@ -328,21 +344,29 @@ export function useRootNavigation() {
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
         if (isWindowNarrow) {
-          navigationRef.current.navigate('ChatDetails', {
-            chatId: chat.id,
-            chatType: chat.type,
-            groupId: chat.groupId,
-          });
-        } else {
-          const tab = getTab(navigationRef.current, lastOpenTab);
-          navigationRef.current.navigate(tab, {
-            screen: 'ChatDetails',
-            params: {
+          navigationRef.current.navigate(
+            'ChatDetails',
+            {
               chatId: chat.id,
               chatType: chat.type,
               groupId: chat.groupId,
             },
-          });
+            { pop: true }
+          );
+        } else {
+          const tab = getTab(navigationRef.current, lastOpenTab);
+          navigationRef.current.navigate(
+            tab,
+            {
+              screen: 'ChatDetails',
+              params: {
+                chatId: chat.id,
+                chatType: chat.type,
+                groupId: chat.groupId,
+              },
+            },
+            { pop: true }
+          );
         }
       },
       [isWindowNarrow]
@@ -356,21 +380,29 @@ export function useRootNavigation() {
     return useCallback(
       (chat: { type: 'group' | 'channel'; id: string; groupId?: string }) => {
         if (isWindowNarrow) {
-          navigationRef.current.navigate('ChatVolume', {
-            chatId: chat.id,
-            chatType: chat.type,
-            groupId: chat.groupId,
-          });
-        } else {
-          const tab = getTab(navigationRef.current, lastOpenTab);
-          navigationRef.current.navigate(tab, {
-            screen: 'ChatVolume',
-            params: {
+          navigationRef.current.navigate(
+            'ChatVolume',
+            {
               chatId: chat.id,
               chatType: chat.type,
               groupId: chat.groupId,
             },
-          });
+            { pop: true }
+          );
+        } else {
+          const tab = getTab(navigationRef.current, lastOpenTab);
+          navigationRef.current.navigate(
+            tab,
+            {
+              screen: 'ChatVolume',
+              params: {
+                chatId: chat.id,
+                chatType: chat.type,
+                groupId: chat.groupId,
+              },
+            },
+            { pop: true }
+          );
         }
       },
       [isWindowNarrow]
@@ -432,11 +464,13 @@ export function getDesktopChannelRoute(
     name: tab,
     params: {
       screen: screenName,
+      pop: true,
       params: {
         channelId,
         selectedPostId,
         ...(groupId ? { groupId } : {}),
         screen: 'ChannelRoot',
+        pop: true,
         params: {
           channelId,
           selectedPostId,
@@ -477,11 +511,13 @@ export async function getMainGroupRoute(
     return {
       name: 'Channel',
       params: { channelId: group.channels[0].id, groupId },
+      pop: true,
     } as const;
   } else {
     return {
       name: 'GroupChannels',
       params: { groupId },
+      pop: true,
     } as const;
   }
 }

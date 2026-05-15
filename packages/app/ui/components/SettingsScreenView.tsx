@@ -211,7 +211,7 @@ function LogoutDialog({
       <AlertDialog.Portal>
         <AlertDialog.Overlay
           key="overlay"
-          animation="quick"
+          transition="quick"
           opacity={0.5}
           enterStyle={{ opacity: 0 }}
           exitStyle={{ opacity: 0 }}
@@ -220,7 +220,7 @@ function LogoutDialog({
           bordered
           elevate
           key="content"
-          animation={[
+          transition={[
             'quick',
             {
               opacity: {

@@ -79,6 +79,7 @@ export default function AddGalleryPost({
         open={route === 'add-post'}
         onOpenChange={onClose}
         actions={actions}
+        modal
       />
       {/* On web, "Media or File" opens the system file picker directly,
           so AttachmentSheet is only needed on mobile. */}

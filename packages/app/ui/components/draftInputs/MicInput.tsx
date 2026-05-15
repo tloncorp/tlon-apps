@@ -83,7 +83,6 @@ export function MicInput({
     >
       <Button
         backgroundColor={'$background'}
-        fontWeight={'$l'}
         style={{ height: 60 }}
         onPress={isRecording ? stopRecording : startRecording}
       >
@@ -91,7 +90,6 @@ export function MicInput({
       </Button>
       <Button
         backgroundColor={'$secondaryBackground'}
-        fontWeight={'$l'}
         style={{ height: 60 }}
         disabledStyle={{ opacity: 0.5 }}
         onPress={send}

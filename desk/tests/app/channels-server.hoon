@@ -6,7 +6,7 @@
 ++  dap  %channels-server
 ::
 +$  current-state
-  [%14 =v-channels:v10:cv =hooks:h =pimp:imp]
+  [%15 =v-channels:v10:cv =hooks:h =pimp:imp]
 +$  state-8
   [%8 =v-channels:v8:cv =hooks:h =pimp:imp]
 --
@@ -288,7 +288,7 @@
     ;<  save=vase  bind:m  get-save
     =/  fixed-state=current-state
       =;  chans=v-channels:c
-        [%14 chans *hooks:h *pimp:imp]
+        [%15 chans *hooks:h *pimp:imp]
       =/  chan=v-channel:c
         tombstone-rescue-test-channel-new
       (~(put by *v-channels:c) *nest:c chan)

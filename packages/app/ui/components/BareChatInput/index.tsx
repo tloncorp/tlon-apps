@@ -21,6 +21,7 @@ import {
 } from '@tloncorp/ui';
 import {
   type ForwardedRef,
+  ReactElement,
   forwardRef,
   useCallback,
   useEffect,
@@ -130,6 +131,8 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
               uri,
               height: img.height,
               width: img.width,
+              mimeType: file.type || undefined,
+              fileSize: file.size,
             },
           });
         };
@@ -175,7 +178,7 @@ function TextWithMentions({
   }
 
   const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
-  const textParts: JSX.Element[] = [];
+  const textParts: ReactElement[] = [];
 
   if (sortedMentions[0].start > 0) {
     textParts.push(
@@ -294,6 +297,7 @@ function BareChatInput(
     handleMention,
     handleSelectMention,
     handleMentionEscape,
+    resetMentionMode,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -450,6 +454,7 @@ function BareChatInput(
       bareChatInputLogger.log('resetting input height');
       setInputHeight(initialHeight);
       setEditingPost?.(undefined);
+      resetMentionMode();
 
       try {
         bareChatInputLogger.log('sending message');
@@ -483,6 +488,7 @@ function BareChatInput(
       channelId,
       setMentions,
       initialHeight,
+      resetMentionMode,
     ]
   );
 
@@ -804,7 +810,16 @@ function BareChatInput(
     clearDraft();
     clearAttachments();
     setInputHeight(initialHeight);
-  }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
+    resetMentionMode();
+    setMentions([]);
+  }, [
+    setEditingPost,
+    clearDraft,
+    clearAttachments,
+    initialHeight,
+    resetMentionMode,
+    setMentions,
+  ]);
 
   const theme = useTheme();
   const placeholderTextColor = {
@@ -960,7 +975,7 @@ function BareChatInput(
               letterSpacing: -0.032,
               color: inputTextColor,
               ...(isWeb ? placeholderTextColor : {}),
-              ...(isWeb ? { outlineStyle: 'none' } : {}),
+              ...(isWeb ? ({ outlineStyle: 'none' } as any) : {}),
             }}
             // Hack to prevent @p's getting squiggled on web
             spellCheck={!mentions.length}

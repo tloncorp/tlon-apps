@@ -162,10 +162,11 @@ export function GalleryPost({
               <Pressable
                 onPress={handlePress}
                 onLongPress={handleLongPress}
-                onHoverIn={onHoverIn}
-                onHoverOut={onHoverOut}
+                onMouseEnter={onHoverIn}
+                onMouseLeave={onHoverOut}
                 flex={1}
                 testID="Post"
+                position="relative"
               >
                 <GalleryPostFrame {...rest}>
                   {showHeaderFooter && <GalleryPostHeader post={post} />}

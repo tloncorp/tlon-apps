@@ -29,7 +29,7 @@ export default function Basic() {
     <QueryClientProvider client={queryClient}>
       <View flex={1}>
         <SafeAreaView edges={['top', 'left', 'right']}>
-          <TextArea editable={false} fontFamily={'$mono'} fontSize={'$s'}>
+          <TextArea readOnly fontFamily={'$mono'} fontSize={'$s'}>
             {JSON.stringify(channel.contentConfiguration, null, 2)}
           </TextArea>
         </SafeAreaView>

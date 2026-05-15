@@ -1,8 +1,9 @@
 import { ComponentProps } from 'react';
 import { Modal as RNModal } from 'react-native';
-import { View, ZStack } from 'tamagui';
+import { View } from 'tamagui';
 
 import { Overlay } from './Overlay';
+import { ZStack } from './ZStack';
 
 export function Modal(props: ComponentProps<typeof RNModal>) {
   const onDismiss = () => {
@@ -13,7 +14,7 @@ export function Modal(props: ComponentProps<typeof RNModal>) {
 
   return (
     <RNModal transparent={true} {...props}>
-      <ZStack flex={1} justifyContent="center" alignItems="center">
+      <ZStack flex={1}>
         <Overlay onPress={onDismiss} />
         <View flex={1} position="absolute">
           {props.children}

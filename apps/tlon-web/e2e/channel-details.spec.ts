@@ -186,7 +186,7 @@ test('channel privacy back button returns to channel details', async ({
   });
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').first().click();
+  await helpers.navigateBack(page);
 
   // Verify we're back on channel details
   await expect(page.getByText('Channel info')).toBeVisible({
@@ -238,7 +238,7 @@ test('channel edit meta back button returns to channel details with sidebar cont
   });
 
   // Click back button (or save to go back)
-  await page.getByTestId('HeaderBackButton').first().click();
+  await helpers.navigateBack(page);
 
   // Verify we're back on channel details (use exact match to avoid matching "Edit channel info")
   await expect(page.getByText('Channel info', { exact: true })).toBeVisible({
@@ -351,7 +351,7 @@ test('multi-channel group: notifications back button returns to channel details'
   // Note: On desktop, the subtitle with channel name may not be visible in the header
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').first().click();
+  await helpers.navigateBack(page);
 
   // Verify we're back on channel details (not group details)
   await expect(page.getByText('Channel info')).toBeVisible({
@@ -398,7 +398,7 @@ test('single-channel group: notifications back button returns to group details',
   });
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').first().click();
+  await helpers.navigateBack(page);
 
   // Verify we're back on group details
   await expect(page.getByText('Group info & settings')).toBeVisible({
@@ -436,7 +436,7 @@ test('channel details back button returns to channel conversation', async ({
   });
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').first().click();
+  await helpers.navigateBack(page);
 
   // Verify we're back in the channel conversation
   await expect(
@@ -486,7 +486,7 @@ test('group details back button returns to channel conversation (single-channel)
   });
 
   // Click back button
-  await page.getByTestId('HeaderBackButton').first().click();
+  await helpers.navigateBack(page);
 
   // Verify we're back in the channel conversation
   await expect(

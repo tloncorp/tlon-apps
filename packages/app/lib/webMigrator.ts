@@ -35,7 +35,9 @@ async function runWithRetry<T>(
   throw new Error(`All retries failed for operation ${operationName}`);
 }
 
-async function testDatabaseConnection(db: SqliteRemoteDatabase<any>) {
+async function testDatabaseConnection(
+  db: SqliteRemoteDatabase<Record<string, unknown>>
+) {
   logger.log('Testing database connection');
   try {
     await runWithRetry(

@@ -4,7 +4,7 @@ import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { omit } from 'lodash';
 import React, { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import { SortableSection } from '../../../hooks/useSortableChannelNav';
 import { capitalize } from '../../utils';
@@ -13,6 +13,7 @@ import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
 import { CreateChannelSheet } from './CreateChannelSheet';
 import { EditSectionNameSheet } from './EditSectionNameSheet';
+import { ManageChannelsScrollContainer } from './ManageChannelsScrollContainer';
 
 const logger = createDevLogger('ManageChannelsShared', false);
 
@@ -395,16 +396,9 @@ export function ManageChannelsProvider({
             paddingTop="$l"
             flex={1}
           >
-            <ScrollView
-              style={{ zIndex: 1, elevation: 1, width: '100%' }}
-              contentContainerStyle={{
-                alignItems: 'center',
-                paddingBottom: bottom,
-                minHeight: '100%',
-              }}
-            >
+            <ManageChannelsScrollContainer paddingBottom={bottom}>
               {children}
-            </ScrollView>
+            </ManageChannelsScrollContainer>
           </YStack>
         </YStack>
         {state.showCreateChannel && group && (

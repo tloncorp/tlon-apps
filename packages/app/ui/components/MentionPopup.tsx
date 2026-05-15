@@ -17,7 +17,7 @@ import { useBoundHandler } from './listItems/listItemUtils';
 export interface MentionController {
   handleMentionKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;
 }
-export type MentionPopupRef = React.RefObject<MentionController>;
+export type MentionPopupRef = React.RefObject<MentionController | null>;
 
 function MentionOptionItem({
   selected,

@@ -534,8 +534,6 @@ export function ProfileButton({
     >
       <Button.Text
         color={hero ? '$background' : '$primaryText'}
-        textWrap="nowrap"
-        wordWrap="unset"
         whiteSpace="nowrap"
         trimmed={false}
       >

@@ -232,6 +232,15 @@ When writing or modifying bash scripts, ensure compatibility with both macOS and
 -   Test scripts on both macOS and Linux when possible
 -   Use portable command options (e.g., `grep -E` instead of `egrep`)
 
+## Pre-PR Cleanup
+
+Before finalizing a PR, do a focused pass on your own diff:
+
+-   **Never ship cleanup for branch-only state.** If you added a transitional `DROP`, one-time migration step, dual-write, compat shim, or fallback to bridge a state that only existed on intermediate commits of _this_ branch, remove it before merging. Production never had the intermediate state, so the guard protects against nothing post-merge — and any teammate who built an early version can reset their local state.
+-   **Trim debug fat.** Remove leftover `console.log`s, ad-hoc perf marks, commented-out code, and stale `// TODO` notes that no longer apply. Comments that just describe _what_ the code does belong in the identifiers; keep comments only when they explain _why_ (non-obvious constraints, workarounds, decisions).
+-   **Reuse before adding.** Before introducing a new helper/util/constant, grep for an existing one. Don't ship parallel implementations — if the new one is genuinely better, remove the old in the same PR.
+-   **Audit comments for staleness.** A comment written mid-implementation may describe an earlier approach. If it references deleted code or a previous shape of the function, fix or delete it.
+
 ## Testing
 
 -   **Unit tests**: Vitest for shared packages, Jest for mobile

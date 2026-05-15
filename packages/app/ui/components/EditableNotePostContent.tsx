@@ -49,7 +49,7 @@ export const EditableNotePostContent: RenderItemType = ({
         flex={1}
         value={textBuffer}
         onChangeText={setTextBuffer}
-        editable={canEdit}
+        readOnly={!canEdit}
         borderColor={'$secondaryBorder'}
       />
     </View>

@@ -3,7 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import { Icon, IconType, Text } from '@tloncorp/ui';
 import { ComponentProps, ReactElement, useMemo } from 'react';
 import { ColorTokens, styled, withStaticProperties } from 'tamagui';
-import { Stack, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
 import { numberWithMax } from '../utils';
@@ -84,6 +84,7 @@ const ListItemMainContent = styled(YStack, {
 
 const ListItemTitle = styled(Text, {
   name: 'ListItemTitle',
+  fontFamily: '$body',
   color: '$primaryText',
   numberOfLines: 1,
   size: '$label/l',
@@ -178,7 +179,7 @@ const ListItemCount = ({
   muted?: boolean;
   count: number;
   opacity?: number;
-} & ComponentProps<typeof Stack>) => {
+} & ComponentProps<typeof View>) => {
   const foregroundColor: ColorTokens = notified
     ? '$positiveActionText'
     : '$secondaryText';
@@ -186,7 +187,7 @@ const ListItemCount = ({
     ? '$positiveBackground'
     : '$secondaryBackground';
   return (
-    <Stack
+    <View
       opacity={opacity}
       paddingHorizontal={'$m'}
       backgroundColor={count < 1 ? undefined : backgroundColor}
@@ -205,7 +206,7 @@ const ListItemCount = ({
           {numberWithMax(count, 256)}
         </Text>
       </ListItemCountNumber>
-    </Stack>
+    </View>
   );
 };
 

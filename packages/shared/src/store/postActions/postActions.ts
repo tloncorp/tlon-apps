@@ -689,14 +689,69 @@ export async function showPost({ post }: { post: db.Post }) {
   }
 }
 
+// A never-sent optimistic row (`sequenceNum === 0` with `deliveryStatus: 'failed'`)
+// has no server counterpart, so clearing it is strictly a local operation.
+// `needs_verification` is NOT in this shape — those rows may have reached the
+// server and must go through the normal delete / verify paths.
+function isUnsentOptimisticRow(post: db.Post): boolean {
+  return post.sequenceNum === 0 && post.deliveryStatus === 'failed';
+}
+
+async function clearUnsentPost(post: db.Post) {
+  deleteFromChannelPosts(post);
+  await db.deletePost(post.id);
+  if (post.parentId) {
+    // Optimistic reply creation bumps the parent's replyCount / replyTime /
+    // replyContactIds via `addReplyToPost`. Undo that bump, but do not
+    // clobber server-sourced reply summary state if the local thread cache
+    // is only partial. Replies are not channel-head posts, so leave
+    // `channels.lastPostId` / `lastPostAt` alone.
+    await db.undoOptimisticReplyBump({ parentId: post.parentId });
+    return;
+  }
+  // Top-level post: repoint the channel head to the newest remaining
+  // previewable post (or null it consistently if none remain) so the
+  // chat list and channel preview stay in sync without waiting for a
+  // later sync repair.
+  await db.recomputeChannelLastPost({ channelId: post.channelId });
+}
+
 export async function deletePost({ post }: { post: db.Post }) {
   logger.crumb('deleting post');
   logger.trackEvent(
     AnalyticsEvent.ActionDeletePost,
     logic.getModelAnalytics({ post })
   );
+
+  // The caller-provided `post` snapshot can be stale: `retrySendPost()`
+  // synchronously flips the same row to `deliveryStatus: 'enqueued'`, and
+  // sync can reconcile the row into a delivered server-backed shape.
+  // Re-read the row from SQLite before classifying so we never hard-delete
+  // a row that has since moved past the "never sent" state.
   const existingPost = await db.getPost({ postId: post.id });
-  const existingParent = existingPost?.parentId
+
+  // If the row is already gone — e.g. this is a duplicate Delete fired
+  // against a stale UI snapshot — there is nothing to do. In particular,
+  // do NOT run `clearUnsentPost()` against the stale snapshot: it would
+  // attempt another `undoOptimisticReplyBump()` pass and corrupt parent
+  // reply metadata we already cleaned up.
+  if (!existingPost) {
+    logger.crumb('deletePost: row already gone, no-op');
+    return;
+  }
+
+  // The normal chat / thread action-menu Delete lands here for every row,
+  // including a failed optimistic row that never reached the server. For
+  // that exact shape, skip the server round trip and hard-delete locally —
+  // otherwise we'd leave a ghost with `isDeleted: true` + `sequenceNum: 0`
+  // pinned at the bottom of chat-style scrollers, and for replies we'd also
+  // leave the parent's reply summary stale.
+  if (isUnsentOptimisticRow(existingPost)) {
+    await clearUnsentPost(existingPost);
+    return;
+  }
+
+  const existingParent = existingPost.parentId
     ? await db.getPost({ postId: existingPost.parentId })
     : null;
 
@@ -727,8 +782,8 @@ export async function deletePost({ post }: { post: db.Post }) {
     // rollback optimistic update
     rollbackDeletedChannelPost(post);
     await db.updatePost({
-      id: post.id,
       ...existingPost,
+      id: post.id,
       deleteStatus: 'failed',
     });
     await db.updateChannel({ id: post.channelId, lastPostId: post.id });
@@ -736,6 +791,26 @@ export async function deletePost({ post }: { post: db.Post }) {
 }
 
 export async function deleteFailedPost({ post }: { post: db.Post }) {
+  // Retry-sheet Delete. Failed send (`sequenceNum === 0, deliveryStatus: 'failed'`)
+  // goes through the same local cleanup as the action-menu path.
+  // `needs_verification`, failed edit, and failed delete all operate on
+  // server-backed rows and keep the existing `markPostAsDeleted` behavior.
+  //
+  // Re-read before classifying — the retry-sheet caller may hold a stale
+  // snapshot (e.g. after `retrySendPost()` flipped the row back to
+  // `enqueued`). Only authoritative DB state should drive the hard-delete
+  // decision. If the row is already gone, do nothing — a duplicate delete
+  // fired from stale UI state must not re-run `undoOptimisticReplyBump`.
+  const existingPost = await db.getPost({ postId: post.id });
+  if (!existingPost) {
+    logger.crumb('deleteFailedPost: row already gone, no-op');
+    return;
+  }
+  if (isUnsentOptimisticRow(existingPost)) {
+    await clearUnsentPost(existingPost);
+    return;
+  }
+
   await db.markPostAsDeleted(post.id);
   await db.updateChannel({ id: post.channelId, lastPostId: null });
 }

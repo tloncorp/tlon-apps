@@ -1,0 +1,107 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import PlatformState from '@tloncorp/app';
+import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
+import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
+// Setup custom dev menu items
+import '@tloncorp/app/lib/devMenuItems';
+import { setStorage } from '@tloncorp/app/ui';
+import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { registerRootComponent } from 'expo';
+import 'expo-dev-client';
+import { useEffect, useRef } from 'react';
+import { AppState, Platform, TurboModuleRegistry } from 'react-native';
+import 'react-native-get-random-values';
+import {
+  ReanimatedLogLevel,
+  configureReanimatedLogger,
+} from 'react-native-reanimated';
+import { TailwindProvider } from 'tailwind-rn';
+
+import App from './src/App';
+import { useDbReady } from './src/hooks/useDbReady';
+import utilities from './tailwind.json';
+
+// Extend BigInt so serialization will never crash in JSON.parse
+(BigInt.prototype as any).toJSON = function () {
+  return Number(this);
+};
+
+// Modifies fetch to support server sent events which
+// are required for Urbit client subscriptions
+addCustomEnabledLoggers(ENABLED_LOGGERS);
+setStorage(AsyncStorage);
+
+// This is the default configuration
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
+
+const UrbitModule =
+  Platform.OS !== 'web' ? TurboModuleRegistry.get('UrbitModule') : null;
+
+function signalJsReady() {
+  try {
+    (UrbitModule as any)?.signalJsReady?.();
+  } catch (e) {
+    // Ignore errors
+  }
+}
+
+function useJsHeartbeat(enabled: boolean) {
+  const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    signalJsReady();
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        signalJsReady();
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [enabled]);
+}
+
+function MainInner() {
+  const { dbInitError, isDbReady } = useDbReady();
+
+  if (dbInitError) {
+    throw dbInitError;
+  }
+
+  useEffect(() => {
+    async function init() {
+      const appInfo = await db.appInfo.getValue();
+      useDebugStore.getState().initializeDebugInfo(PlatformState, appInfo);
+    }
+
+    init();
+  }, []);
+
+  useJsHeartbeat(isDbReady);
+
+  return (
+    <TailwindProvider utilities={utilities}>
+      {isDbReady ? <App /> : null}
+    </TailwindProvider>
+  );
+}
+
+function Main() {
+  return (
+    <RootErrorBoundary>
+      <MainInner />
+    </RootErrorBoundary>
+  );
+}
+
+registerRootComponent(Main);

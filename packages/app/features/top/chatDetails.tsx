@@ -9,10 +9,12 @@ import { isWeb } from 'tamagui';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { useRootNavigation } from '../../navigation/utils';
 import {
   ActionSheet,
   ConfirmDialog,
   ContactListItem,
+  GroupMemberProfileSheet,
   Icon,
   ListItem,
   PaddedBlock,
@@ -30,7 +32,8 @@ import {
   useGroupTitle,
   useIsAdmin,
 } from '../../ui';
-import ConnectionStatus from '../../ui/components/ConnectionStatus';
+import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
+import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
 
@@ -132,6 +135,7 @@ function SettingsAction({
 export interface MembersListProps {
   entityType: 'group' | 'channel';
   members?: db.ChatMember[] | null;
+  group?: db.Group | null;
   canInvite: boolean;
   canManage: boolean;
 }
@@ -139,13 +143,16 @@ export interface MembersListProps {
 export function MembersList({
   entityType,
   members,
+  group,
   canInvite,
   canManage,
 }: MembersListProps) {
   const joinedMembers = members?.filter((m) => m.status === 'joined');
   const memberCount = joinedMembers?.length ?? 0;
+  const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const { onPressGroupMembers, onPressChannelMembers, onPressInvite } =
     useChatOptions();
+  const { navigation } = useRootNavigation();
 
   const handlePressSeeAllMembers = useCallback(() => {
     if (entityType === 'group') {
@@ -155,10 +162,17 @@ export function MembersList({
     }
   }, [entityType, onPressChannelMembers, onPressGroupMembers]);
 
+  const handlePressGoToProfile = useCallback(
+    (contactId: string) => {
+      navigation.navigate('UserProfile', { userId: contactId });
+    },
+    [navigation]
+  );
+
   return (
     <View paddingHorizontal={'$l'}>
       <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
-        <TlonText.Text size="$label/xl" color="$tertiaryText">
+        <TlonText.Text size="$label/m" color="$tertiaryText">
           {memberCount} {pluralize(memberCount, 'Member')}
         </TlonText.Text>
         <YStack>
@@ -202,6 +216,11 @@ export function MembersList({
                 showNickname
                 key={member.contactId}
                 contactId={member.contactId}
+                onPress={
+                  entityType === 'group' && group
+                    ? setSelectedContact
+                    : undefined
+                }
               />
             ))}
           {(memberCount > maxMembersToDisplay || canInvite) && (
@@ -215,7 +234,9 @@ export function MembersList({
                 testID="GroupMembers"
               >
                 <TlonText.Text size="$label/l">
-                  {canManage ? 'Manage members' : 'See all '}
+                  {canManage ? 'Manage members' : 'See all'}
+                  {memberCount > maxMembersToDisplay &&
+                    ` (${memberCount - maxMembersToDisplay} more)`}
                 </TlonText.Text>
                 <Icon type="ChevronRight" color="$tertiaryText" />
               </XStack>
@@ -223,6 +244,14 @@ export function MembersList({
           )}
         </YStack>
       </PaddedBlock>
+      {entityType === 'group' && group ? (
+        <GroupMemberProfileSheet
+          selectedContact={selectedContact}
+          onDismiss={() => setSelectedContact(null)}
+          groupId={group.id}
+          onPressGoToProfile={handlePressGoToProfile}
+        />
+      ) : null}
     </View>
   );
 }
@@ -299,6 +328,10 @@ export function SettingsSection({
     onEditChannelPrivacy ?? defaultOnPressEditChannelPrivacy;
 
   const baseVolumeLevel = store.useBaseVolumeLevel();
+
+  const connectionStatus = useShipConnectionStatus(group?.hostUserId ?? '', {
+    enabled: entityType === 'group' && !!group,
+  });
 
   const volumeSettings =
     entityType === 'group' ? group?.volumeSettings : channel?.volumeSettings;
@@ -422,6 +455,7 @@ export function SettingsSection({
     <View paddingHorizontal={'$l'}>
       <ActionSheet.ActionGroup
         padding={0}
+        $gtSm={{ paddingHorizontal: 0 }}
         contentProps={{
           backgroundColor: '$background',
           borderRadius: '$2xl',
@@ -429,7 +463,7 @@ export function SettingsSection({
         }}
       >
         {entityType === 'group' && group && (
-          <ConnectionStatus contactId={group.hostUserId} type="action" />
+          <ConnectionIndicatorAction status={connectionStatus.status} />
         )}
         {actions.map((action, index) => (
           <SettingsAction
@@ -560,6 +594,7 @@ export function LeaveActionsSection({
     <View paddingHorizontal={'$l'}>
       <ActionSheet.ActionGroup
         padding={0}
+        $gtSm={{ paddingHorizontal: 0 }}
         contentProps={{ borderRadius: '$2xl' }}
         accent="negative"
       >

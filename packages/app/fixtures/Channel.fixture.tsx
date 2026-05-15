@@ -405,7 +405,7 @@ function DebugChannelConfigurator({
 
   return (
     <>
-      <Sheet open={open} animation={'simple'} snapPointsMode="fit">
+      <Sheet open={open} transition={'simple'} snapPointsMode="fit">
         <ChannelConfigurationBar
           channel={channel}
           onPressDone={() => setOpen(false)}
