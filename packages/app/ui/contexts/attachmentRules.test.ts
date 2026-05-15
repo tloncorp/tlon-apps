@@ -3,7 +3,9 @@ import { expect, test } from 'vitest';
 
 import {
   VIDEO_COMPOSITION_ERROR,
-  VIDEO_VALIDATION_ERROR,
+  VIDEO_SIZE_LIMIT_ERROR,
+  VIDEO_SIZE_UNKNOWN_ERROR,
+  VIDEO_TYPE_ERROR,
   canAddAttachment,
   inferAllowedVideoMimeType,
 } from './attachmentRules';
@@ -55,7 +57,7 @@ test('rejects video mixed with non-text media', () => {
 test('rejects unknown-size local video', () => {
   expect(canAddAttachment([], makeVideo({ size: -1 }))).toEqual({
     ok: false,
-    reason: VIDEO_VALIDATION_ERROR,
+    reason: VIDEO_SIZE_UNKNOWN_ERROR,
     kind: 'validation',
   });
 });
@@ -72,7 +74,15 @@ test('rejects unknown-size remote video', () => {
     )
   ).toEqual({
     ok: false,
-    reason: VIDEO_VALIDATION_ERROR,
+    reason: VIDEO_SIZE_UNKNOWN_ERROR,
+    kind: 'validation',
+  });
+});
+
+test('rejects videos over the size limit', () => {
+  expect(canAddAttachment([], makeVideo({ size: 151 * 1024 * 1024 }))).toEqual({
+    ok: false,
+    reason: VIDEO_SIZE_LIMIT_ERROR,
     kind: 'validation',
   });
 });
@@ -88,7 +98,7 @@ test('rejects unsupported extension when MIME is missing', () => {
     canAddAttachment([], makeVideo({ mimeType: undefined, name: 'clip.bin' }))
   ).toEqual({
     ok: false,
-    reason: VIDEO_VALIDATION_ERROR,
+    reason: VIDEO_TYPE_ERROR,
     kind: 'validation',
   });
 });

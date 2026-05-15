@@ -1,9 +1,13 @@
 import { Attachment } from '@tloncorp/shared';
 
-const MAX_VIDEO_SIZE_BYTES = 200 * 1024 * 1024;
+export const MAX_VIDEO_SIZE_BYTES = 150 * 1024 * 1024;
+export const MAX_VIDEO_SIZE_LABEL = '150 MB';
 export const VIDEO_COMPOSITION_ERROR =
   'Video posts support one video and optional text only.';
-export const VIDEO_VALIDATION_ERROR = 'Unsupported video attachment';
+export const VIDEO_SIZE_UNKNOWN_ERROR =
+  'We could not read this video. Try downloading it to your device first.';
+export const VIDEO_SIZE_LIMIT_ERROR = `Videos must be under ${MAX_VIDEO_SIZE_LABEL}.`;
+export const VIDEO_TYPE_ERROR = 'Video posts support MP4, MOV, and WebM files.';
 const VIDEO_EXTENSION_TO_MIME = {
   mp4: 'video/mp4',
   mov: 'video/quicktime',
@@ -59,19 +63,22 @@ export function inferAllowedVideoMimeType({
   ];
 }
 
-export function validateVideoSource({
+export function getVideoValidationError({
   mimeType,
   size,
   name,
   uri,
-}: VideoCandidate): boolean {
+}: VideoCandidate): string | null {
   if (size == null || size < 0) {
-    return false;
+    return VIDEO_SIZE_UNKNOWN_ERROR;
   }
   if (size > MAX_VIDEO_SIZE_BYTES) {
-    return false;
+    return VIDEO_SIZE_LIMIT_ERROR;
   }
-  return inferAllowedVideoMimeType({ mimeType, name, uri }) != null;
+  if (inferAllowedVideoMimeType({ mimeType, name, uri }) == null) {
+    return VIDEO_TYPE_ERROR;
+  }
+  return null;
 }
 
 function getVideoName(video: Extract<Attachment, { type: 'video' }>): string {
@@ -94,33 +101,24 @@ export function canAddAttachment(
   nextAttachment: Attachment
 ): AttachmentValidationResult {
   if (nextAttachment.type === 'video') {
-    const name = getVideoName(nextAttachment);
-    if (
-      !validateVideoSource({
-        mimeType: nextAttachment.mimeType,
-        size: nextAttachment.size,
-        name,
-        uri:
-          typeof nextAttachment.localFile === 'string'
-            ? nextAttachment.localFile
-            : undefined,
-      })
-    ) {
+    const validationError = getVideoValidationError({
+      mimeType: nextAttachment.mimeType,
+      size: nextAttachment.size,
+      name: getVideoName(nextAttachment),
+      uri:
+        typeof nextAttachment.localFile === 'string'
+          ? nextAttachment.localFile
+          : undefined,
+    });
+    if (validationError) {
       return {
         ok: false,
-        reason: VIDEO_VALIDATION_ERROR,
+        reason: validationError,
         kind: 'validation',
       };
     }
-  }
 
-  const hasVideo = prev.some((attachment) => attachment.type === 'video');
-  const hasOtherNonVideoAttachment = prev.some(
-    (attachment) => attachment.type !== 'video'
-  );
-
-  if (nextAttachment.type === 'video') {
-    if (hasOtherNonVideoAttachment) {
+    if (prev.some((attachment) => attachment.type !== 'video')) {
       return {
         ok: false,
         reason: VIDEO_COMPOSITION_ERROR,
@@ -130,7 +128,7 @@ export function canAddAttachment(
     return { ok: true };
   }
 
-  if (hasVideo) {
+  if (prev.some((attachment) => attachment.type === 'video')) {
     return {
       ok: false,
       reason: VIDEO_COMPOSITION_ERROR,
