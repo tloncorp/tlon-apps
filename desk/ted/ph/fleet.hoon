@@ -54,15 +54,9 @@
 =/  [snap-id=(unit @t) fleet=(list ship) sync=?]
   ?~  args  ~|(%no-args-found !!)
   [snap-id fleet sync]:u.args
-=.  fleet
-  ^-  (list ship)
-  :*  ~loshut-lonreg  ::  bait provider
-      ~rivfur-livmet  ::  notify provider
-      ~dem            ::  bait provider galaxy
-      ~fen            ::  notify provider galaxy
-      fleet
-  ==
 ;<  =bowl:spider  bind:m  get-bowl
+::  remove duplicates
+=.  fleet  ~(tap in (silt fleet))
 ~>  %slog.1^(crip "Booting fleet {<fleet>}")
 ;<  vane-tids=(map term tid:spider)  bind:m  start-simple:ph-io
 ;<  ~  bind:m

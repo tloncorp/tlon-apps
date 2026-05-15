@@ -228,9 +228,9 @@ echo "Preparing aqua snapshot..."
 result=$( $run_click -t 1200 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-=/  tid  (scot %ta (cat 3 'strand_' (scot %uv (sham %ph-fleet eny.bowl))))  
+=+  tid=%ci-ph-fleet  
 =/  args  
-  [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes] &]  
+  [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes ~loshut-lonreg ~rivfur-livmet ~dem ~fen] &]  
 =/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-fleet !>(\`args)])  
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
@@ -266,9 +266,9 @@ result=$( $run_click -t 1200 $pier <<EOF
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
   [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]  
-=/  args
+=/  args  
   [\`ph-tests %ci-aqua-tests]  
-=/  tid  (scot %ta (cat 3 'strand_' (scot %uv (sham %ph-test eny.bowl))))  
+=+  ted=%ci-ph-test  
 =/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`args)])  
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
