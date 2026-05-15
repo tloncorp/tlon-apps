@@ -33,8 +33,14 @@ export async function addContacts(contacts: string[]) {
     count: contacts.length,
   });
 
+  // Use upsert (matching the singular addContact) so a contact row is
+  // created locally if one doesn't exist yet. Otherwise downstream
+  // writes that target an existing row by id (e.g. markContactsAsMatched
+  // for the lanyard match flow) silently no-op until %contacts pushes
+  // a subscription event back, by which point the matchedAt window
+  // has already passed.
   const optimisticUpdates = contacts.map((contactId) =>
-    db.updateContact({
+    db.upsertContact({
       id: contactId,
       isContact: true,
       isContactSuggestion: false,

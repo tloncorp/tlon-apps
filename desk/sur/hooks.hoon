@@ -1,4 +1,5 @@
-/-  *channels, g=groups, gv=groups-ver, a=activity, ch=chat, co=contacts, m=meta
+/-  *channels, dv=channels-ver, g=groups, gv=groups-ver, 
+    av=activity-ver, chv=chat-ver, co=contacts, m=meta
 |%
 ::  $id-hook: a unique identifier for a hook
 +$  id-hook  @uv
@@ -169,11 +170,11 @@
 ::           the %groups desk. %wait is a special effect that will wake
 ::           up the same hook at a later time.
 +$  effect
-  $%  [%channels =a-channels]
+  $%  [%channels =a-channels:v10:dv]
       [%groups =a-groups:v7:gv]
-      [%activity =action:a]
-      [%dm =action:dm:ch]
-      [%club =action:club:ch]
+      [%activity =action:v8:av]
+      [%dm =action:dm:v3:chv]
+      [%club =action:club:v3:chv]
       [%contacts =action:co]
       [%wait waiting-hook]
   ==

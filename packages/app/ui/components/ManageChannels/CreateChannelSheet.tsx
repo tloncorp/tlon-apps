@@ -11,6 +11,7 @@ import {
   JSONValue,
   createChannel,
   useGroup,
+  useNotesDeskAvailable,
   useUpdateChannel,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -45,28 +46,42 @@ export function applySetStateAction<T>(prev: T, action: SetStateAction<T>): T {
   }
 }
 
-export type ChannelTypeName = 'chat' | 'notebook' | 'gallery';
+export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'notes';
 
-const channelTypes: Form.ListItemInputOption<ChannelTypeName>[] = [
-  {
+// When the notes desk is installed, we offer 'Notebook' as the new
+// %notes-backed type and rename the legacy diary type to 'Bulletin'.
+// Without the notes desk, the legacy diary type keeps its 'Notebook' label.
+function buildChannelTypes(
+  notesAvailable: boolean
+): Form.ListItemInputOption<ChannelTypeName>[] {
+  const chat: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Chat',
     subtitle: 'A simple, standard text chat',
     value: 'chat',
     icon: 'ChannelTalk',
-  },
-  {
+  };
+  const notes: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Notebook',
+    subtitle: 'Collaborative markdown notebooks',
+    value: 'notes',
+    icon: 'ChannelNotebooks',
+  };
+  const diary: Form.ListItemInputOption<ChannelTypeName> = {
+    title: notesAvailable ? 'Bulletin' : 'Notebook',
     subtitle: 'Longform publishing and discussion',
     value: 'notebook',
     icon: 'ChannelNotebooks',
-  },
-  {
+  };
+  const gallery: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Gallery',
     subtitle: 'Gather, connect, and arrange rich media',
     value: 'gallery',
     icon: 'ChannelGalleries',
-  },
-];
+  };
+  return notesAvailable
+    ? [chat, notes, diary, gallery]
+    : [chat, diary, gallery];
+}
 
 interface CreateChannelFormSchema {
   title: string;
@@ -103,6 +118,11 @@ export function CreateChannelSheet({
   const currentUserId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
+  const { data: notesAvailable = false } = useNotesDeskAvailable();
+  const channelTypes = useMemo(
+    () => buildChannelTypes(notesAvailable),
+    [notesAvailable]
+  );
 
   const isPrivate = watch('isPrivate');
 

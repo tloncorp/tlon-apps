@@ -208,6 +208,67 @@ export async function updateAttestationDiscoverability({
   }
 }
 
+export type ContactsMatchedHandler = (
+  contactIds: string[]
+) => void | Promise<void>;
+
+let contactsMatchedHandler: ContactsMatchedHandler | null = null;
+
+export function setContactsMatchedHandler(
+  handler: ContactsMatchedHandler | null
+) {
+  contactsMatchedHandler = handler;
+}
+
+export async function invokeContactsMatchedHandler(contactIds: string[]) {
+  if (!contactsMatchedHandler || contactIds.length === 0) return;
+  try {
+    await contactsMatchedHandler(contactIds);
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+      error: e,
+      context: 'contactsMatchedHandler',
+    });
+  }
+}
+
+// A contact is "already known" if any signal indicates the user has a
+// prior relationship: explicitly added, surfaced as a suggestion, the
+// peer's profile has been fetched (any peer field set), or the user
+// labelled them. Anyone who matches that bar should not be treated as a
+// fresh discovery — no notification, no pill, no clobber of existing
+// metadata.
+export function isAlreadyKnownContact(contact: db.Contact): boolean {
+  return !!(
+    contact.isContact ||
+    contact.isContactSuggestion ||
+    contact.peerNickname ||
+    contact.customNickname ||
+    contact.peerAvatarImage ||
+    contact.bio ||
+    contact.status
+  );
+}
+
+// Splits raw lanyard matches into "new" (unseen by the user) vs.
+// already-known. Under the dev mock, treat every match as new so
+// repeated test runs keep surfacing matches even after they've been
+// added as contacts in a prior run.
+export async function partitionDiscoveryMatches(
+  matches: [string, string][],
+  { isMocked }: { isMocked: boolean }
+): Promise<{ newMatches: [string, string][] }> {
+  if (isMocked) return { newMatches: matches };
+  const contactIds = matches.map((m) => m[1]);
+  const existingContacts = await db.getContactsBatch({ contactIds });
+  const existingById = new Map(existingContacts.map((c) => [c.id, c] as const));
+  const newMatches = matches.filter(([, contactId]) => {
+    const c = existingById.get(contactId);
+    return !c || !isAlreadyKnownContact(c);
+  });
+  return { newMatches };
+}
+
 export async function discoverContacts(
   phoneNumbers: string[]
 ): Promise<[string, string][]> {

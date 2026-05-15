@@ -29,12 +29,22 @@ import React, { useMemo } from 'react';
 
 import { useCalm } from '../contexts/appDataContext';
 import { useContact } from '../contexts/appDataContext';
-import { formatUserId } from '../utils/user';
+import {
+  type ContactNameMode,
+  resolveContactNameProps,
+} from './contactNameResolver';
+
+export {
+  type ContactNameMode,
+  type ContactNameResolveInput,
+  type ContactNameResolveResult,
+  resolveContactNameProps,
+} from './contactNameResolver';
 
 type ContactNameOptions = {
   contactId: string;
   expandLongIds?: boolean;
-  mode?: 'contactId' | 'nickname' | 'both' | 'auto';
+  mode?: ContactNameMode;
 };
 
 export const useContactNameProps = ({
@@ -44,34 +54,20 @@ export const useContactNameProps = ({
 }: ContactNameOptions) => {
   const calm = useCalm();
   const contact = useContact(contactId);
-  const showNickname =
-    contact?.nickname &&
-    (calm.disableNicknames ? mode === 'nickname' : mode !== 'contactId');
-  const showContactId =
-    (mode === 'auto' && !showNickname) ||
-    mode === 'both' ||
-    mode === 'contactId';
 
   return useMemo(() => {
-    const idMeta = showContactId
-      ? formatUserId(contactId, expandLongIds)
-      : null;
+    const resolved = resolveContactNameProps({
+      contact,
+      contactId,
+      expandLongIds,
+      mode,
+      calmDisableNicknames: calm.disableNicknames,
+    });
     return {
-      children: [
-        showContactId ? idMeta?.display : null,
-        showNickname ? contact?.nickname : null,
-      ]
-        .filter((i) => !!i)
-        .join(' '),
-      ['aria-label']: idMeta?.ariaLabel,
+      children: resolved.children,
+      ['aria-label']: resolved['aria-label'],
     };
-  }, [
-    contact?.nickname,
-    contactId,
-    expandLongIds,
-    showContactId,
-    showNickname,
-  ]);
+  }, [contact, contactId, expandLongIds, mode, calm.disableNicknames]);
 };
 
 export const useContactName = (options: string | ContactNameOptions) => {
@@ -84,34 +80,36 @@ export const useContactName = (options: string | ContactNameOptions) => {
 const BaseContactName = RawText.styleable<{
   contactId: string;
   expandLongIds?: boolean;
-  mode?: 'contactId' | 'nickname' | 'both' | 'auto';
+  mode?: ContactNameMode;
 }>(
   ({ contactId, mode = 'auto', expandLongIds, ...props }, ref) => {
     const calm = useCalm();
     const contact = useContact(contactId);
-    const showNickname =
-      contact?.nickname &&
-      (calm.disableNicknames ? mode === 'nickname' : mode !== 'contactId');
-    const showContactId =
-      (mode === 'auto' && !showNickname) ||
-      mode === 'both' ||
-      mode === 'contactId';
+    const resolved = useMemo(
+      () =>
+        resolveContactNameProps({
+          contact,
+          contactId,
+          expandLongIds,
+          mode,
+          calmDisableNicknames: calm.disableNicknames,
+        }),
+      [contact, contactId, expandLongIds, mode, calm.disableNicknames]
+    );
 
-    const formattedId = useMemo(() => {
-      return showContactId ? formatUserId(contactId, expandLongIds) : null;
-    }, [contactId, expandLongIds, showContactId]);
-
-    if (showContactId && !formattedId) {
+    if (resolved.showContactId && !resolved.formattedId) {
       console.error('unable to display invalid id', contactId);
       return null;
     }
 
     return (
       <RawText
-        {...useContactNameProps({ contactId, expandLongIds, mode })}
+        aria-label={resolved['aria-label']}
         {...props}
         style={props.style ?? { whiteSpace: 'nowrap' }}
-      ></RawText>
+      >
+        {resolved.children}
+      </RawText>
     );
   },
   {

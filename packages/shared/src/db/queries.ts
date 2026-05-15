@@ -28,6 +28,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lt,
   lte,
   max,
@@ -638,6 +639,50 @@ export const getSystemContactsBatchByContactId = createReadQuery(
     }
   },
   ['systemContacts', 'systemContactSentInvites']
+);
+
+// Returns the system contacts linked to the given contactIds whose
+// linked contact has no customNickname yet. Used by contact-discovery
+// to apply the address-book name as a default — we only fill in names
+// the user hasn't set themselves.
+export const getUnnamedSystemContactsByContactId = createReadQuery(
+  'getUnnamedSystemContactsByContactId',
+  async (
+    contactIds: string[],
+    ctx: QueryCtx
+  ): Promise<
+    Array<{
+      contactId: string;
+      firstName: string | null;
+      lastName: string | null;
+    }>
+  > => {
+    if (!contactIds.length) return [];
+    const rows = await ctx.db
+      .select({
+        contactId: $systemContacts.contactId,
+        firstName: $systemContacts.firstName,
+        lastName: $systemContacts.lastName,
+      })
+      .from($systemContacts)
+      .leftJoin($contacts, eq($systemContacts.contactId, $contacts.id))
+      .where(
+        and(
+          inArray($systemContacts.contactId, contactIds),
+          or(isNull($contacts.customNickname), eq($contacts.customNickname, ''))
+        )
+      );
+    return rows.filter(
+      (
+        r
+      ): r is {
+        contactId: string;
+        firstName: string | null;
+        lastName: string | null;
+      } => r.contactId !== null
+    );
+  },
+  ['systemContacts', 'contacts']
 );
 
 export const getUninvitedSystemContactsShortlist = createReadQuery(
@@ -2677,6 +2722,17 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
+    // notes channels aren't tracked by %channels, so they never appear
+    // in joinedChannelIds. Force them joined here (idempotent) so they aren't
+    // flipped to currentUserIsMember=false, and so previously-broken rows get
+    // repaired on next init.
+    const notesChannel = like($channels.id, 'notes/%');
+    await ctx.db
+      .update($channels)
+      .set({ currentUserIsMember: true })
+      .where(and(isNotNull($channels.groupId), notesChannel));
+
+    const notNotesChannel = not(notesChannel);
     if (joinedChannelIds.length === 0) {
       return await ctx.db
         .update($channels)
@@ -2684,7 +2740,8 @@ export const setLeftGroupChannels = createWriteQuery(
         .where(
           and(
             isNotNull($channels.groupId),
-            eq($channels.currentUserIsMember, true)
+            eq($channels.currentUserIsMember, true),
+            notNotesChannel
           )
         );
     }
@@ -2697,7 +2754,8 @@ export const setLeftGroupChannels = createWriteQuery(
         and(
           notInArray($channels.id, joinedChannelIds),
           isNotNull($channels.groupId),
-          eq($channels.currentUserIsMember, true)
+          eq($channels.currentUserIsMember, true),
+          notNotesChannel
         )
       );
   },
@@ -4474,6 +4532,32 @@ export const updateContact = createWriteQuery(
       .update($contacts)
       .set(contact)
       .where(eq($contacts.id, contact.id));
+  },
+  ['contacts']
+);
+
+export const markContactsAsMatched = createWriteQuery(
+  'markContactsAsMatched',
+  async (
+    { contactIds, matchedAt }: { contactIds: string[]; matchedAt: number },
+    ctx: QueryCtx
+  ) => {
+    if (!contactIds.length) return;
+    return ctx.db
+      .update($contacts)
+      .set({ matchedAt })
+      .where(inArray($contacts.id, contactIds));
+  },
+  ['contacts']
+);
+
+export const clearContactsMatchedAt = createWriteQuery(
+  'clearContactsMatchedAt',
+  async (_: void, ctx: QueryCtx) => {
+    return ctx.db
+      .update($contacts)
+      .set({ matchedAt: null })
+      .where(isNotNull($contacts.matchedAt));
   },
   ['contacts']
 );

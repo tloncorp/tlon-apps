@@ -297,6 +297,7 @@ function BareChatInput(
     handleMention,
     handleSelectMention,
     handleMentionEscape,
+    resetMentionMode,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -453,6 +454,7 @@ function BareChatInput(
       bareChatInputLogger.log('resetting input height');
       setInputHeight(initialHeight);
       setEditingPost?.(undefined);
+      resetMentionMode();
 
       try {
         bareChatInputLogger.log('sending message');
@@ -486,6 +488,7 @@ function BareChatInput(
       channelId,
       setMentions,
       initialHeight,
+      resetMentionMode,
     ]
   );
 
@@ -807,7 +810,16 @@ function BareChatInput(
     clearDraft();
     clearAttachments();
     setInputHeight(initialHeight);
-  }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
+    resetMentionMode();
+    setMentions([]);
+  }, [
+    setEditingPost,
+    clearDraft,
+    clearAttachments,
+    initialHeight,
+    resetMentionMode,
+    setMentions,
+  ]);
 
   const theme = useTheme();
   const placeholderTextColor = {

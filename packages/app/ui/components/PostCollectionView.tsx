@@ -1,4 +1,7 @@
-import { ChannelContentConfiguration } from '@tloncorp/api';
+import {
+  ChannelContentConfiguration,
+  CollectionRendererId,
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { Ref, useMemo } from 'react';
 
@@ -8,6 +11,17 @@ import {
   IPostCollectionView,
   PostCollectionHandle,
 } from './postCollectionViews/shared';
+
+function fallbackRendererIdForChannelType(
+  type: db.Channel['type']
+): CollectionRendererId | null {
+  switch (type) {
+    case 'notes':
+      return CollectionRendererId.notes;
+    default:
+      return null;
+  }
+}
 
 export function PostCollectionView({
   channel,
@@ -34,7 +48,14 @@ export function PostCollectionView({
         return collectionRenderers[collectionConfig.id];
       }
     })();
-    return rendererFromContentConfig ?? ListPostCollection;
-  }, [channel.contentConfiguration, collectionRenderers]);
+    if (rendererFromContentConfig) return rendererFromContentConfig;
+
+    const fallbackId = fallbackRendererIdForChannelType(channel.type);
+    if (fallbackId && collectionRenderers[fallbackId]) {
+      return collectionRenderers[fallbackId]!;
+    }
+
+    return ListPostCollection;
+  }, [channel.contentConfiguration, channel.type, collectionRenderers]);
   return <SpecificComponent ref={collectionRef} />;
 }

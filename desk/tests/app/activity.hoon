@@ -1,5 +1,5 @@
 /-  a=activity, av=activity-ver, g=groups, c=channels, ch=chat
-/+  *activity, *test-agent
+/+  *activity, ac=activity-conv, *test-agent
 /=  activity-agent  /app/activity
 |%
 ++  dap  %activity
@@ -27,15 +27,15 @@
   ;<  *  bind:m  (do-init dap activity-agent)
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
   =/  pre-4=indices:v4:av
-    (indices:v4:convert-to pre)
+    (v4:indices:v8:ac (v8:indices:v9:ac pre))
   =/  activity-4=activity:v4:av
-    (activity:v4:convert-to activity)
+    (v4:activity:v8:ac (v8:activity:v9:ac activity))
   ;<  *  bind:m  (do-load activity-agent `!>([%5 %some pre-4 activity-4 ~]))
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre)) !>(count))
   ;<  new=vase  bind:m  get-save
   =/  want-indices  post
-  =+  !<(=state-9 new)
-  =/  new-indices  indices.state-9
+  =+  !<(=state-10 new)
+  =/  new-indices  indices.state-10
   (ex-equal !>(new-indices) !>(want-indices))
 ::
 ++  test-fix-init
@@ -45,13 +45,13 @@
   ^-  form:m
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  *  bind:m  (do-init dap activity-agent)
-  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
+    ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~zod, src ~zod)))
     =/  indices-4=indices:v4:av
-      (indices:v4:convert-to indices)
+      (v4:indices:v8:ac (v8:indices:v9:ac indices))
     =/  pre-fix-4=activity:v4:av
-      (activity:v4:convert-to pre-fix)
+      (v4:activity:v8:ac (v8:activity:v9:ac pre-fix))
     =/  volumes-4=volume-settings:v4:av
-      (volume-settings:v4:convert-to volumes)
+      (v4:volume-settings:v8:ac (v8:volume-settings:v9:ac volumes))
   =/  start-state  [%6 %some indices-4 pre-fix-4 volumes-4]
   ;<  caz=(list card:agent:gall)  bind:m  (do-load activity-agent `!>(start-state))
   ;<  *  bind:m  (ex-equal !>(~(wyt by pre-fix)) !>(11))
@@ -64,14 +64,14 @@
   ;<  *  bind:m  (do-poke noun+!>(%adjust-old-default))
   ;<  *  bind:m  (do-poke noun+!>(%fix-init-unreads))
   ;<  new=vase  bind:m  get-save
-  =+  !<(=state-9 new)
-  (ex-equal !>(activity.state-9) !>(post-fix))
-+$  state-9
-  $:  %9
-      allowed=notifications-allowed:a
-      =indices:a
-      =activity:a
-      =volume-settings:a
+  =+  !<(=state-10 new)
+  (ex-equal !>(activity.state-10) !>(post-fix))
++$  state-10
+  $:  %10
+      allowed=notifications-allowed:v9:av
+      =indices:v9:av
+      =activity:v9:av
+      =volume-settings:v9:av
   ==
 +$  index-pair  [=source:a =index:a]
 +$  dms  (map ship dm:ch)
@@ -627,7 +627,7 @@
         ~(tap by indices)
       |=  [[=source:a =index:a] =activity:a]
       %+  ~(put by activity)  source
-      (~(summarize-unreads urd indices *activity:a volumes fake-log) source index)
+      (~(summarize-unreads urd indices *activity:a volumes) source index)
     ++  post-fix
       ^-  activity:a
       =+  sources
@@ -758,10 +758,6 @@
 ++  child-stream
   |=  =stream:a
   (run:on-event:a stream |=(=event:a event(child &)))
-++  fake-log
-  |=  msg=(trap tape)
-  same
-  :: (slog leaf+"%activity {(msg)}" ~)
 ++  i0  *@dr
 ++  i1  (add i0 ~s1)
 ++  d-1  (dec *@da)
