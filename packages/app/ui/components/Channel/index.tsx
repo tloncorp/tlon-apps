@@ -30,7 +30,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import {
   AnimatePresence,
   View,
@@ -129,7 +129,7 @@ const uploadIntentFromShareIntentFile = (
     type: 'fileUri',
     localUri,
     name: file.fileName || localUri.split('/').pop(),
-    size: file.size ?? 0,
+    size: file.size ?? -1,
     mimeType: file.mimeType ?? undefined,
     voiceMemo: false,
   };
@@ -201,6 +201,7 @@ function usePrefillDraftFromShareIntent({
 
       if (errorMessage) {
         shareIntentLogger.log(`Unable to attach shared file: ${errorMessage}`);
+        Alert.alert('Unable to attach', errorMessage);
       }
 
       if (!uploadIntent && !sharedText) return;

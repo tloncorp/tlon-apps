@@ -4,6 +4,7 @@
  * inspired by :
  *  - https://ajith-ab.github.io/react-native-receive-sharing-intent/docs/ios#create-share-extension
  */
+import AVFoundation
 import ImageIO
 import MobileCoreServices
 import Photos
@@ -36,6 +37,8 @@ class ShareViewController: UIViewController {
   let propertyListType: String = UTType.propertyList.identifier
   let fileURLType: String = UTType.fileURL.identifier
   let pdfContentType: String = UTType.pdf.identifier
+  private let maxVideoSizeBytes = 150 * 1024 * 1024
+  private let maxVideoSizeLabel = "150 MB"
 
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -304,6 +307,7 @@ class ShareViewController: UIViewController {
           let fileExtension = self.getExtension(from: url, type: .video)
           let fileSize = self.getFileSize(from: url)
           let mimeType = url.mimeType(ext: fileExtension)
+          if self.dismissIfVideoTooLarge(fileSize: fileSize) { return }
           let newName = "\(UUID().uuidString).\(fileExtension)"
           let newPath = FileManager.default
             .containerURL(
@@ -311,13 +315,12 @@ class ShareViewController: UIViewController {
             .appendingPathComponent(newName)
           let copied = self.copyFile(at: url, to: newPath)
           if copied {
-            guard
-              let sharedFile = self.getSharedMediaFile(
-                forVideo: newPath, fileName: fileName, fileSize: fileSize, mimeType: mimeType)
-            else {
-              return
-            }
+            let sharedFile = self.getSharedMediaFile(
+              forVideo: newPath, fileName: fileName, fileSize: fileSize, mimeType: mimeType)
             self.sharedMedia.append(sharedFile)
+          } else {
+            self.dismissWithError(message: "Could not prepare shared video.")
+            return
           }
 
           // If this is the last item, save imagesData in userDefaults and redirect to host app
@@ -375,6 +378,9 @@ class ShareViewController: UIViewController {
     let fileExtension = self.getExtension(from: url, type: .file)
     let fileSize = self.getFileSize(from: url)
     let mimeType = url.mimeType(ext: fileExtension)
+    if mimeType.hasPrefix("video/") && dismissIfVideoTooLarge(fileSize: fileSize) {
+      return
+    }
     let newName = "\(UUID().uuidString).\(fileExtension)"
     let newPath = FileManager.default
       .containerURL(
@@ -397,11 +403,11 @@ class ShareViewController: UIViewController {
     }
   }
 
-  private func dismissWithError(message: String? = nil) {
+  private func dismissWithError(message: String = "Something went wrong.") {
     DispatchQueue.main.async {
-      NSLog("[ERROR] Error loading application ! \(message!)")
+      NSLog("[ERROR] Share extension failed: \(message)")
       let alert = UIAlertController(
-        title: "Error", message: "Error loading application: \(message!)", preferredStyle: .alert)
+        title: "Unable to share", message: message, preferredStyle: .alert)
 
       let action = UIAlertAction(title: "OK", style: .cancel) { _ in
         self.dismiss(animated: true, completion: nil)
@@ -493,19 +499,31 @@ class ShareViewController: UIViewController {
     return true
   }
 
+  private func isVideoTooLarge(fileSize: Int?) -> Bool {
+    return (fileSize ?? 0) > maxVideoSizeBytes
+  }
+
+  private func dismissIfVideoTooLarge(fileSize: Int?) -> Bool {
+    guard isVideoTooLarge(fileSize: fileSize) else {
+      return false
+    }
+    dismissWithError(message: "Videos must be under \(maxVideoSizeLabel).")
+    return true
+  }
+
   private func getSharedMediaFile(forVideo: URL, fileName: String, fileSize: Int?, mimeType: String)
-    -> SharedMediaFile?
+    -> SharedMediaFile
   {
     let asset = AVAsset(url: forVideo)
     let thumbnailPath = getThumbnailPath(for: forVideo)
-    let duration = (CMTimeGetSeconds(asset.duration) * 1000).rounded()
+    let durationSeconds = CMTimeGetSeconds(asset.duration)
+    let duration: Double? =
+      durationSeconds.isFinite ? (durationSeconds * 1000).rounded() : nil
     var trackWidth: Int? = nil
     var trackHeight: Int? = nil
 
-    // get video info
-    let track = asset.tracks(withMediaType: AVMediaType.video).first ?? nil
-    if track != nil {
-      let size = track!.naturalSize.applying(track!.preferredTransform)
+    if let track = asset.tracks(withMediaType: AVMediaType.video).first {
+      let size = track.naturalSize.applying(track.preferredTransform)
       trackWidth = abs(Int(size.width))
       trackHeight = abs(Int(size.height))
     }
@@ -522,19 +540,21 @@ class ShareViewController: UIViewController {
     assetImgGenerate.appliesPreferredTrackTransform = true
     assetImgGenerate.maximumSize = CGSize(width: 360, height: 360)
     do {
+      let captureTime =
+        durationSeconds.isFinite && durationSeconds > 0
+        ? min(0.1, max(durationSeconds - 0.01, 0)) : 0
       let img = try assetImgGenerate.copyCGImage(
-        at: CMTimeMakeWithSeconds(600, preferredTimescale: Int32(1.0)), actualTime: nil)
+        at: CMTimeMakeWithSeconds(captureTime, preferredTimescale: Int32(600)), actualTime: nil)
       try UIImage.pngData(UIImage(cgImage: img))()?.write(to: thumbnailPath)
       saved = true
     } catch {
       saved = false
     }
 
-    return saved
-      ? SharedMediaFile(
-        path: forVideo.absoluteString, thumbnail: thumbnailPath.absoluteString, fileName: fileName,
-        fileSize: fileSize, width: trackWidth, height: trackHeight, duration: duration,
-        mimeType: mimeType, type: .video) : nil
+    return SharedMediaFile(
+      path: forVideo.absoluteString, thumbnail: saved ? thumbnailPath.absoluteString : nil,
+      fileName: fileName, fileSize: fileSize, width: trackWidth, height: trackHeight,
+      duration: duration, mimeType: mimeType, type: .video)
   }
 
   private func getThumbnailPath(for url: URL) -> URL {

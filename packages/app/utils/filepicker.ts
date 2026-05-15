@@ -3,9 +3,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
 import {
-  VIDEO_VALIDATION_ERROR,
+  getVideoValidationError,
   isLikelyVideoSource,
-  validateVideoSource,
 } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import type { VideoPreviewData } from '../ui/utils/videoPreviewTypes';
@@ -80,10 +79,23 @@ function asVideoMetadata(
   return metadata && typeof metadata === 'object' ? metadata : undefined;
 }
 
+function isImagePickerVideoAsset(asset: ImagePickerAsset): boolean {
+  return (
+    asset.type === 'video' ||
+    asset.type === 'pairedVideo' ||
+    positiveNumberOrUndefined(asset.duration) != null ||
+    isLikelyVideoSource({
+      mimeType: asset.mimeType ?? undefined,
+      name: asset.fileName ?? undefined,
+      uri: asset.uri,
+    })
+  );
+}
+
 export function imagePickerAssetToUploadIntent(
   asset: ImagePickerAsset
 ): Attachment.UploadIntent {
-  if (asset.type === 'video') {
+  if (isImagePickerVideoAsset(asset)) {
     const assetFile = getAssetFile(asset);
     const video = imagePickerAssetVideoMetadata(asset, assetFile);
 
@@ -202,18 +214,26 @@ export async function normalizeUploadIntent(
     };
   }
 
-  if (!isLikelyVideoSource({ mimeType, name, uri })) {
+  const existingVideo = asVideoMetadata(uploadIntent.video);
+  const isVideoIntent =
+    existingVideo != null || isLikelyVideoSource({ mimeType, name, uri });
+  if (!isVideoIntent) {
     return { uploadIntent, errorMessage: null };
   }
 
-  if (!validateVideoSource({ mimeType, size, name, uri })) {
+  const videoValidationError = getVideoValidationError({
+    mimeType,
+    size,
+    name,
+    uri,
+  });
+  if (videoValidationError) {
     return {
       uploadIntent: null,
-      errorMessage: VIDEO_VALIDATION_ERROR,
+      errorMessage: videoValidationError,
     };
   }
 
-  const existingVideo = asVideoMetadata(uploadIntent.video);
   const existingWidth = positiveNumberOrUndefined(existingVideo?.width);
   const existingHeight = positiveNumberOrUndefined(existingVideo?.height);
   const existingDuration = positiveNumberOrUndefined(existingVideo?.duration);
@@ -286,7 +306,7 @@ export async function pickFile(acceptedTypes: string[] = ['*/*']): Promise<{
   errorMessage: string | null;
 }> {
   const results = await DocumentPicker.getDocumentAsync({
-    copyToCacheDirectory: true,
+    copyToCacheDirectory: false,
     multiple: false,
     type: acceptedTypes,
   });
@@ -302,7 +322,7 @@ export async function pickFile(acceptedTypes: string[] = ['*/*']): Promise<{
             type: 'fileUri',
             name: res.name,
             localUri: res.uri,
-            size: res.size ?? -1, // not sure when size would be undefined, but it's in the types...
+            size: res.size ?? -1,
             mimeType: res.mimeType,
           }
         : {

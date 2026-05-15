@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Run this after editing apps/tlon-mobile/ios/ShareExtension/ShareViewController.swift
-// to regenerate patches/expo-share-intent@3.2.3.patch from a clean package copy.
+// to regenerate patches/expo-share-intent@5.1.1.patch from a clean package copy.
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const packageName = 'expo-share-intent';
-const packageVersion = '3.2.3';
+const packageVersion = '5.1.1';
 const editDir = path.join(repoRoot, '.tmp', `${packageName}-patch`);
 const appControllerPath = path.join(
   repoRoot,
@@ -26,9 +26,10 @@ const packageControllerPath = path.join(
   'plugin/build/ios/ShareExtensionViewController.swift'
 );
 
-function run(command, args) {
+function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
+    ...options,
     stdio: 'inherit',
   });
 
@@ -75,7 +76,9 @@ try {
   writeFileSync(packageControllerPath, packageControllerSource());
 
   console.log('Generating pnpm patch');
-  run('pnpm', ['patch-commit', editDir]);
+  run('pnpm', ['patch-commit', editDir], {
+    env: { ...process.env, npm_config_ignore_scripts: 'true' },
+  });
 } finally {
   rmSync(editDir, { recursive: true, force: true });
 }
