@@ -16,6 +16,7 @@ import {
   syncStart,
   uploadAsset,
   useCanUpload,
+  useLureState,
 } from '@tloncorp/shared/store';
 import {
   Button,
@@ -653,6 +654,15 @@ function SplashSequenceComponent(props: {
   }, [botModel, providerOptions, handleValidateProvider]);
 
   const handleTlonbotSetupComplete = useCallback(async () => {
+    useLureState
+      .getState()
+      .start()
+      .catch((error) => {
+        logger.trackError('Wayfinding Home Group Invite Bait Warmup Failed', {
+          error,
+        });
+      });
+
     await db.tlonbotRevivalSetup.setValue((current) => ({
       ...current,
       pending: true,
