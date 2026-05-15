@@ -1,9 +1,13 @@
 import { TlonText } from '@tloncorp/ui';
-import { View, YStack } from 'tamagui';
+import { useVideoPlayer } from 'expo-video/build/VideoPlayer';
+import { VideoView } from 'expo-video/build/VideoView';
+import { View, YStack, isWeb } from 'tamagui';
 
 import { ScreenHeader } from '../ScreenHeader';
 import { FadingTextCarousel } from './FadingTextCarousel';
-import { SegmentedSpinner } from './SegmentedSpinner';
+
+const arvosVideo = require('../../assets/videos/arvos.mp4');
+const ARVOS_SIZE = 160;
 
 const noop = () => {};
 
@@ -14,6 +18,7 @@ const SETUP_MESSAGES = [
   'You can set up recurring reminders with your bot.',
   'Use your bot to get updates from your group chats.',
   'Your bot can process images and search the web.',
+  'You can access Tlon Messenger on the web at tlon.io.',
 ];
 
 export function TlonBotSetupPaneView(props: {
@@ -39,7 +44,7 @@ export function TlonBotSetupPaneView(props: {
         }
       />
       <YStack flex={1} alignItems="center" justifyContent="center" gap="$2xl">
-        <SegmentedSpinner />
+        <ArvosCircle />
         <YStack gap="$2xl" paddingHorizontal="$2xl">
           <TlonText.Text
             fontSize="$xl"
@@ -49,9 +54,61 @@ export function TlonBotSetupPaneView(props: {
           >
             Setting up your Tlonbot...
           </TlonText.Text>
-          <FadingTextCarousel messages={SETUP_MESSAGES} />
+          <FadingTextCarousel messages={SETUP_MESSAGES} maxWidth={360} />
         </YStack>
       </YStack>
+    </View>
+  );
+}
+
+function ArvosCircle() {
+  if (isWeb) {
+    return (
+      <View
+        width={ARVOS_SIZE}
+        height={ARVOS_SIZE}
+        borderRadius={ARVOS_SIZE / 2}
+        overflow="hidden"
+      >
+        <video
+          src={arvosVideo}
+          autoPlay
+          loop
+          muted
+          playsInline
+          style={{
+            width: '106%',
+            height: '106%',
+            objectFit: 'cover',
+          }}
+        />
+      </View>
+    );
+  }
+
+  return <ArvosCircleNative />;
+}
+
+function ArvosCircleNative() {
+  const player = useVideoPlayer(arvosVideo, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
+  return (
+    <View
+      width={ARVOS_SIZE}
+      height={ARVOS_SIZE}
+      borderRadius={ARVOS_SIZE / 2}
+      overflow="hidden"
+    >
+      <VideoView
+        player={player}
+        nativeControls={false}
+        contentFit="cover"
+        style={{ width: '106%', height: '106%' }}
+      />
     </View>
   );
 }
