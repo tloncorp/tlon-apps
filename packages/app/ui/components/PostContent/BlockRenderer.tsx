@@ -19,10 +19,17 @@ import React, {
   memo,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { ActivityIndicator, Linking, Platform } from 'react-native';
+import {
+  ActivityIndicator,
+  type LayoutChangeEvent,
+  Linking,
+  Platform,
+} from 'react-native';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNowPlayingController } from '../../contexts/nowPlaying';
@@ -678,6 +685,157 @@ export const HeaderText = styled(Text, {
 });
 HeaderText.displayName = 'HeaderText';
 
+function alignToTextAlign(
+  align: cn.TableAlignment | null | undefined
+): 'left' | 'center' | 'right' | 'auto' {
+  if (align === 'left' || align === 'center' || align === 'right') return align;
+  return 'auto';
+}
+
+const TABLE_MAX_COLUMN_WIDTH = 280;
+
+type TablePhase = 'measure-natural' | 'measure-wrapped' | 'done';
+
+export function TableBlock({ block }: { block: cn.TableBlockData }) {
+  const columnCount = Math.max(
+    block.header.cells.length,
+    ...block.rows.map((r) => r.cells.length)
+  );
+  const allRows = [block.header, ...block.rows];
+  const totalCells = columnCount * allRows.length;
+
+  const naturalDimsRef = useRef<Map<string, { w: number; h: number }>>(
+    new Map()
+  );
+  const finalHeightsRef = useRef<Map<string, number>>(new Map());
+  const pendingRef = useRef<Set<string>>(new Set());
+
+  const [phase, setPhase] = useState<TablePhase>('measure-natural');
+  const [columnWidths, setColumnWidths] = useState<number[] | null>(null);
+  const [rowHeights, setRowHeights] = useState<number[] | null>(null);
+
+  // Reset measurement state when the block changes — ContentRenderer keys
+  // children by array index, so an edited post can land a new table at the
+  // same index and reuse this component instance.
+  useEffect(() => {
+    setPhase('measure-natural');
+    setColumnWidths(null);
+    setRowHeights(null);
+    naturalDimsRef.current.clear();
+    finalHeightsRef.current.clear();
+    pendingRef.current.clear();
+  }, [block]);
+
+  const finalizeHeights = useCallback(() => {
+    const heights: number[] = [];
+    for (let row = 0; row < allRows.length; row++) {
+      let max = 0;
+      for (let col = 0; col < columnCount; col++) {
+        max = Math.max(max, finalHeightsRef.current.get(`${row}-${col}`) ?? 0);
+      }
+      heights.push(max);
+    }
+    setRowHeights(heights);
+    setPhase('done');
+  }, [columnCount, allRows.length]);
+
+  const handleCellLayout = useCallback(
+    (rowIdx: number, colIdx: number) => (e: LayoutChangeEvent) => {
+      const key = `${rowIdx}-${colIdx}`;
+      const { width, height } = e.nativeEvent.layout;
+
+      if (phase === 'measure-natural') {
+        naturalDimsRef.current.set(key, { w: width, h: height });
+        if (naturalDimsRef.current.size < totalCells) return;
+
+        const widths: number[] = [];
+        for (let col = 0; col < columnCount; col++) {
+          let max = 0;
+          for (let row = 0; row < allRows.length; row++) {
+            max = Math.max(max, naturalDimsRef.current.get(`${row}-${col}`)!.w);
+          }
+          widths.push(Math.min(max, TABLE_MAX_COLUMN_WIDTH));
+        }
+
+        // For cells whose natural width fits the (possibly capped) column,
+        // their natural height is the final height. For cells that exceed the
+        // cap, we mark them pending — they'll re-layout after widths apply.
+        for (let row = 0; row < allRows.length; row++) {
+          for (let col = 0; col < columnCount; col++) {
+            const k = `${row}-${col}`;
+            const dims = naturalDimsRef.current.get(k)!;
+            if (dims.w > widths[col]) {
+              pendingRef.current.add(k);
+            } else {
+              finalHeightsRef.current.set(k, dims.h);
+            }
+          }
+        }
+
+        setColumnWidths(widths);
+
+        if (pendingRef.current.size === 0) {
+          finalizeHeights();
+        } else {
+          setPhase('measure-wrapped');
+        }
+        return;
+      }
+
+      if (phase === 'measure-wrapped') {
+        if (!pendingRef.current.has(key)) return;
+        finalHeightsRef.current.set(key, height);
+        pendingRef.current.delete(key);
+        if (pendingRef.current.size === 0) {
+          finalizeHeights();
+        }
+      }
+    },
+    [phase, columnCount, allRows.length, totalCells, finalizeHeights]
+  );
+
+  return (
+    <ScrollView horizontal width="100%" maxWidth="100%">
+      <XStack opacity={phase === 'done' ? 1 : 0}>
+        {Array.from({ length: columnCount }).map((_, colIdx) => {
+          const align = block.align[colIdx] ?? null;
+          const textAlign = alignToTextAlign(align);
+          const colWidth = columnWidths?.[colIdx];
+          return (
+            <YStack key={colIdx}>
+              {allRows.map((row, rowIdx) => {
+                const cell = row.cells[colIdx] ?? { content: [] };
+                const isHeader = rowIdx === 0;
+                const rowHeight = rowHeights?.[rowIdx];
+                return (
+                  <View
+                    key={rowIdx}
+                    paddingVertical="$xl"
+                    paddingLeft={colIdx === 0 ? 0 : '$l'}
+                    paddingRight="$l"
+                    borderBottomWidth={rowIdx < allRows.length - 1 ? 1 : 0}
+                    borderColor="$border"
+                    {...(colWidth != null ? { width: colWidth } : {})}
+                    {...(rowHeight != null ? { minHeight: rowHeight } : {})}
+                    onLayout={handleCellLayout(rowIdx, colIdx)}
+                  >
+                    <LineRenderer
+                      inlines={cell.content}
+                      size="$label/m"
+                      textAlign={textAlign}
+                      {...(isHeader ? { color: '$tertiaryText' } : {})}
+                    />
+                  </View>
+                );
+              })}
+            </YStack>
+          );
+        })}
+      </XStack>
+    </ScrollView>
+  );
+}
+
 export type BlockRenderer<T extends cn.BlockData> = (props: {
   block: T;
 }) => React.ReactNode;
@@ -709,6 +867,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
+  table: TableBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -731,6 +890,7 @@ export type DefaultRendererProps = {
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
+  table: BlockSettings<typeof TableBlock>;
 };
 
 interface BlockRendererContextValue {

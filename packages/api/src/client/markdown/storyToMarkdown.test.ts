@@ -1,4 +1,6 @@
-import { Story } from '@tloncorp/api/urbit/channel';
+import { describe, expect, test } from 'vitest';
+
+import { Story } from '../../urbit/channel';
 import {
   Block,
   Blockquote,
@@ -16,14 +18,8 @@ import {
   Ship,
   Strikethrough,
   Task,
-} from '@tloncorp/api/urbit/content';
-import { describe, expect, test } from 'vitest';
-
-import {
-  blockToMarkdown,
-  inlinesToMarkdown,
-  storyToMarkdown,
-} from './markdown';
+} from '../../urbit/content';
+import { blockToMarkdown, inlinesToMarkdown, storyToMarkdown } from './index';
 
 describe('inlinesToMarkdown', () => {
   test('converts plain string', () => {
