@@ -160,8 +160,8 @@ expecting a group creation response on the groups subscription.
 ### Test assertions and Hoon assertions
 
 When asserting on a value expected by the test, we have two choices.
-We can aqua assertion, such as `+ex-equal`. This will terminate the
-thread with an appropriate error message, describing the discrepancy
+We can aqua assertion, such as `+ex-equal`, or `+ex-app-fact`.
+This will terminate the thread with an appropriate error message, describing the discrepancy
 between expected and actual values. Alternatively, we can use any of the
 Hoon assertions such as `?>` or `?<`, which will simply crash the thread
 without a specific error message. The obvious downside of Hoon
@@ -172,8 +172,9 @@ We should generally use aqua assertions. However, when asserting on
 things that are considered unchengable parts of an interface, and do not in
 themselves implement any logic which could be broken, using
 Hoon assertions is permissible. One example is asserting on marks of
-received facts. Since these are generally considered fixed, crashing
-with a Hoon assertions is more ergonomic.
+received facts, in cases where specifying the fact value
+statically is difficult. Since these are generally considered fixed,
+asserting with Hoon assertions can be more ergonomic.
 
 Sometimes we might be tempted to use Hoon assertions out of pure convenience,
 such using crashing map getter `+get:by`, or unpacking a unit using `?>`.

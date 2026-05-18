@@ -79,7 +79,10 @@ with remote services.
 In the groups desk, we need `%bait` and `%notify` providers, running on `~loshut-lonreg`
 and `~rivfur-livmet` respectively. In addition, virtual ames/mesa networking requires
 the parent galaxies to be present. In this case, we must add `~fen` and `~dem` to the
-fleet. This is handled by the `-ph-fleet` thread
+fleet. This means that in addition to ships expected to be available by
+aqua tests, we must add `~loshut-lonreg`, `~rivfur-livmet`, `~fen` and
+`~dem` to the ship list when generating a snapshot to be used for
+running aqua tests in the groups desk.
 
 When a host ship accumulated enough snapshots to be a memory burden, we
 can delete all existing snapshots using an aqua poke:

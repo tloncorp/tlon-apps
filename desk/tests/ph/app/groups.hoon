@@ -9,9 +9,9 @@
   |=  [=ship =r-groups:v10:gv]
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  kag=cage  bind:m  (wait-for-app-fact /(scot %p ship)/groups/v1/groups [ship %groups])
-  ?>  =(%group-response-1 p.kag)
-  =+  !<(rep=r-groups:v10:gv q.kag)
+  ;<  rep=r-groups:v10:gv  bind:m
+    %-  ex-app-fact-mark
+    [r-groups:v10:gv /(scot %p ship)/groups/v1/groups [ship %groups] %group-response-1]
   ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(flag.r-groups))
   ;<  ~  bind:m  (ex-equal !>(r-group.rep) !>(r-group.r-groups))
   (pure:m ~)
@@ -21,9 +21,9 @@
   |=  [=ship =flag:gv tag=@tas]
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  kag=cage  bind:m  (wait-for-app-fact /(scot %p ship)/groups/v1/groups [ship %groups])
-  ?>  =(%group-response-1 p.kag)
-  =+  !<(rep=r-groups:v10:gv q.kag)
+  ;<  rep=r-groups:v10:gv  bind:m
+    %-  (ex-app-fact-mark r-groups:v10:gv)
+    [r-groups:v10:gv /(scot %p ship)/groups/v1/groups [ship %groups] %group-response-1]
   ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(flag))
   ;<  ~  bind:m  (ex-equal !>(`@tas`-.r-group.rep) !>(tag))
   (pure:m ~)
@@ -38,6 +38,8 @@
 ++  ph-test-group-join
   =/  m  (strand ,~)
   ^-  form:m
+  ;<  ~  bind:m  (poke-app [~zod %groups] verb+[%volume %dbug])
+  ;<  ~  bind:m  (poke-app [~bud %groups] verb+[%volume %dbug])
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ::  ~zod hosts a group and invites ~bud

@@ -1,5 +1,5 @@
 /-  spider
-/-  g=groups, gv=groups-ver, r=reel
+/-  c=chat, g=groups, gv=groups-ver, r=reel
 /+  *ph-io, *ph-test
 =,  strand=strand:spider
 ::
@@ -218,18 +218,16 @@
   ;<  ~  bind:m  (redeem-lure-invite ~bud u.cookie lure-invite)
   ::  ~bud receives group invites: one current and one backwards compatible
   ::
-  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
-  ?>  =(%foreigns-1 p.kag)
-  =+  !<(=foreigns:v8:gv q.kag)
-  =+  far=(~(got by foreigns) my-test-flag)
   ;<  ~  bind:m
-    (ex-equal !>((lent invites.far)) !>(1))
-  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
-  ?>  =(%foreigns-1 p.kag)
-  =+  !<(=foreigns:v8:gv q.kag)
-  =+  far=(~(got by foreigns) my-test-flag)
-  ;<  ~  bind:m
-    (ex-equal !>((lent invites.far)) !>(2))
+    %^  (ex-app-fact-match foreigns:v8:gv)  /~bud/groups/v1/foreigns
+      [~bud %groups]
+    :-  %foreigns-1
+    |=  =foreigns:v8:gv
+    =+  far=(~(got by foreigns) my-test-flag)
+    ?>  ?=(^ invites.far)
+    ;<  ~  bind:m
+      (ex-equal !>((lent invites.far)) !>(1))
+    (ex-equal !>(from.i.invites.far) !>(~zod))
   ::  ~bud receives dm invite
   ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
@@ -239,7 +237,6 @@
 ++  ph-test-lure-personal
   =/  m  (strand ,~)
   ^-  form:m
-  ::
   ;<  ~  bind:m  (poke-app [~loshut-lonreg %bait] verb+[%volume %info])
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-personal-metadata)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
@@ -248,10 +245,16 @@
   ::  ~bud onboards from hosting through the lure invite.
   ::
   ;<  ~  bind:m  (redeem-lure-invite ~bud u.cookie lure-invite)
-  ::  ~bud receives dm invite
+  ::  ~bud receives dm invite from ~zod
   ::
-  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
-  ?>  =(%writ-response-4 p.kag)
+  ;<  ~  bind:m
+    %^  (ex-app-fact-match ,[=whom:c resp=response:writs:c])  /~bud/chat/v4
+      [~bud %chat]
+    :-  %writ-response-4
+    |=  [=whom:c resp=response:writs:c]
+    ;<  ~  bind:m
+      (ex-equal !>(whom) !>(`whom:c`[%ship ~zod]))
+    (ex-equal !>(-.response.resp) !>(%add))
   (pure:m ~)
 --
 
