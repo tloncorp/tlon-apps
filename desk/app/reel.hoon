@@ -123,13 +123,13 @@
 ++  group-og-title
   |=  [nickname=(unit @t) group-title=@t]
   ^-  @t
-  =/  gt=@t
+  =/  title=@t
     ?:  =('' group-title)  'a Groupchat'
     group-title
   %-  crip
   ?:  |(?=(~ nickname) =('' u.nickname))
-    "Tlon Messenger: You're Invited to {(trip gt)}"
-  "Tlon Messenger: {(trip u.nickname)} invited you to {(trip gt)}"
+    "Tlon Messenger: You're Invited to {(trip title)}"
+  "Tlon Messenger: {(trip u.nickname)} invited you to {(trip title)}"
 --
 |_  =bowl:gall
 +*  this  .
@@ -245,64 +245,63 @@
       ==
     ::  gap-fill open-graph metadata from server state when the caller
     ::  didn't provide it: title / description / image from %groups,
-    ::  and nickname / avatar from our cached profile. Caller-provided
-    ::  values always win.
+    ::  and nickname / avatar from our cached profile. caller-provided
+    ::  values take priority.
     ::
     =/  type=(unit @t)  (~(get by fields.metadata) %'inviteType')
     =?  fields.metadata  |(?=(~ type) =('group' u.type))
-      =/  fld  fields.metadata
-      ::  treat absent or empty-string fields as gap-fillable.
+      =*  fields  fields.metadata
+      ::  treat absent or empty-string fields as gap-fillable
       ::
-      =/  blank
-        |=  [m=(map cord cord) k=cord]
+      =*  is-blank
+        |=  k=field:reel
         ^-  ?
-        =/  v  (~(get by m) k)
+        =/  v  (~(get by fields) k)
         ?|(?=(~ v) =('' u.v))
       ::  inviter fields from our-profile
       ::
       =/  nickname=(unit @t)  (~(get cy:t our-profile) %nickname %text)
       =/  avatar=(unit @t)    (~(get cy:t our-profile) %avatar %look)
-      =?  fld
+      =?  fields
           ?&  ?=(^ nickname)
               !=('' u.nickname)
-              (blank fld %'inviterNickname')
+              (is-blank %'inviterNickname')
           ==
-        (~(put by fld) %'inviterNickname' u.nickname)
-      =?  fld
+        (~(put by fields) %'inviterNickname' u.nickname)
+      =?  fields
           ?&  ?=(^ avatar)
               !=('' u.avatar)
-              (blank fld %'inviterAvatarImage')
+              (is-blank %'inviterAvatarImage')
           ==
-        (~(put by fld) %'inviterAvatarImage' u.avatar)
+        (~(put by fields) %'inviterAvatarImage' u.avatar)
       ::  group meta from %groups; only attempt when id parses as a flag
       ::  and the group exists locally.
       ::
-      =/  parsed=(unit flag:v0:groups-ver)  (rush id flag)
-      ?~  parsed  fld
+      ?~  parsed=(rush id flag)  fields
       =/  base  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-      ?.  .^(? %gu (weld base /groups/(scot %p p.u.parsed)/[q.u.parsed]))
-        fld
+      ?.  .^(? %gu (weld base /groups/(scot %p -.u.parsed)/[+.u.parsed]))
+        fields
       =/  grp=group:v9:groups-ver
         .^  group:v9:groups-ver  %gx
-          (weld base /v2/groups/(scot %p p.u.parsed)/[q.u.parsed]/group-2)
+          (weld base /v2/groups/(scot %p -.u.parsed)/[+.u.parsed]/group-2)
         ==
-      =*  gmeta  meta.grp
-      =?  fld
-          ?&  !=('' title.gmeta)
-              (blank fld %'invitedGroupTitle')
+      =*  meta  meta.grp
+      =?  fields
+          ?&  !=('' title.meta)
+              (is-blank %'invitedGroupTitle')
           ==
-        (~(put by fld) %'invitedGroupTitle' title.gmeta)
-      =?  fld
-          ?&  !=('' description.gmeta)
-              (blank fld %'invitedGroupDescription')
+        (~(put by fields) %'invitedGroupTitle' title.meta)
+      =?  fields
+          ?&  !=('' description.meta)
+              (is-blank %'invitedGroupDescription')
           ==
-        (~(put by fld) %'invitedGroupDescription' description.gmeta)
-      =?  fld
-          ?&  !=('' image.gmeta)
-              (blank fld %'invitedGroupIconImageUrl')
+        (~(put by fields) %'invitedGroupDescription' description.meta)
+      =?  fields
+          ?&  !=('' image.meta)
+              (is-blank %'invitedGroupIconImageUrl')
           ==
-        (~(put by fld) %'invitedGroupIconImageUrl' image.gmeta)
-      fld
+        (~(put by fields) %'invitedGroupIconImageUrl' image.meta)
+      fields
     ::  the nonce here is a temporary identifier for the metadata.
     ::  a new one will be assigned by the bait provider and returned to us.
     ::

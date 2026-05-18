@@ -46,10 +46,6 @@
   %-  ~(gas by *contact:t)
   :~  %nickname^text+'Sampel Palnet'
   ==
-::  scry mock for the gap-fill path in %reel-describe. the %gu check
-::  reports the group as present so the %gx fetch proceeds; the %gx
-::  returns an empty group so the agent's gap-fill checks
-::  (!=('' title.gmeta) etc.) all fall through and no fields are added.
 ::
 ++  scry
   |=  =(pole knot)
