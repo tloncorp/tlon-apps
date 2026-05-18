@@ -290,6 +290,12 @@ export default ({ mode }: { mode: string }) => {
         'react-native-reanimated': fileURLToPath(
           new URL('../../node_modules/react-native-reanimated', import.meta.url)
         ),
+        '@react-navigation/elements': fileURLToPath(
+          new URL(
+            '../../node_modules/@react-navigation/elements',
+            import.meta.url
+          )
+        ),
         ...(mode === 'electron'
           ? {
               'virtual:pwa-register/react': fileURLToPath(

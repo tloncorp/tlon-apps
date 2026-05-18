@@ -11,7 +11,7 @@
 ::  ~bud is the invitee. he receives the invite
 ::  and onboards to the network, joining the group.
 ::
-::  ~fen is the bait provider
+::  ~loshut-lonreg is the bait provider
 ::
 |%
 ++  my-test-flag  ~zod^%test-group
@@ -194,16 +194,16 @@
         ipv4+.127.0.0.1
         request
     ==
-  ::  ~fen the bait provider receives the onboarding request
+  ::  ~loshut-lonreg the bait provider receives the onboarding request
   ::
   =/  =aqua-event
-    [%event ~fen /e/aqua/eyre/request task]
+    [%event ~loshut-lonreg /e/aqua/eyre/request task]
   (send-events ~[aqua-event])
 ++  ph-test-lure-group
   =/  m  (strand ,~)
   ^-  form:m
   ::
-  ;<  ~  bind:m  (poke-app [~fen %bait] verb+[%volume %info])
+  ;<  ~  bind:m  (poke-app [~loshut-lonreg %bait] verb+[%volume %info])
   ::  host a group on ~zod and enable lure links
   ::
   ;<  ~  bind:m  create-test-group
@@ -211,7 +211,7 @@
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-group-metadata)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
-  ;<  cookie=(unit @t)  bind:m  (eyre-authenticate ~fen)
+  ;<  cookie=(unit @t)  bind:m  (eyre-authenticate ~loshut-lonreg)
   ?>  ?=(^ cookie)
   ::  ~bud onboards from hosting through the lure invite.
   ::
@@ -240,10 +240,10 @@
   =/  m  (strand ,~)
   ^-  form:m
   ::
-  ;<  ~  bind:m  (poke-app [~fen %bait] verb+[%volume %info])
+  ;<  ~  bind:m  (poke-app [~loshut-lonreg %bait] verb+[%volume %info])
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-personal-metadata)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
-  ;<  cookie=(unit @t)  bind:m  (eyre-authenticate ~fen)
+  ;<  cookie=(unit @t)  bind:m  (eyre-authenticate ~loshut-lonreg)
   ?>  ?=(^ cookie)
   ::  ~bud onboards from hosting through the lure invite.
   ::

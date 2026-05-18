@@ -180,3 +180,10 @@ export const clearSessionStorageItems = async (): Promise<void> => {
   await Promise.all(clearPromises);
   logger.log('Cleared all non-persistent storage items');
 };
+
+export const clearAllStorageItems = async (): Promise<void> => {
+  const clearPromises = storageItems.map((item) => item.resetValue());
+
+  await Promise.all(clearPromises);
+  logger.log('Cleared all storage items');
+};

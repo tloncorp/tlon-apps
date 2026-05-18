@@ -54,7 +54,7 @@
     %+  ex-cards  caz
     :~  (ex-poke /contacts/~zod [~dev %contacts] contact-action-1+!>([%meet ~[~zod]]))
         (ex-fact ~[/unreads] %chat-unread-update !>([whom unread]))
-        (ex-poke /activity/submit [~dev %activity] activity-action+!>(activity-action))
+        (ex-poke /activity/submit [~dev %activity] activity-action-1+!>(activity-action))
         (ex-fact ~[/ /dm/~zod /dm/~zod/writs] writ-response+!>(old-response-3))
         (ex-fact ~[/v1 /v1/dm/~zod /v1/dm/~zod/writs] writ-response-1+!>(old-response-4))
         (ex-fact ~[/v2 /v2/dm/~zod /v2/dm/~zod/writs] writ-response-2+!>(old-response-5))

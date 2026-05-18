@@ -19,6 +19,7 @@ import {
   markPushNotifTapMeasurementAbandoned,
   markPushNotifTapSyncSinceComplete,
 } from '@tloncorp/app/lib/pushNotifTapTelemetry';
+import { recoverTlonbotRevivalDeferredConfig } from '@tloncorp/app/lib/tlonbotRevivalDeferredConfig';
 import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
@@ -47,12 +48,14 @@ import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
 import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
+import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
 
 function AuthenticatedApp() {
   const telemetry = useTelemetry();
   const checkNodeStopped = useCheckNodeStopped();
+  const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
@@ -87,9 +90,11 @@ function AuthenticatedApp() {
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
         startChatListSettleMeasurement(status);
+        recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
         await checkForCachedChanges();
         telemetry.captureAppActive();
-        checkNodeStopped();
+        const nodeCheck = await checkNodeStopped();
+        await maybeShowPrompt(nodeCheck);
         refreshHostingAuth();
         checkAnalyticsDigest();
       }
@@ -104,7 +109,7 @@ function AuthenticatedApp() {
           });
       }
     },
-    [checkForCachedChanges, checkNodeStopped, telemetry]
+    [checkForCachedChanges, checkNodeStopped, maybeShowPrompt, telemetry]
   );
 
   useAppStatusChange(handleAppStatusChange);
@@ -143,6 +148,7 @@ function AuthenticatedApp() {
       <RootStack />
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {poorUxReportModal}
+      {promptSheet}
     </ZStack>
   );
 }
