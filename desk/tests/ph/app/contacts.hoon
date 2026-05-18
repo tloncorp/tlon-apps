@@ -2,7 +2,7 @@
 /+  *ph-io, *ph-test
 =,  strand=strand:spider
 |%
-++  my-broadcast-profile
+++  my-profile
   ^-  contact:c
   %-  ~(gas by *(map @tas value:c))
   :~  [%nickname text+'Zod Test']
@@ -40,20 +40,17 @@
   ::  ~bud meets ~zod and receives ~zod's initial empty profile.
   ::
   ;<  ~  bind:m  (poke-app [~bud %contacts] contact-action-1+[%meet ~[~zod]])
-  ;<  pay=cage  bind:m  (wait-for-app-fact /~bud/contacts/v1/news [~bud %contacts])
-  ?>  =(%contact-response-0 p.pay)
-  =+  !<(res=response:c q.pay)
-  ?>  ?=(%peer -.res)
-  ;<  ~  bind:m  (ex-equal !>(who.res) !>(~zod))
+  ;<  ~  bind:m
+    %^  ex-app-fact  /~bud/contacts/v1/news
+      [~bud %contacts]
+    contact-response-0+!>([%peer ~zod *contact:c])
   ::  ~zod updates his public profile, then ~bud receives the broadcast.
   ::
-  ;<  ~  bind:m  (poke-app [~zod %contacts] contact-action-1+[%self my-broadcast-profile])
-  ;<  pay=cage  bind:m  (wait-for-app-fact /~bud/contacts/v1/news [~bud %contacts])
-  ?>  =(%contact-response-0 p.pay)
-  =+  !<(res=response:c q.pay)
-  ?>  ?=(%peer -.res)
-  ;<  ~  bind:m  (ex-equal !>(who.res) !>(~zod))
-  ;<  ~  bind:m  (ex-equal !>(con.res) !>(my-broadcast-profile))
+  ;<  ~  bind:m  (poke-app [~zod %contacts] contact-action-1+[%self my-profile])
+  ;<  ~  bind:m
+    %^  ex-app-fact  /~bud/contacts/v1/news
+      [~bud %contacts]
+    contact-response-0+!>([%peer ~zod my-profile])
   (pure:m ~)
 ::  +ph-test-profile-field-types: test profile field value types
 ::
@@ -68,14 +65,14 @@
   ^-  form:m
   ;<  ~  bind:m  (watch-app /~zod/contacts/v1/news [~zod %contacts] /v1/news)
   ;<  ~  bind:m  (watch-app /~bud/contacts/v1/news [~bud %contacts] /v1/news)
-  ::  ~bud meets ~zod, creating a real subscriber for ~zod's profile.
+  ::  ~bud meets ~zod
   ::
   ;<  ~  bind:m  (poke-app [~bud %contacts] contact-action-1+[%meet ~[~zod]])
   ;<  ~  bind:m
     %^  ex-app-fact  /~bud/contacts/v1/news
       [~bud %contacts]
     contact-response-0+!>([%peer ~zod *contact:c])
-  ::  ~zod sets every contact value type and receives the local response.
+  ::  ~zod sets every contact value type. we receive the profile response.
   ::
   ;<  ~  bind:m  (poke-app [~zod %contacts] contact-action-1+[%self my-typed-profile])
   ;<  ~  bind:m

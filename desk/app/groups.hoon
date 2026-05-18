@@ -4587,6 +4587,8 @@
     ::
     =/  r-groups-9=r-groups:v9:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
+    =*  log  ~(. l `'group-join')
+    =.  cor  (tell:log %dbug leaf+"+go-response /v1/groups fact {<r-groups-9>}" ~)
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
     ::  v0 backcompat
     ::
@@ -4764,7 +4766,10 @@
       %-  gang:v2:foreign:v7:gc
       (v7:foreign:v10:gc foreign)
     =/  foreign-8  (v8:foreign:v10:gc foreign)
-    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my flag^foreign-8 ~)))
+    =/  foreigns-8=foreigns:v8:gv  (my flag^foreign-8 ~)
+    =*  log  ~(. l `'group-join')
+    =.  cor  (tell:log %dbug leaf+"+fi-give-update /v1/foreigns fact {<foreigns-8>}" ~)
+    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(foreigns-8))
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
     fi-core
   ::

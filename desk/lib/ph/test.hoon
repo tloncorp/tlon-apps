@@ -1,6 +1,7 @@
 /-  spider
 /+  *strandio, *ph-io, test
 =,  strand=strand:spider
+=+  timeout=~s10
 |%
 ::  +ph-test-init: setup test strand environment
 ::
@@ -138,7 +139,7 @@
   ?~  tang
     `[%fail %ex-not-equal tang]
   `[%done ~]
-::  +ex-app-fact: expect app fact on a wire with a timeout
+::  +ex-app-fact: expect app fact on a wire
 ::
 ++  ex-app-fact
   |=  [=wire =dock ex-fact=cage]
@@ -146,26 +147,87 @@
   ^-  form:m
   %^  (set-timeout-err ,~)  timeout
     :~  'ex-app-fact'
-        leaf+"expected a fact from {<p.dock>}/{<q.dock>}:"
-        leaf+"mark {<p.ex-fact>}"
+        leaf+"expected a fact from {<p.dock>}/{<q.dock>}"
+        leaf+"on wire {<wire>}"
+        leaf+"with mark {<p.ex-fact>}:"
         (sell q.ex-fact)
     ==
   ;<  fact=cage  bind:m  (wait-for-app-fact wire dock)
-  ;<  ~  bind:m  
+  ;<  ~  bind:m
     %+  (map-err ,~)
       |=  [=term =tang]
       :-  'ex-app-fact'
       ^-  ^tang
-      :-  leaf+"mark mismatch from {<p.dock>}/{<q.dock>}"
-      tang
+      :*  leaf+"expected a mark from {<p.dock>}/{<q.dock>}"
+          leaf+"on wire {<wire>}:"
+          tang
+      ==
     (ex-equal !>(p.fact) !>(p.ex-fact))
-  ;<  ~  bind:m  
+  ;<  ~  bind:m
     %+  (map-err ,~)
       |=  [=term =tang]
       :-  'ex-app-fact'
       ^-  ^tang
-      :-  leaf+"fact value mismatch from {<p.dock>}/{<q.dock>}"
-      tang
+      :*  leaf+"expected a fact value from {<p.dock>}/{<q.dock>}"
+          leaf+"on wire {<wire>}:"
+          tang
+      ==
     (ex-equal q.fact q.ex-fact)
   (pure:m ~)
+::  +ex-app-fact-mark: expect app fact with a mark on a wire
+::
+++  ex-app-fact-mark
+  |=  [=wire =dock =mark]
+  =/  m  (strand ,~)
+  ^-  form:m
+  %^  (set-timeout-err ,~)  timeout
+    :~  'ex-app-fact-mark'
+        leaf+"expected a fact from {<p.dock>}/{<q.dock>}"
+        leaf+"on wire {<wire>}"
+        leaf+"with mark {<mark>}."
+    ==
+  ;<  fact=cage  bind:m  (wait-for-app-fact wire dock)
+  %+  (map-err ,~)
+    |=  [=term =tang]
+    :-  'ex-app-fact-mark'
+    ^-  ^tang
+    :*  leaf+"expected a mark from {<p.dock>}/{<q.dock>}"
+        leaf+"on wire {<wire>}:"
+        tang
+    ==
+  (ex-equal !>(p.fact) !>(mark))
+::  +ex-app-fact-match: expect a matching app fact on a wire
+::
+++  ex-app-fact-match
+  |*  =mold
+  =/  m  (strand ,~)
+  |=  [=wire =dock =mark ex-match=$-(mold form:m)]
+  ^-  form:m
+  %^  (set-timeout-err ,~)  timeout
+    :~  'ex-app-fact-match'
+        leaf+"expected a fact match from {<p.dock>}/{<q.dock>}"
+        leaf+"on wire {<wire>}"
+        leaf+"with mark {<mark>}."
+    ==
+  ;<  fact=cage  bind:m  (wait-for-app-fact wire dock)
+  ;<  ~  bind:m
+    %+  (map-err ,~)
+      |=  [=term =tang]
+      :-  'ex-app-fact-match'
+      ^-  ^tang
+      :*  leaf+"expected a mark from {<p.dock>}/{<q.dock>}"
+          leaf+"on wire {<wire>}:"
+          tang
+      ==
+    (ex-equal !>(p.fact) !>(mark))
+  %+  (map-err ,~)
+    |=  [=term =tang]
+    :-  'ex-app-fact-match'
+    ^-  ^tang
+    :*  leaf+"expected a matching fact from {<p.dock>}/{<q.dock>}"
+        leaf+"on wire {<wire>}"
+        leaf+"with mark {<mark>}:"
+        tang
+    ==
+  (ex-match !<(mold q.fact))
 --
