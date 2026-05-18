@@ -1,3 +1,12 @@
+::  contacts: user profile and contact book
+::
+::  the contacts agent manages the user's public profile, as well
+::  as track profiles of network peers, creating an implicit social graph.
+::  it also manages the contact book, which contains the profiles of
+::  network peers marked as contacts, together with user-defined
+::  metadata and profile data overlays.
+::
+::
 /-  activity-ver
 /+  default-agent, dbug, verb, neg=negotiate
 /+  *contacts, kol
