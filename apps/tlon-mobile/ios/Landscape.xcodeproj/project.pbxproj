@@ -200,8 +200,8 @@
 		9800D0CF75B94AF4B4F91344 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9042C1EE9669440FB104FA17 /* ShareViewController.swift */; };
 		9F3F596CE47E4B2AAFE7F156 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 4AAB945CECE149D893E29730 /* MainInterface.storyboard */; };
 		AA0FE320B86E4AD5A2E68DE9 /* bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = 6354B01B2DA4510400A00356 /* bundle.js */; };
-		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		AC9B29734DA146748D2BEDC9 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9042C1EE9669440FB104FA17 /* ShareViewController.swift */; };
+		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		C184662C2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist in Resources */ = {isa = PBXBuildFile; fileRef = C184662B2ABBDFF1008EA8C0 /* GoogleService-Info-io.tlon.groups.plist */; };
 		C4DCBC2505E8483F971EF4DE /* ShareExtensionPreprocessor.js in Resources */ = {isa = PBXBuildFile; fileRef = 7921BAA51C1F4AB0927D16A9 /* ShareExtensionPreprocessor.js */; };
 		C5AA2DA09E0243819EFF88B6 /* bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = 6354B01B2DA4510400A00356 /* bundle.js */; };
@@ -307,8 +307,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		0F80B9E935DB48E096A2A289 /* ShareExtension-Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = "ShareExtension-Info.plist"; path = "ShareExtension-Info.plist"; sourceTree = "<group>"; };
 		0C9C9CAA2F2BD797004BFACB /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Landscape/AppDelegate.swift; sourceTree = "<group>"; };
+		0F80B9E935DB48E096A2A289 /* ShareExtension-Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = "ShareExtension-Info.plist"; path = "ShareExtension-Info.plist"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Landscape.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Landscape.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Landscape/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Landscape/Info.plist; sourceTree = "<group>"; };
@@ -1796,7 +1796,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 8.3.0;
+				MARKETING_VERSION = 8.3.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1834,7 +1834,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 8.3.0;
+				MARKETING_VERSION = 8.3.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -2066,7 +2066,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 8.3.0;
+				MARKETING_VERSION = 8.3.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -2109,7 +2109,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 8.3.0;
+				MARKETING_VERSION = 8.3.2;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

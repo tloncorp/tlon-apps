@@ -19,6 +19,7 @@
   $%  [%connect-provider who=@p service=term address=@t]
       [%connect-provider-with-binding who=@p service=term address=@t binding=@t]
       [%remove-provider who=@p service=term]
+      [%send-message message=@t]
   ==
 ::
 +$  uid  @uvH
@@ -43,6 +44,7 @@
 +$  action
   $%  [%notify ~]
       [%dismiss source=@t]
+      [%message message=@t]
   ==
 ::
 +$  update

@@ -6,7 +6,13 @@ import type {
   StorageService,
 } from '@tloncorp/api/urbit/storage';
 
-import { NodeBootPhase, SignupParams, WayfindingProgress } from '../domain';
+import type { Attachment } from '../domain';
+import {
+  NodeBootPhase,
+  OnboardingFlow,
+  SignupParams,
+  WayfindingProgress,
+} from '../domain';
 import { Lure } from '../logic';
 import { createStorageItem } from './storageItem';
 
@@ -115,6 +121,57 @@ export const signupData = createStorageItem<SignupParams>({
   },
 });
 
+export type TlonbotRevivalStage =
+  | 'collecting'
+  | 'settingUp'
+  | 'group'
+  | 'invite';
+
+export type TlonbotRevivalSetup = Pick<
+  SignupParams,
+  'nickname' | 'notificationToken' | 'notificationLevel'
+> & {
+  pending: boolean;
+  applied?: boolean;
+  provisioningStarted?: boolean;
+  stage?: TlonbotRevivalStage;
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
+  botProvider?: string;
+  botModel?: string;
+};
+
+export const tlonbotRevivalSetup = createStorageItem<TlonbotRevivalSetup>({
+  key: 'tlonbotRevivalSetup',
+  defaultValue: {
+    pending: false,
+  },
+});
+
+export type TlonbotRevivalDeferredConfig = {
+  profileNickname?: string;
+  notificationToken?: string;
+  notificationLevel?: ub.NotificationLevel;
+  botName?: string;
+  botAvatarUrl?: string | null;
+  botAvatarUploadIntent?: Attachment.UploadIntent | null;
+  botProvider?: string;
+  botModel?: string;
+};
+
+export const tlonbotRevivalDeferredConfig =
+  createStorageItem<TlonbotRevivalDeferredConfig>({
+    key: 'tlonbotRevivalDeferredConfig',
+    defaultValue: {},
+  });
+
+export const didClearPreviousInstall = createStorageItem<boolean>({
+  key: 'didClearPreviousInstall',
+  defaultValue: false,
+  persistAfterLogout: true,
+});
+
 export const lastAppVersion = createStorageItem<string | null>({
   key: 'lastAppVersion',
   defaultValue: null,
@@ -212,6 +269,7 @@ export type ShipInfo = {
   shipUrl: string | undefined;
   authCookie: string | undefined;
   needsSplashSequence?: boolean;
+  splashSequenceMode?: OnboardingFlow;
 };
 
 export const shipInfo = createStorageItem<ShipInfo | null>({
@@ -339,7 +397,7 @@ export const wayfindingProgress = createStorageItem<WayfindingProgress>({
     tappedAddNote: true,
     tappedAddCollection: true,
     tappedChatInput: true,
-    tappedBotMention: true,
+    tappedHomeGroupHint: true,
   },
 });
 

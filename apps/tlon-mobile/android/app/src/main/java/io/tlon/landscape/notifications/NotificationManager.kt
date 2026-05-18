@@ -86,6 +86,18 @@ object NotificationMessagesCache {
 
 private const val NOTIFICATION_MANAGER = "NotificationManager"
 
+private fun getNotificationId(identifier: String): Int {
+    return if (identifier.startsWith("0v")) {
+        try {
+            UvParser.getIntCompatibleFromUv(identifier)
+        } catch (e: Exception) {
+            identifier.hashCode()
+        }
+    } else {
+        identifier.hashCode()
+    }
+}
+
 suspend fun processNotification(context: Context, uid: String, id: String) {
     val api = TalkApi(context)
     var activityEvent: JSONObject? = null
@@ -201,12 +213,53 @@ private fun showRichNotification(context: Context, uid: String, preview: Activit
     NotificationManagerCompat.from(context).notify(preview.groupingKey?.hashCode() ?: id, builder.build())
 }
 
+fun showGenericNotification(
+    context: Context,
+    identifier: String,
+    title: String,
+    message: String,
+    extras: Bundle
+) {
+    val id = getNotificationId(identifier)
+    if (ActivityCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        NotificationLogger.logError(
+            NotificationException(
+                message = "Lacking notification permissions",
+                uid = identifier
+            )
+        )
+        Log.w(NOTIFICATION_MANAGER, "Cannot show notification - no permission")
+        return
+    }
+
+    if (!extras.containsKey("id")) {
+        extras.putString("id", identifier)
+    }
+    extras.putString("genericMessage", message)
+
+    val builder = NotificationCompat.Builder(context, TalkNotificationManager.CHANNEL_ID)
+        .buildMessagingTappable(context, id, extras)
+        .setContentTitle(title)
+        .setContentText(message)
+        .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+
+    NotificationManagerCompat.from(context).notify(id, builder.build())
+    NotificationLogger.logDelivery(mapOf(
+        "uid" to identifier,
+        "message" to "Generic notification delivered successfully"
+    ))
+}
+
 fun RemoteMessage.toBasicBundle(): Bundle {
     val bundle = Bundle()
 
     // Prioritize notification fields, fall back to data fields
     val title = notification?.title ?: data["title"]
-    val body = notification?.body ?: data["body"]
+    val body = notification?.body ?: data["body"] ?: data["message"]
 
     title?.let { bundle.putString("title", it) }
     body?.let { bundle.putString("body", it) }
