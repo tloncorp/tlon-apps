@@ -118,6 +118,8 @@ export function StaticChatMessage({
     },
     [draftInputContext]
   );
+  const canHandleA2UIAction =
+    !!draftInputContext && draftInputContext.canStartDraft !== false;
 
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
@@ -193,7 +195,7 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
-            onA2UIAction={handleA2UIAction}
+            onA2UIAction={canHandleA2UIAction ? handleA2UIAction : undefined}
             searchQuery={searchQuery}
           />
         )}
