@@ -306,7 +306,7 @@ export async function pickFile(acceptedTypes: string[] = ['*/*']): Promise<{
   errorMessage: string | null;
 }> {
   const results = await DocumentPicker.getDocumentAsync({
-    copyToCacheDirectory: false,
+    copyToCacheDirectory: true,
     multiple: false,
     type: acceptedTypes,
   });
