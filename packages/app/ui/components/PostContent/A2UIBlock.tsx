@@ -33,16 +33,9 @@ function getComponentGap(
   component: A2UI.Container,
   components: Map<string, A2UI.Component>
 ) {
-  const hasButton = component.children.some(
-    (child) => components.get(child)?.component === 'Button'
-  );
   const isTextOnly = component.children.every(
     (child) => components.get(child)?.component === 'Text'
   );
-
-  if (hasButton) {
-    return '$m';
-  }
 
   if (isTextOnly) {
     return component.component === 'Row' ? '$s' : '$xs';
