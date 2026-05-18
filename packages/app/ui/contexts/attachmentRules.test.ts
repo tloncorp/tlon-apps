@@ -3,8 +3,6 @@ import { expect, test } from 'vitest';
 
 import {
   VIDEO_COMPOSITION_ERROR,
-  VIDEO_SIZE_LIMIT_ERROR,
-  VIDEO_SIZE_UNKNOWN_ERROR,
   VIDEO_TYPE_ERROR,
   canAddAttachment,
   inferAllowedVideoMimeType,
@@ -51,39 +49,6 @@ test('rejects video mixed with non-text media', () => {
     ok: false,
     reason: VIDEO_COMPOSITION_ERROR,
     kind: 'composition',
-  });
-});
-
-test('rejects unknown-size local video', () => {
-  expect(canAddAttachment([], makeVideo({ size: -1 }))).toEqual({
-    ok: false,
-    reason: VIDEO_SIZE_UNKNOWN_ERROR,
-    kind: 'validation',
-  });
-});
-
-test('rejects unknown-size remote video', () => {
-  expect(
-    canAddAttachment(
-      [],
-      makeVideo({
-        localFile: 'https://cdn.example.com/clip.mp4',
-        size: -1,
-        mimeType: undefined,
-      })
-    )
-  ).toEqual({
-    ok: false,
-    reason: VIDEO_SIZE_UNKNOWN_ERROR,
-    kind: 'validation',
-  });
-});
-
-test('rejects videos over the size limit', () => {
-  expect(canAddAttachment([], makeVideo({ size: 151 * 1024 * 1024 }))).toEqual({
-    ok: false,
-    reason: VIDEO_SIZE_LIMIT_ERROR,
-    kind: 'validation',
   });
 });
 

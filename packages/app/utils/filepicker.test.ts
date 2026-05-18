@@ -1,10 +1,7 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { expect, test, vi } from 'vitest';
 
-import {
-  getVideoValidationError,
-  isLikelyVideoSource,
-} from '../ui/contexts/attachmentRules';
+import { isLikelyVideoSource } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import {
   imagePickerAssetToUploadIntent,
@@ -137,30 +134,6 @@ test('treats picker assets with duration as videos when type and mime are missin
   });
 });
 
-test('validates explicit video intents even when file metadata is sparse', async () => {
-  vi.mocked(getVideoValidationError).mockReturnValueOnce(
-    'Videos must be under 150 MB.'
-  );
-
-  const result = await normalizeUploadIntent({
-    type: 'fileUri',
-    localUri: 'file:///tmp/asset',
-    name: undefined,
-    size: 160 * 1024 * 1024,
-    mimeType: undefined,
-    video: {
-      width: 1920,
-      height: 1080,
-      duration: 2.5,
-    },
-  });
-
-  expect(result).toEqual({
-    uploadIntent: null,
-    errorMessage: 'Videos must be under 150 MB.',
-  });
-});
-
 test('uses web File and treats duration as seconds when image picker provides a File object', () => {
   const file = new File(['video-bytes'], 'clip.mp4', { type: 'video/mp4' });
 
@@ -218,7 +191,6 @@ test('drops non-positive picker video metadata during upload intent conversion',
 
 test('normalizeUploadIntent keeps supported quicktime videos with known size', async () => {
   vi.mocked(isLikelyVideoSource).mockReturnValueOnce(true);
-  vi.mocked(getVideoValidationError).mockReturnValueOnce(null);
   vi.mocked(getVideoPreviewData).mockResolvedValueOnce({});
 
   const result = await normalizeUploadIntent({

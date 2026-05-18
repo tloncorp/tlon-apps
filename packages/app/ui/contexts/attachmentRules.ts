@@ -1,4 +1,5 @@
 import { Attachment } from '@tloncorp/shared';
+import { isWeb } from 'tamagui';
 
 export const MAX_VIDEO_SIZE_BYTES = 150 * 1024 * 1024;
 export const MAX_VIDEO_SIZE_LABEL = '150 MB';
@@ -69,11 +70,13 @@ export function getVideoValidationError({
   name,
   uri,
 }: VideoCandidate): string | null {
-  if (size == null || size < 0) {
-    return VIDEO_SIZE_UNKNOWN_ERROR;
-  }
-  if (size > MAX_VIDEO_SIZE_BYTES) {
-    return VIDEO_SIZE_LIMIT_ERROR;
+  if (!isWeb) {
+    if (size == null || size < 0) {
+      return VIDEO_SIZE_UNKNOWN_ERROR;
+    }
+    if (size > MAX_VIDEO_SIZE_BYTES) {
+      return VIDEO_SIZE_LIMIT_ERROR;
+    }
   }
   if (inferAllowedVideoMimeType({ mimeType, name, uri }) == null) {
     return VIDEO_TYPE_ERROR;
