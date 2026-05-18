@@ -396,10 +396,7 @@ async function prependMentionToDraft(
   const draft = await ctx.getDraft();
   const firstChild = draft?.content?.[0]?.content?.[0];
   // No-op if the draft already starts with this mention.
-  if (
-    firstChild?.type === 'mention' &&
-    firstChild.attrs?.id === authorId
-  ) {
+  if (firstChild?.type === 'mention' && firstChild.attrs?.id === authorId) {
     ctx.startDraft?.();
     return;
   }
