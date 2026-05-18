@@ -1,7 +1,8 @@
+import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback } from 'react';
+import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
@@ -118,11 +119,28 @@ export function StaticChatMessage({
     },
     [draftInputContext]
   );
+  const canRenderA2UI = isDmChannelId(post.channelId);
   const canHandleA2UIAction =
-    !!draftInputContext && draftInputContext.canStartDraft !== false;
+    canRenderA2UI &&
+    !!draftInputContext &&
+    draftInputContext.canStartDraft !== false;
 
-  const content = usePostContent(post);
-  const lastEditContent = usePostLastEditContent(post);
+  const postContent = usePostContent(post);
+  const lastEditPostContent = usePostLastEditContent(post);
+  const content = useMemo(
+    () =>
+      canRenderA2UI
+        ? postContent
+        : postContent.filter((block) => block.type !== 'a2ui'),
+    [canRenderA2UI, postContent]
+  );
+  const lastEditContent = useMemo(
+    () =>
+      canRenderA2UI
+        ? lastEditPostContent
+        : lastEditPostContent.filter((block) => block.type !== 'a2ui'),
+    [canRenderA2UI, lastEditPostContent]
+  );
 
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
