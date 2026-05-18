@@ -8,6 +8,7 @@ import { View, XStack, YStack, isWeb } from 'tamagui';
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
+import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -258,6 +259,9 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
 };
 
 const ChatContentRenderer = createContentRenderer({
+  blockRenderers: {
+    a2ui: A2UIBlock,
+  },
   blockSettings: {
     blockWrapper: {
       paddingLeft: 0,

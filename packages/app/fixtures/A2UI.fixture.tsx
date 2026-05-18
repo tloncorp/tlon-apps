@@ -15,6 +15,8 @@ import { FixtureWrapper } from './FixtureWrapper';
 import { exampleContacts, makePost, verse } from './contentHelpers';
 import { group, tlonLocalIntros } from './fakeData';
 
+const dmChannelId = '~sampel-palnet';
+
 const weatherA2UI: A2UI.BlobEntry = {
   type: 'a2ui',
   version: 1,
@@ -580,31 +582,51 @@ const basicComponentsA2UI: A2UI.BlobEntry = {
 const weatherPost = makePost(
   exampleContacts.mark,
   [verse.inline('Weather: 22903 is 57F and partly cloudy.')],
-  { blob: appendToPostBlob(undefined, weatherA2UI), replyCount: 0 }
+  {
+    blob: appendToPostBlob(undefined, weatherA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
 );
 
 const confirmationPost = makePost(
   exampleContacts.groupAdmin,
   [verse.inline('DM request from Sam Palnet (~sampel-palnet)')],
-  { blob: appendToPostBlob(undefined, confirmationA2UI), replyCount: 0 }
+  {
+    blob: appendToPostBlob(undefined, confirmationA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
 );
 
 const channelApprovalPost = makePost(
   exampleContacts.mark,
   [verse.inline('Channel mention request from Littel Wolfur (~littel-wolfur)')],
-  { blob: appendToPostBlob(undefined, channelApprovalA2UI), replyCount: 0 }
+  {
+    blob: appendToPostBlob(undefined, channelApprovalA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
 );
 
 const groupApprovalPost = makePost(
   exampleContacts.groupAdmin,
   [verse.inline('Group invite request from Robin Dasler (~robin-dasler)')],
-  { blob: appendToPostBlob(undefined, groupApprovalA2UI), replyCount: 0 }
+  {
+    blob: appendToPostBlob(undefined, groupApprovalA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
 );
 
 const basicComponentsPost = makePost(
   exampleContacts.mark,
   [verse.inline('Basic A2UI component catalog.')],
-  { blob: appendToPostBlob(undefined, basicComponentsA2UI), replyCount: 0 }
+  {
+    blob: appendToPostBlob(undefined, basicComponentsA2UI),
+    channelId: dmChannelId,
+    replyCount: 0,
+  }
 );
 
 const examplePosts = [

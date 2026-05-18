@@ -699,7 +699,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   lineText: LineText,
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
-  a2ui: A2UIBlock,
+  a2ui: () => null,
   link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
