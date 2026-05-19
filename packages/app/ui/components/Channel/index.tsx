@@ -724,13 +724,23 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       setSelectedContextLensMessage(null);
     }, []);
     const postToContextLensMessage = useCallback(
-      (post: db.Post): ContextLensSelectedMessage => ({
-        id: post.id,
-        authorId: post.authorId,
-        channelId: post.channelId,
-        preview: post.textContent,
-        sentAt: typeof post.sentAt === 'number' ? post.sentAt : null,
-      }),
+      (post: db.Post): ContextLensSelectedMessage => {
+        const sentAt = post.sentAt as unknown;
+        return {
+          id: post.id,
+          authorId: post.authorId,
+          channelId: post.channelId,
+          preview: post.textContent,
+          sentAt:
+            typeof sentAt === 'number'
+              ? sentAt
+              : sentAt instanceof Date
+                ? sentAt.getTime()
+                : typeof sentAt === 'string'
+                  ? Date.parse(sentAt)
+                  : null,
+        };
+      },
       []
     );
     const inspectContextLensPost = useCallback(

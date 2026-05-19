@@ -170,7 +170,37 @@ function encodeQuery(value: string) {
 }
 
 function normalizeComparableText(value?: string | null) {
-  return value?.replace(/\s+/g, ' ').trim() ?? '';
+  return (
+    value
+      ?.replace(/[`*_~>#\[\](){}]/g, ' ')
+      .replace(/[.,:;!?"'“”‘’…•·—–-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase() ?? ''
+  );
+}
+
+function comparableTextPrefix(value: string, maxLength = 96) {
+  return value.slice(0, maxLength).trim();
+}
+
+function comparableTextMatches(left: string, right: string) {
+  if (!left || !right) {
+    return false;
+  }
+  if (left === right) {
+    return true;
+  }
+
+  const shorterLength = Math.min(left.length, right.length);
+  const prefixLength = Math.min(96, shorterLength);
+  if (prefixLength < 24) {
+    return false;
+  }
+
+  const leftPrefix = comparableTextPrefix(left, prefixLength);
+  const rightPrefix = comparableTextPrefix(right, prefixLength);
+  return left.startsWith(rightPrefix) || right.startsWith(leftPrefix);
 }
 
 function messageIdCandidates(messageId: string, authorId?: string | null) {
@@ -214,9 +244,7 @@ function outputMatchesMessage(
     !selected.channelId || output.conversationId === selected.channelId;
   const previewMatches =
     Boolean(selectedPreview && outputPreview) &&
-    (selectedPreview === outputPreview ||
-      selectedPreview.startsWith(outputPreview) ||
-      outputPreview.startsWith(selectedPreview));
+    comparableTextMatches(selectedPreview, outputPreview);
 
   return (
     outputAuthor === authorId &&
