@@ -1822,7 +1822,9 @@
       =/  =message-key
         [[post-author id.post] id.post]
       =/  =source  [%channel nest group.perm.channel]
+      =/  post-is-ours  =(post-author our.bowl)
       =/  del-actions=(list action)
+        ?.  post-is-ours  ~
         %+  roll  ~(tap by old)
         |=  [[=author:d =react:d] actions=(list action)]
         =/  new-react=(unit react:d)  (~(get by new) author)
@@ -1838,6 +1840,7 @@
         ?:  =(author-ship our.bowl)
           :_  actions
           [%read source [%all `now.bowl |]]
+        ?.  post-is-ours  actions
         ?:  (blocked author-ship)  actions
         :_  actions
         [%add %react message-key ~ nest group.perm.channel author react]
@@ -1921,7 +1924,9 @@
       =/  reply-key
         [[reply-author id.reply] id.reply]
       =/  =source  [%thread parent-key nest group.perm.channel]
+      =/  reply-is-ours  =(reply-author our.bowl)
       =/  del-actions=(list action)
+        ?.  reply-is-ours  ~
         %+  roll  ~(tap by old)
         |=  [[=author:d =react:d] actions=(list action)]
         =/  new-react=(unit react:d)  (~(get by new) author)
@@ -1937,6 +1942,7 @@
         ?:  =(author-ship our.bowl)
           :_  actions
           [%read source [%all `now.bowl |]]
+        ?.  reply-is-ours  actions
         ?:  (blocked author-ship)  actions
         :_  actions
         [%add %react reply-key `parent-key nest group.perm.channel author react]
