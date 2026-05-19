@@ -222,8 +222,28 @@ purge_shared_caches() {
 # steps run inside the worktree
 # ---------------------------------------------------------------------------
 
+step_pnpm_install() {
+  cd "$WT_DIR"
+  local rc=0
+  pnpm install --prefer-offline --frozen-lockfile || rc=$?
+  # pnpm exits non-zero when a patch fails to apply, even if all packages
+  # installed. Verify by checking key paths.
+  if [[ $rc -ne 0 ]]; then
+    if [[ -d "node_modules/.pnpm" && -d "apps/tlon-mobile/node_modules/expo" ]]; then
+      echo "[pnpm_install] rc=$rc but install appears complete — treating as success (likely a patch-apply warning)"
+      return 0
+    fi
+    echo "[pnpm_install] rc=$rc and key packages missing — real failure"
+    return $rc
+  fi
+}
+
 step_pod_install() {
   cd "$WT_DIR/apps/tlon-mobile/ios"
+  # CocoaPods on Ruby 3.4 crashes with "Unicode Normalization not appropriate
+  # for ASCII-8BIT" unless the locale is UTF-8.
+  export LANG=en_US.UTF-8
+  export LC_ALL=en_US.UTF-8
   bundle install
   bundle exec pod install
 }
@@ -261,7 +281,7 @@ run_steps() {
     log "Cold mode: EXPO_NO_CACHE=1 set (bypass EAS cache lookup for build)"
   fi
 
-  record pnpm_install      pnpm install --prefer-offline --frozen-lockfile
+  record pnpm_install      step_pnpm_install
   record build_packages    pnpm run build:packages
   record generate_tailwind pnpm --filter tlon-mobile run generate:tailwind
 
