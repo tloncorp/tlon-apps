@@ -63,6 +63,11 @@ export type ContextLensEvent = {
   at: number;
   phase: string;
   lens: ContextLens;
+  detail?: {
+    toolName?: string;
+    toolPhase?: string;
+    toolCallCount?: number;
+  };
 };
 
 type LensStreamState = {
@@ -77,6 +82,10 @@ const FINAL_STATUSES = new Set<ContextLensStatus>([
   'timed_out',
   'error',
 ]);
+const TIMELINE_BORDER = 'rgba(101, 216, 255, 0.3)';
+const TIMELINE_ACTIVE_BORDER = 'rgba(150, 240, 255, 0.62)';
+const TIMELINE_BACKGROUND = 'rgba(101, 216, 255, 0.035)';
+const TIMELINE_ACTIVE_BACKGROUND = 'rgba(101, 216, 255, 0.09)';
 
 function getGatewayBaseUrl() {
   if (Platform.OS !== 'web') {
@@ -249,6 +258,158 @@ function statusTone(status: ContextLensStatus) {
   return '#65d8ff';
 }
 
+function pluralize(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function formatToolName(toolName: string) {
+  return toolName.replaceAll('_', ' ');
+}
+
+function summarizeToolEvents(events: ContextLensEvent[], lens: ContextLens) {
+  if (!lens.tools.callCount) {
+    return null;
+  }
+
+  const counts = new Map<string, number>();
+  const toolEvents = events.filter((event) => event.phase === 'tool_start');
+  for (const event of toolEvents) {
+    const name = event.detail?.toolName?.trim();
+    if (!name) {
+      continue;
+    }
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+
+  if (!counts.size) {
+    for (const name of lens.tools.called) {
+      counts.set(name, 0);
+    }
+  }
+
+  const names = [...counts.entries()].map(([name, count]) =>
+    count ? `${formatToolName(name)} x${count}` : formatToolName(name)
+  );
+
+  return {
+    summary: names.length
+      ? names.join(' / ')
+      : pluralize(lens.tools.callCount, 'tool call'),
+    total: lens.tools.callCount,
+    latest:
+      [...toolEvents].reverse().find((event) => event.detail?.toolName)?.detail
+        ?.toolName ?? lens.tools.called.at(-1),
+  };
+}
+
+type TimelineRow = {
+  key: string;
+  title: string;
+  detail: string;
+  meta: string;
+  tone: string;
+  active?: boolean;
+};
+
+function buildRunTimeline(events: ContextLensEvent[], latest: ContextLensEvent) {
+  const lens = latest.lens;
+  const rows: TimelineRow[] = [
+    {
+      key: 'context',
+      title: 'Assembled context',
+      detail: summarizeContext(lens),
+      meta: events.find((event) => event.phase === 'created')
+        ? 'created'
+        : 'ready',
+      tone: '#65d8ff',
+    },
+  ];
+
+  if (lens.lifecycle.queuedMs || lens.lifecycle.queuedBlockCount) {
+    rows.push({
+      key: 'queue',
+      title: lens.lifecycle.queuedBlockCount ? 'Waited for session' : 'Queued',
+      detail: [
+        lens.lifecycle.queuedMs
+          ? `${formatDuration(lens.lifecycle.queuedMs)} wait`
+          : null,
+        lens.lifecycle.queuedBlockCount
+          ? pluralize(lens.lifecycle.queuedBlockCount, 'blocked run')
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' / '),
+      meta: 'queue',
+      tone: '#ffd166',
+    });
+  }
+
+  const modelEvent = events.find((event) => event.phase === 'model_selected');
+  rows.push({
+    key: 'model',
+    title: modelEvent ? 'Selected model' : 'Model pending',
+    detail:
+      lens.provider || lens.model
+        ? [lens.provider, lens.model].filter(Boolean).join(' / ')
+        : 'waiting for provider',
+    meta: modelEvent ? `#${modelEvent.seq}` : 'pending',
+    tone: modelEvent ? '#65d8ff' : '#ffd166',
+    active: !modelEvent && !FINAL_STATUSES.has(lens.status),
+  });
+
+  const tools = summarizeToolEvents(events, lens);
+  if (tools) {
+    rows.push({
+      key: 'tools',
+      title:
+        lens.status === 'tool_running' && tools.latest
+          ? `Using ${formatToolName(tools.latest)}`
+          : 'Used tools',
+      detail: `${tools.summary} · ${pluralize(tools.total, 'call')}`,
+      meta: 'tools',
+      tone: lens.status === 'tool_running' ? '#65d8ff' : '#47f6a4',
+      active: lens.status === 'tool_running',
+    });
+  }
+
+  if (FINAL_STATUSES.has(lens.status) || lens.status === 'delivering') {
+    rows.push({
+      key: 'delivery',
+      title:
+        lens.status === 'completed'
+          ? 'Delivered reply'
+          : lens.status === 'no_reply'
+            ? 'No reply emitted'
+            : lens.status === 'timed_out'
+              ? 'Timed out'
+              : lens.status === 'error'
+                ? 'Run failed'
+                : 'Delivering reply',
+      detail:
+        lens.status === 'error' && lens.error
+          ? lens.error
+          : [
+              pluralize(lens.lifecycle.deliveredMessageCount, 'message'),
+              formatDuration(lens.lifecycle.durationMs),
+            ].join(' / '),
+      meta: latest.phase,
+      tone: statusTone(lens.status),
+      active: lens.status === 'delivering',
+    });
+  } else {
+    rows.push({
+      key: 'live',
+      title: statusLabel(lens.status),
+      detail: `running for ${formatDuration(Date.now() - lens.createdAt)}`,
+      meta: latest.phase,
+      tone: statusTone(lens.status),
+      active: true,
+    });
+  }
+
+  return rows;
+}
+
 export function ContextLensPanel({
   events,
   streamStatus,
@@ -261,8 +422,9 @@ export function ContextLensPanel({
   const runs = useContextLensRuns(events);
   const latest = runs[0];
   const eventTrail = latest
-    ? events.filter((event) => event.lens.lensId === latest.lens.lensId).slice(-14)
+    ? events.filter((event) => event.lens.lensId === latest.lens.lensId)
     : [];
+  const runTimeline = latest ? buildRunTimeline(eventTrail, latest) : [];
   const activeCount = runs.filter(
     (event) => !FINAL_STATUSES.has(event.lens.status)
   ).length;
@@ -402,7 +564,7 @@ export function ContextLensPanel({
             </YStack>
           )}
 
-          {eventTrail.length ? (
+          {runTimeline.length ? (
             <YStack gap="$s">
               <SizableText
                 size="$s"
@@ -410,36 +572,80 @@ export function ContextLensPanel({
                 textTransform="uppercase"
                 letterSpacing={0}
               >
-                Live trail
+                Run timeline
               </SizableText>
-              {eventTrail.map((event) => (
-                <XStack
-                  key={event.seq}
-                  gap="$s"
-                  alignItems="flex-start"
-                  borderLeftWidth={1}
-                  borderColor="rgba(101, 216, 255, 0.3)"
-                  paddingLeft="$s"
-                  paddingVertical="$2xs"
-                >
-                  <SizableText size="$s" color="rgba(240, 250, 255, 0.48)">
-                    #{event.seq}
-                  </SizableText>
-                  <YStack flex={1}>
-                    <SizableText size="$s" color="rgba(248, 252, 255, 0.86)">
-                      {event.phase}
-                    </SizableText>
-                    <SizableText size="$s" color="rgba(240, 250, 255, 0.5)">
-                      {statusLabel(event.lens.status)}
-                    </SizableText>
-                  </YStack>
-                </XStack>
+              {runTimeline.map((row, index) => (
+                <TimelineItem
+                  key={row.key}
+                  row={row}
+                  isLast={index === runTimeline.length - 1}
+                />
               ))}
             </YStack>
           ) : null}
         </YStack>
       </ScrollView>
     </YStack>
+  );
+}
+
+function TimelineItem({
+  row,
+  isLast,
+}: {
+  row: TimelineRow;
+  isLast: boolean;
+}) {
+  return (
+    <XStack gap="$s" alignItems="stretch">
+      <YStack alignItems="center" width={14}>
+        <View
+          width={7}
+          height={7}
+          borderRadius={999}
+          marginTop={10}
+          backgroundColor={row.tone}
+          shadowColor={row.tone}
+          shadowRadius={row.active ? 8 : 0}
+          shadowOpacity={row.active ? 0.6 : 0}
+        />
+        {!isLast ? (
+          <View
+            flex={1}
+            width={1}
+            marginTop="$2xs"
+            backgroundColor={TIMELINE_BORDER}
+          />
+        ) : null}
+      </YStack>
+      <YStack
+        flex={1}
+        gap="$2xs"
+        borderWidth={1}
+        borderColor={row.active ? TIMELINE_ACTIVE_BORDER : TIMELINE_BORDER}
+        borderRadius="$s"
+        paddingHorizontal="$s"
+        paddingVertical="$xs"
+        backgroundColor={
+          row.active ? TIMELINE_ACTIVE_BACKGROUND : TIMELINE_BACKGROUND
+        }
+        shadowColor={row.active ? '#96f0ff' : 'transparent'}
+        shadowOpacity={row.active ? 0.18 : 0}
+        shadowRadius={row.active ? 14 : 0}
+      >
+        <XStack alignItems="center" justifyContent="space-between" gap="$s">
+          <SizableText size="$s" color="rgba(248, 252, 255, 0.9)" flex={1}>
+            {row.title}
+          </SizableText>
+          <SizableText size="$s" color="rgba(240, 250, 255, 0.42)">
+            {row.meta}
+          </SizableText>
+        </XStack>
+        <SizableText size="$s" color="rgba(240, 250, 255, 0.56)">
+          {row.detail}
+        </SizableText>
+      </YStack>
+    </XStack>
   );
 }
 
