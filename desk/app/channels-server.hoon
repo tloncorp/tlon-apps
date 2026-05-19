@@ -11,9 +11,9 @@
 /+  hj=hooks-json
 ::
 %-  %-  discipline
-    :+  ::  marks
+    :+  ::  unchanging marks
         ::
-        discipline:guard
+        ~
       ::  facts
       ::
       :~  [/$/$/checkpoint %channel-checkpoint ~]

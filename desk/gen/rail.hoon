@@ -5,63 +5,6 @@
 ::TODO  investigate adding a "meta-build" ford rune that evaluates the file
 ::      to obtain a hoon ast, which it then compiles into the result
 ::
-=/  non-strict-marks=(set mark)
-  ^~  %-  sy  ^-  (list mark)
-  :~  %chat-changed-writs-1
-      %chat-club-action
-      %chat-club-action-2
-      %chat-dm-action-2
-      %chat-dm-diff-2
-      %chat-heads-4
-      %chat-paged-writs-4
-      %chat-scam-4
-      %chat-scan-4
-      %chat-writ-4
-      %writ-response-4
-    ::
-      ::TODO  make strict one day
-      %channel-changed-posts
-      %channel-changed-posts-1
-      %channel-post
-      %channel-post-5
-      %channel-posts
-      %channel-posts-4
-      %channel-posts-5
-      %channel-replies-5
-      %channel-said-3
-      %channel-scan-4
-      %channel-scam-4
-      %channels-2
-      %channels-5
-    ::
-      %channel-checkpoint
-      %channel-denied
-      %channel-logs
-      %channel-said-1
-      %channel-said-2
-      %channel-update
-      %hook-channel-preview
-      %hook-full
-      %hook-response-0
-      %hook-template
-    ::
-      %group-command
-      %group-update
-      %group-log
-    ::
-      %activity-feed
-      %activity-feed-init
-      %activity-full
-      %activity-full-1
-      %activity-summary
-      %activity-summary-1
-      %activity-update
-      %activity-update-1
-      %aqua-effect
-      %ui-init-2
-      %ui-init-3
-  ==
-::
 :-  %say
 |=  $:  [now=@da eny=@uvJ bec=beak]
         ~
@@ -172,8 +115,10 @@
     '''
       ==
     ::
-    ++  discipline
-      ^-  (list [=mark strict=? =type])
+    ++  types
+      ^-  (map mark type)  ^~
+      %-  ~(gas by *(map mark type))
+      ^-  (list (pair mark type))
       :~
     '''
   ::
@@ -182,8 +127,7 @@
     %+  turn  maz
     |=  m=mark
     =+  gap=(fil 3 (add 2 (sub max (met 3 m))) ' ')
-    =+  sic=?:((~(has in non-strict-marks) m) '|' '&')
-    (rap 3 ':+  %' m gap sic '  -:!>(*vale:' m ')' ~)
+    (rap 3 ':-  %' m gap '-:!>(*vale:' m ')' ~)
     '\0a'
   ::
     '''

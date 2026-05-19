@@ -13,64 +13,52 @@
 ::  performance, keep warm
 /+  chat-json
 ::
-/%  m-chat-blocked-by      %chat-blocked-by
-/%  m-chat-changed-writs     %chat-changed-writs
-/%  m-chat-changed-writs-1   %chat-changed-writs-1
-/%  m-chat-club-action     %chat-club-action
-/%  m-chat-club-action-0   %chat-club-action-0
-/%  m-chat-club-action-1   %chat-club-action-1
-/%  m-chat-club-action-2   %chat-club-action-2
-/%  m-chat-dm-action       %chat-dm-action
-/%  m-chat-dm-action-1     %chat-dm-action-1
-/%  m-chat-dm-action-2     %chat-dm-action-2
-/%  m-chat-dm-diff         %chat-dm-diff
-/%  m-chat-dm-diff-1       %chat-dm-diff-1
-/%  m-chat-dm-diff-2       %chat-dm-diff-2
-/%  m-chat-heads           %chat-heads
-/%  m-chat-heads-1         %chat-heads-1
-/%  m-chat-heads-2         %chat-heads-2
-/%  m-chat-heads-3         %chat-heads-3
-/%  m-chat-heads-4         %chat-heads-4
-/%  m-chat-paged-writs     %chat-paged-writs
-/%  m-chat-paged-writs-1   %chat-paged-writs-1
-/%  m-chat-paged-writs-2   %chat-paged-writs-2
-/%  m-chat-paged-writs-3   %chat-paged-writs-3
-/%  m-chat-paged-writs-4   %chat-paged-writs-4
-/%  m-chat-scam            %chat-scam
-/%  m-chat-scam-1          %chat-scam-1
-/%  m-chat-scam-2          %chat-scam-2
-/%  m-chat-scam-3          %chat-scam-3
-/%  m-chat-scam-4          %chat-scam-4
-/%  m-chat-scan            %chat-scan
-/%  m-chat-scan-1          %chat-scan-1
-/%  m-chat-scan-2          %chat-scan-2
-/%  m-chat-scan-3          %chat-scan-3
-/%  m-chat-scan-4          %chat-scan-4
-/%  m-chat-toggle-message  %chat-toggle-message
-/%  m-chat-unblocked-by    %chat-unblocked-by
-/%  m-chat-unread-update   %chat-unread-update
-/%  m-chat-unreads         %chat-unreads
-/%  m-chat-writ-1          %chat-writ-1
-/%  m-chat-writ-2          %chat-writ-2
-/%  m-chat-writ-3          %chat-writ-3
-/%  m-chat-writ-4          %chat-writ-4
-/%  m-clubs                %clubs
-/%  m-epic                 %epic
-/%  m-hidden-messages      %hidden-messages
-/%  m-ships                %ships
-/%  m-writ                 %writ
-/%  m-writ-response        %writ-response
-/%  m-writ-response-1      %writ-response-1
-/%  m-writ-response-2      %writ-response-2
-/%  m-writ-response-3      %writ-response-3
-/%  m-writ-response-4      %writ-response-4
-::
 /*  desk-bill  %bill  /desk/bill  ::  keep warm
 ::
 %-  %-  discipline
-    :+  ::  marks
+    :+  ::  unchanging marks
         ::
-        discipline:guard
+        :~  %chat-blocked-by
+            %chat-changed-writs
+            %chat-club-action-0
+            %chat-club-action-1
+            %chat-dm-action
+            %chat-dm-action-1
+            %chat-dm-diff
+            %chat-dm-diff-1
+            %chat-heads
+            %chat-heads-1
+            %chat-heads-2
+            %chat-heads-3
+            %chat-paged-writs
+            %chat-paged-writs-1
+            %chat-paged-writs-2
+            %chat-paged-writs-3
+            %chat-scam
+            %chat-scam-1
+            %chat-scam-2
+            %chat-scam-3
+            %chat-scan
+            %chat-scan-1
+            %chat-scan-2
+            %chat-scan-3
+            %chat-toggle-message
+            %chat-unblocked-by
+            %chat-unread-update
+            %chat-unreads
+            %chat-writ-1
+            %chat-writ-2
+            %chat-writ-3
+            %clubs
+            %epic
+            %hidden-messages
+            %ships
+            %writ
+            %writ-response
+            %writ-response-1
+            %writ-response-2
+            %writ-response-3
+        ==
       ::  facts
       ::
       :~  [/ %chat-blocked-by %chat-unblocked-by %chat-toggle-message %chat-club-action %writ-response %ships ~]

@@ -23,11 +23,10 @@
 ::    logged to posthog as criticals.
 ::
 ::    usage example:
-::      /%  m-my-mark  %my-mark
 ::      %-  %-  discipline
-::          :+  ::  marks
+::          :+  ::  marks to check for changes
 ::              ::
-::              :~  [%my-mark strict=& -:!>(*vale:m-my-mark)]
+::              :~  %my-mark
 ::              ==
 ::            ::  facts
 ::            ::
@@ -40,20 +39,16 @@
 ::          ==
 ::      rest-of-the-agent
 ::
-/+  logs
+/+  logs, rail
 ::
 /%  m-noun  %noun
 ::
-|=  $:  marks=(list [=mark strict=? =type])
+|=  $:  marks=(list mark)
         facts=(list [=path marks=(list mark)])  ::  first matching is used, ~ for any
         scries=(list [=path =mark])
     ==
-::  take care of common marks, libraries
+::  take care of common libraries
 ::
-=.  marks
-  =-  (weld - marks)
-  :~  [%noun & -:!>(*vale:m-noun)]
-  ==
 =.  facts
   %+  weld
     ^-  (list [path (list mark)])
@@ -80,10 +75,8 @@
 =.  facts   (sort facts por)
 =.  scries  (sort scries por)
 ::
-=/  mark-map=(map mark [strict=? =type])
-  (~(gas by *(map mark [? type])) marks)
-=/  mark-types=(map mark type)
-  (~(run by mark-map) tail)
+=/  strict-marks=(set mark)
+  (~(gas in *(set mark)) marks)
 ::
 |=  inner=agent:gall
 |^  agent
@@ -118,6 +111,15 @@
   ?:  (match-path path.i.scries path)
     `mark.i.scries
   $(scries t.scries)
+::
+++  build-types-map
+  |=  strict-marks=(set mark)
+  %+  roll  ~(tap in strict-marks)
+  |=  [=mark types=(map mark type)]
+  ?:  (~(has by types:rail) mark)
+    (~(put by types) mark (~(got by types:rail) mark))
+  ~&  [%discipline-unknown-mark mark]
+  types
 ::
 ++  helper
   |_  [=bowl:gall marks=(map mark type)]
@@ -197,17 +199,16 @@
   ::    produces the marks that aren't equivalent
   ::
   ++  check-marks
-    |=  [ole=(map mark type) neu=(map mark [strict=? =type])]
+    |=  [ole=(map mark type) neu=(map mark type)]
     ^-  (list mark)
     %+  murn  ~(tap by ole)
     |=  old=[=mark =type]
     ^-  (unit mark)
     ?~  new=(~(get by neu) mark.old)  ~
-    ?.  strict.u.new  ~
     =;  match=?
       ?:(match ~ `mark.old)
-    ?&  (~(nest ut type.old) | type.u.new)
-        (~(nest ut type.u.new) | type.old)
+    ?&  (~(nest ut type.old) | u.new)
+        (~(nest ut u.new) | type.old)
     ==
   --
 ::
@@ -228,7 +229,7 @@
   ::
   ++  on-init
     ^-  (quip card _this)
-    =.  last-marks  mark-types
+    =.  last-marks  (build-types-map strict-marks)
     =^  cards  inner  on-init:og  !:
     =.  cards  (check-cards:help ~ cards)
     [cards this]
@@ -238,16 +239,17 @@
     |=  ole=vase
     ^-  (quip card _this)
     ?.  ?=([[%discipline *] *] q.ole)
-      =.  last-marks  mark-types
+      =.  last-marks  (build-types-map strict-marks)
       =^  cards  inner  (on-load:og ole)  !:
       =.  cards  (check-cards:help ~ cards)
       [cards this]
     =+  !<([%discipline old=state-0] (slot 2 ole))
     =.  state  old
-    ?^  bad=(check-marks:help last-marks mark-map)
+    =/  next-marks  (build-types-map strict-marks)
+    ?^  bad=(check-marks:help last-marks next-marks)
       ~|  [%discipline dap=dap.bowl %mark-types-changed marks=;;((list mark) bad)]
       !!
-    =.  last-marks  mark-types
+    =.  last-marks  next-marks
     =^  cards  inner  (on-load:og (slot 3 ole))  !:
     =.  cards  (check-cards:help ~ cards)
     [cards this]

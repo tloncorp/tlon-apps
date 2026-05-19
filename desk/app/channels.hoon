@@ -20,9 +20,50 @@
 /+  channel-json
 ::
 %-  %-  discipline
-    :+  ::  marks
+    :+  ::  unchanging marks
         ::
-        discipline:guard
+        :~  %channel-heads
+            %channel-heads-2
+            %channel-heads-3
+            %channel-heads-4
+            %channel-perm
+            %channel-post-2
+            %channel-post-3
+            %channel-post-4
+            %channel-posts-2
+            %channel-posts-3
+            %channel-replies
+            %channel-replies-2
+            %channel-replies-3
+            %channel-replies-4
+            %channel-reply
+            %channel-reply-2
+            %channel-response
+            %channel-response-2
+            %channel-response-3
+            %channel-response-4
+            %channel-said
+            %channel-said-1
+            %channel-said-2
+            %channel-scan
+            %channel-scan-2
+            %channel-scan-3
+            %channel-scam
+            %channel-scam-2
+            %channel-scam-3
+            %channel-simple-post
+            %channel-simple-posts
+            %channel-simple-replies
+            %channel-simple-reply
+            %channel-unread-update
+            %channel-unreads
+            %channels
+            %channels-3
+            %channels-4
+            %hidden-posts
+            %hook-channel-preview
+            %toggle-post
+        ==
       ::  facts
       ::
       :~  [/ %channel-response %toggle-post ~]

@@ -22,9 +22,33 @@
 /*  commit  %txt  /commit/txt
 ::
 %-  %-  discipline
-  :+  ::  marks
+  :+  ::  unchanging marks
       ::
-      discipline:guard
+      :~  %group
+          %group-1
+          %group-2
+          %groups
+          %groups-1
+          %groups-2
+          %groups-ui
+          %groups-ui-1
+          %groups-ui-2
+          %group-changed-groups-1
+          %group-changed-groups-2
+          %group-preview
+          %group-preview
+          %group-preview-3
+          %group-previews
+          %group-previews-1
+          %group-token
+          %channel-preview
+          %channel-preview-1
+          %group-response-1
+          %group-action-3
+          %gangs
+          %foreign-1
+          %foreigns-1
+      ==
     ::  facts
     ::
     :~  [/server/groups/$/$/updates/$/$ %group-update %group-log ~]
