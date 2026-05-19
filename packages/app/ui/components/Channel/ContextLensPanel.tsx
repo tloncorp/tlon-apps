@@ -168,41 +168,6 @@ function encodeQuery(value: string) {
   return encodeURIComponent(value.trim());
 }
 
-function messageIdCandidates(messageId: string, authorId?: string | null) {
-  const trimmed = messageId.trim();
-  const slashIndex = trimmed.indexOf('/');
-  const bare = slashIndex >= 0 ? trimmed.slice(slashIndex + 1) : trimmed;
-  const author = authorId?.trim();
-  return [
-    trimmed,
-    bare,
-    author ? `${author}/${trimmed}` : null,
-    author ? `${author}/${bare}` : null,
-  ].filter(Boolean) as string[];
-}
-
-function outputMatchesMessage(
-  output: ContextLensOutput,
-  messageId: string,
-  authorId?: string | null
-) {
-  const wanted = new Set(messageIdCandidates(messageId, authorId));
-  return messageIdCandidates(output.messageId).some((candidate) =>
-    wanted.has(candidate)
-  );
-}
-
-export function contextLensHasOutputForPost(
-  events: ContextLensEvent[],
-  post: ContextLensSelectedMessage
-) {
-  return events.some((event) =>
-    event.lens.outputs?.some((output) =>
-      outputMatchesMessage(output, post.id, post.authorId)
-    )
-  );
-}
-
 function findEventForLensId(events: ContextLensEvent[], lensId: string) {
   return [...events].reverse().find((event) => event.lens.lensId === lensId);
 }
@@ -214,13 +179,7 @@ function findEventForMessage(
   if (selected.lensId) {
     return findEventForLensId(events, selected.lensId);
   }
-  return [...events]
-    .reverse()
-    .find((event) =>
-      event.lens.outputs?.some((output) =>
-        outputMatchesMessage(output, selected.id, selected.authorId)
-      )
-    );
+  return undefined;
 }
 
 function mergeEvent(events: ContextLensEvent[], event: ContextLensEvent) {
@@ -886,74 +845,38 @@ export function ContextLensPanel({
     let cancelled = false;
     setLookupStatus('loading');
     setLookupResult(null);
-    if (selectedMessage.lensId) {
-      fetch(
-        `${gatewayBaseUrl}/tlon/context-lens/run?lensId=${encodeQuery(selectedMessage.lensId)}`
-      )
-        .then((response) => (response.ok ? response.json() : null))
-        .then((payload: { lens?: ContextLens } | null) => {
-          if (cancelled) {
-            return;
-          }
-          if (payload?.lens) {
-            setLookupResult({
-              key: selectedMessageKey ?? '',
-              lens: payload.lens,
-            });
-            setLookupStatus('idle');
-            return;
-          }
-          setLookupStatus('missing');
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setLookupStatus('error');
-          }
-        });
+
+    if (!selectedMessage.lensId) {
+      setLookupStatus('missing');
       return () => {
         cancelled = true;
       };
     }
 
-    const candidates = messageIdCandidates(
-      selectedMessage.id,
-      selectedMessage.authorId
-    );
-
-    async function lookup() {
-      for (const candidate of candidates) {
-        try {
-          const response = await fetch(
-            `${gatewayBaseUrl}/tlon/context-lens/by-message?messageId=${encodeQuery(candidate)}`
-          );
-          if (cancelled) {
-            return;
-          }
-          if (response.ok) {
-            const payload = (await response.json()) as { lens?: ContextLens };
-            if (payload.lens) {
-              setLookupResult({
-                key: selectedMessageKey ?? '',
-                lens: payload.lens,
-              });
-              setLookupStatus('idle');
-              return;
-            }
-          }
-        } catch {
-          if (cancelled) {
-            return;
-          }
-          setLookupStatus('error');
+    fetch(
+      `${gatewayBaseUrl}/tlon/context-lens/run?lensId=${encodeQuery(selectedMessage.lensId)}`
+    )
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload: { lens?: ContextLens } | null) => {
+        if (cancelled) {
           return;
         }
-      }
-      if (!cancelled) {
+        if (payload?.lens) {
+          setLookupResult({
+            key: selectedMessageKey ?? '',
+            lens: payload.lens,
+          });
+          setLookupStatus('idle');
+          return;
+        }
         setLookupStatus('missing');
-      }
-    }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLookupStatus('error');
+        }
+      });
 
-    lookup();
     return () => {
       cancelled = true;
     };
