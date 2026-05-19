@@ -148,7 +148,7 @@ Point the plugin's cache dir at `~/.expo/build-cache` so it's shared across work
 
 1. **Configure `buildCacheProvider: "eas"`** in [app.config.ts](../apps/tlon-mobile/app.config.ts). One config line. Helps CI, local dev, *and* the agent loop. Investigate first: does `autoIncrement: true` in [eas.json](../apps/tlon-mobile/eas.json) bump fields that fingerprint includes? If so, add `sourceSkips` for them. Estimated impact: 50–60% of EAS-build-hours, ~8–12h/week saved at current cadence.
 
-2. **Enable `apple.ccacheEnabled: "true"`** in [ios/Podfile.properties.json](../apps/tlon-mobile/ios/Podfile.properties.json) + `brew install ccache`. Speeds up the cache-miss path 30–60%.
+2. **Enable `apple.ccacheEnabled: "true"`** in [ios/Podfile.properties.json](../apps/tlon-mobile/ios/Podfile.properties.json) + `brew install ccache`. Speeds up the cache-miss path 30–60%. **[Parked — see "ccache findings" below.]**
 
 3. **Android gradle properties** — in [android/gradle.properties](../apps/tlon-mobile/android/gradle.properties):
    ```properties
@@ -248,6 +248,35 @@ Translation to RN: the "frozen toolchain" is Metro + Xcode + Gradle; the "mutabl
 - **Tamagui static extraction** — `@tamagui/babel-plugin` runs `experimentalFlattenThemesOnNative: true` ([babel.config.js](../apps/tlon-mobile/babel.config.js)). Confirm extraction is disabled in dev to avoid build-time cost.
 - **Hot vs full reload** — Fast Refresh preserves state and is much cheaper than a full reload. For agent loops that need a deterministic mount, the `mountId` trick (already documented in CLAUDE.md) is the right validation.
 - **Hermes precompiled bytecode** — already on by default for release; not relevant for dev iteration.
+
+## ccache findings (parked)
+
+Investigated while running the harness; not acting on it yet. Notes for when we revisit.
+
+**Current behaviour on Janic's machine:** ccache is *already active* but via Homebrew's PATH shim (`cc -> /opt/homebrew/opt/ccache/libexec/cc`), NOT via React Native's Podfile integration. `apple.ccacheEnabled` is not set in [Podfile.properties.json](../apps/tlon-mobile/ios/Podfile.properties.json), so RN passes `:ccache_enabled => false`. The brew shim catches `cc` calls anyway. Stats after a cold+warm harness pair: 2,834 cacheable calls, 434 hits (15.3%), 0 GiB cache (cache had been hitting the default 5 GB ceiling — 279 cleanups recorded).
+
+**What flipping `apple.ccacheEnabled: "true"` would do** (read [react-native/scripts/cocoapods/utils.rb:89-115](../node_modules/react-native/scripts/cocoapods/utils.rb)):
+
+1. Resolve `command -v ccache` at pod install time; if found, rewrite Xcode build settings on every Pod target:
+   ```
+   CC, LD     = $(REACT_NATIVE_PATH)/scripts/xcode/ccache-clang.sh
+   CXX, LDPLUSPLUS = $(REACT_NATIVE_PATH)/scripts/xcode/ccache-clang++.sh
+   CCACHE_BINARY   = /opt/homebrew/bin/ccache
+   ```
+2. Those wrapper scripts set `CCACHE_CONFIGPATH` to RN's tuned config (`sloppiness=clang_index_store,file_stat_matches,modules,system_headers,time_macros,…`, `file_clone=true`, `depend_mode=true`, `inode_cache=true`) — settings tuned to maximize hits on clang module/header work.
+3. If ccache is NOT installed on the machine: graceful fallback. Prints warning, sets CC/LD/CXX back to plain clang, build still works.
+
+**Why this matters for teammates / CI:** the brew-shim path only helps people who happen to have `brew install ccache`. The Podfile flag (a) makes ccache work for everyone with it installed, regardless of shell PATH magic, and (b) loads RN's tuned config, likely raising the 15% hit rate substantially.
+
+**Android equivalent:** auto-detected by CMake. [ReactNative-application.cmake:28-32](../node_modules/react-native/ReactAndroid/cmake-utils/ReactNative-application.cmake) and [CMakeLists.txt:26-30](../node_modules/react-native/ReactAndroid/src/main/jni/CMakeLists.txt) do `find_program(CCACHE_FOUND ccache)`; if it's in PATH, sets `RULE_LAUNCH_COMPILE`/`RULE_LAUNCH_LINK` to ccache. No boolean property. For Java/Kotlin the parallel knob is **Gradle build cache** + **configuration cache** (different mechanism, covered in §"Tier 1 #3").
+
+**Downsides** when we revisit:
+- **Disk usage**: default 5 GB cap fills fast on a project this size — needs `ccache -M 20G` globally.
+- **Subtle cache bugs**: RN's sloppiness settings ignore things that normally invalidate (system headers, `__DATE__`/`__TIME__`, modules). If a build acts weird, "ccache -C" needs to be a known runbook step. Currently isn't.
+- **CI doesn't benefit by default**: `~/Library/Caches/ccache` is gone between ephemeral CI runners; would need persistence (GitHub Actions cache, EAS profile flag).
+- **First-build slightly slower** (cache miss path has hash-compute overhead, few %).
+
+**TL;DR for when we pick this back up**: turn on the Podfile flag, bump global cache size, document the `-C` escape hatch. Probably worth ~30–60% off the cache-miss native build path. Currently parked because (a) the Metro shared cache and EAS provider are bigger leverage and (b) we want to ship those cleanly first.
 
 ## Rock (rockjs.dev) — alternative
 

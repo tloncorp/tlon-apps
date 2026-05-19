@@ -250,7 +250,9 @@ step_pod_install() {
 
 step_native_build_ios() {
   cd "$WT_DIR/apps/tlon-mobile"
-  pnpm exec expo run:ios --no-bundler
+  # EXPO_DEBUG=1 enables `log.debug(...)` in the build cache provider so we
+  # see why the EAS cache lookup hit or missed.
+  EXPO_DEBUG="${EXPO_DEBUG:-1}" pnpm exec expo run:ios --no-bundler
 }
 
 step_native_build_android() {
