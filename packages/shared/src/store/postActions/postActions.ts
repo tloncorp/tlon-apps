@@ -368,6 +368,7 @@ async function _sendPost({
     // the client didn't get the confirmation
     const errorMsg = e.message?.toLowerCase() || '';
     const isConnectionRelated =
+      e.name === 'PokeAckTimeoutError' ||
       errorMsg === 'aborted' ||
       errorMsg.includes('channel was reaped') ||
       errorMsg.includes('fetch timed out');
