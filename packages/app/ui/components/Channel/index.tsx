@@ -74,7 +74,6 @@ import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import {
   ContextLensPanel,
   type ContextLensSelectedMessage,
-  contextLensHasOutputForPost,
   isContextLensEventActive,
   useContextLensEvents,
   useContextLensRuns,
@@ -708,12 +707,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const [contextLensOpen, setContextLensOpen] = useState(false);
     const [selectedContextLensMessage, setSelectedContextLensMessage] =
       useState<ContextLensSelectedMessage | null>(null);
+    const contextLensOpenRef = useRef(false);
     const contextLensStream = useContextLensEvents();
     const contextLensRuns = useContextLensRuns(contextLensStream.events);
     const contextLensActive = contextLensRuns.some(isContextLensEventActive);
+    useEffect(() => {
+      contextLensOpenRef.current = contextLensOpen;
+    }, [contextLensOpen]);
     const toggleContextLens = useCallback(() => {
+      if (!contextLensOpen) {
+        setSelectedContextLensMessage(null);
+      }
       setContextLensOpen((open) => !open);
-    }, []);
+    }, [contextLensOpen]);
     const clearSelectedContextLensMessage = useCallback(() => {
       setSelectedContextLensMessage(null);
     }, []);
@@ -729,31 +735,22 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     );
     const inspectContextLensPost = useCallback(
       (post: db.Post) => {
+        if (!contextLensOpenRef.current) {
+          return;
+        }
         setSelectedContextLensMessage(postToContextLensMessage(post));
-        setContextLensOpen(true);
       },
       [postToContextLensMessage]
     );
     const handleGoToPost = useCallback(
       (post: db.Post) => {
-        const contextLensMessage = postToContextLensMessage(post);
-        const hasLens = contextLensHasOutputForPost(
-          contextLensStream.events,
-          contextLensMessage
-        );
-        if (hasLens || contextLensOpen) {
+        if (contextLensOpen) {
           inspectContextLensPost(post);
           return;
         }
         goToPost(post);
       },
-      [
-        contextLensOpen,
-        contextLensStream.events,
-        goToPost,
-        inspectContextLensPost,
-        postToContextLensMessage,
-      ]
+      [contextLensOpen, goToPost, inspectContextLensPost]
     );
 
     const backgroundColor = getVariableValue(useTheme().background);
