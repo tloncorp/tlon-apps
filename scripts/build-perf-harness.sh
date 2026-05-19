@@ -229,7 +229,7 @@ step_pnpm_install() {
   # pnpm exits non-zero when a patch fails to apply, even if all packages
   # installed. Verify by checking key paths.
   if [[ $rc -ne 0 ]]; then
-    if [[ -d "node_modules/.pnpm" && -d "apps/tlon-mobile/node_modules/expo" ]]; then
+    if [[ -d "node_modules/.pnpm" && -d "node_modules/expo" ]]; then
       echo "[pnpm_install] rc=$rc but install appears complete — treating as success (likely a patch-apply warning)"
       return 0
     fi
