@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  appendContextLensToPostBlob,
   appendFileUploadToPostBlob,
   appendToPostBlob,
   appendVideoToPostBlob,
@@ -77,6 +78,20 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
 });
 
 describe('post blob helpers', () => {
+  test('parsePostBlob parses context lens metadata entries', () => {
+    const blob = appendContextLensToPostBlob(undefined, {
+      lensId: 'lens-123',
+    });
+
+    expect(parsePostBlob(blob)).toEqual([
+      {
+        type: 'tlon-context-lens',
+        version: 1,
+        lensId: 'lens-123',
+      },
+    ]);
+  });
+
   test('parsePostBlob parses registered blob entry types', () => {
     const blob = appendVideoToPostBlob(
       appendToPostBlob(

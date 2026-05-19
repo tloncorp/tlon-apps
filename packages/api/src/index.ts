@@ -58,6 +58,7 @@ export {
   type GatewayStatusAction,
 } from './urbit';
 export {
+  appendContextLensToPostBlob,
   appendFileUploadToPostBlob,
   appendToPostBlob,
   appendVideoToPostBlob,
@@ -67,6 +68,7 @@ export {
   toPostData as toContentHelpersPostData,
   type ClientPostBlobData,
   type Mention,
+  type PostBlobDataEntryContextLens,
   type PostBlobDataEntry,
 } from './client/content-helpers';
 export { getTextContent } from './client/postContent';

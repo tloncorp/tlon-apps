@@ -132,8 +132,7 @@ export type ContextLensSelectedMessage = {
   id: string;
   authorId?: string | null;
   channelId?: string | null;
-  preview?: string | null;
-  sentAt?: number | null;
+  lensId?: string | null;
 };
 
 type LensStreamState = {
@@ -169,40 +168,6 @@ function encodeQuery(value: string) {
   return encodeURIComponent(value.trim());
 }
 
-function normalizeComparableText(value?: string | null) {
-  return (
-    value
-      ?.replace(/[`*_~>#\[\](){}]/g, ' ')
-      .replace(/[.,:;!?"'“”‘’…•·—–-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toLowerCase() ?? ''
-  );
-}
-
-function comparableTextPrefix(value: string, maxLength = 96) {
-  return value.slice(0, maxLength).trim();
-}
-
-function comparableTextMatches(left: string, right: string) {
-  if (!left || !right) {
-    return false;
-  }
-  if (left === right) {
-    return true;
-  }
-
-  const shorterLength = Math.min(left.length, right.length);
-  const prefixLength = Math.min(96, shorterLength);
-  if (prefixLength < 24) {
-    return false;
-  }
-
-  const leftPrefix = comparableTextPrefix(left, prefixLength);
-  const rightPrefix = comparableTextPrefix(right, prefixLength);
-  return left.startsWith(rightPrefix) || right.startsWith(leftPrefix);
-}
-
 function messageIdCandidates(messageId: string, authorId?: string | null) {
   const trimmed = messageId.trim();
   const slashIndex = trimmed.indexOf('/');
@@ -219,38 +184,11 @@ function messageIdCandidates(messageId: string, authorId?: string | null) {
 function outputMatchesMessage(
   output: ContextLensOutput,
   messageId: string,
-  authorId?: string | null,
-  selected?: ContextLensSelectedMessage | null
+  authorId?: string | null
 ) {
   const wanted = new Set(messageIdCandidates(messageId, authorId));
-  const exactMatch = messageIdCandidates(output.messageId).some((candidate) =>
+  return messageIdCandidates(output.messageId).some((candidate) =>
     wanted.has(candidate)
-  );
-  if (exactMatch || !selected) {
-    return exactMatch;
-  }
-
-  const outputAuthor = output.messageId.startsWith('~')
-    ? output.messageId.slice(0, output.messageId.indexOf('/'))
-    : null;
-  const selectedPreview = normalizeComparableText(selected.preview);
-  const outputPreview = normalizeComparableText(output.preview);
-  const sentAt = selected.sentAt ?? null;
-  const timeMatches =
-    typeof sentAt === 'number' && Number.isFinite(sentAt)
-      ? Math.abs(output.sentAt - sentAt) < 5_000
-      : true;
-  const conversationMatches =
-    !selected.channelId || output.conversationId === selected.channelId;
-  const previewMatches =
-    Boolean(selectedPreview && outputPreview) &&
-    comparableTextMatches(selectedPreview, outputPreview);
-
-  return (
-    outputAuthor === authorId &&
-    conversationMatches &&
-    timeMatches &&
-    previewMatches
   );
 }
 
@@ -260,20 +198,27 @@ export function contextLensHasOutputForPost(
 ) {
   return events.some((event) =>
     event.lens.outputs?.some((output) =>
-      outputMatchesMessage(output, post.id, post.authorId, post)
+      outputMatchesMessage(output, post.id, post.authorId)
     )
   );
+}
+
+function findEventForLensId(events: ContextLensEvent[], lensId: string) {
+  return [...events].reverse().find((event) => event.lens.lensId === lensId);
 }
 
 function findEventForMessage(
   events: ContextLensEvent[],
   selected: ContextLensSelectedMessage
 ) {
+  if (selected.lensId) {
+    return findEventForLensId(events, selected.lensId);
+  }
   return [...events]
     .reverse()
     .find((event) =>
       event.lens.outputs?.some((output) =>
-        outputMatchesMessage(output, selected.id, selected.authorId, selected)
+        outputMatchesMessage(output, selected.id, selected.authorId)
       )
     );
 }
@@ -870,11 +815,7 @@ function LensListItem({
         >
           {title}
         </SizableText>
-        <SizableText
-          size="$s"
-          color="rgba(240, 250, 255, 0.42)"
-          flexShrink={0}
-        >
+        <SizableText size="$s" color="rgba(240, 250, 255, 0.42)" flexShrink={0}>
           {meta}
         </SizableText>
       </XStack>
@@ -907,7 +848,7 @@ export function ContextLensPanel({
   >('idle');
   const runs = useContextLensRuns(events);
   const selectedMessageKey = selectedMessage
-    ? `${selectedMessage.authorId ?? ''}/${selectedMessage.id}`
+    ? `${selectedMessage.lensId ?? ''}/${selectedMessage.authorId ?? ''}/${selectedMessage.id}`
     : null;
   const selectedEvent = selectedMessage
     ? findEventForMessage(events, selectedMessage)
@@ -945,6 +886,35 @@ export function ContextLensPanel({
     let cancelled = false;
     setLookupStatus('loading');
     setLookupResult(null);
+    if (selectedMessage.lensId) {
+      fetch(
+        `${gatewayBaseUrl}/tlon/context-lens/run?lensId=${encodeQuery(selectedMessage.lensId)}`
+      )
+        .then((response) => (response.ok ? response.json() : null))
+        .then((payload: { lens?: ContextLens } | null) => {
+          if (cancelled) {
+            return;
+          }
+          if (payload?.lens) {
+            setLookupResult({
+              key: selectedMessageKey ?? '',
+              lens: payload.lens,
+            });
+            setLookupStatus('idle');
+            return;
+          }
+          setLookupStatus('missing');
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setLookupStatus('error');
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+
     const candidates = messageIdCandidates(
       selectedMessage.id,
       selectedMessage.authorId
@@ -1070,9 +1040,7 @@ export function ContextLensPanel({
               numberOfLines={1}
               ellipsizeMode="middle"
             >
-              {selectedMessage?.authorId
-                ? `${selectedMessage.authorId}/`
-                : ''}
+              {selectedMessage?.authorId ? `${selectedMessage.authorId}/` : ''}
               {selectedMessage?.id}
             </SizableText>
           </YStack>
@@ -1266,11 +1234,7 @@ function Metric({ label, value }: { label: string; value: string }) {
       gap="$m"
       minWidth={0}
     >
-      <SizableText
-        size="$s"
-        color="rgba(240, 250, 255, 0.5)"
-        flexShrink={0}
-      >
+      <SizableText size="$s" color="rgba(240, 250, 255, 0.5)" flexShrink={0}>
         {label}
       </SizableText>
       <SizableText

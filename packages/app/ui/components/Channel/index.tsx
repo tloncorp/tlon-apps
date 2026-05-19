@@ -725,20 +725,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     }, []);
     const postToContextLensMessage = useCallback(
       (post: db.Post): ContextLensSelectedMessage => {
-        const sentAt = post.sentAt as unknown;
+        const contextLensEntry = post.blob
+          ? logic
+              .parsePostBlob(post.blob)
+              .find((entry) => entry.type === 'tlon-context-lens')
+          : null;
         return {
           id: post.id,
           authorId: post.authorId,
           channelId: post.channelId,
-          preview: post.textContent,
-          sentAt:
-            typeof sentAt === 'number'
-              ? sentAt
-              : sentAt instanceof Date
-                ? sentAt.getTime()
-                : typeof sentAt === 'string'
-                  ? Date.parse(sentAt)
-                  : null,
+          lensId:
+            contextLensEntry?.type === 'tlon-context-lens'
+              ? contextLensEntry.lensId
+              : null,
         };
       },
       []

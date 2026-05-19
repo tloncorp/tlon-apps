@@ -678,10 +678,23 @@ export type PostBlobDataEntryVideo = z.infer<
   typeof PostBlobDataEntryVideoSchema
 >;
 
+export const PostBlobDataEntryContextLensSchema = definePostBlobDataEntrySchema(
+  'tlon-context-lens',
+  1,
+  {
+    lensId: z.string().min(1),
+  }
+);
+
+export type PostBlobDataEntryContextLens = z.infer<
+  typeof PostBlobDataEntryContextLensSchema
+>;
+
 const postBlobDataEntryDefinitions = [
   PostBlobDataEntryFileSchema,
   PostBlobDataEntryVoiceMemoSchema,
   PostBlobDataEntryVideoSchema,
+  PostBlobDataEntryContextLensSchema,
   A2UI.blobEntrySchema,
 ] as const;
 
@@ -788,6 +801,17 @@ export function appendVideoToPostBlob(
     height: opts.height,
     duration: opts.duration,
     posterUri: opts.posterUri,
+  });
+}
+
+export function appendContextLensToPostBlob(
+  blob: string | undefined,
+  opts: { lensId: string }
+) {
+  return appendToPostBlob(blob, {
+    type: 'tlon-context-lens',
+    version: 1,
+    lensId: opts.lensId,
   });
 }
 
