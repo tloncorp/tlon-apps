@@ -1,13 +1,33 @@
 const { mergeConfig } = require('@react-native/metro-config');
 const path = require('path');
+const os = require('os');
 const fs = require('fs');
 const connect = require('connect');
 const { spawn } = require('child_process');
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
+const { FileStore } = require('metro-cache');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 const baseConfig = getSentryExpoConfig(projectRoot);
+
+// Shared Metro transform cache across worktrees on this machine.
+// metro-transform-worker keys are content-addressed (relative paths only),
+// and Expo's `_expoRelativeProjectRoot` is workspace-relative, so identical
+// sources in different worktrees produce identical keys. Partition by
+// resolved RN+Expo version so upgrades don't poison the cache.
+// Opt out with TLON_METRO_SHARED_CACHE_DISABLED=1.
+const rnVersion = require('react-native/package.json').version;
+const expoVersion = require('expo/package.json').version;
+const sharedCacheRoot = path.join(
+  process.env.TLON_METRO_SHARED_CACHE_DIR ||
+    path.join(os.homedir(), '.cache', 'tlon-metro-shared'),
+  `rn-${rnVersion}-expo-${expoVersion}`,
+);
+const sharedCacheStores =
+  process.env.TLON_METRO_SHARED_CACHE_DISABLED === '1'
+    ? undefined
+    : [new FileStore({ root: sharedCacheRoot })];
 
 /**
  * Metro configuration
@@ -16,6 +36,7 @@ const baseConfig = getSentryExpoConfig(projectRoot);
  * @type {import('@react-native/metro-config').MetroConfig}
  */
 const config = {
+  ...(sharedCacheStores ? { cacheStores: sharedCacheStores } : {}),
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
   },

@@ -18,6 +18,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
   scheme: appScheme,
+  // EAS-hosted build cache. On `npx expo run:*` and `eas build`, Expo
+  // computes a fingerprint of the project and checks the cache. On hit,
+  // the cached .app/.apk is downloaded and installed (no native build).
+  // On miss, the local/CI build proceeds and the resulting binary is
+  // uploaded to the cache for subsequent runs on any machine.
+  // Opt out per-invocation with EXPO_NO_CACHE=1.
+  buildCacheProvider: 'eas',
   extra: {
     eas: {
       projectId,
