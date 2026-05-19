@@ -1,4 +1,5 @@
 import { Icon } from '@tloncorp/ui';
+import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
@@ -17,8 +18,18 @@ type ContextLensStatus =
 type ContextLens = {
   lensId: string;
   messageId: string;
+  sessionKeyHash?: string | null;
   chatType: 'dm' | 'channel';
   trigger: string;
+  triggerDetails?: {
+    type: string;
+    messageId: string;
+    authorShip?: string;
+    conversationId?: string;
+    conversationKind: 'dm' | 'channel';
+    receivedAt?: number;
+    preview?: string;
+  };
   model: string | null;
   provider: string | null;
   status: ContextLensStatus;
@@ -32,6 +43,7 @@ type ContextLens = {
     citedPosts: number;
     attachments: number;
     pendingNudge: boolean;
+    sources?: ContextLensSource[];
   };
   persistence: {
     postsReply: boolean;
@@ -39,13 +51,16 @@ type ContextLens = {
     writesMedia: boolean;
     emitsTelemetry: boolean;
     cachesHistory: boolean;
+    events?: ContextLensPersistenceEvent[];
   };
   tools: {
     ownerOnlyAvailable: string[];
     called: string[];
     callCount: number;
     lastStartedAt: number | null;
+    runs?: ContextLensToolRun[];
   };
+  outputs?: ContextLensOutput[];
   lifecycle: {
     queuedMs: number;
     durationMs: number | null;
@@ -58,6 +73,49 @@ type ContextLens = {
   };
 };
 
+type ContextLensSource = {
+  kind: 'message' | 'memory' | 'identity' | 'system' | 'tool_result' | 'other';
+  label: string;
+  sourceId?: string;
+  included: boolean;
+  reason?: string;
+  tokenEstimate?: number;
+  preview?: string;
+};
+
+type ContextLensToolRun = {
+  id: string;
+  callIndex: number;
+  name: string;
+  phase?: string;
+  startedAt: number;
+  completedAt: number | null;
+  durationMs: number | null;
+  status: 'running' | 'completed' | 'error';
+  argumentSummary?: string;
+  resultSummary?: string;
+  error?: string;
+};
+
+type ContextLensOutput = {
+  messageId: string;
+  conversationId: string;
+  kind: 'dm' | 'channel';
+  sentAt: number;
+  preview?: string;
+  chunkIndex?: number;
+};
+
+type ContextLensPersistenceEvent = {
+  kind: 'memory' | 'conversation_state' | 'tool_cache' | 'artifact' | 'other';
+  action: 'read' | 'created' | 'updated' | 'skipped' | 'deleted';
+  location: 'openclaw' | 'urbit' | 'tlon-desk' | 'external';
+  status: 'ok' | 'failed' | 'skipped';
+  key?: string;
+  reason?: string;
+  at: number;
+};
+
 export type ContextLensEvent = {
   seq: number;
   at: number;
@@ -68,6 +126,14 @@ export type ContextLensEvent = {
     toolPhase?: string;
     toolCallCount?: number;
   };
+};
+
+export type ContextLensSelectedMessage = {
+  id: string;
+  authorId?: string | null;
+  channelId?: string | null;
+  preview?: string | null;
+  sentAt?: number | null;
 };
 
 type LensStreamState = {
@@ -97,6 +163,91 @@ function getGatewayBaseUrl() {
       ? window.localStorage.getItem('tlon.contextLens.gatewayUrl')?.trim()
       : null;
   return stored || 'http://localhost:18789';
+}
+
+function encodeQuery(value: string) {
+  return encodeURIComponent(value.trim());
+}
+
+function normalizeComparableText(value?: string | null) {
+  return value?.replace(/\s+/g, ' ').trim() ?? '';
+}
+
+function messageIdCandidates(messageId: string, authorId?: string | null) {
+  const trimmed = messageId.trim();
+  const slashIndex = trimmed.indexOf('/');
+  const bare = slashIndex >= 0 ? trimmed.slice(slashIndex + 1) : trimmed;
+  const author = authorId?.trim();
+  return [
+    trimmed,
+    bare,
+    author ? `${author}/${trimmed}` : null,
+    author ? `${author}/${bare}` : null,
+  ].filter(Boolean) as string[];
+}
+
+function outputMatchesMessage(
+  output: ContextLensOutput,
+  messageId: string,
+  authorId?: string | null,
+  selected?: ContextLensSelectedMessage | null
+) {
+  const wanted = new Set(messageIdCandidates(messageId, authorId));
+  const exactMatch = messageIdCandidates(output.messageId).some((candidate) =>
+    wanted.has(candidate)
+  );
+  if (exactMatch || !selected) {
+    return exactMatch;
+  }
+
+  const outputAuthor = output.messageId.startsWith('~')
+    ? output.messageId.slice(0, output.messageId.indexOf('/'))
+    : null;
+  const selectedPreview = normalizeComparableText(selected.preview);
+  const outputPreview = normalizeComparableText(output.preview);
+  const sentAt = selected.sentAt ?? null;
+  const timeMatches =
+    typeof sentAt === 'number' && Number.isFinite(sentAt)
+      ? Math.abs(output.sentAt - sentAt) < 5_000
+      : true;
+  const conversationMatches =
+    !selected.channelId || output.conversationId === selected.channelId;
+  const previewMatches =
+    Boolean(selectedPreview && outputPreview) &&
+    (selectedPreview === outputPreview ||
+      selectedPreview.startsWith(outputPreview) ||
+      outputPreview.startsWith(selectedPreview));
+
+  return (
+    outputAuthor === authorId &&
+    conversationMatches &&
+    timeMatches &&
+    previewMatches
+  );
+}
+
+export function contextLensHasOutputForPost(
+  events: ContextLensEvent[],
+  post: ContextLensSelectedMessage
+) {
+  return events.some((event) =>
+    event.lens.outputs?.some((output) =>
+      outputMatchesMessage(output, post.id, post.authorId, post)
+    )
+  );
+}
+
+function findEventForMessage(
+  events: ContextLensEvent[],
+  selected: ContextLensSelectedMessage
+) {
+  return [...events]
+    .reverse()
+    .find((event) =>
+      event.lens.outputs?.some((output) =>
+        outputMatchesMessage(output, selected.id, selected.authorId, selected)
+      )
+    );
 }
 
 function mergeEvent(events: ContextLensEvent[], event: ContextLensEvent) {
@@ -311,7 +462,10 @@ type TimelineRow = {
   active?: boolean;
 };
 
-function buildRunTimeline(events: ContextLensEvent[], latest: ContextLensEvent) {
+function buildRunTimeline(
+  events: ContextLensEvent[],
+  latest: ContextLensEvent
+) {
   const lens = latest.lens;
   const rows: TimelineRow[] = [
     {
@@ -410,24 +564,402 @@ function buildRunTimeline(events: ContextLensEvent[], latest: ContextLensEvent) 
   return rows;
 }
 
+function formatWallTime(ms?: number | null) {
+  if (!ms) {
+    return 'unknown';
+  }
+  return new Date(ms).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
+function sourceKindLabel(kind: ContextLensSource['kind']) {
+  return kind.replaceAll('_', ' ');
+}
+
+function persistenceLabel(event: ContextLensPersistenceEvent) {
+  return `${event.action} ${event.kind.replaceAll('_', ' ')} · ${event.location}`;
+}
+
+function EmptySelectedRun({
+  lookupStatus,
+}: {
+  lookupStatus: 'idle' | 'loading' | 'missing' | 'error';
+}) {
+  const copy =
+    lookupStatus === 'loading'
+      ? 'Looking for Lens metadata'
+      : lookupStatus === 'error'
+        ? 'Lens lookup failed'
+        : 'No Lens metadata for this message';
+  return (
+    <YStack
+      alignItems="center"
+      justifyContent="center"
+      minHeight={180}
+      gap="$m"
+      borderWidth={1}
+      borderColor="rgba(255, 209, 102, 0.22)"
+      borderRadius="$m"
+      backgroundColor="rgba(255, 209, 102, 0.045)"
+      padding="$m"
+    >
+      <Icon type="Info" color="$positiveActionText" />
+      <SizableText
+        size="$m"
+        color="rgba(240, 250, 255, 0.7)"
+        textAlign="center"
+      >
+        {copy}
+      </SizableText>
+      <SizableText
+        size="$s"
+        color="rgba(240, 250, 255, 0.48)"
+        textAlign="center"
+      >
+        Recent live runs can be inspected immediately. Older messages need
+        retained Lens metadata from the gateway.
+      </SizableText>
+    </YStack>
+  );
+}
+
+function RunInspector({ lens }: { lens: ContextLens }) {
+  const sources = lens.context.sources ?? [];
+  const includedSources = sources.filter((source) => source.included);
+  const excludedSources = sources.filter((source) => !source.included);
+  const toolRuns = lens.tools.runs ?? [];
+  const outputs = lens.outputs ?? [];
+  const persistenceEvents = lens.persistence.events ?? [];
+
+  return (
+    <YStack gap="$s">
+      <InspectorSection title="Trigger">
+        <DetailRow
+          label="Message"
+          value={lens.triggerDetails?.messageId ?? lens.messageId}
+        />
+        <DetailRow
+          label="Author"
+          value={lens.triggerDetails?.authorShip ?? 'unknown'}
+        />
+        <DetailRow
+          label="Conversation"
+          value={lens.triggerDetails?.conversationId ?? lens.chatType}
+        />
+        <DetailRow
+          label="Received"
+          value={formatWallTime(lens.triggerDetails?.receivedAt)}
+        />
+        {lens.triggerDetails?.preview ? (
+          <PreviewText value={lens.triggerDetails.preview} />
+        ) : null}
+      </InspectorSection>
+
+      <InspectorSection title="Context">
+        <Metric
+          label="Included"
+          value={pluralize(includedSources.length, 'source')}
+        />
+        <Metric
+          label="Excluded"
+          value={pluralize(excludedSources.length, 'source')}
+        />
+        {sources.length ? (
+          <YStack gap="$xs" marginTop="$xs">
+            {sources.slice(0, 8).map((source, index) => (
+              <LensListItem
+                key={`${source.kind}-${source.sourceId ?? source.label}-${index}`}
+                title={source.label}
+                meta={`${source.included ? 'included' : 'excluded'} · ${sourceKindLabel(source.kind)}`}
+                detail={source.reason ?? source.preview ?? 'recorded by run'}
+                tone={source.included ? '#65d8ff' : '#ffd166'}
+              />
+            ))}
+          </YStack>
+        ) : (
+          <MutedLine value={summarizeContext(lens)} />
+        )}
+      </InspectorSection>
+
+      <InspectorSection title="Tools">
+        {toolRuns.length ? (
+          <YStack gap="$xs">
+            {toolRuns.map((run) => (
+              <LensListItem
+                key={run.id}
+                title={`${run.callIndex}. ${formatToolName(run.name)}`}
+                meta={run.status}
+                detail={
+                  run.durationMs
+                    ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
+                    : run.phase ?? 'running'
+                }
+                tone={run.status === 'error' ? '#ff5b8f' : '#47f6a4'}
+              />
+            ))}
+          </YStack>
+        ) : (
+          <MutedLine value="No tools called" />
+        )}
+      </InspectorSection>
+
+      <InspectorSection title="Output">
+        {outputs.length ? (
+          <YStack gap="$xs">
+            {outputs.map((output, index) => (
+              <LensListItem
+                key={`${output.messageId}-${index}`}
+                title={output.messageId}
+                meta={`${output.kind} · ${formatWallTime(output.sentAt)}`}
+                detail={output.preview ?? output.conversationId}
+                tone="#65d8ff"
+              />
+            ))}
+          </YStack>
+        ) : (
+          <MutedLine value="No bot reply recorded yet" />
+        )}
+      </InspectorSection>
+
+      <InspectorSection title="Persistence">
+        {persistenceEvents.length ? (
+          <YStack gap="$xs">
+            {persistenceEvents.slice(0, 8).map((event, index) => (
+              <LensListItem
+                key={`${event.kind}-${event.action}-${event.at}-${index}`}
+                title={persistenceLabel(event)}
+                meta={event.status}
+                detail={event.reason ?? event.key ?? formatWallTime(event.at)}
+                tone={
+                  event.status === 'failed'
+                    ? '#ff5b8f'
+                    : event.status === 'skipped'
+                      ? '#ffd166'
+                      : '#47f6a4'
+                }
+              />
+            ))}
+          </YStack>
+        ) : (
+          <MutedLine value={summarizeWrites(lens)} />
+        )}
+      </InspectorSection>
+    </YStack>
+  );
+}
+
+function InspectorSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <YStack
+      gap="$s"
+      borderWidth={1}
+      borderColor="rgba(101, 216, 255, 0.18)"
+      borderRadius="$m"
+      padding="$m"
+      backgroundColor="rgba(255, 255, 255, 0.035)"
+    >
+      <SizableText
+        size="$s"
+        color="rgba(101, 216, 255, 0.72)"
+        textTransform="uppercase"
+        letterSpacing={0}
+      >
+        {title}
+      </SizableText>
+      {children}
+    </YStack>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return <Metric label={label} value={value || 'unknown'} />;
+}
+
+function PreviewText({ value }: { value: string }) {
+  return (
+    <SizableText
+      size="$s"
+      color="rgba(248, 252, 255, 0.78)"
+      backgroundColor="rgba(101, 216, 255, 0.055)"
+      borderRadius="$s"
+      padding="$s"
+    >
+      {value}
+    </SizableText>
+  );
+}
+
+function MutedLine({ value }: { value: string }) {
+  return (
+    <SizableText size="$s" color="rgba(240, 250, 255, 0.5)">
+      {value}
+    </SizableText>
+  );
+}
+
+function LensListItem({
+  title,
+  meta,
+  detail,
+  tone,
+}: {
+  title: string;
+  meta: string;
+  detail: string;
+  tone: string;
+}) {
+  return (
+    <YStack
+      gap="$2xs"
+      minWidth={0}
+      borderLeftWidth={2}
+      borderColor={tone}
+      paddingLeft="$s"
+      paddingVertical="$2xs"
+    >
+      <XStack
+        alignItems="center"
+        justifyContent="space-between"
+        gap="$s"
+        minWidth={0}
+      >
+        <SizableText
+          size="$s"
+          color="rgba(248, 252, 255, 0.88)"
+          flex={1}
+          minWidth={0}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
+          {title}
+        </SizableText>
+        <SizableText
+          size="$s"
+          color="rgba(240, 250, 255, 0.42)"
+          flexShrink={0}
+        >
+          {meta}
+        </SizableText>
+      </XStack>
+      <SizableText size="$s" color="rgba(240, 250, 255, 0.54)">
+        {detail}
+      </SizableText>
+    </YStack>
+  );
+}
+
 export function ContextLensPanel({
   events,
   streamStatus,
+  selectedMessage,
+  onClearSelectedMessage,
   width = 360,
 }: {
   events: ContextLensEvent[];
   streamStatus: LensStreamState['status'];
+  selectedMessage?: ContextLensSelectedMessage | null;
+  onClearSelectedMessage?: () => void;
   width?: number | '100%';
 }) {
+  const [lookupResult, setLookupResult] = useState<{
+    key: string;
+    lens: ContextLens;
+  } | null>(null);
+  const [lookupStatus, setLookupStatus] = useState<
+    'idle' | 'loading' | 'missing' | 'error'
+  >('idle');
   const runs = useContextLensRuns(events);
-  const latest = runs[0];
+  const selectedMessageKey = selectedMessage
+    ? `${selectedMessage.authorId ?? ''}/${selectedMessage.id}`
+    : null;
+  const selectedEvent = selectedMessage
+    ? findEventForMessage(events, selectedMessage)
+    : undefined;
+  const selectedLookupEvent =
+    selectedMessage && lookupResult?.key === selectedMessageKey
+      ? ({
+          seq: 0,
+          at: lookupResult.lens.updatedAt,
+          phase: 'lookup',
+          lens: lookupResult.lens,
+        } satisfies ContextLensEvent)
+      : undefined;
+  const panelMode = selectedMessage ? 'selected' : 'live';
+  const latest =
+    panelMode === 'selected' ? selectedEvent ?? selectedLookupEvent : runs[0];
   const eventTrail = latest
     ? events.filter((event) => event.lens.lensId === latest.lens.lensId)
     : [];
-  const runTimeline = latest ? buildRunTimeline(eventTrail, latest) : [];
+  const runTimeline = latest
+    ? buildRunTimeline(eventTrail.length ? eventTrail : [latest], latest)
+    : [];
   const activeCount = runs.filter(
     (event) => !FINAL_STATUSES.has(event.lens.status)
   ).length;
+
+  useEffect(() => {
+    const gatewayBaseUrl = getGatewayBaseUrl();
+    if (!selectedMessage || selectedEvent || !gatewayBaseUrl) {
+      setLookupResult(null);
+      setLookupStatus(selectedMessage && selectedEvent ? 'idle' : 'idle');
+      return;
+    }
+
+    let cancelled = false;
+    setLookupStatus('loading');
+    setLookupResult(null);
+    const candidates = messageIdCandidates(
+      selectedMessage.id,
+      selectedMessage.authorId
+    );
+
+    async function lookup() {
+      for (const candidate of candidates) {
+        try {
+          const response = await fetch(
+            `${gatewayBaseUrl}/tlon/context-lens/by-message?messageId=${encodeQuery(candidate)}`
+          );
+          if (cancelled) {
+            return;
+          }
+          if (response.ok) {
+            const payload = (await response.json()) as { lens?: ContextLens };
+            if (payload.lens) {
+              setLookupResult({
+                key: selectedMessageKey ?? '',
+                lens: payload.lens,
+              });
+              setLookupStatus('idle');
+              return;
+            }
+          }
+        } catch {
+          if (cancelled) {
+            return;
+          }
+          setLookupStatus('error');
+          return;
+        }
+      }
+      if (!cancelled) {
+        setLookupStatus('missing');
+      }
+    }
+
+    lookup();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedEvent, selectedMessage, selectedMessageKey]);
 
   return (
     <YStack
@@ -454,7 +986,11 @@ export function ContextLensPanel({
             Context Lens
           </SizableText>
           <SizableText size="$m" color="rgba(240, 250, 255, 0.72)">
-            {activeCount ? `${activeCount} live run` : 'Run telemetry'}
+            {panelMode === 'selected'
+              ? 'Selected response'
+              : activeCount
+                ? `${activeCount} live run`
+                : 'Run inspector'}
           </SizableText>
         </YStack>
         <XStack
@@ -481,9 +1017,58 @@ export function ContextLensPanel({
         </XStack>
       </XStack>
 
+      {panelMode === 'selected' ? (
+        <XStack
+          alignItems="center"
+          justifyContent="space-between"
+          gap="$s"
+          minWidth={0}
+          borderWidth={1}
+          borderColor="rgba(101, 216, 255, 0.22)"
+          borderRadius="$s"
+          paddingHorizontal="$s"
+          paddingVertical="$xs"
+          backgroundColor="rgba(101, 216, 255, 0.055)"
+        >
+          <YStack flex={1} minWidth={0} gap="$2xs">
+            <SizableText size="$s" color="rgba(240, 250, 255, 0.46)">
+              Inspecting
+            </SizableText>
+            <SizableText
+              size="$s"
+              color="rgba(240, 250, 255, 0.76)"
+              flex={1}
+              minWidth={0}
+              numberOfLines={1}
+              ellipsizeMode="middle"
+            >
+              {selectedMessage?.authorId
+                ? `${selectedMessage.authorId}/`
+                : ''}
+              {selectedMessage?.id}
+            </SizableText>
+          </YStack>
+          <XStack
+            onPress={onClearSelectedMessage}
+            cursor="pointer"
+            flexShrink={0}
+            paddingHorizontal="$xs"
+            paddingVertical="$2xs"
+          >
+            <SizableText size="$s" color="#65d8ff">
+              Latest
+            </SizableText>
+          </XStack>
+        </XStack>
+      ) : null}
+
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack gap="$m" paddingBottom="$2xl">
-          {latest ? (
+          {panelMode === 'selected' && !latest && lookupStatus === 'loading' ? (
+            <EmptySelectedRun lookupStatus="loading" />
+          ) : panelMode === 'selected' && !latest ? (
+            <EmptySelectedRun lookupStatus={lookupStatus} />
+          ) : latest ? (
             <YStack
               gap="$m"
               borderWidth={1}
@@ -564,6 +1149,8 @@ export function ContextLensPanel({
             </YStack>
           )}
 
+          {latest ? <RunInspector lens={latest.lens} /> : null}
+
           {runTimeline.length ? (
             <YStack gap="$s">
               <SizableText
@@ -589,13 +1176,7 @@ export function ContextLensPanel({
   );
 }
 
-function TimelineItem({
-  row,
-  isLast,
-}: {
-  row: TimelineRow;
-  isLast: boolean;
-}) {
+function TimelineItem({ row, isLast }: { row: TimelineRow; isLast: boolean }) {
   return (
     <XStack gap="$s" alignItems="stretch">
       <YStack alignItems="center" width={14}>
@@ -651,8 +1232,17 @@ function TimelineItem({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <XStack alignItems="flex-start" justifyContent="space-between" gap="$m">
-      <SizableText size="$s" color="rgba(240, 250, 255, 0.5)">
+    <XStack
+      alignItems="flex-start"
+      justifyContent="space-between"
+      gap="$m"
+      minWidth={0}
+    >
+      <SizableText
+        size="$s"
+        color="rgba(240, 250, 255, 0.5)"
+        flexShrink={0}
+      >
         {label}
       </SizableText>
       <SizableText
@@ -660,6 +1250,9 @@ function Metric({ label, value }: { label: string; value: string }) {
         color="rgba(248, 252, 255, 0.88)"
         textAlign="right"
         flex={1}
+        minWidth={0}
+        numberOfLines={1}
+        ellipsizeMode="middle"
       >
         {value}
       </SizableText>

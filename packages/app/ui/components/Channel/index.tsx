@@ -73,6 +73,8 @@ import {
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import {
   ContextLensPanel,
+  type ContextLensSelectedMessage,
+  contextLensHasOutputForPost,
   isContextLensEventActive,
   useContextLensEvents,
   useContextLensRuns,
@@ -704,12 +706,55 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const isNarrow = useIsWindowNarrow();
     const [contextLensOpen, setContextLensOpen] = useState(false);
+    const [selectedContextLensMessage, setSelectedContextLensMessage] =
+      useState<ContextLensSelectedMessage | null>(null);
     const contextLensStream = useContextLensEvents();
     const contextLensRuns = useContextLensRuns(contextLensStream.events);
     const contextLensActive = contextLensRuns.some(isContextLensEventActive);
     const toggleContextLens = useCallback(() => {
       setContextLensOpen((open) => !open);
     }, []);
+    const clearSelectedContextLensMessage = useCallback(() => {
+      setSelectedContextLensMessage(null);
+    }, []);
+    const postToContextLensMessage = useCallback(
+      (post: db.Post): ContextLensSelectedMessage => ({
+        id: post.id,
+        authorId: post.authorId,
+        channelId: post.channelId,
+        preview: post.textContent,
+        sentAt: typeof post.sentAt === 'number' ? post.sentAt : null,
+      }),
+      []
+    );
+    const inspectContextLensPost = useCallback(
+      (post: db.Post) => {
+        setSelectedContextLensMessage(postToContextLensMessage(post));
+        setContextLensOpen(true);
+      },
+      [postToContextLensMessage]
+    );
+    const handleGoToPost = useCallback(
+      (post: db.Post) => {
+        const contextLensMessage = postToContextLensMessage(post);
+        const hasLens = contextLensHasOutputForPost(
+          contextLensStream.events,
+          contextLensMessage
+        );
+        if (hasLens || contextLensOpen) {
+          inspectContextLensPost(post);
+          return;
+        }
+        goToPost(post);
+      },
+      [
+        contextLensOpen,
+        contextLensStream.events,
+        goToPost,
+        inspectContextLensPost,
+        postToContextLensMessage,
+      ]
+    );
 
     const backgroundColor = getVariableValue(useTheme().background);
 
@@ -807,10 +852,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           {shouldShowPinnedPostBanner && (
                             <PinnedPostBanner
                               channel={channel}
-                              onPressPost={goToPost}
+                              onPressPost={handleGoToPost}
                             />
                           )}
-                          <XStack alignItems="stretch" flex={1} position="relative">
+                          <XStack
+                            alignItems="stretch"
+                            flex={1}
+                            position="relative"
+                          >
                             <YStack alignItems="stretch" flex={1} minWidth={0}>
                               {includeJoinRequestNotice && (
                                 <SystemNotices.ConnectedJoinRequestNotice
@@ -833,7 +882,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                               ).configuration,
                                         editingPost,
                                         goToMediaViewer,
-                                        goToPost,
+                                        goToPost: handleGoToPost,
+                                        inspectContextLensPost,
                                         hasNewerPosts,
                                         hasOlderPosts,
                                         initialChannelUnread,
@@ -933,6 +983,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               <ContextLensPanel
                                 events={contextLensStream.events}
                                 streamStatus={contextLensStream.status}
+                                selectedMessage={selectedContextLensMessage}
+                                onClearSelectedMessage={
+                                  clearSelectedContextLensMessage
+                                }
                               />
                             )}
                             {contextLensOpen && isNarrow && (
@@ -948,6 +1002,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                 <ContextLensPanel
                                   events={contextLensStream.events}
                                   streamStatus={contextLensStream.status}
+                                  selectedMessage={selectedContextLensMessage}
+                                  onClearSelectedMessage={
+                                    clearSelectedContextLensMessage
+                                  }
                                   width="100%"
                                 />
                               </View>

@@ -10,6 +10,7 @@ export interface PostCollectionContextValue {
   editingPost?: db.Post;
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToPost: (post: db.Post) => void;
+  inspectContextLensPost?: (post: db.Post) => void;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
   initialChannelUnread?: db.ChannelUnread | null;
