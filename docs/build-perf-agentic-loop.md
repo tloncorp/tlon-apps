@@ -249,25 +249,53 @@ Translation to RN: the "frozen toolchain" is Metro + Xcode + Gradle; the "mutabl
 - **Hot vs full reload** — Fast Refresh preserves state and is much cheaper than a full reload. For agent loops that need a deterministic mount, the `mountId` trick (already documented in CLAUDE.md) is the right validation.
 - **Hermes precompiled bytecode** — already on by default for release; not relevant for dev iteration.
 
-## EAS build cache findings (verified working end-to-end)
+## EAS build cache findings (verified working end-to-end on both platforms)
 
-End-to-end validation 2026-05-19 from this branch (`janic/build-perf-prototype`):
+End-to-end validation 2026-05-19 → 2026-05-20 from this branch (`janic/build-perf-prototype`).
 
-**Full warm harness run with EAS cache hit: 108s (1m48s).** Per-phase:
+### iOS
 
-| Step | Cold (no caches) | Warm (cache hit) | Saved |
-|---|---|---|---|
-| pnpm_install | 17s | 19s | — |
-| build_packages | 7s | 9s | — |
-| generate_tailwind | 1s | 1s | — |
-| pod_install | 92s | 25s | -67s (CocoaPods cache) |
-| **native_build** | **369s** | **43s** | **-326s (EAS cache hit)** |
-| metro_bundle | 35s | 11s | -24s (Metro shared cache) |
-| **TOTAL** | **522s** | **108s** | **-414s (-79%)** |
+After dropping the redundant explicit `pod_install` step and swapping `build_packages` for `build_editor` (only one workspace package has a `dist/` import that the bundle actually consumes):
 
-The cache-hit `native_build` is 43s end-to-end — Expo CLI downloads the 31.9 MB .app from EAS (~18s), `simctl install` (~7s), launch + Metro bootstrap (~18s). No xcodebuild, no pod compile, no codegen.
+| Step | Cold | Warm (cache hit) |
+|---|---|---|
+| pnpm_install | 17s | 19s |
+| build_editor | — | 2s |
+| generate_tailwind | 1s | 1s |
+| **native_build** | **369s** | **45s** ← cache hit |
+| metro_bundle | 35s | 11s |
+| **TOTAL** | **522s (8m42s)** | **78s (1m18s) — 85% off** |
 
-### Fingerprint stability — the real bug, and the one-line fix
+### Android (added 2026-05-20)
+
+| Step | Cold (Gradle warm) | Warm (cache hit) |
+|---|---|---|
+| pnpm_install | 20s | 16s |
+| build_editor | 8s | 3s |
+| generate_tailwind | 2s | 2s |
+| **native_build** | **296s** | **32s** ← cache hit |
+| metro_bundle | 29s | 13s |
+| **TOTAL** | **359s (6m)** | **66s (1m6s) — 82% off** |
+
+Android warm is actually FASTER than iOS warm because `adb install` is faster than `simctl install` and there's no SPM lockfile setup.
+
+Notes on Android cold:
+- True first-ever Android build (Gradle deps cold) is ~9-15 min; the 296s number above had Gradle's `~/.gradle/caches/` already populated from a prior failed run (Gradle caches survive across worktrees since they're in `$HOME`).
+- First cold attempt failed at `:app:validateSigningProductionDebug` — `android/app/debug.keystore` is gitignored. Harness now copies it explicitly alongside `.env*` files.
+
+### Sub-phase breakdown inside `native_build` (cache HIT, iOS)
+
+```
+startup_+_fingerprint_compute        25.2s   ← 56%  — `npx eas-cli fingerprint:generate` shell-out
+doctor_+_lookup_+_download           13.8s   ← mostly the .app download (31.9 MB)
+prep_install                          0.5s
+simctl_install                        0.6s
+launch_+_open_url                     2.6s
+```
+
+The fingerprint-compute subprocess is the dominant cost on a cache-hit iteration — bigger than the actual .app download. Could be eliminated with a session-level cache (compute once, reuse if source unchanged), pending a wrapper around the cache provider or an upstream patch.
+
+### Fingerprint stability — the real bug, and the (now multi-line) fix
 
 Before adding `.fingerprintignore`, the EAS cache always missed in the harness even though everything else looked right. Diagnosis:
 
@@ -275,15 +303,20 @@ Before adding `.fingerprintignore`, the EAS cache always missed in the harness e
 - Same run, after xcodebuild completed, computed `ed7efbb4…` at upload time (post-build state).
 - Two different hashes → cache permanently miss: every run looks up A, uploads B, never converges.
 
-**The culprit, found by diffing the pre-build vs post-build `eas fingerprint:generate --json` output: one file.**
+**Culprits found by diffing the pre-build vs post-build `eas fingerprint:generate --json` output:**
 
-```
-ios/Landscape.xcworkspace/xcshareddata/swiftpm/Package.resolved
-```
+iOS:
+- `ios/Landscape.xcworkspace/xcshareddata/swiftpm/Package.resolved` — Xcode's Swift Package Manager lockfile, auto-generated on first build, not present on a fresh checkout.
 
-Xcode's Swift Package Manager lockfile, auto-generated on first build, not present on a fresh checkout. Lives inside `ios/` so the `bareNativeDir` source picks it up. Adding it to `.fingerprintignore` stabilizes the fingerprint at `65bc6902…` whether or not the file exists on disk, and the cache hit then works end-to-end. See [apps/tlon-mobile/.fingerprintignore](../apps/tlon-mobile/.fingerprintignore).
+Android (added later):
+- `android/.idea/**` — Android Studio IDE state, appears once someone opens the project there.
+- `android/local.properties` — auto-generated by Gradle, contains absolute `sdk.dir=…`.
+- `android/app/debug.keystore` — auto-generated debug signing key.
+- `android/app/src/main/assets/bundle.jsbundle` — embedded JS bundle (release builds).
 
-Same class of problem worth watching for in the future: anything Xcode/codegen creates inside `ios/` (or `android/`) during a build that isn't checked into git is a potential cache-buster. Verified `ios/Pods/`, `ios/build/`, `ios/.expo/` aren't issues (already excluded or untouched), but the SPM lockfile slipped through. Same checks apply to Android once we try the cache there.
+All in [apps/tlon-mobile/.fingerprintignore](../apps/tlon-mobile/.fingerprintignore). Verified: touching any of these in a worktree no longer shifts the fingerprint hash.
+
+Same class of problem worth watching for in the future: anything Xcode/codegen/Gradle creates inside `ios/` or `android/` during a build that isn't checked into git is a potential cache-buster.
 
 ### eas-cli version pinning (also important)
 
