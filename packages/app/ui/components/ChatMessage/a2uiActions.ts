@@ -42,6 +42,49 @@ export function getA2UIPokePayload(action: A2UI.Button['action']) {
   return JSON.stringify(action.event.context.json ?? null, null, 2);
 }
 
+function getUserActionName(json: unknown) {
+  if (
+    typeof json !== 'object' ||
+    json === null ||
+    !('userAction' in json) ||
+    typeof json.userAction !== 'object' ||
+    json.userAction === null ||
+    !('name' in json.userAction) ||
+    typeof json.userAction.name !== 'string'
+  ) {
+    return '';
+  }
+
+  return json.userAction.name;
+}
+
+export function getA2UIPokeConfirmationCopy(
+  action: A2UI.Button['action'],
+  buttonLabel: string
+) {
+  if (action.event.name !== 'tlon.poke') {
+    return {
+      actionLabel: 'Run action',
+      description: 'This will run the requested action.',
+    };
+  }
+
+  const userActionName = getUserActionName(action.event.context.json);
+  if (userActionName === 'lore.compile.confirm') {
+    return {
+      actionLabel: 'Compile lore wiki',
+      description:
+        'This will run the lore compiler and mirror updated wiki/media outputs. No chat message will be sent.',
+    };
+  }
+
+  return {
+    actionLabel: buttonLabel.trim() || 'Run app action',
+    description:
+      'This will run the requested app action. No chat message will be sent.',
+  };
+}
+
 export function getA2UIDestinationLabel({
   channel,
   group,
@@ -69,39 +112,31 @@ export function getA2UIDestinationLabel({
 export function getA2UIConfirmationDescription({
   actionName,
   buttonLabel,
+  actionLabel,
+  description,
   sendText,
   destination,
-  app,
-  mark,
-  json,
 }: {
   actionName: string;
   buttonLabel: string;
+  actionLabel?: string;
+  description?: string;
   sendText?: string;
   destination?: string;
-  app?: string;
-  mark?: string;
-  json?: string;
 }) {
   const lines = [
-    `Action: ${actionName}`,
+    `Action: ${actionLabel || actionName}`,
     `Button: ${buttonLabel || 'Untitled button'}`,
   ];
 
+  if (description) {
+    lines.push(description);
+  }
   if (sendText) {
     lines.push(`Will send: ${sendText}`);
   }
   if (destination) {
     lines.push(`Destination: ${destination}`);
-  }
-  if (app) {
-    lines.push(`App: %${app}`);
-  }
-  if (mark) {
-    lines.push(`Mark: %${mark}`);
-  }
-  if (json) {
-    lines.push(`JSON: ${json}`);
   }
 
   return lines.join('\n');

@@ -24,7 +24,7 @@ import { ReactionsDisplay } from './ReactionsDisplay';
 import {
   getA2UIConfirmationDescription,
   getA2UIDestinationLabel,
-  getA2UIPokePayload,
+  getA2UIPokeConfirmationCopy,
   getA2UISendText,
   isA2UIRenderableChatContext,
 } from './a2uiActions';
@@ -44,7 +44,8 @@ type PendingA2UIPokeAction = {
   app: string;
   mark: string;
   json: unknown;
-  jsonPreview: string;
+  actionLabel: string;
+  actionDescription: string;
 };
 
 type PendingA2UIAction = PendingA2UISendMessageAction | PendingA2UIPokeAction;
@@ -152,6 +153,10 @@ export function StaticChatMessage({
       }
 
       if (action.event.name === A2UI.action.poke) {
+        const confirmationCopy = getA2UIPokeConfirmationCopy(
+          action,
+          buttonLabel
+        );
         setPendingA2UIAction({
           kind: 'poke',
           action,
@@ -159,7 +164,8 @@ export function StaticChatMessage({
           app: action.event.context.app,
           mark: action.event.context.mark,
           json: action.event.context.json,
-          jsonPreview: getA2UIPokePayload(action),
+          actionLabel: confirmationCopy.actionLabel,
+          actionDescription: confirmationCopy.description,
         });
       }
     },
@@ -226,9 +232,8 @@ export function StaticChatMessage({
       : getA2UIConfirmationDescription({
           actionName: pendingA2UIAction.action.event.name,
           buttonLabel: pendingA2UIAction.buttonLabel,
-          app: pendingA2UIAction.app,
-          mark: pendingA2UIAction.mark,
-          json: pendingA2UIAction.jsonPreview,
+          actionLabel: pendingA2UIAction.actionLabel,
+          description: pendingA2UIAction.actionDescription,
         })
     : '';
 

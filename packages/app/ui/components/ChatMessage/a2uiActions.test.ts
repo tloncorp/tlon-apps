@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import {
   getA2UIConfirmationDescription,
   getA2UIDestinationLabel,
+  getA2UIPokeConfirmationCopy,
   getA2UIPokePayload,
   getA2UISendText,
   isA2UIRenderableChatContext,
@@ -84,19 +85,26 @@ describe('A2UI chat actions', () => {
     ).toContain('Will send: /allow c3d4e');
   });
 
-  test('describes direct poke actions with app, mark, and JSON', () => {
+  test('describes direct poke actions without exposing app, mark, or JSON', () => {
     const action = pokeAction();
     const json = getA2UIPokePayload(action);
+    const confirmationCopy = getA2UIPokeConfirmationCopy(
+      action,
+      'Compile now'
+    );
+    const description = getA2UIConfirmationDescription({
+      actionName: 'tlon.poke',
+      buttonLabel: 'Compile now',
+      actionLabel: confirmationCopy.actionLabel,
+      description: confirmationCopy.description,
+    });
 
     expect(json).toContain('lore.compile.confirm');
-    expect(
-      getA2UIConfirmationDescription({
-        actionName: 'tlon.poke',
-        buttonLabel: 'Compile now',
-        app: 'a2ui',
-        mark: 'a2ui-action',
-        json,
-      })
-    ).toContain('App: %a2ui');
+    expect(description).toContain('Action: Compile lore wiki');
+    expect(description).toContain('No chat message will be sent.');
+    expect(description).not.toContain('App: %a2ui');
+    expect(description).not.toContain('Mark: %a2ui-action');
+    expect(description).not.toContain('JSON:');
+    expect(description).not.toContain('lore.compile.confirm');
   });
 });
