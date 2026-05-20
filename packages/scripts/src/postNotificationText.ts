@@ -1,6 +1,6 @@
-import type { ContentReference } from '../types/references';
-import type { Verse } from '../urbit/channel';
-import type { Block, Inline, Listing } from '../urbit/content';
+import type { ContentReference } from '@tloncorp/api/types/references';
+import type { Verse } from '@tloncorp/api/urbit/channel';
+import type { Block, Inline, Listing } from '@tloncorp/api/urbit/content';
 import {
   isBlockCode,
   isBlockLink,
@@ -19,11 +19,11 @@ import {
   isShip,
   isStrikethrough,
   isTask,
-} from '../urbit/content';
+} from '@tloncorp/api/urbit/content';
 
 // This module is bundled into native notification rendering, which runs without
 // a DOM. Keep it intentionally dependency-light and avoid importing the richer
-// postContent serializers or markdown/table parsing helpers here.
+// API postContent serializers or markdown/table parsing helpers here.
 export type PostNotificationTextContent = (Verse | ContentReference)[] | null;
 
 export interface PostNotificationTextConfig {

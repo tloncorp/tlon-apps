@@ -1,5 +1,4 @@
 import { parseContactUpdateEvent } from '@tloncorp/api/client/activityApi';
-import { getPostNotificationText } from '@tloncorp/api/client/postNotificationText';
 import type * as ub from '@tloncorp/api/urbit';
 import {
   ActivityIncomingEvent,
@@ -8,6 +7,8 @@ import {
   sourceToString,
 } from '@tloncorp/api/urbit/activity';
 import { da, render } from '@urbit/aura';
+
+import { getPostNotificationText } from './postNotificationText';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
