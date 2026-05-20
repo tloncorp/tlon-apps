@@ -1,0 +1,10 @@
+# Files that change during the iOS/Android build but don't affect the resulting
+# native binary's behaviour. Excluding them keeps the @expo/fingerprint hash
+# stable across pre-build and post-build state — required for the EAS
+# buildCacheProvider to ever hit.
+#
+# Swift Package Manager resolved lockfile: created by Xcode the first time it
+# resolves SPM deps, doesn't exist in a fresh checkout. Without this ignore
+# rule, every `expo run:ios` looks up the cache under a "pre-build" hash and
+# uploads under a "post-build" hash → permanent miss.
+ios/**/Package.resolved
