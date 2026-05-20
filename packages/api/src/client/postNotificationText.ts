@@ -21,23 +21,26 @@ import {
   isTask,
 } from '../urbit/content';
 
-export type TextPostContent = (Verse | ContentReference)[] | null;
+// This module is bundled into native notification rendering, which runs without
+// a DOM. Keep it intentionally dependency-light and avoid importing the richer
+// postContent serializers or markdown/table parsing helpers here.
+export type PostNotificationTextContent = (Verse | ContentReference)[] | null;
 
-export interface PlaintextPreviewConfig {
+export interface PostNotificationTextConfig {
   blockSeparator: string;
   includeLinebreaks: boolean;
   includeRefTag: boolean;
   indentDepth?: number;
 }
 
-export namespace PlaintextPreviewConfig {
-  export const defaultConfig: PlaintextPreviewConfig = Object.freeze({
+export namespace PostNotificationTextConfig {
+  export const defaultConfig: PostNotificationTextConfig = Object.freeze({
     blockSeparator: '\n',
     includeLinebreaks: true,
     includeRefTag: true,
   });
 
-  export const inlineConfig: PlaintextPreviewConfig = Object.freeze({
+  export const inlineConfig: PostNotificationTextConfig = Object.freeze({
     blockSeparator: ' ',
     includeLinebreaks: false,
     includeRefTag: false,
@@ -48,7 +51,7 @@ const VIDEO_REGEX = /(\.mov|\.mp4|\.ogv|\.webm)(?:\?.*)?$/i;
 
 function previewInlineString(
   inlines: Inline[],
-  config: PlaintextPreviewConfig
+  config: PostNotificationTextConfig
 ): string {
   return inlines
     .map((inline, index) =>
@@ -61,7 +64,7 @@ function previewInline(
   inline: Inline,
   index: number,
   total: number,
-  config: PlaintextPreviewConfig
+  config: PostNotificationTextConfig
 ): string {
   if (typeof inline === 'string') {
     return inline;
@@ -107,7 +110,7 @@ function previewInline(
 
 function previewListing(
   listing: Listing,
-  config: PlaintextPreviewConfig
+  config: PostNotificationTextConfig
 ): string {
   if (isList(listing)) {
     const out: string[] = [];
@@ -145,7 +148,10 @@ function previewListing(
   return previewInlineString(listing.item, config);
 }
 
-function previewBlock(block: Block, config: PlaintextPreviewConfig): string {
+function previewBlock(
+  block: Block,
+  config: PostNotificationTextConfig
+): string {
   if (isImage(block)) {
     return VIDEO_REGEX.test(block.image.src) ? '(Video)' : '(Image)';
   }
@@ -173,7 +179,7 @@ function previewBlock(block: Block, config: PlaintextPreviewConfig): string {
 
 function previewInlineVerse(
   inlines: Inline[],
-  config: PlaintextPreviewConfig
+  config: PostNotificationTextConfig
 ): string[] {
   const out: string[] = [];
   let current: Inline[] = [];
@@ -211,9 +217,9 @@ function isContentReference(
   return 'type' in verse && verse.type === 'reference';
 }
 
-export function plaintextPreviewOfPostContent(
-  postContent: Exclude<TextPostContent, null>,
-  config: PlaintextPreviewConfig = PlaintextPreviewConfig.defaultConfig
+function previewPostNotificationContent(
+  postContent: Exclude<PostNotificationTextContent, null>,
+  config: PostNotificationTextConfig = PostNotificationTextConfig.defaultConfig
 ): string {
   return postContent
     .flatMap((verse) => {
@@ -232,19 +238,19 @@ export function plaintextPreviewOfPostContent(
     .trim();
 }
 
-export function getTextContent(
-  postContent: Exclude<TextPostContent, null>,
-  config?: PlaintextPreviewConfig
+export function getPostNotificationText(
+  postContent: Exclude<PostNotificationTextContent, null>,
+  config?: PostNotificationTextConfig
 ): string;
-export function getTextContent(
-  postContent: TextPostContent,
-  config?: PlaintextPreviewConfig
+export function getPostNotificationText(
+  postContent: PostNotificationTextContent,
+  config?: PostNotificationTextConfig
 ): string | null;
-export function getTextContent(
-  postContent: TextPostContent,
-  config: PlaintextPreviewConfig = PlaintextPreviewConfig.defaultConfig
+export function getPostNotificationText(
+  postContent: PostNotificationTextContent,
+  config: PostNotificationTextConfig = PostNotificationTextConfig.defaultConfig
 ): string | null {
   return postContent == null
     ? null
-    : plaintextPreviewOfPostContent(postContent, config);
+    : previewPostNotificationContent(postContent, config);
 }

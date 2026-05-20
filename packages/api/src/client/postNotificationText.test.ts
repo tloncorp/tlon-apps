@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { PlaintextPreviewConfig, getTextContent } from './postContentText';
+import {
+  PostNotificationTextConfig,
+  getPostNotificationText,
+} from './postNotificationText';
 
-describe('postContentText', () => {
+describe('postNotificationText', () => {
   it('extracts plain text from story content without a DOM-backed parser', () => {
     expect(
-      getTextContent([
+      getPostNotificationText([
         {
           inline: [
             'hello ',
@@ -21,7 +24,7 @@ describe('postContentText', () => {
 
   it('leaves markdown table syntax as text for notification previews', () => {
     expect(
-      getTextContent(
+      getPostNotificationText(
         [
           {
             inline: [
@@ -34,7 +37,7 @@ describe('postContentText', () => {
             ],
           },
         ],
-        PlaintextPreviewConfig.inlineConfig
+        PostNotificationTextConfig.inlineConfig
       )
     ).toBe('| A | B |\n|---|---|\n| 1 | 2 |');
   });
