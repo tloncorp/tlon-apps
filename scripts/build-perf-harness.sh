@@ -162,12 +162,14 @@ create_worktree() {
   git -C "$ROOT" worktree add --detach "$WT_DIR" HEAD
 }
 
-# Copy gitignored .env-style secrets from the main repo into the worktree.
-# Tracked files (e.g., apps/tlon-mobile/ios/GoogleService-Info-*.plist,
+# Copy gitignored .env-style secrets + build-required local files from the
+# main repo into the worktree. Tracked files
+# (e.g., apps/tlon-mobile/ios/GoogleService-Info-*.plist,
 # apps/tlon-mobile/android/app/google-services.json, .env.sample) are already
 # in the worktree.
 copy_local_secrets() {
-  log "Copying local secrets (.env*) into worktree:"
+  log "Copying local secrets and build-required files into worktree:"
+  # Glob patterns matched anywhere in the workspace.
   local patterns=(
     '.env'
     '.env.local'
@@ -177,6 +179,12 @@ copy_local_secrets() {
     '.env.staging'
     '.env.test'
     '.env.profile'
+  )
+  # Explicit relative paths that must exist for builds to succeed but aren't
+  # tracked in git. (Android debug signing keystore is gitignored; without it
+  # Gradle's app:validateSigningProductionDebug task fails.)
+  local explicit_files=(
+    'apps/tlon-mobile/android/app/debug.keystore'
   )
   local count=0
   for p in "${patterns[@]}"; do
@@ -193,7 +201,15 @@ copy_local_secrets() {
       -not -path "*/node_modules/*" \
       -not -path "$WT_PARENT/*" 2>/dev/null)
   done
-  log "Copied $count secret file(s)"
+  for rel in "${explicit_files[@]}"; do
+    if [[ -f "$ROOT/$rel" ]]; then
+      mkdir -p "$(dirname "$WT_DIR/$rel")"
+      cp "$ROOT/$rel" "$WT_DIR/$rel"
+      log "  $rel"
+      count=$((count + 1))
+    fi
+  done
+  log "Copied $count secret/build file(s)"
 }
 
 purge_shared_caches() {
