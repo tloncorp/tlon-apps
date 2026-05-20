@@ -559,7 +559,7 @@ export class Urbit {
     });
 
     this.outstandingPokes.forEach((poke) => {
-      poke.onError?.('Channel was reaped');
+      poke.onError?.(new ReapError('Channel was reaped'));
     });
     this.outstandingPokes = new Map();
   }
