@@ -19,16 +19,16 @@ import React, {
   memo,
   useCallback,
   useContext,
-  useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
 import {
   ActivityIndicator,
-  type LayoutChangeEvent,
   Linking,
   Platform,
+  View as RNView,
 } from 'react-native';
 import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
@@ -702,36 +702,74 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
     ...block.rows.map((r) => r.cells.length)
   );
   const allRows = [block.header, ...block.rows];
-  const totalCells = columnCount * allRows.length;
 
-  const naturalWidthsRef = useRef<Map<string, number>>(new Map());
+  const cellRefs = useRef<Map<string, RNView>>(new Map());
   const [columnWidths, setColumnWidths] = useState<number[] | null>(null);
 
-  // Reset measurement state when the block changes — ContentRenderer keys
-  // children by array index, so an edited post can land a new table at the
-  // same index and reuse this component instance.
-  useEffect(() => {
-    setColumnWidths(null);
-    naturalWidthsRef.current.clear();
-  }, [block]);
+  // Reset measurement when the table's actual content changes. We can't key
+  // on `block` reference — upstream memoization invalidates often enough
+  // (every time the `post` object gets a new ref from the data layer) that
+  // a [block]-dep reset clears measurement mid-flight and the table never
+  // converges to aligned columns. Compare a cheap content fingerprint
+  // instead, so reference churn over equivalent content is a no-op.
+  const contentKey = useMemo(
+    () =>
+      JSON.stringify([
+        block.header.cells.map((c) => c.content.length),
+        block.rows.map((r) => r.cells.map((c) => c.content.length)),
+        block.align,
+      ]),
+    [block]
+  );
+  const lastContentKeyRef = useRef(contentKey);
+  if (lastContentKeyRef.current !== contentKey) {
+    lastContentKeyRef.current = contentKey;
+    if (columnWidths !== null) {
+      setColumnWidths(null);
+    }
+  }
 
-  const handleCellLayout = useCallback(
-    (rowIdx: number, colIdx: number) => (e: LayoutChangeEvent) => {
-      if (columnWidths !== null) return;
-      const key = `${rowIdx}-${colIdx}`;
-      naturalWidthsRef.current.set(key, e.nativeEvent.layout.width);
-      if (naturalWidthsRef.current.size < totalCells) return;
-      const widths: number[] = [];
+  // Measure each cell imperatively after first paint. `View.measure` reports
+  // post-layout dimensions deterministically, even when an `onLayout`-driven
+  // pipeline would race against upstream re-renders and miss events.
+  useLayoutEffect(() => {
+    if (columnWidths !== null) return;
+    const widths: number[] = new Array(columnCount).fill(0);
+    let pending = 0;
+    let resolved = 0;
+    let cancelled = false;
+    for (let row = 0; row < allRows.length; row++) {
       for (let col = 0; col < columnCount; col++) {
-        let max = 0;
-        for (let row = 0; row < allRows.length; row++) {
-          max = Math.max(max, naturalWidthsRef.current.get(`${row}-${col}`)!);
-        }
-        widths.push(Math.min(max, TABLE_MAX_COLUMN_WIDTH));
+        const ref = cellRefs.current.get(`${row}-${col}`);
+        if (!ref) continue;
+        pending++;
+        ref.measure((_x, _y, w) => {
+          if (cancelled) return;
+          if (w > widths[col]) widths[col] = w;
+          resolved++;
+          if (resolved === pending) {
+            setColumnWidths(
+              widths.map((cw) => Math.min(cw, TABLE_MAX_COLUMN_WIDTH))
+            );
+          }
+        });
       }
-      setColumnWidths(widths);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [columnWidths, columnCount, allRows.length]);
+
+  const setCellRef = useCallback(
+    (rowIdx: number, colIdx: number) => (node: RNView | null) => {
+      const key = `${rowIdx}-${colIdx}`;
+      if (node) {
+        cellRefs.current.set(key, node);
+      } else {
+        cellRefs.current.delete(key);
+      }
     },
-    [columnWidths, columnCount, allRows.length, totalCells]
+    []
   );
 
   const totalWidth = columnWidths?.reduce((a, b) => a + b, 0);
@@ -764,6 +802,7 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
                 return (
                   <View
                     key={colIdx}
+                    ref={setCellRef(rowIdx, colIdx)}
                     flexShrink={0}
                     paddingVertical="$xl"
                     paddingLeft={colIdx === 0 ? 0 : '$l'}
@@ -771,7 +810,6 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
                     {...(colWidth != null
                       ? { width: colWidth }
                       : { maxWidth: TABLE_MAX_COLUMN_WIDTH })}
-                    onLayout={handleCellLayout(rowIdx, colIdx)}
                   >
                     <LineRenderer
                       inlines={cell.content}
