@@ -269,6 +269,15 @@ async function _sendPost({
   logger.crumb('done optimistic update');
   try {
     logger.crumb('enqueuing sending post to backend');
+    const debug = {
+      postId: cachePost.id,
+      channelId: channel.id,
+      parentId: cachePost.parentId ?? null,
+    };
+    const trackSendDebug = (
+      phase: string,
+      extra?: Record<string, unknown>
+    ) => logger.trackEvent('Post Send Debug', { ...debug, phase, ...extra });
 
     // Ensure uploads are started. Uploads are likely already started in UI,
     // but may as well make sure they're started here to avoid blocking in
@@ -277,6 +286,7 @@ async function _sendPost({
 
     await sessionActionQueue.add(async () => {
       logger.crumb('finalizing post');
+      trackSendDebug('queue_action_started');
       const finalizedPostData = await finalizedPostDataPromise;
 
       logger.crumb('updating post in db with finalized data');
@@ -304,6 +314,7 @@ async function _sendPost({
           );
         }
         logger.crumb('sending reply to API');
+        trackSendDebug('api_send_started', { operation: 'sendReply' });
         return api.sendReply({
           channelId: channel.id,
           parentId: finalizedPostData.replyToPostId,
@@ -316,6 +327,7 @@ async function _sendPost({
       } else {
         // Non-reply
         logger.crumb('sending post to API');
+        trackSendDebug('api_send_started', { operation: 'sendPost' });
         return api.sendPost({
           channelId: channel.id,
           authorId,
@@ -325,6 +337,9 @@ async function _sendPost({
           sentAt: cachePost.sentAt,
         });
       }
+    }, {
+      operation: cachePost.parentId == null ? 'sendPost' : 'sendReply',
+      ...debug,
     });
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
@@ -368,6 +383,7 @@ async function _sendPost({
     // the client didn't get the confirmation
     const errorMsg = e.message?.toLowerCase() || '';
     const isConnectionRelated =
+      e.name === 'PokeAckTimeoutError' ||
       errorMsg === 'aborted' ||
       errorMsg.includes('channel was reaped') ||
       errorMsg.includes('fetch timed out');
