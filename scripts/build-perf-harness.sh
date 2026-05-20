@@ -407,7 +407,13 @@ run_steps() {
   fi
 
   record pnpm_install      step_pnpm_install
-  record build_packages    pnpm run build:packages
+  # build_packages is intentionally NOT here: Metro resolves @tloncorp/*
+  # workspace packages to their src/ directories via the `tlon-source`
+  # condition (see apps/tlon-mobile/metro.config.js + tsconfig.json
+  # `customConditions`). The compiled dist/ outputs are not consumed by
+  # the mobile build at all, so running `pnpm run build:packages` is
+  # ~6-9s of pure overhead. Keep here as a commented reference.
+  # record build_packages    pnpm run build:packages
   record generate_tailwind pnpm --filter tlon-mobile run generate:tailwind
 
   if [[ "$PLATFORM" == "ios" ]]; then
