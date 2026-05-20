@@ -86,9 +86,9 @@ The current renderer expects one `createSurface` message and one `updateComponen
 The supported v1 client subset is intentionally small:
 
 - components: `Card`, `Column`, `Row`, `Text`, `Divider`, and `Button`
-- button actions: `tlon.sendMessage`, currently scoped to explicit compile-request cards (for example, sending `lore confirm compile`) through the current draft context after user confirmation
+- button actions: `tlon.sendMessage`, currently scoped to post-ingest compile-request cards (for example, sending `lore confirm compile`) through the current draft context after user confirmation
 - rendering policy: A2UI blocks render in chat-like surfaces (DMs, group DMs, and group/channel chats) and are suppressed in search/read-only render paths where no active chat context is available
-- action policy: buttons are disabled when the current user cannot draft/send in that context. Pressing an enabled compile-request button opens a confirmation prompt that shows the A2UI action name, button label/fallback, exact text that will be sent, and destination channel/context before anything is sent.
+- action policy: buttons are disabled when the current user cannot draft/send in that context. Pressing an enabled post-ingest compile-request button opens a confirmation prompt that shows the A2UI action name, button label/fallback, exact text that will be sent, and destination channel/context before anything is sent.
 - validation limits: component count, tree depth, text length, button count, and expanded render size
 
 ## Read/write behavior

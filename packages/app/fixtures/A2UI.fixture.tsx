@@ -271,9 +271,9 @@ function makeCompileRequestA2UI({
 
 const compileRequestA2UI = makeCompileRequestA2UI({
   surfaceId: 'lore-compile-request',
-  title: 'Compile the wiki now?',
-  metadata: ['Requested by ~malmur-halmex', 'Channel: %lore Inbox'],
-  copy: 'This will run the sidecar compiler and mirror updated lore wiki/media outputs.',
+  title: 'New lore is ready to compile',
+  metadata: ['Ingested: The Bitter Lesson', 'Channel: %lore Inbox'],
+  copy: 'The source has been saved. Compile now to update the wiki and mirror fresh outputs.',
 });
 
 const basicComponentsA2UI: A2UI.BlobEntry = {
@@ -498,7 +498,7 @@ const weatherPost = makePost(
 
 const compileRequestPost = makePost(
   exampleContacts.groupAdmin,
-  [verse.inline('Lore compile request')],
+  [verse.inline('lore: ✓ “The Bitter Lesson” → AI & Technology notebook')],
   {
     blob: appendToPostBlob(undefined, compileRequestA2UI),
     channelId: tlonLocalIntros.id,
