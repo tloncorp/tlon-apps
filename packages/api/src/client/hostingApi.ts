@@ -261,6 +261,39 @@ export interface TlawnConfig {
   autoDiscoverChannels: boolean;
 }
 
+export interface TlawnOAuthGrant {
+  connected: boolean;
+  expired: boolean;
+  expiresAt: string | null;
+  hasRefreshToken: boolean;
+  provider: string;
+  scopes: string;
+  tokenType: string;
+}
+
+export interface TlawnOAuthStatus {
+  available: boolean;
+  grants: TlawnOAuthGrant[];
+}
+
+export interface TlawnOAuthStartRequest {
+  providerId: string;
+  finalRedirectUrl: string;
+}
+
+export interface TlawnOAuthStartResponse {
+  authUrl: string;
+}
+
+interface RawTlawnOAuthStartResponse {
+  authUrl?: string;
+  url?: string;
+}
+
+function normalizeTlawnShipId(ship: string) {
+  return encodeURIComponent(ship.replace(/^~/, ''));
+}
+
 // --- Tlawn (bot) user-level endpoints ---
 
 export async function getTlawnProviderKeys(
@@ -325,6 +358,38 @@ export async function getTlawnProviderModels(
 
 export async function getTlawnBotInfo(ship: string): Promise<TlawnBotInfo> {
   return hostingFetch<TlawnBotInfo>(`/v1/tlawn/ships/${ship}`);
+}
+
+export async function getTlawnOAuthStatus(
+  ship: string
+): Promise<TlawnOAuthStatus> {
+  return hostingFetch<TlawnOAuthStatus>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/status`
+  );
+}
+
+export async function startTlawnOAuth(
+  ship: string,
+  request: TlawnOAuthStartRequest
+): Promise<TlawnOAuthStartResponse> {
+  const body = {
+    provider: request.providerId,
+    finalRedirectUrl: request.finalRedirectUrl,
+  };
+  const response = await hostingFetch<RawTlawnOAuthStartResponse>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/start`,
+    jsonInit('POST', body)
+  );
+  const authUrl = response.authUrl ?? response.url;
+  if (!authUrl) {
+    throw new HostingError('OAuth start did not return an auth URL', {
+      method: 'POST',
+      path: `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/start`,
+      status: null,
+    });
+  }
+
+  return { authUrl };
 }
 
 // These endpoints return `string | null` (not an object) so they can't go

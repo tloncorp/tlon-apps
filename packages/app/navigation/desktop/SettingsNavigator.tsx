@@ -6,10 +6,11 @@ import { getVariableValue, useTheme } from '@tamagui/core';
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
+import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
@@ -54,8 +55,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, [navigate]);
 
   const onBotSettingsPressed = useCallback(() => {
-    Linking.openURL('https://tlon.network/tlonbot');
-  }, []);
+    navigate('BotSettings');
+  }, [navigate]);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigate('FeatureFlags');
@@ -127,6 +128,7 @@ export const SettingsNavigator = () => {
         name="ManageAccount"
         component={ManageAccountScreen}
       />
+      <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
       <SettingsDrawer.Screen
         name="FeatureFlags"
         component={FeatureFlagScreen}
