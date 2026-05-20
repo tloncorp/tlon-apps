@@ -286,69 +286,100 @@ import re, sys
 from datetime import datetime
 
 log_path, out_path = sys.argv[1], sys.argv[2]
-
 ts_re = re.compile(r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+(\S+)')
 
-# Map a milestone text (substring) to a phase label. The harness reports
-# elapsed time BETWEEN consecutive milestones in the order they appear.
-# Lines without an ISO timestamp inherit the most recent one we saw.
-milestones = [
-    ('expo:env',                                            'expo_init'),
-    ('expo:doctor',                                         'doctor_check'),
-    ('Searching builds with matching fingerprint',          'eas_cache_lookup'),
-    ('Successfully downloaded cached build',                'eas_cache_download'),
-    ('No builds available',                                 'eas_cache_miss'),
-    ('Auto signing app',                                    'sign_setup'),
-    ('Planning build',                                      'planning'),
-    ('Installing on iPhone',                                'install_on_sim'),
-    ('Opening on iPhone',                                   'opening_app'),
-    ('Uploading build to EAS',                              'eas_cache_upload'),
-    ('Build successfully uploaded',                         'eas_cache_upload_done'),
+# Markers we track. Each is (substring, label, must-have-timestamp-on-same-line).
+# Lines from the cache provider don't have ISO timestamps — we inherit the last
+# timestamped line for those. Timestamp-bearing markers anchor the timeline.
+markers = [
+    # Substring                                           Label
+    ('expo:env',                                           'env_load_first'),
+    ('expo:run:ios:options:resolveNativeScheme',           'scheme_resolved'),
+    ('expo:doctor',                                        'doctor_check_first'),
+    ('Searching builds with matching fingerprint',         'cache_search'),
+    ('Successfully downloaded cached build',               'cache_hit_downloaded'),
+    ('No builds available',                                'cache_miss'),
+    ('expo:run:ios Binary path',                           'binary_chosen'),
+    ('expo:start:platforms:ios:xcrun Running: xcrun simctl install', 'install_start'),
+    ('expo:start:platforms:ios:AppleDeviceManager getApplicationIdFromBundle', 'install_done'),
+    ('expo:start:platforms:ios:xcrun Running: xcrun simctl openurl', 'open_url'),
+    ('Uploading build to EAS',                             'upload_start'),
+    ('Build successfully uploaded',                        'upload_done'),
 ]
 
-# Phase first-seen timestamps.
+# First-seen timestamps per label
 seen = {}
 current_ts = None
+start_ts = None
 
 with open(log_path, errors='replace') as f:
     for line in f:
         m = ts_re.match(line)
         if m:
             current_ts = datetime.fromisoformat(m.group(1).replace('Z', '+00:00'))
-        for text, label in milestones:
-            if text in line and label not in seen:
+            if start_ts is None:
+                start_ts = current_ts
+        for text, label in markers:
+            if text in line and label not in seen and current_ts is not None:
                 seen[label] = current_ts
 
-# Compute duration of the whole native_build window.
-all_ts = sorted(ts for ts in seen.values() if ts is not None)
-start = all_ts[0] if all_ts else None
-end = all_ts[-1] if all_ts else None
+# Compute named phases as gaps between specific markers we can rely on.
+# Only use timestamped markers — the cache provider's "Searching builds…" /
+# "Successfully downloaded cached build" lines have no ISO timestamp, so we
+# can't use them as anchors. Bracket them via the surrounding expo:* lines.
+def gap(a, b):
+    if a in seen and b in seen:
+        return round((seen[b] - seen[a]).total_seconds(), 1)
+    return None
 
-# Order the labels by first-seen timestamp.
-ordered = sorted(((ts, label) for label, ts in seen.items() if ts), key=lambda x: x[0])
+cache_hit = 'cache_hit_downloaded' in seen
+cache_miss = 'cache_miss' in seen
+cache_outcome = 'HIT' if cache_hit else ('MISS' if cache_miss else 'unknown')
 
-phase_rows = []
-for i, (ts, label) in enumerate(ordered):
-    if i + 1 < len(ordered):
-        delta = (ordered[i + 1][0] - ts).total_seconds()
-    elif end and ts:
-        delta = (end - ts).total_seconds()
+phases = []
+# 1. expo CLI startup + fingerprint computation (the eas-cli subprocess that
+#    hashes 200+ files and reports back). Dominant cost on cache-hit path.
+if 'env_load_first' in seen and 'scheme_resolved' in seen:
+    phases.append(('startup_+_fingerprint_compute', gap('env_load_first', 'scheme_resolved')))
+# 2. Doctor / simulator picking / cache lookup decision + (if hit) download
+#    OR (if miss) full xcodebuild. All bracketed by scheme_resolved →
+#    binary_chosen.
+if 'scheme_resolved' in seen and 'binary_chosen' in seen:
+    if cache_hit:
+        phases.append(('doctor_+_lookup_+_download', gap('scheme_resolved', 'binary_chosen')))
+    elif cache_miss:
+        phases.append(('doctor_+_lookup_+_xcodebuild', gap('scheme_resolved', 'binary_chosen')))
     else:
-        delta = 0
-    phase_rows.append((label, round(delta, 1)))
+        phases.append(('doctor_+_lookup_+_???', gap('scheme_resolved', 'binary_chosen')))
+# 3. simctl install + launch.
+if 'binary_chosen' in seen and 'install_start' in seen:
+    phases.append(('prep_install', gap('binary_chosen', 'install_start')))
+if 'install_start' in seen and 'install_done' in seen:
+    phases.append(('simctl_install', gap('install_start', 'install_done')))
+if 'install_done' in seen and 'open_url' in seen:
+    phases.append(('launch_+_open_url', gap('install_done', 'open_url')))
+# 4. Upload (cache miss path only).
+if 'upload_start' in seen and 'upload_done' in seen:
+    phases.append(('eas_cache_upload', gap('upload_start', 'upload_done')))
 
-# Print + write
 with open(out_path, 'w') as out:
-    for label, secs in phase_rows:
+    for label, secs in phases:
         out.write(f"{label}\t{secs}\n")
 
 print()
-print("=== expo CLI sub-phases (within native_build) ===")
-if not phase_rows:
-    print("  (no expo debug markers found — was EXPO_DEBUG=1 set?)")
+print(f"=== expo CLI sub-phases (within native_build, cache {cache_outcome}) ===")
+if not phases:
+    print("  (no recognizable markers — was EXPO_DEBUG=1 set?)")
 else:
-    for label, secs in phase_rows:
-        print(f"  {label:<22} {secs:>6.1f}s")
+    total = 0.0
+    for label, secs in phases:
+        if secs is not None:
+            print(f"  {label:<34} {secs:>6.1f}s")
+            total += secs
+    print(f"  {'-' * 34} {'------'}")
+    print(f"  {'sum of phases above':<34} {total:>6.1f}s")
+    if start_ts is not None and current_ts is not None:
+        print(f"  {'wall-clock first→last expo: line':<34} {(current_ts - start_ts).total_seconds():>6.1f}s")
 PY
 }
 
