@@ -152,6 +152,7 @@ export type SettingsDrawerParamList = Pick<
   | 'Theme'
   | 'FeatureFlags'
   | 'ManageAccount'
+  | 'BotSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
