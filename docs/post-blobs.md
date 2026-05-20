@@ -14,7 +14,7 @@ When no extra data is needed, the field is `null` (`blob=~` in Hoon).
 
 ## Entry schema
 
-Blob entries are a discriminated union keyed on `type` and `version`. Definitions live in `packages/api/src/lib/content-helpers.ts` and are registered in `postBlobDataEntryDefinitions`, which drives both write-time validation and read-time parsing.
+Blob entries are a discriminated union keyed on `type` and `version`. Definitions live in `packages/api/src/client/content-helpers.ts` and are registered in `postBlobDataEntryDefinitions`, which drives both write-time validation and read-time parsing.
 
 Each concrete entry type should have:
 
@@ -68,9 +68,31 @@ Video upload metadata.
 | `duration`  | `number` (optional) |
 | `posterUri` | `string` (optional) |
 
+### `a2ui` v1
+
+A2UI presentation metadata. This lets a post carry a small validated A2UI v0.9 component tree alongside normal text content.
+
+Definitions and validation helpers live in `packages/api/src/client/a2ui.ts`; the entry is registered with the shared blob union through `A2UI.blobEntrySchema`.
+
+| field      | type               |
+| ---------- | ------------------ |
+| `type`     | `'a2ui'`           |
+| `version`  | `1`                |
+| `messages` | `A2UI.Message[]`   |
+| `recipe`   | `unknown` optional |
+
+The current renderer expects one `createSurface` message and one `updateComponents` message in the entry. The `updateComponents` message describes the component tree rendered for that post. It does not update surfaces in previous messages or elsewhere in message history.
+
+The supported v1 client subset is intentionally small:
+
+- components: `Card`, `Column`, `Row`, `Text`, `Divider`, and `Button`
+- button actions: `tlon.sendMessage`, which sends visible text in the current DM
+- rendering policy: A2UI blocks render only in direct messages for now
+- validation limits: component count, tree depth, text length, button count, and expanded render size
+
 ## Read/write behavior
 
-- Writes happen through helpers in `packages/api/src/lib/content-helpers.ts`. `appendToPostBlob` is the base helper; `appendFileUploadToPostBlob` and `appendVideoToPostBlob` are convenience wrappers.
+- Writes happen through helpers in `packages/api/src/client/content-helpers.ts`. `appendToPostBlob` is the base helper; `appendFileUploadToPostBlob` and `appendVideoToPostBlob` are convenience wrappers.
 - `toPostData` builds blobs from finalized attachments.
 - `PostDataDraft` does not store `blob`; blob is computed during finalization from attachments.
 - The edit transport can carry a blob, but current frontend edit flows do not implement blob editing. Network edits preserve the original blob.
@@ -89,7 +111,7 @@ Video upload metadata.
 
 ## Adding a new entry type
 
-1. Add a named schema and inferred type in `packages/api/src/lib/content-helpers.ts`.
+1. Add a named schema and inferred type in `packages/api/src/client/content-helpers.ts`.
 2. Add that schema to `postBlobDataEntryDefinitions`.
 3. Add an `appendXToPostBlob` helper if the new entry will be written from more than one place.
 4. Update the relevant attachment unions in `packages/api/src/types/attachment.ts` so the new entry can be finalized and passed into `toPostData`.

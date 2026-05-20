@@ -1,11 +1,14 @@
+import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
+import { A2UI } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback } from 'react';
+import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
+import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -13,6 +16,7 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { SentTimeText } from '../SentTimeText';
+import { useDraftInputContext } from '../draftInputs/shared';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -55,6 +59,7 @@ export function StaticChatMessage({
   showReplies?: boolean;
 }) {
   const isNotice = post.type === 'notice';
+  const draftInputContext = useDraftInputContext();
 
   if (isNotice) {
     showAuthor = false;
@@ -88,8 +93,55 @@ export function StaticChatMessage({
     }
   }, [onPressRetry, post]);
 
-  const content = usePostContent(post);
-  const lastEditContent = usePostLastEditContent(post);
+  const handleA2UIAction = useCallback(
+    async (action: A2UI.Button['action'], fallbackText: string) => {
+      if (action.event.name !== A2UI.action.sendMessage) {
+        return;
+      }
+
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        return;
+      }
+
+      const message = action.event.context?.text ?? fallbackText;
+      const text = message.trim();
+      if (!text) {
+        return;
+      }
+
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [text],
+        attachments: [],
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
+    },
+    [draftInputContext]
+  );
+  const canRenderA2UI = isDmChannelId(post.channelId);
+  const canHandleA2UIAction =
+    canRenderA2UI &&
+    !!draftInputContext &&
+    draftInputContext.canStartDraft !== false;
+
+  const postContent = usePostContent(post);
+  const lastEditPostContent = usePostLastEditContent(post);
+  const content = useMemo(
+    () =>
+      canRenderA2UI
+        ? postContent
+        : postContent.filter((block) => block.type !== 'a2ui'),
+    [canRenderA2UI, postContent]
+  );
+  const lastEditContent = useMemo(
+    () =>
+      canRenderA2UI
+        ? lastEditPostContent
+        : lastEditPostContent.filter((block) => block.type !== 'a2ui'),
+    [canRenderA2UI, lastEditPostContent]
+  );
 
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
@@ -162,6 +214,7 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
+            onA2UIAction={canHandleA2UIAction ? handleA2UIAction : undefined}
             searchQuery={searchQuery}
           />
         )}
@@ -206,6 +259,9 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
 };
 
 const ChatContentRenderer = createContentRenderer({
+  blockRenderers: {
+    a2ui: A2UIBlock,
+  },
   blockSettings: {
     blockWrapper: {
       paddingLeft: 0,
