@@ -710,13 +710,15 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
   // on `block` reference — upstream memoization invalidates often enough
   // (every time the `post` object gets a new ref from the data layer) that
   // a [block]-dep reset clears measurement mid-flight and the table never
-  // converges to aligned columns. Compare a cheap content fingerprint
-  // instead, so reference churn over equivalent content is a no-op.
+  // converges to aligned columns. Fingerprint the cell content itself so
+  // edits that change rendered width (e.g. "iii" → "WWW", swapped emoji,
+  // re-styled inlines) invalidate the cache while pure reference churn
+  // over equivalent content is a no-op.
   const contentKey = useMemo(
     () =>
       JSON.stringify([
-        block.header.cells.map((c) => c.content.length),
-        block.rows.map((r) => r.cells.map((c) => c.content.length)),
+        block.header.cells.map((c) => c.content),
+        block.rows.map((r) => r.cells.map((c) => c.content)),
         block.align,
       ]),
     [block]
