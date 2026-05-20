@@ -1,8 +1,7 @@
-import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
-import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback, useMemo } from 'react';
+import { ConfirmDialog, Text } from '@tloncorp/ui';
+import { ComponentProps, useCallback, useMemo, useState } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
@@ -21,6 +20,19 @@ import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
 import { ReactionsDisplay } from './ReactionsDisplay';
+import {
+  getA2UIConfirmationDescription,
+  getA2UIDestinationLabel,
+  getA2UISendText,
+  isA2UIRenderableChatContext,
+} from './a2uiActions';
+
+type PendingA2UIAction = {
+  action: A2UI.Button['action'];
+  buttonLabel: string;
+  sendText: string;
+  destination: string;
+};
 
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
@@ -60,6 +72,8 @@ export function StaticChatMessage({
 }) {
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
+  const [pendingA2UIAction, setPendingA2UIAction] =
+    useState<PendingA2UIAction | null>(null);
 
   if (isNotice) {
     showAuthor = false;
@@ -94,7 +108,11 @@ export function StaticChatMessage({
   }, [onPressRetry, post]);
 
   const handleA2UIAction = useCallback(
-    async (action: A2UI.Button['action'], fallbackText: string) => {
+    (
+      action: A2UI.Button['action'],
+      fallbackText: string,
+      buttonLabel: string
+    ) => {
       if (action.event.name !== A2UI.action.sendMessage) {
         return;
       }
@@ -103,28 +121,64 @@ export function StaticChatMessage({
         return;
       }
 
-      const message = action.event.context?.text ?? fallbackText;
-      const text = message.trim();
+      const text = getA2UISendText(action, fallbackText);
       if (!text) {
         return;
       }
 
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [text],
-        attachments: [],
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
+      setPendingA2UIAction({
+        action,
+        buttonLabel: buttonLabel.trim() || fallbackText.trim(),
+        sendText: text,
+        destination: getA2UIDestinationLabel({
+          channel: draftInputContext.channel,
+          group: draftInputContext.group,
+        }),
       });
     },
     [draftInputContext]
   );
-  const canRenderA2UI = isDmChannelId(post.channelId);
+
+  const handleConfirmA2UIAction = useCallback(() => {
+    if (!pendingA2UIAction || !draftInputContext) {
+      return;
+    }
+
+    const actionToSend = pendingA2UIAction;
+    setPendingA2UIAction(null);
+
+    draftInputContext
+      .sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [actionToSend.sendText],
+        attachments: [],
+        channelType: draftInputContext.channel.type,
+        replyToPostId: draftInputContext.replyToPost?.id ?? null,
+        isEdit: false,
+      })
+      .catch((e) => {
+        console.error('Failed to send A2UI action', e);
+      });
+  }, [draftInputContext, pendingA2UIAction]);
+
+  const canRenderA2UI = isA2UIRenderableChatContext({
+    channel: draftInputContext?.channel,
+    postChannelId: post.channelId,
+    searchQuery,
+  });
   const canHandleA2UIAction =
     canRenderA2UI &&
     !!draftInputContext &&
     draftInputContext.canStartDraft !== false;
+
+  const a2uiConfirmationDescription = pendingA2UIAction
+    ? getA2UIConfirmationDescription({
+        actionName: pendingA2UIAction.action.event.name,
+        buttonLabel: pendingA2UIAction.buttonLabel,
+        sendText: pendingA2UIAction.sendText,
+        destination: pendingA2UIAction.destination,
+      })
+    : '';
 
   const postContent = usePostContent(post);
   const lastEditPostContent = usePostLastEditContent(post);
@@ -151,6 +205,18 @@ export function StaticChatMessage({
 
   return (
     <YStack key={post.id}>
+      <ConfirmDialog
+        title="Confirm A2UI action"
+        description={a2uiConfirmationDescription}
+        confirmText="Send message"
+        open={!!pendingA2UIAction}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingA2UIAction(null);
+          }
+        }}
+        onConfirm={handleConfirmA2UIAction}
+      />
       {isHighlighted && <ChatMessageHighlight active={isHighlighted} />}
       {showAuthor ? (
         <AuthorRow

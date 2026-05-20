@@ -32,7 +32,8 @@ export interface ContentContextProps {
   onLongPress?: () => void;
   onA2UIAction?: (
     action: A2UI.Button['action'],
-    fallbackText: string
+    fallbackText: string,
+    buttonLabel: string
   ) => void | Promise<void>;
   searchQuery?: string;
 }

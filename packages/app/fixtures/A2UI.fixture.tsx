@@ -604,7 +604,7 @@ const channelApprovalPost = makePost(
   [verse.inline('Channel mention request from Littel Wolfur (~littel-wolfur)')],
   {
     blob: appendToPostBlob(undefined, channelApprovalA2UI),
-    channelId: dmChannelId,
+    channelId: tlonLocalIntros.id,
     replyCount: 0,
   }
 );
@@ -614,7 +614,7 @@ const groupApprovalPost = makePost(
   [verse.inline('Group invite request from Robin Dasler (~robin-dasler)')],
   {
     blob: appendToPostBlob(undefined, groupApprovalA2UI),
-    channelId: dmChannelId,
+    channelId: tlonLocalIntros.id,
     replyCount: 0,
   }
 );
@@ -637,11 +637,14 @@ const examplePosts = [
   basicComponentsPost,
 ];
 
-function A2UIDraftProvider({ children }: PropsWithChildren) {
+function A2UIDraftProvider({
+  canStartDraft = true,
+  children,
+}: PropsWithChildren<{ canStartDraft?: boolean }>) {
   const [shouldBlur, setShouldBlur] = useState(false);
   const draftContext = useMemo<DraftInputContext>(
     () => ({
-      canStartDraft: true,
+      canStartDraft,
       channel: tlonLocalIntros,
       clearDraft: async () => {},
       configuration: {} as Record<string, JSONValue>,
@@ -659,7 +662,7 @@ function A2UIDraftProvider({ children }: PropsWithChildren) {
       startDraft: () => {},
       storeDraft: async (_content: JSONContent) => {},
     }),
-    [shouldBlur]
+    [canStartDraft, shouldBlur]
   );
 
   return (
@@ -724,9 +727,38 @@ function A2UIExamplesFixture() {
   );
 }
 
+function A2UIReadOnlyExamplesFixture() {
+  return (
+    <FixtureWrapper fillWidth fillHeight>
+      <ChannelProvider value={{ channel: tlonLocalIntros }}>
+        <A2UIDraftProvider canStartDraft={false}>
+          <ScrollView
+            flex={1}
+            contentContainerStyle={{
+              alignItems: 'flex-start',
+              flexDirection: 'column',
+              paddingHorizontal: '$m',
+              paddingVertical: '$2xl',
+            }}
+          >
+            <View maxWidth={520} width="100%">
+              <ChatMessage
+                post={channelApprovalPost}
+                showAuthor={true}
+                showReplies={true}
+              />
+            </View>
+          </ScrollView>
+        </A2UIDraftProvider>
+      </ChannelProvider>
+    </FixtureWrapper>
+  );
+}
+
 export default {
   BasicComponents: () => <A2UIFixture post={basicComponentsPost} />,
   Weather: () => <A2UIFixture post={weatherPost} />,
   ConfirmationDialog: () => <A2UIFixture post={confirmationPost} />,
   Examples: () => <A2UIExamplesFixture />,
+  ReadOnlyDisabledActions: () => <A2UIReadOnlyExamplesFixture />,
 };
