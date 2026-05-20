@@ -178,44 +178,18 @@ const weatherA2UI: A2UI.BlobEntry = {
   ],
 };
 
-function makeApprovalA2UI({
+function makeCompileRequestA2UI({
   surfaceId,
-  eyebrow,
   title,
   metadata,
   copy,
-  allowNote,
-  requestId,
 }: {
   surfaceId: string;
-  eyebrow: string;
   title: string;
   metadata: string[];
-  copy?: string;
-  allowNote: string;
-  requestId: string;
+  copy: string;
 }): A2UI.BlobEntry {
   const metadataChildren = metadata.map((_, index) => `metadata-${index}`);
-  const bodyChildren = copy
-    ? [
-        'eyebrow',
-        'title',
-        'titleDivider',
-        ...metadataChildren,
-        'copy',
-        'divider',
-        'details',
-        'actions',
-      ]
-    : [
-        'eyebrow',
-        'title',
-        'titleDivider',
-        ...metadataChildren,
-        'divider',
-        'details',
-        'actions',
-      ];
 
   return {
     type: 'a2ui',
@@ -234,24 +208,26 @@ function makeApprovalA2UI({
           surfaceId,
           root: 'root',
           components: [
-            { id: 'root', component: 'Card', child: 'body' },
+            { id: 'root', component: 'Card', child: 'main-column' },
             {
-              id: 'body',
+              id: 'main-column',
               component: 'Column',
-              children: bodyChildren,
+              children: [
+                'eyebrow',
+                'title',
+                'titleDivider',
+                ...metadataChildren,
+                'copy',
+                'actions',
+              ],
             },
             {
               id: 'eyebrow',
               component: 'Text',
               variant: 'caption',
-              text: eyebrow,
+              text: 'Lore compile request',
             },
-            {
-              id: 'title',
-              component: 'Text',
-              variant: 'h3',
-              text: title,
-            },
+            { id: 'title', component: 'Text', variant: 'h2', text: title },
             { id: 'titleDivider', component: 'Divider' },
             ...metadata.map(
               (line, index) =>
@@ -262,71 +238,30 @@ function makeApprovalA2UI({
                   text: line,
                 }) as const
             ),
-            ...(copy
-              ? [
-                  {
-                    id: 'copy',
-                    component: 'Text',
-                    variant: 'caption',
-                    text: copy,
-                  } as const,
-                ]
-              : []),
-            { id: 'divider', component: 'Divider' },
             {
-              id: 'details',
-              component: 'Column',
-              children: ['allowNote'],
-            },
-            {
-              id: 'allowNote',
+              id: 'copy',
               component: 'Text',
               variant: 'caption',
-              text: allowNote,
+              text: copy,
             },
             {
               id: 'actions',
               component: 'Row',
-              children: ['allow', 'reject', 'ban'],
+              children: ['compile'],
             },
             {
-              id: 'allow',
+              id: 'compile',
               component: 'Button',
               variant: 'primary',
-              child: 'allowLabel',
+              child: 'compileLabel',
               action: {
                 event: {
                   name: 'tlon.sendMessage',
-                  context: { text: `/allow ${requestId}` },
+                  context: { text: 'lore confirm compile' },
                 },
               },
             },
-            { id: 'allowLabel', component: 'Text', text: 'Allow' },
-            {
-              id: 'reject',
-              component: 'Button',
-              child: 'rejectLabel',
-              action: {
-                event: {
-                  name: 'tlon.sendMessage',
-                  context: { text: `/reject ${requestId}` },
-                },
-              },
-            },
-            { id: 'rejectLabel', component: 'Text', text: 'Reject' },
-            {
-              id: 'ban',
-              component: 'Button',
-              variant: 'borderless',
-              child: 'banLabel',
-              action: {
-                event: {
-                  name: 'tlon.sendMessage',
-                  context: { text: `/ban ${requestId}` },
-                },
-              },
-            },
-            { id: 'banLabel', component: 'Text', text: 'Block' },
+            { id: 'compileLabel', component: 'Text', text: 'Compile now' },
           ],
         },
       },
@@ -334,39 +269,11 @@ function makeApprovalA2UI({
   };
 }
 
-const confirmationA2UI = makeApprovalA2UI({
-  surfaceId: 'confirm-dm-sampel',
-  eyebrow: 'DM access',
-  title: 'Allow Sam Palnet to DM the bot?',
-  metadata: ['Sender: Sam Palnet (~sampel-palnet)'],
-  copy: 'Message: "Hello, I would like to chat with your bot..."',
-  allowNote:
-    'The bot will be able to read and reply to future DMs from this user.',
-  requestId: 'da1b2',
-});
-
-const channelApprovalA2UI = makeApprovalA2UI({
-  surfaceId: 'confirm-channel-littel',
-  eyebrow: 'Channel access',
-  title: 'Let the bot reply to Littel Wolfur in Design?',
-  metadata: [
-    'Sender: Littel Wolfur (~littel-wolfur)',
-    'Channel: Design',
-    'Group: Garden Club',
-  ],
-  copy: 'Message: "@bearclawd can you review this build before I merge?"',
-  allowNote:
-    'The bot will be able to read and reply to this user in this channel.',
-  requestId: 'c3d4e',
-});
-
-const groupApprovalA2UI = makeApprovalA2UI({
-  surfaceId: 'confirm-group-robin',
-  eyebrow: 'Group invite',
-  title: 'Let the bot join Garden Club?',
-  metadata: ['Inviter: Robin Dasler (~robin-dasler)', 'Group: Garden Club'],
-  allowNote: 'The bot will be able to read and respond in channels it joins.',
-  requestId: 'g5f6a',
+const compileRequestA2UI = makeCompileRequestA2UI({
+  surfaceId: 'lore-compile-request',
+  title: 'Compile the wiki now?',
+  metadata: ['Requested by ~malmur-halmex', 'Channel: %lore Inbox'],
+  copy: 'This will run the sidecar compiler and mirror updated lore wiki/media outputs.',
 });
 
 const basicComponentsA2UI: A2UI.BlobEntry = {
@@ -589,31 +496,11 @@ const weatherPost = makePost(
   }
 );
 
-const confirmationPost = makePost(
+const compileRequestPost = makePost(
   exampleContacts.groupAdmin,
-  [verse.inline('DM request from Sam Palnet (~sampel-palnet)')],
+  [verse.inline('Lore compile request')],
   {
-    blob: appendToPostBlob(undefined, confirmationA2UI),
-    channelId: dmChannelId,
-    replyCount: 0,
-  }
-);
-
-const channelApprovalPost = makePost(
-  exampleContacts.mark,
-  [verse.inline('Channel mention request from Littel Wolfur (~littel-wolfur)')],
-  {
-    blob: appendToPostBlob(undefined, channelApprovalA2UI),
-    channelId: tlonLocalIntros.id,
-    replyCount: 0,
-  }
-);
-
-const groupApprovalPost = makePost(
-  exampleContacts.groupAdmin,
-  [verse.inline('Group invite request from Robin Dasler (~robin-dasler)')],
-  {
-    blob: appendToPostBlob(undefined, groupApprovalA2UI),
+    blob: appendToPostBlob(undefined, compileRequestA2UI),
     channelId: tlonLocalIntros.id,
     replyCount: 0,
   }
@@ -629,13 +516,7 @@ const basicComponentsPost = makePost(
   }
 );
 
-const examplePosts = [
-  weatherPost,
-  confirmationPost,
-  channelApprovalPost,
-  groupApprovalPost,
-  basicComponentsPost,
-];
+const examplePosts = [weatherPost, compileRequestPost, basicComponentsPost];
 
 function A2UIDraftProvider({
   canStartDraft = true,
@@ -743,7 +624,7 @@ function A2UIReadOnlyExamplesFixture() {
           >
             <View maxWidth={520} width="100%">
               <ChatMessage
-                post={channelApprovalPost}
+                post={compileRequestPost}
                 showAuthor={true}
                 showReplies={true}
               />
@@ -758,7 +639,7 @@ function A2UIReadOnlyExamplesFixture() {
 export default {
   BasicComponents: () => <A2UIFixture post={basicComponentsPost} />,
   Weather: () => <A2UIFixture post={weatherPost} />,
-  ConfirmationDialog: () => <A2UIFixture post={confirmationPost} />,
+  CompileRequest: () => <A2UIFixture post={compileRequestPost} />,
   Examples: () => <A2UIExamplesFixture />,
   ReadOnlyDisabledActions: () => <A2UIReadOnlyExamplesFixture />,
 };
