@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import {
   getA2UIConfirmationDescription,
   getA2UIDestinationLabel,
+  getA2UIPokePayload,
   getA2UISendText,
   isA2UIRenderableChatContext,
 } from './a2uiActions';
@@ -12,6 +13,17 @@ const sendMessageAction = (text?: string): A2UI.Button['action'] => ({
   event: {
     name: 'tlon.sendMessage',
     context: text === undefined ? undefined : { text },
+  },
+});
+
+const pokeAction = (): A2UI.Button['action'] => ({
+  event: {
+    name: 'tlon.poke',
+    context: {
+      app: 'a2ui',
+      mark: 'a2ui-action',
+      json: { userAction: { name: 'lore.compile.confirm' } },
+    },
   },
 });
 
@@ -70,5 +82,21 @@ describe('A2UI chat actions', () => {
         destination,
       })
     ).toContain('Will send: /allow c3d4e');
+  });
+
+  test('describes direct poke actions with app, mark, and JSON', () => {
+    const action = pokeAction();
+    const json = getA2UIPokePayload(action);
+
+    expect(json).toContain('lore.compile.confirm');
+    expect(
+      getA2UIConfirmationDescription({
+        actionName: 'tlon.poke',
+        buttonLabel: 'Compile now',
+        app: 'a2ui',
+        mark: 'a2ui-action',
+        json,
+      })
+    ).toContain('App: %a2ui');
   });
 });

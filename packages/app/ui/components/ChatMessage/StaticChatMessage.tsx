@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
 import { ConfirmDialog, Text } from '@tloncorp/ui';
@@ -23,16 +24,30 @@ import { ReactionsDisplay } from './ReactionsDisplay';
 import {
   getA2UIConfirmationDescription,
   getA2UIDestinationLabel,
+  getA2UIPokePayload,
   getA2UISendText,
   isA2UIRenderableChatContext,
 } from './a2uiActions';
 
-type PendingA2UIAction = {
+type PendingA2UISendMessageAction = {
+  kind: 'sendMessage';
   action: A2UI.Button['action'];
   buttonLabel: string;
   sendText: string;
   destination: string;
 };
+
+type PendingA2UIPokeAction = {
+  kind: 'poke';
+  action: A2UI.Button['action'];
+  buttonLabel: string;
+  app: string;
+  mark: string;
+  json: unknown;
+  jsonPreview: string;
+};
+
+type PendingA2UIAction = PendingA2UISendMessageAction | PendingA2UIPokeAction;
 
 /**
  * Renders a chat message with minimal interactivity (no pressable, no overflow
@@ -113,51 +128,80 @@ export function StaticChatMessage({
       fallbackText: string,
       buttonLabel: string
     ) => {
-      if (action.event.name !== A2UI.action.sendMessage) {
+      if (action.event.name === A2UI.action.sendMessage) {
+        if (!draftInputContext || draftInputContext.canStartDraft === false) {
+          return;
+        }
+
+        const text = getA2UISendText(action, fallbackText);
+        if (!text) {
+          return;
+        }
+
+        setPendingA2UIAction({
+          kind: 'sendMessage',
+          action,
+          buttonLabel: buttonLabel.trim() || fallbackText.trim(),
+          sendText: text,
+          destination: getA2UIDestinationLabel({
+            channel: draftInputContext.channel,
+            group: draftInputContext.group,
+          }),
+        });
         return;
       }
 
-      if (!draftInputContext || draftInputContext.canStartDraft === false) {
-        return;
+      if (action.event.name === A2UI.action.poke) {
+        setPendingA2UIAction({
+          kind: 'poke',
+          action,
+          buttonLabel: buttonLabel.trim() || fallbackText.trim(),
+          app: action.event.context.app,
+          mark: action.event.context.mark,
+          json: action.event.context.json,
+          jsonPreview: getA2UIPokePayload(action),
+        });
       }
-
-      const text = getA2UISendText(action, fallbackText);
-      if (!text) {
-        return;
-      }
-
-      setPendingA2UIAction({
-        action,
-        buttonLabel: buttonLabel.trim() || fallbackText.trim(),
-        sendText: text,
-        destination: getA2UIDestinationLabel({
-          channel: draftInputContext.channel,
-          group: draftInputContext.group,
-        }),
-      });
     },
     [draftInputContext]
   );
 
   const handleConfirmA2UIAction = useCallback(() => {
-    if (!pendingA2UIAction || !draftInputContext) {
+    if (!pendingA2UIAction) {
       return;
     }
 
-    const actionToSend = pendingA2UIAction;
+    const actionToRun = pendingA2UIAction;
     setPendingA2UIAction(null);
 
-    draftInputContext
-      .sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [actionToSend.sendText],
-        attachments: [],
-        channelType: draftInputContext.channel.type,
-        replyToPostId: draftInputContext.replyToPost?.id ?? null,
-        isEdit: false,
+    if (actionToRun.kind === 'sendMessage') {
+      if (!draftInputContext) {
+        return;
+      }
+
+      draftInputContext
+        .sendPostFromDraft({
+          channelId: draftInputContext.channel.id,
+          content: [actionToRun.sendText],
+          attachments: [],
+          channelType: draftInputContext.channel.type,
+          replyToPostId: draftInputContext.replyToPost?.id ?? null,
+          isEdit: false,
+        })
+        .catch((e) => {
+          console.error('Failed to send A2UI action', e);
+        });
+      return;
+    }
+
+    api
+      .poke({
+        app: actionToRun.app,
+        mark: actionToRun.mark,
+        json: actionToRun.json,
       })
       .catch((e) => {
-        console.error('Failed to send A2UI action', e);
+        console.error('Failed to poke A2UI action', e);
       });
   }, [draftInputContext, pendingA2UIAction]);
 
@@ -172,12 +216,20 @@ export function StaticChatMessage({
     draftInputContext.canStartDraft !== false;
 
   const a2uiConfirmationDescription = pendingA2UIAction
-    ? getA2UIConfirmationDescription({
-        actionName: pendingA2UIAction.action.event.name,
-        buttonLabel: pendingA2UIAction.buttonLabel,
-        sendText: pendingA2UIAction.sendText,
-        destination: pendingA2UIAction.destination,
-      })
+    ? pendingA2UIAction.kind === 'sendMessage'
+      ? getA2UIConfirmationDescription({
+          actionName: pendingA2UIAction.action.event.name,
+          buttonLabel: pendingA2UIAction.buttonLabel,
+          sendText: pendingA2UIAction.sendText,
+          destination: pendingA2UIAction.destination,
+        })
+      : getA2UIConfirmationDescription({
+          actionName: pendingA2UIAction.action.event.name,
+          buttonLabel: pendingA2UIAction.buttonLabel,
+          app: pendingA2UIAction.app,
+          mark: pendingA2UIAction.mark,
+          json: pendingA2UIAction.jsonPreview,
+        })
     : '';
 
   const postContent = usePostContent(post);
@@ -208,7 +260,9 @@ export function StaticChatMessage({
       <ConfirmDialog
         title="Confirm A2UI action"
         description={a2uiConfirmationDescription}
-        confirmText="Send message"
+        confirmText={
+          pendingA2UIAction?.kind === 'sendMessage' ? 'Send message' : 'Run action'
+        }
         open={!!pendingA2UIAction}
         onOpenChange={(open) => {
           if (!open) {

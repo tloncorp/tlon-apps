@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
+const ACTION_POKE = 'tlon.poke';
 
 type ComponentBase = {
   id: string;
@@ -37,8 +38,17 @@ export namespace A2UI {
     };
   };
 
+  export type PokeEvent = {
+    name: typeof ACTION_POKE;
+    context: {
+      app: string;
+      mark: string;
+      json: unknown;
+    };
+  };
+
   export type EventAction = {
-    event: SendMessageEvent;
+    event: SendMessageEvent | PokeEvent;
   };
 
   export type ButtonAction = EventAction;
@@ -88,6 +98,9 @@ const LIMITS = {
   maxButtons: 8,
   maxTextNodeLength: 1000,
   maxButtonMessageLength: 1000,
+  maxPokeAppLength: 128,
+  maxPokeMarkLength: 128,
+  maxPokeJsonLength: 8 * 1024,
   maxTotalTextLength: 8000,
 } as const;
 
@@ -124,6 +137,28 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isValidBoundedString(value: unknown, maxLength: number) {
+  return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
+}
+
+function isValidPokeEvent(event: Record<string, unknown>) {
+  const context = event.context;
+  if (!isPlainObject(context)) {
+    return false;
+  }
+  if (!isValidBoundedString(context.app, LIMITS.maxPokeAppLength)) {
+    return false;
+  }
+  if (!isValidBoundedString(context.mark, LIMITS.maxPokeMarkLength)) {
+    return false;
+  }
+  try {
+    return JSON.stringify(context.json ?? null).length <= LIMITS.maxPokeJsonLength;
+  } catch {
+    return false;
+  }
 }
 
 function isValidWeight(value: unknown): boolean {
@@ -210,12 +245,13 @@ function validateComponent(component: unknown): component is A2UI.Component {
         isValidButtonVariant(component.variant) &&
         isPlainObject(action) &&
         isPlainObject(event) &&
-        event.name === ACTION_SEND_MESSAGE &&
-        (context === undefined || isPlainObject(context)) &&
-        (context === undefined ||
-          context.text === undefined ||
-          (typeof context.text === 'string' &&
-            context.text.length <= LIMITS.maxButtonMessageLength))
+        ((event.name === ACTION_SEND_MESSAGE &&
+          (context === undefined || isPlainObject(context)) &&
+          (context === undefined ||
+            context.text === undefined ||
+            (typeof context.text === 'string' &&
+              context.text.length <= LIMITS.maxButtonMessageLength))) ||
+          (event.name === ACTION_POKE && isValidPokeEvent(event)))
       );
     }
     default:
@@ -299,7 +335,11 @@ function indexComponents(
     byId.set(component.id, component);
     if (component.component === 'Button') {
       buttonCount += 1;
-      totalTextLength += component.action.event.context?.text?.length ?? 0;
+      if (component.action.event.name === ACTION_SEND_MESSAGE) {
+        totalTextLength += component.action.event.context?.text?.length ?? 0;
+      } else {
+        totalTextLength += JSON.stringify(component.action.event.context.json ?? null).length;
+      }
     } else if (component.component === 'Text') {
       totalTextLength += component.text.length;
     }
@@ -405,6 +445,7 @@ export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
+    poke: ACTION_POKE,
   },
   getUpdateMessage,
   getRootComponentId,

@@ -256,8 +256,22 @@ function makeCompileRequestA2UI({
               child: 'compileLabel',
               action: {
                 event: {
-                  name: 'tlon.sendMessage',
-                  context: { text: 'lore confirm compile' },
+                  name: 'tlon.poke',
+                  context: {
+                    app: 'a2ui',
+                    mark: 'a2ui-action',
+                    json: {
+                      userAction: {
+                        name: 'lore.compile.confirm',
+                        surfaceId,
+                        sourceComponentId: 'compile',
+                      },
+                      tlonContext: {
+                        actionHostShip: '~malmur-halmex',
+                        channelId: 'chat/~malmur-halmex/wjtysuq1-general',
+                      },
+                    },
+                  },
                 },
               },
             },

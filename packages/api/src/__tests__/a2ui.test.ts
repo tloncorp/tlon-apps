@@ -51,6 +51,37 @@ describe('a2ui blob entries', () => {
     expect(A2UI.validateBlobEntry(a2uiBlobEntry)).toBe(true);
   });
 
+  test('validates direct poke button actions', () => {
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                { id: 'root', component: 'Button', child: 'label', action: {
+                  event: {
+                    name: 'tlon.poke',
+                    context: {
+                      app: 'a2ui',
+                      mark: 'a2ui-action',
+                      json: { userAction: { name: 'lore.compile.confirm' } },
+                    },
+                  },
+                } },
+                { id: 'label', component: 'Text', text: 'Compile now' },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
   test('parsePostBlob parses supported a2ui entries', () => {
     const blob = appendToPostBlob(undefined, a2uiBlobEntry);
 

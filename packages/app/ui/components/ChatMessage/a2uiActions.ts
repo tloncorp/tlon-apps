@@ -28,7 +28,18 @@ export function getA2UISendText(
   action: A2UI.Button['action'],
   fallbackText: string
 ) {
+  if (action.event.name !== 'tlon.sendMessage') {
+    return '';
+  }
   return (action.event.context?.text ?? fallbackText).trim();
+}
+
+export function getA2UIPokePayload(action: A2UI.Button['action']) {
+  if (action.event.name !== 'tlon.poke') {
+    return '';
+  }
+
+  return JSON.stringify(action.event.context.json ?? null, null, 2);
 }
 
 export function getA2UIDestinationLabel({
@@ -60,16 +71,38 @@ export function getA2UIConfirmationDescription({
   buttonLabel,
   sendText,
   destination,
+  app,
+  mark,
+  json,
 }: {
   actionName: string;
   buttonLabel: string;
-  sendText: string;
-  destination: string;
+  sendText?: string;
+  destination?: string;
+  app?: string;
+  mark?: string;
+  json?: string;
 }) {
-  return [
+  const lines = [
     `Action: ${actionName}`,
     `Button: ${buttonLabel || 'Untitled button'}`,
-    `Will send: ${sendText}`,
-    `Destination: ${destination}`,
-  ].join('\n');
+  ];
+
+  if (sendText) {
+    lines.push(`Will send: ${sendText}`);
+  }
+  if (destination) {
+    lines.push(`Destination: ${destination}`);
+  }
+  if (app) {
+    lines.push(`App: %${app}`);
+  }
+  if (mark) {
+    lines.push(`Mark: %${mark}`);
+  }
+  if (json) {
+    lines.push(`JSON: ${json}`);
+  }
+
+  return lines.join('\n');
 }
