@@ -1,3 +1,7 @@
+import {
+  markdownToStory,
+  storyToMarkdown,
+} from '@tloncorp/api/client/markdown';
 import { JSONContent } from '@tloncorp/api/urbit';
 import { Story, constructStory } from '@tloncorp/api/urbit/channel';
 import {
@@ -19,7 +23,6 @@ import {
 } from '@tloncorp/api/urbit/content';
 import { describe, expect, it } from 'vitest';
 
-import { markdownToStory, storyToMarkdown } from './markdown';
 import { JSONToInlines } from './tiptap';
 
 /**

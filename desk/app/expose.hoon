@@ -12,6 +12,7 @@
 /=  page    /app/expose/page
 /=  widget  /app/expose/widget
 ::
+::
 |%
 +$  state-2
   $:  %2
@@ -104,6 +105,7 @@
     ^-  (list [term value:co])
     ::  then look at our state and inject as appropriate
     ::
+    ?:  =(~ open)  ~
     :_  ~
     :-  %expose-cites
     :-  %set

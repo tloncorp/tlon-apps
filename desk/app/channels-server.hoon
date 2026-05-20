@@ -2,7 +2,7 @@
 ::
 ::    this is the server-side from which /app/channels gets its data.
 ::
-/-  c=channels, cv=channels-ver, g=groups, gv=groups-ver, av=activity-ver,
+/-  c=channels, cv=channels-ver, chv=chat-ver, g=groups, gv=groups-ver, av=activity-ver,
     h=hooks, m=meta
 /+  ccv=channel-conv, utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
@@ -1633,7 +1633,7 @@
     (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke rail])
   ::
       %groups
-    =/  =rail  !! ::group-action-4+`a-groups:v7:gv`a-groups.effect  ::REVIEW
+    =/  =rail  !! ::group-action-4+`a-groups:v7:gv`a-groups.effect
     (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke rail])
   ::
       %activity
@@ -1641,15 +1641,15 @@
     (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke rail])
   ::
       %dm
-    =/  =rail  !! ::chat-dm-action+action.effect  ::REVIEW
+    =/  =rail  chat-dm-action+`action:dm:v3:chv`action.effect
     (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke rail])
   ::
       %club
-    =/  =rail  !!  ::chat-club-action+action.effect  ::REVIEW
+    =/  =rail  chat-club-action+`action:club:v3:chv`action.effect
     (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke rail])
   ::
       %contacts
-    =/  =rail  !! ::contacts-action-1+action.effect  ::REVIEW
+    =/  =rail  !! ::contacts-action-1+action.effect
     (emit [%pass /hooks/effect %agent [our.bowl %contacts] %poke rail])
   ::
       %wait

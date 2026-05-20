@@ -219,7 +219,11 @@ export async function setBaseVolumeLevel(params: {
     });
     if (existingSetting) {
       await db.setVolumes({ volumes: [existingSetting] });
+    } else {
+      await db.clearVolumeSetting('base');
     }
+
+    throw e;
   }
 }
 

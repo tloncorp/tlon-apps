@@ -19,10 +19,18 @@ import React, {
   memo,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { ActivityIndicator, Linking, Platform } from 'react-native';
+import {
+  ActivityIndicator,
+  type LayoutChangeEvent,
+  Linking,
+  Platform,
+} from 'react-native';
+import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNowPlayingController } from '../../contexts/nowPlaying';
@@ -35,6 +43,7 @@ import {
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { A2UIBlock } from './A2UIBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
@@ -678,6 +687,109 @@ export const HeaderText = styled(Text, {
 });
 HeaderText.displayName = 'HeaderText';
 
+function alignToTextAlign(
+  align: cn.TableAlignment | null | undefined
+): 'left' | 'center' | 'right' | 'auto' {
+  if (align === 'left' || align === 'center' || align === 'right') return align;
+  return 'auto';
+}
+
+const TABLE_MAX_COLUMN_WIDTH = 280;
+
+export function TableBlock({ block }: { block: cn.TableBlockData }) {
+  const columnCount = Math.max(
+    block.header.cells.length,
+    ...block.rows.map((r) => r.cells.length)
+  );
+  const allRows = [block.header, ...block.rows];
+  const totalCells = columnCount * allRows.length;
+
+  const naturalWidthsRef = useRef<Map<string, number>>(new Map());
+  const [columnWidths, setColumnWidths] = useState<number[] | null>(null);
+
+  // Reset measurement state when the block changes — ContentRenderer keys
+  // children by array index, so an edited post can land a new table at the
+  // same index and reuse this component instance.
+  useEffect(() => {
+    setColumnWidths(null);
+    naturalWidthsRef.current.clear();
+  }, [block]);
+
+  const handleCellLayout = useCallback(
+    (rowIdx: number, colIdx: number) => (e: LayoutChangeEvent) => {
+      if (columnWidths !== null) return;
+      const key = `${rowIdx}-${colIdx}`;
+      naturalWidthsRef.current.set(key, e.nativeEvent.layout.width);
+      if (naturalWidthsRef.current.size < totalCells) return;
+      const widths: number[] = [];
+      for (let col = 0; col < columnCount; col++) {
+        let max = 0;
+        for (let row = 0; row < allRows.length; row++) {
+          max = Math.max(max, naturalWidthsRef.current.get(`${row}-${col}`)!);
+        }
+        widths.push(Math.min(max, TABLE_MAX_COLUMN_WIDTH));
+      }
+      setColumnWidths(widths);
+    },
+    [columnWidths, columnCount, allRows.length, totalCells]
+  );
+
+  const totalWidth = columnWidths?.reduce((a, b) => a + b, 0);
+
+  // Use react-native-gesture-handler's ScrollView so horizontal pans aren't
+  // swallowed by the vertical FlatList that wraps each chat message —
+  // RN's stock ScrollView shares the JS responder system with the parent and
+  // loses the gesture race; the GH version uses native gesture recognizers.
+  return (
+    <GHScrollView
+      horizontal
+      style={{ width: '100%', maxWidth: '100%' }}
+      showsHorizontalScrollIndicator={false}
+    >
+      <YStack {...(totalWidth != null ? { width: totalWidth } : {})}>
+        {allRows.map((row, rowIdx) => {
+          const isHeader = rowIdx === 0;
+          return (
+            <XStack
+              key={rowIdx}
+              flexShrink={0}
+              borderBottomWidth={rowIdx < allRows.length - 1 ? 1 : 0}
+              borderColor="$border"
+            >
+              {Array.from({ length: columnCount }).map((_, colIdx) => {
+                const cell = row.cells[colIdx] ?? { content: [] };
+                const align = block.align[colIdx] ?? null;
+                const textAlign = alignToTextAlign(align);
+                const colWidth = columnWidths?.[colIdx];
+                return (
+                  <View
+                    key={colIdx}
+                    flexShrink={0}
+                    paddingVertical="$xl"
+                    paddingLeft={colIdx === 0 ? 0 : '$l'}
+                    paddingRight="$l"
+                    {...(colWidth != null
+                      ? { width: colWidth }
+                      : { maxWidth: TABLE_MAX_COLUMN_WIDTH })}
+                    onLayout={handleCellLayout(rowIdx, colIdx)}
+                  >
+                    <LineRenderer
+                      inlines={cell.content}
+                      size="$label/m"
+                      textAlign={textAlign}
+                      {...(isHeader ? { color: '$tertiaryText' } : {})}
+                    />
+                  </View>
+                );
+              })}
+            </XStack>
+          );
+        })}
+      </YStack>
+    </GHScrollView>
+  );
+}
+
 export type BlockRenderer<T extends cn.BlockData> = (props: {
   block: T;
 }) => React.ReactNode;
@@ -698,6 +810,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   lineText: LineText,
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
+  a2ui: () => null,
   link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
@@ -709,6 +822,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
+  table: TableBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -720,6 +834,7 @@ export type DefaultRendererProps = {
   lineText: Partial<ComponentProps<typeof LineText>>;
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
+  a2ui: BlockSettings<typeof A2UIBlock>;
   link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;
@@ -731,6 +846,7 @@ export type DefaultRendererProps = {
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
+  table: BlockSettings<typeof TableBlock>;
 };
 
 interface BlockRendererContextValue {

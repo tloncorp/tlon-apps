@@ -220,13 +220,13 @@
 ++  server  dap.bowl
 ::
 ++  submit-activity
-  |=  =action:v8:av
+  |=  =action:v9:av
   ~>  %spin.['submit-activity']
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =rail  activity-action+`action:v8:av`action
+  =/  =rail  activity-action-1+`action:v9:av`action
   [%pass /activity/submit %agent [our.bowl %activity] %poke rail]
 ::  |l: logging core
 ::
@@ -1967,7 +1967,6 @@
     ?>  from-self
     ?>  ((sane %tas) name.create)
     ?>  (lte (met 3 (jam create)) size-limit)
-    =.  cor  (tell:l %info %se-c-create (sell !>([flag create])) ~)
     =/  =flag:g  [our.bowl name.create]
     =/  =admissions:g
       %*  .  *admissions:g
@@ -3314,10 +3313,10 @@
       ::TODO port %activity to new %groups types
       :-  %add
       ?-  -.concern
-        %ask   [%group-ask ^flag ship]
-        %join  [%group-join ^flag ship]
-        %kick  [%group-kick ^flag ship]
-        %role  [%group-role ^flag ship (~(run in roles) |=(=role-id:g `sect:v0:gv`role-id))]
+        %ask   [%group-ask ^^flag ship]
+        %join  [%group-join ^^flag ship]
+        %kick  [%group-kick ^^flag ship]
+        %role  [%group-role ^^flag ship (~(run in roles) |=(=role-id:g `sect:v0:gv`role-id))]
         %flag-post  [%flag-post key nest group]
         %flag-reply  [%flag-reply key parent nest group]
       ==
@@ -4740,13 +4739,12 @@
     fi-core
   ::
   ++  fi-activity
-    =,  v8:av
     |=  concern=[%group-invite =ship]
     ^+  fi-core
     =.  cor
       %-  submit-activity
-      ^-  action
-      [%add %group-invite ^flag ship.concern]
+      ^-  action:v9:av
+      [%add %group-invite flag ship.concern]
     fi-core
   ::  +fi-area: foreign base path
   ++  fi-area  `path`/foreigns/(scot %p p.flag)/[q.flag]

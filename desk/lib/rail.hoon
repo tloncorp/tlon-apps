@@ -11,24 +11,33 @@
 ::  and a +de-rail helper for turning that back into a $cage.
 ::
 /%  activity-action                   %activity-action
+/%  activity-action-1                 %activity-action-1
 /%  activity-allowed                  %activity-allowed
 /%  activity-event                    %activity-event
+/%  activity-event-1                  %activity-event-1
 /%  activity-feed                     %activity-feed
 /%  activity-feed-5                   %activity-feed-5
+/%  activity-feed-6                   %activity-feed-6
 /%  activity-feed-init                %activity-feed-init
 /%  activity-feed-init-5              %activity-feed-init-5
+/%  activity-feed-init-6              %activity-feed-init-6
 /%  activity-full                     %activity-full
 /%  activity-full-1                   %activity-full-1
 /%  activity-full-4                   %activity-full-4
+/%  activity-full-5                   %activity-full-5
 /%  activity-settings                 %activity-settings
+/%  activity-settings-1               %activity-settings-1
 /%  activity-stream                   %activity-stream
+/%  activity-stream-1                 %activity-stream-1
 /%  activity-summary                  %activity-summary
 /%  activity-summary-1                %activity-summary-1
 /%  activity-summary-4                %activity-summary-4
+/%  activity-summary-5                %activity-summary-5
 /%  activity-summary-pairs-4          %activity-summary-pairs-4
 /%  activity-update                   %activity-update
 /%  activity-update-1                 %activity-update-1
 /%  activity-update-4                 %activity-update-4
+/%  activity-update-5                 %activity-update-5
 /%  aqua-effect                       %aqua-effect
 /%  atom                              %atom
 /%  bait-acknowledge                  %bait-acknowledge
@@ -350,6 +359,7 @@
 /%  ui-init-5                         %ui-init-5
 /%  ui-init-6                         %ui-init-6
 /%  ui-init-7                         %ui-init-7
+/%  ui-init-8                         %ui-init-8
 /%  ui-pins                           %ui-pins
 /%  ui-show-contact                   %ui-show-contact
 /%  ui-vita                           %ui-vita
@@ -385,24 +395,33 @@
   $%  [%unsafe =cage]
     ::
       $:  %activity-action                   $+  activity-action                   p=_*vale:activity-action                   ==
+      $:  %activity-action-1                 $+  activity-action-1                 p=_*vale:activity-action-1                 ==
       $:  %activity-allowed                  $+  activity-allowed                  p=_*vale:activity-allowed                  ==
       $:  %activity-event                    $+  activity-event                    p=_*vale:activity-event                    ==
+      $:  %activity-event-1                  $+  activity-event-1                  p=_*vale:activity-event-1                  ==
       $:  %activity-feed                     $+  activity-feed                     p=_*vale:activity-feed                     ==
       $:  %activity-feed-5                   $+  activity-feed-5                   p=_*vale:activity-feed-5                   ==
+      $:  %activity-feed-6                   $+  activity-feed-6                   p=_*vale:activity-feed-6                   ==
       $:  %activity-feed-init                $+  activity-feed-init                p=_*vale:activity-feed-init                ==
       $:  %activity-feed-init-5              $+  activity-feed-init-5              p=_*vale:activity-feed-init-5              ==
+      $:  %activity-feed-init-6              $+  activity-feed-init-6              p=_*vale:activity-feed-init-6              ==
       $:  %activity-full                     $+  activity-full                     p=_*vale:activity-full                     ==
       $:  %activity-full-1                   $+  activity-full-1                   p=_*vale:activity-full-1                   ==
       $:  %activity-full-4                   $+  activity-full-4                   p=_*vale:activity-full-4                   ==
+      $:  %activity-full-5                   $+  activity-full-5                   p=_*vale:activity-full-5                   ==
       $:  %activity-settings                 $+  activity-settings                 p=_*vale:activity-settings                 ==
+      $:  %activity-settings-1               $+  activity-settings-1               p=_*vale:activity-settings-1               ==
       $:  %activity-stream                   $+  activity-stream                   p=_*vale:activity-stream                   ==
+      $:  %activity-stream-1                 $+  activity-stream-1                 p=_*vale:activity-stream-1                 ==
       $:  %activity-summary                  $+  activity-summary                  p=_*vale:activity-summary                  ==
       $:  %activity-summary-1                $+  activity-summary-1                p=_*vale:activity-summary-1                ==
       $:  %activity-summary-4                $+  activity-summary-4                p=_*vale:activity-summary-4                ==
+      $:  %activity-summary-5                $+  activity-summary-5                p=_*vale:activity-summary-5                ==
       $:  %activity-summary-pairs-4          $+  activity-summary-pairs-4          p=_*vale:activity-summary-pairs-4          ==
       $:  %activity-update                   $+  activity-update                   p=_*vale:activity-update                   ==
       $:  %activity-update-1                 $+  activity-update-1                 p=_*vale:activity-update-1                 ==
       $:  %activity-update-4                 $+  activity-update-4                 p=_*vale:activity-update-4                 ==
+      $:  %activity-update-5                 $+  activity-update-5                 p=_*vale:activity-update-5                 ==
       $:  %aqua-effect                       $+  aqua-effect                       p=_*vale:aqua-effect                       ==
       $:  %atom                              $+  atom                              p=_*vale:atom                              ==
       $:  %bait-acknowledge                  $+  bait-acknowledge                  p=_*vale:bait-acknowledge                  ==
@@ -724,6 +743,7 @@
       $:  %ui-init-5                         $+  ui-init-5                         p=_*vale:ui-init-5                         ==
       $:  %ui-init-6                         $+  ui-init-6                         p=_*vale:ui-init-6                         ==
       $:  %ui-init-7                         $+  ui-init-7                         p=_*vale:ui-init-7                         ==
+      $:  %ui-init-8                         $+  ui-init-8                         p=_*vale:ui-init-8                         ==
       $:  %ui-pins                           $+  ui-pins                           p=_*vale:ui-pins                           ==
       $:  %ui-show-contact                   $+  ui-show-contact                   p=_*vale:ui-show-contact                   ==
       $:  %ui-vita                           $+  ui-vita                           p=_*vale:ui-vita                           ==
@@ -761,24 +781,33 @@
     %unsafe  cage.rail
   ::
     %activity-action                   [-.rail !>(+.rail)]
+    %activity-action-1                 [-.rail !>(+.rail)]
     %activity-allowed                  [-.rail !>(+.rail)]
     %activity-event                    [-.rail !>(+.rail)]
+    %activity-event-1                  [-.rail !>(+.rail)]
     %activity-feed                     [-.rail !>(+.rail)]
     %activity-feed-5                   [-.rail !>(+.rail)]
+    %activity-feed-6                   [-.rail !>(+.rail)]
     %activity-feed-init                [-.rail !>(+.rail)]
     %activity-feed-init-5              [-.rail !>(+.rail)]
+    %activity-feed-init-6              [-.rail !>(+.rail)]
     %activity-full                     [-.rail !>(+.rail)]
     %activity-full-1                   [-.rail !>(+.rail)]
     %activity-full-4                   [-.rail !>(+.rail)]
+    %activity-full-5                   [-.rail !>(+.rail)]
     %activity-settings                 [-.rail !>(+.rail)]
+    %activity-settings-1               [-.rail !>(+.rail)]
     %activity-stream                   [-.rail !>(+.rail)]
+    %activity-stream-1                 [-.rail !>(+.rail)]
     %activity-summary                  [-.rail !>(+.rail)]
     %activity-summary-1                [-.rail !>(+.rail)]
     %activity-summary-4                [-.rail !>(+.rail)]
+    %activity-summary-5                [-.rail !>(+.rail)]
     %activity-summary-pairs-4          [-.rail !>(+.rail)]
     %activity-update                   [-.rail !>(+.rail)]
     %activity-update-1                 [-.rail !>(+.rail)]
     %activity-update-4                 [-.rail !>(+.rail)]
+    %activity-update-5                 [-.rail !>(+.rail)]
     %aqua-effect                       [-.rail !>(+.rail)]
     %atom                              [-.rail !>(+.rail)]
     %bait-acknowledge                  [-.rail !>(+.rail)]
@@ -1100,6 +1129,7 @@
     %ui-init-5                         [-.rail !>(+.rail)]
     %ui-init-6                         [-.rail !>(+.rail)]
     %ui-init-7                         [-.rail !>(+.rail)]
+    %ui-init-8                         [-.rail !>(+.rail)]
     %ui-pins                           [-.rail !>(+.rail)]
     %ui-show-contact                   [-.rail !>(+.rail)]
     %ui-vita                           [-.rail !>(+.rail)]
@@ -1135,24 +1165,33 @@
   ^-  rail
   ?+  p  [%unsafe p q]
     %activity-action                   [p !<(_*vale:activity-action q)]
+    %activity-action-1                 [p !<(_*vale:activity-action-1 q)]
     %activity-allowed                  [p !<(_*vale:activity-allowed q)]
     %activity-event                    [p !<(_*vale:activity-event q)]
+    %activity-event-1                  [p !<(_*vale:activity-event-1 q)]
     %activity-feed                     [p !<(_*vale:activity-feed q)]
     %activity-feed-5                   [p !<(_*vale:activity-feed-5 q)]
+    %activity-feed-6                   [p !<(_*vale:activity-feed-6 q)]
     %activity-feed-init                [p !<(_*vale:activity-feed-init q)]
     %activity-feed-init-5              [p !<(_*vale:activity-feed-init-5 q)]
+    %activity-feed-init-6              [p !<(_*vale:activity-feed-init-6 q)]
     %activity-full                     [p !<(_*vale:activity-full q)]
     %activity-full-1                   [p !<(_*vale:activity-full-1 q)]
     %activity-full-4                   [p !<(_*vale:activity-full-4 q)]
+    %activity-full-5                   [p !<(_*vale:activity-full-5 q)]
     %activity-settings                 [p !<(_*vale:activity-settings q)]
+    %activity-settings-1               [p !<(_*vale:activity-settings-1 q)]
     %activity-stream                   [p !<(_*vale:activity-stream q)]
+    %activity-stream-1                 [p !<(_*vale:activity-stream-1 q)]
     %activity-summary                  [p !<(_*vale:activity-summary q)]
     %activity-summary-1                [p !<(_*vale:activity-summary-1 q)]
     %activity-summary-4                [p !<(_*vale:activity-summary-4 q)]
+    %activity-summary-5                [p !<(_*vale:activity-summary-5 q)]
     %activity-summary-pairs-4          [p !<(_*vale:activity-summary-pairs-4 q)]
     %activity-update                   [p !<(_*vale:activity-update q)]
     %activity-update-1                 [p !<(_*vale:activity-update-1 q)]
     %activity-update-4                 [p !<(_*vale:activity-update-4 q)]
+    %activity-update-5                 [p !<(_*vale:activity-update-5 q)]
     %aqua-effect                       [p !<(_*vale:aqua-effect q)]
     %atom                              [p !<(_*vale:atom q)]
     %bait-acknowledge                  [p !<(_*vale:bait-acknowledge q)]
@@ -1474,6 +1513,7 @@
     %ui-init-5                         [p !<(_*vale:ui-init-5 q)]
     %ui-init-6                         [p !<(_*vale:ui-init-6 q)]
     %ui-init-7                         [p !<(_*vale:ui-init-7 q)]
+    %ui-init-8                         [p !<(_*vale:ui-init-8 q)]
     %ui-pins                           [p !<(_*vale:ui-pins q)]
     %ui-show-contact                   [p !<(_*vale:ui-show-contact q)]
     %ui-vita                           [p !<(_*vale:ui-vita q)]
@@ -1509,24 +1549,33 @@
   %-  ~(gas by *(map mark type))
   ^-  (list (pair mark type))
   :~  :-  %activity-action                   -:!>(*vale:activity-action)
+      :-  %activity-action-1                 -:!>(*vale:activity-action-1)
       :-  %activity-allowed                  -:!>(*vale:activity-allowed)
       :-  %activity-event                    -:!>(*vale:activity-event)
+      :-  %activity-event-1                  -:!>(*vale:activity-event-1)
       :-  %activity-feed                     -:!>(*vale:activity-feed)
       :-  %activity-feed-5                   -:!>(*vale:activity-feed-5)
+      :-  %activity-feed-6                   -:!>(*vale:activity-feed-6)
       :-  %activity-feed-init                -:!>(*vale:activity-feed-init)
       :-  %activity-feed-init-5              -:!>(*vale:activity-feed-init-5)
+      :-  %activity-feed-init-6              -:!>(*vale:activity-feed-init-6)
       :-  %activity-full                     -:!>(*vale:activity-full)
       :-  %activity-full-1                   -:!>(*vale:activity-full-1)
       :-  %activity-full-4                   -:!>(*vale:activity-full-4)
+      :-  %activity-full-5                   -:!>(*vale:activity-full-5)
       :-  %activity-settings                 -:!>(*vale:activity-settings)
+      :-  %activity-settings-1               -:!>(*vale:activity-settings-1)
       :-  %activity-stream                   -:!>(*vale:activity-stream)
+      :-  %activity-stream-1                 -:!>(*vale:activity-stream-1)
       :-  %activity-summary                  -:!>(*vale:activity-summary)
       :-  %activity-summary-1                -:!>(*vale:activity-summary-1)
       :-  %activity-summary-4                -:!>(*vale:activity-summary-4)
+      :-  %activity-summary-5                -:!>(*vale:activity-summary-5)
       :-  %activity-summary-pairs-4          -:!>(*vale:activity-summary-pairs-4)
       :-  %activity-update                   -:!>(*vale:activity-update)
       :-  %activity-update-1                 -:!>(*vale:activity-update-1)
       :-  %activity-update-4                 -:!>(*vale:activity-update-4)
+      :-  %activity-update-5                 -:!>(*vale:activity-update-5)
       :-  %aqua-effect                       -:!>(*vale:aqua-effect)
       :-  %atom                              -:!>(*vale:atom)
       :-  %bait-acknowledge                  -:!>(*vale:bait-acknowledge)
@@ -1848,6 +1897,7 @@
       :-  %ui-init-5                         -:!>(*vale:ui-init-5)
       :-  %ui-init-6                         -:!>(*vale:ui-init-6)
       :-  %ui-init-7                         -:!>(*vale:ui-init-7)
+      :-  %ui-init-8                         -:!>(*vale:ui-init-8)
       :-  %ui-pins                           -:!>(*vale:ui-pins)
       :-  %ui-show-contact                   -:!>(*vale:ui-show-contact)
       :-  %ui-vita                           -:!>(*vale:ui-vita)

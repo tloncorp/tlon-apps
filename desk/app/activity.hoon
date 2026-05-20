@@ -41,8 +41,8 @@
 ::
 /-  a=activity, av=activity-ver, c=channels, cv=channels-ver,
     ch=chat, gv=groups-ver
-/+  *activity, ch-utils=channel-utils, v=volume, aj=activity-json,
-    imp=import-aid
+/+  *activity, ac=activity-conv, ch-utils=channel-utils, v=volume,
+    aj=activity-json, imp=import-aid
 /+  default-agent, verb, dbug, logs
 ::
 =/  verbose  |
@@ -51,11 +51,11 @@
   +$  card  card:agent:gall
   ::
   +$  current-state
-    $:  %9
-        allowed=notifications-allowed:v8:av
-        =indices:v8:av
-        =activity:v8:av
-        =volume-settings:v8:av
+    $:  %10
+        allowed=notifications-allowed:v9:av
+        =indices:v9:av
+        =activity:v9:av
+        =volume-settings:v9:av
     ==
   --
 ::
@@ -118,16 +118,13 @@
     [(fail:log term tang ~)]~
   --
 |_  [=bowl:gall cards=(list card)]
++*  log   ~(. logs [our.bowl /logs])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ++  from-self  =(our src):bowl
-++  log
-  |=  msg=(trap tape)
-  ?.  verbose  same
-  (slog leaf+"%{(trip dap.bowl)} {(msg)}" ~)
 ::
 ++  init
   ^+  cor
@@ -176,12 +173,23 @@
     [%give %kick ~[path] ~]
   =?  old  ?=(%8 -.old)
     old(- %9)
-  ?>  ?=(%9 -.old)
+  =?  old  ?=(%9 -.old)
+    ::  insert missing volume defaults to %base
+    ::
+    =/  base-volume=volume-map:v9:av
+      (~(gut by volume-settings.old) [%base ~] default-volumes:v8:av)
+    =/  =volume-settings:v9:av
+      %+  ~(put by `volume-settings:v9:av`volume-settings.old)  [%base ~]
+      (~(uni by default-volumes:v9:av) base-volume)
+    =.  allowed.old  %all
+    old(- %10, volume-settings volume-settings)
+  ?>  ?=(%10 -.old)
   =.  state  old
   refresh-all-summaries
   ::
   +$  versioned-state
-    $%  state-9
+    $%  state-10
+        state-9
         state-8
         state-7
         state-6
@@ -191,7 +199,14 @@
         state-2
         state-1
     ==
-  +$  state-9  current-state
+  +$  state-10  current-state
+  +$  state-9
+    $:  %9
+        allowed=notifications-allowed:v8:av
+        =indices:v8:av
+        =activity:v8:av
+        =volume-settings:v8:av
+    ==
   +$  state-8
     $:  %8
         allowed=notifications-allowed:v8:av
@@ -231,6 +246,7 @@
     ==
   +$  state-1
     [%1 =indices:v3:av =activity:v2:av =volume-settings:v3:av]
+  ::
   ++  state-5-to-6
     |=  old=state-5
     ~>  %spin.['state-5-to-6']
@@ -348,8 +364,8 @@
       migrate
     ==
   ::
-      %activity-action
-    =+  !<(=action:v8:av vase)
+      %activity-action-1
+    =+  !<(=action:v9:av vase)
     ?-  -.action
       %add      (add-event +.action)
       %bump     (bump +.action)
@@ -360,6 +376,10 @@
       %adjust   (adjust +.action)
       %allow-notifications  (allow +.action)
     ==
+  ::
+      %activity-action
+    =+  !<(=action:v8:av vase)
+    $(+< activity-action-1+!>(`action:v9:av`action))
   ::
       %egg-any
     =+  !<(=egg-any:gall vase)
@@ -395,10 +415,10 @@
   ~>  %spin.['watch']
   ^+  cor
   ?+  pole  ~|(bad-watch-path+pole !!)
-    [%v4 ~]                 ?>(from-self cor)
-    [%v4 %unreads ~]        ?>(from-self cor)
-    [%v4 %reads ~]          ?>(from-self cor)
-    [%v4 %notifications ~]  ?>(from-self cor)
+    [?(%v4 %v5) ~]                 ?>(from-self cor)
+    [?(%v4 %v5) %unreads ~]        ?>(from-self cor)
+    [?(%v4 %v5) %reads ~]          ?>(from-self cor)
+    [?(%v4 %v5) %notifications ~]  ?>(from-self cor)
   ==
 ::
 ++  peek
@@ -406,90 +426,108 @@
   ~>  %spin.['peek']
   ^-  (unit (unit cage))
   ?+    pole  [~ ~]
-      [%x %v4 ~]
-    =/  =activity:v8:av  activity
-    ``activity-full-4+!>([indices activity volume-settings])
+      [%x ver=?(%v4 %v5) ~]
+    =/  =full-info:a
+      [indices activity volume-settings]
+    ?-    ver.pole
+        %v4
+      ``activity-full-4+!>((v8:full-info:v9:ac full-info))
+    ::
+        %v5
+      ``activity-full-5+!>(`full-info:v9:av`full-info)
+    ==
   ::
   ::  /all: unified feed (equality of opportunity)
   ::
-      [%x %v4 %all ~]
-    ``activity-stream+!>(`stream:v8:av`stream:base)
+      [%x ver=?(%v4 %v5) %all ~]
+    =/  =stream:a  stream:base
+    ?-    ver.pole
+        %v4
+      ``activity-stream+!>((v8:stream:v9:ac stream))
+    ::
+        %v5
+      ``activity-stream-1+!>(`stream:v9:av`stream)
+    ==
   ::
-      [%x %v4 %all count=@ start=?(~ [u=@ ~])]
+      [%x ver=?(%v4 %v5) %all count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
-    =-  ``activity-stream+!>(`stream:v8:av`(gas:on-event:a *stream:a -))
-    (bat:ex-event:a stream:base `start count)
-  ::
-      [%x %v4 %feed %init count=@ ~]
-    =/  start  now.bowl
-    =/  count  (slav %ud count.pole)
-    =;  init=[all=feed:v4:av mentions=feed:v4:av replies=feed:v4:av]
-      ``activity-feed-init+!>(init)
-    :*  (feed:v4:convert-to (feed %all start count))
-        (feed:v4:convert-to (feed %mentions start count))
-        (feed:v4:convert-to (feed %replies start count))
+    =/  =stream:a
+      (gas:on-event:a *stream:a (bat:ex-event:a stream:base `start count))
+    ?-    ver.pole
+        %v4
+      ``activity-stream+!>((v8:stream:v9:ac stream))
+    ::
+        %v5
+      ``activity-stream-1+!>(`stream:v9:av`stream)
     ==
   ::
-      [%x %v5 %feed %init count=@ ~]
+      [%x ver=?(%v5 %v6) %feed %init count=@ ~]
     =/  start  now.bowl
     =/  count  (slav %ud count.pole)
-    =;  =feed-init:v8:av
-      ``activity-feed-init-5+!>(feed-init)
     =/  all  (feed %all start count)
     =/  mentions  (feed %mentions start count)
     =/  replies  (feed %replies start count)
-    :*  feed.all
-        feed.mentions
-        feed.replies
-      ::
-        %-  ~(uni by summaries.all)
-        %-  ~(uni by summaries.mentions)
-        summaries.replies
+    =/  =feed-init:a
+      :*  feed.all
+          feed.mentions
+          feed.replies
+        ::
+          %-  ~(uni by summaries.all)
+          %-  ~(uni by summaries.mentions)
+          summaries.replies
+      ==
+    ?-    ver.pole
+        %v5
+      ``activity-feed-init-5+!>((v8:feed-init:v9:ac feed-init))
+    ::
+        %v6
+      ``activity-feed-init-6+!>(`feed-init:v9:av`feed-init)
     ==
   ::
-      [%x %v4 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
+      [%x ver=?(%v5 %v6) %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
     =/  start
       ?~  start.pole  now.bowl
       ?^  tim=(slaw %ud u.start.pole)  u.tim
       (slav %da u.start.pole)
     =/  count  (slav %ud count.pole)
-    =;  =feed:v4:av
-      ``activity-feed+!>(feed)
-    (feed:v4:convert-to (feed type.pole start count))
-  ::
-      [%x %v5 %feed type=?(%all %mentions %replies) count=@ start=?(~ [u=@ ~])]
-    =/  start
-      ?~  start.pole  now.bowl
-      ?^  tim=(slaw %ud u.start.pole)  u.tim
-      (slav %da u.start.pole)
-    =/  count  (slav %ud count.pole)
-    =;  =feed:v8:av
-      ``activity-feed-5+!>(feed)
-    (feed type.pole start count)
+    =/  =feed:a  (feed type.pole start count)
+    ?-    ver.pole
+        %v5
+      ``activity-feed-5+!>((v8:feed:v9:ac feed))
+    ::
+        %v6
+      ``activity-feed-6+!>(`feed:v9:av`feed)
+    ==
   ::
   ::  /each: unified feed (equality of outcome)
   ::TODO  want to be able to filter for specific events kind too, but that will
   ::      suffer from the "search range" "problem", where we want .count to
   ::      mean entries trawled, not entries returned...
   ::
-      [%x %v5 %each start=@ count=@ ~]
-    =;  =stream:v8:av
-      ``activity-stream+!>(stream)
+      [%x ver=?(%v5 %v6) %each start=@ count=@ ~]
     =/  start  (slav %da start.pole)
     =/  count  (slav %ud count.pole)
-    %-  ~(rep by indices)
-    |=  [[=source:a =stream:a *] out=stream:a]
-    ^+  out
-    (gas:on-event:a out (tab:on-event:a stream `start count))
+    =/  filtered=stream:a
+      %-  ~(rep by indices)
+      |=  [[=source:a =stream:a *] out=stream:a]
+      ^+  out
+      (gas:on-event:a out (tab:on-event:a stream `start count))
+    ?-    ver.pole
+        %v5
+      ``activity-stream+!>((v8:stream:v9:ac filtered))
+    ::
+        %v6
+      ``activity-stream-1+!>(`stream:v9:av`filtered)
+    ==
   ::
   ::  /indexed: per-index
   ::
-      [%x %v5 %indexed concern=?([%channel nk=kind:c:a ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
-    =/  =source:v8:av
+      [%x ver=?(%v5 %v6) %indexed concern=?([%channel nk=kind:cv ns=@ nt=@ gs=@ gt=@ rest=*] [%dm whom=@ rest=*])]
+    =/  =source:a
       ?-  -.concern.pole
           %dm
         :-  %dm
@@ -509,44 +547,82 @@
     ?~  dice=(~(get by indices) source)  [~ ~]
     ?+  rest  ~
         ~
-      ``activity-stream+!>(`stream:v8:av`stream.u.dice)
+      ?-    ver.pole
+          %v5
+        ``activity-stream+!>((v8:stream:v9:ac stream.u.dice))
+      ::
+          %v6
+        ``activity-stream-1+!>(`stream:v9:av`stream.u.dice)
+      ==
     ::
         [start=@ count=@ ~]
       =/  start  (slav %da start.rest)
       =/  count  (slav %ud count.rest)
       =/  ls  (tab:on-event:a stream.u.dice `start count)
-      ``activity-stream+!>(`stream:v8:av`(gas:on-event:a *stream:a ls))
+      =/  =stream:a  (gas:on-event:a *stream:a ls)
+      ?-    ver.pole
+          %v5
+        ``activity-stream+!>((v8:stream:v9:ac stream))
+      ::
+          %v6
+        ``activity-stream-1+!>(`stream:v9:av`stream)
+      ==
     ==
   ::  /event: individual events
   ::
-      [%u %v4 %event id=@ ~]
+      [%u ver=?(%v4 %v5) %event id=@ ~]
     ``loob+!>((has:on-event:a stream:base (slav %da id.pole)))
   ::
-      [%x %v4 %event id=@ ~]
-    =/  =time-event:v8:av
+      [%x ver=?(%v4 %v5) %event id=@ ~]
+    =/  =time-event:a
       [id.pole (got:on-event:a stream:base (slav %da id.pole))]
-    ``activity-event+!>(time-event)
+    ?-    ver.pole
+        %v4
+      ?~  time-event-8=(v8:time-event:v9:ac time-event)  ~
+      ``activity-event+!>(u.time-event-8)
+    ::
+        %v5
+      ``activity-event-1+!>(`time-event:v9:av`time-event)
+    ==
   ::
-      [%x %v4 %activity ~]
-    =/  =activity:v8:av  (strip-threads activity)
-    ``activity-summary-4+!>(activity)
+      [%x ver=?(%v4 %v5) %activity ~]
+    =/  =activity:a  (strip-threads activity)
+    ?-    ver.pole
+        %v4
+      ``activity-summary-4+!>((v8:activity:v9:ac activity))
+    ::
+        %v5
+      ``activity-summary-5+!>(`activity:v9:av`activity)
+    ==
   ::
-      [%x %v4 %activity %full ~]
-    ``activity-summary-4+!>(`activity:v8:av`activity)
+      [%x ver=?(%v4 %v5) %activity %full ~]
+    ?-    ver.pole
+        %v4
+      ``activity-summary-4+!>((v8:activity:v9:ac activity))
+    ::
+        %v5
+      ``activity-summary-5+!>(`activity:v9:av`activity)
+    ==
   ::
-      [%x %v4 %activity %threads host=@ group=@ kind=?(%chat %heap %diary) ship=@ name=@ ~]
+      [%x ver=?(%v4 %v5) %activity %threads host=@ group=@ kind=?(%chat %heap %diary) ship=@ name=@ ~]
     =/  =flag:gv  [(slav %p host.pole) group.pole]
     =/  =nest:c  [kind.pole (slav %p ship.pole) name.pole]
     =/  =source:a  [%channel nest flag]
     =/  sum  (~(got by activity) source)
-    =/  threads=activity:v8:av
+    =/  threads=activity:a
       %+  roll
         ~(tap in children.sum)
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(got by activity) source))
-    ``activity-summary-4+!>(threads)
+    ?-    ver.pole
+        %v4
+      ``activity-summary-4+!>((v8:activity:v9:ac threads))
+    ::
+        %v5
+      ``activity-summary-5+!>(`activity:v9:av`threads)
+    ==
   ::
-      [%x %v4 %activity %dm-threads id=@ ~]
+      [%x ver=?(%v4 %v5) %activity %dm-threads id=@ ~]
     =/  ship  (slaw %p id.pole)
     =/  club  (slaw %uv id.pole)
     =/  =source:a
@@ -556,46 +632,74 @@
         club/u.club
       ship/u.ship
     =/  sum  (~(got by activity) source)
-    =/  threads=activity:v8:av
+    =/  threads=activity:a
       %+  roll
         ~(tap in children.sum)
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(got by activity) source))
-    ``activity-summary-4+!>(threads)
+    ?-    ver.pole
+        %v4
+      ``activity-summary-4+!>((v8:activity:v9:ac threads))
+    ::
+        %v5
+      ``activity-summary-5+!>(`activity:v9:av`threads)
+    ==
   ::
       [%x %v4 %activity %unreads ~]
-    =/  unreads=(list [=source:v8:av =activity-summary:v8:av])
+    =/  unreads=(list [=source:a =activity-summary:a])
       %+  skim
         ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
       ?.  |(?=(%thread -.source) ?=(%dm-thread -.source))
         (gth count.as 0)
       (gth notify-count.as 0)
-    ``activity-summary-pairs-4+!>(unreads)
+    =/  pairs=(list [source:v8:av activity-summary:v8:av])
+      %+  turn
+        unreads
+      |=  [=source:a =activity-summary:a]
+      [`source:v8:av`source (v8:activity-summary:v9:ac activity-summary)]
+    ``activity-summary-pairs-4+!>(pairs)
   ::
       [%x %v4 %activity %notified ~]
-    =/  notified=(list [source:v8:av activity-summary:v8:av])
+    =/  notified=(list [source:a activity-summary:a])
       %+  skim
         ~(tap by activity)
       |=  [=source:a as=activity-summary:a]
       notify.as
-    ``activity-summary-pairs-4+!>(notified)
+    =/  pairs=(list [source:v8:av activity-summary:v8:av])
+      %+  turn
+        notified
+      |=  [=source:a =activity-summary:a]
+      [`source:v8:av`source (v8:activity-summary:v9:ac activity-summary)]
+    ``activity-summary-pairs-4+!>(pairs)
   ::
-      [%x ?(%v4 %v5) %volume-settings ~]
-    ``activity-settings+!>(`volume-settings:v8:av`volume-settings)
+      [%x ver=?(%v4 %v5) %volume-settings ~]
+    ?-    ver.pole
+        %v4
+      ``activity-settings+!>((v8:volume-settings:v9:ac volume-settings))
+    ::
+        %v5
+      ``activity-settings-1+!>(`volume-settings:v9:av`volume-settings)
+    ==
   ::
       [%x ?(%v4 %v5) %notifications-allowed ~]
     ``activity-allowed+!>(`notifications-allowed:v8:av`allowed)
   ::
-      [%x %v4 %activity %changes since=@ ~]
+      [%x ver=?(%v4 %v5) %activity %changes since=@ ~]
     =/  since=time  (slav %da since.pole)
-    =;  summaries=activity:v8:av
-      ``activity-summary-4+!>(summaries)
-    %-  ~(gas by *activity:a)
-    %+  skim
-      ~(tap by activity)
-    |=  [=source:a as=activity-summary:a]
-    (gte newest.as since)
+    =/  summaries=activity:a
+      %-  ~(gas by *activity:a)
+      %+  skim
+        ~(tap by activity)
+      |=  [=source:a as=activity-summary:a]
+      (gte newest.as since)
+    ?-    ver.pole
+        %v4
+      ``activity-summary-4+!>((v8:activity:v9:ac summaries))
+    ::
+        %v5
+      ``activity-summary-5+!>(`activity:v9:av`summaries)
+    ==
   ::
       ::  deprecated
       [%x %volume-settings ~]
@@ -645,7 +749,8 @@
   ::  after the start so we always get "new" sources when paging
   ?.  ?&  ?|(notified.event ?=(%contact -<.event))
           (lth latest.src-info start)
-          ?=  $?  %post  %reply  %dm-post  %dm-reply
+          ?=  $?  %post  %reply  %react
+                  %dm-post  %dm-reply  %dm-react
                   %flag-post  %flag-reply  %group-ask
                   %contact
               ==
@@ -711,7 +816,8 @@
   |=  [acc=out [=time =event:a]]
   ?:  =(limit.acc 0)  [~ & acc]
   ?:  child.event  [~ | acc]
-  ?.  ?=  $?  %post  %reply  %dm-post  %dm-reply
+  ?.  ?=  $?  %post  %reply  %react
+              %dm-post  %dm-reply  %dm-react
               %flag-post  %flag-reply  %group-ask
               %contact
           ==
@@ -726,6 +832,7 @@
     ==
   ?:  is-mention  [~ | acc]
   [~ | [(sub limit.acc 1) (snoc msgs.acc [time event])]]
+  ::
   +$  out
     $:  limit=@ud
         msgs=(list time-event:a)
@@ -757,17 +864,23 @@
       ==
   ~>  %spin.['give-update']
   ^+  cor
-  %-  (log |.("{<[update dist]>}"))
-  =/  v4-paths
-    =/  hose=(list path)  ~[/v4]
-    =/  only=(list path)  ~[[%v4 path.dist]]
+  =/  [v4-paths=(list path) v5-paths=(list path)]
+    =/  v4-hose=(list path)  ~[/v4]
+    =/  v4-only=(list path)  ~[[%v4 path.dist]]
+    =/  v5-hose=(list path)  ~[/v5]
+    =/  v5-only=(list path)  ~[[%v5 path.dist]]
     ?-  -.dist
-      %hose  hose
-      %only  only
-      %both  (weld only hose)
+      %hose  [v4-hose v5-hose]
+      %only  [v4-only v5-only]
+      %both
+        :-  (weld v4-only v4-hose)
+        (weld v5-only v5-hose)
     ==
-  =/  v4-cage=cage  activity-update-4+!>(`update:v8:av`update)
-  (give %fact v4-paths v4-cage)
+  =/  update-8=(unit update:v8:av)
+    (v8:update:v9:ac update)
+  =?  cor  ?=(^ update-8)
+    (give %fact v4-paths activity-update-4+!>(u.update-8))
+  (give %fact v5-paths activity-update-5+!>(`update:v9:av`update))
 ++  add-event
   =/  start-time=time  now.bowl
   |=  inc=incoming-event:a
@@ -781,12 +894,17 @@
   =/  =event:a  [inc notify |]
   =/  =source:a  (source:evt inc)
   =/  =update:a  [%add source time-id event]
+  =.  cor
+    %-  emit
+    (tell:log %dbug ~[leaf+"activity: {<event>} from {<source>}"] ~)
   =?  cor  !importing
     (give-update update [%hose ~])
   =?  cor  &(!importing notify (is-allowed:evt allowed inc))
-    =/  =time-event:v8:av
-      [time-id event]
-    (give %fact ~[/v4/notifications] activity-event+!>(time-event))
+    =/  time-event=(unit time-event:v8:av)
+      (v8:time-event:v9:ac [time-id event])
+    =?  cor  ?=(^ time-event)
+      (give %fact ~[/v4/notifications] activity-event+!>(u.time-event))
+    (give %fact ~[/v5/notifications] activity-event-1+!>(`time-event:v9:av`[time-id event]))
   ::  we always update sources in order, so make sure base is processed last
   =.  cor
     ?+  -<.event  (add-to-index source time-id event)
@@ -800,6 +918,13 @@
       =.  cor  (add-to-index source time-id event)
       (add-to-index parent-src time-id event(child &))
     ::
+        %dm-react
+      =.  cor  (add-to-index source time-id event)
+      =?  cor  ?=(^ parent.event)
+        ::  reaction in a dm-thread, add event to parent
+        (add-to-index [%dm whom.event] time-id event(child &))
+      cor
+    ::
         %post
       =/  parent-src  [%group group.event]
       =.  cor  (add-to-index source time-id event)
@@ -811,6 +936,15 @@
       =.  cor  (add-to-index source time-id event)
       =.  cor  (add-to-index chan-src time-id event(child &))
       (add-to-index group-src time-id event(child &))
+    ::
+        %react
+      =/  group-src  [%group group.event]
+      =.  cor  (add-to-index source time-id event)
+      =?  cor  ?=(^ parent.event)
+        ::  reaction in a thread
+        =/  chan-src  [%channel channel.event group.event]
+        (add-to-index chan-src time-id event(child &))
+      (add-to-index group-src time-id event(child &))
     ==
   =.  cor  (add-to-index [%base ~] time-id event(child &))
   =?  cor  !importing
@@ -819,7 +953,6 @@
         (snoc (get-parents:src source) source)
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(gut by activity) source *activity-summary:a))
-    %-  (log |.("sending activity: {<new-activity>}"))
     (give-update [%activity new-activity] [%hose ~])
   cor
 ::
@@ -864,7 +997,6 @@
       (snoc (get-parents:src source) source)
     |=  [=source:a out=activity:a]
     (~(put by out) source (~(got by activity) source))
-  %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ::
 ++  add-to-index
@@ -879,7 +1011,6 @@
 ++  refresh-index
   |=  [=source:a new=index:a]
   ~>  %spin.['refresh-index']
-  %-  (log |.("refeshing index: {<source>}"))
   =.  indices
     (~(put by indices) source new)
   ?:  importing  cor  ::NOTE  deferred until end of migration
@@ -924,7 +1055,6 @@
       (snoc (get-parents:src source) source)
     |=  [=source:a out=activity:a]
     (~(put by out) source (~(gut by activity) source *activity-summary:a))
-  %-  (log |.("sending activity: {<new-activity>}"))
   (give-update [%activity new-activity] [%hose ~])
 ++  read
   |=  [sources=(list source:a) action=read-action:a]
@@ -945,7 +1075,6 @@
       %+  roll  ~(tap in updates)
       |=  [=source:a out=activity:a]
       (~(put by out) source (~(gut by activity) source *activity-summary:a))
-    %-  (log |.("sending activity: {<new-activity>}"))
     (give-update [%activity new-activity] [%hose ~])
   |-
   ?~  sources
@@ -985,7 +1114,6 @@
     =.  reads  nr
     =.  updates  nu
     ::  we need to refresh our own index to reflect new reads
-    %-  (log |.("refeshing index: {<source>}"))
     =.  indices  (~(put by indices) source new)
     ?:  from-parent
       =.  cor  (refresh-summary source)
@@ -1030,7 +1158,7 @@
   =.  allowed  na
   (give-update [%allow-notifications na] [%hose ~])
 ++  summarize-unreads
-  ~(summarize-unreads urd indices activity volume-settings log)
+  ~(summarize-unreads urd indices activity volume-settings)
 ::
 ++  clear-group-invites
   =;  sources=(list source:a)

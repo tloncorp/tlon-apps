@@ -1,7 +1,10 @@
 import { poke } from '@tloncorp/api';
+import { createDevLogger } from '@tloncorp/shared';
 import { Platform } from 'react-native';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../constants';
+
+const logger = createDevLogger('notificationsApi', true);
 
 export const connectNotifyProvider = async (address: string) => {
   await poke({
@@ -16,10 +19,9 @@ export const connectNotifyProvider = async (address: string) => {
       },
     },
   });
-  console.log(
-    'Registered push notifications token with provider:',
+  logger.trackEvent('Registered push notifications token with provider', {
     address,
-    NOTIFY_PROVIDER,
-    NOTIFY_SERVICE
-  );
+    provider: NOTIFY_PROVIDER,
+    service: NOTIFY_SERVICE,
+  });
 };

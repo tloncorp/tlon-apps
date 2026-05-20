@@ -128,14 +128,16 @@ export function GettingNodeReadyScreen({
         // Important! Always close the sheet before navigating
         setPermSheetOpen(false);
         setTimeout(async () => {
-          await db.hostedAccountIsInitialized.setValue(true);
+          await db.hostedAccountIsInitialized.setValue(
+            !shipInfo.needsSplashSequence
+          );
           await db.hostedNodeIsRunning.setValue(true);
           setShip(shipInfo);
           if (shipInfo.needsSplashSequence) {
             logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
               context: 'stopped revival ship is now ready, handling',
             });
-            onboardingHelpers.handleGuidedLogin(shipInfo);
+            onboardingHelpers.handleRevivalOnboarding(shipInfo);
           }
         }, 2000);
       }
