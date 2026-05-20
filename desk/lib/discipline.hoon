@@ -116,8 +116,8 @@
   |=  strict-marks=(set mark)
   %+  roll  ~(tap in strict-marks)
   |=  [=mark types=(map mark type)]
-  ?:  (~(has by types:rail) mark)
-    (~(put by types) mark (~(got by types:rail) mark))
+  ?^  typ=(~(get by types:rail) mark)
+    (~(put by types) mark u.typ)
   ~&  [%discipline-unknown-mark mark]
   types
 ::
