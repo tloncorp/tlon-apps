@@ -268,7 +268,14 @@ step_native_build_ios() {
 
 step_native_build_android() {
   cd "$WT_DIR/apps/tlon-mobile"
-  pnpm exec expo run:android --variant=productionDebug --no-bundler
+  # Android SDK + JDK must be on PATH for `expo run:android` → gradlew.
+  export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+  export JAVA_HOME="${JAVA_HOME:-/Library/Java/JavaVirtualMachines/zulu-17.jdk/Contents/Home}"
+  # EXPO_DEBUG=1 surfaces cache-provider errors AND emits timestamped
+  # markers for parse_native_build_phases.
+  EXPO_DEBUG="${EXPO_DEBUG:-1}" pnpm exec expo run:android --variant=productionDebug --no-bundler 2>&1 \
+    | tee "$NATIVE_BUILD_LOG"
+  return ${PIPESTATUS[0]}
 }
 
 # Parse the EXPO_DEBUG=1 output from native_build to extract per-phase

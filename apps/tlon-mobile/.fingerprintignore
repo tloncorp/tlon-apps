@@ -1,10 +1,30 @@
-# Files that change during the iOS/Android build but don't affect the resulting
-# native binary's behaviour. Excluding them keeps the @expo/fingerprint hash
-# stable across pre-build and post-build state — required for the EAS
-# buildCacheProvider to ever hit.
-#
-# Swift Package Manager resolved lockfile: created by Xcode the first time it
-# resolves SPM deps, doesn't exist in a fresh checkout. Without this ignore
-# rule, every `expo run:ios` looks up the cache under a "pre-build" hash and
-# uploads under a "post-build" hash → permanent miss.
+# Files that change during the iOS/Android build but don't affect the
+# resulting native binary's behaviour. Excluding them keeps the
+# @expo/fingerprint hash stable across pre-build and post-build state —
+# required for the EAS buildCacheProvider to ever hit.
+
+# --- iOS ---
+
+# Swift Package Manager resolved lockfile: created by Xcode the first
+# time it resolves SPM deps, doesn't exist in a fresh checkout.
 ios/**/Package.resolved
+
+# --- Android ---
+
+# Android Studio IDE state: appears the first time someone opens the
+# project in Android Studio. Not produced by `expo run:android`, but
+# diverges from a fresh checkout if anyone has opened the project.
+android/.idea/**
+
+# Gradle/SDK paths: auto-generated, contains absolute sdk.dir on the
+# build machine.
+android/local.properties
+
+# Auto-generated debug signing key. Created by Gradle's first debug
+# build, regenerated identically per machine if missing.
+android/app/debug.keystore
+
+# Embedded JS bundle output (release-only). Not produced by Debug
+# variants, but present in main repo if `pnpm generate` has ever been
+# run, so we exclude proactively.
+android/app/src/main/assets/bundle.jsbundle
