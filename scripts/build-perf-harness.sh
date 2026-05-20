@@ -75,6 +75,8 @@ mkdir -p "$OUT_DIR"
 
 LOG="$OUT_DIR/${TS}-${MODE}-${PLATFORM}.log"
 SUMMARY="$OUT_DIR/${TS}-${MODE}-${PLATFORM}.summary"
+NATIVE_BUILD_LOG="$OUT_DIR/${TS}-${MODE}-${PLATFORM}.native_build.log"
+NATIVE_BUILD_PHASES="$OUT_DIR/${TS}-${MODE}-${PLATFORM}.native_build.phases"
 
 ts() { date +%H:%M:%S; }
 log() { printf '[%s] %s\n' "$(ts)" "$*" | tee -a "$LOG"; }
@@ -250,14 +252,104 @@ step_pod_install() {
 
 step_native_build_ios() {
   cd "$WT_DIR/apps/tlon-mobile"
-  # EXPO_DEBUG=1 enables `log.debug(...)` in the build cache provider so we
-  # see why the EAS cache lookup hit or missed.
-  EXPO_DEBUG="${EXPO_DEBUG:-1}" pnpm exec expo run:ios --no-bundler
+  # CocoaPods on Ruby 3.4 crashes with "Unicode Normalization not appropriate
+  # for ASCII-8BIT" unless the locale is UTF-8. `expo run:ios` invokes pod
+  # install internally when needed, so we set LANG here.
+  export LANG=en_US.UTF-8
+  export LC_ALL=en_US.UTF-8
+  # EXPO_DEBUG=1 enables `log.debug(...)` in the build cache provider AND
+  # emits timestamped phase markers from across expo CLI — used by the
+  # phase-parser below to compute per-substep timings.
+  EXPO_DEBUG="${EXPO_DEBUG:-1}" pnpm exec expo run:ios --no-bundler 2>&1 \
+    | tee "$NATIVE_BUILD_LOG"
+  # tee succeeds — preserve the pipe's first exit code (expo's rc)
+  return ${PIPESTATUS[0]}
 }
 
 step_native_build_android() {
   cd "$WT_DIR/apps/tlon-mobile"
   pnpm exec expo run:android --variant=productionDebug --no-bundler
+}
+
+# Parse the EXPO_DEBUG=1 output from native_build to extract per-phase
+# timings. Expo CLI emits ISO-timestamped lines like:
+#   2026-05-19T22:04:48.357Z expo:env Loaded environment variables ...
+# We bucket those into named phases and time each one. Output goes to
+# $NATIVE_BUILD_PHASES (tab-separated: phase \t seconds) and stdout.
+parse_native_build_phases() {
+  if [[ ! -f "$NATIVE_BUILD_LOG" ]]; then
+    return 0
+  fi
+
+  python3 - "$NATIVE_BUILD_LOG" "$NATIVE_BUILD_PHASES" <<'PY' | tee -a "$LOG"
+import re, sys
+from datetime import datetime
+
+log_path, out_path = sys.argv[1], sys.argv[2]
+
+ts_re = re.compile(r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+(\S+)')
+
+# Map a milestone text (substring) to a phase label. The harness reports
+# elapsed time BETWEEN consecutive milestones in the order they appear.
+# Lines without an ISO timestamp inherit the most recent one we saw.
+milestones = [
+    ('expo:env',                                            'expo_init'),
+    ('expo:doctor',                                         'doctor_check'),
+    ('Searching builds with matching fingerprint',          'eas_cache_lookup'),
+    ('Successfully downloaded cached build',                'eas_cache_download'),
+    ('No builds available',                                 'eas_cache_miss'),
+    ('Auto signing app',                                    'sign_setup'),
+    ('Planning build',                                      'planning'),
+    ('Installing on iPhone',                                'install_on_sim'),
+    ('Opening on iPhone',                                   'opening_app'),
+    ('Uploading build to EAS',                              'eas_cache_upload'),
+    ('Build successfully uploaded',                         'eas_cache_upload_done'),
+]
+
+# Phase first-seen timestamps.
+seen = {}
+current_ts = None
+
+with open(log_path, errors='replace') as f:
+    for line in f:
+        m = ts_re.match(line)
+        if m:
+            current_ts = datetime.fromisoformat(m.group(1).replace('Z', '+00:00'))
+        for text, label in milestones:
+            if text in line and label not in seen:
+                seen[label] = current_ts
+
+# Compute duration of the whole native_build window.
+all_ts = sorted(ts for ts in seen.values() if ts is not None)
+start = all_ts[0] if all_ts else None
+end = all_ts[-1] if all_ts else None
+
+# Order the labels by first-seen timestamp.
+ordered = sorted(((ts, label) for label, ts in seen.items() if ts), key=lambda x: x[0])
+
+phase_rows = []
+for i, (ts, label) in enumerate(ordered):
+    if i + 1 < len(ordered):
+        delta = (ordered[i + 1][0] - ts).total_seconds()
+    elif end and ts:
+        delta = (end - ts).total_seconds()
+    else:
+        delta = 0
+    phase_rows.append((label, round(delta, 1)))
+
+# Print + write
+with open(out_path, 'w') as out:
+    for label, secs in phase_rows:
+        out.write(f"{label}\t{secs}\n")
+
+print()
+print("=== expo CLI sub-phases (within native_build) ===")
+if not phase_rows:
+    print("  (no expo debug markers found — was EXPO_DEBUG=1 set?)")
+else:
+    for label, secs in phase_rows:
+        print(f"  {label:<22} {secs:>6.1f}s")
+PY
 }
 
 step_metro_bundle() {
@@ -288,13 +380,18 @@ run_steps() {
   record generate_tailwind pnpm --filter tlon-mobile run generate:tailwind
 
   if [[ "$PLATFORM" == "ios" ]]; then
-    record pod_install     step_pod_install
+    # No explicit pod_install step — `expo run:ios` handles it internally
+    # (and skips entirely when the EAS cache hits). Removing it saves ~25s
+    # on the cache-hit path.
     record native_build    step_native_build_ios
   else
     record native_build    step_native_build_android
   fi
 
   record metro_bundle      step_metro_bundle
+
+  # Parse expo CLI debug output for per-phase timings inside native_build.
+  parse_native_build_phases
 }
 
 print_summary() {
