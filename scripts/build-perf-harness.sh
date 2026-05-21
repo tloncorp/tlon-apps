@@ -443,7 +443,7 @@ run_steps() {
   # Opt the harness into the cross-worktree shared Metro cache. Off by
   # default in metro.config.js so it doesn't affect normal dev workflows;
   # the harness wants it on so cached transforms survive worktree churn.
-  export TLON_METRO_SHARED_CACHE=1
+  export TLON_METRO_SHARED_CACHE_ENABLED=1
 
   if [[ "$MODE" == "cold" ]]; then
     record purge_shared_caches purge_shared_caches

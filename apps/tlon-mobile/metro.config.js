@@ -18,7 +18,7 @@ const baseConfig = getSentryExpoConfig(projectRoot);
 // resolved RN+Expo version so upgrades don't poison the cache.
 //
 // Off by default to avoid affecting normal dev workflows. Opt in with
-// TLON_METRO_SHARED_CACHE=1 (e.g., set in the agent-loop harness or by
+// TLON_METRO_SHARED_CACHE_ENABLED=1 (e.g., set in the agent-loop harness or by
 // individual devs who want the cross-worktree speedup).
 const rnVersion = require('react-native/package.json').version;
 const expoVersion = require('expo/package.json').version;
@@ -28,7 +28,7 @@ const sharedCacheRoot = path.join(
   `rn-${rnVersion}-expo-${expoVersion}`,
 );
 const sharedCacheStores =
-  process.env.TLON_METRO_SHARED_CACHE === '1'
+  process.env.TLON_METRO_SHARED_CACHE_ENABLED === '1'
     ? [new FileStore({ root: sharedCacheRoot })]
     : undefined;
 
