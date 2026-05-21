@@ -2,6 +2,8 @@ import { Pressable } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
 import { ColorTokens, SizableText, SizeTokens, View } from 'tamagui';
 
+import { getAndroidRoundedBackgroundKey } from '../utils';
+
 export type BadgeType = 'positive' | 'warning' | 'neutral' | 'tertiary';
 export type BadgeSize = 'default' | 'micro';
 
@@ -34,6 +36,7 @@ export function Badge({
   type = 'positive',
   size = 'default',
   onPress,
+  backgroundColor = badgeBackground[type],
   ...props
 }: {
   text: string;
@@ -43,7 +46,8 @@ export function Badge({
 } & ComponentProps<typeof View>) {
   const content = (
     <View
-      backgroundColor={badgeBackground[type]}
+      key={getAndroidRoundedBackgroundKey(backgroundColor)}
+      backgroundColor={backgroundColor}
       paddingVertical={badgePaddingVertical[size]}
       paddingHorizontal={badgePaddingHorizontal[size]}
       borderRadius="$xl"
