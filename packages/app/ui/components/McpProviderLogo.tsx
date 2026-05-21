@@ -35,7 +35,10 @@ type ImageLogo = {
 
 const svgLogos: Partial<Record<string, SvgLogo>> = {
   arena: { Component: ArenaLogo, dimensions: { height: 22, width: 34 } },
-  atlassian: { Component: AtlassianLogo, dimensions: { height: 25, width: 25 } },
+  atlassian: {
+    Component: AtlassianLogo,
+    dimensions: { height: 25, width: 25 },
+  },
   github: { Component: GitHubLogo, dimensions: { height: 26, width: 26 } },
   linear: { Component: LinearLogo, dimensions: { height: 26, width: 26 } },
   notion: { Component: NotionLogo, dimensions: { height: 28, width: 28 } },
