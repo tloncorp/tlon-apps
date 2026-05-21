@@ -53,6 +53,8 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
+  BotMcpSettings: undefined;
+  BotOtherSettings: undefined;
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -153,6 +155,8 @@ export type SettingsDrawerParamList = Pick<
   | 'FeatureFlags'
   | 'ManageAccount'
   | 'BotSettings'
+  | 'BotMcpSettings'
+  | 'BotOtherSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'

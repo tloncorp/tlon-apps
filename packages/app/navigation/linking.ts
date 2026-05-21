@@ -70,6 +70,8 @@ export const getMobileLinkingConfig = (
           FeatureFlags: 'feature-flags',
           ManageAccount: 'manage-account',
           BotSettings: 'bot-settings',
+          BotMcpSettings: 'bot-settings/mcp',
+          BotOtherSettings: 'bot-settings/other',
           BlockedUsers: 'blocked-users',
           WompWomp: 'report-bug',
           AppInfo: 'app-info',
@@ -158,6 +160,8 @@ export const getDesktopLinkingConfig = (
             screens: {
               SettingsEmpty: '',
               BotSettings: 'bot-settings',
+              BotMcpSettings: 'bot-settings/mcp',
+              BotOtherSettings: 'bot-settings/other',
             },
           },
         },
