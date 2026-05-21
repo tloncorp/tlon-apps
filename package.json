@@ -80,7 +80,8 @@
       "@tamagui/web@2.0.0-rc.41": "patches/@tamagui__web@2.0.0-rc.41.patch",
       "@tamagui/sheet@2.0.0-rc.41": "patches/@tamagui__sheet@2.0.0-rc.41.patch",
       "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch",
-      "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch"
+      "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch",
+      "react-native-gesture-handler@2.28.0": "patches/react-native-gesture-handler@2.28.0.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
