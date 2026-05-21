@@ -140,7 +140,9 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function isValidBoundedString(value: unknown, maxLength: number) {
-  return typeof value === 'string' && value.length > 0 && value.length <= maxLength;
+  return (
+    typeof value === 'string' && value.length > 0 && value.length <= maxLength
+  );
 }
 
 function isValidPokeEvent(event: Record<string, unknown>) {
@@ -155,7 +157,9 @@ function isValidPokeEvent(event: Record<string, unknown>) {
     return false;
   }
   try {
-    return JSON.stringify(context.json ?? null).length <= LIMITS.maxPokeJsonLength;
+    return (
+      JSON.stringify(context.json ?? null).length <= LIMITS.maxPokeJsonLength
+    );
   } catch {
     return false;
   }
@@ -338,7 +342,9 @@ function indexComponents(
       if (component.action.event.name === ACTION_SEND_MESSAGE) {
         totalTextLength += component.action.event.context?.text?.length ?? 0;
       } else {
-        totalTextLength += JSON.stringify(component.action.event.context.json ?? null).length;
+        totalTextLength += JSON.stringify(
+          component.action.event.context.json ?? null
+        ).length;
       }
     } else if (component.component === 'Text') {
       totalTextLength += component.text.length;

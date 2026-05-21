@@ -154,10 +154,13 @@ export function A2UIBlock({
       const fallbackText = buttonLabel;
       const sendText =
         component.action.event.name === A2UI.action.sendMessage
-          ? (component.action.event.context?.text ?? fallbackText)
+          ? component.action.event.context?.text ?? fallbackText
           : fallbackText;
 
-      if (component.action.event.name === A2UI.action.sendMessage && !sendText.trim()) {
+      if (
+        component.action.event.name === A2UI.action.sendMessage &&
+        !sendText.trim()
+      ) {
         return;
       }
 

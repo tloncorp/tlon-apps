@@ -63,16 +63,21 @@ describe('a2ui blob entries', () => {
               surfaceId: 'weather-card',
               root: 'root',
               components: [
-                { id: 'root', component: 'Button', child: 'label', action: {
-                  event: {
-                    name: 'tlon.poke',
-                    context: {
-                      app: 'a2ui',
-                      mark: 'a2ui-action',
-                      json: { userAction: { name: 'lore.compile.confirm' } },
+                {
+                  id: 'root',
+                  component: 'Button',
+                  child: 'label',
+                  action: {
+                    event: {
+                      name: 'tlon.poke',
+                      context: {
+                        app: 'a2ui',
+                        mark: 'a2ui-action',
+                        json: { userAction: { name: 'lore.compile.confirm' } },
+                      },
                     },
                   },
-                } },
+                },
                 { id: 'label', component: 'Text', text: 'Compile now' },
               ],
             },

@@ -266,7 +266,9 @@ export function StaticChatMessage({
         title="Confirm A2UI action"
         description={a2uiConfirmationDescription}
         confirmText={
-          pendingA2UIAction?.kind === 'sendMessage' ? 'Send message' : 'Run action'
+          pendingA2UIAction?.kind === 'sendMessage'
+            ? 'Send message'
+            : 'Run action'
         }
         open={!!pendingA2UIAction}
         onOpenChange={(open) => {

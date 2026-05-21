@@ -88,10 +88,7 @@ describe('A2UI chat actions', () => {
   test('describes direct poke actions without exposing app, mark, or JSON', () => {
     const action = pokeAction();
     const json = getA2UIPokePayload(action);
-    const confirmationCopy = getA2UIPokeConfirmationCopy(
-      action,
-      'Compile now'
-    );
+    const confirmationCopy = getA2UIPokeConfirmationCopy(action, 'Compile now');
     const description = getA2UIConfirmationDescription({
       actionName: 'tlon.poke',
       buttonLabel: 'Compile now',
