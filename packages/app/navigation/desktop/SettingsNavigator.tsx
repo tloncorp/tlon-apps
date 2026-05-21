@@ -2,8 +2,8 @@ import {
   DrawerContentComponentProps,
   createDrawerNavigator,
 } from '@react-navigation/drawer';
+import { useFocusEffect } from '@react-navigation/native';
 import { getVariableValue, useTheme } from '@tamagui/core';
-import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -20,6 +20,7 @@ import { PushNotificationSettingsScreen } from '../../features/settings/PushNoti
 import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
 import { SettingsEmptyState } from '../../features/top/DesktopEmptyStates';
+import { useBotSettingsAvailability } from '../../hooks/useBotSettingsAvailability';
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -28,17 +29,15 @@ import { DESKTOP_SIDEBAR_WIDTH, SettingsScreenView } from '../../ui';
 
 const SettingsDrawer = createDrawerNavigator();
 
-function DrawerContent(props: DrawerContentComponentProps) {
+function DrawerContent(
+  props: DrawerContentComponentProps & { botEnabled: boolean }
+) {
   const { navigate } = props.navigation;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
-  const isHostedUser = getCurrentUserIsHosted();
-  const botEnabled =
-    Platform.OS === 'web' || (isHostedUser && hostingBotEnabled);
   const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {
@@ -93,16 +92,27 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onPrivacyPressed={onPrivacyPressed}
       dmLink={dmLink}
       focusedRouteName={focusedRoute.name}
-      botEnabled={botEnabled}
+      botEnabled={props.botEnabled}
     />
   );
 }
 
 export const SettingsNavigator = () => {
+  const { botEnabled, refreshBotSettingsAvailability } =
+    useBotSettingsAvailability();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshBotSettingsAvailability();
+    }, [refreshBotSettingsAvailability])
+  );
+
   return (
     <SettingsDrawer.Navigator
       initialRouteName="SettingsEmpty"
-      drawerContent={DrawerContent}
+      drawerContent={(props) => (
+        <DrawerContent {...props} botEnabled={botEnabled} />
+      )}
       screenOptions={{
         headerShown: false,
         drawerType: 'permanent',

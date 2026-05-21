@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
+import { desig } from '@tloncorp/api/lib/urbit';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useToast } from '@tloncorp/ui';
@@ -9,6 +10,7 @@ import { Alert, AppState, Linking } from 'react-native';
 
 import { APP_SCHEME } from '../../constants';
 import { useShip } from '../../contexts/ship';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
@@ -26,6 +28,7 @@ const logger = createDevLogger('botSettings', false);
 const WEB_COMPLETION_PARAM = 'mcp_oauth';
 const COMPLETION_PATH = 'mcp-oauth/complete';
 const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
+const TOAST_BOTTOM_OFFSET = 24;
 const MCP_TELEMETRY_EVENTS = {
   initiatedOAuth: 'Tlonbot MCP: Initiated OAuth',
   connected: 'Tlonbot MCP: Connected',
@@ -37,9 +40,16 @@ export function BotMcpSettingsScreen(props: Props) {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const showToast = useToast();
+  const showMcpToast = useCallback(
+    (options: { duration?: number; message: string }) => {
+      showToast({ ...options, bottomOffset: TOAST_BOTTOM_OFFSET });
+    },
+    [showToast]
+  );
   const { ship } = useShip();
+  const currentUserId = useCurrentUserId();
   const [shipId, setShipId] = useState<string | null>(
-    ship ? ship.replace(/^~/, '') : null
+    normalizeShipId(ship ?? currentUserId) || null
   );
   const [providerConfigs, setProviderConfigs] = useState<
     api.TlawnOAuthProvider[]
@@ -62,7 +72,7 @@ export function BotMcpSettingsScreen(props: Props) {
       trackMcpError('OAuth status requested without hosted ship', {
         action: 'loadStatus',
       });
-      showToast({ message: GENERIC_ERROR_MESSAGE });
+      showMcpToast({ message: GENERIC_ERROR_MESSAGE });
       return;
     }
 
@@ -82,7 +92,7 @@ export function BotMcpSettingsScreen(props: Props) {
         error: err,
       });
       if (isMounted.current) {
-        showToast({ message: GENERIC_ERROR_MESSAGE });
+        showMcpToast({ message: GENERIC_ERROR_MESSAGE });
       }
     } finally {
       if (isMounted.current) {
@@ -90,7 +100,7 @@ export function BotMcpSettingsScreen(props: Props) {
         setRefreshing(false);
       }
     }
-  }, [shipId, showToast]);
+  }, [shipId, showMcpToast]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -100,21 +110,23 @@ export function BotMcpSettingsScreen(props: Props) {
   }, []);
 
   useEffect(() => {
-    if (ship) {
-      setShipId(ship.replace(/^~/, ''));
+    const nextShipId = normalizeShipId(ship ?? currentUserId);
+    if (nextShipId) {
+      setShipId(nextShipId);
     }
-  }, [ship]);
+  }, [currentUserId, ship]);
 
   useEffect(() => {
     async function initializeShip() {
       const hostedShipId = await db.hostedUserNodeId.getValue();
-      if (isMounted.current && hostedShipId) {
-        setShipId(hostedShipId.replace(/^~/, ''));
+      const nextShipId = normalizeShipId(hostedShipId ?? ship ?? currentUserId);
+      if (isMounted.current && nextShipId) {
+        setShipId(nextShipId);
       }
     }
 
     initializeShip();
-  }, []);
+  }, [currentUserId, ship]);
 
   useEffect(() => {
     async function checkHostingSession() {
@@ -172,14 +184,14 @@ export function BotMcpSettingsScreen(props: Props) {
           providerId: completion.providerId,
         });
       }
-      showToast({
+      showMcpToast({
         message: completion.success
           ? completion.message
           : GENERIC_ERROR_MESSAGE,
       });
       refreshStatus();
     },
-    [refreshStatus, showToast]
+    [refreshStatus, showMcpToast]
   );
 
   useEffect(() => {
@@ -197,7 +209,7 @@ export function BotMcpSettingsScreen(props: Props) {
             providerId: completion.providerId,
           });
         }
-        showToast({
+        showMcpToast({
           message: completion.success
             ? completion.message
             : GENERIC_ERROR_MESSAGE,
@@ -219,7 +231,7 @@ export function BotMcpSettingsScreen(props: Props) {
     return () => {
       subscription.remove();
     };
-  }, [handleOAuthCompletion, showToast]);
+  }, [handleOAuthCompletion, showMcpToast]);
 
   useEffect(() => {
     if (isWeb || !startingProviderId) {
@@ -266,10 +278,10 @@ export function BotMcpSettingsScreen(props: Props) {
           error: err,
         });
         setStartingProviderId(null);
-        showToast({ message: GENERIC_ERROR_MESSAGE });
+        showMcpToast({ message: GENERIC_ERROR_MESSAGE });
       }
     },
-    [disconnectingProviderId, shipId, showToast, startingProviderId]
+    [disconnectingProviderId, shipId, showMcpToast, startingProviderId]
   );
 
   const handleDisconnectProvider = useCallback(
@@ -282,7 +294,7 @@ export function BotMcpSettingsScreen(props: Props) {
       try {
         await api.deleteTlawnOAuthGrant(shipId, providerId);
         trackMcpEvent(MCP_TELEMETRY_EVENTS.disconnected, { providerId });
-        showToast({ message: 'Connection disconnected.' });
+        showMcpToast({ message: 'Connection disconnected.' });
         await refreshStatus();
       } catch (err) {
         trackMcpError('Failed to disconnect OAuth provider', {
@@ -290,7 +302,7 @@ export function BotMcpSettingsScreen(props: Props) {
           providerId,
           error: err,
         });
-        showToast({ message: GENERIC_ERROR_MESSAGE });
+        showMcpToast({ message: GENERIC_ERROR_MESSAGE });
       } finally {
         if (isMounted.current) {
           setDisconnectingProviderId(null);
@@ -301,7 +313,7 @@ export function BotMcpSettingsScreen(props: Props) {
       disconnectingProviderId,
       refreshStatus,
       shipId,
-      showToast,
+      showMcpToast,
       startingProviderId,
     ]
   );
@@ -425,6 +437,10 @@ function clearOAuthSearchParams(url: URL) {
   url.searchParams.delete('error');
   url.searchParams.delete('message');
   url.searchParams.delete('provider');
+}
+
+function normalizeShipId(shipId: string | null | undefined) {
+  return shipId ? desig(shipId) : '';
 }
 
 function trackMcpEvent(
