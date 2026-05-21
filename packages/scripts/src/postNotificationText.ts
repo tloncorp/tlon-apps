@@ -193,7 +193,10 @@ function previewInlineVerse(
         (inline) => typeof inline === 'string' && inline.trim() === ''
       )
     ) {
-      out.push(previewInlineString(current, config));
+      const preview = previewInlineString(current, config);
+      if (preview.length > 0) {
+        out.push(preview);
+      }
     }
     current = [];
   }

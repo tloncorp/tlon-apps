@@ -41,4 +41,14 @@ describe('postNotificationText', () => {
       )
     ).toBe('| A | B |\n|---|---|\n| 1 | 2 |');
   });
+
+  it('skips inline verses that only contain a trailing break', () => {
+    expect(
+      getPostNotificationText([
+        { inline: ['hi'] },
+        { inline: [{ break: null }] },
+        { inline: ['bye'] },
+      ])
+    ).toBe('hi\nbye');
+  });
 });
