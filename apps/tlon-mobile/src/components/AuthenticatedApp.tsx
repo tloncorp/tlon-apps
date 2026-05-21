@@ -49,6 +49,7 @@ import { refreshHostingAuth } from '../lib/hostingAuth';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
 import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
 import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
+import { useWebAppSplash } from './WebAppSplashSheet';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
 
@@ -56,6 +57,7 @@ function AuthenticatedApp() {
   const telemetry = useTelemetry();
   const checkNodeStopped = useCheckNodeStopped();
   const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
+  const { splashSheet: webAppSplashSheet } = useWebAppSplash();
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
@@ -149,6 +151,7 @@ function AuthenticatedApp() {
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {poorUxReportModal}
       {promptSheet}
+      {webAppSplashSheet}
     </ZStack>
   );
 }
