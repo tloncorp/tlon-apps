@@ -59,6 +59,7 @@ export {
   setTlawnPrimaryModel,
   getTlawnProviderModels,
   getTlawnBotInfo,
+  getTlawnOAuthProviders,
   getTlawnOAuthStatus,
   startTlawnOAuth,
   getTlawnNickname,
@@ -80,9 +81,12 @@ export type {
   TlawnConfig,
   TlawnProviderModel,
   TlawnOAuthGrant,
+  TlawnOAuthProvider,
+  TlawnOAuthProviderKind,
   TlawnOAuthStatus,
   TlawnOAuthStartRequest,
   TlawnOAuthStartResponse,
+  TlawnOAuthUpstream,
 } from './hostingApi';
 export * from './apiUtils';
 export * from './metagrabApi';

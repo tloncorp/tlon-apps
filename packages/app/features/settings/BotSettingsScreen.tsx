@@ -17,7 +17,6 @@ import {
   BotSettingsScreenView,
   isWeb,
 } from '../../ui';
-import { MCP_OAUTH_PROVIDERS, McpOAuthProvider } from './mcpOAuthProviders';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
 
@@ -38,6 +37,9 @@ export function BotSettingsScreen(props: Props) {
   const [shipId, setShipId] = useState<string | null>(
     ship ? ship.replace(/^~/, '') : null
   );
+  const [providerConfigs, setProviderConfigs] = useState<
+    api.TlawnOAuthProvider[]
+  >([]);
   const [status, setStatus] = useState<api.TlawnOAuthStatus | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,8 +62,12 @@ export function BotSettingsScreen(props: Props) {
     setRefreshing(true);
     setError(null);
     try {
-      const nextStatus = await api.getTlawnOAuthStatus(shipId);
+      const [nextProviders, nextStatus] = await Promise.all([
+        api.getTlawnOAuthProviders(),
+        api.getTlawnOAuthStatus(shipId),
+      ]);
       if (isMounted.current) {
+        setProviderConfigs(nextProviders);
         setStatus(nextStatus);
       }
     } catch (err) {
@@ -202,8 +208,8 @@ export function BotSettingsScreen(props: Props) {
   }, [refreshStatus, startingProviderId]);
 
   const providers = useMemo(
-    () => buildProviderRows(MCP_OAUTH_PROVIDERS, status?.grants ?? []),
-    [status?.grants]
+    () => buildProviderRows(providerConfigs, status?.grants ?? []),
+    [providerConfigs, status?.grants]
   );
 
   const handleConnectProvider = useCallback(
@@ -251,7 +257,7 @@ export function BotSettingsScreen(props: Props) {
 }
 
 function buildProviderRows(
-  providers: McpOAuthProvider[],
+  providers: api.TlawnOAuthProvider[],
   grants: api.TlawnOAuthGrant[]
 ): BotSettingsProviderRow[] {
   const grantsByProvider = new Map(
