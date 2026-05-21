@@ -89,7 +89,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   }, []);
 
   const isOwnBotProfile = useMemo(() => {
-    return isCurrentUserBotProfile(userId, currentUserId);
+    return api.isBotUserIdForUser(userId, currentUserId);
   }, [currentUserId, userId]);
 
   const handlePressBotSettings = useCallback(() => {
@@ -175,16 +175,5 @@ export function UserProfileScreen({ route, navigation }: Props) {
         </AttachmentProvider>
       </NavigationProvider>
     </AppDataContextProvider>
-  );
-}
-
-function isCurrentUserBotProfile(profileUserId: string, currentUserId: string) {
-  const profile = profileUserId.replace(/^~/, '').toLowerCase();
-  const current = currentUserId.replace(/^~/, '').toLowerCase();
-
-  return (
-    current.length > 0 &&
-    profile.startsWith('pinser-botter') &&
-    profile.includes(current)
   );
 }

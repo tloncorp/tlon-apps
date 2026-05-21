@@ -3,6 +3,7 @@ import bigInt from 'big-integer';
 
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
+import { desig } from '../lib/urbit';
 import { parseIdNumber } from '../urbit';
 import { BadResponseError } from './urbit';
 
@@ -19,7 +20,8 @@ export function isColor(value: string) {
 // Limit max image string size since this isn't currently limited serverside +
 // it's possible for these to be massive and cause issues.
 const maxImageStringSize = 2048;
-const BOT_USER_ID_PREFIX = '~pinser-botter-';
+export const BOT_USER_ID_PREFIX = '~pinser-botter-';
+const DESIGGED_BOT_USER_ID_PREFIX = desig(BOT_USER_ID_PREFIX);
 
 export function toClientMeta(meta: ub.GroupMeta): db.ClientMeta {
   const iconImage = meta.image.length > maxImageStringSize ? '' : meta.image;
@@ -72,6 +74,27 @@ export function isDmChannelId(channelId: string) {
 
 export function isBotUserId(userId: string | null | undefined) {
   return userId?.startsWith(BOT_USER_ID_PREFIX) ?? false;
+}
+
+export function getBotUserIdForUser(userId: string | null | undefined) {
+  const normalizedUserId = normalizeUserId(userId);
+  return normalizedUserId ? `${BOT_USER_ID_PREFIX}${normalizedUserId}` : '';
+}
+
+export function isBotUserIdForUser(
+  botUserId: string | null | undefined,
+  userId: string | null | undefined
+) {
+  const normalizedUserId = normalizeUserId(userId);
+  return (
+    normalizedUserId.length > 0 &&
+    normalizeUserId(botUserId) ===
+      `${DESIGGED_BOT_USER_ID_PREFIX}${normalizedUserId}`
+  );
+}
+
+function normalizeUserId(userId: string | null | undefined) {
+  return desig(userId ?? '').toLowerCase();
 }
 
 export function isGroupDmChannelId(channelId: string) {
