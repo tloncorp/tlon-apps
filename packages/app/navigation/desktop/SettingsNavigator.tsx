@@ -35,7 +35,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
-  const botEnabled = isHostedUser && hostingBotEnabled;
+  const botEnabled =
+    Platform.OS === 'web' || (isHostedUser && hostingBotEnabled);
   const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {

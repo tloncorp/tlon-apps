@@ -69,6 +69,7 @@ export const getMobileLinkingConfig = (
           AppSettings: 'app-settings',
           FeatureFlags: 'feature-flags',
           ManageAccount: 'manage-account',
+          BotSettings: 'bot-settings',
           BlockedUsers: 'blocked-users',
           WompWomp: 'report-bug',
           AppInfo: 'app-info',
@@ -156,6 +157,7 @@ export const getDesktopLinkingConfig = (
             path: 'settings',
             screens: {
               SettingsEmpty: '',
+              BotSettings: 'bot-settings',
             },
           },
         },
