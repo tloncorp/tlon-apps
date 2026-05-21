@@ -436,6 +436,16 @@ export async function startTlawnOAuth(
   return { authUrl };
 }
 
+export async function deleteTlawnOAuthGrant(
+  ship: string,
+  providerId: string
+): Promise<void> {
+  await fetchVoid(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/grants/${encodeURIComponent(providerId)}`,
+    { method: 'DELETE' }
+  );
+}
+
 // These endpoints return `string | null` (not an object) so they can't go
 // through `hostingFetch<T extends object>`. We hit `rawHostingFetch` directly
 // and do the ok/parse bookkeeping here — crucially, throwing a HostingError
