@@ -1,4 +1,10 @@
-import { ConfirmDialog, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
+import {
+  ConfirmDialog,
+  Icon,
+  LoadingSpinner,
+  Pressable,
+  Text,
+} from '@tloncorp/ui';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
@@ -62,7 +68,7 @@ export function BotSettingsScreenView({
         rightControls={
           <ScreenHeader.IconButton type="Refresh" onPress={onRefresh} />
         }
-        title="Bot settings"
+        title="Connect MCP"
       />
       {initialLoading ? (
         <YStack flex={1} alignItems="center" justifyContent="center">
@@ -184,52 +190,55 @@ function ProviderListItem({
   const canShowDisconnectDialog = !disabled && isConnected;
   const isPressable = canConnect || canShowDisconnectDialog;
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const handlePress = canConnect
+    ? () => onConnect(provider.id)
+    : canShowDisconnectDialog
+      ? () => setShowDisconnectDialog(true)
+      : undefined;
 
   return (
     <>
-      <ListItem
-        alignItems="center"
-        backgroundColor="$transparent"
+      <Pressable
         borderRadius="$l"
-        gap="$l"
-        onPress={
-          canConnect
-            ? () => onConnect(provider.id)
-            : canShowDisconnectDialog
-              ? () => setShowDisconnectDialog(true)
-              : undefined
-        }
-        padding="$l"
+        onPress={handlePress}
         pressStyle={
           isPressable ? { backgroundColor: '$secondaryBackground' } : undefined
         }
       >
-        <McpProviderLogo
-          displayName={provider.displayName}
-          providerId={provider.id}
-        />
-        <ListItem.MainContent height="auto" minHeight="$4xl">
-          <XStack alignItems="center" gap="$s" flex={1}>
-            <ListItem.Title>{provider.displayName}</ListItem.Title>
-          </XStack>
-        </ListItem.MainContent>
-        {loading ? (
-          <LoadingSpinner color="$tertiaryText" size="small" />
-        ) : isConnected ? (
-          <XStack
-            backgroundColor="$positiveBackground"
-            borderRadius="$l"
-            paddingHorizontal="$m"
-            paddingVertical="$xs"
-          >
-            <Text color="$positiveActionText" size="$label/m">
-              Active
-            </Text>
-          </XStack>
-        ) : (
-          <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
-        )}
-      </ListItem>
+        <ListItem
+          alignItems="center"
+          backgroundColor="$transparent"
+          borderRadius="$l"
+          gap="$l"
+          padding="$l"
+        >
+          <McpProviderLogo
+            displayName={provider.displayName}
+            providerId={provider.id}
+          />
+          <ListItem.MainContent height="auto" minHeight="$4xl">
+            <XStack alignItems="center" gap="$s" flex={1}>
+              <ListItem.Title>{provider.displayName}</ListItem.Title>
+            </XStack>
+          </ListItem.MainContent>
+          {loading ? (
+            <LoadingSpinner color="$tertiaryText" size="small" />
+          ) : isConnected ? (
+            <XStack
+              backgroundColor="$positiveBackground"
+              borderRadius="$l"
+              paddingHorizontal="$m"
+              paddingVertical="$xs"
+            >
+              <Text color="$positiveActionText" size="$label/m">
+                Active
+              </Text>
+            </XStack>
+          ) : (
+            <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
+          )}
+        </ListItem>
+      </Pressable>
       {isConnected ? (
         <ConfirmDialog
           cancelText="Cancel"

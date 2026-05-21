@@ -181,25 +181,29 @@ function BotSettingsListItem({ onPress }: { onPress: () => void }) {
 
   return (
     <View paddingHorizontal="$xl" width="100%">
-      <ListItem
-        alignItems="center"
-        backgroundColor="$background"
+      <Pressable
         borderRadius="$2xl"
         onPress={handlePress}
-        padding="$l"
         pressStyle={{ backgroundColor: '$secondaryBackground' }}
       >
-        <ListItem.SystemIcon icon="Face" rounded />
-        <ListItem.MainContent>
-          <ListItem.Title>Bot settings</ListItem.Title>
-        </ListItem.MainContent>
-        <ListItem.EndContent>
-          <ListItem.SystemIcon
-            icon="ChevronRight"
-            backgroundColor="$transparent"
-          />
-        </ListItem.EndContent>
-      </ListItem>
+        <ListItem
+          alignItems="center"
+          backgroundColor="$background"
+          borderRadius="$2xl"
+          padding="$l"
+        >
+          <ListItem.SystemIcon icon="Face" rounded />
+          <ListItem.MainContent>
+            <ListItem.Title>Bot settings</ListItem.Title>
+          </ListItem.MainContent>
+          <ListItem.EndContent>
+            <ListItem.SystemIcon
+              icon="ChevronRight"
+              backgroundColor="$transparent"
+            />
+          </ListItem.EndContent>
+        </ListItem>
+      </Pressable>
     </View>
   );
 }

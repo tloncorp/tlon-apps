@@ -9,6 +9,7 @@ export type { GroupImageShim } from './components/Avatar';
 export * from './components/BigInput';
 export * from './components/BlockedContactsWidget';
 export * from './components/BotSettingsScreenView';
+export * from './components/BotSettingsHomeScreenView';
 export * from './components/Channel';
 export * from './components/Channel/ChannelDivider';
 export * from './components/Channel/ChannelHeader';

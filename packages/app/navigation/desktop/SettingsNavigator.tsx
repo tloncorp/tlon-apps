@@ -10,6 +10,8 @@ import { Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
+import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
+import { BotOtherSettingsScreen } from '../../features/settings/BotOtherSettingsScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
@@ -130,6 +132,14 @@ export const SettingsNavigator = () => {
         component={ManageAccountScreen}
       />
       <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
+      <SettingsDrawer.Screen
+        name="BotMcpSettings"
+        component={BotMcpSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotOtherSettings"
+        component={BotOtherSettingsScreen}
+      />
       <SettingsDrawer.Screen
         name="FeatureFlags"
         component={FeatureFlagScreen}
