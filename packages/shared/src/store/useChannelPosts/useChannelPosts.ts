@@ -51,13 +51,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const queryKey = useMemo(
     () => [
-      [
-        ...queryKeyPrefix,
-        options.channelId,
-        options.cursorPostId,
-        options.filterDeleted,
-        mountTime,
-      ],
+      ...queryKeyPrefix,
+      options.channelId,
+      options.cursorPostId,
+      options.filterDeleted,
+      mountTime,
     ],
     [options.channelId, options.cursorPostId, options.filterDeleted, mountTime]
   );

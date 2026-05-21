@@ -269,63 +269,79 @@ async function _sendPost({
   logger.crumb('done optimistic update');
   try {
     logger.crumb('enqueuing sending post to backend');
+    const debug = {
+      postId: cachePost.id,
+      channelId: channel.id,
+      parentId: cachePost.parentId ?? null,
+    };
+    const trackSendDebug = (phase: string, extra?: Record<string, unknown>) =>
+      logger.trackEvent('Post Send Debug', { ...debug, phase, ...extra });
 
     // Ensure uploads are started. Uploads are likely already started in UI,
     // but may as well make sure they're started here to avoid blocking in
     // SessionActionQueue.
     const finalizedPostDataPromise = buildFinalizedPostData();
 
-    await sessionActionQueue.add(async () => {
-      logger.crumb('finalizing post');
-      const finalizedPostData = await finalizedPostDataPromise;
+    await sessionActionQueue.add(
+      async () => {
+        logger.crumb('finalizing post');
+        trackSendDebug('queue_action_started');
+        const finalizedPostData = await finalizedPostDataPromise;
 
-      logger.crumb('updating post in db with finalized data');
-      await db.updatePost({
-        id: cachePost.id,
-        ...db.buildPostUpdate({
+        logger.crumb('updating post in db with finalized data');
+        await db.updatePost({
           id: cachePost.id,
-          content: finalizedPostData.content,
-          metadata: finalizedPostData.metadata,
-          blob: finalizedPostData.blob,
-          deliveryStatus: 'pending',
-          parentId: finalizedPostData.replyToPostId,
-        }),
-      });
+          ...db.buildPostUpdate({
+            id: cachePost.id,
+            content: finalizedPostData.content,
+            metadata: finalizedPostData.metadata,
+            blob: finalizedPostData.blob,
+            deliveryStatus: 'pending',
+            parentId: finalizedPostData.replyToPostId,
+          }),
+        });
 
-      // Send to the appropriate API endpoint based on whether this is a reply
-      if (finalizedPostData.replyToPostId != null) {
-        // Reply - look up parent author from DB
-        const parentPost = await db.getPost({
-          postId: finalizedPostData.replyToPostId,
-        });
-        if (parentPost == null) {
-          throw new Error(
-            `Parent post ${finalizedPostData.replyToPostId} not found for thread send`
-          );
+        // Send to the appropriate API endpoint based on whether this is a reply
+        if (finalizedPostData.replyToPostId != null) {
+          // Reply - look up parent author from DB
+          const parentPost = await db.getPost({
+            postId: finalizedPostData.replyToPostId,
+          });
+          if (parentPost == null) {
+            throw new Error(
+              `Parent post ${finalizedPostData.replyToPostId} not found for thread send`
+            );
+          }
+          logger.crumb('sending reply to API');
+          trackSendDebug('api_send_started', { operation: 'sendReply' });
+          return api.sendReply({
+            channelId: channel.id,
+            parentId: finalizedPostData.replyToPostId,
+            parentAuthor: parentPost.authorId,
+            authorId,
+            content: finalizedPostData.content,
+            blob: finalizedPostData.blob,
+            sentAt: cachePost.sentAt,
+          });
+        } else {
+          // Non-reply
+          logger.crumb('sending post to API');
+          trackSendDebug('api_send_started', { operation: 'sendPost' });
+          return api.sendPost({
+            channelId: channel.id,
+            authorId,
+            content: finalizedPostData.content,
+            blob: finalizedPostData.blob,
+            metadata: finalizedPostData.metadata,
+            sentAt: cachePost.sentAt,
+          });
         }
-        logger.crumb('sending reply to API');
-        return api.sendReply({
-          channelId: channel.id,
-          parentId: finalizedPostData.replyToPostId,
-          parentAuthor: parentPost.authorId,
-          authorId,
-          content: finalizedPostData.content,
-          blob: finalizedPostData.blob,
-          sentAt: cachePost.sentAt,
-        });
-      } else {
-        // Non-reply
-        logger.crumb('sending post to API');
-        return api.sendPost({
-          channelId: channel.id,
-          authorId,
-          content: finalizedPostData.content,
-          blob: finalizedPostData.blob,
-          metadata: finalizedPostData.metadata,
-          sentAt: cachePost.sentAt,
-        });
+      },
+      {
+        operation: cachePost.parentId == null ? 'sendPost' : 'sendReply',
+        ...debug,
       }
-    });
+    );
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
 
@@ -368,6 +384,7 @@ async function _sendPost({
     // the client didn't get the confirmation
     const errorMsg = e.message?.toLowerCase() || '';
     const isConnectionRelated =
+      e.name === 'PokeAckTimeoutError' ||
       errorMsg === 'aborted' ||
       errorMsg.includes('channel was reaped') ||
       errorMsg.includes('fetch timed out');
