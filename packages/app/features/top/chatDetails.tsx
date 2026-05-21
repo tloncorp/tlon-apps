@@ -517,8 +517,7 @@ export function LeaveActionsSection({
       ? group?.currentUserIsHost
       : channel?.currentUserIsHost ?? false;
   const canLeave = !isHost;
-  const canDelete =
-    isHost || (entityType === 'channel' && currentUserIsAdmin);
+  const canDelete = isHost || (entityType === 'channel' && currentUserIsAdmin);
 
   const chatTitle =
     entityType === 'group'
