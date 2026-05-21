@@ -402,6 +402,17 @@ if 'install_done' in seen and 'open_url' in seen:
 if 'upload_start' in seen and 'upload_done' in seen:
     phases.append(('eas_cache_upload', gap('upload_start', 'upload_done')))
 
+# 5. CocoaPods (iOS, cache-miss path only). cocoapods prints
+#    "Pod install took N [s] to run" at the end of `pod install`. Independent
+#    of any timestamped expo: line, so handled with its own regex.
+pod_re = re.compile(r'Pod install took (\d+) \[s\] to run')
+with open(log_path, errors='replace') as f:
+    for line in f:
+        m = pod_re.search(line)
+        if m:
+            phases.append(('pod_install (inside expo run:ios)', float(m.group(1))))
+            break
+
 with open(out_path, 'w') as out:
     for label, secs in phases:
         out.write(f"{label}\t{secs}\n")
