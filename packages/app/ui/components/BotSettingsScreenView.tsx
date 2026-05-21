@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { ConfirmDialog, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
+import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
@@ -114,11 +114,7 @@ export function BotSettingsScreenView({
   );
 }
 
-function NoticeBanner({
-  message,
-}: {
-  message: string;
-}) {
+function NoticeBanner({ message }: { message: string }) {
   return (
     <View
       backgroundColor="$negativeBackground"

@@ -402,11 +402,14 @@ export async function getTlawnOAuthProviders(): Promise<TlawnOAuthProvider[]> {
     '/v1/tlawn/oauth/providers'
   );
   if (!Array.isArray(response.providers)) {
-    throw new HostingError('OAuth providers response did not include providers', {
-      method: 'GET',
-      path: '/v1/tlawn/oauth/providers',
-      status: null,
-    });
+    throw new HostingError(
+      'OAuth providers response did not include providers',
+      {
+        method: 'GET',
+        path: '/v1/tlawn/oauth/providers',
+        status: null,
+      }
+    );
   }
 
   return response.providers;

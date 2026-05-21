@@ -12,11 +12,7 @@ import { useShip } from '../../contexts/ship';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
-import {
-  BotSettingsProviderRow,
-  BotSettingsScreenView,
-  isWeb,
-} from '../../ui';
+import { BotSettingsProviderRow, BotSettingsScreenView, isWeb } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
 

@@ -36,12 +36,12 @@ import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
+import { ListItem } from './ListItem';
 import {
   PhoneAttestDisplay,
   TwitterAttestDisplay,
 } from './Profile/ConnectedAccountsWidget';
 import { WidgetPane } from './WidgetPane';
-import { ListItem } from './ListItem';
 import { useBoundHandler } from './listItems/listItemUtils';
 
 interface Props {
