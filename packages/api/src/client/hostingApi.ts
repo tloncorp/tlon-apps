@@ -286,8 +286,7 @@ export interface TlawnOAuthStartResponse {
 }
 
 interface RawTlawnOAuthStartResponse {
-  authUrl?: string;
-  url?: string;
+  authorizeUrl: string;
 }
 
 function normalizeTlawnShipId(ship: string) {
@@ -374,15 +373,15 @@ export async function startTlawnOAuth(
 ): Promise<TlawnOAuthStartResponse> {
   const body = {
     provider: request.providerId,
-    finalRedirectUrl: request.finalRedirectUrl,
+    returnTo: request.finalRedirectUrl,
   };
   const response = await hostingFetch<RawTlawnOAuthStartResponse>(
     `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/start`,
     jsonInit('POST', body)
   );
-  const authUrl = response.authUrl ?? response.url;
+  const authUrl = response.authorizeUrl;
   if (!authUrl) {
-    throw new HostingError('OAuth start did not return an auth URL', {
+    throw new HostingError('OAuth start did not return authorizeUrl', {
       method: 'POST',
       path: `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/start`,
       status: null,
