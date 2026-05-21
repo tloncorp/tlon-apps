@@ -276,6 +276,36 @@ export interface TlawnOAuthStatus {
   grants: TlawnOAuthGrant[];
 }
 
+export type TlawnOAuthProviderKind = 'standard' | 'mcp_remote';
+
+export type TlawnOAuthUpstream =
+  | {
+      mode: 'proxy';
+      name: string;
+      url: string;
+    }
+  | {
+      mode: 'openapi';
+      name: string;
+      schemaUrl: string;
+    };
+
+export interface TlawnOAuthProvider {
+  authUrl?: string;
+  displayName: string;
+  id: string;
+  kind: TlawnOAuthProviderKind;
+  revokeUrl?: string;
+  scopes: string;
+  suggestedUpstream: TlawnOAuthUpstream;
+  template: string;
+  tokenUrl?: string;
+}
+
+interface TlawnOAuthProvidersResponse {
+  providers: TlawnOAuthProvider[];
+}
+
 export interface TlawnOAuthStartRequest {
   providerId: string;
   finalRedirectUrl: string;
@@ -365,6 +395,21 @@ export async function getTlawnOAuthStatus(
   return hostingFetch<TlawnOAuthStatus>(
     `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/status`
   );
+}
+
+export async function getTlawnOAuthProviders(): Promise<TlawnOAuthProvider[]> {
+  const response = await hostingFetch<TlawnOAuthProvidersResponse>(
+    '/v1/tlawn/oauth/providers'
+  );
+  if (!Array.isArray(response.providers)) {
+    throw new HostingError('OAuth providers response did not include providers', {
+      method: 'GET',
+      path: '/v1/tlawn/oauth/providers',
+      status: null,
+    });
+  }
+
+  return response.providers;
 }
 
 export async function startTlawnOAuth(
