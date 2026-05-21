@@ -1,9 +1,9 @@
 import { da, parse, render, tryParse } from '@urbit/aura';
 import bigInt from 'big-integer';
 
+import { desig } from '../lib/urbit';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
-import { desig } from '../lib/urbit';
 import { parseIdNumber } from '../urbit';
 import { BadResponseError } from './urbit';
 
