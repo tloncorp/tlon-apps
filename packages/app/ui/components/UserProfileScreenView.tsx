@@ -41,11 +41,13 @@ import {
   TwitterAttestDisplay,
 } from './Profile/ConnectedAccountsWidget';
 import { WidgetPane } from './WidgetPane';
+import { ListItem } from './ListItem';
 import { useBoundHandler } from './listItems/listItemUtils';
 
 interface Props {
   userId: string;
   connectionStatus: api.ConnectionStatus | null;
+  onPressBotSettings?: () => void;
   onPressGroup: (group: db.Group) => void;
 }
 
@@ -132,6 +134,10 @@ export function UserProfileScreenView(props: Props) {
           <ProfileButtons userId={props.userId} contact={userContact} />
         ) : null}
 
+        {props.onPressBotSettings ? (
+          <BotSettingsListItem onPress={props.onPressBotSettings} />
+        ) : null}
+
         {userContact?.status && (
           <StatusDisplay status={userContact?.status ?? ''} />
         )}
@@ -163,6 +169,37 @@ export function UserProfileScreenView(props: Props) {
           onPressGroup={onPressGroup}
         />
       </ScrollView>
+    </View>
+  );
+}
+
+function BotSettingsListItem({ onPress }: { onPress: () => void }) {
+  const handlePress = useCallback(() => {
+    onPress();
+    triggerHaptic('baseButtonClick');
+  }, [onPress]);
+
+  return (
+    <View paddingHorizontal="$xl" width="100%">
+      <ListItem
+        alignItems="center"
+        backgroundColor="$background"
+        borderRadius="$2xl"
+        onPress={handlePress}
+        padding="$l"
+        pressStyle={{ backgroundColor: '$secondaryBackground' }}
+      >
+        <ListItem.SystemIcon icon="Face" rounded />
+        <ListItem.MainContent>
+          <ListItem.Title>Bot settings</ListItem.Title>
+        </ListItem.MainContent>
+        <ListItem.EndContent>
+          <ListItem.SystemIcon
+            icon="ChevronRight"
+            backgroundColor="$transparent"
+          />
+        </ListItem.EndContent>
+      </ListItem>
     </View>
   );
 }

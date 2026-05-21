@@ -1,3 +1,4 @@
+import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
@@ -38,7 +39,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const connectionStatus = useShipConnectionStatus(userId);
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const { resetToDm } = useRootNavigation();
+  const { navigation: rootNavigation, resetToDm } = useRootNavigation();
 
   useEffect(() => {
     if (userId && userId !== currentUserId) {
@@ -86,6 +87,26 @@ export function UserProfileScreen({ route, navigation }: Props) {
     );
     setSelectedGroup(group);
   }, []);
+
+  const isOwnBotProfile = useMemo(() => {
+    return isCurrentUserBotProfile(userId, currentUserId);
+  }, [currentUserId, userId]);
+
+  const handlePressBotSettings = useCallback(() => {
+    if (isWindowNarrow) {
+      navigation.navigate('BotSettings');
+      return;
+    }
+
+    rootNavigation.dispatch(
+      CommonActions.navigate({
+        name: 'Settings',
+        params: {
+          screen: 'BotSettings',
+        },
+      })
+    );
+  }, [isWindowNarrow, navigation, rootNavigation]);
 
   const canEdit = useMemo(() => {
     return (
@@ -139,6 +160,9 @@ export function UserProfileScreen({ route, navigation }: Props) {
             <UserProfileScreenView
               userId={userId}
               connectionStatus={connectionStatus}
+              onPressBotSettings={
+                isOwnBotProfile ? handlePressBotSettings : undefined
+              }
               onPressGroup={handlePressGroup}
             />
           </View>
@@ -151,5 +175,16 @@ export function UserProfileScreen({ route, navigation }: Props) {
         </AttachmentProvider>
       </NavigationProvider>
     </AppDataContextProvider>
+  );
+}
+
+function isCurrentUserBotProfile(profileUserId: string, currentUserId: string) {
+  const profile = profileUserId.replace(/^~/, '').toLowerCase();
+  const current = currentUserId.replace(/^~/, '').toLowerCase();
+
+  return (
+    current.length > 0 &&
+    profile.startsWith('pinser-botter') &&
+    profile.includes(current)
   );
 }
