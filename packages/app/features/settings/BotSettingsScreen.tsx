@@ -269,41 +269,10 @@ function buildProviderRows(
 
     return {
       displayName: provider.displayName,
-      grantSummary: grant ? describeGrant(grant) : '',
       id: provider.id,
-      scopesSummary: describeScopes(provider.scopes),
       status,
-      upstreamSummary: describeUpstream(provider),
     };
   });
-}
-
-function describeUpstream(provider: McpOAuthProvider) {
-  return provider.suggestedUpstream.mode === 'proxy'
-    ? `${provider.suggestedUpstream.name} remote MCP`
-    : `${provider.suggestedUpstream.name} OpenAPI tools`;
-}
-
-function describeGrant(grant: api.TlawnOAuthGrant) {
-  const pieces = [
-    grant.hasRefreshToken ? 'Refresh token saved' : 'No refresh token',
-    describeScopes(grant.scopes),
-  ].filter(Boolean);
-
-  return pieces.join(' • ');
-}
-
-function describeScopes(scopes: string) {
-  const scopeCount = scopes
-    .split(/[\s,]+/)
-    .map((scope) => scope.trim())
-    .filter(Boolean).length;
-
-  if (scopeCount === 0) {
-    return 'No scopes requested';
-  }
-
-  return `${scopeCount} ${scopeCount === 1 ? 'scope' : 'scopes'}`;
 }
 
 function getFinalRedirectUrl() {

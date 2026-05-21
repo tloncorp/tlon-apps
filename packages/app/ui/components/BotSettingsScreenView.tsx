@@ -1,9 +1,11 @@
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { useState } from 'react';
+import { ConfirmDialog, Icon, LoadingSpinner, Text } from '@tloncorp/ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../utils';
 import { ListItem } from './ListItem';
+import { McpProviderLogo } from './McpProviderLogo';
 import { ScreenHeader } from './ScreenHeader';
 
 export type BotSettingsProviderStatus =
@@ -13,11 +15,8 @@ export type BotSettingsProviderStatus =
 
 export interface BotSettingsProviderRow {
   displayName: string;
-  grantSummary: string;
   id: string;
-  scopesSummary: string;
   status: BotSettingsProviderStatus;
-  upstreamSummary: string;
 }
 
 export interface BotSettingsCompletionNotice {
@@ -52,6 +51,12 @@ export function BotSettingsScreenView({
 }: BotSettingsScreenViewProps) {
   const insets = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
+  const activeProviders = providers.filter(
+    (provider) => provider.status === 'connected'
+  );
+  const availableProviders = providers.filter(
+    (provider) => provider.status !== 'connected'
+  );
 
   return (
     <View flex={1} backgroundColor="$background">
@@ -96,16 +101,25 @@ export function BotSettingsScreenView({
               tone="error"
             />
           ) : null}
-          <YStack gap="$xs">
-            {providers.map((provider) => (
-              <ProviderListItem
-                key={provider.id}
+          <YStack gap="$l">
+            {activeProviders.length > 0 ? (
+              <ProviderSection
                 disabled={!available || !!startingProviderId}
-                loading={startingProviderId === provider.id}
+                loadingProviderId={startingProviderId}
                 onConnect={onConnectProvider}
-                provider={provider}
+                providers={activeProviders}
+                title="Connected"
               />
-            ))}
+            ) : null}
+            {availableProviders.length > 0 ? (
+              <ProviderSection
+                disabled={!available || !!startingProviderId}
+                loadingProviderId={startingProviderId}
+                onConnect={onConnectProvider}
+                providers={availableProviders}
+                title="Available"
+              />
+            ) : null}
           </YStack>
         </ScrollView>
       )}
@@ -142,6 +156,39 @@ function NoticeBanner({
   );
 }
 
+function ProviderSection({
+  disabled,
+  loadingProviderId,
+  onConnect,
+  providers,
+  title,
+}: {
+  disabled: boolean;
+  loadingProviderId: string | null;
+  onConnect: (providerId: string) => void;
+  providers: BotSettingsProviderRow[];
+  title: string;
+}) {
+  return (
+    <YStack gap="$xs">
+      <Text color="$tertiaryText" size="$label/s">
+        {title}
+      </Text>
+      <YStack gap="$xs">
+        {providers.map((provider) => (
+          <ProviderListItem
+            key={provider.id}
+            disabled={disabled}
+            loading={loadingProviderId === provider.id}
+            onConnect={onConnect}
+            provider={provider}
+          />
+        ))}
+      </YStack>
+    </YStack>
+  );
+}
+
 function ProviderListItem({
   disabled,
   loading,
@@ -153,94 +200,69 @@ function ProviderListItem({
   onConnect: (providerId: string) => void;
   provider: BotSettingsProviderRow;
 }) {
-  const actionLabel =
-    provider.status === 'not-connected' ? 'Connect' : 'Reconnect';
-  const actionIcon =
-    provider.status === 'not-connected' ? 'Link' : ('Refresh' as const);
+  const isConnected = provider.status === 'connected';
+  const canConnect = !disabled && !isConnected;
+  const canShowDisconnectDialog = !disabled && isConnected;
+  const isPressable = canConnect || canShowDisconnectDialog;
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
 
   return (
-    <ListItem
-      alignItems="center"
-      backgroundColor="$secondaryBackground"
-      borderRadius="$l"
-      gap="$m"
-      padding="$m"
-    >
-      <ProviderInitial name={provider.displayName} />
-      <ListItem.MainContent height="auto" minHeight="$5xl">
-        <XStack alignItems="center" gap="$s">
-          <ListItem.Title flex={1}>{provider.displayName}</ListItem.Title>
-          <StatusPill status={provider.status} />
-        </XStack>
-        <ListItem.Subtitle numberOfLines={2}>
-          {provider.upstreamSummary}
-        </ListItem.Subtitle>
-        <ListItem.Subtitle numberOfLines={2}>
-          {provider.grantSummary || provider.scopesSummary}
-        </ListItem.Subtitle>
-      </ListItem.MainContent>
-      <Button
-        disabled={disabled}
-        leadingIcon={actionIcon}
-        loading={loading}
-        onPress={() => onConnect(provider.id)}
-        preset={provider.status === 'expired' ? 'primary' : 'secondary'}
-        size="small"
-        label={actionLabel}
-      />
-    </ListItem>
-  );
-}
-
-function ProviderInitial({ name }: { name: string }) {
-  return (
-    <View
-      alignItems="center"
-      backgroundColor="$background"
-      borderColor="$border"
-      borderRadius="$s"
-      borderWidth={1}
-      height="$4xl"
-      justifyContent="center"
-      width="$4xl"
-    >
-      <Text color="$secondaryText" size="$label/l">
-        {name.slice(0, 1)}
-      </Text>
-    </View>
-  );
-}
-
-function StatusPill({ status }: { status: BotSettingsProviderStatus }) {
-  const copy =
-    status === 'connected'
-      ? 'Connected'
-      : status === 'expired'
-        ? 'Expired'
-        : 'Not connected';
-  const backgroundColor =
-    status === 'connected'
-      ? '$positiveBackground'
-      : status === 'expired'
-        ? '$systemNoticeBackground'
-        : '$background';
-  const color =
-    status === 'connected'
-      ? '$positiveActionText'
-      : status === 'expired'
-        ? '$systemNoticeText'
-        : '$tertiaryText';
-
-  return (
-    <XStack
-      backgroundColor={backgroundColor}
-      borderRadius="$l"
-      paddingHorizontal="$m"
-      paddingVertical="$xs"
-    >
-      <Text color={color} size="$label/s">
-        {copy}
-      </Text>
-    </XStack>
+    <>
+      <ListItem
+        alignItems="center"
+        backgroundColor="$transparent"
+        borderRadius="$l"
+        gap="$l"
+        onPress={
+          canConnect
+            ? () => onConnect(provider.id)
+            : canShowDisconnectDialog
+              ? () => setShowDisconnectDialog(true)
+              : undefined
+        }
+        padding="$l"
+        pressStyle={
+          isPressable ? { backgroundColor: '$secondaryBackground' } : undefined
+        }
+      >
+        <McpProviderLogo
+          displayName={provider.displayName}
+          providerId={provider.id}
+        />
+        <ListItem.MainContent height="auto" minHeight="$4xl">
+          <XStack alignItems="center" gap="$s" flex={1}>
+            <ListItem.Title>{provider.displayName}</ListItem.Title>
+          </XStack>
+        </ListItem.MainContent>
+        {loading ? (
+          <LoadingSpinner color="$tertiaryText" size="small" />
+        ) : isConnected ? (
+          <XStack
+            backgroundColor="$positiveBackground"
+            borderRadius="$l"
+            paddingHorizontal="$m"
+            paddingVertical="$xs"
+          >
+            <Text color="$positiveActionText" size="$label/m">
+              Active
+            </Text>
+          </XStack>
+        ) : (
+          <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
+        )}
+      </ListItem>
+      {isConnected ? (
+        <ConfirmDialog
+          cancelText="Cancel"
+          confirmText="Disconnect"
+          description="Disconnect support is not available yet."
+          destructive
+          onConfirm={() => undefined}
+          onOpenChange={setShowDisconnectDialog}
+          open={showDisconnectDialog}
+          title={`Disconnect ${provider.displayName}?`}
+        />
+      ) : null}
+    </>
   );
 }
