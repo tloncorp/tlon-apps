@@ -379,8 +379,8 @@ function parseOAuthCompletionUrl(urlString: string): OAuthCompletion | null {
     const providerId = url.searchParams.get('provider');
     const status =
       url.searchParams.get('status') ?? url.searchParams.get('result');
-    const error =
-      url.searchParams.get('error') ?? url.searchParams.get('message');
+    const error = url.searchParams.get('error');
+    const callbackMessage = url.searchParams.get('message');
     const nativePath = [url.host, url.pathname.replace(/^\//, '')]
       .filter(Boolean)
       .join('/');
@@ -394,11 +394,13 @@ function parseOAuthCompletionUrl(urlString: string): OAuthCompletion | null {
       return null;
     }
 
-    const success = !error && status !== 'error' && status !== 'failed';
+    const normalizedStatus = status?.toLowerCase();
+    const success =
+      !error && normalizedStatus !== 'error' && normalizedStatus !== 'failed';
     const providerLabel = providerId ? ` for ${providerId}` : '';
     const message = success
-      ? `Connection complete${providerLabel}.`
-      : error || `Connection failed${providerLabel}.`;
+      ? callbackMessage || `Connection complete${providerLabel}.`
+      : error || callbackMessage || `Connection failed${providerLabel}.`;
 
     return { message, providerId, success };
   } catch {
