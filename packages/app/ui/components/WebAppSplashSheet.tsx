@@ -1,11 +1,16 @@
-import { ActionSheet } from '@tloncorp/app/ui';
 import * as db from '@tloncorp/shared/db';
 import { Button, Icon, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
-const TLON_WEB_URL = 'https://tlon.network/login';
+import { ActionSheet } from './ActionSheet';
+
+export const TLON_WEB_URL = 'https://tlon.network/login';
+
+export function openTlonWebApp() {
+  return Linking.openURL(TLON_WEB_URL);
+}
 
 export function useWebAppSplash() {
   const [open, setOpen] = useState(false);
@@ -39,7 +44,7 @@ export function useWebAppSplash() {
   );
 
   const handleOpenWeb = useCallback(() => {
-    Linking.openURL(TLON_WEB_URL);
+    openTlonWebApp();
     dismiss();
   }, [dismiss]);
 
@@ -54,7 +59,7 @@ export function useWebAppSplash() {
   return { splashSheet };
 }
 
-function WebAppSplashSheet({
+export function WebAppSplashSheet({
   open,
   onOpenChange,
   onOpenWeb,

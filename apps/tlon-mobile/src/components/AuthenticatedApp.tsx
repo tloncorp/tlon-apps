@@ -26,6 +26,7 @@ import {
   ForwardPostSheetProvider,
   PortalProvider,
   ZStack,
+  useWebAppSplash,
 } from '@tloncorp/app/ui';
 import {
   observeSyncSinceCompletion,
@@ -49,7 +50,6 @@ import { refreshHostingAuth } from '../lib/hostingAuth';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
 import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
 import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
-import { useWebAppSplash } from './WebAppSplashSheet';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
 

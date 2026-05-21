@@ -11,7 +11,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
-import { SettingsScreenView, View } from '../../ui';
+import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -82,6 +82,7 @@ export default function SettingsScreen(props: Props) {
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
         onPrivacyPressed={onPrivacyPressed}
+        onWebAppPressed={openTlonWebApp}
         dmLink={dmLink}
         onBackPressed={onBack}
         botEnabled={botEnabled}
