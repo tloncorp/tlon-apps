@@ -19,35 +19,30 @@ export interface BotSettingsProviderRow {
   status: BotSettingsProviderStatus;
 }
 
-export interface BotSettingsCompletionNotice {
-  message: string;
-  tone: 'success' | 'error';
-}
-
 interface BotSettingsScreenViewProps {
   available: boolean;
-  completionNotice: BotSettingsCompletionNotice | null;
-  error: string | null;
+  busyProviderId: string | null;
   initialLoading: boolean;
   onBackPressed: () => void;
   onConnectProvider: (providerId: string) => void;
+  onDisconnectProvider: (providerId: string) => void;
   onRefresh: () => void;
   providers: BotSettingsProviderRow[];
   refreshing: boolean;
-  startingProviderId: string | null;
+  showUnavailableNotice: boolean;
 }
 
 export function BotSettingsScreenView({
   available,
-  completionNotice,
-  error,
+  busyProviderId,
   initialLoading,
   onBackPressed,
   onConnectProvider,
+  onDisconnectProvider,
   onRefresh,
   providers,
   refreshing,
-  startingProviderId,
+  showUnavailableNotice,
 }: BotSettingsScreenViewProps) {
   const insets = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
@@ -88,34 +83,26 @@ export function BotSettingsScreenView({
             paddingBottom: insets.bottom + 24,
           }}
         >
-          {completionNotice ? (
-            <NoticeBanner
-              message={completionNotice.message}
-              tone={completionNotice.tone}
-            />
-          ) : null}
-          {error ? <NoticeBanner message={error} tone="error" /> : null}
-          {!available && !error ? (
-            <NoticeBanner
-              message="OAuth setup is unavailable for this ship."
-              tone="error"
-            />
+          {showUnavailableNotice ? (
+            <NoticeBanner message="OAuth setup is unavailable for this ship." />
           ) : null}
           <YStack gap="$l">
             {activeProviders.length > 0 ? (
               <ProviderSection
-                disabled={!available || !!startingProviderId}
-                loadingProviderId={startingProviderId}
+                disabled={!available || !!busyProviderId}
+                loadingProviderId={busyProviderId}
                 onConnect={onConnectProvider}
+                onDisconnect={onDisconnectProvider}
                 providers={activeProviders}
                 title="Connected"
               />
             ) : null}
             {availableProviders.length > 0 ? (
               <ProviderSection
-                disabled={!available || !!startingProviderId}
-                loadingProviderId={startingProviderId}
+                disabled={!available || !!busyProviderId}
+                loadingProviderId={busyProviderId}
                 onConnect={onConnectProvider}
+                onDisconnect={onDisconnectProvider}
                 providers={availableProviders}
                 title="Available"
               />
@@ -129,27 +116,18 @@ export function BotSettingsScreenView({
 
 function NoticeBanner({
   message,
-  tone,
 }: {
   message: string;
-  tone: 'success' | 'error';
 }) {
   return (
     <View
-      backgroundColor={
-        tone === 'success' ? '$positiveBackground' : '$negativeBackground'
-      }
-      borderColor={tone === 'success' ? '$positiveBorder' : '$negativeBorder'}
+      backgroundColor="$negativeBackground"
+      borderColor="$negativeBorder"
       borderRadius="$l"
       borderWidth={1}
       padding="$l"
     >
-      <Text
-        color={
-          tone === 'success' ? '$positiveActionText' : '$negativeActionText'
-        }
-        size="$label/m"
-      >
+      <Text color="$negativeActionText" size="$label/m">
         {message}
       </Text>
     </View>
@@ -160,12 +138,14 @@ function ProviderSection({
   disabled,
   loadingProviderId,
   onConnect,
+  onDisconnect,
   providers,
   title,
 }: {
   disabled: boolean;
   loadingProviderId: string | null;
   onConnect: (providerId: string) => void;
+  onDisconnect: (providerId: string) => void;
   providers: BotSettingsProviderRow[];
   title: string;
 }) {
@@ -181,6 +161,7 @@ function ProviderSection({
             disabled={disabled}
             loading={loadingProviderId === provider.id}
             onConnect={onConnect}
+            onDisconnect={onDisconnect}
             provider={provider}
           />
         ))}
@@ -193,11 +174,13 @@ function ProviderListItem({
   disabled,
   loading,
   onConnect,
+  onDisconnect,
   provider,
 }: {
   disabled: boolean;
   loading: boolean;
   onConnect: (providerId: string) => void;
+  onDisconnect: (providerId: string) => void;
   provider: BotSettingsProviderRow;
 }) {
   const isConnected = provider.status === 'connected';
@@ -255,9 +238,9 @@ function ProviderListItem({
         <ConfirmDialog
           cancelText="Cancel"
           confirmText="Disconnect"
-          description="Disconnect support is not available yet."
+          description={`${provider.displayName} will no longer be available to your bot.`}
           destructive
-          onConfirm={() => undefined}
+          onConfirm={() => onDisconnect(provider.id)}
           onOpenChange={setShowDisconnectDialog}
           open={showDisconnectDialog}
           title={`Disconnect ${provider.displayName}?`}

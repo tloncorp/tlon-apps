@@ -62,6 +62,7 @@ export {
   getTlawnOAuthProviders,
   getTlawnOAuthStatus,
   startTlawnOAuth,
+  deleteTlawnOAuthGrant,
   getTlawnNickname,
   setTlawnNickname,
   getTlawnAvatar,

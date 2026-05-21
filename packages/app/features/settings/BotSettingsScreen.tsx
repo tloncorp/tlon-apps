@@ -3,6 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Linking } from 'react-native';
 
@@ -12,7 +13,6 @@ import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
 import {
-  BotSettingsCompletionNotice,
   BotSettingsProviderRow,
   BotSettingsScreenView,
   isWeb,
@@ -29,10 +29,18 @@ type OAuthCompletion = {
 const logger = createDevLogger('botSettings', false);
 const WEB_COMPLETION_PARAM = 'mcp_oauth';
 const COMPLETION_PATH = 'mcp-oauth/complete';
+const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
+const MCP_TELEMETRY_EVENTS = {
+  initiatedOAuth: 'Tlonbot MCP: Initiated OAuth',
+  connected: 'Tlonbot MCP: Connected',
+  disconnected: 'Tlonbot MCP: Disconnected',
+  error: 'Tlonbot MCP: Error',
+} as const;
 
 export function BotSettingsScreen(props: Props) {
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
+  const showToast = useToast();
   const { ship } = useShip();
   const [shipId, setShipId] = useState<string | null>(
     ship ? ship.replace(/^~/, '') : null
@@ -43,24 +51,26 @@ export function BotSettingsScreen(props: Props) {
   const [status, setStatus] = useState<api.TlawnOAuthStatus | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [completionNotice, setCompletionNotice] =
-    useState<BotSettingsCompletionNotice | null>(null);
   const [startingProviderId, setStartingProviderId] = useState<string | null>(
     null
   );
+  const [disconnectingProviderId, setDisconnectingProviderId] = useState<
+    string | null
+  >(null);
   const handledCompletionUrls = useRef(new Set<string>());
   const isMounted = useRef(true);
 
   const refreshStatus = useCallback(async () => {
     if (!shipId) {
       setInitialLoading(false);
-      setError('No hosted ship is available.');
+      trackMcpError('OAuth status requested without hosted ship', {
+        action: 'loadStatus',
+      });
+      showToast({ message: GENERIC_ERROR_MESSAGE });
       return;
     }
 
     setRefreshing(true);
-    setError(null);
     try {
       const [nextProviders, nextStatus] = await Promise.all([
         api.getTlawnOAuthProviders(),
@@ -71,9 +81,12 @@ export function BotSettingsScreen(props: Props) {
         setStatus(nextStatus);
       }
     } catch (err) {
-      logger.trackError('Failed to load OAuth status', { error: err });
+      trackMcpError('Failed to load OAuth status', {
+        action: 'loadStatus',
+        error: err,
+      });
       if (isMounted.current) {
-        setError(getErrorMessage(err, 'Could not load MCP server status.'));
+        showToast({ message: GENERIC_ERROR_MESSAGE });
       }
     } finally {
       if (isMounted.current) {
@@ -81,7 +94,7 @@ export function BotSettingsScreen(props: Props) {
         setRefreshing(false);
       }
     }
-  }, [shipId]);
+  }, [shipId, showToast]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -152,22 +165,46 @@ export function BotSettingsScreen(props: Props) {
 
       handledCompletionUrls.current.add(url);
       setStartingProviderId(null);
-      setCompletionNotice({
-        message: completion.message,
-        tone: completion.success ? 'success' : 'error',
+      if (!completion.success) {
+        trackMcpError('OAuth flow completed with error', {
+          action: 'completeOAuth',
+          providerId: completion.providerId,
+          completionMessage: completion.message,
+        });
+      } else {
+        trackMcpEvent(MCP_TELEMETRY_EVENTS.connected, {
+          providerId: completion.providerId,
+        });
+      }
+      showToast({
+        message: completion.success
+          ? completion.message
+          : GENERIC_ERROR_MESSAGE,
       });
       refreshStatus();
     },
-    [refreshStatus]
+    [refreshStatus, showToast]
   );
 
   useEffect(() => {
     if (isWeb) {
       const completion = parseOAuthCompletionUrl(window.location.href);
       if (completion) {
-        setCompletionNotice({
-          message: completion.message,
-          tone: completion.success ? 'success' : 'error',
+        if (!completion.success) {
+          trackMcpError('OAuth flow completed with error', {
+            action: 'completeOAuth',
+            providerId: completion.providerId,
+            completionMessage: completion.message,
+          });
+        } else {
+          trackMcpEvent(MCP_TELEMETRY_EVENTS.connected, {
+            providerId: completion.providerId,
+          });
+        }
+        showToast({
+          message: completion.success
+            ? completion.message
+            : GENERIC_ERROR_MESSAGE,
         });
         clearWebCompletionParams();
       }
@@ -186,7 +223,7 @@ export function BotSettingsScreen(props: Props) {
     return () => {
       subscription.remove();
     };
-  }, [handleOAuthCompletion]);
+  }, [handleOAuthCompletion, showToast]);
 
   useEffect(() => {
     if (isWeb || !startingProviderId) {
@@ -214,13 +251,12 @@ export function BotSettingsScreen(props: Props) {
 
   const handleConnectProvider = useCallback(
     async (providerId: string) => {
-      if (!shipId || startingProviderId) {
+      if (!shipId || startingProviderId || disconnectingProviderId) {
         return;
       }
 
       setStartingProviderId(providerId);
-      setError(null);
-      setCompletionNotice(null);
+      trackMcpEvent(MCP_TELEMETRY_EVENTS.initiatedOAuth, { providerId });
       try {
         const response = await api.startTlawnOAuth(shipId, {
           providerId,
@@ -228,30 +264,70 @@ export function BotSettingsScreen(props: Props) {
         });
         await openAuthUrl(response.authUrl);
       } catch (err) {
-        logger.trackError('Failed to start OAuth flow', { error: err });
+        trackMcpError('Failed to start OAuth flow', {
+          action: 'startOAuth',
+          providerId,
+          error: err,
+        });
         setStartingProviderId(null);
-        setError(getErrorMessage(err, 'Could not start OAuth.'));
+        showToast({ message: GENERIC_ERROR_MESSAGE });
       }
     },
-    [shipId, startingProviderId]
+    [disconnectingProviderId, shipId, showToast, startingProviderId]
+  );
+
+  const handleDisconnectProvider = useCallback(
+    async (providerId: string) => {
+      if (!shipId || startingProviderId || disconnectingProviderId) {
+        return;
+      }
+
+      setDisconnectingProviderId(providerId);
+      try {
+        await api.deleteTlawnOAuthGrant(shipId, providerId);
+        trackMcpEvent(MCP_TELEMETRY_EVENTS.disconnected, { providerId });
+        showToast({ message: 'Connection disconnected.' });
+        await refreshStatus();
+      } catch (err) {
+        trackMcpError('Failed to disconnect OAuth provider', {
+          action: 'disconnectOAuth',
+          providerId,
+          error: err,
+        });
+        showToast({ message: GENERIC_ERROR_MESSAGE });
+      } finally {
+        if (isMounted.current) {
+          setDisconnectingProviderId(null);
+        }
+      }
+    },
+    [
+      disconnectingProviderId,
+      refreshStatus,
+      shipId,
+      showToast,
+      startingProviderId,
+    ]
   );
 
   const handleBack = useCallback(() => {
     props.navigation.goBack();
   }, [props.navigation]);
 
+  const busyProviderId = startingProviderId ?? disconnectingProviderId;
+
   return (
     <BotSettingsScreenView
       available={status?.available ?? false}
-      completionNotice={completionNotice}
-      error={error}
       initialLoading={initialLoading}
       onBackPressed={handleBack}
       onConnectProvider={handleConnectProvider}
+      onDisconnectProvider={handleDisconnectProvider}
       onRefresh={refreshStatus}
       providers={providers}
       refreshing={refreshing}
-      startingProviderId={startingProviderId}
+      busyProviderId={busyProviderId}
+      showUnavailableNotice={status?.available === false}
     />
   );
 }
@@ -353,6 +429,40 @@ function clearOAuthSearchParams(url: URL) {
   url.searchParams.delete('provider');
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+function trackMcpEvent(
+  eventName: (typeof MCP_TELEMETRY_EVENTS)[keyof typeof MCP_TELEMETRY_EVENTS],
+  properties: Record<string, unknown> = {}
+) {
+  logger.trackEvent(eventName, compactTelemetryProperties(properties));
+}
+
+function trackMcpError(
+  message: string,
+  properties: Record<string, unknown> = {}
+) {
+  logger.trackError(message, properties);
+  trackMcpEvent(MCP_TELEMETRY_EVENTS.error, {
+    ...properties,
+    errorMessage: message,
+  });
+}
+
+function compactTelemetryProperties(properties: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(properties)
+      .filter(([, value]) => value != null)
+      .map(([key, value]) => [key, serializeTelemetryValue(value)])
+  );
+}
+
+function serializeTelemetryValue(value: unknown): unknown {
+  if (value instanceof Error) {
+    return {
+      details: 'details' in value ? value.details : undefined,
+      message: value.message,
+      name: value.name,
+    };
+  }
+
+  return value;
 }
