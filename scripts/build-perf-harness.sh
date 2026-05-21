@@ -256,6 +256,23 @@ step_pnpm_install() {
   fi
 }
 
+step_patch_eas_provider() {
+  # LOCAL PROTOTYPE: copy the patched eas-build-cache-provider/build/index.js
+  # from the main repo into the worktree. The patch swaps `eas-cli
+  # fingerprint:generate` (~9s warm cache) for a direct call to
+  # @expo/fingerprint.createFingerprintAsync (~4s warm cache). Same hash.
+  # pnpm install in the worktree restores the original file each time, so we
+  # re-copy here. If this approach pans out we'd move it to pnpm.patchedDependencies.
+  local src="$ROOT/node_modules/eas-build-cache-provider/build/index.js"
+  local dst="$WT_DIR/node_modules/eas-build-cache-provider/build/index.js"
+  if grep -q "LOCAL PROTOTYPE PATCH" "$src" 2>/dev/null; then
+    cp "$src" "$dst"
+    echo "Applied @expo/fingerprint-direct patch to $dst"
+  else
+    echo "WARNING: main repo's eas-build-cache-provider is NOT patched; skipping"
+  fi
+}
+
 step_pod_install() {
   cd "$WT_DIR/apps/tlon-mobile/ios"
   # CocoaPods on Ruby 3.4 crashes with "Unicode Normalization not appropriate
@@ -423,6 +440,11 @@ step_metro_bundle() {
 run_steps() {
   cd "$WT_DIR"
 
+  # Opt the harness into the cross-worktree shared Metro cache. Off by
+  # default in metro.config.js so it doesn't affect normal dev workflows;
+  # the harness wants it on so cached transforms survive worktree churn.
+  export TLON_METRO_SHARED_CACHE=1
+
   if [[ "$MODE" == "cold" ]]; then
     record purge_shared_caches purge_shared_caches
     export EXPO_NO_CACHE=1
@@ -430,6 +452,7 @@ run_steps() {
   fi
 
   record pnpm_install      step_pnpm_install
+  record patch_eas_provider step_patch_eas_provider
   # Most @tloncorp/* packages resolve to src/ via the `tlon-source`
   # condition (see apps/tlon-mobile/metro.config.js + tsconfig.json),
   # so their dist/ outputs aren't needed. The exception is

@@ -16,7 +16,10 @@ const baseConfig = getSentryExpoConfig(projectRoot);
 // and Expo's `_expoRelativeProjectRoot` is workspace-relative, so identical
 // sources in different worktrees produce identical keys. Partition by
 // resolved RN+Expo version so upgrades don't poison the cache.
-// Opt out with TLON_METRO_SHARED_CACHE_DISABLED=1.
+//
+// Off by default to avoid affecting normal dev workflows. Opt in with
+// TLON_METRO_SHARED_CACHE=1 (e.g., set in the agent-loop harness or by
+// individual devs who want the cross-worktree speedup).
 const rnVersion = require('react-native/package.json').version;
 const expoVersion = require('expo/package.json').version;
 const sharedCacheRoot = path.join(
@@ -25,9 +28,9 @@ const sharedCacheRoot = path.join(
   `rn-${rnVersion}-expo-${expoVersion}`,
 );
 const sharedCacheStores =
-  process.env.TLON_METRO_SHARED_CACHE_DISABLED === '1'
-    ? undefined
-    : [new FileStore({ root: sharedCacheRoot })];
+  process.env.TLON_METRO_SHARED_CACHE === '1'
+    ? [new FileStore({ root: sharedCacheRoot })]
+    : undefined;
 
 /**
  * Metro configuration

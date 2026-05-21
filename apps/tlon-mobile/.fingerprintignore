@@ -28,3 +28,18 @@ android/app/debug.keystore
 # variants, but present in main repo if `pnpm generate` has ever been
 # run, so we exclude proactively.
 android/app/src/main/assets/bundle.jsbundle
+
+# --- Fingerprint compute optimization ---
+# Skia's lib/ alone is 3137 files (~75% of the package's tracked files).
+# Source maps + built JS output in autolinked packages are not consumed by
+# the native build. Excluding them drops fingerprint compute by ~26% on
+# warm cache (4.7s → 3.5s) without affecting build correctness.
+
+# Source maps: never an input to native builds.
+**/*.map
+
+# Built JS output in third-party node_modules. Autolinking reads native
+# sources (cpp/, apple/, android/, podspec, etc.) — not the lib/ tree.
+# Note: config plugins live under <pkg>/plugin/build/, not <pkg>/lib/,
+# so they're unaffected.
+**/node_modules/**/lib/**
