@@ -88,7 +88,7 @@ export type {
   TlawnOAuthStartRequest,
   TlawnOAuthStartResponse,
   TlawnOAuthUpstream,
-} from './hostingApi';
+} from '../types/hosting';
 export * from './apiUtils';
 export * from './metagrabApi';
 export * from './changesApi';
