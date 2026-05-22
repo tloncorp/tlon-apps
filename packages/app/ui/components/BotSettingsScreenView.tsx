@@ -4,6 +4,7 @@ import {
   LoadingSpinner,
   Pressable,
   Text,
+  triggerHaptic,
 } from '@tloncorp/ui';
 import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -191,9 +192,15 @@ function ProviderListItem({
   const isPressable = canConnect || canShowDisconnectDialog;
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const handlePress = canConnect
-    ? () => onConnect(provider.id)
+    ? () => {
+        triggerHaptic('baseButtonClick');
+        onConnect(provider.id);
+      }
     : canShowDisconnectDialog
-      ? () => setShowDisconnectDialog(true)
+      ? () => {
+          triggerHaptic('baseButtonClick');
+          setShowDisconnectDialog(true);
+        }
       : undefined;
 
   return (
