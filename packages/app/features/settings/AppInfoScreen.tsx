@@ -10,6 +10,7 @@ import { getEmailClients, openComposer } from 'react-native-email-link';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { downloadDb } from '../../lib/downloadDb';
 import { RootStackParamList } from '../../navigation/types';
 import {
   AppSetting,
@@ -171,7 +172,6 @@ export function AppInfoScreen(props: Props) {
             value={permittedSchedulerId ?? 'Not found'}
             copyable
           />
-
           <XStack
             key="debug-toggle"
             justifyContent="space-between"
@@ -200,6 +200,14 @@ export function AppInfoScreen(props: Props) {
               <Text>Please email support@tlon.io with this log ID:</Text>
               <Text>{logId}</Text>
             </YStack>
+          )}
+          {Platform.OS !== 'web' && (
+            <Button
+              preset="secondaryOutline"
+              marginTop="$xl"
+              onPress={downloadDb}
+              label="Export DB"
+            />
           )}
         </YStack>
       </ScrollView>
