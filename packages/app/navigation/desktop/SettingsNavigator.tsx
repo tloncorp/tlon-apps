@@ -2,17 +2,14 @@ import {
   DrawerContentComponentProps,
   createDrawerNavigator,
 } from '@react-navigation/drawer';
-import { useFocusEffect } from '@react-navigation/native';
 import { getVariableValue, useTheme } from '@tamagui/core';
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
-import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
-import { BotOtherSettingsScreen } from '../../features/settings/BotOtherSettingsScreen';
-import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
@@ -20,7 +17,6 @@ import { PushNotificationSettingsScreen } from '../../features/settings/PushNoti
 import { ThemeScreen } from '../../features/settings/ThemeScreen';
 import { UserBugReportScreen } from '../../features/settings/UserBugReportScreen';
 import { SettingsEmptyState } from '../../features/top/DesktopEmptyStates';
-import { useBotSettingsAvailability } from '../../hooks/useBotSettingsAvailability';
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -29,15 +25,16 @@ import { DESKTOP_SIDEBAR_WIDTH, SettingsScreenView } from '../../ui';
 
 const SettingsDrawer = createDrawerNavigator();
 
-function DrawerContent(
-  props: DrawerContentComponentProps & { botEnabled: boolean }
-) {
+function DrawerContent(props: DrawerContentComponentProps) {
   const { navigate } = props.navigation;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const isHostedUser = getCurrentUserIsHosted();
+  const botEnabled = Platform.OS !== 'web' && isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {
@@ -54,10 +51,6 @@ function DrawerContent(
 
   const onManageAccountPressed = useCallback(() => {
     navigate('ManageAccount');
-  }, [navigate]);
-
-  const onBotSettingsPressed = useCallback(() => {
-    navigate('BotSettings');
   }, [navigate]);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
@@ -86,33 +79,21 @@ function DrawerContent(
       onNotificationSettingsPressed={onPushNotifPressed}
       onBlockedUsersPressed={onBlockedUsersPressed}
       onManageAccountPressed={onManageAccountPressed}
-      onBotSettingsPressed={onBotSettingsPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
       dmLink={dmLink}
       focusedRouteName={focusedRoute.name}
-      botEnabled={props.botEnabled}
+      botEnabled={botEnabled}
     />
   );
 }
 
 export const SettingsNavigator = () => {
-  const { botEnabled, refreshBotSettingsAvailability } =
-    useBotSettingsAvailability();
-
-  useFocusEffect(
-    useCallback(() => {
-      refreshBotSettingsAvailability();
-    }, [refreshBotSettingsAvailability])
-  );
-
   return (
     <SettingsDrawer.Navigator
       initialRouteName="SettingsEmpty"
-      drawerContent={(props) => (
-        <DrawerContent {...props} botEnabled={botEnabled} />
-      )}
+      drawerContent={DrawerContent}
       screenOptions={{
         headerShown: false,
         drawerType: 'permanent',
@@ -140,15 +121,6 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="ManageAccount"
         component={ManageAccountScreen}
-      />
-      <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
-      <SettingsDrawer.Screen
-        name="BotMcpSettings"
-        component={BotMcpSettingsScreen}
-      />
-      <SettingsDrawer.Screen
-        name="BotOtherSettings"
-        component={BotOtherSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"

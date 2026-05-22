@@ -1,12 +1,11 @@
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getCurrentUserIsHosted } from '@tloncorp/api';
 import { useMutableRef } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { getVariableValue, useTheme } from 'tamagui';
 
-import { useBotSettingsAvailability } from '../../hooks/useBotSettingsAvailability';
 import { useDMLureLink } from '../../hooks/useBranchLink';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
@@ -22,15 +21,10 @@ export default function SettingsScreen(props: Props) {
   const currentUserId = useCurrentUserId();
   const { dmLink } = useDMLureLink();
   const hasHostedAuth = useHasHostedAuth();
-  const { botEnabled, refreshBotSettingsAvailability } =
-    useBotSettingsAvailability();
+  const hostingBotEnabled = db.hostingBotEnabled.useValue();
+  const isHostedUser = getCurrentUserIsHosted();
+  const botEnabled = Platform.OS !== 'web' && isHostedUser && hostingBotEnabled;
   const navigationRef = useMutableRef(props.navigation);
-
-  useFocusEffect(
-    useCallback(() => {
-      refreshBotSettingsAvailability();
-    }, [refreshBotSettingsAvailability])
-  );
 
   const onAppInfoPressed = useCallback(() => {
     navigationRef.current.navigate('AppInfo');
