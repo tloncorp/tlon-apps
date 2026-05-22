@@ -187,3 +187,37 @@ Removal:
 Remove this patch once we upgrade to a Reanimated version that includes an
 upstream fix for the web JS updater path and confirm production web no longer
 needs the local guards or transform fallback.
+
+## react-native-gesture-handler@2.28.0
+
+Why:
+On Android, `ReanimatedSwipeable` leaves both the left and right action
+containers mounted as absolute-fill views. The hidden side's container is
+animated to `opacity: 0` but still receives touches, so taps on a revealed
+quick action (e.g. "Mark as read" from a left swipe on a chat list item) are
+swallowed by the opposite-side container sitting on top in z-order and never
+reach the visible action.
+
+What it does:
+In `src/components/ReanimatedSwipeable/ReanimatedSwipeable.tsx`, the patch
+adds `pointerEvents: showLeftProgress.value === 0 ? 'none' : 'auto'` to
+`leftActionAnimation` and the symmetric guard to `rightActionAnimation`, so
+the hidden side stops intercepting touches alongside its opacity going to 0.
+
+Local patch:
+`patches/react-native-gesture-handler@2.28.0.patch`
+
+Upstream:
+- no matching upstream fix found as of May 2026; `ReanimatedSwipeable` on
+  `main` still animates only opacity on the action containers
+
+Validation:
+- Rebuild the Android app
+- On a chat list item, swipe to reveal the "Mark as read" (or other) quick
+  action and tap it. The tap should fire instead of being swallowed.
+- Linear: `TLON-5659`
+
+Removal:
+Remove this patch once `react-native-gesture-handler` ships a version of
+`ReanimatedSwipeable` that disables pointer events on the hidden action
+container, and we confirm the Android repro no longer needs the local fix.
