@@ -113,11 +113,6 @@ export const benefitsSheetDismissed = createStorageItem<boolean>({
   persistAfterLogout: true,
 });
 
-export const webAppSplashDismissed = createStorageItem<boolean>({
-  key: 'webAppSplashDismissed',
-  defaultValue: false,
-});
-
 export const signupData = createStorageItem<SignupParams>({
   key: 'signupData',
   defaultValue: {

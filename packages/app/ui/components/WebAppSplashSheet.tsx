@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Button, Icon, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking } from 'react-native';
@@ -17,8 +18,8 @@ export function useWebAppSplash() {
 
   useEffect(() => {
     let cancelled = false;
-    db.webAppSplashDismissed.getValue().then((dismissed) => {
-      if (!cancelled && !dismissed) {
+    db.getSettings().then((settings) => {
+      if (!cancelled && !settings?.webAppSplashDismissed) {
         setOpen(true);
       }
     });
@@ -29,7 +30,7 @@ export function useWebAppSplash() {
 
   const dismiss = useCallback(() => {
     setOpen(false);
-    db.webAppSplashDismissed.setValue(true);
+    store.dismissWebAppSplash();
   }, []);
 
   const handleOpenChange = useCallback(
