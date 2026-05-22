@@ -3,25 +3,44 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createImageAssetFromClipboardData } from './clipboardUtils';
 
 const fileSystemMocks = vi.hoisted(() => ({
-  EncodingType: {
-    Base64: 'base64',
+  directoryCreate: vi.fn(),
+  fileWrite: vi.fn(),
+  fileInfo: vi.fn(),
+  cacheDirectory: {
+    uri: 'file:///cache/',
   },
-  cacheDirectory: 'file:///cache/',
-  makeDirectoryAsync: vi.fn(),
-  writeAsStringAsync: vi.fn(),
 }));
 
 const imageMocks = vi.hoisted(() => ({
   imageSize: vi.fn(),
 }));
 
-const fileMocks = vi.hoisted(() => ({
-  getFileSize: vi.fn(),
-}));
+vi.mock('expo-file-system', () => ({
+  Paths: {
+    cache: fileSystemMocks.cacheDirectory,
+  },
+  Directory: class MockDirectory {
+    uri: string;
 
-vi.mock('expo-file-system/legacy', () => fileSystemMocks);
+    constructor(parent: { uri: string } | string, path: string) {
+      const parentUri = typeof parent === 'string' ? parent : parent.uri;
+      this.uri = `${parentUri}${path}/`;
+    }
+
+    create = fileSystemMocks.directoryCreate;
+  },
+  File: class MockFile {
+    uri: string;
+
+    constructor(directory: { uri: string }, name: string) {
+      this.uri = `${directory.uri}${name}`;
+    }
+
+    write = fileSystemMocks.fileWrite;
+    info = fileSystemMocks.fileInfo;
+  },
+}));
 vi.mock('../../utils/images', () => imageMocks);
-vi.mock('../../utils/files', () => fileMocks);
 vi.mock('expo-clipboard', () => ({}));
 vi.mock('react-native', () => ({
   Platform: {
@@ -30,12 +49,12 @@ vi.mock('react-native', () => ({
 }));
 
 beforeEach(() => {
-  fileSystemMocks.makeDirectoryAsync.mockReset();
-  fileSystemMocks.writeAsStringAsync.mockReset();
+  fileSystemMocks.directoryCreate.mockReset();
+  fileSystemMocks.fileWrite.mockReset();
+  fileSystemMocks.fileInfo.mockReset();
+  fileSystemMocks.fileInfo.mockReturnValue({ size: 3 });
   imageMocks.imageSize.mockReset();
   imageMocks.imageSize.mockResolvedValue([640, 480]);
-  fileMocks.getFileSize.mockReset();
-  fileMocks.getFileSize.mockReturnValue(3);
   vi.spyOn(Date, 'now').mockReturnValue(123);
 });
 
@@ -49,15 +68,13 @@ test('writes base64 clipboard images to a cache file', async () => {
     mimeType: 'image/png',
   });
 
-  expect(fileSystemMocks.makeDirectoryAsync).toHaveBeenCalledWith(
-    'file:///cache/clipboard-images/',
-    { intermediates: true }
-  );
-  expect(fileSystemMocks.writeAsStringAsync).toHaveBeenCalledWith(
-    'file:///cache/clipboard-images/clipboard-123.png',
-    'AAAA',
-    { encoding: 'base64' }
-  );
+  expect(fileSystemMocks.directoryCreate).toHaveBeenCalledWith({
+    intermediates: true,
+    idempotent: true,
+  });
+  expect(fileSystemMocks.fileWrite).toHaveBeenCalledWith('AAAA', {
+    encoding: 'base64',
+  });
   expect(imageMocks.imageSize).toHaveBeenCalledWith(
     'file:///cache/clipboard-images/clipboard-123.png'
   );
@@ -79,11 +96,9 @@ test('uses the mime type embedded in data uris', async () => {
     mimeType: 'image/png',
   });
 
-  expect(fileSystemMocks.writeAsStringAsync).toHaveBeenCalledWith(
-    'file:///cache/clipboard-images/clipboard-123.jpg',
-    'AAAA',
-    { encoding: 'base64' }
-  );
+  expect(fileSystemMocks.fileWrite).toHaveBeenCalledWith('AAAA', {
+    encoding: 'base64',
+  });
   expect(asset).toMatchObject({
     uri: 'file:///cache/clipboard-images/clipboard-123.jpg',
     fileName: 'clipboard-image.jpg',

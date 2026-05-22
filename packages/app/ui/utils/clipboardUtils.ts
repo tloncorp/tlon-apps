@@ -1,12 +1,10 @@
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory, File, Paths } from 'expo-file-system';
 import type * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 
-import { getFileSize } from '../../utils/files';
 import { imageSize } from '../../utils/images';
 
-const CLIPBOARD_IMAGE_DIR = `${FileSystem.cacheDirectory ?? ''}clipboard-images/`;
 const CLIPBOARD_IMAGE_EXTENSIONS: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/jpg': '.jpg',
@@ -87,37 +85,35 @@ export const createImageAssetFromClipboardData = async (clipboardData: {
   data: string;
   mimeType: string;
 }): Promise<ImagePicker.ImagePickerAsset> => {
-  if (!FileSystem.cacheDirectory) {
-    throw new Error('File system cache directory is unavailable');
-  }
-
   const { base64Data, mimeType } = normalizeClipboardImageData(clipboardData);
   const extension = getClipboardImageExtension(mimeType);
   const id = `clipboard-${Date.now()}`;
-  const uri = `${CLIPBOARD_IMAGE_DIR}${id}${extension}`;
+  const directory = new Directory(Paths.cache, 'clipboard-images');
+  const file = new File(directory, `${id}${extension}`);
 
-  await FileSystem.makeDirectoryAsync(CLIPBOARD_IMAGE_DIR, {
+  directory.create({
     intermediates: true,
+    idempotent: true,
   });
-  await FileSystem.writeAsStringAsync(uri, base64Data, {
-    encoding: FileSystem.EncodingType.Base64,
+  file.write(base64Data, {
+    encoding: 'base64',
   });
 
   let width = 300;
   let height = 300;
   try {
-    [width, height] = await imageSize(uri);
+    [width, height] = await imageSize(file.uri);
   } catch {
     // Fall back to a square preview if React Native cannot read dimensions.
   }
 
   return {
     assetId: id,
-    uri,
+    uri: file.uri,
     width,
     height,
     fileName: `clipboard-image${extension}`,
-    fileSize: getFileSize(uri) ?? 0,
+    fileSize: file.info().size ?? 0,
     mimeType,
     type: 'image',
     duration: undefined,
