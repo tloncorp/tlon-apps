@@ -93,7 +93,7 @@ starting with the `test` prefix. This would cause the `-test` unit test
 runner to attempt to resolve the arm as a unit test, which would break
 the unit test suite.
 
-## Comment style guide
+### Comment style guide
 
 Following a long maritime tradition, Urbit ships generally use feminine pronouns.
 However for galaxies, which hold authority over the network, use masculine pronouns.
@@ -193,10 +193,9 @@ assertion.
 The only interface exposed by aqua is that of an Urbit runtime, with its
 4 standard arms. Aqua exposes an interface to poke and scry virtual
 arvo, as well as receive effects.
-It is therefore not possible to interface directly through gall API with apps running inside virtual ships.
-Instead, we use arvo tasks to pass messages to vanes running on a
+It is therefore not possible to interface directly through gall API with apps running inside virtual ships. Instead, we use arvo tasks to pass messages to vanes running on a
 virtual ship. To receive effects, we can subscribe to a generic aqua
-endpoint, and also target a specific type of arvo effects by using a specific subscription path.
+endpoint `/effect`, and also target a specific type of arvo effects by using a specific subscription path, such as `/effect/unto` for gall `%unto` effects.
 
 ### Implementing a test
 

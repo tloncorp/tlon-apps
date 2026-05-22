@@ -42,8 +42,8 @@ You'll also need a group to put channels in. Use this code snippet in your dojo 
 :groups &group-create create
 ```
 ## Scries
-| Path | Mark | Description | Example
-|------|------|-------------|--------
+| Path | Mark | Description | Example |
+|------|------|-------------|---------|
 | `/x/channels` | [channel-channels](https://github.com/tloncorp/tlon-apps/blob/develop/desk/mar/channel/channels.hoon) | Get known channels and their contents. Returns [$channels](https://github.com/tloncorp/tlon-apps/blob/develop/desk/sur/channels.hoon#L427) | <code>.^(channels:c %gx /=channels=/channels/channel-channels)</code>
 | `/x/unreads` | [channel-unreads](https://github.com/tloncorp/tlon-apps/blob/develop/desk/mar/channel/unreads.hoon) | Get unread information for the channels our ship is in. Returns [$unreads](https://github.com/tloncorp/tlon-apps/blob/develop/desk/sur/channels.hoon#L227) | <code>.^(unreads:c %gx /=channels=/unreads/channel-unreads)</code>
 | `/x/init` | noun | Combination of `/channels` and `/unreads`. Returns [[$unreads](https://github.com/tloncorp/tlon-apps/blob/develop/desk/sur/channels.hoon#L218) [$channels](https://github.com/tloncorp/tlon-apps/blob/develop/desk/sur/channels.hoon#L427)] | <code>.^([unreads:c channels:c] %gx /=channels=/init/noun)</code>

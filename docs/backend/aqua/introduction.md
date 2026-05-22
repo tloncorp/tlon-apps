@@ -76,8 +76,7 @@ In addition to galaxy test ships, a test may require a number of _provider_
 ships to be running, to allow components of the system to properly integrate
 with remote services.
 
-In the groups desk, we need `%bait` and `%notify` providers, running on `~loshut-lonreg`
-and `~rivfur-livmet` respectively. In addition, virtual ames/mesa networking requires
+In the groups desk, we need `%bait` and `%notify` providers, running on `~loshut-lonreg` and `~rivfur-livmet` respectively. In addition, virtual ames/mesa networking requires
 the parent galaxies to be present. In this case, we must add `~fen` and `~dem` to the
 fleet. This means that in addition to ships expected to be available by
 aqua tests, we must add `~loshut-lonreg`, `~rivfur-livmet`, `~fen` and
@@ -189,5 +188,9 @@ cancel the runner thread. In dojo, this is simply done by pressing a backspace.
 
 ## Developing aqua tests
 
-To learn how to develop aqua tests, see ./docs/aqua/development.md
+To learn how to develop aqua tests, see [development guide](development.md).
+
+# System documentation
+
+While developing aqua tests, it is quite useful to consult documentation on specific system components, which can be found in the [desk](../desk) directory. For instance, when working on a gall agent in `/app/groups.hoon`, we would typically access its documentation at [/docs/app/groups.md](desk/app/groups.md).
 
