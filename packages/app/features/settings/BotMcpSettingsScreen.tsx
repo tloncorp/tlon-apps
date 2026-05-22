@@ -1,37 +1,28 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
-import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Linking } from 'react-native';
 
-import { APP_SCHEME } from '../../constants';
-import { useShip } from '../../contexts/ship';
+import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
-import { BotSettingsProviderRow, BotSettingsScreenView } from '../../ui';
+import { BotSettingsScreenView } from '../../ui';
+import {
+  GENERIC_ERROR_MESSAGE,
+  MCP_TELEMETRY_EVENTS,
+  TOAST_BOTTOM_OFFSET,
+  buildProviderRows,
+  getFinalRedirectUrl,
+  parseOAuthCompletionUrl,
+  trackMcpError,
+  trackMcpEvent,
+} from './botMcpSettingsHelpers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotMcpSettings'>;
-
-type OAuthCompletion = {
-  message: string;
-  providerId: string | null;
-  success: boolean;
-};
-
-const logger = createDevLogger('botSettings', false);
-const COMPLETION_PATH = 'mcp-oauth/complete';
-const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
-const TOAST_BOTTOM_OFFSET = 24;
-const MCP_TELEMETRY_EVENTS = {
-  initiatedOAuth: 'Tlonbot MCP: Initiated OAuth',
-  connected: 'Tlonbot MCP: Connected',
-  disconnected: 'Tlonbot MCP: Disconnected',
-  error: 'Tlonbot MCP: Error',
-} as const;
 
 export function BotMcpSettingsScreen(props: Props) {
   const resetDb = useResetDb();
@@ -43,10 +34,7 @@ export function BotMcpSettingsScreen(props: Props) {
     },
     [showToast]
   );
-  const { ship } = useShip();
-  const [shipId, setShipId] = useState<string | null>(
-    ship ? ship.replace(/^~/, '') : null
-  );
+  const currentUserId = useCurrentUserId();
   const [providerConfigs, setProviderConfigs] = useState<
     api.TlawnOAuthProvider[]
   >([]);
@@ -63,9 +51,9 @@ export function BotMcpSettingsScreen(props: Props) {
   const isMounted = useRef(true);
 
   const refreshStatus = useCallback(async () => {
-    if (!shipId) {
+    if (!currentUserId) {
       setInitialLoading(false);
-      trackMcpError('OAuth status requested without hosted ship', {
+      trackMcpError('OAuth status requested without current user', {
         action: 'loadStatus',
       });
       showMcpToast({ message: GENERIC_ERROR_MESSAGE });
@@ -76,7 +64,7 @@ export function BotMcpSettingsScreen(props: Props) {
     try {
       const [nextProviders, nextStatus] = await Promise.all([
         api.getTlawnOAuthProviders(),
-        api.getTlawnOAuthStatus(shipId),
+        api.getTlawnOAuthStatus(currentUserId),
       ]);
       if (isMounted.current) {
         setProviderConfigs(nextProviders);
@@ -96,30 +84,13 @@ export function BotMcpSettingsScreen(props: Props) {
         setRefreshing(false);
       }
     }
-  }, [shipId, showMcpToast]);
+  }, [currentUserId, showMcpToast]);
 
   useEffect(() => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
     };
-  }, []);
-
-  useEffect(() => {
-    if (ship) {
-      setShipId(ship.replace(/^~/, ''));
-    }
-  }, [ship]);
-
-  useEffect(() => {
-    async function initializeShip() {
-      const hostedShipId = await db.hostedUserNodeId.getValue();
-      if (isMounted.current && hostedShipId) {
-        setShipId(hostedShipId.replace(/^~/, ''));
-      }
-    }
-
-    initializeShip();
   }, []);
 
   useEffect(() => {
@@ -229,18 +200,18 @@ export function BotMcpSettingsScreen(props: Props) {
 
   const handleConnectProvider = useCallback(
     async (providerId: string) => {
-      if (!shipId || startingProviderId || disconnectingProviderId) {
+      if (!currentUserId || startingProviderId || disconnectingProviderId) {
         return;
       }
 
       setStartingProviderId(providerId);
       trackMcpEvent(MCP_TELEMETRY_EVENTS.initiatedOAuth, { providerId });
       try {
-        const response = await api.startTlawnOAuth(shipId, {
+        const response = await api.startTlawnOAuth(currentUserId, {
           providerId,
           finalRedirectUrl: getFinalRedirectUrl(),
         });
-        await openAuthUrl(response.authUrl);
+        await Linking.openURL(response.authUrl);
       } catch (err) {
         trackMcpError('Failed to start OAuth flow', {
           action: 'startOAuth',
@@ -251,18 +222,18 @@ export function BotMcpSettingsScreen(props: Props) {
         showMcpToast({ message: GENERIC_ERROR_MESSAGE });
       }
     },
-    [disconnectingProviderId, shipId, showMcpToast, startingProviderId]
+    [currentUserId, disconnectingProviderId, showMcpToast, startingProviderId]
   );
 
   const handleDisconnectProvider = useCallback(
     async (providerId: string) => {
-      if (!shipId || startingProviderId || disconnectingProviderId) {
+      if (!currentUserId || startingProviderId || disconnectingProviderId) {
         return;
       }
 
       setDisconnectingProviderId(providerId);
       try {
-        await api.deleteTlawnOAuthGrant(shipId, providerId);
+        await api.deleteTlawnOAuthGrant(currentUserId, providerId);
         trackMcpEvent(MCP_TELEMETRY_EVENTS.disconnected, { providerId });
         showMcpToast({ message: 'Connection disconnected.' });
         await refreshStatus();
@@ -280,9 +251,9 @@ export function BotMcpSettingsScreen(props: Props) {
       }
     },
     [
+      currentUserId,
       disconnectingProviderId,
       refreshStatus,
-      shipId,
       showMcpToast,
       startingProviderId,
     ]
@@ -308,108 +279,4 @@ export function BotMcpSettingsScreen(props: Props) {
       showUnavailableNotice={status?.available === false}
     />
   );
-}
-
-function buildProviderRows(
-  providers: api.TlawnOAuthProvider[],
-  grants: api.TlawnOAuthGrant[]
-): BotSettingsProviderRow[] {
-  const grantsByProvider = new Map(
-    grants.map((grant) => [grant.provider.toLowerCase(), grant])
-  );
-
-  return providers.map((provider) => {
-    const grant = grantsByProvider.get(provider.id.toLowerCase()) ?? null;
-    const status =
-      grant?.connected && !grant.expired
-        ? 'connected'
-        : grant
-          ? 'expired'
-          : 'not-connected';
-
-    return {
-      displayName: provider.displayName,
-      id: provider.id,
-      status,
-    };
-  });
-}
-
-function getFinalRedirectUrl() {
-  return `${APP_SCHEME}://${COMPLETION_PATH}`;
-}
-
-async function openAuthUrl(authUrl: string) {
-  await Linking.openURL(authUrl);
-}
-
-function parseOAuthCompletionUrl(urlString: string): OAuthCompletion | null {
-  try {
-    const url = new URL(urlString);
-    const providerId = url.searchParams.get('provider');
-    const status =
-      url.searchParams.get('status') ?? url.searchParams.get('result');
-    const error = url.searchParams.get('error');
-    const callbackMessage = url.searchParams.get('message');
-    const nativePath = [url.host, url.pathname.replace(/^\//, '')]
-      .filter(Boolean)
-      .join('/');
-    const isNativeCompletion =
-      url.protocol.replace(':', '') === APP_SCHEME &&
-      nativePath === COMPLETION_PATH;
-
-    if (!isNativeCompletion) {
-      return null;
-    }
-
-    const normalizedStatus = status?.toLowerCase();
-    const success =
-      !error && normalizedStatus !== 'error' && normalizedStatus !== 'failed';
-    const providerLabel = providerId ? ` for ${providerId}` : '';
-    const message = success
-      ? callbackMessage || `Connection complete${providerLabel}.`
-      : error || callbackMessage || `Connection failed${providerLabel}.`;
-
-    return { message, providerId, success };
-  } catch {
-    return null;
-  }
-}
-
-function trackMcpEvent(
-  eventName: (typeof MCP_TELEMETRY_EVENTS)[keyof typeof MCP_TELEMETRY_EVENTS],
-  properties: Record<string, unknown> = {}
-) {
-  logger.trackEvent(eventName, compactTelemetryProperties(properties));
-}
-
-function trackMcpError(
-  message: string,
-  properties: Record<string, unknown> = {}
-) {
-  logger.trackError(message, properties);
-  trackMcpEvent(MCP_TELEMETRY_EVENTS.error, {
-    ...properties,
-    errorMessage: message,
-  });
-}
-
-function compactTelemetryProperties(properties: Record<string, unknown>) {
-  return Object.fromEntries(
-    Object.entries(properties)
-      .filter(([, value]) => value != null)
-      .map(([key, value]) => [key, serializeTelemetryValue(value)])
-  );
-}
-
-function serializeTelemetryValue(value: unknown): unknown {
-  if (value instanceof Error) {
-    return {
-      details: 'details' in value ? value.details : undefined,
-      message: value.message,
-      name: value.name,
-    };
-  }
-
-  return value;
 }
