@@ -164,6 +164,18 @@ export class NativeDb extends BaseDb {
     return this.connection?.getDbPath();
   }
 
+  async exportDb(destinationPath: string): Promise<void> {
+    await this.ensureDbReady();
+
+    if (!this.connection) {
+      throw new Error('exportDb: attempted before connection was set up');
+    }
+
+    await this.connection.execute(
+      `VACUUM INTO '${destinationPath.replace(/'/g, "''")}'`
+    );
+  }
+
   async ensureDbReady() {
     if (this.didMigrate && this.connection && this.client) {
       return;
@@ -407,6 +419,8 @@ export const setupDb = () => nativeDb.setupDb();
 export const ensureDbReady = () => nativeDb.ensureDbReady();
 export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
+export const exportDb = (destinationPath: string) =>
+  nativeDb.exportDb(destinationPath);
 export const resetDb = () => nativeDb.resetDb();
 export const runMigrations = () => nativeDb.runMigrations();
 export const useMigrations = () => useMigrationsBase(nativeDb);
