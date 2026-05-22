@@ -21,6 +21,7 @@ type OAuthCompletion = {
 };
 
 const logger = createDevLogger('botSettings', false);
+const DISABLED_PROVIDER_IDS = new Set(['supabase']);
 
 export function buildProviderRows(
   providers: TlawnOAuthProvider[],
@@ -30,21 +31,23 @@ export function buildProviderRows(
     grants.map((grant) => [grant.provider.toLowerCase(), grant])
   );
 
-  return providers.map((provider) => {
-    const grant = grantsByProvider.get(provider.id.toLowerCase()) ?? null;
-    const status =
-      grant?.connected && !grant.expired
-        ? 'connected'
-        : grant
-          ? 'expired'
-          : 'not-connected';
+  return providers
+    .filter((provider) => !DISABLED_PROVIDER_IDS.has(provider.id.toLowerCase()))
+    .map((provider) => {
+      const grant = grantsByProvider.get(provider.id.toLowerCase()) ?? null;
+      const status =
+        grant?.connected && !grant.expired
+          ? 'connected'
+          : grant
+            ? 'expired'
+            : 'not-connected';
 
-    return {
-      displayName: provider.displayName,
-      id: provider.id,
-      status,
-    };
-  });
+      return {
+        displayName: provider.displayName,
+        id: provider.id,
+        status,
+      };
+    });
 }
 
 export function getFinalRedirectUrl() {
