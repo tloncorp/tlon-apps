@@ -20,9 +20,6 @@ android/.idea/**
 # build machine.
 android/local.properties
 
-# Auto-generated debug signing key. Created by Gradle's first debug
-# build, regenerated identically per machine if missing.
-android/app/debug.keystore
 
 # Embedded JS bundle output (release-only). Not produced by Debug
 # variants, but present in main repo if `pnpm generate` has ever been

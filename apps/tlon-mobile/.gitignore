@@ -284,6 +284,13 @@ render.experimental.xml
 # Keystore files
 *.jks
 *.keystore
+# Track the standard RN-template debug.keystore so the whole team shares the
+# same debug signing identity. Credentials are the public RN defaults
+# (androiddebugkey/android). Without this, debug APKs from different machines
+# can't be installed over each other (Android signature mismatch), which
+# would also poison the EAS build cache for cross-machine sharing.
+!apps/tlon-mobile/android/app/debug.keystore
+!android/app/debug.keystore
 
 # Android Profiling
 *.hprof

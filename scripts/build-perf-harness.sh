@@ -181,11 +181,9 @@ copy_local_secrets() {
     '.env.profile'
   )
   # Explicit relative paths that must exist for builds to succeed but aren't
-  # tracked in git. (Android debug signing keystore is gitignored; without it
-  # Gradle's app:validateSigningProductionDebug task fails.)
-  local explicit_files=(
-    'apps/tlon-mobile/android/app/debug.keystore'
-  )
+  # tracked in git. (Currently empty — android/app/debug.keystore is now
+  # committed to the repo so it's already in the worktree.)
+  local explicit_files=()
   local count=0
   for p in "${patterns[@]}"; do
     while IFS= read -r src; do
