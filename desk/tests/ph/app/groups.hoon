@@ -9,11 +9,13 @@
   |=  [=ship =r-groups:v10:gv]
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  rep=r-groups:v10:gv  bind:m
-    %-  ex-app-fact-mark
-    [r-groups:v10:gv /(scot %p ship)/groups/v1/groups [ship %groups] %group-response-1]
-  ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(flag.r-groups))
-  ;<  ~  bind:m  (ex-equal !>(r-group.rep) !>(r-group.r-groups))
+  ;<  ~  bind:m
+    %^  (ex-app-fact-match r-groups:v10:gv)  /(scot %p ship)/groups/v1/groups
+      [ship %groups]
+    :-  %group-response-1
+    |=  rep=r-groups:v10:gv
+    ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(flag.r-groups))
+    (ex-equal !>(r-group.rep) !>(r-group.r-groups))
   (pure:m ~)
 ::  +ex-r-groups-fact: expect group response fact
 ::
@@ -21,11 +23,13 @@
   |=  [=ship =flag:gv tag=@tas]
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  rep=r-groups:v10:gv  bind:m
-    %-  (ex-app-fact-mark r-groups:v10:gv)
-    [r-groups:v10:gv /(scot %p ship)/groups/v1/groups [ship %groups] %group-response-1]
-  ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(flag))
-  ;<  ~  bind:m  (ex-equal !>(`@tas`-.r-group.rep) !>(tag))
+  ;<  ~  bind:m
+    %^  (ex-app-fact-match r-groups:v10:gv)  /(scot %p ship)/groups/v1/groups
+      [ship %groups]
+    :-  %group-response-1
+    |=  rep=r-groups:v10:gv
+    ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(flag))
+    (ex-equal !>(`@tas`-.r-group.rep) !>(tag))
   (pure:m ~)
 ::  +ph-test-group-join: test group joins
 ::
