@@ -28,8 +28,7 @@
   ^-  form:m
   ;<  =bowl:strand  bind:m  get-bowl
   =/  tid=@ta
-    %+  cat  3
-    'pioneer-'
+    %^  cat  3  'pioneer-'
     (cat 3 name (cat 3 '-' (scot %uv (sham now.bowl name))))
   =/  =beak  [who %groups da+now.bowl]
   =/  file=term  (cat 3 'pioneer-' name)
@@ -45,7 +44,7 @@
       %thread-fail
     =+  !<([=term =tang] q.kag)
     %-  (slog tang)
-    ~|([%thread-fail term] !!)
+    (strand-fail %thread-fail term tang)
   ==
 ::
 ++  run-thread-ok
