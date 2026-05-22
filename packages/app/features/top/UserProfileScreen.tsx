@@ -161,7 +161,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
               userId={userId}
               connectionStatus={connectionStatus}
               onPressBotSettings={
-                isOwnBotProfile ? handlePressBotSettings : undefined
+                !isWeb && isOwnBotProfile ? handlePressBotSettings : undefined
               }
               onPressGroup={handlePressGroup}
             />

@@ -8,7 +8,7 @@ import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { useWebView } from '../../hooks/useWebview';
 import { RootStackParamList } from '../../navigation/types';
-import { LoadingSpinner, ScreenHeader, View, YStack, isWeb } from '../../ui';
+import { LoadingSpinner, ScreenHeader, View, YStack } from '../../ui';
 
 const BOT_SETTINGS_URL = 'https://tlon.network/tlonbot';
 
@@ -78,18 +78,6 @@ export function BotOtherSettingsScreen(props: Props) {
         leftControls={<ScreenHeader.BackButton onPress={handleBack} />}
         title="External Services"
       />
-      {isWeb && (
-        <View flex={1}>
-          <iframe
-            src={BOT_SETTINGS_URL}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-            }}
-          />
-        </View>
-      )}
       {hostingSession && !hostingSession.isExpired && webview ? (
         <View flex={1}>
           <WebView

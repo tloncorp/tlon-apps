@@ -1,7 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
-import { desig } from '@tloncorp/api/lib/urbit';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useToast } from '@tloncorp/ui';
@@ -10,11 +9,10 @@ import { Alert, AppState, Linking } from 'react-native';
 
 import { APP_SCHEME } from '../../constants';
 import { useShip } from '../../contexts/ship';
-import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
-import { BotSettingsProviderRow, BotSettingsScreenView, isWeb } from '../../ui';
+import { BotSettingsProviderRow, BotSettingsScreenView } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotMcpSettings'>;
 
@@ -25,7 +23,6 @@ type OAuthCompletion = {
 };
 
 const logger = createDevLogger('botSettings', false);
-const WEB_COMPLETION_PARAM = 'mcp_oauth';
 const COMPLETION_PATH = 'mcp-oauth/complete';
 const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 const TOAST_BOTTOM_OFFSET = 24;
@@ -47,9 +44,8 @@ export function BotMcpSettingsScreen(props: Props) {
     [showToast]
   );
   const { ship } = useShip();
-  const currentUserId = useCurrentUserId();
   const [shipId, setShipId] = useState<string | null>(
-    normalizeShipId(ship ?? currentUserId) || null
+    ship ? ship.replace(/^~/, '') : null
   );
   const [providerConfigs, setProviderConfigs] = useState<
     api.TlawnOAuthProvider[]
@@ -110,23 +106,21 @@ export function BotMcpSettingsScreen(props: Props) {
   }, []);
 
   useEffect(() => {
-    const nextShipId = normalizeShipId(ship ?? currentUserId);
-    if (nextShipId) {
-      setShipId(nextShipId);
+    if (ship) {
+      setShipId(ship.replace(/^~/, ''));
     }
-  }, [currentUserId, ship]);
+  }, [ship]);
 
   useEffect(() => {
     async function initializeShip() {
       const hostedShipId = await db.hostedUserNodeId.getValue();
-      const nextShipId = normalizeShipId(hostedShipId ?? ship ?? currentUserId);
-      if (isMounted.current && nextShipId) {
-        setShipId(nextShipId);
+      if (isMounted.current && hostedShipId) {
+        setShipId(hostedShipId.replace(/^~/, ''));
       }
     }
 
     initializeShip();
-  }, [currentUserId, ship]);
+  }, []);
 
   useEffect(() => {
     async function checkHostingSession() {
@@ -195,30 +189,6 @@ export function BotMcpSettingsScreen(props: Props) {
   );
 
   useEffect(() => {
-    if (isWeb) {
-      const completion = parseOAuthCompletionUrl(window.location.href);
-      if (completion) {
-        if (!completion.success) {
-          trackMcpError('OAuth flow completed with error', {
-            action: 'completeOAuth',
-            providerId: completion.providerId,
-            completionMessage: completion.message,
-          });
-        } else {
-          trackMcpEvent(MCP_TELEMETRY_EVENTS.connected, {
-            providerId: completion.providerId,
-          });
-        }
-        showMcpToast({
-          message: completion.success
-            ? completion.message
-            : GENERIC_ERROR_MESSAGE,
-        });
-        clearWebCompletionParams();
-      }
-      return;
-    }
-
     Linking.getInitialURL().then((initialUrl) => {
       if (initialUrl) {
         handleOAuthCompletion(initialUrl);
@@ -234,7 +204,7 @@ export function BotMcpSettingsScreen(props: Props) {
   }, [handleOAuthCompletion, showMcpToast]);
 
   useEffect(() => {
-    if (isWeb || !startingProviderId) {
+    if (!startingProviderId) {
       return;
     }
 
@@ -366,22 +336,10 @@ function buildProviderRows(
 }
 
 function getFinalRedirectUrl() {
-  if (isWeb && typeof window !== 'undefined') {
-    const url = new URL(window.location.href);
-    url.searchParams.set(WEB_COMPLETION_PARAM, 'complete');
-    clearOAuthSearchParams(url);
-    return url.toString();
-  }
-
   return `${APP_SCHEME}://${COMPLETION_PATH}`;
 }
 
 async function openAuthUrl(authUrl: string) {
-  if (isWeb && typeof window !== 'undefined') {
-    window.location.assign(authUrl);
-    return;
-  }
-
   await Linking.openURL(authUrl);
 }
 
@@ -399,10 +357,8 @@ function parseOAuthCompletionUrl(urlString: string): OAuthCompletion | null {
     const isNativeCompletion =
       url.protocol.replace(':', '') === APP_SCHEME &&
       nativePath === COMPLETION_PATH;
-    const isWebCompletion =
-      url.searchParams.get(WEB_COMPLETION_PARAM) === 'complete';
 
-    if (!isNativeCompletion && !isWebCompletion) {
+    if (!isNativeCompletion) {
       return null;
     }
 
@@ -418,29 +374,6 @@ function parseOAuthCompletionUrl(urlString: string): OAuthCompletion | null {
   } catch {
     return null;
   }
-}
-
-function clearWebCompletionParams() {
-  if (!isWeb || typeof window === 'undefined') {
-    return;
-  }
-
-  const url = new URL(window.location.href);
-  url.searchParams.delete(WEB_COMPLETION_PARAM);
-  clearOAuthSearchParams(url);
-  window.history.replaceState(null, '', url.toString());
-}
-
-function clearOAuthSearchParams(url: URL) {
-  url.searchParams.delete('status');
-  url.searchParams.delete('result');
-  url.searchParams.delete('error');
-  url.searchParams.delete('message');
-  url.searchParams.delete('provider');
-}
-
-function normalizeShipId(shipId: string | null | undefined) {
-  return shipId ? desig(shipId) : '';
 }
 
 function trackMcpEvent(
