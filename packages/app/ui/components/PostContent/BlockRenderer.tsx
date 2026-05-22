@@ -760,7 +760,7 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
     return () => {
       cancelled = true;
     };
-  }, [columnWidths, columnCount, allRows.length]);
+  }, [columnWidths, columnCount, allRows.length, contentKey]);
 
   const setCellRef = useCallback(
     (rowIdx: number, colIdx: number) => (node: RNView | null) => {
