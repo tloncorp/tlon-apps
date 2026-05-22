@@ -1,7 +1,4 @@
-import type {
-  TlawnOAuthGrant,
-  TlawnOAuthProvider,
-} from '@tloncorp/api';
+import type { TlawnOAuthGrant, TlawnOAuthProvider } from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 
 import { APP_SCHEME } from '../../constants';
