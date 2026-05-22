@@ -13,43 +13,31 @@ import RefLogo from '../assets/mcp-logos/ref.svg';
 import SentryLogo from '../assets/mcp-logos/sentry.svg';
 import SupabaseLogo from '../assets/mcp-logos/supabase.png';
 
-type LogoDimensions = {
-  height: number;
-  width: number;
-};
-
 type SvgLogoComponent = ComponentType<{
   height: number;
   width: number;
 }>;
 
-type SvgLogo = {
-  Component: SvgLogoComponent;
-  dimensions: LogoDimensions;
-};
-
 type ImageLogo = {
-  dimensions: LogoDimensions;
   source: number | string;
 };
 
-const svgLogos: Partial<Record<string, SvgLogo>> = {
-  arena: { Component: ArenaLogo, dimensions: { height: 22, width: 34 } },
-  atlassian: {
-    Component: AtlassianLogo,
-    dimensions: { height: 25, width: 25 },
-  },
-  github: { Component: GitHubLogo, dimensions: { height: 26, width: 26 } },
-  linear: { Component: LinearLogo, dimensions: { height: 26, width: 26 } },
-  notion: { Component: NotionLogo, dimensions: { height: 28, width: 28 } },
-  posthog: { Component: PostHogLogo, dimensions: { height: 20, width: 34 } },
-  ref: { Component: RefLogo, dimensions: { height: 27, width: 27 } },
-  sentry: { Component: SentryLogo, dimensions: { height: 26, width: 26 } },
+const LOGO_SIZE = 28;
+
+const svgLogos: Partial<Record<string, SvgLogoComponent>> = {
+  arena: ArenaLogo,
+  atlassian: AtlassianLogo,
+  github: GitHubLogo,
+  linear: LinearLogo,
+  notion: NotionLogo,
+  posthog: PostHogLogo,
+  ref: RefLogo,
+  sentry: SentryLogo,
 };
 
 const imageLogos: Partial<Record<string, ImageLogo>> = {
-  airtable: { dimensions: { height: 28, width: 28 }, source: AirtableLogo },
-  supabase: { dimensions: { height: 29, width: 28 }, source: SupabaseLogo },
+  airtable: { source: AirtableLogo },
+  supabase: { source: SupabaseLogo },
 };
 
 export function McpProviderLogo({
@@ -59,7 +47,7 @@ export function McpProviderLogo({
   displayName: string;
   providerId: string;
 }) {
-  const svgLogo = svgLogos[providerId];
+  const SvgLogo = svgLogos[providerId];
   const imageLogo = imageLogos[providerId];
 
   return (
@@ -74,17 +62,14 @@ export function McpProviderLogo({
       overflow="hidden"
       width="$4xl"
     >
-      {svgLogo ? (
-        <svgLogo.Component
-          height={svgLogo.dimensions.height}
-          width={svgLogo.dimensions.width}
-        />
+      {SvgLogo ? (
+        <SvgLogo height={LOGO_SIZE} width={LOGO_SIZE} />
       ) : imageLogo ? (
         <Image
           fallback={null}
-          height={imageLogo.dimensions.height}
+          height={LOGO_SIZE}
           source={imageLogo.source}
-          width={imageLogo.dimensions.width}
+          width={LOGO_SIZE}
           contentFit="contain"
         />
       ) : (
