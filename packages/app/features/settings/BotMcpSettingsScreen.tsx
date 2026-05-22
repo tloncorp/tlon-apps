@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
-import { useToast } from '@tloncorp/ui';
+import { triggerHaptic, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Linking } from 'react-native';
 
@@ -148,6 +148,7 @@ export function BotMcpSettingsScreen(props: Props) {
         trackMcpEvent(MCP_TELEMETRY_EVENTS.connected, {
           providerId: completion.providerId,
         });
+        triggerHaptic('success');
       }
       showMcpToast({
         message: completion.success
@@ -235,6 +236,7 @@ export function BotMcpSettingsScreen(props: Props) {
       try {
         await api.deleteTlawnOAuthGrant(currentUserId, providerId);
         trackMcpEvent(MCP_TELEMETRY_EVENTS.disconnected, { providerId });
+        triggerHaptic('success');
         showMcpToast({ message: 'Connection disconnected.' });
         await refreshStatus();
       } catch (err) {
