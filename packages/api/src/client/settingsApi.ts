@@ -151,8 +151,7 @@ export const toClientSettings = (
       settings.desk.groups?.completedWayfindingTutorial ?? false,
     disableTlonInfraEnhancement:
       settings.desk.groups?.disableTlonInfraEnhancement ?? false,
-    webAppSplashDismissed:
-      settings.desk.groups?.webAppSplashDismissed ?? false,
+    webAppSplashDismissed: settings.desk.groups?.webAppSplashDismissed ?? false,
   };
 };
 
