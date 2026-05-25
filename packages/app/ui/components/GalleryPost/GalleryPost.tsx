@@ -303,7 +303,14 @@ export function GalleryPostFooter({
     }
   }, [isWindowNarrow]);
 
-  const { data: threadUnread } = store.useLiveThreadUnreadByParentId(post.id);
+  // Ride the ['post', id] per-post invalidation channel instead of the
+  // table-wide one — the gallery grid mounts one footer per post, so a
+  // table-level invalidation would refetch every footer on any thread_unreads
+  // write. See db/changeListener.ts.
+  const { data: postWithUnread } = store.usePostWithThreadUnreads({
+    id: post.id,
+  });
+  const threadUnread = postWithUnread?.threadUnread;
   const unreadCount = threadUnread?.count ?? 0;
   const isNotify = threadUnread?.notify ?? false;
 
