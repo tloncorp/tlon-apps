@@ -703,14 +703,19 @@ export const useShowWebSplashModal = () => {
       return false;
     }
   } catch (e) {
-    // Client not initialized yet
+    // Suppress expected "Client not initialized" errors; log anything unexpected
+    if (!(e instanceof Error && e.message === 'Client not initialized')) {
+      console.warn('useShowWebSplashModal: unexpected error checking hosting status', e);
+    }
     return false;
   }
 
-  // Only show for mobile users (mobile browser/device)
+  // Only show for mobile users (touch-primary devices such as phones and tablets).
+  // Using the CSS pointer media feature is more reliable than user-agent sniffing
+  // and correctly handles cases like iPadOS (which reports a macOS user-agent).
   const isMobileDevice =
     typeof window !== 'undefined' &&
-    /Mobi|Android|iPhone|iPad/i.test(window.navigator?.userAgent ?? '');
+    window.matchMedia('(pointer: coarse)').matches;
   if (!isMobileDevice) {
     return false;
   }
