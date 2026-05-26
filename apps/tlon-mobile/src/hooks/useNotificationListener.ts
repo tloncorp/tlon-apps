@@ -1,8 +1,5 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
-import * as api from '@tloncorp/api';
-import * as ub from '@tloncorp/api/urbit';
-import { ActivityIncomingEvent } from '@tloncorp/api/urbit';
 import {
   connectNotifications,
   presentContactMatchNotification,
@@ -18,7 +15,9 @@ import {
 import { useIsWindowNarrow } from '@tloncorp/app/ui';
 import {
   AnalyticsEvent,
+  SyncPriority,
   createDevLogger,
+  ensureDmInviteChannel,
   setContactsMatchedHandler,
   syncDms,
   syncGroups,
@@ -33,54 +32,34 @@ import {
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
+import {
+  type PostInfo,
+  type ProcessableNotificationData,
+  parseNotificationPayload,
+} from '../lib/notificationPayload';
+import {
+  type NotificationTargetPreparation,
+  defaultNotificationTargetPreparation,
+  getMissingNotificationTargetRecovery,
+  getNotificationRouteCategory,
+  getNotificationType,
+} from './notificationRouting';
+
 const logger = createDevLogger('useNotificationListener', false);
+
+const notificationSyncCtx = {
+  priority: SyncPriority.High + 1,
+  retry: true,
+};
 
 type RouteStack = {
   name: keyof RootStackParamList;
   params?: RootStackParamList[keyof RootStackParamList];
 }[];
 
-interface BaseNotificationData {
-  meta: { errorsFromExtension?: unknown };
-}
-interface PostInfo {
-  id: string;
-  authorId: string;
-  isDm: boolean;
-}
-interface MinimalNotificationData extends BaseNotificationData {
-  type?: undefined;
-  channelId: string;
-  postInfo: PostInfo | null;
-}
-interface UnrecognizedNotificationData extends BaseNotificationData {
-  type: 'unrecognized';
-}
-
-interface GroupJoinRequestNotificationData extends BaseNotificationData {
-  type: 'groupJoinRequest';
-  groupId: string;
-}
-
-interface ContactMatchedNotificationData extends BaseNotificationData {
-  type: 'contactMatched';
-  contactId: string;
-}
-
-interface ContactsMatchedNotificationData extends BaseNotificationData {
-  type: 'contactsMatched';
-}
-
-type NotificationData =
-  | MinimalNotificationData
-  | GroupJoinRequestNotificationData
-  | ContactMatchedNotificationData
-  | ContactsMatchedNotificationData
-  | UnrecognizedNotificationData;
-
 function payloadFromNotification(
   notification: Notification
-): NotificationData | null {
+): ReturnType<typeof parseNotificationPayload> {
   // When a notification is received directly (i.e. is not mutated via
   // notification service extension), the payload is delivered in the
   // `content`. When "triggered" through the NSE, the payload is in the
@@ -98,140 +77,15 @@ function payloadFromNotification(
     }
   })();
 
-  if (payload == null || typeof payload !== 'object') {
-    return null;
-  }
-
-  const baseNotificationData: BaseNotificationData = {
-    meta: { errorsFromExtension: payload.notificationServiceExtensionErrors },
-  };
-
-  if (
-    payload.type === 'contactMatched' &&
-    typeof payload.contactId === 'string'
-  ) {
-    return {
-      ...baseNotificationData,
-      type: 'contactMatched',
-      contactId: payload.contactId,
-    };
-  }
-
-  if (payload.type === 'contactsMatched') {
-    return {
-      ...baseNotificationData,
-      type: 'contactsMatched',
-    };
-  }
-
-  if (
-    payload.activityEventJsonString != null &&
-    typeof payload.activityEventJsonString === 'string'
-  ) {
-    const { event: ev } = JSON.parse(payload.activityEventJsonString) as {
-      event: ub.ActivityEvent;
-    };
-    const is = ActivityIncomingEvent.is;
-
-    const authorAndId = (id: string) => ({
-      id: api.getCanonicalPostId(id),
-      authorId: ub.getIdParts(id).author,
-    });
-
-    const dmTarget = (
-      info: Pick<ub.DmPostEvent['dm-post'], 'whom'>,
-      { parent }: { parent?: ub.DmReplyEvent['dm-reply']['parent'] } = {}
-    ) => ({
-      ...baseNotificationData,
-      channelId: 'ship' in info.whom ? info.whom.ship : 'unknown',
-      postInfo:
-        parent == null
-          ? null
-          : {
-              ...authorAndId(parent.id),
-              isDm: false,
-            },
-    });
-    const channelPostTarget = (
-      info: Pick<ub.PostEvent['post'], 'channel'>,
-      { parent }: { parent?: ub.ReplyEvent['reply']['parent'] } = {}
-    ) => ({
-      ...baseNotificationData,
-      channelId: info.channel,
-      postInfo:
-        parent == null
-          ? null
-          : {
-              ...authorAndId(parent.id),
-              isDm: false,
-            },
-    });
-
-    const groupAskTarget = (info: { group: string }): NotificationData => {
-      return {
-        ...baseNotificationData,
-        type: 'groupJoinRequest',
-        groupId: info.group,
-      };
-    };
-
-    switch (true) {
-      case is(ev, 'dm-post'):
-        return dmTarget(ev['dm-post']);
-
-      case is(ev, 'dm-reply'):
-        return dmTarget(ev['dm-reply']);
-
-      case is(ev, 'post'):
-        return channelPostTarget(ev.post);
-
-      case is(ev, 'reply'):
-        return channelPostTarget(ev.reply, { parent: ev.reply.parent });
-
-      case is(ev, 'group-ask'):
-        return groupAskTarget(ev['group-ask']);
-      case is(ev, 'dm-invite'):
-      // fallthrough
-      case is(ev, 'group-join'):
-      // fallthrough
-      case is(ev, 'group-kick'):
-      // fallthrough
-      case is(ev, 'group-invite'):
-      // fallthrough
-      case is(ev, 'group-role'):
-      // fallthrough
-      case is(ev, 'flag-post'):
-      // fallthrough
-      case is(ev, 'contact'):
-      // fallthrough
-      case is(ev, 'flag-reply'):
-        return null;
-
-      default: {
-        return ((_x: never) => {
-          throw new Error(`Unexpected activity event: ${ev}`);
-        })(ev);
-      }
-    }
-  }
-
-  return {
-    ...baseNotificationData,
-    type: 'unrecognized',
-  };
+  return parseNotificationPayload(payload);
 }
 
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
 
-  const [notifToProcess, setNotifToProcess] = useState<
-    | MinimalNotificationData
-    | GroupJoinRequestNotificationData
-    | ContactMatchedNotificationData
-    | ContactsMatchedNotificationData
-    | null
-  >(null);
+  const [notifToProcess, setNotifToProcess] =
+    useState<ProcessableNotificationData | null>(null);
 
   // Start notifications prompt
   useEffect(() => {
@@ -256,46 +110,55 @@ export default function useNotificationListener() {
   const notificationResponse = useLastNotificationResponse();
   useEffect(() => {
     if (notificationResponse != null) {
-      const data = payloadFromNotification(notificationResponse.notification);
+      try {
+        const data = payloadFromNotification(notificationResponse.notification);
 
-      // If the NSE caught an error, it puts it in a list under
-      // `notificationServiceExtensionErrors` - slurp em and log.
-      //
-      // NB: This will only log errors on tapped notifications - we could use
-      // `getPresentedNotificationsAsync` to log all notifications' errors,
-      // but we don't have a good way to prevent logging the same
-      // notification multiple times.
-      const errorsFromExtension = data?.meta.errorsFromExtension;
-      if (errorsFromExtension != null) {
+        // If the NSE caught an error, it puts it in a list under
+        // `notificationServiceExtensionErrors` - slurp em and log.
+        //
+        // NB: This will only log errors on tapped notifications - we could use
+        // `getPresentedNotificationsAsync` to log all notifications' errors,
+        // but we don't have a good way to prevent logging the same
+        // notification multiple times.
+        const errorsFromExtension = data?.meta.errorsFromExtension;
+        if (errorsFromExtension != null) {
+          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+            context: 'Notification service extension forwarded an error:',
+            properties: { errors: errorsFromExtension },
+          });
+        }
+
+        if (data == null || data.type === 'unrecognized') {
+          // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
+          // We're seeing cases where `data` is null here - not sure why this is happening.
+          // Log the notification and don't try to navigate.
+          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+            context: 'Failed to get notification payload',
+            properties: {
+              notificationType: data?.type ?? 'null',
+            },
+          });
+        } else {
+          setNotifToProcess(data);
+        }
+      } catch (error) {
         logger.trackError(AnalyticsEvent.ErrorNotificationService, {
-          context: 'Notification service extension forwarded an error:',
-          properties: { errors: errorsFromExtension },
+          context: 'Failed to process notification response',
+          properties: {
+            errorKind: error instanceof Error ? error.name : typeof error,
+          },
+        });
+      } finally {
+        // Clear so future taps with reused request identifiers are not deduped.
+        void clearLastNotificationResponseAsync().catch((error) => {
+          logger.trackError(AnalyticsEvent.ErrorNotificationService, {
+            context: 'Failed to clear last notification response',
+            error,
+          });
         });
       }
-
-      if (data == null || data.type === 'unrecognized') {
-        // https://linear.app/tlon/issue/TLON-2551/multiple-notifications-that-lead-to-nowhere-crash-app
-        // We're seeing cases where `data` is null here - not sure why this is happening.
-        // Log the notification and don't try to navigate.
-        logger.trackError(AnalyticsEvent.ErrorNotificationService, {
-          context: 'Failed to get notification payload',
-          properties: isTlonEmployee
-            ? notificationResponse.notification.request
-            : undefined,
-        });
-      } else {
-        setNotifToProcess(data);
-      }
-
-      // Clear so future taps with reused request identifiers are not deduped.
-      void clearLastNotificationResponseAsync().catch((error) => {
-        logger.trackError(AnalyticsEvent.ErrorNotificationService, {
-          context: 'Failed to clear last notification response',
-          error,
-        });
-      });
     }
-  }, [notificationResponse, isTlonEmployee]);
+  }, [notificationResponse]);
 
   const isDesktop = useIsWindowNarrow();
 
@@ -388,38 +251,108 @@ export default function useNotificationListener() {
       return true;
     }
 
+    async function prepareNotificationTarget(
+      data: ProcessableNotificationData
+    ): Promise<NotificationTargetPreparation> {
+      if (data.type === 'dmInvite' && data.whomType === 'ship') {
+        const result = await ensureDmInviteChannel({
+          channelId: data.channelId,
+          syncCtx: notificationSyncCtx,
+        });
+        return {
+          canNavigate: result.found,
+          attemptedSingleDmInviteRecovery: true,
+        };
+      }
+
+      if (data.type === 'dmInvite' && data.whomType === 'club') {
+        await syncDms(notificationSyncCtx);
+      }
+
+      return defaultNotificationTargetPreparation;
+    }
+
+    async function syncMissingNotificationTarget(
+      data: ProcessableNotificationData,
+      preparation: NotificationTargetPreparation
+    ) {
+      if (!('channelId' in data)) {
+        return false;
+      }
+
+      switch (getMissingNotificationTargetRecovery(data, preparation)) {
+        case 'singleDmInvite': {
+          const result = await ensureDmInviteChannel({
+            channelId: data.channelId,
+            syncCtx: notificationSyncCtx,
+          });
+          return result.found;
+        }
+        case 'dms':
+          await syncDms(notificationSyncCtx);
+          return true;
+        case 'groups':
+          await syncGroups(notificationSyncCtx);
+          return true;
+        case 'none':
+          return false;
+      }
+    }
+
     if (notifToProcess) {
+      const notificationData = notifToProcess;
       const handleNavigate = (() => {
-        switch (notifToProcess.type) {
+        switch (notificationData.type) {
           case 'groupJoinRequest':
-            return () => goToGroupMembers(notifToProcess.groupId);
+            return () => goToGroupMembers(notificationData.groupId);
           case 'contactMatched':
-            return () => goToUserProfile(notifToProcess.contactId);
+            return () => goToUserProfile(notificationData.contactId);
           case 'contactsMatched':
             return () => goToContacts();
+          case 'dmInvite':
+            return () => gotToChannel(notificationData.channelId, null);
           default:
             return () =>
-              gotToChannel(notifToProcess.channelId, notifToProcess.postInfo);
+              gotToChannel(
+                notificationData.channelId,
+                notificationData.postInfo
+              );
         }
       })();
 
       (async () => {
-        // First check if we have this channel in local store
-        let didNavigate = await handleNavigate();
+        try {
+          const preparation = await prepareNotificationTarget(notificationData);
+          let didNavigate = preparation.canNavigate
+            ? await handleNavigate()
+            : false;
 
-        // If not, sync from source and try again
-        if (!didNavigate) {
-          await Promise.all([syncDms(), syncGroups()]);
-
-          didNavigate = await handleNavigate();
-
-          // If still not found, clear out the requested channel ID
           if (!didNavigate) {
-            if (isTlonEmployee) {
-              logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate);
+            const recovered = await syncMissingNotificationTarget(
+              notificationData,
+              preparation
+            );
+            didNavigate = recovered ? await handleNavigate() : false;
+
+            // If still not found, clear out the requested channel ID
+            if (!didNavigate) {
+              if (isTlonEmployee) {
+                logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate, {
+                  routeCategory: getNotificationRouteCategory(notificationData),
+                  notificationType: getNotificationType(notificationData),
+                });
+              }
+              setNotifToProcess(null);
             }
-            setNotifToProcess(null);
           }
+        } catch (error) {
+          logger.trackError(AnalyticsEvent.ErrorPushNotifNavigate, {
+            context: 'Failed to route push notification',
+            routeCategory: getNotificationRouteCategory(notificationData),
+            notificationType: getNotificationType(notificationData),
+            errorKind: error instanceof Error ? error.name : typeof error,
+          });
+          setNotifToProcess(null);
         }
       })();
     }
