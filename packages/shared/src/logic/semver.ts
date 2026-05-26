@@ -6,7 +6,7 @@ function parse(version: string): [number, number, number] | null {
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 }
 
-export function compareSemver(a: string, b: string): number {
+function compareCore(a: string, b: string): number {
   const parsedA = parse(a);
   const parsedB = parse(b);
   if (!parsedA || !parsedB) return 0;
@@ -17,5 +17,5 @@ export function compareSemver(a: string, b: string): number {
 }
 
 export function isVersionBelow(current: string, minimum: string): boolean {
-  return compareSemver(current, minimum) < 0;
+  return compareCore(current, minimum) < 0;
 }
