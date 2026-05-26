@@ -28,8 +28,7 @@ export interface UnrecognizedNotificationData extends BaseNotificationData {
   type: 'unrecognized';
 }
 
-export interface GroupJoinRequestNotificationData
-  extends BaseNotificationData {
+export interface GroupJoinRequestNotificationData extends BaseNotificationData {
   type: 'groupJoinRequest';
   groupId: string;
 }
@@ -113,9 +112,7 @@ export function parseNotificationPayload(
     notificationPayload.activityEventJsonString != null &&
     typeof notificationPayload.activityEventJsonString === 'string'
   ) {
-    const ev = getActivityEvent(
-      notificationPayload.activityEventJsonString
-    );
+    const ev = getActivityEvent(notificationPayload.activityEventJsonString);
     if (ev == null) {
       return null;
     }

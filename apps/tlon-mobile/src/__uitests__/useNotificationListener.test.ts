@@ -1,10 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { parseNotificationPayload } from '../lib/notificationPayload';
 import {
   getMissingNotificationTargetRecovery,
   getNotificationRouteCategory,
 } from '../hooks/notificationRouting';
+import { parseNotificationPayload } from '../lib/notificationPayload';
 
 const groupDmId = '0v4.00000.qd4p2.it253.qs53q.s53qs';
 const parentId =
