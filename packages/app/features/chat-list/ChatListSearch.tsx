@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent } from 'react-native';
 import Animated, {
   Easing,
@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { View, YStack, useTheme } from 'tamagui';
 
-import { TextInput, interactionWithTiming } from '../../ui';
+import { TextInput, TextInputRef, interactionWithTiming } from '../../ui';
 
 export const ChatListSearch = React.memo(function ChatListSearchComponent({
   isOpen,
@@ -24,6 +24,7 @@ export const ChatListSearch = React.memo(function ChatListSearchComponent({
 }) {
   const theme = useTheme();
   const [contentHeight, setContentHeight] = useState(0);
+  const inputRef = useRef<TextInputRef>(null);
 
   const openProgress = useSharedValue(isOpen ? 1 : 0);
 
@@ -33,11 +34,13 @@ export const ChatListSearch = React.memo(function ChatListSearchComponent({
         easing: Easing.inOut(Easing.quad),
         duration: 200,
       });
+      inputRef.current?.focus();
     } else {
       openProgress.value = interactionWithTiming(0, {
         easing: Easing.inOut(Easing.quad),
         duration: 200,
       });
+      inputRef.current?.blur();
     }
   }, [isOpen, openProgress]);
 
@@ -67,6 +70,7 @@ export const ChatListSearch = React.memo(function ChatListSearchComponent({
       >
         <View paddingHorizontal="$l" paddingTop="$xl">
           <TextInput
+            ref={inputRef}
             icon="Search"
             placeholder="Filter by name"
             value={query}

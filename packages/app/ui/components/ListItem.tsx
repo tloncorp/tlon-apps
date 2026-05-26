@@ -6,7 +6,7 @@ import { ColorTokens, styled, withStaticProperties } from 'tamagui';
 import { View, XStack, YStack } from 'tamagui';
 
 import { useBlockedAuthor } from '../../hooks/useBlockedAuthor';
-import { numberWithMax } from '../utils';
+import { getAndroidRoundedBackgroundKey, numberWithMax } from '../utils';
 import {
   ChannelAvatar,
   ContactAvatar,
@@ -186,11 +186,13 @@ const ListItemCount = ({
   const backgroundColor: ColorTokens = notified
     ? '$positiveBackground'
     : '$secondaryBackground';
+  const resolvedBackgroundColor = count < 1 ? undefined : backgroundColor;
   return (
     <View
+      key={getAndroidRoundedBackgroundKey(resolvedBackgroundColor)}
       opacity={opacity}
       paddingHorizontal={'$m'}
-      backgroundColor={count < 1 ? undefined : backgroundColor}
+      backgroundColor={resolvedBackgroundColor}
       borderRadius="$l"
       {...rest}
     >

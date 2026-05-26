@@ -4,7 +4,7 @@ import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { Tooltip, View, XStack } from 'tamagui';
+import { Tooltip, View, XStack, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
@@ -171,11 +171,7 @@ export function ReactionsDisplay({
 
   return (
     <XStack alignItems="center">
-      <Pressable
-        borderRadius="$m"
-        onLongPress={() => handleOpenReactions(post)}
-        cursor="default"
-      >
+      <>
         <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
           {reactionDetails.list.map((reaction) => (
             <Tooltip key={reaction.value} placement="top" delay={0} restMs={25}>
@@ -183,6 +179,9 @@ export function ReactionsDisplay({
                 borderRadius="$s"
                 cursor="pointer"
                 onPress={() => handleModifyYourReaction(reaction.value)}
+                onLongPress={
+                  isWeb ? undefined : () => handleOpenReactions(post)
+                }
                 testID="ReactionDisplay"
               >
                 <XStack
@@ -219,7 +218,7 @@ export function ReactionsDisplay({
             </Tooltip>
           ))}
         </XStack>
-      </Pressable>
+      </>
 
       {post.type !== 'chat' && post.type !== 'reply' && canWrite ? (
         <>

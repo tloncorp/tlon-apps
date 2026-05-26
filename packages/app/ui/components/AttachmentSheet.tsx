@@ -116,11 +116,8 @@ export default function AttachmentSheet({
           throw new Error('No image data available in clipboard');
         }
 
-        // TODO: we're doing two layers of conversion here:
-        //   clipboardData -> ImagePickerAsset -> UploadIntent
-        // `createImageAssetFromClipboardData` in particular lies about the
-        // image's dimensions - we should probably remove one layer
-        const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
+        const clipboardAsset =
+          await createImageAssetFromClipboardData(clipboardData);
         const atts = [
           Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
         ];
