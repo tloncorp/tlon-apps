@@ -92,6 +92,24 @@ const useSplashHider = () => {
 const App = () => {
   const isDarkMode = useIsDarkMode();
   const updateRequired = useRequiredUpdate();
+
+  if (updateRequired) {
+    return (
+      <View height={'100%'} width={'100%'} backgroundColor="$background">
+        <RequiredUpdateScreen />
+        <StatusBar
+          backgroundColor={isDarkMode ? 'black' : 'white'}
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        />
+      </View>
+    );
+  }
+
+  return <MainApp />;
+};
+
+const MainApp = () => {
+  const isDarkMode = useIsDarkMode();
   const {
     isLoading,
     connected,
@@ -113,18 +131,6 @@ const App = () => {
   useEffect(() => {
     registerBackgroundSyncTask();
   }, []);
-
-  if (updateRequired) {
-    return (
-      <View height={'100%'} width={'100%'} backgroundColor="$background">
-        <RequiredUpdateScreen />
-        <StatusBar
-          backgroundColor={isDarkMode ? 'black' : 'white'}
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        />
-      </View>
-    );
-  }
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
