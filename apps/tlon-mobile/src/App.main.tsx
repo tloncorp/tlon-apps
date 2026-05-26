@@ -12,9 +12,11 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
+import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
+import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
@@ -89,6 +91,7 @@ const useSplashHider = () => {
 // Android notification tap handler passes initial params here
 const App = () => {
   const isDarkMode = useIsDarkMode();
+  const updateRequired = useRequiredUpdate();
   const {
     isLoading,
     connected,
@@ -110,6 +113,18 @@ const App = () => {
   useEffect(() => {
     registerBackgroundSyncTask();
   }, []);
+
+  if (updateRequired) {
+    return (
+      <View height={'100%'} width={'100%'} backgroundColor="$background">
+        <RequiredUpdateScreen />
+        <StatusBar
+          backgroundColor={isDarkMode ? 'black' : 'white'}
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        />
+      </View>
+    );
+  }
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
