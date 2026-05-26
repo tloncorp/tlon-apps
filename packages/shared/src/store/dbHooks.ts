@@ -697,6 +697,25 @@ export const useShowWebSplashModal = () => {
     // Continue with normal behavior
   }
 
+  // Only show for hosted users
+  try {
+    if (!api.getCurrentUserIsHosted()) {
+      return false;
+    }
+  } catch (e) {
+    // getCurrentUserIsHosted() can throw before client init; hide modal until ready.
+    return false;
+  }
+
+  // Only show for mobile users, matching web app mobile routing checks.
+  const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)';
+  const isMobileDevice =
+    typeof window !== 'undefined' &&
+    window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
+  if (!isMobileDevice) {
+    return false;
+  }
+
   return Boolean(
     personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
   );
