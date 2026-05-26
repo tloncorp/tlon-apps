@@ -178,8 +178,29 @@ test('converts a group unread from server to client format', () => {
   expect(toGroupUnread(groupId, summary)).toStrictEqual(expectedGroupUnread);
 });
 
+const baseUnread: Record<string, ub.ActivitySummary> = {
+  base: {
+    unread: null,
+    count: 12,
+    recency: 946684800001,
+    notify: true,
+    'notify-count': 4,
+    'recency-uv': '0v42',
+  },
+};
+
+const expectedBaseUnread = {
+  id: 'base_unreads',
+  updatedAt: 946684800001,
+  count: 12,
+  notify: true,
+  notifyCount: 4,
+  notifTimestamp: '0v42',
+};
+
 test('converts a set of unreads from server to client format', () => {
   const unreads: ub.Activity = {
+    ...baseUnread,
     ...channelUnread,
     ...threadUnread,
     ...dmUnread,
@@ -192,6 +213,7 @@ test('converts a set of unreads from server to client format', () => {
   expect(clientUnreads.threadActivity.length).toBe(2);
   expect(clientUnreads.groupUnreads.length).toBe(1);
 
+  expect(clientUnreads.baseUnread).toStrictEqual(expectedBaseUnread);
   expect(clientUnreads.channelUnreads[0]).toStrictEqual(expectedChannelUnread);
   expect(clientUnreads.channelUnreads[1]).toStrictEqual(expectedDMUnread);
   expect(clientUnreads.threadActivity[0]).toStrictEqual(expectedThreadUnread);
