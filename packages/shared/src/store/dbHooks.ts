@@ -707,12 +707,10 @@ export const useShowWebSplashModal = () => {
     return false;
   }
 
-  // Only show for mobile users (touch-primary devices such as phones and tablets).
-  // Using the CSS pointer media feature is more reliable than user-agent sniffing
-  // and correctly handles cases like iPadOS (which reports a macOS user-agent).
+  // Only show for mobile users, matching web app mobile routing checks.
   const isMobileDevice =
     typeof window !== 'undefined' &&
-    window.matchMedia('(pointer: coarse)').matches;
+    window.matchMedia('(max-width: 767px)').matches;
   if (!isMobileDevice) {
     return false;
   }
