@@ -1,6 +1,10 @@
 import type { NavigationProp } from '@react-navigation/native';
 import { useNavigation } from '@react-navigation/native';
 import {
+  isDmChannelId,
+  isGroupDmChannelId,
+} from '@tloncorp/api/client/apiUtils';
+import {
   connectNotifications,
   presentContactMatchNotification,
   presentContactsMatchedNotification,
@@ -37,13 +41,6 @@ import {
   type ProcessableNotificationData,
   parseNotificationPayload,
 } from '../lib/notificationPayload';
-import {
-  type NotificationTargetPreparation,
-  defaultNotificationTargetPreparation,
-  getMissingNotificationTargetRecovery,
-  getNotificationRouteCategory,
-  getNotificationType,
-} from './notificationRouting';
 
 const logger = createDevLogger('useNotificationListener', false);
 
@@ -78,6 +75,57 @@ function payloadFromNotification(
   })();
 
   return parseNotificationPayload(payload);
+}
+
+function getNotificationType(data: ProcessableNotificationData) {
+  return data.type ?? 'channelNotification';
+}
+
+export function getNotificationRouteCategory(
+  data: ProcessableNotificationData
+) {
+  if (!('channelId' in data)) {
+    return 'nonChannelNotification';
+  }
+
+  if (data.type === 'dmInvite' && data.whomType === 'ship') {
+    return 'dmInvite';
+  }
+
+  if (isDmChannelId(data.channelId)) {
+    return 'singleDm';
+  }
+
+  if (isGroupDmChannelId(data.channelId)) {
+    return 'groupDm';
+  }
+
+  return 'groupOrChannel';
+}
+
+export type MissingNotificationTargetRecovery =
+  | 'none'
+  | 'singleDmInvite'
+  | 'dms'
+  | 'groups';
+
+export function getMissingNotificationTargetRecovery(
+  data: ProcessableNotificationData,
+  preparedDmInviteTarget = false
+): MissingNotificationTargetRecovery {
+  if (!('channelId' in data) || preparedDmInviteTarget) {
+    return 'none';
+  }
+
+  if (isDmChannelId(data.channelId)) {
+    return 'singleDmInvite';
+  }
+
+  if (isGroupDmChannelId(data.channelId)) {
+    return 'dms';
+  }
+
+  return 'groups';
 }
 
 export default function useNotificationListener() {
@@ -251,40 +299,17 @@ export default function useNotificationListener() {
       return true;
     }
 
-    async function prepareNotificationTarget(
-      data: ProcessableNotificationData
-    ): Promise<NotificationTargetPreparation> {
-      if (data.type === 'dmInvite' && data.whomType === 'ship') {
-        const result = await ensureDmInviteChannel({
-          channelId: data.channelId,
-          syncCtx: notificationSyncCtx,
-        });
-        return {
-          canNavigate: result.found,
-          attemptedDmInviteRecovery: true,
-        };
-      }
-
-      if (data.type === 'dmInvite' && data.whomType === 'club') {
-        await syncDms(notificationSyncCtx);
-        return {
-          canNavigate: true,
-          attemptedDmInviteRecovery: true,
-        };
-      }
-
-      return defaultNotificationTargetPreparation;
-    }
-
     async function syncMissingNotificationTarget(
       data: ProcessableNotificationData,
-      preparation: NotificationTargetPreparation
+      preparedDmInviteTarget: boolean
     ) {
       if (!('channelId' in data)) {
         return false;
       }
 
-      switch (getMissingNotificationTargetRecovery(data, preparation)) {
+      switch (
+        getMissingNotificationTargetRecovery(data, preparedDmInviteTarget)
+      ) {
         case 'singleDmInvite': {
           const result = await ensureDmInviteChannel({
             channelId: data.channelId,
@@ -326,15 +351,29 @@ export default function useNotificationListener() {
 
       (async () => {
         try {
-          const preparation = await prepareNotificationTarget(notificationData);
-          let didNavigate = preparation.canNavigate
-            ? await handleNavigate()
-            : false;
+          let preparedDmInviteTarget = false;
+          let canNavigate = true;
+
+          if (notificationData.type === 'dmInvite') {
+            preparedDmInviteTarget = true;
+
+            if (notificationData.whomType === 'ship') {
+              const result = await ensureDmInviteChannel({
+                channelId: notificationData.channelId,
+                syncCtx: notificationSyncCtx,
+              });
+              canNavigate = result.found;
+            } else {
+              await syncDms(notificationSyncCtx);
+            }
+          }
+
+          let didNavigate = canNavigate ? await handleNavigate() : false;
 
           if (!didNavigate) {
             const recovered = await syncMissingNotificationTarget(
               notificationData,
-              preparation
+              preparedDmInviteTarget
             );
             didNavigate = recovered ? await handleNavigate() : false;
 

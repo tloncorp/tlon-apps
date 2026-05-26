@@ -1,10 +1,71 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 
 import {
   getMissingNotificationTargetRecovery,
   getNotificationRouteCategory,
-} from '../hooks/notificationRouting';
+} from '../hooks/useNotificationListener';
 import { parseNotificationPayload } from '../lib/notificationPayload';
+
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: jest.fn(),
+}));
+
+jest.mock('@tloncorp/app/lib/notifications', () => ({
+  connectNotifications: jest.fn(),
+  presentContactMatchNotification: jest.fn(),
+  presentContactsMatchedNotification: jest.fn(),
+}));
+
+jest.mock('@tloncorp/app/lib/pushNotifTapTelemetry', () => ({
+  startPushNotifTapMeasurement: jest.fn(),
+}));
+
+jest.mock('@tloncorp/app/navigation/utils', () => ({
+  createTypedReset: jest.fn(),
+  getMainGroupRoute: jest.fn(),
+  screenNameFromChannelId: jest.fn(),
+}));
+
+jest.mock('@tloncorp/app/ui', () => ({
+  useIsWindowNarrow: jest.fn(),
+}));
+
+jest.mock('@tloncorp/shared', () => ({
+  AnalyticsEvent: {
+    ActionTappedPushNotif: 'ActionTappedPushNotif',
+    ErrorNotificationService: 'ErrorNotificationService',
+    ErrorPushNotifNavigate: 'ErrorPushNotifNavigate',
+  },
+  SyncPriority: {
+    High: 10,
+  },
+  createDevLogger: jest.fn(() => ({
+    trackError: jest.fn(),
+    trackEvent: jest.fn(),
+  })),
+  ensureDmInviteChannel: jest.fn(),
+  setContactsMatchedHandler: jest.fn(),
+  syncDms: jest.fn(),
+  syncGroups: jest.fn(),
+}));
+
+jest.mock('@tloncorp/shared/db', () => ({
+  getChannelWithRelations: jest.fn(),
+  getPost: jest.fn(),
+  getSystemContactsBatchByContactId: jest.fn(),
+  isTlonEmployee: {
+    useValue: jest.fn(),
+  },
+}));
+
+jest.mock('@tloncorp/shared/logic', () => ({
+  getModelAnalytics: jest.fn(),
+}));
+
+jest.mock('expo-notifications', () => ({
+  clearLastNotificationResponseAsync: jest.fn(),
+  useLastNotificationResponse: jest.fn(),
+}));
 
 const groupDmId = '0v4.00000.qd4p2.it253.qs53q.s53qs';
 const parentId =
@@ -213,12 +274,9 @@ describe('notification routing decisions', () => {
     };
 
     expect(getNotificationRouteCategory(notification)).toBe('dmInvite');
-    expect(
-      getMissingNotificationTargetRecovery(notification, {
-        canNavigate: false,
-        attemptedDmInviteRecovery: true,
-      })
-    ).toBe('none');
+    expect(getMissingNotificationTargetRecovery(notification, true)).toBe(
+      'none'
+    );
   });
 
   it('does not retry DM sync for a group-DM invite already synced during preparation', () => {
@@ -230,12 +288,9 @@ describe('notification routing decisions', () => {
     };
 
     expect(getNotificationRouteCategory(notification)).toBe('groupDm');
-    expect(
-      getMissingNotificationTargetRecovery(notification, {
-        canNavigate: true,
-        attemptedDmInviteRecovery: true,
-      })
-    ).toBe('none');
+    expect(getMissingNotificationTargetRecovery(notification, true)).toBe(
+      'none'
+    );
   });
 
   it('uses targeted invite recovery for missing single-DM posts and replies', () => {
