@@ -2718,7 +2718,12 @@
       =/  time
         ?~  update=(ram:log-on:g log)  now.bowl
         -.u.update
-      =/  =update:g  [time %create group]
+      =/  gr=group:g  group
+      ::  clear local state
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      =/  =update:g  [time %create gr]
       (give %fact paths group-update+!>(update))
     ::
         %del-roles
@@ -2907,7 +2912,12 @@
       =/  time
         ?~  update=(ram:log-on:g log)  now.bowl
         -.u.update
-      =/  =update:g  [time %create group]
+      =/  gr=group:g  group
+      ::  clear local state
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      =/  =update:g  [time %create gr]
       (give %fact paths group-update+!>(update))
     ::
         %del-admin
@@ -3153,7 +3163,7 @@
     ?:  =(*@da da)
       ::  filter out admin data
       ::
-      =/  =group:g
+      =/  gr=group:g
         ?:  (se-is-admin ship)  group
         ::  only admins receive state updates regarding
         ::  tokens, pending ships and requests.
@@ -3163,11 +3173,11 @@
           pending.admissions   ~
           requests.admissions  ~
         ==
-      ::  the invited list is local
-      =.  invited.admissions.group  ~
-      ::  clear .active-channels, as this is updated locally
-      =.  active-channels.group  ~
-      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
+      ::  clear local state
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create gr] ~ ~]))
     ::
     =/  =log:g  (lot:log-on:g log `da ~)
     ::  filter out admin updates
@@ -3925,9 +3935,10 @@
     ?:  go-our-host  go-core
     ::
     ?>  ?=(%sub -.net)
-    ::  invited record is local, preserve it.
+    ::  preserve local state
     ::
     =+  invited=invited.admissions.group
+    =+  active-channels=active-channels.group
     =.  group  gr
     =.  invited.admissions.group  invited
     go-core
