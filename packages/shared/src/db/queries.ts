@@ -4319,6 +4319,7 @@ export const getPersonalGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4339,6 +4340,7 @@ export const getBotHomeGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4397,6 +4399,7 @@ export const getGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4956,7 +4959,7 @@ export const clearChannelUnread = createWriteQuery(
 );
 
 export const updateChannelUnreadCount = createWriteQuery(
-  'updateGroupUnreadCount',
+  'updateChannelUnreadCount',
   async (
     { channelId, decrement }: { channelId: string; decrement: number },
     ctx: QueryCtx
@@ -4975,7 +4978,7 @@ export const updateChannelUnreadCount = createWriteQuery(
       }
     }
   },
-  ['groupUnreads']
+  ['channelUnreads']
 );
 
 export const insertThreadUnreads = createWriteQuery(
