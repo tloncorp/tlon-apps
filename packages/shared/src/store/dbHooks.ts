@@ -703,14 +703,15 @@ export const useShowWebSplashModal = () => {
       return false;
     }
   } catch (e) {
-    // Client not initialized or other error; suppress and hide the modal
+    // getCurrentUserIsHosted() can throw before client init; hide modal until ready.
     return false;
   }
 
   // Only show for mobile users, matching web app mobile routing checks.
+  const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)';
   const isMobileDevice =
     typeof window !== 'undefined' &&
-    window.matchMedia('(max-width: 767px)').matches;
+    window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
   if (!isMobileDevice) {
     return false;
   }
