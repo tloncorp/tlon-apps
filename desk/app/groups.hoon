@@ -2710,6 +2710,9 @@
         [ship new-admins]
       =.  se-core  (se-update %seat ships [%add-roles roles.c-seat])
       ?:  =(~ new-admins)  se-core
+      ::  when a ship acquires admin rights it receives the full view of
+      ::  the group, including information restricted to admins.
+      ::
       =+  paths=(se-ships-subscription-paths new-admins)
       ?:  =(~ paths)  se-core
       =/  time
@@ -3922,7 +3925,11 @@
     ?:  go-our-host  go-core
     ::
     ?>  ?=(%sub -.net)
+    ::  invited record is local, preserve it.
+    ::
+    =+  invited=invited.admissions.group
     =.  group  gr
+    =.  invited.admissions.group  invited
     go-core
   ::  +go-u-meta: apply meta update
   ::
