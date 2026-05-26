@@ -261,12 +261,16 @@ export default function useNotificationListener() {
         });
         return {
           canNavigate: result.found,
-          attemptedSingleDmInviteRecovery: true,
+          attemptedDmInviteRecovery: true,
         };
       }
 
       if (data.type === 'dmInvite' && data.whomType === 'club') {
         await syncDms(notificationSyncCtx);
+        return {
+          canNavigate: true,
+          attemptedDmInviteRecovery: true,
+        };
       }
 
       return defaultNotificationTargetPreparation;

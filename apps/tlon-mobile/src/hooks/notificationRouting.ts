@@ -20,13 +20,13 @@ export type MissingNotificationTargetRecovery =
 
 export type NotificationTargetPreparation = {
   canNavigate: boolean;
-  attemptedSingleDmInviteRecovery: boolean;
+  attemptedDmInviteRecovery: boolean;
 };
 
 export const defaultNotificationTargetPreparation: NotificationTargetPreparation =
   {
     canNavigate: true,
-    attemptedSingleDmInviteRecovery: false,
+    attemptedDmInviteRecovery: false,
   };
 
 export function getNotificationType(data: ProcessableNotificationData) {
@@ -63,7 +63,7 @@ export function getMissingNotificationTargetRecovery(
     return 'none';
   }
 
-  if (preparation.attemptedSingleDmInviteRecovery) {
+  if (preparation.attemptedDmInviteRecovery) {
     return 'none';
   }
 

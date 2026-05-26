@@ -216,7 +216,24 @@ describe('notification routing decisions', () => {
     expect(
       getMissingNotificationTargetRecovery(notification, {
         canNavigate: false,
-        attemptedSingleDmInviteRecovery: true,
+        attemptedDmInviteRecovery: true,
+      })
+    ).toBe('none');
+  });
+
+  it('does not retry DM sync for a group-DM invite already synced during preparation', () => {
+    const notification = {
+      meta: {},
+      type: 'dmInvite' as const,
+      channelId: groupDmId,
+      whomType: 'club' as const,
+    };
+
+    expect(getNotificationRouteCategory(notification)).toBe('groupDm');
+    expect(
+      getMissingNotificationTargetRecovery(notification, {
+        canNavigate: true,
+        attemptedDmInviteRecovery: true,
       })
     ).toBe('none');
   });
