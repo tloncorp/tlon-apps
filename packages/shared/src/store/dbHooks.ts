@@ -703,10 +703,7 @@ export const useShowWebSplashModal = () => {
       return false;
     }
   } catch (e) {
-    // Suppress expected "Client not initialized" errors; log anything unexpected
-    if (!(e instanceof Error && e.message === 'Client not initialized')) {
-      console.warn('useShowWebSplashModal: unexpected error checking hosting status', e);
-    }
+    // Client not initialized or other error; suppress and hide the modal
     return false;
   }
 
