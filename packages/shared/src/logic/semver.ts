@@ -1,4 +1,4 @@
-const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
+const SEMVER_RE = /^(\d+)\.(\d+)\.(\d+)(?:[-+].+)?$/;
 
 function parse(version: string): [number, number, number] | null {
   const match = SEMVER_RE.exec(version.trim());

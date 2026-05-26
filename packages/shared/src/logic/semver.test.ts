@@ -34,4 +34,10 @@ describe('isVersionBelow', () => {
     expect(isVersionBelow('garbage', '1.0.0')).toBe(false);
     expect(isVersionBelow('1.0.0', '')).toBe(false);
   });
+
+  it('rejects core versions with empty prerelease or build suffix', () => {
+    expect(isVersionBelow('1.2.3-', '1.2.4')).toBe(false);
+    expect(isVersionBelow('1.2.3+', '1.2.4')).toBe(false);
+    expect(isVersionBelow('1.2.4', '1.2.3-')).toBe(false);
+  });
 });
