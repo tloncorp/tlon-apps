@@ -3931,17 +3931,18 @@
     |=  gr=group:g
     ~>  %spin.['go-u-create']
     ^+  go-core
-    =.  go-core  (go-response %create gr)
-    ?:  go-our-host  go-core
+    ?:  go-our-host
+      (go-response %create gr)
     ::
     ?>  ?=(%sub -.net)
-    ::  preserve local state
+    ::  update group while preserving local state
     ::
-    =+  invited=invited.admissions.group
-    =+  active-channels=active-channels.group
-    =.  group  gr
-    =.  invited.admissions.group  invited
-    go-core
+    =.  group
+      %_  gr
+        invited.admissions  invited.admissions.group
+        active-channels     active-channels.group
+      ==
+    (go-response %create group)
   ::  +go-u-meta: apply meta update
   ::
   ++  go-u-meta
