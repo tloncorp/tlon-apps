@@ -697,6 +697,24 @@ export const useShowWebSplashModal = () => {
     // Continue with normal behavior
   }
 
+  // Only show for hosted users
+  try {
+    if (!api.getCurrentUserIsHosted()) {
+      return false;
+    }
+  } catch (e) {
+    // Client not initialized yet
+    return false;
+  }
+
+  // Only show for mobile users (mobile browser/device)
+  const isMobileDevice =
+    typeof window !== 'undefined' &&
+    /Mobi|Android|iPhone|iPad/i.test(window.navigator?.userAgent ?? '');
+  if (!isMobileDevice) {
+    return false;
+  }
+
   return Boolean(
     personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
   );
