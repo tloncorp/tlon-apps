@@ -12,6 +12,7 @@ import {
   Pressable,
   ZStack,
 } from '@tloncorp/ui';
+import { PermissionStatus } from 'expo-modules-core';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -107,9 +108,9 @@ async function downloadMedia({
     let permissionStatus;
 
     switch (status) {
-      case MediaLibrary.PermissionStatus.GRANTED:
+      case PermissionStatus.GRANTED:
         break;
-      case MediaLibrary.PermissionStatus.DENIED:
+      case PermissionStatus.DENIED:
         if (canAskAgain) {
           logger.trackError('Photo library permission denied (temporary)', {
             canAskAgain: true,
@@ -127,7 +128,7 @@ async function downloadMedia({
                 onPress: async () => {
                   const { status: retryStatus } =
                     await MediaLibrary.requestPermissionsAsync();
-                  if (retryStatus !== MediaLibrary.PermissionStatus.GRANTED) {
+                  if (retryStatus !== PermissionStatus.GRANTED) {
                     logger.trackError(
                       'Photo library permission denied after retry',
                       { canAskAgain: true }
@@ -168,10 +169,10 @@ async function downloadMedia({
           );
           return;
         }
-      case MediaLibrary.PermissionStatus.UNDETERMINED: {
+      case PermissionStatus.UNDETERMINED: {
         const result = await MediaLibrary.requestPermissionsAsync();
         permissionStatus = result.status;
-        if (permissionStatus !== MediaLibrary.PermissionStatus.GRANTED) {
+        if (permissionStatus !== PermissionStatus.GRANTED) {
           logger.trackError(
             'Photo library permission denied on first request',
             { canAskAgain: true }
