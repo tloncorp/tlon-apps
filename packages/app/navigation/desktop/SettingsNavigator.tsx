@@ -6,10 +6,13 @@ import { getVariableValue, useTheme } from '@tamagui/core';
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
+import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
+import { BotOtherSettingsScreen } from '../../features/settings/BotOtherSettingsScreen';
+import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
@@ -34,7 +37,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
-  const botEnabled = isHostedUser && hostingBotEnabled;
+  const botEnabled = Platform.OS !== 'web' && isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {
@@ -54,8 +57,8 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, [navigate]);
 
   const onBotSettingsPressed = useCallback(() => {
-    Linking.openURL('https://tlon.network/tlonbot');
-  }, []);
+    navigate('BotSettings');
+  }, [navigate]);
 
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigate('FeatureFlags');
@@ -126,6 +129,15 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="ManageAccount"
         component={ManageAccountScreen}
+      />
+      <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
+      <SettingsDrawer.Screen
+        name="BotMcpSettings"
+        component={BotMcpSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotOtherSettings"
+        component={BotOtherSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"
