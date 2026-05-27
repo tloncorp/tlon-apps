@@ -10,12 +10,7 @@ const logger = createDevLogger('useRequiredUpdate', false);
 
 type PlatformKey = 'ios' | 'android';
 
-interface MinVersionResponse {
-  ios?: { minVersion?: string };
-  android?: { minVersion?: string };
-}
-
-async function fetchMinVersion(endpoint: string): Promise<MinVersionResponse> {
+async function fetchMinVersion(endpoint: string): Promise<unknown> {
   const response = await fetch(`${endpoint}/minVersion`);
   if (!response.ok) {
     throw new Error(`minVersion request failed: ${response.status}`);
@@ -29,24 +24,39 @@ function currentPlatform(): PlatformKey | null {
   return null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
+}
+
+function getMinVersion(data: unknown, platform: PlatformKey): string | null {
+  if (!isRecord(data)) return null;
+
+  const platformData = data[platform];
+  if (!isRecord(platformData)) return null;
+
+  const minVersion = platformData.minVersion;
+  return typeof minVersion === 'string' && minVersion.trim()
+    ? minVersion
+    : null;
+}
+
 export function useRequiredUpdate(): boolean {
   const platform = currentPlatform();
-  const currentVersion = Application.nativeApplicationVersion ?? '0.0.0';
+  const currentVersion = Application.nativeApplicationVersion;
   const enabled = !!platform && !!INVITE_SERVICE_ENDPOINT;
 
   const query = useQuery({
     queryKey: ['required-update', INVITE_SERVICE_ENDPOINT],
     queryFn: () => fetchMinVersion(INVITE_SERVICE_ENDPOINT),
     refetchInterval: POLL_INTERVAL_MS,
-    refetchOnWindowFocus: true,
     retry: 1,
     staleTime: POLL_INTERVAL_MS,
     enabled,
   });
 
-  if (!platform || !query.data) return false;
+  if (!platform || !currentVersion || !query.data) return false;
 
-  const minVersion = query.data[platform]?.minVersion;
+  const minVersion = getMinVersion(query.data, platform);
   if (!minVersion) return false;
 
   const required = isVersionBelow(currentVersion, minVersion);
