@@ -1,4 +1,3 @@
-import { CommonActions } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
@@ -39,7 +38,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const connectionStatus = useShipConnectionStatus(userId);
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const { navigation: rootNavigation, resetToDm } = useRootNavigation();
+  const { navigateToBotSettings, resetToDm } = useRootNavigation();
 
   useEffect(() => {
     if (userId && userId !== currentUserId) {
@@ -93,20 +92,8 @@ export function UserProfileScreen({ route, navigation }: Props) {
   }, [currentUserId, userId]);
 
   const handlePressBotSettings = useCallback(() => {
-    if (isWindowNarrow) {
-      navigation.navigate('BotSettings');
-      return;
-    }
-
-    rootNavigation.dispatch(
-      CommonActions.navigate({
-        name: 'Settings',
-        params: {
-          screen: 'BotSettings',
-        },
-      })
-    );
-  }, [isWindowNarrow, navigation, rootNavigation]);
+    navigateToBotSettings();
+  }, [navigateToBotSettings]);
 
   const canEdit = useMemo(() => {
     return (

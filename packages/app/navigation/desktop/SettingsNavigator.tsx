@@ -10,6 +10,9 @@ import { Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
+import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
+import { BotOtherSettingsScreen } from '../../features/settings/BotOtherSettingsScreen';
+import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
@@ -53,6 +56,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
     navigate('ManageAccount');
   }, [navigate]);
 
+  const onBotSettingsPressed = useCallback(() => {
+    navigate('BotSettings');
+  }, [navigate]);
+
   const onExperimentalFeaturesPressed = useCallback(() => {
     navigate('FeatureFlags');
   }, [navigate]);
@@ -79,6 +86,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
       onNotificationSettingsPressed={onPushNotifPressed}
       onBlockedUsersPressed={onBlockedUsersPressed}
       onManageAccountPressed={onManageAccountPressed}
+      onBotSettingsPressed={onBotSettingsPressed}
       onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
       onThemePressed={onThemePressed}
       onPrivacyPressed={onPrivacyPressed}
@@ -121,6 +129,15 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen
         name="ManageAccount"
         component={ManageAccountScreen}
+      />
+      <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
+      <SettingsDrawer.Screen
+        name="BotMcpSettings"
+        component={BotMcpSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotOtherSettings"
+        component={BotOtherSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"
