@@ -1,8 +1,8 @@
 diff --git a/src/components/ReanimatedSwipeable/ReanimatedSwipeable.tsx b/src/components/ReanimatedSwipeable/ReanimatedSwipeable.tsx
-index 53cce68ece97cb15ef4bca313d3dc75d09acae49..799e71eeaecbe1d1bbccef4fec6e72f3662677da 100644
+index b6134c908624adc590ebd264e90e558b88e235d5..1c6b43ec69e8af9fe0ef153ab88801042f903476 100644
 --- a/src/components/ReanimatedSwipeable/ReanimatedSwipeable.tsx
 +++ b/src/components/ReanimatedSwipeable/ReanimatedSwipeable.tsx
-@@ -359,6 +359,10 @@ const Swipeable = (props: SwipeableProps) => {
+@@ -372,6 +372,10 @@ const Swipeable = (props: SwipeableProps) => {
    const leftActionAnimation = useAnimatedStyle(() => {
      return {
        opacity: showLeftProgress.value === 0 ? 0 : 1,
@@ -13,7 +13,7 @@ index 53cce68ece97cb15ef4bca313d3dc75d09acae49..799e71eeaecbe1d1bbccef4fec6e72f3
      };
    });
  
-@@ -389,6 +393,9 @@ const Swipeable = (props: SwipeableProps) => {
+@@ -402,6 +406,9 @@ const Swipeable = (props: SwipeableProps) => {
    const rightActionAnimation = useAnimatedStyle(() => {
      return {
        opacity: showRightProgress.value === 0 ? 0 : 1,
