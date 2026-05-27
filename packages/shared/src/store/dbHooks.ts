@@ -175,13 +175,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCountWithoutMuted = () => {
+export const useNotifyingUnreadSourceCount = () => {
   return useQuery({
     queryKey: [
-      'unreadsCount',
-      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+      'notifyingUnreadSourceCount',
+      useKeyFromQueryDeps(db.getNotifyingUnreadSourceCount),
     ],
-    queryFn: () => db.getUnreadsCountWithoutMuted({}),
+    queryFn: () => db.getNotifyingUnreadSourceCount({}),
   });
 };
 
@@ -290,20 +290,25 @@ export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
   });
 };
 
-export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
+export const useLiveThreadUnreadActivityCountByChannel = (
+  channelId: string | null
+) => {
   const depsKey = useMemo(
-    () => (channelId ? keyFromQueryDeps(db.getThreadUnreadsByChannel) : null),
+    () =>
+      channelId
+        ? keyFromQueryDeps(db.getThreadUnreadActivityCountByChannel)
+        : null,
     [channelId]
   );
 
   return useQuery({
     enabled: !!channelId,
-    queryKey: ['liveThreadUnreadsByChannel', depsKey, channelId],
+    queryKey: ['liveThreadUnreadActivityCountByChannel', depsKey, channelId],
     queryFn: async () => {
       if (!channelId) {
-        return [];
+        return 0;
       }
-      return db.getThreadUnreadsByChannel({ channelId, excludeRead: true });
+      return db.getThreadUnreadActivityCountByChannel({ channelId });
     },
   });
 };

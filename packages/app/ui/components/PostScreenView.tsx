@@ -3,6 +3,7 @@ import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
+  hasUnreadActivity,
   isChatChannel as getIsChatChannel,
   makePrettyDayAndTime,
   useDebouncedValue,
@@ -593,8 +594,7 @@ function SinglePostView({
   const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
     parentPost.id
   );
-  const hasThreadReadActivity =
-    (liveThreadUnread?.count ?? 0) > 0 || !!liveThreadUnread?.notify;
+  const hasThreadReadActivity = hasUnreadActivity(liveThreadUnread);
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,

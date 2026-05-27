@@ -11,7 +11,7 @@ const logger = createDevLogger('useSyncAppBadge', false);
 export function useSyncAppBadge() {
   const { data: baseUnread } = store.useBaseUnread();
   const { data: notifyingUnreadSourceCount } =
-    store.useUnreadsCountWithoutMuted();
+    store.useNotifyingUnreadSourceCount();
 
   useEffect(() => {
     if (Platform.OS !== 'ios' || !baseUnread?.notifTimestamp) {

@@ -10,11 +10,12 @@ import {
   DraftInputId,
   createDevLogger,
   finalizeAndSendPost,
+  hasMainChannelUnreadActivity,
   isChatChannel as getIsChatChannel,
   uploadAsset,
   useChannelPreview,
   useGroupPreview,
-  useLiveThreadUnreadsByChannel,
+  useLiveThreadUnreadActivityCountByChannel,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
@@ -420,26 +421,22 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const hasLoaded = !!(posts && channel);
     const shouldCheckThreadReadActivity =
       channel?.type === 'dm' || channel?.type === 'groupDm';
-    const { data: threadReadActivity, isFetched: threadReadActivityFetched } =
-      useLiveThreadUnreadsByChannel(
-        shouldCheckThreadReadActivity ? channel?.id ?? null : null
-      );
-    const hasThreadReadActivity =
+    const {
+      data: threadReadActivityCount,
+      isFetched: threadReadActivityFetched,
+    } = useLiveThreadUnreadActivityCountByChannel(
+      shouldCheckThreadReadActivity ? channel?.id ?? null : null
+    );
+    const hasChildThreadUnreadActivity =
       shouldCheckThreadReadActivity &&
-      (threadReadActivity?.length ?? 0) > 0;
-    const threadReadActivityKnown =
+      (threadReadActivityCount ?? 0) > 0;
+    const childThreadUnreadActivityKnown =
       !shouldCheckThreadReadActivity || threadReadActivityFetched;
-    const unreadCount = channel?.unread?.count ?? 0;
-    const unreadCountWithoutThreads =
-      channel?.unread?.countWithoutThreads ?? 0;
-    // Channel notify can include child thread activity. Avoid shallow channel
-    // reads for child-only notifications; the thread screen clears those.
-    const hasReadActivity =
-      unreadCountWithoutThreads > 0 ||
-      (!!channel?.unread?.notify &&
-        unreadCount === unreadCountWithoutThreads &&
-        threadReadActivityKnown &&
-        !hasThreadReadActivity);
+    const hasReadActivity = hasMainChannelUnreadActivity({
+      unread: channel?.unread,
+      childThreadUnreadActivityKnown,
+      hasChildThreadUnreadActivity,
+    });
 
     useEffect(() => {
       const clearShowTimeout = () => {

@@ -1901,8 +1901,8 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
-export const getUnreadsCountWithoutMuted = createReadQuery(
-  'getUnreadsCountWithoutMuted',
+export const getNotifyingUnreadSourceCount = createReadQuery(
+  'getNotifyingUnreadSourceCount',
   async ({ type }: { type?: ChannelUnread['type'] }, ctx: QueryCtx) => {
     const channelResult = await ctx.db
       .select({ count: count() })
@@ -1937,6 +1937,23 @@ export const getUnreadsCountWithoutMuted = createReadQuery(
     type
       ? ['channelUnreads']
       : ['channelUnreads', 'groupUnreads', 'threadUnreads']
+);
+
+export const getThreadUnreadActivityCountByChannel = createReadQuery(
+  'getThreadUnreadActivityCountByChannel',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    const result = await ctx.db
+      .select({ count: count() })
+      .from($threadUnreads)
+      .where(
+        and(
+          eq($threadUnreads.channelId, channelId),
+          or(not(eq($threadUnreads.count, 0)), eq($threadUnreads.notify, true))
+        )
+      );
+    return result[0]?.count ?? 0;
+  },
+  ['threadUnreads']
 );
 
 export interface GetUnreadsOptions {
