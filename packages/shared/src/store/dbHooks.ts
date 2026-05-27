@@ -181,7 +181,7 @@ export const useNotifyingUnreadSourceCount = () => {
       'notifyingUnreadSourceCount',
       useKeyFromQueryDeps(db.getNotifyingUnreadSourceCount),
     ],
-    queryFn: () => db.getNotifyingUnreadSourceCount({}),
+    queryFn: () => db.getNotifyingUnreadSourceCount(),
   });
 };
 

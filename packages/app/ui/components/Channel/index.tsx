@@ -419,20 +419,20 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const inView = useIsFocused();
     const isUserActive = useIsUserActive();
     const hasLoaded = !!(posts && channel);
-    const shouldCheckThreadReadActivity =
+    const shouldCheckThreadUnreadActivity =
       channel?.type === 'dm' || channel?.type === 'groupDm';
     const {
-      data: threadReadActivityCount,
-      isFetched: threadReadActivityFetched,
+      data: threadUnreadActivityCount,
+      isFetched: threadUnreadActivityFetched,
     } = useLiveThreadUnreadActivityCountByChannel(
-      shouldCheckThreadReadActivity ? channel?.id ?? null : null
+      shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
     );
     const hasChildThreadUnreadActivity =
-      shouldCheckThreadReadActivity &&
-      (threadReadActivityCount ?? 0) > 0;
+      shouldCheckThreadUnreadActivity &&
+      (threadUnreadActivityCount ?? 0) > 0;
     const childThreadUnreadActivityKnown =
-      !shouldCheckThreadReadActivity || threadReadActivityFetched;
-    const hasReadActivity = hasMainChannelUnreadActivity({
+      !shouldCheckThreadUnreadActivity || threadUnreadActivityFetched;
+    const hasUnreadActivity = hasMainChannelUnreadActivity({
       unread: channel?.unread,
       childThreadUnreadActivityKnown,
       hasChildThreadUnreadActivity,
@@ -500,14 +500,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     useEffect(() => {
       // Only mark as read when user is actively using the app (not idle)
       // This prevents auto-marking on desktop when user is AFK
-      if (hasReadActivity && hasLoaded && inView && isUserActive) {
+      if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
         // add slight delay to allow high priority tasks to hit the sync queue first
         const timeoutId = setTimeout(() => {
           markRead();
         }, 150);
         return () => clearTimeout(timeoutId);
       }
-    }, [hasReadActivity, hasLoaded, inView, isUserActive, markRead]);
+    }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {

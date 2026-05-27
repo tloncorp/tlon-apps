@@ -26,12 +26,13 @@ export function hasMainChannelUnreadActivity({
 }) {
   const count = unread?.count ?? 0;
   const countWithoutThreads = unread?.countWithoutThreads ?? 0;
+  const hasMainUnreadCount = countWithoutThreads > 0;
+  const notifyBelongsToMainChannel = count === countWithoutThreads;
+  const childThreadStateIsClear =
+    childThreadUnreadActivityKnown && !hasChildThreadUnreadActivity;
 
   return (
-    countWithoutThreads > 0 ||
-    (!!unread?.notify &&
-      count === countWithoutThreads &&
-      childThreadUnreadActivityKnown &&
-      !hasChildThreadUnreadActivity)
+    hasMainUnreadCount ||
+    (!!unread?.notify && notifyBelongsToMainChannel && childThreadStateIsClear)
   );
 }

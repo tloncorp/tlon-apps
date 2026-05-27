@@ -924,7 +924,48 @@ test('notifying unread source count includes notification-only sources', async (
   await queries.insertChannelUnreads([makeChannelUnread()]);
   await queries.insertThreadUnreads([makeThreadUnread()]);
 
-  expect(await queries.getNotifyingUnreadSourceCount({})).toBe(3);
+  expect(await queries.getNotifyingUnreadSourceCount()).toBe(3);
+});
+
+test('group unread count updates clear notification state when count reaches zero', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const groupId = '~zod/decrement-clear';
+  await queries.insertGroupUnreads([
+    makeGroupUnread({ groupId, count: 3, notify: true, notifyCount: 2 }),
+  ]);
+
+  await queries.updateGroupUnreadCount({ groupId, decrement: 3 });
+
+  const unread = await client.query.groupUnreads.findFirst({
+    where: $.eq(schema.groupUnreads.groupId, groupId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+    notifyCount: 0,
+  });
+});
+
+test('channel unread count updates clear notification state when count reaches zero', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const channelId = 'chat/~zod/decrement-clear/general';
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId, count: 3, notify: true }),
+  ]);
+
+  await queries.updateChannelUnreadCount({ channelId, decrement: 3 });
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, channelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+  });
 });
 
 test('group unread writes invalidate group detail queries', () => {

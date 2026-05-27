@@ -233,7 +233,7 @@ async function updatePresentedNotifications() {
   const fullyReadChannels = new Set<string>();
   for await (const channelId of allChannelIds) {
     const channel = await db.getChannelWithRelations({ id: channelId });
-    if (isUnreadActivityCleared(channel?.unread)) {
+    if (channel?.unread && isUnreadActivityCleared(channel.unread)) {
       fullyReadChannels.add(channelId);
     }
   }

@@ -178,8 +178,8 @@ export function QueryBenchScreen() {
       // Unreads
       {
         id: 'getNotifyingUnreadSourceCount',
-        label: 'getNotifyingUnreadSourceCount({})',
-        run: () => db.getNotifyingUnreadSourceCount({}),
+        label: 'getNotifyingUnreadSourceCount()',
+        run: () => db.getNotifyingUnreadSourceCount(),
       },
       {
         id: 'getUnreads',

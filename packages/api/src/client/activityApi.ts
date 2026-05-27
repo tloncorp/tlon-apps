@@ -1023,6 +1023,7 @@ export const toClientUnreads = (activity: ub.Activity): db.ActivityInit => {
         updatedAt: summary.recency,
         notifTimestamp: summary['recency-uv'],
       };
+      return;
     }
     const [activityId, ...rest] = sourceId.split('/');
     if (activityId === 'ship' || activityId === 'club') {
