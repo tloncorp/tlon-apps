@@ -499,10 +499,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       // This prevents auto-marking on desktop when user is AFK
       if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
         // add slight delay to allow high priority tasks to hit the sync queue first
-        const timeoutId = setTimeout(() => {
+        setTimeout(() => {
           markRead();
         }, 150);
-        return () => clearTimeout(timeoutId);
       }
     }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
 
