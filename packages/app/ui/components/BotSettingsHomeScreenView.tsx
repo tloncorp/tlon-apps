@@ -1,10 +1,10 @@
 import { Icon, Pressable, Text } from '@tloncorp/ui';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, YStack } from 'tamagui';
+import { View, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../utils';
 import { ListItem } from './ListItem';
 import { ScreenHeader } from './ScreenHeader';
+import { SettingsContentScrollView } from './SettingsContentScrollView';
 
 interface BotSettingsHomeScreenViewProps {
   onBackPressed: () => void;
@@ -17,7 +17,6 @@ export function BotSettingsHomeScreenView({
   onConnectMcpPressed,
   onOtherSettingsPressed,
 }: BotSettingsHomeScreenViewProps) {
-  const insets = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
 
   return (
@@ -27,19 +26,10 @@ export function BotSettingsHomeScreenView({
         backAction={isWindowNarrow ? onBackPressed : undefined}
         title="Bot settings"
       />
-      <ScrollView
-        style={{
-          flex: 1,
-          width: '100%',
-          maxWidth: 680,
-          marginHorizontal: 'auto',
-        }}
-        contentContainerStyle={{
-          gap: '$xs',
-          paddingTop: '$l',
-          paddingHorizontal: '$l',
-          paddingBottom: insets.bottom + 24,
-        }}
+      <SettingsContentScrollView
+        paddingHorizontal="$l"
+        paddingTop="$l"
+        safeAreaBottomOffset={24}
       >
         <YStack gap="$xs">
           <BotSettingsNavItem
@@ -53,7 +43,7 @@ export function BotSettingsHomeScreenView({
             title="External Services"
           />
         </YStack>
-      </ScrollView>
+      </SettingsContentScrollView>
     </View>
   );
 }

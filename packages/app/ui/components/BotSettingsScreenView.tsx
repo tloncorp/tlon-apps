@@ -3,17 +3,18 @@ import {
   Icon,
   LoadingSpinner,
   Pressable,
+  SectionListHeader,
   Text,
   triggerHaptic,
 } from '@tloncorp/ui';
 import { useState } from 'react';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, View, XStack, YStack } from 'tamagui';
+import { View, XStack, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../utils';
 import { ListItem } from './ListItem';
 import { McpProviderLogo } from './McpProviderLogo';
 import { ScreenHeader } from './ScreenHeader';
+import { SettingsContentScrollView } from './SettingsContentScrollView';
 
 export type BotSettingsProviderStatus =
   | 'connected'
@@ -51,7 +52,6 @@ export function BotSettingsScreenView({
   refreshing,
   showUnavailableNotice,
 }: BotSettingsScreenViewProps) {
-  const insets = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
   const activeProviders = providers.filter(
     (provider) => provider.status === 'connected'
@@ -76,46 +76,39 @@ export function BotSettingsScreenView({
           <LoadingSpinner />
         </YStack>
       ) : (
-        <ScrollView
-          style={{
-            flex: 1,
-            width: '100%',
-            maxWidth: 680,
-            marginHorizontal: 'auto',
-          }}
-          contentContainerStyle={{
-            gap: '$m',
-            paddingTop: '$l',
-            paddingHorizontal: '$l',
-            paddingBottom: insets.bottom + 24,
-          }}
+        <SettingsContentScrollView
+          paddingHorizontal="$l"
+          paddingTop="$l"
+          safeAreaBottomOffset={24}
         >
-          {showUnavailableNotice ? (
-            <NoticeBanner message="OAuth setup is unavailable for this ship." />
-          ) : null}
-          <YStack gap="$l">
-            {activeProviders.length > 0 ? (
-              <ProviderSection
-                disabled={!available || !!busyProviderId}
-                loadingProviderId={busyProviderId}
-                onConnect={onConnectProvider}
-                onDisconnect={onDisconnectProvider}
-                providers={activeProviders}
-                title="Connected"
-              />
+          <YStack gap="$m">
+            {showUnavailableNotice ? (
+              <NoticeBanner message="OAuth setup is unavailable for this ship." />
             ) : null}
-            {availableProviders.length > 0 ? (
-              <ProviderSection
-                disabled={!available || !!busyProviderId}
-                loadingProviderId={busyProviderId}
-                onConnect={onConnectProvider}
-                onDisconnect={onDisconnectProvider}
-                providers={availableProviders}
-                title="Available"
-              />
-            ) : null}
+            <YStack gap="$l">
+              {activeProviders.length > 0 ? (
+                <ProviderSection
+                  disabled={!available || !!busyProviderId}
+                  loadingProviderId={busyProviderId}
+                  onConnect={onConnectProvider}
+                  onDisconnect={onDisconnectProvider}
+                  providers={activeProviders}
+                  title="Connected"
+                />
+              ) : null}
+              {availableProviders.length > 0 ? (
+                <ProviderSection
+                  disabled={!available || !!busyProviderId}
+                  loadingProviderId={busyProviderId}
+                  onConnect={onConnectProvider}
+                  onDisconnect={onDisconnectProvider}
+                  providers={availableProviders}
+                  title="Available"
+                />
+              ) : null}
+            </YStack>
           </YStack>
-        </ScrollView>
+        </SettingsContentScrollView>
       )}
     </View>
   );
@@ -153,10 +146,10 @@ function ProviderSection({
   title: string;
 }) {
   return (
-    <YStack gap="$xs">
-      <Text color="$tertiaryText" size="$label/s">
-        {title}
-      </Text>
+    <YStack>
+      <SectionListHeader>
+        <SectionListHeader.Text>{title}</SectionListHeader.Text>
+      </SectionListHeader>
       <YStack gap="$xs">
         {providers.map((provider) => (
           <ProviderListItem

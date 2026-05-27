@@ -5,7 +5,7 @@ import * as db from '@tloncorp/shared/db';
 import * as Application from 'expo-application';
 import { useEffect, useState } from 'react';
 import { useCallback } from 'react';
-import { Alert, Platform, ScrollView, Switch } from 'react-native';
+import { Alert, Platform, Switch } from 'react-native';
 import { getEmailClients, openComposer } from 'react-native-email-link';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
@@ -15,6 +15,7 @@ import {
   AppSetting,
   Button,
   ScreenHeader,
+  SettingsContentScrollView,
   SizableText,
   Text,
   View,
@@ -121,13 +122,7 @@ export function AppInfoScreen(props: Props) {
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
       />
-      <ScrollView
-        contentContainerStyle={{
-          width: '100%',
-          maxWidth: 600,
-          marginHorizontal: 'auto',
-        }}
-      >
+      <SettingsContentScrollView>
         <YStack
           marginTop="$xl"
           marginHorizontal="$2xl"
@@ -202,7 +197,7 @@ export function AppInfoScreen(props: Props) {
             </YStack>
           )}
         </YStack>
-      </ScrollView>
+      </SettingsContentScrollView>
     </View>
   );
 }

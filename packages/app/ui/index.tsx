@@ -66,6 +66,7 @@ export * from './components/ProfileSheet';
 export * from './components/GroupMemberProfileSheet';
 export * from './components/ScreenHeader';
 export * from './components/SearchBar';
+export * from './components/SettingsContentScrollView';
 export * from './components/SettingsScreenView';
 export * from './components/StoppedNodePushSheet';
 export * from './components/Tabs';
