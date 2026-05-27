@@ -610,6 +610,9 @@ export async function markChannelRead({
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
   const existingUnread = await db.getChannelUnread({ channelId: id });
+  const existingGroupUnread = groupId
+    ? await db.getGroupUnread({ groupId })
+    : null;
   if (existingUnread) {
     await db.clearChannelUnread(id);
   }
@@ -631,6 +634,14 @@ export async function markChannelRead({
       decrement: existingCount,
     });
   }
+  const shouldClearStaleGroupNotification =
+    groupId &&
+    existingUnread?.notify === true &&
+    (existingUnread.count ?? 0) === 0 &&
+    (existingUnread.countWithoutThreads ?? 0) === 0;
+  const clearedStaleGroupNotification = shouldClearStaleGroupNotification
+    ? await db.clearStaleNotificationOnlyGroupUnread({ groupId })
+    : false;
 
   const existingChannel = await db.getChannel({ id });
 
@@ -657,6 +668,9 @@ export async function markChannelRead({
     }
     if (existingThreadUnreads.length > 0) {
       await db.insertThreadUnreads(existingThreadUnreads);
+    }
+    if (clearedStaleGroupNotification && existingGroupUnread) {
+      await db.insertGroupUnreads([existingGroupUnread]);
     }
   }
 }
