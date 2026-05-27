@@ -5,12 +5,12 @@
 //  Created by Alec Ananian on 11/13/23.
 //
 
+import FirebaseCrashlytics
 import Foundation
-import RNFBCrashlytics
 
 extension Error {
     func logWithDomain(_ domain: String) {
-        RNFBCrashlyticsNativeHelper.recordNativeError(NSError(
+        Crashlytics.crashlytics().record(error: NSError(
             domain: domain,
             code: 0,
             userInfo: [

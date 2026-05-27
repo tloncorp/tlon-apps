@@ -131,4 +131,19 @@ post_install do |installer|
       end
     end
   end
+
+  # @react-native-firebase pods include React-Core headers via #import. With
+  # use_frameworks! the framework module system treats those headers as part
+  # of whichever RNFB sub-framework was built first. Allow non-modular
+  # includes and disable the implicit-int error on these pods so RNFB's
+  # macro-generated code compiles under modern clang.
+  installer.pods_project.targets.each do |target|
+    if target.name.start_with?('RNFB')
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        config.build_settings['DEFINES_MODULE'] = 'NO'
+        config.build_settings['WARNING_CFLAGS'] = '$(inherited) -Wno-error=implicit-int -Wno-implicit-int'
+      end
+    end
+  end
 end

@@ -1,5 +1,6 @@
 {
   "expo.jsEngine": "hermes",
   "ios.useFrameworks": "static",
+  "ios.deploymentTarget": "16.4",
   "newArchEnabled": "true"
 }
