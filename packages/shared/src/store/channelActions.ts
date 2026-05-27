@@ -634,14 +634,22 @@ export async function markChannelRead({
       decrement: existingCount,
     });
   }
-  const shouldClearStaleGroupNotification =
-    groupId &&
+  const channelUnreadWasNotificationOnly =
     existingUnread?.notify === true &&
     (existingUnread.count ?? 0) === 0 &&
     (existingUnread.countWithoutThreads ?? 0) === 0;
-  const clearedStaleGroupNotification = shouldClearStaleGroupNotification
-    ? await db.clearStaleNotificationOnlyGroupUnread({ groupId })
-    : false;
+  const groupUnreadLooksLikeSameNotification =
+    existingGroupUnread?.notify === true &&
+    (existingGroupUnread.count ?? 0) === 0 &&
+    (existingGroupUnread.notifyCount ?? 0) <= 1 &&
+    existingGroupUnread.updatedAt === existingUnread?.updatedAt;
+  const shouldClearStaleGroupNotification =
+    groupId &&
+    channelUnreadWasNotificationOnly &&
+    groupUnreadLooksLikeSameNotification;
+  if (shouldClearStaleGroupNotification) {
+    await db.clearGroupUnread(groupId);
+  }
 
   const existingChannel = await db.getChannel({ id });
 
@@ -669,7 +677,7 @@ export async function markChannelRead({
     if (existingThreadUnreads.length > 0) {
       await db.insertThreadUnreads(existingThreadUnreads);
     }
-    if (clearedStaleGroupNotification && existingGroupUnread) {
+    if (shouldClearStaleGroupNotification && existingGroupUnread) {
       await db.insertGroupUnreads([existingGroupUnread]);
     }
   }

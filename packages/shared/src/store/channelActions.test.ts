@@ -88,17 +88,9 @@ test('markChannelRead clears stale notification-only group unread after channel 
   });
 });
 
-test('markChannelRead preserves notification-only group unread when another group notification is present', async () => {
-  const client = getClient();
-  if (!client) throw new Error('test db not initialized');
-
+test('markChannelRead preserves notification-only group unread when it does not match the channel notification', async () => {
   await insertGroupAndChannel();
-  await client.insert(schema.groupJoinRequests).values({
-    groupId,
-    contactId: '~nec',
-    requestedAt: 100,
-  });
-  await db.insertGroupUnreads([makeGroupUnread()]);
+  await db.insertGroupUnreads([makeGroupUnread({ updatedAt: 200 })]);
   await db.insertChannelUnreads([makeChannelUnread()]);
 
   await markChannelRead({ id: channelId, groupId });
@@ -114,7 +106,7 @@ test('markChannelRead preserves notification-only group unread when another grou
   });
 });
 
-test('markChannelRead preserves notification-only group unread when another channel still notifies', async () => {
+test('markChannelRead preserves notification-only group unread when it has multiple notifying items', async () => {
   const otherChannelId = 'chat/~zod/stale-notify/random';
 
   await insertGroupAndChannel();

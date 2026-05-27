@@ -4949,59 +4949,6 @@ export const clearGroupUnread = createWriteQuery(
   ['groupUnreads']
 );
 
-export const clearStaleNotificationOnlyGroupUnread = createWriteQuery(
-  'clearStaleNotificationOnlyGroupUnread',
-  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
-    const groupUnread = await ctx.db.query.groupUnreads.findFirst({
-      where: eq($groupUnreads.groupId, groupId),
-    });
-    if (!groupUnread?.notify || (groupUnread.count ?? 0) > 0) {
-      return false;
-    }
-
-    const [notifyingChannels] = await ctx.db
-      .select({ count: count() })
-      .from($channelUnreads)
-      .innerJoin($channels, eq($channelUnreads.channelId, $channels.id))
-      .where(
-        and(eq($channels.groupId, groupId), eq($channelUnreads.notify, true))
-      );
-    if ((notifyingChannels?.count ?? 0) > 0) {
-      return false;
-    }
-
-    const [notifyingThreads] = await ctx.db
-      .select({ count: count() })
-      .from($threadUnreads)
-      .innerJoin($channels, eq($threadUnreads.channelId, $channels.id))
-      .where(
-        and(eq($channels.groupId, groupId), eq($threadUnreads.notify, true))
-      );
-    if ((notifyingThreads?.count ?? 0) > 0) {
-      return false;
-    }
-
-    const [joinRequests] = await ctx.db
-      .select({ count: count() })
-      .from($groupJoinRequests)
-      .where(eq($groupJoinRequests.groupId, groupId));
-    const [flaggedPosts] = await ctx.db
-      .select({ count: count() })
-      .from($groupFlaggedPosts)
-      .where(eq($groupFlaggedPosts.groupId, groupId));
-    if ((joinRequests?.count ?? 0) > 0 || (flaggedPosts?.count ?? 0) > 0) {
-      return false;
-    }
-
-    await ctx.db
-      .update($groupUnreads)
-      .set({ notifyCount: 0, count: 0, notify: false })
-      .where(eq($groupUnreads.groupId, groupId));
-    return true;
-  },
-  ['groupUnreads']
-);
-
 export const insertChannelUnreads = createWriteQuery(
   'insertChannelUnreads',
   async (unreads: ChannelUnread[], ctx: QueryCtx) => {
