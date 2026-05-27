@@ -14,6 +14,7 @@ import {
   uploadAsset,
   useChannelPreview,
   useGroupPreview,
+  useLiveThreadUnreadsByChannel,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
@@ -417,7 +418,28 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const inView = useIsFocused();
     const isUserActive = useIsUserActive();
     const hasLoaded = !!(posts && channel);
-    const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
+    const shouldCheckThreadReadActivity =
+      channel?.type === 'dm' || channel?.type === 'groupDm';
+    const { data: threadReadActivity, isFetched: threadReadActivityFetched } =
+      useLiveThreadUnreadsByChannel(
+        shouldCheckThreadReadActivity ? channel?.id ?? null : null
+      );
+    const hasThreadReadActivity =
+      shouldCheckThreadReadActivity &&
+      (threadReadActivity?.length ?? 0) > 0;
+    const threadReadActivityKnown =
+      !shouldCheckThreadReadActivity || threadReadActivityFetched;
+    const unreadCount = channel?.unread?.count ?? 0;
+    const unreadCountWithoutThreads =
+      channel?.unread?.countWithoutThreads ?? 0;
+    // Channel notify can include child thread activity. Avoid shallow channel
+    // reads for child-only notifications; the thread screen clears those.
+    const hasReadActivity =
+      unreadCountWithoutThreads > 0 ||
+      (!!channel?.unread?.notify &&
+        unreadCount === unreadCountWithoutThreads &&
+        threadReadActivityKnown &&
+        !hasThreadReadActivity);
 
     useEffect(() => {
       const clearShowTimeout = () => {
@@ -481,13 +503,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     useEffect(() => {
       // Only mark as read when user is actively using the app (not idle)
       // This prevents auto-marking on desktop when user is AFK
-      if (hasUnreads && hasLoaded && inView && isUserActive) {
+      if (hasReadActivity && hasLoaded && inView && isUserActive) {
         // add slight delay to allow high priority tasks to hit the sync queue first
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           markRead();
         }, 150);
+        return () => clearTimeout(timeoutId);
       }
-    }, [hasUnreads, hasLoaded, inView, isUserActive, markRead]);
+    }, [hasReadActivity, hasLoaded, inView, isUserActive, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {

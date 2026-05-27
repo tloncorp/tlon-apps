@@ -483,13 +483,13 @@ function useMarkThreadAsReadEffect(
     channel: db.Channel;
     parent: db.Post;
     mostRecentlyReceivedReply: db.Post;
-    hasThreadUnreads: boolean;
+    hasThreadReadActivity: boolean;
   } | null
 ) {
   const store = useStore();
   const shouldMarkRead = opts?.shouldMarkRead ?? false;
   const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
-  const hasThreadUnreads = opts?.hasThreadUnreads ?? false;
+  const hasThreadReadActivity = opts?.hasThreadReadActivity ?? false;
 
   // Ref captures the latest opts so the effect can read current values
   // without depending on the unstable inline object identity.
@@ -497,16 +497,16 @@ function useMarkThreadAsReadEffect(
   optsRef.current = opts;
 
   // Single effect with two trigger signals:
-  //   - hasThreadUnreads: authoritative signal (SSE pushed unread count > 0).
+  //   - hasThreadReadActivity: authoritative signal (SSE pushed unread/notify state).
   //   - latestReplyId: secondary signal (thread sync delivered a new post,
-  //     allowing immediate mark-read if hasThreadUnreads is already true).
+  //     allowing immediate mark-read if hasThreadReadActivity is already true).
   //
-  // Guard: only acts when hasThreadUnreads is true.
+  // Guard: only acts when hasThreadReadActivity is true.
   //   - false -> true: guard passes, marks read.
-  //   - true -> false (unread state cleared): guard returns early, no poke sent.
-  // This directly mirrors Channel/index.tsx:292-301's `if (hasUnreads && ...)`.
+  //   - true -> false (read state cleared): guard returns early, no poke sent.
+  // This directly mirrors Channel/index.tsx's read-activity guard.
   useEffect(() => {
-    if (!shouldMarkRead || !hasThreadUnreads) return;
+    if (!shouldMarkRead || !hasThreadReadActivity) return;
     const current = optsRef.current;
     if (current == null) return;
     const { channel, parent, mostRecentlyReceivedReply } = current;
@@ -520,7 +520,7 @@ function useMarkThreadAsReadEffect(
       });
     }, 150);
     return () => clearTimeout(timeoutId);
-  }, [shouldMarkRead, hasThreadUnreads, latestReplyId, store]);
+  }, [shouldMarkRead, hasThreadReadActivity, latestReplyId, store]);
 }
 
 function SinglePostView({
@@ -593,9 +593,8 @@ function SinglePostView({
   const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
     parentPost.id
   );
-  const hasThreadUnreads = !!(
-    liveThreadUnread?.count && liveThreadUnread.count > 0
-  );
+  const hasThreadReadActivity =
+    (liveThreadUnread?.count ?? 0) > 0 || !!liveThreadUnread?.notify;
 
   const { data: threadPosts } = store.useThreadPosts({
     postId: parentPost.id,
@@ -720,7 +719,7 @@ function SinglePostView({
           mostRecentlyReceivedReply: threadPosts[0],
           parent: parentPost,
           shouldMarkRead: isFocusedPost && hasLoadedReplies && isUserActive,
-          hasThreadUnreads,
+          hasThreadReadActivity,
         }
   );
 

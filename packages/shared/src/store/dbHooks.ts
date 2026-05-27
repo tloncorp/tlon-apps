@@ -290,6 +290,24 @@ export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
   });
 };
 
+export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
+  const depsKey = useMemo(
+    () => (channelId ? keyFromQueryDeps(db.getThreadUnreadsByChannel) : null),
+    [channelId]
+  );
+
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['liveThreadUnreadsByChannel', depsKey, channelId],
+    queryFn: async () => {
+      if (!channelId) {
+        return [];
+      }
+      return db.getThreadUnreadsByChannel({ channelId, excludeRead: true });
+    },
+  });
+};
+
 export const useLiveChannelUnread = (unread: db.ChannelUnread | null) => {
   const depsKey = useMemo(
     () => (unread ? keyFromQueryDeps(db.getChannelUnread) : null),

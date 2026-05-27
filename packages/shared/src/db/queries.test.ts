@@ -856,6 +856,199 @@ test('setJoinedGroupChannels: does not reset membership for channels not in the 
   }
 });
 
+test('clearChannelUnread clears notification-only channel activity', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const channelId = 'chat/~zod/react-clear/general';
+  await queries.insertChannelUnreads([
+    {
+      channelId,
+      type: 'channel',
+      count: 0,
+      countWithoutThreads: 0,
+      notify: true,
+      updatedAt: 100,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+    },
+  ]);
+
+  await queries.clearChannelUnread(channelId);
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, channelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    countWithoutThreads: 0,
+    notify: false,
+  });
+});
+
+test('unmuted unread count includes notification-only sources', async () => {
+  const channelId = 'chat/~zod/react-clear/general';
+  const threadId = 'thread-react';
+  await queries.insertGroupUnreads([
+    {
+      groupId: '~zod/react-clear',
+      count: 0,
+      notify: true,
+      notifyCount: 1,
+      updatedAt: 100,
+    },
+  ]);
+  await queries.insertChannelUnreads([
+    {
+      channelId,
+      type: 'channel',
+      count: 0,
+      countWithoutThreads: 0,
+      notify: true,
+      updatedAt: 100,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+    },
+  ]);
+  await queries.insertThreadUnreads([
+    {
+      channelId,
+      threadId,
+      count: 0,
+      notify: true,
+      updatedAt: 100,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+    },
+  ]);
+
+  expect(await queries.getUnreadsCountWithoutMuted({})).toBe(3);
+});
+
+test('group unread writes invalidate group detail queries', () => {
+  expect(queries.getGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+  expect(queries.getPersonalGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+  expect(queries.getBotHomeGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+});
+
+test('channel unread count updates invalidate channel unreads', () => {
+  expect(queries.updateChannelUnreadCount.meta.tableEffects).toEqual([
+    'channelUnreads',
+  ]);
+});
+
+test('insertChannelUnreads updates nested thread unread conflicts', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const channelId = 'chat/~zod/react-clear/general';
+  const threadId = 'nested-thread-react';
+  await queries.insertChannelUnreads([
+    {
+      channelId,
+      type: 'channel',
+      count: 1,
+      countWithoutThreads: 0,
+      notify: true,
+      updatedAt: 100,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+      threadUnreads: [
+        {
+          channelId,
+          threadId,
+          count: 1,
+          notify: true,
+          updatedAt: 100,
+          firstUnreadPostId: null,
+          firstUnreadPostReceivedAt: null,
+        },
+      ],
+    },
+  ]);
+
+  await queries.insertChannelUnreads([
+    {
+      channelId,
+      type: 'channel',
+      count: 0,
+      countWithoutThreads: 0,
+      notify: false,
+      updatedAt: 200,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+      threadUnreads: [
+        {
+          channelId,
+          threadId,
+          count: 0,
+          notify: false,
+          updatedAt: 200,
+          firstUnreadPostId: null,
+          firstUnreadPostReceivedAt: null,
+        },
+      ],
+    },
+  ]);
+
+  const unread = await client.query.threadUnreads.findFirst({
+    where: $.and(
+      $.eq(schema.threadUnreads.channelId, channelId),
+      $.eq(schema.threadUnreads.threadId, threadId)
+    ),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+    updatedAt: 200,
+  });
+});
+
+test('thread unread queries treat notification-only activity as unread until cleared', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const channelId = 'chat/~zod/react-clear/general';
+  const threadId = 'thread-react';
+  await queries.insertThreadUnreads([
+    {
+      channelId,
+      threadId,
+      count: 0,
+      notify: true,
+      updatedAt: 100,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+    },
+  ]);
+
+  expect(
+    await queries.getThreadUnreadsByChannel({ channelId, excludeRead: true })
+  ).toHaveLength(1);
+
+  await queries.clearThreadUnread({ channelId, threadId });
+
+  const unread = await client.query.threadUnreads.findFirst({
+    where: $.and(
+      $.eq(schema.threadUnreads.channelId, channelId),
+      $.eq(schema.threadUnreads.threadId, threadId)
+    ),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+  });
+  expect(
+    await queries.getThreadUnreadsByChannel({ channelId, excludeRead: true })
+  ).toHaveLength(0);
+});
+
 // TLON-5606: `getPendingPosts` feeds the main-channel pending-merge layer.
 // Once a failed optimistic row is marked deleted, it must not come back as a
 // "pending" row and ghost the bottom of the chat scroller.

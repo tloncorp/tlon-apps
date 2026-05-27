@@ -10,7 +10,7 @@ const logger = createDevLogger('useSyncAppBadge', false);
 
 export function useSyncAppBadge() {
   const { data: baseUnread } = store.useBaseUnread();
-  const { data: notifyingUnreadChannelCount } =
+  const { data: notifyingUnreadSourceCount } =
     store.useUnreadsCountWithoutMuted();
 
   useEffect(() => {
@@ -19,9 +19,9 @@ export function useSyncAppBadge() {
     }
 
     const baseCount = baseUnread.notifyCount ?? 0;
-    // Nonzero badge counts stay backend-driven. Local channel unread state is
-    // only used to clear a stale badge after the last notifying channel is read.
-    const count = notifyingUnreadChannelCount === 0 ? 0 : baseCount;
+    // Nonzero badge counts stay backend-driven. Local unread state is only
+    // used to clear a stale badge after the last notifying source is read.
+    const count = notifyingUnreadSourceCount === 0 ? 0 : baseCount;
 
     try {
       UrbitModule.updateBadgeCount(count, baseUnread.notifTimestamp);
@@ -37,6 +37,6 @@ export function useSyncAppBadge() {
     baseUnread?.notifTimestamp,
     baseUnread?.notifyCount,
     baseUnread?.updatedAt,
-    notifyingUnreadChannelCount,
+    notifyingUnreadSourceCount,
   ]);
 }
