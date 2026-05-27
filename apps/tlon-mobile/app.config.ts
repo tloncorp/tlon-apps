@@ -18,13 +18,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
   scheme: appScheme,
-  // EAS-hosted build cache. On `npx expo run:*` and `eas build`, Expo
-  // computes a fingerprint of the project and checks the cache. On hit,
-  // the cached .app/.apk is downloaded and installed (no native build).
-  // On miss, the local/CI build proceeds and the resulting binary is
-  // uploaded to the cache for subsequent runs on any machine.
-  // Opt out per-invocation with EXPO_NO_CACHE=1.
-  buildCacheProvider: 'eas',
+  // EAS-hosted build cache. On `npx expo run:*`, Expo computes a fingerprint
+  // of the project and checks the cache. On hit, the cached .app/.apk is
+  // downloaded and installed (no native build). On miss, the local build
+  // proceeds and the resulting binary is uploaded to the cache for
+  // subsequent runs on any machine. (`eas build` does NOT consult this
+  // provider — cloud builds always run fresh.)
+  //
+  // Opt out by setting TLON_EAS_CACHE_DISABLED=1 (e.g., in the harness's
+  // cold mode, or for one-off `expo run:* --configuration Release` builds
+  // where you want a fresh artifact for store upload).
+  buildCacheProvider:
+    process.env.TLON_EAS_CACHE_DISABLED === '1' ? undefined : 'eas',
   extra: {
     eas: {
       projectId,

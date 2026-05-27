@@ -13,14 +13,10 @@
 #   ./scripts/build-perf-harness.sh diff [ios|android]   # diff latest cold vs warm
 #
 # Modes:
-#   cold  Purge SHARED machine-level caches (Metro shared cache, ccache),
-#         then build. Approximates a "no local caches" baseline for the
-#         JS / native compile path. NOTE: this does NOT bypass the EAS
-#         build cache provider — there's no per-invocation flag for that
-#         (the provider is loaded purely from app.config.ts). If a prior
-#         build at the current fingerprint exists on EAS, the cache will
-#         still hit. To guarantee a cache miss, modify any fingerprint
-#         input (Podfile, package.json, native dirs).
+#   cold  Purge SHARED machine-level caches (Metro shared cache, ccache)
+#         AND set TLON_EAS_CACHE_DISABLED=1 so app.config.ts skips loading
+#         the EAS build cache provider. End result: a no-caches baseline
+#         that exercises the full local build path.
 #   warm  Keep all shared caches intact. Run after cold; the delta is
 #         what the local caches actually save us.
 #   diff  Read the most recent cold + warm summary files for this platform
@@ -38,17 +34,11 @@
 #   - EAS remote cache    (Expo buildCacheProvider: 'eas')
 #
 # Environment variables:
-#   TLON_PERF_WORKTREE_DIR  Parent dir for worktrees (default: sibling of repo)
-#   TLON_PERF_KEEP_WORKTREE Set to 1 to skip cleanup (for debugging a failure)
-#
-# Remote EAS cache deletion:
-#   `eas-cli` doesn't expose "delete cached binary by fingerprint". And there
-#   is no env var or CLI flag that disables the buildCacheProvider for a
-#   single invocation (EXPO_NO_CACHE is for unrelated REST/Expo Go caches,
-#   not the build cache provider — verified against @expo/cli source). To
-#   force a true cache miss: modify any fingerprint-included file (Podfile,
-#   package.json, native dirs), or temporarily remove `buildCacheProvider`
-#   from app.config.ts.
+#   TLON_PERF_WORKTREE_DIR    Parent dir for worktrees (default: sibling of repo)
+#   TLON_PERF_KEEP_WORKTREE   Set to 1 to skip cleanup (for debugging a failure)
+#   TLON_EAS_CACHE_DISABLED   Set to 1 to skip the EAS build cache provider
+#                              entirely (read by apps/tlon-mobile/app.config.ts).
+#                              The harness's cold mode sets this automatically.
 #
 # Output files:
 #   /tmp/build-perf/<ts>-<mode>-<platform>.log
@@ -463,9 +453,10 @@ run_steps() {
 
   if [[ "$MODE" == "cold" ]]; then
     record purge_shared_caches purge_shared_caches
-    log "Cold mode: shared local caches purged. NOTE: the EAS build cache"
-    log "provider has no per-invocation kill switch — if a prior build at"
-    log "the current fingerprint exists on EAS, this run will still hit it."
+    export TLON_EAS_CACHE_DISABLED=1
+    log "Cold mode: TLON_EAS_CACHE_DISABLED=1 set — app.config.ts will skip"
+    log "the buildCacheProvider entirely, so this run won't consult or"
+    log "upload to the EAS cache."
   fi
 
   record pnpm_install      step_pnpm_install
