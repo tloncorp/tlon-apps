@@ -14,11 +14,15 @@
 #
 # Modes:
 #   cold  Purge SHARED machine-level caches (Metro shared cache, ccache),
-#         set EXPO_NO_CACHE=1 so Expo bypasses the remote EAS cache lookup,
-#         then build. This is the "no caching anywhere" baseline.
-#   warm  Keep all shared caches intact, let Expo consult the EAS cache.
-#         Run AFTER cold to populate everything; the delta is what the
-#         caches actually save us.
+#         then build. Approximates a "no local caches" baseline for the
+#         JS / native compile path. NOTE: this does NOT bypass the EAS
+#         build cache provider — there's no per-invocation flag for that
+#         (the provider is loaded purely from app.config.ts). If a prior
+#         build at the current fingerprint exists on EAS, the cache will
+#         still hit. To guarantee a cache miss, modify any fingerprint
+#         input (Podfile, package.json, native dirs).
+#   warm  Keep all shared caches intact. Run after cold; the delta is
+#         what the local caches actually save us.
 #   diff  Read the most recent cold + warm summary files for this platform
 #         and print a side-by-side delta. Does NOT build.
 #
@@ -36,12 +40,15 @@
 # Environment variables:
 #   TLON_PERF_WORKTREE_DIR  Parent dir for worktrees (default: sibling of repo)
 #   TLON_PERF_KEEP_WORKTREE Set to 1 to skip cleanup (for debugging a failure)
-#   EXPO_NO_CACHE           Set to 1 to bypass EAS cache lookup (cold sets this)
 #
 # Remote EAS cache deletion:
-#   `eas-cli` doesn't expose "delete cached binary by fingerprint". To force a
-#   true cache miss: (a) set EXPO_NO_CACHE=1 (what cold mode does), or (b)
-#   modify any fingerprint-included file (Podfile, package.json, native dirs).
+#   `eas-cli` doesn't expose "delete cached binary by fingerprint". And there
+#   is no env var or CLI flag that disables the buildCacheProvider for a
+#   single invocation (EXPO_NO_CACHE is for unrelated REST/Expo Go caches,
+#   not the build cache provider — verified against @expo/cli source). To
+#   force a true cache miss: modify any fingerprint-included file (Podfile,
+#   package.json, native dirs), or temporarily remove `buildCacheProvider`
+#   from app.config.ts.
 #
 # Output files:
 #   /tmp/build-perf/<ts>-<mode>-<platform>.log
@@ -456,8 +463,9 @@ run_steps() {
 
   if [[ "$MODE" == "cold" ]]; then
     record purge_shared_caches purge_shared_caches
-    export EXPO_NO_CACHE=1
-    log "Cold mode: EXPO_NO_CACHE=1 set (bypass EAS cache lookup for build)"
+    log "Cold mode: shared local caches purged. NOTE: the EAS build cache"
+    log "provider has no per-invocation kill switch — if a prior build at"
+    log "the current fingerprint exists on EAS, this run will still hit it."
   fi
 
   record pnpm_install      step_pnpm_install
