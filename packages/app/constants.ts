@@ -10,5 +10,6 @@ export const TLON_APP_STORE_URL =
 export const TLON_PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=io.tlon.groups&utm_source=webapp';
 export const CHAT_REF_LIKE_MAX_WIDTH = 600;
+export const MCP_OAUTH_COMPLETION_PATH = 'mcp-oauth/complete';
 
 export * from './lib/envVars';

@@ -1,10 +1,9 @@
 import type { TlawnOAuthGrant, TlawnOAuthProvider } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 
-import { APP_SCHEME } from '../../constants';
+import { APP_SCHEME, MCP_OAUTH_COMPLETION_PATH } from '../../constants';
 import type { BotSettingsProviderRow } from '../../ui';
 
-export const COMPLETION_PATH = 'mcp-oauth/complete';
 export const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 export const TOAST_BOTTOM_OFFSET = 24;
 export const MCP_TELEMETRY_EVENTS = {
@@ -51,7 +50,7 @@ export function buildProviderRows(
 }
 
 export function getFinalRedirectUrl() {
-  return `${APP_SCHEME}://${COMPLETION_PATH}`;
+  return `${APP_SCHEME}://${MCP_OAUTH_COMPLETION_PATH}`;
 }
 
 export function parseOAuthCompletionUrl(
@@ -69,7 +68,7 @@ export function parseOAuthCompletionUrl(
       .join('/');
     const isNativeCompletion =
       url.protocol.replace(':', '') === APP_SCHEME &&
-      nativePath === COMPLETION_PATH;
+      nativePath === MCP_OAUTH_COMPLETION_PATH;
 
     if (!isNativeCompletion) {
       return null;

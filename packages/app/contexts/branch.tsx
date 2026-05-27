@@ -11,7 +11,11 @@ import {
 } from 'react';
 import branch from 'react-native-branch';
 
-import { DEFAULT_LURE, DEFAULT_PRIORITY_TOKEN } from '../constants';
+import {
+  DEFAULT_LURE,
+  DEFAULT_PRIORITY_TOKEN,
+  MCP_OAUTH_COMPLETION_PATH,
+} from '../constants';
 import { useGroupNavigation } from '../hooks/useGroupNavigation';
 import { getPathFromWer } from '../utils/string';
 import { useShip } from './ship';
@@ -31,8 +35,6 @@ const INITIAL_STATE: State = {
   lure: undefined,
   priorityToken: undefined,
 };
-
-const MCP_OAUTH_COMPLETION_PATH = 'mcp-oauth/complete';
 
 const logger = createDevLogger('deeplink', true);
 
