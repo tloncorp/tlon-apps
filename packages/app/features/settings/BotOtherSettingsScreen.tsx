@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
@@ -11,6 +12,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { LoadingSpinner, ScreenHeader, View, YStack } from '../../ui';
 
 const BOT_SETTINGS_URL = 'https://tlon.network/tlonbot';
+const logger = createDevLogger('botOtherSettings', false);
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotOtherSettings'>;
 
@@ -34,23 +36,35 @@ export function BotOtherSettingsScreen(props: Props) {
 
   useEffect(() => {
     async function initialize() {
-      const [cookie, userId, isExpired] = await Promise.all([
-        db.hostingAuthToken.getValue(),
-        db.hostingUserId.getValue(),
-        db.hostingAuthExpired.getValue(),
-      ]);
-      if (cookie && userId) {
-        // we need to strip HttpOnly from the cookie or it won't get sent along with the request
-        const modifiedCookie = cookie.replace(' HttpOnly;', '');
-        setHostingSession({ cookie: modifiedCookie, userId, isExpired });
-      } else {
-        throw new Error(
-          'Cannot access bot settings, failed to get hosting token or user ID.'
+      try {
+        const [cookie, userId, isExpired] = await Promise.all([
+          db.hostingAuthToken.getValue(),
+          db.hostingUserId.getValue(),
+          db.hostingAuthExpired.getValue(),
+        ]);
+        if (cookie && userId) {
+          // we need to strip HttpOnly from the cookie or it won't get sent along with the request
+          const modifiedCookie = cookie.replace(' HttpOnly;', '');
+          setHostingSession({ cookie: modifiedCookie, userId, isExpired });
+        } else {
+          throw new Error(
+            'Cannot access bot settings, failed to get hosting token or user ID.'
+          );
+        }
+      } catch (error) {
+        logger.trackError('Cannot access bot settings', {
+          error,
+          reason: 'hostingSessionUnavailable',
+        });
+        Alert.alert(
+          'Cannot access bot settings',
+          "You'll need to log back in before using bot settings.",
+          [{ text: 'OK', onPress: () => props.navigation.goBack() }]
         );
       }
     }
     initialize();
-  }, []);
+  }, [props.navigation]);
 
   useEffect(() => {
     if (hostingSession?.isExpired) {
