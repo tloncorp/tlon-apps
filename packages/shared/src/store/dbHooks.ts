@@ -291,10 +291,7 @@ export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
 };
 
 export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
-  const depsKey = useMemo(
-    () => (channelId ? keyFromQueryDeps(db.getThreadUnreadsByChannel) : null),
-    [channelId]
-  );
+  const depsKey = useKeyFromQueryDeps(db.getThreadUnreadsByChannel);
 
   return useQuery({
     enabled: !!channelId,

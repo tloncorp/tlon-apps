@@ -106,15 +106,17 @@ test('markChannelRead preserves notification-only group unread when it does not 
   });
 });
 
-test('markChannelRead preserves notification-only group unread when it has multiple notifying items', async () => {
+test('markChannelRead decrements notification-only group unread when it has multiple notifying channels', async () => {
   const otherChannelId = 'chat/~zod/stale-notify/random';
 
   await insertGroupAndChannel();
   await insertGroupAndChannel({ id: otherChannelId });
-  await db.insertGroupUnreads([makeGroupUnread({ notifyCount: 2 })]);
+  await db.insertGroupUnreads([
+    makeGroupUnread({ notifyCount: 2, updatedAt: 200 }),
+  ]);
   await db.insertChannelUnreads([
-    makeChannelUnread(),
-    makeChannelUnread({ channelId: otherChannelId }),
+    makeChannelUnread({ updatedAt: 200 }),
+    makeChannelUnread({ channelId: otherChannelId, updatedAt: 100 }),
   ]);
 
   await markChannelRead({ id: channelId, groupId });
@@ -126,6 +128,47 @@ test('markChannelRead preserves notification-only group unread when it has multi
   expect(await db.getGroupUnread({ groupId })).toMatchObject({
     count: 0,
     notify: true,
-    notifyCount: 2,
+    notifyCount: 1,
+    updatedAt: 100,
+  });
+
+  await markChannelRead({ id: otherChannelId, groupId });
+
+  expect(await db.getGroupUnread({ groupId })).toMatchObject({
+    count: 0,
+    notify: false,
+    notifyCount: 0,
+  });
+});
+
+test('markChannelRead decrements group count and notify count for notifying message unreads', async () => {
+  const otherChannelId = 'chat/~zod/stale-notify/random';
+
+  await insertGroupAndChannel();
+  await insertGroupAndChannel({ id: otherChannelId });
+  await db.insertGroupUnreads([
+    makeGroupUnread({ count: 2, notifyCount: 2, updatedAt: 200 }),
+  ]);
+  await db.insertChannelUnreads([
+    makeChannelUnread({
+      count: 1,
+      countWithoutThreads: 1,
+      updatedAt: 200,
+    }),
+    makeChannelUnread({
+      channelId: otherChannelId,
+      count: 1,
+      countWithoutThreads: 1,
+      updatedAt: 100,
+    }),
+  ]);
+
+  await markChannelRead({ id: channelId, groupId });
+
+  expect(await db.getGroupUnread({ groupId })).toMatchObject({
+    count: 1,
+    notify: true,
+    notifyCount: 1,
+    updatedAt: 100,
   });
 });

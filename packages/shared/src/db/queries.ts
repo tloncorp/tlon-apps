@@ -2128,6 +2128,20 @@ export const getChannelUnread = createReadQuery(
   ['channelUnreads']
 );
 
+export const getNotifyingChannelUnreadsByGroup = createReadQuery(
+  'getNotifyingChannelUnreadsByGroup',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select(getTableColumns($channelUnreads))
+      .from($channelUnreads)
+      .innerJoin($channels, eq($channelUnreads.channelId, $channels.id))
+      .where(
+        and(eq($channels.groupId, groupId), eq($channelUnreads.notify, true))
+      );
+  },
+  ['channelUnreads', 'channels']
+);
+
 export const getGroupUnread = createReadQuery(
   'getGroupUnread',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
