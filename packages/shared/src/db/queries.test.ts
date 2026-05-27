@@ -1043,11 +1043,6 @@ test('thread unread queries treat notification-only activity as unread until cle
       excludeRead: true,
     })
   ).toHaveLength(1);
-  expect(
-    await queries.getThreadUnreadActivityCountByChannel({
-      channelId: unreadTestChannelId,
-    })
-  ).toBe(1);
 
   await queries.clearThreadUnread({ channelId: unreadTestChannelId, threadId });
 
@@ -1067,11 +1062,6 @@ test('thread unread queries treat notification-only activity as unread until cle
       excludeRead: true,
     })
   ).toHaveLength(0);
-  expect(
-    await queries.getThreadUnreadActivityCountByChannel({
-      channelId: unreadTestChannelId,
-    })
-  ).toBe(0);
 });
 
 // TLON-5606: `getPendingPosts` feeds the main-channel pending-merge layer.

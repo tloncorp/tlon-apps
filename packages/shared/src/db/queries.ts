@@ -1931,23 +1931,6 @@ function threadUnreadActivityPredicate() {
   return or(ne($threadUnreads.count, 0), eq($threadUnreads.notify, true));
 }
 
-export const getThreadUnreadActivityCountByChannel = createReadQuery(
-  'getThreadUnreadActivityCountByChannel',
-  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
-    const result = await ctx.db
-      .select({ count: count() })
-      .from($threadUnreads)
-      .where(
-        and(
-          eq($threadUnreads.channelId, channelId),
-          threadUnreadActivityPredicate()
-        )
-      );
-    return result[0]?.count ?? 0;
-  },
-  ['threadUnreads']
-);
-
 export interface GetUnreadsOptions {
   orderBy?: 'updatedAt';
   includeFullyRead?: boolean;
@@ -4977,15 +4960,14 @@ export const insertChannelUnreads = createWriteQuery(
       }
     });
   },
-  (unreads) =>
-    unreads.length
-      ? [
-          'channelUnreads',
-          ...(unreads.some((u) => (u.threadUnreads?.length ?? 0) > 0)
-            ? (['threadUnreads'] as const)
-            : []),
-        ]
-      : []
+  (unreads) => {
+    if (unreads.length === 0) {
+      return [];
+    }
+    return unreads.some((u) => (u.threadUnreads?.length ?? 0) > 0)
+      ? ['channelUnreads', 'threadUnreads']
+      : ['channelUnreads'];
+  }
 );
 
 export const clearChannelUnread = createWriteQuery(

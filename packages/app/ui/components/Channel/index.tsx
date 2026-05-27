@@ -15,7 +15,7 @@ import {
   uploadAsset,
   useChannelPreview,
   useGroupPreview,
-  useLiveThreadUnreadActivityCountByChannel,
+  useLiveThreadUnreadsByChannel,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
@@ -421,14 +421,12 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const hasLoaded = !!(posts && channel);
     const shouldCheckThreadUnreadActivity =
       channel?.type === 'dm' || channel?.type === 'groupDm';
-    const {
-      data: threadUnreadActivityCount,
-      isFetched: threadUnreadActivityFetched,
-    } = useLiveThreadUnreadActivityCountByChannel(
-      shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
-    );
+    const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
+      useLiveThreadUnreadsByChannel(
+        shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
+      );
     const hasChildThreadUnreadActivity =
-      shouldCheckThreadUnreadActivity && (threadUnreadActivityCount ?? 0) > 0;
+      shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
     const childThreadUnreadActivityKnown =
       !shouldCheckThreadUnreadActivity || threadUnreadActivityFetched;
     const hasUnreadActivity = hasMainChannelUnreadActivity({
