@@ -3932,7 +3932,8 @@
     ~>  %spin.['go-u-create']
     ^+  go-core
     ?:  go-our-host
-      (go-response %create gr)
+      ::  use the full server state for sending the response
+      (go-response %create group)
     ::
     ?>  ?=(%sub -.net)
     ::  update group while preserving local state
