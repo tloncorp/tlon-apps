@@ -3,8 +3,8 @@ import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
-  hasUnreadActivity,
   isChatChannel as getIsChatChannel,
+  hasUnreadActivity,
   makePrettyDayAndTime,
   useDebouncedValue,
 } from '@tloncorp/shared';

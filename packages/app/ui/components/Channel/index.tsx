@@ -10,8 +10,8 @@ import {
   DraftInputId,
   createDevLogger,
   finalizeAndSendPost,
-  hasMainChannelUnreadActivity,
   isChatChannel as getIsChatChannel,
+  hasMainChannelUnreadActivity,
   uploadAsset,
   useChannelPreview,
   useGroupPreview,
@@ -428,8 +428,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
     );
     const hasChildThreadUnreadActivity =
-      shouldCheckThreadUnreadActivity &&
-      (threadUnreadActivityCount ?? 0) > 0;
+      shouldCheckThreadUnreadActivity && (threadUnreadActivityCount ?? 0) > 0;
     const childThreadUnreadActivityKnown =
       !shouldCheckThreadUnreadActivity || threadUnreadActivityFetched;
     const hasUnreadActivity = hasMainChannelUnreadActivity({
