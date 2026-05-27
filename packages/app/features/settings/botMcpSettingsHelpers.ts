@@ -1,5 +1,5 @@
 import type { TlawnOAuthGrant, TlawnOAuthProvider } from '@tloncorp/api';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 
 import { APP_SCHEME } from '../../constants';
 import type { BotSettingsProviderRow } from '../../ui';
@@ -8,10 +8,10 @@ export const COMPLETION_PATH = 'mcp-oauth/complete';
 export const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 export const TOAST_BOTTOM_OFFSET = 24;
 export const MCP_TELEMETRY_EVENTS = {
-  initiatedOAuth: 'Tlonbot MCP: Initiated OAuth',
-  connected: 'Tlonbot MCP: Connected',
-  disconnected: 'Tlonbot MCP: Disconnected',
-  error: 'Tlonbot MCP: Error',
+  initiatedOAuth: AnalyticsEvent.TlonbotMcpInitiatedOAuth,
+  connected: AnalyticsEvent.TlonbotMcpConnected,
+  disconnected: AnalyticsEvent.TlonbotMcpDisconnected,
+  error: AnalyticsEvent.TlonbotMcpError,
 } as const;
 
 type OAuthCompletion = {
