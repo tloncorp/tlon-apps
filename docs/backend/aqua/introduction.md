@@ -59,16 +59,17 @@ in enumeration order as test ships. Thus, for a test involving 4 ships we would 
 
 Prepare the snapshot by running
 ```
-> -desk!ph-fleet fleet sync
+> -desk!ph-fleet snap-id fleet sync
 ```
-where `fleet` is the list of ships and `sync` is the desk sync flag.
+`snap-id` is optional snapshot id. If it is not supplied, a new id will
+be generated. `fleet` is the list of ships and `sync` is the desk sync flag.
 Default the sync flag to `|`, unless there has been changes to the desk.
 Currently, syncing desk to virtual ships takes quite some time.
 
 The thread will prepare an aqua snapshot, and return the snapshot id.
 You can save it to a dojo variable with
 ```
-> =snap-id -desk!ph-fleet fleet sync
+> =snap-id -desk!ph-fleet snap-id fleet sync
 ```
 to avoid having to retype each time tests are run.
 

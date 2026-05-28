@@ -1,15 +1,17 @@
 # 1 Overview
-The groups agent hosts groups, which are collections of channels accessible by group members. Group members can be assigned roles with differing access to group resources.
-A user can become a group member by receiving an invitation or requesting entry, depending on group privacy settings.
+The groups gall agent hosts and manages groups. Groups are a social networking primitive and comprise a collection of channels accessible by group members together with various group and channels metadata, including permissions. Group members can be assigned roles with differing access to group resources. A user can become a group member by receiving an invitation or requesting entry, depending on group privacy settings.
 
-A group can also be previewed without joining it, to obtain basic information about a group such as the group metadata containing title, description and icon, the number of group members and privacy settings. Only public and private groups can be previewed. Secret groups remain hidden and can only be seen only by invited members.
+A group can also be previewed without joining it, to obtain basic information about a group such as the group metadata containing title, description and icon, the number of group members and privacy settings. This function is used as a discoverability feature.
+
+Only public and private groups can be previewed. Secret groups remain hidden and can only be seen only by invited members.
 
 # 2 Architecture
-The groups agent is comprised of two components: `+se-core` is the server core, while `+go-core` is the client core. Thus, the agent state contains both the state of hosted and subscribed groups, which are distinguished by a flag. Combining the server and subscriber functions in one agent saves us some complexity associated with running two different agents and is possible because the server and subscriber state differs only minimally and is replicated from group host to group subscribers. 
+The groups agent is comprised of two separate cores : the server core `+se-core` and the client core `+go-core`. Thus, the agent state contains both the state of hosted and subscribed groups, which are distinguished by a flag. Combining the server and subscriber functions in one agent saves us some complexity associated with running two separate agents and is possible because the server and subscriber state differs only minimally and the surrounding logic can be separated out without too much effort.
 
-Care must be taken when managing the state, which in case of hosted groups is shared between the server component, and the local client component; the group host uses the client component to internally join its own group.
+However, care must still be taken when managing the groups state, which in the case of self-hosted groups is shared between the server component `+se-core` and the local client component `+go-core`; the group host uses the client component to internally join its own group.
+In particular, this means that when an updated is processed by the group host, `+go-core` must appropriately short-circuit logic that has already been applied in the server component, taking care at the same time to generate client-related logic, such as generating notifications or sending responses to subscribers.
 
-In addition to the group server and client cores, there is also the foreign group core `+fi-core`. This core manages state associated with querying and joining groups of which are not a member yet – hence the name foreign.
+In addition to the group server and client cores, there is also the foreign group core `+fi-core`. This core manages state associated with querying and joining groups of which we are not a member yet – hence the name foreign.
 
 # 3 Group membership
 The group host keeps a record of all member ships as a collection of seats. Each `$seat` carries with it information about the assigned roles and a join timestamp. Roles determine permissions to access channels contained in a group. A special role `%admin` designates admin group members, who have permissions to administer the group.
