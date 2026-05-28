@@ -196,21 +196,9 @@ arvo, as well as receive effects.
 It is therefore not possible to interface directly through gall API with apps running inside virtual ships. Instead, we use arvo tasks to pass messages to vanes running on a
 virtual ship. To receive effects, we can subscribe to a generic aqua
 endpoint `/effect`, and also target a specific type of arvo effects by using a specific subscription path, such as `/effect/unto` for gall `%unto` effects.
-
-### Implementing a test
-
-We have so far talked about the structure of an aqua test. It is
-composed of a prose description, followed by the test strand
-implementation, which essentially is a sequence of events send to the aqua runtime
-or assertions on various effects received.
-
-We are now going to focus on the test implementation. Once we have
-specified the test scenario, how do we go about implementing it?
-In some cases, it might be enough to look at relevant portions of the code to
-be able to specify the sequence of events and assertions. However,
-discerning the exact test process and data involved is not always easy just
-by reading the code. Sometimes, the functionality might be spread across many libraries
-or agents.
+### Observing the system 
+Discerning the exact test sequence and data involved is not always easy just
+by reading the code or the documentation and can be error-prone, especially if the functionality is spread across many libraries or agents.
 
 Fortunately, we can observe the running system by enabling debugging mode.
 Any agent that integrates the logging library, together with the verb wrapper, will
@@ -221,5 +209,23 @@ volume
 ```
 where volume can be any of `%dbug`, `%info`, `%warn` and `%crit`.
 Adjusting the volume to `%dbug` will enable printing of all log messages at that priority or above.
+### Implementing a test
+
+We have so far talked about the structure of an aqua test. It is
+composed of a prose description, followed by the test strand
+implementation, which essentially is a sequence of events send to the aqua runtime
+or assertions on various effects received. 
+
+We are now going to focus on the test implementation. Once we have specified the test scenario, how do we go about implementing it? The first step is always mapping the system we want to test. The system can be simple, isolated to a particular gall agent, or complex and span multiple system components. In either case, we take the test description and identify involved system components. We then refer to their documentation and source code for context. The outcome of this first step is a **hypothesis** about how the system might work. We underscore this is only a hypothesis: discerning the exact runtime behavior from the source code and documentation alone is difficult. 
+
+This is why the next step is **evaluation**. Rather than attempt to form a complete mental model by trying to put together different pieces of information, we evaluate the hypothesis at runtime by triggering a step of the intended test sequence, and observing the debug output. If the hypothesis turns out to be wrong, there are two possibilities. Our hypothesis, which is usually the case. In that case, we must take a step back, and correct it. However, in some cases we might actually uncover a bug, especially if the runtime behavior is illogical or contradicts written documentation.
+
+Once the hypothesis has been verified, we **encode** it as test assertions and advance to the next step of our desired test sequence. In some cases, however, it might turn out that our understanding of the test scenario itself is wrong. If that happens, we simply rollback the test until a point which we know to be correct.
+
+The method therefore consists of three steps performed iteratively, until the test has been completed and passes successfully:
+1. Map the system and form the **hypothesis**
+2. **Evaluate** the hypothesis by observing runtime behavior.
+3. **Encode** the hypothesis with test assertions. 
+
 
 
