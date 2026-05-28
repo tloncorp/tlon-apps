@@ -146,6 +146,7 @@ export const BottomSheetWrapper = forwardRef<
       enableContentPanningGesture,
       enableDynamicSizing,
       unmountOnClose = false,
+      stackBehavior,
     },
     ref
   ) => {
@@ -465,6 +466,7 @@ export const BottomSheetWrapper = forwardRef<
           key={mountKey}
           ref={bottomSheetModalRef}
           accessibilityViewIsModal={true}
+          stackBehavior={stackBehavior}
           {...commonProps}
           {...commonOverrides}
         >
