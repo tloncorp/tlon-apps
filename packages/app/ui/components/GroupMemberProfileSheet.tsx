@@ -1,15 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
 import { useIsAdmin } from '../utils';
 import { ProfileSheet } from './ProfileSheet';
-
-// Match BottomSheetWrapper's `quick` transition (250ms) + small buffer for
-// Gorhom to fully unmount the modal portal entry before the React tree is
-// torn down by `onDismiss`. See TLON-5891.
-const PARENT_CLOSE_ANIMATION_MS = Platform.OS === 'web' ? 0 : 300;
 
 export function GroupMemberProfileSheet({
   selectedContact,
@@ -60,37 +55,18 @@ export function GroupMemberProfileSheet({
   // leaving a visible "orphan" sheet — the same class of bug we just fixed
   // for the nested role picker (TLON-5891).
   const [parentOpen, setParentOpen] = useState(true);
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearDismissTimer = useCallback(() => {
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current);
-      dismissTimerRef.current = null;
-    }
-  }, []);
+  const { closeAfterAnimation, cancel: cancelDismiss } =
+    useSheetCloseAfterAnimation();
 
   const dismiss = useCallback(
     (afterDismiss?: () => void) => {
       setParentOpen(false);
-      clearDismissTimer();
-
-      const finishDismiss = () => {
-        dismissTimerRef.current = null;
+      closeAfterAnimation(() => {
         onDismiss();
         afterDismiss?.();
-      };
-
-      if (PARENT_CLOSE_ANIMATION_MS === 0) {
-        finishDismiss();
-        return;
-      }
-
-      dismissTimerRef.current = setTimeout(
-        finishDismiss,
-        PARENT_CLOSE_ANIMATION_MS
-      );
+      });
     },
-    [clearDismissTimer, onDismiss]
+    [closeAfterAnimation, onDismiss]
   );
 
   const handlePressGoToProfile = useCallback(() => {
@@ -104,12 +80,10 @@ export function GroupMemberProfileSheet({
   // this effect catches the null → contact transition.
   useEffect(() => {
     if (selectedContact) {
-      clearDismissTimer();
+      cancelDismiss();
       setParentOpen(true);
     }
-  }, [selectedContact, clearDismissTimer]);
-
-  useEffect(() => () => clearDismissTimer(), [clearDismissTimer]);
+  }, [selectedContact, cancelDismiss]);
 
   if (!selectedContact) {
     return null;

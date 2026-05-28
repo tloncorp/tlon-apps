@@ -1,19 +1,13 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
+import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
 import { ActionGroup, ActionSheet, createActionGroups } from './ActionSheet';
 import { ProfileBlock } from './ProfileBlock';
-
-// Wait for the inner picker's `quick` (250ms) dismiss animation to complete
-// — and for Gorhom to remove it from the modal stack via
-// `enableDismissOnClose` — before telling the parent profile sheet to close.
-// Without this delay, dismissing the parent first races the inner's
-// teardown and re-introduces the orphan modal class of bug (TLON-5891).
-const PARENT_CLOSE_DELAY_MS = Platform.OS === 'web' ? 0 : 300;
 
 function RoleAssignmentSheet({
   onAssignRole,
@@ -162,49 +156,31 @@ export function ProfileSheet({
   const contactIsHost = groupHostId === contactId;
   const contactIsAdmin = selectedUserRoles?.includes('admin');
 
-  // Owns the deferred parent-close timer used by `RoleAssignmentSheet`'s
-  // role-action flow. Owned here (not in `RoleAssignmentSheet`) because the
-  // role action that schedules the close can also unmount the admin action
-  // group as a side effect — e.g. a non-host admin self-demoting via the
-  // checked `admin` role flips `currentUserIsAdmin` to false, which drops
-  // the admin action group and unmounts `RoleAssignmentSheet`. Owning the
-  // timer at this level keeps it alive across that subtree churn.
-  // Cleanup is tied to `contactId` changes and to ProfileSheet unmount
-  // (the `useEffect` below covers both) — NOT to RoleAssignmentSheet unmount.
-  const parentCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-  // Stable reference to the latest `onOpenChange` so the timer's callback
-  // doesn't read a stale closure if the prop identity changes between
-  // schedule and fire.
+  // Owns the deferred parent-close used by `RoleAssignmentSheet`'s role-action
+  // flow. Owned here (not in `RoleAssignmentSheet`) because the role action
+  // that schedules the close can also unmount the admin action group as a side
+  // effect — e.g. a non-host admin self-demoting via the checked `admin` role
+  // flips `currentUserIsAdmin` to false, which drops the admin action group and
+  // unmounts `RoleAssignmentSheet`. Owning it at this level keeps the pending
+  // close alive across that subtree churn.
+  const { closeAfterAnimation, cancel: clearParentCloseTimer } =
+    useSheetCloseAfterAnimation();
+
+  // Stable reference to the latest `onOpenChange` so the deferred close doesn't
+  // read a stale closure if the prop identity changes between schedule and fire.
   const onOpenChangeRef = useRef(onOpenChange);
   useEffect(() => {
     onOpenChangeRef.current = onOpenChange;
   }, [onOpenChange]);
 
-  const clearParentCloseTimer = useCallback(() => {
-    if (parentCloseTimerRef.current) {
-      clearTimeout(parentCloseTimerRef.current);
-      parentCloseTimerRef.current = null;
-    }
-  }, []);
-
   const requestParentClose = useCallback(() => {
-    clearParentCloseTimer();
+    closeAfterAnimation(() => onOpenChangeRef.current(false));
+  }, [closeAfterAnimation]);
 
-    if (PARENT_CLOSE_DELAY_MS === 0) {
-      onOpenChangeRef.current(false);
-      return;
-    }
-
-    parentCloseTimerRef.current = setTimeout(() => {
-      parentCloseTimerRef.current = null;
-      onOpenChangeRef.current(false);
-    }, PARENT_CLOSE_DELAY_MS);
-  }, [clearParentCloseTimer]);
-
-  // Cancel any pending parent-close timer when another close path takes over,
-  // when the contact changes, or when ProfileSheet unmounts entirely.
+  // Cancel any pending parent-close when another close path takes over, when
+  // the contact changes, or when ProfileSheet unmounts entirely. The hook
+  // already cancels on unmount; this also covers the `!open` and contactId
+  // transitions, which the hook does not.
   useEffect(() => {
     if (!open) {
       clearParentCloseTimer();
