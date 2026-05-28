@@ -82,7 +82,7 @@ export default function SettingsScreen(props: Props) {
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
         onPrivacyPressed={onPrivacyPressed}
-        onWebAppPressed={openTlonWebApp}
+        onWebAppPressed={isHostedUser ? openTlonWebApp : undefined}
         dmLink={dmLink}
         onBackPressed={onBack}
         botEnabled={botEnabled}
