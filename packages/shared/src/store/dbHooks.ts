@@ -174,13 +174,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCountWithoutMuted = () => {
+export const useNotifyingUnreadSourceCount = () => {
   return useQuery({
     queryKey: [
-      'unreadsCount',
-      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+      'notifyingUnreadSourceCount',
+      useKeyFromQueryDeps(db.getNotifyingUnreadSourceCount),
     ],
-    queryFn: () => db.getUnreadsCountWithoutMuted({}),
+    queryFn: () => db.getNotifyingUnreadSourceCount(),
   });
 };
 
@@ -285,6 +285,24 @@ export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
         return db.getThreadUnreadState({ parentId: parentPostId });
       }
       return null;
+    },
+  });
+};
+
+export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
+  const depsKey = useKeyFromQueryDeps(db.getThreadUnreadsByChannel);
+
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['liveThreadUnreadsByChannel', depsKey, channelId],
+    queryFn: async () => {
+      if (!channelId) {
+        return [];
+      }
+      return db.getThreadUnreadsByChannel({
+        channelId,
+        excludeRead: true,
+      });
     },
   });
 };

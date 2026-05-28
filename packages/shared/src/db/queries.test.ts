@@ -17,7 +17,7 @@ import {
 import initResponse from '../test/init.json';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
 import * as queries from './queries';
-import { Post } from './types';
+import { ChannelUnread, GroupUnread, Post, ThreadUnreadState } from './types';
 
 const groupsData = toClientGroupsV7(
   groupsResponse as unknown as Record<string, ub.GroupV7>,
@@ -854,6 +854,284 @@ test('setJoinedGroupChannels: does not reset membership for channels not in the 
       `channel ${channelId} should still be joined`
     ).toBe(true);
   }
+});
+
+const unreadTestChannelId = 'chat/~zod/react-clear/general';
+const unreadTestGroupId = '~zod/react-clear';
+
+function makeChannelUnread(
+  overrides: Partial<ChannelUnread> = {}
+): ChannelUnread {
+  return {
+    channelId: unreadTestChannelId,
+    type: 'channel',
+    count: 0,
+    countWithoutThreads: 0,
+    notify: true,
+    updatedAt: 100,
+    firstUnreadPostId: null,
+    firstUnreadPostReceivedAt: null,
+    ...overrides,
+  };
+}
+
+function makeGroupUnread(overrides: Partial<GroupUnread> = {}): GroupUnread {
+  return {
+    groupId: unreadTestGroupId,
+    count: 0,
+    notify: true,
+    notifyCount: 1,
+    updatedAt: 100,
+    ...overrides,
+  };
+}
+
+function makeThreadUnread(
+  overrides: Partial<ThreadUnreadState> = {}
+): ThreadUnreadState {
+  return {
+    channelId: unreadTestChannelId,
+    threadId: 'thread-react',
+    count: 0,
+    notify: true,
+    updatedAt: 100,
+    firstUnreadPostId: null,
+    firstUnreadPostReceivedAt: null,
+    ...overrides,
+  };
+}
+
+test('clearChannelUnread clears notification-only channel activity', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await queries.insertChannelUnreads([makeChannelUnread()]);
+
+  await queries.clearChannelUnread(unreadTestChannelId);
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, unreadTestChannelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    countWithoutThreads: 0,
+    notify: false,
+  });
+});
+
+test('channel unread clears preserve notify while a thread notification remains', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ count: 1, countWithoutThreads: 1 }),
+  ]);
+  await queries.insertThreadUnreads([makeThreadUnread()]);
+
+  await queries.clearChannelUnread(unreadTestChannelId);
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, unreadTestChannelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    countWithoutThreads: 0,
+    notify: true,
+  });
+
+  const decrementChannelId = 'chat/~zod/decrement-preserve-thread/general';
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId: decrementChannelId, count: 3 }),
+  ]);
+  await queries.insertThreadUnreads([
+    makeThreadUnread({ channelId: decrementChannelId }),
+  ]);
+
+  await queries.updateChannelUnreadCount({
+    channelId: decrementChannelId,
+    decrement: 3,
+  });
+
+  const decrementedUnread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, decrementChannelId),
+  });
+  expect(decrementedUnread).toMatchObject({
+    count: 0,
+    notify: true,
+  });
+});
+
+test('notifying unread source count includes notification-only sources', async () => {
+  await queries.insertGroupUnreads([makeGroupUnread()]);
+  await queries.insertChannelUnreads([makeChannelUnread()]);
+  await queries.insertThreadUnreads([makeThreadUnread()]);
+
+  expect(await queries.getNotifyingUnreadSourceCount()).toBe(3);
+});
+
+test('group unread count updates clear notification state when count reaches zero', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const groupId = '~zod/decrement-clear';
+  await queries.insertGroupUnreads([
+    makeGroupUnread({ groupId, count: 3, notify: true, notifyCount: 2 }),
+  ]);
+
+  await queries.updateGroupUnreadCount({ groupId, decrement: 3 });
+
+  const unread = await client.query.groupUnreads.findFirst({
+    where: $.eq(schema.groupUnreads.groupId, groupId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+    notifyCount: 0,
+  });
+});
+
+test('group unread count updates preserve notification state while a thread notification remains', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const groupId = groupsData[0].id;
+  const channelId = 'chat/~zod/decrement-preserve-thread/general';
+  await queries.insertGroups({ groups: [groupsData[0]] });
+  await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+  await queries.insertGroupUnreads([
+    makeGroupUnread({ groupId, count: 3, notify: true, notifyCount: 1 }),
+  ]);
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId, count: 0, notify: true }),
+  ]);
+  await queries.insertThreadUnreads([makeThreadUnread({ channelId })]);
+
+  await queries.updateGroupUnreadCount({ groupId, decrement: 3 });
+
+  const unread = await client.query.groupUnreads.findFirst({
+    where: $.eq(schema.groupUnreads.groupId, groupId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: true,
+    notifyCount: 1,
+  });
+});
+
+test('channel unread count updates clear notification state when count reaches zero', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const channelId = 'chat/~zod/decrement-clear/general';
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId, count: 3, notify: true }),
+  ]);
+
+  await queries.updateChannelUnreadCount({ channelId, decrement: 3 });
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, channelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+  });
+});
+
+test('group unread writes invalidate group detail queries', () => {
+  expect(queries.getGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+  expect(queries.getPersonalGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+  expect(queries.getBotHomeGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+});
+
+test('channel unread count updates invalidate channel unreads', () => {
+  expect(queries.updateChannelUnreadCount.meta.tableEffects).toEqual([
+    'channelUnreads',
+  ]);
+});
+
+test('insertChannelUnreads updates nested thread unread conflicts', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const threadId = 'nested-thread-react';
+  await queries.insertChannelUnreads([
+    makeChannelUnread({
+      count: 1,
+      threadUnreads: [
+        makeThreadUnread({
+          threadId,
+          count: 1,
+        }),
+      ],
+    }),
+  ]);
+
+  await queries.insertChannelUnreads([
+    makeChannelUnread({
+      notify: false,
+      updatedAt: 200,
+      threadUnreads: [
+        makeThreadUnread({
+          threadId,
+          notify: false,
+          updatedAt: 200,
+        }),
+      ],
+    }),
+  ]);
+
+  const unread = await client.query.threadUnreads.findFirst({
+    where: $.and(
+      $.eq(schema.threadUnreads.channelId, unreadTestChannelId),
+      $.eq(schema.threadUnreads.threadId, threadId)
+    ),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+    updatedAt: 200,
+  });
+});
+
+test('thread unread queries treat notification-only activity as unread until cleared', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const threadId = 'thread-react';
+  await queries.insertThreadUnreads([makeThreadUnread({ threadId })]);
+
+  expect(
+    await queries.getThreadUnreadsByChannel({
+      channelId: unreadTestChannelId,
+      excludeRead: true,
+    })
+  ).toHaveLength(1);
+
+  await queries.clearThreadUnread({ channelId: unreadTestChannelId, threadId });
+
+  const unread = await client.query.threadUnreads.findFirst({
+    where: $.and(
+      $.eq(schema.threadUnreads.channelId, unreadTestChannelId),
+      $.eq(schema.threadUnreads.threadId, threadId)
+    ),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+  });
+  expect(
+    await queries.getThreadUnreadsByChannel({
+      channelId: unreadTestChannelId,
+      excludeRead: true,
+    })
+  ).toHaveLength(0);
 });
 
 // TLON-5606: `getPendingPosts` feeds the main-channel pending-merge layer.
