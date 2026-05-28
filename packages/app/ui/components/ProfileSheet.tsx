@@ -1,7 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
@@ -13,7 +13,7 @@ import { ProfileBlock } from './ProfileBlock';
 // `enableDismissOnClose` — before telling the parent profile sheet to close.
 // Without this delay, dismissing the parent first races the inner's
 // teardown and re-introduces the orphan modal class of bug (TLON-5891).
-const PARENT_CLOSE_DELAY_MS = 300;
+const PARENT_CLOSE_DELAY_MS = Platform.OS === 'web' ? 0 : 300;
 
 function RoleAssignmentSheet({
   onAssignRole,
@@ -181,7 +181,14 @@ export function ProfileSheet({
   const requestParentClose = useCallback(() => {
     if (parentCloseTimerRef.current) {
       clearTimeout(parentCloseTimerRef.current);
+      parentCloseTimerRef.current = null;
     }
+
+    if (PARENT_CLOSE_DELAY_MS === 0) {
+      onOpenChangeRef.current(false);
+      return;
+    }
+
     parentCloseTimerRef.current = setTimeout(() => {
       parentCloseTimerRef.current = null;
       onOpenChangeRef.current(false);
