@@ -1,9 +1,9 @@
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, Icon, Text } from '@tloncorp/ui';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking } from 'react-native';
-import { View, XStack, YStack } from 'tamagui';
+import { Image, Linking } from 'react-native';
+import { YStack, isWeb } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
 
@@ -73,21 +73,20 @@ export function WebAppSplashSheet({
     <ActionSheet open={open} onOpenChange={onOpenChange}>
       <ActionSheet.Content>
         <YStack gap="$2xl" paddingHorizontal="$2xl">
-          <XStack justifyContent="center" marginTop="$2xl">
-            <View
-              backgroundColor="$background"
-              borderRadius="$xl"
-              padding="$xl"
-              shadowColor="$shadowColor"
-              shadowOffset={{ width: 0, height: 4 }}
-              shadowOpacity={0.25}
-              shadowRadius={8}
-            >
-              <Icon type="TBlock" size="$xl" />
-            </View>
-          </XStack>
+          <Image
+            style={{
+              width: '100%',
+              height: 250,
+            }}
+            resizeMode="contain"
+            source={
+              isWeb
+                ? `./web-splash.png`
+                : require('../assets/raster/web-splash.png')
+            }
+          />
 
-          <YStack gap="$s" alignItems="center">
+          <YStack gap="$s" alignItems="center" marginBottom="$l">
             <Text fontSize="$xl" fontWeight="600" textAlign="center">
               Tlon Messenger is on the web
             </Text>
