@@ -22,6 +22,7 @@ function RoleAssignmentSheet({
   selectedUserRoles,
   contactIsHost,
   closeParent,
+  cancelParentClose,
   ...actionProps
 }: {
   onAssignRole: (roleId: string) => void;
@@ -30,6 +31,7 @@ function RoleAssignmentSheet({
   selectedUserRoles: string[];
   contactIsHost: boolean;
   closeParent: () => void;
+  cancelParentClose: () => void;
 } & Parameters<typeof ActionSheet.Action>[0]) {
   const [open, setOpen] = useState(false);
   // Suppresses rapid double-taps between the role tap and the inner sheet's
@@ -40,8 +42,9 @@ function RoleAssignmentSheet({
   useEffect(() => {
     if (open) {
       closingRef.current = false;
+      cancelParentClose();
     }
-  }, [open]);
+  }, [open, cancelParentClose]);
 
   const handleRoleAction = (role: db.GroupRole) => {
     if (closingRef.current) {
@@ -178,11 +181,16 @@ export function ProfileSheet({
   useEffect(() => {
     onOpenChangeRef.current = onOpenChange;
   }, [onOpenChange]);
-  const requestParentClose = useCallback(() => {
+
+  const clearParentCloseTimer = useCallback(() => {
     if (parentCloseTimerRef.current) {
       clearTimeout(parentCloseTimerRef.current);
       parentCloseTimerRef.current = null;
     }
+  }, []);
+
+  const requestParentClose = useCallback(() => {
+    clearParentCloseTimer();
 
     if (PARENT_CLOSE_DELAY_MS === 0) {
       onOpenChangeRef.current(false);
@@ -193,18 +201,19 @@ export function ProfileSheet({
       parentCloseTimerRef.current = null;
       onOpenChangeRef.current(false);
     }, PARENT_CLOSE_DELAY_MS);
-  }, []);
-  // Cancel any pending parent-close timer when the contact changes (so a
-  // stale timer from a previous member's role action doesn't close a freshly
-  // opened profile) or when ProfileSheet unmounts entirely.
+  }, [clearParentCloseTimer]);
+
+  // Cancel any pending parent-close timer when another close path takes over,
+  // when the contact changes, or when ProfileSheet unmounts entirely.
+  useEffect(() => {
+    if (!open) {
+      clearParentCloseTimer();
+    }
+  }, [open, clearParentCloseTimer]);
+
   useEffect(
-    () => () => {
-      if (parentCloseTimerRef.current) {
-        clearTimeout(parentCloseTimerRef.current);
-        parentCloseTimerRef.current = null;
-      }
-    },
-    [contactId]
+    () => () => clearParentCloseTimer(),
+    [contactId, clearParentCloseTimer]
   );
 
   const handleBlock = useCallback(() => {
@@ -261,6 +270,7 @@ export function ProfileSheet({
               selectedUserRoles={selectedUserRoles ?? []}
               contactIsHost={contactIsHost}
               closeParent={requestParentClose}
+              cancelParentClose={clearParentCloseTimer}
               onAssignRole={(roleId: string) => {
                 onPressAsignRole?.(roleId);
               }}
