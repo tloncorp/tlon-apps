@@ -610,6 +610,9 @@ export async function markChannelRead({
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
   const existingUnread = await db.getChannelUnread({ channelId: id });
+  const existingGroupUnread = groupId
+    ? await db.getGroupUnread({ groupId })
+    : null;
   if (existingUnread) {
     await db.clearChannelUnread(id);
   }
@@ -623,13 +626,66 @@ export async function markChannelRead({
     await db.clearChannelThreadUnreads({ channelId: id });
   }
 
+  const remainingNotifyingChannelUnreads =
+    groupId && existingUnread?.notify === true
+      ? await db.getNotifyingChannelUnreadsByGroup({ groupId })
+      : [];
   const existingCount = existingUnread?.count ?? 0;
-  if (groupId && existingCount > 0) {
-    // optimitically update group unread count
-    await db.updateGroupUnreadCount({
-      groupId,
-      decrement: existingCount,
-    });
+  const channelUnreadWasNotificationOnly =
+    existingUnread?.notify === true &&
+    (existingUnread.count ?? 0) === 0 &&
+    (existingUnread.countWithoutThreads ?? 0) === 0;
+  const groupUnreadLooksLikeSameNotification =
+    existingGroupUnread?.notify === true &&
+    (existingGroupUnread.count ?? 0) === 0 &&
+    existingGroupUnread.updatedAt === existingUnread?.updatedAt;
+  const shouldUpdateGroupNotification =
+    existingUnread?.notify === true &&
+    existingGroupUnread?.notify === true &&
+    ((existingGroupUnread.notifyCount ?? 0) > 1 ||
+      (channelUnreadWasNotificationOnly &&
+        groupUnreadLooksLikeSameNotification));
+  const nextGroupUnread = existingGroupUnread
+    ? { ...existingGroupUnread }
+    : null;
+  if (nextGroupUnread && existingCount > 0) {
+    nextGroupUnread.count = Math.max(
+      (nextGroupUnread.count ?? 0) - existingCount,
+      0
+    );
+  }
+  if (nextGroupUnread && shouldUpdateGroupNotification) {
+    nextGroupUnread.notifyCount = Math.max(
+      (nextGroupUnread.notifyCount ?? 0) - 1,
+      0
+    );
+    if (
+      nextGroupUnread.notifyCount === remainingNotifyingChannelUnreads.length &&
+      remainingNotifyingChannelUnreads.length > 0
+    ) {
+      // Keep the "same notification" guard valid if the newest channel
+      // notification was the one just cleared.
+      nextGroupUnread.updatedAt = Math.max(
+        ...remainingNotifyingChannelUnreads.map((unread) => unread.updatedAt)
+      );
+    }
+    nextGroupUnread.notify = nextGroupUnread.notifyCount > 0;
+  }
+  let didUpdateGroupUnread = false;
+  if (
+    groupId &&
+    nextGroupUnread &&
+    (existingCount > 0 || shouldUpdateGroupNotification)
+  ) {
+    if (
+      (nextGroupUnread.count ?? 0) === 0 &&
+      (nextGroupUnread.notifyCount ?? 0) === 0
+    ) {
+      await db.clearGroupUnread(groupId);
+    } else {
+      await db.insertGroupUnreads([nextGroupUnread]);
+    }
+    didUpdateGroupUnread = true;
   }
 
   const existingChannel = await db.getChannel({ id });
@@ -657,6 +713,9 @@ export async function markChannelRead({
     }
     if (existingThreadUnreads.length > 0) {
       await db.insertThreadUnreads(existingThreadUnreads);
+    }
+    if (didUpdateGroupUnread && existingGroupUnread) {
+      await db.insertGroupUnreads([existingGroupUnread]);
     }
   }
 }

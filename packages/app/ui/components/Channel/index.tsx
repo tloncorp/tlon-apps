@@ -11,9 +11,11 @@ import {
   createDevLogger,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
+  hasMainChannelUnreadActivity,
   uploadAsset,
   useChannelPreview,
   useGroupPreview,
+  useLiveThreadUnreadsByChannel,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
@@ -417,7 +419,21 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const inView = useIsFocused();
     const isUserActive = useIsUserActive();
     const hasLoaded = !!(posts && channel);
-    const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
+    const shouldCheckThreadUnreadActivity =
+      channel?.type === 'dm' || channel?.type === 'groupDm';
+    const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
+      useLiveThreadUnreadsByChannel(
+        shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
+      );
+    const hasChildThreadUnreadActivity =
+      shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
+    const childThreadUnreadActivityKnown =
+      !shouldCheckThreadUnreadActivity || threadUnreadActivityFetched;
+    const hasUnreadActivity = hasMainChannelUnreadActivity({
+      unread: channel?.unread,
+      childThreadUnreadActivityKnown,
+      hasChildThreadUnreadActivity,
+    });
 
     useEffect(() => {
       const clearShowTimeout = () => {
@@ -481,13 +497,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     useEffect(() => {
       // Only mark as read when user is actively using the app (not idle)
       // This prevents auto-marking on desktop when user is AFK
-      if (hasUnreads && hasLoaded && inView && isUserActive) {
+      if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
         // add slight delay to allow high priority tasks to hit the sync queue first
         setTimeout(() => {
           markRead();
         }, 150);
       }
-    }, [hasUnreads, hasLoaded, inView, isUserActive, markRead]);
+    }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {

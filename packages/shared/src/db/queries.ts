@@ -1901,23 +1901,35 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
-export const getUnreadsCountWithoutMuted = createReadQuery(
-  'getUnreadsCountWithoutMuted',
-  async ({ type }: { type?: ChannelUnread['type'] }, ctx: QueryCtx) => {
-    const result = await ctx.db
+export const getNotifyingUnreadSourceCount = createReadQuery(
+  'getNotifyingUnreadSourceCount',
+  async (ctx: QueryCtx) => {
+    const channelResult = await ctx.db
       .select({ count: count() })
       .from($channelUnreads)
-      .where(() =>
-        and(
-          $channelUnreads.notify,
-          gt($channelUnreads.count, 0),
-          type ? eq($channelUnreads.type, type) : undefined
-        )
-      );
-    return result[0]?.count ?? 0;
+      .where(eq($channelUnreads.notify, true));
+
+    const groupResult = await ctx.db
+      .select({ count: count() })
+      .from($groupUnreads)
+      .where(eq($groupUnreads.notify, true));
+    const threadResult = await ctx.db
+      .select({ count: count() })
+      .from($threadUnreads)
+      .where(eq($threadUnreads.notify, true));
+
+    return (
+      (channelResult[0]?.count ?? 0) +
+      (groupResult[0]?.count ?? 0) +
+      (threadResult[0]?.count ?? 0)
+    );
   },
-  ['channelUnreads']
+  ['channelUnreads', 'groupUnreads', 'threadUnreads']
 );
+
+function threadUnreadActivityPredicate() {
+  return or(ne($threadUnreads.count, 0), eq($threadUnreads.notify, true));
+}
 
 export interface GetUnreadsOptions {
   orderBy?: 'updatedAt';
@@ -2114,6 +2126,20 @@ export const getChannelUnread = createReadQuery(
     });
   },
   ['channelUnreads']
+);
+
+export const getNotifyingChannelUnreadsByGroup = createReadQuery(
+  'getNotifyingChannelUnreadsByGroup',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select(getTableColumns($channelUnreads))
+      .from($channelUnreads)
+      .innerJoin($channels, eq($channelUnreads.channelId, $channels.id))
+      .where(
+        and(eq($channels.groupId, groupId), eq($channelUnreads.notify, true))
+      );
+  },
+  ['channelUnreads', 'channels']
 );
 
 export const getGroupUnread = createReadQuery(
@@ -4319,6 +4345,7 @@ export const getPersonalGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4339,6 +4366,7 @@ export const getBotHomeGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4397,6 +4425,7 @@ export const getGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4891,10 +4920,14 @@ export const updateGroupUnreadCount = createWriteQuery(
 
     if (existingUnread) {
       const existingCount = existingUnread.count ?? 0;
-      if (existingCount && existingCount - decrement >= 0) {
+      const nextCount = existingCount - decrement;
+      if (existingCount && nextCount >= 0) {
         return ctx.db
           .update($groupUnreads)
-          .set({ count: existingCount - decrement })
+          .set({
+            count: nextCount,
+            ...(nextCount === 0 ? { notify: false, notifyCount: 0 } : {}),
+          })
           .where(eq($groupUnreads.groupId, groupId));
       }
     }
@@ -4936,12 +4969,19 @@ export const insertChannelUnreads = createWriteQuery(
           .values(threadUnreads)
           .onConflictDoUpdate({
             target: [$threadUnreads.threadId, $threadUnreads.channelId],
-            set: conflictUpdateSetAll($channelUnreads),
+            set: conflictUpdateSetAll($threadUnreads),
           });
       }
     });
   },
-  (unreads) => (unreads.length ? ['channelUnreads'] : [])
+  (unreads) => {
+    if (unreads.length === 0) {
+      return [];
+    }
+    return unreads.some((u) => (u.threadUnreads?.length ?? 0) > 0)
+      ? ['channelUnreads', 'threadUnreads']
+      : ['channelUnreads'];
+  }
 );
 
 export const clearChannelUnread = createWriteQuery(
@@ -4949,14 +4989,19 @@ export const clearChannelUnread = createWriteQuery(
   async (channelId: string, ctx: QueryCtx) => {
     return ctx.db
       .update($channelUnreads)
-      .set({ count: 0, countWithoutThreads: 0, firstUnreadPostId: null })
+      .set({
+        count: 0,
+        countWithoutThreads: 0,
+        notify: false,
+        firstUnreadPostId: null,
+      })
       .where(eq($channelUnreads.channelId, channelId));
   },
   ['channelUnreads']
 );
 
 export const updateChannelUnreadCount = createWriteQuery(
-  'updateGroupUnreadCount',
+  'updateChannelUnreadCount',
   async (
     { channelId, decrement }: { channelId: string; decrement: number },
     ctx: QueryCtx
@@ -4967,15 +5012,19 @@ export const updateChannelUnreadCount = createWriteQuery(
 
     if (existingUnread) {
       const existingCount = existingUnread.count ?? 0;
-      if (existingCount && existingCount - decrement >= 0) {
+      const nextCount = existingCount - decrement;
+      if (existingCount && nextCount >= 0) {
         return ctx.db
           .update($channelUnreads)
-          .set({ count: existingCount - decrement })
+          .set({
+            count: nextCount,
+            ...(nextCount === 0 ? { notify: false } : {}),
+          })
           .where(eq($channelUnreads.channelId, channelId));
       }
     }
   },
-  ['groupUnreads']
+  ['channelUnreads']
 );
 
 export const insertThreadUnreads = createWriteQuery(
@@ -5002,7 +5051,7 @@ export const getThreadUnreadsByChannel = createReadQuery(
     return ctx.db.query.threadUnreads.findMany({
       where: and(
         eq($threadUnreads.channelId, channelId),
-        excludeRead ? not(eq($threadUnreads.count, 0)) : undefined
+        excludeRead ? threadUnreadActivityPredicate() : undefined
       ),
     });
   },
@@ -5017,7 +5066,7 @@ export const clearThreadUnread = createWriteQuery(
   ) => {
     return ctx.db
       .update($threadUnreads)
-      .set({ count: 0, firstUnreadPostId: null })
+      .set({ count: 0, notify: false, firstUnreadPostId: null })
       .where(
         and(
           eq($threadUnreads.channelId, channelId),
@@ -5033,7 +5082,7 @@ export const clearChannelThreadUnreads = createWriteQuery(
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
     return ctx.db
       .update($threadUnreads)
-      .set({ count: 0, firstUnreadPostId: null })
+      .set({ count: 0, notify: false, firstUnreadPostId: null })
       .where(eq($threadUnreads.channelId, channelId));
   },
   ['threadUnreads']
