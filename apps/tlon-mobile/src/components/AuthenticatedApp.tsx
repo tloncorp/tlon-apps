@@ -26,6 +26,7 @@ import {
   ForwardPostSheetProvider,
   PortalProvider,
   ZStack,
+  useWebAppSplash,
 } from '@tloncorp/app/ui';
 import {
   observeSyncSinceCompletion,
@@ -56,6 +57,7 @@ function AuthenticatedApp() {
   const telemetry = useTelemetry();
   const checkNodeStopped = useCheckNodeStopped();
   const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
+  const { splashSheet: webAppSplashSheet } = useWebAppSplash();
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
@@ -149,6 +151,7 @@ function AuthenticatedApp() {
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {poorUxReportModal}
       {promptSheet}
+      {webAppSplashSheet}
     </ZStack>
   );
 }

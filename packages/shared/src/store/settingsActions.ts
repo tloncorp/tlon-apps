@@ -104,6 +104,17 @@ export async function completeRevivalSplash() {
   }
 }
 
+export async function dismissWebAppSplash() {
+  // optimistic update
+  await db.insertSettings({ webAppSplashDismissed: true });
+  try {
+    await withRetry(() => api.setSetting('webAppSplashDismissed', true));
+  } catch (e) {
+    // don't rollback the optimistic update; we want to avoid re-nagging the
+    // user if the remote write fails
+  }
+}
+
 export async function completeWayfindingTutorial() {
   // optimistic update
   await db.insertSettings({ completedWayfindingTutorial: true });

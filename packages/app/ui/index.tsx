@@ -73,6 +73,7 @@ export * from './components/Tabs';
 export * from './components/TwtitterAttestationPane';
 export * from './components/UserProfileScreenView';
 export * from './components/Wayfinding/SplashSequence';
+export * from './components/WebAppSplashSheet';
 export * from './components/Wayfinding/TlonBotSetupPaneView';
 export * from './components/postCollectionViews/SummaryCollectionView';
 export * from './components/WidgetPane';

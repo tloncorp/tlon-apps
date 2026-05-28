@@ -46,6 +46,7 @@ function getBucket(key: string): string {
     case 'disableTlonInfraEnhancement':
     case 'enableTelemetry':
     case 'tlonbotConfig':
+    case 'webAppSplashDismissed':
       return 'groups';
     case 'disableAvatars':
     case 'disableNicknames':
@@ -150,6 +151,7 @@ export const toClientSettings = (
       settings.desk.groups?.completedWayfindingTutorial ?? false,
     disableTlonInfraEnhancement:
       settings.desk.groups?.disableTlonInfraEnhancement ?? false,
+    webAppSplashDismissed: settings.desk.groups?.webAppSplashDismissed ?? false,
   };
 };
 
