@@ -2719,7 +2719,7 @@
         ?~  update=(ram:log-on:g log)  now.bowl
         -.u.update
       =/  gr=group:g  group
-      ::  clear local state
+      ::  clear local state for the update
       ::
       =.  invited.admissions.gr  ~
       =.  active-channels.gr     ~
