@@ -11,7 +11,11 @@ import {
 } from 'react';
 import branch from 'react-native-branch';
 
-import { DEFAULT_LURE, DEFAULT_PRIORITY_TOKEN } from '../constants';
+import {
+  DEFAULT_LURE,
+  DEFAULT_PRIORITY_TOKEN,
+  MCP_OAUTH_COMPLETION_PATH,
+} from '../constants';
 import { useGroupNavigation } from '../hooks/useGroupNavigation';
 import { getPathFromWer } from '../utils/string';
 import { useShip } from './ship';
@@ -90,7 +94,20 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
       onOpenComplete: ({ params }) => {
         const nonBranchLink = params?.['+non_branch_link'];
         if (nonBranchLink != null && typeof nonBranchLink === 'string') {
-          const asUrl = new URL(nonBranchLink);
+          let asUrl: URL;
+          try {
+            asUrl = new URL(nonBranchLink);
+          } catch {
+            return;
+          }
+
+          const path = [asUrl.hostname, asUrl.pathname.replace(/^\//, '')]
+            .filter(Boolean)
+            .join('/');
+          if (path === MCP_OAUTH_COMPLETION_PATH) {
+            return;
+          }
+
           if (asUrl.hostname === 'channel') {
             switch (asUrl.pathname) {
               // example: io.tlon.groups://channel/open?id=0v4.00000.qd4mk.d4htu.er4b8.eao21&startDraft=true
@@ -111,19 +128,24 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
 
         // Handle Branch link click
         if (params?.['+clicked_branch_link']) {
+          const lureId =
+            typeof params.lure === 'string' &&
+            (params.lure.startsWith('0v') || params.lure.includes('/'))
+              ? params.lure
+              : null;
           logger.trackEvent('Detected Branch Link Click', {
-            inviteId: params.lure,
+            inviteId: lureId,
           });
 
-          if (params.lure) {
+          if (lureId) {
             // Link had a lure field embedded
-            logger.log('detected lure link:', params.lure);
+            logger.log('detected lure link:', lureId);
             if (
               params?.['+match_guaranteed'] &&
               params?.['+is_first_session']
             ) {
               logger.trackEvent(AnalyticsEvent.ActionDeferredDeepLink, {
-                inviteId: params.lure,
+                inviteId: lureId,
                 inviterUserId: params?.inviterUserId,
               });
             }
@@ -132,7 +154,7 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
               const nextLure: Lure = {
                 lure: {
                   ...extractLureMetadata(params),
-                  id: params.lure as string,
+                  id: lureId,
                   // if not already authenticated, we should run Lure's invite auto-join capability after signing in
                   shouldAutoJoin: !isAuthenticated,
                 },
@@ -143,12 +165,18 @@ export const BranchProvider = ({ children }: { children: ReactNode }) => {
                 ...nextLure,
                 deepLinkPath: undefined,
               });
-              storage.invitation.setValue(nextLure);
+              void storage.invitation.setValue(nextLure).catch((error) => {
+                logger.trackError(AnalyticsEvent.InviteError, {
+                  error,
+                  context: 'Failed to save lure metadata',
+                  inviteId: lureId,
+                });
+              });
             } catch (e) {
               logger.trackError(AnalyticsEvent.InviteError, {
                 error: e,
                 context: 'Failed to extract lure metadata',
-                inviteId: params.lure,
+                inviteId: lureId,
               });
             }
           } else if (params.wer) {

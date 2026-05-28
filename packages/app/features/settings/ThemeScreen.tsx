@@ -2,7 +2,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useThemeSettings } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { useEffect, useState } from 'react';
-import { ScrollView, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 import { useTheme } from 'tamagui';
 
 import { useIsDarkMode } from '../../hooks/useIsDarkMode';
@@ -15,6 +15,7 @@ import {
   Pressable,
   RadioControl,
   ScreenHeader,
+  SettingsContentScrollView,
   View,
   useIsWindowNarrow,
 } from '../../ui';
@@ -77,14 +78,7 @@ export function ThemeScreen(props: Props) {
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
       />
-      <ScrollView
-        flex={1}
-        contentContainerStyle={{
-          width: '100%',
-          maxWidth: 600,
-          marginHorizontal: 'auto',
-        }}
-      >
+      <SettingsContentScrollView>
         <YStack flex={1} padding="$l">
           {themes.map((theme) => (
             <Pressable
@@ -113,7 +107,7 @@ export function ThemeScreen(props: Props) {
             </Pressable>
           ))}
         </YStack>
-      </ScrollView>
+      </SettingsContentScrollView>
     </View>
   );
 }
