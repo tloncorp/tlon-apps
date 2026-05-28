@@ -31,8 +31,8 @@
       image+(mu so)
       cover+(mu so)
   ==
-=/  group-name=@tas  %home
-=/  channel-name=@tas  %general
+=/  group-name=@tas  %home-group
+=/  channel-name=@tas  %home-group-chat
 =/  =flag:g  [our.bowl group-name]
 =/  meta=data:mt
   :*  title.args

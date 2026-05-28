@@ -4,7 +4,7 @@
 ::      { "agent": "groups" }
 ::
 ::    return:
-::      json: { "running": true|false }
+::      json: true|false
 ::
 /-  spider
 /+  *strandio
@@ -17,4 +17,4 @@
 =+  !<(=json arg)
 =/  app=@tas  ((ot agent+(se %tas) ~) json)
 ;<  running=?  bind:m  (scry ? /gu/[app]/$)
-(pure:m !>((frond:enjs:format running+b+running)))
+(pure:m !>(`json`b+running))
