@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { useCurrentUserId } from '../contexts/appDataContext';
@@ -8,7 +9,7 @@ import { ProfileSheet } from './ProfileSheet';
 // Match BottomSheetWrapper's `quick` transition (250ms) + small buffer for
 // Gorhom to fully unmount the modal portal entry before the React tree is
 // torn down by `onDismiss`. See TLON-5891.
-const PARENT_CLOSE_ANIMATION_MS = 300;
+const PARENT_CLOSE_ANIMATION_MS = Platform.OS === 'web' ? 0 : 300;
 
 export function GroupMemberProfileSheet({
   selectedContact,
@@ -51,13 +52,6 @@ export function GroupMemberProfileSheet({
     [groupMembers, selectedContact]
   );
 
-  const handlePressGoToProfile = useCallback(() => {
-    if (selectedContact && onPressGoToProfile) {
-      onDismiss();
-      onPressGoToProfile(selectedContact);
-    }
-  }, [selectedContact, onPressGoToProfile, onDismiss]);
-
   // Local "is the parent sheet open" state. Controlling it (rather than
   // hardcoding `open={true}`) lets us trigger Gorhom's dismiss animation on
   // the parent BottomSheetModal before signalling the caller to unmount via
@@ -66,27 +60,56 @@ export function GroupMemberProfileSheet({
   // leaving a visible "orphan" sheet — the same class of bug we just fixed
   // for the nested role picker (TLON-5891).
   const [parentOpen, setParentOpen] = useState(true);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearDismissTimer = useCallback(() => {
+    if (dismissTimerRef.current) {
+      clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+  }, []);
+
+  const dismiss = useCallback(
+    (afterDismiss?: () => void) => {
+      setParentOpen(false);
+      clearDismissTimer();
+
+      const finishDismiss = () => {
+        dismissTimerRef.current = null;
+        onDismiss();
+        afterDismiss?.();
+      };
+
+      if (PARENT_CLOSE_ANIMATION_MS === 0) {
+        finishDismiss();
+        return;
+      }
+
+      dismissTimerRef.current = setTimeout(
+        finishDismiss,
+        PARENT_CLOSE_ANIMATION_MS
+      );
+    },
+    [clearDismissTimer, onDismiss]
+  );
+
+  const handlePressGoToProfile = useCallback(() => {
+    if (selectedContact && onPressGoToProfile) {
+      dismiss(() => onPressGoToProfile(selectedContact));
+    }
+  }, [selectedContact, onPressGoToProfile, dismiss]);
 
   // Re-arm `parentOpen` when the caller mounts us for a different member.
   // GMPS only renders ProfileSheet when `selectedContact` is non-null, so
   // this effect catches the null → contact transition.
   useEffect(() => {
     if (selectedContact) {
+      clearDismissTimer();
       setParentOpen(true);
     }
-  }, [selectedContact]);
+  }, [selectedContact, clearDismissTimer]);
 
-  // When the parent sheet has been told to close (either by a user gesture
-  // or by a role-action's deferred parent dismiss), wait for the close
-  // animation to finish, then signal the caller to unmount us. By this
-  // point Gorhom has already removed the parent's portal entry via
-  // `enableDismissOnClose`, so the unmount is clean.
-  useEffect(() => {
-    if (!parentOpen) {
-      const timer = setTimeout(onDismiss, PARENT_CLOSE_ANIMATION_MS);
-      return () => clearTimeout(timer);
-    }
-  }, [parentOpen, onDismiss]);
+  useEffect(() => () => clearDismissTimer(), [clearDismissTimer]);
 
   if (!selectedContact) {
     return null;
@@ -97,7 +120,7 @@ export function GroupMemberProfileSheet({
       open={parentOpen}
       onOpenChange={(open) => {
         if (!open) {
-          setParentOpen(false);
+          dismiss();
         }
       }}
       contactId={selectedContact}
