@@ -413,6 +413,21 @@ export function useRootNavigation() {
     navigationRef.current.goBack();
   }, [navigationRef]);
 
+  const navigateToBotSettings = useCallback(() => {
+    if (isWindowNarrow) {
+      navigationRef.current.navigate('BotSettings');
+      return;
+    }
+
+    const navigateToNestedSettings = navigationRef.current.navigate as (
+      screen: 'Settings',
+      params: { screen: 'BotSettings' }
+    ) => void;
+    navigateToNestedSettings('Settings', {
+      screen: 'BotSettings',
+    });
+  }, [isWindowNarrow, navigationRef]);
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -435,19 +450,21 @@ export function useRootNavigation() {
       resetToChannel,
       resetToDm,
       navigateBack,
+      navigateToBotSettings,
     }),
     [
       navigation,
+      navigateBack,
       navigateToChannel,
       navigateToChatDetails,
       navigateToChatVolume,
+      navigateToBotSettings,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
       resetToGroup,
       resetToChannel,
       resetToDm,
-      navigateBack,
     ]
   );
 }

@@ -23,7 +23,7 @@ export default function SettingsScreen(props: Props) {
   const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
-  const botEnabled = isHostedUser && hostingBotEnabled;
+  const botEnabled = Platform.OS !== 'web' && isHostedUser && hostingBotEnabled;
   const navigationRef = useMutableRef(props.navigation);
 
   const onAppInfoPressed = useCallback(() => {

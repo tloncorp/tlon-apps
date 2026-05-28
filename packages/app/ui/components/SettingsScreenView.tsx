@@ -34,6 +34,11 @@ interface Props {
 }
 
 export function SettingsScreenView(props: Props) {
+  const botSettingsFocused =
+    props.focusedRouteName === 'BotSettings' ||
+    props.focusedRouteName === 'BotMcpSettings' ||
+    props.focusedRouteName === 'BotOtherSettings';
+
   const handleLogoutPressed = () => {
     if (isWeb) {
       return;
@@ -112,7 +117,7 @@ export function SettingsScreenView(props: Props) {
               leftIcon="Face"
               rightIcon={'ChevronRight'}
               onPress={props.onBotSettingsPressed}
-              isFocused={props.focusedRouteName === 'BotSettings'}
+              isFocused={botSettingsFocused}
             />
           )}
           <SettingsAction
