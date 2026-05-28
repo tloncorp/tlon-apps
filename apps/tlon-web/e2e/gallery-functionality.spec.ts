@@ -178,6 +178,52 @@ test('should test gallery functionality', async ({ zodSetup, tenSetup }) => {
       .getByText('Edited via long-press')
   ).toBeVisible();
 
+  // Add a comment from ~ten so ~zod gets an unread + a comment to Reply to
+  await tenPage.getByTestId('Post').first().click();
+  await expect(
+    tenPage.getByTestId('GalleryPostContent').getByText('Edited via long-press')
+  ).toBeVisible({ timeout: 10000 });
+  await helpers.sendMessage(tenPage, 'Comment from ten');
+  await helpers.navigateBack(tenPage);
+
+  // ~zod (still on the gallery grid) should see the unread dot once ~ten's
+  // comment syncs across
+  await expect(zodPage.getByTestId('GalleryPostUnreadDot')).toBeVisible({
+    timeout: 15000,
+  });
+
+  // ~zod opens the post and uses the new Reply action on ~ten's comment
+  await zodPage.getByTestId('Post').first().click();
+  await expect(
+    zodPage.getByTestId('GalleryPostContent').getByText('Edited via long-press')
+  ).toBeVisible({ timeout: 10000 });
+  await expect(
+    zodPage.getByText('Comment from ten', { exact: true })
+  ).toBeVisible({ timeout: 10000 });
+
+  await helpers.longPressMessage(zodPage, 'Comment from ten');
+  await zodPage.getByText('Reply', { exact: true }).click();
+
+  // replyToComment prefills a mention of the comment author
+  await expect(zodPage.getByTestId('SelectedMention-~ten')).toBeVisible({
+    timeout: 5000,
+  });
+
+  // Send the prefilled reply directly — using helpers.sendMessage here would
+  // clear the prefilled mention via page.fill().
+  await zodPage.getByTestId('MessageInputSendButton').click({ force: true });
+  await expect(zodPage.getByTestId('SelectedMention-~ten')).not.toBeVisible({
+    timeout: 5000,
+  });
+
+  // Back to the gallery grid for the report/delete flow below
+  await helpers.navigateBack(zodPage);
+  await expect(
+    zodPage
+      .getByTestId('GalleryPostContentPreview')
+      .getByText('Edited via long-press')
+  ).toBeVisible();
+
   // Report the post as ~zod
   await helpers.longPressMessage(zodPage, 'Edited via long-press');
   await zodPage.getByText('Report post').click();
