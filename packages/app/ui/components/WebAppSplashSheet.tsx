@@ -87,7 +87,7 @@ export function WebAppSplashSheet({
             </View>
           </XStack>
 
-          <YStack gap="$2xl" alignItems="center">
+          <YStack gap="$s" alignItems="center">
             <Text fontSize="$xl" fontWeight="600" textAlign="center">
               Tlon Messenger is on the web
             </Text>

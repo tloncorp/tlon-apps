@@ -5,7 +5,6 @@ import {
 } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { getMessagesFilter } from '@tloncorp/api';
-import { getConstants } from '@tloncorp/api/types/constants';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
@@ -680,45 +679,6 @@ export const useWayfindingCompletion = () => {
       };
     },
   });
-};
-
-export const useShowWebSplashModal = () => {
-  const { data: wayfinding, isLoading } = useWayfindingCompletion();
-  const { data: personalGroup } = usePersonalGroup();
-
-  // Disable splash modal during e2e tests
-  try {
-    const constants = getConstants();
-    if (constants.DISABLE_SPLASH_MODAL) {
-      return false;
-    }
-  } catch (e) {
-    // Constants not available (e.g., in test environment)
-    // Continue with normal behavior
-  }
-
-  // Only show for hosted users
-  try {
-    if (!api.getCurrentUserIsHosted()) {
-      return false;
-    }
-  } catch (e) {
-    // getCurrentUserIsHosted() can throw before client init; hide modal until ready.
-    return false;
-  }
-
-  // Only show for mobile users, matching web app mobile routing checks.
-  const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)';
-  const isMobileDevice =
-    typeof window !== 'undefined' &&
-    window.matchMedia(MOBILE_VIEWPORT_QUERY).matches;
-  if (!isMobileDevice) {
-    return false;
-  }
-
-  return Boolean(
-    personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
-  );
 };
 
 export const useShowChatInputWayfinding = (channelId: string) => {
