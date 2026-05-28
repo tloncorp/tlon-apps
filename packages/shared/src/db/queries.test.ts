@@ -919,6 +919,48 @@ test('clearChannelUnread clears notification-only channel activity', async () =>
   });
 });
 
+test('channel unread clears preserve notify while a thread notification remains', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ count: 1, countWithoutThreads: 1 }),
+  ]);
+  await queries.insertThreadUnreads([makeThreadUnread()]);
+
+  await queries.clearChannelUnread(unreadTestChannelId);
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, unreadTestChannelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    countWithoutThreads: 0,
+    notify: true,
+  });
+
+  const decrementChannelId = 'chat/~zod/decrement-preserve-thread/general';
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId: decrementChannelId, count: 3 }),
+  ]);
+  await queries.insertThreadUnreads([
+    makeThreadUnread({ channelId: decrementChannelId }),
+  ]);
+
+  await queries.updateChannelUnreadCount({
+    channelId: decrementChannelId,
+    decrement: 3,
+  });
+
+  const decrementedUnread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, decrementChannelId),
+  });
+  expect(decrementedUnread).toMatchObject({
+    count: 0,
+    notify: true,
+  });
+});
+
 test('notifying unread source count includes notification-only sources', async () => {
   await queries.insertGroupUnreads([makeGroupUnread()]);
   await queries.insertChannelUnreads([makeChannelUnread()]);
@@ -945,6 +987,34 @@ test('group unread count updates clear notification state when count reaches zer
     count: 0,
     notify: false,
     notifyCount: 0,
+  });
+});
+
+test('group unread count updates preserve notification state while a thread notification remains', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const groupId = groupsData[0].id;
+  const channelId = 'chat/~zod/decrement-preserve-thread/general';
+  await queries.insertGroups({ groups: [groupsData[0]] });
+  await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+  await queries.insertGroupUnreads([
+    makeGroupUnread({ groupId, count: 3, notify: true, notifyCount: 1 }),
+  ]);
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId, count: 0, notify: true }),
+  ]);
+  await queries.insertThreadUnreads([makeThreadUnread({ channelId })]);
+
+  await queries.updateGroupUnreadCount({ groupId, decrement: 3 });
+
+  const unread = await client.query.groupUnreads.findFirst({
+    where: $.eq(schema.groupUnreads.groupId, groupId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: true,
+    notifyCount: 1,
   });
 });
 

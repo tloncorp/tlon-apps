@@ -1904,24 +1904,25 @@ export const removeChatMembers = createWriteQuery(
 export const getNotifyingUnreadSourceCount = createReadQuery(
   'getNotifyingUnreadSourceCount',
   async (ctx: QueryCtx) => {
-    const channelResult = await ctx.db
+    const channelCountResult = await ctx.db
       .select({ count: count() })
       .from($channelUnreads)
       .where(eq($channelUnreads.notify, true));
 
-    const groupResult = await ctx.db
+    const groupCountResult = await ctx.db
       .select({ count: count() })
       .from($groupUnreads)
       .where(eq($groupUnreads.notify, true));
-    const threadResult = await ctx.db
+    const threadCountResult = await ctx.db
       .select({ count: count() })
       .from($threadUnreads)
       .where(eq($threadUnreads.notify, true));
 
+    // Each query returns one aggregate row; sum the row counts.
     return (
-      (channelResult[0]?.count ?? 0) +
-      (groupResult[0]?.count ?? 0) +
-      (threadResult[0]?.count ?? 0)
+      (channelCountResult[0]?.count ?? 0) +
+      (groupCountResult[0]?.count ?? 0) +
+      (threadCountResult[0]?.count ?? 0)
     );
   },
   ['channelUnreads', 'groupUnreads', 'threadUnreads']
@@ -1929,6 +1930,49 @@ export const getNotifyingUnreadSourceCount = createReadQuery(
 
 function threadUnreadActivityPredicate() {
   return or(ne($threadUnreads.count, 0), eq($threadUnreads.notify, true));
+}
+
+async function hasNotifyingThreadUnreadByChannel(
+  ctx: QueryCtx,
+  channelId: string
+) {
+  const result = await ctx.db
+    .select({ channelId: $threadUnreads.channelId })
+    .from($threadUnreads)
+    .where(
+      and(
+        eq($threadUnreads.channelId, channelId),
+        eq($threadUnreads.notify, true)
+      )
+    )
+    .limit(1);
+
+  return result.length > 0;
+}
+
+async function getNotifyingChildChannelCountByGroup(
+  ctx: QueryCtx,
+  groupId: string
+) {
+  const channelResult = await ctx.db
+    .select({ channelId: $channelUnreads.channelId })
+    .from($channelUnreads)
+    .innerJoin($channels, eq($channelUnreads.channelId, $channels.id))
+    .where(
+      and(eq($channels.groupId, groupId), eq($channelUnreads.notify, true))
+    );
+
+  const threadResult = await ctx.db
+    .selectDistinct({ channelId: $threadUnreads.channelId })
+    .from($threadUnreads)
+    .innerJoin($channels, eq($threadUnreads.channelId, $channels.id))
+    .where(
+      and(eq($channels.groupId, groupId), eq($threadUnreads.notify, true))
+    );
+
+  return new Set(
+    [...channelResult, ...threadResult].map((row) => row.channelId)
+  ).size;
 }
 
 export interface GetUnreadsOptions {
@@ -4922,11 +4966,20 @@ export const updateGroupUnreadCount = createWriteQuery(
       const existingCount = existingUnread.count ?? 0;
       const nextCount = existingCount - decrement;
       if (existingCount && nextCount >= 0) {
+        const remainingNotifyCount =
+          nextCount === 0
+            ? await getNotifyingChildChannelCountByGroup(ctx, groupId)
+            : null;
         return ctx.db
           .update($groupUnreads)
           .set({
             count: nextCount,
-            ...(nextCount === 0 ? { notify: false, notifyCount: 0 } : {}),
+            ...(remainingNotifyCount !== null
+              ? {
+                  notify: remainingNotifyCount > 0,
+                  notifyCount: remainingNotifyCount,
+                }
+              : {}),
           })
           .where(eq($groupUnreads.groupId, groupId));
       }
@@ -4987,12 +5040,16 @@ export const insertChannelUnreads = createWriteQuery(
 export const clearChannelUnread = createWriteQuery(
   'clearChannelUnread',
   async (channelId: string, ctx: QueryCtx) => {
+    const hasThreadNotification = await hasNotifyingThreadUnreadByChannel(
+      ctx,
+      channelId
+    );
     return ctx.db
       .update($channelUnreads)
       .set({
         count: 0,
         countWithoutThreads: 0,
-        notify: false,
+        notify: hasThreadNotification,
         firstUnreadPostId: null,
       })
       .where(eq($channelUnreads.channelId, channelId));
@@ -5014,11 +5071,17 @@ export const updateChannelUnreadCount = createWriteQuery(
       const existingCount = existingUnread.count ?? 0;
       const nextCount = existingCount - decrement;
       if (existingCount && nextCount >= 0) {
+        const hasThreadNotification =
+          nextCount === 0
+            ? await hasNotifyingThreadUnreadByChannel(ctx, channelId)
+            : null;
         return ctx.db
           .update($channelUnreads)
           .set({
             count: nextCount,
-            ...(nextCount === 0 ? { notify: false } : {}),
+            ...(hasThreadNotification !== null
+              ? { notify: hasThreadNotification }
+              : {}),
           })
           .where(eq($channelUnreads.channelId, channelId));
       }

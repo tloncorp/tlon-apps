@@ -420,7 +420,11 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const isUserActive = useIsUserActive();
     const hasLoaded = !!(posts && channel);
     const shouldCheckThreadUnreadActivity =
-      channel?.type === 'dm' || channel?.type === 'groupDm';
+      channel?.type === 'dm' ||
+      channel?.type === 'groupDm' ||
+      (channel?.unread?.notify === true &&
+        channel.unread.count === 0 &&
+        channel.unread.countWithoutThreads === 0);
     const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
       useLiveThreadUnreadsByChannel(
         shouldCheckThreadUnreadActivity ? channel?.id ?? null : null

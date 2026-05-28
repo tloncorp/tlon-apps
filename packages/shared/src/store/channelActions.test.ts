@@ -1,4 +1,5 @@
 import { poke } from '@tloncorp/api';
+import * as $ from 'drizzle-orm';
 import { afterEach, expect, test, vi } from 'vitest';
 
 import * as db from '../db';
@@ -66,6 +67,21 @@ function makeGroupUnread(
   };
 }
 
+function makeThreadUnread(
+  overrides: Partial<db.ThreadUnreadState> = {}
+): db.ThreadUnreadState {
+  return {
+    channelId,
+    threadId: 'thread-notify',
+    count: 0,
+    notify: true,
+    updatedAt: 100,
+    firstUnreadPostId: null,
+    firstUnreadPostReceivedAt: null,
+    ...overrides,
+  };
+}
+
 afterEach(() => {
   vi.mocked(poke).mockClear();
 });
@@ -106,6 +122,22 @@ test('markChannelRead preserves notification-only group unread when it does not 
   });
 });
 
+test('markChannelRead clears final notifying message group unread', async () => {
+  await insertGroupAndChannel();
+  await db.insertGroupUnreads([makeGroupUnread({ count: 1, notifyCount: 1 })]);
+  await db.insertChannelUnreads([
+    makeChannelUnread({ count: 1, countWithoutThreads: 1 }),
+  ]);
+
+  await markChannelRead({ id: channelId, groupId });
+
+  expect(await db.getGroupUnread({ groupId })).toMatchObject({
+    count: 0,
+    notify: false,
+    notifyCount: 0,
+  });
+});
+
 test('markChannelRead decrements notification-only group unread when it has multiple notifying channels', async () => {
   const otherChannelId = 'chat/~zod/stale-notify/random';
 
@@ -138,6 +170,34 @@ test('markChannelRead decrements notification-only group unread when it has mult
     count: 0,
     notify: false,
     notifyCount: 0,
+  });
+});
+
+test('markChannelRead includes threads when clearing channel notify', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await insertGroupAndChannel();
+  await db.insertChannelUnreads([
+    makeChannelUnread({
+      count: 1,
+      countWithoutThreads: 0,
+      threadUnreads: [makeThreadUnread({ count: 1 })],
+    }),
+  ]);
+
+  await markChannelRead({ id: channelId, includeThreads: true });
+
+  expect(await db.getChannelUnread({ channelId })).toMatchObject({
+    count: 0,
+    notify: false,
+  });
+  const threadUnread = await client.query.threadUnreads.findFirst({
+    where: $.eq(schema.threadUnreads.channelId, channelId),
+  });
+  expect(threadUnread).toMatchObject({
+    count: 0,
+    notify: false,
   });
 });
 
