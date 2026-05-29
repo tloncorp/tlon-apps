@@ -103,8 +103,14 @@
 ++  wait-for-app-fact
   |=  [=wire [our=ship dap=term]]
   =/  m  (strand cage)
+  ^-  form:m
+  %^  (set-timeout-err ,cage)  timeout
+    :~  'wait-for-app-fact'
+        leaf+"expected a fact from {<our>}/{<dap>}"
+        leaf+"on wire {<wire>}"
+    ==
   ;<  =bowl:strand  bind:m  get-bowl
-  |-  ^-  form:m
+  |-
   =*  loop  $
   ;<  =^cage  bind:m  (take-fact /effect/unto)
   ?>  ?=(%aqua-effect p.cage)
