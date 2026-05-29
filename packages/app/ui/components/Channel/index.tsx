@@ -11,9 +11,11 @@ import {
   createDevLogger,
   finalizeAndSendPost,
   isChatChannel as getIsChatChannel,
+  hasMainChannelUnreadActivity,
   uploadAsset,
   useChannelPreview,
   useGroupPreview,
+  useLiveThreadUnreadsByChannel,
   usePostReference as usePostReferenceHook,
   usePostWithRelations,
 } from '@tloncorp/shared';
@@ -30,7 +32,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import {
   AnimatePresence,
   View,
@@ -129,7 +131,7 @@ const uploadIntentFromShareIntentFile = (
     type: 'fileUri',
     localUri,
     name: file.fileName || localUri.split('/').pop(),
-    size: file.size ?? 0,
+    size: file.size ?? -1,
     mimeType: file.mimeType ?? undefined,
     voiceMemo: false,
   };
@@ -201,6 +203,7 @@ function usePrefillDraftFromShareIntent({
 
       if (errorMessage) {
         shareIntentLogger.log(`Unable to attach shared file: ${errorMessage}`);
+        Alert.alert('Unable to attach', errorMessage);
       }
 
       if (!uploadIntent && !sharedText) return;
@@ -416,7 +419,25 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const inView = useIsFocused();
     const isUserActive = useIsUserActive();
     const hasLoaded = !!(posts && channel);
-    const hasUnreads = (channel?.unread?.countWithoutThreads ?? 0) > 0;
+    const shouldCheckThreadUnreadActivity =
+      channel?.type === 'dm' ||
+      channel?.type === 'groupDm' ||
+      (channel?.unread?.notify === true &&
+        channel.unread.count === 0 &&
+        channel.unread.countWithoutThreads === 0);
+    const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
+      useLiveThreadUnreadsByChannel(
+        shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
+      );
+    const hasChildThreadUnreadActivity =
+      shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
+    const childThreadUnreadActivityKnown =
+      !shouldCheckThreadUnreadActivity || threadUnreadActivityFetched;
+    const hasUnreadActivity = hasMainChannelUnreadActivity({
+      unread: channel?.unread,
+      childThreadUnreadActivityKnown,
+      hasChildThreadUnreadActivity,
+    });
 
     useEffect(() => {
       const clearShowTimeout = () => {
@@ -480,13 +501,13 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     useEffect(() => {
       // Only mark as read when user is actively using the app (not idle)
       // This prevents auto-marking on desktop when user is AFK
-      if (hasUnreads && hasLoaded && inView && isUserActive) {
+      if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
         // add slight delay to allow high priority tasks to hit the sync queue first
         setTimeout(() => {
           markRead();
         }, 150);
       }
-    }, [hasUnreads, hasLoaded, inView, isUserActive, markRead]);
+    }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
 
     const handleRefPress = useCallback(
       (refChannel: db.Channel, post: db.Post) => {
@@ -743,27 +764,29 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                     >
                       <ChannelHeaderItemsProvider>
                         <>
-                          <ChannelHeader
-                            channel={channel}
-                            group={group}
-                            title={title ?? ''}
-                            description={''}
-                            goBack={
-                              isNarrow ||
-                              draftInputPresentationMode === 'fullscreen'
-                                ? handleGoBack
-                                : undefined
-                            }
-                            goToChatDetails={goToChatDetails}
-                            goToProfile={handleGoToProfile}
-                            goToSearch={goToSearch}
-                            showSpinner={showHeaderLoading}
-                            showSearchButton={
-                              channel.type === 'chat' ||
-                              channel.type === 'dm' ||
-                              channel.type === 'groupDm'
-                            }
-                          />
+                          {channel.type !== 'notes' && (
+                            <ChannelHeader
+                              channel={channel}
+                              group={group}
+                              title={title ?? ''}
+                              description={''}
+                              goBack={
+                                isNarrow ||
+                                draftInputPresentationMode === 'fullscreen'
+                                  ? handleGoBack
+                                  : undefined
+                              }
+                              goToChatDetails={goToChatDetails}
+                              goToProfile={handleGoToProfile}
+                              goToSearch={goToSearch}
+                              showSpinner={showHeaderLoading}
+                              showSearchButton={
+                                channel.type === 'chat' ||
+                                channel.type === 'dm' ||
+                                channel.type === 'groupDm'
+                              }
+                            />
+                          )}
                           {shouldShowPinnedPostBanner && (
                             <PinnedPostBanner
                               channel={channel}

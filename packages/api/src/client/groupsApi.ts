@@ -654,6 +654,47 @@ export const addChannelToNavSection = async ({
   );
 };
 
+// Register a brand-new channel listing on a group. Used when the channel
+// storage lives outside of %channels (e.g. notes channels), so the
+// usual `api.createChannel` path through %channels isn't available.
+export const addChannelListingToGroup = async ({
+  channelId,
+  groupId,
+  sectionId,
+  meta,
+  readers = [],
+  join = false,
+}: {
+  channelId: string;
+  groupId: string;
+  sectionId: string;
+  meta: ub.GroupMeta;
+  readers?: string[];
+  join?: boolean;
+}) => {
+  return await poke(
+    groupAction4({
+      group: {
+        flag: groupId,
+        'a-group': {
+          channel: {
+            nest: channelId,
+            'a-channel': {
+              add: {
+                added: Date.now(),
+                meta,
+                section: sectionId,
+                readers,
+                join,
+              },
+            },
+          },
+        },
+      },
+    })
+  );
+};
+
 export const addChannelToGroup = async ({
   channelId,
   groupId,

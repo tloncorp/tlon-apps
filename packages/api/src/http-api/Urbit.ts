@@ -15,6 +15,7 @@ import {
   FatalError,
   Message,
   NounPokeInterface,
+  PokeAckTimeoutError,
   PokeHandlers,
   PokeInterface,
   ReapError,
@@ -28,6 +29,7 @@ import {
 import { hexString, unpackJamBytes } from './utils';
 
 const logger = createDevLogger('UrbitHttpApi', false);
+const DEFAULT_POKE_ACK_TIMEOUT = 30000;
 const isBrowser =
   typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
@@ -557,7 +559,7 @@ export class Urbit {
     });
 
     this.outstandingPokes.forEach((poke) => {
-      poke.onError?.('Channel was reaped');
+      poke.onError?.(new ReapError('Channel was reaped'));
     });
     this.outstandingPokes = new Map();
   }
@@ -768,17 +770,34 @@ export class Urbit {
     };
 
     return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        clearTimeout(ackTimer);
+        this.outstandingPokes.delete(message.id);
+      };
       this.outstandingPokes.set(message.id, {
         onSuccess: () => {
+          cleanup();
           onSuccess();
           resolve(message.id);
         },
         onError: (err) => {
+          cleanup();
           onError(err);
           reject(err);
         },
       });
-      this.sendJSONtoChannel(message).catch(reject);
+
+      const ackTimer = setTimeout(() => {
+        cleanup();
+        const err = new PokeAckTimeoutError(DEFAULT_POKE_ACK_TIMEOUT);
+        onError(err);
+        reject(err);
+      }, DEFAULT_POKE_ACK_TIMEOUT);
+
+      this.sendJSONtoChannel(message).catch((err) => {
+        cleanup();
+        reject(err);
+      });
     });
   }
 

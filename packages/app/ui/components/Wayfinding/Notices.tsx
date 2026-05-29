@@ -233,7 +233,8 @@ export function BotMentionTooltip() {
           testID="BotMentionWayfindingTooltip"
         >
           <Text size="$label/l" color="$white">
-            @-mention your bot here to use it in this group.
+            Since you own this group, your Tlonbot will automatically respond to
+            your messages. Others can @-mention your bot to interact with it.
           </Text>
         </View>
         <XStack width="100%" justifyContent="flex-end">

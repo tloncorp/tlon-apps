@@ -76,6 +76,7 @@ export const settings = sqliteTable('settings', {
   completedWayfindingSplash: boolean('completed_wayfinding_splash'),
   completedWayfindingTutorial: boolean('completed_wayfinding_tutorial'),
   disableTlonInfraEnhancement: boolean('disable_tlon_infra_enhancement'),
+  webAppSplashDismissed: boolean('web_app_splash_dismissed'),
 });
 
 export const systemContacts = sqliteTable(
@@ -164,6 +165,7 @@ export const contacts = sqliteTable(
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),
     systemContactId: text('systemContactId'),
+    matchedAt: timestamp('matched_at'),
   },
   (table) => {
     return {

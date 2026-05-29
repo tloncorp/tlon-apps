@@ -18,6 +18,7 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useInviteParam } from '../../hooks/useInviteParam';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useResolvedChats } from '../../hooks/useResolvedChats';
+import { useShowWebSplashModal } from '../../hooks/useShowWebSplashModal';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import {
   ChatOptionsProvider,
@@ -53,7 +54,7 @@ export const HomeSidebar = memo(
       id: selectedGroupId ?? '',
     });
     const { setIsOpen } = useGlobalSearch();
-    const showSplash = store.useShowWebSplashModal();
+    const showSplash = useShowWebSplashModal();
 
     const { data: chats } = store.useCurrentChats();
     const { performGroupAction } = useGroupActions();

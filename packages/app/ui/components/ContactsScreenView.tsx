@@ -91,6 +91,7 @@ export function ContactsScreenView(props: Props) {
       const isFocused =
         props.focusedContactId === item.id ||
         (!props.focusedContactId && isSelf);
+      const isNewMatch = !!item.matchedAt && !isSelf;
       return (
         <ContactListItem
           size="$4xl"
@@ -116,6 +117,11 @@ export function ContactsScreenView(props: Props) {
                   type="neutral"
                   backgroundColor="$background"
                 />
+                <SystemIconAvatar icon="ChevronRight" backgroundColor="unset" />
+              </XStack>
+            ) : isNewMatch ? (
+              <XStack gap="$xs" alignItems="center">
+                <Badge text="New" type="positive" />
                 <SystemIconAvatar icon="ChevronRight" backgroundColor="unset" />
               </XStack>
             ) : (

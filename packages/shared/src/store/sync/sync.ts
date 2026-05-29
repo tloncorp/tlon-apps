@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
+import { isLanyardMockEnabled } from '@tloncorp/api/dev/lanyardMock';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
@@ -23,7 +24,11 @@ import * as LocalCache from '../cachedData';
 import { addContacts, updateContactMetadata } from '../contactActions';
 import { updateChannelSections } from '../groupActions';
 import { verifyUserInviteLink } from '../inviteActions';
-import { discoverContacts } from '../lanyardActions';
+import {
+  discoverContacts,
+  invokeContactsMatchedHandler,
+  partitionDiscoveryMatches,
+} from '../lanyardActions';
 import { useLureState } from '../lure';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
@@ -332,10 +337,6 @@ export const syncLatestChanges = async ({
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
-  const topLevelPosts = result.posts.filter(
-    (post) =>
-      !post.parentId && post.type !== 'reply' && post.sequenceNum != null
-  );
   // before we insert the changes, confirm they're not stale from a delayed bg sync
   // or previous app open. Use time since method began as delayed bg sync or previous
   // app open. Use time since method began as a heuristic
@@ -352,10 +353,10 @@ export const syncLatestChanges = async ({
     () => db.insertChanges(result, queryCtx),
     { posts: result.posts.length }
   );
-  await perfTime(
+  const topLevelPosts = await perfTime(
     'syncLatestChanges.notifyListeners',
-    async () => notifyChannelPostListenersFromLatestChanges(topLevelPosts),
-    { topLevelPosts: topLevelPosts.length }
+    () => notifyChannelPostListenersFromLatestChanges(result.posts),
+    (topLevelPosts) => ({ topLevelPosts })
   );
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
@@ -399,7 +400,7 @@ export const syncLatestChanges = async ({
   );
   perfStop({
     posts: result.posts.length,
-    topLevelPosts: topLevelPosts.length,
+    topLevelPosts,
     hadChanges: String(hadChanges),
   });
   return {
@@ -414,18 +415,22 @@ export const syncLatestChanges = async ({
 };
 
 function notifyChannelPostListenersFromLatestChanges(posts: db.Post[]) {
-  if (!posts.length) {
-    return;
-  }
-
   const seenIds = new Set<string>();
+  let notified = 0;
   for (const post of posts) {
-    if (seenIds.has(post.id)) {
+    if (
+      post.parentId ||
+      post.type === 'reply' ||
+      post.sequenceNum == null ||
+      seenIds.has(post.id)
+    ) {
       continue;
     }
     seenIds.add(post.id);
     addToChannelPosts(post);
+    notified++;
   }
+  return notified;
 }
 
 export const syncCachedChanges = async (input: {
@@ -437,6 +442,7 @@ export const syncCachedChanges = async (input: {
   if (syncedAt && input.begin <= syncedAt && input.end > syncedAt) {
     // cached changes are valid, insert them
     await db.insertChanges(input.changes);
+    notifyChannelPostListenersFromLatestChanges(input.changes.posts);
     await db.changesSyncedAt.setValue(input.end);
     return true;
   }
@@ -517,7 +523,9 @@ export const syncVolumeSettings = async (ctx?: SyncCtx) => {
   );
 };
 
-export const syncSystemContacts = async (_ctx?: SyncCtx) => {
+export const syncSystemContacts = async (
+  _ctx?: SyncCtx
+): Promise<db.SystemContact[]> => {
   const systemContacts = await getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
@@ -525,6 +533,7 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
       context: 'inserted system contacts',
       numContacts: systemContacts.length,
     });
+    return systemContacts;
   } catch (error) {
     logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
       context: 'failed to insert system contacts',
@@ -537,8 +546,18 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
   }
 };
 
-export const syncContactDiscovery = async (ctx?: SyncCtx) => {
+export type ContactDiscoveryResult = {
+  newMatches: [string, string][];
+};
+
+export const syncContactDiscovery = async (
+  ctx?: SyncCtx,
+  opts?: { invokeHandler?: boolean }
+): Promise<ContactDiscoveryResult> => {
   logger.log('syncContactDiscovery: starting');
+  const invokeHandler = opts?.invokeHandler !== false;
+  const empty: ContactDiscoveryResult = { newMatches: [] };
+  const isMocked = isLanyardMockEnabled();
   const currentUserId = api.getCurrentUserId();
   const currentUserAttestations = await db.getUserAttestations({
     userId: currentUserId,
@@ -547,14 +566,14 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   const hasPhoneAttestation = currentUserAttestations.some(
     (attestation) => attestation.type === 'phone' && attestation.value
   );
-  if (!hasPhoneAttestation) {
+  if (!hasPhoneAttestation && !isMocked) {
     logger.log(
       'syncContactDiscovery: skipping contact discovery since no phone attestation found'
     );
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'no phone attestation found, skipping discovery',
     });
-    return;
+    return empty;
   }
   const systemContacts = await getSystemContacts();
   const phoneNumbers = systemContacts
@@ -570,7 +589,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
     });
     // this should also mean we no-op on web since we don't have any
     // system contacts
-    return;
+    return empty;
   }
 
   try {
@@ -580,6 +599,11 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       )
     ).filter((match) => match[1] !== currentUserId);
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
+
+    const { newMatches } = await partitionDiscoveryMatches(matches, {
+      isMocked,
+    });
+    const newMatchIds = newMatches.map(([, id]) => id);
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -592,33 +616,54 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       'syncContactDiscovery: inserted contact discovery matches',
       matches
     );
-    const contactIds = matches.map((m) => m[1]);
-    await addContacts(contactIds).catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'failed to add contacts',
-        severity: AnalyticsSeverity.Critical,
-        error: e,
-      });
-    });
-    logger.log('syncContactDiscovery: added contacts', contactIds);
-    const newContacts = await db.getSystemContactsBatchByContactId(contactIds);
 
-    await Promise.all(
-      newContacts
-        .filter((c) => !!c.contactId)
-        .map((contact) =>
-          updateContactMetadata(contact.contactId!, {
-            nickname:
-              `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+    if (newMatchIds.length > 0) {
+      await addContacts(newMatchIds).catch((e) => {
+        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+          context: 'failed to add contacts',
+          severity: AnalyticsSeverity.Critical,
+          error: e,
+        });
+      });
+      logger.log('syncContactDiscovery: added contacts', newMatchIds);
+
+      await db
+        .markContactsAsMatched({
+          contactIds: newMatchIds,
+          matchedAt: Date.now(),
+        })
+        .catch((e) => {
+          logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+            context: 'failed to mark contacts as matched',
+            error: e,
+          });
+        });
+
+      // Apply the address-book name as customNickname only for new
+      // matches whose contact doesn't already have one. The query
+      // does the join + filter, so we just map to API calls here.
+      const contactsToName =
+        await db.getUnnamedSystemContactsByContactId(newMatchIds);
+      await Promise.all(
+        contactsToName.map((c) =>
+          updateContactMetadata(c.contactId, {
+            nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
           })
         )
-    ).catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'failed to update contact metadata',
-        severity: AnalyticsSeverity.Critical,
-        error: e,
+      ).catch((e) => {
+        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+          context: 'failed to update contact metadata',
+          severity: AnalyticsSeverity.Critical,
+          error: e,
+        });
       });
-    });
+    }
+
+    if (invokeHandler && newMatches.length > 0) {
+      await invokeContactsMatchedHandler(newMatchIds);
+    }
+
+    return { newMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -626,6 +671,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       severity: AnalyticsSeverity.Critical,
       error,
     });
+    return empty;
   }
 };
 
@@ -663,10 +709,66 @@ export const syncGroups = async (ctx?: SyncCtx) => {
 };
 
 export const syncDms = async (ctx?: SyncCtx) => {
-  const [dms, groupDms] = await syncQueue.add('dms', ctx, () =>
-    Promise.all([api.getDms(), api.getGroupDms()])
+  const [dms, groupDms, dmInvites] = await syncQueue.add('dms', ctx, () =>
+    Promise.all([api.getDms(), api.getGroupDms(), api.getDmInvites()])
   );
-  await db.insertChannels([...dms, ...groupDms]);
+  const regularDmIds = new Set(dms.map((dm) => dm.id));
+  const pendingInvites = dmInvites.filter(
+    (invite) => !regularDmIds.has(invite.id)
+  );
+  await db.insertChannels([...dms, ...groupDms, ...pendingInvites]);
+};
+
+export type EnsureDmInviteChannelResult =
+  | { found: true; state: 'regular-dm' }
+  | { found: true; state: 'pending-invite' }
+  | { found: false; state: 'missing' };
+
+export const ensureDmInviteChannel = async ({
+  channelId,
+  syncCtx,
+  queryCtx,
+}: {
+  channelId: string;
+  syncCtx?: SyncCtx;
+  queryCtx?: QueryCtx;
+}): Promise<EnsureDmInviteChannelResult> => {
+  const { dms, invites } = await syncQueue.add(
+    'ensureDmInviteChannel',
+    syncCtx,
+    async () => {
+      const [dms, invites] = await Promise.all([
+        api.getDms(),
+        api.getDmInvites(),
+      ]);
+      return { dms, invites };
+    }
+  );
+
+  const write = async (ctx: QueryCtx): Promise<EnsureDmInviteChannelResult> => {
+    const regularDm = dms.find((dm) => dm.id === channelId);
+    if (regularDm) {
+      await db.insertChannels([regularDm], ctx);
+      return { found: true, state: 'regular-dm' };
+    }
+
+    const invite = invites.find((dmInvite) => dmInvite.id === channelId);
+    if (invite) {
+      await db.insertChannels([invite], ctx);
+      return { found: true, state: 'pending-invite' };
+    }
+
+    const localChannel = await db.getChannel({ id: channelId }, ctx);
+    if (localChannel?.isDmInvite) {
+      await db.deleteChannels([channelId], ctx);
+    }
+
+    return { found: false, state: 'missing' };
+  };
+
+  return queryCtx
+    ? write(queryCtx)
+    : batchEffects('ensureDmInviteChannel', write);
 };
 
 export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {

@@ -53,6 +53,8 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
+  BotMcpSettings: undefined;
+  BotOtherSettings: undefined;
   BlockedUsers: undefined;
   PrivacySettings: undefined;
   AppInfo: undefined;
@@ -152,6 +154,9 @@ export type SettingsDrawerParamList = Pick<
   | 'Theme'
   | 'FeatureFlags'
   | 'ManageAccount'
+  | 'BotSettings'
+  | 'BotMcpSettings'
+  | 'BotOtherSettings'
   | 'BlockedUsers'
   | 'AppInfo'
   | 'PushNotificationSettings'
@@ -195,7 +200,7 @@ export type RoleSelectionReturn =
       returnParams: {
         groupId: string;
         channelTitle: string;
-        channelType: 'chat' | 'notebook' | 'gallery';
+        channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
       };
     }
   | {
@@ -276,7 +281,7 @@ export type GroupSettingsStackParamList = {
   CreateChannelPermissions: {
     groupId: string;
     channelTitle: string;
-    channelType: 'chat' | 'notebook' | 'gallery';
+    channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
     createdRoleId?: string;
     selectedRoleIds?: string[];
   };

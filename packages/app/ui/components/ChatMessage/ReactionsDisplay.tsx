@@ -1,17 +1,79 @@
-import * as db from '@tloncorp/shared/db';
+import type * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, SizableEmoji, getNativeEmoji } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
 import { useCallback, useState } from 'react';
-import { Tooltip, View, XStack } from 'tamagui';
+import { Tooltip, View, XStack, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { triggerHaptic } from '../../utils';
 import { useCanWrite } from '../../utils/channelUtils';
 import { ReactionListItem, useReactionDetails } from '../../utils/postUtils';
+import { useContactName } from '../ContactNameV2';
 import { EmojiPickerSheet } from '../Emoji';
+
+const TOOLTIP_USER_DISPLAY_COUNT = 3;
+const TOOLTIP_MAX_WIDTH_PX = 320;
+const TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX = 280;
+
+function ReactionTooltipName({
+  contactId,
+  trailingComma,
+}: {
+  contactId: string;
+  trailingComma: boolean;
+}) {
+  const name = useContactName({ contactId, expandLongIds: true });
+  return (
+    <XStack alignItems="baseline" maxWidth={TOOLTIP_NAME_FRAGMENT_MAX_WIDTH_PX}>
+      <Text size="$label/m" whiteSpace="nowrap" numberOfLines={1} minWidth={0}>
+        {name}
+      </Text>
+      {trailingComma ? <Text size="$label/m">,</Text> : null}
+    </XStack>
+  );
+}
+
+function ReactionTooltipContent({ reaction }: { reaction: ReactionListItem }) {
+  const users = reaction.users ?? [];
+  const displayed = users.slice(0, TOOLTIP_USER_DISPLAY_COUNT);
+  const moreCount = Math.max(0, users.length - displayed.length);
+  if (displayed.length === 0) return null;
+
+  return (
+    <Tooltip.Content
+      padding="$s"
+      backgroundColor="$secondaryBackground"
+      borderRadius="$s"
+      maxWidth={TOOLTIP_MAX_WIDTH_PX}
+    >
+      <XStack
+        flexWrap="wrap"
+        rowGap="$2xs"
+        columnGap="$xs"
+        alignItems="baseline"
+      >
+        {displayed.map((user, i) => {
+          const trailingComma = i < displayed.length - 1;
+          return (
+            <ReactionTooltipName
+              key={user.id}
+              contactId={user.id}
+              trailingComma={trailingComma}
+            />
+          );
+        })}
+        {moreCount > 0 ? (
+          <Text size="$label/m" whiteSpace="nowrap">
+            +{moreCount} more
+          </Text>
+        ) : null}
+      </XStack>
+    </Tooltip.Content>
+  );
+}
 
 export function ReactionsDisplay({
   post,
@@ -72,24 +134,6 @@ export function ReactionsDisplay({
     ]
   );
 
-  const firstThreeReactionUsers = useCallback((reaction: ReactionListItem) => {
-    if (!reaction.users || reaction.users.length === 0) {
-      return '';
-    }
-
-    const userNames = reaction.users
-      .slice(0, 3)
-      .map((user) => {
-        // Defensive logic: ensure we have a valid name or fall back to id
-        const name = user.name && user.name.trim() !== '' ? user.name : user.id;
-        return name || 'Unknown'; // Final fallback if both are somehow empty
-      })
-      .join(', ');
-
-    const moreCount = reaction.users.length - 3;
-    return userNames + (moreCount > 0 ? ` +${moreCount} more` : '');
-  }, []);
-
   if (minimal) {
     if (reactionDetails.list.length === 0) {
       return null;
@@ -112,13 +156,7 @@ export function ReactionsDisplay({
                   <SizableEmoji emojiInput={reaction.value} fontSize="$s" />
                 </XStack>
               </Tooltip.Trigger>
-              <Tooltip.Content
-                padding="$s"
-                backgroundColor="$secondaryBackground"
-                borderRadius="$s"
-              >
-                <Text size="$label/m">{firstThreeReactionUsers(reaction)}</Text>
-              </Tooltip.Content>
+              <ReactionTooltipContent reaction={reaction} />
             </Tooltip>
           ))}
           {remainingCount > 0 && (
@@ -133,11 +171,7 @@ export function ReactionsDisplay({
 
   return (
     <XStack alignItems="center">
-      <Pressable
-        borderRadius="$m"
-        onLongPress={() => handleOpenReactions(post)}
-        cursor="default"
-      >
+      <>
         <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
           {reactionDetails.list.map((reaction) => (
             <Tooltip key={reaction.value} placement="top" delay={0} restMs={25}>
@@ -145,6 +179,9 @@ export function ReactionsDisplay({
                 borderRadius="$s"
                 cursor="pointer"
                 onPress={() => handleModifyYourReaction(reaction.value)}
+                onLongPress={
+                  isWeb ? undefined : () => handleOpenReactions(post)
+                }
                 testID="ReactionDisplay"
               >
                 <XStack
@@ -177,17 +214,11 @@ export function ReactionsDisplay({
                   )}
                 </XStack>
               </Tooltip.Trigger>
-              <Tooltip.Content
-                padding="$s"
-                backgroundColor="$secondaryBackground"
-                borderRadius="$s"
-              >
-                <Text size="$label/m">{firstThreeReactionUsers(reaction)}</Text>
-              </Tooltip.Content>
+              <ReactionTooltipContent reaction={reaction} />
             </Tooltip>
           ))}
         </XStack>
-      </Pressable>
+      </>
 
       {post.type !== 'chat' && post.type !== 'reply' && canWrite ? (
         <>

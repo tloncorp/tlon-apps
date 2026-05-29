@@ -59,12 +59,16 @@
   ::
   ++  directory
     |=  =directory:c
-    ^-  json
-    =|  dir=(map @ta json)
-    :-  %o
-    %-  ~(rep by directory)
-    |=  [[who=@p con=contact:c] acc=_dir]
-    (~(put by acc) (scot %p who) (contact con))
+    %-  pairs
+    %+  turn  ~(tap by directory)
+    |=  [who=@p =leaf:c]
+    :-  (scot %p who)
+    %-   pairs
+    =,  leaf
+    :~  'isContact'^b+contact
+        contact+(^contact con)
+        mod+(^contact mod)
+    ==
   ::
   ++  response
     |=  n=response:c

@@ -194,6 +194,7 @@ clurd
 /apps/tlon-mobile/**/render.experimental.xml
 /apps/tlon-mobile/**/*.jks
 /apps/tlon-mobile/**/*.keystore
+!/apps/tlon-mobile/android/app/debug.keystore
 /apps/tlon-mobile/**/*.hprof
 /apps/tlon-mobile/.vscode/*
 !/apps/tlon-mobile/.vscode/settings.json

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "247996fd-ea77-4159-b2d6-1db53a544650",
+  "id": "cc577004-959d-47bc-9759-f4eb6af9f5f7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1192,6 +1192,13 @@
         "systemContactId": {
           "name": "systemContactId",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "matched_at": {
+          "name": "matched_at",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -2765,6 +2772,13 @@
         },
         "disable_tlon_infra_enhancement": {
           "name": "disable_tlon_infra_enhancement",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "web_app_splash_dismissed": {
+          "name": "web_app_splash_dismissed",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

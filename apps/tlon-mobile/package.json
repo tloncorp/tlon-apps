@@ -1,6 +1,6 @@
 {
   "name": "tlon-mobile",
-  "version": "4.0.0",
+  "version": "9.0.0",
   "private": true,
   "scripts": {
     "dev": "concurrently \"tailwindcss --input input.css --output tailwind.css --no-autoprefixer --watch\" \"tailwind-rn --watch\"",
@@ -90,6 +90,7 @@
     "expo-constants": "18.0.13",
     "expo-contacts": "~15.0.11",
     "expo-dev-client": "~6.0.20",
+    "expo-dev-menu": "~7.0.18",
     "expo-device": "~8.0.10",
     "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.21",
@@ -161,6 +162,7 @@
     "cross-env": "^7.0.3",
     "dotenv": "^16.0.3",
     "drizzle-kit": "^0.28.0",
+    "eas-build-cache-provider": "^19.0.0",
     "jest": "^29.7.0",
     "jest-expo": "~54.0.17",
     "jest-fetch-mock": "^3.0.3",

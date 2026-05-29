@@ -117,6 +117,19 @@
     |*  [caz=(list card) etc=*]
     [[cad caz] etc]
   --
+::  +group-og-title: render the open-graph title for a group invite.
+::  empty group title falls back to "a Groupchat".
+::
+++  group-og-title
+  |=  [nickname=(unit @t) group-title=@t]
+  ^-  @t
+  =/  title=@t
+    ?:  =('' group-title)  'a Groupchat'
+    group-title
+  %-  crip
+  ?:  |(?=(~ nickname) =('' u.nickname))
+    "Tlon Messenger: You're Invited to {(trip title)}"
+  "Tlon Messenger: {(trip u.nickname)} invited you to {(trip title)}"
 --
 |_  =bowl:gall
 +*  this  .
@@ -230,6 +243,65 @@
           [%'inviterUserId' (scot %p src.bowl)]
           [%'invitedGroupId' id]
       ==
+    ::  gap-fill open-graph metadata from server state when the caller
+    ::  didn't provide it: title / description / image from %groups,
+    ::  and nickname / avatar from our cached profile. caller-provided
+    ::  values take priority.
+    ::
+    =/  type=(unit @t)  (~(get by fields.metadata) %'inviteType')
+    =?  fields.metadata  |(?=(~ type) =('group' u.type))
+      =*  fields  fields.metadata
+      ::  treat absent or empty-string fields as gap-fillable
+      ::
+      =*  is-blank
+        |=  k=field:reel
+        ^-  ?
+        =/  v  (~(get by fields) k)
+        ?|(?=(~ v) =('' u.v))
+      ::  inviter fields from our-profile
+      ::
+      =/  nickname=(unit @t)  (~(get cy:t our-profile) %nickname %text)
+      =/  avatar=(unit @t)    (~(get cy:t our-profile) %avatar %look)
+      =?  fields
+          ?&  ?=(^ nickname)
+              !=('' u.nickname)
+              (is-blank %'inviterNickname')
+          ==
+        (~(put by fields) %'inviterNickname' u.nickname)
+      =?  fields
+          ?&  ?=(^ avatar)
+              !=('' u.avatar)
+              (is-blank %'inviterAvatarImage')
+          ==
+        (~(put by fields) %'inviterAvatarImage' u.avatar)
+      ::  group meta from %groups; only attempt when id parses as a flag
+      ::  and the group exists locally.
+      ::
+      ?~  parsed=(rush id flag)  fields
+      =/  base  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+      ?.  .^(? %gu (weld base /groups/(scot %p -.u.parsed)/[+.u.parsed]))
+        fields
+      =/  grp=group:v9:groups-ver
+        .^  group:v9:groups-ver  %gx
+          (weld base /v2/groups/(scot %p -.u.parsed)/[+.u.parsed]/group-2)
+        ==
+      =*  meta  meta.grp
+      =?  fields
+          ?&  !=('' title.meta)
+              (is-blank %'invitedGroupTitle')
+          ==
+        (~(put by fields) %'invitedGroupTitle' title.meta)
+      =?  fields
+          ?&  !=('' description.meta)
+              (is-blank %'invitedGroupDescription')
+          ==
+        (~(put by fields) %'invitedGroupDescription' description.meta)
+      =?  fields
+          ?&  !=('' image.meta)
+              (is-blank %'invitedGroupIconImageUrl')
+          ==
+        (~(put by fields) %'invitedGroupIconImageUrl' image.meta)
+      fields
     ::  the nonce here is a temporary identifier for the metadata.
     ::  a new one will be assigned by the bait provider and returned to us.
     ::
@@ -394,16 +466,9 @@
         ::
         =+  type=(~(get by fields.meta) %'inviteType')
         ?:  |(?=(~ type) =('group' u.type))
-          =/  group-title=@t
-            =+  til=(~(get by fields.meta) %'invitedGroupTitle')
-            ?:  |(?=(~ til) =('' u.til))
-              'a Groupchat'
-            u.til
           =/  title=@t
-            %-  crip
-            ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You're Invited to a Groupchat"
-            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
+            %+  group-og-title  nickname
+            (fall (~(get by fields.meta) %'invitedGroupTitle') '')
           =.  fields.update
             (~(put by fields.update) %'$og_title' title)
           =.  fields.update
@@ -448,15 +513,9 @@
         ?+    -.r-group.r-groups  ~
             %meta
           =*  meta  meta.r-group.r-groups
-          =+  nickname=(~(get cy:t our-profile) %nickname %text)
-          =/  group-title=@t
-            ?:  =('' title.meta)  'a Groupchat'
-            title.meta
           =/  title=@t
-            %-  crip
-            ?:  |(?=(~ nickname) =('' u.nickname))
-              "Tlon Messenger: You're Invited to a Groupchat"
-            "Tlon Messenger: {(trip u.nickname)} invited you to {(trip group-title)}"
+            %-  group-og-title
+            [(~(get cy:t our-profile) %nickname %text) title.meta]
           %-  ~(gas by *(map field:reel cord))
           :~  %'invitedGroupTitle'^title.meta
               %'invitedGroupDescription'^description.meta

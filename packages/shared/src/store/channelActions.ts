@@ -37,6 +37,16 @@ export async function createChannel({
 }) {
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
+
+  if (channelType === 'notes') {
+    return createNotesChannel({
+      groupId,
+      title,
+      description: rawDescription,
+      readers,
+    });
+  }
+
   const channelSlug = customSlug || getRandomId();
   const channelId = `${getChannelKindFromType(channelType)}/${currentUserId}/${channelSlug}`;
 
@@ -99,6 +109,165 @@ export async function createChannel({
   return newChannel;
 }
 
+interface NotesNotebookEntry {
+  host: string;
+  flagName: string;
+  notebook: { id: number; title: string };
+}
+
+async function createNotesChannel({
+  groupId,
+  title,
+  description,
+  readers,
+}: {
+  groupId: string;
+  title: string;
+  description?: string;
+  readers: string[];
+}): Promise<db.Channel> {
+  const currentUserId = api.getCurrentUserId();
+
+  // Snapshot the set of locally-hosted notebook flags so we can identify the
+  // freshly-created one after the poke. The %notes agent assigns the flag,
+  // so we can't precompute it.
+  const before = await scryNotesNotebooks();
+  const beforeOurs = new Set(
+    before.filter((n) => n.host === currentUserId).map((n) => n.flagName)
+  );
+
+  await api.poke({
+    app: 'notes',
+    mark: 'notes-action',
+    json: { type: 'create-notebook', title },
+  });
+
+  const newEntry = await pollForNewNotebook({
+    currentUserId,
+    title,
+    excluded: beforeOurs,
+  });
+
+  if (!newEntry) {
+    throw new Error('Failed to create notes notebook');
+  }
+
+  const channelId = `notes/${newEntry.host}/${newEntry.flagName}`;
+  const flag = `${newEntry.host}/${newEntry.flagName}`;
+
+  logger.trackEvent(
+    AnalyticsEvent.ActionCreateChannel,
+    logic.getModelAnalytics({
+      channel: { id: channelId, type: 'notes' },
+      group: { id: groupId },
+    })
+  );
+
+  // Default new notebooks to public so any group member can join. We don't
+  // yet propagate group membership to the notebook's per-member ACL, so
+  // private would lock everyone but the owner out.
+  try {
+    await api.poke({
+      app: 'notes',
+      mark: 'notes-action',
+      json: {
+        type: 'notebook',
+        flag,
+        action: { type: 'visibility', visibility: 'public' },
+      },
+    });
+  } catch (e) {
+    logger.error('Failed to set notebook visibility to public', e);
+  }
+
+  // Pick a section to add this channel to. Tlon-created groups conventionally
+  // have a 'default' section, but we'll prefer whatever the first section is
+  // if the group looks different.
+  const group = await db.getGroup({ id: groupId });
+  const sectionId =
+    group?.navSections?.[0]?.sectionId ??
+    group?.navSections?.[0]?.id ??
+    'default';
+
+  const newChannel: db.Channel = {
+    id: channelId,
+    title,
+    description,
+    type: 'notes',
+    groupId,
+    addedToGroupAt: Date.now(),
+    currentUserIsMember: true,
+    currentUserIsHost: true,
+    contentConfiguration: channelContentConfigurationForChannelType('notes'),
+    lastPostSequenceNum: 0,
+  };
+
+  await db.insertChannels([newChannel]);
+
+  try {
+    await api.addChannelListingToGroup({
+      channelId,
+      groupId,
+      sectionId,
+      meta: {
+        title,
+        description: description ?? '',
+        image: '',
+        cover: '',
+      },
+      readers,
+      join: true,
+    });
+  } catch (e) {
+    await db.deleteChannels([channelId]);
+    logger.error('addChannelListingToGroup failed for notes channel', e);
+    throw new Error(`Failed to add notes channel to group: ${channelId}`);
+  }
+
+  return newChannel;
+}
+
+async function scryNotesNotebooks(): Promise<NotesNotebookEntry[]> {
+  try {
+    const data = await api.scry<NotesNotebookEntry[]>({
+      app: 'notes',
+      path: '/v0/notebooks',
+    });
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    logger.error('scry /v0/notebooks failed', e);
+    return [];
+  }
+}
+
+async function pollForNewNotebook({
+  currentUserId,
+  title,
+  excluded,
+  attempts = 8,
+  delayMs = 250,
+}: {
+  currentUserId: string;
+  title: string;
+  excluded: Set<string>;
+  attempts?: number;
+  delayMs?: number;
+}): Promise<NotesNotebookEntry | null> {
+  for (let i = 0; i < attempts; i++) {
+    const all = await scryNotesNotebooks();
+    const ours = all.filter((n) => n.host === currentUserId);
+    // Prefer an exact title match among new entries, otherwise just any new
+    // entry (handles the rare case where the title was sanitized/transformed
+    // by the agent).
+    const fresh = ours.filter((n) => !excluded.has(n.flagName));
+    const match =
+      fresh.find((n) => n.notebook.title === title) ?? fresh[0] ?? null;
+    if (match) return match;
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return null;
+}
+
 /**
  * Creates a `ChannelContentConfiguration` matching our built-in legacy
  * channel types. With this configuration in place, we can treat these channels
@@ -126,6 +295,12 @@ function channelContentConfigurationForChannelType(
         draftInput: api.DraftInputId.gallery,
         defaultPostContentRenderer: api.PostContentRendererId.gallery,
         defaultPostCollectionRenderer: api.CollectionRendererId.gallery,
+      };
+    case 'notes':
+      return {
+        draftInput: api.DraftInputId.notes,
+        defaultPostContentRenderer: api.PostContentRendererId.notes,
+        defaultPostCollectionRenderer: api.CollectionRendererId.notes,
       };
   }
 
@@ -158,6 +333,29 @@ export async function deleteChannel({
     const channel = await db.getChannel({ id: channelId });
     if (channel) {
       await db.insertChannels([channel]);
+    }
+    return;
+  }
+
+  // For notes channels, also delete the underlying notebook on %notes so we
+  // don't leak orphans. The agent rejects the delete if we're not the host,
+  // which is fine — the listing is already gone from the group either way.
+  if (channelId.startsWith('notes/')) {
+    const [, host, name] = channelId.split('/');
+    if (host && name) {
+      try {
+        await api.poke({
+          app: 'notes',
+          mark: 'notes-action',
+          json: {
+            type: 'notebook',
+            flag: `${host}/${name}`,
+            action: { type: 'delete' },
+          },
+        });
+      } catch (e) {
+        logger.error('Failed to delete notebook in %notes', e);
+      }
     }
   }
 }
@@ -412,9 +610,9 @@ export async function markChannelRead({
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
   const existingUnread = await db.getChannelUnread({ channelId: id });
-  if (existingUnread) {
-    await db.clearChannelUnread(id);
-  }
+  const existingGroupUnread = groupId
+    ? await db.getGroupUnread({ groupId })
+    : null;
 
   let existingThreadUnreads: db.ThreadUnreadState[] = [];
   if (includeThreads) {
@@ -424,14 +622,73 @@ export async function markChannelRead({
     });
     await db.clearChannelThreadUnreads({ channelId: id });
   }
+  if (existingUnread) {
+    await db.clearChannelUnread(id);
+  }
 
+  const remainingNotifyingChannelUnreads =
+    groupId && existingUnread?.notify === true
+      ? await db.getNotifyingChannelUnreadsByGroup({ groupId })
+      : [];
   const existingCount = existingUnread?.count ?? 0;
-  if (groupId && existingCount > 0) {
-    // optimitically update group unread count
-    await db.updateGroupUnreadCount({
-      groupId,
-      decrement: existingCount,
-    });
+  const channelUnreadWasNotificationOnly =
+    existingUnread?.notify === true &&
+    (existingUnread.count ?? 0) === 0 &&
+    (existingUnread.countWithoutThreads ?? 0) === 0;
+  const groupUnreadLooksLikeSameNotification =
+    existingGroupUnread?.notify === true &&
+    (existingGroupUnread.count ?? 0) === 0 &&
+    existingGroupUnread.updatedAt === existingUnread?.updatedAt;
+  const shouldUpdateGroupNotification =
+    existingUnread?.notify === true &&
+    existingGroupUnread?.notify === true &&
+    (existingCount > 0 ||
+      (existingGroupUnread.notifyCount ?? 0) > 1 ||
+      (channelUnreadWasNotificationOnly &&
+        groupUnreadLooksLikeSameNotification));
+  const nextGroupUnread = existingGroupUnread
+    ? { ...existingGroupUnread }
+    : null;
+  if (nextGroupUnread && existingCount > 0) {
+    nextGroupUnread.count = Math.max(
+      (nextGroupUnread.count ?? 0) - existingCount,
+      0
+    );
+  }
+  if (nextGroupUnread && shouldUpdateGroupNotification) {
+    const remainingNotifyCount = remainingNotifyingChannelUnreads.length;
+    nextGroupUnread.notifyCount = Math.max(
+      (nextGroupUnread.notifyCount ?? 0) - 1,
+      remainingNotifyCount,
+      0
+    );
+    if (
+      nextGroupUnread.notifyCount === remainingNotifyCount &&
+      remainingNotifyCount > 0
+    ) {
+      // Keep the "same notification" guard valid if the newest channel
+      // notification was the one just cleared.
+      nextGroupUnread.updatedAt = Math.max(
+        ...remainingNotifyingChannelUnreads.map((unread) => unread.updatedAt)
+      );
+    }
+    nextGroupUnread.notify = nextGroupUnread.notifyCount > 0;
+  }
+  let didUpdateGroupUnread = false;
+  if (
+    groupId &&
+    nextGroupUnread &&
+    (existingCount > 0 || shouldUpdateGroupNotification)
+  ) {
+    if (
+      (nextGroupUnread.count ?? 0) === 0 &&
+      (nextGroupUnread.notifyCount ?? 0) === 0
+    ) {
+      await db.clearGroupUnread(groupId);
+    } else {
+      await db.insertGroupUnreads([nextGroupUnread]);
+    }
+    didUpdateGroupUnread = true;
   }
 
   const existingChannel = await db.getChannel({ id });
@@ -459,6 +716,9 @@ export async function markChannelRead({
     }
     if (existingThreadUnreads.length > 0) {
       await db.insertThreadUnreads(existingThreadUnreads);
+    }
+    if (didUpdateGroupUnread && existingGroupUnread) {
+      await db.insertGroupUnreads([existingGroupUnread]);
     }
   }
 }

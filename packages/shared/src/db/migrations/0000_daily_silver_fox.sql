@@ -175,7 +175,8 @@ CREATE TABLE `contacts` (
 	`blocked` integer,
 	`isContact` integer,
 	`isContactSuggestion` integer,
-	`systemContactId` text
+	`systemContactId` text,
+	`matched_at` integer
 );
 --> statement-breakpoint
 CREATE INDEX `contacts_system_contact_id_index` ON `contacts` (`systemContactId`);--> statement-breakpoint
@@ -407,7 +408,8 @@ CREATE TABLE `settings` (
 	`activity_seen_timestamp` integer,
 	`completed_wayfinding_splash` integer,
 	`completed_wayfinding_tutorial` integer,
-	`disable_tlon_infra_enhancement` integer
+	`disable_tlon_infra_enhancement` integer,
+	`web_app_splash_dismissed` integer
 );
 --> statement-breakpoint
 CREATE TABLE `system_contact_sent_invites` (
