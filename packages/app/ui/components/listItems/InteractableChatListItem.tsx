@@ -20,6 +20,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { ColorTokens, View, getTokenValue, isWeb } from 'tamagui';
 
+import * as utils from '../../utils';
+import { ListItemProps } from '../ListItem';
+import { ChatListItem } from './ChatListItem';
+import { useBoundHandler } from './listItemUtils';
+
 const leftActionsStaticStyle = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -37,11 +42,6 @@ const rightActionsStaticStyle = StyleSheet.create({
     borderTopRightRadius: getTokenValue('$m', 'radius'),
   },
 }).container;
-
-import * as utils from '../../utils';
-import { ListItemProps } from '../ListItem';
-import { ChatListItem } from './ChatListItem';
-import { useBoundHandler } from './listItemUtils';
 
 function BaseInteractableChatRow({
   model,
