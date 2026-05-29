@@ -241,8 +241,8 @@
   ::  NOTE: the current state and state-15 should technically
   ::        be the same type. however, to accommodate the hoon $type
   ::        migration, we need to load the state at any version with
-  ::        hooks blinded. once the we transitioned to the new kelvin,
-  ::        we should use typed hooks in the next state version.
+  ::        hooks blinded. once we transition to the new kelvin
+  ::        we should revert to using typed hooks in the next state version.
   ::
   +$  state-15
     $:  %15
