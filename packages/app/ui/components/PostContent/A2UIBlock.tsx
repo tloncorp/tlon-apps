@@ -147,17 +147,16 @@ export function A2UIBlock({
 
   const handleButtonPress = useCallback(
     (component: A2UI.Button) => {
-      const fallbackText =
-        component.action.event.context?.text ??
-        getComponentText(components.get(component.child), components);
-
-      if (!fallbackText.trim()) {
+      if (
+        component.action.event.name === A2UI.action.sendMessage &&
+        !component.action.event.context.text.trim()
+      ) {
         return;
       }
 
-      context.onA2UIAction?.(component.action, fallbackText);
+      context.onA2UIAction?.(component.action);
     },
-    [components, context]
+    [context]
   );
 
   const renderComponent = useCallback(

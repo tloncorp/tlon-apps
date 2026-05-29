@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const ACTION_SEND_MESSAGE = 'tlon.sendMessage';
+const ACTION_NAVIGATE = 'tlon.navigate';
 
 type ComponentBase = {
   id: string;
@@ -32,13 +33,70 @@ export namespace A2UI {
 
   export type SendMessageEvent = {
     name: typeof ACTION_SEND_MESSAGE;
-    context?: {
-      text?: string;
+    context: {
+      text: string;
+    };
+  };
+
+  export type MessageNavigationTarget = {
+    type: 'message';
+    channelId: string;
+    postId: string;
+    parentId?: string;
+    authorId?: string;
+    groupId?: string;
+  };
+
+  export type ChannelNavigationTarget = {
+    type: 'channel';
+    channelId: string;
+    groupId?: string;
+    selectedPostId?: string;
+  };
+
+  export type GroupNavigationTarget = {
+    type: 'group';
+    groupId: string;
+  };
+
+  export type ProfileNavigationTarget = {
+    type: 'profile';
+    userId: string;
+    groupId?: string;
+    channelId?: string;
+  };
+
+  export type ChatDetailsNavigationTarget = {
+    type: 'chatDetails';
+    chatType: 'group' | 'channel';
+    chatId: string;
+    groupId?: string;
+  };
+
+  export type ChatVolumeNavigationTarget = {
+    type: 'chatVolume';
+    chatType: 'group' | 'channel';
+    chatId: string;
+    groupId?: string;
+  };
+
+  export type NavigationTarget =
+    | MessageNavigationTarget
+    | ChannelNavigationTarget
+    | GroupNavigationTarget
+    | ProfileNavigationTarget
+    | ChatDetailsNavigationTarget
+    | ChatVolumeNavigationTarget;
+
+  export type NavigateEvent = {
+    name: typeof ACTION_NAVIGATE;
+    context: {
+      target: NavigationTarget;
     };
   };
 
   export type EventAction = {
-    event: SendMessageEvent;
+    event: SendMessageEvent | NavigateEvent;
   };
 
   export type ButtonAction = EventAction;
@@ -85,9 +143,9 @@ const LIMITS = {
   maxComponents: 50,
   maxDepth: 8,
   maxChildren: 12,
-  maxButtons: 8,
   maxTextNodeLength: 1000,
   maxButtonMessageLength: 1000,
+  maxNavigationTargetIdLength: 500,
   maxTotalTextLength: 8000,
 } as const;
 
@@ -124,6 +182,13 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isValidTargetId(value: unknown): value is string {
+  return (
+    isNonEmptyString(value) &&
+    value.length <= LIMITS.maxNavigationTargetIdLength
+  );
 }
 
 function isValidWeight(value: unknown): boolean {
@@ -170,6 +235,79 @@ function isValidButtonVariant(value: unknown): boolean {
   );
 }
 
+function isValidChatType(value: unknown): value is 'group' | 'channel' {
+  return value === 'group' || value === 'channel';
+}
+
+function isValidOptionalTargetId(value: unknown): boolean {
+  return value === undefined || isValidTargetId(value);
+}
+
+function validateNavigationTarget(
+  target: unknown
+): target is A2UI.NavigationTarget {
+  if (!isPlainObject(target)) {
+    return false;
+  }
+
+  switch (target.type) {
+    case 'message':
+      return (
+        isValidTargetId(target.channelId) &&
+        isValidTargetId(target.postId) &&
+        isValidOptionalTargetId(target.parentId) &&
+        isValidOptionalTargetId(target.authorId) &&
+        isValidOptionalTargetId(target.groupId)
+      );
+    case 'channel':
+      return (
+        isValidTargetId(target.channelId) &&
+        isValidOptionalTargetId(target.groupId) &&
+        isValidOptionalTargetId(target.selectedPostId)
+      );
+    case 'group':
+      return isValidTargetId(target.groupId);
+    case 'profile':
+      return (
+        isValidTargetId(target.userId) &&
+        isValidOptionalTargetId(target.groupId) &&
+        isValidOptionalTargetId(target.channelId)
+      );
+    case 'chatDetails':
+    case 'chatVolume':
+      return (
+        isValidChatType(target.chatType) &&
+        isValidTargetId(target.chatId) &&
+        isValidOptionalTargetId(target.groupId)
+      );
+    default:
+      return false;
+  }
+}
+
+function validateButtonAction(action: unknown): action is A2UI.ButtonAction {
+  if (!isPlainObject(action) || !isPlainObject(action.event)) {
+    return false;
+  }
+
+  const { event } = action;
+  const context = event.context;
+
+  if (event.name === ACTION_SEND_MESSAGE) {
+    return (
+      isPlainObject(context) &&
+      isNonEmptyString(context.text) &&
+      context.text.length <= LIMITS.maxButtonMessageLength
+    );
+  }
+
+  if (event.name === ACTION_NAVIGATE) {
+    return isPlainObject(context) && validateNavigationTarget(context.target);
+  }
+
+  return false;
+}
+
 function validateComponent(component: unknown): component is A2UI.Component {
   if (!isPlainObject(component) || !isNonEmptyString(component.id)) {
     return false;
@@ -201,21 +339,12 @@ function validateComponent(component: unknown): component is A2UI.Component {
       return true;
     case 'Button': {
       const action = component.action;
-      const event = isPlainObject(action) ? action.event : null;
-      const context = isPlainObject(event) ? event.context : undefined;
       return (
         isNonEmptyString(component.child) &&
         (component.disabled === undefined ||
           typeof component.disabled === 'boolean') &&
         isValidButtonVariant(component.variant) &&
-        isPlainObject(action) &&
-        isPlainObject(event) &&
-        event.name === ACTION_SEND_MESSAGE &&
-        (context === undefined || isPlainObject(context)) &&
-        (context === undefined ||
-          context.text === undefined ||
-          (typeof context.text === 'string' &&
-            context.text.length <= LIMITS.maxButtonMessageLength))
+        validateButtonAction(action)
       );
     }
     default:
@@ -289,7 +418,6 @@ function indexComponents(
   components: A2UI.Component[]
 ): Map<string, A2UI.Component> | null {
   const byId = new Map<string, A2UI.Component>();
-  let buttonCount = 0;
   let totalTextLength = 0;
 
   for (const component of components) {
@@ -298,17 +426,15 @@ function indexComponents(
     }
     byId.set(component.id, component);
     if (component.component === 'Button') {
-      buttonCount += 1;
-      totalTextLength += component.action.event.context?.text?.length ?? 0;
+      if (component.action.event.name === ACTION_SEND_MESSAGE) {
+        totalTextLength += component.action.event.context.text.length;
+      }
     } else if (component.component === 'Text') {
       totalTextLength += component.text.length;
     }
   }
 
-  if (
-    buttonCount > LIMITS.maxButtons ||
-    totalTextLength > LIMITS.maxTotalTextLength
-  ) {
+  if (totalTextLength > LIMITS.maxTotalTextLength) {
     return null;
   }
 
@@ -405,6 +531,7 @@ export const blobEntrySchema = z.custom<A2UI.BlobEntry>(validateBlobEntry);
 export const A2UI = {
   action: {
     sendMessage: ACTION_SEND_MESSAGE,
+    navigate: ACTION_NAVIGATE,
   },
   getUpdateMessage,
   getRootComponentId,
