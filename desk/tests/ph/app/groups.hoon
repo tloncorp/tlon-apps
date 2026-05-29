@@ -75,32 +75,43 @@
 ++  ph-test-group-join-secret
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (poke-app [~zod %groups] verb+[%volume %dbug])
-  ;<  ~  bind:m  (poke-app [~bud %groups] verb+[%volume %dbug])
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ::
   ;<  ~  bind:m  (create-test-group ~zod %secret (my ~bud^~ ~))
+  ::  ~bud waits for group invitation and joins the group
+  ::
   ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ;<  ~  bind:m  (join-test-group ~bud ~zod)
   ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud ~zod^%my-test-group %create)
   (pure:m ~)
-::  +ph-test-group-join-private-token: test private group joins with issued token
+::  +ph-test-group-join-private-invite: test private group member invites
 ::
 ::  scenario
 ::
-::  ~zod hosts a private group and sends an invitation to ~bud.
-::  ~bud receives the invitation and joins the group successfully,
+::  ~zod hosts a private group and invites ~bud as an admin.
+::  ~bud joins the group, then invites ~nec as another member.
+::  ~nec receives the invitation and joins the group successfully,
 ::  receiving the group creation fact.
 ::
-++  ph-test-group-join-private-token
+++  ph-test-group-join-private-invite
   =/  m  (strand ,~)
   ^-  form:m
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
-  ;<  ~  bind:m  (create-test-group ~zod %private (my ~bud^~ ~))
+  ;<  ~  bind:m  (watch-app /~nec/groups/v1/groups [~nec %groups] /v1/groups)
+  ;<  ~  bind:m  (watch-app /~nec/groups/v1/foreigns [~nec %groups] /v1/foreigns)
+  ::
+  ;<  ~  bind:m  (create-test-group ~zod %private (my ~bud^(sy %admin ~) ~))
   ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ;<  ~  bind:m  (join-test-group ~bud ~zod)
   ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud ~zod^%my-test-group %create)
+  =/  =a-groups:v8:gv
+    [%invite my-test-flag (sy ~nec ~) [~ ~]]
+  ;<  ~  bind:m  (poke-app [~bud %groups] group-action-4+a-groups)
+  ;<  *  bind:m  (wait-for-app-fact /~nec/groups/v1/foreigns [~nec %groups])
+  ;<  ~  bind:m  (join-test-group ~nec ~zod)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~nec ~zod^%my-test-group %create)
   (pure:m ~)
 ::  +ph-test-group-join-public: test public group joins
 ::
@@ -114,7 +125,46 @@
   =/  m  (strand ,~)
   ^-  form:m
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ::
   ;<  ~  bind:m  (create-test-group ~zod %public ~)
+  ;<  ~  bind:m  (join-test-group ~bud ~zod)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud ~zod^%my-test-group %create)
+  (pure:m ~)
+::  +ph-test-group-join-public-ask: test public group joins by ask request
+::
+::  scenario
+::
+::  ~zod hosts a public group.
+::  ~bud asks to join the group and joins successfully without approval,
+::  receiving the group creation fact.
+::
+++  ph-test-group-join-public-ask
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ::
+  ;<  ~  bind:m  (create-test-group ~zod %public ~)
+  =/  =a-foreigns:v8:gv
+    [%foreign my-test-flag %ask ~]
+  ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud ~zod^%my-test-group %create)
+  (pure:m ~)
+::  +ph-test-group-join-private: test private group joins with issued token
+::
+::  scenario
+::
+::  ~zod hosts a private group and sends an invitation to ~bud.
+::  ~bud receives the invitation and joins the group successfully,
+::  receiving the group creation fact.
+::
+++  ph-test-group-join-private
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ::
+  ;<  ~  bind:m  (create-test-group ~zod %private (my ~bud^~ ~))
+  ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ;<  ~  bind:m  (join-test-group ~bud ~zod)
   ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud ~zod^%my-test-group %create)
   (pure:m ~)
@@ -129,10 +179,9 @@
 ++  ph-test-group-join-private-ask
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (poke-app [~zod %groups] verb+[%volume %dbug])
-  ;<  ~  bind:m  (poke-app [~bud %groups] verb+[%volume %dbug])
   ;<  ~  bind:m  (watch-app /~zod/groups/v1/groups [~zod %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ::
   ::  ~zod hosts a private group.
   ::
   ;<  ~  bind:m  (create-test-group ~zod %private ~)
@@ -144,7 +193,7 @@
   ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
   ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~zod ~zod^%my-test-group %entry)
   ::  NOTE: protect against race condition
-  ;<  ~  bind:m  (sleep ~s4)
+  ;<  ~  bind:m  (sleep ~s5)
   ::  ~zod approves the ask request, then ~bud joins the group.
   ::
   =/  =c-groups:g
@@ -165,6 +214,7 @@
   ^-  form:m
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ::
   ;<  ~  bind:m  (create-test-group ~zod %secret (my ~bud^~ ~))
   ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ;<  ~  bind:m  (join-test-group ~bud ~zod)

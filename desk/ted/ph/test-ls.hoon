@@ -124,12 +124,17 @@
 =/  test-sets=(list [path (list test-arm)])
   %+  turn  test-cores
   ?~  arm-pat
-    |=([=path =vase] [path (get-test-arms path vase)])
+    |=  [=path =vase]
+    :-  path
+    %+  sort  (get-test-arms path vase)
+    |=([a=test-arm b=test-arm] (aor name.a name.b))
   ::  filter based on arm pattern
   ::
   =+  len=(met 3 u.arm-pat)
   |=  [=path =vase]
   :-  path
+  =-  %+  sort  -
+    |=([a=test-arm b=test-arm] (aor name.a name.b))
   %+  skim  (get-test-arms path vase)
   |=  =test-arm
   =((cut 3 [0 len] name.test-arm) u.arm-pat)
@@ -149,5 +154,5 @@
 ~>  %slog.0^leaf+"{<path>} ({test-num})"
 |-
 ?~  test-arms  ^$(test-sets t.test-sets)
-~>  %slog.0^leaf+"  - {<name.i.test-arms>}"
+~>  %slog.0^leaf+"  - {(trip name.i.test-arms)}"
 $(test-arms t.test-arms)
