@@ -74,7 +74,7 @@
   %+  turn  test-arms
   |=  =test-arm
   ^-  test
-  [(weld path /[name.test-arm]) strand.test-arm]
+  [(weld (snip path) /[name.test-arm]) strand.test-arm]
 ::  +await-test-thread: run and return result of an aqua test thread
 ::TODO implement timeout, and if it is exceeded kill the thread and
 ::     report timeout failure.

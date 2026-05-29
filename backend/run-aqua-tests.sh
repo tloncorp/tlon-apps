@@ -259,7 +259,6 @@ fi
 
 # Run aqua tests
 #
-# Update to use the generated test snapshot
 echo "Running tests..."
 result=$( $run_click -t 1200 $pier <<EOF
 =/  m  (strand ,vase)  
