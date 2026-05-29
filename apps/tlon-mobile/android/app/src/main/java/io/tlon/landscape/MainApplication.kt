@@ -8,13 +8,10 @@ import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
-import com.facebook.react.ReactNativeHost
-import com.facebook.react.ReactPackage
-import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
-import com.facebook.react.defaults.DefaultReactNativeHost
-import com.facebook.soloader.SoLoader
+import com.facebook.react.common.ReleaseLevel
+import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import expo.modules.ApplicationLifecycleDispatcher
-import expo.modules.ReactNativeHostWrapper
+import expo.modules.ExpoReactHostFactory
 import io.tlon.landscape.notifications.TalkNotificationManager
 import io.tlon.landscape.storage.SecureStorage
 import io.branch.rnbranch.RNBranchModule
@@ -23,30 +20,19 @@ import java.security.GeneralSecurityException
 
 class MainApplication : Application(), ReactApplication {
 
-  override val reactNativeHost: ReactNativeHost =
-    ReactNativeHostWrapper(
-      this,
-      object : DefaultReactNativeHost(this) {
-        override fun getPackages(): List<ReactPackage> =
-          PackageList(this).packages.apply {
-            // Add custom packages here
-            add(TalkPackage())
-          }
-
-        override fun getJSMainModuleName(): String = "index"
-
-        override fun getUseDeveloperSupport(): Boolean = BuildConfig.DEBUG
-
-        override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
-        override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED
-      }
+  override val reactHost: ReactHost by lazy {
+    ExpoReactHostFactory.getDefaultReactHost(
+      context = applicationContext,
+      packageList = PackageList(this).packages.apply {
+        add(TalkPackage())
+      },
+      jsMainModulePath = "index"
     )
-
-  override val reactHost: ReactHost
-    get() = ReactNativeHostWrapper.createReactHost(applicationContext, reactNativeHost)
+  }
 
   override fun onCreate() {
     super.onCreate()
+    DefaultNewArchitectureEntryPoint.releaseLevel = ReleaseLevel.STABLE
     loadReactNative(this)
 
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
@@ -62,7 +48,6 @@ class MainApplication : Application(), ReactApplication {
 
     TalkNotificationManager.createNotificationChannel(this)
 
-    // Branch logging for debugging
     if (BuildConfig.DEBUG) {
       RNBranchModule.enableLogging()
     }
