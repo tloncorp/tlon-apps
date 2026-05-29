@@ -420,7 +420,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - PostHog (3.59.0)
+  - PostHog (3.59.1)
   - PromisesObjC (2.4.0)
   - PromisesSwift (2.4.0):
     - PromisesObjC (= 2.4.0)
@@ -3396,7 +3396,7 @@ SPEC CHECKSUMS:
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   op-sqlite: a6cf2814a548b24b9c73b6dd2fb0945cf5284871
-  PostHog: 4ef100bfdecaee1252eb5558629d25b3faf19b0e
+  PostHog: 037a5d3bab9015dc1694af5ede07e0f6dfc5311d
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PromisesSwift: 9d77319bbe72ebf6d872900551f7eeba9bce2851
   RCTDeprecation: a4c521821fab57cbb125b36effe84d897d0dfa12
@@ -3505,6 +3505,6 @@ SPEC CHECKSUMS:
   UMAppLoader: b7d22886a244871c20b5a8f2fcea13c18534e677
   Yoga: e240fec777ff1f21ef42ccebbb44b6d262125855
 
-PODFILE CHECKSUM: 7f17c97ea6915516e381e7a21f9f73c4a4b32a62
+PODFILE CHECKSUM: f7d3252844ba6c8f9585d1f98c443455b624fc4f
 
 COCOAPODS: 1.16.2
