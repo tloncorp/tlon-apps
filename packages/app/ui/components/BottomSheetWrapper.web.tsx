@@ -30,6 +30,7 @@ export const BottomSheetWrapper = forwardRef<
       enablePanDownToClose: _enablePanDownToClose,
       keyboardBehavior: _keyboardBehavior,
       android_keyboardInputMode: _android_keyboardInputMode,
+      stackBehavior: _stackBehavior,
     },
     ref
   ) => {

@@ -149,6 +149,7 @@ const ActionSheetComponent = ({
   closeButton,
   footerComponent,
   unmountOnClose,
+  stackBehavior,
   ...props
 }: PropsWithChildren<
   ActionSheetProps &
@@ -159,6 +160,7 @@ const ActionSheetComponent = ({
       | 'hasScrollableContent'
       | 'keyboardBehavior'
       | 'unmountOnClose'
+      | 'stackBehavior'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -357,6 +359,7 @@ const ActionSheetComponent = ({
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}
       unmountOnClose={unmountOnClose}
+      stackBehavior={stackBehavior}
       frameStyle={{}}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
