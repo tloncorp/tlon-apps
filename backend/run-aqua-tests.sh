@@ -6,8 +6,8 @@ ship="~zod"
 pier_dir=${ship#\~}
 pier=$pier_dir-aqua
 
-urbit_bin_url="https://urbit.org/install"
-
+urbit_bin_url="https://bootstrap.urbit.org/vere/next/kelvin/408/v4.4-faff152"
+vere_ver="vere-v4.4-faff152"
 arch=`arch`
 
 case $OSTYPE in
@@ -15,11 +15,13 @@ case $OSTYPE in
     platform=linux
     case $arch in
       x86_64 ) 
-        urbit_bin_url="$urbit_bin_url/linux-x86_64/latest"
+        # urbit_bin_url="$urbit_bin_url/linux-x86_64/latest"
+        urbit_bin_url="$urbit_bin_url/$vere_ver-linux-x86_64"
         arch=x86_64
         ;;
       arm64  ) 
-        urbit_bin_url="$urbit_bin_url/linux-aarch64/latest"
+        # urbit_bin_url="$urbit_bin_url/linux-aarch64/latest"
+        urbit_bin_url="$urbit_bin_url/$vere_ver-linux-aarch64"
         arch=aarch64
         ;;
     esac ;;
@@ -27,11 +29,13 @@ case $OSTYPE in
     platform=macos
     case $arch in
       x86_64 ) 
-        urbit_bin_url="$urbit_bin_url/macos-x86_64/latest"
+        # urbit_bin_url="$urbit_bin_url/macos-x86_64/latest"
+        urbit_bin_url="$urbit_bin_url/$vere_ver-macos-x86_64"
         arch=x86_64
         ;;
       arm64  ) 
-        urbit_bin_url="$urbit_bin_url/macos-aarch64/latest"
+        # urbit_bin_url="$urbit_bin_url/macos-aarch64/latest"
+        urbit_bin_url="$urbit_bin_url/$vere_ver-macos-aarch64"
         arch=aarch64
         ;;
     esac ;;
@@ -42,12 +46,13 @@ echo $urbit_bin_url
 echo "Running aqua tests"
 
 #download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
-download_url="https://bootstrap.urbit.org/zod-aqua-tests-409k.xst"
-pill_download_url="https://bootstrap.urbit.org/aqua-tests-v10-1-0.pill"
+download_url="https://bootstrap.urbit.org/zod-aqua-408k.xst"
+pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2.pill"
 
 archive=`basename $download_url`
 pill=`basename $pill_download_url`
 pill_name=`echo $pill | cut -d . -f1`
+echo "pill: $pill_name"
 
 if [ ! -f $archive ]
 then
@@ -79,8 +84,11 @@ fi
 
 function find_vere()
 {
-  vere_version=`ls | grep "vere-.*-${platform}-${arch}" | cut -d '-' -f 2`
-  vere="./vere-${vere_version}-${platform}-${arch}"
+  # vere_version=`ls | grep "vere-.*-${platform}-${arch}" | cut -d '-' -f 2`
+  # echo $vere_version
+  # vere="./vere-${vere_version}-${platform}-${arch}"
+  vere="./${vere_ver}-${platform}-${arch}"
+  echo "our vere: $vere"
 }
 
 find_vere
@@ -90,8 +98,9 @@ vere_archive=vere-latest.gz
 if [ ! -x $vere ]
 then
   echo "Downloading urbit runtime"
-  curl -s -L $urbit_bin_url -o $vere_archive
-  tar -xf $vere_archive
+  curl -L $urbit_bin_url -o $vere_ver-${platform}-${arch}
+  chmod +x $vere
+  # tar -xf $vere_archive
 fi
 
 find_vere
@@ -218,9 +227,11 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 =/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)  
 ;<  ~      bind:m  (sleep ~s0)  
 ;<  ~  bind:m  (poke [~zod %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
-=+  .^(pil=@ %cx /(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam)  
+=+  pill-path=/(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam  
+=+  .^(pil=@ %cx pill-path)  
 =/  pill  ;;(pill:pill (cue pil))  
 ;<  ~  bind:m  (poke [~zod %aqua] pill+!>(pill))  
+;<  ~  bind:m  (poke [~zod %hood] kiln-rm+!>(pill-path))  
 (pure:m !>(%ok))  
 EOF
 
