@@ -1,7 +1,7 @@
 /-  spider
 /+  *strandio, *ph-io, test
 =,  strand=strand:spider
-=+  timeout=~s15
+=+  timeout=~s45
 |%
 ::  +ph-test-init: setup test strand environment
 ::

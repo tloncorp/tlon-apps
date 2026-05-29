@@ -71,23 +71,6 @@
 ++  has-test-prefix
   |=  a=term  ^-  ?
   =((end [3 8] a) 'ph-test-')
-::  +resolve-test-paths: add test names to paths to form full test identifiers
-::
-++  resolve-test-paths
-  |=  paths-to-test=(list [path (list test-arm)])
-  ^-  (list test)
-  %-  sort  :_  |=([a=test b=test] (aor path.a path.b))
-  ^-  (list test)
-  %-  zing
-  %+  turn  paths-to-test
-  |=  [=path test-arms=(list test-arm)]
-  ^-  (list test)
-  ::  for each test, add the test's name to .path
-  ::
-  %+  turn  test-arms
-  |=  =test-arm
-  ^-  test
-  [(weld path /[name.test-arm]) strand.test-arm]
 --
 ^-  thread:spider
 |=  args=vase
@@ -143,7 +126,7 @@
   ?.  ?=(~ failed-builds)
     (pure:m !>(|))
   (pure:m !>(&))
-=*  path  -.i.test-sets
+=/  =path  (snip -.i.test-sets)
 =*  test-arms  +.i.test-sets
 =+  num-arms=(lent test-arms)
 ?:  =(0 num-arms)  $(test-sets t.test-sets)
