@@ -195,7 +195,7 @@ export const SignupScreen = ({ navigation }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backgroundColor="$secondaryBackground"
-        title="Accept invite"
+        title={lureMeta ? 'Accept invite' : 'Sign up'}
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={goBack}
       />

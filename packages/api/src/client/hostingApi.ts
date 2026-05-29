@@ -613,11 +613,19 @@ export const getHostingAvailability = async (params: {
   email?: string;
   lure?: string;
   priorityToken?: string;
-}) =>
-  hostingFetch<{
+}) => {
+  // Only include keys that are actually set — `new URLSearchParams({lure: undefined})`
+  // serializes to the literal string "undefined", which the backend would then try to
+  // match/bite as a lure. Omitting `lure` is what selects the open (no-group) signup path.
+  const query = new URLSearchParams();
+  if (params.email) query.set('email', params.email);
+  if (params.lure) query.set('lure', params.lure);
+  if (params.priorityToken) query.set('priorityToken', params.priorityToken);
+  return hostingFetch<{
     enabled: boolean;
     validEmail: boolean;
-  }>(`/v1/sign-up?${new URLSearchParams(params)}`);
+  }>(`/v1/sign-up?${query}`);
+};
 
 export const addUserToWaitlist = async ({
   email,

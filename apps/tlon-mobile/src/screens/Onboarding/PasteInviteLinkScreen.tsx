@@ -193,9 +193,9 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                 preset="secondaryOutline"
                 marginBottom="$l"
                 width="100%"
-                label="No invite? Join waitlist"
+                label="Sign up without an invite"
                 centered
-                onPress={() => navigation.navigate('JoinWaitList', {})}
+                onPress={() => navigation.navigate('Signup')}
               />
             </YStack>
           </YStack>
