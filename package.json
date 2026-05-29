@@ -74,11 +74,11 @@
       "drizzle-orm@0.39.3": "patches/drizzle-orm@0.39.3.patch",
       "react-native-country-codes-picker@2.3.5": "patches/react-native-country-codes-picker@2.3.5.patch",
       "@simform_solutions/react-native-audio-waveform@2.1.6": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch",
-      "@gorhom/bottom-sheet@5.2.6": "patches/@gorhom__bottom-sheet@5.2.6.patch",
       "@tamagui/web@2.0.0-rc.41": "patches/@tamagui__web@2.0.0-rc.41.patch",
       "@tamagui/sheet@2.0.0-rc.41": "patches/@tamagui__sheet@2.0.0-rc.41.patch",
       "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch",
-      "react-native-gesture-handler@2.31.2": "patches/react-native-gesture-handler@2.31.2.patch"
+      "react-native-gesture-handler@2.31.2": "patches/react-native-gesture-handler@2.31.2.patch",
+      "@gorhom/bottom-sheet@5.2.14": "patches/@gorhom__bottom-sheet@5.2.14.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
