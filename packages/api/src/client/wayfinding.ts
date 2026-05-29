@@ -85,8 +85,11 @@ export function isPersonalChatChannel(channelId: string): boolean {
   return channelId.includes(PersonalGroupSlugs.chatSlug);
 }
 
-export function isBotHomeGroupChatChannel(channelId: string): boolean {
-  return channelId.includes(BotHomeGroupSlugs.chatSlug);
+export function isBotHomeGroupChatChannel(
+  currentUserId: string,
+  channelId: string
+): boolean {
+  return channelId.endsWith(`${currentUserId}/${BotHomeGroupSlugs.chatSlug}`);
 }
 
 export function isPersonalCollectionChannel(channelId: string): boolean {

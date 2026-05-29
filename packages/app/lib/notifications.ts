@@ -2,6 +2,7 @@ import {
   AnalyticsEvent,
   AnalyticsSeverity,
   createDevLogger,
+  isUnreadActivityCleared,
   syncContactDiscovery,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -232,7 +233,7 @@ async function updatePresentedNotifications() {
   const fullyReadChannels = new Set<string>();
   for await (const channelId of allChannelIds) {
     const channel = await db.getChannelWithRelations({ id: channelId });
-    if (channel?.unread?.count === 0) {
+    if (channel?.unread && isUnreadActivityCleared(channel.unread)) {
       fullyReadChannels.add(channelId);
     }
   }
@@ -256,7 +257,7 @@ async function updatePresentedNotifications() {
 }
 
 export function useUpdatePresentedNotifications() {
-  const { data: unreadCount } = store.useUnreadsCountWithoutMuted();
+  const { data: unreadCount } = store.useNotifyingUnreadSourceCount();
   useEffect(() => {
     updatePresentedNotifications().catch((err) => {
       console.error('Failed to update presented notifications:', err);

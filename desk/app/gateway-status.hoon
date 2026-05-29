@@ -1,6 +1,6 @@
 ::  gateway-status: offline-reply and liveness agent for openclaw gateway
 ::
-/-  gs=gateway-status, a=activity, cv=chat-ver, s=story
+/-  gs=gateway-status, a=activity, av=activity-ver, cv=chat-ver, s=story
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
@@ -38,8 +38,47 @@
       reply-cooldown=@dr
       active-window=@dr
   ==
+::  $state-1: activity subscription version upgrade
+::
++$  state-1
+  $:  %1
+      owner=(unit ship)
+      last-owner-msg=@da
+      last-owner-msg-id=(unit message-key:a)
+      =status:gs
+      boot-id=(unit @t)
+      lease-until=(unit @da)
+      last-heartbeat=(unit @da)
+      last-stop=(unit @da)
+      last-start=(unit @da)
+      pending-restart=?
+      last-auto-reply=(unit @da)
+      last-auto-reply-to=(unit message-key:a)
+      reply-cooldown=@dr
+      active-window=@dr
+  ==
+::
++$  versioned-state
+  $%  state-0
+      state-1
+  ==
+::
++$  current-state  state-1
+::
+++  migrate-state
+  |=  old=versioned-state
+  ^-  current-state
+  ?-  -.old
+    %0  $(old (migrate-0-to-1 old))
+    %1  old
+  ==
+::
+++  migrate-0-to-1
+  |=  old=state-0
+  ^-  state-1
+  old(- %1)
 --
-=|  state-0
+=|  current-state
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -56,7 +95,15 @@
   ++  on-load
     |=  ole=vase
     ^-  (quip card _this)
-    [~ this(state !<(state-0 ole))]
+    =/  old  !<(versioned-state ole)
+    =/  migrated  (migrate-state old)
+    =/  cards=(list card)
+      ?:  ?=(%0 -.old)
+        :~  [%pass /activity %agent [our.bowl %activity] %leave ~]
+            [%pass /activity %agent [our.bowl %activity] %watch /v5]
+        ==
+      ~
+    [cards this(state migrated)]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -104,7 +151,7 @@
 ::
 ++  init
   ^+  cor
-  (emit %pass /activity %agent [our.bowl %activity] %watch /v4)
+  (emit %pass /activity %agent [our.bowl %activity] %watch /v5)
 ::
 ++  poke
   |=  [=mark =vase]
@@ -220,15 +267,15 @@
       [%activity ~]
     ?+    -.sign  cor
         %fact
-      ?.  ?=(%activity-update-4 p.cage.sign)  cor
+      ?.  ?=(%activity-update-5 p.cage.sign)  cor
       ?~  owner  cor
-      =+  !<(=update:a q.cage.sign)
+      =+  !<(=update:v9:av q.cage.sign)
       ?.  ?=(%add -.update)  cor
       (handle-activity-add u.owner source.update event.update)
     ::
         %kick
       ::infinite loop
-      (emit %pass /activity %agent [our.bowl %activity] %watch /v4)
+      (emit %pass /activity %agent [our.bowl %activity] %watch /v5)
     ::
         %watch-ack
       ?~  p.sign  cor

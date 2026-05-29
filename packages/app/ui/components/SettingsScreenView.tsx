@@ -26,6 +26,7 @@ interface Props {
   onLogoutPressed?: () => void;
   onSendBugReportPressed?: () => void;
   onExperimentalFeaturesPressed?: () => void;
+  onWebAppPressed?: () => void;
   dmLink?: string;
   onBackPressed?: () => void;
   focusedRouteName?: string;
@@ -33,6 +34,11 @@ interface Props {
 }
 
 export function SettingsScreenView(props: Props) {
+  const botSettingsFocused =
+    props.focusedRouteName === 'BotSettings' ||
+    props.focusedRouteName === 'BotMcpSettings' ||
+    props.focusedRouteName === 'BotOtherSettings';
+
   const handleLogoutPressed = () => {
     if (isWeb) {
       return;
@@ -111,7 +117,7 @@ export function SettingsScreenView(props: Props) {
               leftIcon="Face"
               rightIcon={'ChevronRight'}
               onPress={props.onBotSettingsPressed}
-              isFocused={props.focusedRouteName === 'BotSettings'}
+              isFocused={botSettingsFocused}
             />
           )}
           <SettingsAction
@@ -128,6 +134,13 @@ export function SettingsScreenView(props: Props) {
             onPress={props.onAppInfoPressed}
             isFocused={props.focusedRouteName === 'AppInfo'}
           />
+          {props.onWebAppPressed && (
+            <SettingsAction
+              title="Tlon Messenger on the Web"
+              leftIcon="Link"
+              onPress={props.onWebAppPressed}
+            />
+          )}
           <SettingsAction
             title="Report a bug"
             leftIcon="Send"

@@ -264,7 +264,9 @@ export function ActivityScreenContent({
 
   const markAllRead = useCallback(async () => {
     console.log('Marking all activity as read');
-    await setBadgeCountAsync(0);
+    if (!isWeb) {
+      await setBadgeCountAsync(0);
+    }
     await store.markAllRead();
   }, []);
 

@@ -177,9 +177,9 @@ export function QueryBenchScreen() {
 
       // Unreads
       {
-        id: 'getUnreadsCountWithoutMuted',
-        label: 'getUnreadsCountWithoutMuted({})',
-        run: () => db.getUnreadsCountWithoutMuted({}),
+        id: 'getNotifyingUnreadSourceCount',
+        label: 'getNotifyingUnreadSourceCount()',
+        run: () => db.getNotifyingUnreadSourceCount(),
       },
       {
         id: 'getUnreads',

@@ -19,10 +19,18 @@ import React, {
   memo,
   useCallback,
   useContext,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { ActivityIndicator, Linking, Platform } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  View as RNView,
+} from 'react-native';
+import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNowPlayingController } from '../../contexts/nowPlaying';
@@ -35,6 +43,7 @@ import {
 import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { A2UIBlock } from './A2UIBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
 import { ContentContext, useContentContext } from './contentUtils';
@@ -678,6 +687,149 @@ export const HeaderText = styled(Text, {
 });
 HeaderText.displayName = 'HeaderText';
 
+function alignToTextAlign(
+  align: cn.TableAlignment | null | undefined
+): 'left' | 'center' | 'right' | 'auto' {
+  if (align === 'left' || align === 'center' || align === 'right') return align;
+  return 'auto';
+}
+
+const TABLE_MAX_COLUMN_WIDTH = 280;
+
+export function TableBlock({ block }: { block: cn.TableBlockData }) {
+  const columnCount = Math.max(
+    block.header.cells.length,
+    ...block.rows.map((r) => r.cells.length)
+  );
+  const allRows = [block.header, ...block.rows];
+
+  const cellRefs = useRef<Map<string, RNView>>(new Map());
+  const [columnWidths, setColumnWidths] = useState<number[] | null>(null);
+
+  // Reset measurement when the table's actual content changes. We can't key
+  // on `block` reference — upstream memoization invalidates often enough
+  // (every time the `post` object gets a new ref from the data layer) that
+  // a [block]-dep reset clears measurement mid-flight and the table never
+  // converges to aligned columns. Fingerprint the cell content itself so
+  // edits that change rendered width (e.g. "iii" → "WWW", swapped emoji,
+  // re-styled inlines) invalidate the cache while pure reference churn
+  // over equivalent content is a no-op.
+  const contentKey = useMemo(
+    () =>
+      JSON.stringify([
+        block.header.cells.map((c) => c.content),
+        block.rows.map((r) => r.cells.map((c) => c.content)),
+        block.align,
+      ]),
+    [block]
+  );
+  const lastContentKeyRef = useRef(contentKey);
+  if (lastContentKeyRef.current !== contentKey) {
+    lastContentKeyRef.current = contentKey;
+    if (columnWidths !== null) {
+      setColumnWidths(null);
+    }
+  }
+
+  // Measure each cell imperatively after first paint. `View.measure` reports
+  // post-layout dimensions deterministically, even when an `onLayout`-driven
+  // pipeline would race against upstream re-renders and miss events.
+  useLayoutEffect(() => {
+    if (columnWidths !== null) return;
+    const widths: number[] = new Array(columnCount).fill(0);
+    let pending = 0;
+    let resolved = 0;
+    let cancelled = false;
+    for (let row = 0; row < allRows.length; row++) {
+      for (let col = 0; col < columnCount; col++) {
+        const ref = cellRefs.current.get(`${row}-${col}`);
+        if (!ref) continue;
+        pending++;
+        ref.measure((_x, _y, w) => {
+          if (cancelled) return;
+          if (w > widths[col]) widths[col] = w;
+          resolved++;
+          if (resolved === pending) {
+            setColumnWidths(
+              widths.map((cw) => Math.min(cw, TABLE_MAX_COLUMN_WIDTH))
+            );
+          }
+        });
+      }
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [columnWidths, columnCount, allRows.length, contentKey]);
+
+  const setCellRef = useCallback(
+    (rowIdx: number, colIdx: number) => (node: RNView | null) => {
+      const key = `${rowIdx}-${colIdx}`;
+      if (node) {
+        cellRefs.current.set(key, node);
+      } else {
+        cellRefs.current.delete(key);
+      }
+    },
+    []
+  );
+
+  const totalWidth = columnWidths?.reduce((a, b) => a + b, 0);
+
+  // Use react-native-gesture-handler's ScrollView so horizontal pans aren't
+  // swallowed by the vertical FlatList that wraps each chat message —
+  // RN's stock ScrollView shares the JS responder system with the parent and
+  // loses the gesture race; the GH version uses native gesture recognizers.
+  return (
+    <GHScrollView
+      horizontal
+      style={{ width: '100%', maxWidth: '100%' }}
+      showsHorizontalScrollIndicator={false}
+    >
+      <YStack {...(totalWidth != null ? { width: totalWidth } : {})}>
+        {allRows.map((row, rowIdx) => {
+          const isHeader = rowIdx === 0;
+          return (
+            <XStack
+              key={rowIdx}
+              flexShrink={0}
+              borderBottomWidth={rowIdx < allRows.length - 1 ? 1 : 0}
+              borderColor="$border"
+            >
+              {Array.from({ length: columnCount }).map((_, colIdx) => {
+                const cell = row.cells[colIdx] ?? { content: [] };
+                const align = block.align[colIdx] ?? null;
+                const textAlign = alignToTextAlign(align);
+                const colWidth = columnWidths?.[colIdx];
+                return (
+                  <View
+                    key={colIdx}
+                    ref={setCellRef(rowIdx, colIdx)}
+                    flexShrink={0}
+                    paddingVertical="$xl"
+                    paddingLeft={colIdx === 0 ? 0 : '$l'}
+                    paddingRight="$l"
+                    {...(colWidth != null
+                      ? { width: colWidth }
+                      : { maxWidth: TABLE_MAX_COLUMN_WIDTH })}
+                  >
+                    <LineRenderer
+                      inlines={cell.content}
+                      size="$label/m"
+                      textAlign={textAlign}
+                      {...(isHeader ? { color: '$tertiaryText' } : {})}
+                    />
+                  </View>
+                );
+              })}
+            </XStack>
+          );
+        })}
+      </YStack>
+    </GHScrollView>
+  );
+}
+
 export type BlockRenderer<T extends cn.BlockData> = (props: {
   block: T;
 }) => React.ReactNode;
@@ -698,6 +850,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   lineText: LineText,
   blockquote: BlockquoteBlock,
   paragraph: ParagraphBlock,
+  a2ui: () => null,
   link: LinkBlock,
   image: ImageBlock,
   video: VideoBlock,
@@ -709,6 +862,7 @@ export const defaultBlockRenderers: BlockRendererConfig = {
   bigEmoji: BigEmojiBlock,
   file: FileUploadBlock,
   voicememo: VoiceMemoBlock,
+  table: TableBlock,
 };
 
 type BlockSettings<T extends ComponentType> = Partial<ComponentProps<T>> & {
@@ -720,6 +874,7 @@ export type DefaultRendererProps = {
   lineText: Partial<ComponentProps<typeof LineText>>;
   blockquote: BlockSettings<typeof BlockquoteBlock>;
   paragraph: BlockSettings<typeof ParagraphBlock>;
+  a2ui: BlockSettings<typeof A2UIBlock>;
   link: BlockSettings<typeof LinkBlock>;
   image: BlockSettings<typeof ImageBlock>;
   video: BlockSettings<typeof VideoBlock>;
@@ -731,6 +886,7 @@ export type DefaultRendererProps = {
   bigEmoji: BlockSettings<typeof BigEmojiBlock>;
   file: BlockSettings<typeof FileUploadBlock>;
   voicememo: BlockSettings<typeof VoiceMemoBlock>;
+  table: BlockSettings<typeof TableBlock>;
 };
 
 interface BlockRendererContextValue {

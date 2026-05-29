@@ -11,6 +11,8 @@ import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemCon
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
+import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
+import { BotOtherSettingsScreen } from '../features/settings/BotOtherSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
@@ -112,6 +114,16 @@ export function RootStack() {
       <Root.Screen
         name="BotSettings"
         component={BotSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotMcpSettings"
+        component={BotMcpSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotOtherSettings"
+        component={BotOtherSettingsScreen}
         options={{ gestureEnabled: false }}
       />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />

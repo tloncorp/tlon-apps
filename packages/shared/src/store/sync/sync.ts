@@ -337,10 +337,6 @@ export const syncLatestChanges = async ({
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
-  const topLevelPosts = result.posts.filter(
-    (post) =>
-      !post.parentId && post.type !== 'reply' && post.sequenceNum != null
-  );
   // before we insert the changes, confirm they're not stale from a delayed bg sync
   // or previous app open. Use time since method began as delayed bg sync or previous
   // app open. Use time since method began as a heuristic
@@ -357,10 +353,10 @@ export const syncLatestChanges = async ({
     () => db.insertChanges(result, queryCtx),
     { posts: result.posts.length }
   );
-  await perfTime(
+  const topLevelPosts = await perfTime(
     'syncLatestChanges.notifyListeners',
-    async () => notifyChannelPostListenersFromLatestChanges(topLevelPosts),
-    { topLevelPosts: topLevelPosts.length }
+    () => notifyChannelPostListenersFromLatestChanges(result.posts),
+    (topLevelPosts) => ({ topLevelPosts })
   );
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
@@ -404,7 +400,7 @@ export const syncLatestChanges = async ({
   );
   perfStop({
     posts: result.posts.length,
-    topLevelPosts: topLevelPosts.length,
+    topLevelPosts,
     hadChanges: String(hadChanges),
   });
   return {
@@ -419,18 +415,22 @@ export const syncLatestChanges = async ({
 };
 
 function notifyChannelPostListenersFromLatestChanges(posts: db.Post[]) {
-  if (!posts.length) {
-    return;
-  }
-
   const seenIds = new Set<string>();
+  let notified = 0;
   for (const post of posts) {
-    if (seenIds.has(post.id)) {
+    if (
+      post.parentId ||
+      post.type === 'reply' ||
+      post.sequenceNum == null ||
+      seenIds.has(post.id)
+    ) {
       continue;
     }
     seenIds.add(post.id);
     addToChannelPosts(post);
+    notified++;
   }
+  return notified;
 }
 
 export const syncCachedChanges = async (input: {
@@ -442,6 +442,7 @@ export const syncCachedChanges = async (input: {
   if (syncedAt && input.begin <= syncedAt && input.end > syncedAt) {
     // cached changes are valid, insert them
     await db.insertChanges(input.changes);
+    notifyChannelPostListenersFromLatestChanges(input.changes.posts);
     await db.changesSyncedAt.setValue(input.end);
     return true;
   }
@@ -708,10 +709,66 @@ export const syncGroups = async (ctx?: SyncCtx) => {
 };
 
 export const syncDms = async (ctx?: SyncCtx) => {
-  const [dms, groupDms] = await syncQueue.add('dms', ctx, () =>
-    Promise.all([api.getDms(), api.getGroupDms()])
+  const [dms, groupDms, dmInvites] = await syncQueue.add('dms', ctx, () =>
+    Promise.all([api.getDms(), api.getGroupDms(), api.getDmInvites()])
   );
-  await db.insertChannels([...dms, ...groupDms]);
+  const regularDmIds = new Set(dms.map((dm) => dm.id));
+  const pendingInvites = dmInvites.filter(
+    (invite) => !regularDmIds.has(invite.id)
+  );
+  await db.insertChannels([...dms, ...groupDms, ...pendingInvites]);
+};
+
+export type EnsureDmInviteChannelResult =
+  | { found: true; state: 'regular-dm' }
+  | { found: true; state: 'pending-invite' }
+  | { found: false; state: 'missing' };
+
+export const ensureDmInviteChannel = async ({
+  channelId,
+  syncCtx,
+  queryCtx,
+}: {
+  channelId: string;
+  syncCtx?: SyncCtx;
+  queryCtx?: QueryCtx;
+}): Promise<EnsureDmInviteChannelResult> => {
+  const { dms, invites } = await syncQueue.add(
+    'ensureDmInviteChannel',
+    syncCtx,
+    async () => {
+      const [dms, invites] = await Promise.all([
+        api.getDms(),
+        api.getDmInvites(),
+      ]);
+      return { dms, invites };
+    }
+  );
+
+  const write = async (ctx: QueryCtx): Promise<EnsureDmInviteChannelResult> => {
+    const regularDm = dms.find((dm) => dm.id === channelId);
+    if (regularDm) {
+      await db.insertChannels([regularDm], ctx);
+      return { found: true, state: 'regular-dm' };
+    }
+
+    const invite = invites.find((dmInvite) => dmInvite.id === channelId);
+    if (invite) {
+      await db.insertChannels([invite], ctx);
+      return { found: true, state: 'pending-invite' };
+    }
+
+    const localChannel = await db.getChannel({ id: channelId }, ctx);
+    if (localChannel?.isDmInvite) {
+      await db.deleteChannels([channelId], ctx);
+    }
+
+    return { found: false, state: 'missing' };
+  };
+
+  return queryCtx
+    ? write(queryCtx)
+    : batchEffects('ensureDmInviteChannel', write);
 };
 
 export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {

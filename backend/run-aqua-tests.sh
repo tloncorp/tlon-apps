@@ -39,7 +39,7 @@ esac
 
 echo $urbit_bin_url
   
-echo "Running backend unit tests"
+echo "Running aqua tests"
 
 #download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
 download_url="https://bootstrap.urbit.org/zod-aqua-tests-409k.xst"
@@ -209,7 +209,7 @@ then
   exit 1
 fi
 
-echo "Starting %aqua..."
+echo "Starting aqua..."
 ${run_click} $pier "/lib/pill/hoon"<<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl    
@@ -224,15 +224,52 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 (pure:m !>(%ok))  
 EOF
 
-# Run the unit tests
+echo "Preparing aqua snapshot..."
+result=$( $run_click -t 1200 $pier <<EOF
+=/  m  (strand ,vase)  
+;<  =bowl  bind:m  get-bowl  
+=+  tid=~.ci-ph-fleet  
+=/  args  
+  [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes ~loshut-lonreg ~rivfur-livmet ~dem ~fen] &]  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-fleet !>(\`args)])  
+;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
+;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
+;<  =cage  bind:m  (take-fact /awaiting/[tid])  
+;<  ~      bind:m  (take-kick /awaiting/[tid])  
+=/  thread-result=(each vase [term tang])  
+  ?+  p.cage  ~|([%strange-thread-result p.cage %ph-test tid] !!)  
+    %thread-done  [%& q.cage]  
+    %thread-fail  [%| !<([term tang] q.cage)]  
+  ==  
+?:  ?=(%| -.thread-result)  
+  %-  (slog %thread-fail p.thread-result)  
+  (pure:m !>(|))  
+(pure:m !>(&))  
+EOF
+)
+
+result_code=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
+
+if [[ $result_code != "0" ]]
+then
+  echo "Failed to generate aqua snapshot ❌"
+  kill -TERM $vere_pid
+  exit 1
+fi
+
+# Run aqua tests
+#
+# Update to use the generated test snapshot
 echo "Running tests..."
 result=$( $run_click -t 1200 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
   [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]  
-=/  tid  (scot %ta (cat 3 'strand_' (scot %uv (sham %ph-test eny.bowl))))  
-=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`ph-tests)])  
+=/  args  
+  [\`ph-tests %ci-aqua-tests]  
+=+  tid=~.ci-ph-test  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`args)])  
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
 ;<  =cage  bind:m  (take-fact /awaiting/[tid])  

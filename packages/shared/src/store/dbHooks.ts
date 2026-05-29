@@ -5,7 +5,6 @@ import {
 } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { getMessagesFilter } from '@tloncorp/api';
-import { getConstants } from '@tloncorp/api/types/constants';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
@@ -175,13 +174,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCountWithoutMuted = () => {
+export const useNotifyingUnreadSourceCount = () => {
   return useQuery({
     queryKey: [
-      'unreadsCount',
-      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+      'notifyingUnreadSourceCount',
+      useKeyFromQueryDeps(db.getNotifyingUnreadSourceCount),
     ],
-    queryFn: () => db.getUnreadsCountWithoutMuted({}),
+    queryFn: () => db.getNotifyingUnreadSourceCount(),
   });
 };
 
@@ -286,6 +285,24 @@ export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
         return db.getThreadUnreadState({ parentId: parentPostId });
       }
       return null;
+    },
+  });
+};
+
+export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
+  const depsKey = useKeyFromQueryDeps(db.getThreadUnreadsByChannel);
+
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['liveThreadUnreadsByChannel', depsKey, channelId],
+    queryFn: async () => {
+      if (!channelId) {
+        return [];
+      }
+      return db.getThreadUnreadsByChannel({
+        channelId,
+        excludeRead: true,
+      });
     },
   });
 };
@@ -682,26 +699,6 @@ export const useWayfindingCompletion = () => {
   });
 };
 
-export const useShowWebSplashModal = () => {
-  const { data: wayfinding, isLoading } = useWayfindingCompletion();
-  const { data: personalGroup } = usePersonalGroup();
-
-  // Disable splash modal during e2e tests
-  try {
-    const constants = getConstants();
-    if (constants.DISABLE_SPLASH_MODAL) {
-      return false;
-    }
-  } catch (e) {
-    // Constants not available (e.g., in test environment)
-    // Continue with normal behavior
-  }
-
-  return Boolean(
-    personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
-  );
-};
-
 export const useShowChatInputWayfinding = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
   const isCorrectChan = useMemo(() => {
@@ -713,11 +710,12 @@ export const useShowChatInputWayfinding = (channelId: string) => {
 
 export const useShowBotMentionWayfinding = (channelId: string) => {
   const wayfindingProgress = db.wayfindingProgress.useValue();
+  const currentUserId = api.getCurrentUserId();
   const isCorrectChan = useMemo(() => {
-    return logic.isBotHomeGroupChatChannel(channelId);
-  }, [channelId]);
+    return logic.isBotHomeGroupChatChannel(currentUserId, channelId);
+  }, [channelId, currentUserId]);
 
-  return isCorrectChan && !wayfindingProgress.tappedBotMention;
+  return isCorrectChan && !wayfindingProgress.tappedHomeGroupHint;
 };
 
 export const useShowHomeAddTooltip = () => {

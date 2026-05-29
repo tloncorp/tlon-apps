@@ -15,8 +15,10 @@ export interface SignupParams {
   reservedNodeId: string | null;
   bootPhase: NodeBootPhase;
   userWasReadyAt?: number;
-  isGuidedLogin?: boolean;
+  onboardingFlow?: OnboardingFlow;
 }
+
+export type OnboardingFlow = 'signup' | 'tlonbotRevival';
 
 export enum NodeBootPhase {
   IDLE = 1,

@@ -31,14 +31,13 @@
 ::
 ::  scenario
 ::
-::  ~zod hosts a group. ~bud joins the group. we verify
-::  that the subscription lifecycle follows through %watch, and then %done.
-::  finally, the group creation response is received.
+::  ~zod hosts a group and sends an invitation to ~bud.
+::  ~bud receives the invitation and joins the group successfully,
+::  receiving the group creation fact.
 ::
 ++  ph-test-group-join
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (watch-app /~zod/groups/v1/groups [~zod %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ::  ~zod hosts a group and invites ~bud
@@ -62,7 +61,5 @@
     [%foreign my-test-flag %join token.i.invites.foreign]
   ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
   ;<  ~  bind:m  (ex-r-groups-fact ~bud ~zod^%my-test-group %create)
-  ;<  =bowl:strand  bind:m  get-bowl
   (pure:m ~)
 --
-

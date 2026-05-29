@@ -1,4 +1,23 @@
-import { Story, Verse, isBlockVerse } from '@tloncorp/api/urbit/channel';
+import type {
+  Delete,
+  Emphasis,
+  Heading,
+  Blockquote as MdastBlockquote,
+  Code as MdastCode,
+  Image as MdastImage,
+  InlineCode as MdastInlineCode,
+  Link as MdastLink,
+  List as MdastList,
+  ListItem as MdastListItem,
+  Paragraph,
+  PhrasingContent,
+  RootContent,
+  Strong,
+  Text,
+  ThematicBreak,
+} from 'mdast';
+
+import { Story, Verse, isBlockVerse } from '../../urbit/channel';
 import {
   Block,
   Blockquote,
@@ -35,26 +54,7 @@ import {
   isShip,
   isStrikethrough,
   isTask,
-} from '@tloncorp/api/urbit/content';
-import type {
-  Delete,
-  Emphasis,
-  Heading,
-  Blockquote as MdastBlockquote,
-  Code as MdastCode,
-  Image as MdastImage,
-  InlineCode as MdastInlineCode,
-  Link as MdastLink,
-  List as MdastList,
-  ListItem as MdastListItem,
-  Paragraph,
-  PhrasingContent,
-  RootContent,
-  Strong,
-  Text,
-  ThematicBreak,
-} from 'mdast';
-
+} from '../../urbit/content';
 import type { ShipMention } from './shipMentionPlugin';
 
 /**
