@@ -3,7 +3,7 @@ import type {
   InlineData,
   ListData,
   PostContent,
-} from '@tloncorp/api/lib/postContent';
+} from '@tloncorp/api/client/postContent';
 
 /**
  * Escape HTML special characters in text content.
