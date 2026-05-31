@@ -161,7 +161,11 @@ function getGatewayBaseUrl() {
     typeof window !== 'undefined'
       ? window.localStorage.getItem('tlon.contextLens.gatewayUrl')?.trim()
       : null;
-  return stored || 'http://localhost:18789';
+  if (stored) {
+    return stored;
+  }
+
+  return process.env.NODE_ENV === 'development' ? 'http://localhost:18789' : null;
 }
 
 function encodeQuery(value: string) {
