@@ -365,7 +365,7 @@
   ::
   ;<  caz=(list card)  bind:m
     (do-a-groups [%invite my-flag (sy ~fun ~) ~ ~])
-  ::  verify both old and new invites are sent
+  ::  verify invite is sent
   ::
   ;<  =bowl  bind:m  get-bowl
   ;<  peek=cage  bind:m  (got-peek /x/groups/(scot %p p:my-flag)/[q:my-flag]/preview)
@@ -385,8 +385,7 @@
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite]
     %+  ex-cards  caz
-    :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
-        (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+    :~  (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  verify the invitee is recorded on the invited list
   ::
@@ -421,7 +420,6 @@
       [%invite invite(time now.bowl)]
     %+  ex-cards  caz
     :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag ~]))
-        (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  verify records on the invited list
@@ -476,8 +474,7 @@
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite]
     %+  ex-cards  caz
-    :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
-        (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+    :~  (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  verify the invitee is recorded on the invited list
   ::
@@ -510,7 +507,6 @@
     %+  ex-cards  caz
     :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
         (ex-c-group %entry %token %del 0v123)
-        (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  verify records on the invited list
@@ -558,8 +554,7 @@
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite]
     %+  ex-cards  caz
-    :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
-        (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+    :~  (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  ban ~fun. verify the invitation is revoked and the token deleted.
   ::
@@ -618,8 +613,7 @@
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite]
     %+  ex-cards  caz
-    :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
-        (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+    :~  (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  token is deleted. verify the invitation is revoked and the token deleted.
   ::
@@ -677,8 +671,7 @@
     =/  a-foreigns-8-fun=a-foreigns:v8:gv
       [%invite invite]
     %+  ex-cards  caz
-    :~  (ex-poke (weld go-area /invite/send/~fun/old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
-        (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
+    :~  (ex-poke (weld go-area /invite/send/~fun) [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
     ==
   ::  group is deleted. verify the invitation is revoked.
   ::
