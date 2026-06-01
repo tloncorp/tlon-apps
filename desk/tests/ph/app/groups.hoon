@@ -220,7 +220,7 @@
   =/  m  (strand ,~)
   ^-  form:m
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
-  ::  test sequence
+  ::
   ;<  ~  bind:m  (create-test-group ~zod %public ~)
   =/  =a-groups:v8:gv  [%invite my-test-flag (sy ~bud ~) [~ ~]]
   ;<  ~  bind:m  (poke-app [~zod %groups] group-action-4+a-groups)
@@ -243,7 +243,7 @@
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ;<  ~  bind:m  (watch-app /~nec/groups/v1/foreigns [~nec %groups] /v1/foreigns)
-  ::  test sequence
+  ::
   ;<  ~  bind:m  (create-test-group ~zod %public (my ~bud^(sy %admin ~) ~))
   ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ;<  ~  bind:m  (join-test-group ~bud ~zod)
@@ -271,7 +271,7 @@
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ;<  ~  bind:m  (watch-app /~nec/groups/v1/foreigns [~nec %groups] /v1/foreigns)
-  ::  test sequence
+  ::
   ;<  ~  bind:m  (create-test-group ~zod %public (my ~bud^(sy %admin ~) ~))
   ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ;<  ~  bind:m  (join-test-group ~bud ~zod)
@@ -299,7 +299,7 @@
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ;<  ~  bind:m  (watch-app /~nec/groups/v1/foreigns [~nec %groups] /v1/foreigns)
-  ::  test sequence
+  ::
   ;<  ~  bind:m  (create-test-group ~zod %private (my ~bud^(sy %admin ~) ~))
   ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
   ;<  ~  bind:m  (join-test-group ~bud ~zod)
