@@ -64,6 +64,22 @@
   =/  =a-foreigns:v8:gv  [%foreign flag %join token]
   ;<  ~  bind:m  (poke-app [joiner %groups] group-foreign-2+a-foreigns)
   (pure:m ~)
+::  +ex-foreign-invite-valid: expect a foreign invite with validity
+::
+++  ex-foreign-invite-valid
+  |=  [=ship =flag:gv inviter=ship valid=?]
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m
+    %^  (ex-app-fact-match foreigns:v8:gv)  /(scot %p ship)/groups/v1/foreigns
+      [ship %groups]
+    :-  %foreigns-1
+    |=  =foreigns:v8:gv
+    =/  foreign  (~(got by foreigns) flag)
+    ?>  ?=(^ invites.foreign)
+    ;<  ~  bind:m  (ex-equal !>(from.i.invites.foreign) !>(inviter))
+    (ex-equal !>(valid.i.invites.foreign) !>(valid))
+  (pure:m ~)
 ::  +ph-test-group-join-secret: test secret group joins
 ::
 ::  scenario
@@ -191,6 +207,109 @@
     [%foreign my-test-flag %ask ~]
   ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
   ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud ~zod^%my-test-group %create)
+  (pure:m ~)
+::  +ph-test-group-public-invite-revoke-delete: test public invite revocation on group delete
+::
+::  scenario
+::
+::  ~zod hosts a public group and invites ~bud.
+::  ~bud receives the invitation. ~zod deletes the group, then ~bud
+::  receives a revoked invitation.
+::
+++  ph-test-group-public-invite-revoke-delete
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ::  test sequence
+  ;<  ~  bind:m  (create-test-group ~zod %public ~)
+  =/  =a-groups:v8:gv  [%invite my-test-flag (sy ~bud ~) [~ ~]]
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-action-4+a-groups)
+  ;<  ~  bind:m  (ex-foreign-invite-valid ~bud my-test-flag ~zod &)
+  =/  =c-groups:g  [%group my-test-flag [%delete ~]]
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-command+c-groups)
+  ;<  ~  bind:m  (ex-foreign-invite-valid ~bud my-test-flag ~zod |)
+  (pure:m ~)
+::  +ph-test-group-public-invite-revoke-ban: test public invite revocation on ban
+::
+::  scenario
+::
+::  ~zod hosts a public group and invites ~bud as an admin.
+::  ~bud joins the group and invites ~nec. ~nec receives the invitation.
+::  ~bud bans ~nec, then ~nec receives a revoked invitation.
+::
+++  ph-test-group-public-invite-revoke-ban
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ;<  ~  bind:m  (watch-app /~nec/groups/v1/foreigns [~nec %groups] /v1/foreigns)
+  ::  test sequence
+  ;<  ~  bind:m  (create-test-group ~zod %public (my ~bud^(sy %admin ~) ~))
+  ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
+  ;<  ~  bind:m  (join-test-group ~bud ~zod)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud my-test-flag %create)
+  =/  =a-groups:v8:gv  [%invite my-test-flag (sy ~nec ~) [~ ~]]
+  ;<  ~  bind:m  (poke-app [~bud %groups] group-action-4+a-groups)
+  ;<  ~  bind:m  (ex-foreign-invite-valid ~nec my-test-flag ~bud &)
+  =/  =a-groups:v8:gv
+    [%group my-test-flag [%entry [%ban [%add-ships (sy ~nec ~)]]]]
+  ;<  ~  bind:m  (poke-app [~bud %groups] group-action-4+a-groups)
+  ;<  ~  bind:m  (ex-foreign-invite-valid ~nec my-test-flag ~bud |)
+  (pure:m ~)
+::  +ph-test-group-public-invite-revoke-pending: test public invite revocation on pending delete
+::
+::  scenario
+::
+::  ~zod hosts a public group and invites ~bud as an admin.
+::  ~bud joins the group and adds ~nec to the pending list.
+::  ~nec receives the invitation. ~zod removes ~nec from the pending
+::  list, then ~nec receives a revoked invitation.
+::
+++  ph-test-group-public-invite-revoke-pending
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ;<  ~  bind:m  (watch-app /~nec/groups/v1/foreigns [~nec %groups] /v1/foreigns)
+  ::  test sequence
+  ;<  ~  bind:m  (create-test-group ~zod %public (my ~bud^(sy %admin ~) ~))
+  ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
+  ;<  ~  bind:m  (join-test-group ~bud ~zod)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud my-test-flag %create)
+  =/  =a-groups:v8:gv
+    [%group my-test-flag [%entry [%pending (sy ~nec ~) [%add ~]]]]
+  ;<  ~  bind:m  (poke-app [~bud %groups] group-action-4+a-groups)
+  ;<  ~  bind:m  (ex-foreign-invite-valid ~nec my-test-flag ~zod &)
+  =/  =a-groups:v8:gv
+    [%group my-test-flag [%entry [%pending (sy ~nec ~) [%del ~]]]]
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-action-4+a-groups)
+  ;<  ~  bind:m  (ex-foreign-invite-valid ~nec my-test-flag ~zod |)
+  (pure:m ~)
+::  +ph-test-group-invite-revoke-inviter-leave: test invite revocation on inviter leave
+::
+::  scenario
+::
+::  ~zod hosts a private group and invites ~bud as an admin.
+::  ~bud joins the group and invites ~nec. ~nec receives the invitation.
+::  ~bud leaves the group, then ~nec receives a revoked invitation.
+::
+++  ph-test-group-invite-revoke-inviter-leave
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ;<  ~  bind:m  (watch-app /~nec/groups/v1/foreigns [~nec %groups] /v1/foreigns)
+  ::  test sequence
+  ;<  ~  bind:m  (create-test-group ~zod %private (my ~bud^(sy %admin ~) ~))
+  ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
+  ;<  ~  bind:m  (join-test-group ~bud ~zod)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud my-test-flag %create)
+  =/  =a-groups:v8:gv  [%invite my-test-flag (sy ~nec ~) [~ ~]]
+  ;<  ~  bind:m  (poke-app [~bud %groups] group-action-4+a-groups)
+  ;<  ~  bind:m  (ex-foreign-invite-valid ~nec my-test-flag ~bud &)
+  =/  =a-groups:v8:gv  [%leave my-test-flag]
+  ;<  ~  bind:m  (poke-app [~bud %groups] group-action-4+a-groups)
+  ;<  ~  bind:m  (ex-foreign-invite-valid ~nec my-test-flag ~bud |)
   (pure:m ~)
 ::  +ph-test-group-join-private: test private group joins with issued token
 ::
