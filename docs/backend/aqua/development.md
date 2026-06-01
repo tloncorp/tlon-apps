@@ -211,13 +211,14 @@ by reading the code or the documentation and can be error-prone, especially if t
 
 Fortunately, we can observe the running system by enabling debugging mode.
 Any agent that integrates the logging library, together with the verb wrapper, will
-display debugging messages when enabled. To enable debugging mode, we adjust the logging
-volume
+display debugging messages when enabled. To enable debugging mode, we can adjust the logging volume by poking an agent with the `&verb` mark
 ```
 > :agent &verb [%volume volume]
 ```
-where volume can be any of `%dbug`, `%info`, `%warn` and `%crit`.
+where volume can be any of `%dbug`, `%info`, `%warn` and `%crit`. 
 Adjusting the volume to `%dbug` will enable printing of all log messages at that priority or above.
+
+Note that this examples adjust the logging volume in the host ship, as as such does not influence virtual ships running in aqua. To affect aqua ships, this poke must issued with appropriate `+poke-app` call to a target virtual ship. 
 ### Implementing a test
 We have so far talked about the structure of an aqua test. It is
 composed of a prose description, followed by the test strand
@@ -237,9 +238,11 @@ The method therefore consists of three steps performed iteratively, until the te
 
 ### Finalizing the test
 When a full test has been verified to function correctly, we do a final pass over the implementation. We want to make sure that:
-1. The code is idiomatic, adhers both to general Hoon style as well as specific aqua tests coding guidelines.
+1. The code is idiomatic, adheres both to general Hoon style as well as specific aqua tests coding guidelines.
 2. We have exploited all opportunities for code reuse and refactoring. It is frequently the case that multiple tests share a sequence of steps. In such cases, it is often desirable to introduce parametrized helper strands.
 3. We have disabled debug mode. While debug mode is useful while constructing tests or investigating failures, it should be disabled in production.
 
 Some care is necessary when introducing reusable strands to be shared among multiple tests. We should never refactor those portions of the code which, when removed, would obscure the overall test sequence. In particular client watches with `watch-app` or any other setup logic should not be refactored, even if it is repeatable. Likewise, those portions of the test which are essential should not be obscured through refactoring. As an example, if we have several tests that test a group join, all of them will have to create a group first. The group creation, while required, is not the essence of the test, and is a good candidate for a reusable strand. However, even though all tests share similar logic that let's a ship join the group and verifies success, this logic is what defines the test, and should not be obscured with helper functions.
+
+However, while refactoring common logic is encouraged, we should not go overboard with it. We should not anticipate refactoring by preemptively refactoring portions of test sequence used only in a single test, even if we suspect it might be useful in the future.
 
