@@ -34,7 +34,7 @@ import {
   clearLastNotificationResponseAsync,
   useLastNotificationResponse,
 } from 'expo-notifications';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   extractDmTapTelemetry,
@@ -133,6 +133,11 @@ export default function useNotificationListener() {
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
 
+  // Tracks the last notification response we emitted DM-tap telemetry for, so
+  // the telemetry effect cannot double-emit when `currentUserId` hydrates
+  // after a cold-start tap.
+  const emittedDmTapForResponse = useRef<unknown>(null);
+
   // Start notifications prompt
   useEffect(() => {
     connectNotifications();
@@ -157,33 +162,6 @@ export default function useNotificationListener() {
   useEffect(() => {
     if (notificationResponse != null) {
       try {
-        // Emit DM-tap telemetry (TLON-5728) before any navigation or DB work,
-        // so the event fires for every tapped dm-post regardless of whether the
-        // channel can be hydrated. Best-effort: a throw here must never break
-        // the notification routing below. Joined to OpenClaw's nudge-send event
-        // in PostHog on `messageId`.
-        if (currentUserId != null) {
-          try {
-            const rawPayload = readRawPayload(
-              notificationResponse.notification
-            );
-            const activityEvent = safeParseActivityEvent(rawPayload);
-            const dmTap = extractDmTapTelemetry(
-              activityEvent,
-              rawPayload,
-              currentUserId
-            );
-            if (dmTap != null) {
-              logger.trackEvent(AnalyticsEvent.ActionTappedDmPushNotif, dmTap);
-            }
-          } catch (telemetryErr) {
-            console.warn(
-              'Failed to emit DM tap telemetry (best-effort)',
-              telemetryErr
-            );
-          }
-        }
-
         const data = payloadFromNotification(notificationResponse.notification);
 
         // If the NSE caught an error, it puts it in a list under
@@ -230,6 +208,39 @@ export default function useNotificationListener() {
           });
         });
       }
+    }
+  }, [notificationResponse]);
+
+  // Emit DM-tap telemetry (TLON-5728) in its own effect, decoupled from the
+  // routing effect above so it cannot cause routing/navigation to re-run.
+  // Keyed on `currentUserId` as well so a cold-start tap (response present
+  // before the ship hydrates) still emits once the id arrives. A ref dedupes
+  // by notification-response identity so the `null -> ship` hydration re-run
+  // cannot double-emit for a single tap. Best-effort: never throws out.
+  useEffect(() => {
+    if (notificationResponse == null || currentUserId == null) {
+      return;
+    }
+    if (emittedDmTapForResponse.current === notificationResponse) {
+      return;
+    }
+    emittedDmTapForResponse.current = notificationResponse;
+    try {
+      const rawPayload = readRawPayload(notificationResponse.notification);
+      const activityEvent = safeParseActivityEvent(rawPayload);
+      const dmTap = extractDmTapTelemetry(
+        activityEvent,
+        rawPayload,
+        currentUserId
+      );
+      if (dmTap != null) {
+        logger.trackEvent(AnalyticsEvent.ActionTappedDmPushNotif, dmTap);
+      }
+    } catch (telemetryErr) {
+      console.warn(
+        'Failed to emit DM tap telemetry (best-effort)',
+        telemetryErr
+      );
     }
   }, [notificationResponse, currentUserId]);
 
