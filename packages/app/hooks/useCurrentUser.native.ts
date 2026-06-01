@@ -1,6 +1,7 @@
 import { preSig } from '@tloncorp/api/lib/urbit';
 
 import { useShip } from '../contexts/ship';
+import { currentUserIdFromShipState } from './currentUserIdFromShipState';
 
 export function useCurrentUserId() {
   const { ship, contactId } = useShip();
@@ -11,4 +12,9 @@ export function useCurrentUserId() {
     throw new Error('Missing user id');
   }
   return userId;
+}
+
+export function useCurrentUserIdOrNull(): string | null {
+  const { ship, contactId } = useShip();
+  return currentUserIdFromShipState({ ship, contactId });
 }

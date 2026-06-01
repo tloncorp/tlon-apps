@@ -4,6 +4,7 @@ import {
   isDmChannelId,
   isGroupDmChannelId,
 } from '@tloncorp/api/client/apiUtils';
+import { useCurrentUserIdOrNull } from '@tloncorp/app/hooks/useCurrentUser';
 import {
   connectNotifications,
   presentContactMatchNotification,
@@ -36,6 +37,11 @@ import {
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
+import {
+  extractDmTapTelemetry,
+  readRawPayload,
+  safeParseActivityEvent,
+} from '../lib/dmTapTelemetry';
 import {
   type PostInfo,
   type ProcessableNotificationData,
@@ -131,6 +137,7 @@ export function getMissingNotificationTargetRecovery(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
+  const currentUserId = useCurrentUserIdOrNull();
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
@@ -159,6 +166,33 @@ export default function useNotificationListener() {
   useEffect(() => {
     if (notificationResponse != null) {
       try {
+        // Emit DM-tap telemetry (TLON-5728) before any navigation or DB work,
+        // so the event fires for every tapped dm-post regardless of whether the
+        // channel can be hydrated. Best-effort: a throw here must never break
+        // the notification routing below. Joined to OpenClaw's nudge-send event
+        // in PostHog on `messageId`.
+        if (currentUserId != null) {
+          try {
+            const rawPayload = readRawPayload(
+              notificationResponse.notification
+            );
+            const parsedActivity = safeParseActivityEvent(rawPayload);
+            const dmTap = extractDmTapTelemetry(
+              parsedActivity,
+              rawPayload,
+              currentUserId
+            );
+            if (dmTap != null) {
+              logger.trackEvent(AnalyticsEvent.ActionTappedDmPushNotif, dmTap);
+            }
+          } catch (telemetryErr) {
+            console.warn(
+              'Failed to emit DM tap telemetry (best-effort)',
+              telemetryErr
+            );
+          }
+        }
+
         const data = payloadFromNotification(notificationResponse.notification);
 
         // If the NSE caught an error, it puts it in a list under
@@ -206,7 +240,7 @@ export default function useNotificationListener() {
         });
       }
     }
-  }, [notificationResponse]);
+  }, [notificationResponse, currentUserId]);
 
   const isDesktop = useIsWindowNarrow();
 
