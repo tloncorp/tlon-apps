@@ -1404,7 +1404,9 @@
     ::  ignore responses after group has been deleted
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            &(?=(%poke-ack -.sign) ?=([%invite %revoke ship=@ ~] rest.pole))
+            ?|  &(?=(%poke-ack -.sign) ?=([%invite %revoke ship=@ ~] rest.pole))
+                &(?=(%poke-ack -.sign) ?=([%invite %send ship=@ ~] rest.pole))
+            ==
         ==
       cor
     se-abet:(se-agent:(se-abed:se-core ship name.pole) rest.pole sign)
@@ -1420,6 +1422,7 @@
                 ?=([%command %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
+                ?=([%invite %send @ ~] rest.pole)
             ==
         ==
       cor
@@ -1907,13 +1910,6 @@
       =/  =a-foreigns:v9:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
-    ++  send-old-invite
-      |=  [=ship =invite:v7:gv]
-      ~>  %spin.['send-old-invite']
-      =/  =wire  (weld se-area /invite/send/(scot %p ship)/old)
-      =/  =a-foreigns:v7:gv
-        [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
       ~>  %spin.['revoke-invite']
@@ -2819,11 +2815,6 @@
     =.  se-core  (se-revoke-invite ship)
     =.  invited.ad
       (~(put by invited.ad) ship [now.bowl token.invite])
-    ::TODO sent only for backcompat. Remove when the update
-    ::     settles in the network.
-    ::
-    =.  se-core
-      (emit (send-old-invite:se-pass ship (v7:invite:v8:gc invite)))
     (emit (send-invite:se-pass ship invite))
   ::  +se-revoke-invite: revoke a previously issued invite for a .ship
   ::
@@ -3332,14 +3323,6 @@
           [leaf+"failed to invite {<ship>}" u.p.sign]
       se-core
     ::
-        [%invite %send ship=@ %old ~]
-      =/  ship=@p  (slav %p i.t.t.wire)
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to invite {<ship>} (backcompat)" u.p.sign]
-      se-core
-    ::
         [%invite %revoke ship=@ ~]
       =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
@@ -3469,13 +3452,6 @@
       =/  =a-foreigns:v8:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
-    ++  send-old-invite
-      |=  [=ship =invite:v7:gv]
-      ~>  %spin.['send-old-invite']
-      =/  =wire  (weld go-area /invite/send/(scot %p ship)/old)
-      =/  =a-foreigns:v7:gv
-        [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
       ~>  %spin.['revoke-invite']
@@ -3697,11 +3673,6 @@
     =.  go-core  (go-revoke-invite ship)
     =.  invited.ad
       (~(put by invited.ad) ship [now.bowl token.invite])
-    ::TODO sent only for backcompat. Remove when the update
-    ::     settles in the network.
-    ::
-    =.  go-core
-      (emit (send-old-invite:go-pass ship (v7:invite:v8:gc invite)))
     (emit (send-invite:go-pass ship invite))
   ::  +go-revoke-invite: revoke a previously issued invite
   ::
@@ -3831,14 +3802,6 @@
       =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
       go-core
     ::
-        ::  invited a ship to the group (backcompat)
-        ::
-        [%invite %send ship=@ %old ~]
-      =/  ship=@p  (slav %p i.t.t.wire)
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
-      go-core
         ::  revoked invitation
         ::
         [%invite %revoke ship=@ ~]
