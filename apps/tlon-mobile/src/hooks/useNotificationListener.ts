@@ -4,7 +4,7 @@ import {
   isDmChannelId,
   isGroupDmChannelId,
 } from '@tloncorp/api/client/apiUtils';
-import { useCurrentUserIdOrNull } from '@tloncorp/app/hooks/useCurrentUser';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import {
   connectNotifications,
   presentContactMatchNotification,
@@ -34,7 +34,7 @@ import {
   clearLastNotificationResponseAsync,
   useLastNotificationResponse,
 } from 'expo-notifications';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   extractDmTapTelemetry,
@@ -128,15 +128,9 @@ export function getMissingNotificationTargetRecovery(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
-  const currentUserId = useCurrentUserIdOrNull();
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
-
-  // Tracks the last notification response we emitted DM-tap telemetry for, so
-  // the telemetry effect cannot double-emit when `currentUserId` hydrates
-  // after a cold-start tap.
-  const emittedDmTapForResponse = useRef<unknown>(null);
 
   // Start notifications prompt
   useEffect(() => {
@@ -213,26 +207,21 @@ export default function useNotificationListener() {
 
   // Emit DM-tap telemetry (TLON-5728) in its own effect, decoupled from the
   // routing effect above so it cannot cause routing/navigation to re-run.
-  // Keyed on `currentUserId` as well so a cold-start tap (response present
-  // before the ship hydrates) still emits once the id arrives. A ref dedupes
-  // by notification-response identity so the `null -> ship` hydration re-run
-  // cannot double-emit for a single tap. Best-effort: never throws out.
+  // Keyed only on `notificationResponse` so it runs exactly once per tap. The
+  // owner ship is read synchronously via `getCurrentUserId()` (the same
+  // already-initialized client identity the rest of the API layer uses) rather
+  // than a reactive hook, so there is no `null -> ship` hydration that could
+  // race the response-clearing in the routing effect and drop a cold-start
+  // tap. Best-effort: a throw here (incl. an uninitialized client) is swallowed.
   useEffect(() => {
-    if (notificationResponse == null || currentUserId == null) {
+    if (notificationResponse == null) {
       return;
     }
-    if (emittedDmTapForResponse.current === notificationResponse) {
-      return;
-    }
-    emittedDmTapForResponse.current = notificationResponse;
     try {
+      const ownerShip = getCurrentUserId();
       const rawPayload = readRawPayload(notificationResponse.notification);
       const activityEvent = safeParseActivityEvent(rawPayload);
-      const dmTap = extractDmTapTelemetry(
-        activityEvent,
-        rawPayload,
-        currentUserId
-      );
+      const dmTap = extractDmTapTelemetry(activityEvent, rawPayload, ownerShip);
       if (dmTap != null) {
         logger.trackEvent(AnalyticsEvent.ActionTappedDmPushNotif, dmTap);
       }
@@ -242,7 +231,7 @@ export default function useNotificationListener() {
         telemetryErr
       );
     }
-  }, [notificationResponse, currentUserId]);
+  }, [notificationResponse]);
 
   const isDesktop = useIsWindowNarrow();
 
