@@ -41,24 +41,18 @@ function rawPayloadWithDmPost(opts: {
 }
 
 describe('safeParseActivityEvent', () => {
-  it('returns missing when activityEventJsonString is absent', () => {
-    expect(safeParseActivityEvent({})).toEqual({
-      ok: false,
-      error: 'missing',
-    });
+  it('returns null when activityEventJsonString is absent', () => {
+    expect(safeParseActivityEvent({})).toBeNull();
   });
 
-  it('returns missing when activityEventJsonString is not a string', () => {
-    expect(safeParseActivityEvent({ activityEventJsonString: 123 })).toEqual({
-      ok: false,
-      error: 'missing',
-    });
+  it('returns null when activityEventJsonString is not a string', () => {
+    expect(safeParseActivityEvent({ activityEventJsonString: 123 })).toBeNull();
   });
 
-  it('returns malformed for invalid JSON', () => {
+  it('returns null for invalid JSON', () => {
     expect(
       safeParseActivityEvent({ activityEventJsonString: '{not json' })
-    ).toEqual({ ok: false, error: 'malformed' });
+    ).toBeNull();
   });
 
   describe('parseable but malformed root wrapper', () => {
@@ -74,30 +68,24 @@ describe('safeParseActivityEvent', () => {
     ];
     for (const c of cases) {
       it(`rejects ${c}`, () => {
-        const r = safeParseActivityEvent({ activityEventJsonString: c });
-        expect(r).toEqual({ ok: false, error: 'malformed' });
+        expect(
+          safeParseActivityEvent({ activityEventJsonString: c })
+        ).toBeNull();
       });
     }
   });
 
-  it('returns ok for a well-formed event wrapper', () => {
+  it('returns the unwrapped event for a well-formed wrapper', () => {
     const payload = makeDmPostJson({});
-    const r = safeParseActivityEvent({ activityEventJsonString: payload });
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.event['dm-post']).toBeDefined();
-    }
+    const event = safeParseActivityEvent({ activityEventJsonString: payload });
+    expect(event).not.toBeNull();
+    expect(event?.['dm-post']).toBeDefined();
   });
 });
 
 describe('extractDmTapTelemetry', () => {
-  it('returns null when parsed activity is not ok', () => {
-    expect(
-      extractDmTapTelemetry({ ok: false, error: 'missing' }, {}, '~zod')
-    ).toBeNull();
-    expect(
-      extractDmTapTelemetry({ ok: false, error: 'malformed' }, {}, '~zod')
-    ).toBeNull();
+  it('returns null when the parsed event is null', () => {
+    expect(extractDmTapTelemetry(null, {}, '~zod')).toBeNull();
   });
 
   it('returns telemetry for a well-formed dm-post', () => {
@@ -187,8 +175,9 @@ describe('extractDmTapTelemetry', () => {
         const rawPayload = {
           activityEventJsonString: JSON.stringify({ event: rawEvent }),
         };
+        // The wrapper is valid for all of these, so safeParseActivityEvent
+        // returns the event; the malformation is in the inner dm-post shape.
         const parsed = safeParseActivityEvent(rawPayload);
-        // parsedActivity is ok=true for all of these (the wrapper is valid)
         const t = extractDmTapTelemetry(parsed, rawPayload, '~zod');
         expect(t).toBeNull();
       });

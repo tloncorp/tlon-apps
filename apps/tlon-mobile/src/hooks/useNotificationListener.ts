@@ -167,9 +167,9 @@ export default function useNotificationListener() {
             const rawPayload = readRawPayload(
               notificationResponse.notification
             );
-            const parsedActivity = safeParseActivityEvent(rawPayload);
+            const activityEvent = safeParseActivityEvent(rawPayload);
             const dmTap = extractDmTapTelemetry(
-              parsedActivity,
+              activityEvent,
               rawPayload,
               currentUserId
             );

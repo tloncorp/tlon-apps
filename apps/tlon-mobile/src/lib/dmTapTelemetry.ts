@@ -20,10 +20,6 @@ export type DmTapTelemetry = {
 export const DM_TAP_SKEW_TOLERANCE_MS = 5 * 60 * 1000;
 export const DM_TAP_WINDOW_MS = 6 * 60 * 60 * 1000;
 
-export type SafeActivityParseResult =
-  | { ok: true; event: Record<string, unknown> }
-  | { ok: false; error: 'missing' | 'malformed' };
-
 function isNonNullObject(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -47,37 +43,41 @@ export function readRawPayload(
   return raw;
 }
 
+// Returns the unwrapped activity `event` object, or `null` if the payload has
+// no `activityEventJsonString`, it is not valid JSON, or it does not contain a
+// well-formed `event` object. Callers only need the parsed event (or its
+// absence); they do not distinguish *why* parsing failed.
 export function safeParseActivityEvent(
   rawPayload: Record<string, unknown>
-): SafeActivityParseResult {
+): Record<string, unknown> | null {
   const raw = rawPayload.activityEventJsonString;
   if (typeof raw !== 'string') {
-    return { ok: false, error: 'missing' };
+    return null;
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { ok: false, error: 'malformed' };
+    return null;
   }
   if (!isNonNullObject(parsed)) {
-    return { ok: false, error: 'malformed' };
+    return null;
   }
   const event = (parsed as { event?: unknown }).event;
   if (!isNonNullObject(event)) {
-    return { ok: false, error: 'malformed' };
+    return null;
   }
-  return { ok: true, event };
+  return event;
 }
 
 export function extractDmTapTelemetry(
-  parsed: SafeActivityParseResult,
+  event: Record<string, unknown> | null,
   rawPayload: Record<string, unknown>,
   currentUserId: string,
   nowMs?: number
 ): DmTapTelemetry | null {
-  if (!parsed.ok) return null;
-  const ev = parsed.event;
+  if (event == null) return null;
+  const ev = event;
   const dmPost = ev['dm-post'];
   if (!isNonNullObject(dmPost)) return null;
   const key = (dmPost as { key?: unknown }).key;
