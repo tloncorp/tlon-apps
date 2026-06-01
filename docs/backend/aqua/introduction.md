@@ -106,10 +106,9 @@ Important: do not delete files not present in the repository at the destination.
 Running urbit desks are usually supplemented with other neccessary files not present
 in the repository.
 
-## Checking tests
+## Listing and inspecting tests
 
-While developing tests, it is useful to have a way to verify any compilation errors
-separately before triggering the actual test run. This can be done using
+While developing tests, it is useful to be able to list existing tests, and also have a way to verify any compilation errors separately before triggering the actual test run. This can be done using
 `-ph-test-ls path` command, which will find all aqua tests available at the
 path and build them. For example, to list all aqua files in the groups desk, we would run
 ```
