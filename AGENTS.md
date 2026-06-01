@@ -13,6 +13,12 @@ with it using tmux input and capture commands.
 A typical command to verify connection is working is `%`, which will
 display current identity, desk and time.
 
+## Backend documentation
+Comprehensive backend documentation can be found in `/docs/backend`.
+For system components, the directory structure mirrors that of a desk.
+The documentation on the groups agent would thus be found at
+`/docs/backend/app/groups.md`.
+
 ## Backend tests
 
 There are two kinds of backend tests in groups. The first kind uses the
