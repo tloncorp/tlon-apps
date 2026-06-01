@@ -35,10 +35,10 @@ import {
   useLastNotificationResponse,
 } from 'expo-notifications';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 
 import {
   extractDmTapTelemetry,
+  pickPlatformPayload,
   readRawPayload,
   safeParseActivityEvent,
 } from '../lib/dmTapTelemetry';
@@ -66,19 +66,10 @@ function payloadFromNotification(
   // When a notification is received directly (i.e. is not mutated via
   // notification service extension), the payload is delivered in the
   // `content`. When "triggered" through the NSE, the payload is in the
-  // `trigger`.
-  // Detect and use whatever payload is available.
-  const payload = (() => {
-    // Not sure why the payload is in different places per platform,
-    // but it is what it is
-    if (Platform.OS === 'android') {
-      return notification.request.content.data;
-    } else {
-      const { content, trigger } = notification.request;
-      const isPush = trigger && 'type' in trigger && trigger.type === 'push';
-      return isPush ? trigger.payload : content.data;
-    }
-  })();
+  // `trigger`. `pickPlatformPayload` is the single source of truth for this
+  // platform branching, shared with the DM-tap telemetry read so the two
+  // cannot drift.
+  const payload = pickPlatformPayload(notification);
 
   return parseNotificationPayload(payload);
 }
