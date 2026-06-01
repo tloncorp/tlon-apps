@@ -142,7 +142,7 @@ The standard location for aqua tests is in the desk's `/tests/ph` directory.
 The path can be extended to target a particular component. For instance, to
 run only aqua tests for the group agent, use `/tests/ph/app/groups`.
 You can also target a particular test by appending the test name, such as
-`/tests/ph/app/groups/ph-test-group-join` to run only the groups group join test.
+`/tests/ph/app/groups/ph-test-group-join` to run only the groups group join test, as well as use pattern matching such as  `/tests/ph/app/groups/ph-test-group` to run all test cases that match `ph-test-group`.
 
 The current virtual ames driver is inefficient. This make a single test run take
 about `~20s`, or more, depending on the number of networked interactions between
