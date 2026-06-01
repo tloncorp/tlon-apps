@@ -40,31 +40,33 @@ In addition to a group member leaving the group on their own, an admin can also 
 The group host also maintains a list of banned ships and banned ranks. When a ship is banned, it is automatically kicked from the group, if it is yet a member. Furthermore, a banned ship can not interact with the group in any way: all operations will result in permission denied error. 
 
 The same applies to rank-based ban list. Banning moons from a group would firstly kick-out all existing moon-class members, while also prohibiting any future interactions.
-# 4 Foreign groups lifecycle
+# 4 Foreign groups
 
 A foreign group is a group that we possess some information about, but that we are not a full member of yet. 
-
+## 4.1 Previewing a group 
 A minimal information we can have about a group, apart from knowing its existence, is a group preview. Obtaining a group preview is non-obligatory – we might want to preview groups we have no intention no join. A group preview can be requested of public and private groups without any permissions, while previewing a secret group requires a valid access token.
 
-There are two ways to join a group: we can ask the group host for entry, or we can attempt to join directly, possibly with an access token. A successful entry request yields a group access token received from the host, that is then used to join the group.
-
-A group join has two stages: in the first stage we poke the group host with access token. If successful, we are granted a seat in the group. Subsequently, we subscribe to the group host on
-two paths: general update path, and a ship specific update path that is used to communicate facts not meant for everyone (such as admin-only facts, or personal tokens sent only to the requester).
-
-_NOTE: how can we distinguish between a kick terminating response, and a kick due to other conditions? It seems there is no reliable way to do that. But we could issue a pre-emptive leave on our own if we received a response. This way a kick can only signal a problem._
-
-## 4.1 Foreign group lookup 
+The following diagram illustrates the group preview state machine.
 ```mermaid
 stateDiagram
 [*] --> preview: subscribe for preview
 preview --> error
 preview --> kick
 preview --> done
-done --> preview: refresh
+done --> preview: subscribe to refresh
 kick --> preview: retry after delay
 error --> preview: retry
 ```
-## 4.2 Foreign group join progress
+## 4.2 Joining a group
+There are two ways to join a group: we can ask the group host for entry, or we can attempt to join directly, possibly with an access token. A successful entry request yields a group access token received from the host, that is then automatically used to join the group.
+
+A group join internally has two stages: in the first stage we poke the group host with access token. If successful, we are granted a seat in the group. At that point, control over the group is transferred from the foreign core `+fi-core` to the group core `+go-core`. Subsequently, we subscribe to the group host on two paths: general update path, and a ship specific update path that is used to communicate facts not meant for everyone (such as admin-only facts, or personal tokens sent only to the requester).
+
+# 5 Group joins
+
+As mentioned in the section on Foreign Groups, there are two ways in which a ship can become a group member. The first one is to directly issue a join request to the group with appropriate access token. (Public groups allows joins with an empty token.) The second one is to request entry using group ask request.
+
+The following state diagram illustrates these two pathways to join a group, including various error conditions that can occur.
 ```mermaid
 stateDiagram
 [*] --> ask: ask for entry
@@ -83,10 +85,9 @@ watch --> done: join completed
 watch --> X3: cancel
 watch --> error3: watch fail 
 ```
-# Sequences 
-
-## Ask request
-
+# 6 Group sequences
+In this section we discuss the most important group flows using sequence diagrams. While some of those have been presented in the preceding sections using state diagrams, state diagrams contain only local information, and as such do not give the full picture of a given flow. Here sequence diagrams complete the picture, illustrating illustrating the communication between involved parties.
+## 6.1 Ask request
 ### Public group ask
 An ask request issued to a public group is automatically approved, unless the client has been banned. The group host generates a new invite token and sends it to the client, which then proceeds to join the group with the received access token.
 
@@ -153,8 +154,29 @@ opt request denied
 	host->>client: %kick
 end
 ```
+## 6.2 Group join
+When a ship joins a group, it sends a poke containing an access token. If the token is valid, the group host will send-back standard poke-ack. If the token is not valid, the group host will crash, which terminates the join sequence with an error.
 
-## Group leave sequence
+When poke-ack has been successfully received by the joining ship, it then initiates a subscription to the group, and receives the first data payload from the group host, completing the process.
+
+```mermaid
+sequenceDiagram
+participant client
+participant host
+
+client ->> host: %join poke
+
+alt permission denied
+	host->>client: poke nack
+	client->client: set join error
+else
+	host->>client: poke ack
+	client->>host: watch /updates
+	host->>client: watch-ack
+	host->>client: group %create fact
+end
+```
+## 6.3 Group leave
 A client agent is in some way registered by the group host in the following cases: (1) he is already a group member, (2) he is in the process of joining the group and has a registered seat, (3) he has issued a group ask request, (4) he has been added to the pending list.
 
 If the client then wishes to forfeit that registration, he can issue a group leave request. The group host will then de-register the client from all existing records. In particular, the host will do the following.
@@ -186,8 +208,7 @@ opt is pending
 	host->>client: poke %ack
 end
 ```
-## Channel preview
-
+## 6.4 Channel previews
 Channel previews carry the metadata of a channel, together with the associated group preview. _Q: can a channel belong to two groups at once? Do we guard against it?_
 This is useful because in some contexts our starting point are the channels, which do not, by themselves, carry associated group information. Imagine we want to display a list of channels that have unread notifications. We know their identity, but on the display list we would also like to show the owning group icon etc. A channel preview enables us to store all required information in one place, and resolve it, if it is yet missing.
 

@@ -64,6 +64,22 @@
   =/  =a-foreigns:v8:gv  [%foreign flag %join token]
   ;<  ~  bind:m  (poke-app [joiner %groups] group-foreign-2+a-foreigns)
   (pure:m ~)
+::  +ex-group-preview: expect a group preview
+::
+++  ex-group-preview
+  |=  [viewer=ship =flag:gv meta=data:meta:g]
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m
+    %^  (ex-app-fact-match preview-update:v10:gv)
+      /(scot %p viewer)/groups/v1/foreigns/(scot %p p.flag)/[q.flag]/preview
+      [viewer %groups]
+    :-  %group-preview-3
+    |=  update=preview-update:v10:gv
+    ?>  ?=(^ update)
+    ;<  ~  bind:m  (ex-equal !>(flag.u.update) !>(flag))
+    (ex-equal !>(meta.u.update) !>(meta))
+  (pure:m ~)
 ::  +ex-foreign-invite-valid: expect a foreign invite with validity
 ::
 ++  ex-foreign-invite-valid
@@ -207,6 +223,84 @@
     [%foreign my-test-flag %ask ~]
   ;<  ~  bind:m  (poke-app [~bud %groups] group-foreign-2+a-foreigns)
   ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud ~zod^%my-test-group %create)
+  (pure:m ~)
+::  +ph-test-group-ban-kicks-member: test banning a group member
+::
+::  scenario
+::
+::  ~zod hosts a public group. ~bud joins the group successfully.
+::  ~zod bans ~bud, then ~bud receives the group deletion fact.
+::
+++  ph-test-group-ban-kicks-member
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ::
+  ;<  ~  bind:m  (create-test-group ~zod %public ~)
+  ;<  ~  bind:m  (join-test-group ~bud ~zod)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud my-test-flag %create)
+  =/  =c-groups:g
+    [%group my-test-flag [%entry [%ban [%add-ships (sy ~bud ~)]]]]
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-command+c-groups)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud my-test-flag %seat)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~bud my-test-flag %delete)
+  (pure:m ~)
+::  +ph-test-group-preview-public: test public group previews
+::
+::  scenario
+::
+::  ~zod hosts a public group and updates its metadata.
+::  ~bud previews the group and receives the updated group preview.
+::
+++  ph-test-group-preview-public
+  =/  m  (strand ,~)
+  ^-  form:m
+  =/  meta=data:meta:g  ['Public Group' 'A public group' '' '']
+  ;<  ~  bind:m  (create-test-group ~zod %public ~)
+  =/  =c-groups:g  [%group my-test-flag [%meta meta]]
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-command+c-groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns/~zod/my-test-group/preview [~bud %groups] /v1/foreigns/~zod/my-test-group/preview)
+  ;<  ~  bind:m  (ex-group-preview ~bud my-test-flag meta)
+  (pure:m ~)
+::  +ph-test-group-preview-private: test private group previews
+::
+::  scenario
+::
+::  ~zod hosts a private group and updates its metadata.
+::  ~bud previews the group and receives the updated group preview.
+::
+++  ph-test-group-preview-private
+  =/  m  (strand ,~)
+  ^-  form:m
+  =/  meta=data:meta:g  ['Private Group' 'A private group' '' '']
+  ;<  ~  bind:m  (create-test-group ~zod %private ~)
+  =/  =c-groups:g  [%group my-test-flag [%meta meta]]
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-command+c-groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns/~zod/my-test-group/preview [~bud %groups] /v1/foreigns/~zod/my-test-group/preview)
+  ;<  ~  bind:m  (ex-group-preview ~bud my-test-flag meta)
+  (pure:m ~)
+::  +ph-test-group-preview-secret: test secret group previews
+::
+::  scenario
+::
+::  ~zod hosts a secret group and updates its metadata.
+::  ~bud previews the group and receives no group preview.
+::
+++  ph-test-group-preview-secret
+  =/  m  (strand ,~)
+  ^-  form:m
+  =/  meta=data:meta:g  ['Secret Group' 'A secret group' '' '']
+  ;<  ~  bind:m  (create-test-group ~zod %secret ~)
+  =/  =c-groups:g  [%group my-test-flag [%meta meta]]
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-command+c-groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns/~zod/my-test-group/preview [~bud %groups] /v1/foreigns/~zod/my-test-group/preview)
+  ;<  ~  bind:m
+    %^  (ex-app-fact-match preview-update:v10:gv)
+      /~bud/groups/v1/foreigns/~zod/my-test-group/preview
+      [~bud %groups]
+    :-  %group-preview-3
+    |=  update=preview-update:v10:gv
+    (ex-equal !>(update) !>(~))
   (pure:m ~)
 ::  +ph-test-group-public-invite-revoke-delete: test public invite revocation on group delete
 ::
