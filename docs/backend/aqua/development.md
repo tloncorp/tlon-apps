@@ -205,7 +205,7 @@ arvo, as well as receive effects.
 It is therefore not possible to interface directly through gall API with apps running inside virtual ships. Instead, we use arvo tasks to pass messages to vanes running on a
 virtual ship. To receive effects, we can subscribe to a generic aqua
 endpoint `/effect`, and also target a specific type of arvo effects by using a specific subscription path, such as `/effect/unto` for gall `%unto` effects.
-### Observing the system
+### Debug mode: observing the system
 Discerning the exact test sequence and data involved is not always easy just
 by reading the code or the documentation and can be error-prone, especially if the functionality is spread across many libraries or agents.
 
