@@ -113,6 +113,49 @@
   ;<  ~  bind:m  (join-test-group ~nec ~zod)
   ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~nec ~zod^%my-test-group %create)
   (pure:m ~)
+::  +ph-test-group-join-private-pending-invite: test private group pending invitations
+::
+::  scenario
+::
+::  ~zod hosts a private group and adds ~bud to the pending list with
+::  the admin role. ~bud receives the pending invitation and joins the
+::  group successfully, receiving the group creation fact with the
+::  admin role preserved.
+::
+++  ph-test-group-join-private-pending-invite
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~zod/groups/v1/groups [~zod %groups] /v1/groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
+  ::
+  ::  ~zod hosts a private group, then adds ~bud to the pending list.
+  ::
+  ;<  ~  bind:m  (create-test-group ~zod %private ~)
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~zod ~zod^%my-test-group %create)
+  =/  roles=(set role-id:g)  (sy %admin ~)
+  =/  =c-groups:g
+    [%group my-test-flag [%entry [%pending (sy ~bud ~) [%add roles]]]]
+  ;<  ~  bind:m  (poke-app [~zod %groups] group-command+c-groups)
+  ::  ~zod first records the generated invite token, then the pending entry.
+  ::
+  ;<  ~  bind:m  (ex-r-groups-fact-match-tag ~zod ~zod^%my-test-group %entry)
+  ;<  ~  bind:m
+    (ex-r-groups ~zod [my-test-flag [%entry [%pending [%add (sy ~bud ~) roles]]]])
+  ::  ~bud receives the pending invitation and joins the group.
+  ::
+  ;<  *  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
+  ;<  ~  bind:m  (join-test-group ~bud ~zod)
+  ;<  ~  bind:m
+    %^  (ex-app-fact-match r-groups:v10:gv)  /~bud/groups/v1/groups
+      [~bud %groups]
+    :-  %group-response-1
+    |=  rep=r-groups:v10:gv
+    ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(my-test-flag))
+    ?>  ?=(%create -.r-group.rep)
+    =/  =seat:g  (~(got by seats.group.r-group.rep) ~bud)
+    (ex-equal !>(roles.seat) !>(roles))
+  (pure:m ~)
 ::  +ph-test-group-join-public: test public group joins
 ::
 ::  scenario
