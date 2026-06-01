@@ -1,3 +1,4 @@
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { getIdParts } from '@tloncorp/api/urbit';
 import type { Notification } from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -25,10 +26,6 @@ export type SafeActivityParseResult =
 
 function isNonNullObject(value: unknown): value is Record<string, unknown> {
   return value != null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function ensureSig(ship: string): string {
-  return ship.startsWith('~') ? ship : `~${ship}`;
 }
 
 export function pickPlatformPayload(notification: Notification): unknown {
@@ -102,7 +99,7 @@ export function extractDmTapTelemetry(
   }
 
   const messageSentAtMs = parts.sent;
-  const senderShip = ensureSig(parts.author);
+  const senderShip = preSig(parts.author);
   const messageId = id;
 
   const uidRaw = rawPayload.uid;
