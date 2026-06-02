@@ -133,7 +133,7 @@ export function A2UIBlock({
   block,
   ...props
 }: { block: A2UIBlockData } & ComponentProps<typeof YStack>) {
-  const context = useContentContext();
+  const { isA2UIActionAvailable, onA2UIAction } = useContentContext();
   const update = A2UI.getUpdateMessage(block.a2ui);
   const root = A2UI.getRootComponentId(block.a2ui);
   const components = useMemo(() => {
@@ -154,9 +154,9 @@ export function A2UIBlock({
         return;
       }
 
-      context.onA2UIAction?.(component.action);
+      onA2UIAction?.(component.action);
     },
-    [context]
+    [onA2UIAction]
   );
 
   const renderComponent = useCallback(
@@ -256,7 +256,10 @@ export function A2UIBlock({
             />
           );
         case 'Button': {
-          const disabled = component.disabled || !context.onA2UIAction;
+          const disabled =
+            component.disabled ||
+            !onA2UIAction ||
+            isA2UIActionAvailable?.(component.action) === false;
           const label = getComponentText(
             components.get(component.child),
             components
@@ -286,7 +289,7 @@ export function A2UIBlock({
         }
       }
     },
-    [components, context.onA2UIAction, handleButtonPress]
+    [components, handleButtonPress, isA2UIActionAvailable, onA2UIAction]
   );
 
   if (!root) {

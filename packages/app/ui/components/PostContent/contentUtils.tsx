@@ -31,6 +31,7 @@ export interface ContentContextProps {
   getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
   onA2UIAction?: (action: A2UI.Button['action']) => void | Promise<void>;
+  isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
   searchQuery?: string;
 }
 

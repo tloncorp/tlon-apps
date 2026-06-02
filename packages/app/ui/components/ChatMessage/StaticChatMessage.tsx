@@ -122,6 +122,26 @@ export function StaticChatMessage({
     },
     [draftInputContext, navigateToA2UITarget]
   );
+
+  const isA2UIActionAvailable = useCallback(
+    (action: A2UI.Button['action']) => {
+      if (action.event.name === A2UI.action.navigate) {
+        return true;
+      }
+
+      if (action.event.name === A2UI.action.sendMessage) {
+        return Boolean(
+          draftInputContext &&
+            draftInputContext.canStartDraft !== false &&
+            action.event.context.text.trim()
+        );
+      }
+
+      return false;
+    },
+    [draftInputContext]
+  );
+
   const canRenderA2UI = isDmChannelId(post.channelId);
 
   const postContent = usePostContent(post);
@@ -213,6 +233,9 @@ export function StaticChatMessage({
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
             onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
+            isA2UIActionAvailable={
+              canRenderA2UI ? isA2UIActionAvailable : undefined
+            }
             searchQuery={searchQuery}
           />
         )}

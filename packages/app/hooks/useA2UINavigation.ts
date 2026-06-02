@@ -1,3 +1,4 @@
+import { getCanonicalPostId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
@@ -9,26 +10,6 @@ const logger = createDevLogger('a2ui-navigation', false);
 
 function isChatChannel(channel: db.Channel): boolean {
   return ['chat', 'dm', 'groupDm'].includes(channel.type);
-}
-
-function formatNumericPostId(value: string): string {
-  const compact = value.replace(/\./g, '');
-  if (!/^\d+$/.test(compact)) {
-    return value;
-  }
-
-  return compact.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-
-function normalizePostId(postId: string): string {
-  const separator = postId.indexOf('/');
-  if (separator === -1) {
-    return formatNumericPostId(postId);
-  }
-
-  return `${postId.slice(0, separator + 1)}${formatNumericPostId(
-    postId.slice(separator + 1)
-  )}`;
 }
 
 async function getPost(postId: string): Promise<db.Post | null> {
@@ -71,9 +52,9 @@ export function useA2UINavigation() {
 
   const navigateToMessage = useCallback(
     async (target: A2UI.MessageNavigationTarget) => {
-      const postId = normalizePostId(target.postId);
+      const postId = getCanonicalPostId(target.postId);
       const parentId = target.parentId
-        ? normalizePostId(target.parentId)
+        ? getCanonicalPostId(target.parentId)
         : undefined;
       const channel = await getChannel(target.channelId);
       if (!channel) {
@@ -131,7 +112,7 @@ export function useA2UINavigation() {
           rootNavigation.navigateToChannel(
             channel,
             target.selectedPostId
-              ? normalizePostId(target.selectedPostId)
+              ? getCanonicalPostId(target.selectedPostId)
               : undefined
           );
           return;
