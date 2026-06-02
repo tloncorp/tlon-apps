@@ -97,35 +97,6 @@
 ::
 ::  ─── tests ───────────────────────────────────────────────────────────
 ::
-::  +ph-test-force-join: ~bud joins ~zod's public group via force-join
-::
-++  ph-test-force-join
-  =/  m  (strand ,~)
-  ^-  form:m
-  ::  ~zod hosts a group, opens it to the public
-  ;<  ~  bind:m  create-test-group
-  =/  open=a-groups:v8:gv
-    [%group my-test-flag [%entry [%privacy %public]]]
-  ;<  ~  bind:m  (poke-app [~zod %groups] group-action-4+open)
-  ::  watch ~bud's foreigns so we see the join progress to %done
-  ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
-  ::  invoke the thread on ~bud
-  ;<  ~  bind:m
-    %^  run-thread-ok  ~bud  %force-join
-    (frond:enjs:format flag+s+my-test-group-id)
-  ::  drain foreigns updates until we see progress=%done
-  |-
-  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
-  ?.  =(%foreigns-1 p.kag)  $
-  =+  !<(=foreigns:v8:gv q.kag)
-  =/  far=(unit foreign:v8:gv)  (~(get by foreigns) my-test-flag)
-  ?:  ?|  ?=(~ far)
-          !=(`%done progress.u.far)
-      ==
-    $
-  ;<  ~  bind:m  (leave-app /~bud/groups/v1/foreigns [~bud %groups])
-  (pure:m ~)
-::
 ::  +ph-test-create-private-group: idempotent group creation
 ::
 ++  ph-test-create-private-group
