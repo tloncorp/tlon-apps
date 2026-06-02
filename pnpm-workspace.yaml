@@ -42,7 +42,6 @@ patchedDependencies:
   expo-image-manipulator: patches/expo-image-manipulator@56.0.19.patch
   expo-background-task: patches/expo-background-task@56.0.19.patch
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
-  'react-native-enriched@0.5.2': patches/react-native-enriched@0.5.2.patch
 
 allowUnusedPatches: false
 
@@ -78,6 +77,7 @@ overrides:
   react-native-gesture-handler: ~2.31.1
   get-intrinsic: 1.2.4
   esbuild: 0.27.3
+  react-native-enriched: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
 
 allowBuilds:
   "@firebase/util": true
