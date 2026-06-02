@@ -116,8 +116,9 @@ export const SignupScreen = ({ navigation }: Props) => {
         lure: lureMeta?.id,
       });
       if (!enabled) {
-        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck, {
+        logger.trackError(AnalyticsEvent.SignupFailedInventoryCheck, {
           severity: AnalyticsSeverity.Critical,
+          hadInvite: Boolean(lureMeta?.id),
         });
         navigation.navigate('JoinWaitList', {});
         return;
