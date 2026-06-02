@@ -261,6 +261,31 @@
       :~  time+s+(scot %ud time.te)
           event+(event event.te)
       ==
+    ++  update
+      |=  u=update:v9:av
+      %+  frond  -.u
+      ?-  -.u
+        %add  (added +.u)
+        %del  (source +.u)
+        %read  (read +.u)
+        %activity  (activity +.u |)
+        %adjust  (adjusted +.u)
+        %allow-notifications  (allowed +.u)
+      ==
+    ++  added
+      |=  [src=source:v9:av te=time-event:v9:av]
+      %-  pairs
+      :~  source+(source src)
+          source-key+s+(string-source src)
+          time+(time time.te)
+          event+(event event.te)
+      ==
+    ++  adjusted
+      |=  [s=source:v9:av v=(unit volume-map:v9:av)]
+      %-  pairs
+      :~  source+(source s)
+          volume+?~(v ~ (volume-map u.v))
+      ==
     --
   ::
   ++  v8

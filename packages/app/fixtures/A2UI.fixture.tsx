@@ -186,6 +186,7 @@ function makeApprovalA2UI({
   copy,
   allowNote,
   requestId,
+  viewMessageTarget,
 }: {
   surfaceId: string;
   eyebrow: string;
@@ -194,8 +195,13 @@ function makeApprovalA2UI({
   copy?: string;
   allowNote: string;
   requestId: string;
+  viewMessageTarget?: A2UI.NavigationTarget;
 }): A2UI.BlobEntry {
   const metadataChildren = metadata.map((_, index) => `metadata-${index}`);
+  const actionChildren = ['allow', 'reject', 'ban'];
+  const sourceActionComponents: A2UI.Component[] = viewMessageTarget
+    ? [{ id: 'sourceAction', component: 'Row', children: ['viewMessage'] }]
+    : [];
   const bodyChildren = copy
     ? [
         'eyebrow',
@@ -203,6 +209,7 @@ function makeApprovalA2UI({
         'titleDivider',
         ...metadataChildren,
         'copy',
+        ...(viewMessageTarget ? ['sourceAction'] : []),
         'divider',
         'details',
         'actions',
@@ -212,6 +219,7 @@ function makeApprovalA2UI({
         'title',
         'titleDivider',
         ...metadataChildren,
+        ...(viewMessageTarget ? ['sourceAction'] : []),
         'divider',
         'details',
         'actions',
@@ -272,6 +280,7 @@ function makeApprovalA2UI({
                   } as const,
                 ]
               : []),
+            ...sourceActionComponents,
             { id: 'divider', component: 'Divider' },
             {
               id: 'details',
@@ -287,8 +296,29 @@ function makeApprovalA2UI({
             {
               id: 'actions',
               component: 'Row',
-              children: ['allow', 'reject', 'ban'],
+              children: actionChildren,
             },
+            ...(viewMessageTarget
+              ? [
+                  {
+                    id: 'viewMessage',
+                    component: 'Button',
+                    variant: 'secondary',
+                    child: 'viewMessageLabel',
+                    action: {
+                      event: {
+                        name: 'tlon.navigate',
+                        context: { target: viewMessageTarget },
+                      },
+                    },
+                  } as const,
+                  {
+                    id: 'viewMessageLabel',
+                    component: 'Text',
+                    text: 'View message',
+                  } as const,
+                ]
+              : []),
             {
               id: 'allow',
               component: 'Button',
@@ -343,6 +373,12 @@ const confirmationA2UI = makeApprovalA2UI({
   allowNote:
     'The bot will be able to read and reply to future DMs from this user.',
   requestId: 'da1b2',
+  viewMessageTarget: {
+    type: 'message',
+    channelId: dmChannelId,
+    postId: '170.141.184.507',
+    authorId: '~sampel-palnet',
+  },
 });
 
 const channelApprovalA2UI = makeApprovalA2UI({
@@ -358,6 +394,13 @@ const channelApprovalA2UI = makeApprovalA2UI({
   allowNote:
     'The bot will be able to read and reply to this user in this channel.',
   requestId: 'c3d4e',
+  viewMessageTarget: {
+    type: 'message',
+    channelId: 'chat/~zod/design',
+    postId: '170.141.184.621',
+    authorId: '~littel-wolfur',
+    groupId: '~zod/garden-club',
+  },
 });
 
 const groupApprovalA2UI = makeApprovalA2UI({
@@ -545,7 +588,7 @@ const basicComponentsA2UI: A2UI.BlobEntry = {
           {
             id: 'buttonRowTwo',
             component: 'Row',
-            children: ['borderlessButton', 'disabledButton'],
+            children: ['borderlessButton', 'navigateButton', 'disabledButton'],
           },
           {
             id: 'borderlessButton',
@@ -560,6 +603,24 @@ const basicComponentsA2UI: A2UI.BlobEntry = {
             },
           },
           { id: 'borderlessLabel', component: 'Text', text: 'Borderless' },
+          {
+            id: 'navigateButton',
+            component: 'Button',
+            variant: 'secondary',
+            child: 'navigateLabel',
+            action: {
+              event: {
+                name: 'tlon.navigate',
+                context: {
+                  target: {
+                    type: 'profile',
+                    userId: '~sampel-palnet',
+                  },
+                },
+              },
+            },
+          },
+          { id: 'navigateLabel', component: 'Text', text: 'Navigate' },
           {
             id: 'disabledButton',
             component: 'Button',
