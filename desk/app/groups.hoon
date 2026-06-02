@@ -649,6 +649,19 @@
   ^-  path
   /(scot %p our.bowl)/channels/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
 ::
+::  +is-joined: are we subscribed to (or host of) this channel? Built-in
+::  channels kinds scry %channels; any other kind uses the generic
+::  channel-host convention — the nest kind names the backing agent and we
+::  %gu its /joined/<host>/<name> path. An uninstalled kind reads as |.
+++  is-joined
+  |=  =nest:g
+  ^-  ?
+  ?:  ?=(kind:d p.nest)
+    .^(? %gu (channels-scry nest))
+  =/  =path
+    /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/joined/(scot %p p.q.nest)/[q.q.nest]
+  .^(? %gu path)
+::
 ++  reset-all-perms
   (~(rep by groups) (reset-group-perms cor))
 ::
@@ -1542,8 +1555,7 @@
         %-  silt
         %+  skim  nests
         |=  =nest:g
-        ?.  ?=(kind:d p.nest)  |
-        .^(? %gu (channels-scry nest))
+        (is-joined nest)
       ==
     cor
   ::
@@ -3452,13 +3464,17 @@
           nests
       |=  nes=nest:g
       ^-  (unit card)
-      ?.  ?=(?(%chat %diary %heap) p.nes)
-        ~
-      =/  =dock  [our.bowl %channels]
-      =/  action=a-channels:v9:dv  [%channel nes %leave ~]
-      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
-      `[%pass wire %agent dock %poke cage]
+      ?:  ?=(?(%chat %diary %heap) p.nes)
+        =/  =dock  [our.bowl %channels]
+        =/  action=a-channels:v9:dv  [%channel nes %leave ~]
+        `[%pass wire %agent dock %poke channel-action-1+!>(action)]
+      ::  generic channel-host: the nest kind names the backing agent on our
+      ::  ship; poke %<kind>-leave carrying the nest. An uninstalled kind just
+      ::  nacks (logged in go-agent, otherwise harmless).
+      =/  =dock     [our.bowl p.nes]
+      =/  =mark     `@tas`(crip (weld (trip p.nes) "-leave"))
+      `[%pass wire %agent dock %poke mark !>(nes)]
     ::
     ++  join-channels
       |=  nests=(list nest:g)
@@ -3468,13 +3484,15 @@
           nests
       |=  nes=nest:g
       ^-  (unit card)
-      ?.  ?=(?(%chat %diary %heap) p.nes)
-        ~
-      =/  =dock  [our.bowl %channels]
-      =/  action=a-channels:v9:dv  [%channel nes %join flag]
-      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %join-channels)
-      `[%pass wire %agent dock %poke cage]
+      ?:  ?=(?(%chat %diary %heap) p.nes)
+        =/  =dock  [our.bowl %channels]
+        =/  action=a-channels:v9:dv  [%channel nes %join flag]
+        `[%pass wire %agent dock %poke channel-action-1+!>(action)]
+      ::  generic channel-host: poke %<kind>-join carrying [nest group-flag].
+      =/  =dock     [our.bowl p.nes]
+      =/  =mark     `@tas`(crip (weld (trip p.nes) "-join"))
+      `[%pass wire %agent dock %poke mark !>([nes flag])]
     ::
     ++  go-wake-members
       ~>  %spin.['go-wake-members']
@@ -3882,8 +3900,7 @@
         %-  silt
         %+  skim  nests
         |=  =nest:g
-        ?.  ?=(kind:d p.nest)  |
-        .^(? %gu (channels-scry nest))
+        (is-joined nest)
       (go-response [%create group])
     ::  join the channels upon initial group log,
     ::  if this group hadn't been initialized yet
@@ -4337,8 +4354,13 @@
       =/  pre=path
         /(scot %p our.bowl)/channels/(scot %da now.bowl)
       =/  active
-        ?.  ?=(kind:d p.nest)  |
-        .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
+        ?:  ?=(kind:d p.nest)
+          .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
+        ::  generic channel-host: nest kind names the backing agent; %gu its
+        ::  conventional /joined/<host>/<name> path.
+        =/  jpath=path
+          /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/joined/(scot %p p.q.nest)/[q.q.nest]
+        .^(? %gu jpath)
       =?  active-channels.group  active
         (~(put in active-channels.group) nest)
       ?:  go-our-host  go-core
