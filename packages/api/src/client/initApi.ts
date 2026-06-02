@@ -109,7 +109,17 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
   // in here, you're definitely not a member of it
   logger.crumb('extracting joined channels');
 
-  const joinedChannels = channelsInit.map((channel) => channel.channelId);
+  // %channels-backed channels (chat/diary/heap) come from channelsInit;
+  // channels backed by other agents (e.g. %notes) aren't tracked by
+  // %channels, so fold in each group's active-channels set — %groups maintains
+  // it for every channel kind via the channel-host convention.
+  const activeChannelIds = Object.values(response.groups ?? {}).flatMap(
+    (group) => group['active-channels'] ?? []
+  );
+  const joinedChannels = [
+    ...channelsInit.map((channel) => channel.channelId),
+    ...activeChannelIds,
+  ];
 
   logger.crumb('returning init data');
 

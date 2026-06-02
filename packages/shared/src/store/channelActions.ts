@@ -109,10 +109,16 @@ export async function createChannel({
   return newChannel;
 }
 
-interface NotesNotebookEntry {
-  host: string;
-  flagName: string;
-  notebook: { id: number; title: string };
+interface NotesCreateResponse {
+  requestId: string;
+  body: {
+    type: string;
+    notebook?: {
+      host: string;
+      flagName: string;
+      notebook: { id: number; title: string };
+    };
+  };
 }
 
 async function createNotesChannel({
@@ -126,34 +132,24 @@ async function createNotesChannel({
   description?: string;
   readers: string[];
 }): Promise<db.Channel> {
-  const currentUserId = api.getCurrentUserId();
-
-  // Snapshot the set of locally-hosted notebook flags so we can identify the
-  // freshly-created one after the poke. The %notes agent assigns the flag,
-  // so we can't precompute it.
-  const before = await scryNotesNotebooks();
-  const beforeOurs = new Set(
-    before.filter((n) => n.host === currentUserId).map((n) => n.flagName)
+  // Create the notebook via the %notes HTTP API, which returns the
+  // server-assigned flag synchronously in the response body — no polling, no
+  // forced-public visibility hack. Binding it to this group makes the notebook
+  // a group channel: read permission defers to the group's can-read, and
+  // %groups auto-joins/leaves members via the channel-host convention.
+  const [groupHost, groupName] = groupId.split('/');
+  const res = await api.requestJson<NotesCreateResponse>(
+    '/notes/~/v1/notebooks',
+    'POST',
+    { title, group: { host: groupHost, flagName: groupName } }
   );
-
-  await api.poke({
-    app: 'notes',
-    mark: 'notes-action',
-    json: { type: 'create-notebook', title },
-  });
-
-  const newEntry = await pollForNewNotebook({
-    currentUserId,
-    title,
-    excluded: beforeOurs,
-  });
-
-  if (!newEntry) {
+  const summary =
+    res?.body?.type === 'notebook' ? (res.body.notebook ?? null) : null;
+  if (!summary) {
     throw new Error('Failed to create notes notebook');
   }
 
-  const channelId = `notes/${newEntry.host}/${newEntry.flagName}`;
-  const flag = `${newEntry.host}/${newEntry.flagName}`;
+  const channelId = `notes/${summary.host}/${summary.flagName}`;
 
   logger.trackEvent(
     AnalyticsEvent.ActionCreateChannel,
@@ -162,23 +158,6 @@ async function createNotesChannel({
       group: { id: groupId },
     })
   );
-
-  // Default new notebooks to public so any group member can join. We don't
-  // yet propagate group membership to the notebook's per-member ACL, so
-  // private would lock everyone but the owner out.
-  try {
-    await api.poke({
-      app: 'notes',
-      mark: 'notes-action',
-      json: {
-        type: 'notebook',
-        flag,
-        action: { type: 'visibility', visibility: 'public' },
-      },
-    });
-  } catch (e) {
-    logger.error('Failed to set notebook visibility to public', e);
-  }
 
   // Pick a section to add this channel to. Tlon-created groups conventionally
   // have a 'default' section, but we'll prefer whatever the first section is
@@ -225,47 +204,6 @@ async function createNotesChannel({
   }
 
   return newChannel;
-}
-
-async function scryNotesNotebooks(): Promise<NotesNotebookEntry[]> {
-  try {
-    const data = await api.scry<NotesNotebookEntry[]>({
-      app: 'notes',
-      path: '/v0/notebooks',
-    });
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    logger.error('scry /v0/notebooks failed', e);
-    return [];
-  }
-}
-
-async function pollForNewNotebook({
-  currentUserId,
-  title,
-  excluded,
-  attempts = 8,
-  delayMs = 250,
-}: {
-  currentUserId: string;
-  title: string;
-  excluded: Set<string>;
-  attempts?: number;
-  delayMs?: number;
-}): Promise<NotesNotebookEntry | null> {
-  for (let i = 0; i < attempts; i++) {
-    const all = await scryNotesNotebooks();
-    const ours = all.filter((n) => n.host === currentUserId);
-    // Prefer an exact title match among new entries, otherwise just any new
-    // entry (handles the rare case where the title was sanitized/transformed
-    // by the agent).
-    const fresh = ours.filter((n) => !excluded.has(n.flagName));
-    const match =
-      fresh.find((n) => n.notebook.title === title) ?? fresh[0] ?? null;
-    if (match) return match;
-    await new Promise((r) => setTimeout(r, delayMs));
-  }
-  return null;
 }
 
 /**
