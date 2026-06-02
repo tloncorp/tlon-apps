@@ -99,21 +99,12 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                 </YStack>
               </Pressable>
             ) : (
-              <YStack gap="$l">
-                <OnboardingButton
-                  onPress={() => {
-                    navigation.navigate('Signup');
-                  }}
-                  label="Sign up"
-                />
-                <OnboardingButton
-                  secondary
-                  onPress={() => {
-                    navigation.navigate('PasteInviteLink');
-                  }}
-                  label="I have an invite code"
-                />
-              </YStack>
+              <OnboardingButton
+                onPress={() => {
+                  navigation.navigate('PasteInviteLink');
+                }}
+                label="Sign up"
+              />
             )}
           </YStack>
           <XStack justifyContent="center">
