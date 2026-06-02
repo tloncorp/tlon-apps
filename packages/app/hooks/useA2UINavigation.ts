@@ -12,6 +12,20 @@ function isChatChannel(channel: db.Channel): boolean {
   return ['chat', 'dm', 'groupDm'].includes(channel.type);
 }
 
+function getAuthorFromPrefixedPostId(postId?: string): string | undefined {
+  if (!postId?.startsWith('~')) {
+    return undefined;
+  }
+
+  const separator = postId.indexOf('/');
+  if (separator === -1) {
+    return undefined;
+  }
+
+  const authorId = postId.slice(0, separator);
+  return authorId.length > 1 ? authorId : undefined;
+}
+
 async function getPost(postId: string): Promise<db.Post | null> {
   try {
     return await db.getPost({ postId });
@@ -68,7 +82,9 @@ export function useA2UINavigation() {
           const parentTarget = postFromTarget(
             target,
             parentId,
-            parentPost?.authorId ?? target.authorId
+            parentPost?.authorId ??
+              target.parentAuthorId ??
+              getAuthorFromPrefixedPostId(target.parentId)
           );
           if (!parentTarget) {
             logger.log('missing parent post author for message target', target);

@@ -43,6 +43,7 @@ export namespace A2UI {
     channelId: string;
     postId: string;
     parentId?: string;
+    parentAuthorId?: string;
     authorId?: string;
     groupId?: string;
   };
@@ -256,6 +257,7 @@ function validateNavigationTarget(
         isValidTargetId(target.channelId) &&
         isValidTargetId(target.postId) &&
         isValidOptionalTargetId(target.parentId) &&
+        isValidOptionalTargetId(target.parentAuthorId) &&
         isValidOptionalTargetId(target.authorId) &&
         isValidOptionalTargetId(target.groupId)
       );

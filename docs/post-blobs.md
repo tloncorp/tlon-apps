@@ -89,6 +89,7 @@ The supported v1 client subset is intentionally small:
 - button actions:
   - `tlon.sendMessage`, which sends explicit action text in the current DM
   - `tlon.navigate`, which can navigate to a message, channel, group, profile, chat details, or chat volume screen
+    - message reply targets should include `parentAuthorId` when `parentId` is not already prefixed as `~author/id`
 - rendering policy: A2UI blocks render only in direct messages for now
 - validation limits: component count, tree depth, text length, and expanded render size
 

@@ -82,6 +82,7 @@ describe('a2ui blob entries', () => {
                           channelId: 'chat/~zod/general',
                           postId: '170.141.184.507',
                           parentId: '170.141.184.000',
+                          parentAuthorId: '~nec',
                           authorId: '~sampel-palnet',
                           groupId: '~zod/garden',
                         },
