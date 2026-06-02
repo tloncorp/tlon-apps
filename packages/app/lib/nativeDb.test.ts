@@ -85,8 +85,10 @@ const loggerSpies = vi.hoisted(() => ({
 }));
 
 const sharedDbSpies = vi.hoisted(() => ({
+  resetDidSyncInitialPosts: vi.fn(async () => undefined),
   resetHeadsSyncedAt: vi.fn(async () => undefined),
   resetChangesSyncedAt: vi.fn(async () => undefined),
+  resetUserHasCompletedFirstSync: vi.fn(async () => undefined),
   setClient: vi.fn(),
 }));
 
@@ -112,6 +114,7 @@ vi.mock('@tloncorp/shared', () => ({
 
 vi.mock('@tloncorp/shared/db', () => ({
   changesSyncedAt: { resetValue: sharedDbSpies.resetChangesSyncedAt },
+  didSyncInitialPosts: { resetValue: sharedDbSpies.resetDidSyncInitialPosts },
   handleChange: vi.fn(),
   headsSyncedAt: { resetValue: sharedDbSpies.resetHeadsSyncedAt },
   schema: {
@@ -121,6 +124,9 @@ vi.mock('@tloncorp/shared/db', () => ({
     posts: 'posts',
   },
   setClient: sharedDbSpies.setClient,
+  userHasCompletedFirstSync: {
+    resetValue: sharedDbSpies.resetUserHasCompletedFirstSync,
+  },
 }));
 
 vi.mock('@op-engineering/op-sqlite', () => ({
@@ -282,6 +288,12 @@ describe('NativeDb', () => {
     expect(firstConnection.delete).toHaveBeenCalledTimes(1);
     expect(secondConnection.migrateClient).toHaveBeenCalledTimes(1);
     expect(sharedDbSpies.setClient).toHaveBeenCalledTimes(2);
+    expect(sharedDbSpies.resetHeadsSyncedAt).toHaveBeenCalledTimes(1);
+    expect(sharedDbSpies.resetChangesSyncedAt).toHaveBeenCalledTimes(1);
+    expect(sharedDbSpies.resetDidSyncInitialPosts).toHaveBeenCalledTimes(1);
+    expect(sharedDbSpies.resetUserHasCompletedFirstSync).toHaveBeenCalledTimes(
+      1
+    );
   });
 
   it('retries through purge/setup when schema health check fails', async () => {
