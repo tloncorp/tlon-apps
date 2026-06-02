@@ -1306,6 +1306,27 @@
         del+whom
     ==
   ::
+  ++  v9
+    =,  v8
+    |%
+    ++  a-foreigns
+      ^-  $-(json a-foreigns:v9:gv)
+      %-  of
+      :~  foreign+(ot flag+flag a-foreign+a-foreign ~)
+          ::TODO invite+invite
+          revoke+(ot flag+flag token+(mu (se %uv)) ~)
+          reject+flag
+      ==
+    ++  a-foreign
+      ^-  $-(json a-foreign:v9:gv)
+      %-  of
+      :~  join+(mu (se %uv))
+          ask+(mu story:dejs:sj)
+          cancel+ul
+          decline+(mu (se %uv))
+      ==
+    --
+  ::
   ++  v8
     |%
     ++  a-groups
