@@ -42,6 +42,32 @@ test('inserts all groups', async () => {
   expect(groups.length).toEqual(groupsData.length);
 });
 
+test('insertGroups only invalidates posts when payloads include channels', () => {
+  const tableEffects = queries.insertGroups.meta.tableEffects;
+  if (typeof tableEffects !== 'function') {
+    throw new Error('insertGroups should declare dynamic table effects');
+  }
+
+  const groupWithoutChannels = {
+    id: '~bus/no-channels',
+  } as unknown as Parameters<typeof queries.insertGroups>[0]['groups'][number];
+  const groupWithChannels = {
+    id: '~bus/with-channels',
+    channels: [
+      {
+        id: 'chat/~bus/with-channels/general',
+        groupId: '~bus/with-channels',
+        type: 'chat',
+      },
+    ],
+  } as unknown as Parameters<typeof queries.insertGroups>[0]['groups'][number];
+
+  expect(tableEffects({ groups: [groupWithoutChannels] })).not.toContain(
+    'posts'
+  );
+  expect(tableEffects({ groups: [groupWithChannels] })).toContain('posts');
+});
+
 // A full group payload is authoritative for nav-section memberships, so
 // the local `group_nav_section_channels` rows for those sections must
 // match the incoming payload exactly. Without an explicit delete in
@@ -1696,6 +1722,151 @@ describe('recomputeChannelLastPost', () => {
     // `{ lastPostId: null, lastPostAt: 9999 }` from the nulled sibling.
     expect(group!.lastPostId).toBe('valid-sibling-head');
     expect(group!.lastPostAt).toBe(2000);
+  });
+});
+
+describe('last post repair after channel metadata insert', () => {
+  type TestGroup = Parameters<typeof queries.insertGroups>[0]['groups'][number];
+
+  function testClient() {
+    const client = getClient();
+    if (!client) throw new Error('test db not initialized');
+    return client;
+  }
+
+  function testGroup(groupId: string, channelId?: string): TestGroup {
+    return {
+      id: groupId,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~zod',
+      channels: channelId ? [{ id: channelId, type: 'chat', groupId }] : [],
+    } as unknown as TestGroup;
+  }
+
+  function testPost({
+    id,
+    channelId,
+    groupId,
+    at,
+    sequenceNum,
+  }: {
+    id: string;
+    channelId: string;
+    groupId?: string;
+    at: number;
+    sequenceNum: number;
+  }): Post {
+    return {
+      id,
+      type: 'chat',
+      channelId,
+      groupId,
+      authorId: '~zod',
+      sentAt: at,
+      receivedAt: at,
+      sequenceNum,
+      content: JSON.stringify([{ inline: ['preview'] }]),
+      syncedAt: at,
+    } as unknown as Post;
+  }
+
+  async function expectPreview({
+    groupId,
+    channelId,
+    postId,
+    at,
+  }: {
+    groupId: string;
+    channelId: string;
+    postId: string;
+    at: number;
+  }) {
+    const post = await testClient().query.posts.findFirst({
+      where: $.eq(schema.posts.id, postId),
+    });
+    expect(post!.groupId).toBe(groupId);
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBe(postId);
+    expect(channel!.lastPostAt).toBe(at);
+
+    const group = await queries.getGroup({ id: groupId });
+    expect(group!.lastPostId).toBe(postId);
+    expect(group!.lastPostAt).toBe(at);
+  }
+
+  async function insertCachedHead(post: Post) {
+    await queries.insertChannelPosts({ posts: [post] });
+    const inserted = await testClient().query.posts.findFirst({
+      where: $.eq(schema.posts.id, post.id),
+    });
+    expect(inserted!.groupId).toBeNull();
+  }
+
+  test('channel insertion repairs posts that were already cached locally', async () => {
+    const groupId = '~zod/channel-insert-preview-repair';
+    const channelId = 'chat/~zod/channel-insert-preview-repair/general';
+    const post = testPost({
+      id: 'channel-insert-preview-repair-head',
+      channelId,
+      at: 3000,
+      sequenceNum: 8,
+    });
+
+    await insertCachedHead(post);
+    await queries.insertGroups({ groups: [testGroup(groupId)] });
+    await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+    await expectPreview({
+      groupId,
+      channelId,
+      postId: post.id,
+      at: post.receivedAt,
+    });
+  });
+
+  test('group insertion repairs embedded channel posts that were already cached locally', async () => {
+    const groupId = '~zod/group-insert-preview-repair';
+    const channelId = 'chat/~zod/group-insert-preview-repair/general';
+    const post = testPost({
+      id: 'group-insert-preview-repair-head',
+      channelId,
+      at: 4000,
+      sequenceNum: 9,
+    });
+
+    await insertCachedHead(post);
+    await queries.insertGroups({ groups: [testGroup(groupId, channelId)] });
+    await expectPreview({
+      groupId,
+      channelId,
+      postId: post.id,
+      at: post.receivedAt,
+    });
+  });
+
+  test('metadata repair preserves newer server sequence watermarks', async () => {
+    const groupId = '~zod/sequence-watermark-repair';
+    const channelId = 'chat/~zod/sequence-watermark-repair/general';
+    const post = testPost({
+      id: 'sequence-watermark-repair-local-head',
+      channelId,
+      at: 5000,
+      sequenceNum: 50,
+    });
+
+    await insertCachedHead(post);
+    await queries.insertGroups({ groups: [testGroup(groupId)] });
+    await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+    await queries.setLatestChannelSequenceNum({
+      channelId,
+      sequenceNum: 100,
+    });
+
+    await queries.insertGroups({ groups: [testGroup(groupId, channelId)] });
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostSequenceNum).toBe(100);
   });
 });
 
