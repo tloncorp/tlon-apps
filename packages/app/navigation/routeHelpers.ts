@@ -16,9 +16,10 @@ export function screenNameFromChannelId(channelId: string) {
 }
 
 // The real desktop top-level drawer route names (see
-// `navigation/desktop/TopLevelDrawer.tsx`). Note this intentionally uses
-// `Contacts`, not the stale `Profile` name still present in `getTab`'s list.
-const TOP_LEVEL_DRAWER_ROUTES = [
+// `navigation/desktop/TopLevelDrawer.tsx`). Shared with `getTab` in `utils.ts`
+// so the two top-level-drawer detectors can't drift. Note the correct name is
+// `Contacts`, not `Profile` (which `getTab` previously hard-coded by mistake).
+export const TOP_LEVEL_DRAWER_ROUTES = [
   'Home',
   'Messages',
   'Activity',

@@ -16,6 +16,7 @@ import type {
   MobileBasePathStackParamList,
 } from './BasePathNavigator';
 import {
+  TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
   getDesktopPostRoute,
   screenNameFromChannelId,
@@ -308,8 +309,7 @@ function getTab(
 
   const last = state.routes[state.index];
   logger.log('last route name', last.name);
-  const drawers = ['Home', 'Messages', 'Activity', 'Profile', 'Settings'];
-  if (!drawers.includes(last.name)) {
+  if (!(TOP_LEVEL_DRAWER_ROUTES as readonly string[]).includes(last.name)) {
     logger.log('not top level drawer, getting tab from parent');
     return getTab(navigation.getParent(), lastOpenTab);
   }

@@ -101,6 +101,23 @@ describe('getActiveTopLevelDrawerRouteName', () => {
     expect(getActiveTopLevelDrawerRouteName(chain)).toBe('Home');
   });
 
+  test('recognizes the real Contacts top-level drawer route (not the stale Profile name)', () => {
+    const chain = makeChain([
+      {
+        type: 'drawer',
+        index: 3,
+        routes: [
+          { name: 'Home' },
+          { name: 'Messages' },
+          { name: 'Activity' },
+          { name: 'Contacts' },
+          { name: 'Settings' },
+        ],
+      },
+    ]);
+    expect(getActiveTopLevelDrawerRouteName(chain)).toBe('Contacts');
+  });
+
   test('returns undefined when no top-level drawer route is active in the chain', () => {
     const chain = makeChain([
       {
