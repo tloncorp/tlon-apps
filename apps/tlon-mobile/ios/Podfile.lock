@@ -2925,7 +2925,7 @@ PODS:
     - React-perflogger (= 0.81.5)
     - React-utils (= 0.81.5)
     - SocketRocket
-  - ReactNativeEnriched (0.5.2):
+  - ReactNativeEnriched (0.7.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -4052,7 +4052,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: 1bcd3527ac0390a1c898c114f81ff954be35ed79
   ReactCodegen: cc4afb1cabd4dc96a6d6f1d99539bceb3bebe437
   ReactCommon: 6d0fa86a4510730da7c72560e0ced14258292ab9
-  ReactNativeEnriched: 6ea824cfa6489c94635d1bdcc1b51daef67b045a
+  ReactNativeEnriched: 43929164353427bd4bd41e84b4a37ac822a876a9
   recaptcha-enterprise-react-native: 66042d9e4fd9bc632ee7f36efc121e45a3fe5cf8
   RecaptchaEnterprise: 9b60bc1e1633d120e24a098d80546776fab1282e
   RecaptchaInterop: 7d1a4a01a6b2cb1610a47ef3f85f0c411434cb21

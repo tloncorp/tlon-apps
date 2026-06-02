@@ -359,6 +359,7 @@ export const EnrichedNoteInput = memo(
           placeholderTextColor={tamagui.tertiaryText.val}
           defaultValue={initialHtml}
           htmlStyle={htmlStyle}
+          paragraphSpacing={12}
           textShortcuts={nativeTextShortcuts}
           mentionIndicators={['@', '~']}
           onChangeHtml={handleChangeHtml}
@@ -375,6 +376,7 @@ export const EnrichedNoteInput = memo(
           style={{
             color: tamagui.primaryText.val,
             fontSize: 16,
+            lineHeight: 24,
             ...(style as any),
           }}
         />
