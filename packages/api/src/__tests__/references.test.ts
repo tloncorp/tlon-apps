@@ -1,0 +1,66 @@
+import { expect, test } from 'vitest';
+
+import {
+  postToContentReference,
+  referenceLookupId,
+} from '../client/references';
+import type * as db from '../types/models';
+
+test('referenceLookupId returns replyId when present', () => {
+  expect(referenceLookupId({ postId: 'parent', replyId: 'reply' })).toBe(
+    'reply'
+  );
+});
+
+test('referenceLookupId falls back to postId when no replyId', () => {
+  expect(referenceLookupId({ postId: 'parent' })).toBe('parent');
+  expect(referenceLookupId({ postId: 'parent', replyId: undefined })).toBe(
+    'parent'
+  );
+});
+
+const CHANNEL_ID = 'chat/~zod/test';
+const PARENT_ID = '170141184506535164684262900635183087616';
+const REPLY_ID = '170141184506535176367510061158978551808';
+
+function makePost(overrides: Partial<db.Post>): db.Post {
+  return {
+    id: PARENT_ID,
+    channelId: CHANNEL_ID,
+    authorId: '~zod',
+    type: 'chat',
+    sentAt: 0,
+    receivedAt: 0,
+    ...overrides,
+  } as db.Post;
+}
+
+test('postToContentReference emits parent/reply ids and path for a reply', () => {
+  const post = makePost({ id: REPLY_ID, parentId: PARENT_ID, type: 'reply' });
+  const [path, reference] = postToContentReference(post);
+
+  expect(reference).toMatchObject({
+    referenceType: 'channel',
+    type: 'reference',
+    channelId: CHANNEL_ID,
+    postId: PARENT_ID,
+    replyId: REPLY_ID,
+  });
+  expect(path).toBe(
+    `/1/chan/${CHANNEL_ID}/msg/${PARENT_ID}/${REPLY_ID}`
+  );
+});
+
+test('postToContentReference emits only postId and path for a top-level post', () => {
+  const post = makePost({ id: PARENT_ID, parentId: null });
+  const [path, reference] = postToContentReference(post);
+
+  expect(reference).toMatchObject({
+    referenceType: 'channel',
+    type: 'reference',
+    channelId: CHANNEL_ID,
+    postId: PARENT_ID,
+  });
+  expect('replyId' in reference).toBe(false);
+  expect(path).toBe(`/1/chan/${CHANNEL_ID}/msg/${PARENT_ID}`);
+});
