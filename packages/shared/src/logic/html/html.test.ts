@@ -626,3 +626,42 @@ describe('round-trip fixed point: complex nested + inline combinations', () => {
     });
   }
 });
+
+describe('intent preservation (first conversion is not silently flattened)', () => {
+  it('nested list keeps a1/a2 nested under a, with b as a sibling', () => {
+    const story = htmlToStory(
+      '<ul><li>a<ul><li>a1</li><li>a2</li></ul></li><li>b</li></ul>'
+    );
+    expect(story).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              items: [
+                {
+                  list: {
+                    type: 'unordered',
+                    items: [{ item: ['a1'] }, { item: ['a2'] }],
+                    contents: ['a'],
+                  },
+                },
+                { item: ['b'] },
+              ],
+              contents: [],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
+  it('image inside a list item is preserved', () => {
+    const story = htmlToStory(
+      '<ul><li><img src="https://x.com/i.png" alt="p"></li></ul>'
+    );
+    const items = (story[0] as any).block.listing.list.items;
+    expect(items).toHaveLength(1);
+    expect(JSON.stringify(items[0])).toContain('https://x.com/i.png');
+  });
+});
