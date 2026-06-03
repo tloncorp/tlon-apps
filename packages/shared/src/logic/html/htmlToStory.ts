@@ -342,17 +342,55 @@ function nodeToVerses(node: HtmlNode): Verse[] {
         : tag === 'ol'
           ? 'ordered'
           : 'unordered';
-      const items = listItemsFromNodes(children, listType);
-      const block: Block = {
-        listing: {
-          list: {
-            type: listType as 'ordered' | 'unordered' | 'tasklist',
-            items,
-            contents: [],
+
+      const liNodes = children.filter(
+        (c) => c.type === 'element' && c.tag === 'li'
+      );
+
+      const makeListing = (lis: HtmlNode[]): Verse => ({
+        block: {
+          listing: {
+            list: {
+              type: listType as 'ordered' | 'unordered' | 'tasklist',
+              items: listItemsFromNodes(lis, listType),
+              contents: [],
+            },
           },
         },
-      };
-      return [{ block }];
+      });
+
+      // Checkbox lists can legitimately contain empty (unchecked) items, so
+      // keep them as a single list.
+      if (listType === 'tasklist') {
+        return liNodes.length > 0 ? [makeListing(liNodes)] : [];
+      }
+
+      // A blank line typed inside a bullet/ordered list shows up as an empty
+      // <li>. Split the list there so it round-trips as separate lists with a
+      // blank line between them, rather than collapsing into one list with an
+      // empty bullet. Leading/trailing/consecutive empty items collapse away.
+      const groups: HtmlNode[][] = [];
+      let group: HtmlNode[] = [];
+      for (const li of liNodes) {
+        if (isEmptyListItem(li)) {
+          if (group.length > 0) {
+            groups.push(group);
+            group = [];
+          }
+        } else {
+          group.push(li);
+        }
+      }
+      if (group.length > 0) groups.push(group);
+
+      const verses: Verse[] = [];
+      groups.forEach((g, idx) => {
+        if (idx > 0) {
+          verses.push({ inline: [{ break: null }] });
+        }
+        verses.push(makeListing(g));
+      });
+      return verses;
     }
 
     case 'hr':
@@ -381,6 +419,25 @@ function nodeToVerses(node: HtmlNode): Verse[] {
       if (inlines.length === 0) return [];
       return [{ inline: inlines }];
   }
+}
+
+/**
+ * An <li> is "empty" (a blank line typed inside a list) when it has no
+ * text/inline content, no nested list, and is not a checkbox/task item.
+ */
+function isEmptyListItem(node: HtmlNode): boolean {
+  if (node.type !== 'element' || node.tag !== 'li') return false;
+  if (node.attrs?.checked !== undefined) return false;
+  const children = node.children ?? [];
+  if (
+    children.some(
+      (c) => c.type === 'element' && (c.tag === 'ul' || c.tag === 'ol')
+    )
+  ) {
+    return false;
+  }
+  const inlines = nodesToInlines(unwrapParagraphs(children));
+  return inlines.every((inl) => typeof inl === 'string' && !inl.trim());
 }
 
 /**

@@ -209,7 +209,6 @@ export const EnrichedNoteInput = memo(
       // onChangeHtml gives NativeSyntheticEvent — unwrap and forward
       const handleChangeHtml = useCallback(
         (e: NativeSyntheticEvent<{ value: string }>) => {
-          console.log('[EnrichedNoteInput] onChangeHtml:', e.nativeEvent.value);
           onChangeHtml?.(e.nativeEvent.value);
         },
         [onChangeHtml]
