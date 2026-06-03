@@ -287,3 +287,126 @@ describe('round-trip: storyToHtml → htmlToStory', () => {
     });
   }
 });
+
+// Helpers for building list stories concisely.
+const ul = (...items: string[]): Story[number] => ({
+  block: {
+    listing: {
+      list: {
+        type: 'unordered',
+        items: items.map((i) => ({ item: [i] })),
+        contents: [],
+      },
+    },
+  },
+});
+const ol = (...items: string[]): Story[number] => ({
+  block: {
+    listing: {
+      list: {
+        type: 'ordered',
+        items: items.map((i) => ({ item: [i] })),
+        contents: [],
+      },
+    },
+  },
+});
+const para = (...inline: any[]): Story[number] => ({ inline });
+const breakVerse: Story[number] = { inline: [{ break: null }] };
+
+describe('round-trip story→html→story (structure)', () => {
+  const cases: [string, Story][] = [
+    ['unordered list', [ul('Aaa', 'Bbb', 'Ccc')]],
+    ['ordered list', [ol('one', 'two')]],
+    ['two lists with a blank line between', [ul('Aaa', 'Bbb', 'Ccc'), breakVerse, ul('Lala', 'Lala', 'Lala')]],
+    ['two lists back to back', [ul('Aaa'), ul('Bbb')]],
+    ['paragraph then list', [para('intro'), ul('a', 'b')]],
+    ['list then paragraph', [ul('a', 'b'), para('outro')]],
+    ['blank line between paragraphs', [para('first'), breakVerse, para('second')]],
+    ['header then paragraph then list', [{ block: { header: { tag: 'h2', content: ['Title'] } } }, para('body'), ul('x', 'y')]],
+    ['ordered then unordered', [ol('1', '2'), breakVerse, ul('a', 'b')]],
+    ['list, blank, paragraph, blank, list', [ul('a'), breakVerse, para('mid'), breakVerse, ul('b')]],
+  ];
+
+  for (const [name, story] of cases) {
+    it(`preserves: ${name}`, () => {
+      const html = storyToHtml(story);
+      const result = htmlToStory(html);
+      expect(result).toEqual(story);
+    });
+  }
+});
+
+describe('round-trip html→story→html (real editor output shapes)', () => {
+  // These are shapes react-native-enriched actually emits via getHTML().
+  const cases: [string, string][] = [
+    ['simple unordered list', '<ul>\n<li>Aaa</li>\n<li>Bbb</li>\n</ul>'],
+    ['list items wrapped in <p>', '<ul>\n<li><p>Aaa</p></li>\n<li><p>Bbb</p></li>\n</ul>'],
+    ['empty <li> between items (the bug)', '<ul>\n<li>Ccc</li>\n<li></li>\n<li>Lala</li>\n</ul>'],
+    ['two lists separated by <br>', '<ul>\n<li>Aaa</li>\n</ul>\n<br>\n<ul>\n<li>Lala</li>\n</ul>'],
+    ['two lists separated by empty <p>', '<ul>\n<li>Aaa</li>\n</ul>\n<p></p>\n<ul>\n<li>Lala</li>\n</ul>'],
+    ['paragraph, empty p, paragraph', '<p>first</p>\n<p></p>\n<p>second</p>'],
+    ['paragraph, br, paragraph', '<p>first</p>\n<br>\n<p>second</p>'],
+  ];
+
+  for (const [name, html] of cases) {
+    it(`stable round-trip: ${name}`, () => {
+      const story = htmlToStory(html);
+      const html2 = storyToHtml(story);
+      const story2 = htmlToStory(html2);
+      // Converting again should be a fixed point (no further drift).
+      expect(story2).toEqual(story);
+    });
+  }
+});
+
+describe('blank line preservation (the reported bug)', () => {
+  it('empty line between two bullet lists is NOT turned into an empty bullet', () => {
+    // Editor output when the user puts a real blank line between two lists.
+    const html = '<ul>\n<li>Ccc</li>\n</ul>\n<br>\n<ul>\n<li>Lala</li>\n</ul>';
+    const story = htmlToStory(html);
+    // Should be: list, blank-line, list — NOT one list with an empty item.
+    expect(story).toEqual([ul('Ccc'), breakVerse, ul('Lala')]);
+  });
+
+  it('an empty <li> in the middle of a list splits it with a blank line', () => {
+    const html = '<ul>\n<li>Ccc</li>\n<li></li>\n<li>Lala</li>\n</ul>';
+    const story = htmlToStory(html);
+    expect(story).toEqual([ul('Ccc'), breakVerse, ul('Lala')]);
+    // And no empty bullet survives on the way back out.
+    expect(storyToHtml(story)).not.toContain('<li></li>');
+  });
+
+  it('multi-item lists split at an empty <li> (the exact reported note)', () => {
+    const html =
+      '<ul>\n<li>Aaa</li>\n<li>Bbb</li>\n<li>Ccc</li>\n<li></li>\n<li>Lala</li>\n<li>Lala</li>\n<li>Lala</li>\n</ul>';
+    const story = htmlToStory(html);
+    expect(story).toEqual([
+      ul('Aaa', 'Bbb', 'Ccc'),
+      breakVerse,
+      ul('Lala', 'Lala', 'Lala'),
+    ]);
+  });
+
+  it('drops a trailing empty <li> (no dangling blank line)', () => {
+    const html = '<ul>\n<li>Aaa</li>\n<li>Bbb</li>\n<li></li>\n</ul>';
+    const story = htmlToStory(html);
+    expect(story).toEqual([ul('Aaa', 'Bbb')]);
+  });
+
+  it('drops a leading empty <li>', () => {
+    const html = '<ul>\n<li></li>\n<li>Aaa</li>\n</ul>';
+    const story = htmlToStory(html);
+    expect(story).toEqual([ul('Aaa')]);
+  });
+
+  it('checkbox list with an empty item stays a single list (not split)', () => {
+    const html =
+      '<ul data-type="checkbox">\n<li checked>done</li>\n<li></li>\n<li>todo</li>\n</ul>';
+    const story = htmlToStory(html);
+    expect(story.length).toBe(1);
+    const block = (story[0] as any).block.listing.list;
+    expect(block.type).toBe('tasklist');
+    expect(block.items.length).toBe(3);
+  });
+});
