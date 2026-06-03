@@ -547,3 +547,82 @@ describe('round-trip stability over many saves (no slow drift/accumulation)', ()
     });
   }
 });
+
+describe('round-trip fixed point: complex nested + inline combinations', () => {
+  const shapes: [string, string][] = [
+    [
+      'deeply nested mixed list (ul > ol > ul)',
+      '<ul><li>a<ol><li>a1<ul><li>a1a</li></ul></li><li>a2</li></ol></li><li>b</li></ul>',
+    ],
+    [
+      'link inside list item',
+      '<ul><li>see <a href="https://x.com">link</a> now</li></ul>',
+    ],
+    [
+      'mention inside list item',
+      '<ul><li>hi <mention text="zod" indicator="~" id="~zod">~zod</mention></li></ul>',
+    ],
+    [
+      'bold+italic+code inside list item',
+      '<ul><li><b>b</b> <i>i</i> <code>c</code></li></ul>',
+    ],
+    [
+      'ordered list with formatted items',
+      '<ol><li><b>first</b></li><li>second</li></ol>',
+    ],
+    [
+      'multi-paragraph blockquote',
+      '<blockquote><p>line one</p><p>line two</p><p>line three</p></blockquote>',
+    ],
+    [
+      'blockquote with inline formatting',
+      '<blockquote><p>a <b>bold</b> and <i>italic</i> quote</p></blockquote>',
+    ],
+    [
+      'escaped chars in paragraph',
+      '<p>a &lt; b &amp; c &gt; d &quot;e&quot;</p>',
+    ],
+    ['escaped chars in list item', '<ul><li>x &lt; y &amp; z</li></ul>'],
+    [
+      'escaped chars in blockquote',
+      '<blockquote><p>quote &lt;tag&gt; &amp; more</p></blockquote>',
+    ],
+    ['escaped chars in heading', '<h2>Title &amp; Subtitle &lt;v2&gt;</h2>'],
+    [
+      'inline code with special chars',
+      '<p>run <code>a &lt; b &amp;&amp; c</code> ok</p>',
+    ],
+    [
+      'link with query string',
+      '<p><a href="https://x.com/p?a=1&amp;b=2">q</a></p>',
+    ],
+    [
+      'checkbox list mixed checked/unchecked',
+      '<ul data-type="checkbox"><li checked>done</li><li>todo</li><li checked>also</li></ul>',
+    ],
+    [
+      'heading then nested list then paragraph',
+      '<h1>H</h1><ul><li>a<ul><li>a1</li></ul></li></ul><p>after</p>',
+    ],
+    [
+      'image then paragraph',
+      '<p><img src="https://x.com/i.png" alt="pic"></p><p>caption</p>',
+    ],
+    ['multiple blank lines between paragraphs', '<p>a</p><br><br><br><p>b</p>'],
+    [
+      'list, blank, ordered list, blank, list',
+      '<ul><li>a</li></ul><br><ol><li>1</li></ol><br><ul><li>b</li></ul>',
+    ],
+  ];
+
+  for (const [name, html] of shapes) {
+    it(`fixed point: ${name}`, () => {
+      const story1 = htmlToStory(html);
+      const html2 = storyToHtml(story1);
+      const story2 = htmlToStory(html2);
+      const html3 = storyToHtml(story2);
+      expect(story2).toEqual(story1);
+      expect(html3).toBe(html2);
+    });
+  }
+});
