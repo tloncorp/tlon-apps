@@ -102,10 +102,12 @@ export async function getPostReference({
   // the channels agent forwards the subscription to, so it must be the channel
   // host — otherwise the path fails to match and the reference never hydrates
   // over the network (it only resolves when the post is already in the local
-  // db). References are only ever to group channels, so the nest always has a
-  // host segment.
-  const { host } = parseGroupChannelId(channelId);
-  const path = `/v5/said/${host}/${channelId}/post/${postId}${
+  // db). References are only ever to group channels; guard so a non-group id
+  // (e.g. a DM/club pinned post) doesn't produce an `ask` of `undefined`.
+  const askPrefix = isGroupChannelId(channelId)
+    ? `${parseGroupChannelId(channelId).host}/`
+    : '';
+  const path = `/v5/said/${askPrefix}${channelId}/post/${postId}${
     replyId ? '/' + replyId : ''
   }`;
   const data = await subscribeOnce<ub.Said>(
