@@ -12,10 +12,12 @@
   },
   "dependencies": {
     "@emoji-mart/data": "^1.1.2",
+    "@expensify/react-native-live-markdown": "^0.1.327",
     "@tloncorp/api": "workspace:*",
     "@tloncorp/editor": "workspace:*",
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
+    "expensify-common": "^2.0.182",
     "posthog-js": "^1.234.4",
     "refractor": "^4.8.0",
     "sqlocal": "^0.14.1"
@@ -25,27 +27,27 @@
     "@types/react-native": "0.73.0"
   },
   "peerDependencies": {
-    "expo-audio": "*",
-    "expo-document-picker": "*",
-    "expo-file-system": "*",
-    "expo-video": "*",
     "@10play/tentap-editor": "*",
     "@react-native-firebase/perf": "*",
     "@shopify/react-native-skia": "*",
+    "@simform_solutions/react-native-audio-waveform": "*",
+    "@tanstack/react-query": "^5.32.1",
+    "expo-audio": "*",
     "expo-blur": "*",
     "expo-constants": "*",
+    "expo-document-picker": "*",
+    "expo-file-system": "*",
     "expo-notifications": "*",
     "expo-splash-screen": "*",
+    "expo-video": "*",
     "lodash": "^4.17.21",
-    "@simform_solutions/react-native-audio-waveform": "*",
     "react-native-device-info": "*",
     "react-native-email-link": "*",
+    "react-native-enriched": "*",
     "react-native-fetch-api": "*",
     "react-native-polyfill-globals": "*",
-    "react-native-enriched": "*",
     "react-native-safe-area-context": "*",
     "tamagui": "~2.0.0-rc.41",
-    "@tanstack/react-query": "^5.32.1",
     "zustand": "^3.7.2"
   }
 }
