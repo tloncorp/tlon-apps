@@ -23,6 +23,7 @@ overrides:
   expo-audio: ~1.1.1
   get-intrinsic: 1.2.4
   esbuild: 0.27.3
+  html-entities: 2.5.3
   react-native-enriched: file:/Users/janicduplessis/Developer/tlon-apps/vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
 
 patchedDependencies:
@@ -74,6 +75,9 @@ patchedDependencies:
   expo-task-manager@14.0.9:
     hash: j25h3syph5nqno7flr2dkg62oa
     path: patches/expo-task-manager@14.0.9.patch
+  html-entities@2.5.3:
+    hash: m525uwvmt6mdzdfaofbw3q4exu
+    path: patches/html-entities@2.5.3.patch
   react-cosmos@7.2.0:
     hash: 3fzdsz7y5qive4fsxr74vllywq
     path: patches/react-cosmos@7.2.0.patch
@@ -236,7 +240,7 @@ importers:
         version: 22.4.0(@react-native-firebase/app@22.4.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
       '@react-native-firebase/perf':
         specifier: ^22.0.0
-        version: 22.4.0(@react-native-firebase/app@22.4.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
+        version: 22.4.0(@react-native-firebase/app@22.4.0(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
       '@react-native-picker/picker':
         specifier: ^2.11.4
         version: 2.11.4(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -9024,8 +9028,8 @@ packages:
     resolution: {integrity: sha512-Y22oTqIU4uuPgEemfz7NDJz6OeKf12Lsu+QC+s3BVpda64lTiMYCyGwg5ki4vFxkMwQdeZDl2adZoqUgdFuTgQ==}
     engines: {node: '>=18'}
 
-  html-entities@2.6.0:
-    resolution: {integrity: sha512-kig+rMn/QOVRvr7c86gQ8lWXq+Hkv6CbAH1hLu+RG338StTpE8Z0b44SDVaqVu7HGKf27frdmUYEs9hTUX/cLQ==}
+  html-entities@2.5.3:
+    resolution: {integrity: sha512-D3AfvN7SjhTgBSA8L1BN4FpPzuEd06uy4lHwSoRWr0lndi9BKaNzPLKGOWZ2ocSGguozr08TTb2jhCLHaemruw==}
 
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
@@ -17383,12 +17387,6 @@ snapshots:
     optionalDependencies:
       expo: 54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
 
-  ? '@react-native-firebase/perf@22.4.0(@react-native-firebase/app@22.4.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))'
-  : dependencies:
-      '@react-native-firebase/app': 22.4.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-    optionalDependencies:
-      expo: 54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
-
   ? '@react-native-firebase/perf@22.4.0(@react-native-firebase/app@22.4.0(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))'
   : dependencies:
       '@react-native-firebase/app': 22.4.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -23727,7 +23725,7 @@ snapshots:
       awesome-phonenumber: 5.11.0
       classnames: 2.5.0
       clipboard: 2.0.11
-      html-entities: 2.6.0
+      html-entities: 2.5.3(patch_hash=m525uwvmt6mdzdfaofbw3q4exu)
       jquery: 3.6.0
       localforage: 1.10.0
       lodash: 4.18.1
@@ -24704,7 +24702,7 @@ snapshots:
     dependencies:
       whatwg-encoding: 3.1.1
 
-  html-entities@2.6.0: {}
+  html-entities@2.5.3(patch_hash=m525uwvmt6mdzdfaofbw3q4exu): {}
 
   html-escaper@2.0.2: {}
 
@@ -29991,7 +29989,7 @@ snapshots:
       fast-json-stable-stringify: 2.1.0
       fs-extra: 9.1.0
       glob: 7.2.3
-      lodash: 4.17.23
+      lodash: 4.18.1
       pretty-bytes: 5.6.0
       rollup: 2.79.2
       rollup-plugin-terser: 7.0.2(rollup@2.79.2)
