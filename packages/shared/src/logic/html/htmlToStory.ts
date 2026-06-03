@@ -1,9 +1,5 @@
-import {
-  Block,
-  Inline,
-  HeaderLevel,
-} from '@tloncorp/api/urbit/content';
 import { Story, Verse } from '@tloncorp/api/urbit/channel';
+import { Block, HeaderLevel, Inline } from '@tloncorp/api/urbit/content';
 
 /**
  * Minimal HTML node representation for parsing.
@@ -56,7 +52,12 @@ function parseHtml(html: string): HtmlNode[] {
         // Check for self-closing tags like <br>, <hr>, <img>
         // Parse tag name
         let tagName = '';
-        while (pos < html.length && html[pos] !== ' ' && html[pos] !== '>' && html[pos] !== '/') {
+        while (
+          pos < html.length &&
+          html[pos] !== ' ' &&
+          html[pos] !== '>' &&
+          html[pos] !== '/'
+        ) {
           tagName += html[pos];
           pos++;
         }
@@ -71,7 +72,13 @@ function parseHtml(html: string): HtmlNode[] {
 
           // Parse attribute name
           let attrName = '';
-          while (pos < html.length && html[pos] !== '=' && html[pos] !== ' ' && html[pos] !== '>' && html[pos] !== '/') {
+          while (
+            pos < html.length &&
+            html[pos] !== '=' &&
+            html[pos] !== ' ' &&
+            html[pos] !== '>' &&
+            html[pos] !== '/'
+          ) {
             attrName += html[pos];
             pos++;
           }
@@ -92,7 +99,11 @@ function parseHtml(html: string): HtmlNode[] {
               }
               if (pos < html.length) pos++; // skip closing quote
             } else {
-              while (pos < html.length && html[pos] !== ' ' && html[pos] !== '>') {
+              while (
+                pos < html.length &&
+                html[pos] !== ' ' &&
+                html[pos] !== '>'
+              ) {
                 attrValue += html[pos];
                 pos++;
               }
@@ -326,7 +337,9 @@ function nodeToVerses(node: HtmlNode): Verse[] {
         // Collect text from <p> children, joining with newlines
         const lines = children
           .filter((c) => c.type === 'element' || c.type === 'text')
-          .map((c) => collectText(c.type === 'element' ? (c.children ?? []) : [c]));
+          .map((c) =>
+            collectText(c.type === 'element' ? c.children ?? [] : [c])
+          );
         codeText = lines.join('\n').trim();
       }
       // Use inline BlockCode format { code: "text" } which is what the
@@ -413,11 +426,12 @@ function nodeToVerses(node: HtmlNode): Verse[] {
       // Treat div as a container — process children as top-level
       return children.flatMap(nodeToVerses);
 
-    default:
+    default: {
       // Unknown block-level tag — try to extract inlines
       const inlines = nodesToInlines(children);
       if (inlines.length === 0) return [];
       return [{ inline: inlines }];
+    }
   }
 }
 
@@ -456,16 +470,14 @@ function listItemsFromNodes(
 
     // Check for nested lists
     const nestedList = children.find(
-      (c) =>
-        c.type === 'element' && (c.tag === 'ul' || c.tag === 'ol')
+      (c) => c.type === 'element' && (c.tag === 'ul' || c.tag === 'ol')
     );
 
     if (nestedList) {
       // Has nested list — separate contents from nested list
       const contentNodes = children.filter((c) => c !== nestedList);
       const contents = nodesToInlines(contentNodes);
-      const nestedType =
-        nestedList.tag === 'ol' ? 'ordered' : 'unordered';
+      const nestedType = nestedList.tag === 'ol' ? 'ordered' : 'unordered';
       const nestedItems = listItemsFromNodes(
         nestedList.children ?? [],
         nestedType
@@ -485,7 +497,11 @@ function listItemsFromNodes(
       // Filter out any <input> checkbox elements (legacy format)
       const contentNodes = children.filter(
         (c) =>
-          !(c.type === 'element' && c.tag === 'input' && c.attrs?.type === 'checkbox')
+          !(
+            c.type === 'element' &&
+            c.tag === 'input' &&
+            c.attrs?.type === 'checkbox'
+          )
       );
       const unwrapped = unwrapParagraphs(contentNodes);
       const content = nodesToInlines(unwrapped);
@@ -541,7 +557,35 @@ export function htmlToStory(html: string): Story {
   }
 
   const nodes = parseHtml(html);
-  const verses = nodes.flatMap(nodeToVerses);
+
+  // Drop the structural <br> that precedes a checkbox list. storyToHtml emits
+  // it so the editor doesn't absorb the previous block into the list; without
+  // this it would round-trip into a break verse and accumulate a blank line on
+  // every save.
+  const isCheckboxList = (node: HtmlNode | undefined): boolean =>
+    node?.type === 'element' &&
+    node.tag === 'ul' &&
+    node.attrs?.['data-type'] === 'checkbox';
+  const nextMeaningful = (i: number): HtmlNode | undefined => {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const n = nodes[j];
+      if (n.type === 'text' && !n.text?.trim()) continue;
+      return n;
+    }
+    return undefined;
+  };
+  const cleanedNodes = nodes.filter((node, i) => {
+    if (
+      node.type === 'element' &&
+      node.tag === 'br' &&
+      isCheckboxList(nextMeaningful(i))
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  const verses = cleanedNodes.flatMap(nodeToVerses);
 
   // Filter out empty verses
   return verses.filter((verse) => {
