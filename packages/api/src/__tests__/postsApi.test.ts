@@ -9,6 +9,10 @@ import {
 import { subscribeOnce } from '../client/urbit';
 import type { Post } from '../types/models';
 import * as ub from '../urbit';
+import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
+import rawChannelPostsData from './fixtures/channelPosts.json';
+import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';
+import rawGroupDmPostWithRepliesData from './fixtures/groupDmPostWithReplies.json';
 
 vi.mock('../client/urbit', async () => {
   const actual =
@@ -18,10 +22,6 @@ vi.mock('../client/urbit', async () => {
     subscribeOnce: vi.fn(),
   };
 });
-import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
-import rawChannelPostsData from './fixtures/channelPosts.json';
-import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';
-import rawGroupDmPostWithRepliesData from './fixtures/groupDmPostWithReplies.json';
 
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',

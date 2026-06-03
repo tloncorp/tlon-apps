@@ -46,9 +46,7 @@ test('postToContentReference emits parent/reply ids and path for a reply', () =>
     postId: PARENT_ID,
     replyId: REPLY_ID,
   });
-  expect(path).toBe(
-    `/1/chan/${CHANNEL_ID}/msg/${PARENT_ID}/${REPLY_ID}`
-  );
+  expect(path).toBe(`/1/chan/${CHANNEL_ID}/msg/${PARENT_ID}/${REPLY_ID}`);
 });
 
 test('postToContentReference emits only postId and path for a top-level post', () => {
