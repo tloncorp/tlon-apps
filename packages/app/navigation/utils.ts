@@ -5,7 +5,6 @@ import {
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -18,7 +17,15 @@ import type {
   MobileBasePathStackParamList,
 } from './BasePathNavigator';
 import { resolveChannelBackTarget } from './backTarget';
+import {
+  TOP_LEVEL_DRAWER_ROUTES,
+  getActiveTopLevelDrawerRouteName,
+  getDesktopPostRoute,
+  screenNameFromChannelId,
+} from './routeHelpers';
 import { CombinedParamList, RootStackParamList } from './types';
+
+export { screenNameFromChannelId } from './routeHelpers';
 
 const logger = createDevLogger('nav-utils', false);
 
@@ -189,11 +196,6 @@ export function useNavigateToPost() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
   const { lastOpenTab } = useGlobalSearch();
-  const activityIndex = navigation
-    .getState()
-    ?.routes.findIndex((route) => route.name === 'Activity');
-  const currentScreenIsActivity =
-    navigation.getState()?.index === activityIndex;
 
   return useCallback(
     (post: db.Post, options?: { selectedPostId?: string | null }) => {
@@ -205,27 +207,23 @@ export function useNavigateToPost() {
         selectedPostId: options?.selectedPostId,
       };
 
+      // Evaluate at press time (not hook-render time) against the live parent
+      // navigator chain. The desktop Activity drawer is nested, so inspecting
+      // only the locally-scoped state misses the top-level `Activity` route.
+      const currentScreenIsActivity =
+        getActiveTopLevelDrawerRouteName(navigation) === 'Activity';
+
       if (!isWindowNarrow && currentScreenIsActivity) {
         const tab = getTab(navigation, lastOpenTab);
         logger.log('navigateToPost', tab, postParams);
 
-        navigation.navigate(
-          tab,
-          {
-            screen: 'Channel',
-            params: {
-              screen: 'Post',
-              params: postParams,
-            },
-          },
-          { pop: true }
-        );
+        navigation.navigate(getDesktopPostRoute(tab, postParams));
         return;
       }
 
       navigation.navigate('Post', postParams, { pop: true });
     },
-    [isWindowNarrow, currentScreenIsActivity, navigation, lastOpenTab]
+    [isWindowNarrow, navigation, lastOpenTab]
   );
 }
 
@@ -334,8 +332,7 @@ function getTab(
 
   const last = state.routes[state.index];
   logger.log('last route name', last.name);
-  const drawers = ['Home', 'Messages', 'Activity', 'Profile', 'Settings'];
-  if (!drawers.includes(last.name)) {
+  if (!(TOP_LEVEL_DRAWER_ROUTES as readonly string[]).includes(last.name)) {
     logger.log('not top level drawer, getting tab from parent');
     return getTab(navigation.getParent(), lastOpenTab);
   }
@@ -560,12 +557,4 @@ export async function getMainGroupRoute(
       pop: true,
     } as const;
   }
-}
-
-export function screenNameFromChannelId(channelId: string) {
-  return isDmChannelId(channelId)
-    ? 'DM'
-    : isGroupDmChannelId(channelId)
-      ? 'GroupDM'
-      : 'Channel';
 }
