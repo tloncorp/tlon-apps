@@ -2805,9 +2805,16 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    // joinedChannelIds now includes channels backed by agents other than
-    // %channels (e.g. %notes), folded in from each group's active-channels in
-    // initApi — so notes channels reconcile like any other channel here.
+    // This reconcile is driven by %channels' joined-channel list, so it only
+    // governs %channels-backed channels (chat/diary/heap). Channels backed by
+    // other agents (e.g. %notes) aren't tracked by %channels and never appear
+    // in joinedChannelIds; their membership is derived from group reader-roles
+    // in toClientChannel, so we must not flip them to not-a-member here.
+    const channelsBacked = or(
+      like($channels.id, 'chat/%'),
+      like($channels.id, 'diary/%'),
+      like($channels.id, 'heap/%')
+    );
     if (joinedChannelIds.length === 0) {
       return await ctx.db
         .update($channels)
@@ -2815,7 +2822,8 @@ export const setLeftGroupChannels = createWriteQuery(
         .where(
           and(
             isNotNull($channels.groupId),
-            eq($channels.currentUserIsMember, true)
+            eq($channels.currentUserIsMember, true),
+            channelsBacked
           )
         );
     }
@@ -2828,7 +2836,8 @@ export const setLeftGroupChannels = createWriteQuery(
         and(
           notInArray($channels.id, joinedChannelIds),
           isNotNull($channels.groupId),
-          eq($channels.currentUserIsMember, true)
+          eq($channels.currentUserIsMember, true),
+          channelsBacked
         )
       );
   },
