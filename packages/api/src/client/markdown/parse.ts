@@ -4,17 +4,20 @@ import remarkParse from 'remark-parse';
 import { unified } from 'unified';
 
 import { Story } from '../../urbit/channel';
+import { remarkGroupMentions } from './groupMentionPlugin';
 import { mdastToStory } from './mdastToStory';
 import { remarkShipMentions } from './shipMentionPlugin';
 
 /**
  * Create a unified processor for parsing Markdown to mdast.
- * Includes GFM support (tables, task lists, strikethrough) and ship mentions.
+ * Includes GFM support (tables, task lists, strikethrough), ship mentions, and
+ * group/role mentions.
  */
 const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
-  .use(remarkShipMentions);
+  .use(remarkShipMentions)
+  .use(remarkGroupMentions);
 
 /**
  * Convert a Markdown string to a Story (Verse[]).
@@ -29,6 +32,7 @@ const processor = unified()
  * - Standard Markdown (bold, italic, links, images, headers, code blocks, lists)
  * - GFM extensions (task lists, tables, strikethrough)
  * - Ship mentions (~zod, ~sampel-palnet, etc.)
+ * - Group/role mentions (@all, @admin, etc.)
  */
 export function markdownToStory(markdown: string): Story {
   if (!markdown || markdown.trim() === '') {

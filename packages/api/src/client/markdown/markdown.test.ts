@@ -192,6 +192,21 @@ describe('markdownToStory', () => {
     });
   });
 
+  describe('group mentions', () => {
+    it('parses @all and @role mentions into sect inlines', () => {
+      expect(markdownToStory('ping @all')).toEqual([
+        { inline: ['ping ', { sect: null }] },
+      ]);
+      expect(markdownToStory('ping @admin')).toEqual([
+        { inline: ['ping ', { sect: 'admin' }] },
+      ]);
+      // ships still parse
+      expect(markdownToStory('hi ~zod')).toEqual([
+        { inline: ['hi ', { ship: 'zod' }] },
+      ]);
+    });
+  });
+
   describe('header conversion', () => {
     it('converts h1 header to VerseBlock', () => {
       const result = markdownToStory('# Header One');
