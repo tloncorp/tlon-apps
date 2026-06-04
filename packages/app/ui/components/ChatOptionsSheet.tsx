@@ -652,7 +652,9 @@ export function ChannelOptionsSheetContent({
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  const canMarkRead = !(channel.unread?.count === 0);
+  // notes channels have no %channels/%activity unreads, so mark-read doesn't apply
+  const canMarkRead =
+    !(channel.unread?.count === 0) && channel.type !== 'notes';
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {

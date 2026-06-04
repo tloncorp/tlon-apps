@@ -796,7 +796,18 @@ export async function joinGroupChannel({
   });
 
   try {
-    await api.joinChannel(channelId, groupId);
+    if (channelId.startsWith('notes/')) {
+      // notes channels aren't %channels-backed; join the notebook on %notes
+      // (subscribe + report to %groups) instead of poking %channels.
+      const [, host, name] = channelId.split('/');
+      await api.poke({
+        app: 'notes',
+        mark: 'notes-action',
+        json: { type: 'join', ship: host, name },
+      });
+    } else {
+      await api.joinChannel(channelId, groupId);
+    }
   } catch (e) {
     // rollback on failure
     logger.error('Failed to join group channel');
