@@ -2,6 +2,7 @@ import { markdownToStory, storyToMarkdown } from '@tloncorp/shared';
 
 import {
   Mention,
+  MentionInline,
   decodeWhitespaceEntities,
   extractMentionsFromSentinelText,
   injectInlinesIntoStory,
@@ -13,7 +14,10 @@ import {
 // Each mention inline is swapped for a sentinel, the story is rendered to
 // markdown, then the sentinels are turned back into canonical mention text with
 // their resulting positions recorded.
-export function storyToTextAndMentions(story: unknown[]): {
+export function storyToTextAndMentions(
+  story: unknown[],
+  displayFor?: (inline: MentionInline) => string
+): {
   text: string;
   mentions: Mention[];
 } {
@@ -21,8 +25,10 @@ export function storyToTextAndMentions(story: unknown[]): {
   // Decode entity-encoded whitespace so the editor shows real characters rather
   // than `&#x20;`. Significant whitespace then follows normal markdown rules on
   // save (the editor stays WYSIWYG-honest).
-  const markdown = decodeWhitespaceEntities(storyToMarkdown(sentinelStory as never));
-  return extractMentionsFromSentinelText(markdown, inlines);
+  const markdown = decodeWhitespaceEntities(
+    storyToMarkdown(sentinelStory as never)
+  );
+  return extractMentionsFromSentinelText(markdown, inlines, displayFor);
 }
 
 // Build a story from editor text + tracked mentions. Markdown formatting is

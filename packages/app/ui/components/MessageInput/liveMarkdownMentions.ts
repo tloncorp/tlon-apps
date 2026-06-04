@@ -10,18 +10,28 @@ export type Mention = {
   start: number;
   length: number;
   inline: MentionInline;
+  // Text shown in the editor for this mention (e.g. a contact's nickname). When
+  // absent, the canonical markdown form is used. Only the editor display differs;
+  // the mention always serializes from `inline`.
+  display?: string;
 };
 
 function isShip(inline: MentionInline): inline is { ship: string } {
   return (inline as { ship?: string }).ship !== undefined;
 }
 
-// The text a mention occupies in the editor (canonical markdown form).
+// The canonical markdown form of a mention inline (~ship / @all / @role).
 export function canonicalText(inline: MentionInline): string {
   if (isShip(inline)) {
     return inline.ship.startsWith('~') ? inline.ship : `~${inline.ship}`;
   }
   return inline.sect === null ? '@all' : `@${inline.sect}`;
+}
+
+// The actual text a mention occupies in the editor (its display name if set,
+// otherwise the canonical form).
+export function displayText(mention: Mention): string {
+  return mention.display ?? canonicalText(mention.inline);
 }
 
 // storyToMarkdown entity-encodes significant whitespace (e.g. a leading space ->
@@ -94,9 +104,14 @@ export function updateMentions(
     }
     if (
       start >= 0 &&
-      newText.slice(start, start + mn.length) === canonicalText(mn.inline)
+      newText.slice(start, start + mn.length) === displayText(mn)
     ) {
-      next.push({ start, length: mn.length, inline: mn.inline });
+      next.push({
+        start,
+        length: mn.length,
+        inline: mn.inline,
+        display: mn.display,
+      });
     }
   }
   return next;
@@ -231,10 +246,13 @@ export function replaceMentionSpansWithSentinels(
   return { text: result, inlines };
 }
 
-// Replace sentinels in text with canonical mention text, recording the spans.
+// Replace sentinels in text with the mention's display text, recording the
+// spans. `displayFor` chooses the shown text (e.g. a contact's nickname);
+// without it the canonical form is used.
 export function extractMentionsFromSentinelText(
   text: string,
-  inlines: MentionInline[]
+  inlines: MentionInline[],
+  displayFor?: (inline: MentionInline) => string
 ): { text: string; mentions: Mention[] } {
   const mentions: Mention[] = [];
   let result = '';
@@ -245,9 +263,14 @@ export function extractMentionsFromSentinelText(
     result += text.slice(last, m.index);
     const inline = inlines[Number(m[1])];
     if (inline) {
-      const canon = canonicalText(inline);
-      mentions.push({ start: result.length, length: canon.length, inline });
-      result += canon;
+      const display = displayFor ? displayFor(inline) : canonicalText(inline);
+      mentions.push({
+        start: result.length,
+        length: display.length,
+        inline,
+        display,
+      });
+      result += display;
     }
     last = m.index + m[0].length;
   }

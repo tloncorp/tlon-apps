@@ -100,6 +100,63 @@ describe('sentinel round-trips (no markdown involved)', () => {
     );
     const result = extractMentionsFromSentinelText(sentinelText, inlines);
     expect(result.text).toBe(text);
-    expect(result.mentions).toEqual(mentions);
+    // extract records the canonical text as `display` when no resolver is given
+    expect(result.mentions).toEqual([
+      {
+        start: 3,
+        length: 14,
+        inline: { ship: 'finned-palmer' },
+        display: '~finned-palmer',
+      },
+      { start: 22, length: 4, inline: { sect: null }, display: '@all' },
+    ]);
+  });
+
+  it('extract uses a displayFor resolver (e.g. nicknames) for the text', () => {
+    const text = 'hi ~finned-palmer';
+    const { text: sentinelText, inlines } = replaceMentionSpansWithSentinels(
+      text,
+      [{ start: 3, length: 14, inline: { ship: 'finned-palmer' } }]
+    );
+    const result = extractMentionsFromSentinelText(
+      sentinelText,
+      inlines,
+      () => 'Charles Vinette'
+    );
+    expect(result.text).toBe('hi Charles Vinette');
+    expect(result.mentions).toEqual([
+      {
+        start: 3,
+        length: 15,
+        inline: { ship: 'finned-palmer' },
+        display: 'Charles Vinette',
+      },
+    ]);
+  });
+
+  it('updateMentions verifies against the display text (nickname)', () => {
+    const base: Mention[] = [
+      {
+        start: 5,
+        length: 15,
+        inline: { ship: 'finned-palmer' },
+        display: 'Charles Vinette',
+      },
+    ];
+    // shift when text inserted before the nickname span
+    expect(
+      updateMentions(base, 'ping Charles Vinette', 'hello ping Charles Vinette')
+    ).toEqual([
+      {
+        start: 11,
+        length: 15,
+        inline: { ship: 'finned-palmer' },
+        display: 'Charles Vinette',
+      },
+    ]);
+    // drop when the nickname span is edited
+    expect(
+      updateMentions(base, 'ping Charles Vinette', 'ping Charles Smith X')
+    ).toEqual([]);
   });
 });
