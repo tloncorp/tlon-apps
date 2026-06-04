@@ -118,6 +118,22 @@ const config = {
     },
   },
   resolver: {
+    // Redirect the live-markdown library's internal `parseExpensiMark` import to
+    // a stub. We never use parseExpensiMark (the editor passes its own parser),
+    // and the real module throws at load unless html-entities is workletized and
+    // pulls in expensify-common. Stubbing it lets us drop that patch + dep.
+    resolveRequest: (context, moduleName, platform) => {
+      if (
+        /parseExpensiMark(\.js)?$/.test(moduleName) &&
+        context.originModulePath.includes('react-native-live-markdown')
+      ) {
+        return {
+          type: 'sourceFile',
+          filePath: path.resolve(projectRoot, 'metro/parseExpensiMarkStub.js'),
+        };
+      }
+      return context.resolveRequest(context, moduleName, platform);
+    },
     assetExts: baseConfig.resolver.assetExts.filter((ext) => ext !== 'svg'),
     // requireCycleIgnorePatterns needs to cover ContentReference, as
     // that require cycle can't be avoided without a major refactor.
