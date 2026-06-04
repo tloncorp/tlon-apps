@@ -2,6 +2,9 @@ node_modules
 .DS_Store
 ops
 bin
+!packages/tlon-skill/bin/
+!packages/tlon-skill/bin/tlon.js
+packages/tlon-skill/bin/tlon
 *.tgz
 *.xst
 zod*
