@@ -51,10 +51,12 @@ import {
   isList,
   isListItem,
   isListing,
+  isSect,
   isShip,
   isStrikethrough,
   isTask,
 } from '../../urbit/content';
+import type { GroupMention } from './groupMentionPlugin';
 import type { ShipMention } from './shipMentionPlugin';
 
 /**
@@ -195,6 +197,16 @@ export function inlinesToPhrasing(inlines: Inline[]): PhrasingContent[] {
         value: ship.ship,
       };
       result.push(shipMention as unknown as PhrasingContent);
+      continue;
+    }
+
+    if (isSect(inline)) {
+      // Use our custom group mention node (@all for the empty sect, else @role)
+      const groupMention: GroupMention = {
+        type: 'groupMention',
+        value: inline.sect === null ? 'all' : inline.sect,
+      };
+      result.push(groupMention as unknown as PhrasingContent);
       continue;
     }
 
