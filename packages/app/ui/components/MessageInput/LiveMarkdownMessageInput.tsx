@@ -1,3 +1,5 @@
+import type { MarkdownStyle } from '@expensify/react-native-live-markdown';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { JSONContent, Story } from '@tloncorp/api/urbit';
 import {
   createDevLogger,
@@ -10,7 +12,7 @@ import {
 } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   NativeSyntheticEvent,
   TextInput,
@@ -19,6 +21,12 @@ import {
 import { XStack, YStack, useTheme } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import {
+  ALL_MENTION_ID,
+  MentionOption,
+  createMentionRoleOptions,
+  useMentions,
+} from '../BareChatInput/useMentions';
 import { AttachmentPreviewList } from './AttachmentPreviewList';
 import { LiveMarkdownInput } from './LiveMarkdownInput';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
@@ -50,6 +58,7 @@ export const LiveMarkdownMessageInput = ({
   onSend,
   frameless = false,
   bigInput = false,
+  groupRoles,
 }: MessageInputProps) => {
   const theme = useTheme();
   const inputRef = useRef<TextInput>(null);
@@ -61,6 +70,38 @@ export const LiveMarkdownMessageInput = ({
   const lastEditingPost = useRef<db.Post | undefined>(editingPost);
 
   const { attachments, clearAttachments } = useAttachmentContext();
+
+  const [selection, setSelection] = useState<
+    { start: number; end: number } | undefined
+  >(undefined);
+
+  const roleOptions = useMemo(
+    () => createMentionRoleOptions(groupRoles ?? []),
+    [groupRoles]
+  );
+
+  const {
+    isMentionModeActive,
+    mentionSearchText,
+    validOptions,
+    mentionStartIndex,
+    handleMention,
+    resetMentionMode,
+  } = useMentions({ chatId: channelId, roleOptions });
+
+  const markdownStyle = useMemo<MarkdownStyle>(
+    () => ({
+      mentionUser: {
+        color: theme.positiveActionText.val,
+        backgroundColor: theme.positiveBackground.val,
+      },
+      mentionHere: {
+        color: theme.positiveActionText.val,
+        backgroundColor: theme.positiveBackground.val,
+      },
+    }),
+    [theme]
+  );
 
   const editorIsEmpty =
     (text.trim().length === 0 || text.trim() === '\n') &&
@@ -186,6 +227,45 @@ export const LiveMarkdownMessageInput = ({
     clearAttachments();
   }, [setEditingPost, clearDraft, clearAttachments, draftType]);
 
+  const handleChangeText = useCallback(
+    (next: string) => {
+      handleMention(text, next);
+      setText(next);
+    },
+    [text, handleMention]
+  );
+
+  const handleSelectionChange = useCallback(() => {
+    // Release the one-shot controlled selection set after inserting a mention,
+    // so the caret is free to move on the next interaction.
+    setSelection((prev) => (prev ? undefined : prev));
+  }, []);
+
+  const onSelectMention = useCallback(
+    (option: MentionOption) => {
+      if (mentionStartIndex == null) {
+        return;
+      }
+      const canonical =
+        option.type === 'contact'
+          ? preSig(option.id)
+          : option.id === ALL_MENTION_ID
+            ? '@all'
+            : `@${option.id}`;
+      const before = text.slice(0, mentionStartIndex);
+      const after = text.slice(
+        mentionStartIndex + 1 + mentionSearchText.length
+      );
+      const inserted = `${canonical} `;
+      const newText = before + inserted + after;
+      const caret = before.length + inserted.length;
+      setText(newText);
+      setSelection({ start: caret, end: caret });
+      resetMentionMode();
+    },
+    [text, mentionStartIndex, mentionSearchText, resetMentionMode]
+  );
+
   return (
     <MessageInputContainer
       setShouldBlur={setShouldBlur}
@@ -193,8 +273,10 @@ export const LiveMarkdownMessageInput = ({
       onPressEdit={() => handleSend(true)}
       containerHeight={containerHeight}
       sendError={sendError}
-      mentionOptions={[]}
-      onSelectMention={() => {}}
+      mentionOptions={validOptions}
+      onSelectMention={onSelectMention}
+      isMentionModeActive={isMentionModeActive}
+      mentionText={mentionSearchText}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
       showAttachmentButton={showAttachmentButton}
@@ -221,7 +303,10 @@ export const LiveMarkdownMessageInput = ({
           <LiveMarkdownInput
             ref={inputRef}
             value={text}
-            onChangeText={setText}
+            onChangeText={handleChangeText}
+            selection={selection}
+            onSelectionChange={handleSelectionChange}
+            markdownStyle={markdownStyle}
             placeholder={placeholder}
             style={{
               flex: 1,
