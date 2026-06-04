@@ -90,7 +90,11 @@ export function parseTlonMarkdownRanges(text: string): MarkdownRange[] {
     claim(start, end);
   }
 
-  // Blockquote: ^> content  (content left unclaimed so inline emphasis applies)
+  // Blockquote: ^> content. The blockquote range must span the whole line
+  // (including the `> ` marker) and carry depth=1, because the native side draws
+  // the side bar from the depth attribute at the line's start glyph. The `syntax`
+  // range still dims the marker; the content is left unclaimed so inline emphasis
+  // inside the quote still applies.
   const quoteRe = /^(>) (.+)$/gm;
   while ((m = quoteRe.exec(text)) !== null) {
     const start = m.index;
@@ -98,7 +102,12 @@ export function parseTlonMarkdownRanges(text: string): MarkdownRange[] {
       continue;
     }
     push('syntax', start, 2); // "> "
-    push('blockquote', start + 2, m[2].length);
+    ranges.push({
+      type: 'blockquote',
+      start,
+      length: m[0].length,
+      depth: 1,
+    });
     claim(start, start + 2);
   }
 
