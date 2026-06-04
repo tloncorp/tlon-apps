@@ -49,6 +49,7 @@ export const LiveMarkdownMessageInput = ({
   goBack,
   onSend,
   frameless = false,
+  bigInput = false,
 }: MessageInputProps) => {
   const theme = useTheme();
   const inputRef = useRef<TextInput>(null);
@@ -213,7 +214,10 @@ export const LiveMarkdownMessageInput = ({
         paddingTop={frameless ? '$s' : undefined}
       >
         {showInlineAttachments && <AttachmentPreviewList />}
-        <XStack height={containerHeight} style={{ width: '100%' }}>
+        <XStack
+          {...(bigInput ? { flex: 1 } : { height: containerHeight })}
+          style={{ width: '100%' }}
+        >
           <LiveMarkdownInput
             ref={inputRef}
             value={text}
