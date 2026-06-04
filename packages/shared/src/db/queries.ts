@@ -2839,7 +2839,10 @@ export const setLeftGroupChannels = createWriteQuery(
 // and re-gain, unlike a one-directional flip.
 export const setJoinedNotesChannels = createWriteQuery(
   'setJoinedNotesChannels',
-  async ({ joinedChannelIds }: { joinedChannelIds: string[] }, ctx: QueryCtx) => {
+  async (
+    { joinedChannelIds }: { joinedChannelIds: string[] },
+    ctx: QueryCtx
+  ) => {
     const notesChannel = like($channels.id, 'notes/%');
     // mark the active notes channels joined
     if (joinedChannelIds.length) {
