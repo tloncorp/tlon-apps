@@ -7,6 +7,10 @@
 +$  flag  (pair ship term)
 ::  $nest: id for a channel
 +$  nest  (pair term flag)
+::  $channel-active: channel-host membership report (group flag + nest +
+::  whether joined). Third-party backing agents (e.g. %notes) poke this to
+::  keep active-channels current. See the %group-channel-active poke arm.
++$  channel-active  [=flag =nest joined=?]
 ::  $plan: index into channel state
 ::    p: post being referred to
 ::    q: reply being referred to, if any

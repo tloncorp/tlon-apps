@@ -44,6 +44,7 @@
 /%  m-channel-preview-1  %channel-preview-1
 /%  m-group-response-1   %group-response-1
 /%  m-group-action-3     %group-action-3
+/%  m-group-channel-active  %group-channel-active
 /%  m-gangs              %gangs
 /%  m-foreign-1          %foreign-1
 /%  m-foreigns-1         %foreigns-1
@@ -86,6 +87,7 @@
         ::
           :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
+          :+  %group-channel-active  &  -:!>(*vale:m-group-channel-active)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::

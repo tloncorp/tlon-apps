@@ -1,12 +1,12 @@
 /-  g=groups
-|_  [=flag:g =nest:g joined=?]
+|_  =channel-active:g
 ++  grad  %noun
 ++  grow
   |%
-  ++  noun  [flag nest joined]
+  ++  noun  channel-active
   --
 ++  grab
   |%
-  ++  noun  [=flag:g =nest:g joined=?]
+  ++  noun  channel-active:g
   --
 --
