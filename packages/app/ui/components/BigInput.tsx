@@ -1,5 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { Block, Inline, constructStory } from '@tloncorp/api/urbit';
+import {
+  Block,
+  Inline,
+  JSONContent,
+  constructStory,
+} from '@tloncorp/api/urbit';
 import {
   Attachment,
   createDevLogger,
@@ -217,6 +222,9 @@ export function BigInput({
   const [isSending, setIsSending] = useState(false);
   const editorRef = useRef<{ editor: TlonEditorBridge | null }>(null);
   const enrichedEditorRef = useRef<EnrichedNoteInputRef>(null);
+  // Latest content reported by the live-markdown editor (tiptap JSON), used to
+  // send from the notebook Post button.
+  const liveMarkdownContentRef = useRef<JSONContent | undefined>(undefined);
   const [enrichedEditorState, setEnrichedEditorState] =
     useState<TlonBridgeState | null>(null);
   const [enrichedHtml, setEnrichedHtml] = useState('');
@@ -332,6 +340,7 @@ export function BigInput({
 
   const handleEditorContentChanged = useCallback(
     (content?: object) => {
+      liveMarkdownContentRef.current = content as JSONContent | undefined;
       const hasAttachmentsAndIsGallery =
         attachments.length > 0 && channelType === 'gallery';
       const nextIsEmpty =
@@ -524,6 +533,12 @@ export function BigInput({
         setIsSending(false);
         return;
       }
+    } else if (liveMarkdownEnabled) {
+      // Live-markdown editor reports its content (tiptap JSON) via
+      // onEditorContentChange; convert the latest to inlines/blocks.
+      content = liveMarkdownContentRef.current
+        ? tiptap.JSONToInlines(liveMarkdownContentRef.current)
+        : [];
     } else {
       // Rich text mode: get content from Tiptap editor
       if (!editorRef.current?.editor) {
@@ -621,6 +636,7 @@ export function BigInput({
     enrichedHtml,
     isMarkdownMode,
     markdownContent,
+    liveMarkdownEnabled,
     showToast,
   ]);
 
