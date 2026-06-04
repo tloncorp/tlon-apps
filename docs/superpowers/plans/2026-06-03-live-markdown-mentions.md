@@ -161,6 +161,75 @@ git commit -m "feat(notebooks): add mention-range scanner for live-markdown edit
 
 ---
 
+## Task 1b: Register `remarkGroupMentions` in `markdownToStory`
+
+**Why:** `markdownToStory`'s processor (`packages/api/src/client/markdown/parse.ts`)
+registers only `remarkShipMentions`. So `@all` / `@role` text is NOT parsed into
+`{ sect }` inlines — it stays plain text. (`storyToMarkdown` already emits
+`@all`/`@role` via `groupMentionToMarkdown`, so this is a pre-existing parse↔serialize
+asymmetry.) Without this, the live-markdown editor would highlight `@all`/`@role`
+but send them as text. The only non-test callers of `markdownToStory` are the two
+notebook editors (BigInput markdown mode + LiveMarkdownMessageInput); chat is
+unaffected. `remarkGroupMentions` is already used by the table processor
+(`extractTables.ts`), so it is proven.
+
+**Files:**
+- Modify: `packages/api/src/client/markdown/parse.ts`
+- Test: `packages/api/src/client/markdown/markdown.test.ts`
+
+- [ ] **Step 1: Write the failing round-trip test**
+
+Add to `markdown.test.ts`:
+
+```ts
+it('parses @all and @role mentions into sect inlines', () => {
+  expect(markdownToStory('ping @all')).toEqual([
+    { inline: ['ping ', { sect: null }] },
+  ]);
+  expect(markdownToStory('ping @admin')).toEqual([
+    { inline: ['ping ', { sect: 'admin' }] },
+  ]);
+  // ships still parse
+  expect(markdownToStory('hi ~zod')).toEqual([
+    { inline: ['hi ', { ship: 'zod' }] },
+  ]);
+});
+```
+
+- [ ] **Step 2: Run it and the full markdown suite to see the failure + baseline**
+
+Run: `cd packages/api && pnpm exec vitest run src/client/markdown/markdown.test.ts`
+Expected: the new test FAILS (`@all`/`@admin` come back as plain text). Note which, if any, other tests pass now (baseline) so you can detect regressions in Step 4. If an *existing* test asserts that `@word` stays plain text, report it — that is meaningful blast radius, do not silently rewrite it.
+
+- [ ] **Step 3: Register the plugin**
+
+In `packages/api/src/client/markdown/parse.ts`, import and add the plugin to the processor:
+
+```ts
+import { remarkGroupMentions } from './groupMentionPlugin';
+```
+```ts
+const processor = unified()
+  .use(remarkParse)
+  .use(remarkGfm)
+  .use(remarkShipMentions)
+  .use(remarkGroupMentions);
+```
+
+- [ ] **Step 4: Run the full markdown suite**
+
+Run: `cd packages/api && pnpm exec vitest run src/client/markdown/markdown.test.ts`
+Expected: the new test PASSES and every previously-passing test still passes. If the exact text-splitting of the new test's expectation differs (e.g. whitespace), adjust the expectation to the *correct* serialized shape — but the assertion that a `{ sect: null }` / `{ sect: 'admin' }` inline is produced must hold. If any pre-existing test now fails, STOP and report it rather than editing its expectation.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add packages/api/src/client/markdown/parse.ts packages/api/src/client/markdown/markdown.test.ts
+git commit -m "fix(markdown): parse @all/@role group mentions in markdownToStory"
+```
+
+---
+
 ## Task 2: Expose `mentionStartIndex` from `useMentions`
 
 The canonical-text insertion (Task 5) needs the trigger index. The hook tracks it as `mentionStartIndex` but does not return it. This is additive — `BareChatInput` ignores the extra field.
