@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Mention,
   canonicalText,
+  decodeWhitespaceEntities,
   extractMentionsFromSentinelText,
   injectInlinesIntoStory,
   mentionsToRanges,
@@ -10,6 +11,28 @@ import {
   sentinelizeStory,
   updateMentions,
 } from './liveMarkdownMentions';
+
+describe('decodeWhitespaceEntities', () => {
+  it('decodes space, tab, and nbsp numeric entities', () => {
+    expect(decodeWhitespaceEntities('&#x20;leading')).toBe(' leading');
+    expect(decodeWhitespaceEntities('&#32;x')).toBe(' x');
+    expect(decodeWhitespaceEntities('a&#x09;b')).toBe('a\tb');
+    expect(decodeWhitespaceEntities('a&#xa0;b')).toBe('a b');
+  });
+
+  it('leaves non-whitespace entities intact', () => {
+    // &#x3c; = '<', &#38; = '&' — markdown-significant, must not be decoded
+    expect(decodeWhitespaceEntities('&#x3c;tag&#x3e; &#38;')).toBe(
+      '&#x3c;tag&#x3e; &#38;'
+    );
+  });
+
+  it('is a no-op for normal text', () => {
+    expect(decodeWhitespaceEntities('# Heading with no entities')).toBe(
+      '# Heading with no entities'
+    );
+  });
+});
 
 describe('canonicalText', () => {
   it('formats ship, role, and all mentions', () => {
