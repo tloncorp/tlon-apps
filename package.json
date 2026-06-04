@@ -82,7 +82,8 @@
       "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch",
       "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch",
       "react-native-gesture-handler@2.28.0": "patches/react-native-gesture-handler@2.28.0.patch",
-      "html-entities@2.5.3": "patches/html-entities@2.5.3.patch"
+      "html-entities@2.5.3": "patches/html-entities@2.5.3.patch",
+      "expensify-common@2.0.182": "patches/expensify-common@2.0.182.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
@@ -105,7 +106,8 @@
       "get-intrinsic": "1.2.4",
       "esbuild": "0.27.3",
       "html-entities": "2.5.3",
-      "react-native-enriched": "file:/Users/janicduplessis/Developer/tlon-apps/vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz"
+      "react-native-enriched": "file:/Users/janicduplessis/Developer/tlon-apps/vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz",
+      "@expensify/react-native-live-markdown": "github:janicduplessis/react-native-live-markdown#2ebc7c7"
     }
   }
 }

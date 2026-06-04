@@ -205,6 +205,20 @@ describe('markdownToStory', () => {
         { inline: ['hi ', { ship: 'zod' }] },
       ]);
     });
+
+    it('leaves ~ship/@role as text when parseMentions is false', () => {
+      expect(
+        markdownToStory('hi ~zod and @all and @admin', {
+          parseMentions: false,
+        })
+      ).toEqual([{ inline: ['hi ~zod and @all and @admin'] }]);
+    });
+
+    it('still parses bold when parseMentions is false', () => {
+      expect(
+        markdownToStory('hi **bold** ~zod', { parseMentions: false })
+      ).toEqual([{ inline: ['hi ', { bold: ['bold'] }, ' ~zod'] }]);
+    });
   });
 
   describe('header conversion', () => {

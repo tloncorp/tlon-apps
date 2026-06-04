@@ -25,6 +25,7 @@ overrides:
   esbuild: 0.27.3
   html-entities: 2.5.3
   react-native-enriched: file:/Users/janicduplessis/Developer/tlon-apps/vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+  '@expensify/react-native-live-markdown': github:janicduplessis/react-native-live-markdown#2ebc7c7
 
 patchedDependencies:
   '@10play/tentap-editor@0.4.55':
@@ -63,6 +64,9 @@ patchedDependencies:
   drizzle-orm@0.39.3:
     hash: wokcg55yjcq5vebl5wtmbpawhe
     path: patches/drizzle-orm@0.39.3.patch
+  expensify-common@2.0.182:
+    hash: 6qei33vft2iqsxejouqgpda2aa
+    path: patches/expensify-common@2.0.182.patch
   expo-background-task@1.0.10:
     hash: 4yafclgkl4ngiac5x4cqdtcfvy
     path: patches/expo-background-task@1.0.10.patch
@@ -212,8 +216,8 @@ importers:
         specifier: ^0.4.0
         version: 0.4.0(@tanstack/react-query@5.32.1(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react@19.1.0)
       '@expensify/react-native-live-markdown':
-        specifier: ^0.1.327
-        version: 0.1.327(expensify-common@2.0.182)(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        specifier: github:janicduplessis/react-native-live-markdown#2ebc7c7
+        version: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c7(expensify-common@2.0.182(patch_hash=6qei33vft2iqsxejouqgpda2aa))(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@google-cloud/recaptcha-enterprise-react-native':
         specifier: ~18.3.0
         version: 18.3.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -303,7 +307,7 @@ importers:
         version: 11.0.7
       expensify-common:
         specifier: ^2.0.182
-        version: 2.0.182
+        version: 2.0.182(patch_hash=6qei33vft2iqsxejouqgpda2aa)
       expo:
         specifier: ~54.0.33
         version: 54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -1090,8 +1094,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       '@expensify/react-native-live-markdown':
-        specifier: ^0.1.327
-        version: 0.1.327(expensify-common@2.0.182)(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        specifier: github:janicduplessis/react-native-live-markdown#2ebc7c7
+        version: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c7(expensify-common@2.0.182(patch_hash=6qei33vft2iqsxejouqgpda2aa))(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       '@react-native-firebase/perf':
         specifier: '*'
         version: 22.4.0(@react-native-firebase/app@22.4.0(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
@@ -1118,7 +1122,7 @@ importers:
         version: link:../ui
       expensify-common:
         specifier: ^2.0.182
-        version: 2.0.182
+        version: 2.0.182(patch_hash=6qei33vft2iqsxejouqgpda2aa)
       expo-audio:
         specifier: ~1.1.1
         version: 1.1.1(expo-asset@12.0.12(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -2893,8 +2897,9 @@ packages:
     resolution: {integrity: sha512-Ys+3g2TaW7gADOJzPt83SJtCDhMjndcDMFVQ/Tj9iA1BfJzFKD9mAUXT3OenpuPHbI6P/myECxRJrofUsDx/5g==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
-  '@expensify/react-native-live-markdown@0.1.327':
-    resolution: {integrity: sha512-U+z6tt7FhxoBqEl18felOdkE6I5133tIlSjCads7/wKlb6BXCmT5YlWCpGNbjcwYcXOSohdr+Glkzex+5k6d7Q==}
+  '@expensify/react-native-live-markdown@https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c7':
+    resolution: {tarball: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c7}
+    version: 0.1.327
     engines: {node: '>= 18.0.0'}
     peerDependencies:
       expensify-common: '>=2.0.148'
@@ -15648,9 +15653,9 @@ snapshots:
 
   '@eslint/js@8.57.0': {}
 
-  '@expensify/react-native-live-markdown@0.1.327(expensify-common@2.0.182)(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
+  '@expensify/react-native-live-markdown@https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c7(expensify-common@2.0.182(patch_hash=6qei33vft2iqsxejouqgpda2aa))(react-native-worklets@0.7.2(@babel/core@7.29.0)(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)':
     dependencies:
-      expensify-common: 2.0.182
+      expensify-common: 2.0.182(patch_hash=6qei33vft2iqsxejouqgpda2aa)
       react: 19.1.0
       react-native: 0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0)
       react-native-worklets: 0.7.2(@babel/core@7.29.0)(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -23720,7 +23725,7 @@ snapshots:
       jest-message-util: 29.7.0
       jest-util: 29.7.0
 
-  expensify-common@2.0.182:
+  expensify-common@2.0.182(patch_hash=6qei33vft2iqsxejouqgpda2aa):
     dependencies:
       awesome-phonenumber: 5.11.0
       classnames: 2.5.0
