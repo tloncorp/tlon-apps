@@ -507,20 +507,7 @@
         %group-channel-active
       ?>  =(our src):bowl
       =+  !<([=flag:g =nest:g joined=?] vase)
-      ?~  net-group=(~(get by groups) flag)  cor
-      =/  [=net:g =group:g]  u.net-group
-      ::  no-op if membership is already in the requested state
-      ?:  =(joined (~(has in active-channels.group) nest))  cor
-      =.  active-channels.group
-        ?:  joined
-          (~(put in active-channels.group) nest)
-        (~(del in active-channels.group) nest)
-      =.  groups  (~(put by groups) flag net group)
-      ::  push the per-nest membership delta to same-ship clients. /v1/groups
-      ::  is a from-self-only sub, so this never crosses the wire — it just
-      ::  lets a second local client learn join/leave without a full re-sync.
-      =/  =r-groups:v9:gv  [flag [%active-channels nest joined]]
-      (give %fact ~[/v1/groups] group-response-1+!>(r-groups))
+      (set-active-channel flag nest joined)
     ::
         %group-knock
       ?>  from-self
@@ -1751,6 +1738,25 @@
 ++  watch-channels
   (safe-watch /channels [our.bowl %channels] /v1)
 ::
+::  +set-active-channel: record a channel-host membership change in the
+::  group's active-channels set and push a local-only %active-channels delta
+::  to same-ship clients. /v1/groups is a from-self-only sub, so the fact
+::  never crosses the wire — it just lets a second local client reconcile
+::  join/leave without a full init sync. no-op if already in that state.
+++  set-active-channel
+  |=  [=flag:g =nest:g joined=?]
+  ^+  cor
+  ?~  net-group=(~(get by groups) flag)  cor
+  =/  [=net:g =group:g]  u.net-group
+  ?:  =(joined (~(has in active-channels.group) nest))  cor
+  =.  active-channels.group
+    ?:  joined
+      (~(put in active-channels.group) nest)
+    (~(del in active-channels.group) nest)
+  =.  groups  (~(put by groups) flag net group)
+  =/  =r-groups:v9:gv  [flag [%active-channels nest joined]]
+  (give %fact ~[/v1/groups] group-response-1+!>(r-groups))
+::
 ++  take-channels
   |=  =sign:agent:gall
   ~>  %spin.['take-channels']
@@ -1765,39 +1771,15 @@
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
-      =*  flag  group.perm.rc
-      ?.  (~(has by groups) flag)  cor
-      =+  group=(~(got by groups) flag)
-      %_  cor  groups
-        %+  ~(put by groups)  flag
-        %_  group  active-channels
-          (~(put in active-channels.group) nest.r-channels)
-        ==
-      ==
+      (set-active-channel group.perm.rc nest.r-channels &)
     ::
         %join
-      ?.  (~(has by groups) group.rc)  cor
-      =+  group=(~(got by groups) group.rc)
-      %_  cor  groups
-        %+  ~(put by groups)
-          group.rc
-        %_  group  active-channels
-          (~(put in active-channels.group) nest.r-channels)
-        ==
-      ==
+      (set-active-channel group.rc nest.r-channels &)
     ::
         %leave
       ?~  flag=(~(get by channels-index) nest.r-channels)
         cor
-      =+  net-group=(~(get by groups) u.flag)
-      ?~  net-group  cor
-      =*  group  u.net-group
-      =.  groups
-        %+  ~(put by groups)  u.flag
-        %_  group  active-channels
-          (~(del in active-channels.group) nest.r-channels)
-        ==
-      cor
+      (set-active-channel u.flag nest.r-channels |)
     ==
   ==
 ::
