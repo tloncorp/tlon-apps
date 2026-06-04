@@ -148,6 +148,14 @@ export const LiveMarkdownMessageInput = ({
         fontSize: 14,
         padding: 8,
       },
+      // Match the post renderer's BlockquoteSideBorder: a thin left bar in the
+      // border color, instead of the library's thick 6px gray default.
+      blockquote: {
+        borderColor: theme.border.val,
+        borderWidth: 2,
+        marginLeft: 2,
+        paddingLeft: 8,
+      },
     }),
     [theme]
   );
