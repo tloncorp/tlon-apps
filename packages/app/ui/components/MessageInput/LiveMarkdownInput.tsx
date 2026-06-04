@@ -7,12 +7,26 @@ import type {
   MarkdownStyle,
 } from '@expensify/react-native-live-markdown';
 import { forwardRef, memo } from 'react';
-import type { TextInput, TextInputProps } from 'react-native';
+import type {
+  NativeSyntheticEvent,
+  TextInput,
+  TextInputProps,
+} from 'react-native';
 
 import { findMentionRanges } from './mentionMarkdownRanges';
 
+export type PastedImage = {
+  uri: string;
+  type: string;
+  width: number;
+  height: number;
+};
+
 export type LiveMarkdownInputProps = TextInputProps & {
   markdownStyle?: MarkdownStyle;
+  onPasteImages?: (
+    event: NativeSyntheticEvent<{ images: PastedImage[] }>
+  ) => void;
 };
 
 // Worklet parser: base ExpensiMark styling + Tlon ship/role mention ranges.
