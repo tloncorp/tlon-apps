@@ -24,6 +24,24 @@ export function canonicalText(inline: MentionInline): string {
   return inline.sect === null ? '@all' : `@${inline.sect}`;
 }
 
+// storyToMarkdown entity-encodes significant whitespace (e.g. a leading space ->
+// `&#x20;`) so it survives markdown parsing. The live-markdown editor shows raw
+// markdown, so decode those whitespace entities to characters for display. Only
+// whitespace code points are decoded — other entities are left intact so
+// markdown-significant text is not reinterpreted (e.g. `&#x3c;` stays as-is).
+export function decodeWhitespaceEntities(text: string): string {
+  return text.replace(/&#(x[0-9a-fA-F]+|\d+);/g, (match, code: string) => {
+    const cp =
+      code[0] === 'x' || code[0] === 'X'
+        ? parseInt(code.slice(1), 16)
+        : parseInt(code, 10);
+    if (cp === 0x20 || cp === 0x09 || cp === 0xa0) {
+      return String.fromCodePoint(cp);
+    }
+    return match;
+  });
+}
+
 // Highlight ranges for the tracked mentions (per-instance, by position).
 export function mentionsToRanges(mentions: Mention[]): MarkdownRange[] {
   return mentions.map((mn) => ({

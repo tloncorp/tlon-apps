@@ -2,6 +2,7 @@ import { markdownToStory, storyToMarkdown } from '@tloncorp/shared';
 
 import {
   Mention,
+  decodeWhitespaceEntities,
   extractMentionsFromSentinelText,
   injectInlinesIntoStory,
   replaceMentionSpansWithSentinels,
@@ -17,7 +18,10 @@ export function storyToTextAndMentions(story: unknown[]): {
   mentions: Mention[];
 } {
   const { story: sentinelStory, inlines } = sentinelizeStory(story as never);
-  const markdown = storyToMarkdown(sentinelStory as never);
+  // Decode entity-encoded whitespace so the editor shows real characters rather
+  // than `&#x20;`. Significant whitespace then follows normal markdown rules on
+  // save (the editor stays WYSIWYG-honest).
+  const markdown = decodeWhitespaceEntities(storyToMarkdown(sentinelStory as never));
   return extractMentionsFromSentinelText(markdown, inlines);
 }
 
