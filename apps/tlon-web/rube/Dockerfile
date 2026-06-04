@@ -55,6 +55,9 @@ COPY ../../../patches/ /workspace/patches/
 # Copy .npmrc if it exists (for npm configurations)
 COPY ../../../.npmrc* /workspace/
 
+# Copy vendored dependency tarballs referenced by pnpm-lock.yaml
+COPY ../../../vendor/ /workspace/vendor/
+
 # Install dependencies.
 # Ignore lifecycle scripts in this dependency-only layer to avoid running
 # desktop postinstall hooks (electron native rebuilds) during web E2E image build.
