@@ -43,7 +43,6 @@ export async function createChannel({
       groupId,
       title,
       description: rawDescription,
-      readers,
     });
   }
 
@@ -125,12 +124,10 @@ async function createNotesChannel({
   groupId,
   title,
   description,
-  readers,
 }: {
   groupId: string;
   title: string;
   description?: string;
-  readers: string[];
 }): Promise<db.Channel> {
   // Create the notebook via the %notes HTTP API, which returns the
   // server-assigned flag synchronously in the response body — no polling, no
@@ -138,72 +135,47 @@ async function createNotesChannel({
   // a group channel: read permission defers to the group's can-read, and
   // %groups auto-joins/leaves members via the channel-host convention.
   const [groupHost, groupName] = groupId.split('/');
-  const res = await api.requestJson<NotesCreateResponse>(
-    '/notes/~/v1/notebooks',
-    'POST',
-    { title, group: { host: groupHost, flagName: groupName } }
-  );
-  const summary =
-    res?.body?.type === 'notebook' ? (res.body.notebook ?? null) : null;
-  if (!summary) {
-    throw new Error('Failed to create notes notebook');
-  }
-
-  const channelId = `notes/${summary.host}/${summary.flagName}`;
-
-  logger.trackEvent(
-    AnalyticsEvent.ActionCreateChannel,
-    logic.getModelAnalytics({
-      channel: { id: channelId, type: 'notes' },
-      group: { id: groupId },
-    })
-  );
-
-  // Pick a section to add this channel to. Tlon-created groups conventionally
-  // have a 'default' section, but we'll prefer whatever the first section is
-  // if the group looks different.
-  const group = await db.getGroup({ id: groupId });
-  const sectionId =
-    group?.navSections?.[0]?.sectionId ??
-    group?.navSections?.[0]?.id ??
-    'default';
-
-  const newChannel: db.Channel = {
-    id: channelId,
-    title,
-    description,
-    type: 'notes',
-    groupId,
-    addedToGroupAt: Date.now(),
-    currentUserIsMember: true,
-    currentUserIsHost: true,
-    contentConfiguration: channelContentConfigurationForChannelType('notes'),
-    lastPostSequenceNum: 0,
-  };
-
-  await db.insertChannels([newChannel]);
-
   try {
-    await api.addChannelListingToGroup({
-      channelId,
-      groupId,
-      sectionId,
-      meta: {
-        title,
-        description: description ?? '',
-        image: '',
-        cover: '',
-      },
-      readers,
-      join: true,
-    });
-  } catch (e) {
-    await db.deleteChannels([channelId]);
-    logger.error('addChannelListingToGroup failed for notes channel', e);
-    throw new Error(`Failed to add notes channel to group: ${channelId}`);
-  }
+    const res = await api.requestJson<NotesCreateResponse>(
+      '/notes/~/v1/notebooks',
+      'POST',
+      { title, group: { host: groupHost, flagName: groupName } }
+    );
+    const summary =
+      res?.body?.type === 'notebook' ? res.body.notebook ?? null : null;
+    if (!summary) {
+      throw new Error('Failed to create notes notebook');
+    }
 
-  return newChannel;
+    const channelId = `notes/${summary.host}/${summary.flagName}`;
+
+    logger.trackEvent(
+      AnalyticsEvent.ActionCreateChannel,
+      logic.getModelAnalytics({
+        channel: { id: channelId, type: 'notes' },
+        group: { id: groupId },
+      })
+    );
+
+    const newChannel: db.Channel = {
+      id: channelId,
+      title,
+      description,
+      type: 'notes',
+      groupId,
+      addedToGroupAt: Date.now(),
+      currentUserIsMember: true,
+      currentUserIsHost: true,
+      contentConfiguration: channelContentConfigurationForChannelType('notes'),
+      lastPostSequenceNum: 0,
+    };
+
+    await db.insertChannels([newChannel]);
+    return newChannel;
+  } catch (e) {
+    logger.error('Failed to add notes channel', e);
+    throw new Error(`Failed to add notes channel to group`);
+  }
 }
 
 /**
