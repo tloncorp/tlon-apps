@@ -75,11 +75,17 @@ describe('parseTlonMarkdownRanges (Tlon dialect)', () => {
     expect(h3).toContainEqual({ type: 'h3', start: 4, length: 4 }); // "Deep"
   });
 
-  it('styles a blockquote line and dims the > marker', () => {
+  it('styles a blockquote line (whole-line range + depth) and dims the > marker', () => {
     const text = '> quoted';
     const ranges = parseTlonMarkdownRanges(text);
     expect(ranges).toContainEqual({ type: 'syntax', start: 0, length: 2 }); // "> "
-    expect(ranges).toContainEqual({ type: 'blockquote', start: 2, length: 6 });
+    // whole line, depth 1 — the native side draws the bar from depth at line start
+    expect(ranges).toContainEqual({
+      type: 'blockquote',
+      start: 0,
+      length: 8,
+      depth: 1,
+    });
   });
 
   it('handles bold and italic on the same line', () => {
