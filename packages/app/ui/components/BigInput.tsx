@@ -39,6 +39,7 @@ import { Input, XStack, getTokenValue, useTheme } from 'tamagui';
 
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { useAttachmentContext } from '../contexts/attachment';
+import { Action, SimpleActionSheet } from './ActionSheet';
 import AttachmentSheet from './AttachmentSheet';
 import {
   MentionOption,
@@ -207,6 +208,7 @@ export function BigInput({
   );
   const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
   const [showInlineImageSheet, setShowInlineImageSheet] = useState(false);
+  const [showEditorSwitcher, setShowEditorSwitcher] = useState(false);
   const [hasContentChanges, setHasContentChanges] = useState(false);
   const [hasTitleChanges, setHasTitleChanges] = useState(false);
   const [hasImageChanges, setHasImageChanges] = useState(false);
@@ -234,9 +236,11 @@ export function BigInput({
   const showToast = useToast();
   const [isEmpty, setIsEmpty] = useState(true);
   const [markdownNotebooksEnabled] = useFeatureFlag('markdownNotebooks');
-  const [liveMarkdownFlag] = useFeatureFlag('liveMarkdownInput');
+  const [liveMarkdownFlag, setLiveMarkdownFlag] =
+    useFeatureFlag('liveMarkdownInput');
   const liveMarkdownEnabled = liveMarkdownFlag && Platform.OS !== 'web';
-  const [enrichedInputFlag] = useFeatureFlag('enrichedInput');
+  const [enrichedInputFlag, setEnrichedInputFlag] =
+    useFeatureFlag('enrichedInput');
   // Live markdown takes precedence over the enriched editor when both are on.
   const enrichedInputEnabled =
     enrichedInputFlag && !liveMarkdownEnabled && Platform.OS !== 'web';
@@ -875,6 +879,48 @@ export function BigInput({
     return items;
   }, []);
 
+  const currentEditor: 'live-markdown' | 'enriched' | 'markdown' | 'tiptap' =
+    liveMarkdownEnabled
+      ? 'live-markdown'
+      : enrichedInputEnabled
+        ? 'enriched'
+        : isMarkdownMode
+          ? 'markdown'
+          : 'tiptap';
+
+  const selectEditor = useCallback(
+    (editor: 'live-markdown' | 'enriched' | 'tiptap') => {
+      setLiveMarkdownFlag(editor === 'live-markdown');
+      setEnrichedInputFlag(editor === 'enriched');
+      setShowEditorSwitcher(false);
+    },
+    [setLiveMarkdownFlag, setEnrichedInputFlag]
+  );
+
+  const editorSwitcherActions: Action[] = useMemo(
+    () => [
+      {
+        title: 'Live Markdown (Expensify)',
+        action: () => selectEditor('live-markdown'),
+        selected: currentEditor === 'live-markdown',
+        endIcon: currentEditor === 'live-markdown' ? 'Checkmark' : undefined,
+      },
+      {
+        title: 'Enriched (native)',
+        action: () => selectEditor('enriched'),
+        selected: currentEditor === 'enriched',
+        endIcon: currentEditor === 'enriched' ? 'Checkmark' : undefined,
+      },
+      {
+        title: 'TipTap (webview)',
+        action: () => selectEditor('tiptap'),
+        selected: currentEditor === 'tiptap',
+        endIcon: currentEditor === 'tiptap' ? 'Checkmark' : undefined,
+      },
+    ],
+    [currentEditor, selectEditor]
+  );
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -884,22 +930,33 @@ export function BigInput({
       }}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
-      <View flex={1} flexDirection="column">
+      <View
+        key={currentEditor}
+        collapsable={false}
+        flex={1}
+        flexDirection="column"
+      >
         {__DEV__ && (
-          <Text
-            fontSize={10}
-            color="$tertiaryText"
-            paddingHorizontal="$l"
-            paddingTop="$xs"
+          <TouchableOpacity
+            onPress={() => setShowEditorSwitcher(true)}
+            hitSlop={8}
           >
-            {liveMarkdownEnabled
-              ? 'live-markdown'
-              : enrichedInputEnabled
-                ? 'enriched'
-                : isMarkdownMode
-                  ? 'markdown'
-                  : 'tiptap'}
-          </Text>
+            <XStack
+              alignItems="center"
+              gap="$xs"
+              paddingHorizontal="$l"
+              paddingTop="$xs"
+            >
+              <Text fontSize={10} color="$tertiaryText">
+                editor: {currentEditor}
+              </Text>
+              <Icon
+                type="ChevronDown"
+                customSize={[12, 12]}
+                color="$tertiaryText"
+              />
+            </XStack>
+          </TouchableOpacity>
         )}
         {channelType === 'notebook' && (
           <>
@@ -1237,6 +1294,15 @@ export function BigInput({
           onAttach={handleInlineImageSelect}
           showClearOption={false}
           mediaType="image"
+        />
+      )}
+      {__DEV__ && (
+        <SimpleActionSheet
+          open={showEditorSwitcher}
+          onOpenChange={setShowEditorSwitcher}
+          title="Editor"
+          subtitle="Switch the notebook editor (dev only)"
+          actions={editorSwitcherActions}
         />
       )}
     </KeyboardAvoidingView>
