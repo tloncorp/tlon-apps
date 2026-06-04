@@ -5,7 +5,6 @@
  * Usage: node scripts/bump-version.js <version>
  * Example: node scripts/bump-version.js 0.1.5
  */
-import { execFileSync } from 'child_process';
 import { readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -21,7 +20,6 @@ const packageFiles = [
   'npm/linux-arm64/package.json',
 ];
 
-const packageLockFile = 'package-lock.json';
 const tlonSkillPackagePrefix = '@tloncorp/tlon-skill-';
 
 const newVersion = process.argv[2];
@@ -64,74 +62,6 @@ function updateTlonSkillOptionalDeps(optionalDependencies) {
   }
 }
 
-function targetFromPlatformPackage(packageName) {
-  return packageName.slice(tlonSkillPackagePrefix.length);
-}
-
-function getLocalPlatformOptionalDeps(optionalDependencies) {
-  return Object.fromEntries(
-    getTlonSkillOptionalDeps(optionalDependencies).map((dep) => [
-      dep,
-      `file:npm/${targetFromPlatformPackage(dep)}`,
-    ])
-  );
-}
-
-function readJson(file) {
-  return JSON.parse(readFileSync(join(rootDir, file), 'utf-8'));
-}
-
-function writeJson(file, value) {
-  writeFileSync(join(rootDir, file), JSON.stringify(value, null, 2) + '\n');
-}
-
-function refreshPackageLockFromLocalPlatformPackages(finalRootPackage) {
-  const originalPackageJson = readFileSync(
-    join(rootDir, 'package.json'),
-    'utf-8'
-  );
-  const localPlatformDeps = getLocalPlatformOptionalDeps(
-    finalRootPackage.optionalDependencies
-  );
-
-  const tempRootPackage = structuredClone(finalRootPackage);
-  tempRootPackage.optionalDependencies = {
-    ...tempRootPackage.optionalDependencies,
-    ...localPlatformDeps,
-  };
-
-  try {
-    writeJson('package.json', tempRootPackage);
-    execFileSync(
-      'npm',
-      [
-        'install',
-        '--package-lock-only',
-        '--ignore-scripts',
-        '--no-audit',
-        '--no-fund',
-      ],
-      { cwd: rootDir, stdio: 'inherit' }
-    );
-  } finally {
-    writeFileSync(join(rootDir, 'package.json'), originalPackageJson);
-  }
-
-  const packageLock = readJson(packageLockFile);
-  packageLock.version = newVersion;
-
-  const rootPackage = packageLock.packages?.[''];
-  if (rootPackage) {
-    rootPackage.version = newVersion;
-    rootPackage.optionalDependencies = {
-      ...rootPackage.optionalDependencies,
-      ...finalRootPackage.optionalDependencies,
-    };
-  }
-
-  writeJson(packageLockFile, packageLock);
-}
-
 for (const file of packageFiles) {
   const filePath = join(rootDir, file);
   try {
@@ -150,16 +80,6 @@ for (const file of packageFiles) {
     failed = true;
     console.error(`  ${file}: ERROR - ${err.message}`);
   }
-}
-
-try {
-  const oldVersion = readJson(packageLockFile).version;
-  const rootPackage = readJson('package.json');
-  refreshPackageLockFromLocalPlatformPackages(rootPackage);
-  console.log(`  ${packageLockFile}: ${oldVersion} → ${newVersion}`);
-} catch (err) {
-  failed = true;
-  console.error(`  ${packageLockFile}: ERROR - ${err.message}`);
 }
 
 if (failed) {
