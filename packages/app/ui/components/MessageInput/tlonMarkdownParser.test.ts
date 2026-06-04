@@ -65,11 +65,14 @@ describe('parseTlonMarkdownRanges (Tlon dialect)', () => {
     expect(ranges).toContainEqual({ type: 'h1', start: 2, length: 5 }); // "Title"
   });
 
-  it('styles deeper headings as h1 (single heading range type available)', () => {
-    const text = '### Deep';
-    const ranges = parseTlonMarkdownRanges(text);
-    expect(ranges).toContainEqual({ type: 'syntax', start: 0, length: 4 }); // "### "
-    expect(ranges).toContainEqual({ type: 'h1', start: 4, length: 4 }); // "Deep"
+  it('styles deeper headings by level (h2, h3, ... by # count)', () => {
+    const h2 = parseTlonMarkdownRanges('## Two');
+    expect(h2).toContainEqual({ type: 'syntax', start: 0, length: 3 }); // "## "
+    expect(h2).toContainEqual({ type: 'h2', start: 3, length: 3 }); // "Two"
+
+    const h3 = parseTlonMarkdownRanges('### Deep');
+    expect(h3).toContainEqual({ type: 'syntax', start: 0, length: 4 }); // "### "
+    expect(h3).toContainEqual({ type: 'h3', start: 4, length: 4 }); // "Deep"
   });
 
   it('styles a blockquote line and dims the > marker', () => {

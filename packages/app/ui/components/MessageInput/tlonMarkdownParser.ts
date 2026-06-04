@@ -74,7 +74,8 @@ export function parseTlonMarkdownRanges(text: string): MarkdownRange[] {
     claim(start, end);
   }
 
-  // Headings: ^#{1,6} content   (rendered as h1)
+  // Headings: ^#{1,6} content  -> h1..h6 by the number of leading #
+  const headingTypes = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
   const headingRe = /^(#{1,6}) (.+)$/gm;
   while ((m = headingRe.exec(text)) !== null) {
     const start = m.index;
@@ -85,7 +86,7 @@ export function parseTlonMarkdownRanges(text: string): MarkdownRange[] {
     }
     const markerLen = m[1].length + 1; // "### "
     push('syntax', start, markerLen);
-    push('h1', start + markerLen, m[2].length);
+    push(headingTypes[m[1].length - 1], start + markerLen, m[2].length);
     claim(start, end);
   }
 
