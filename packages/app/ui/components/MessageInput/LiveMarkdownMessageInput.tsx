@@ -127,6 +127,27 @@ export const LiveMarkdownMessageInput = ({
         color: theme.positiveActionText.val,
         backgroundColor: theme.positiveBackground.val,
       },
+      // Match the post renderer's CodeText: subtle secondary-background, no
+      // border, slightly rounded, body-ish mono size (replaces the library's
+      // light-gray bordered 20pt default).
+      code: {
+        color: theme.primaryText.val,
+        backgroundColor: theme.secondaryBackground.val,
+        borderColor: 'transparent',
+        borderWidth: 0,
+        borderRadius: 4,
+        fontSize: 14,
+        padding: 2,
+      },
+      pre: {
+        color: theme.primaryText.val,
+        backgroundColor: theme.secondaryBackground.val,
+        borderColor: 'transparent',
+        borderWidth: 0,
+        borderRadius: 6,
+        fontSize: 14,
+        padding: 8,
+      },
     }),
     [theme]
   );
