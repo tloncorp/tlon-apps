@@ -498,7 +498,8 @@
         token.i.invites.u.far
       fi-abet:(fi-join:(fi-abed:fi-core flag.join) tok)
     ::
-    ::  allows third-party agents to report channel join/leave for active-channels bookkeeping
+    ::  allows third-party agents (e.g. %notes) to report channel join/leave
+    ::  for active-channels bookkeeping.
         %group-channel-active
       ?>  =(our src):bowl
       =+  !<([=flag:g =nest:g joined=?] vase)
