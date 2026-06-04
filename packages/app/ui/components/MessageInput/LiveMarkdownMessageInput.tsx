@@ -1,4 +1,5 @@
 import type { MarkdownStyle } from '@expensify/react-native-live-markdown';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { JSONContent, Story } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -23,6 +24,7 @@ import {
 } from 'react-native';
 import { XStack, YStack, useTheme } from 'tamagui';
 
+import { useContactIndex } from '../../contexts/appDataContext';
 import { useAttachmentContext } from '../../contexts/attachment';
 import {
   ALL_MENTION_ID,
@@ -35,6 +37,7 @@ import { LiveMarkdownInput, PastedImage } from './LiveMarkdownInput';
 import { MessageInputContainer, MessageInputProps } from './MessageInputBase';
 import {
   Mention,
+  MentionInline,
   canonicalText,
   mentionsToRanges,
   updateMentions,
@@ -107,6 +110,23 @@ export const LiveMarkdownMessageInput = ({
   // become mention inlines on send.
   const [mentions, setMentions] = useState<Mention[]>([]);
   const mentionRanges = useMemo(() => mentionsToRanges(mentions), [mentions]);
+
+  // Resolve a mention's editor display text: a contact's nickname when known,
+  // otherwise the canonical ~ship/@role form. Used to show nicknames (like the
+  // post renderer) rather than raw ship ids.
+  const contactIndex = useContactIndex();
+  const displayForMention = useCallback(
+    (inline: MentionInline): string => {
+      if ('ship' in inline) {
+        const contact =
+          contactIndex?.[preSig(inline.ship)] ?? contactIndex?.[inline.ship];
+        const nickname = contact?.customNickname ?? contact?.peerNickname;
+        return nickname && nickname.trim() ? nickname : canonicalText(inline);
+      }
+      return canonicalText(inline);
+    },
+    [contactIndex]
+  );
 
   const {
     isMentionModeActive,
@@ -187,7 +207,10 @@ export const LiveMarkdownMessageInput = ({
       if (editingPost?.content) {
         const { story } = extractContentTypesFromPost(editingPost);
         if (story) {
-          const seeded = storyToTextAndMentions(story as unknown[]);
+          const seeded = storyToTextAndMentions(
+            story as unknown[],
+            displayForMention
+          );
           setText(seeded.text);
           setMentions(seeded.mentions);
         } else {
@@ -206,7 +229,13 @@ export const LiveMarkdownMessageInput = ({
     })().catch((e) => {
       liveMarkdownLogger.error('Failed to load draft content', e);
     });
-  }, [draftType, editingPost, getDraft, hasSetInitialContent]);
+  }, [
+    draftType,
+    editingPost,
+    getDraft,
+    hasSetInitialContent,
+    displayForMention,
+  ]);
 
   useEffect(() => {
     if (!hasSetInitialContent) {
@@ -410,22 +439,27 @@ export const LiveMarkdownMessageInput = ({
       if (mentionStartIndex == null) {
         return;
       }
-      const inline =
+      const inline: MentionInline =
         option.type === 'contact'
           ? { ship: option.id.replace(/^~/, '') }
           : { sect: option.id === ALL_MENTION_ID ? null : option.id };
-      const canonical = canonicalText(inline);
+      // Show the picked contact's name; roles/@all keep their canonical form.
+      const display =
+        option.type === 'contact' && option.title && option.title.trim()
+          ? option.title
+          : canonicalText(inline);
       const before = text.slice(0, mentionStartIndex);
       const after = text.slice(
         mentionStartIndex + 1 + mentionSearchText.length
       );
-      const inserted = `${canonical} `;
+      const inserted = `${display} `;
       const newText = before + inserted + after;
       const caret = before.length + inserted.length;
       const newMention: Mention = {
         start: before.length,
-        length: canonical.length,
+        length: display.length,
         inline,
+        display,
       };
       // Reposition existing mentions for the insertion, then add the new one.
       setMentions((prev) => [
