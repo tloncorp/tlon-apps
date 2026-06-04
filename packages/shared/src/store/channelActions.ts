@@ -43,6 +43,7 @@ export async function createChannel({
       groupId,
       title,
       description: rawDescription,
+      readers,
     });
   }
 
@@ -124,22 +125,29 @@ async function createNotesChannel({
   groupId,
   title,
   description,
+  readers = [],
 }: {
   groupId: string;
   title: string;
   description?: string;
+  readers?: string[];
 }): Promise<db.Channel> {
   // Create the notebook via the %notes HTTP API, which returns the
   // server-assigned flag synchronously in the response body — no polling, no
   // forced-public visibility hack. Binding it to this group makes the notebook
   // a group channel: read permission defers to the group's can-read, and
   // %groups auto-joins/leaves members via the channel-host convention.
+  //
+  // `readers` (the group role-ids the channel is restricted to) is forwarded
+  // so the %notes host registers the group channel with the correct reader
+  // roles — empty means group-wide readable. Dropping it would create every
+  // notes channel open, defeating the group's can-read gate.
   const [groupHost, groupName] = groupId.split('/');
   try {
     const res = await api.requestJson<NotesCreateResponse>(
       '/notes/~/v1/notebooks',
       'POST',
-      { title, group: { host: groupHost, flagName: groupName } }
+      { title, group: { host: groupHost, flagName: groupName }, readers }
     );
     const summary =
       res?.body?.type === 'notebook' ? res.body.notebook ?? null : null;
