@@ -752,7 +752,19 @@ export async function leaveGroupChannel(channelId: string) {
   await db.updateChannel({ id: channelId, currentUserIsMember: false });
 
   try {
-    await api.leaveChannel(channelId);
+    if (channelId.startsWith('notes/')) {
+      // notes channels aren't %channels-backed; leave the notebook on %notes
+      // (which unsubscribes and reports the leave to %groups) instead of
+      // poking %channels, which would reject the unknown nest.
+      const [, host, name] = channelId.split('/');
+      await api.poke({
+        app: 'notes',
+        mark: 'notes-action',
+        json: { type: 'leave', ship: host, name },
+      });
+    } else {
+      await api.leaveChannel(channelId);
+    }
   } catch (e) {
     console.error('Failed to leave channel', e);
     // Only rollback on actual errors (not TimeoutError)
