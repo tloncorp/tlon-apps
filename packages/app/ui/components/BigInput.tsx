@@ -930,12 +930,7 @@ export function BigInput({
       }}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
-      <View
-        key={currentEditor}
-        collapsable={false}
-        flex={1}
-        flexDirection="column"
-      >
+      <View flex={1} flexDirection="column">
         {__DEV__ && (
           <TouchableOpacity
             onPress={() => setShowEditorSwitcher(true)}

@@ -143,6 +143,7 @@ export const MessageInputContainer = memo(
     return (
       <YStack
         width="100%"
+        flex={frameless ? 1 : undefined}
         backgroundColor={
           isEditing ? secondaryBackgroundColor : defaultBackgroundColor
         }
@@ -238,6 +239,7 @@ export const MessageInputContainer = memo(
           // be interactive on Android.
           <XStack
             width="100%"
+            flex={1}
             backgroundColor="$background"
             onLayout={handleInputLayout}
           >
