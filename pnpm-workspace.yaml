@@ -42,6 +42,7 @@ patchedDependencies:
   expo-image-manipulator: patches/expo-image-manipulator@56.0.19.patch
   expo-background-task: patches/expo-background-task@56.0.19.patch
   'html-entities@2.5.3': patches/html-entities@2.5.3.patch
+  'expensify-common@2.0.182': patches/expensify-common@2.0.182.patch
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
 
 allowUnusedPatches: false
@@ -80,6 +81,7 @@ overrides:
   esbuild: 0.27.3
   html-entities: 2.5.3
   react-native-enriched: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+  '@expensify/react-native-live-markdown': github:janicduplessis/react-native-live-markdown#2ebc7c7
 
 allowBuilds:
   "@firebase/util": true
