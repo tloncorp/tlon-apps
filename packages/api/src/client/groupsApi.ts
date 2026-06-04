@@ -1531,6 +1531,17 @@ export const toV1GroupsUpdate = (
     }
   }
 
+  // Per-nest active-channels (membership) delta — a local-only %groups
+  // response, emitted when a channel-host agent (e.g. %notes) reports a
+  // join/leave. Reconciles membership the same way as a real channel
+  // join/leave; lets a second same-ship client learn it without a full sync.
+  if ('active-channels' in event) {
+    const { nest, joined } = event['active-channels'];
+    return joined
+      ? { type: 'joinChannel', channelId: nest, groupId }
+      : { type: 'leaveChannel', channelId: nest };
+  }
+
   // Handle section/zone operations
   if ('section' in event) {
     const sectionData = event.section;
