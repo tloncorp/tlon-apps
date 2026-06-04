@@ -283,6 +283,7 @@ clurd
 # From packages/tlon-skill/.gitignore
 /packages/tlon-skill/**/node_modules/
 /packages/tlon-skill/**/*.log
+/packages/tlon-skill/**/*.bun-build
 /packages/tlon-skill/**/.DS_Store
 /packages/tlon-skill/**/dist
 /packages/tlon-skill/**/coverage/
