@@ -72,6 +72,7 @@ export const LiveMarkdownMessageInput = ({
   frameless = false,
   bigInput = false,
   groupRoles,
+  onEditorContentChange,
 }: MessageInputProps) => {
   const theme = useTheme();
   const showToast = useToast();
@@ -194,6 +195,16 @@ export const LiveMarkdownMessageInput = ({
       liveMarkdownLogger.error('Failed to store markdown draft', e);
     });
   }, [text, hasSetInitialContent, storeDraft, clearDraft, draftType]);
+
+  // Report content to the host (e.g. BigInput) so the notebook Post button can
+  // enable/disable and send. Uses the entity-aware story so mentions survive.
+  useEffect(() => {
+    if (!hasSetInitialContent) {
+      return;
+    }
+    const story = textAndMentionsToStory(text, mentions) as unknown as Story;
+    onEditorContentChange?.(tiptap.diaryMixedToJSON(story));
+  }, [text, mentions, hasSetInitialContent, onEditorContentChange]);
 
   useEffect(() => {
     if (shouldBlur) {
