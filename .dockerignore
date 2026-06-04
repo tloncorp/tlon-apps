@@ -29,6 +29,8 @@
 **/rube/dist/*.tgz
 **/rube/dist/*.tar.gz
 **/*.tgz
+# Keep vendored dependency tarballs (referenced by pnpm-lock.yaml)
+!vendor/*.tgz
 **/.urb
 **/.http.ports
 **/.vere.ports
