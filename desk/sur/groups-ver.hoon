@@ -126,6 +126,8 @@
           [%section =section-id =r-section]
           [%section-order order=(list section-id)]
           [%flag-content =nest =plan src=ship]
+          ::  per-nest active-channels (membership) delta; local-only response.
+          [%active-channels =nest joined=?]
           [%delete ~]
       ==
     :: $r-entry: depends on $r-ask

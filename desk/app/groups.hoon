@@ -85,7 +85,9 @@
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
-          :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
+          ::  relaxed (|): r-group gained the local-only %active-channels
+          ::  variant, so its type hash must not be pinned into negotiation.
+          :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
           :+  %group-channel-active  &  -:!>(*vale:m-group-channel-active)
         ::
@@ -506,15 +508,19 @@
       ?>  =(our src):bowl
       =+  !<([=flag:g =nest:g joined=?] vase)
       ?~  net-group=(~(get by groups) flag)  cor
-      =*  group  u.net-group
-      %_  cor  groups
-        %+  ~(put by groups)  flag
-        %_  group  active-channels
-          ?:  joined
-            (~(put in active-channels.group) nest)
-          (~(del in active-channels.group) nest)
-        ==
-      ==
+      =/  [=net:g =group:g]  u.net-group
+      ::  no-op if membership is already in the requested state
+      ?:  =(joined (~(has in active-channels.group) nest))  cor
+      =.  active-channels.group
+        ?:  joined
+          (~(put in active-channels.group) nest)
+        (~(del in active-channels.group) nest)
+      =.  groups  (~(put by groups) flag net group)
+      ::  push the per-nest membership delta to same-ship clients. /v1/groups
+      ::  is a from-self-only sub, so this never crosses the wire — it just
+      ::  lets a second local client learn join/leave without a full re-sync.
+      =/  =r-groups:v9:gv  [flag [%active-channels nest joined]]
+      (give %fact ~[/v1/groups] group-response-1+!>(r-groups))
     ::
         %group-knock
       ?>  from-self
