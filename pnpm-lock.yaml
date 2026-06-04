@@ -23,7 +23,7 @@ overrides:
   expo-audio: ~1.1.1
   get-intrinsic: 1.2.4
   esbuild: 0.27.3
-  react-native-enriched: file:/Users/janicduplessis/Developer/tlon-apps/vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+  react-native-enriched: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
   '@expensify/react-native-live-markdown': github:janicduplessis/react-native-live-markdown#2ebc7c7
 
 patchedDependencies:
@@ -446,7 +446,7 @@ importers:
         specifier: ~1.16.1
         version: 1.16.1(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-enriched:
-        specifier: file:/Users/janicduplessis/Developer/tlon-apps/vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+        specifier: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
         version: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.1.17))(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-fetch-api:
         specifier: ^3.0.0
@@ -1153,7 +1153,7 @@ importers:
         specifier: '*'
         version: 1.16.1(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-enriched:
-        specifier: file:/Users/janicduplessis/Developer/tlon-apps/vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+        specifier: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
         version: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.1.17))(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       react-native-fetch-api:
         specifier: '*'

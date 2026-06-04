@@ -3,6 +3,7 @@ node_modules
 ops
 bin
 *.tgz
+!vendor/*.tgz
 *.xst
 zod*
 vere-*
