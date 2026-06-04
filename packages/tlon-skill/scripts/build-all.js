@@ -21,11 +21,25 @@ const rootDir = join(__dirname, '..');
 const pkg = JSON.parse(readFileSync(join(rootDir, 'package.json'), 'utf-8'));
 const version = pkg.version;
 
+function parseTargetArg(args) {
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg === '--target') {
+      return args[i + 1] ?? '';
+    }
+    if (arg.startsWith('--target=')) {
+      return arg.slice('--target='.length);
+    }
+  }
+  return `${process.platform}-${process.arch}`;
+}
+
 // Parse --target argument
-const targetArg = process.argv.find((arg) => arg.startsWith('--target='));
-const target = targetArg
-  ? targetArg.split('=')[1]
-  : `${process.platform}-${process.arch}`;
+const target = parseTargetArg(process.argv.slice(2));
+if (!target) {
+  console.error('Missing value for --target');
+  process.exit(1);
+}
 
 // Map our target names to bun's target names
 const bunTargets = {
