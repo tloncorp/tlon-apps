@@ -498,6 +498,21 @@
         token.i.invites.u.far
       fi-abet:(fi-join:(fi-abed:fi-core flag.join) tok)
     ::
+    ::  allows third-party agents to report channel join/leave for active-channels bookkeeping
+        %group-channel-active
+      ?>  =(our src):bowl
+      =+  !<([=flag:g =nest:g joined=?] vase)
+      ?~  net-group=(~(get by groups) flag)  cor
+      =*  group  u.net-group
+      %_  cor  groups
+        %+  ~(put by groups)  flag
+        %_  group  active-channels
+          ?:  joined
+            (~(put in active-channels.group) nest)
+          (~(del in active-channels.group) nest)
+        ==
+      ==
+    ::
         %group-knock
       ?>  from-self
       =+  !<(=flag:g vase)
@@ -658,6 +673,8 @@
   ^-  ?
   ?:  ?=(kind:d p.nest)
     .^(? %gu (channels-scry nest))
+  ::  generic channel-host: the kind agent answers a /joined/<host>/<name>
+  ::  scry with a loob.
   =/  =path
     /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/joined/(scot %p p.q.nest)/[q.q.nest]
   .^(? %gu path)
@@ -1508,7 +1525,7 @@
       %fact
     ::  we use the same subscription path for client and agent subscriptions.
     ::  here we only process the most recent mark coming from the
-    ::  channel host. 
+    ::  channel host.
     ::
     ?.  =(p.cage.sign %channel-preview-1)  cor
     =+  !<(=channel-preview:v7:gv q.cage.sign)
@@ -4351,17 +4368,7 @@
       ::  TODO: the whole "listen to channels events to sync" strategy
       ::  is too brittle.
       ::
-      =/  pre=path
-        /(scot %p our.bowl)/channels/(scot %da now.bowl)
-      =/  active
-        ?:  ?=(kind:d p.nest)
-          .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
-        ::  generic channel-host: nest kind names the backing agent; %gu its
-        ::  conventional /joined/<host>/<name> path.
-        =/  jpath=path
-          /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/joined/(scot %p p.q.nest)/[q.q.nest]
-        .^(? %gu jpath)
-      =?  active-channels.group  active
+      =?  active-channels.group  (is-joined nest)
         (~(put in active-channels.group) nest)
       ?:  go-our-host  go-core
       ::TODO handle duplicate channel add properly. either

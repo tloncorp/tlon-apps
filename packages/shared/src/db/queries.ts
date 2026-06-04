@@ -2844,6 +2844,41 @@ export const setLeftGroupChannels = createWriteQuery(
   ['channels']
 );
 
+// Two-way membership reconcile for notes channels. Notes aren't tracked by
+// %channels (so they're excluded from setLeftGroupChannels); instead %groups
+// tracks our membership in each group's active-channels set. joinedChannelIds
+// is the notes nests from those sets. We set those notes channels joined and
+// every other group-notes channel left — so this handles join, leave, revoke,
+// and re-gain, unlike a one-directional flip.
+export const setJoinedNotesChannels = createWriteQuery(
+  'setJoinedNotesChannels',
+  async ({ joinedChannelIds }: { joinedChannelIds: string[] }, ctx: QueryCtx) => {
+    const notesChannel = like($channels.id, 'notes/%');
+    // mark the active notes channels joined
+    if (joinedChannelIds.length) {
+      await ctx.db
+        .update($channels)
+        .set({ currentUserIsMember: true })
+        .where(and(notesChannel, inArray($channels.id, joinedChannelIds)));
+    }
+    // mark every other group-notes channel left
+    return await ctx.db
+      .update($channels)
+      .set({ currentUserIsMember: false })
+      .where(
+        and(
+          isNotNull($channels.groupId),
+          notesChannel,
+          eq($channels.currentUserIsMember, true),
+          joinedChannelIds.length
+            ? notInArray($channels.id, joinedChannelIds)
+            : undefined
+        )
+      );
+  },
+  ['channels']
+);
+
 export const setLeftGroups = createWriteQuery(
   'setLeftGroups',
   async ({ joinedGroupIds }: { joinedGroupIds: string[] }, ctx: QueryCtx) => {

@@ -108,6 +108,12 @@ export const syncInitData = async (
         queryCtx
       )
       .then(() => logger.crumb('set left channels'));
+    await db
+      .setJoinedNotesChannels(
+        { joinedChannelIds: initData.joinedNotesChannels },
+        queryCtx
+      )
+      .then(() => logger.crumb('reconciled notes channels'));
     updateLastActivityTime();
   };
 
