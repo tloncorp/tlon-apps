@@ -5,13 +5,11 @@ import {
   Attachment,
   createDevLogger,
   extractContentTypesFromPost,
-  storyToContent,
   tiptap,
   uploadAsset as uploadAssetToStorage,
   waitForUploads,
 } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import type * as domain from '@tloncorp/shared/domain';
 import { useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -50,14 +48,12 @@ const liveMarkdownLogger = createDevLogger('LiveMarkdownMessageInput', false);
 export const LiveMarkdownMessageInput = ({
   shouldBlur,
   setShouldBlur,
-  sendPostFromDraft,
   channelId,
   storeDraft,
   clearDraft,
   getDraft,
   editingPost,
   setEditingPost,
-  setShowBigInput,
   showInlineAttachments = true,
   showAttachmentButton = true,
   floatingActionButton = false,
@@ -66,10 +62,8 @@ export const LiveMarkdownMessageInput = ({
   placeholder = 'Message',
   draftType,
   title,
-  image,
   channelType,
   goBack,
-  onSend,
   frameless = false,
   bigInput = false,
   groupRoles,
@@ -88,8 +82,6 @@ export const LiveMarkdownMessageInput = ({
   const [text, setText] = useState('');
   const [containerHeight, setContainerHeight] = useState(initialHeight);
   const [hasSetInitialContent, setHasSetInitialContent] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [sendError, setSendError] = useState(false);
   const lastEditingPost = useRef<db.Post | undefined>(editingPost);
 
   const { attachments, clearAttachments } = useAttachmentContext();
@@ -275,65 +267,6 @@ export const LiveMarkdownMessageInput = ({
     }
   }, [shouldBlur, setShouldBlur]);
 
-  const handleSend = useCallback(
-    async (isEdit?: boolean) => {
-      try {
-        setIsSending(true);
-        const story = textAndMentionsToStory(
-          text,
-          mentions
-        ) as unknown as Story;
-        const content = storyToContent(story);
-
-        const draft: domain.PostDataDraft = {
-          channelId,
-          content,
-          attachments,
-          channelType,
-          title,
-          image: image?.uri,
-          replyToPostId: null,
-          ...(isEdit && editingPost != null
-            ? { isEdit: true, editTargetPostId: editingPost.id }
-            : { isEdit: false }),
-        };
-
-        await sendPostFromDraft(draft);
-
-        setEditingPost?.(undefined);
-        onSend?.();
-        setText('');
-        setMentions([]);
-        clearAttachments();
-        clearDraft(draftType);
-        setShowBigInput?.(false);
-      } catch (e) {
-        liveMarkdownLogger.error('Failed to send markdown message', e);
-        setSendError(true);
-      } finally {
-        setIsSending(false);
-        setSendError(false);
-      }
-    },
-    [
-      text,
-      mentions,
-      channelId,
-      attachments,
-      channelType,
-      title,
-      image,
-      editingPost,
-      sendPostFromDraft,
-      setEditingPost,
-      onSend,
-      clearAttachments,
-      clearDraft,
-      draftType,
-      setShowBigInput,
-    ]
-  );
-
   const handleCancelEditing = useCallback(() => {
     setEditingPost?.(undefined);
     setHasSetInitialContent(false);
@@ -480,10 +413,12 @@ export const LiveMarkdownMessageInput = ({
   return (
     <MessageInputContainer
       setShouldBlur={setShouldBlur}
-      onPressSend={() => handleSend(false)}
-      onPressEdit={() => handleSend(true)}
+      // Frameless (notebook) usage renders no send button — the host (BigInput)
+      // performs the send. onPressSend and sendError are required props, so pass
+      // inert values here.
+      onPressSend={() => {}}
       containerHeight={containerHeight}
-      sendError={sendError}
+      sendError={false}
       mentionOptions={validOptions}
       onSelectMention={onSelectMention}
       onDismissMention={handleMentionEscape}
@@ -493,9 +428,7 @@ export const LiveMarkdownMessageInput = ({
       cancelEditing={handleCancelEditing}
       showAttachmentButton={showAttachmentButton}
       floatingActionButton={floatingActionButton}
-      disableSend={
-        editorIsEmpty || (channelType === 'notebook' && !title) || isSending
-      }
+      disableSend={editorIsEmpty || (channelType === 'notebook' && !title)}
       goBack={goBack}
       frameless={frameless}
     >
