@@ -76,6 +76,10 @@ import {
   groupRoles as $groupRoles,
   groupUnreads as $groupUnreads,
   groups as $groups,
+  notesFolders as $notesFolders,
+  notesMembers as $notesMembers,
+  notesNotebooks as $notesNotebooks,
+  notesNotes as $notesNotes,
   pins as $pins,
   postReactions as $postReactions,
   posts as $posts,
@@ -105,6 +109,10 @@ import {
   GroupNavSection,
   GroupRole,
   GroupUnread,
+  NotesFolder,
+  NotesMember,
+  NotesNote,
+  NotesNotebook,
   PendingMemberDismissals,
   Pin,
   PinType,
@@ -401,6 +409,218 @@ export const getAnalyticsDigest = createReadQuery(
     };
   },
   []
+);
+
+export const getNotesNotebook = createReadQuery(
+  'getNotesNotebook',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks
+      .findFirst({
+        where: eq($notesNotebooks.id, notebookFlag),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotebooks']
+);
+
+export const getNotesNotebookWithRelations = createReadQuery(
+  'getNotesNotebookWithRelations',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks
+      .findFirst({
+        where: eq($notesNotebooks.id, notebookFlag),
+        with: {
+          folders: true,
+          notes: true,
+          members: true,
+        },
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+export const getNotesNotebooks = createReadQuery(
+  'getNotesNotebooks',
+  async (ctx: QueryCtx) => {
+    return ctx.db.query.notesNotebooks.findMany({
+      orderBy: [desc($notesNotebooks.lastOpenedAt), asc($notesNotebooks.title)],
+    });
+  },
+  ['notesNotebooks']
+);
+
+export const getNotesFolders = createReadQuery(
+  'getNotesFolders',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesFolders.findMany({
+      where: eq($notesFolders.notebookFlag, notebookFlag),
+      orderBy: [asc($notesFolders.name)],
+    });
+  },
+  ['notesFolders']
+);
+
+export const getNotesNotes = createReadQuery(
+  'getNotesNotes',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesNotes.findMany({
+      where: eq($notesNotes.notebookFlag, notebookFlag),
+      orderBy: [desc($notesNotes.updatedAt), asc($notesNotes.title)],
+    });
+  },
+  ['notesNotes']
+);
+
+export const getNotesNote = createReadQuery(
+  'getNotesNote',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.notesNotes
+      .findFirst({
+        where: and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['notesNotes']
+);
+
+export const getNotesMembers = createReadQuery(
+  'getNotesMembers',
+  async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
+    return ctx.db.query.notesMembers.findMany({
+      where: eq($notesMembers.notebookFlag, notebookFlag),
+      orderBy: [asc($notesMembers.contactId)],
+    });
+  },
+  ['notesMembers']
+);
+
+export const saveNotesNotebookSnapshot = createWriteQuery(
+  'saveNotesNotebookSnapshot',
+  async (
+    {
+      notebook,
+      folders,
+      notes,
+      members,
+    }: {
+      notebook: NotesNotebook;
+      folders: NotesFolder[];
+      notes: NotesNote[];
+      members?: NotesMember[];
+    },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($notesNotebooks)
+        .values(notebook)
+        .onConflictDoUpdate({
+          target: $notesNotebooks.id,
+          set: conflictUpdateSetAll($notesNotebooks),
+        });
+
+      await txCtx.db
+        .delete($notesFolders)
+        .where(eq($notesFolders.notebookFlag, notebook.id));
+      if (folders.length > 0) {
+        await txCtx.db.insert($notesFolders).values(folders);
+      }
+
+      await txCtx.db
+        .delete($notesNotes)
+        .where(eq($notesNotes.notebookFlag, notebook.id));
+      if (notes.length > 0) {
+        await txCtx.db.insert($notesNotes).values(notes);
+      }
+
+      if (members) {
+        await txCtx.db
+          .delete($notesMembers)
+          .where(eq($notesMembers.notebookFlag, notebook.id));
+        if (members.length > 0) {
+          await txCtx.db.insert($notesMembers).values(members);
+        }
+      }
+    });
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+export const upsertNotesNotebook = createWriteQuery(
+  'upsertNotesNotebook',
+  async (notebook: NotesNotebook, ctx: QueryCtx) => {
+    return ctx.db
+      .insert($notesNotebooks)
+      .values(notebook)
+      .onConflictDoUpdate({
+        target: $notesNotebooks.id,
+        set: conflictUpdateSetAll($notesNotebooks),
+      });
+  },
+  ['notesNotebooks']
+);
+
+export const upsertNotesNote = createWriteQuery(
+  'upsertNotesNote',
+  async (note: NotesNote, ctx: QueryCtx) => {
+    return ctx.db
+      .insert($notesNotes)
+      .values(note)
+      .onConflictDoUpdate({
+        target: $notesNotes.id,
+        set: conflictUpdateSetAll($notesNotes),
+      });
+  },
+  ['notesNotes']
+);
+
+export const deleteNotesNote = createWriteQuery(
+  'deleteNotesNote',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .delete($notesNotes)
+      .where(
+        and(
+          eq($notesNotes.notebookFlag, notebookFlag),
+          eq($notesNotes.noteId, noteId)
+        )
+      );
+  },
+  ['notesNotes']
+);
+
+export const setNotesNotebookLastOpened = createWriteQuery(
+  'setNotesNotebookLastOpened',
+  async (
+    { notebookFlag, openedAt }: { notebookFlag: string; openedAt: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($notesNotebooks)
+      .set({ lastOpenedAt: openedAt })
+      .where(eq($notesNotebooks.id, notebookFlag));
+  },
+  ['notesNotebooks']
+);
+
+export const deleteNotesNotebook = createWriteQuery(
+  'deleteNotesNotebook',
+  async (notebookFlag: string, ctx: QueryCtx) => {
+    return ctx.db
+      .delete($notesNotebooks)
+      .where(eq($notesNotebooks.id, notebookFlag));
+  },
+  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
 );
 
 const BATCH_SIZE = 200;

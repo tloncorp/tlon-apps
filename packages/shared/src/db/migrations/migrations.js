@@ -2,11 +2,13 @@
 
 import journal from './meta/_journal.json';
 import m0000 from './0000_daily_silver_fox.sql';
+import m0001 from './0001_native_notes.sql';
 
   export default {
     journal,
     migrations: {
-      m0000
+      m0000,
+      m0001
     }
   }
   

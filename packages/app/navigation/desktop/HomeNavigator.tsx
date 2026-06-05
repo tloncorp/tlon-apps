@@ -19,6 +19,7 @@ import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { HomeEmptyState } from '../../features/top/DesktopEmptyStates';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../../features/top/MediaViewerScreen';
+import { NotesDetailScreen } from '../../features/top/NotesDetailScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
@@ -37,7 +38,7 @@ export const HomeNavigator = () => {
 
   useEffect(() => {
     setLastOpenTab('Home');
-  }, []);
+  }, [setLastOpenTab]);
 
   return (
     <HomeDrawer.Navigator
@@ -197,6 +198,11 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="Post"
           component={PostScreen}
+          initialParams={props.route.params}
+        />
+        <ChannelStackNavigator.Screen
+          name="NotesDetail"
+          component={NotesDetailScreen}
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen

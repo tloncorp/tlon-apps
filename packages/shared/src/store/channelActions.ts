@@ -11,6 +11,7 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -44,6 +45,7 @@ export async function createChannel({
       title,
       description: rawDescription,
       readers,
+      writers,
     });
   }
 
@@ -131,6 +133,7 @@ async function createNotesChannel({
   title: string;
   description?: string;
   readers?: string[];
+  writers?: string[];
 }): Promise<db.Channel> {
   // Create the notebook via the %notes HTTP API, which returns the
   // server-assigned flag synchronously in the response body — no polling, no
@@ -155,7 +158,11 @@ async function createNotesChannel({
       throw new Error('Failed to create notes notebook');
     }
 
-    const channelId = `notes/${summary.host}/${summary.flagName}`;
+    const flag = api.formatNotesFlag({
+      host: summary.host,
+      name: summary.flagName,
+    });
+    const channelId = api.notesChannelId(flag);
 
     logger.trackEvent(
       AnalyticsEvent.ActionCreateChannel,
@@ -179,6 +186,10 @@ async function createNotesChannel({
     };
 
     await db.insertChannels([newChannel]);
+    syncNotesNotebook(flag).catch((e) => {
+      logger.error('Failed to sync notes notebook after channel create', e);
+    });
+
     return newChannel;
   } catch (e) {
     logger.error('Failed to add notes channel', e);
@@ -259,18 +270,12 @@ export async function deleteChannel({
   // don't leak orphans. The agent rejects the delete if we're not the host,
   // which is fine — the listing is already gone from the group either way.
   if (channelId.startsWith('notes/')) {
-    const [, host, name] = channelId.split('/');
-    if (host && name) {
+    const flag = api.parseNotesChannelId(channelId);
+    if (flag) {
+      const notebookFlag = api.formatNotesFlag(flag);
+      await db.deleteNotesNotebook(notebookFlag);
       try {
-        await api.poke({
-          app: 'notes',
-          mark: 'notes-action',
-          json: {
-            type: 'notebook',
-            flag: `${host}/${name}`,
-            action: { type: 'delete' },
-          },
-        });
+        await api.deleteNotesNotebook(flag);
       } catch (e) {
         logger.error('Failed to delete notebook in %notes', e);
       }

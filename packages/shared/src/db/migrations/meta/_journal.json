@@ -8,6 +8,13 @@
       "when": 1779481783452,
       "tag": "0000_daily_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1780503789000,
+      "tag": "0001_native_notes",
+      "breakpoints": true
     }
   ]
 }
