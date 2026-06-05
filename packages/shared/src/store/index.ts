@@ -23,6 +23,7 @@ export * from './presence';
 export * from './inviteActions';
 export * from './hostingActions';
 export * from './lanyardActions';
+export * from './notesActions';
 export * from './settingsActions';
 export * from './systemContactActions';
 export * from './blockingActions';
