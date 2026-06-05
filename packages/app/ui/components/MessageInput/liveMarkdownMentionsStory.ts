@@ -3,6 +3,7 @@ import { markdownToStory, storyToMarkdown } from '@tloncorp/shared';
 import {
   Mention,
   MentionInline,
+  decodeSafeMarkdownEscapes,
   decodeWhitespaceEntities,
   extractMentionsFromSentinelText,
   injectInlinesIntoStory,
@@ -23,10 +24,11 @@ export function storyToTextAndMentions(
 } {
   const { story: sentinelStory, inlines } = sentinelizeStory(story as never);
   // Decode entity-encoded whitespace so the editor shows real characters rather
-  // than `&#x20;`. Significant whitespace then follows normal markdown rules on
-  // save (the editor stays WYSIWYG-honest).
-  const markdown = decodeWhitespaceEntities(
-    storyToMarkdown(sentinelStory as never)
+  // than `&#x20;`, and drop backslash escapes that can't change re-parsing (e.g.
+  // snake_case underscores). Significant whitespace and any remaining escapes
+  // then follow normal markdown rules on save (the editor stays WYSIWYG-honest).
+  const markdown = decodeSafeMarkdownEscapes(
+    decodeWhitespaceEntities(storyToMarkdown(sentinelStory as never))
   );
   return extractMentionsFromSentinelText(markdown, inlines, displayFor);
 }

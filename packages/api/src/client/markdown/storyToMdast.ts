@@ -585,11 +585,14 @@ export function storyToMdast(story: Story): RootContent[] {
       if (node) {
         nodes.push(node);
       }
-    } else {
+    } else if (verse && 'inline' in verse) {
       // VerseInline - can return multiple nodes if it contains blockquotes
       const inlineNodes = verseInlineToMdast(verse.inline);
       nodes.push(...inlineNodes);
     }
+    // A verse that is neither a block nor an inline verse (e.g. a
+    // ContentReference embedded in a post's content) has no Markdown
+    // equivalent; skip it instead of crashing on a missing `inline`.
   }
 
   return nodes;

@@ -52,6 +52,21 @@ export function decodeWhitespaceEntities(text: string): string {
   });
 }
 
+// remark-stringify conservatively backslash-escapes markdown-significant
+// punctuation. Undo only the escapes that can never change how the text
+// re-parses, so the editor doesn't show stray backslashes:
+//   - `\_` between two word characters (intra-word underscores are never
+//     emphasis in CommonMark, e.g. snake_case)
+//   - `\@` (the @ sign is not markdown-significant in this dialect)
+// Load-bearing escapes (e.g. `\*`, or `\#`/`\.` at the start of a line) are kept
+// so the text still round-trips on save. Uses a capture group rather than
+// lookbehind, which Hermes does not support.
+export function decodeSafeMarkdownEscapes(text: string): string {
+  return text
+    .replace(/([A-Za-z0-9])\\_(?=[A-Za-z0-9])/g, '$1_')
+    .replace(/\\@/g, '@');
+}
+
 // Highlight ranges for the tracked mentions (per-instance, by position).
 export function mentionsToRanges(mentions: Mention[]): MarkdownRange[] {
   return mentions.map((mn) => ({
