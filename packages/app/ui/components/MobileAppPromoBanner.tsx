@@ -54,13 +54,7 @@ export function MobileAppPromoBanner() {
   }
 
   return (
-    <View
-      position="absolute"
-      bottom="$xl"
-      left="$xl"
-      right="$xl"
-      zIndex={10}
-    >
+    <View position="absolute" bottom="$xl" left="$xl" right="$xl" zIndex={10}>
       <View
         position="relative"
         backgroundColor="$background"
