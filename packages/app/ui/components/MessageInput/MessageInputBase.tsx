@@ -93,6 +93,7 @@ export const MessageInputContainer = memo(
     mentionText,
     mentionOptions,
     onSelectMention,
+    onDismissMention,
     isEditing = false,
     cancelEditing,
     onPressEdit,
@@ -114,6 +115,7 @@ export const MessageInputContainer = memo(
     mentionText?: string;
     mentionOptions: MentionOption[];
     onSelectMention: (option: MentionOption) => void;
+    onDismissMention?: () => void;
     isEditing?: boolean;
     cancelEditing?: () => void;
     onPressEdit?: () => void;
@@ -142,6 +144,7 @@ export const MessageInputContainer = memo(
           mentionText={mentionText}
           options={mentionOptions}
           onSelectMention={onSelectMention}
+          onDismiss={onDismissMention}
           frameless={frameless}
           ref={mentionRef}
         />

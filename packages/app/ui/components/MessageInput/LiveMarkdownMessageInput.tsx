@@ -133,6 +133,7 @@ export const LiveMarkdownMessageInput = ({
     mentionStartIndex,
     handleMention,
     resetMentionMode,
+    handleMentionEscape,
   } = useMentions({ chatId: channelId, roleOptions });
 
   const markdownStyle = useMemo<MarkdownStyle>(
@@ -485,6 +486,7 @@ export const LiveMarkdownMessageInput = ({
       sendError={sendError}
       mentionOptions={validOptions}
       onSelectMention={onSelectMention}
+      onDismissMention={handleMentionEscape}
       isMentionModeActive={isMentionModeActive}
       mentionText={mentionSearchText}
       isEditing={!!editingPost}

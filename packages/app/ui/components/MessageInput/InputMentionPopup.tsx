@@ -1,6 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { PropsWithRef } from 'react';
 import React from 'react';
+import { Pressable, StyleSheet } from 'react-native';
 import { View, YStack } from 'tamagui';
 
 import { MentionOption } from '../BareChatInput/useMentions';
@@ -14,6 +15,7 @@ function InputMentionPopupInternal(
     mentionText,
     options,
     onSelectMention,
+    onDismiss,
     frameless = false,
   }: PropsWithRef<{
     containerHeight: number;
@@ -21,12 +23,16 @@ function InputMentionPopupInternal(
     mentionText?: string;
     options: MentionOption[];
     onSelectMention: (option: MentionOption) => void;
+    onDismiss?: () => void;
     frameless?: boolean;
   }>,
   ref: MentionPopupRef
 ) {
   const isNarrow = useIsWindowNarrow();
-  return isMentionModeActive ? (
+  if (!isMentionModeActive) {
+    return null;
+  }
+  const popup = (
     <YStack
       position="absolute"
       // The chat input is a short bottom bar, so the popup offsets by the input
@@ -47,7 +53,22 @@ function InputMentionPopupInternal(
         />
       </View>
     </YStack>
-  ) : null;
+  );
+  // With a dismiss handler, render a full-bleed pressable behind the popup (the
+  // popup is its child, so it always draws on top). A tap on the editor area
+  // outside the popup closes the menu; taps on the option rows still select
+  // because those are the deeper touch responders. zIndex lifts the backdrop
+  // above the editor so those outside taps reach it.
+  return onDismiss ? (
+    <Pressable
+      onPress={onDismiss}
+      style={[StyleSheet.absoluteFill, { zIndex: 14 }]}
+    >
+      {popup}
+    </Pressable>
+  ) : (
+    popup
+  );
 }
 
 const InputMentionPopup = React.forwardRef(InputMentionPopupInternal);
