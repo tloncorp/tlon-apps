@@ -52,3 +52,39 @@ describe('story <-> markdown edit/save round-trip', () => {
     );
   });
 });
+
+describe('storyToMarkdown: non-text content is skipped, not crashed', () => {
+  test('a verse with neither inline nor block (e.g. a reference) is skipped', () => {
+    const story = [
+      { inline: ['before'] },
+      { type: 'reference', reference: {} },
+      { inline: ['after'] },
+    ] as unknown as Parameters<typeof storyToMarkdown>[0];
+    expect(() => storyToMarkdown(story)).not.toThrow();
+    expect(storyToMarkdown(story)).toBe('before\n\nafter');
+  });
+
+  test('a cite block (no Markdown equivalent) is dropped without crashing', () => {
+    const story = [
+      { inline: ['note'] },
+      { block: { cite: { chan: { nest: 'chat/~zod/general', where: '' } } } },
+    ] as unknown as Parameters<typeof storyToMarkdown>[0];
+    expect(() => storyToMarkdown(story)).not.toThrow();
+    expect(storyToMarkdown(story)).toBe('note');
+  });
+});
+
+describe('intra-word _ and @ round-trip as literal text', () => {
+  // The live-markdown editor unescapes `\_` (intra-word) and `\@` for display;
+  // assert they parse back to the same literal text so unescaping is safe.
+  test('snake_case stays literal', () => {
+    expect(
+      markdownToStory('snake_case_name', { parseMentions: false })
+    ).toEqual([{ inline: ['snake_case_name'] }]);
+  });
+  test('@ stays literal', () => {
+    expect(markdownToStory('a.b@c', { parseMentions: false })).toEqual([
+      { inline: ['a.b@c'] },
+    ]);
+  });
+});

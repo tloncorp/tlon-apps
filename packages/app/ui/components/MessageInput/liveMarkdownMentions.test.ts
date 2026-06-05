@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Mention,
   canonicalText,
+  decodeSafeMarkdownEscapes,
   decodeWhitespaceEntities,
   extractMentionsFromSentinelText,
   injectInlinesIntoStory,
@@ -11,6 +12,29 @@ import {
   sentinelizeStory,
   updateMentions,
 } from './liveMarkdownMentions';
+
+describe('decodeSafeMarkdownEscapes', () => {
+  it('unescapes intra-word underscores (snake_case)', () => {
+    expect(decodeSafeMarkdownEscapes('snake\\_case\\_name')).toBe(
+      'snake_case_name'
+    );
+  });
+
+  it('unescapes @', () => {
+    expect(decodeSafeMarkdownEscapes('a.b\\@c')).toBe('a.b@c');
+  });
+
+  it('keeps load-bearing escapes intact', () => {
+    // `\*` would become emphasis, `\#`/`\.` at line start a heading/list, and a
+    // word-boundary `\_` real emphasis — all must stay escaped.
+    expect(decodeSafeMarkdownEscapes('a\\*b\\*c')).toBe('a\\*b\\*c');
+    expect(decodeSafeMarkdownEscapes('\\# not heading')).toBe(
+      '\\# not heading'
+    );
+    expect(decodeSafeMarkdownEscapes('1\\. not list')).toBe('1\\. not list');
+    expect(decodeSafeMarkdownEscapes('\\_emphasis\\_')).toBe('\\_emphasis\\_');
+  });
+});
 
 describe('decodeWhitespaceEntities', () => {
   it('decodes space, tab, and nbsp numeric entities', () => {
