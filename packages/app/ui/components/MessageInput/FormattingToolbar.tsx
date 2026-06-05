@@ -125,8 +125,7 @@ const FormattingToolbar = memo(
       );
     }
 
-    const data =
-      toolbarContext === ToolbarContext.Main ? items : HEADING_ITEMS;
+    const data = toolbarContext === ToolbarContext.Main ? items : HEADING_ITEMS;
 
     return (
       <FlatList

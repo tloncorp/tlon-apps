@@ -1,7 +1,8 @@
+import { Story, isBlockVerse } from '@tloncorp/api/urbit/channel';
 import {
   Block,
-  Bold,
   Blockquote,
+  Bold,
   Code,
   Header,
   Image,
@@ -17,10 +18,10 @@ import {
   Ship,
   Strikethrough,
   Task,
-  isBold,
   isBlock,
   isBlockCode,
   isBlockquote,
+  isBold,
   isBreak,
   isCode,
   isHeader,
@@ -28,14 +29,13 @@ import {
   isInlineCode,
   isItalics,
   isLink,
-  isListing,
   isList,
   isListItem,
+  isListing,
   isShip,
   isStrikethrough,
   isTask,
 } from '@tloncorp/api/urbit/content';
-import { Story, isBlockVerse } from '@tloncorp/api/urbit/channel';
 
 /**
  * Escape HTML special characters in text content.
@@ -189,7 +189,9 @@ function inlinesToHtml(inlines: Inline[]): string {
     if (isBlockCode(inline)) {
       const codeContent = (inline as { code: string }).code;
       const codeLines = escapeHtml(codeContent).split('\n');
-      parts.push(`<codeblock>${codeLines.map((l) => `<p>${l}</p>`).join('')}</codeblock>`);
+      parts.push(
+        `<codeblock>${codeLines.map((l) => `<p>${l}</p>`).join('')}</codeblock>`
+      );
       continue;
     }
 
@@ -197,14 +199,18 @@ function inlinesToHtml(inlines: Inline[]): string {
     if (isCode(inline as unknown as Block)) {
       const code = inline as unknown as Code;
       const codeLines = escapeHtml(code.code.code).split('\n');
-      parts.push(`<codeblock>${codeLines.map((l) => `<p>${l}</p>`).join('')}</codeblock>`);
+      parts.push(
+        `<codeblock>${codeLines.map((l) => `<p>${l}</p>`).join('')}</codeblock>`
+      );
       continue;
     }
 
     // Handle Image in inline context
     if (isImage(inline as unknown as Block)) {
       const image = inline as unknown as Image;
-      const alt = image.image.alt ? ` alt="${escapeHtml(image.image.alt)}"` : '';
+      const alt = image.image.alt
+        ? ` alt="${escapeHtml(image.image.alt)}"`
+        : '';
       parts.push(`<img src="${escapeHtml(image.image.src)}"${alt}>`);
       continue;
     }
@@ -224,7 +230,11 @@ function listingToHtml(listings: Listing[], listType: string): string {
       const listItem = listing as ListItem;
 
       const cleanedItem = stripTrailingBreaks(listItem.item);
-      if (listType === 'tasklist' && cleanedItem.length > 0 && isTask(cleanedItem[0])) {
+      if (
+        listType === 'tasklist' &&
+        cleanedItem.length > 0 &&
+        isTask(cleanedItem[0])
+      ) {
         const task = cleanedItem[0] as Task;
         const checked = task.task.checked ? ' checked' : '';
         items.push(

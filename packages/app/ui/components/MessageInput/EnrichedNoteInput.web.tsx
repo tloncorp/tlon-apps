@@ -1,7 +1,10 @@
 import { forwardRef, memo } from 'react';
 import { TextArea } from 'tamagui';
 
-import type { EnrichedNoteInputProps, EnrichedNoteInputRef } from './EnrichedNoteInput';
+import type {
+  EnrichedNoteInputProps,
+  EnrichedNoteInputRef,
+} from './EnrichedNoteInput';
 
 /**
  * Web fallback — react-native-enriched is native-only.
@@ -9,7 +12,18 @@ import type { EnrichedNoteInputProps, EnrichedNoteInputRef } from './EnrichedNot
  */
 export const EnrichedNoteInput = memo(
   forwardRef<EnrichedNoteInputRef, EnrichedNoteInputProps>(
-    ({ initialHtml, onChangeHtml, onEditorStateChange: _onEditorStateChange, onPasteImages: _onPasteImages, placeholder, testID, style }, ref) => {
+    (
+      {
+        initialHtml,
+        onChangeHtml,
+        onEditorStateChange: _onEditorStateChange,
+        onPasteImages: _onPasteImages,
+        placeholder,
+        testID,
+        style,
+      },
+      ref
+    ) => {
       return (
         <TextArea
           testID={testID}
