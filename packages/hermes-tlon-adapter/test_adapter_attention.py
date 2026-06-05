@@ -1,0 +1,452 @@
+import asyncio
+import importlib.util
+import os
+import sys
+import types
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+
+PACKAGE_DIR = Path(__file__).parent
+PACKAGE_NAME = "hermes_tlon_adapter_attention_testpkg"
+
+package = types.ModuleType(PACKAGE_NAME)
+package.__path__ = [str(PACKAGE_DIR)]
+sys.modules[PACKAGE_NAME] = package
+
+
+class Platform(str):
+    pass
+
+
+class PlatformConfig:
+    def __init__(self, extra=None):
+        self.extra = extra or {}
+
+
+class MessageType:
+    TEXT = "text"
+
+
+class MessageEvent:
+    def __init__(
+        self,
+        *,
+        text,
+        message_type,
+        source,
+        raw_message,
+        message_id,
+        reply_to_message_id,
+        timestamp,
+    ):
+        self.text = text
+        self.message_type = message_type
+        self.source = source
+        self.raw_message = raw_message
+        self.message_id = message_id
+        self.reply_to_message_id = reply_to_message_id
+        self.timestamp = timestamp
+
+
+class SendResult:
+    def __init__(
+        self,
+        *,
+        success,
+        message_id=None,
+        error=None,
+        raw_response=None,
+        retryable=False,
+    ):
+        self.success = success
+        self.message_id = message_id
+        self.error = error
+        self.raw_response = raw_response or {}
+        self.retryable = retryable
+
+
+class BasePlatformAdapter:
+    def __init__(self, *, config, platform):
+        self.config = config
+        self.platform = platform
+        self._running = True
+
+    def _mark_connected(self):
+        self._running = True
+
+    def _mark_disconnected(self):
+        self._running = False
+
+    def build_source(self, **kwargs):
+        return types.SimpleNamespace(**kwargs)
+
+    async def handle_message(self, event):
+        raise AssertionError("tests should install a recorder")
+
+
+gateway = types.ModuleType("gateway")
+gateway_config = types.ModuleType("gateway.config")
+gateway_config.Platform = Platform
+gateway_config.PlatformConfig = PlatformConfig
+gateway_platforms = types.ModuleType("gateway.platforms")
+gateway_base = types.ModuleType("gateway.platforms.base")
+gateway_base.BasePlatformAdapter = BasePlatformAdapter
+gateway_base.MessageEvent = MessageEvent
+gateway_base.MessageType = MessageType
+gateway_base.SendResult = SendResult
+sys.modules["gateway"] = gateway
+sys.modules["gateway.config"] = gateway_config
+sys.modules["gateway.platforms"] = gateway_platforms
+sys.modules["gateway.platforms.base"] = gateway_base
+
+
+def load_module(name):
+    module_name = f"{PACKAGE_NAME}.{name}"
+    spec = importlib.util.spec_from_file_location(module_name, PACKAGE_DIR / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+tlon_api = load_module("tlon_api")
+load_module("attention")
+load_module("mention")
+load_module("presence")
+load_module("tlon_tool")
+adapter_mod = load_module("adapter")
+
+
+def channel_event(
+    text,
+    *,
+    author="~mug",
+    nest="chat/~pen/general",
+    post_id="170.141",
+    parent_id=None,
+):
+    set_payload = {
+        "essay": {
+            "author": author,
+            "sent": 1000,
+            "content": [{"inline": [text]}],
+        }
+    }
+    if parent_id:
+        set_payload["seal"] = {"parent-id": parent_id}
+    return {
+        "nest": nest,
+        "response": {
+            "post": {
+                "id": post_id,
+                "r-post": {
+                    "set": set_payload,
+                },
+            }
+        },
+    }
+
+
+class FakeSSE:
+    def __init__(self, payload=None, error=None):
+        self.payload = payload
+        self.error = error
+
+    async def scry(self, path):
+        if self.error:
+            raise self.error
+        return self.payload
+
+
+class FakeCLI:
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+        return tlon_api.TlonSendResult(
+            success=True,
+            command=("tlon-test", "posts", "reply"),
+            message_id="reply-id",
+        )
+
+    async def send_message(self, chat_id, text):
+        return tlon_api.TlonSendResult(
+            success=True,
+            command=("tlon-test", "posts", "send"),
+            message_id="post-id",
+        )
+
+
+class AdapterAttentionTests(unittest.TestCase):
+    def make_adapter(self, extra):
+        base = {
+            "node_url": "https://pen.tlon.network",
+            "node_id": "~pen",
+            "access_code": "code",
+            "channels": ["chat/~pen/general"],
+        }
+        base.update(extra)
+        with patch.dict(os.environ, {}, clear=True):
+            return adapter_mod.TlonAdapter(PlatformConfig(extra=base))
+
+    async def dispatches(self, adapter, raw):
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        await adapter._handle_channel_event(raw)
+        return events
+
+    def test_group_alias_dispatches_and_strips_leading_wake(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~mug"],
+                "bot_mentions": ["Mr Arvo"],
+            }
+        )
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("Mr Arvo, hello")))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "hello")
+
+    def test_unmentioned_group_drops_until_free_response_is_configured(self):
+        default_open = self.make_adapter(
+            {
+                "require_mention": False,
+            }
+        )
+        allowed = self.make_adapter(
+            {
+                "allowed_users": ["~mug"],
+                "require_mention": False,
+            }
+        )
+
+        self.assertEqual(
+            asyncio.run(self.dispatches(default_open, channel_event("hello"))),
+            [],
+        )
+        self.assertEqual(
+            len(asyncio.run(self.dispatches(allowed, channel_event("hello")))),
+            1,
+        )
+
+    def test_participated_thread_dispatches_without_repeated_wake(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._cli = FakeCLI()
+
+        result = asyncio.run(
+            adapter.send("chat/~pen/general", "reply text", reply_to="root-post")
+        )
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("following up", post_id="170.142", parent_id="root-post"),
+            )
+        )
+
+        self.assertTrue(result.success)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "following up")
+
+    def test_known_bot_loop_cap_is_per_channel_and_resets_on_human_dispatch(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot", "~mug"],
+                "require_mention": False,
+                "known_bot_users": ["~bot"],
+                "max_consecutive_bot_responses": 2,
+            }
+        )
+
+        first = asyncio.run(
+            self.dispatches(adapter, channel_event("bot one", author="~bot", post_id="1"))
+        )
+        second = asyncio.run(
+            self.dispatches(adapter, channel_event("bot two", author="~bot", post_id="2"))
+        )
+        third = asyncio.run(
+            self.dispatches(adapter, channel_event("bot three", author="~bot", post_id="3"))
+        )
+        human = asyncio.run(
+            self.dispatches(adapter, channel_event("human reset", author="~mug", post_id="4"))
+        )
+        after_reset = asyncio.run(
+            self.dispatches(adapter, channel_event("bot four", author="~bot", post_id="5"))
+        )
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(len(second), 1)
+        self.assertEqual(third, [])
+        self.assertEqual(len(human), 1)
+        self.assertEqual(len(after_reset), 1)
+
+    def test_loop_counter_ignores_messages_that_drop_before_dispatch(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "known_bot_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+
+        dropped = asyncio.run(
+            self.dispatches(adapter, channel_event("not addressed", author="~bot", post_id="1"))
+        )
+        mentioned = asyncio.run(
+            self.dispatches(adapter, channel_event("~pen hello", author="~bot", post_id="2"))
+        )
+        duplicate = asyncio.run(
+            self.dispatches(adapter, channel_event("~pen hello", author="~bot", post_id="2"))
+        )
+
+        self.assertEqual(dropped, [])
+        self.assertEqual(len(mentioned), 1)
+        self.assertEqual(duplicate, [])
+        self.assertEqual(adapter._known_bot_consecutive_by_channel, {"chat/~pen/general": 1})
+
+    def test_dm_behavior_stays_outside_group_loop_cap(self):
+        adapter = self.make_adapter(
+            {
+                "allowed_users": ["~bot"],
+                "known_bot_users": ["~bot"],
+                "max_consecutive_bot_responses": 1,
+            }
+        )
+        message = tlon_api.TlonIncomingMessage(
+            chat_id="~bot",
+            chat_name="~bot",
+            chat_type="dm",
+            user_id="~bot",
+            user_name="~bot",
+            text="hello",
+            message_id="dm-1",
+            reply_to_message_id=None,
+            sent_at=tlon_api._datetime_from_ms(1000),
+            raw={},
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(adapter._dispatch_message(message, is_dm=True))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._known_bot_consecutive_by_channel, {})
+
+    def test_nickname_fetch_failure_keeps_ship_and_alias_wakes(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"], "bot_mentions": ["arvo"]})
+        adapter._sse = FakeSSE(error=RuntimeError("not ready"))
+
+        asyncio.run(adapter._load_bot_nickname())
+
+        self.assertTrue(adapter._mention_matcher.mentioned("~pen hello"))
+        self.assertTrue(adapter._mention_matcher.mentioned("arvo hello"))
+
+    def test_nickname_fetch_success_adds_nickname_wake(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+        adapter._sse = FakeSSE(payload={"nickname": {"value": "Jon"}})
+
+        asyncio.run(adapter._load_bot_nickname())
+        events = asyncio.run(self.dispatches(adapter, channel_event("jon, hello")))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "hello")
+
+    def test_env_enablement_seeds_owner_dm_as_home_channel(self):
+        with patch.dict(
+            os.environ,
+            {
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_OWNER_SHIP": "~mug",
+                "TLON_CHANNELS": "chat/~pen/general",
+            },
+            clear=True,
+        ):
+            seed = adapter_mod._env_enablement()
+            allowed_users = os.environ.get("TLON_ALLOWED_USERS")
+
+        self.assertEqual(seed["home_channel"], {"chat_id": "~mug", "name": "~mug"})
+        self.assertEqual(allowed_users, "~mug")
+
+    def test_env_enablement_appends_owner_to_existing_core_allowlist(self):
+        with patch.dict(
+            os.environ,
+            {
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_OWNER_SHIP": "~mug",
+                "TLON_ALLOWED_USERS": "~nec",
+            },
+            clear=True,
+        ):
+            adapter_mod._env_enablement()
+            allowed_users = os.environ.get("TLON_ALLOWED_USERS")
+
+        self.assertEqual(allowed_users, "~nec,~mug")
+
+    def test_env_enablement_does_not_infer_home_channel_from_allowlist(self):
+        with patch.dict(
+            os.environ,
+            {
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_ALLOWED_USERS": "~mug",
+                "TLON_CHANNELS": "chat/~pen/general",
+            },
+            clear=True,
+        ):
+            seed = adapter_mod._env_enablement()
+
+        self.assertNotIn("home_channel", seed)
+
+    def test_env_enablement_respects_explicit_home_channel(self):
+        with patch.dict(
+            os.environ,
+            {
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_ALLOWED_USERS": "~mug",
+                "TLON_HOME_CHANNEL": "chat/~pen/home",
+            },
+            clear=True,
+        ):
+            seed = adapter_mod._env_enablement()
+
+        self.assertEqual(
+            seed["home_channel"],
+            {"chat_id": "chat/~pen/home", "name": "chat/~pen/home"},
+        )
+
+    def test_tlon_session_blocks_skill_management(self):
+        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "tlon"}, clear=True):
+            block = adapter_mod.block_tlon_session_tool(
+                "skill_manage",
+                {"action": "create"},
+            )
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("managed Tlon prompt", block["message"])
+
+    def test_non_tlon_session_allows_skill_management_hook(self):
+        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "cli"}, clear=True):
+            block = adapter_mod.block_tlon_session_tool(
+                "skill_manage",
+                {"action": "create"},
+            )
+
+        self.assertIsNone(block)
+
+
+if __name__ == "__main__":
+    unittest.main()

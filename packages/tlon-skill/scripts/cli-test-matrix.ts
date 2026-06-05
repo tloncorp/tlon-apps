@@ -210,6 +210,21 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon posts react'
   ),
   usageErrorCase(
+    'posts send missing message',
+    ['posts', 'send', 'chat/~host/channel'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts reply missing message',
+    ['posts', 'reply', 'chat/~host/channel', '170.141'],
+    'Usage: tlon posts reply'
+  ),
+  usageErrorCase(
+    'posts reply missing author value',
+    ['posts', 'reply', 'chat/~host/channel', '170.141', 'message', '--author'],
+    'Usage: tlon posts reply'
+  ),
+  usageErrorCase(
     'settings set missing args',
     ['settings', 'set'],
     'Usage: tlon settings set'
@@ -340,6 +355,21 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
   authRequiredCase('posts edit message option-like value reaches auth', [
     'posts',
     'edit',
+    'chat/~host/channel',
+    '170.141',
+    'use',
+    '--help',
+  ]),
+  authRequiredCase('posts send message option-like value reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'use',
+    '--help',
+  ]),
+  authRequiredCase('posts reply message option-like value reaches auth', [
+    'posts',
+    'reply',
     'chat/~host/channel',
     '170.141',
     'use',

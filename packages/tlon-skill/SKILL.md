@@ -7,6 +7,29 @@ description: Interact with Tlon/Urbit API. Use for reading activity, message his
 
 Use the `tlon` command for reading data, managing channels/groups/contacts, and administration.
 
+## Hermes
+
+When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the
+`tlon` CLI for reading data, administration, and management. Do **not** use it
+to send replies or create posts.
+
+For exact command syntax, use the command sections below or run
+`tlon <subcommand> --help` through the tool.
+
+When a Tlon user asks you to create a group for them, use
+`tlon groups create-owned "Name" --owner ~requester [--description "..."]`.
+This invites the requester and makes them an admin. Do not use plain
+`tlon groups create` for user-requested groups; that creates a bot-owned group
+that does not automatically include the requester.
+
+For a normal reply in the current Tlon conversation, respond with final
+assistant text and let Hermes deliver it through `TlonAdapter.send()`. For a
+proactive cross-platform send, use Hermes' `send_message` tool so delivery still
+routes through the Tlon platform adapter.
+
+Blocked in Hermes' `tlon` tool: `posts send`, `posts reply`, `dms send`,
+`dms reply`, and `notebook`.
+
 ## OpenClaw
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
@@ -242,8 +265,8 @@ Full group management.
 # Basics
 tlon groups list                                         # List your groups
 tlon groups info ~host/slug                              # Get group details
+tlon groups create-owned "Name" --owner ~ship [--description "..."] # Create group for a user, invite owner, make owner admin
 tlon groups create "Name" [--description "..."]          # Create a group
-tlon groups create-owned "Name" --owner ~ship [--description "..."] # Create group, invite owner, make owner admin
 tlon groups join ~host/slug                              # Join public/invited group, or request invite if private
 tlon groups request-invite ~host/slug                    # Request invite to a private group
 tlon groups accept-invite ~host/slug                     # Accept an existing group invite

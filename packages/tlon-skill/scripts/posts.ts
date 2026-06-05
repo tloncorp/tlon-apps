@@ -3,10 +3,9 @@
 /**
  * Channel post management for Tlon
  *
- * Note: Sending and replying to channel posts is handled by the openclaw-tlon
- * channel plugin. This script handles reactions, edits, and deletes only.
- *
  * Usage:
+ *   npx ts-node scripts/posts.ts send <channel> <message>
+ *   npx ts-node scripts/posts.ts reply <channel> <post-id> <message> [--author ~ship]
  *   npx ts-node scripts/posts.ts react <channel> <post-id> <emoji>
  *   npx ts-node scripts/posts.ts unreact <channel> <post-id>
  *   npx ts-node scripts/posts.ts edit <channel> <post-id> <message>
@@ -21,6 +20,8 @@ import {
   getChannelPosts,
   getCurrentUserId,
   removeReaction,
+  sendPost,
+  sendReply,
 } from '@tloncorp/api';
 import type { Post } from '@tloncorp/api';
 import * as fs from 'fs';
@@ -38,9 +39,9 @@ import { type Story, markdownToStory } from './story';
 
 const POSTS_HELP = `Usage: tlon posts <command>
 
-Note: Sending and replying to posts is handled by the Tlon channel plugin.
-
 Commands:
+  send <channel> <message>                 Send a message to a channel
+  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship]
   react <channel> <post-id> <emoji>     React to a post with an emoji
   unreact <channel> <post-id>           Remove your reaction from a post
   edit <channel> <post-id> <message>    Edit a post [--title <t>] [--image <url>] [--content <json>]
@@ -52,6 +53,8 @@ Edit options:
   --content <file>     Use Story JSON file for rich content (notebooks)
 
 Examples:
+  tlon posts send chat/~host/channel "Hello from tlon"
+  tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
   tlon posts edit diary/~host/notes 170.141... --title "New Title" --image https://example.com/cover.jpg --content article.json
 
@@ -59,19 +62,16 @@ Channel format: chat/~host/channel-name, diary/~host/name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 const POSTS_COMMAND_HELP: Record<string, string> = {
+  send: 'Usage: tlon posts send <channel> <message>',
+  reply: 'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
   react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
   unreact: 'Usage: tlon posts unreact <channel> <post-id>',
   edit: 'Usage: tlon posts edit <channel> <post-id> <message> [--title <title>] [--image <url>] [--content <json-file>]',
   delete: 'Usage: tlon posts delete <channel> <post-id>',
 };
 
-const POSTS_UNSUPPORTED_COMMAND_ERRORS: Record<string, string> = {
-  send: 'Channel post send is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon instead.',
-  reply:
-    'Channel post reply is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon and replyTo instead.',
-};
-
 const POST_EDIT_OPTION_FLAGS = ['title', 'content', 'image'] as const;
+const POST_REPLY_OPTION_FLAGS = ['author'] as const;
 
 function getPostsHelp(command?: string): string {
   return command ? POSTS_COMMAND_HELP[command] ?? POSTS_HELP : POSTS_HELP;
@@ -88,6 +88,17 @@ function getPostEditMessage(args: string[]): string {
   return args.slice(3, firstPostEditFlagIndex(args)).join(' ');
 }
 
+function firstPostReplyFlagIndex(args: string[]): number {
+  const flagIndexes = POST_REPLY_OPTION_FLAGS.map((flag) =>
+    args.indexOf(`--${flag}`)
+  ).filter((idx) => idx !== -1);
+  return flagIndexes.length > 0 ? Math.min(...flagIndexes) : args.length;
+}
+
+function getPostReplyMessage(args: string[]): string {
+  return args.slice(3, firstPostReplyFlagIndex(args)).join(' ');
+}
+
 function isPostEditMessageHelpLiteral(args: string[]): boolean {
   return (
     args[0] === 'edit' &&
@@ -97,19 +108,45 @@ function isPostEditMessageHelpLiteral(args: string[]): boolean {
   );
 }
 
+function isPostSendMessageHelpLiteral(args: string[]): boolean {
+  return args[0] === 'send' && !!args[1] && wantsHelp(args.slice(2));
+}
+
+function isPostReplyMessageHelpLiteral(args: string[]): boolean {
+  return (
+    args[0] === 'reply' &&
+    !!args[1] &&
+    !!args[2] &&
+    wantsHelp(args.slice(3, firstPostReplyFlagIndex(args)))
+  );
+}
+
 function validatePostsArgs(args: string[]): void {
   const command = args[0];
   if (!command) {
     printUsageAndExit(POSTS_HELP);
-  }
-  if (POSTS_UNSUPPORTED_COMMAND_ERRORS[command]) {
-    printErrorAndExit(POSTS_UNSUPPORTED_COMMAND_ERRORS[command]);
   }
   if (!POSTS_COMMAND_HELP[command]) {
     printUsageAndExit(POSTS_HELP);
   }
 
   switch (command) {
+    case 'send': {
+      if (!args[1] || !args.slice(2).join(' ')) {
+        printUsageAndExit(POSTS_COMMAND_HELP.send);
+      }
+      return;
+    }
+    case 'reply': {
+      if (!args[1] || !args[2] || !getPostReplyMessage(args)) {
+        printUsageAndExit(POSTS_COMMAND_HELP.reply);
+      }
+      const authorIdx = args.indexOf('--author');
+      if (authorIdx !== -1 && !args[authorIdx + 1]) {
+        printUsageAndExit(POSTS_COMMAND_HELP.reply);
+      }
+      return;
+    }
     case 'react': {
       if (!args[1] || !args[2] || !args[3])
         printUsageAndExit(POSTS_COMMAND_HELP.react);
@@ -154,6 +191,15 @@ function formatUd(id: string): string {
 // Parse content into Story format with rich markdown support
 function parseContent(message: string): Story {
   return markdownToStory(message);
+}
+
+function postTargetApps(command: string | undefined, target: string | undefined) {
+  if ((command === 'send' || command === 'reply') && target) {
+    return target.startsWith('~') || target.startsWith('0v')
+      ? ['chat' as const]
+      : ['channels' as const];
+  }
+  return ['channels' as const];
 }
 
 // Fetch existing post to preserve metadata during edits
@@ -222,6 +268,54 @@ async function unreactToPost(
     });
 
     return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function sendChannelPost(
+  nest: string,
+  message: string
+): Promise<{ success: boolean; postId?: string; error?: string }> {
+  try {
+    const authorId = getCurrentUserId();
+    const sentAt = Date.now();
+    const content = parseContent(message);
+
+    await sendPost({
+      channelId: nest,
+      authorId,
+      sentAt,
+      content,
+    });
+
+    return { success: true, postId: String(sentAt) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function replyToChannelPost(
+  nest: string,
+  postId: string,
+  message: string,
+  parentAuthor?: string
+): Promise<{ success: boolean; replyId?: string; error?: string }> {
+  try {
+    const authorId = getCurrentUserId();
+    const sentAt = Date.now();
+    const content = parseContent(message);
+
+    await sendReply({
+      channelId: nest,
+      parentId: formatUd(extractNumericId(postId)),
+      parentAuthor: parentAuthor ?? authorId,
+      content,
+      sentAt,
+      authorId,
+    });
+
+    return { success: true, replyId: String(sentAt) };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -318,16 +412,62 @@ async function main() {
     printHelpAndExit(POSTS_HELP);
   }
 
-  if (wantsHelp(args.slice(1)) && !isPostEditMessageHelpLiteral(args)) {
+  if (
+    wantsHelp(args.slice(1)) &&
+    !isPostEditMessageHelpLiteral(args) &&
+    !isPostSendMessageHelpLiteral(args) &&
+    !isPostReplyMessageHelpLiteral(args)
+  ) {
     printHelpAndExit(getPostsHelp(command));
   }
 
   validatePostsArgs(args);
 
-  await ensureClient(['channels']);
+  await ensureClient(postTargetApps(command, args[1]));
 
   try {
     switch (command) {
+      case 'send': {
+        const channel = args[1];
+        const message = args.slice(2).join(' ');
+        if (!channel || !message) {
+          printUsageAndExit(POSTS_COMMAND_HELP.send);
+        }
+        const result = await sendChannelPost(channel, message);
+        if (!result.success) {
+          console.error(`Error: ${result.error}`);
+          process.exit(1);
+        }
+        console.log('✓ Message sent');
+        break;
+      }
+
+      case 'reply': {
+        const channel = args[1];
+        const postId = args[2];
+        const authorIdx = args.indexOf('--author');
+        const parentAuthor = authorIdx !== -1 ? args[authorIdx + 1] : undefined;
+        const message = getPostReplyMessage(args);
+        if (!channel || !postId || !message) {
+          printUsageAndExit(POSTS_COMMAND_HELP.reply);
+        }
+        if (authorIdx !== -1 && !parentAuthor) {
+          printUsageAndExit(POSTS_COMMAND_HELP.reply);
+        }
+        const result = await replyToChannelPost(
+          channel,
+          postId,
+          message,
+          parentAuthor
+        );
+        if (!result.success) {
+          console.error(`Error: ${result.error}`);
+          process.exit(1);
+        }
+        console.log('✓ Reply sent');
+        break;
+      }
+
       case 'react': {
         const [_, channel, postId, emoji] = args;
         if (!channel || !postId || !emoji) {
