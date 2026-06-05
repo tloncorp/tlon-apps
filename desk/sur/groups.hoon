@@ -7,6 +7,10 @@
 +$  flag  (pair ship term)
 ::  $nest: id for a channel
 +$  nest  (pair term flag)
+::  $channel-active: channel-host membership report (group flag + nest +
+::  whether joined). Third-party backing agents (e.g. %notes) poke this to
+::  keep active-channels current. See the %group-channel-active poke arm.
++$  channel-active  [=flag =nest joined=?]
 ::  $plan: index into channel state
 ::    p: post being referred to
 ::    q: reply being referred to, if any
@@ -564,6 +568,11 @@
       [%section =section-id =r-section]
       [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
+      ::  per-nest active-channels (membership) delta. emitted local-only on
+      ::  /v1/groups so a second same-ship client learns join/leave without a
+      ::  full init sync; never crosses the wire. See the %group-channel-active
+      ::  poke arm in app/groups.hoon.
+      [%active-channels =nest joined=?]
       [%delete ~]
   ==
 +$  r-entry

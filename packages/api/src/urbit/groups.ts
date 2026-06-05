@@ -354,6 +354,7 @@ export type GroupResponseData =
   | { channel: { nest: string; 'r-channel': GroupResponseChannel } }
   | { section: { 'section-id': string; 'r-section': GroupResponseSection } }
   | { 'section-order': { order: string[] } }
+  | { 'active-channels': { nest: string; joined: boolean } }
   | {
       'flag-content': {
         nest: string;

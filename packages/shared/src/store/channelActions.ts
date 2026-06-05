@@ -109,163 +109,81 @@ export async function createChannel({
   return newChannel;
 }
 
-interface NotesNotebookEntry {
-  host: string;
-  flagName: string;
-  notebook: { id: number; title: string };
+interface NotesCreateResponse {
+  requestId: string;
+  body: {
+    type: string;
+    notebook?: {
+      host: string;
+      flagName: string;
+      notebook: { id: number; title: string };
+    };
+  };
 }
 
 async function createNotesChannel({
   groupId,
   title,
   description,
-  readers,
+  readers = [],
 }: {
   groupId: string;
   title: string;
   description?: string;
-  readers: string[];
+  readers?: string[];
 }): Promise<db.Channel> {
-  const currentUserId = api.getCurrentUserId();
-
-  // Snapshot the set of locally-hosted notebook flags so we can identify the
-  // freshly-created one after the poke. The %notes agent assigns the flag,
-  // so we can't precompute it.
-  const before = await scryNotesNotebooks();
-  const beforeOurs = new Set(
-    before.filter((n) => n.host === currentUserId).map((n) => n.flagName)
-  );
-
-  await api.poke({
-    app: 'notes',
-    mark: 'notes-action',
-    json: { type: 'create-notebook', title },
-  });
-
-  const newEntry = await pollForNewNotebook({
-    currentUserId,
-    title,
-    excluded: beforeOurs,
-  });
-
-  if (!newEntry) {
-    throw new Error('Failed to create notes notebook');
-  }
-
-  const channelId = `notes/${newEntry.host}/${newEntry.flagName}`;
-  const flag = `${newEntry.host}/${newEntry.flagName}`;
-
-  logger.trackEvent(
-    AnalyticsEvent.ActionCreateChannel,
-    logic.getModelAnalytics({
-      channel: { id: channelId, type: 'notes' },
-      group: { id: groupId },
-    })
-  );
-
-  // Default new notebooks to public so any group member can join. We don't
-  // yet propagate group membership to the notebook's per-member ACL, so
-  // private would lock everyone but the owner out.
+  // Create the notebook via the %notes HTTP API, which returns the
+  // server-assigned flag synchronously in the response body — no polling, no
+  // forced-public visibility hack. Binding it to this group makes the notebook
+  // a group channel: read permission defers to the group's can-read, and
+  // %groups auto-joins/leaves members via the channel-host convention.
+  //
+  // `readers` (the group role-ids the channel is restricted to) is forwarded
+  // so the %notes host registers the group channel with the correct reader
+  // roles — empty means group-wide readable. Dropping it would create every
+  // notes channel open, defeating the group's can-read gate.
+  const [groupHost, groupName] = groupId.split('/');
   try {
-    await api.poke({
-      app: 'notes',
-      mark: 'notes-action',
-      json: {
-        type: 'notebook',
-        flag,
-        action: { type: 'visibility', visibility: 'public' },
-      },
-    });
-  } catch (e) {
-    logger.error('Failed to set notebook visibility to public', e);
-  }
+    const res = await api.requestJson<NotesCreateResponse>(
+      '/notes/~/v1/notebooks',
+      'POST',
+      { title, group: { host: groupHost, flagName: groupName }, readers }
+    );
+    const summary =
+      res?.body?.type === 'notebook' ? res.body.notebook ?? null : null;
+    if (!summary) {
+      throw new Error('Failed to create notes notebook');
+    }
 
-  // Pick a section to add this channel to. Tlon-created groups conventionally
-  // have a 'default' section, but we'll prefer whatever the first section is
-  // if the group looks different.
-  const group = await db.getGroup({ id: groupId });
-  const sectionId =
-    group?.navSections?.[0]?.sectionId ??
-    group?.navSections?.[0]?.id ??
-    'default';
+    const channelId = `notes/${summary.host}/${summary.flagName}`;
 
-  const newChannel: db.Channel = {
-    id: channelId,
-    title,
-    description,
-    type: 'notes',
-    groupId,
-    addedToGroupAt: Date.now(),
-    currentUserIsMember: true,
-    currentUserIsHost: true,
-    contentConfiguration: channelContentConfigurationForChannelType('notes'),
-    lastPostSequenceNum: 0,
-  };
+    logger.trackEvent(
+      AnalyticsEvent.ActionCreateChannel,
+      logic.getModelAnalytics({
+        channel: { id: channelId, type: 'notes' },
+        group: { id: groupId },
+      })
+    );
 
-  await db.insertChannels([newChannel]);
-
-  try {
-    await api.addChannelListingToGroup({
-      channelId,
+    const newChannel: db.Channel = {
+      id: channelId,
+      title,
+      description,
+      type: 'notes',
       groupId,
-      sectionId,
-      meta: {
-        title,
-        description: description ?? '',
-        image: '',
-        cover: '',
-      },
-      readers,
-      join: true,
-    });
+      addedToGroupAt: Date.now(),
+      currentUserIsMember: true,
+      currentUserIsHost: true,
+      contentConfiguration: channelContentConfigurationForChannelType('notes'),
+      lastPostSequenceNum: 0,
+    };
+
+    await db.insertChannels([newChannel]);
+    return newChannel;
   } catch (e) {
-    await db.deleteChannels([channelId]);
-    logger.error('addChannelListingToGroup failed for notes channel', e);
-    throw new Error(`Failed to add notes channel to group: ${channelId}`);
+    logger.error('Failed to add notes channel', e);
+    throw new Error(`Failed to add notes channel to group`);
   }
-
-  return newChannel;
-}
-
-async function scryNotesNotebooks(): Promise<NotesNotebookEntry[]> {
-  try {
-    const data = await api.scry<NotesNotebookEntry[]>({
-      app: 'notes',
-      path: '/v0/notebooks',
-    });
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    logger.error('scry /v0/notebooks failed', e);
-    return [];
-  }
-}
-
-async function pollForNewNotebook({
-  currentUserId,
-  title,
-  excluded,
-  attempts = 8,
-  delayMs = 250,
-}: {
-  currentUserId: string;
-  title: string;
-  excluded: Set<string>;
-  attempts?: number;
-  delayMs?: number;
-}): Promise<NotesNotebookEntry | null> {
-  for (let i = 0; i < attempts; i++) {
-    const all = await scryNotesNotebooks();
-    const ours = all.filter((n) => n.host === currentUserId);
-    // Prefer an exact title match among new entries, otherwise just any new
-    // entry (handles the rare case where the title was sanitized/transformed
-    // by the agent).
-    const fresh = ours.filter((n) => !excluded.has(n.flagName));
-    const match =
-      fresh.find((n) => n.notebook.title === title) ?? fresh[0] ?? null;
-    if (match) return match;
-    await new Promise((r) => setTimeout(r, delayMs));
-  }
-  return null;
 }
 
 /**
@@ -842,7 +760,19 @@ export async function leaveGroupChannel(channelId: string) {
   await db.updateChannel({ id: channelId, currentUserIsMember: false });
 
   try {
-    await api.leaveChannel(channelId);
+    if (channelId.startsWith('notes/')) {
+      // notes channels aren't %channels-backed; leave the notebook on %notes
+      // (which unsubscribes and reports the leave to %groups) instead of
+      // poking %channels, which would reject the unknown nest.
+      const [, host, name] = channelId.split('/');
+      await api.poke({
+        app: 'notes',
+        mark: 'notes-action',
+        json: { type: 'leave', ship: host, name },
+      });
+    } else {
+      await api.leaveChannel(channelId);
+    }
   } catch (e) {
     console.error('Failed to leave channel', e);
     // Only rollback on actual errors (not TimeoutError)
@@ -874,7 +804,18 @@ export async function joinGroupChannel({
   });
 
   try {
-    await api.joinChannel(channelId, groupId);
+    if (channelId.startsWith('notes/')) {
+      // notes channels aren't %channels-backed; join the notebook on %notes
+      // (subscribe + report to %groups) instead of poking %channels.
+      const [, host, name] = channelId.split('/');
+      await api.poke({
+        app: 'notes',
+        mark: 'notes-action',
+        json: { type: 'join', ship: host, name },
+      });
+    } else {
+      await api.joinChannel(channelId, groupId);
+    }
   } catch (e) {
     // rollback on failure
     logger.error('Failed to join group channel');

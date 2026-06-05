@@ -44,6 +44,7 @@
 /%  m-channel-preview-1  %channel-preview-1
 /%  m-group-response-1   %group-response-1
 /%  m-group-action-3     %group-action-3
+/%  m-group-channel-active  %group-channel-active
 /%  m-gangs              %gangs
 /%  m-foreign-1          %foreign-1
 /%  m-foreigns-1         %foreigns-1
@@ -84,8 +85,11 @@
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
-          :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
+          ::  relaxed (|): r-group gained the local-only %active-channels
+          ::  variant, so its type hash must not be pinned into negotiation.
+          :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
+          :+  %group-channel-active  &  -:!>(*vale:m-group-channel-active)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::
@@ -498,6 +502,13 @@
         token.i.invites.u.far
       fi-abet:(fi-join:(fi-abed:fi-core flag.join) tok)
     ::
+    ::  allows third-party agents (e.g. %notes) to report channel join/leave
+    ::  for active-channels bookkeeping.
+        %group-channel-active
+      ?>  =(our src):bowl
+      =+  !<([=flag:g =nest:g joined=?] vase)
+      (set-active-channel flag nest joined)
+    ::
         %group-knock
       ?>  from-self
       =+  !<(=flag:g vase)
@@ -648,6 +659,21 @@
   ~>  %spin.['channels-scry']
   ^-  path
   /(scot %p our.bowl)/channels/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
+::
+::  +is-joined: are we subscribed to (or host of) this channel? Built-in
+::  channels kinds scry %channels; any other kind uses the generic
+::  channel-host convention — the nest kind names the backing agent and we
+::  %gu its /joined/<host>/<name> path. An uninstalled kind reads as |.
+++  is-joined
+  |=  =nest:g
+  ^-  ?
+  ?:  ?=(kind:d p.nest)
+    .^(? %gu (channels-scry nest))
+  ::  generic channel-host: the kind agent answers a /joined/<host>/<name>
+  ::  scry with a loob.
+  =/  =path
+    /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/joined/(scot %p p.q.nest)/[q.q.nest]
+  .^(? %gu path)
 ::
 ++  reset-all-perms
   (~(rep by groups) (reset-group-perms cor))
@@ -1495,7 +1521,7 @@
       %fact
     ::  we use the same subscription path for client and agent subscriptions.
     ::  here we only process the most recent mark coming from the
-    ::  channel host. 
+    ::  channel host.
     ::
     ?.  =(p.cage.sign %channel-preview-1)  cor
     =+  !<(=channel-preview:v7:gv q.cage.sign)
@@ -1542,8 +1568,7 @@
         %-  silt
         %+  skim  nests
         |=  =nest:g
-        ?.  ?=(kind:d p.nest)  |
-        .^(? %gu (channels-scry nest))
+        (is-joined nest)
       ==
     cor
   ::
@@ -1713,6 +1738,25 @@
 ++  watch-channels
   (safe-watch /channels [our.bowl %channels] /v1)
 ::
+::  +set-active-channel: record a channel-host membership change in the
+::  group's active-channels set and push a local-only %active-channels delta
+::  to same-ship clients. /v1/groups is a from-self-only sub, so the fact
+::  never crosses the wire — it just lets a second local client reconcile
+::  join/leave without a full init sync. no-op if already in that state.
+++  set-active-channel
+  |=  [=flag:g =nest:g joined=?]
+  ^+  cor
+  ?~  net-group=(~(get by groups) flag)  cor
+  =/  [=net:g =group:g]  u.net-group
+  ?:  =(joined (~(has in active-channels.group) nest))  cor
+  =.  active-channels.group
+    ?:  joined
+      (~(put in active-channels.group) nest)
+    (~(del in active-channels.group) nest)
+  =.  groups  (~(put by groups) flag net group)
+  =/  =r-groups:v9:gv  [flag [%active-channels nest joined]]
+  (give %fact ~[/v1/groups] group-response-1+!>(r-groups))
+::
 ++  take-channels
   |=  =sign:agent:gall
   ~>  %spin.['take-channels']
@@ -1727,39 +1771,15 @@
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
-      =*  flag  group.perm.rc
-      ?.  (~(has by groups) flag)  cor
-      =+  group=(~(got by groups) flag)
-      %_  cor  groups
-        %+  ~(put by groups)  flag
-        %_  group  active-channels
-          (~(put in active-channels.group) nest.r-channels)
-        ==
-      ==
+      (set-active-channel group.perm.rc nest.r-channels &)
     ::
         %join
-      ?.  (~(has by groups) group.rc)  cor
-      =+  group=(~(got by groups) group.rc)
-      %_  cor  groups
-        %+  ~(put by groups)
-          group.rc
-        %_  group  active-channels
-          (~(put in active-channels.group) nest.r-channels)
-        ==
-      ==
+      (set-active-channel group.rc nest.r-channels &)
     ::
         %leave
       ?~  flag=(~(get by channels-index) nest.r-channels)
         cor
-      =+  net-group=(~(get by groups) u.flag)
-      ?~  net-group  cor
-      =*  group  u.net-group
-      =.  groups
-        %+  ~(put by groups)  u.flag
-        %_  group  active-channels
-          (~(del in active-channels.group) nest.r-channels)
-        ==
-      cor
+      (set-active-channel u.flag nest.r-channels |)
     ==
   ==
 ::
@@ -3452,13 +3472,17 @@
           nests
       |=  nes=nest:g
       ^-  (unit card)
-      ?.  ?=(?(%chat %diary %heap) p.nes)
-        ~
-      =/  =dock  [our.bowl %channels]
-      =/  action=a-channels:v9:dv  [%channel nes %leave ~]
-      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %leave-channels)
-      `[%pass wire %agent dock %poke cage]
+      ?:  ?=(?(%chat %diary %heap) p.nes)
+        =/  =dock  [our.bowl %channels]
+        =/  action=a-channels:v9:dv  [%channel nes %leave ~]
+        `[%pass wire %agent dock %poke channel-action-1+!>(action)]
+      ::  generic channel-host: the nest kind names the backing agent on our
+      ::  ship; poke %<kind>-leave carrying the nest. An uninstalled kind just
+      ::  nacks (logged in go-agent, otherwise harmless).
+      =/  =dock     [our.bowl p.nes]
+      =/  =mark     `@tas`(crip (weld (trip p.nes) "-leave"))
+      `[%pass wire %agent dock %poke mark !>(nes)]
     ::
     ++  join-channels
       |=  nests=(list nest:g)
@@ -3468,13 +3492,15 @@
           nests
       |=  nes=nest:g
       ^-  (unit card)
-      ?.  ?=(?(%chat %diary %heap) p.nes)
-        ~
-      =/  =dock  [our.bowl %channels]
-      =/  action=a-channels:v9:dv  [%channel nes %join flag]
-      =/  =cage  channel-action-1+!>(action)
       =/  =wire  (snoc go-area %join-channels)
-      `[%pass wire %agent dock %poke cage]
+      ?:  ?=(?(%chat %diary %heap) p.nes)
+        =/  =dock  [our.bowl %channels]
+        =/  action=a-channels:v9:dv  [%channel nes %join flag]
+        `[%pass wire %agent dock %poke channel-action-1+!>(action)]
+      ::  generic channel-host: poke %<kind>-join carrying [nest group-flag].
+      =/  =dock     [our.bowl p.nes]
+      =/  =mark     `@tas`(crip (weld (trip p.nes) "-join"))
+      `[%pass wire %agent dock %poke mark !>([nes flag])]
     ::
     ++  go-wake-members
       ~>  %spin.['go-wake-members']
@@ -3882,8 +3908,7 @@
         %-  silt
         %+  skim  nests
         |=  =nest:g
-        ?.  ?=(kind:d p.nest)  |
-        .^(? %gu (channels-scry nest))
+        (is-joined nest)
       (go-response [%create group])
     ::  join the channels upon initial group log,
     ::  if this group hadn't been initialized yet
@@ -4334,12 +4359,7 @@
       ::  TODO: the whole "listen to channels events to sync" strategy
       ::  is too brittle.
       ::
-      =/  pre=path
-        /(scot %p our.bowl)/channels/(scot %da now.bowl)
-      =/  active
-        ?.  ?=(kind:d p.nest)  |
-        .^(? %gu (weld pre /v3/[p.nest]/(scot %p p.q.nest)/[q.q.nest]))
-      =?  active-channels.group  active
+      =?  active-channels.group  (is-joined nest)
         (~(put in active-channels.group) nest)
       ?:  go-our-host  go-core
       ::TODO handle duplicate channel add properly. either

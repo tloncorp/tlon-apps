@@ -22,6 +22,7 @@ export interface InitData {
   channelPerms: ChannelInit[];
   joinedGroups: string[];
   joinedChannels: string[];
+  joinedNotesChannels: string[];
   hiddenPostIds: string[];
   blockedUsers: string[];
   unreads: db.ActivityInit;
@@ -111,6 +112,17 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
 
   const joinedChannels = channelsInit.map((channel) => channel.channelId);
 
+  // Notes channels live outside %channels, so they're absent from channelsInit.
+  // %groups tracks our membership in each group's active-channels set (it's
+  // populated for the notes kind via the channel-host convention), so pull the
+  // notes nests out as our joined notes channels.
+  const joinedNotesChannels = Object.values(response.groups ?? {}).flatMap(
+    (group) =>
+      (group['active-channels'] ?? []).filter((nest) =>
+        nest.startsWith('notes/')
+      )
+  );
+
   logger.crumb('returning init data');
 
   return {
@@ -122,6 +134,7 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
     channelPerms: channelsInit,
     joinedGroups,
     joinedChannels,
+    joinedNotesChannels,
     hiddenPostIds,
     blockedUsers,
   };

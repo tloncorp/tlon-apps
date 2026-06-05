@@ -654,6 +654,30 @@ export async function scry<T>({
   }
 }
 
+// Authenticated JSON request to an arbitrary ship path (first-class agent
+// HTTP APIs, e.g. the %notes /notes/~/v1 REST surface). Reauths once on 403.
+export async function requestJson<T = any>(
+  path: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
+  body?: unknown
+): Promise<T> {
+  if (!config.client) {
+    throw new Error('Client not initialized');
+  }
+  if (config.pendingAuth) {
+    await config.pendingAuth;
+  }
+  try {
+    return await config.client.requestJson<T>(path, method, body);
+  } catch (res) {
+    if (res?.status === 403) {
+      await reauth();
+      return await config.client.requestJson<T>(path, method, body);
+    }
+    throw new BadResponseError(res?.status ?? 0, String(res));
+  }
+}
+
 export async function scryNoun({
   app,
   path,

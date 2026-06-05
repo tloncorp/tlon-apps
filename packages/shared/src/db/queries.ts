@@ -2805,17 +2805,16 @@ export const setLeftGroupChannels = createWriteQuery(
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    // notes channels aren't tracked by %channels, so they never appear
-    // in joinedChannelIds. Force them joined here (idempotent) so they aren't
-    // flipped to currentUserIsMember=false, and so previously-broken rows get
-    // repaired on next init.
-    const notesChannel = like($channels.id, 'notes/%');
-    await ctx.db
-      .update($channels)
-      .set({ currentUserIsMember: true })
-      .where(and(isNotNull($channels.groupId), notesChannel));
-
-    const notNotesChannel = not(notesChannel);
+    // This reconcile is driven by %channels' joined-channel list, so it only
+    // governs %channels-backed channels (chat/diary/heap). Channels backed by
+    // other agents (e.g. %notes) aren't tracked by %channels and never appear
+    // in joinedChannelIds; their membership is derived from group reader-roles
+    // in toClientChannel, so we must not flip them to not-a-member here.
+    const channelsBacked = or(
+      like($channels.id, 'chat/%'),
+      like($channels.id, 'diary/%'),
+      like($channels.id, 'heap/%')
+    );
     if (joinedChannelIds.length === 0) {
       return await ctx.db
         .update($channels)
@@ -2824,7 +2823,7 @@ export const setLeftGroupChannels = createWriteQuery(
           and(
             isNotNull($channels.groupId),
             eq($channels.currentUserIsMember, true),
-            notNotesChannel
+            channelsBacked
           )
         );
     }
@@ -2838,7 +2837,45 @@ export const setLeftGroupChannels = createWriteQuery(
           notInArray($channels.id, joinedChannelIds),
           isNotNull($channels.groupId),
           eq($channels.currentUserIsMember, true),
-          notNotesChannel
+          channelsBacked
+        )
+      );
+  },
+  ['channels']
+);
+
+// Two-way membership reconcile for notes channels. Notes aren't tracked by
+// %channels (so they're excluded from setLeftGroupChannels); instead %groups
+// tracks our membership in each group's active-channels set. joinedChannelIds
+// is the notes nests from those sets. We set those notes channels joined and
+// every other group-notes channel left — so this handles join, leave, revoke,
+// and re-gain, unlike a one-directional flip.
+export const setJoinedNotesChannels = createWriteQuery(
+  'setJoinedNotesChannels',
+  async (
+    { joinedChannelIds }: { joinedChannelIds: string[] },
+    ctx: QueryCtx
+  ) => {
+    const notesChannel = like($channels.id, 'notes/%');
+    // mark the active notes channels joined
+    if (joinedChannelIds.length) {
+      await ctx.db
+        .update($channels)
+        .set({ currentUserIsMember: true })
+        .where(and(notesChannel, inArray($channels.id, joinedChannelIds)));
+    }
+    // mark every other group-notes channel left
+    return await ctx.db
+      .update($channels)
+      .set({ currentUserIsMember: false })
+      .where(
+        and(
+          isNotNull($channels.groupId),
+          notesChannel,
+          eq($channels.currentUserIsMember, true),
+          joinedChannelIds.length
+            ? notInArray($channels.id, joinedChannelIds)
+            : undefined
         )
       );
   },

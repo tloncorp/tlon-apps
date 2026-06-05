@@ -209,8 +209,14 @@
             'r-section'^(r-section r-section.r-group)
         ==
       ::
-          %section-order  
+          %section-order
         (frond 'section-order' a+(turn order.r-group (lead %s)))
+      ::
+          %active-channels
+        %-  pairs
+        :~  'nest'^(nest nest.r-group)
+            'joined'^b+joined.r-group
+        ==
       ::
         %flag-content  (flag-content +.r-group)
         %delete  ~
