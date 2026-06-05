@@ -163,6 +163,11 @@ async function createNotesChannel({
       name: summary.flagName,
     });
     const channelId = api.notesChannelId(flag);
+    const group = await db.getGroup({ id: groupId });
+    const sectionId =
+      group?.navSections?.[0]?.sectionId ??
+      group?.navSections?.[0]?.id ??
+      'default';
 
     logger.trackEvent(
       AnalyticsEvent.ActionCreateChannel,
@@ -186,6 +191,26 @@ async function createNotesChannel({
     };
 
     await db.insertChannels([newChannel]);
+    try {
+      await api.addChannelListingToGroup({
+        channelId,
+        groupId,
+        sectionId,
+        meta: {
+          title,
+          description: description ?? '',
+          image: '',
+          cover: '',
+        },
+        readers,
+        join: true,
+      });
+    } catch (e) {
+      await db.deleteChannels([channelId]);
+      logger.error('addChannelListingToGroup failed for notes channel', e);
+      throw new Error(`Failed to add notes channel to group: ${channelId}`);
+    }
+
     syncNotesNotebook(flag).catch((e) => {
       logger.error('Failed to sync notes notebook after channel create', e);
     });
