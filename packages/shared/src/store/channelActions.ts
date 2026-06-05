@@ -11,6 +11,7 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -44,6 +45,7 @@ export async function createChannel({
       title,
       description: rawDescription,
       readers,
+      writers,
     });
   }
 
@@ -109,51 +111,28 @@ export async function createChannel({
   return newChannel;
 }
 
-interface NotesNotebookEntry {
-  host: string;
-  flagName: string;
-  notebook: { id: number; title: string };
-}
+const MEMBERS_MARKER = '__MEMBERS_MARKER__';
 
 async function createNotesChannel({
   groupId,
   title,
   description,
   readers,
+  writers,
 }: {
   groupId: string;
   title: string;
   description?: string;
   readers: string[];
+  writers: string[];
 }): Promise<db.Channel> {
   const currentUserId = api.getCurrentUserId();
-
-  // Snapshot the set of locally-hosted notebook flags so we can identify the
-  // freshly-created one after the poke. The %notes agent assigns the flag,
-  // so we can't precompute it.
-  const before = await scryNotesNotebooks();
-  const beforeOurs = new Set(
-    before.filter((n) => n.host === currentUserId).map((n) => n.flagName)
-  );
-
-  await api.poke({
-    app: 'notes',
-    mark: 'notes-action',
-    json: { type: 'create-notebook', title },
+  const notebook = await api.createNotesNotebook(title);
+  const flag = api.formatNotesFlag({
+    host: notebook.host,
+    name: notebook.flagName,
   });
-
-  const newEntry = await pollForNewNotebook({
-    currentUserId,
-    title,
-    excluded: beforeOurs,
-  });
-
-  if (!newEntry) {
-    throw new Error('Failed to create notes notebook');
-  }
-
-  const channelId = `notes/${newEntry.host}/${newEntry.flagName}`;
-  const flag = `${newEntry.host}/${newEntry.flagName}`;
+  const channelId = api.notesChannelId(flag);
 
   logger.trackEvent(
     AnalyticsEvent.ActionCreateChannel,
@@ -163,21 +142,43 @@ async function createNotesChannel({
     })
   );
 
-  // Default new notebooks to public so any group member can join. We don't
-  // yet propagate group membership to the notebook's per-member ACL, so
-  // private would lock everyone but the owner out.
-  try {
-    await api.poke({
-      app: 'notes',
-      mark: 'notes-action',
-      json: {
-        type: 'notebook',
-        flag,
-        action: { type: 'visibility', visibility: 'public' },
-      },
+  const restrictedRoleIds = Array.from(new Set([...readers, ...writers]));
+  if (restrictedRoleIds.length > 0) {
+    const invitees = await resolveNotesInviteesForRoles({
+      groupId,
+      roleIds: restrictedRoleIds,
     });
-  } catch (e) {
-    logger.error('Failed to set notebook visibility to public', e);
+    await Promise.all(
+      invitees.map((who) =>
+        api
+          .notesAction({
+            type: 'notebook',
+            flag,
+            action: { type: 'invite', who },
+          })
+          .catch((e) => {
+            logger.error('Failed to invite notes notebook member', {
+              flag,
+              who,
+              error: e,
+            });
+          })
+      )
+    );
+
+    try {
+      await api.setNotesNotebookVisibility({ flag, visibility: 'private' });
+    } catch (e) {
+      logger.error('Failed to set notebook visibility to private', e);
+    }
+  } else {
+    // Public group channel listings need public notebook membership so group
+    // members can join-on-open without an invite.
+    try {
+      await api.setNotesNotebookVisibility({ flag, visibility: 'public' });
+    } catch (e) {
+      logger.error('Failed to set notebook visibility to public', e);
+    }
   }
 
   // Pick a section to add this channel to. Tlon-created groups conventionally
@@ -197,7 +198,7 @@ async function createNotesChannel({
     groupId,
     addedToGroupAt: Date.now(),
     currentUserIsMember: true,
-    currentUserIsHost: true,
+    currentUserIsHost: notebook.host === currentUserId,
     contentConfiguration: channelContentConfigurationForChannelType('notes'),
     lastPostSequenceNum: 0,
   };
@@ -224,48 +225,37 @@ async function createNotesChannel({
     throw new Error(`Failed to add notes channel to group: ${channelId}`);
   }
 
+  syncNotesNotebook(flag).catch((e) => {
+    logger.error('Failed to sync notes notebook after channel create', e);
+  });
+
   return newChannel;
 }
 
-async function scryNotesNotebooks(): Promise<NotesNotebookEntry[]> {
-  try {
-    const data = await api.scry<NotesNotebookEntry[]>({
-      app: 'notes',
-      path: '/v0/notebooks',
-    });
-    return Array.isArray(data) ? data : [];
-  } catch (e) {
-    logger.error('scry /v0/notebooks failed', e);
-    return [];
-  }
-}
-
-async function pollForNewNotebook({
-  currentUserId,
-  title,
-  excluded,
-  attempts = 8,
-  delayMs = 250,
+async function resolveNotesInviteesForRoles({
+  groupId,
+  roleIds,
 }: {
-  currentUserId: string;
-  title: string;
-  excluded: Set<string>;
-  attempts?: number;
-  delayMs?: number;
-}): Promise<NotesNotebookEntry | null> {
-  for (let i = 0; i < attempts; i++) {
-    const all = await scryNotesNotebooks();
-    const ours = all.filter((n) => n.host === currentUserId);
-    // Prefer an exact title match among new entries, otherwise just any new
-    // entry (handles the rare case where the title was sanitized/transformed
-    // by the agent).
-    const fresh = ours.filter((n) => !excluded.has(n.flagName));
-    const match =
-      fresh.find((n) => n.notebook.title === title) ?? fresh[0] ?? null;
-    if (match) return match;
-    await new Promise((r) => setTimeout(r, delayMs));
-  }
-  return null;
+  groupId: string;
+  roleIds: string[];
+}) {
+  const group = await db.getGroup({ id: groupId });
+  if (!group) return [];
+
+  const currentUserId = api.getCurrentUserId();
+  const selectedRoles = new Set(roleIds);
+  const includeAllMembers = selectedRoles.has(MEMBERS_MARKER);
+  const invitees =
+    group.members
+      ?.filter((member) => member.status !== 'invited')
+      .filter((member) => {
+        if (includeAllMembers) return true;
+        return member.roles?.some((role) => selectedRoles.has(role.roleId));
+      })
+      .map((member) => member.contactId)
+      .filter((contactId) => contactId !== currentUserId) ?? [];
+
+  return Array.from(new Set(invitees));
 }
 
 /**
@@ -341,18 +331,12 @@ export async function deleteChannel({
   // don't leak orphans. The agent rejects the delete if we're not the host,
   // which is fine — the listing is already gone from the group either way.
   if (channelId.startsWith('notes/')) {
-    const [, host, name] = channelId.split('/');
-    if (host && name) {
+    const flag = api.parseNotesChannelId(channelId);
+    if (flag) {
+      const notebookFlag = api.formatNotesFlag(flag);
+      await db.deleteNotesNotebook(notebookFlag);
       try {
-        await api.poke({
-          app: 'notes',
-          mark: 'notes-action',
-          json: {
-            type: 'notebook',
-            flag: `${host}/${name}`,
-            action: { type: 'delete' },
-          },
-        });
+        await api.deleteNotesNotebook(flag);
       } catch (e) {
         logger.error('Failed to delete notebook in %notes', e);
       }
