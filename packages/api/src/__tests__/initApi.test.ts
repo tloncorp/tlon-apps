@@ -60,6 +60,29 @@ describe('toInitData', () => {
       expect(channel).toHaveProperty('channelId');
     });
 
+    test('extracts joined notes channels from group channel listings', () => {
+      const response = structuredClone(groupsInit6);
+      const group = response.groups['~test-ship/test-group'];
+      group.channels['notes/~test-ship/native-notes'] = {
+        added: Date.now(),
+        readers: [],
+        section: 'default',
+        join: true,
+        meta: {
+          title: 'Native notes',
+          description: '',
+          image: '',
+          cover: '',
+        },
+      };
+
+      const result = toInitData(response);
+
+      expect(result.joinedNotesChannels).toContain(
+        'notes/~test-ship/native-notes'
+      );
+    });
+
     test('filters valid invites from foreigns', () => {
       const result = toInitData(groupsInit6);
 
