@@ -32,13 +32,13 @@
 =*  flag  flag.args
 =/  flag-str=cord  (crip "{<p.flag>}/{(trip q.flag)}")
 =/  fields=(map field:reel cord)
-  =/  acc=(map field:reel cord)  ~
+  =/  acc=(map field:reel cord)  [[%'inviteType' 'group'] ~ ~]
   =?  acc  ?=(^ title.args)
     (~(put by acc) %'invitedGroupTitle' u.title.args)
   =?  acc  ?=(^ image.args)
     (~(put by acc) %'invitedGroupIconImageUrl' u.image.args)
   acc
-=/  =metadata:v1:reel  [%group fields]
+=/  =metadata:v1:reel  [%groups-0 fields]
 =/  =wire  /group-lure-invite/(scot %da now.bowl)
 ;<  ~  bind:m
   (watch:io wire [our.bowl %reel] /v1/id-link/[flag-str])

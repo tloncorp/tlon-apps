@@ -1,9 +1,7 @@
 ::  pioneer/create-lure-invite: create a shareable personal invite link
 ::
 ::    arg (json):
-::      { "id":  "lure-id",       // stable id; reuse to refresh a token
-::        "tag": "personal"       // optional, defaults to "personal"
-::      }
+::      "lure-id",       // string, stable id; reuse to refresh a token
 ::
 ::    watches /v1/id-link/<id> on %reel, pokes %reel-describe, and waits
 ::    for the bait provider to confirm. then returns the URL.
@@ -20,18 +18,13 @@
 ^-  form:m
 ;<  =bowl:spider  bind:m  get-bowl:io
 =+  !<(=json arg)
-=/  parse-args
-  =,  dejs:format
-  (ot id+so tag+(mu (se %tas)) ~)
-=/  args=[id=@t tag=(unit @tas)]  (parse-args json)
-=/  id=cord  id.args
-=/  tag=@tas  (fall tag.args %personal)
-=/  =metadata:v1:reel  [tag ~]
+=/  id=cord  (so:dejs:format json)
 =/  =wire  /lure-invite/(scot %da now.bowl)
 ;<  ~  bind:m
   (watch:io wire [our.bowl %reel] /v1/id-link/[id])
 ;<  ~  bind:m
-  (poke:io [our.bowl %reel] reel-describe+!>([id metadata]))
+  %+  poke:io  [our.bowl %reel]
+  reel-describe+!>([id `metadata:reel`[tag=%groups-0 [%'inviteType' 'user'] ~ ~]])
 ;<  =cage  bind:m  (take-fact:io wire)
 ?.  ?=(%json p.cage)
   ~|  unexpected-mark+p.cage  !!
