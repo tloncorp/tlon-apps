@@ -3,6 +3,9 @@ node_modules
 .DS_Store
 ops
 bin
+!packages/tlon-skill/bin/
+!packages/tlon-skill/bin/tlon.js
+packages/tlon-skill/bin/tlon
 *.tgz
 *.xst
 zod*
@@ -194,6 +197,7 @@ clurd
 /apps/tlon-mobile/**/render.experimental.xml
 /apps/tlon-mobile/**/*.jks
 /apps/tlon-mobile/**/*.keystore
+!/apps/tlon-mobile/android/app/debug.keystore
 /apps/tlon-mobile/**/*.hprof
 /apps/tlon-mobile/.vscode/*
 !/apps/tlon-mobile/.vscode/settings.json
@@ -276,5 +280,16 @@ clurd
 /packages/shared/**/.env.test
 # From packages/shared/.prettierignore
 /packages/shared/src/db/migrations
+# From packages/tlon-skill/.gitignore
+/packages/tlon-skill/**/node_modules/
+/packages/tlon-skill/**/*.log
+/packages/tlon-skill/**/*.bun-build
+/packages/tlon-skill/**/.DS_Store
+/packages/tlon-skill/**/dist
+/packages/tlon-skill/**/coverage/
+/packages/tlon-skill/npm/*/tlon
+/packages/tlon-skill/bin/tlon
+/packages/tlon-skill/.claude/settings.local.json
+/packages/tlon-skill/ships/*
 # From packages/ui/.gitignore
 /packages/ui/**/dist/

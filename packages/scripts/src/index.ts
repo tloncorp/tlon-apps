@@ -1,5 +1,4 @@
 import { parseContactUpdateEvent } from '@tloncorp/api/client/activityApi';
-import { getTextContent } from '@tloncorp/api/client/postContent';
 import type * as ub from '@tloncorp/api/urbit';
 import {
   ActivityIncomingEvent,
@@ -8,6 +7,8 @@ import {
   sourceToString,
 } from '@tloncorp/api/urbit/activity';
 import { da, render } from '@urbit/aura';
+
+import { getPostNotificationText } from './postNotificationText';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
@@ -115,7 +116,7 @@ export function renderActivityEventPreview({
     info: Pick<ub.PostEvent['post'], 'key' | 'content'>
   ) {
     const { sent, author } = getIdParts(info.key.id);
-    const contentSummary = getTextContent(info.content);
+    const contentSummary = getPostNotificationText(info.content);
     return {
       notification: {
         body: lit(contentSummary),

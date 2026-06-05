@@ -5,6 +5,7 @@ import { View } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
 import { Circle, ColorTokens, isWeb } from 'tamagui';
 
+import { getAndroidRoundedBackgroundKey } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 
 export function AvatarNavIcon({
@@ -71,6 +72,7 @@ export default function NavIcon({
   shouldShowUnreads?: boolean;
 }) {
   const resolvedType = isActive && activeType ? activeType : type;
+  const unreadDotBackgroundColor = hasUnreads ? '$blue' : 'transparent';
   const props: Omit<ComponentProps<typeof Pressable>, 'children'> = isWeb
     ? {
         pressStyle: { backgroundColor: '$activeBorder' },
@@ -100,14 +102,9 @@ export default function NavIcon({
           alignItems="center"
         >
           <Circle
-            // Workaround for facebook/react-native#52415: on Android new
-            // arch, a View whose backgroundColor transitions from
-            // transparent to opaque loses its border-radius clipping.
-            // Keying on hasUnreads forces a fresh mount so the dot is
-            // rendered as a circle.
-            key={hasUnreads ? 'unread' : 'read'}
+            key={getAndroidRoundedBackgroundKey(unreadDotBackgroundColor)}
             size="$s"
-            backgroundColor={hasUnreads ? '$blue' : 'transparent'}
+            backgroundColor={unreadDotBackgroundColor}
           />
         </View>
       ) : null}

@@ -1,0 +1,11 @@
+node_modules/
+*.log
+*.bun-build
+.DS_Store
+dist
+coverage/
+# Ignore binaries, keep package.json
+npm/*/tlon
+bin/tlon
+.claude/settings.local.json
+ships/*

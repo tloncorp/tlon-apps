@@ -6,6 +6,7 @@ import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
+import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
@@ -60,6 +61,7 @@ export function StaticChatMessage({
 }) {
   const isNotice = post.type === 'notice';
   const draftInputContext = useDraftInputContext();
+  const navigateToA2UITarget = useA2UINavigation();
 
   if (isNotice) {
     showAuthor = false;
@@ -94,8 +96,9 @@ export function StaticChatMessage({
   }, [onPressRetry, post]);
 
   const handleA2UIAction = useCallback(
-    async (action: A2UI.Button['action'], fallbackText: string) => {
-      if (action.event.name !== A2UI.action.sendMessage) {
+    async (action: A2UI.Button['action']) => {
+      if (action.event.name === A2UI.action.navigate) {
+        await navigateToA2UITarget(action.event.context.target);
         return;
       }
 
@@ -103,8 +106,7 @@ export function StaticChatMessage({
         return;
       }
 
-      const message = action.event.context?.text ?? fallbackText;
-      const text = message.trim();
+      const text = action.event.context.text.trim();
       if (!text) {
         return;
       }
@@ -118,13 +120,29 @@ export function StaticChatMessage({
         isEdit: false,
       });
     },
+    [draftInputContext, navigateToA2UITarget]
+  );
+
+  const isA2UIActionAvailable = useCallback(
+    (action: A2UI.Button['action']) => {
+      if (action.event.name === A2UI.action.navigate) {
+        return true;
+      }
+
+      if (action.event.name === A2UI.action.sendMessage) {
+        return Boolean(
+          draftInputContext &&
+            draftInputContext.canStartDraft !== false &&
+            action.event.context.text.trim()
+        );
+      }
+
+      return false;
+    },
     [draftInputContext]
   );
+
   const canRenderA2UI = isDmChannelId(post.channelId);
-  const canHandleA2UIAction =
-    canRenderA2UI &&
-    !!draftInputContext &&
-    draftInputContext.canStartDraft !== false;
 
   const postContent = usePostContent(post);
   const lastEditPostContent = usePostLastEditContent(post);
@@ -214,7 +232,10 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
-            onA2UIAction={canHandleA2UIAction ? handleA2UIAction : undefined}
+            onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
+            isA2UIActionAvailable={
+              canRenderA2UI ? isA2UIActionAvailable : undefined
+            }
             searchQuery={searchQuery}
           />
         )}

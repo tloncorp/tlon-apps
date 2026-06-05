@@ -261,7 +261,6 @@
       :~  time+s+(scot %ud time.te)
           event+(event event.te)
       ==
-    ::
     ++  update
       |=  u=update:v9:av
       %+  frond  -.u
@@ -273,7 +272,6 @@
         %adjust  (adjusted +.u)
         %allow-notifications  (allowed +.u)
       ==
-    ::
     ++  added
       |=  [src=source:v9:av te=time-event:v9:av]
       %-  pairs
@@ -282,7 +280,6 @@
           time+(time time.te)
           event+(event event.te)
       ==
-    ::
     ++  adjusted
       |=  [s=source:v9:av v=(unit volume-map:v9:av)]
       %-  pairs

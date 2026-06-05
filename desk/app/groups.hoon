@@ -2613,6 +2613,8 @@
         =+  seat=(~(got by seats.group.se-core) ship)
         =?  roles.seat  ?=(^ roles)
           (~(uni in roles.seat) u.roles)
+        =.  seats.group.se-core
+          (~(put by seats.group.se-core) ship seat)
         (se-update:se-core %seat (sy ship ~) [%add seat])
       ::  send invites to manually added ships
       ::
@@ -2677,12 +2679,20 @@
         [ship new-admins]
       =.  se-core  (se-update %seat ships [%add-roles roles.c-seat])
       ?:  =(~ new-admins)  se-core
+      ::  when a ship acquires admin rights it receives the full view of
+      ::  the group, including information restricted to admins.
+      ::
       =+  paths=(se-ships-subscription-paths new-admins)
       ?:  =(~ paths)  se-core
       =/  time
         ?~  update=(ram:log-on:g log)  now.bowl
         -.u.update
-      =/  =update:g  [time %create group]
+      =/  gr=group:g  group
+      ::  clear local state for the update
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      =/  =update:g  [time %create gr]
       (give %fact paths group-update+update)
     ::
         %del-roles
@@ -2871,7 +2881,12 @@
       =/  time
         ?~  update=(ram:log-on:g log)  now.bowl
         -.u.update
-      =/  =update:g  [time %create group]
+      =/  gr=group:g  group
+      ::  clear local state
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      =/  =update:g  [time %create gr]
       (give %fact paths group-update+update)
     ::
         %del-admin
@@ -3117,7 +3132,7 @@
     ?:  =(*@da da)
       ::  filter out admin data
       ::
-      =/  =group:g
+      =/  gr=group:g
         ?:  (se-is-admin ship)  group
         ::  only admins receive state updates regarding
         ::  tokens, pending ships and requests.
@@ -3127,11 +3142,11 @@
           pending.admissions   ~
           requests.admissions  ~
         ==
-      ::  the invited list is local
-      =.  invited.admissions.group  ~
-      ::  clear .active-channels, as this is updated locally
-      =.  active-channels.group  ~
-      (give %fact ~ group-log+`log:g`[now.bowl^[%create group] ~ ~])
+      ::  clear local state
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      (give %fact ~ group-log+`log:g`[now.bowl^[%create gr] ~ ~])
     ::
     =/  =log:g  (lot:log-on:g log `da ~)
     ::  filter out admin updates
@@ -3885,12 +3900,19 @@
     |=  gr=group:g
     ~>  %spin.['go-u-create']
     ^+  go-core
-    =.  go-core  (go-response %create gr)
-    ?:  go-our-host  go-core
+    ?:  go-our-host
+      ::  use the full server state for sending the response
+      (go-response %create group)
     ::
     ?>  ?=(%sub -.net)
-    =.  group  gr
-    go-core
+    ::  update group while preserving local state
+    ::
+    =.  group
+      %_  gr
+        invited.admissions  invited.admissions.group
+        active-channels     active-channels.group
+      ==
+    (go-response %create group)
   ::  +go-u-meta: apply meta update
   ::
   ++  go-u-meta

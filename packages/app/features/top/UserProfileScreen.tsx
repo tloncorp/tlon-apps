@@ -38,7 +38,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const connectionStatus = useShipConnectionStatus(userId);
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
-  const { resetToDm } = useRootNavigation();
+  const { navigateToBotSettings, resetToDm } = useRootNavigation();
 
   useEffect(() => {
     if (userId && userId !== currentUserId) {
@@ -86,6 +86,14 @@ export function UserProfileScreen({ route, navigation }: Props) {
     );
     setSelectedGroup(group);
   }, []);
+
+  const isOwnBotProfile = useMemo(() => {
+    return api.isBotUserIdForUser(userId, currentUserId);
+  }, [currentUserId, userId]);
+
+  const handlePressBotSettings = useCallback(() => {
+    navigateToBotSettings();
+  }, [navigateToBotSettings]);
 
   const canEdit = useMemo(() => {
     return (
@@ -139,6 +147,9 @@ export function UserProfileScreen({ route, navigation }: Props) {
             <UserProfileScreenView
               userId={userId}
               connectionStatus={connectionStatus}
+              onPressBotSettings={
+                !isWeb && isOwnBotProfile ? handlePressBotSettings : undefined
+              }
               onPressGroup={handlePressGroup}
             />
           </View>

@@ -17,7 +17,7 @@ import {
 import initResponse from '../test/init.json';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
 import * as queries from './queries';
-import { Post } from './types';
+import { ChannelUnread, GroupUnread, Post, ThreadUnreadState } from './types';
 
 const groupsData = toClientGroupsV7(
   groupsResponse as unknown as Record<string, ub.GroupV7>,
@@ -40,6 +40,32 @@ test('inserts all groups', async () => {
   await queries.insertGroups({ groups: groupsData });
   const groups = await queries.getGroups({});
   expect(groups.length).toEqual(groupsData.length);
+});
+
+test('insertGroups only invalidates posts when payloads include channels', () => {
+  const tableEffects = queries.insertGroups.meta.tableEffects;
+  if (typeof tableEffects !== 'function') {
+    throw new Error('insertGroups should declare dynamic table effects');
+  }
+
+  const groupWithoutChannels = {
+    id: '~bus/no-channels',
+  } as unknown as Parameters<typeof queries.insertGroups>[0]['groups'][number];
+  const groupWithChannels = {
+    id: '~bus/with-channels',
+    channels: [
+      {
+        id: 'chat/~bus/with-channels/general',
+        groupId: '~bus/with-channels',
+        type: 'chat',
+      },
+    ],
+  } as unknown as Parameters<typeof queries.insertGroups>[0]['groups'][number];
+
+  expect(tableEffects({ groups: [groupWithoutChannels] })).not.toContain(
+    'posts'
+  );
+  expect(tableEffects({ groups: [groupWithChannels] })).toContain('posts');
 });
 
 // A full group payload is authoritative for nav-section memberships, so
@@ -856,6 +882,284 @@ test('setJoinedGroupChannels: does not reset membership for channels not in the 
   }
 });
 
+const unreadTestChannelId = 'chat/~zod/react-clear/general';
+const unreadTestGroupId = '~zod/react-clear';
+
+function makeChannelUnread(
+  overrides: Partial<ChannelUnread> = {}
+): ChannelUnread {
+  return {
+    channelId: unreadTestChannelId,
+    type: 'channel',
+    count: 0,
+    countWithoutThreads: 0,
+    notify: true,
+    updatedAt: 100,
+    firstUnreadPostId: null,
+    firstUnreadPostReceivedAt: null,
+    ...overrides,
+  };
+}
+
+function makeGroupUnread(overrides: Partial<GroupUnread> = {}): GroupUnread {
+  return {
+    groupId: unreadTestGroupId,
+    count: 0,
+    notify: true,
+    notifyCount: 1,
+    updatedAt: 100,
+    ...overrides,
+  };
+}
+
+function makeThreadUnread(
+  overrides: Partial<ThreadUnreadState> = {}
+): ThreadUnreadState {
+  return {
+    channelId: unreadTestChannelId,
+    threadId: 'thread-react',
+    count: 0,
+    notify: true,
+    updatedAt: 100,
+    firstUnreadPostId: null,
+    firstUnreadPostReceivedAt: null,
+    ...overrides,
+  };
+}
+
+test('clearChannelUnread clears notification-only channel activity', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await queries.insertChannelUnreads([makeChannelUnread()]);
+
+  await queries.clearChannelUnread(unreadTestChannelId);
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, unreadTestChannelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    countWithoutThreads: 0,
+    notify: false,
+  });
+});
+
+test('channel unread clears preserve notify while a thread notification remains', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ count: 1, countWithoutThreads: 1 }),
+  ]);
+  await queries.insertThreadUnreads([makeThreadUnread()]);
+
+  await queries.clearChannelUnread(unreadTestChannelId);
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, unreadTestChannelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    countWithoutThreads: 0,
+    notify: true,
+  });
+
+  const decrementChannelId = 'chat/~zod/decrement-preserve-thread/general';
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId: decrementChannelId, count: 3 }),
+  ]);
+  await queries.insertThreadUnreads([
+    makeThreadUnread({ channelId: decrementChannelId }),
+  ]);
+
+  await queries.updateChannelUnreadCount({
+    channelId: decrementChannelId,
+    decrement: 3,
+  });
+
+  const decrementedUnread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, decrementChannelId),
+  });
+  expect(decrementedUnread).toMatchObject({
+    count: 0,
+    notify: true,
+  });
+});
+
+test('notifying unread source count includes notification-only sources', async () => {
+  await queries.insertGroupUnreads([makeGroupUnread()]);
+  await queries.insertChannelUnreads([makeChannelUnread()]);
+  await queries.insertThreadUnreads([makeThreadUnread()]);
+
+  expect(await queries.getNotifyingUnreadSourceCount()).toBe(3);
+});
+
+test('group unread count updates clear notification state when count reaches zero', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const groupId = '~zod/decrement-clear';
+  await queries.insertGroupUnreads([
+    makeGroupUnread({ groupId, count: 3, notify: true, notifyCount: 2 }),
+  ]);
+
+  await queries.updateGroupUnreadCount({ groupId, decrement: 3 });
+
+  const unread = await client.query.groupUnreads.findFirst({
+    where: $.eq(schema.groupUnreads.groupId, groupId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+    notifyCount: 0,
+  });
+});
+
+test('group unread count updates preserve notification state while a thread notification remains', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const groupId = groupsData[0].id;
+  const channelId = 'chat/~zod/decrement-preserve-thread/general';
+  await queries.insertGroups({ groups: [groupsData[0]] });
+  await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+  await queries.insertGroupUnreads([
+    makeGroupUnread({ groupId, count: 3, notify: true, notifyCount: 1 }),
+  ]);
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId, count: 0, notify: true }),
+  ]);
+  await queries.insertThreadUnreads([makeThreadUnread({ channelId })]);
+
+  await queries.updateGroupUnreadCount({ groupId, decrement: 3 });
+
+  const unread = await client.query.groupUnreads.findFirst({
+    where: $.eq(schema.groupUnreads.groupId, groupId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: true,
+    notifyCount: 1,
+  });
+});
+
+test('channel unread count updates clear notification state when count reaches zero', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const channelId = 'chat/~zod/decrement-clear/general';
+  await queries.insertChannelUnreads([
+    makeChannelUnread({ channelId, count: 3, notify: true }),
+  ]);
+
+  await queries.updateChannelUnreadCount({ channelId, decrement: 3 });
+
+  const unread = await client.query.channelUnreads.findFirst({
+    where: $.eq(schema.channelUnreads.channelId, channelId),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+  });
+});
+
+test('group unread writes invalidate group detail queries', () => {
+  expect(queries.getGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+  expect(queries.getPersonalGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+  expect(queries.getBotHomeGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groupUnreads'])
+  );
+});
+
+test('channel unread count updates invalidate channel unreads', () => {
+  expect(queries.updateChannelUnreadCount.meta.tableEffects).toEqual([
+    'channelUnreads',
+  ]);
+});
+
+test('insertChannelUnreads updates nested thread unread conflicts', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const threadId = 'nested-thread-react';
+  await queries.insertChannelUnreads([
+    makeChannelUnread({
+      count: 1,
+      threadUnreads: [
+        makeThreadUnread({
+          threadId,
+          count: 1,
+        }),
+      ],
+    }),
+  ]);
+
+  await queries.insertChannelUnreads([
+    makeChannelUnread({
+      notify: false,
+      updatedAt: 200,
+      threadUnreads: [
+        makeThreadUnread({
+          threadId,
+          notify: false,
+          updatedAt: 200,
+        }),
+      ],
+    }),
+  ]);
+
+  const unread = await client.query.threadUnreads.findFirst({
+    where: $.and(
+      $.eq(schema.threadUnreads.channelId, unreadTestChannelId),
+      $.eq(schema.threadUnreads.threadId, threadId)
+    ),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+    updatedAt: 200,
+  });
+});
+
+test('thread unread queries treat notification-only activity as unread until cleared', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  const threadId = 'thread-react';
+  await queries.insertThreadUnreads([makeThreadUnread({ threadId })]);
+
+  expect(
+    await queries.getThreadUnreadsByChannel({
+      channelId: unreadTestChannelId,
+      excludeRead: true,
+    })
+  ).toHaveLength(1);
+
+  await queries.clearThreadUnread({ channelId: unreadTestChannelId, threadId });
+
+  const unread = await client.query.threadUnreads.findFirst({
+    where: $.and(
+      $.eq(schema.threadUnreads.channelId, unreadTestChannelId),
+      $.eq(schema.threadUnreads.threadId, threadId)
+    ),
+  });
+  expect(unread).toMatchObject({
+    count: 0,
+    notify: false,
+  });
+  expect(
+    await queries.getThreadUnreadsByChannel({
+      channelId: unreadTestChannelId,
+      excludeRead: true,
+    })
+  ).toHaveLength(0);
+});
+
 // TLON-5606: `getPendingPosts` feeds the main-channel pending-merge layer.
 // Once a failed optimistic row is marked deleted, it must not come back as a
 // "pending" row and ghost the bottom of the chat scroller.
@@ -1418,6 +1722,151 @@ describe('recomputeChannelLastPost', () => {
     // `{ lastPostId: null, lastPostAt: 9999 }` from the nulled sibling.
     expect(group!.lastPostId).toBe('valid-sibling-head');
     expect(group!.lastPostAt).toBe(2000);
+  });
+});
+
+describe('last post repair after channel metadata insert', () => {
+  type TestGroup = Parameters<typeof queries.insertGroups>[0]['groups'][number];
+
+  function testClient() {
+    const client = getClient();
+    if (!client) throw new Error('test db not initialized');
+    return client;
+  }
+
+  function testGroup(groupId: string, channelId?: string): TestGroup {
+    return {
+      id: groupId,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~zod',
+      channels: channelId ? [{ id: channelId, type: 'chat', groupId }] : [],
+    } as unknown as TestGroup;
+  }
+
+  function testPost({
+    id,
+    channelId,
+    groupId,
+    at,
+    sequenceNum,
+  }: {
+    id: string;
+    channelId: string;
+    groupId?: string;
+    at: number;
+    sequenceNum: number;
+  }): Post {
+    return {
+      id,
+      type: 'chat',
+      channelId,
+      groupId,
+      authorId: '~zod',
+      sentAt: at,
+      receivedAt: at,
+      sequenceNum,
+      content: JSON.stringify([{ inline: ['preview'] }]),
+      syncedAt: at,
+    } as unknown as Post;
+  }
+
+  async function expectPreview({
+    groupId,
+    channelId,
+    postId,
+    at,
+  }: {
+    groupId: string;
+    channelId: string;
+    postId: string;
+    at: number;
+  }) {
+    const post = await testClient().query.posts.findFirst({
+      where: $.eq(schema.posts.id, postId),
+    });
+    expect(post!.groupId).toBe(groupId);
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostId).toBe(postId);
+    expect(channel!.lastPostAt).toBe(at);
+
+    const group = await queries.getGroup({ id: groupId });
+    expect(group!.lastPostId).toBe(postId);
+    expect(group!.lastPostAt).toBe(at);
+  }
+
+  async function insertCachedHead(post: Post) {
+    await queries.insertChannelPosts({ posts: [post] });
+    const inserted = await testClient().query.posts.findFirst({
+      where: $.eq(schema.posts.id, post.id),
+    });
+    expect(inserted!.groupId).toBeNull();
+  }
+
+  test('channel insertion repairs posts that were already cached locally', async () => {
+    const groupId = '~zod/channel-insert-preview-repair';
+    const channelId = 'chat/~zod/channel-insert-preview-repair/general';
+    const post = testPost({
+      id: 'channel-insert-preview-repair-head',
+      channelId,
+      at: 3000,
+      sequenceNum: 8,
+    });
+
+    await insertCachedHead(post);
+    await queries.insertGroups({ groups: [testGroup(groupId)] });
+    await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+    await expectPreview({
+      groupId,
+      channelId,
+      postId: post.id,
+      at: post.receivedAt,
+    });
+  });
+
+  test('group insertion repairs embedded channel posts that were already cached locally', async () => {
+    const groupId = '~zod/group-insert-preview-repair';
+    const channelId = 'chat/~zod/group-insert-preview-repair/general';
+    const post = testPost({
+      id: 'group-insert-preview-repair-head',
+      channelId,
+      at: 4000,
+      sequenceNum: 9,
+    });
+
+    await insertCachedHead(post);
+    await queries.insertGroups({ groups: [testGroup(groupId, channelId)] });
+    await expectPreview({
+      groupId,
+      channelId,
+      postId: post.id,
+      at: post.receivedAt,
+    });
+  });
+
+  test('metadata repair preserves newer server sequence watermarks', async () => {
+    const groupId = '~zod/sequence-watermark-repair';
+    const channelId = 'chat/~zod/sequence-watermark-repair/general';
+    const post = testPost({
+      id: 'sequence-watermark-repair-local-head',
+      channelId,
+      at: 5000,
+      sequenceNum: 50,
+    });
+
+    await insertCachedHead(post);
+    await queries.insertGroups({ groups: [testGroup(groupId)] });
+    await queries.insertChannels([{ id: channelId, type: 'chat', groupId }]);
+    await queries.setLatestChannelSequenceNum({
+      channelId,
+      sequenceNum: 100,
+    });
+
+    await queries.insertGroups({ groups: [testGroup(groupId, channelId)] });
+
+    const channel = await queries.getChannel({ id: channelId });
+    expect(channel!.lastPostSequenceNum).toBe(100);
   });
 });
 

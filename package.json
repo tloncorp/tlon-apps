@@ -8,6 +8,7 @@
     "build:shared": "pnpm --filter '@tloncorp/shared' build",
     "build:ui": "pnpm --filter '@tloncorp/ui' build",
     "build:editor": "pnpm --filter '@tloncorp/editor' build",
+    "build:tlon-skill": "pnpm --filter '@tloncorp/tlon-skill' build",
     "build:web": "pnpm --filter 'tlon-web' build",
     "build:mobile": "pnpm --filter 'tlon-mobile' build",
     "build:desktop": "pnpm run build:packages && pnpm --filter 'tlon-desktop' build:prepare",
@@ -29,7 +30,7 @@
     "dev:web": "pnpm --filter 'tlon-web' dev",
     "e2e": "pnpm --filter 'tlon-web' e2e",
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
-    "test:ci": "npm rebuild better-sqlite3 && pnpm run -r test run",
+    "test:ci": "npm rebuild better-sqlite3 && pnpm build:api && pnpm run -r test run",
     "lint:all": "pnpm -r lint",
     "patch:expo-share-intent": "node scripts/regenerate-expo-share-intent-patch.mjs",
     "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo"
@@ -80,7 +81,8 @@
       "@tamagui/web@2.0.0-rc.41": "patches/@tamagui__web@2.0.0-rc.41.patch",
       "@tamagui/sheet@2.0.0-rc.41": "patches/@tamagui__sheet@2.0.0-rc.41.patch",
       "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch",
-      "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch"
+      "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch",
+      "react-native-gesture-handler@2.28.0": "patches/react-native-gesture-handler@2.28.0.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {

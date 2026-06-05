@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { getMessagesFilter } from '@tloncorp/api';
-import { getConstants } from '@tloncorp/api/types/constants';
+import { referenceLookupId } from '@tloncorp/api/client/references';
 import * as ub from '@tloncorp/api/urbit';
 import { isMatch, pick } from 'lodash';
 import { useEffect, useMemo } from 'react';
@@ -175,13 +175,13 @@ export const useContacts = () => {
   });
 };
 
-export const useUnreadsCountWithoutMuted = () => {
+export const useNotifyingUnreadSourceCount = () => {
   return useQuery({
     queryKey: [
-      'unreadsCount',
-      useKeyFromQueryDeps(db.getUnreadsCountWithoutMuted),
+      'notifyingUnreadSourceCount',
+      useKeyFromQueryDeps(db.getNotifyingUnreadSourceCount),
     ],
-    queryFn: () => db.getUnreadsCountWithoutMuted({}),
+    queryFn: () => db.getNotifyingUnreadSourceCount(),
   });
 };
 
@@ -286,6 +286,24 @@ export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
         return db.getThreadUnreadState({ parentId: parentPostId });
       }
       return null;
+    },
+  });
+};
+
+export const useLiveThreadUnreadsByChannel = (channelId: string | null) => {
+  const depsKey = useKeyFromQueryDeps(db.getThreadUnreadsByChannel);
+
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['liveThreadUnreadsByChannel', depsKey, channelId],
+    queryFn: async () => {
+      if (!channelId) {
+        return [];
+      }
+      return db.getThreadUnreadsByChannel({
+        channelId,
+        excludeRead: true,
+      });
     },
   });
 };
@@ -526,19 +544,20 @@ export const usePostReference = ({
     // prefix semantics. The 'reference' suffix keeps this a distinct cache
     // entry from the plain per-post hooks, since the queryFn has a
     // syncPostReference fallback that the others don't.
-    queryKey: ['post', postId, 'reference'],
+    queryKey: ['post', referenceLookupId({ postId, replyId }), 'reference'],
     gcTime: PER_POST_GC_TIME_MS,
     enabled: enabled && !!postId,
     queryFn: async () => {
       if (!postId) {
         return null;
       }
-      const post = await db.getPostWithRelations({ id: postId });
+      const id = referenceLookupId({ postId, replyId });
+      const post = await db.getPostWithRelations({ id });
       if (post) {
         return post;
       }
       await syncPostReference({ postId, channelId, replyId });
-      return db.getPostWithRelations({ id: postId });
+      return db.getPostWithRelations({ id });
     },
   });
   return postQuery;
@@ -680,26 +699,6 @@ export const useWayfindingCompletion = () => {
       };
     },
   });
-};
-
-export const useShowWebSplashModal = () => {
-  const { data: wayfinding, isLoading } = useWayfindingCompletion();
-  const { data: personalGroup } = usePersonalGroup();
-
-  // Disable splash modal during e2e tests
-  try {
-    const constants = getConstants();
-    if (constants.DISABLE_SPLASH_MODAL) {
-      return false;
-    }
-  } catch (e) {
-    // Constants not available (e.g., in test environment)
-    // Continue with normal behavior
-  }
-
-  return Boolean(
-    personalGroup && !isLoading && !(wayfinding?.completedSplash ?? true)
-  );
 };
 
 export const useShowChatInputWayfinding = (channelId: string) => {
