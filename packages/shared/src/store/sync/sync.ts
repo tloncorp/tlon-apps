@@ -1177,7 +1177,17 @@ export async function handleGroupUpdate(
       break;
     }
     case 'updateChannel': {
-      await db.updateChannel(update.channel, ctx);
+      // A channel edit (metadata / readers) must not redefine the current
+      // user's membership. The r-group reducer builds this channel with no
+      // role context, so currentUserIsMember is computed from readers ∩ {} —
+      // which wrongly marks a now-restricted channel as "left". Membership is
+      // owned by the full group sync (which has the user's roles) and the
+      // active-channels join/leave path, so strip it from this update.
+      const channelUpdate: Partial<db.Channel> & { id: string } = {
+        ...update.channel,
+      };
+      delete channelUpdate.currentUserIsMember;
+      await db.updateChannel(channelUpdate, ctx);
       if (update.channel.groupId) {
         await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
