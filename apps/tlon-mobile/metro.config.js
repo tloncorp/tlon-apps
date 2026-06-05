@@ -131,8 +131,9 @@ const config = {
   resolver: {
     // Redirect the live-markdown library's internal `parseExpensiMark` import to
     // a stub. We never use parseExpensiMark (the editor passes its own parser),
-    // and the real module throws at load unless html-entities is workletized and
-    // pulls in expensify-common. Stubbing it lets us drop that patch + dep.
+    // and the real module throws at load unless html-entities is workletized.
+    // Stubbing it lets us drop the html-entities patch. (expensify-common stays
+    // as the fork's peer dep but is never loaded.)
     resolveRequest: (context, moduleName, platform) => {
       if (
         /parseExpensiMark(\.js)?$/.test(moduleName) &&
