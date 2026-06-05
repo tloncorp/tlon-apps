@@ -14,12 +14,14 @@ function InputMentionPopupInternal(
     mentionText,
     options,
     onSelectMention,
+    frameless = false,
   }: PropsWithRef<{
     containerHeight: number;
     isMentionModeActive: boolean;
     mentionText?: string;
     options: MentionOption[];
     onSelectMention: (option: MentionOption) => void;
+    frameless?: boolean;
   }>,
   ref: MentionPopupRef
 ) {
@@ -27,10 +29,12 @@ function InputMentionPopupInternal(
   return isMentionModeActive ? (
     <YStack
       position="absolute"
-      bottom={containerHeight + 24}
+      // The chat input is a short bottom bar, so the popup offsets by the input
+      // height to sit just above it. The frameless notebook editor instead fills
+      // the screen and `containerHeight` tracks its growing content height, so
+      // anchor near the container's bottom (above the keyboard) there.
+      bottom={frameless ? 24 : containerHeight + 24}
       zIndex={15}
-      // borderWidth={2}
-      // borderColor="orange"
       width="90%"
       maxWidth={isNarrow ? 'unset' : 500}
     >

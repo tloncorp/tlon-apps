@@ -1,12 +1,10 @@
 import type { MarkdownStyle } from '@expensify/react-native-live-markdown';
 import { preSig } from '@tloncorp/api/lib/urbit';
-import { JSONContent, Story } from '@tloncorp/api/urbit';
+import { JSONContent, Story, constructStory } from '@tloncorp/api/urbit';
 import {
   Attachment,
   createDevLogger,
   extractContentTypesFromPost,
-  inlinesToMarkdown,
-  markdownToStory,
   storyToContent,
   tiptap,
   uploadAsset as uploadAssetToStorage,
@@ -223,7 +221,12 @@ export const LiveMarkdownMessageInput = ({
       const draft = await getDraft(draftType);
       if (draft) {
         const inlines = tiptap.JSONToInlines(draft as JSONContent);
-        setText(inlinesToMarkdown(inlines as any));
+        const seeded = storyToTextAndMentions(
+          constructStory(inlines),
+          displayForMention
+        );
+        setText(seeded.text);
+        setMentions(seeded.mentions);
       }
       setHasSetInitialContent(true);
     })().catch((e) => {
@@ -247,12 +250,12 @@ export const LiveMarkdownMessageInput = ({
       return;
     }
 
-    const story = markdownToStory(text);
+    const story = textAndMentionsToStory(text, mentions) as unknown as Story;
     const json = tiptap.diaryMixedToJSON(story);
     storeDraft(json, draftType).catch((e) => {
       liveMarkdownLogger.error('Failed to store markdown draft', e);
     });
-  }, [text, hasSetInitialContent, storeDraft, clearDraft, draftType]);
+  }, [text, mentions, hasSetInitialContent, storeDraft, clearDraft, draftType]);
 
   // Report content to the host (e.g. BigInput) so the notebook Post button can
   // enable/disable and send. Uses the entity-aware story so mentions survive.
