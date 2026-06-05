@@ -438,6 +438,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       childThreadUnreadActivityKnown,
       hasChildThreadUnreadActivity,
     });
+    const shouldShowPostLoading =
+      channel.type !== 'notes' && Boolean(isLoadingPosts);
 
     useEffect(() => {
       const clearShowTimeout = () => {
@@ -453,7 +455,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         }
       };
 
-      if (isLoadingPosts) {
+      if (shouldShowPostLoading) {
         clearHideTimeout();
         if (showHeaderLoading || headerLoadingShowTimeoutRef.current) {
           return;
@@ -485,7 +487,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
         setShowHeaderLoading(false);
         headerLoadingHideTimeoutRef.current = null;
       }, hideDelay);
-    }, [isLoadingPosts, showHeaderLoading]);
+    }, [shouldShowPostLoading, showHeaderLoading]);
 
     useEffect(() => {
       return () => {
@@ -764,29 +766,27 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                     >
                       <ChannelHeaderItemsProvider>
                         <>
-                          {channel.type !== 'notes' && (
-                            <ChannelHeader
-                              channel={channel}
-                              group={group}
-                              title={title ?? ''}
-                              description={''}
-                              goBack={
-                                isNarrow ||
-                                draftInputPresentationMode === 'fullscreen'
-                                  ? handleGoBack
-                                  : undefined
-                              }
-                              goToChatDetails={goToChatDetails}
-                              goToProfile={handleGoToProfile}
-                              goToSearch={goToSearch}
-                              showSpinner={showHeaderLoading}
-                              showSearchButton={
-                                channel.type === 'chat' ||
-                                channel.type === 'dm' ||
-                                channel.type === 'groupDm'
-                              }
-                            />
-                          )}
+                          <ChannelHeader
+                            channel={channel}
+                            group={group}
+                            title={title ?? ''}
+                            description={''}
+                            goBack={
+                              isNarrow ||
+                              draftInputPresentationMode === 'fullscreen'
+                                ? handleGoBack
+                                : undefined
+                            }
+                            goToChatDetails={goToChatDetails}
+                            goToProfile={handleGoToProfile}
+                            goToSearch={goToSearch}
+                            showSpinner={showHeaderLoading}
+                            showSearchButton={
+                              channel.type === 'chat' ||
+                              channel.type === 'dm' ||
+                              channel.type === 'groupDm'
+                            }
+                          />
                           {shouldShowPinnedPostBanner && (
                             <PinnedPostBanner
                               channel={channel}
@@ -818,7 +818,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                       hasNewerPosts,
                                       hasOlderPosts,
                                       initialChannelUnread,
-                                      isLoadingPosts: isLoadingPosts ?? false,
+                                      isLoadingPosts: shouldShowPostLoading,
                                       loadPostsError,
                                       onPressDelete,
                                       onPressRetrySend,

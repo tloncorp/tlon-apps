@@ -8,6 +8,13 @@
       "when": 1780682104236,
       "tag": "0000_real_rhino",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1780503789000,
+      "tag": "0001_native_notes",
+      "breakpoints": true
     }
   ]
 }
