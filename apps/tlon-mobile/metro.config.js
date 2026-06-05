@@ -10,6 +10,8 @@ const { FileStore } = require('metro-cache');
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
 const baseConfig = getSentryExpoConfig(projectRoot);
+const resolveWorkspaceModule = (moduleName) =>
+  require.resolve(moduleName, { paths: [workspaceRoot] });
 
 // Shared Metro transform cache across worktrees on this machine.
 // metro-transform-worker keys are content-addressed (relative paths only),
@@ -119,6 +121,18 @@ const config = {
   },
   resolver: {
     assetExts: baseConfig.resolver.assetExts.filter((ext) => ext !== 'svg'),
+    resolveRequest: (context, moduleName, platform) => {
+      // Some Tamagui packages ship an embedded React copy. Always use the app's
+      // React instance so hooks run against the same dispatcher as RN.
+      if (moduleName === 'react' || moduleName.startsWith('react/')) {
+        return {
+          type: 'sourceFile',
+          filePath: resolveWorkspaceModule(moduleName),
+        };
+      }
+
+      return context.resolveRequest(context, moduleName, platform);
+    },
     // requireCycleIgnorePatterns needs to cover ContentReference, as
     // that require cycle can't be avoided without a major refactor.
     requireCycleIgnorePatterns: [
