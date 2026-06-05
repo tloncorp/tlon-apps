@@ -156,6 +156,7 @@ export const MessageInputContainer = memo(
           options={mentionOptions}
           onSelectMention={onSelectMention}
           onDismiss={onDismissMentions}
+          frameless={frameless}
           ref={mentionRef}
         />
         {!frameless ? (
