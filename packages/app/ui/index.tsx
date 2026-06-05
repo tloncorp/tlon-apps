@@ -56,6 +56,7 @@ export * from './components/MetaEditorScreenView';
 export * from './components/MobileAppPromoBanner';
 export * from './components/NavBar';
 export * from './components/NavBarView';
+export * from './components/NotesChannel';
 export * from './components/NotificationLevelSelector';
 export * from './components/Onboarding';
 export * from './components/PersonalInviteSheet';

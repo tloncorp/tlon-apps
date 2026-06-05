@@ -258,6 +258,14 @@ export const channelSortPreference = createStorageItem<ChannelSortPreference>({
   defaultValue: 'recency',
 });
 
+export type NotesTreeViewPreference = 'outline' | 'notes' | 'notion';
+
+export const notesTreeViewPreference =
+  createStorageItem<NotesTreeViewPreference>({
+    key: 'notesTreeViewPreference',
+    defaultValue: 'outline',
+  });
+
 export const invitation = createStorageItem<Lure | null>({
   key: 'lure',
   defaultValue: null,
