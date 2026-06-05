@@ -159,8 +159,13 @@ export function JSONToInlines(
         return [text];
       }
 
-      // styled
-      const first = json.marks.pop();
+      // Copy the marks before consuming them. Callers may pass the same JSON
+      // node to JSONToInlines more than once (e.g. BigInput runs a change
+      // detection pass and then a send pass over the same reported content);
+      // popping in place would strip all marks on later passes and drop the
+      // formatting.
+      const marks = [...json.marks];
+      const first = marks.pop();
       if (!first) {
         return [];
       }
@@ -168,7 +173,7 @@ export function JSONToInlines(
       // inline code special case
       if (
         text &&
-        (first.type === 'code' || json.marks.find((m) => m.type === 'code'))
+        (first.type === 'code' || marks.find((m) => m.type === 'code'))
       ) {
         return [
           {
@@ -187,10 +192,10 @@ export function JSONToInlines(
         };
 
         // If there are remaining marks (e.g., italic, bold), wrap the link in them
-        if (json.marks && json.marks.length > 0) {
+        if (marks.length > 0) {
           // Process remaining marks by wrapping the link
           let result: Inline = linkInline;
-          for (const mark of json.marks) {
+          for (const mark of marks) {
             const markType = convertMarkType(mark.type);
             if (markType === 'italics') {
               result = { italics: [result] };
@@ -209,7 +214,7 @@ export function JSONToInlines(
       return [
         {
           [convertMarkType(first.type)]: JSONToInlines(
-            json,
+            { ...json, marks },
             limitNewlines,
             codeWithLang
           ),
