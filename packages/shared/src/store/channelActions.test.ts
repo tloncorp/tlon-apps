@@ -109,6 +109,9 @@ test('createChannel creates a notes channel via the %notes HTTP API, forwarding 
       },
     },
   });
+  const addChannelListingToGroup = vi
+    .spyOn(api, 'addChannelListingToGroup')
+    .mockResolvedValue(1);
 
   const channel = await createChannel({
     groupId,
@@ -121,6 +124,19 @@ test('createChannel creates a notes channel via the %notes HTTP API, forwarding 
     title: 'Native notes',
     group: { host: '~zod', flagName: 'stale-notify' },
     readers: ['admin'],
+  });
+  expect(addChannelListingToGroup).toHaveBeenCalledWith({
+    channelId: 'notes/~solfer-magfed/native-notes',
+    groupId,
+    sectionId: 'default',
+    meta: {
+      title: 'Native notes',
+      description: '',
+      image: '',
+      cover: '',
+    },
+    readers: ['admin'],
+    join: true,
   });
   expect(channel.id).toBe('notes/~solfer-magfed/native-notes');
   await expect(db.getChannel({ id: channel.id })).resolves.toMatchObject({
@@ -174,6 +190,44 @@ test('createChannel rolls back a notes notebook when local channel insert fails'
     })
   ).rejects.toThrow('Failed to add notes channel to group');
 
+  expect(deleteNotesNotebook).toHaveBeenCalledWith({
+    host: '~solfer-magfed',
+    name: 'native-notes',
+  });
+});
+
+test('createChannel rolls back a notes notebook when group listing fails', async () => {
+  await insertGroup();
+
+  vi.spyOn(api, 'requestJson').mockResolvedValue({
+    requestId: '1',
+    body: {
+      type: 'notebook',
+      notebook: {
+        host: '~solfer-magfed',
+        flagName: 'native-notes',
+        notebook: { id: 1, title: 'Native notes' },
+      },
+    },
+  });
+  vi.spyOn(api, 'addChannelListingToGroup').mockRejectedValue(
+    new Error('listing failed')
+  );
+  const deleteNotesNotebook = vi
+    .spyOn(api, 'deleteNotesNotebook')
+    .mockResolvedValue(1);
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Native notes',
+      channelType: 'notes',
+    })
+  ).rejects.toThrow('Failed to add notes channel to group');
+
+  await expect(
+    db.getChannel({ id: 'notes/~solfer-magfed/native-notes' })
+  ).resolves.toBeNull();
   expect(deleteNotesNotebook).toHaveBeenCalledWith({
     host: '~solfer-magfed',
     name: 'native-notes',

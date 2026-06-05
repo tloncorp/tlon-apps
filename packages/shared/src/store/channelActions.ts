@@ -4,17 +4,14 @@ import {
   StructuredChannelDescriptionPayload,
 } from '@tloncorp/api';
 import { TimeoutError } from '@tloncorp/api';
-import {
-  GroupChannelV7,
-  getChannelKindFromType,
-  getThirdPartyChannelAgent,
-} from '@tloncorp/api/urbit';
+import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -162,6 +159,11 @@ async function createNotesChannel({
 
     createdNotebookFlag = { host: summary.host, name: summary.flagName };
     const channelId = `notes/${summary.host}/${summary.flagName}`;
+    const group = await db.getGroup({ id: groupId });
+    const sectionId =
+      group?.navSections?.[0]?.sectionId ??
+      group?.navSections?.[0]?.id ??
+      'default';
 
     logger.trackEvent(
       AnalyticsEvent.ActionCreateChannel,
@@ -185,13 +187,40 @@ async function createNotesChannel({
     };
 
     await db.insertChannels([newChannel]);
+    try {
+      await api.addChannelListingToGroup({
+        channelId,
+        groupId,
+        sectionId,
+        meta: {
+          title,
+          description: description ?? '',
+          image: '',
+          cover: '',
+        },
+        readers,
+        join: true,
+      });
+    } catch (e) {
+      await db.deleteChannels([channelId]);
+      logger.error('addChannelListingToGroup failed for notes channel', e);
+      throw new Error(`Failed to add notes channel to group: ${channelId}`);
+    }
+
+    syncNotesNotebook(createdNotebookFlag).catch((e) => {
+      logger.error('Failed to sync notes notebook after channel create', e);
+    });
+
     return newChannel;
   } catch (e) {
     if (createdNotebookFlag) {
       try {
         await api.deleteNotesNotebook(createdNotebookFlag);
       } catch (rollbackError) {
-        logger.error('Failed to roll back notes notebook create', rollbackError);
+        logger.error(
+          'Failed to roll back notes notebook create',
+          rollbackError
+        );
       }
     }
     logger.error('Failed to add notes channel', e);
