@@ -1,4 +1,5 @@
 import {
+  type ComponentProps,
   forwardRef,
   memo,
   useCallback,
@@ -217,6 +218,8 @@ export const EnrichedNoteInput = memo(
       // Text shortcuts — all handled natively via textShortcuts prop.
       // Block shortcuts trigger at the start of a paragraph.
       // Inline shortcuts trigger when a closing delimiter wraps text.
+      // react-native-enriched's exported TextShortcut type omits the `type`
+      // field its native side uses to mark inline shortcuts, so cast the result.
       const nativeTextShortcuts = useMemo(
         () => [
           // Block shortcuts
@@ -240,7 +243,7 @@ export const EnrichedNoteInput = memo(
           { trigger: '~~', style: 'strikethrough', type: 'inline' as const },
         ],
         []
-      );
+      ) as ComponentProps<typeof EnrichedTextInput>['textShortcuts'];
 
       const handleChangeState = useCallback(
         (e: NativeSyntheticEvent<OnChangeStateEvent>) => {
