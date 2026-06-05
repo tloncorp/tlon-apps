@@ -23,11 +23,8 @@
 ::  scry the oldest writ via the %newer paging mode with start=0
 ::
 =/  =path
-  :*  %gx  %chat  %v4  %dm  (scot %p target)
-      %writs  %newer  (scot %ud 0)  (scot %ud 1)  %light
-      %chat-paged-writs-4  ~
-  ==
-;<  =paged-writs:v7:cv  bind:m  (scry paged-writs:v7:cv path)
+  /v4/dm/(scot %p target)/writs/newer/0/1/light/chat-paged-writs-4
+;<  =paged-writs:v7:cv  bind:m  (scry paged-writs:v7:cv %gx %chat path)
 =/  writs-list  (tap:on:writs:v7:cv writs.paged-writs)
 ?~  writs-list  (pure:m !>(empty-out))
 =/  oldest=(may:v7:cv writ:v7:cv)  +.i.writs-list

@@ -51,7 +51,7 @@
 ?>  ?=([%s *] url-json)
 =/  out=^json
   %-  pairs:enjs:format
-  :~  url+s+p.url-json
-      flag+s+flag-str
+  :~  flag+s+flag-str
+      url+s+p.url-json
   ==
 (pure:m !>(out))

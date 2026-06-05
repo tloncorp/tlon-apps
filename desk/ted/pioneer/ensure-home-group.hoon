@@ -7,7 +7,7 @@
 ::        "cover":       "..."           // optional
 ::      }
 ::
-::    creates a group at ~our/home with a "general" chat channel.
+::    creates a group at ~our/home-group with a %home-group-chat chat channel.
 ::
 ::    return:
 ::      json: { "flag": "~our/home", "channel": "chat/~our/general" }

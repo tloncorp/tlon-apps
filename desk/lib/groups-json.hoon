@@ -1313,7 +1313,7 @@
       ^-  $-(json a-foreigns:v9:gv)
       %-  of
       :~  foreign+(ot flag+flag a-foreign+a-foreign ~)
-          ::TODO invite+invite
+          ::NOTE  invite intentionally left out
           revoke+(ot flag+flag token+(mu (se %uv)) ~)
           reject+flag
       ==

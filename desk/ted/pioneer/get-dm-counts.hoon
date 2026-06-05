@@ -28,11 +28,8 @@
   ((ot ship+(se %p) limit+(mu ni) ~) json)
 =/  limit=@ud  (fall limit.args 1.000)
 =/  =path
-  :*  %gx  %chat  %v4  %dm  (scot %p target.args)
-      %writs  %newest  (scot %ud limit)  %light
-      %chat-paged-writs-4  ~
-  ==
-;<  =paged-writs:v7:cv  bind:m  (scry paged-writs:v7:cv path)
+  /v4/dm/(scot %p target.args)/writs/newest/(scot %ud limit)/light/chat-paged-writs-4
+;<  =paged-writs:v7:cv  bind:m  (scry paged-writs:v7:cv %gx %chat path)
 =/  writs-list  (tap:on:writs:v7:cv writs.paged-writs)
 ::  extract author ship from each writ; treats bot-author entries as their ship
 ::
@@ -41,16 +38,15 @@
   ^-  ship
   =/  a=author:v7:cv  ?:(?=(%| -.w) author.w author.w)
   ?@(a a ship.a)
-=+  ^=  counts
-  %+  roll  writs-list
-  |=  [[=time w=(may:v7:cv writ:v7:cv)] sent=@ud recvd=@ud]
-  =/  who  (author-of w)
-  ?:  =(who our.bowl)  [+(sent) recvd]
-  [sent +(recvd)]
+=+  %+  roll  writs-list
+    |=  [[=time w=(may:v7:cv writ:v7:cv)] sent=@ud recv=@ud]
+    =/  who  (author-of w)
+    ?:  =(who our.bowl)  [+(sent) recv]
+    [sent +(recv)]
 =/  out=^json
   %-  pairs:enjs:format
-  :~  sent+(numb:enjs:format -.counts)
-      received+(numb:enjs:format +.counts)
+  :~  sent+(numb:enjs:format sent)
+      received+(numb:enjs:format recv)
       total+(numb:enjs:format total.paged-writs)
       sampled+(numb:enjs:format (lent writs-list))
   ==

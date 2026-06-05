@@ -24,7 +24,8 @@
   %+  scry  group:v9:gv
   /gx/groups/v2/groups/(scot %p p.flag)/[q.flag]/group-2
 =/  meta=data:mt
-  [title.args description.meta.group image.meta.group cover.meta.group]
+  :-  title.args
+  [description image cover]:meta.group
 =/  =a-groups:v8:gv
   [%group flag [%meta meta]]
 ;<  ~  bind:m  (poke [our %groups] group-action-4+!>(a-groups))
