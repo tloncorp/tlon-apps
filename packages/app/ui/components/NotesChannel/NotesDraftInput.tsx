@@ -1,6 +1,6 @@
 import { View } from 'tamagui';
 
-// Editing happens inside the notes WebView; no native composer is rendered.
+// The native notes collection owns editing, so no chat-style composer is needed.
 export function NotesDraftInput() {
   return <View />;
 }

@@ -34,6 +34,7 @@ export { default as Draw } from './Draw.svg';
 export { default as EditList } from './EditList.svg';
 export { default as Face } from './Face.svg';
 export { default as Filter } from './Filter.svg';
+export { default as Folder } from './Folder.svg';
 export { default as FontSize } from './FontSize.svg';
 export { default as Gift } from './Gift.svg';
 export { default as Heading } from './Heading.svg';
