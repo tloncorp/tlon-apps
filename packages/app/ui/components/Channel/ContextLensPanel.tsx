@@ -165,7 +165,9 @@ function getGatewayBaseUrl() {
     return stored;
   }
 
-  return process.env.NODE_ENV === 'development' ? 'http://localhost:18789' : null;
+  return process.env.NODE_ENV === 'development'
+    ? 'http://localhost:18789'
+    : null;
 }
 
 function encodeQuery(value: string) {
@@ -519,6 +521,23 @@ function persistenceLabel(event: ContextLensPersistenceEvent) {
   return `${event.action} ${event.kind.replaceAll('_', ' ')} · ${event.location}`;
 }
 
+function runPreview(lens: ContextLens) {
+  return (
+    lens.triggerDetails?.preview?.trim() ||
+    lens.outputs?.find((output) => output.preview)?.preview?.trim() ||
+    lens.triggerDetails?.messageId ||
+    lens.messageId
+  );
+}
+
+function runMeta(lens: ContextLens) {
+  return [
+    lens.chatType.toUpperCase(),
+    pluralize(lens.lifecycle.deliveredMessageCount, 'message'),
+    formatDuration(lens.lifecycle.durationMs),
+  ].join(' / ');
+}
+
 function EmptySelectedRun({
   lookupStatus,
 }: {
@@ -789,6 +808,147 @@ function LensListItem({
   );
 }
 
+function RecentRunList({
+  runs,
+  activeLensId,
+  followLatest,
+  onSelectRun,
+  onFollowLatest,
+}: {
+  runs: ContextLensEvent[];
+  activeLensId?: string | null;
+  followLatest: boolean;
+  onSelectRun: (event: ContextLensEvent) => void;
+  onFollowLatest: () => void;
+}) {
+  if (!runs.length) {
+    return null;
+  }
+
+  return (
+    <YStack
+      gap="$s"
+      borderWidth={1}
+      borderColor="rgba(101, 216, 255, 0.18)"
+      borderRadius="$m"
+      padding="$m"
+      backgroundColor="rgba(255, 255, 255, 0.028)"
+    >
+      <XStack alignItems="center" justifyContent="space-between" gap="$s">
+        <SizableText
+          size="$s"
+          color="rgba(101, 216, 255, 0.72)"
+          textTransform="uppercase"
+          letterSpacing={0}
+        >
+          Recent runs
+        </SizableText>
+        <XStack
+          onPress={onFollowLatest}
+          cursor="pointer"
+          borderWidth={1}
+          borderColor={
+            followLatest
+              ? 'rgba(71, 246, 164, 0.34)'
+              : 'rgba(101, 216, 255, 0.22)'
+          }
+          borderRadius="$s"
+          paddingHorizontal="$s"
+          paddingVertical="$2xs"
+          backgroundColor={
+            followLatest
+              ? 'rgba(71, 246, 164, 0.08)'
+              : 'rgba(101, 216, 255, 0.045)'
+          }
+        >
+          <SizableText
+            size="$s"
+            color={followLatest ? '#47f6a4' : 'rgba(240, 250, 255, 0.68)'}
+          >
+            Latest
+          </SizableText>
+        </XStack>
+      </XStack>
+
+      <YStack gap="$xs">
+        {runs.slice(0, 8).map((event) => {
+          const selected = !followLatest && activeLensId === event.lens.lensId;
+          const tone = statusTone(event.lens.status);
+          return (
+            <YStack
+              key={event.lens.lensId}
+              onPress={() => onSelectRun(event)}
+              cursor="pointer"
+              gap="$2xs"
+              minWidth={0}
+              borderWidth={1}
+              borderColor={
+                selected
+                  ? 'rgba(150, 240, 255, 0.56)'
+                  : 'rgba(101, 216, 255, 0.14)'
+              }
+              borderLeftWidth={2}
+              borderLeftColor={tone}
+              borderRadius="$s"
+              paddingHorizontal="$s"
+              paddingVertical="$xs"
+              backgroundColor={
+                selected
+                  ? 'rgba(101, 216, 255, 0.09)'
+                  : 'rgba(101, 216, 255, 0.035)'
+              }
+              shadowColor={selected ? '#96f0ff' : 'transparent'}
+              shadowOpacity={selected ? 0.12 : 0}
+              shadowRadius={selected ? 12 : 0}
+            >
+              <XStack
+                alignItems="center"
+                justifyContent="space-between"
+                gap="$s"
+              >
+                <XStack alignItems="center" gap="$xs" flex={1} minWidth={0}>
+                  <View
+                    width={7}
+                    height={7}
+                    borderRadius={999}
+                    backgroundColor={tone}
+                  />
+                  <SizableText
+                    size="$s"
+                    color="rgba(248, 252, 255, 0.88)"
+                    flex={1}
+                    minWidth={0}
+                    numberOfLines={1}
+                  >
+                    {statusLabel(event.lens.status)}
+                  </SizableText>
+                </XStack>
+                <SizableText
+                  size="$s"
+                  color="rgba(240, 250, 255, 0.42)"
+                  flexShrink={0}
+                >
+                  {formatWallTime(event.lens.updatedAt)}
+                </SizableText>
+              </XStack>
+              <SizableText
+                size="$s"
+                color="rgba(240, 250, 255, 0.68)"
+                numberOfLines={2}
+              >
+                {runPreview(event.lens)}
+              </SizableText>
+              <SizableText size="$s" color="rgba(240, 250, 255, 0.42)">
+                {runMeta(event.lens)}
+              </SizableText>
+            </YStack>
+          );
+        })}
+      </YStack>
+    </YStack>
+  );
+}
+
 export function ContextLensPanel({
   events,
   streamStatus,
@@ -802,6 +962,7 @@ export function ContextLensPanel({
   onClearSelectedMessage?: () => void;
   width?: number | '100%';
 }) {
+  const [selectedRun, setSelectedRun] = useState<ContextLensEvent | null>(null);
   const [lookupResult, setLookupResult] = useState<{
     key: string;
     lens: ContextLens;
@@ -813,6 +974,13 @@ export function ContextLensPanel({
   const selectedMessageKey = selectedMessage
     ? `${selectedMessage.lensId ?? ''}/${selectedMessage.authorId ?? ''}/${selectedMessage.id}`
     : null;
+
+  useEffect(() => {
+    if (selectedMessageKey) {
+      setSelectedRun(null);
+    }
+  }, [selectedMessageKey]);
+
   const selectedEvent = selectedMessage
     ? findEventForMessage(events, selectedMessage)
     : undefined;
@@ -825,9 +993,16 @@ export function ContextLensPanel({
           lens: lookupResult.lens,
         } satisfies ContextLensEvent)
       : undefined;
-  const panelMode = selectedMessage ? 'selected' : 'live';
+  const selectedRunEvent = selectedRun
+    ? findEventForLensId(events, selectedRun.lens.lensId) ?? selectedRun
+    : undefined;
+  const panelMode = selectedRun ? 'run' : selectedMessage ? 'selected' : 'live';
   const latest =
-    panelMode === 'selected' ? selectedEvent ?? selectedLookupEvent : runs[0];
+    panelMode === 'run'
+      ? selectedRunEvent
+      : panelMode === 'selected'
+        ? selectedEvent ?? selectedLookupEvent
+        : runs[0];
   const eventTrail = latest
     ? events.filter((event) => event.lens.lensId === latest.lens.lensId)
     : [];
@@ -837,6 +1012,17 @@ export function ContextLensPanel({
   const activeCount = runs.filter(
     (event) => !FINAL_STATUSES.has(event.lens.status)
   ).length;
+  const followLatest = panelMode === 'live';
+
+  const followLatestRun = () => {
+    setSelectedRun(null);
+    onClearSelectedMessage?.();
+  };
+
+  const selectRun = (event: ContextLensEvent) => {
+    setSelectedRun(event);
+    onClearSelectedMessage?.();
+  };
 
   useEffect(() => {
     const gatewayBaseUrl = getGatewayBaseUrl();
@@ -913,9 +1099,11 @@ export function ContextLensPanel({
           <SizableText size="$m" color="rgba(240, 250, 255, 0.72)">
             {panelMode === 'selected'
               ? 'Selected response'
-              : activeCount
-                ? `${activeCount} live run`
-                : 'Run inspector'}
+              : panelMode === 'run'
+                ? 'Selected run'
+                : activeCount
+                  ? `${activeCount} live run`
+                  : 'Run inspector'}
           </SizableText>
         </YStack>
         <XStack
@@ -985,8 +1173,58 @@ export function ContextLensPanel({
         </XStack>
       ) : null}
 
+      {panelMode === 'run' ? (
+        <XStack
+          alignItems="center"
+          justifyContent="space-between"
+          gap="$s"
+          minWidth={0}
+          borderWidth={1}
+          borderColor="rgba(101, 216, 255, 0.22)"
+          borderRadius="$s"
+          paddingHorizontal="$s"
+          paddingVertical="$xs"
+          backgroundColor="rgba(101, 216, 255, 0.055)"
+        >
+          <YStack flex={1} minWidth={0} gap="$2xs">
+            <SizableText size="$s" color="rgba(240, 250, 255, 0.46)">
+              Inspecting run
+            </SizableText>
+            <SizableText
+              size="$s"
+              color="rgba(240, 250, 255, 0.76)"
+              flex={1}
+              minWidth={0}
+              numberOfLines={1}
+              ellipsizeMode="middle"
+            >
+              {selectedRun?.lens.lensId}
+            </SizableText>
+          </YStack>
+          <XStack
+            onPress={followLatestRun}
+            cursor="pointer"
+            flexShrink={0}
+            paddingHorizontal="$xs"
+            paddingVertical="$2xs"
+          >
+            <SizableText size="$s" color="#65d8ff">
+              Latest
+            </SizableText>
+          </XStack>
+        </XStack>
+      ) : null}
+
       <ScrollView showsVerticalScrollIndicator={false}>
         <YStack gap="$m" paddingBottom="$2xl">
+          <RecentRunList
+            runs={runs}
+            activeLensId={latest?.lens.lensId}
+            followLatest={followLatest}
+            onSelectRun={selectRun}
+            onFollowLatest={followLatestRun}
+          />
+
           {panelMode === 'selected' && !latest && lookupStatus === 'loading' ? (
             <EmptySelectedRun lookupStatus="loading" />
           ) : panelMode === 'selected' && !latest ? (
