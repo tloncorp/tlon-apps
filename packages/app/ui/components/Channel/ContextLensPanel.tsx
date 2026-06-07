@@ -812,18 +812,29 @@ function RecentRunList({
   runs,
   activeLensId,
   followLatest,
+  expanded,
+  visibleCount,
   onSelectRun,
   onFollowLatest,
+  onToggleExpanded,
+  onShowMore,
 }: {
   runs: ContextLensEvent[];
   activeLensId?: string | null;
   followLatest: boolean;
+  expanded: boolean;
+  visibleCount: number;
   onSelectRun: (event: ContextLensEvent) => void;
   onFollowLatest: () => void;
+  onToggleExpanded: () => void;
+  onShowMore: () => void;
 }) {
   if (!runs.length) {
     return null;
   }
+
+  const visibleRuns = expanded ? runs.slice(0, visibleCount) : [];
+  const hasMore = visibleCount < runs.length;
 
   return (
     <YStack
@@ -835,116 +846,156 @@ function RecentRunList({
       backgroundColor="rgba(255, 255, 255, 0.028)"
     >
       <XStack alignItems="center" justifyContent="space-between" gap="$s">
-        <SizableText
-          size="$s"
-          color="rgba(101, 216, 255, 0.72)"
-          textTransform="uppercase"
-          letterSpacing={0}
-        >
-          Recent runs
-        </SizableText>
-        <XStack
-          onPress={onFollowLatest}
-          cursor="pointer"
-          borderWidth={1}
-          borderColor={
-            followLatest
-              ? 'rgba(71, 246, 164, 0.34)'
-              : 'rgba(101, 216, 255, 0.22)'
-          }
-          borderRadius="$s"
-          paddingHorizontal="$s"
-          paddingVertical="$2xs"
-          backgroundColor={
-            followLatest
-              ? 'rgba(71, 246, 164, 0.08)'
-              : 'rgba(101, 216, 255, 0.045)'
-          }
-        >
+        <YStack flex={1} minWidth={0} gap="$2xs">
           <SizableText
             size="$s"
-            color={followLatest ? '#47f6a4' : 'rgba(240, 250, 255, 0.68)'}
+            color="rgba(101, 216, 255, 0.72)"
+            textTransform="uppercase"
+            letterSpacing={0}
           >
-            Latest
+            Recent runs
           </SizableText>
+          <SizableText size="$s" color="rgba(240, 250, 255, 0.48)">
+            {pluralize(runs.length, 'run')} available
+          </SizableText>
+        </YStack>
+        <XStack gap="$xs" flexShrink={0}>
+          <XStack
+            onPress={onToggleExpanded}
+            cursor="pointer"
+            borderWidth={1}
+            borderColor="rgba(101, 216, 255, 0.22)"
+            borderRadius="$s"
+            paddingHorizontal="$s"
+            paddingVertical="$2xs"
+            backgroundColor="rgba(101, 216, 255, 0.045)"
+          >
+            <SizableText size="$s" color="rgba(240, 250, 255, 0.72)">
+              {expanded ? 'Hide' : 'Show'}
+            </SizableText>
+          </XStack>
+          <XStack
+            onPress={onFollowLatest}
+            cursor="pointer"
+            borderWidth={1}
+            borderColor={
+              followLatest
+                ? 'rgba(71, 246, 164, 0.34)'
+                : 'rgba(101, 216, 255, 0.22)'
+            }
+            borderRadius="$s"
+            paddingHorizontal="$s"
+            paddingVertical="$2xs"
+            backgroundColor={
+              followLatest
+                ? 'rgba(71, 246, 164, 0.08)'
+                : 'rgba(101, 216, 255, 0.045)'
+            }
+          >
+            <SizableText
+              size="$s"
+              color={followLatest ? '#47f6a4' : 'rgba(240, 250, 255, 0.68)'}
+            >
+              Latest
+            </SizableText>
+          </XStack>
         </XStack>
       </XStack>
 
-      <YStack gap="$xs">
-        {runs.slice(0, 8).map((event) => {
-          const selected = !followLatest && activeLensId === event.lens.lensId;
-          const tone = statusTone(event.lens.status);
-          return (
-            <YStack
-              key={event.lens.lensId}
-              onPress={() => onSelectRun(event)}
-              cursor="pointer"
-              gap="$2xs"
-              minWidth={0}
-              borderWidth={1}
-              borderColor={
-                selected
-                  ? 'rgba(150, 240, 255, 0.56)'
-                  : 'rgba(101, 216, 255, 0.14)'
-              }
-              borderLeftWidth={2}
-              borderLeftColor={tone}
-              borderRadius="$s"
-              paddingHorizontal="$s"
-              paddingVertical="$xs"
-              backgroundColor={
-                selected
-                  ? 'rgba(101, 216, 255, 0.09)'
-                  : 'rgba(101, 216, 255, 0.035)'
-              }
-              shadowColor={selected ? '#96f0ff' : 'transparent'}
-              shadowOpacity={selected ? 0.12 : 0}
-              shadowRadius={selected ? 12 : 0}
-            >
-              <XStack
-                alignItems="center"
-                justifyContent="space-between"
-                gap="$s"
+      {expanded ? (
+        <YStack gap="$xs">
+          {visibleRuns.map((event) => {
+            const selected =
+              !followLatest && activeLensId === event.lens.lensId;
+            const tone = statusTone(event.lens.status);
+            return (
+              <YStack
+                key={event.lens.lensId}
+                onPress={() => onSelectRun(event)}
+                cursor="pointer"
+                gap="$2xs"
+                minWidth={0}
+                borderWidth={1}
+                borderColor={
+                  selected
+                    ? 'rgba(150, 240, 255, 0.56)'
+                    : 'rgba(101, 216, 255, 0.14)'
+                }
+                borderLeftWidth={2}
+                borderLeftColor={tone}
+                borderRadius="$s"
+                paddingHorizontal="$s"
+                paddingVertical="$xs"
+                backgroundColor={
+                  selected
+                    ? 'rgba(101, 216, 255, 0.09)'
+                    : 'rgba(101, 216, 255, 0.035)'
+                }
+                shadowColor={selected ? '#96f0ff' : 'transparent'}
+                shadowOpacity={selected ? 0.12 : 0}
+                shadowRadius={selected ? 12 : 0}
               >
-                <XStack alignItems="center" gap="$xs" flex={1} minWidth={0}>
-                  <View
-                    width={7}
-                    height={7}
-                    borderRadius={999}
-                    backgroundColor={tone}
-                  />
+                <XStack
+                  alignItems="center"
+                  justifyContent="space-between"
+                  gap="$s"
+                >
+                  <XStack alignItems="center" gap="$xs" flex={1} minWidth={0}>
+                    <View
+                      width={7}
+                      height={7}
+                      borderRadius={999}
+                      backgroundColor={tone}
+                    />
+                    <SizableText
+                      size="$s"
+                      color="rgba(248, 252, 255, 0.88)"
+                      flex={1}
+                      minWidth={0}
+                      numberOfLines={1}
+                    >
+                      {statusLabel(event.lens.status)}
+                    </SizableText>
+                  </XStack>
                   <SizableText
                     size="$s"
-                    color="rgba(248, 252, 255, 0.88)"
-                    flex={1}
-                    minWidth={0}
-                    numberOfLines={1}
+                    color="rgba(240, 250, 255, 0.42)"
+                    flexShrink={0}
                   >
-                    {statusLabel(event.lens.status)}
+                    {formatWallTime(event.lens.updatedAt)}
                   </SizableText>
                 </XStack>
                 <SizableText
                   size="$s"
-                  color="rgba(240, 250, 255, 0.42)"
-                  flexShrink={0}
+                  color="rgba(240, 250, 255, 0.68)"
+                  numberOfLines={2}
                 >
-                  {formatWallTime(event.lens.updatedAt)}
+                  {runPreview(event.lens)}
                 </SizableText>
-              </XStack>
-              <SizableText
-                size="$s"
-                color="rgba(240, 250, 255, 0.68)"
-                numberOfLines={2}
-              >
-                {runPreview(event.lens)}
+                <SizableText size="$s" color="rgba(240, 250, 255, 0.42)">
+                  {runMeta(event.lens)}
+                </SizableText>
+              </YStack>
+            );
+          })}
+          {hasMore ? (
+            <XStack
+              onPress={onShowMore}
+              cursor="pointer"
+              justifyContent="center"
+              borderWidth={1}
+              borderColor="rgba(101, 216, 255, 0.16)"
+              borderRadius="$s"
+              paddingVertical="$xs"
+              backgroundColor="rgba(101, 216, 255, 0.035)"
+            >
+              <SizableText size="$s" color="rgba(101, 216, 255, 0.78)">
+                Show {Math.min(8, runs.length - visibleCount)} more
               </SizableText>
-              <SizableText size="$s" color="rgba(240, 250, 255, 0.42)">
-                {runMeta(event.lens)}
-              </SizableText>
-            </YStack>
-          );
-        })}
-      </YStack>
+            </XStack>
+          ) : null}
+        </YStack>
+      ) : null}
     </YStack>
   );
 }
@@ -963,6 +1014,8 @@ export function ContextLensPanel({
   width?: number | '100%';
 }) {
   const [selectedRun, setSelectedRun] = useState<ContextLensEvent | null>(null);
+  const [runHistoryOpen, setRunHistoryOpen] = useState(false);
+  const [visibleRunCount, setVisibleRunCount] = useState(8);
   const [lookupResult, setLookupResult] = useState<{
     key: string;
     lens: ContextLens;
@@ -1021,6 +1074,7 @@ export function ContextLensPanel({
 
   const selectRun = (event: ContextLensEvent) => {
     setSelectedRun(event);
+    setRunHistoryOpen(false);
     onClearSelectedMessage?.();
   };
 
@@ -1221,8 +1275,14 @@ export function ContextLensPanel({
             runs={runs}
             activeLensId={latest?.lens.lensId}
             followLatest={followLatest}
+            expanded={runHistoryOpen}
+            visibleCount={visibleRunCount}
             onSelectRun={selectRun}
             onFollowLatest={followLatestRun}
+            onToggleExpanded={() => setRunHistoryOpen((open) => !open)}
+            onShowMore={() =>
+              setVisibleRunCount((count) => Math.min(count + 8, runs.length))
+            }
           />
 
           {panelMode === 'selected' && !latest && lookupStatus === 'loading' ? (
