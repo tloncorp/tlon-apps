@@ -212,11 +212,14 @@
     =/  source  (source:evt event)
     =/  loudness=volume-map:a  (get-volumes:src vs source)
     =/  type  (event-type event)
-    ::  fall back to the event type's configured default rather than a blanket
-    ::  notify-off, so types absent from a source's volume map (e.g. reacts in a
-    ::  map written before reacts existed) still honor their intended default.
-    =/  fallback  (~(gut by default-volumes:a) type [unreads=& notify=|])
-    (~(gut by loudness) type fallback)
+    ?.  ?=(?(%react %dm-react) type)
+      (~(gut by loudness) type [unreads=& notify=|])
+    ::  reactions were added after some volume maps were written, so a stored
+    ::  map may have no react key. reacts notify exactly when posts do, so mirror
+    ::  the map's own %post setting: a source muted before reactions existed
+    ::  stays muted, a loud one still notifies. reacts never carry an unread.
+    =+  post=(~(gut by loudness) %post [unreads=& notify=|])
+    (~(gut by loudness) type [unreads=| notify=notify.post])
   ::
   --
 ::
