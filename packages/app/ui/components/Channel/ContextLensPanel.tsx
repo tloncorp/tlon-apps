@@ -188,12 +188,24 @@ function findEventForMessage(
   return undefined;
 }
 
+function eventKey(event: ContextLensEvent) {
+  return [
+    event.seq,
+    event.at,
+    event.phase,
+    event.lens.lensId,
+    event.detail?.toolCallCount ?? '',
+    event.detail?.toolName ?? '',
+  ].join(':');
+}
+
 function mergeEvent(events: ContextLensEvent[], event: ContextLensEvent) {
-  if (events.some((existing) => existing.seq === event.seq)) {
+  const key = eventKey(event);
+  if (events.some((existing) => eventKey(existing) === key)) {
     return events;
   }
   return [...events, event]
-    .sort((left, right) => left.seq - right.seq)
+    .sort((left, right) => left.at - right.at || left.seq - right.seq)
     .slice(-MAX_EVENTS);
 }
 

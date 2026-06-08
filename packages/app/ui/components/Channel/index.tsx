@@ -707,13 +707,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const [contextLensOpen, setContextLensOpen] = useState(false);
     const [selectedContextLensMessage, setSelectedContextLensMessage] =
       useState<ContextLensSelectedMessage | null>(null);
-    const contextLensOpenRef = useRef(false);
     const contextLensStream = useContextLensEvents();
     const contextLensRuns = useContextLensRuns(contextLensStream.events);
     const contextLensActive = contextLensRuns.some(isContextLensEventActive);
-    useEffect(() => {
-      contextLensOpenRef.current = contextLensOpen;
-    }, [contextLensOpen]);
     const toggleContextLens = useCallback(() => {
       if (!contextLensOpen) {
         setSelectedContextLensMessage(null);
@@ -744,9 +740,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     );
     const inspectContextLensPost = useCallback(
       (post: db.Post) => {
-        if (!contextLensOpenRef.current) {
-          return;
-        }
         setSelectedContextLensMessage(postToContextLensMessage(post));
       },
       [postToContextLensMessage]
@@ -878,7 +871,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                         editingPost,
                                         goToMediaViewer,
                                         goToPost,
-                                        inspectContextLensPost,
+                                        inspectContextLensPost: contextLensOpen
+                                          ? inspectContextLensPost
+                                          : undefined,
                                         hasNewerPosts,
                                         hasOlderPosts,
                                         initialChannelUnread,

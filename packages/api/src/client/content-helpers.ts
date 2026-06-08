@@ -804,17 +804,6 @@ export function appendVideoToPostBlob(
   });
 }
 
-export function appendContextLensToPostBlob(
-  blob: string | undefined,
-  opts: { lensId: string }
-) {
-  return appendToPostBlob(blob, {
-    type: 'tlon-context-lens',
-    version: 1,
-    lensId: opts.lensId,
-  });
-}
-
 /** Client-side parsed representation of PostBlob data */
 export type ClientPostBlobData = Array<
   PostBlobDataEntry | UnknownPostBlobDataEntry
