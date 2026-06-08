@@ -751,17 +751,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       },
       [postToContextLensMessage]
     );
-    const handleGoToPost = useCallback(
-      (post: db.Post) => {
-        if (contextLensOpen) {
-          inspectContextLensPost(post);
-          return;
-        }
-        goToPost(post);
-      },
-      [contextLensOpen, goToPost, inspectContextLensPost]
-    );
-
     const backgroundColor = getVariableValue(useTheme().background);
 
     useImperativeHandle(
@@ -858,7 +847,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                           {shouldShowPinnedPostBanner && (
                             <PinnedPostBanner
                               channel={channel}
-                              onPressPost={handleGoToPost}
+                              onPressPost={goToPost}
                             />
                           )}
                           <XStack
@@ -888,7 +877,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                               ).configuration,
                                         editingPost,
                                         goToMediaViewer,
-                                        goToPost: handleGoToPost,
+                                        goToPost,
                                         inspectContextLensPost,
                                         hasNewerPosts,
                                         hasOlderPosts,
