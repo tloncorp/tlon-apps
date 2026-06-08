@@ -34,8 +34,9 @@ export async function signUpHostedUser(params: {
   otp: string;
   email?: string;
   phoneNumber?: string;
-  inviteId: string;
-  priorityToken: string;
+  // Both absent for open (no-invite) signups; the API call omits them from the body.
+  inviteId?: string;
+  priorityToken?: string;
   recaptcha: {
     token: string;
     platform: 'ios' | 'android' | 'web' | 'ios_test' | 'android_test';
