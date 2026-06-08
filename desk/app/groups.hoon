@@ -45,6 +45,8 @@
 /%  m-group-response-1   %group-response-1
 /%  m-group-action-3     %group-action-3
 /%  m-group-channel-active  %group-channel-active
+/%  m-group-channel-join    %group-channel-join
+/%  m-group-channel-leave   %group-channel-leave
 /%  m-gangs              %gangs
 /%  m-foreign-1          %foreign-1
 /%  m-foreigns-1         %foreigns-1
@@ -90,6 +92,8 @@
           :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
           :+  %group-channel-active  &  -:!>(*vale:m-group-channel-active)
+          :+  %group-channel-join    &  -:!>(*vale:m-group-channel-join)
+          :+  %group-channel-leave   &  -:!>(*vale:m-group-channel-leave)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::
@@ -507,7 +511,7 @@
         %group-channel-active
       ?>  =(our src):bowl
       =+  !<([=flag:g =nest:g joined=?] vase)
-      (set-active-channel flag nest joined)
+      (update-active-channel flag nest joined)
     ::
         %group-knock
       ?>  from-self
@@ -1738,12 +1742,7 @@
 ++  watch-channels
   (safe-watch /channels [our.bowl %channels] /v1)
 ::
-::  +set-active-channel: record a channel-host membership change in the
-::  group's active-channels set and push a local-only %active-channels delta
-::  to same-ship clients. /v1/groups is a from-self-only sub, so the fact
-::  never crosses the wire — it just lets a second local client reconcile
-::  join/leave without a full init sync. no-op if already in that state.
-++  set-active-channel
+++  update-active-channel
   |=  [=flag:g =nest:g joined=?]
   ^+  cor
   ?~  net-group=(~(get by groups) flag)  cor
@@ -1771,15 +1770,15 @@
     =*  rc  r-channel.r-channels
     ?+    -.rc  cor
         %create
-      (set-active-channel group.perm.rc nest.r-channels &)
+      (update-active-channel group.perm.rc nest.r-channels &)
     ::
         %join
-      (set-active-channel group.rc nest.r-channels &)
+      (update-active-channel group.rc nest.r-channels &)
     ::
         %leave
       ?~  flag=(~(get by channels-index) nest.r-channels)
         cor
-      (set-active-channel u.flag nest.r-channels |)
+      (update-active-channel u.flag nest.r-channels |)
     ==
   ==
 ::
@@ -3478,11 +3477,10 @@
         =/  action=a-channels:v9:dv  [%channel nes %leave ~]
         `[%pass wire %agent dock %poke channel-action-1+!>(action)]
       ::  generic channel-host: the nest kind names the backing agent on our
-      ::  ship; poke %<kind>-leave carrying the nest. An uninstalled kind just
-      ::  nacks (logged in go-agent, otherwise harmless).
-      =/  =dock     [our.bowl p.nes]
-      =/  =mark     `@tas`(crip (weld (trip p.nes) "-leave"))
-      `[%pass wire %agent dock %poke mark !>(nes)]
+      ::  ship; poke it %group-channel-leave with the nest. An uninstalled
+      ::  kind just nacks (logged in go-agent, otherwise harmless).
+      =/  =dock  [our.bowl p.nes]
+      `[%pass wire %agent dock %poke group-channel-leave+!>(`channel-leave:g`[nes])]
     ::
     ++  join-channels
       |=  nests=(list nest:g)
@@ -3497,10 +3495,10 @@
         =/  =dock  [our.bowl %channels]
         =/  action=a-channels:v9:dv  [%channel nes %join flag]
         `[%pass wire %agent dock %poke channel-action-1+!>(action)]
-      ::  generic channel-host: poke %<kind>-join carrying [nest group-flag].
-      =/  =dock     [our.bowl p.nes]
-      =/  =mark     `@tas`(crip (weld (trip p.nes) "-join"))
-      `[%pass wire %agent dock %poke mark !>([nes flag])]
+      ::  generic channel-host: poke the kind-named agent %group-channel-join
+      ::  carrying [nest group-flag].
+      =/  =dock  [our.bowl p.nes]
+      `[%pass wire %agent dock %poke group-channel-join+!>(`channel-join:g`[nes flag])]
     ::
     ++  go-wake-members
       ~>  %spin.['go-wake-members']
