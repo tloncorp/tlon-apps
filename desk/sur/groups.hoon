@@ -7,10 +7,6 @@
 +$  flag  (pair ship term)
 ::  $nest: id for a channel
 +$  nest  (pair term flag)
-::  $channel-active: channel-host membership report (group flag + nest +
-::  whether joined). Third-party backing agents (e.g. %notes) poke this to
-::  keep active-channels current. See the %group-channel-active poke arm.
-+$  channel-active  [=flag =nest joined=?]
 ::  $plan: index into channel state
 ::    p: post being referred to
 ::    q: reply being referred to, if any
@@ -278,6 +274,16 @@
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
 +$  flagged-content  (map nest (jug plan ship))
+::  $channel-active: channel join/leave report. Third-party backing agents
+::  poke this to keep $active-channels current.
+::
++$  channel-active  [=flag =nest joined=?]
+::  $channel-join / $channel-leave: %groups tells a channel-host agent (named
+::  by the nest kind) to join or leave `nest`. join carries the group flag so
+::  the host can record affiliation. See +join-channels / +leave-channels.
+::
++$  channel-join   [=nest group=flag]
++$  channel-leave  [=nest]
 ::  %groups acur interface
 ::
 ::  a-* actions
