@@ -23,6 +23,7 @@ const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 30;
 
 const GETTING_STARTED_GROUP_ID = '~wittyr-witbes/v3s2kbd7';
 const TLON_STUDIO = '~tommur-dostyn/tlon-studio';
+const TLONBOT_GENERAL_GROUP_ID = '~ramlud-bintun/v1l3qcoq';
 
 const logger = createDevLogger('boot sequence', true);
 
@@ -201,6 +202,17 @@ export function useBootSequence() {
       if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
         api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
           logger.trackError('failed to join getting started group', {
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        });
+      }
+
+      const signedUpWithInvite = Boolean(lureMeta?.id);
+      const hasTlonbotEnabled = await db.hostingBotEnabled.getValue();
+      if (!signedUpWithInvite && hasTlonbotEnabled) {
+        api.joinGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
+          logger.trackError('failed to join Tlonbot general group', {
             errorMessage: e.message,
             errorStack: e.stack,
           });
