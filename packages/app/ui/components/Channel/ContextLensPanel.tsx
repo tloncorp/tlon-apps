@@ -1,4 +1,4 @@
-import { Icon } from '@tloncorp/ui';
+import { Icon, Pressable } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
@@ -900,7 +900,7 @@ function RecentRunList({
           </SizableText>
         </YStack>
         <XStack gap="$xs" flexShrink={0}>
-          <XStack
+          <Pressable
             onPress={onToggleExpanded}
             cursor="pointer"
             borderWidth={1}
@@ -913,8 +913,8 @@ function RecentRunList({
             <SizableText size="$s" color="rgba(240, 250, 255, 0.72)">
               {expanded ? 'Hide' : 'Show'}
             </SizableText>
-          </XStack>
-          <XStack
+          </Pressable>
+          <Pressable
             onPress={onFollowLatest}
             cursor="pointer"
             borderWidth={1}
@@ -938,7 +938,7 @@ function RecentRunList({
             >
               Latest
             </SizableText>
-          </XStack>
+          </Pressable>
         </XStack>
       </XStack>
 
@@ -949,7 +949,7 @@ function RecentRunList({
               !followLatest && activeLensId === event.lens.lensId;
             const tone = statusTone(event.lens.status);
             return (
-              <YStack
+              <Pressable
                 key={event.lens.lensId}
                 onPress={() => onSelectRun(event)}
                 cursor="pointer"
@@ -1015,11 +1015,11 @@ function RecentRunList({
                 <SizableText size="$s" color="rgba(240, 250, 255, 0.42)">
                   {runMeta(event.lens)}
                 </SizableText>
-              </YStack>
+              </Pressable>
             );
           })}
           {hasMore ? (
-            <XStack
+            <Pressable
               onPress={onShowMore}
               cursor="pointer"
               justifyContent="center"
@@ -1032,7 +1032,7 @@ function RecentRunList({
               <SizableText size="$s" color="rgba(101, 216, 255, 0.78)">
                 Show {Math.min(8, runs.length - visibleCount)} more
               </SizableText>
-            </XStack>
+            </Pressable>
           ) : null}
         </YStack>
       ) : null}
@@ -1253,7 +1253,7 @@ export function ContextLensPanel({
               {selectedMessage?.id}
             </SizableText>
           </YStack>
-          <XStack
+          <Pressable
             onPress={onClearSelectedMessage}
             cursor="pointer"
             flexShrink={0}
@@ -1263,7 +1263,7 @@ export function ContextLensPanel({
             <SizableText size="$s" color="#65d8ff">
               Latest
             </SizableText>
-          </XStack>
+          </Pressable>
         </XStack>
       ) : null}
 
@@ -1295,7 +1295,7 @@ export function ContextLensPanel({
               {selectedRun?.lens.lensId}
             </SizableText>
           </YStack>
-          <XStack
+          <Pressable
             onPress={followLatestRun}
             cursor="pointer"
             flexShrink={0}
@@ -1305,7 +1305,7 @@ export function ContextLensPanel({
             <SizableText size="$s" color="#65d8ff">
               Latest
             </SizableText>
-          </XStack>
+          </Pressable>
         </XStack>
       ) : null}
 
