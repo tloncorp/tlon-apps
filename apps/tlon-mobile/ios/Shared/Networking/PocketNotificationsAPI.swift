@@ -11,6 +11,6 @@ import JavaScriptCore
 
 extension PocketAPI {
   func fetchRawPushNotificationContents(_ uid: String) async throws -> Data {
-    try await fetchData("/apps/groups/~/notify/note/\(uid)/activity-event", timeoutInterval: 8)
+    try await fetchData("/apps/groups/~/notify/note/\(uid)/activity-event-1", timeoutInterval: 8)
   }
 }

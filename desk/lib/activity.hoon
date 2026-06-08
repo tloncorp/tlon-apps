@@ -211,7 +211,12 @@
     ^-  volume:a
     =/  source  (source:evt event)
     =/  loudness=volume-map:a  (get-volumes:src vs source)
-    (~(gut by loudness) (event-type event) [unreads=& notify=|])
+    =/  type  (event-type event)
+    ::  fall back to the event type's configured default rather than a blanket
+    ::  notify-off, so types absent from a source's volume map (e.g. reacts in a
+    ::  map written before reacts existed) still honor their intended default.
+    =/  fallback  (~(gut by default-volumes:a) type [unreads=& notify=|])
+    (~(gut by loudness) type fallback)
   ::
   --
 ::

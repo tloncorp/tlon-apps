@@ -174,7 +174,7 @@ public class TalkApi {
     }
 
     public void fetchActivityEvent(String uid, TalkObjectCallback callback) {
-        fetchObject("/apps/groups/~/notify/note/" + uid + "/activity-event", callback);
+        fetchObject("/apps/groups/~/notify/note/" + uid + "/activity-event-1", callback);
     }
 
     public void fetchContact(String id, TalkObjectCallback callback) {

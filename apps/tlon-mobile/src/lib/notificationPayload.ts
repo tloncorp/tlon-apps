@@ -175,6 +175,18 @@ export function parseNotificationPayload(
         case is(ev, 'reply'):
           return channelPostTarget(ev.reply, { parent: ev.reply.parent });
 
+        case is(ev, 'react'):
+          // navigate to the reacted-to content: the thread if it's a reply
+          // react, otherwise the channel
+          return channelPostTarget(ev.react, {
+            parent: ev.react.parent ?? undefined,
+          });
+
+        case is(ev, 'dm-react'):
+          return dmTarget(ev['dm-react'], {
+            parent: ev['dm-react'].parent ?? undefined,
+          });
+
         case is(ev, 'group-ask'):
           return groupAskTarget(ev['group-ask']);
 

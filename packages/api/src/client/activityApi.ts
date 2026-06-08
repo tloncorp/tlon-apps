@@ -66,7 +66,7 @@ export const ACTIVITY_SOURCE_PAGESIZE = 30;
 export async function getInitialActivity() {
   const response = await scry<ub.InitActivityFeeds>({
     app: 'activity',
-    path: `/v5/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
+    path: `/v6/feed/init/${ACTIVITY_SOURCE_PAGESIZE}`,
   });
 
   const events = fromInitFeedToBucketedActivityEvents(response);
@@ -105,7 +105,7 @@ export async function getPagedActivityByBucket({
     cursor
   );
   const urbitCursor = formatUd(da.fromUnix(cursor).toString());
-  const path = `/v5/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}`;
+  const path = `/v6/feed/${bucket}/${ACTIVITY_SOURCE_PAGESIZE}/${urbitCursor}`;
   const { feed, summaries } = await scry<ub.ActivityFeed>({
     app: 'activity',
     path,
@@ -276,6 +276,48 @@ function toActivityEvent({
     };
   }
 
+  if ('react' in event) {
+    const reactEvent = event.react;
+    const { postId } = getInfoFromMessageKey(reactEvent.key);
+    const parent = reactEvent.parent
+      ? getInfoFromMessageKey(reactEvent.parent)
+      : null;
+    return {
+      ...baseFields,
+      type: 'react',
+      postId,
+      parentId: parent?.postId,
+      parentAuthorId: parent?.authorId,
+      // the author is the reacting ship, not the original poster
+      authorId: ub.getReactAuthorShip(reactEvent.author),
+      channelId: reactEvent.channel,
+      groupId: reactEvent.group,
+      // we reuse the content column to carry the raw react value
+      content: reactEvent.react,
+      isMention: false,
+    };
+  }
+
+  if ('dm-react' in event) {
+    const reactEvent = event['dm-react'];
+    const { postId } = getInfoFromMessageKey(reactEvent.key, true);
+    const parent = reactEvent.parent
+      ? getInfoFromMessageKey(reactEvent.parent, true)
+      : null;
+    return {
+      ...baseFields,
+      type: 'react',
+      postId,
+      parentId: parent?.postId,
+      parentAuthorId: parent?.authorId,
+      authorId: ub.getReactAuthorShip(reactEvent.author),
+      channelId:
+        'ship' in reactEvent.whom ? reactEvent.whom.ship : reactEvent.whom.club,
+      content: reactEvent.react,
+      isMention: false,
+    };
+  }
+
   if ('group-ask' in event) {
     return {
       ...baseFields,
@@ -403,7 +445,7 @@ export type ActivityEvent =
 
 export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
-    { app: 'activity', path: '/v4' },
+    { app: 'activity', path: '/v5' },
     async (update: ub.ActivityUpdate) => {
       logger.log(
         'activity update',
