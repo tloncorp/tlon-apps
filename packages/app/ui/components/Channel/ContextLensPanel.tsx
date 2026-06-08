@@ -19,14 +19,21 @@ type ContextLens = {
   lensId: string;
   messageId: string;
   sessionKeyHash?: string | null;
-  chatType: 'dm' | 'channel';
+  chatType: 'dm' | 'channel' | 'internal';
+  runKind?:
+    | 'conversation'
+    | 'cron'
+    | 'owner_listen'
+    | 'summarization'
+    | 'internal';
+  visibility?: 'owner' | 'participants' | 'internal';
   trigger: string;
   triggerDetails?: {
     type: string;
     messageId: string;
     authorShip?: string;
     conversationId?: string;
-    conversationKind: 'dm' | 'channel';
+    conversationKind: 'dm' | 'channel' | 'internal';
     receivedAt?: number;
     preview?: string;
   };
@@ -91,7 +98,7 @@ type ContextLensToolRun = {
   startedAt: number;
   completedAt: number | null;
   durationMs: number | null;
-  status: 'running' | 'completed' | 'error';
+  status: 'running' | 'completed' | 'error' | 'blocked';
   argumentSummary?: string;
   resultSummary?: string;
   error?: string;
@@ -548,10 +555,15 @@ function runPreview(lens: ContextLens) {
 
 function runMeta(lens: ContextLens) {
   return [
-    lens.chatType.toUpperCase(),
+    runKindLabel(lens),
     pluralize(lens.lifecycle.deliveredMessageCount, 'message'),
     formatDuration(lens.lifecycle.durationMs),
   ].join(' / ');
+}
+
+function runKindLabel(lens: ContextLens) {
+  const kind = lens.runKind ?? (lens.chatType === 'internal' ? 'internal' : 'conversation');
+  return kind.replaceAll('_', ' ');
 }
 
 function EmptySelectedRun({
@@ -608,6 +620,8 @@ function RunInspector({ lens }: { lens: ContextLens }) {
   return (
     <YStack gap="$s">
       <InspectorSection title="Trigger">
+        <DetailRow label="Run" value={runKindLabel(lens)} />
+        <DetailRow label="Visibility" value={lens.visibility ?? 'owner'} />
         <DetailRow
           label="Message"
           value={lens.triggerDetails?.messageId ?? lens.messageId}
@@ -664,11 +678,21 @@ function RunInspector({ lens }: { lens: ContextLens }) {
                 title={`${run.callIndex}. ${formatToolName(run.name)}`}
                 meta={run.status}
                 detail={
-                  run.durationMs
-                    ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
-                    : run.phase ?? 'running'
+                  run.error
+                    ? run.error
+                    : run.argumentSummary
+                      ? `${run.argumentSummary}${run.durationMs ? ` · ${formatDuration(run.durationMs)}` : ''}`
+                      : run.durationMs
+                        ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
+                        : run.phase ?? 'running'
                 }
-                tone={run.status === 'error' ? '#ff5b8f' : '#47f6a4'}
+                tone={
+                  run.status === 'error'
+                    ? '#ff5b8f'
+                    : run.status === 'blocked'
+                      ? '#ffd166'
+                      : '#47f6a4'
+                }
               />
             ))}
           </YStack>
@@ -1333,6 +1357,7 @@ export function ContextLensPanel({
 
               <YStack gap="$s">
                 <Metric label="Context" value={summarizeContext(latest.lens)} />
+                <Metric label="Run" value={runKindLabel(latest.lens)} />
                 <Metric
                   label="Tools"
                   value={
