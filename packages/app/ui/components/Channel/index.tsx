@@ -75,6 +75,7 @@ import {
   ContextLensPanel,
   type ContextLensSelectedMessage,
   isContextLensEventActive,
+  isContextLensAvailable,
   useContextLensEvents,
   useContextLensRuns,
 } from './ContextLensPanel';
@@ -704,12 +705,19 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     });
 
     const isNarrow = useIsWindowNarrow();
+    const contextLensAvailable = isContextLensAvailable();
     const [contextLensOpen, setContextLensOpen] = useState(false);
     const [selectedContextLensMessage, setSelectedContextLensMessage] =
       useState<ContextLensSelectedMessage | null>(null);
     const contextLensStream = useContextLensEvents();
     const contextLensRuns = useContextLensRuns(contextLensStream.events);
-    const contextLensActive = contextLensRuns.some(isContextLensEventActive);
+    const contextLensActive =
+      contextLensAvailable && contextLensRuns.some(isContextLensEventActive);
+    useEffect(() => {
+      if (!contextLensAvailable && contextLensOpen) {
+        setContextLensOpen(false);
+      }
+    }, [contextLensAvailable, contextLensOpen]);
     const toggleContextLens = useCallback(() => {
       if (!contextLensOpen) {
         setSelectedContextLensMessage(null);
@@ -826,8 +834,14 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               goToChatDetails={goToChatDetails}
                               goToProfile={handleGoToProfile}
                               goToSearch={goToSearch}
-                              onToggleContextLens={toggleContextLens}
-                              contextLensOpen={contextLensOpen}
+                              onToggleContextLens={
+                                contextLensAvailable
+                                  ? toggleContextLens
+                                  : undefined
+                              }
+                              contextLensOpen={
+                                contextLensAvailable && contextLensOpen
+                              }
                               contextLensActive={contextLensActive}
                               showSpinner={showHeaderLoading}
                               showSearchButton={
@@ -871,7 +885,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                         editingPost,
                                         goToMediaViewer,
                                         goToPost,
-                                        inspectContextLensPost: contextLensOpen
+                                        inspectContextLensPost:
+                                          contextLensAvailable &&
+                                          contextLensOpen
                                           ? inspectContextLensPost
                                           : undefined,
                                         hasNewerPosts,
@@ -969,7 +985,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                 />
                               )}
                             </YStack>
-                            {contextLensOpen && !isNarrow && (
+                            {contextLensAvailable &&
+                              contextLensOpen &&
+                              !isNarrow && (
                               <ContextLensPanel
                                 events={contextLensStream.events}
                                 streamStatus={contextLensStream.status}
@@ -979,7 +997,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                 }
                               />
                             )}
-                            {contextLensOpen && isNarrow && (
+                            {contextLensAvailable &&
+                              contextLensOpen &&
+                              isNarrow && (
                               <View
                                 position="absolute"
                                 top={0}

@@ -170,6 +170,10 @@ function getGatewayBaseUrl() {
     : null;
 }
 
+export function isContextLensAvailable() {
+  return getGatewayBaseUrl() !== null;
+}
+
 function encodeQuery(value: string) {
   return encodeURIComponent(value.trim());
 }

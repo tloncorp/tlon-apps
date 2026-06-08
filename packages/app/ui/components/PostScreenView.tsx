@@ -47,6 +47,7 @@ import {
   ContextLensPanel,
   type ContextLensSelectedMessage,
   isContextLensEventActive,
+  isContextLensAvailable,
   useContextLensEvents,
   useContextLensRuns,
 } from './Channel/ContextLensPanel';
@@ -207,12 +208,19 @@ export function PostScreenView({
   // If this screen is a carousel, this is the currently-focused post
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
+  const contextLensAvailable = isContextLensAvailable();
   const [contextLensOpen, setContextLensOpen] = useState(false);
   const [selectedContextLensMessage, setSelectedContextLensMessage] =
     useState<ContextLensSelectedMessage | null>(null);
   const contextLensStream = useContextLensEvents();
   const contextLensRuns = useContextLensRuns(contextLensStream.events);
-  const contextLensActive = contextLensRuns.some(isContextLensEventActive);
+  const contextLensActive =
+    contextLensAvailable && contextLensRuns.some(isContextLensEventActive);
+  useEffect(() => {
+    if (!contextLensAvailable && contextLensOpen) {
+      setContextLensOpen(false);
+    }
+  }, [contextLensAvailable, contextLensOpen]);
 
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
@@ -415,8 +423,10 @@ export function PostScreenView({
                     goBack={handleGoBack}
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
-                    onToggleContextLens={toggleContextLens}
-                    contextLensOpen={contextLensOpen}
+                    onToggleContextLens={
+                      contextLensAvailable ? toggleContextLens : undefined
+                    }
+                    contextLensOpen={contextLensAvailable && contextLensOpen}
                     contextLensActive={contextLensActive}
                   />
                   <XStack alignItems="stretch" flex={1} position="relative">
@@ -454,7 +464,8 @@ export function PostScreenView({
                               goBack,
                               group,
                               handleGoToImage,
-                              inspectContextLensPost: contextLensOpen
+                              inspectContextLensPost: contextLensAvailable &&
+                                contextLensOpen
                                 ? inspectContextLensPost
                                 : undefined,
                               negotiationMatch,
@@ -484,7 +495,9 @@ export function PostScreenView({
                           />
                         ))}
                     </YStack>
-                    {contextLensOpen && !isWindowNarrow && (
+                    {contextLensAvailable &&
+                      contextLensOpen &&
+                      !isWindowNarrow && (
                       <ContextLensPanel
                         events={contextLensStream.events}
                         streamStatus={contextLensStream.status}
@@ -494,7 +507,9 @@ export function PostScreenView({
                         }
                       />
                     )}
-                    {contextLensOpen && isWindowNarrow && (
+                    {contextLensAvailable &&
+                      contextLensOpen &&
+                      isWindowNarrow && (
                       <View
                         position="absolute"
                         top={0}
