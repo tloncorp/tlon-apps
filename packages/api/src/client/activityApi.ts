@@ -633,7 +633,10 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
 export function activityAction(action: ub.ActivityAction) {
   return {
     app: 'activity',
-    mark: 'activity-action',
+    // v9 mark: parses react/dm-react volume-map keys. The v8 activity-action
+    // mark's dejs perks over the v8 event-type set and crashes on react keys,
+    // nacking volume pokes. The agent accepts both marks.
+    mark: 'activity-action-1',
     json: action,
   };
 }
