@@ -23,7 +23,7 @@ const TREE_CHILD_GUIDE_TOP =
   TREE_CARET_CENTER_Y + TREE_CHILD_GUIDE_CARET_OFFSET;
 
 // Row frame for the comfortable ('notes') view; the outline view uses
-// TreeRowFrame below. Pass minHeight and depth-based paddingLeft inline.
+// TreeRowFrame below.
 const NotesViewRow = styled(XStack, {
   alignItems: 'center',
   gap: '$m',
@@ -38,6 +38,9 @@ const NotesViewRow = styled(XStack, {
         backgroundColor: '$secondaryBackground',
       },
     },
+    depth: (depth: number) => ({
+      paddingLeft: 8 + depth * TREE_LEVEL_WIDTH,
+    }),
   } as const,
 });
 
@@ -69,11 +72,7 @@ export function FolderTreeRow({
         onPress={onPress}
         testID={`NotesFolderRow-${label}`}
       >
-        <NotesViewRow
-          minHeight={56}
-          paddingLeft={8 + depth * 20}
-          selected={selected}
-        >
+        <NotesViewRow minHeight={56} depth={depth} selected={selected}>
           <Icon
             type="Folder"
             size="$m"
@@ -250,7 +249,7 @@ export function NoteRow({
         onPress={onPress}
         testID={`NotesNoteRow-${note.noteId}`}
       >
-        <NotesViewRow minHeight={58} paddingLeft={8 + depth * 20}>
+        <NotesViewRow minHeight={58} depth={depth}>
           <Icon type="ChannelNote" size="$m" color="$tertiaryText" />
           <YStack flex={1} minWidth={0} gap={2}>
             <Text
