@@ -1545,7 +1545,7 @@ export const handleChannelsUpdate = async (
       break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);
-      await db.updateChannel({ id: update.channelId, lastPostId: null }, ctx);
+      await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;
     case 'hidePost':
       await db.updatePost({ id: update.postId, hidden: true }, ctx);
@@ -1732,9 +1732,9 @@ export async function handleAddPost(
       // so skip if we've just added this.
       if (post.id === lastAdded) {
         logger.log('skipping duplicate post.');
-      } else {
-        lastAdded = post.id;
+        return;
       }
+      lastAdded = post.id;
 
       // first check if it's a reply. If it is and we haven't already cached
       // it, we need to add it to the parent post

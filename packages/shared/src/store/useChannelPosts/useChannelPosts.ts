@@ -230,7 +230,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       query.isPaused ||
       query.isFetchingNextPage ||
       query.isFetchingPreviousPage ||
-      (query.isError && query.failureCount < maxFailureCount));
+      (query.isError && query.failureCount <= maxFailureCount));
 
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 
