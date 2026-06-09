@@ -1,7 +1,7 @@
 import { UrbitModuleSpec } from '@tloncorp/app/utils/urbitModule';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { backendVersionSupportsReactions } from '@tloncorp/shared/logic';
+import { activityVersionSupportsReactions } from '@tloncorp/shared/logic';
 import { useEffect } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
@@ -23,7 +23,7 @@ export function useSyncReactionCapability() {
     if (!UrbitModule || !groupsVersion) {
       return;
     }
-    const supported = backendVersionSupportsReactions(groupsVersion);
+    const supported = activityVersionSupportsReactions(groupsVersion);
     try {
       UrbitModule.setActivitySupportsReactions(supported);
     } catch (e) {

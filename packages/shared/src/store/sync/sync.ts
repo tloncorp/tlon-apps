@@ -13,7 +13,7 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
-import { backendVersionSupportsReactions } from '../../logic';
+import { activityVersionSupportsReactions } from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -502,8 +502,8 @@ export const syncSettings = async (ctx?: SyncCtx) => {
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
   const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
-  api.setBackendSupportsReactions(
-    backendVersionSupportsReactions(appInfo?.groupsVersion)
+  api.setActivitySupportsReactions(
+    activityVersionSupportsReactions(appInfo?.groupsVersion)
   );
   return db.appInfo.setValue(appInfo);
 };
@@ -513,8 +513,8 @@ export const syncAppInfo = async (ctx?: SyncCtx) => {
 // versions. A fresh version is fetched by syncAppInfo, which also updates this.
 export const syncReactionSupport = async () => {
   const appInfo = await db.appInfo.getValue();
-  api.setBackendSupportsReactions(
-    backendVersionSupportsReactions(appInfo?.groupsVersion)
+  api.setActivitySupportsReactions(
+    activityVersionSupportsReactions(appInfo?.groupsVersion)
   );
 };
 

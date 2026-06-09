@@ -13,7 +13,7 @@ export const REACTIONS_MIN_GROUPS_VERSION = '11.3.0';
 // by design: anything unparseable (e.g. 'n/a' when the version scry failed)
 // returns false, so we never point the client at v9 endpoints an old backend
 // can't serve.
-export function backendVersionSupportsReactions(
+export function activityVersionSupportsReactions(
   groupsVersion?: string | null
 ): boolean {
   if (!groupsVersion || !/^\d+\.\d+\.\d+/.test(groupsVersion)) {

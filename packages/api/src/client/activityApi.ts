@@ -13,7 +13,7 @@ import {
   parseGroupId,
   udToDate,
 } from './apiUtils';
-import { getBackendSupportsReactions, poke, scry, subscribe } from './urbit';
+import { getActivitySupportsReactions, poke, scry, subscribe } from './urbit';
 import { normalizeUrbitColor } from './utils';
 
 const logger = createDevLogger('activityApi', false);
@@ -68,7 +68,7 @@ export const ACTIVITY_SOURCE_PAGESIZE = 30;
 // them. Old backends don't serve v6, so only request it once the backend is
 // known to support reactions.
 function feedVersion(): 'v6' | 'v5' {
-  return getBackendSupportsReactions() ? 'v6' : 'v5';
+  return getActivitySupportsReactions() ? 'v6' : 'v5';
 }
 
 export async function getInitialActivity() {
@@ -455,7 +455,7 @@ export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
   subscribe<ub.ActivityUpdate>(
     // v5 is the v9-native update stream (carries reacts); v4 down-converts to
     // v8 and drops them. Old backends don't serve v5, so fall back to v4.
-    { app: 'activity', path: getBackendSupportsReactions() ? '/v5' : '/v4' },
+    { app: 'activity', path: getActivitySupportsReactions() ? '/v5' : '/v4' },
     async (update: ub.ActivityUpdate) => {
       logger.log(
         'activity update',
@@ -657,7 +657,7 @@ function stripReactVolumeKeys(action: ub.ActivityAction): ub.ActivityAction {
 export function activityAction(action: ub.ActivityAction) {
   // activity-action-1 (v9) parses react keys; the agent accepts both marks. Old
   // backends only have the v8 activity-action mark, so use it and strip reacts.
-  const supportsReactions = getBackendSupportsReactions();
+  const supportsReactions = getActivitySupportsReactions();
   return {
     app: 'activity',
     mark: supportsReactions ? 'activity-action-1' : 'activity-action',
