@@ -283,19 +283,10 @@ export function MoveNoteSheet({
   );
   const title = note?.title?.trim() || 'Untitled';
 
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (!isMoving) {
-        onOpenChange(nextOpen);
-      }
-    },
-    [isMoving, onOpenChange]
-  );
-
   return (
     <NotesDialog
       open={open}
-      onOpenChange={handleOpenChange}
+      onOpenChange={onOpenChange}
       title="Move note"
       subtitle={`Choose a new folder for ${title}.`}
       testID="NotesMoveNoteSheet"

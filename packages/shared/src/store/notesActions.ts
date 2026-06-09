@@ -375,13 +375,9 @@ export async function renameNotebookFolder({
     folderId: folder.folderId,
     name: nextName,
   });
-  await syncNotesNotebookWithRetry(notebookFlag, async () => {
-    const folders = await db.getNotesFolders({ notebookFlag });
-    return folders.some(
-      (candidate) =>
-        candidate.folderId === folder.folderId && candidate.name === nextName
-    );
-  });
+  await syncNotesNotebookWithRetry(notebookFlag, () =>
+    folderMatches(notebookFlag, folder.folderId, (f) => f.name === nextName)
+  );
 }
 
 export async function moveNotebookFolder({
@@ -402,14 +398,22 @@ export async function moveNotebookFolder({
     folderId: folder.folderId,
     newParent: parentFolderId,
   });
-  await syncNotesNotebookWithRetry(notebookFlag, async () => {
-    const folders = await db.getNotesFolders({ notebookFlag });
-    return folders.some(
-      (candidate) =>
-        candidate.folderId === folder.folderId &&
-        candidate.parentFolderId === parentFolderId
-    );
-  });
+  await syncNotesNotebookWithRetry(notebookFlag, () =>
+    folderMatches(
+      notebookFlag,
+      folder.folderId,
+      (f) => f.parentFolderId === parentFolderId
+    )
+  );
+}
+
+async function folderMatches(
+  notebookFlag: string,
+  folderId: number,
+  matches: (folder: db.NotesFolder) => boolean
+) {
+  const folders = await db.getNotesFolders({ notebookFlag });
+  return folders.some((f) => f.folderId === folderId && matches(f));
 }
 
 export async function deleteNotebookNote({

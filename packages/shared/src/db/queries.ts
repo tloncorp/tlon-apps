@@ -440,16 +440,6 @@ export const getNotesNotebookWithRelations = createReadQuery(
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
 );
 
-export const getNotesNotebooks = createReadQuery(
-  'getNotesNotebooks',
-  async (ctx: QueryCtx) => {
-    return ctx.db.query.notesNotebooks.findMany({
-      orderBy: [desc($notesNotebooks.lastOpenedAt), asc($notesNotebooks.title)],
-    });
-  },
-  ['notesNotebooks']
-);
-
 export const getNotesFolders = createReadQuery(
   'getNotesFolders',
   async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
@@ -513,7 +503,7 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       notebook: NotesNotebook;
       folders: NotesFolder[];
       notes: NotesNote[];
-      members?: NotesMember[];
+      members: NotesMember[];
     },
     ctx: QueryCtx
   ) => {
@@ -540,45 +530,15 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
         await txCtx.db.insert($notesNotes).values(notes);
       }
 
-      if (members) {
-        await txCtx.db
-          .delete($notesMembers)
-          .where(eq($notesMembers.notebookFlag, notebook.id));
-        if (members.length > 0) {
-          await txCtx.db.insert($notesMembers).values(members);
-        }
+      await txCtx.db
+        .delete($notesMembers)
+        .where(eq($notesMembers.notebookFlag, notebook.id));
+      if (members.length > 0) {
+        await txCtx.db.insert($notesMembers).values(members);
       }
     });
   },
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
-);
-
-export const upsertNotesNotebook = createWriteQuery(
-  'upsertNotesNotebook',
-  async (notebook: NotesNotebook, ctx: QueryCtx) => {
-    return ctx.db
-      .insert($notesNotebooks)
-      .values(notebook)
-      .onConflictDoUpdate({
-        target: $notesNotebooks.id,
-        set: conflictUpdateSetAll($notesNotebooks),
-      });
-  },
-  ['notesNotebooks']
-);
-
-export const upsertNotesNote = createWriteQuery(
-  'upsertNotesNote',
-  async (note: NotesNote, ctx: QueryCtx) => {
-    return ctx.db
-      .insert($notesNotes)
-      .values(note)
-      .onConflictDoUpdate({
-        target: $notesNotes.id,
-        set: conflictUpdateSetAll($notesNotes),
-      });
-  },
-  ['notesNotes']
 );
 
 export const deleteNotesNote = createWriteQuery(
