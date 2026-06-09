@@ -606,6 +606,12 @@ async function verifyOwnerAdmin(
   );
 }
 
+// The host is the ship in the group flag (`~host/slug`). The backend treats it as
+// an admin unconditionally (`se-is-admin`), regardless of seats or roles.
+function getGroupHost(groupId: string): string {
+  return normalizeShip(groupId.split('/')[0]);
+}
+
 /**
  * Refuse an admin mutation up front when the acting ship can't perform it, instead
  * of firing a poke that a foreign host silently drops while the CLI reports success.
@@ -619,7 +625,7 @@ async function assertActingShipCanAdminister(
   action: string
 ): Promise<void> {
   const actingShip = normalizeShip(getCurrentUserId());
-  const hostShip = normalizeShip(groupId.split('/')[0]);
+  const hostShip = getGroupHost(groupId);
   const rawGroup = await getRawGroupForAdminVerification(groupId);
   const result = actingShipCanAdminister(
     rawGroup,
@@ -1329,6 +1335,15 @@ async function promoteMemberToAdmin(groupId: string, ships: string[]) {
 async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
   await assertActingShipCanAdminister(groupId, 'demote');
+
+  // The host is an admin unconditionally, so it can't be demoted. Refuse up front
+  // rather than strip its roles and falsely report success on a no-op.
+  const hostShip = getGroupHost(groupId);
+  if (normalizedShips.includes(hostShip)) {
+    throw new Error(
+      `Cannot demote the host (${hostShip}) of ${groupId} — the host is always an admin.`
+    );
+  }
 
   // Remove every role the group marks as admin (`rawGroup.admins`), not just the
   // literal `admin` role — otherwise a member with a custom admin role stays an
