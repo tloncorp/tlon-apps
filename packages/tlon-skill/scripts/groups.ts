@@ -553,13 +553,18 @@ async function ensureAdminRole(groupId: string, group?: Group) {
     return;
   }
 
-  // The role already exists — make sure the group actually marks it as an admin
-  // role. A role named `admin` that isn't in `admins` grants no privileges, so
-  // promoting into it would otherwise assign a powerless role.
+  // The role already exists. It must already be an admin role — do NOT silently
+  // mark it, since `setAdminRole` would grant admin to every existing holder of
+  // the role, not just the promote target. A role named `admin` that the group
+  // intentionally does not mark admin is a collision we refuse rather than
+  // repurpose.
   const rawGroup = await getRawGroupForAdminVerification(groupId);
   if (!rawGroup.admins?.includes(ADMIN_ROLE_ID)) {
-    console.log(`Marking "${ADMIN_ROLE_ID}" role as admin in ${groupId}...`);
-    await setAdminRole(groupId, ADMIN_ROLE_ID);
+    throw new Error(
+      `Group ${groupId} has an "${ADMIN_ROLE_ID}" role that is not configured as an admin role. ` +
+        `Refusing to promote — marking it admin would grant admin to all existing holders. ` +
+        `Resolve the role configuration first.`
+    );
   }
 }
 
