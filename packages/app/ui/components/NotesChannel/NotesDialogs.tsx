@@ -11,6 +11,32 @@ import { FolderPicker, NotesDialog } from './NotesCommon';
 import type { FolderRow } from './notesTree';
 import { collectDescendantFolderIds, getFolderLabel } from './notesTree';
 
+function FolderNameField({
+  name,
+  onNameChange,
+  onSubmit,
+}: {
+  name: string;
+  onNameChange: (name: string) => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <YStack gap="$s">
+      <Text size="$label/s" color="$secondaryText">
+        Name
+      </Text>
+      <TextInput
+        autoFocus={Platform.OS === 'web'}
+        value={name}
+        onChangeText={onNameChange}
+        placeholder="Folder name"
+        onSubmitEditing={onSubmit}
+        returnKeyType="done"
+      />
+    </YStack>
+  );
+}
+
 export function AddFolderDialog({
   folderRows,
   isCreating,
@@ -54,19 +80,11 @@ export function AddFolderDialog({
       }
     >
       <YStack gap="$m">
-        <YStack gap="$s">
-          <Text size="$label/s" color="$secondaryText">
-            Name
-          </Text>
-          <TextInput
-            autoFocus={Platform.OS === 'web'}
-            value={name}
-            onChangeText={onNameChange}
-            placeholder="Folder name"
-            onSubmitEditing={onCreate}
-            returnKeyType="done"
-          />
-        </YStack>
+        <FolderNameField
+          name={name}
+          onNameChange={onNameChange}
+          onSubmit={onCreate}
+        />
 
         <YStack gap="$s">
           <Text size="$label/s" color="$secondaryText">
@@ -125,19 +143,11 @@ export function RenameFolderDialog({
         />
       }
     >
-      <YStack gap="$s">
-        <Text size="$label/s" color="$secondaryText">
-          Name
-        </Text>
-        <TextInput
-          autoFocus={Platform.OS === 'web'}
-          value={name}
-          onChangeText={onNameChange}
-          placeholder="Folder name"
-          onSubmitEditing={onRename}
-          returnKeyType="done"
-        />
-      </YStack>
+      <FolderNameField
+        name={name}
+        onNameChange={onNameChange}
+        onSubmit={onRename}
+      />
     </NotesDialog>
   );
 }
