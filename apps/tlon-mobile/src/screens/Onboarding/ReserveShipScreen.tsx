@@ -85,14 +85,12 @@ function BootStepDisplay(props: {
       },
     ];
 
-    if (props.withInvites) {
-      steps.push({
-        description: 'Finding peers on the network',
-        icon: 'ChannelGalleries',
-        startExclusive: NodeBootPhase.CONNECTING,
-        endInclusive: NodeBootPhase.ACCEPTING_INVITES,
-      });
-    }
+    steps.push({
+      description: 'Finding peers on the network',
+      icon: 'ChannelGalleries',
+      startExclusive: NodeBootPhase.CONNECTING,
+      endInclusive: NodeBootPhase.ACCEPTING_INVITES,
+    });
 
     return steps;
   }, [props.withInvites]);

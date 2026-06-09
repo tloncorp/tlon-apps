@@ -116,8 +116,9 @@ export const SignupScreen = ({ navigation }: Props) => {
         lure: lureMeta?.id,
       });
       if (!enabled) {
-        logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck, {
+        logger.trackError(AnalyticsEvent.SignupFailedInventoryCheck, {
           severity: AnalyticsSeverity.Critical,
+          hadInvite: Boolean(lureMeta?.id),
         });
         navigation.navigate('JoinWaitList', {});
         return;
@@ -195,7 +196,7 @@ export const SignupScreen = ({ navigation }: Props) => {
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
         backgroundColor="$secondaryBackground"
-        title="Accept invite"
+        title={lureMeta ? 'Accept invite' : 'Sign up'}
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={goBack}
       />
