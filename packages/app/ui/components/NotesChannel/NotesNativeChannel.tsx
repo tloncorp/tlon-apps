@@ -230,7 +230,7 @@ export function NotesNativeChannel({
       navigation.navigate('NotesDetail', {
         channelId,
         groupId: groupId ?? undefined,
-        noteId: String(note.noteId),
+        noteId: note.noteId,
       });
     },
     [channelId, groupId, navigation]
