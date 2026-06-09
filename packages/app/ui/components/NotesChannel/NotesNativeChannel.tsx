@@ -2,21 +2,15 @@ import { NavigationProp, useNavigation } from '@react-navigation/native';
 import {
   createNotebookFolder,
   createNotebookNote,
-  markNotesNotebookOpened,
   moveNotebookFolder,
   moveNotebookNote,
   renameNotebookFolder,
-  useEnsureNotesNotebookJoined,
-  useNotesFolders,
-  useNotesNotebook,
-  useNotesNotes,
-  useSyncNotesNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MutableRefObject, ReactNode } from 'react';
+import type { ComponentProps, MutableRefObject, ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView, TamaguiWebElement, XStack, YStack, styled } from 'tamagui';
 
@@ -28,26 +22,29 @@ import { TextInput } from '../Form';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import {
-  FolderPicker,
   MoveNoteSheet,
+  NotebookGateMessage,
   NotesErrorMessage,
-  NotesMessage,
   useEntityDialog,
+  useNotebookData,
 } from './NotesCommon';
+import {
+  AddFolderDialog,
+  FolderActionsSheet,
+  MoveFolderSheet,
+  RenameFolderDialog,
+} from './NotesDialogs';
 import {
   buildFolderNoteCounts,
   buildFolderRows,
   buildNotesTreeRows,
-  collectDescendantFolderIds,
   filterNotesTreeData,
   formatNoteDate,
   getFolderLabel,
   normalizeSearchText,
 } from './notesTree';
-import type { FolderRow, NotesTreeViewStyle } from './notesTree';
+import type { NotesTreeViewStyle } from './notesTree';
 
-const EMPTY_FOLDERS: db.NotesFolder[] = [];
-const EMPTY_NOTES: db.NotesNote[] = [];
 const TREE_ROW_HEIGHT = 44;
 const TREE_LEVEL_WIDTH = 20;
 const TREE_ROW_LEFT_PADDING = 2;
@@ -152,29 +149,8 @@ export function NotesNativeChannel({
   const openNewSheetRef = useRef<() => void>(() => {});
   const initializedFolderIdsRef = useRef<Set<number>>(new Set());
 
-  const joinQuery = useEnsureNotesNotebookJoined({ notebookFlag });
-  const joined = joinQuery.data !== false;
-  const syncQuery = useSyncNotesNotebook({
-    notebookFlag,
-    enabled: Boolean(notebookFlag) && joined && !joinQuery.isLoading,
-  });
-  const notebookQuery = useNotesNotebook(notebookFlag, joined);
-  const foldersQuery = useNotesFolders(notebookFlag, joined);
-  const notesQuery = useNotesNotes(notebookFlag, joined);
-
-  const notebook = notebookQuery.data ?? null;
-  const folders = foldersQuery.data ?? EMPTY_FOLDERS;
-  const notes = notesQuery.data ?? EMPTY_NOTES;
-  const canEdit = notebook ? notebook.currentUserRole !== 'viewer' : false;
-
-  const rootFolderId = useMemo(() => {
-    return (
-      notebook?.rootFolderId ??
-      folders.find((folder) => folder.parentFolderId === null)?.folderId ??
-      folders[0]?.folderId ??
-      null
-    );
-  }, [folders, notebook?.rootFolderId]);
+  const { folders, notes, canEdit, rootFolderId, joinFailed, gate } =
+    useNotebookData(notebookFlag);
 
   const parentFolderRows = useMemo(
     () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
@@ -247,11 +223,6 @@ export function NotesNativeChannel({
       return nextIds;
     });
   }, [folders, rootFolderId]);
-
-  useEffect(() => {
-    if (!notebookFlag) return;
-    markNotesNotebookOpened(notebookFlag);
-  }, [notebookFlag]);
 
   const openNote = useCallback(
     (note: db.NotesNote) => {
@@ -564,7 +535,7 @@ export function NotesNativeChannel({
 
   useRegisterChannelHeaderItem(
     useMemo(() => {
-      if (!notebookFlag || joinQuery.data === false) return null;
+      if (!notebookFlag || joinFailed) return null;
       return (
         <NotesHeaderActions
           canEdit={canEdit}
@@ -576,29 +547,18 @@ export function NotesNativeChannel({
     }, [
       canEdit,
       handleTreeViewStyleChange,
-      joinQuery.data,
+      joinFailed,
       notebookFlag,
       treeViewStyle,
     ])
   );
 
-  if (!notebookFlag) {
-    return <NotesMessage title="Notebook unavailable" />;
-  }
-
-  if (joinQuery.isLoading || (syncQuery.isLoading && !notebook)) {
+  if (gate) {
     return (
-      <NotesMessage title="Loading notebook">
-        <LoadingSpinner />
-      </NotesMessage>
-    );
-  }
-
-  if (joinQuery.data === false) {
-    return (
-      <NotesMessage
-        title="Unable to join notebook"
-        subtitle="This notebook is private or no longer available."
+      <NotebookGateMessage
+        gate={gate}
+        loadingTitle="Loading notebook"
+        unavailableTitle="Notebook unavailable"
       />
     );
   }
@@ -607,12 +567,8 @@ export function NotesNativeChannel({
     <YStack flex={1} backgroundColor="$background">
       {error ? <NotesErrorMessage error={error} /> : null}
 
-      <YStack
-        width="100%"
-        maxWidth={760}
-        marginHorizontal="auto"
-        paddingLeft={treeViewStyle === 'notes' ? '$m' : '$s'}
-        paddingRight={treeViewStyle === 'notes' ? '$l' : '$m'}
+      <NotesContentFrame
+        viewStyle={treeViewStyle}
         paddingTop={treeViewStyle === 'notes' ? '$l' : '$m'}
         paddingBottom="$s"
         backgroundColor="$background"
@@ -621,15 +577,11 @@ export function NotesNativeChannel({
           query={notesFilterQuery}
           onQueryChange={setNotesFilterQuery}
         />
-      </YStack>
+      </NotesContentFrame>
 
       <ScrollView flex={1}>
-        <YStack
-          width="100%"
-          maxWidth={760}
-          marginHorizontal="auto"
-          paddingLeft={treeViewStyle === 'notes' ? '$m' : '$s'}
-          paddingRight={treeViewStyle === 'notes' ? '$l' : '$m'}
+        <NotesContentFrame
+          viewStyle={treeViewStyle}
           paddingTop="$s"
           paddingBottom={treeViewStyle === 'notes' ? '$l' : '$m'}
         >
@@ -708,7 +660,7 @@ export function NotesNativeChannel({
               )
             )}
           </YStack>
-        </YStack>
+        </NotesContentFrame>
       </ScrollView>
       <SimpleActionSheet
         open={newActionSheetOpen}
@@ -763,6 +715,28 @@ export function NotesNativeChannel({
         onOpenChange={handleMoveFolderOpenChange}
         open={movingFolder !== null}
       />
+    </YStack>
+  );
+}
+
+function NotesContentFrame({
+  viewStyle,
+  children,
+  ...props
+}: {
+  viewStyle: NotesTreeViewStyle;
+  children: ReactNode;
+} & Omit<ComponentProps<typeof YStack>, 'children'>) {
+  return (
+    <YStack
+      width="100%"
+      maxWidth={760}
+      marginHorizontal="auto"
+      paddingLeft={viewStyle === 'notes' ? '$m' : '$s'}
+      paddingRight={viewStyle === 'notes' ? '$l' : '$m'}
+      {...props}
+    >
+      {children}
     </YStack>
   );
 }
@@ -946,330 +920,6 @@ function FolderTreeRow({
         </ListItem.EndContent>
       ) : null}
     </TreeRowFrame>
-  );
-}
-
-function AddFolderDialog({
-  folderRows,
-  isCreating,
-  name,
-  onCreate,
-  onNameChange,
-  onOpenChange,
-  onParentChange,
-  open,
-  parentFolderId,
-}: {
-  folderRows: FolderRow[];
-  isCreating: boolean;
-  name: string;
-  onCreate: () => void;
-  onNameChange: (name: string) => void;
-  onOpenChange: (open: boolean) => void;
-  onParentChange: (folderId: number) => void;
-  open: boolean;
-  parentFolderId: number | null;
-}) {
-  const isWeb = Platform.OS === 'web';
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      mode={isWeb ? 'dialog' : 'sheet'}
-      closeButton={isWeb}
-      modal
-      snapPointsMode="fit"
-      keyboardBehavior="interactive"
-      dialogContentProps={{ width: 420, maxWidth: '90%' }}
-    >
-      <ActionSheet.ScrollableContent>
-        <YStack testID="NotesAddFolderDialog" gap="$l" padding="$l">
-          <ActionSheet.SimpleHeader
-            title="Add folder"
-            subtitle="Choose where this folder should live."
-          />
-
-          <YStack gap="$m">
-            <YStack gap="$s">
-              <Text size="$label/s" color="$secondaryText">
-                Name
-              </Text>
-              <TextInput
-                autoFocus={isWeb}
-                value={name}
-                onChangeText={onNameChange}
-                placeholder="Folder name"
-                onSubmitEditing={onCreate}
-                returnKeyType="done"
-              />
-            </YStack>
-
-            <YStack gap="$s">
-              <Text size="$label/s" color="$secondaryText">
-                Parent folder
-              </Text>
-              <FolderPicker
-                folderRows={folderRows}
-                onSelectFolder={onParentChange}
-                selectedFolderId={parentFolderId}
-                testID="NotesAddFolderParentPicker"
-              />
-            </YStack>
-          </YStack>
-
-          <XStack gap="$m" justifyContent="flex-end">
-            <Button
-              preset="minimal"
-              label="Cancel"
-              onPress={() => onOpenChange(false)}
-            />
-            <Button
-              size="small"
-              fill="solid"
-              type="primary"
-              leadingIcon="Add"
-              label="Add folder"
-              loading={isCreating}
-              disabled={!name.trim()}
-              onPress={onCreate}
-            />
-          </XStack>
-        </YStack>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
-  );
-}
-
-function FolderActionsSheet({
-  folder,
-  onMove,
-  onOpenChange,
-  onRename,
-  open,
-}: {
-  folder: db.NotesFolder | null;
-  onMove: (folder: db.NotesFolder) => void;
-  onOpenChange: (open: boolean) => void;
-  onRename: (folder: db.NotesFolder) => void;
-  open: boolean;
-}) {
-  const isWeb = Platform.OS === 'web';
-  const label = getFolderLabel(folder);
-  const actions = useMemo<Action[]>(
-    () => [
-      {
-        title: 'Rename folder',
-        description: 'Update the folder name.',
-        startIcon: 'EditList',
-        action: () => {
-          if (folder) {
-            onRename(folder);
-          }
-        },
-        testID: 'NotesRenameFolderAction',
-      },
-      {
-        title: 'Move folder',
-        description: 'Choose a new parent folder.',
-        startIcon: 'Folder',
-        action: () => {
-          if (folder) {
-            onMove(folder);
-          }
-        },
-        testID: 'NotesMoveFolderAction',
-      },
-    ],
-    [folder, onMove, onRename]
-  );
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      mode={isWeb ? 'dialog' : 'sheet'}
-      closeButton={isWeb}
-      modal
-      snapPointsMode="fit"
-      dialogContentProps={{ width: 420, maxWidth: '90%' }}
-    >
-      <ActionSheet.SimpleHeader title={label} subtitle="Folder actions" />
-      <ActionSheet.Content>
-        <ActionSheet.ActionGroup accent="neutral">
-          {actions.map((action) => (
-            <ActionSheet.Action
-              key={action.title}
-              action={action}
-              testID={action.testID}
-            />
-          ))}
-        </ActionSheet.ActionGroup>
-      </ActionSheet.Content>
-    </ActionSheet>
-  );
-}
-
-function RenameFolderDialog({
-  folder,
-  isRenaming,
-  name,
-  onNameChange,
-  onOpenChange,
-  onRename,
-  open,
-}: {
-  folder: db.NotesFolder | null;
-  isRenaming: boolean;
-  name: string;
-  onNameChange: (name: string) => void;
-  onOpenChange: (open: boolean) => void;
-  onRename: () => void;
-  open: boolean;
-}) {
-  const isWeb = Platform.OS === 'web';
-  const label = getFolderLabel(folder);
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      mode={isWeb ? 'dialog' : 'sheet'}
-      closeButton={isWeb}
-      modal
-      snapPointsMode="fit"
-      keyboardBehavior="interactive"
-      dialogContentProps={{ width: 420, maxWidth: '90%' }}
-    >
-      <ActionSheet.ScrollableContent>
-        <YStack testID="NotesRenameFolderDialog" gap="$l" padding="$l">
-          <ActionSheet.SimpleHeader
-            title="Rename folder"
-            subtitle={`Update ${label}.`}
-          />
-
-          <YStack gap="$s">
-            <Text size="$label/s" color="$secondaryText">
-              Name
-            </Text>
-            <TextInput
-              autoFocus={isWeb}
-              value={name}
-              onChangeText={onNameChange}
-              placeholder="Folder name"
-              onSubmitEditing={onRename}
-              returnKeyType="done"
-            />
-          </YStack>
-
-          <XStack gap="$m" justifyContent="flex-end">
-            <Button
-              preset="minimal"
-              label="Cancel"
-              disabled={isRenaming}
-              onPress={() => onOpenChange(false)}
-            />
-            <Button
-              size="small"
-              fill="solid"
-              type="primary"
-              leadingIcon="EditList"
-              label="Rename"
-              loading={isRenaming}
-              disabled={!name.trim()}
-              onPress={onRename}
-            />
-          </XStack>
-        </YStack>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
-  );
-}
-
-function MoveFolderSheet({
-  folder,
-  folderRows,
-  folders,
-  isMoving,
-  onMove,
-  onOpenChange,
-  open,
-}: {
-  folder: db.NotesFolder | null;
-  folderRows: FolderRow[];
-  folders: db.NotesFolder[];
-  isMoving: boolean;
-  onMove: (folderId: number) => void;
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-}) {
-  const isWeb = Platform.OS === 'web';
-  const label = getFolderLabel(folder);
-  const { disabledFolderIds, disabledFolderLabels } = useMemo(() => {
-    const ids = new Set<number>();
-    const labels = new Map<number, string>();
-    if (!folder) {
-      return { disabledFolderIds: ids, disabledFolderLabels: labels };
-    }
-
-    collectDescendantFolderIds(folders, folder.folderId).forEach((id) => {
-      ids.add(id);
-      labels.set(id, id === folder.folderId ? 'This folder' : 'Nested');
-    });
-
-    if (folder.parentFolderId !== null && folder.parentFolderId !== undefined) {
-      ids.add(folder.parentFolderId);
-      labels.set(folder.parentFolderId, 'Current');
-    }
-
-    return { disabledFolderIds: ids, disabledFolderLabels: labels };
-  }, [folder, folders]);
-
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (!isMoving) {
-        onOpenChange(nextOpen);
-      }
-    },
-    [isMoving, onOpenChange]
-  );
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={handleOpenChange}
-      mode={isWeb ? 'dialog' : 'sheet'}
-      closeButton={isWeb}
-      modal
-      snapPointsMode="fit"
-      dialogContentProps={{ width: 420, maxWidth: '90%' }}
-    >
-      <ActionSheet.ScrollableContent>
-        <YStack testID="NotesMoveFolderSheet" gap="$l" padding="$l">
-          <ActionSheet.SimpleHeader
-            title="Move folder"
-            subtitle={`Choose a new parent for ${label}.`}
-          />
-          <FolderPicker
-            disabledFolderIds={disabledFolderIds}
-            disabledFolderLabels={disabledFolderLabels}
-            folderRows={folderRows}
-            isLoading={isMoving}
-            onSelectFolder={onMove}
-            selectedFolderId={folder?.parentFolderId ?? null}
-            testID="NotesMoveFolderParentPicker"
-          />
-          <XStack gap="$m" justifyContent="flex-end">
-            <Button
-              preset="minimal"
-              label="Cancel"
-              disabled={isMoving}
-              onPress={() => onOpenChange(false)}
-            />
-          </XStack>
-        </YStack>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
   );
 }
 
