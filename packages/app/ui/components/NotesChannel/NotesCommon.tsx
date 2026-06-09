@@ -1,13 +1,156 @@
+import {
+  markNotesNotebookOpened,
+  useEnsureNotesNotebookJoined,
+  useNotesFolders,
+  useNotesNotebook,
+  useNotesNotes,
+  useSyncNotesNotebook,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from '../ActionSheet';
 import type { FolderRow } from './notesTree';
 import { getFolderLabel } from './notesTree';
+
+const EMPTY_FOLDERS: db.NotesFolder[] = [];
+const EMPTY_NOTES: db.NotesNote[] = [];
+
+export type NotebookGate = 'unavailable' | 'loading' | 'unjoinable' | null;
+
+/**
+ * Joins (if needed) and syncs the notebook, exposes its local data, and
+ * reports which gate state (if any) should block rendering. Also marks the
+ * notebook opened.
+ */
+export function useNotebookData(notebookFlag: string | null | undefined) {
+  const joinQuery = useEnsureNotesNotebookJoined({ notebookFlag });
+  const joined = joinQuery.data !== false;
+  const syncQuery = useSyncNotesNotebook({
+    notebookFlag,
+    enabled: Boolean(notebookFlag) && joined && !joinQuery.isLoading,
+  });
+  const notebookQuery = useNotesNotebook(notebookFlag, joined);
+  const foldersQuery = useNotesFolders(notebookFlag, joined);
+  const notesQuery = useNotesNotes(notebookFlag, joined);
+
+  const notebook = notebookQuery.data ?? null;
+  const folders = foldersQuery.data ?? EMPTY_FOLDERS;
+  const notes = notesQuery.data ?? EMPTY_NOTES;
+  const canEdit = notebook ? notebook.currentUserRole !== 'viewer' : false;
+  const rootFolderId = useMemo(() => {
+    return (
+      notebook?.rootFolderId ??
+      folders.find((folder) => folder.parentFolderId === null)?.folderId ??
+      folders[0]?.folderId ??
+      null
+    );
+  }, [folders, notebook?.rootFolderId]);
+
+  useEffect(() => {
+    if (!notebookFlag) return;
+    markNotesNotebookOpened(notebookFlag);
+  }, [notebookFlag]);
+
+  const joinFailed = joinQuery.data === false;
+  const gate: NotebookGate = !notebookFlag
+    ? 'unavailable'
+    : joinQuery.isLoading || (syncQuery.isLoading && !notebook)
+      ? 'loading'
+      : joinFailed
+        ? 'unjoinable'
+        : null;
+
+  return { notebook, folders, notes, canEdit, rootFolderId, joinFailed, gate };
+}
+
+export function NotebookGateMessage({
+  gate,
+  loadingTitle,
+  unavailableTitle,
+}: {
+  gate: Exclude<NotebookGate, null>;
+  loadingTitle: string;
+  unavailableTitle: string;
+}) {
+  if (gate === 'unavailable') {
+    return <NotesMessage title={unavailableTitle} />;
+  }
+  if (gate === 'loading') {
+    return (
+      <NotesMessage title={loadingTitle}>
+        <LoadingSpinner />
+      </NotesMessage>
+    );
+  }
+  return (
+    <NotesMessage
+      title="Unable to join notebook"
+      subtitle="This notebook is private or no longer available."
+    />
+  );
+}
+
+/**
+ * Shared shell for notes dialogs: web dialog / native sheet, fixed width,
+ * simple header, and a footer with a Cancel button plus an optional
+ * dialog-specific confirm button.
+ */
+export function NotesDialog({
+  cancelDisabled = false,
+  children,
+  confirmButton,
+  keyboardBehavior,
+  onOpenChange,
+  open,
+  subtitle,
+  testID,
+  title,
+}: {
+  cancelDisabled?: boolean;
+  children: ReactNode;
+  confirmButton?: ReactNode;
+  keyboardBehavior?: ComponentProps<typeof ActionSheet>['keyboardBehavior'];
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  subtitle?: string;
+  testID?: string;
+  title: string;
+}) {
+  const isWeb = Platform.OS === 'web';
+  return (
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      mode={isWeb ? 'dialog' : 'sheet'}
+      closeButton={isWeb}
+      modal
+      snapPointsMode="fit"
+      keyboardBehavior={keyboardBehavior}
+      dialogContentProps={{ width: 420, maxWidth: '90%' }}
+    >
+      <ActionSheet.ScrollableContent>
+        <YStack testID={testID} gap="$l" padding="$l">
+          <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+          {children}
+          <XStack gap="$m" justifyContent="flex-end">
+            <Button
+              preset="minimal"
+              label="Cancel"
+              disabled={cancelDisabled}
+              onPress={() => onOpenChange(false)}
+            />
+            {confirmButton}
+          </XStack>
+        </YStack>
+      </ActionSheet.ScrollableContent>
+    </ActionSheet>
+  );
+}
 
 /**
  * State for a dialog that targets a single entity (move note, rename folder,
@@ -73,7 +216,6 @@ export function MoveNoteSheet({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
-  const isWeb = Platform.OS === 'web';
   const currentFolderIds = useMemo(() => {
     return note ? new Set([note.folderId]) : new Set<number>();
   }, [note]);
@@ -89,41 +231,24 @@ export function MoveNoteSheet({
   );
 
   return (
-    <ActionSheet
+    <NotesDialog
       open={open}
       onOpenChange={handleOpenChange}
-      mode={isWeb ? 'dialog' : 'sheet'}
-      closeButton={isWeb}
-      modal
-      snapPointsMode="fit"
-      dialogContentProps={{ width: 420, maxWidth: '90%' }}
+      title="Move note"
+      subtitle={`Choose a new folder for ${title}.`}
+      testID="NotesMoveNoteSheet"
+      cancelDisabled={isMoving}
     >
-      <ActionSheet.ScrollableContent>
-        <YStack testID="NotesMoveNoteSheet" gap="$l" padding="$l">
-          <ActionSheet.SimpleHeader
-            title="Move note"
-            subtitle={`Choose a new folder for ${title}.`}
-          />
-          <FolderPicker
-            disabledFolderIds={currentFolderIds}
-            disabledLabel="Current"
-            folderRows={folderRows}
-            isLoading={isMoving}
-            onSelectFolder={onMove}
-            selectedFolderId={note?.folderId ?? null}
-            testID="NotesMoveNoteFolderPicker"
-          />
-          <XStack gap="$m" justifyContent="flex-end">
-            <Button
-              preset="minimal"
-              label="Cancel"
-              disabled={isMoving}
-              onPress={() => onOpenChange(false)}
-            />
-          </XStack>
-        </YStack>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
+      <FolderPicker
+        disabledFolderIds={currentFolderIds}
+        disabledLabel="Current"
+        folderRows={folderRows}
+        isLoading={isMoving}
+        onSelectFolder={onMove}
+        selectedFolderId={note?.folderId ?? null}
+        testID="NotesMoveNoteFolderPicker"
+      />
+    </NotesDialog>
   );
 }
 

@@ -1,18 +1,11 @@
 import {
   convertContent,
   deleteNotebookNote,
-  markNotesNotebookOpened,
   markdownToStory,
   moveNotebookNote,
   saveNotebookNote,
-  useEnsureNotesNotebookJoined,
-  useNotesFolders,
-  useNotesNotebook,
-  useNotesNotes,
-  useSyncNotesNotebook,
 } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
-import { Button, LoadingSpinner, Text } from '@tloncorp/ui';
+import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
@@ -25,15 +18,14 @@ import { OverflowTriggerButton } from '../OverflowMenuButton';
 import {
   MetadataPill,
   MoveNoteSheet,
+  NotebookGateMessage,
   NotesErrorMessage,
   NotesMessage,
+  useNotebookData,
 } from './NotesCommon';
 import { buildFolderRows, formatNoteDate } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
-
-const EMPTY_FOLDERS: db.NotesFolder[] = [];
-const EMPTY_NOTES: db.NotesNote[] = [];
 
 export function NotesNoteDetail({
   noteId,
@@ -53,20 +45,8 @@ export function NotesNoteDetail({
   const [isMovingNote, setIsMovingNote] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
 
-  const joinQuery = useEnsureNotesNotebookJoined({ notebookFlag });
-  const joined = joinQuery.data !== false;
-  const syncQuery = useSyncNotesNotebook({
-    notebookFlag,
-    enabled: Boolean(notebookFlag) && joined && !joinQuery.isLoading,
-  });
-  const notebookQuery = useNotesNotebook(notebookFlag, joined);
-  const foldersQuery = useNotesFolders(notebookFlag, joined);
-  const notesQuery = useNotesNotes(notebookFlag, joined);
-
-  const notebook = notebookQuery.data ?? null;
-  const folders = foldersQuery.data ?? EMPTY_FOLDERS;
-  const notes = notesQuery.data ?? EMPTY_NOTES;
-  const canEdit = notebook ? notebook.currentUserRole !== 'viewer' : false;
+  const { folders, notes, canEdit, rootFolderId, gate } =
+    useNotebookData(notebookFlag);
   const selectedNote = useMemo(() => {
     if (noteId === null) return null;
     return notes.find((note) => note.noteId === noteId) ?? null;
@@ -79,14 +59,6 @@ export function NotesNoteDetail({
       ((titleDraft.trim() || 'Untitled') !== selectedNote.title ||
         bodyDraft !== selectedNote.bodyMd)
   );
-  const rootFolderId = useMemo(() => {
-    return (
-      notebook?.rootFolderId ??
-      folders.find((folder) => folder.parentFolderId === null)?.folderId ??
-      folders[0]?.folderId ??
-      null
-    );
-  }, [folders, notebook?.rootFolderId]);
   const folderRows = useMemo(
     () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
     [folders, rootFolderId]
@@ -105,11 +77,6 @@ export function NotesNoteDetail({
       };
     }
   }, [bodyDraft]);
-
-  useEffect(() => {
-    if (!notebookFlag) return;
-    markNotesNotebookOpened(notebookFlag);
-  }, [notebookFlag]);
 
   useEffect(() => {
     setDraftNoteId(selectedNote?.id ?? null);
@@ -231,23 +198,16 @@ export function NotesNoteDetail({
     ])
   );
 
-  if (!notebookFlag || noteId === null) {
+  if (noteId === null) {
     return <NotesMessage title="Note unavailable" />;
   }
 
-  if (joinQuery.isLoading || (syncQuery.isLoading && !notebook)) {
+  if (gate) {
     return (
-      <NotesMessage title="Loading note">
-        <LoadingSpinner />
-      </NotesMessage>
-    );
-  }
-
-  if (joinQuery.data === false) {
-    return (
-      <NotesMessage
-        title="Unable to join notebook"
-        subtitle="This notebook is private or no longer available."
+      <NotebookGateMessage
+        gate={gate}
+        loadingTitle="Loading note"
+        unavailableTitle="Note unavailable"
       />
     );
   }
