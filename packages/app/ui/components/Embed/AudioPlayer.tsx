@@ -1,19 +1,11 @@
 import { makePrettyTimeFromMs } from '@tloncorp/shared/logic';
 import { Icon, LoadingSpinner, Pressable } from '@tloncorp/ui';
 import {
-  AVPlaybackStatus,
-  Audio as ExpoAudio,
-  InterruptionModeAndroid,
-  InterruptionModeIOS,
-} from 'expo-av';
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from 'react';
+  setAudioModeAsync,
+  useAudioPlayer,
+  useAudioPlayerStatus,
+} from 'expo-audio';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { GestureResponderEvent } from 'react-native';
 import { Text, View } from 'tamagui';
 
@@ -22,89 +14,39 @@ import { AudioPlayerHandle } from './AudioEmbedShared';
 export const AudioPlayer = forwardRef<
   AudioPlayerHandle,
   { url: string; canUnload?: boolean }
->(function AudioPlayer({ url, canUnload }, forwardedRef) {
-  const [playbackStatus, setPlaybackStatus] = useState<AVPlaybackStatus>();
-  const [playbackError, setPlaybackError] = useState<string>();
-  const [sound, setSound] = useState<ExpoAudio.Sound>();
+>(function AudioPlayer({ url }, forwardedRef) {
+  const player = useAudioPlayer({ uri: url });
+  const status = useAudioPlayerStatus(player);
   const progressBarWidthRef = useRef(0);
 
   useEffect(() => {
-    ExpoAudio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      interruptionModeIOS: InterruptionModeIOS.DuckOthers,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-      playThroughEarpieceAndroid: false,
-      staysActiveInBackground: true,
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      interruptionMode: 'duckOthers',
+      shouldPlayInBackground: true,
+      shouldRouteThroughEarpiece: false,
     });
   }, []);
 
-  useEffect(() => {
-    const loadSound = async () => {
-      const { sound: expoAudioSound } = await ExpoAudio.Sound.createAsync({
-        uri: url,
-      });
-      setSound(expoAudioSound);
-    };
-
-    if (canUnload) {
-      return () => {
-        if (sound) {
-          sound.unloadAsync();
-          setSound(undefined);
-        }
-      };
-    }
-
-    if (!sound) {
-      loadSound();
-      return;
-    }
-
-    sound.setOnPlaybackStatusUpdate((status) => {
-      setPlaybackStatus(status);
-    });
-
-    return () => {
-      sound.unloadAsync();
-      setSound(undefined);
-    };
-  }, [sound, url, canUnload]);
-
-  const handlePlayPause = useCallback(async () => {
-    if (!sound) {
-      return { isPlaying: false };
-    }
-
-    if (!playbackStatus) {
-      return { isPlaying: false };
-    }
-
-    if (!playbackStatus?.isLoaded) {
-      if ('error' in playbackStatus) {
-        console.error(playbackStatus.error);
-        setPlaybackError(playbackStatus.error);
-      }
-      return { isPlaying: false };
-    }
-
-    if (playbackStatus.isPlaying) {
-      await sound.pauseAsync();
-    } else {
-      await sound.playAsync();
-    }
-    return { isPlaying: !playbackStatus.isPlaying };
-  }, [playbackStatus, sound]);
-
-  const stop = useCallback(async () => {
-    await sound?.stopAsync();
-  }, [sound]);
-
   useImperativeHandle(forwardedRef, () => ({
-    togglePlayPause: handlePlayPause,
-    stop,
+    togglePlayPause: async () => {
+      if (status.playing) {
+        player.pause();
+        return { isPlaying: false };
+      }
+      player.play();
+      return { isPlaying: true };
+    },
+    stop: async () => {
+      player.pause();
+      player.seekTo(0);
+    },
   }));
+
+  const isLoaded = status.isLoaded;
+  const positionMillis = status.currentTime * 1000;
+  const durationMillis = status.duration ? status.duration * 1000 : 0;
+  const playbackError = status.reasonForWaitingToPlay ?? null;
 
   return (
     <View padding="$m" borderRadius="$l" width="100%">
@@ -121,10 +63,10 @@ export const AudioPlayer = forwardRef<
             padding="$s"
             marginRight="$s"
           >
-            {playbackStatus?.isLoaded ? (
-              playbackStatus?.isPlaying ? (
+            {isLoaded ? (
+              status.playing ? (
                 <Icon type="Stop" size="$m" color="$primaryText" />
-              ) : playbackStatus.isBuffering ? (
+              ) : status.isBuffering ? (
                 <LoadingSpinner size="small" />
               ) : (
                 <Icon type="Play" size="$m" color="$primaryText" />
@@ -140,13 +82,13 @@ export const AudioPlayer = forwardRef<
               fontWeight="$l"
               marginBottom="$xs"
             >
-              {playbackStatus?.isLoaded
-                ? playbackStatus.isPlaying
+              {isLoaded
+                ? status.playing
                   ? 'Now Playing'
                   : 'Audio Track'
                 : 'Loading...'}
             </Text>
-            {playbackStatus?.isLoaded && (
+            {isLoaded && (
               <>
                 <View
                   backgroundColor="$border"
@@ -161,30 +103,26 @@ export const AudioPlayer = forwardRef<
                 >
                   <Pressable
                     onPress={async (e: GestureResponderEvent) => {
-                      if (
-                        sound &&
-                        playbackStatus.durationMillis &&
-                        progressBarWidthRef.current > 0
-                      ) {
+                      if (durationMillis && progressBarWidthRef.current > 0) {
                         const { locationX } = e.nativeEvent;
-                        const position =
+                        const positionSec =
                           (locationX / progressBarWidthRef.current) *
-                          playbackStatus.durationMillis;
-                        await sound.setPositionAsync(position);
+                          (durationMillis / 1000);
+                        player.seekTo(positionSec);
                       }
                     }}
                   >
                     <View
                       backgroundColor="$primaryText"
                       height="100%"
-                      width={`${(playbackStatus.positionMillis / (playbackStatus.durationMillis || 1)) * 100}%`}
+                      width={`${(positionMillis / (durationMillis || 1)) * 100}%`}
                     />
                   </Pressable>
                 </View>
                 <Text color="$textMuted" fontSize="$s">
-                  {makePrettyTimeFromMs(playbackStatus.positionMillis)}
-                  {playbackStatus.durationMillis
-                    ? ` / ${makePrettyTimeFromMs(playbackStatus.durationMillis)}`
+                  {makePrettyTimeFromMs(positionMillis)}
+                  {durationMillis
+                    ? ` / ${makePrettyTimeFromMs(durationMillis)}`
                     : null}
                 </Text>
               </>
