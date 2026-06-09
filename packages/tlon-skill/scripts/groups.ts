@@ -619,6 +619,11 @@ function getGroupHost(groupId: string): string {
  * A poke ack means "my ship forwarded this," not "the host applied it" — so this
  * reads the group's actual state and checks the acting ship is the host or an admin
  * before any mutation runs. `action` is the user-facing verb (e.g. "promote").
+ *
+ * Retries like the post-poke verification paths: on a foreign-hosted group the local
+ * snapshot can lag a just-granted admin role, so a single stale read shouldn't hard
+ * fail an action the host would now accept. The happy path returns on the first
+ * attempt; only a (transient or genuine) rejection waits.
  */
 async function assertActingShipCanAdminister(
   groupId: string,
@@ -626,17 +631,39 @@ async function assertActingShipCanAdminister(
 ): Promise<void> {
   const actingShip = normalizeShip(getCurrentUserId());
   const hostShip = getGroupHost(groupId);
-  const rawGroup = await getRawGroupForAdminVerification(groupId);
-  const result = actingShipCanAdminister(
-    rawGroup,
-    actingShip,
-    hostShip,
-    normalizeShip
-  );
 
-  if (!result.ok) {
-    throw new Error(`Can't ${action} in ${groupId}: ${result.reason}`);
+  let lastReason: string | null = null;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
+    try {
+      const rawGroup = await getRawGroupForAdminVerification(groupId);
+      const result = actingShipCanAdminister(
+        rawGroup,
+        actingShip,
+        hostShip,
+        normalizeShip
+      );
+      if (result.ok) {
+        return;
+      }
+      lastReason = result.reason;
+    } catch (err) {
+      lastError = err;
+    }
+
+    if (attempt < VERIFY_ATTEMPTS) {
+      await sleep(VERIFY_DELAY_MS);
+    }
   }
+
+  if (lastReason) {
+    throw new Error(`Can't ${action} in ${groupId}: ${lastReason}`);
+  }
+
+  throw new Error(
+    `Can't ${action} in ${groupId}: could not read group state: ${lastError}`
+  );
 }
 
 /**
