@@ -550,6 +550,16 @@ async function ensureAdminRole(groupId: string, group?: Group) {
     });
 
     await setAdminRole(groupId, ADMIN_ROLE_ID);
+    return;
+  }
+
+  // The role already exists — make sure the group actually marks it as an admin
+  // role. A role named `admin` that isn't in `admins` grants no privileges, so
+  // promoting into it would otherwise assign a powerless role.
+  const rawGroup = await getRawGroupForAdminVerification(groupId);
+  if (!rawGroup.admins?.includes(ADMIN_ROLE_ID)) {
+    console.log(`Marking "${ADMIN_ROLE_ID}" role as admin in ${groupId}...`);
+    await setAdminRole(groupId, ADMIN_ROLE_ID);
   }
 }
 
@@ -1310,32 +1320,28 @@ async function promoteMemberToAdmin(groupId: string, ships: string[]) {
   console.log(`✅ Members promoted to admin.`);
 }
 
-// Demote a member from admin by removing them from admin roles
+// Demote a member from admin by removing them from every admin-marked role
 async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
   await assertActingShipCanAdminister(groupId, 'demote');
-  const group = await getGroup(groupId);
 
-  // Find all admin roles this member might have
-  // For now, check the "admin" role
-  const adminRoles = (group.roles || []).filter((r) => {
-    // We can't easily tell which roles are admin from the group info alone,
-    // so we target the "admin" role specifically
-    return r.id === ADMIN_ROLE_ID;
-  });
+  // Remove every role the group marks as admin (`rawGroup.admins`), not just the
+  // literal `admin` role — otherwise a member with a custom admin role stays an
+  // admin and verification below would fail on a partial mutation.
+  const rawGroup = await getRawGroupForAdminVerification(groupId);
+  const adminRoles = rawGroup.admins ?? [];
 
   if (adminRoles.length === 0) {
-    console.error(`No "${ADMIN_ROLE_ID}" role found in ${groupId}.`);
-    process.exit(1);
+    throw new Error(`No admin roles found in ${groupId}.`);
   }
 
-  for (const role of adminRoles) {
-    console.log(
-      `Removing "${role.id}" role from ${normalizedShips.join(', ')}...`
-    );
+  console.log(
+    `Removing admin roles (${adminRoles.join(', ')}) from ${normalizedShips.join(', ')}...`
+  );
+  for (const roleId of adminRoles) {
     await removeMembersFromRole({
       groupId,
-      roleId: role.id,
+      roleId,
       ships: normalizedShips,
     });
   }

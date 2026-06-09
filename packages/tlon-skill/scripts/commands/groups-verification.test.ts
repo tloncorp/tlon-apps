@@ -126,6 +126,25 @@ describe('seatHasAdminRole', () => {
     const group: RawGroupForAdminVerification = { admins: ['admin'] };
     expect(seatHasAdminRole(group, MEMBER, normalizeShip)).toBe(false);
   });
+
+  it('stays true while any admin role remains (partial demote)', () => {
+    // Group marks both `admin` and `steward` as admin; the member held both and
+    // only `admin` was removed — they are still an admin via `steward`, so a
+    // demote that stopped here must not report success.
+    const group: RawGroupForAdminVerification = {
+      admins: ['admin', 'steward'],
+      seats: { [MEMBER]: { roles: ['steward'] } },
+    };
+    expect(seatHasAdminRole(group, MEMBER, normalizeShip)).toBe(true);
+  });
+
+  it('is false once all admin roles are removed', () => {
+    const group: RawGroupForAdminVerification = {
+      admins: ['admin', 'steward'],
+      seats: { [MEMBER]: { roles: ['member'] } },
+    };
+    expect(seatHasAdminRole(group, MEMBER, normalizeShip)).toBe(false);
+  });
 });
 
 describe('actingShipCanAdminister', () => {
