@@ -42,6 +42,38 @@ function compareNotes(a: db.NotesNote, b: db.NotesNote) {
   );
 }
 
+function findRootFolder(
+  folders: db.NotesFolder[],
+  rootFolderId: number | null
+) {
+  return (
+    folders.find((folder) => folder.folderId === rootFolderId) ??
+    folders.find((folder) => folder.parentFolderId === null)
+  );
+}
+
+/**
+ * Visits any folders the root traversal missed: first those whose parent is
+ * absent from the set, then anything still unvisited (cycles).
+ */
+function visitOrphans(
+  folders: db.NotesFolder[],
+  byId: Map<number, db.NotesFolder>,
+  visited: Set<number>,
+  visit: (folder: db.NotesFolder, depth: number) => void
+) {
+  folders
+    .filter((folder) => {
+      if (visited.has(folder.folderId)) return false;
+      return folder.parentFolderId == null || !byId.has(folder.parentFolderId);
+    })
+    .forEach((folder) => visit(folder, 0));
+
+  folders
+    .filter((folder) => !visited.has(folder.folderId))
+    .forEach((folder) => visit(folder, 0));
+}
+
 export function filterNotesTreeData({
   folders,
   notes,
@@ -121,9 +153,7 @@ export function buildFolderRows(
 
   const rows: FolderRow[] = [];
   const visited = new Set<number>();
-  const root =
-    folders.find((folder) => folder.folderId === rootFolderId) ??
-    folders.find((folder) => folder.parentFolderId === null);
+  const root = findRootFolder(folders, rootFolderId);
 
   const visit = (folder: db.NotesFolder, depth: number, parentPath = '') => {
     if (visited.has(folder.folderId)) return;
@@ -147,17 +177,7 @@ export function buildFolderRows(
   if (root) {
     visit(root, 0);
   }
-
-  folders
-    .filter((folder) => {
-      if (visited.has(folder.folderId)) return false;
-      return folder.parentFolderId == null || !byId.has(folder.parentFolderId);
-    })
-    .forEach((folder) => visit(folder, 0));
-
-  folders
-    .filter((folder) => !visited.has(folder.folderId))
-    .forEach((folder) => visit(folder, 0));
+  visitOrphans(folders, byId, visited, visit);
 
   return rows;
 }
@@ -190,9 +210,7 @@ export function buildNotesTreeRows({
 
   const rows: NotesTreeRow[] = [];
   const visitedFolderIds = new Set<number>();
-  const root =
-    folders.find((folder) => folder.folderId === rootFolderId) ??
-    folders.find((folder) => folder.parentFolderId === null);
+  const root = findRootFolder(folders, rootFolderId);
 
   const appendNotes = (folderId: number, depth: number) => {
     const folderNotes = notesByFolder.get(folderId) ?? [];
@@ -237,16 +255,7 @@ export function buildNotesTreeRows({
     visit(root, 0);
   }
 
-  folders
-    .filter((folder) => {
-      if (visitedFolderIds.has(folder.folderId)) return false;
-      return folder.parentFolderId == null || !byId.has(folder.parentFolderId);
-    })
-    .forEach((folder) => visit(folder, 0));
-
-  folders
-    .filter((folder) => !visitedFolderIds.has(folder.folderId))
-    .forEach((folder) => visit(folder, 0));
+  visitOrphans(folders, byId, visitedFolderIds, visit);
 
   notes
     .filter((note) => !renderedNoteIds.has(note.id))

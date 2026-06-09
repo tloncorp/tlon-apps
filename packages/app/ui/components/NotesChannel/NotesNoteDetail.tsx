@@ -5,6 +5,7 @@ import {
   moveNotebookNote,
   saveNotebookNote,
 } from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -21,6 +22,7 @@ import {
   NotesMessage,
   NotesOverflowMenu,
   errorMessage,
+  useEntityDialog,
   useNotebookData,
 } from './NotesCommon';
 import { buildFolderRows, formatNoteDate } from './notesTree';
@@ -41,9 +43,15 @@ export function NotesNoteDetail({
   const [bodyDraft, setBodyDraft] = useState('');
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [moveSheetOpen, setMoveSheetOpen] = useState(false);
-  const [isMovingNote, setIsMovingNote] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const {
+    entity: movingNote,
+    isPending: isMovingNote,
+    open: openMoveDialog,
+    close: closeMoveDialog,
+    handleOpenChange: handleMoveOpenChange,
+    run: runMove,
+  } = useEntityDialog<db.NotesNote>();
 
   const { folders, notes, canEdit, rootFolderId, gate } =
     useNotebookData(notebookFlag);
@@ -152,31 +160,38 @@ export function NotesNoteDetail({
       if (!notebookFlag || !selectedNote || !canEdit || isMovingNote) return;
 
       if (folderId === selectedNote.folderId) {
-        setMoveSheetOpen(false);
+        closeMoveDialog();
         return;
       }
 
-      setIsMovingNote(true);
       setError(null);
       try {
-        await moveNotebookNote({
-          notebookFlag,
-          noteId: selectedNote.noteId,
-          folderId,
+        await runMove(async () => {
+          await moveNotebookNote({
+            notebookFlag,
+            noteId: selectedNote.noteId,
+            folderId,
+          });
         });
-        setMoveSheetOpen(false);
       } catch (e) {
         setError(errorMessage(e, 'Failed to move note'));
-      } finally {
-        setIsMovingNote(false);
       }
     },
-    [canEdit, isMovingNote, notebookFlag, selectedNote]
+    [
+      canEdit,
+      closeMoveDialog,
+      isMovingNote,
+      notebookFlag,
+      runMove,
+      selectedNote,
+    ]
   );
 
   const handleOpenMoveSheet = useCallback(() => {
-    setMoveSheetOpen(true);
-  }, []);
+    if (selectedNote) {
+      openMoveDialog(selectedNote);
+    }
+  }, [openMoveDialog, selectedNote]);
 
   useRegisterChannelHeaderItem(
     useMemo(() => {
@@ -326,8 +341,8 @@ export function NotesNoteDetail({
         isMoving={isMovingNote}
         note={selectedNote}
         onMove={handleMoveSelectedNote}
-        onOpenChange={setMoveSheetOpen}
-        open={moveSheetOpen}
+        onOpenChange={handleMoveOpenChange}
+        open={movingNote !== null}
       />
     </YStack>
   );
