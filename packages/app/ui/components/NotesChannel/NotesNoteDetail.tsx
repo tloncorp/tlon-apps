@@ -10,17 +10,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
-import type { Action } from '../ActionSheet';
-import { ActionSheet } from '../ActionSheet';
+import { createActionGroups } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
-import { OverflowTriggerButton } from '../OverflowMenuButton';
 import {
   MetadataPill,
   MoveNoteSheet,
   NotebookGateMessage,
   NotesErrorMessage,
   NotesMessage,
+  NotesOverflowMenu,
   errorMessage,
   useNotebookData,
 } from './NotesCommon';
@@ -343,59 +342,38 @@ function NotesDetailHeaderActions({
   onDelete: () => void;
   onMove: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const actions = useMemo<Action[]>(
-    () => [
-      {
-        title: 'Move to folder',
-        startIcon: 'Folder',
-        action: () => {
-          setOpen(false);
-          onMove();
-        },
-        disabled: isMoving,
-        testID: 'NotesDetailMoveAction',
-      },
-      {
-        title: 'Delete note',
-        startIcon: 'Close',
-        accent: 'negative',
-        action: () => {
-          setOpen(false);
-          onDelete();
-        },
-        testID: 'NotesDetailDeleteAction',
-      },
-    ],
+  const groups = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: 'Move to folder',
+            startIcon: 'Folder',
+            action: onMove,
+            disabled: isMoving,
+            testID: 'NotesDetailMoveAction',
+          },
+        ],
+        [
+          'negative',
+          {
+            title: 'Delete note',
+            startIcon: 'Close',
+            accent: 'negative',
+            action: onDelete,
+            testID: 'NotesDetailDeleteAction',
+          },
+        ]
+      ),
     [isMoving, onDelete, onMove]
   );
 
   return (
-    <ActionSheet
-      open={open}
-      onOpenChange={setOpen}
-      mode={Platform.OS === 'web' ? 'popover' : 'sheet'}
-      trigger={
-        <OverflowTriggerButton
-          testID="NotesDetailActionsTrigger"
-          paddingHorizontal="$xs"
-          paddingVertical="$xs"
-          onPress={(event) => {
-            event.stopPropagation();
-            setOpen(true);
-          }}
-        />
-      }
-    >
-      <ActionSheet.Content>
-        <ActionSheet.ActionGroup accent="neutral">
-          <ActionSheet.Action action={actions[0]} testID={actions[0].testID} />
-        </ActionSheet.ActionGroup>
-        <ActionSheet.ActionGroup accent="negative">
-          <ActionSheet.Action action={actions[1]} testID={actions[1].testID} />
-        </ActionSheet.ActionGroup>
-      </ActionSheet.Content>
-    </ActionSheet>
+    <NotesOverflowMenu
+      groups={groups}
+      triggerTestID="NotesDetailActionsTrigger"
+    />
   );
 }
 
