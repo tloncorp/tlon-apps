@@ -5,7 +5,11 @@ import { useCallback, useMemo } from 'react';
 import { YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
-import { ChannelHeader, ChannelHeaderItemsProvider, NotesNoteDetail } from '../../ui';
+import {
+  ChannelHeader,
+  ChannelHeaderItemsProvider,
+  NotesNoteDetail,
+} from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NotesDetail'>;
 
@@ -15,10 +19,6 @@ export function NotesDetailScreen(props: Props) {
     () => notesNotebookFlagFromChannelId(channelId),
     [channelId]
   );
-  const numericNoteId = useMemo(() => {
-    const parsed = Number(noteId);
-    return Number.isFinite(parsed) ? parsed : null;
-  }, [noteId]);
   const { channel, group } = store.useChannelContext({
     channelId,
     draftKey: channelId,
@@ -43,7 +43,7 @@ export function NotesDetailScreen(props: Props) {
           goBack={handleGoBack}
         />
         <NotesNoteDetail
-          noteId={numericNoteId}
+          noteId={noteId}
           notebookFlag={notebookFlag}
           onDeleted={handleGoBack}
         />

@@ -46,7 +46,7 @@ export type RootStackParamList = {
   NotesDetail: {
     channelId: string;
     groupId?: string;
-    noteId: string;
+    noteId: number;
   };
   MediaViewer: {
     mediaType: 'image' | 'video';

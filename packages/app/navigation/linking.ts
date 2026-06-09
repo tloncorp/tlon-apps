@@ -28,7 +28,10 @@ export const getMobileLinkingConfig = (
           },
           NotesDetail: {
             path: 'group/:groupId/channel/:channelId/note/:noteId',
-            parse: parsePathParams('channelId', 'groupId', 'noteId'),
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              noteId: Number,
+            },
           },
           ChatList: 'ChatList',
           ChannelSearch: { path: 'channel/:channelId/search' },
@@ -152,7 +155,7 @@ export const getDesktopLinkingConfig = (
                   ChannelSearch: {},
                   NotesDetail: {
                     path: 'note/:noteId',
-                    parse: parsePathParams('noteId'),
+                    parse: { noteId: Number },
                   },
                   Post: postScreenConfig(mode),
                   MediaViewer: {},
