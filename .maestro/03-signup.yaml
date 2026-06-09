@@ -98,38 +98,65 @@ onFlowComplete:
 
 # click through welcome tour
 - assertVisible: Let's get started
-- tapOn: Let's get started
+- tapOn:
+    id: lets-get-started
 
 - assertVisible:
-    id: got-it
+    id: bot-configure
 - tapOn:
-    id: got-it
+    id: bot-configure
 
 - assertVisible:
-    id: one-quick-thing
+    id: bot-name-input
 - tapOn:
-    id: one-quick-thing
+    id: bot-name-input
+- inputText: Test Bot
+- assertVisible:
+    id: bot-name-next
+- tapOn:
+    id: bot-name-next
 
 - assertVisible:
-    id: invite-friends
+    id: bot-avatar-skip
 - tapOn:
-    id: invite-friends
+    id: bot-avatar-skip
 
-- assertVisible:
-    id: finish-invites
-- tapOn:
-    id: finish-invites
-
-# allow 7 seconds before checking metadata has loaded
 - extendedWaitUntil:
-    visible: invalidText
-    optional: true
-    timeout: 7000
+    visible: Default (free, used as fallback)
+    timeout: 60000
+- assertVisible:
+    id: bot-provider-next
+- tapOn:
+    id: bot-provider-next
 
-# assert everything we expect to be there is
-- assertVisible: '~wittyr-witbes' # Tlon Support
-- assertVisible: Bot Farm 2
-- assertVisible: shadow brian :)
-# - assertVisible: Tlon Studio
+- assertVisible:
+    id: got-it
+- tapOn:
+    id: got-it
+
+- extendedWaitUntil:
+    visible:
+      id: skip-contact-book
+    optional: true
+    timeout: 1000
+- runFlow:
+    when:
+      visible:
+        id: skip-contact-book
+    commands:
+      - tapOn:
+          id: skip-contact-book
+
+- extendedWaitUntil:
+    visible:
+      id: finish-invites
+    timeout: 30000
+- tapOn:
+    id: finish-invites
+
+# assert we made it through signup and onboarding
+- extendedWaitUntil:
+    visible: Home
+    timeout: 30000
 
 - evalScript: ${output.didComplete = true}
