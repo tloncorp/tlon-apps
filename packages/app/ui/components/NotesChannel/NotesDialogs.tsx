@@ -160,24 +160,21 @@ export function MoveFolderSheet({
   open: boolean;
 }) {
   const label = getFolderLabel(folder);
-  const { disabledFolderIds, disabledFolderLabels } = useMemo(() => {
-    const ids = new Set<number>();
+  const disabledFolders = useMemo(() => {
     const labels = new Map<number, string>();
     if (!folder) {
-      return { disabledFolderIds: ids, disabledFolderLabels: labels };
+      return labels;
     }
 
     collectDescendantFolderIds(folders, folder.folderId).forEach((id) => {
-      ids.add(id);
       labels.set(id, id === folder.folderId ? 'This folder' : 'Nested');
     });
 
     if (folder.parentFolderId !== null && folder.parentFolderId !== undefined) {
-      ids.add(folder.parentFolderId);
       labels.set(folder.parentFolderId, 'Current');
     }
 
-    return { disabledFolderIds: ids, disabledFolderLabels: labels };
+    return labels;
   }, [folder, folders]);
 
   return (
@@ -190,8 +187,7 @@ export function MoveFolderSheet({
       cancelDisabled={isMoving}
     >
       <FolderPicker
-        disabledFolderIds={disabledFolderIds}
-        disabledFolderLabels={disabledFolderLabels}
+        disabledFolders={disabledFolders}
         folderRows={folderRows}
         isLoading={isMoving}
         onSelectFolder={onMove}

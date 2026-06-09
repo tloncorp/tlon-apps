@@ -220,9 +220,10 @@ export function MoveNoteSheet({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
-  const currentFolderIds = useMemo(() => {
-    return note ? new Set([note.folderId]) : new Set<number>();
-  }, [note]);
+  const disabledFolders = useMemo(
+    () => new Map<number, string>(note ? [[note.folderId, 'Current']] : []),
+    [note]
+  );
   const title = note?.title?.trim() || 'Untitled';
 
   const handleOpenChange = useCallback(
@@ -244,8 +245,7 @@ export function MoveNoteSheet({
       cancelDisabled={isMoving}
     >
       <FolderPicker
-        disabledFolderIds={currentFolderIds}
-        disabledLabel="Current"
+        disabledFolders={disabledFolders}
         folderRows={folderRows}
         isLoading={isMoving}
         onSelectFolder={onMove}
@@ -257,9 +257,7 @@ export function MoveNoteSheet({
 }
 
 export function FolderPicker({
-  disabledFolderIds,
-  disabledFolderLabels,
-  disabledLabel,
+  disabledFolders,
   folderRows,
   isLoading = false,
   maxHeight = 220,
@@ -267,9 +265,8 @@ export function FolderPicker({
   selectedFolderId,
   testID,
 }: {
-  disabledFolderIds?: Set<number>;
-  disabledFolderLabels?: Map<number, string>;
-  disabledLabel?: string;
+  /** Folders that can't be chosen, mapped to the label explaining why. */
+  disabledFolders?: Map<number, string>;
   folderRows: FolderRow[];
   isLoading?: boolean;
   maxHeight?: number;
@@ -286,27 +283,20 @@ export function FolderPicker({
       testID={testID}
     >
       <ScrollView maxHeight={maxHeight}>
-        {folderRows.map(({ folder, depth, path }) => {
-          const disabled =
-            isLoading || Boolean(disabledFolderIds?.has(folder.folderId));
-          const disabledRowLabel =
-            disabledFolderLabels?.get(folder.folderId) ??
-            (disabledFolderIds?.has(folder.folderId)
-              ? disabledLabel
-              : undefined);
-          return (
-            <FolderPickerRow
-              key={folder.id}
-              depth={depth}
-              disabled={disabled}
-              disabledLabel={disabledRowLabel}
-              folder={folder}
-              path={path}
-              selected={selectedFolderId === folder.folderId}
-              onPress={() => onSelectFolder(folder.folderId)}
-            />
-          );
-        })}
+        {folderRows.map(({ folder, depth, path }) => (
+          <FolderPickerRow
+            key={folder.id}
+            depth={depth}
+            disabled={
+              isLoading || Boolean(disabledFolders?.has(folder.folderId))
+            }
+            disabledLabel={disabledFolders?.get(folder.folderId)}
+            folder={folder}
+            path={path}
+            selected={selectedFolderId === folder.folderId}
+            onPress={() => onSelectFolder(folder.folderId)}
+          />
+        ))}
       </ScrollView>
     </YStack>
   );
