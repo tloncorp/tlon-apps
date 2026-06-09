@@ -66,10 +66,7 @@ export const AudioRecorder = forwardRef<
       }) => void;
       onCancel?: (audioFilePath: string | null) => void;
       dangerouslyOverrideIsAudioAvailable?: boolean;
-      /** If provided, will use this number as a paddingHorizontal *except* for
-       * leading edge of waveform. Use this instead of paddingHorizontal to
-       * show waveform starting flush against the left edge of the container
-       * while still having padding on the right edge. */
+      /** Horizontal padding applied to both edges of the container. */
       contentInsetHorizontal?: number;
     } & (
       | {
@@ -374,7 +371,7 @@ export const AudioRecorder = forwardRef<
       {...(contentInsetHorizontal == null
         ? null
         : {
-            paddingStart: state.live ? undefined : contentInsetHorizontal,
+            paddingStart: contentInsetHorizontal,
             paddingEnd: contentInsetHorizontal,
           })}
       {...forwardedProps}
