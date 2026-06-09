@@ -14,7 +14,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import * as db from '@tloncorp/shared/db';
 import { Icon } from '@tloncorp/ui';
 import React, {
   CSSProperties,
