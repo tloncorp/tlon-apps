@@ -1,16 +1,11 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import {
-  convertContent,
   createNotebookFolder,
   createNotebookNote,
-  deleteNotebookNote,
-  makePrettyShortDate,
   markNotesNotebookOpened,
-  markdownToStory,
   moveNotebookFolder,
   moveNotebookNote,
   renameNotebookFolder,
-  saveNotebookNote,
   useEnsureNotesNotebookJoined,
   useNotesFolders,
   useNotesNotebook,
@@ -22,15 +17,8 @@ import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
-import { Alert, Platform } from 'react-native';
-import {
-  Input,
-  ScrollView,
-  TamaguiWebElement,
-  TextArea,
-  XStack,
-  YStack,
-} from 'tamagui';
+import { Platform } from 'react-native';
+import { ScrollView, TamaguiWebElement, XStack, YStack, styled } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
 import type { Action } from '../ActionSheet';
@@ -38,23 +26,25 @@ import { ActionSheet, SimpleActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import { TextInput } from '../Form';
 import { ListItem } from '../ListItem';
-import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-
-type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
-type NotesTreeViewStyle = db.NotesTreeViewPreference;
-type FolderRow = { folder: db.NotesFolder; depth: number; path: string };
-type NotesTreeRow =
-  | {
-      type: 'folder';
-      folder: db.NotesFolder;
-      depth: number;
-      expanded: boolean;
-      hasChildren: boolean;
-      noteCount: number;
-      path: string;
-    }
-  | { type: 'note'; note: db.NotesNote; depth: number };
+import {
+  FolderPicker,
+  MoveNoteSheet,
+  NotesErrorMessage,
+  NotesMessage,
+  useEntityDialog,
+} from './NotesCommon';
+import {
+  buildFolderNoteCounts,
+  buildFolderRows,
+  buildNotesTreeRows,
+  collectDescendantFolderIds,
+  filterNotesTreeData,
+  formatNoteDate,
+  getFolderLabel,
+  normalizeSearchText,
+} from './notesTree';
+import type { FolderRow, NotesTreeViewStyle } from './notesTree';
 
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
 const EMPTY_NOTES: db.NotesNote[] = [];
@@ -67,18 +57,31 @@ const TREE_CARET_CENTER_Y = TREE_ROW_HEIGHT / 2;
 const TREE_CHILD_GUIDE_CARET_OFFSET = 8;
 const TREE_CHILD_GUIDE_TOP =
   TREE_CARET_CENTER_Y + TREE_CHILD_GUIDE_CARET_OFFSET;
+// Row frame for the comfortable ('notes') view; the outline view uses
+// TreeRowFrame below. Pass minHeight and depth-based paddingLeft inline.
+const NotesViewRow = styled(XStack, {
+  alignItems: 'center',
+  gap: '$m',
+  paddingVertical: '$s',
+  paddingRight: '$m',
+  backgroundColor: '$background',
+  borderBottomColor: '$border',
+  borderBottomWidth: 1,
+  variants: {
+    selected: {
+      true: {
+        backgroundColor: '$secondaryBackground',
+      },
+    },
+  } as const,
+});
+
 const NOTES_TREE_VIEW_OPTIONS: {
   id: NotesTreeViewStyle;
   title: string;
   description: string;
   icon: IconType;
 }[] = [
-  {
-    id: 'notion',
-    title: 'Compact',
-    description: 'Dense nested rows for scanning.',
-    icon: 'LeftSidebar',
-  },
   {
     id: 'outline',
     title: 'Normal',
@@ -113,18 +116,34 @@ export function NotesNativeChannel({
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newActionSheetOpen, setNewActionSheetOpen] = useState(false);
-  const [movingNote, setMovingNote] = useState<db.NotesNote | null>(null);
-  const [isMovingNote, setIsMovingNote] = useState(false);
   const [folderActionsFolder, setFolderActionsFolder] =
     useState<db.NotesFolder | null>(null);
-  const [renamingFolder, setRenamingFolder] = useState<db.NotesFolder | null>(
-    null
-  );
   const [renameFolderName, setRenameFolderName] = useState('');
-  const [isRenamingFolder, setIsRenamingFolder] = useState(false);
-  const [movingFolder, setMovingFolder] = useState<db.NotesFolder | null>(null);
-  const [isMovingFolder, setIsMovingFolder] = useState(false);
   const [notesFilterQuery, setNotesFilterQuery] = useState('');
+  const {
+    entity: movingNote,
+    isPending: isMovingNote,
+    open: openMoveNoteDialog,
+    close: closeMoveNoteDialog,
+    handleOpenChange: handleMoveNoteOpenChange,
+    run: runMoveNote,
+  } = useEntityDialog<db.NotesNote>();
+  const {
+    entity: renamingFolder,
+    isPending: isRenamingFolder,
+    open: openRenameFolderDialog,
+    close: closeRenameFolderDialog,
+    handleOpenChange: handleRenameFolderOpenChange,
+    run: runRenameFolder,
+  } = useEntityDialog<db.NotesFolder>();
+  const {
+    entity: movingFolder,
+    isPending: isMovingFolder,
+    open: openMoveFolderDialog,
+    close: closeMoveFolderDialog,
+    handleOpenChange: handleMoveFolderOpenChange,
+    run: runMoveFolder,
+  } = useEntityDialog<db.NotesFolder>();
   const { value: treeViewStyle, setValue: setTreeViewStyle } =
     db.notesTreeViewPreference.useStorageItem();
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(
@@ -245,17 +264,24 @@ export function NotesNativeChannel({
     [channelId, groupId, navigation]
   );
 
+  const expandFolder = useCallback((folderId: number) => {
+    setExpandedFolderIds((currentIds) => {
+      if (currentIds.has(folderId)) {
+        return currentIds;
+      }
+      const nextIds = new Set(currentIds);
+      nextIds.add(folderId);
+      return nextIds;
+    });
+  }, []);
+
   const handleCreateNote = useCallback(async () => {
     if (!notebookFlag || !rootFolderId || !canEdit || isCreatingNote) return;
     const targetFolderId = selectedFolderId ?? rootFolderId;
     setIsCreatingNote(true);
     setError(null);
     try {
-      setExpandedFolderIds((currentIds) => {
-        const nextIds = new Set(currentIds);
-        nextIds.add(targetFolderId);
-        return nextIds;
-      });
+      expandFolder(targetFolderId);
       const note = await createNotebookNote({
         notebookFlag,
         folderId: targetFolderId,
@@ -271,6 +297,7 @@ export function NotesNativeChannel({
     }
   }, [
     canEdit,
+    expandFolder,
     isCreatingNote,
     notebookFlag,
     openNote,
@@ -291,11 +318,7 @@ export function NotesNativeChannel({
         parentFolderId,
         name: newFolderName.trim(),
       });
-      setExpandedFolderIds((currentIds) => {
-        const nextIds = new Set(currentIds);
-        nextIds.add(parentFolderId);
-        return nextIds;
-      });
+      expandFolder(parentFolderId);
       setNewFolderName('');
       setAddFolderOpen(false);
     } catch (e) {
@@ -303,7 +326,14 @@ export function NotesNativeChannel({
     } finally {
       setIsCreatingFolder(false);
     }
-  }, [canEdit, newFolderName, newFolderParentId, notebookFlag, rootFolderId]);
+  }, [
+    canEdit,
+    expandFolder,
+    newFolderName,
+    newFolderParentId,
+    notebookFlag,
+    rootFolderId,
+  ]);
 
   const handleAddFolderOpenChange = useCallback(
     (open: boolean) => {
@@ -330,18 +360,9 @@ export function NotesNativeChannel({
   const handleOpenMoveNote = useCallback(
     (note: db.NotesNote) => {
       if (!canEdit) return;
-      setMovingNote(note);
+      openMoveNoteDialog(note);
     },
-    [canEdit]
-  );
-
-  const handleMoveNoteOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open && !isMovingNote) {
-        setMovingNote(null);
-      }
-    },
-    [isMovingNote]
+    [canEdit, openMoveNoteDialog]
   );
 
   const handleMoveNoteToFolder = useCallback(
@@ -349,32 +370,34 @@ export function NotesNativeChannel({
       if (!notebookFlag || !movingNote || !canEdit || isMovingNote) return;
 
       if (folderId === movingNote.folderId) {
-        setMovingNote(null);
+        closeMoveNoteDialog();
         return;
       }
 
-      setIsMovingNote(true);
       setError(null);
       try {
-        await moveNotebookNote({
-          notebookFlag,
-          noteId: movingNote.noteId,
-          folderId,
+        await runMoveNote(async () => {
+          await moveNotebookNote({
+            notebookFlag,
+            noteId: movingNote.noteId,
+            folderId,
+          });
+          expandFolder(folderId);
+          setSelectedFolderId(folderId);
         });
-        setExpandedFolderIds((currentIds) => {
-          const nextIds = new Set(currentIds);
-          nextIds.add(folderId);
-          return nextIds;
-        });
-        setSelectedFolderId(folderId);
-        setMovingNote(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to move note');
-      } finally {
-        setIsMovingNote(false);
       }
     },
-    [canEdit, isMovingNote, movingNote, notebookFlag]
+    [
+      canEdit,
+      closeMoveNoteDialog,
+      expandFolder,
+      isMovingNote,
+      movingNote,
+      notebookFlag,
+      runMoveNote,
+    ]
   );
 
   const handleOpenFolderActions = useCallback(
@@ -385,25 +408,21 @@ export function NotesNativeChannel({
     [canEdit]
   );
 
-  const handleOpenRenameFolder = useCallback((folder: db.NotesFolder) => {
-    setFolderActionsFolder(null);
-    setRenamingFolder(folder);
-    setRenameFolderName(getFolderLabel(folder));
-  }, []);
-
-  const handleOpenMoveFolder = useCallback((folder: db.NotesFolder) => {
-    setFolderActionsFolder(null);
-    setMovingFolder(folder);
-  }, []);
-
-  const handleRenameFolderOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open && !isRenamingFolder) {
-        setRenamingFolder(null);
-        setRenameFolderName('');
-      }
+  const handleOpenRenameFolder = useCallback(
+    (folder: db.NotesFolder) => {
+      setFolderActionsFolder(null);
+      openRenameFolderDialog(folder);
+      setRenameFolderName(getFolderLabel(folder));
     },
-    [isRenamingFolder]
+    [openRenameFolderDialog]
+  );
+
+  const handleOpenMoveFolder = useCallback(
+    (folder: db.NotesFolder) => {
+      setFolderActionsFolder(null);
+      openMoveFolderDialog(folder);
+    },
+    [openMoveFolderDialog]
   );
 
   const handleRenameFolder = useCallback(async () => {
@@ -415,42 +434,31 @@ export function NotesNativeChannel({
     if (!nextName) return;
 
     if (nextName === renamingFolder.name) {
-      setRenamingFolder(null);
-      setRenameFolderName('');
+      closeRenameFolderDialog();
       return;
     }
 
-    setIsRenamingFolder(true);
     setError(null);
     try {
-      await renameNotebookFolder({
-        notebookFlag,
-        folder: renamingFolder,
-        name: nextName,
+      await runRenameFolder(async () => {
+        await renameNotebookFolder({
+          notebookFlag,
+          folder: renamingFolder,
+          name: nextName,
+        });
       });
-      setRenamingFolder(null);
-      setRenameFolderName('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to rename folder');
-    } finally {
-      setIsRenamingFolder(false);
     }
   }, [
     canEdit,
+    closeRenameFolderDialog,
     isRenamingFolder,
     notebookFlag,
     renameFolderName,
     renamingFolder,
+    runRenameFolder,
   ]);
-
-  const handleMoveFolderOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open && !isMovingFolder) {
-        setMovingFolder(null);
-      }
-    },
-    [isMovingFolder]
-  );
 
   const handleMoveFolderToParent = useCallback(
     async (parentFolderId: number) => {
@@ -459,33 +467,35 @@ export function NotesNativeChannel({
       }
 
       if (parentFolderId === movingFolder.parentFolderId) {
-        setMovingFolder(null);
+        closeMoveFolderDialog();
         return;
       }
 
-      setIsMovingFolder(true);
       setError(null);
       try {
-        await moveNotebookFolder({
-          notebookFlag,
-          folder: movingFolder,
-          parentFolderId,
+        await runMoveFolder(async () => {
+          await moveNotebookFolder({
+            notebookFlag,
+            folder: movingFolder,
+            parentFolderId,
+          });
+          expandFolder(parentFolderId);
+          expandFolder(movingFolder.folderId);
+          setSelectedFolderId(movingFolder.folderId);
         });
-        setExpandedFolderIds((currentIds) => {
-          const nextIds = new Set(currentIds);
-          nextIds.add(parentFolderId);
-          nextIds.add(movingFolder.folderId);
-          return nextIds;
-        });
-        setSelectedFolderId(movingFolder.folderId);
-        setMovingFolder(null);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to move folder');
-      } finally {
-        setIsMovingFolder(false);
       }
     },
-    [canEdit, isMovingFolder, movingFolder, notebookFlag]
+    [
+      canEdit,
+      closeMoveFolderDialog,
+      expandFolder,
+      isMovingFolder,
+      movingFolder,
+      notebookFlag,
+      runMoveFolder,
+    ]
   );
 
   const newActions = useMemo<Action[]>(
@@ -599,7 +609,7 @@ export function NotesNativeChannel({
 
       <YStack
         width="100%"
-        maxWidth={treeViewStyle === 'notion' ? 680 : 760}
+        maxWidth={760}
         marginHorizontal="auto"
         paddingLeft={treeViewStyle === 'notes' ? '$m' : '$s'}
         paddingRight={treeViewStyle === 'notes' ? '$l' : '$m'}
@@ -616,7 +626,7 @@ export function NotesNativeChannel({
       <ScrollView flex={1}>
         <YStack
           width="100%"
-          maxWidth={treeViewStyle === 'notion' ? 680 : 760}
+          maxWidth={760}
           marginHorizontal="auto"
           paddingLeft={treeViewStyle === 'notes' ? '$m' : '$s'}
           paddingRight={treeViewStyle === 'notes' ? '$l' : '$m'}
@@ -624,9 +634,7 @@ export function NotesNativeChannel({
           paddingBottom={treeViewStyle === 'notes' ? '$l' : '$m'}
         >
           <YStack
-            gap={
-              treeViewStyle === 'notes' ? 0 : treeViewStyle === 'notion' ? 1 : 2
-            }
+            gap={treeViewStyle === 'notes' ? 0 : 2}
             borderColor={treeViewStyle === 'notes' ? '$border' : 'transparent'}
             borderWidth={treeViewStyle === 'notes' ? 1 : 0}
             borderRadius={treeViewStyle === 'notes' ? '$xl' : 0}
@@ -759,345 +767,6 @@ export function NotesNativeChannel({
   );
 }
 
-export function NotesNoteDetail({
-  noteId,
-  notebookFlag,
-  onDeleted,
-}: {
-  noteId: number | null;
-  notebookFlag: string | null | undefined;
-  onDeleted?: () => void;
-}) {
-  const [draftNoteId, setDraftNoteId] = useState<string | null>(null);
-  const [titleDraft, setTitleDraft] = useState('');
-  const [bodyDraft, setBodyDraft] = useState('');
-  const [saveState, setSaveState] = useState<SaveState>('idle');
-  const [error, setError] = useState<string | null>(null);
-  const [moveSheetOpen, setMoveSheetOpen] = useState(false);
-  const [isMovingNote, setIsMovingNote] = useState(false);
-  const [isPreviewing, setIsPreviewing] = useState(false);
-
-  const joinQuery = useEnsureNotesNotebookJoined({ notebookFlag });
-  const joined = joinQuery.data !== false;
-  const syncQuery = useSyncNotesNotebook({
-    notebookFlag,
-    enabled: Boolean(notebookFlag) && joined && !joinQuery.isLoading,
-  });
-  const notebookQuery = useNotesNotebook(notebookFlag, joined);
-  const foldersQuery = useNotesFolders(notebookFlag, joined);
-  const notesQuery = useNotesNotes(notebookFlag, joined);
-
-  const notebook = notebookQuery.data ?? null;
-  const folders = foldersQuery.data ?? EMPTY_FOLDERS;
-  const notes = notesQuery.data ?? EMPTY_NOTES;
-  const canEdit = notebook ? notebook.currentUserRole !== 'viewer' : false;
-  const selectedNote = useMemo(() => {
-    if (noteId === null) return null;
-    return notes.find((note) => note.noteId === noteId) ?? null;
-  }, [noteId, notes]);
-
-  const draftsMatchSelectedNote = draftNoteId === (selectedNote?.id ?? null);
-  const isDirty = Boolean(
-    selectedNote &&
-      draftsMatchSelectedNote &&
-      ((titleDraft.trim() || 'Untitled') !== selectedNote.title ||
-        bodyDraft !== selectedNote.bodyMd)
-  );
-  const rootFolderId = useMemo(() => {
-    return (
-      notebook?.rootFolderId ??
-      folders.find((folder) => folder.parentFolderId === null)?.folderId ??
-      folders[0]?.folderId ??
-      null
-    );
-  }, [folders, notebook?.rootFolderId]);
-  const folderRows = useMemo(
-    () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
-    [folders, rootFolderId]
-  );
-  const previewState = useMemo(() => {
-    try {
-      return {
-        content: convertContent(markdownToStory(bodyDraft), null),
-        error: null,
-      };
-    } catch (e) {
-      return {
-        content: [],
-        error:
-          e instanceof Error ? e.message : 'Unable to render Markdown preview',
-      };
-    }
-  }, [bodyDraft]);
-
-  useEffect(() => {
-    if (!notebookFlag) return;
-    markNotesNotebookOpened(notebookFlag);
-  }, [notebookFlag]);
-
-  useEffect(() => {
-    setDraftNoteId(selectedNote?.id ?? null);
-    setTitleDraft(selectedNote?.title ?? '');
-    setBodyDraft(selectedNote?.bodyMd ?? '');
-    setSaveState('idle');
-    setError(null);
-  }, [selectedNote?.id, selectedNote?.bodyMd, selectedNote?.title]);
-
-  const saveSelectedNote = useCallback(async () => {
-    if (!notebookFlag || !selectedNote || !isDirty || !canEdit) return;
-    setSaveState('saving');
-    setError(null);
-    try {
-      await saveNotebookNote({
-        notebookFlag,
-        note: selectedNote,
-        title: titleDraft,
-        body: bodyDraft,
-      });
-      setSaveState('saved');
-    } catch (e) {
-      setSaveState('error');
-      setError(e instanceof Error ? e.message : 'Failed to save note');
-    }
-  }, [bodyDraft, canEdit, isDirty, notebookFlag, selectedNote, titleDraft]);
-
-  useEffect(() => {
-    if (!isDirty || !canEdit) return;
-    setSaveState('dirty');
-    const timeout = setTimeout(() => {
-      saveSelectedNote();
-    }, 1500);
-    return () => clearTimeout(timeout);
-  }, [canEdit, isDirty, saveSelectedNote]);
-
-  const runDeleteSelectedNote = useCallback(async () => {
-    if (!notebookFlag || !selectedNote || !canEdit) return;
-    setError(null);
-    try {
-      await deleteNotebookNote({
-        notebookFlag,
-        noteId: selectedNote.noteId,
-      });
-      onDeleted?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete note');
-    }
-  }, [canEdit, notebookFlag, onDeleted, selectedNote]);
-
-  const handleDeleteSelectedNote = useCallback(() => {
-    if (!selectedNote) return;
-    if (Platform.OS === 'web') {
-      const confirm = (globalThis as { confirm?: (message: string) => boolean })
-        .confirm;
-      if (typeof confirm === 'function' && !confirm('Delete this note?')) {
-        return;
-      }
-      runDeleteSelectedNote();
-      return;
-    }
-    Alert.alert('Delete note', 'This note will be removed from the notebook.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: runDeleteSelectedNote,
-      },
-    ]);
-  }, [runDeleteSelectedNote, selectedNote]);
-
-  const handleMoveSelectedNote = useCallback(
-    async (folderId: number) => {
-      if (!notebookFlag || !selectedNote || !canEdit || isMovingNote) return;
-
-      if (folderId === selectedNote.folderId) {
-        setMoveSheetOpen(false);
-        return;
-      }
-
-      setIsMovingNote(true);
-      setError(null);
-      try {
-        await moveNotebookNote({
-          notebookFlag,
-          noteId: selectedNote.noteId,
-          folderId,
-        });
-        setMoveSheetOpen(false);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to move note');
-      } finally {
-        setIsMovingNote(false);
-      }
-    },
-    [canEdit, isMovingNote, notebookFlag, selectedNote]
-  );
-
-  const handleOpenMoveSheet = useCallback(() => {
-    setMoveSheetOpen(true);
-  }, []);
-
-  useRegisterChannelHeaderItem(
-    useMemo(() => {
-      if (!canEdit || !selectedNote) return null;
-      return (
-        <NotesDetailHeaderActions
-          isMoving={isMovingNote}
-          onDelete={handleDeleteSelectedNote}
-          onMove={handleOpenMoveSheet}
-        />
-      );
-    }, [
-      canEdit,
-      handleDeleteSelectedNote,
-      handleOpenMoveSheet,
-      isMovingNote,
-      selectedNote,
-    ])
-  );
-
-  if (!notebookFlag || noteId === null) {
-    return <NotesMessage title="Note unavailable" />;
-  }
-
-  if (joinQuery.isLoading || (syncQuery.isLoading && !notebook)) {
-    return (
-      <NotesMessage title="Loading note">
-        <LoadingSpinner />
-      </NotesMessage>
-    );
-  }
-
-  if (joinQuery.data === false) {
-    return (
-      <NotesMessage
-        title="Unable to join notebook"
-        subtitle="This notebook is private or no longer available."
-      />
-    );
-  }
-
-  if (!selectedNote) {
-    return <NotesMessage title="Note not found" />;
-  }
-
-  return (
-    <YStack flex={1} backgroundColor="$background">
-      {error ? <NotesErrorMessage error={error} /> : null}
-      <YStack flex={1} width="100%" maxWidth={760} marginHorizontal="auto">
-        <YStack
-          paddingHorizontal="$xl"
-          paddingTop="$l"
-          paddingBottom="$m"
-          gap="$m"
-          borderBottomColor="$border"
-          borderBottomWidth={1}
-        >
-          <XStack alignItems="center">
-            <Input
-              flex={1}
-              width="100%"
-              value={titleDraft}
-              onChangeText={setTitleDraft}
-              placeholder="Untitled"
-              placeholderTextColor="$tertiaryText"
-              fontSize={20}
-              height={34}
-              minHeight={34}
-              fontWeight="600"
-              borderColor="transparent"
-              borderWidth={0}
-              backgroundColor="transparent"
-              paddingHorizontal={0}
-              paddingVertical={0}
-              disabled={!canEdit}
-            />
-          </XStack>
-          <XStack gap="$s" alignItems="center" flexWrap="wrap">
-            <MetadataPill
-              label={formatNoteDate(selectedNote.updatedAt) ?? 'Unsynced'}
-            />
-            <MetadataPill label={`Rev ${selectedNote.revision}`} />
-            <MetadataPill label="Markdown" icon="Markdown" />
-            <SaveStatus saveState={saveState} isDirty={isDirty} />
-          </XStack>
-        </YStack>
-        <YStack flex={1} minHeight={360} position="relative">
-          {isPreviewing ? (
-            <ScrollView flex={1} testID="NotesPreviewPane">
-              <YStack
-                paddingHorizontal="$xl"
-                paddingTop="$l"
-                paddingBottom={128}
-                gap="$l"
-              >
-                {previewState.error ? (
-                  <NotesMessage
-                    title="Preview unavailable"
-                    subtitle={previewState.error}
-                  />
-                ) : previewState.content.length > 0 ? (
-                  <NotebookContentRenderer
-                    content={previewState.content}
-                    testID="NotesPreviewContent"
-                  />
-                ) : (
-                  <Text size="$body" color="$tertiaryText">
-                    Nothing to preview yet.
-                  </Text>
-                )}
-              </YStack>
-            </ScrollView>
-          ) : (
-            <TextArea
-              flex={1}
-              minHeight={360}
-              value={bodyDraft}
-              onChangeText={setBodyDraft}
-              placeholder="Note body"
-              placeholderTextColor="$tertiaryText"
-              fontFamily="$mono"
-              fontSize={14}
-              color="$primaryText"
-              backgroundColor="$background"
-              borderWidth={0}
-              paddingHorizontal="$xl"
-              paddingTop="$l"
-              paddingBottom={128}
-              disabled={!canEdit}
-              style={{ lineHeight: 22 }}
-              testID="NotesBodyInput"
-            />
-          )}
-          <Button
-            position="absolute"
-            right="$xl"
-            bottom={64}
-            zIndex={100}
-            size="small"
-            fill="outline"
-            type="secondary"
-            backgroundColor="$background"
-            borderColor="$border"
-            leadingIcon={isPreviewing ? 'EditList' : 'EyeOpen'}
-            label={isPreviewing ? 'Edit' : 'Preview'}
-            shadow
-            onPress={() => setIsPreviewing((previewing) => !previewing)}
-            testID="NotesPreviewToggle"
-          />
-        </YStack>
-      </YStack>
-      <MoveNoteSheet
-        folderRows={folderRows}
-        isMoving={isMovingNote}
-        note={selectedNote}
-        onMove={handleMoveSelectedNote}
-        onOpenChange={setMoveSheetOpen}
-        open={moveSheetOpen}
-      />
-    </YStack>
-  );
-}
-
 function NotesHeaderActions({
   canEdit,
   openNewSheetRef,
@@ -1179,87 +848,6 @@ function NotesHeaderActions({
   );
 }
 
-function NotesDetailHeaderActions({
-  isMoving,
-  onDelete,
-  onMove,
-}: {
-  isMoving: boolean;
-  onDelete: () => void;
-  onMove: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const actions = useMemo<Action[]>(
-    () => [
-      {
-        title: 'Move to folder',
-        startIcon: 'Folder',
-        action: () => {
-          setOpen(false);
-          onMove();
-        },
-        disabled: isMoving,
-        testID: 'NotesDetailMoveAction',
-      },
-      {
-        title: 'Delete note',
-        startIcon: 'Close',
-        accent: 'negative',
-        action: () => {
-          setOpen(false);
-          onDelete();
-        },
-        testID: 'NotesDetailDeleteAction',
-      },
-    ],
-    [isMoving, onDelete, onMove]
-  );
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={setOpen}
-      mode={Platform.OS === 'web' ? 'popover' : 'sheet'}
-      trigger={
-        <OverflowTriggerButton
-          testID="NotesDetailActionsTrigger"
-          paddingHorizontal="$xs"
-          paddingVertical="$xs"
-          onPress={(event) => {
-            event.stopPropagation();
-            setOpen(true);
-          }}
-        />
-      }
-    >
-      <ActionSheet.Content>
-        <ActionSheet.ActionGroup accent="neutral">
-          <ActionSheet.Action action={actions[0]} testID={actions[0].testID} />
-        </ActionSheet.ActionGroup>
-        <ActionSheet.ActionGroup accent="negative">
-          <ActionSheet.Action action={actions[1]} testID={actions[1].testID} />
-        </ActionSheet.ActionGroup>
-      </ActionSheet.Content>
-    </ActionSheet>
-  );
-}
-
-function NotesErrorMessage({ error }: { error: string }) {
-  return (
-    <XStack
-      paddingHorizontal="$l"
-      paddingVertical="$s"
-      backgroundColor="$negativeBackground"
-      borderBottomColor="$negativeBorder"
-      borderBottomWidth={1}
-    >
-      <Text size="$label/s" color="$negativeActionText">
-        {error}
-      </Text>
-    </XStack>
-  );
-}
-
 function FolderTreeRow({
   depth,
   expanded,
@@ -1288,16 +876,10 @@ function FolderTreeRow({
         onPress={onPress}
         testID={`NotesFolderRow-${label}`}
       >
-        <XStack
+        <NotesViewRow
           minHeight={56}
-          alignItems="center"
-          gap="$m"
-          paddingVertical="$s"
           paddingLeft={8 + depth * 20}
-          paddingRight="$m"
-          backgroundColor={selected ? '$secondaryBackground' : '$background'}
-          borderBottomColor="$border"
-          borderBottomWidth={1}
+          selected={selected}
         >
           <Icon
             type="Folder"
@@ -1320,88 +902,8 @@ function FolderTreeRow({
               {noteCount}
             </Text>
           ) : null}
-          <XStack
-            width={20}
-            height={20}
-            alignItems="center"
-            justifyContent="center"
-          >
-            {hasChildren ? (
-              <Icon
-                type={expanded ? 'ChevronDown' : 'ChevronRight'}
-                size="$s"
-                color="$tertiaryText"
-              />
-            ) : null}
-          </XStack>
-        </XStack>
-      </TreeRowPressable>
-    );
-  }
-
-  if (viewStyle === 'notion') {
-    return (
-      <TreeRowPressable
-        onOpenMenu={onOpenMenu}
-        onPress={onPress}
-        testID={`NotesFolderRow-${label}`}
-      >
-        <XStack
-          minHeight={36}
-          alignItems="center"
-          gap="$s"
-          paddingVertical="$xs"
-          paddingLeft={2 + depth * 22}
-          paddingRight="$s"
-          borderRadius="$m"
-          backgroundColor={selected ? '$secondaryBackground' : 'transparent'}
-        >
-          <XStack
-            width={18}
-            height={18}
-            alignItems="center"
-            justifyContent="center"
-          >
-            {hasChildren ? (
-              <Icon
-                type={expanded ? 'ChevronDown' : 'ChevronRight'}
-                size="$s"
-                color="$tertiaryText"
-              />
-            ) : null}
-          </XStack>
-          <Icon
-            type="Folder"
-            size="$s"
-            color={selected ? '$primaryText' : '$tertiaryText'}
-          />
-          <Text
-            flex={1}
-            minWidth={0}
-            size="$label/m"
-            color={selected ? '$primaryText' : '$secondaryText'}
-            fontWeight={selected ? '600' : '400'}
-            numberOfLines={1}
-            letterSpacing={0}
-          >
-            {label}
-          </Text>
-          {noteCount > 0 ? (
-            <XStack
-              minWidth={22}
-              alignItems="center"
-              justifyContent="center"
-              paddingHorizontal="$s"
-              paddingVertical={2}
-              borderRadius="$l"
-              backgroundColor="$secondaryBackground"
-            >
-              <Text size="$label/s" color="$tertiaryText" letterSpacing={0}>
-                {noteCount}
-              </Text>
-            </XStack>
-          ) : null}
-        </XStack>
+          <TreeChevron expanded={expanded} hasChildren={hasChildren} />
+        </NotesViewRow>
       </TreeRowPressable>
     );
   }
@@ -1415,20 +917,7 @@ function FolderTreeRow({
       onPress={onPress}
       testID={`NotesFolderRow-${label}`}
     >
-      <XStack
-        width={20}
-        height={20}
-        alignItems="center"
-        justifyContent="center"
-      >
-        {hasChildren ? (
-          <Icon
-            type={expanded ? 'ChevronDown' : 'ChevronRight'}
-            size="$s"
-            color="$tertiaryText"
-          />
-        ) : null}
-      </XStack>
+      <TreeChevron expanded={expanded} hasChildren={hasChildren} />
       <ListItem.SystemIcon
         icon="Folder"
         size="$2xl"
@@ -1544,75 +1033,6 @@ function AddFolderDialog({
               loading={isCreating}
               disabled={!name.trim()}
               onPress={onCreate}
-            />
-          </XStack>
-        </YStack>
-      </ActionSheet.ScrollableContent>
-    </ActionSheet>
-  );
-}
-
-function MoveNoteSheet({
-  folderRows,
-  isMoving,
-  note,
-  onMove,
-  onOpenChange,
-  open,
-}: {
-  folderRows: FolderRow[];
-  isMoving: boolean;
-  note: db.NotesNote | null;
-  onMove: (folderId: number) => void;
-  onOpenChange: (open: boolean) => void;
-  open: boolean;
-}) {
-  const isWeb = Platform.OS === 'web';
-  const currentFolderIds = useMemo(() => {
-    return note ? new Set([note.folderId]) : new Set<number>();
-  }, [note]);
-  const title = note?.title?.trim() || 'Untitled';
-
-  const handleOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (!isMoving) {
-        onOpenChange(nextOpen);
-      }
-    },
-    [isMoving, onOpenChange]
-  );
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={handleOpenChange}
-      mode={isWeb ? 'dialog' : 'sheet'}
-      closeButton={isWeb}
-      modal
-      snapPointsMode="fit"
-      dialogContentProps={{ width: 420, maxWidth: '90%' }}
-    >
-      <ActionSheet.ScrollableContent>
-        <YStack testID="NotesMoveNoteSheet" gap="$l" padding="$l">
-          <ActionSheet.SimpleHeader
-            title="Move note"
-            subtitle={`Choose a new folder for ${title}.`}
-          />
-          <FolderPicker
-            disabledFolderIds={currentFolderIds}
-            disabledLabel="Current"
-            folderRows={folderRows}
-            isLoading={isMoving}
-            onSelectFolder={onMove}
-            selectedFolderId={note?.folderId ?? null}
-            testID="NotesMoveNoteFolderPicker"
-          />
-          <XStack gap="$m" justifyContent="flex-end">
-            <Button
-              preset="minimal"
-              label="Cancel"
-              disabled={isMoving}
-              onPress={() => onOpenChange(false)}
             />
           </XStack>
         </YStack>
@@ -1853,124 +1273,6 @@ function MoveFolderSheet({
   );
 }
 
-function FolderPicker({
-  disabledFolderIds,
-  disabledFolderLabels,
-  disabledLabel,
-  folderRows,
-  isLoading = false,
-  maxHeight = 220,
-  onSelectFolder,
-  selectedFolderId,
-  testID,
-}: {
-  disabledFolderIds?: Set<number>;
-  disabledFolderLabels?: Map<number, string>;
-  disabledLabel?: string;
-  folderRows: FolderRow[];
-  isLoading?: boolean;
-  maxHeight?: number;
-  onSelectFolder: (folderId: number) => void;
-  selectedFolderId: number | null;
-  testID?: string;
-}) {
-  return (
-    <YStack
-      borderColor="$border"
-      borderWidth={1}
-      borderRadius="$m"
-      overflow="hidden"
-      testID={testID}
-    >
-      <ScrollView maxHeight={maxHeight}>
-        {folderRows.map(({ folder, depth, path }) => {
-          const disabled =
-            isLoading || Boolean(disabledFolderIds?.has(folder.folderId));
-          const disabledRowLabel =
-            disabledFolderLabels?.get(folder.folderId) ??
-            (disabledFolderIds?.has(folder.folderId)
-              ? disabledLabel
-              : undefined);
-          return (
-            <FolderPickerRow
-              key={folder.id}
-              depth={depth}
-              disabled={disabled}
-              disabledLabel={disabledRowLabel}
-              folder={folder}
-              path={path}
-              selected={selectedFolderId === folder.folderId}
-              onPress={() => onSelectFolder(folder.folderId)}
-            />
-          );
-        })}
-      </ScrollView>
-    </YStack>
-  );
-}
-
-function FolderPickerRow({
-  depth,
-  disabled = false,
-  disabledLabel,
-  folder,
-  path,
-  selected,
-  onPress,
-}: {
-  depth: number;
-  disabled?: boolean;
-  disabledLabel?: string;
-  folder: db.NotesFolder;
-  path: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const label = getFolderLabel(folder);
-  const showPath = path !== label;
-
-  return (
-    <Pressable disabled={disabled} onPress={disabled ? undefined : onPress}>
-      <XStack
-        alignItems="center"
-        gap="$s"
-        paddingVertical="$s"
-        paddingRight="$m"
-        paddingLeft={12 + depth * 18}
-        backgroundColor={selected ? '$secondaryBackground' : 'transparent'}
-        borderBottomColor="$border"
-        borderBottomWidth={1}
-        opacity={disabled ? 0.6 : 1}
-      >
-        <Icon
-          type={selected ? 'Checkmark' : 'Folder'}
-          color={selected ? '$primaryText' : '$tertiaryText'}
-          size="$s"
-        />
-        <YStack flex={1} minWidth={0} gap={2}>
-          <Text
-            size="$label/m"
-            color={selected ? '$primaryText' : '$secondaryText'}
-            numberOfLines={1}
-          >
-            {label}
-          </Text>
-          {showPath ? (
-            <Text size="$label/s" color="$tertiaryText" numberOfLines={1}>
-              {path}
-            </Text>
-          ) : null}
-        </YStack>
-        {disabledLabel ? (
-          <Text size="$label/s" color="$tertiaryText" numberOfLines={1}>
-            {disabledLabel}
-          </Text>
-        ) : null}
-      </XStack>
-    </Pressable>
-  );
-}
-
 function NoteRow({
   canEdit,
   depth,
@@ -2079,17 +1381,7 @@ function NoteRow({
         onPress={onPress}
         testID={`NotesNoteRow-${note.noteId}`}
       >
-        <XStack
-          minHeight={58}
-          alignItems="center"
-          gap="$m"
-          paddingVertical="$s"
-          paddingLeft={8 + depth * 20}
-          paddingRight="$m"
-          backgroundColor="$background"
-          borderBottomColor="$border"
-          borderBottomWidth={1}
-        >
+        <NotesViewRow minHeight={58} paddingLeft={8 + depth * 20}>
           <Icon type="ChannelNote" size="$m" color="$tertiaryText" />
           <YStack flex={1} minWidth={0} gap={2}>
             <Text
@@ -2108,48 +1400,7 @@ function NoteRow({
           </YStack>
           {actionsMenu}
           <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
-        </XStack>
-      </TreeRowPressable>
-    );
-  }
-
-  if (viewStyle === 'notion') {
-    return (
-      <TreeRowPressable
-        onMouseEnter={handleHoverIn}
-        onMouseLeave={handleHoverOut}
-        onOpenMenu={canEdit ? openActions : undefined}
-        onPress={onPress}
-        testID={`NotesNoteRow-${note.noteId}`}
-      >
-        <XStack
-          minHeight={36}
-          alignItems="center"
-          gap="$s"
-          paddingVertical="$xs"
-          paddingLeft={20 + depth * 22}
-          paddingRight="$s"
-          borderRadius="$m"
-          backgroundColor="transparent"
-        >
-          <Icon type="ChannelNote" size="$s" color="$tertiaryText" />
-          <Text
-            flex={1}
-            minWidth={0}
-            size="$label/m"
-            color="$secondaryText"
-            numberOfLines={1}
-            letterSpacing={0}
-          >
-            {note.title || 'Untitled'}
-          </Text>
-          {updatedAt ? (
-            <Text size="$label/s" color="$tertiaryText" letterSpacing={0}>
-              {updatedAt}
-            </Text>
-          ) : null}
-          {actionsMenu}
-        </XStack>
+        </NotesViewRow>
       </TreeRowPressable>
     );
   }
@@ -2192,6 +1443,26 @@ function NoteRow({
         </ListItem.EndContent>
       ) : null}
     </TreeRowFrame>
+  );
+}
+
+function TreeChevron({
+  expanded,
+  hasChildren,
+}: {
+  expanded: boolean;
+  hasChildren: boolean;
+}) {
+  return (
+    <XStack width={20} height={20} alignItems="center" justifyContent="center">
+      {hasChildren ? (
+        <Icon
+          type={expanded ? 'ChevronDown' : 'ChevronRight'}
+          size="$s"
+          color="$tertiaryText"
+        />
+      ) : null}
+    </XStack>
   );
 }
 
@@ -2336,30 +1607,6 @@ function TreeIndentGuides({
   );
 }
 
-function SaveStatus({
-  saveState,
-  isDirty,
-}: {
-  saveState: SaveState;
-  isDirty: boolean;
-}) {
-  const label = useMemo(() => {
-    if (saveState === 'saving') return 'Saving';
-    if (saveState === 'error') return 'Save failed';
-    if (isDirty || saveState === 'dirty') return 'Unsaved';
-    if (saveState === 'saved') return 'Saved';
-    return '';
-  }, [isDirty, saveState]);
-
-  if (!label) return null;
-  return (
-    <MetadataPill
-      label={label}
-      tone={saveState === 'error' ? 'negative' : isDirty ? 'notice' : 'neutral'}
-    />
-  );
-}
-
 function SidebarEmpty({
   title,
   action,
@@ -2404,381 +1651,4 @@ function NotesTreeSearchInput({
       }
     />
   );
-}
-
-function MetadataPill({
-  icon,
-  label,
-  tone = 'neutral',
-}: {
-  icon?: 'Markdown';
-  label: string;
-  tone?: 'neutral' | 'notice' | 'negative';
-}) {
-  return (
-    <XStack
-      alignItems="center"
-      gap="$xs"
-      borderRadius="$s"
-      paddingHorizontal="$s"
-      paddingVertical={4}
-      backgroundColor={
-        tone === 'negative'
-          ? '$negativeBackground'
-          : tone === 'notice'
-            ? '$secondaryBackground'
-            : '$secondaryBackground'
-      }
-      borderColor={tone === 'negative' ? '$negativeBorder' : '$border'}
-      borderWidth={1}
-    >
-      {icon ? <Icon type={icon} color="$tertiaryText" size="$s" /> : null}
-      <Text
-        size="$label/s"
-        color={tone === 'negative' ? '$negativeActionText' : '$tertiaryText'}
-        letterSpacing={0}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-    </XStack>
-  );
-}
-
-function NotesMessage({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <YStack
-      flex={1}
-      alignItems="center"
-      justifyContent="center"
-      gap="$m"
-      padding="$2xl"
-      backgroundColor="$background"
-    >
-      {children}
-      <Text size="$label/l" color="$primaryText" textAlign="center">
-        {title}
-      </Text>
-      {subtitle ? (
-        <Text size="$label/m" color="$tertiaryText" textAlign="center">
-          {subtitle}
-        </Text>
-      ) : null}
-    </YStack>
-  );
-}
-
-function filterNotesTreeData({
-  folders,
-  notes,
-  query,
-  rootFolderId,
-}: {
-  folders: db.NotesFolder[];
-  notes: db.NotesNote[];
-  query: string;
-  rootFolderId: number | null;
-}) {
-  if (!query) {
-    return { folders, notes };
-  }
-
-  const byId = new Map<number, db.NotesFolder>();
-  const byParent = new Map<number | null, db.NotesFolder[]>();
-  folders.forEach((folder) => {
-    byId.set(folder.folderId, folder);
-    const parentFolderId = folder.parentFolderId ?? null;
-    const siblings = byParent.get(parentFolderId) ?? [];
-    siblings.push(folder);
-    byParent.set(parentFolderId, siblings);
-  });
-
-  const visibleFolderIds = new Set<number>();
-  const folderMatchSubtreeIds = new Set<number>();
-
-  const includeFolderAndAncestors = (folderId: number | null | undefined) => {
-    let currentFolderId = folderId;
-    const visited = new Set<number>();
-    while (currentFolderId != null && !visited.has(currentFolderId)) {
-      visited.add(currentFolderId);
-      visibleFolderIds.add(currentFolderId);
-      currentFolderId = byId.get(currentFolderId)?.parentFolderId;
-    }
-  };
-
-  const includeFolderDescendants = (folderId: number) => {
-    if (folderMatchSubtreeIds.has(folderId)) {
-      return;
-    }
-
-    folderMatchSubtreeIds.add(folderId);
-    visibleFolderIds.add(folderId);
-    const children = byParent.get(folderId) ?? [];
-    children.forEach((child) => includeFolderDescendants(child.folderId));
-  };
-
-  folders.forEach((folder) => {
-    if (normalizeSearchText(getFolderLabel(folder)).includes(query)) {
-      includeFolderAndAncestors(folder.folderId);
-      includeFolderDescendants(folder.folderId);
-    }
-  });
-
-  const visibleNotes = notes.filter((note) => {
-    const noteMatches =
-      normalizeSearchText(note.title).includes(query) ||
-      normalizeSearchText(note.bodyMd).includes(query);
-    if (noteMatches || folderMatchSubtreeIds.has(note.folderId)) {
-      includeFolderAndAncestors(note.folderId);
-      return true;
-    }
-
-    return false;
-  });
-
-  if (rootFolderId !== null) {
-    visibleFolderIds.add(rootFolderId);
-  }
-
-  return {
-    folders: folders.filter((folder) => visibleFolderIds.has(folder.folderId)),
-    notes: visibleNotes,
-  };
-}
-
-function buildFolderRows(
-  folders: db.NotesFolder[],
-  rootFolderId: number | null,
-  { includeRoot }: { includeRoot: boolean }
-): FolderRow[] {
-  const byId = new Map<number, db.NotesFolder>();
-  const byParent = new Map<number | null, db.NotesFolder[]>();
-  folders.forEach((folder) => {
-    byId.set(folder.folderId, folder);
-    const parentFolderId = folder.parentFolderId ?? null;
-    const siblings = byParent.get(parentFolderId) ?? [];
-    siblings.push(folder);
-    byParent.set(parentFolderId, siblings);
-  });
-  byParent.forEach((siblings) => {
-    siblings.sort((a, b) => a.name.localeCompare(b.name));
-  });
-
-  const rows: FolderRow[] = [];
-  const visited = new Set<number>();
-  const root =
-    folders.find((folder) => folder.folderId === rootFolderId) ??
-    folders.find((folder) => folder.parentFolderId === null);
-
-  const visit = (folder: db.NotesFolder, depth: number, parentPath = '') => {
-    if (visited.has(folder.folderId)) return;
-
-    visited.add(folder.folderId);
-    const label = getFolderLabel(folder);
-    const path = parentPath ? `${parentPath} / ${label}` : label;
-    const isRoot = root ? folder.folderId === root.folderId : false;
-    if (includeRoot || !isRoot) {
-      rows.push({
-        folder,
-        depth: includeRoot ? depth : Math.max(0, depth - 1),
-        path,
-      });
-    }
-
-    const children = byParent.get(folder.folderId) ?? [];
-    children.forEach((child) => visit(child, depth + 1, path));
-  };
-
-  if (root) {
-    visit(root, 0);
-  }
-
-  folders
-    .filter((folder) => {
-      if (visited.has(folder.folderId)) return false;
-      return folder.parentFolderId == null || !byId.has(folder.parentFolderId);
-    })
-    .forEach((folder) => visit(folder, 0));
-
-  folders
-    .filter((folder) => !visited.has(folder.folderId))
-    .forEach((folder) => visit(folder, 0));
-
-  return rows;
-}
-
-function buildNotesTreeRows({
-  expandedFolderIds,
-  folderNoteCounts,
-  folders,
-  notes,
-  rootFolderId,
-}: {
-  expandedFolderIds: Set<number>;
-  folderNoteCounts: Map<number, number>;
-  folders: db.NotesFolder[];
-  notes: db.NotesNote[];
-  rootFolderId: number | null;
-}): NotesTreeRow[] {
-  const byId = new Map<number, db.NotesFolder>();
-  const byParent = new Map<number | null, db.NotesFolder[]>();
-  const notesByFolder = new Map<number, db.NotesNote[]>();
-  const renderedNoteIds = new Set<string>();
-
-  folders.forEach((folder) => {
-    byId.set(folder.folderId, folder);
-    const parentFolderId = folder.parentFolderId ?? null;
-    const siblings = byParent.get(parentFolderId) ?? [];
-    siblings.push(folder);
-    byParent.set(parentFolderId, siblings);
-  });
-  byParent.forEach((siblings) => {
-    siblings.sort((a, b) => a.name.localeCompare(b.name));
-  });
-
-  notes.forEach((note) => {
-    const folderNotes = notesByFolder.get(note.folderId) ?? [];
-    folderNotes.push(note);
-    notesByFolder.set(note.folderId, folderNotes);
-  });
-  notesByFolder.forEach((folderNotes) => {
-    folderNotes.sort((a, b) => {
-      const titleDiff = a.title.localeCompare(b.title);
-      return titleDiff || (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-    });
-  });
-
-  const rows: NotesTreeRow[] = [];
-  const visitedFolderIds = new Set<number>();
-  const root =
-    folders.find((folder) => folder.folderId === rootFolderId) ??
-    folders.find((folder) => folder.parentFolderId === null);
-
-  const appendNotes = (folderId: number, depth: number) => {
-    const folderNotes = notesByFolder.get(folderId) ?? [];
-    folderNotes.forEach((note) => {
-      rows.push({ type: 'note', note, depth });
-      renderedNoteIds.add(note.id);
-    });
-  };
-
-  const visit = (folder: db.NotesFolder, depth: number, parentPath = '') => {
-    if (visitedFolderIds.has(folder.folderId)) return;
-
-    visitedFolderIds.add(folder.folderId);
-    const label = getFolderLabel(folder);
-    const path = parentPath ? `${parentPath} / ${label}` : label;
-    const isRoot = root ? folder.folderId === root.folderId : false;
-    const childFolders = byParent.get(folder.folderId) ?? [];
-    const folderNotes = notesByFolder.get(folder.folderId) ?? [];
-    const hasChildren = childFolders.length > 0 || folderNotes.length > 0;
-    const expanded = isRoot || expandedFolderIds.has(folder.folderId);
-
-    if (!isRoot) {
-      rows.push({
-        type: 'folder',
-        folder,
-        depth,
-        expanded,
-        hasChildren,
-        noteCount: folderNoteCounts.get(folder.folderId) ?? 0,
-        path,
-      });
-    }
-
-    if (!expanded) return;
-
-    const childDepth = isRoot ? depth : depth + 1;
-    childFolders.forEach((child) => visit(child, childDepth, path));
-    appendNotes(folder.folderId, childDepth);
-  };
-
-  if (root) {
-    visit(root, 0);
-  }
-
-  folders
-    .filter((folder) => {
-      if (visitedFolderIds.has(folder.folderId)) return false;
-      return folder.parentFolderId == null || !byId.has(folder.parentFolderId);
-    })
-    .forEach((folder) => visit(folder, 0));
-
-  folders
-    .filter((folder) => !visitedFolderIds.has(folder.folderId))
-    .forEach((folder) => visit(folder, 0));
-
-  notes
-    .filter((note) => !renderedNoteIds.has(note.id))
-    .sort((a, b) => {
-      const titleDiff = a.title.localeCompare(b.title);
-      return titleDiff || (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-    })
-    .forEach((note) => rows.push({ type: 'note', note, depth: 0 }));
-
-  return rows;
-}
-
-function buildFolderNoteCounts(
-  folders: db.NotesFolder[],
-  notes: db.NotesNote[]
-) {
-  const counts = new Map<number, number>();
-  folders.forEach((folder) => {
-    const folderIds = collectDescendantFolderIds(folders, folder.folderId);
-    counts.set(
-      folder.folderId,
-      notes.filter((note) => folderIds.has(note.folderId)).length
-    );
-  });
-  return counts;
-}
-
-function getFolderLabel(folder: db.NotesFolder | null | undefined) {
-  if (!folder) return 'Folder';
-  return folder.name === '/' ? 'Root' : folder.name;
-}
-
-function normalizeSearchText(value: string | null | undefined) {
-  return (value ?? '').trim().toLowerCase();
-}
-
-function formatNoteDate(timestamp: number | null | undefined) {
-  if (!timestamp) return null;
-  const unixMs = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
-  return makePrettyShortDate(new Date(unixMs));
-}
-
-function collectDescendantFolderIds(
-  folders: db.NotesFolder[],
-  folderId: number
-) {
-  const ids = new Set([folderId]);
-  let added = true;
-  while (added) {
-    added = false;
-    folders.forEach((folder) => {
-      const folderId = folder.folderId;
-      const parentFolderId = folder.parentFolderId;
-      if (
-        folderId !== undefined &&
-        parentFolderId !== null &&
-        parentFolderId !== undefined &&
-        ids.has(parentFolderId) &&
-        !ids.has(folderId)
-      ) {
-        ids.add(folderId);
-        added = true;
-      }
-    });
-  }
-  return ids;
 }

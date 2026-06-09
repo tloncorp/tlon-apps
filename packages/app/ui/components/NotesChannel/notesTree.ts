@@ -1,0 +1,341 @@
+import { makePrettyShortDate } from '@tloncorp/api/lib/utils';
+import * as db from '@tloncorp/shared/db';
+
+export type NotesTreeViewStyle = db.NotesTreeViewPreference;
+export type FolderRow = { folder: db.NotesFolder; depth: number; path: string };
+export type NotesTreeRow =
+  | {
+      type: 'folder';
+      folder: db.NotesFolder;
+      depth: number;
+      expanded: boolean;
+      hasChildren: boolean;
+      noteCount: number;
+      path: string;
+    }
+  | { type: 'note'; note: db.NotesNote; depth: number };
+
+export function filterNotesTreeData({
+  folders,
+  notes,
+  query,
+  rootFolderId,
+}: {
+  folders: db.NotesFolder[];
+  notes: db.NotesNote[];
+  query: string;
+  rootFolderId: number | null;
+}) {
+  if (!query) {
+    return { folders, notes };
+  }
+
+  const byId = new Map<number, db.NotesFolder>();
+  const byParent = new Map<number | null, db.NotesFolder[]>();
+  folders.forEach((folder) => {
+    byId.set(folder.folderId, folder);
+    const parentFolderId = folder.parentFolderId ?? null;
+    const siblings = byParent.get(parentFolderId) ?? [];
+    siblings.push(folder);
+    byParent.set(parentFolderId, siblings);
+  });
+
+  const visibleFolderIds = new Set<number>();
+  const folderMatchSubtreeIds = new Set<number>();
+
+  const includeFolderAndAncestors = (folderId: number | null | undefined) => {
+    let currentFolderId = folderId;
+    const visited = new Set<number>();
+    while (currentFolderId != null && !visited.has(currentFolderId)) {
+      visited.add(currentFolderId);
+      visibleFolderIds.add(currentFolderId);
+      currentFolderId = byId.get(currentFolderId)?.parentFolderId;
+    }
+  };
+
+  const includeFolderDescendants = (folderId: number) => {
+    if (folderMatchSubtreeIds.has(folderId)) {
+      return;
+    }
+
+    folderMatchSubtreeIds.add(folderId);
+    visibleFolderIds.add(folderId);
+    const children = byParent.get(folderId) ?? [];
+    children.forEach((child) => includeFolderDescendants(child.folderId));
+  };
+
+  folders.forEach((folder) => {
+    if (normalizeSearchText(getFolderLabel(folder)).includes(query)) {
+      includeFolderAndAncestors(folder.folderId);
+      includeFolderDescendants(folder.folderId);
+    }
+  });
+
+  const visibleNotes = notes.filter((note) => {
+    const noteMatches =
+      normalizeSearchText(note.title).includes(query) ||
+      normalizeSearchText(note.bodyMd).includes(query);
+    if (noteMatches || folderMatchSubtreeIds.has(note.folderId)) {
+      includeFolderAndAncestors(note.folderId);
+      return true;
+    }
+
+    return false;
+  });
+
+  if (rootFolderId !== null) {
+    visibleFolderIds.add(rootFolderId);
+  }
+
+  return {
+    folders: folders.filter((folder) => visibleFolderIds.has(folder.folderId)),
+    notes: visibleNotes,
+  };
+}
+
+export function buildFolderRows(
+  folders: db.NotesFolder[],
+  rootFolderId: number | null,
+  { includeRoot }: { includeRoot: boolean }
+): FolderRow[] {
+  const byId = new Map<number, db.NotesFolder>();
+  const byParent = new Map<number | null, db.NotesFolder[]>();
+  folders.forEach((folder) => {
+    byId.set(folder.folderId, folder);
+    const parentFolderId = folder.parentFolderId ?? null;
+    const siblings = byParent.get(parentFolderId) ?? [];
+    siblings.push(folder);
+    byParent.set(parentFolderId, siblings);
+  });
+  byParent.forEach((siblings) => {
+    siblings.sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const rows: FolderRow[] = [];
+  const visited = new Set<number>();
+  const root =
+    folders.find((folder) => folder.folderId === rootFolderId) ??
+    folders.find((folder) => folder.parentFolderId === null);
+
+  const visit = (folder: db.NotesFolder, depth: number, parentPath = '') => {
+    if (visited.has(folder.folderId)) return;
+
+    visited.add(folder.folderId);
+    const label = getFolderLabel(folder);
+    const path = parentPath ? `${parentPath} / ${label}` : label;
+    const isRoot = root ? folder.folderId === root.folderId : false;
+    if (includeRoot || !isRoot) {
+      rows.push({
+        folder,
+        depth: includeRoot ? depth : Math.max(0, depth - 1),
+        path,
+      });
+    }
+
+    const children = byParent.get(folder.folderId) ?? [];
+    children.forEach((child) => visit(child, depth + 1, path));
+  };
+
+  if (root) {
+    visit(root, 0);
+  }
+
+  folders
+    .filter((folder) => {
+      if (visited.has(folder.folderId)) return false;
+      return folder.parentFolderId == null || !byId.has(folder.parentFolderId);
+    })
+    .forEach((folder) => visit(folder, 0));
+
+  folders
+    .filter((folder) => !visited.has(folder.folderId))
+    .forEach((folder) => visit(folder, 0));
+
+  return rows;
+}
+
+export function buildNotesTreeRows({
+  expandedFolderIds,
+  folderNoteCounts,
+  folders,
+  notes,
+  rootFolderId,
+}: {
+  expandedFolderIds: Set<number>;
+  folderNoteCounts: Map<number, number>;
+  folders: db.NotesFolder[];
+  notes: db.NotesNote[];
+  rootFolderId: number | null;
+}): NotesTreeRow[] {
+  const byId = new Map<number, db.NotesFolder>();
+  const byParent = new Map<number | null, db.NotesFolder[]>();
+  const notesByFolder = new Map<number, db.NotesNote[]>();
+  const renderedNoteIds = new Set<string>();
+
+  folders.forEach((folder) => {
+    byId.set(folder.folderId, folder);
+    const parentFolderId = folder.parentFolderId ?? null;
+    const siblings = byParent.get(parentFolderId) ?? [];
+    siblings.push(folder);
+    byParent.set(parentFolderId, siblings);
+  });
+  byParent.forEach((siblings) => {
+    siblings.sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  notes.forEach((note) => {
+    const folderNotes = notesByFolder.get(note.folderId) ?? [];
+    folderNotes.push(note);
+    notesByFolder.set(note.folderId, folderNotes);
+  });
+  notesByFolder.forEach((folderNotes) => {
+    folderNotes.sort((a, b) => {
+      const titleDiff = a.title.localeCompare(b.title);
+      return titleDiff || (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+    });
+  });
+
+  const rows: NotesTreeRow[] = [];
+  const visitedFolderIds = new Set<number>();
+  const root =
+    folders.find((folder) => folder.folderId === rootFolderId) ??
+    folders.find((folder) => folder.parentFolderId === null);
+
+  const appendNotes = (folderId: number, depth: number) => {
+    const folderNotes = notesByFolder.get(folderId) ?? [];
+    folderNotes.forEach((note) => {
+      rows.push({ type: 'note', note, depth });
+      renderedNoteIds.add(note.id);
+    });
+  };
+
+  const visit = (folder: db.NotesFolder, depth: number, parentPath = '') => {
+    if (visitedFolderIds.has(folder.folderId)) return;
+
+    visitedFolderIds.add(folder.folderId);
+    const label = getFolderLabel(folder);
+    const path = parentPath ? `${parentPath} / ${label}` : label;
+    const isRoot = root ? folder.folderId === root.folderId : false;
+    const childFolders = byParent.get(folder.folderId) ?? [];
+    const folderNotes = notesByFolder.get(folder.folderId) ?? [];
+    const hasChildren = childFolders.length > 0 || folderNotes.length > 0;
+    const expanded = isRoot || expandedFolderIds.has(folder.folderId);
+
+    if (!isRoot) {
+      rows.push({
+        type: 'folder',
+        folder,
+        depth,
+        expanded,
+        hasChildren,
+        noteCount: folderNoteCounts.get(folder.folderId) ?? 0,
+        path,
+      });
+    }
+
+    if (!expanded) return;
+
+    const childDepth = isRoot ? depth : depth + 1;
+    childFolders.forEach((child) => visit(child, childDepth, path));
+    appendNotes(folder.folderId, childDepth);
+  };
+
+  if (root) {
+    visit(root, 0);
+  }
+
+  folders
+    .filter((folder) => {
+      if (visitedFolderIds.has(folder.folderId)) return false;
+      return folder.parentFolderId == null || !byId.has(folder.parentFolderId);
+    })
+    .forEach((folder) => visit(folder, 0));
+
+  folders
+    .filter((folder) => !visitedFolderIds.has(folder.folderId))
+    .forEach((folder) => visit(folder, 0));
+
+  notes
+    .filter((note) => !renderedNoteIds.has(note.id))
+    .sort((a, b) => {
+      const titleDiff = a.title.localeCompare(b.title);
+      return titleDiff || (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
+    })
+    .forEach((note) => rows.push({ type: 'note', note, depth: 0 }));
+
+  return rows;
+}
+
+/**
+ * Counts the notes in each folder and all of its descendants by crediting
+ * every note to its folder's ancestor chain — one pass over the notes instead
+ * of a descendant scan per folder.
+ */
+export function buildFolderNoteCounts(
+  folders: db.NotesFolder[],
+  notes: db.NotesNote[]
+) {
+  const counts = new Map<number, number>();
+  const parentByFolderId = new Map<number, number | null>();
+  folders.forEach((folder) => {
+    counts.set(folder.folderId, 0);
+    parentByFolderId.set(folder.folderId, folder.parentFolderId ?? null);
+  });
+
+  notes.forEach((note) => {
+    const visited = new Set<number>();
+    let folderId: number | null = note.folderId;
+    while (
+      folderId !== null &&
+      counts.has(folderId) &&
+      !visited.has(folderId)
+    ) {
+      visited.add(folderId);
+      counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
+      folderId = parentByFolderId.get(folderId) ?? null;
+    }
+  });
+
+  return counts;
+}
+
+export function getFolderLabel(folder: db.NotesFolder | null | undefined) {
+  if (!folder) return 'Folder';
+  return folder.name === '/' ? 'Root' : folder.name;
+}
+
+export function normalizeSearchText(value: string | null | undefined) {
+  return (value ?? '').trim().toLowerCase();
+}
+
+export function formatNoteDate(timestamp: number | null | undefined) {
+  if (!timestamp) return null;
+  const unixMs = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
+  return makePrettyShortDate(new Date(unixMs));
+}
+
+export function collectDescendantFolderIds(
+  folders: db.NotesFolder[],
+  folderId: number
+) {
+  const ids = new Set([folderId]);
+  let added = true;
+  while (added) {
+    added = false;
+    folders.forEach((folder) => {
+      const folderId = folder.folderId;
+      const parentFolderId = folder.parentFolderId;
+      if (
+        folderId !== undefined &&
+        parentFolderId !== null &&
+        parentFolderId !== undefined &&
+        ids.has(parentFolderId) &&
+        !ids.has(folderId)
+      ) {
+        ids.add(folderId);
+        added = true;
+      }
+    });
+  }
+  return ids;
+}

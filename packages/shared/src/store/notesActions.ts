@@ -4,7 +4,9 @@ import { debounce } from 'lodash';
 import { useEffect, useMemo } from 'react';
 
 import * as db from '../db';
+import type { WrappedQuery } from '../db/query';
 import { createDevLogger } from '../debug';
+import { withRetry } from '../logic';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const logger = createDevLogger('notesActions', false);
@@ -74,15 +76,22 @@ export async function ensureNotesNotebookJoined(
 
   await api.joinNotesNotebook(parsed);
 
-  for (let i = 0; i < 10; i++) {
-    if (await notesNotebookIsJoined(parsed)) {
-      await syncNotesNotebook(parsed);
-      return true;
-    }
-    await wait(350);
-  }
+  const joinConfirmed = await withRetry(
+    async () => {
+      if (!(await notesNotebookIsJoined(parsed))) {
+        throw new Error(`Timed out joining notes notebook: ${flag}`);
+      }
+    },
+    { numOfAttempts: 10, startingDelay: 350, timeMultiple: 1 }
+  ).then(
+    () => true,
+    () => false
+  );
 
-  return false;
+  if (joinConfirmed) {
+    await syncNotesNotebook(parsed);
+  }
+  return joinConfirmed;
 }
 
 export function useEnsureNotesNotebookJoined({
@@ -162,60 +171,67 @@ export function useSyncNotesNotebook({
   return query;
 }
 
-export function useNotesNotebook(
-  notebookFlag: string | null | undefined,
-  enabled = true
+function createNotebookQueryHook<TReturn>(
+  queryName: string,
+  query: WrappedQuery<{ notebookFlag: string }, TReturn>
 ) {
-  const deps = useKeyFromQueryDeps(db.getNotesNotebook, {
-    notebookFlag: notebookFlag ?? '',
-  });
-  return useQuery({
-    queryKey: ['notesNotebook', deps, notebookFlag],
-    queryFn: () => db.getNotesNotebook({ notebookFlag: notebookFlag! }),
-    enabled: enabled && Boolean(notebookFlag),
-  });
+  return function useNotebookQuery(
+    notebookFlag: string | null | undefined,
+    enabled = true
+  ) {
+    const deps = useKeyFromQueryDeps(query, {
+      notebookFlag: notebookFlag ?? '',
+    });
+    return useQuery({
+      queryKey: [queryName, deps, notebookFlag],
+      queryFn: () => query({ notebookFlag: notebookFlag! }),
+      enabled: enabled && Boolean(notebookFlag),
+    });
+  };
 }
 
-export function useNotesFolders(
-  notebookFlag: string | null | undefined,
-  enabled = true
-) {
-  const deps = useKeyFromQueryDeps(db.getNotesFolders, {
-    notebookFlag: notebookFlag ?? '',
-  });
-  return useQuery({
-    queryKey: ['notesFolders', deps, notebookFlag],
-    queryFn: () => db.getNotesFolders({ notebookFlag: notebookFlag! }),
-    enabled: enabled && Boolean(notebookFlag),
-  });
-}
+export const useNotesNotebook = createNotebookQueryHook(
+  'notesNotebook',
+  db.getNotesNotebook
+);
+export const useNotesFolders = createNotebookQueryHook(
+  'notesFolders',
+  db.getNotesFolders
+);
+export const useNotesNotes = createNotebookQueryHook(
+  'notesNotes',
+  db.getNotesNotes
+);
+export const useNotesMembers = createNotebookQueryHook(
+  'notesMembers',
+  db.getNotesMembers
+);
 
-export function useNotesNotes(
-  notebookFlag: string | null | undefined,
-  enabled = true
-) {
-  const deps = useKeyFromQueryDeps(db.getNotesNotes, {
-    notebookFlag: notebookFlag ?? '',
-  });
-  return useQuery({
-    queryKey: ['notesNotes', deps, notebookFlag],
-    queryFn: () => db.getNotesNotes({ notebookFlag: notebookFlag! }),
-    enabled: enabled && Boolean(notebookFlag),
-  });
-}
+/**
+ * Snapshots existing item ids, runs the create action, then syncs until an
+ * item with an unseen id appears locally. Returns that item, or null if it
+ * never showed up.
+ */
+async function createAndFindNewItem<T>({
+  notebookFlag,
+  list,
+  getId,
+  create,
+}: {
+  notebookFlag: string;
+  list: () => Promise<T[]>;
+  getId: (item: T) => number;
+  create: () => Promise<unknown>;
+}): Promise<T | null> {
+  const beforeIds = new Set((await list()).map(getId));
+  const isNew = (item: T) => !beforeIds.has(getId(item));
 
-export function useNotesMembers(
-  notebookFlag: string | null | undefined,
-  enabled = true
-) {
-  const deps = useKeyFromQueryDeps(db.getNotesMembers, {
-    notebookFlag: notebookFlag ?? '',
-  });
-  return useQuery({
-    queryKey: ['notesMembers', deps, notebookFlag],
-    queryFn: () => db.getNotesMembers({ notebookFlag: notebookFlag! }),
-    enabled: enabled && Boolean(notebookFlag),
-  });
+  await create();
+  await syncNotesNotebookWithRetry(notebookFlag, async () =>
+    (await list()).some(isNew)
+  );
+
+  return (await list()).find(isNew) ?? null;
 }
 
 export async function createNotebookNote({
@@ -229,27 +245,24 @@ export async function createNotebookNote({
   title: string;
   body?: string;
 }) {
-  const before = await db.getNotesNotes({ notebookFlag });
-  const beforeIds = new Set(before.map((note) => note.noteId));
-
-  await api.createNotesNote({
-    flag: notebookFlag,
-    folder: folderId,
-    title,
-    body,
+  const created = await createAndFindNewItem({
+    notebookFlag,
+    list: () => db.getNotesNotes({ notebookFlag }),
+    getId: (note) => note.noteId,
+    create: () =>
+      api.createNotesNote({
+        flag: notebookFlag,
+        folder: folderId,
+        title,
+        body,
+      }),
   });
-
-  await syncNotesNotebookWithRetry(notebookFlag, async () => {
-    const after = await db.getNotesNotes({ notebookFlag });
-    return after.some((note) => !beforeIds.has(note.noteId));
-  });
+  if (created) {
+    return created;
+  }
 
   const after = await db.getNotesNotes({ notebookFlag });
-  return (
-    after.find((note) => !beforeIds.has(note.noteId)) ??
-    after.find((note) => note.title === title) ??
-    null
-  );
+  return after.find((note) => note.title === title) ?? null;
 }
 
 export async function createNotebookFolder({
@@ -261,17 +274,16 @@ export async function createNotebookFolder({
   parentFolderId?: number | null;
   name: string;
 }) {
-  const before = await db.getNotesFolders({ notebookFlag });
-  const beforeIds = new Set(before.map((folder) => folder.folderId));
-
-  await api.createNotesFolder({
-    flag: notebookFlag,
-    parent: parentFolderId,
-    name,
-  });
-  await syncNotesNotebookWithRetry(notebookFlag, async () => {
-    const after = await db.getNotesFolders({ notebookFlag });
-    return after.some((folder) => !beforeIds.has(folder.folderId));
+  await createAndFindNewItem({
+    notebookFlag,
+    list: () => db.getNotesFolders({ notebookFlag }),
+    getId: (folder) => folder.folderId,
+    create: () =>
+      api.createNotesFolder({
+        flag: notebookFlag,
+        parent: parentFolderId,
+        name,
+      }),
   });
 }
 
@@ -294,20 +306,22 @@ export async function saveNotebookNote({
     return note;
   }
 
-  if (shouldRename) {
-    await api.renameNotesNote({
-      flag: notebookFlag,
-      noteId: note.noteId,
-      title: nextTitle,
-    });
-  }
-
+  // The body update must land before the rename: it asserts expectedRevision,
+  // which any other mutation would invalidate. Don't parallelize these.
   if (shouldUpdateBody) {
     await api.updateNotesNoteBody({
       flag: notebookFlag,
       noteId: note.noteId,
       body,
       expectedRevision: note.revision,
+    });
+  }
+
+  if (shouldRename) {
+    await api.renameNotesNote({
+      flag: notebookFlag,
+      noteId: note.noteId,
+      title: nextTitle,
     });
   }
 
@@ -410,9 +424,7 @@ export async function deleteNotebookNote({
 }) {
   await api.deleteNotesNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
-  syncNotesNotebookWithRetry(notebookFlag).catch((e) => {
-    logger.error('Failed to refresh after deleting notes note', e);
-  });
+  await syncNotesNotebookWithRetry(notebookFlag);
 }
 
 export async function deleteNotebookFolder({
@@ -442,16 +454,36 @@ async function notesNotebookIsJoined(flag: api.NotesFlag) {
   );
 }
 
+const notYetSynced = new Error('notes sync not yet applied');
+
+/**
+ * Syncs the notebook, repeating until `isReady` reports the expected change
+ * has landed locally. Gives up quietly if the change never appears (the API
+ * call already succeeded); sync failures themselves still propagate.
+ */
 async function syncNotesNotebookWithRetry(
   notebookFlag: string,
   isReady?: () => Promise<boolean>
 ) {
-  for (let i = 0; i < 8; i++) {
-    await syncNotesNotebook(notebookFlag);
-    if (!isReady || (await isReady())) {
-      return;
+  try {
+    await withRetry(
+      async () => {
+        await syncNotesNotebook(notebookFlag);
+        if (isReady && !(await isReady())) {
+          throw notYetSynced;
+        }
+      },
+      {
+        numOfAttempts: 8,
+        startingDelay: 300,
+        timeMultiple: 1,
+        retry: (e) => e === notYetSynced,
+      }
+    );
+  } catch (e) {
+    if (e !== notYetSynced) {
+      throw e;
     }
-    await wait(300);
   }
 }
 
@@ -537,8 +569,4 @@ function notesFolderDbId(flag: string, folderId: number) {
 
 function notesNoteDbId(flag: string, noteId: number) {
   return `${flag}/note/${noteId}`;
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
