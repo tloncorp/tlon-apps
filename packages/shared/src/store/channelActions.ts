@@ -15,7 +15,6 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -49,7 +48,6 @@ export async function createChannel({
       title,
       description: rawDescription,
       readers,
-      writers,
     });
   }
 
@@ -115,151 +113,81 @@ export async function createChannel({
   return newChannel;
 }
 
-const MEMBERS_MARKER = '__MEMBERS_MARKER__';
+interface NotesCreateResponse {
+  requestId: string;
+  body: {
+    type: string;
+    notebook?: {
+      host: string;
+      flagName: string;
+      notebook: { id: number; title: string };
+    };
+  };
+}
 
 async function createNotesChannel({
   groupId,
   title,
   description,
-  readers,
-  writers,
+  readers = [],
 }: {
   groupId: string;
   title: string;
   description?: string;
-  readers: string[];
-  writers: string[];
+  readers?: string[];
 }): Promise<db.Channel> {
-  const currentUserId = api.getCurrentUserId();
-  const notebook = await api.createNotesNotebook(title);
-  const flag = api.formatNotesFlag({
-    host: notebook.host,
-    name: notebook.flagName,
-  });
-  const channelId = api.notesChannelId(flag);
+  // Create the notebook via the %notes HTTP API, which returns the
+  // server-assigned flag synchronously in the response body — no polling, no
+  // forced-public visibility hack. Binding it to this group makes the notebook
+  // a group channel: read permission defers to the group's can-read, and
+  // %groups auto-joins/leaves members via the channel-host convention.
+  //
+  // `readers` (the group role-ids the channel is restricted to) is forwarded
+  // so the %notes host registers the group channel with the correct reader
+  // roles — empty means group-wide readable. Dropping it would create every
+  // notes channel open, defeating the group's can-read gate.
+  const [groupHost, groupName] = groupId.split('/');
+  try {
+    const res = await api.requestJson<NotesCreateResponse>(
+      '/notes/~/v1/notebooks',
+      'POST',
+      { title, group: { host: groupHost, flagName: groupName }, readers }
+    );
+    const summary =
+      res?.body?.type === 'notebook' ? res.body.notebook ?? null : null;
+    if (!summary) {
+      throw new Error('Failed to create notes notebook');
+    }
 
-  logger.trackEvent(
-    AnalyticsEvent.ActionCreateChannel,
-    logic.getModelAnalytics({
-      channel: { id: channelId, type: 'notes' },
-      group: { id: groupId },
-    })
-  );
+    const channelId = `notes/${summary.host}/${summary.flagName}`;
 
-  const restrictedRoleIds = Array.from(new Set([...readers, ...writers]));
-  if (restrictedRoleIds.length > 0) {
-    const invitees = await resolveNotesInviteesForRoles({
-      groupId,
-      roleIds: restrictedRoleIds,
-    });
-    await Promise.all(
-      invitees.map((who) =>
-        api
-          .notesAction({
-            type: 'notebook',
-            flag,
-            action: { type: 'invite', who },
-          })
-          .catch((e) => {
-            logger.error('Failed to invite notes notebook member', {
-              flag,
-              who,
-              error: e,
-            });
-          })
-      )
+    logger.trackEvent(
+      AnalyticsEvent.ActionCreateChannel,
+      logic.getModelAnalytics({
+        channel: { id: channelId, type: 'notes' },
+        group: { id: groupId },
+      })
     );
 
-    try {
-      await api.setNotesNotebookVisibility({ flag, visibility: 'private' });
-    } catch (e) {
-      logger.error('Failed to set notebook visibility to private', e);
-    }
-  } else {
-    // Public group channel listings need public notebook membership so group
-    // members can join-on-open without an invite.
-    try {
-      await api.setNotesNotebookVisibility({ flag, visibility: 'public' });
-    } catch (e) {
-      logger.error('Failed to set notebook visibility to public', e);
-    }
-  }
-
-  // Pick a section to add this channel to. Tlon-created groups conventionally
-  // have a 'default' section, but we'll prefer whatever the first section is
-  // if the group looks different.
-  const group = await db.getGroup({ id: groupId });
-  const sectionId =
-    group?.navSections?.[0]?.sectionId ??
-    group?.navSections?.[0]?.id ??
-    'default';
-
-  const newChannel: db.Channel = {
-    id: channelId,
-    title,
-    description,
-    type: 'notes',
-    groupId,
-    addedToGroupAt: Date.now(),
-    currentUserIsMember: true,
-    currentUserIsHost: notebook.host === currentUserId,
-    contentConfiguration: channelContentConfigurationForChannelType('notes'),
-    lastPostSequenceNum: 0,
-  };
-
-  await db.insertChannels([newChannel]);
-
-  try {
-    await api.addChannelListingToGroup({
-      channelId,
+    const newChannel: db.Channel = {
+      id: channelId,
+      title,
+      description,
+      type: 'notes',
       groupId,
-      sectionId,
-      meta: {
-        title,
-        description: description ?? '',
-        image: '',
-        cover: '',
-      },
-      readers,
-      join: true,
-    });
+      addedToGroupAt: Date.now(),
+      currentUserIsMember: true,
+      currentUserIsHost: true,
+      contentConfiguration: channelContentConfigurationForChannelType('notes'),
+      lastPostSequenceNum: 0,
+    };
+
+    await db.insertChannels([newChannel]);
+    return newChannel;
   } catch (e) {
-    await db.deleteChannels([channelId]);
-    logger.error('addChannelListingToGroup failed for notes channel', e);
-    throw new Error(`Failed to add notes channel to group: ${channelId}`);
+    logger.error('Failed to add notes channel', e);
+    throw new Error(`Failed to add notes channel to group`);
   }
-
-  syncNotesNotebook(flag).catch((e) => {
-    logger.error('Failed to sync notes notebook after channel create', e);
-  });
-
-  return newChannel;
-}
-
-async function resolveNotesInviteesForRoles({
-  groupId,
-  roleIds,
-}: {
-  groupId: string;
-  roleIds: string[];
-}) {
-  const group = await db.getGroup({ id: groupId });
-  if (!group) return [];
-
-  const currentUserId = api.getCurrentUserId();
-  const selectedRoles = new Set(roleIds);
-  const includeAllMembers = selectedRoles.has(MEMBERS_MARKER);
-  const invitees =
-    group.members
-      ?.filter((member) => member.status !== 'invited')
-      .filter((member) => {
-        if (includeAllMembers) return true;
-        return member.roles?.some((role) => selectedRoles.has(role.roleId));
-      })
-      .map((member) => member.contactId)
-      .filter((contactId) => contactId !== currentUserId) ?? [];
-
-  return Array.from(new Set(invitees));
 }
 
 /**
