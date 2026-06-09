@@ -13,6 +13,7 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { backendVersionSupportsReactions } from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -501,7 +502,20 @@ export const syncSettings = async (ctx?: SyncCtx) => {
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
   const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
+  api.setBackendSupportsReactions(
+    backendVersionSupportsReactions(appInfo?.groupsVersion)
+  );
   return db.appInfo.setValue(appInfo);
+};
+
+// Resolves the backend's reaction capability from the last-known (persisted)
+// groups version and applies it to the activity client before it picks endpoint
+// versions. A fresh version is fetched by syncAppInfo, which also updates this.
+export const syncReactionSupport = async () => {
+  const appInfo = await db.appInfo.getValue();
+  api.setBackendSupportsReactions(
+    backendVersionSupportsReactions(appInfo?.groupsVersion)
+  );
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -2214,6 +2228,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }
 
     updateSession({ phase: 'low' });
+    // Resolve the backend's reaction capability before the activity feed and
+    // subscription below pick their endpoint versions. Reads the persisted
+    // version (fast/local); syncAppInfo refreshes it for the next run.
+    await syncReactionSupport();
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()

@@ -31,6 +31,7 @@ interface Config
   pendingAuth: Promise<string | void> | null;
   loggingOut: boolean;
   lastStatus: string;
+  backendSupportsReactions: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -111,6 +112,21 @@ const config: Config = {
   onQuitOrReset: undefined,
   getCode: undefined,
   handleAuthFailure: undefined,
+  // Off until the app confirms the backend's groups version ships reactions.
+  // Drives which %activity endpoint versions the client uses (feed/sub/marks).
+  backendSupportsReactions: false,
+};
+
+// Whether the connected backend supports reaction activity (v9 %activity
+// endpoints). Set by the app from the backend's groups version; read by the
+// activity client to pick endpoint versions. Defaults false so an old backend
+// gets the pre-reaction (v5 feed / v4 subscription / v8 mark) endpoints.
+export const setBackendSupportsReactions = (value: boolean) => {
+  config.backendSupportsReactions = value;
+};
+
+export const getBackendSupportsReactions = (): boolean => {
+  return config.backendSupportsReactions;
 };
 
 export const client = new Proxy(
