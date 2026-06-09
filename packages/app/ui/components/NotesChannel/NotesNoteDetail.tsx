@@ -21,6 +21,7 @@ import {
   NotebookGateMessage,
   NotesErrorMessage,
   NotesMessage,
+  errorMessage,
   useNotebookData,
 } from './NotesCommon';
 import { buildFolderRows, formatNoteDate } from './notesTree';
@@ -72,8 +73,7 @@ export function NotesNoteDetail({
     } catch (e) {
       return {
         content: [],
-        error:
-          e instanceof Error ? e.message : 'Unable to render Markdown preview',
+        error: errorMessage(e, 'Unable to render Markdown preview'),
       };
     }
   }, [bodyDraft]);
@@ -100,7 +100,7 @@ export function NotesNoteDetail({
       setSaveState('saved');
     } catch (e) {
       setSaveState('error');
-      setError(e instanceof Error ? e.message : 'Failed to save note');
+      setError(errorMessage(e, 'Failed to save note'));
     }
   }, [bodyDraft, canEdit, isDirty, notebookFlag, selectedNote, titleDraft]);
 
@@ -123,7 +123,7 @@ export function NotesNoteDetail({
       });
       onDeleted?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to delete note');
+      setError(errorMessage(e, 'Failed to delete note'));
     }
   }, [canEdit, notebookFlag, onDeleted, selectedNote]);
 
@@ -167,7 +167,7 @@ export function NotesNoteDetail({
         });
         setMoveSheetOpen(false);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to move note');
+        setError(errorMessage(e, 'Failed to move note'));
       } finally {
         setIsMovingNote(false);
       }
