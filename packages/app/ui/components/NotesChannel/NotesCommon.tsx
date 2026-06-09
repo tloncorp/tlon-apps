@@ -20,6 +20,10 @@ import { getFolderLabel } from './notesTree';
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
 const EMPTY_NOTES: db.NotesNote[] = [];
 
+export function errorMessage(e: unknown, fallback: string) {
+  return e instanceof Error ? e.message : fallback;
+}
+
 export type NotebookGate = 'unavailable' | 'loading' | 'unjoinable' | null;
 
 /**
@@ -387,11 +391,7 @@ export function MetadataPill({
       paddingHorizontal="$s"
       paddingVertical={4}
       backgroundColor={
-        tone === 'negative'
-          ? '$negativeBackground'
-          : tone === 'notice'
-            ? '$secondaryBackground'
-            : '$secondaryBackground'
+        tone === 'negative' ? '$negativeBackground' : '$secondaryBackground'
       }
       borderColor={tone === 'negative' ? '$negativeBorder' : '$border'}
       borderWidth={1}

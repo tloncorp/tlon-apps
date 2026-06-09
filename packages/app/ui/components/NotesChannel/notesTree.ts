@@ -15,6 +15,33 @@ export type NotesTreeRow =
     }
   | { type: 'note'; note: db.NotesNote; depth: number };
 
+function indexFolders(
+  folders: db.NotesFolder[],
+  { sorted = false }: { sorted?: boolean } = {}
+) {
+  const byId = new Map<number, db.NotesFolder>();
+  const byParent = new Map<number | null, db.NotesFolder[]>();
+  folders.forEach((folder) => {
+    byId.set(folder.folderId, folder);
+    const parentFolderId = folder.parentFolderId ?? null;
+    const siblings = byParent.get(parentFolderId) ?? [];
+    siblings.push(folder);
+    byParent.set(parentFolderId, siblings);
+  });
+  if (sorted) {
+    byParent.forEach((siblings) => {
+      siblings.sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }
+  return { byId, byParent };
+}
+
+function compareNotes(a: db.NotesNote, b: db.NotesNote) {
+  return (
+    a.title.localeCompare(b.title) || (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  );
+}
+
 export function filterNotesTreeData({
   folders,
   notes,
@@ -30,15 +57,7 @@ export function filterNotesTreeData({
     return { folders, notes };
   }
 
-  const byId = new Map<number, db.NotesFolder>();
-  const byParent = new Map<number | null, db.NotesFolder[]>();
-  folders.forEach((folder) => {
-    byId.set(folder.folderId, folder);
-    const parentFolderId = folder.parentFolderId ?? null;
-    const siblings = byParent.get(parentFolderId) ?? [];
-    siblings.push(folder);
-    byParent.set(parentFolderId, siblings);
-  });
+  const { byId, byParent } = indexFolders(folders);
 
   const visibleFolderIds = new Set<number>();
   const folderMatchSubtreeIds = new Set<number>();
@@ -98,18 +117,7 @@ export function buildFolderRows(
   rootFolderId: number | null,
   { includeRoot }: { includeRoot: boolean }
 ): FolderRow[] {
-  const byId = new Map<number, db.NotesFolder>();
-  const byParent = new Map<number | null, db.NotesFolder[]>();
-  folders.forEach((folder) => {
-    byId.set(folder.folderId, folder);
-    const parentFolderId = folder.parentFolderId ?? null;
-    const siblings = byParent.get(parentFolderId) ?? [];
-    siblings.push(folder);
-    byParent.set(parentFolderId, siblings);
-  });
-  byParent.forEach((siblings) => {
-    siblings.sort((a, b) => a.name.localeCompare(b.name));
-  });
+  const { byId, byParent } = indexFolders(folders, { sorted: true });
 
   const rows: FolderRow[] = [];
   const visited = new Set<number>();
@@ -167,21 +175,9 @@ export function buildNotesTreeRows({
   notes: db.NotesNote[];
   rootFolderId: number | null;
 }): NotesTreeRow[] {
-  const byId = new Map<number, db.NotesFolder>();
-  const byParent = new Map<number | null, db.NotesFolder[]>();
+  const { byId, byParent } = indexFolders(folders, { sorted: true });
   const notesByFolder = new Map<number, db.NotesNote[]>();
   const renderedNoteIds = new Set<string>();
-
-  folders.forEach((folder) => {
-    byId.set(folder.folderId, folder);
-    const parentFolderId = folder.parentFolderId ?? null;
-    const siblings = byParent.get(parentFolderId) ?? [];
-    siblings.push(folder);
-    byParent.set(parentFolderId, siblings);
-  });
-  byParent.forEach((siblings) => {
-    siblings.sort((a, b) => a.name.localeCompare(b.name));
-  });
 
   notes.forEach((note) => {
     const folderNotes = notesByFolder.get(note.folderId) ?? [];
@@ -189,10 +185,7 @@ export function buildNotesTreeRows({
     notesByFolder.set(note.folderId, folderNotes);
   });
   notesByFolder.forEach((folderNotes) => {
-    folderNotes.sort((a, b) => {
-      const titleDiff = a.title.localeCompare(b.title);
-      return titleDiff || (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-    });
+    folderNotes.sort(compareNotes);
   });
 
   const rows: NotesTreeRow[] = [];
@@ -257,10 +250,7 @@ export function buildNotesTreeRows({
 
   notes
     .filter((note) => !renderedNoteIds.has(note.id))
-    .sort((a, b) => {
-      const titleDiff = a.title.localeCompare(b.title);
-      return titleDiff || (b.updatedAt ?? 0) - (a.updatedAt ?? 0);
-    })
+    .sort(compareNotes)
     .forEach((note) => rows.push({ type: 'note', note, depth: 0 }));
 
   return rows;
