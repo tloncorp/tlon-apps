@@ -222,6 +222,7 @@ export function ChannelHeader({
     if (
       channel.type === 'chat' ||
       channel.type === 'notebook' ||
+      channel.type === 'notes' ||
       channel.type === 'gallery'
     ) {
       const channelType = getChannelTypeName(channel.type);
