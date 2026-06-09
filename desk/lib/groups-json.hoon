@@ -1304,6 +1304,7 @@
     %-  of
     :~  add+whom
         del+whom
+        set-order+(ar whom)
     ==
   ::
   ++  v8

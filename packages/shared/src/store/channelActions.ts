@@ -5,6 +5,7 @@ import {
 } from '@tloncorp/api';
 import { TimeoutError } from '@tloncorp/api';
 import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
+import { isEqual } from 'lodash';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -580,6 +581,109 @@ export async function unpinItem(pin: db.Pin) {
     console.error('Failed to unpin item', e);
     // rollback optimistic update
     db.insertPinnedItem(pin);
+  }
+}
+
+// Slot-preserving reorder, matching the backend %set-order semantics and the
+// frontend mergeVisibleOrderIntoFull: reorder only the ids `desired` names
+// (∩ currently pinned, de-duped) into the slots they currently occupy, leaving
+// any omitted pinned id fixed in place.
+function normalizeOrder(desired: string[], current: db.Pin[]): string[] {
+  const order = [...current]
+    .sort((a, b) => a.index - b.index)
+    .map((p) => p.itemId);
+  const pinnedSet = new Set(order);
+  const wanted = [...new Set(desired)].filter((id) => pinnedSet.has(id));
+  const wantedSet = new Set(wanted);
+  let w = 0;
+  return order.map((id) => (wantedSet.has(id) ? wanted[w++] : id));
+}
+
+// Persist a reorder of the pinned items. Optimistically writes the new order,
+// pokes the backend, and re-asserts on success so a stale in-flight sync can't
+// leave the UI reverted. Never throws — returns true on success, false on
+// failure (after a best-effort backend reconcile) so drag handlers can roll
+// back their optimistic UI.
+//
+// The optimistic local write and the backend poke take *different* orders:
+//   - `optimisticOrder` is the full merged pin order (incl. hidden pins in a
+//     filtered view) and is what we write locally.
+//   - `backendOrder` is only the ids the user actually reordered in the visible
+//     subset. We send just those to `%set-order` so the backend leaves hidden
+//     pins in their current server-side slots. Sending the full order would name
+//     hidden pins too, and could move a hidden pin a peer reordered on another
+//     device back to this client's stale slot.
+// For full-list surfaces the visible set *is* the full set, so both are equal.
+export async function reorderPinnedItems({
+  optimisticOrder,
+  backendOrder,
+}: {
+  optimisticOrder: string[];
+  backendOrder: string[];
+}): Promise<boolean> {
+  const before = await db.getPinnedItems();
+  const previousOrder = [...before]
+    .sort((a, b) => a.index - b.index)
+    .map((p) => p.itemId);
+  const normalized = normalizeOrder(optimisticOrder, before);
+
+  if (isEqual(previousOrder, normalized)) {
+    return true; // no-op drop
+  }
+
+  await db.setPinnedItemsOrder(normalized); // optimistic (full local order)
+
+  // Backend payload: only the reordered visible ids, deduped and intersected
+  // with the current pinned set — never expanded back to the full order.
+  const pinnedSet = new Set(before.map((p) => p.itemId));
+  const backendPayload = [...new Set(backendOrder)].filter((id) =>
+    pinnedSet.has(id)
+  );
+
+  try {
+    await api.setPinnedItemOrder(backendPayload);
+    // Re-assert after success: a sync whose scry predated the poke may have
+    // written a newer order locally mid-flight. Re-normalize against the current
+    // local set and write again so our reorder isn't reverted.
+    //
+    // Invariant: anything that defers to the backend's authority — the poke AND
+    // this reassert — operates on the visible-only `backendPayload`, NOT the full
+    // `optimisticOrder`. Re-asserting the full order would re-name hidden pins and
+    // could drag a hidden pin a mid-poke sync just moved back to this client's
+    // stale slot. Only the optimistic write above is the full merged order.
+    const after = await db.getPinnedItems();
+    await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
+    return true;
+  } catch (e) {
+    console.error('Failed to reorder pinned items', e);
+    // Best-effort reconcile to the authoritative backend order. The scry usually
+    // fails for the same reason the poke did, so guard it and always return false.
+    try {
+      const items = await api.getPinnedItems();
+      if (items.length === 0) {
+        // Authoritative snapshot is empty — clear local pins. `insertPinnedItems([])`
+        // is a no-op, so use the explicit clear (targeted to this reconcile path,
+        // not a global insertPinnedItems behavior change).
+        await db.clearPinnedItems();
+      } else {
+        await db.insertPinnedItems(items);
+      }
+    } catch (reconcileErr) {
+      console.error(
+        'Failed to reconcile pins after reorder failure',
+        reconcileErr
+      );
+      // Local-only fallback: undo our optimistic write, but only if nothing else
+      // changed local pins meanwhile (don't clobber a concurrent sync).
+      const current = await db.getPinnedItems();
+      const currentOrder = [...current]
+        .sort((a, b) => a.index - b.index)
+        .map((p) => p.itemId);
+      if (isEqual(currentOrder, normalized)) {
+        await db.setPinnedItemsOrder(previousOrder);
+      }
+    }
+    return false;
   }
 }
 

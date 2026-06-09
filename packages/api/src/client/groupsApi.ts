@@ -332,6 +332,18 @@ export const pinItem = async (itemId: string) => {
   });
 };
 
+export const setPinnedItemOrder = async (itemIds: string[]) => {
+  return await poke({
+    app: 'groups-ui',
+    mark: 'ui-action',
+    json: {
+      pins: {
+        'set-order': itemIds,
+      },
+    },
+  });
+};
+
 export const getChannelPreview = async (
   channelId: string
 ): Promise<db.Channel | null> => {
