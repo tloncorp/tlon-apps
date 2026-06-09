@@ -54,106 +54,28 @@ export interface NotesMemberRecord {
   role: NotesRole;
 }
 
-export interface NotesNoteRevision {
-  rev: number;
-  at: number;
-  author: string;
-  title: string;
-  bodyMd: string;
-}
+/**
+ * Stream events carry typed update payloads (see the %notes agent docs for
+ * the full wire format), but the client treats any event as a signal to
+ * resync, so only the envelope is modeled here.
+ */
+export type NotesStreamEvent = {
+  type: 'snapshot' | 'update';
+  host: string;
+  flagName: string;
+};
 
-export type NotesFolderUpdate =
-  | { type: 'folder-created'; id: number; folder: NotesFolder }
-  | { type: 'folder-updated'; id: number; folder: NotesFolder }
-  | { type: 'folder-deleted'; id: number };
-
-export type NotesNoteUpdate =
-  | { type: 'note-created'; id: number; note: NotesNote }
-  | { type: 'note-updated'; id: number; note: NotesNote }
-  | { type: 'note-deleted'; id: number }
-  | { type: 'note-published'; id: number; html: string }
-  | { type: 'note-unpublished'; id: number }
-  | { type: 'note-history-archived'; id: number; revision: NotesNoteRevision };
-
-export type NotesNotebookUpdate =
-  | {
-      type: 'notebook-created';
-      host: string;
-      flagName: string;
-      notebook: NotesNotebook;
-      visibility: NotesVisibility;
-    }
-  | {
-      type: 'notebook-updated';
-      host: string;
-      flagName: string;
-      notebook: NotesNotebook;
-    }
-  | {
-      type: 'notebook-deleted';
-      host: string;
-      flagName: string;
-    }
-  | {
-      type: 'notebook-visibility-changed';
-      host: string;
-      flagName: string;
-      visibility: NotesVisibility;
-    }
-  | {
-      type: 'member-joined';
-      host: string;
-      flagName: string;
-      who: string;
-      role: NotesRole;
-    }
-  | {
-      type: 'member-left';
-      host: string;
-      flagName: string;
-      who: string;
-    }
-  | {
-      type: 'folder-update';
-      host: string;
-      flagName: string;
-      folderUpdate: NotesFolderUpdate;
-    }
-  | {
-      type: 'note-update';
-      host: string;
-      flagName: string;
-      noteUpdate: NotesNoteUpdate;
-    };
-
-export type NotesStreamEvent =
-  | {
-      type: 'snapshot';
-      host: string;
-      flagName: string;
-      visibility: NotesVisibility;
-    }
-  | {
-      type: 'update';
-      host: string;
-      flagName: string;
-      time: number;
-      update: NotesNotebookUpdate;
-    };
-
+// Only the poke variants the client produces are modeled; the agent's full
+// action surface is documented with the %notes agent.
 export type NotesNotebookAction =
-  | { type: 'rename'; title: string }
   | { type: 'delete' }
-  | { type: 'visibility'; visibility: NotesVisibility }
-  | { type: 'invite'; who: string }
   | { type: 'create-folder'; parent?: number | null; name: string }
   | {
       type: 'folder';
       id: number;
       action:
         | { type: 'rename'; name: string }
-        | { type: 'move'; newParent: number }
-        | { type: 'delete'; recursive: boolean };
+        | { type: 'move'; newParent: number };
     }
   | { type: 'create-note'; folder: number; title: string; body: string }
   | {
@@ -163,24 +85,12 @@ export type NotesNotebookAction =
         | { type: 'rename'; title: string }
         | { type: 'move'; folder: number }
         | { type: 'delete' }
-        | { type: 'update'; body: string; expectedRevision: number }
-        | { type: 'publish'; html: string }
-        | { type: 'unpublish' }
-        | { type: 'restore'; rev: number };
+        | { type: 'update'; body: string; expectedRevision: number };
     };
 
 export type NotesAction =
-  | { type: 'create-notebook'; title: string }
-  | ({ type: 'join' } & NotesFlagAction)
-  | ({ type: 'leave' } & NotesFlagAction)
-  | ({ type: 'accept-invite' } & NotesFlagAction)
-  | ({ type: 'decline-invite' } & NotesFlagAction)
+  | { type: 'join'; ship: string; name: string }
   | { type: 'notebook'; flag: string; action: NotesNotebookAction };
-
-type NotesFlagAction = {
-  ship: string;
-  name: string;
-};
 
 export function formatNotesFlag(flag: NotesFlag | string): string {
   if (typeof flag === 'string') {
@@ -212,7 +122,7 @@ export function notesChannelId(flag: NotesFlag | string): string {
   return `notes/${formatted}`;
 }
 
-export async function notesAction(action: NotesAction) {
+async function notesAction(action: NotesAction) {
   return poke({
     app: 'notes',
     mark: 'notes-action',
@@ -253,41 +163,11 @@ export async function listNotes(
   return scryNotesList(`/v0/notes/${host}/${name}`);
 }
 
-export async function getNotesNote({
-  flag,
-  noteId,
-}: {
-  flag: NotesFlag | string;
-  noteId: number;
-}): Promise<NotesNote | null> {
-  const normalized = requireNotesFlag(flag);
-  try {
-    const data = await scry<NotesNote>({
-      app: 'notes',
-      path: `/v0/note/${normalized.host}/${normalized.name}/${noteId}`,
-    });
-    return data ?? null;
-  } catch (e) {
-    return null;
-  }
-}
-
 export async function listNotesMembers(
   flag: NotesFlag | string
 ): Promise<NotesMemberRecord[]> {
   const { host, name } = requireNotesFlag(flag);
   return scryNotesList(`/v0/members/${host}/${name}`);
-}
-
-export async function listNotesHistory({
-  flag,
-  noteId,
-}: {
-  flag: NotesFlag | string;
-  noteId: number;
-}): Promise<NotesNoteRevision[]> {
-  const { host, name } = requireNotesFlag(flag);
-  return scryNotesList(`/v0/note-history/${host}/${name}/${noteId}`);
 }
 
 export async function deleteNotesNotebook(flag: NotesFlag | string) {
@@ -298,15 +178,6 @@ export async function joinNotesNotebook(flag: NotesFlag | string) {
   const normalized = requireNotesFlag(flag);
   return notesAction({
     type: 'join',
-    ship: normalized.host,
-    name: normalized.name,
-  });
-}
-
-export async function leaveNotesNotebook(flag: NotesFlag | string) {
-  const normalized = requireNotesFlag(flag);
-  return notesAction({
-    type: 'leave',
     ship: normalized.host,
     name: normalized.name,
   });
@@ -353,22 +224,6 @@ export async function moveNotesFolder({
     type: 'folder',
     id: folderId,
     action: { type: 'move', newParent },
-  });
-}
-
-export async function deleteNotesFolder({
-  flag,
-  folderId,
-  recursive = false,
-}: {
-  flag: NotesFlag | string;
-  folderId: number;
-  recursive?: boolean;
-}) {
-  return notebookAction(flag, {
-    type: 'folder',
-    id: folderId,
-    action: { type: 'delete', recursive },
   });
 }
 

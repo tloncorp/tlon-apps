@@ -202,10 +202,6 @@ export const useNotesNotes = createNotebookQueryHook(
   'notesNotes',
   db.getNotesNotes
 );
-export const useNotesMembers = createNotebookQueryHook(
-  'notesMembers',
-  db.getNotesMembers
-);
 
 /**
  * Snapshots existing item ids, runs the create action, then syncs until an
@@ -424,19 +420,6 @@ export async function deleteNotebookNote({
 }) {
   await api.deleteNotesNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
-  await syncNotesNotebookWithRetry(notebookFlag);
-}
-
-export async function deleteNotebookFolder({
-  notebookFlag,
-  folderId,
-  recursive = false,
-}: {
-  notebookFlag: string;
-  folderId: number;
-  recursive?: boolean;
-}) {
-  await api.deleteNotesFolder({ flag: notebookFlag, folderId, recursive });
   await syncNotesNotebookWithRetry(notebookFlag);
 }
 
