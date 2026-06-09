@@ -67,30 +67,32 @@ export type NotesStreamEvent = {
 
 // Only the poke variants the client produces are modeled; the agent's full
 // action surface is documented with the %notes agent.
+export type NotesFolderAction =
+  | { type: 'rename'; name: string }
+  | { type: 'move'; newParent: number };
+
+export type NotesNoteAction =
+  | { type: 'rename'; title: string }
+  | { type: 'move'; folder: number }
+  | { type: 'delete' }
+  | { type: 'update'; body: string; expectedRevision: number };
+
 export type NotesNotebookAction =
   | { type: 'delete' }
   | { type: 'create-folder'; parent?: number | null; name: string }
-  | {
-      type: 'folder';
-      id: number;
-      action:
-        | { type: 'rename'; name: string }
-        | { type: 'move'; newParent: number };
-    }
+  | { type: 'folder'; id: number; action: NotesFolderAction }
   | { type: 'create-note'; folder: number; title: string; body: string }
-  | {
-      type: 'note';
-      id: number;
-      action:
-        | { type: 'rename'; title: string }
-        | { type: 'move'; folder: number }
-        | { type: 'delete' }
-        | { type: 'update'; body: string; expectedRevision: number };
-    };
+  | { type: 'note'; id: number; action: NotesNoteAction };
 
-export type NotesAction =
-  | { type: 'join'; ship: string; name: string }
-  | { type: 'notebook'; flag: string; action: NotesNotebookAction };
+export type NotesJoinAction = { type: 'join'; ship: string; name: string };
+
+export type NotesNotebookScopedAction = {
+  type: 'notebook';
+  flag: string;
+  action: NotesNotebookAction;
+};
+
+export type NotesAction = NotesJoinAction | NotesNotebookScopedAction;
 
 export function formatNotesFlag(flag: NotesFlag | string): string {
   if (typeof flag === 'string') {
