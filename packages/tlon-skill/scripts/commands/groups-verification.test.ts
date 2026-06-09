@@ -4,6 +4,7 @@ import {
   type RawGroupForAdminVerification,
   actingShipCanAdminister,
   getShipRecordValue,
+  seatHasAdminRole,
   seatHasRole,
   shipIsBanned,
   shipIsSeated,
@@ -91,6 +92,39 @@ describe('shipIsBanned', () => {
 
   it('is false when there is no ban list', () => {
     expect(shipIsBanned({}, MEMBER, normalizeShip)).toBe(false);
+  });
+});
+
+describe('seatHasAdminRole', () => {
+  it('is true when the seat holds a role marked admin', () => {
+    const group: RawGroupForAdminVerification = {
+      admins: ['admin'],
+      seats: { [MEMBER]: { roles: ['admin'] } },
+    };
+    expect(seatHasAdminRole(group, MEMBER, normalizeShip)).toBe(true);
+  });
+
+  it('is true for a custom admin role id', () => {
+    const group: RawGroupForAdminVerification = {
+      admins: ['steward'],
+      seats: { [MEMBER]: { roles: ['steward'] } },
+    };
+    expect(seatHasAdminRole(group, MEMBER, normalizeShip)).toBe(true);
+  });
+
+  it('is false when the seat holds an "admin"-named role the group does not mark admin', () => {
+    // The seat has a role whose id is "admin", but it is not in `admins`, so it
+    // grants no admin privileges — a `promote` here must not report success.
+    const group: RawGroupForAdminVerification = {
+      admins: [],
+      seats: { [MEMBER]: { roles: ['admin'] } },
+    };
+    expect(seatHasAdminRole(group, MEMBER, normalizeShip)).toBe(false);
+  });
+
+  it('is false when the ship has no seat', () => {
+    const group: RawGroupForAdminVerification = { admins: ['admin'] };
+    expect(seatHasAdminRole(group, MEMBER, normalizeShip)).toBe(false);
   });
 });
 

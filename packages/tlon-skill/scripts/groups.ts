@@ -84,6 +84,7 @@ import {
   type RawGroupForAdminVerification,
   actingShipCanAdminister,
   getShipRecordValue,
+  seatHasAdminRole,
   seatHasRole,
   shipIsBanned,
   shipIsSeated,
@@ -670,6 +671,27 @@ async function verifyShipsHaveRole(
       expect === 'present'
         ? `Could not verify ${unverified.join(', ')} gained role ${roleId} in ${groupId}`
         : `Could not verify ${unverified.join(', ')} lost role ${roleId} in ${groupId} (still present)`
+  );
+}
+
+// Verify admin status by the group's actual `admins` markings, not the literal
+// `admin` role id — assigning a role named `admin` that the group doesn't mark as
+// admin grants no privileges, and we must not report that as success.
+async function verifyShipsAreAdmin(
+  groupId: string,
+  ships: string[],
+  expect: 'present' | 'absent'
+): Promise<void> {
+  await verifyShips(
+    groupId,
+    ships,
+    (rawGroup, ship) =>
+      seatHasAdminRole(rawGroup, ship, normalizeShip) ===
+      (expect === 'present'),
+    (unverified) =>
+      expect === 'present'
+        ? `Could not verify ${unverified.join(', ')} gained admin in ${groupId}`
+        : `Could not verify ${unverified.join(', ')} lost admin in ${groupId} (still admin)`
   );
 }
 
@@ -1284,7 +1306,7 @@ async function promoteMemberToAdmin(groupId: string, ships: string[]) {
     ships: normalizedShips,
   });
 
-  await verifyShipsHaveRole(groupId, normalizedShips, ADMIN_ROLE_ID, 'present');
+  await verifyShipsAreAdmin(groupId, normalizedShips, 'present');
   console.log(`✅ Members promoted to admin.`);
 }
 
@@ -1318,7 +1340,7 @@ async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
     });
   }
 
-  await verifyShipsHaveRole(groupId, normalizedShips, ADMIN_ROLE_ID, 'absent');
+  await verifyShipsAreAdmin(groupId, normalizedShips, 'absent');
   console.log(`✅ Members demoted from admin.`);
 }
 

@@ -75,7 +75,24 @@ export function shipIsBanned(
 ): boolean {
   const banned = rawGroup.admissions?.banned?.ships ?? [];
   const target = normalizeShip(ship);
-  return banned.some((bandedShip) => normalizeShip(bandedShip) === target);
+  return banned.some((bannedShip) => normalizeShip(bannedShip) === target);
+}
+
+/**
+ * Does the ship's seat hold a role the group actually marks as an admin role
+ * (`rawGroup.admins`)? This is the real test of admin status — a seat can hold a
+ * role whose id is `admin` without that role being marked admin, in which case it
+ * grants no admin privileges. Covers custom admin roles, not just the literal
+ * `admin` role.
+ */
+export function seatHasAdminRole(
+  rawGroup: RawGroupForAdminVerification,
+  ship: string,
+  normalizeShip: NormalizeShip
+): boolean {
+  const adminRoles = rawGroup.admins ?? [];
+  const seat = getShipRecordValue(rawGroup.seats, ship, normalizeShip);
+  return seat?.roles?.some((roleId) => adminRoles.includes(roleId)) ?? false;
 }
 
 /**
@@ -100,12 +117,7 @@ export function actingShipCanAdminister(
     return { ok: true };
   }
 
-  const adminRoles = rawGroup.admins ?? [];
-  const seat = getShipRecordValue(rawGroup.seats, actingShip, normalizeShip);
-  const isAdmin =
-    seat?.roles?.some((roleId) => adminRoles.includes(roleId)) ?? false;
-
-  if (isAdmin) {
+  if (seatHasAdminRole(rawGroup, actingShip, normalizeShip)) {
     return { ok: true };
   }
 
