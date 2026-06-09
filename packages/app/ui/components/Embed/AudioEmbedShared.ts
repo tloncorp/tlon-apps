@@ -7,6 +7,5 @@ export type AudioPlayerHandle = {
 };
 export type AudioPlayer = ComponentType<{
   url: string;
-  canUnload?: boolean | undefined;
   ref?: Ref<AudioPlayerHandle>;
 }>;
