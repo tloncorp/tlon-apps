@@ -51,8 +51,14 @@ export async function syncNotesNotebook(flagInput: api.NotesFlag | string) {
     throw new Error(`Notes notebook not found: ${flag}`);
   }
 
+  // The agent mints the root folder immediately after the notebook (id + 1);
+  // prefer the actual synced folder, falling back to that convention.
+  const rootFolderId =
+    folders.find((folder) => folder.parentFolderId === null)?.id ??
+    summary.notebook.id + 1;
+
   await db.saveNotesNotebookSnapshot({
-    notebook: toDbNotebook(summary, members),
+    notebook: toDbNotebook(summary, members, rootFolderId),
     folders: folders.map((folder) => toDbFolder(flag, folder)),
     notes: notes.map((note) => toDbNote(flag, note)),
     members: members.map((member) => toDbMember(flag, member)),
@@ -477,7 +483,8 @@ async function syncNotesNotebookWithRetry(
 
 function toDbNotebook(
   summary: api.NotesNotebookSummary,
-  members: api.NotesMemberRecord[]
+  members: api.NotesMemberRecord[],
+  rootFolderId: number
 ): db.NotesNotebook {
   const flag = api.formatNotesFlag({
     host: summary.host,
@@ -492,7 +499,7 @@ function toDbNotebook(
     notebookId: summary.notebook.id,
     title: summary.notebook.title,
     visibility: summary.visibility ?? null,
-    rootFolderId: summary.notebook.id + 1,
+    rootFolderId,
     createdBy: summary.notebook.createdBy,
     createdAt: summary.notebook.createdAt,
     updatedBy: summary.notebook.updatedBy,
