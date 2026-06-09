@@ -16,6 +16,7 @@ interface NotificationData {
 
 export default function useDesktopNotifications(isClientReady: boolean) {
   const processedNotifications = useRef<Set<string>>(new Set());
+  const hasSubscribedToActivity = useRef(false);
   const isElectron = useIsElectron();
 
   const processActivityEvent = useCallback(
@@ -124,14 +125,17 @@ export default function useDesktopNotifications(isClientReady: boolean) {
   useEffect(() => {
     if (!isElectron || !window.electronAPI || !isClientReady) return;
 
-    const handleActivityEvent = (event: api.ActivityEvent) => {
-      logger.log('Activity event:', event);
-      if (event.type === 'addActivityEvent' && event.events[0].shouldNotify) {
-        processActivityEvent(event.events[0]);
-      }
-    };
-
-    api.subscribeToActivity(handleActivityEvent);
+    // subscribeToActivity has no teardown, so guard against stacking a new
+    // live subscription every time this effect re-runs
+    if (!hasSubscribedToActivity.current) {
+      hasSubscribedToActivity.current = true;
+      api.subscribeToActivity((event: api.ActivityEvent) => {
+        logger.log('Activity event:', event);
+        if (event.type === 'addActivityEvent' && event.events[0].shouldNotify) {
+          processActivityEvent(event.events[0]);
+        }
+      });
+    }
 
     const unsubscribeNotificationClick =
       window.electronAPI.onNotificationClicked(handleNotificationClick);
