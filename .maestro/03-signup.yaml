@@ -136,19 +136,6 @@ onFlowComplete:
 
 - extendedWaitUntil:
     visible:
-      id: skip-contact-book
-    optional: true
-    timeout: 1000
-- runFlow:
-    when:
-      visible:
-        id: skip-contact-book
-    commands:
-      - tapOn:
-          id: skip-contact-book
-
-- extendedWaitUntil:
-    visible:
       id: finish-invites
     timeout: 30000
 - tapOn:
@@ -158,5 +145,18 @@ onFlowComplete:
 - extendedWaitUntil:
     visible: Home
     timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: ChatListItem-Bot Farm 2-unpinned
+    timeout: 30000
+
+# assert the expected signup chat titles are present
+- assertVisible: Test Bot
+- assertVisible: E2E Tester's Group
+- assertVisible: shadow brian :\)
+- assertVisible: Tlon Team
+- assertVisible: Tlonbot Group
+- assertVisible: Getting Started
+- assertVisible: Bot Farm 2
 
 - evalScript: ${output.didComplete = true}
