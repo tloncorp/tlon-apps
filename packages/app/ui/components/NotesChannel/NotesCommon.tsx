@@ -13,9 +13,66 @@ import type { ComponentProps, ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { ScrollView, XStack, YStack } from 'tamagui';
 
+import type { ActionGroup } from '../ActionSheet';
 import { ActionSheet } from '../ActionSheet';
+import { OverflowTriggerButton } from '../OverflowMenuButton';
 import type { FolderRow } from './notesTree';
 import { getFolderLabel } from './notesTree';
+
+/**
+ * Overflow ("...") menu: popover on web, sheet on native. Owns its open
+ * state and closes before running each action, so callers just declare
+ * action groups (see createActionGroups).
+ */
+export function NotesOverflowMenu({
+  groups,
+  triggerTestID,
+}: {
+  groups: ActionGroup[];
+  triggerTestID?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <ActionSheet
+      open={open}
+      onOpenChange={setOpen}
+      mode={Platform.OS === 'web' ? 'popover' : 'sheet'}
+      modal
+      snapPointsMode="fit"
+      trigger={
+        <OverflowTriggerButton
+          testID={triggerTestID}
+          paddingHorizontal="$xs"
+          paddingVertical="$xs"
+          onPress={(event) => {
+            event.stopPropagation();
+            setOpen(true);
+          }}
+        />
+      }
+    >
+      <ActionSheet.Content>
+        {groups.map((group, index) => (
+          <ActionSheet.ActionGroup key={index} accent={group.accent}>
+            {group.actions.map((action) => (
+              <ActionSheet.Action
+                key={action.title}
+                action={{
+                  ...action,
+                  action: () => {
+                    setOpen(false);
+                    action.action?.();
+                  },
+                }}
+                testID={action.testID}
+              />
+            ))}
+          </ActionSheet.ActionGroup>
+        ))}
+      </ActionSheet.Content>
+    </ActionSheet>
+  );
+}
 
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
 const EMPTY_NOTES: db.NotesNote[] = [];
