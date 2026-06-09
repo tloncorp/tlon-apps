@@ -144,7 +144,10 @@ describe('notes tree helpers', () => {
     const cycleB = makeFolder(11, 'Cycle B', 10);
     const orphan = makeFolder(12, 'Orphan', 999);
     const folders = [root, cycleA, cycleB, orphan];
-    const notes = [makeNote(1, 10, 'Cycle note'), makeNote(2, 12, 'Orphan note')];
+    const notes = [
+      makeNote(1, 10, 'Cycle note'),
+      makeNote(2, 12, 'Orphan note'),
+    ];
 
     const rows = buildNotesTreeRows({
       expandedFolderIds: new Set([10, 11, 12]),

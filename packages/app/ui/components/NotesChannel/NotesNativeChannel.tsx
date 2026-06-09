@@ -25,6 +25,7 @@ import {
   MoveNoteSheet,
   NotebookGateMessage,
   NotesErrorMessage,
+  errorMessage,
   useEntityDialog,
   useNotebookData,
 } from './NotesCommon';
@@ -246,12 +247,25 @@ export function NotesNativeChannel({
     });
   }, []);
 
+  // Clears the error banner, runs the action, and surfaces any failure in the
+  // banner using `fallback` when the error carries no message.
+  const runAction = useCallback(
+    async (fallback: string, action: () => Promise<void>) => {
+      setError(null);
+      try {
+        await action();
+      } catch (e) {
+        setError(errorMessage(e, fallback));
+      }
+    },
+    []
+  );
+
   const handleCreateNote = useCallback(async () => {
     if (!notebookFlag || !rootFolderId || !canEdit || isCreatingNote) return;
     const targetFolderId = selectedFolderId ?? rootFolderId;
     setIsCreatingNote(true);
-    setError(null);
-    try {
+    await runAction('Failed to create note', async () => {
       expandFolder(targetFolderId);
       const note = await createNotebookNote({
         notebookFlag,
@@ -261,11 +275,8 @@ export function NotesNativeChannel({
       if (note) {
         openNote(note);
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create note');
-    } finally {
-      setIsCreatingNote(false);
-    }
+    });
+    setIsCreatingNote(false);
   }, [
     canEdit,
     expandFolder,
@@ -273,6 +284,7 @@ export function NotesNativeChannel({
     notebookFlag,
     openNote,
     rootFolderId,
+    runAction,
     selectedFolderId,
   ]);
 
@@ -282,8 +294,7 @@ export function NotesNativeChannel({
     }
     const parentFolderId = newFolderParentId ?? rootFolderId;
     setIsCreatingFolder(true);
-    setError(null);
-    try {
+    await runAction('Failed to create folder', async () => {
       await createNotebookFolder({
         notebookFlag,
         parentFolderId,
@@ -292,11 +303,8 @@ export function NotesNativeChannel({
       expandFolder(parentFolderId);
       setNewFolderName('');
       setAddFolderOpen(false);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to create folder');
-    } finally {
-      setIsCreatingFolder(false);
-    }
+    });
+    setIsCreatingFolder(false);
   }, [
     canEdit,
     expandFolder,
@@ -304,6 +312,7 @@ export function NotesNativeChannel({
     newFolderParentId,
     notebookFlag,
     rootFolderId,
+    runAction,
   ]);
 
   const handleAddFolderOpenChange = useCallback(
@@ -345,9 +354,8 @@ export function NotesNativeChannel({
         return;
       }
 
-      setError(null);
-      try {
-        await runMoveNote(async () => {
+      await runAction('Failed to move note', () =>
+        runMoveNote(async () => {
           await moveNotebookNote({
             notebookFlag,
             noteId: movingNote.noteId,
@@ -355,10 +363,8 @@ export function NotesNativeChannel({
           });
           expandFolder(folderId);
           setSelectedFolderId(folderId);
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to move note');
-      }
+        })
+      );
     },
     [
       canEdit,
@@ -367,6 +373,7 @@ export function NotesNativeChannel({
       isMovingNote,
       movingNote,
       notebookFlag,
+      runAction,
       runMoveNote,
     ]
   );
@@ -409,18 +416,15 @@ export function NotesNativeChannel({
       return;
     }
 
-    setError(null);
-    try {
-      await runRenameFolder(async () => {
+    await runAction('Failed to rename folder', () =>
+      runRenameFolder(async () => {
         await renameNotebookFolder({
           notebookFlag,
           folder: renamingFolder,
           name: nextName,
         });
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to rename folder');
-    }
+      })
+    );
   }, [
     canEdit,
     closeRenameFolderDialog,
@@ -428,6 +432,7 @@ export function NotesNativeChannel({
     notebookFlag,
     renameFolderName,
     renamingFolder,
+    runAction,
     runRenameFolder,
   ]);
 
@@ -442,9 +447,8 @@ export function NotesNativeChannel({
         return;
       }
 
-      setError(null);
-      try {
-        await runMoveFolder(async () => {
+      await runAction('Failed to move folder', () =>
+        runMoveFolder(async () => {
           await moveNotebookFolder({
             notebookFlag,
             folder: movingFolder,
@@ -453,10 +457,8 @@ export function NotesNativeChannel({
           expandFolder(parentFolderId);
           expandFolder(movingFolder.folderId);
           setSelectedFolderId(movingFolder.folderId);
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to move folder');
-      }
+        })
+      );
     },
     [
       canEdit,
@@ -465,6 +467,7 @@ export function NotesNativeChannel({
       isMovingFolder,
       movingFolder,
       notebookFlag,
+      runAction,
       runMoveFolder,
     ]
   );
@@ -512,12 +515,13 @@ export function NotesNativeChannel({
       }
 
       const isExpanded = expandedFolderIds.has(folderId);
-      setSelectedFolderId((currentFolderId) => {
-        if (isExpanded) {
-          return currentFolderId === folderId ? null : currentFolderId;
-        }
-        return currentFolderId === folderId ? null : folderId;
-      });
+      setSelectedFolderId((currentFolderId) =>
+        currentFolderId === folderId
+          ? null
+          : isExpanded
+            ? currentFolderId
+            : folderId
+      );
       setExpandedFolderIds((currentIds) => {
         const nextIds = new Set(currentIds);
         if (isExpanded) {

@@ -18,12 +18,17 @@ export function notesNotebookFlagFromChannelId(channelId: string) {
   return flag ? api.formatNotesFlag(flag) : null;
 }
 
-export async function syncNotesNotebook(flagInput: api.NotesFlag | string) {
+function requireNotesNotebookFlag(flagInput: api.NotesFlag | string) {
   const flag = api.formatNotesFlag(flagInput);
   const parsed = api.parseNotesFlag(flag);
   if (!parsed) {
     throw new Error(`Invalid notes notebook flag: ${flag}`);
   }
+  return { flag, parsed };
+}
+
+export async function syncNotesNotebook(flagInput: api.NotesFlag | string) {
+  const { flag, parsed } = requireNotesNotebookFlag(flagInput);
 
   const [notebook, folders, notes, members] = await Promise.all([
     api.getNotesNotebook(parsed),
@@ -59,11 +64,7 @@ export async function syncNotesNotebook(flagInput: api.NotesFlag | string) {
 export async function ensureNotesNotebookJoined(
   flagInput: api.NotesFlag | string
 ) {
-  const flag = api.formatNotesFlag(flagInput);
-  const parsed = api.parseNotesFlag(flag);
-  if (!parsed) {
-    throw new Error(`Invalid notes notebook flag: ${flag}`);
-  }
+  const { flag, parsed } = requireNotesNotebookFlag(flagInput);
 
   const currentUserId = api.getCurrentUserId();
   const isHost = parsed.host === currentUserId;
