@@ -28,11 +28,6 @@ onFlowComplete:
 # all at once causes flakiness. extendedWaitUntil calls are a
 # workaround to delay next digit insertion
 - assertVisible: Check your email for a confirmation code
-# add a short delay to allow the OTP email to arrive
-- extendedWaitUntil:
-    visible: invalidText
-    optional: true
-    timeout: 3000
 - runScript: scripts/getEmailOtp.js
 
 - inputText: ${output.otpDigit1}
@@ -98,38 +93,65 @@ onFlowComplete:
 
 # click through welcome tour
 - assertVisible: Let's get started
-- tapOn: Let's get started
+- tapOn:
+    id: lets-get-started
 
 - assertVisible:
-    id: got-it
+    id: bot-configure
 - tapOn:
-    id: got-it
+    id: bot-configure
 
 - assertVisible:
-    id: one-quick-thing
+    id: bot-name-input
 - tapOn:
-    id: one-quick-thing
+    id: bot-name-input
+- inputText: Test Bot
+- assertVisible:
+    id: bot-name-next
+- tapOn:
+    id: bot-name-next
 
 - assertVisible:
-    id: invite-friends
+    id: bot-avatar-skip
 - tapOn:
-    id: invite-friends
+    id: bot-avatar-skip
 
-- assertVisible:
-    id: finish-invites
-- tapOn:
-    id: finish-invites
-
-# allow 7 seconds before checking metadata has loaded
 - extendedWaitUntil:
-    visible: invalidText
-    optional: true
-    timeout: 7000
+    visible: Default (free, used as fallback)
+    timeout: 60000
+- assertVisible:
+    id: bot-provider-next
+- tapOn:
+    id: bot-provider-next
 
-# assert everything we expect to be there is
-- assertVisible: '~wittyr-witbes' # Tlon Support
+- assertVisible:
+    id: got-it
+- tapOn:
+    id: got-it
+
+- extendedWaitUntil:
+    visible:
+      id: finish-invites
+    timeout: 30000
+- tapOn:
+    id: finish-invites
+
+# assert we made it through signup and onboarding
+- extendedWaitUntil:
+    visible: Home
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: ChatListItem-Bot Farm 2-unpinned
+    timeout: 30000
+
+# assert the expected signup chat titles are present
+- assertVisible: Test Bot
+- assertVisible: E2E Tester's Group
+- assertVisible: shadow brian :\)
+- assertVisible: Tlon Team
+- assertVisible: Tlonbot Group
+- assertVisible: Getting Started
 - assertVisible: Bot Farm 2
-- assertVisible: shadow brian :)
-# - assertVisible: Tlon Studio
 
 - evalScript: ${output.didComplete = true}

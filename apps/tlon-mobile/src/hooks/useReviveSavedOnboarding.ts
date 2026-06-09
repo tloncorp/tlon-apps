@@ -1,6 +1,5 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import * as api from '@tloncorp/api';
-import { useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useShip } from '@tloncorp/app/contexts/ship';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { signupData } from '@tloncorp/shared/db';
@@ -15,7 +14,6 @@ import { useOnboardingHelpers } from './useOnboardingHelpers';
 const logger = createDevLogger('OnboardingRevive', true);
 
 export function useReviveSavedOnboarding() {
-  const inviteMeta = useLureMetadata();
   const navigation = useNavigation<NavigationProp<OnboardingStackParamList>>();
   const { isAuthenticated } = useShip();
   const signupContext = useSignupContext();
@@ -103,30 +101,27 @@ export function useReviveSavedOnboarding() {
       return false;
     }
 
-    if (inviteMeta) {
-      logger.crumb(`attempting to revive onboarding session`, {
-        email: savedSignup.email,
-        phoneNumber: savedSignup.phoneNumber,
-      });
-      const routeStack = await getOnboardingRouteStack(savedSignup);
-      logger.crumb(`computed onboarding route stack`, routeStack);
+    logger.crumb(`attempting to revive onboarding session`, {
+      email: savedSignup.email,
+      phoneNumber: savedSignup.phoneNumber,
+    });
+    const routeStack = await getOnboardingRouteStack(savedSignup);
+    logger.crumb(`computed onboarding route stack`, routeStack);
 
-      if (routeStack) {
-        logger.trackEvent(AnalyticsEvent.OnboardingSessionRevived, {
-          route: routeStack[routeStack.length - 1],
-        });
-        navigation.reset({
-          index: 1,
-          routes: routeStack,
-        });
-        return true;
-      }
+    if (routeStack) {
+      logger.trackEvent(AnalyticsEvent.OnboardingSessionRevived, {
+        route: routeStack[routeStack.length - 1],
+      });
+      navigation.reset({
+        index: routeStack.length - 1,
+        routes: routeStack,
+      });
+      return true;
     }
 
     return false;
   }, [
     getOnboardingRouteStack,
-    inviteMeta,
     isAuthenticated,
     navigation,
     onboardingHelpers,
