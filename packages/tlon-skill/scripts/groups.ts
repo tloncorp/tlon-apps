@@ -71,6 +71,14 @@ import type { Group } from '@tloncorp/api';
 
 import { ensureClient, getCurrentShip, normalizeShip } from './api-client';
 import {
+  type RawGroupForAdminVerification,
+  actingShipCanAdminister,
+  getShipRecordValue,
+  seatHasRole,
+  shipIsBanned,
+  shipIsSeated,
+} from './commands/groups-verification';
+import {
   getOption,
   hasOptionValue,
   isHelpArg,
@@ -332,15 +340,6 @@ type OwnerAdminVerification =
   | { status: 'verified' }
   | { status: 'missing'; reason: string };
 
-type RawGroupForAdminVerification = {
-  admins?: string[];
-  seats?: Record<string, { roles?: string[] }>;
-  admissions?: {
-    pending?: Record<string, string[]>;
-    invited?: Record<string, unknown>;
-  };
-};
-
 const VERIFY_ATTEMPTS = 5;
 const VERIFY_DELAY_MS = 500;
 
@@ -350,24 +349,6 @@ function sleep(ms: number): Promise<void> {
 
 function groupHasRole(group: Group, roleId: string): boolean {
   return (group.roles || []).some((role) => role.id === roleId);
-}
-
-function getShipRecordValue<T>(
-  record: Record<string, T> | undefined,
-  ship: string
-): T | undefined {
-  if (!record) {
-    return undefined;
-  }
-
-  const direct = record[ship];
-  if (direct !== undefined) {
-    return direct;
-  }
-
-  return Object.entries(record).find(
-    ([key]) => normalizeShip(key) === ship
-  )?.[1];
 }
 
 async function getRawGroupForAdminVerification(
@@ -383,7 +364,7 @@ function hasOwnerSeat(
   rawGroup: RawGroupForAdminVerification,
   ownerShip: string
 ): boolean {
-  return getShipRecordValue(rawGroup.seats, ownerShip) !== undefined;
+  return getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip) !== undefined;
 }
 
 async function getRawGroupWithOwnerSeat(
@@ -426,7 +407,7 @@ async function getRawOwnerAdminVerification(
     };
   }
 
-  const ownerSeat = getShipRecordValue(rawGroup.seats, ownerShip);
+  const ownerSeat = getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip);
   if (ownerSeat) {
     if (ownerSeat.roles?.includes(ADMIN_ROLE_ID)) {
       return { status: 'verified' };
@@ -440,7 +421,8 @@ async function getRawOwnerAdminVerification(
 
   const pendingRoles = getShipRecordValue(
     rawGroup.admissions?.pending,
-    ownerShip
+    ownerShip,
+    normalizeShip
   );
   if (pendingRoles) {
     if (pendingRoles.includes(ADMIN_ROLE_ID)) {
@@ -458,7 +440,8 @@ async function getRawOwnerAdminVerification(
 
   const ownerInvite = getShipRecordValue(
     rawGroup.admissions?.invited,
-    ownerShip
+    ownerShip,
+    normalizeShip
   );
   if (ownerInvite) {
     return {
@@ -475,7 +458,7 @@ async function getRawOwnerAdminVerification(
 
 async function assignOwnerAdminRole(groupId: string, ownerShip: string) {
   const rawGroup = await getRawGroupWithOwnerSeat(groupId, ownerShip);
-  const ownerSeat = getShipRecordValue(rawGroup.seats, ownerShip);
+  const ownerSeat = getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip);
 
   if (ownerSeat?.roles?.includes(ADMIN_ROLE_ID)) {
     console.log(`✅ Owner already has "${ADMIN_ROLE_ID}" role.`);
@@ -594,6 +577,116 @@ async function verifyOwnerAdmin(
 
   throw new Error(
     `Could not verify owner admin assignment for ${ownerShip}: ${lastError}`
+  );
+}
+
+/**
+ * Refuse an admin mutation up front when the acting ship can't perform it, instead
+ * of firing a poke that a foreign host silently drops while the CLI reports success.
+ *
+ * A poke ack means "my ship forwarded this," not "the host applied it" — so this
+ * reads the group's actual state and checks the acting ship is the host or an admin
+ * before any mutation runs. `action` is the user-facing verb (e.g. "promote").
+ */
+async function assertActingShipCanAdminister(
+  groupId: string,
+  action: string
+): Promise<void> {
+  const actingShip = normalizeShip(getCurrentUserId());
+  const hostShip = normalizeShip(groupId.split('/')[0]);
+  const rawGroup = await getRawGroupForAdminVerification(groupId);
+  const result = actingShipCanAdminister(
+    rawGroup,
+    actingShip,
+    hostShip,
+    normalizeShip
+  );
+
+  if (!result.ok) {
+    throw new Error(`Can't ${action} in ${groupId}: ${result.reason}`);
+  }
+}
+
+/**
+ * Scry-poll the group's actual state until every target ship satisfies `isSatisfied`,
+ * or attempts are exhausted. One scry per attempt covers all ships — never poll per
+ * ship. On exhaustion, throws naming the still-unverified ships via `describeFailure`.
+ */
+async function verifyShips(
+  groupId: string,
+  ships: string[],
+  isSatisfied: (rawGroup: RawGroupForAdminVerification, ship: string) => boolean,
+  describeFailure: (unverified: string[]) => string
+): Promise<void> {
+  let unverified = [...ships];
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
+    try {
+      const rawGroup = await getRawGroupForAdminVerification(groupId);
+      unverified = ships.filter((ship) => !isSatisfied(rawGroup, ship));
+      if (unverified.length === 0) {
+        return;
+      }
+    } catch (err) {
+      lastError = err;
+    }
+
+    if (attempt < VERIFY_ATTEMPTS) {
+      await sleep(VERIFY_DELAY_MS);
+    }
+  }
+
+  const suffix = lastError ? ` (last error: ${lastError})` : '';
+  throw new Error(`${describeFailure(unverified)}${suffix}`);
+}
+
+async function verifyShipsHaveRole(
+  groupId: string,
+  ships: string[],
+  roleId: string,
+  expect: 'present' | 'absent'
+): Promise<void> {
+  await verifyShips(
+    groupId,
+    ships,
+    (rawGroup, ship) =>
+      seatHasRole(rawGroup, ship, roleId, normalizeShip) ===
+      (expect === 'present'),
+    (unverified) =>
+      expect === 'present'
+        ? `Could not verify ${unverified.join(', ')} gained role ${roleId} in ${groupId}`
+        : `Could not verify ${unverified.join(', ')} lost role ${roleId} in ${groupId} (still present)`
+  );
+}
+
+async function verifyShipsRemoved(
+  groupId: string,
+  ships: string[]
+): Promise<void> {
+  await verifyShips(
+    groupId,
+    ships,
+    (rawGroup, ship) => !shipIsSeated(rawGroup, ship, normalizeShip),
+    (unverified) =>
+      `Could not verify ${unverified.join(', ')} were removed from ${groupId} (still members)`
+  );
+}
+
+async function verifyShipsBanned(
+  groupId: string,
+  ships: string[],
+  expect: 'present' | 'absent'
+): Promise<void> {
+  await verifyShips(
+    groupId,
+    ships,
+    (rawGroup, ship) =>
+      shipIsBanned(rawGroup, ship, normalizeShip) === (expect === 'present'),
+    (unverified) =>
+      expect === 'present'
+        ? `Could not verify ${unverified.join(', ')} were banned from ${groupId}`
+        : `Could not verify ${unverified.join(', ')} were unbanned from ${groupId} (still banned)`
   );
 }
 
@@ -941,6 +1034,7 @@ async function updateGroup(
 // Kick members from a group
 async function kickMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'kick');
 
   console.log(`Kicking ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -949,12 +1043,14 @@ async function kickMembers(groupId: string, ships: string[]) {
     contactIds: normalizedShips,
   });
 
+  await verifyShipsRemoved(groupId, normalizedShips);
   console.log(`✅ Members kicked.`);
 }
 
 // Ban members from a group
 async function banMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'ban');
 
   console.log(`Banning ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -963,12 +1059,14 @@ async function banMembers(groupId: string, ships: string[]) {
     contactIds: normalizedShips,
   });
 
+  await verifyShipsBanned(groupId, normalizedShips, 'present');
   console.log(`✅ Members banned.`);
 }
 
 // Unban members from a group
 async function unbanMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'unban');
 
   console.log(`Unbanning ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -977,6 +1075,7 @@ async function unbanMembers(groupId: string, ships: string[]) {
     contactIds: normalizedShips,
   });
 
+  await verifyShipsBanned(groupId, normalizedShips, 'absent');
   console.log(`✅ Members unbanned.`);
 }
 
@@ -1038,6 +1137,7 @@ async function updateRole(
 // Assign a role to members
 async function assignRole(groupId: string, roleId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'assign roles');
 
   console.log(
     `Assigning role "${roleId}" to ${normalizedShips.join(', ')} in ${groupId}...`
@@ -1049,12 +1149,14 @@ async function assignRole(groupId: string, roleId: string, ships: string[]) {
     ships: normalizedShips,
   });
 
+  await verifyShipsHaveRole(groupId, normalizedShips, roleId, 'present');
   console.log(`✅ Role assigned.`);
 }
 
 // Remove a role from members
 async function removeRole(groupId: string, roleId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'remove roles');
 
   console.log(
     `Removing role "${roleId}" from ${normalizedShips.join(', ')} in ${groupId}...`
@@ -1066,6 +1168,7 @@ async function removeRole(groupId: string, roleId: string, ships: string[]) {
     ships: normalizedShips,
   });
 
+  await verifyShipsHaveRole(groupId, normalizedShips, roleId, 'absent');
   console.log(`✅ Role removed.`);
 }
 
@@ -1155,6 +1258,7 @@ async function addChannel(
 // Promote a member to admin by assigning them an admin role
 async function promoteMemberToAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'promote');
   await ensureAdminRole(groupId);
 
   console.log(
@@ -1167,12 +1271,14 @@ async function promoteMemberToAdmin(groupId: string, ships: string[]) {
     ships: normalizedShips,
   });
 
+  await verifyShipsHaveRole(groupId, normalizedShips, ADMIN_ROLE_ID, 'present');
   console.log(`✅ Members promoted to admin.`);
 }
 
 // Demote a member from admin by removing them from admin roles
 async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'demote');
   const group = await getGroup(groupId);
 
   // Find all admin roles this member might have
@@ -1199,6 +1305,7 @@ async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
     });
   }
 
+  await verifyShipsHaveRole(groupId, normalizedShips, ADMIN_ROLE_ID, 'absent');
   console.log(`✅ Members demoted from admin.`);
 }
 
