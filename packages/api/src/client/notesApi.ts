@@ -1,4 +1,4 @@
-import { getCurrentUserId, poke, scry, subscribe, unsubscribe } from './urbit';
+import { poke, scry, subscribe, unsubscribe } from './urbit';
 
 export type NotesVisibility = 'public' | 'private';
 export type NotesRole = 'owner' | 'editor' | 'viewer';
@@ -221,11 +221,7 @@ export async function notesAction(action: NotesAction) {
 }
 
 export async function listNotesNotebooks(): Promise<NotesNotebookSummary[]> {
-  const data = await scry<NotesNotebookSummary[]>({
-    app: 'notes',
-    path: '/v0/notebooks',
-  });
-  return Array.isArray(data) ? data : [];
+  return scryNotesList('/v0/notebooks');
 }
 
 export async function getNotesNotebook(
@@ -246,23 +242,15 @@ export async function getNotesNotebook(
 export async function listNotesFolders(
   flag: NotesFlag | string
 ): Promise<NotesFolder[]> {
-  const normalized = requireNotesFlag(flag);
-  const data = await scry<NotesFolder[]>({
-    app: 'notes',
-    path: `/v0/folders/${normalized.host}/${normalized.name}`,
-  });
-  return Array.isArray(data) ? data : [];
+  const { host, name } = requireNotesFlag(flag);
+  return scryNotesList(`/v0/folders/${host}/${name}`);
 }
 
 export async function listNotes(
   flag: NotesFlag | string
 ): Promise<NotesNote[]> {
-  const normalized = requireNotesFlag(flag);
-  const data = await scry<NotesNote[]>({
-    app: 'notes',
-    path: `/v0/notes/${normalized.host}/${normalized.name}`,
-  });
-  return Array.isArray(data) ? data : [];
+  const { host, name } = requireNotesFlag(flag);
+  return scryNotesList(`/v0/notes/${host}/${name}`);
 }
 
 export async function getNotesNote({
@@ -287,12 +275,8 @@ export async function getNotesNote({
 export async function listNotesMembers(
   flag: NotesFlag | string
 ): Promise<NotesMemberRecord[]> {
-  const normalized = requireNotesFlag(flag);
-  const data = await scry<NotesMemberRecord[]>({
-    app: 'notes',
-    path: `/v0/members/${normalized.host}/${normalized.name}`,
-  });
-  return Array.isArray(data) ? data : [];
+  const { host, name } = requireNotesFlag(flag);
+  return scryNotesList(`/v0/members/${host}/${name}`);
 }
 
 export async function listNotesHistory({
@@ -302,44 +286,8 @@ export async function listNotesHistory({
   flag: NotesFlag | string;
   noteId: number;
 }): Promise<NotesNoteRevision[]> {
-  const normalized = requireNotesFlag(flag);
-  const data = await scry<NotesNoteRevision[]>({
-    app: 'notes',
-    path: `/v0/note-history/${normalized.host}/${normalized.name}/${noteId}`,
-  });
-  return Array.isArray(data) ? data : [];
-}
-
-export async function createNotesNotebook(
-  title: string
-): Promise<NotesNotebookSummary> {
-  const currentUserId = getCurrentUserId();
-  const before = await listNotesNotebooks();
-  const beforeOurs = new Set(
-    before.filter((n) => n.host === currentUserId).map((n) => n.flagName)
-  );
-
-  await notesAction({ type: 'create-notebook', title });
-
-  const created = await pollForNewNotebook({
-    currentUserId,
-    title,
-    excluded: beforeOurs,
-  });
-  if (!created) {
-    throw new Error('Failed to create notes notebook');
-  }
-  return created;
-}
-
-export async function setNotesNotebookVisibility({
-  flag,
-  visibility,
-}: {
-  flag: NotesFlag | string;
-  visibility: NotesVisibility;
-}) {
-  return notebookAction(flag, { type: 'visibility', visibility });
+  const { host, name } = requireNotesFlag(flag);
+  return scryNotesList(`/v0/note-history/${host}/${name}/${noteId}`);
 }
 
 export async function deleteNotesNotebook(flag: NotesFlag | string) {
@@ -542,27 +490,7 @@ function requireNotesFlag(flag: NotesFlag | string): NotesFlag {
   return parsed;
 }
 
-async function pollForNewNotebook({
-  currentUserId,
-  title,
-  excluded,
-  attempts = 12,
-  delayMs = 300,
-}: {
-  currentUserId: string;
-  title: string;
-  excluded: Set<string>;
-  attempts?: number;
-  delayMs?: number;
-}): Promise<NotesNotebookSummary | null> {
-  for (let i = 0; i < attempts; i++) {
-    const all = await listNotesNotebooks();
-    const ours = all.filter((n) => n.host === currentUserId);
-    const fresh = ours.filter((n) => !excluded.has(n.flagName));
-    const match =
-      fresh.find((n) => n.notebook.title === title) ?? fresh[0] ?? null;
-    if (match) return match;
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-  }
-  return null;
+async function scryNotesList<T>(path: string): Promise<T[]> {
+  const data = await scry<T[]>({ app: 'notes', path });
+  return Array.isArray(data) ? data : [];
 }
