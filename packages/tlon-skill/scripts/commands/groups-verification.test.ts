@@ -19,7 +19,9 @@ const MEMBER = '~lorhep-binfen';
 
 describe('getShipRecordValue', () => {
   it('returns undefined for a missing record', () => {
-    expect(getShipRecordValue(undefined, MEMBER, normalizeShip)).toBeUndefined();
+    expect(
+      getShipRecordValue(undefined, MEMBER, normalizeShip)
+    ).toBeUndefined();
   });
 
   it('matches on the raw key directly', () => {

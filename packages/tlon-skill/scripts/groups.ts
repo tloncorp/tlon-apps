@@ -71,14 +71,6 @@ import type { Group } from '@tloncorp/api';
 
 import { ensureClient, getCurrentShip, normalizeShip } from './api-client';
 import {
-  type RawGroupForAdminVerification,
-  actingShipCanAdminister,
-  getShipRecordValue,
-  seatHasRole,
-  shipIsBanned,
-  shipIsSeated,
-} from './commands/groups-verification';
-import {
   getOption,
   hasOptionValue,
   isHelpArg,
@@ -88,6 +80,14 @@ import {
   printHelpAndExit,
   printUsageAndExit,
 } from './cli-utils';
+import {
+  type RawGroupForAdminVerification,
+  actingShipCanAdminister,
+  getShipRecordValue,
+  seatHasRole,
+  shipIsBanned,
+  shipIsSeated,
+} from './commands/groups-verification';
 
 const ADMIN_ROLE_ID = 'admin';
 const GROUP_UPDATE_FLAGS = ['title', 'description', 'image', 'cover'] as const;
@@ -364,7 +364,9 @@ function hasOwnerSeat(
   rawGroup: RawGroupForAdminVerification,
   ownerShip: string
 ): boolean {
-  return getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip) !== undefined;
+  return (
+    getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip) !== undefined
+  );
 }
 
 async function getRawGroupWithOwnerSeat(
@@ -407,7 +409,11 @@ async function getRawOwnerAdminVerification(
     };
   }
 
-  const ownerSeat = getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip);
+  const ownerSeat = getShipRecordValue(
+    rawGroup.seats,
+    ownerShip,
+    normalizeShip
+  );
   if (ownerSeat) {
     if (ownerSeat.roles?.includes(ADMIN_ROLE_ID)) {
       return { status: 'verified' };
@@ -458,7 +464,11 @@ async function getRawOwnerAdminVerification(
 
 async function assignOwnerAdminRole(groupId: string, ownerShip: string) {
   const rawGroup = await getRawGroupWithOwnerSeat(groupId, ownerShip);
-  const ownerSeat = getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip);
+  const ownerSeat = getShipRecordValue(
+    rawGroup.seats,
+    ownerShip,
+    normalizeShip
+  );
 
   if (ownerSeat?.roles?.includes(ADMIN_ROLE_ID)) {
     console.log(`✅ Owner already has "${ADMIN_ROLE_ID}" role.`);
@@ -615,7 +625,10 @@ async function assertActingShipCanAdminister(
 async function verifyShips(
   groupId: string,
   ships: string[],
-  isSatisfied: (rawGroup: RawGroupForAdminVerification, ship: string) => boolean,
+  isSatisfied: (
+    rawGroup: RawGroupForAdminVerification,
+    ship: string
+  ) => boolean,
   describeFailure: (unverified: string[]) => string
 ): Promise<void> {
   let unverified = [...ships];
