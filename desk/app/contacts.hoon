@@ -525,7 +525,7 @@
   ::
   ++  init
     =.  wen.rof  now.bowl
-    (emit %pass /migrate %agent [our dap]:bowl %poke noun+%migrate)
+    (emit %pass /migrate %agent [our dap]:bowl %poke unsafe+noun+!>(%migrate))
   ::
   ++  load
     |=  old-vase=vase

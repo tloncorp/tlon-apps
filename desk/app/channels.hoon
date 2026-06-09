@@ -1351,13 +1351,13 @@
     ::
       [%x %v3 %v-channels ~]
     =+  v-channels-9=(v9:v-channels:v10:ccv v-channels)
-    ``noun+`v-channels:v8:cv`(v8:v-channels:v9:ccv v-channels-9)
+    ``unsafe+noun+!>(`v-channels:v8:cv`(v8:v-channels:v9:ccv v-channels-9))
     ::
       [%x %v4 %v-channels ~]
-    ``noun+(v9:v-channels:v10:ccv v-channels)
+    ``unsafe+noun+!>((v9:v-channels:v10:ccv v-channels))
     ::
       [%x %v5 %v-channels ~]
-    ``noun+`v-channels:v10:cv`v-channels
+    ``unsafe+noun+!>(`v-channels:v10:cv`v-channels)
     ::
       [%x %v3 %channels full=?(~ [%full ~])]
     ``channels-3+`channels:v8:cv`(uv-channels-2:utils v-channels ?=(^ full.pole))
@@ -1371,26 +1371,26 @@
     ::  /x/v/init: get unreads and unversioned channels
     ::
       [%x ?(%v0 %v1) %init ~]
-    ``noun+[unreads (uv-channels:utils v-channels |)]
+    ``unsafe+noun+!>([unreads (uv-channels:utils v-channels |)])
     ::
       [%x %v2 %init ~]
-    ``noun+[unreads (uv-channels:utils v-channels |)]
+    ``unsafe+noun+!>([unreads (uv-channels:utils v-channels |)])
     ::
       [%x %v3 %init ~]
     =/  init  [(uv-channels:utils v-channels |) hidden-posts]
-    ``noun+`[channels:v1:cv (set id-post:c)]`init
+    ``unsafe+noun+!>(`[channels:v1:cv (set id-post:c)]`init)
     ::
       [%x %v4 %init ~]
     =/  init  [(uv-channels-2:utils v-channels |) hidden-posts]
-    ``noun+`[channels:v8:cv (set id-post:c)]`init
+    ``unsafe+noun+!>(`[channels:v8:cv (set id-post:c)]`init)
     ::
       [%x %v5 %init ~]
     =/  init  [(uv-channels-3:utils v-channels |) hidden-posts]
-    ``noun+`[channels:v9:cv (set id-post:c)]`init
+    ``unsafe+noun+!>(`[channels:v9:cv (set id-post:c)]`init)
     ::
       [%x %v6 %init ~]
     =/  init  [(uv-channels-4:utils v-channels |) hidden-posts]
-    ``noun+`[channels:v10:cv (set id-post:c)]`init
+    ``unsafe+noun+!>(`[channels:v10:cv (set id-post:c)]`init)
     ::
       [%x ver=?(%v5 %v6) %changes since=@ rest=*]
     =+  since=(slav %da since.pole)
@@ -1462,7 +1462,7 @@
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     =;  output=(unit (unit said:v8:cv))
-      ``noun+output
+      ``unsafe+noun+!>(output)
     =/  said=(unit (unit said:c))  (~(get by voc) nest plan)
     ?~  said  ~
     ?~  u.said  [~ ~]
@@ -1473,7 +1473,7 @@
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     =;  output=(unit (unit said:v9:cv))
-      ``noun+output
+      ``unsafe+noun+!>(output)
     =/  said=(unit (unit said:c))  (~(get by voc) nest plan)
     ?~  said  ~
     ?~  u.said  [~ ~]
@@ -1484,7 +1484,7 @@
     =/  =nest:c     [kind.pole host name.pole]
     =/  =plan:c     =,(pole [(slav %ud time) ?~(reply ~ `(slav %ud -.reply))])
     =;  output=(unit (unit said:v10:cv))
-      ``noun+output
+      ``unsafe+noun+!>(output)
     =/  said=(unit (unit said:c))  (~(get by voc) nest plan)
     ?~  said  ~
     ?~  u.said  [~ ~]
@@ -1632,14 +1632,14 @@
       (emil wait (tell-plog %dbug tang ~) ~)
     ?-  -.pole
         %numbers
-      =/  =rail  [%noun [%send-sequence-numbers nest]]
+      =/  =rail  [%unsafe %noun !>([%send-sequence-numbers nest])]
       %-  emil
       :~  (tell-plog %dbug ~[>[%asking-numbers host nest]<] ~)
           [%pass pole %agent [host %channels-server] %poke rail]
       ==
     ::
         %tombstones
-      =/  =rail  [%noun [%send-tombstones nest]]
+      =/  =rail  [%unsafe %noun !>([%send-tombstones nest])]
       %-  emil
       :~  (tell-plog %dbug ~[>[%asking-tombstones host nest]<] ~)
           [%pass pole %agent [host %channels-server] %poke rail]

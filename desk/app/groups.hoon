@@ -1186,7 +1186,7 @@
       :-  flag
       %-  gang:v2:foreign:v7:gc
       (v7:foreign:v10:gc foreign)
-    ``noun+[groups-light-ui-2 gangs-2]
+    ``unsafe+noun+!>([groups-light-ui-2 gangs-2])
   ::
       [%x %v2 %init ~]
     =/  groups-light-ui-7=(map flag:v7:gv group-ui:v7:gv)
@@ -1199,7 +1199,7 @@
       -(member-count ~(wyt by seats.group))
     =/  foreigns-8=foreigns:v8:gv
       (~(run by foreigns) v8:foreign:v10:gc)
-    ``noun+[groups-light-ui-7 foreigns-8]
+    ``unsafe+noun+!>([groups-light-ui-7 foreigns-8])
   ::
       [%x %v3 %init ~]
     =/  groups-light-ui-9=(map flag:v9:gv group-ui:v9:gv)
@@ -1212,7 +1212,7 @@
       -(member-count ~(wyt by seats.group))
     =/  foreigns-8=foreigns:v8:gv
       (~(run by foreigns) v8:foreign:v10:gc)
-    ``noun+[groups-light-ui-9 foreigns-8]
+    ``unsafe+noun+!>([groups-light-ui-9 foreigns-8])
   ::
        [%x ver=?(%v0 %v1 %v2) %groups ~]
     =/  groups-9=groups:v9:gv  (~(run by groups) tail)
@@ -4603,7 +4603,7 @@
     ::
       ::  local preview
       [%preview ~]
-    ``noun+go-preview
+    ``unsafe+noun+!>(go-preview)
     ::
       ::
       ::  seats queries
@@ -4613,7 +4613,7 @@
     ::
         [%seats ship=@ ~]
       =+  ship=(slav %p ship.pole)
-      ``noun+(~(get by seats.group) ship)
+      ``unsafe+noun+!>((~(get by seats.group) ship))
     ::
         [%seats ship=@ %is-admin ~]
       =+  ship=(slav %p ship.pole)
@@ -4640,7 +4640,7 @@
         ^-  (unit (unit rail))
         ?~  seat=(~(get by seats.group) ship)  [~ ~]
         ?:  (go-is-banned ship)  [~ ~]
-        =-  ``noun+-
+        =-  ``unsafe+noun+!>(-)
         %-  some
         :-  admin=(go-is-admin ship)
         roles=roles.u.seat
@@ -4680,7 +4680,7 @@
       ==
     ::
         [%channels %can-read ~]
-      =-  ``noun+-
+      =-  ``unsafe+noun+!>(-)
       ^-  $-([ship nest:gv] ?)
       |=  [=ship =nest:gv]
       ?~  chan=(~(get by channels.group) nest)  |
@@ -4690,7 +4690,7 @@
       ::  admissions queries
       ::
         [%entry %tokens ~]
-      ``noun+tokens.ad
+      ``unsafe+noun+!>(tokens.ad)
     ==
   ++  go-can-read
     |=  [=ship =channel:g]

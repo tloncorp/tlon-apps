@@ -1206,8 +1206,8 @@
   %-  peek:un:guard
   ^-  (unit (unit rail))
   ?+  path  [~ ~]
-    [%x %full ~]  ``noun+[dms clubs]
-    [%x %old ~]  ``noun+old-chats  ::  legacy data, for migration use
+    [%x %full ~]  ``unsafe+noun+!>([dms clubs])
+    [%x %old ~]  ``unsafe+noun+!>(old-chats)  ::  legacy data, for migration use
   ::
     [%x %clubs ~]  ``clubs+(~(run by clubs) |=(=club:c crew.club))
   ::
@@ -1220,7 +1220,8 @@
     [%x %unreads ~]  ``chat-unreads+unreads
   ::
       [%x %init ~]
-    :^  ~  ~  %noun
+    :+  ~  ~
+    :+  %unsafe  %noun  !>
     :*  (~(run by clubs) |=(=club:c crew.club))
         ~(key by accepted-dms)
         unreads
@@ -1229,7 +1230,8 @@
     ==
   ::
       [%x %v1 %init ~]
-    :^  ~  ~  %noun
+    :+  ~  ~
+    :+  %unsafe  %noun  !>
     :*  ~(key by accepted-dms)
         ~(key by pending-dms)
         (~(run by clubs) |=(=club:c crew.club))

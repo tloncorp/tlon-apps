@@ -619,7 +619,7 @@
       =/  =nest:c  [i.path.i.ded our.bowl i.t.path.i.ded]
       ?.  &((~(has by v-channels:bak) nest) !(~(has by v-channels) nest))
         $(ded t.ded)
-      =/  =rail  noun+[%channel-wake [i i.t]:path.i.ded]
+      =/  =rail  unsafe+noun+!>([%channel-wake [i i.t]:path.i.ded])
       ::NOTE  this assumes it was their %channels agent subscribing to us,
       ::      which we actually cannot know. but a false positive here should
       ::      be harmless.
@@ -773,7 +773,7 @@
     [%v0 +.pole]
   ?+  pole  [~ ~]
       [%x %v0 %v-channels ~]
-    ``noun+v-channels
+    ``unsafe+noun+!>(v-channels)
       [%x %v0 %hooks ~]
     ``hook-full+hooks
   ==
