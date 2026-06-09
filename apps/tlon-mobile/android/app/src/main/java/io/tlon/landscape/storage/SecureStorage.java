@@ -15,6 +15,7 @@ public class SecureStorage {
     public static String SHIP_URL_KEY = "shipUrl";
     public static String AUTH_COOKIE_KEY = "authCookie";
     public static String CHANNEL_URL = "channelUrl";
+    public static String ACTIVITY_SUPPORTS_REACTIONS_KEY = "activitySupportsReactions";
 
     public static SharedPreferences sharedPreferences;
 

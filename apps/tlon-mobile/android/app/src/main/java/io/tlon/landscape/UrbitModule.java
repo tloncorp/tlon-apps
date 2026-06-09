@@ -37,6 +37,16 @@ public class UrbitModule extends ReactContextBaseJavaModule {
         SecureStorage.clear();
     }
 
+    // Caches whether the connected backend's %activity supports reactions, so
+    // the notification service can choose the v9 (activity-event-1) vs v8
+    // (activity-event) fetch without scrying for a version itself.
+    @ReactMethod
+    public void setActivitySupportsReactions(boolean supported) {
+        SharedPreferences.Editor editor = SecureStorage.sharedPreferences.edit();
+        editor.putBoolean(SecureStorage.ACTIVITY_SUPPORTS_REACTIONS_KEY, supported);
+        editor.apply();
+    }
+
     @ReactMethod
     public void updateBadgeCount(int count, String uid) {}
 

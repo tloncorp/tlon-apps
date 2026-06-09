@@ -32,6 +32,11 @@ class UrbitModule: NSObject {
         UserDefaults.forDefaultAppGroup.set(apiKey, forKey: "postHogApiKey")
     }
 
+    @objc(setActivitySupportsReactions:)
+    func setActivitySupportsReactions(supported: Bool) {
+        UserDefaults.forDefaultAppGroup.set(supported, forKey: SettingsStore.activitySupportsReactionsKey)
+    }
+
     @objc(updateBadgeCount:uid:)
     func updateBadgeCount(count: Int, uid: String) {
         Task {
