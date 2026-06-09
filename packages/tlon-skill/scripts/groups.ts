@@ -1338,13 +1338,24 @@ async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
   console.log(
     `Removing admin roles (${adminRoles.join(', ')}) from ${normalizedShips.join(', ')}...`
   );
-  for (const roleId of adminRoles) {
-    await removeMembersFromRole({
-      groupId,
-      roleId,
-      ships: normalizedShips,
-    });
-  }
+  // Send all role removals as one seat action. The host checks `se-src-is-admin`
+  // once, while the acting ship is still an admin, so a self-demotion can't revoke
+  // our own permission part-way through and get the remaining removals rejected.
+  await poke({
+    app: 'groups',
+    mark: 'group-action-4',
+    json: {
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships: normalizedShips,
+            'a-seat': { 'del-roles': adminRoles },
+          },
+        },
+      },
+    },
+  });
 
   await verifyShipsAreAdmin(groupId, normalizedShips, 'absent');
   console.log(`✅ Members demoted from admin.`);
