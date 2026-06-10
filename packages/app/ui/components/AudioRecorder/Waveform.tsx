@@ -71,9 +71,6 @@ export function Waveform({
     return out;
   }, [values, maxVisibleCandleCount]);
 
-  // `candlePlaybackPosition` is an index into `values`; rescale it over the
-  // drawn candles (padded or simplified to `maxVisibleCandleCount`) so the
-  // highlight spans the whole strip, filler candles included
   const scaledCandlePlaybackPosition = useMemo(() => {
     if (
       maxVisibleCandleCount == null ||
