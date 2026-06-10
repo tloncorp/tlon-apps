@@ -1,4 +1,5 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
+import { useMutableCallback } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
@@ -10,7 +11,7 @@ import {
   useCopy,
 } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
-import { clamp } from 'lodash';
+import { clamp, throttle } from 'lodash';
 import React, {
   ComponentProps,
   ComponentType,
@@ -30,7 +31,11 @@ import {
   Platform,
   View as RNView,
 } from 'react-native';
-import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
+import {
+  ScrollView as GHScrollView,
+  Gesture,
+  GestureDetector,
+} from 'react-native-gesture-handler';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNowPlayingController } from '../../contexts/nowPlaying';
@@ -249,8 +254,46 @@ export function VoiceMemoBlock({
   block,
   ...props
 }: { block: cn.VoiceMemoBlockData } & ComponentProps<typeof Reference.Frame>) {
-  const { togglePlayback, progress, status, isThisSourceLoaded } =
+  const { togglePlayback, seekTo, progress, status, isThisSourceLoaded } =
     useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
+
+  const waveformWidthRef = useRef(0);
+  const seekToWaveformX = useMutableCallback((x: number) => {
+    const width = waveformWidthRef.current;
+    if (
+      progress?.loadState !== 'loaded' ||
+      !isThisSourceLoaded ||
+      progress.duration === 0 ||
+      width <= 0
+    ) {
+      return;
+    }
+    seekTo(clamp(x / width, 0, 1) * progress.duration);
+  });
+
+  // throttled so scrubbing doesn't spam the native player with seeks
+  const throttledSeekToWaveformX = useMemo(
+    () => throttle(seekToWaveformX, 100),
+    [seekToWaveformX]
+  );
+
+  const seekGesture = useMemo(() => {
+    const tap = Gesture.Tap()
+      .runOnJS(true)
+      .onEnd((e) => seekToWaveformX(e.x));
+    const pan = Gesture.Pan()
+      .runOnJS(true)
+      // activate on horizontal drags only, leaving vertical scrolling to the
+      // channel list
+      .activeOffsetX([-10, 10])
+      .failOffsetY([-10, 10])
+      .onUpdate((e) => throttledSeekToWaveformX(e.x))
+      .onEnd((e) => {
+        throttledSeekToWaveformX.cancel();
+        seekToWaveformX(e.x);
+      });
+    return Gesture.Race(pan, tap);
+  }, [seekToWaveformX, throttledSeekToWaveformX]);
 
   const candlePlaybackPosition = useMemo(() => {
     const candleCount = block.voiceMemo.waveformPreview
@@ -315,13 +358,29 @@ export function VoiceMemoBlock({
             })()}
           </Pressable>
           <XStack flex={1} gap={9} alignItems="center">
-            <Waveform
-              candleWidth={3}
-              candleSpacing={1}
-              candlePlaybackPosition={candlePlaybackPosition}
-              values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
-              style={{ flex: 1, height: 22 }}
-            />
+            <GestureDetector gesture={seekGesture}>
+              <View
+                flex={1}
+                // enlarge the touch target beyond the waveform's 22px height
+                paddingVertical={12}
+                marginVertical={-12}
+                onLayout={(e) => {
+                  waveformWidthRef.current = e.nativeEvent.layout.width;
+                }}
+              >
+                <Waveform
+                  candleWidth={3}
+                  candleSpacing={1}
+                  candlePlaybackPosition={candlePlaybackPosition}
+                  values={
+                    block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES
+                  }
+                  // the Skia canvas would otherwise capture touches meant for
+                  // the seek gesture
+                  style={{ height: 22, pointerEvents: 'none' }}
+                />
+              </View>
+            </GestureDetector>
             {block.voiceMemo.duration != null && (
               <Text size="$label/s" color="$secondaryText">
                 {progress?.loadState === 'loaded'

@@ -188,6 +188,19 @@ export function NowPlayingProvider({
       },
       async seekTo(seconds: number) {
         await audioPlayer.seekTo(seconds);
+
+        // Emit synthetic progress immediately so the UI updates without
+        // waiting for the next native playbackStatusUpdate tick (which may
+        // not come at all while paused)
+        if (mediaItemRef.current) {
+          eventEmitter.emit('progress', {
+            sourceUrl: mediaItemRef.current.url,
+            isPlaying: isPlayingRef.current,
+            loadState: 'loaded',
+            currentTime: seconds,
+            duration: toSeconds(audioPlayer.duration),
+          });
+        }
       },
       get nowPlaying() {
         return mediaItemRef.current;
@@ -375,6 +388,14 @@ export function useNowPlayingController({
     }
   }, [nowPlaying, sourceUri, isThisSourceLoaded]);
 
+  const seekTo = useCallback(
+    (seconds: number) => {
+      if (!isThisSourceLoaded) return;
+      nowPlaying.seekTo(seconds);
+    },
+    [nowPlaying, isThisSourceLoaded]
+  );
+
   const status = useMemo<null | 'playing' | 'paused' | 'loading'>(() => {
     // Playback requested but not confirmed by expo-audio yet
     if (playbackIntent && !progress?.isPlaying) {
@@ -411,6 +432,7 @@ export function useNowPlayingController({
 
   return {
     togglePlayback,
+    seekTo,
     progress,
     status,
     isThisSourceLoaded,
