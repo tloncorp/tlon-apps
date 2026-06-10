@@ -71,14 +71,17 @@ export function Waveform({
     return out;
   }, [values, maxVisibleCandleCount]);
 
+  // `candlePlaybackPosition` is an index into `values`; rescale it over the
+  // drawn candles (padded or simplified to `maxVisibleCandleCount`) so the
+  // highlight spans the whole strip, filler candles included
   const scaledCandlePlaybackPosition = useMemo(() => {
     if (
       maxVisibleCandleCount == null ||
-      values.length <= maxVisibleCandleCount
+      values.length === maxVisibleCandleCount
     ) {
       return candlePlaybackPosition;
     }
-    return Math.floor(
+    return Math.round(
       (candlePlaybackPosition / values.length) * maxVisibleCandleCount
     );
   }, [candlePlaybackPosition, values.length, maxVisibleCandleCount]);
@@ -111,10 +114,10 @@ export function Waveform({
                 height={Math.max(5, layout.height * (heightRatio ?? 0))}
                 r={40}
                 color={
-                  heightRatio == null
-                    ? candleInactiveColor
-                    : index < scaledCandlePlaybackPosition
-                      ? candleActiveColor
+                  index < scaledCandlePlaybackPosition
+                    ? candleActiveColor
+                    : heightRatio == null
+                      ? candleInactiveColor
                       : candleUnplayedColor
                 }
               />

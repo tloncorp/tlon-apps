@@ -263,10 +263,12 @@ export function VoiceMemoBlock({
     ) {
       return 0;
     }
+    // candles highlight when index < position, so position may reach
+    // candleCount to highlight the full waveform at the end
     return clamp(
-      Math.floor((progress.currentTime / progress.duration) * candleCount),
+      Math.round((progress.currentTime / progress.duration) * candleCount),
       0,
-      candleCount - 1
+      candleCount
     );
   }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
 
