@@ -1,13 +1,4 @@
-::  tests for the pioneer/* threads under /ted/pioneer/
-::
-::  shared aqua boot from /ted/ph/test brings up ~zod, ~bud, ~nec, ~fen, ~dem
-::  with the %groups desk synced and ~fen configured as lure provider.
-::
-::  to run all of these:
-::    ./backend/run-aqua-tests.sh
-::
-::  to run a specific subset, pass an arm-name pattern as the trailing
-::  path component to %ph-test (the test runner uses it as a prefix filter).
+::::  tests for the pioneer/* threads under /ted/pioneer/
 ::
 /-  spider, g=groups, gv=groups-ver, r=reel
 /+  *ph-io, *ph-test
@@ -17,10 +8,9 @@
 ++  my-test-flag       ~zod^%test-group
 ++  my-test-group-id   '~zod/test-group'
 ++  my-test-group-name  %test-group
+::  +run-thread: invoke a pioneer thread on a target aqua ship
 ::
-::  +run-thread: invoke a pioneer thread on a target aqua ship.
-::    pokes %spider with spider-start and waits for the matching
-::    /thread-result fact. returns the thread's result vase.
+::    handles spider interaction, produces thread result vase
 ::
 ++  run-thread
   |=  [who=ship name=@ta arg=^json]
@@ -61,13 +51,11 @@
   ;<  out=vase  bind:m  (run-thread who name arg)
   (pure:m !<(^json out))
 ::
-::  +create-test-group: same setup used by lure.hoon, lifted here so
-::    pioneer tests can share the canonical fixture.
-::
 ++  create-test-group
   =/  m   (strand ,~)
   ^-  form:m
   ;<  ~  bind:m  (watch-app /~zod/groups/v1/groups [~zod %groups] /v1/groups)
+  ::NOTE  from /tests/ph/for/lure.hoon
   =/  =create-group:g
     :*  my-test-group-name
         ['My Test Group' 'My testing group' '' '']
@@ -95,31 +83,7 @@
   ;<  out=(unit ?)  bind:m  (scry-aqua (unit ?) who pax)
   (pure:m (fall out |))
 ::
-::  ─── tests ───────────────────────────────────────────────────────────
-::
-::  +ph-test-create-private-group: idempotent group creation
-::
-++  ph-test-create-private-group
-  =/  m  (strand ,~)
-  ^-  form:m
-  =/  arg=^json
-    %-  pairs:enjs:format
-    :~  name+s+'pioneer-test'
-        title+s+'Pioneer Test'
-        description+s+'created by pioneer thread test'
-    ==
-  ::  first invocation: should create the group
-  ;<  ~  bind:m  (run-thread-ok ~zod %create-private-group arg)
-  ;<  exists-after-first=?  bind:m  (group-exists ~zod ~zod^%pioneer-test)
-  ;<  ~  bind:m  (ex-equal !>(exists-after-first) !>(&))
-  ::  second invocation: idempotent, group still exists
-  ;<  ~  bind:m  (run-thread-ok ~zod %create-private-group arg)
-  ;<  exists-after-second=?  bind:m  (group-exists ~zod ~zod^%pioneer-test)
-  ;<  ~  bind:m  (ex-equal !>(exists-after-second) !>(&))
-  (pure:m ~)
-::
-::  +ph-test-create-lure-invite: watch-based invite link generation.
-::    relies on /ted/ph/test having wired ~fen as the bait provider.
+::  tests
 ::
 ++  ph-test-create-lure-invite
   =/  m  (strand ,~)
@@ -131,6 +95,7 @@
     ==
   ;<  out=^json  bind:m  (run-thread-json ~zod %create-lure-invite arg)
   ::  expect a top-level "url" key with a non-empty string
+  ::
   ?>  ?=(%o -.out)
   =/  url-j=(unit ^json)  (~(get by p.out) 'url')
   ?~  url-j  ~|(no-url-in-result+out !!)
