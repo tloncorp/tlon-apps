@@ -2228,10 +2228,14 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }
 
     updateSession({ phase: 'low' });
-    // Resolve the backend's reaction capability before the activity feed and
-    // subscription below pick their endpoint versions. Reads the persisted
-    // version (fast/local); syncAppInfo refreshes it for the next run.
-    await syncReactionSupport();
+    // Resolve the backend's reaction capability from the *current* version
+    // before the activity feed and subscription below pick their endpoint
+    // versions, so reactions work on first launch and right after a ship
+    // upgrade rather than only after a restart. Fall back to the last-known
+    // (persisted) version if the fresh fetch fails.
+    await syncAppInfo({ priority: syncStartPriority.low + 1 })
+      .then(() => logger.crumb(`finished syncing app info`))
+      .catch(() => syncReactionSupport().catch(() => {}));
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
@@ -2262,9 +2266,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       }).then(() =>
         logger.crumb(`finished syncing push notifications setting`)
       ),
-      syncAppInfo({ priority: syncStartPriority.low + 1 }).then(() => {
-        logger.crumb(`finished syncing app info`);
-      }),
       syncSystemContacts({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),

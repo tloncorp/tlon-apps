@@ -25,6 +25,11 @@ class UrbitModule: NSObject {
 
     @objc func clearUrbit() {
         try? UrbitModule.loginStore.delete()
+        // clear cached backend capability so a later login to an older backend
+        // doesn't keep fetching the v9 notification mark (which it would 404)
+        UserDefaults.forDefaultAppGroup.removeObject(
+            forKey: SettingsStore.activitySupportsReactionsKey
+        )
     }
 
     @objc(setPostHogApiKey:)

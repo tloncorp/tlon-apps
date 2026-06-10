@@ -46,6 +46,9 @@ public class SecureStorage {
         editor.remove(SHIP_URL_KEY);
         editor.remove(AUTH_COOKIE_KEY);
         editor.remove(CHANNEL_URL);
+        // clear cached backend capability so a later login to an older backend
+        // doesn't keep fetching the v9 notification mark (which it would 404)
+        editor.remove(ACTIVITY_SUPPORTS_REACTIONS_KEY);
         editor.apply();
     }
 
