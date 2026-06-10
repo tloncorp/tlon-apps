@@ -145,7 +145,7 @@
   $(targets t.targets)
 ::
 ++  store
-  |=  [bot=ship =id-run:l payload=json complete=?]
+  |=  [bot=ship =id-run:l payload=@t complete=?]
   ^+  cor
   ::  never demote a finalized run back to partial
   ::

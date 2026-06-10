@@ -23,7 +23,7 @@
           ['id' s+id-run.e]
           ['complete' b+complete.run.e]
           ['received' s+(scot %da received.run.e)]
-          ['payload' payload.run.e]
+          ['payload' s+payload.run.e]
       ==
     --
   --
