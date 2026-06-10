@@ -11,11 +11,6 @@ export const featureMeta = {
     label: 'Enable collecting and reporting performance data',
     onlyTlon: false,
   },
-  customChannelCreation: {
-    default: false,
-    label: 'Enable creating custom channels',
-    onlyTlon: true,
-  },
   contactsTab: {
     default: false,
     label: 'Enable contacts tab',
