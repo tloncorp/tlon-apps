@@ -3333,11 +3333,14 @@ export const getChannelPostsAround = createReadQuery(
       throw new Error('Reference post not found');
     }
 
-    const sentAt = referencePost.sentAt;
+    const receivedAt = referencePost.receivedAt;
 
     // Get before posts
     const beforePosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [desc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -3352,7 +3355,10 @@ export const getChannelPostsAround = createReadQuery(
 
     // Get after posts
     const afterPosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        gt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [asc($posts.receivedAt)],
       limit: 25,
       with: {
