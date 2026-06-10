@@ -313,7 +313,9 @@ export async function subscribe<T>(
     }
 
     config.pendingAuth = reauth();
-    return doSub();
+    // keep the err handler wired so the re-established subscription can
+    // recover from a later auth death the same way the initial one does
+    return doSub(retry);
   };
 
   try {
