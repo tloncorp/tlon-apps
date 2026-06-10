@@ -1265,3 +1265,22 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
+
+// Per-run bot introspection records synced from the %context-lens agent. Payload is
+// the gateway's opaque run record (inner schemaVersion); see docs/context-lens.md.
+export const contextLensRuns = sqliteTable(
+  'context_lens_runs',
+  {
+    botShip: text('bot_ship').notNull(),
+    lensId: text('lens_id').notNull(),
+    complete: boolean('complete').notNull().default(false),
+    receivedAt: timestamp('received_at').notNull(),
+    payload: text('payload', { mode: 'json' }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.botShip, table.lensId] }),
+    receivedAtIndex: index('context_lens_runs_received_at_index').on(
+      table.receivedAt
+    ),
+  })
+);

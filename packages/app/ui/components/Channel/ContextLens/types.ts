@@ -134,6 +134,7 @@ export type ContextLensSelectedMessage = {
   authorId?: string | null;
   channelId?: string | null;
   lensId?: string | null;
+  botShip?: string | null;
 };
 
 export type LensStreamStatus =
@@ -156,4 +157,23 @@ export const FINAL_STATUSES = new Set<ContextLensStatus>([
 
 export function isContextLensEventActive(event: ContextLensEvent) {
   return !FINAL_STATUSES.has(event.lens.status);
+}
+
+/**
+ * Extract the lens snapshot from a %context-lens run record payload (the gateway
+ * pokes `{ schemaVersion: 1, lens }`; tool summaries may be truncated).
+ */
+export function lensFromRunPayload(payload: unknown): ContextLens | null {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const record = payload as { schemaVersion?: unknown; lens?: unknown };
+  if (record.schemaVersion !== 1 || !record.lens) {
+    return null;
+  }
+  const lens = record.lens as ContextLens;
+  if (typeof lens.lensId !== 'string' || typeof lens.status !== 'string') {
+    return null;
+  }
+  return lens;
 }

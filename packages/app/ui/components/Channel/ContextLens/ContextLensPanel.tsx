@@ -1,5 +1,6 @@
+import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable } from '@tloncorp/ui';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
 
 import { RecentRunList } from './RecentRunList';
@@ -22,6 +23,7 @@ import {
   type ContextLensSelectedMessage,
   FINAL_STATUSES,
   type LensStreamState,
+  lensFromRunPayload,
 } from './types';
 import {
   useContextLensGatewayConfig,
@@ -68,8 +70,8 @@ function EmptySelectedRun({ lookupStatus }: { lookupStatus: LookupStatus }) {
         {copy}
       </SizableText>
       <SizableText size="$s" color="$tertiaryText" textAlign="center">
-        Recent live runs can be inspected immediately. Older messages need
-        retained Lens metadata from the gateway.
+        Run records sync from your ship and are retained for about 30 days.
+        This message&rsquo;s run is no longer available.
       </SizableText>
     </YStack>
   );
@@ -149,7 +151,25 @@ export function ContextLensPanel({
     lens: ContextLens;
   } | null>(null);
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
-  const runs = useContextLensRuns(events);
+  const liveRuns = useContextLensRuns(events);
+  // synced %context-lens records back the list when the gateway stream is absent
+  // (mobile, remote) and keep history across gateway restarts
+  const recentRunsQuery = store.useRecentContextLensRuns();
+  const runs = useMemo(() => {
+    const synced: ContextLensEvent[] = (recentRunsQuery.data ?? []).flatMap(
+      (row) => {
+        const lens = lensFromRunPayload(row.payload);
+        return lens
+          ? [{ seq: 0, at: lens.updatedAt, phase: 'sync', lens }]
+          : [];
+      }
+    );
+    const live = new Set(liveRuns.map((event) => event.lens.lensId));
+    return [
+      ...liveRuns,
+      ...synced.filter((event) => !live.has(event.lens.lensId)),
+    ].sort((left, right) => right.at - left.at);
+  }, [liveRuns, recentRunsQuery.data]);
   const selectedMessageKey = selectedMessage
     ? `${selectedMessage.lensId ?? ''}/${selectedMessage.authorId ?? ''}/${selectedMessage.id}`
     : null;
@@ -215,25 +235,43 @@ export function ContextLensPanel({
   };
 
   useEffect(() => {
-    if (!selectedMessage || selectedEvent || !gatewayConfig) {
+    if (!selectedMessage || selectedEvent) {
       setLookupResult(null);
       setLookupStatus('idle');
       return;
     }
 
     setLookupResult(null);
-    if (!selectedMessage.lensId) {
+    const { lensId, botShip } = selectedMessage;
+    if (!lensId) {
       setLookupStatus('missing');
       return;
     }
 
     setLookupStatus('loading');
     const controller = new AbortController();
-    fetchContextLensRun(
-      gatewayConfig,
-      selectedMessage.lensId,
-      controller.signal
-    )
+    const resolve = async (): Promise<ContextLens | null> => {
+      // synced %context-lens record first (works on every platform), then the
+      // gateway's full run record as a live-gateway enhancement
+      if (botShip) {
+        const run = await store
+          .ensureContextLensRun({ botShip, lensId })
+          .catch(() => null);
+        if (controller.signal.aborted) {
+          return null;
+        }
+        const lens = run ? lensFromRunPayload(run.payload) : null;
+        if (lens) {
+          return lens;
+        }
+      }
+      if (gatewayConfig) {
+        return fetchContextLensRun(gatewayConfig, lensId, controller.signal);
+      }
+      return null;
+    };
+
+    resolve()
       .then((lens) => {
         if (controller.signal.aborted) {
           return;
@@ -287,30 +325,32 @@ export function ContextLensPanel({
                   : 'Run inspector'}
           </SizableText>
         </YStack>
-        <XStack
-          alignItems="center"
-          gap="$xs"
-          borderWidth={1}
-          borderColor="$border"
-          borderRadius="$s"
-          paddingHorizontal="$s"
-          paddingVertical="$2xs"
-          backgroundColor="$secondaryBackground"
-        >
-          <View
-            width={6}
-            height={6}
-            borderRadius={999}
-            backgroundColor={
-              streamStatus === 'connected'
-                ? TONE_COLORS.positive
-                : TONE_COLORS.warning
-            }
-          />
-          <SizableText size="$s" color="$secondaryText">
-            {streamStatus}
-          </SizableText>
-        </XStack>
+        {streamStatus !== 'disabled' ? (
+          <XStack
+            alignItems="center"
+            gap="$xs"
+            borderWidth={1}
+            borderColor="$border"
+            borderRadius="$s"
+            paddingHorizontal="$s"
+            paddingVertical="$2xs"
+            backgroundColor="$secondaryBackground"
+          >
+            <View
+              width={6}
+              height={6}
+              borderRadius={999}
+              backgroundColor={
+                streamStatus === 'connected'
+                  ? TONE_COLORS.positive
+                  : TONE_COLORS.warning
+              }
+            />
+            <SizableText size="$s" color="$secondaryText">
+              {streamStatus}
+            </SizableText>
+          </XStack>
+        ) : null}
       </XStack>
 
       {panelMode === 'selected' ? (

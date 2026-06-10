@@ -167,8 +167,12 @@ export function useContextLensGatewayConfig(): ContextLensGatewayConfig | null {
   }, [flagEnabled, url, token]);
 }
 
+// Availability is flag-driven: run history syncs from the ship's %context-lens
+// agent on every platform. The gateway connection (web-only, above) is an
+// optional live-streaming enhancement on top.
 export function useContextLensAvailable() {
-  return useContextLensGatewayConfig() !== null;
+  const [flagEnabled] = useFeatureFlag('contextLens');
+  return flagEnabled;
 }
 
 export function useContextLensEvents(): LensStreamState {
@@ -235,14 +239,16 @@ export function useContextLensController() {
           .parsePostBlob(post.blob)
           .find((entry) => entry.type === 'tlon-context-lens')
       : null;
+    const lensEntry =
+      contextLensEntry?.type === 'tlon-context-lens' ? contextLensEntry : null;
     setSelectedContextLensMessage({
       id: post.id,
       authorId: post.authorId,
       channelId: post.channelId,
-      lensId:
-        contextLensEntry?.type === 'tlon-context-lens'
-          ? contextLensEntry.lensId
-          : null,
+      lensId: lensEntry?.lensId ?? null,
+      // older blobs predate botShip; the bot authored the post, so its id
+      // is the right fallback for the %context-lens lookup key
+      botShip: lensEntry?.botShip ?? post.authorId ?? null,
     });
   }, []);
 

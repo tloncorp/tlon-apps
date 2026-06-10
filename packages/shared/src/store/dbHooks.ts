@@ -97,6 +97,28 @@ export const useSettings = () => {
   });
 };
 
+export const useContextLensRun = ({
+  botShip,
+  lensId,
+}: {
+  botShip: string;
+  lensId: string;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensRun);
+  return useQuery({
+    queryKey: ['contextLensRun', deps, botShip, lensId],
+    queryFn: () => db.getContextLensRun({ botShip, lensId }),
+  });
+};
+
+export const useRecentContextLensRuns = (count?: number) => {
+  const deps = useKeyFromQueryDeps(db.getRecentContextLensRuns);
+  return useQuery({
+    queryKey: ['recentContextLensRuns', deps, count],
+    queryFn: () => db.getRecentContextLensRuns({ count }),
+  });
+};
+
 export const useCalmSettings = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({

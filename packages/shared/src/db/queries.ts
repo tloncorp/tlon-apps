@@ -66,6 +66,7 @@ import {
   contactAttestations as $contactAttestations,
   contactGroups as $contactGroups,
   contacts as $contacts,
+  contextLensRuns as $contextLensRuns,
   groupFlaggedPosts as $groupFlaggedPosts,
   groupJoinRequests as $groupJoinRequests,
   groupMemberBans as $groupMemberBans,
@@ -100,6 +101,7 @@ import {
   ClientMeta,
   Contact,
   ContactAttestation,
+  ContextLensRun,
   Group,
   GroupJoinRequest,
   GroupNavSection,
@@ -1441,6 +1443,48 @@ export const getFlaggedPosts = createReadQuery(
     });
   },
   ['groupFlaggedPosts']
+);
+
+export const insertContextLensRuns = createWriteQuery(
+  'insertContextLensRuns',
+  async (runs: ContextLensRun[], ctx: QueryCtx) => {
+    if (runs.length === 0) return;
+    return ctx.db
+      .insert($contextLensRuns)
+      .values(runs)
+      .onConflictDoUpdate({
+        target: [$contextLensRuns.botShip, $contextLensRuns.lensId],
+        set: conflictUpdateSetAll($contextLensRuns, ['botShip', 'lensId']),
+      });
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensRun = createReadQuery(
+  'getContextLensRun',
+  async (
+    { botShip, lensId }: { botShip: string; lensId: string },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db.query.contextLensRuns.findFirst({
+      where: and(
+        eq($contextLensRuns.botShip, botShip),
+        eq($contextLensRuns.lensId, lensId)
+      ),
+    });
+  },
+  ['contextLensRuns']
+);
+
+export const getRecentContextLensRuns = createReadQuery(
+  'getRecentContextLensRuns',
+  async ({ count: limit = 50 }: { count?: number }, ctx: QueryCtx) => {
+    return ctx.db.query.contextLensRuns.findMany({
+      orderBy: [desc($contextLensRuns.receivedAt)],
+      limit,
+    });
+  },
+  ['contextLensRuns']
 );
 
 export const insertChannelPerms = createWriteQuery(
