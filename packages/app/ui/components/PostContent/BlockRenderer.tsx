@@ -288,11 +288,14 @@ export function VoiceMemoBlock({
   );
 
   const seekGesture = useMemo(() => {
+    const hitSlop = { top: 12, bottom: 12 };
     const tap = Gesture.Tap()
       .runOnJS(true)
+      .hitSlop(hitSlop)
       .onEnd((e) => seekToWaveformX(e.x));
     const pan = Gesture.Pan()
       .runOnJS(true)
+      .hitSlop(hitSlop)
       // activate on horizontal drags only, leaving vertical scrolling to the
       // channel list
       .activeOffsetX([-10, 10])
@@ -371,9 +374,10 @@ export function VoiceMemoBlock({
             <GestureDetector gesture={seekGesture}>
               <View
                 flex={1}
-                // enlarge the touch target beyond the waveform's 22px height
-                paddingVertical={12}
-                marginVertical={-12}
+                // expands UIKit hit testing so slop touches reach the
+                // gesture handler on iOS; the gestures' own hitSlop covers
+                // RNGH's bounds check (and Android)
+                hitSlop={{ top: 12, bottom: 12 }}
                 onLayout={(e) => {
                   waveformWidthRef.current = e.nativeEvent.layout.width;
                 }}
