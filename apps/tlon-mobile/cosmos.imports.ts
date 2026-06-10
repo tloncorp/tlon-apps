@@ -64,7 +64,6 @@ import * as fixture60 from './../../packages/app/fixtures/SearchBar.fixture';
 import * as fixture61 from './../../packages/app/fixtures/SplashSequence.fixture';
 import * as fixture62 from './../../packages/app/fixtures/StoppedNodePushSheet.fixture';
 import * as fixture63 from './../../packages/app/fixtures/StorageQuotaIndicator.fixture';
-import * as fixture64 from './../../packages/app/fixtures/SummaryCollectionView.fixture';
 import * as fixture65 from './../../packages/app/fixtures/SystemNotice.fixture';
 import * as fixture66 from './../../packages/app/fixtures/SystemNotices.fixture';
 import * as fixture67 from './../../packages/app/fixtures/Text.fixture';
@@ -227,9 +226,6 @@ const fixtures = {
   },
   '../../packages/app/fixtures/StorageQuotaIndicator.fixture.tsx': {
     module: fixture63,
-  },
-  '../../packages/app/fixtures/SummaryCollectionView.fixture.tsx': {
-    module: fixture64,
   },
   '../../packages/app/fixtures/SystemNotice.fixture.tsx': { module: fixture65 },
   '../../packages/app/fixtures/SystemNotices.fixture.tsx': {
