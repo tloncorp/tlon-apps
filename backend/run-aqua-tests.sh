@@ -43,7 +43,7 @@ echo "Running aqua tests"
 
 #download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
 download_url="https://bootstrap.urbit.org/zod-aqua-tests-409k.xst"
-pill_download_url="https://bootstrap.urbit.org/aqua-tests-v10-1-0.pill"
+pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2.pill"
 
 archive=`basename $download_url`
 pill=`basename $pill_download_url`
