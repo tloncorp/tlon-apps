@@ -71,14 +71,7 @@ import {
   PostCollectionHandle,
 } from '../postCollectionViews/shared';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
-import {
-  ContextLensPanel,
-  type ContextLensSelectedMessage,
-  isContextLensEventActive,
-  isContextLensAvailable,
-  useContextLensEvents,
-  useContextLensRuns,
-} from './ContextLensPanel';
+import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
 import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
@@ -705,53 +698,16 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     });
 
     const isNarrow = useIsWindowNarrow();
-    const contextLensAvailable = isContextLensAvailable();
-    const [contextLensOpen, setContextLensOpen] = useState(false);
-    const [selectedContextLensMessage, setSelectedContextLensMessage] =
-      useState<ContextLensSelectedMessage | null>(null);
-    const contextLensStream = useContextLensEvents();
-    const contextLensRuns = useContextLensRuns(contextLensStream.events);
-    const contextLensActive =
-      contextLensAvailable && contextLensRuns.some(isContextLensEventActive);
-    useEffect(() => {
-      if (!contextLensAvailable && contextLensOpen) {
-        setContextLensOpen(false);
-      }
-    }, [contextLensAvailable, contextLensOpen]);
-    const toggleContextLens = useCallback(() => {
-      if (!contextLensOpen) {
-        setSelectedContextLensMessage(null);
-      }
-      setContextLensOpen((open) => !open);
-    }, [contextLensOpen]);
-    const clearSelectedContextLensMessage = useCallback(() => {
-      setSelectedContextLensMessage(null);
-    }, []);
-    const postToContextLensMessage = useCallback(
-      (post: db.Post): ContextLensSelectedMessage => {
-        const contextLensEntry = post.blob
-          ? logic
-              .parsePostBlob(post.blob)
-              .find((entry) => entry.type === 'tlon-context-lens')
-          : null;
-        return {
-          id: post.id,
-          authorId: post.authorId,
-          channelId: post.channelId,
-          lensId:
-            contextLensEntry?.type === 'tlon-context-lens'
-              ? contextLensEntry.lensId
-              : null,
-        };
-      },
-      []
-    );
-    const inspectContextLensPost = useCallback(
-      (post: db.Post) => {
-        setSelectedContextLensMessage(postToContextLensMessage(post));
-      },
-      [postToContextLensMessage]
-    );
+    const {
+      contextLensAvailable,
+      contextLensOpen,
+      contextLensActive,
+      contextLensStream,
+      selectedContextLensMessage,
+      toggleContextLens,
+      clearSelectedContextLensMessage,
+      inspectContextLensPost,
+    } = useContextLensController();
     const backgroundColor = getVariableValue(useTheme().background);
 
     useImperativeHandle(
@@ -888,8 +844,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                         inspectContextLensPost:
                                           contextLensAvailable &&
                                           contextLensOpen
-                                          ? inspectContextLensPost
-                                          : undefined,
+                                            ? inspectContextLensPost
+                                            : undefined,
                                         hasNewerPosts,
                                         hasOlderPosts,
                                         initialChannelUnread,
@@ -988,27 +944,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                             {contextLensAvailable &&
                               contextLensOpen &&
                               !isNarrow && (
-                              <ContextLensPanel
-                                events={contextLensStream.events}
-                                streamStatus={contextLensStream.status}
-                                selectedMessage={selectedContextLensMessage}
-                                onClearSelectedMessage={
-                                  clearSelectedContextLensMessage
-                                }
-                              />
-                            )}
-                            {contextLensAvailable &&
-                              contextLensOpen &&
-                              isNarrow && (
-                              <View
-                                position="absolute"
-                                top={0}
-                                right={0}
-                                bottom={0}
-                                width="88%"
-                                maxWidth={380}
-                                zIndex={20}
-                              >
                                 <ContextLensPanel
                                   events={contextLensStream.events}
                                   streamStatus={contextLensStream.status}
@@ -1016,10 +951,31 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                   onClearSelectedMessage={
                                     clearSelectedContextLensMessage
                                   }
-                                  width="100%"
                                 />
-                              </View>
-                            )}
+                              )}
+                            {contextLensAvailable &&
+                              contextLensOpen &&
+                              isNarrow && (
+                                <View
+                                  position="absolute"
+                                  top={0}
+                                  right={0}
+                                  bottom={0}
+                                  width="88%"
+                                  maxWidth={380}
+                                  zIndex={20}
+                                >
+                                  <ContextLensPanel
+                                    events={contextLensStream.events}
+                                    streamStatus={contextLensStream.status}
+                                    selectedMessage={selectedContextLensMessage}
+                                    onClearSelectedMessage={
+                                      clearSelectedContextLensMessage
+                                    }
+                                    width="100%"
+                                  />
+                                </View>
+                              )}
                           </XStack>
                           <GroupPreviewSheet
                             group={groupPreview ?? undefined}

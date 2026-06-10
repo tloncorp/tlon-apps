@@ -10,7 +10,6 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
-import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Carousel, ForwardingProps } from '@tloncorp/ui';
 import { KeyboardAvoidingView } from '@tloncorp/ui';
@@ -45,12 +44,8 @@ import {
 } from './Channel/ChannelHeader';
 import {
   ContextLensPanel,
-  type ContextLensSelectedMessage,
-  isContextLensEventActive,
-  isContextLensAvailable,
-  useContextLensEvents,
-  useContextLensRuns,
-} from './Channel/ContextLensPanel';
+  useContextLensController,
+} from './Channel/ContextLens';
 import { DraftInputView } from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
 import { DetailView } from './DetailView';
@@ -208,19 +203,16 @@ export function PostScreenView({
   // If this screen is a carousel, this is the currently-focused post
   // (`parentPost` does not change when swiping).
   const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
-  const contextLensAvailable = isContextLensAvailable();
-  const [contextLensOpen, setContextLensOpen] = useState(false);
-  const [selectedContextLensMessage, setSelectedContextLensMessage] =
-    useState<ContextLensSelectedMessage | null>(null);
-  const contextLensStream = useContextLensEvents();
-  const contextLensRuns = useContextLensRuns(contextLensStream.events);
-  const contextLensActive =
-    contextLensAvailable && contextLensRuns.some(isContextLensEventActive);
-  useEffect(() => {
-    if (!contextLensAvailable && contextLensOpen) {
-      setContextLensOpen(false);
-    }
-  }, [contextLensAvailable, contextLensOpen]);
+  const {
+    contextLensAvailable,
+    contextLensOpen,
+    contextLensActive,
+    contextLensStream,
+    selectedContextLensMessage,
+    toggleContextLens,
+    clearSelectedContextLensMessage,
+    inspectContextLensPost,
+  } = useContextLensController();
 
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 
@@ -269,41 +261,6 @@ export function PostScreenView({
   const handleEditPress = useCallback(() => {
     setEditingPost?.(focusedPost ?? undefined);
   }, [focusedPost, setEditingPost]);
-
-  const toggleContextLens = useCallback(() => {
-    if (!contextLensOpen) {
-      setSelectedContextLensMessage(null);
-    }
-    setContextLensOpen((open) => !open);
-  }, [contextLensOpen]);
-  const clearSelectedContextLensMessage = useCallback(() => {
-    setSelectedContextLensMessage(null);
-  }, []);
-  const postToContextLensMessage = useCallback(
-    (post: db.Post): ContextLensSelectedMessage => {
-      const contextLensEntry = post.blob
-        ? logic
-            .parsePostBlob(post.blob)
-            .find((entry) => entry.type === 'tlon-context-lens')
-        : null;
-      return {
-        id: post.id,
-        authorId: post.authorId,
-        channelId: post.channelId,
-        lensId:
-          contextLensEntry?.type === 'tlon-context-lens'
-            ? contextLensEntry.lensId
-            : null,
-      };
-    },
-    []
-  );
-  const inspectContextLensPost = useCallback(
-    (post: db.Post) => {
-      setSelectedContextLensMessage(postToContextLensMessage(post));
-    },
-    [postToContextLensMessage]
-  );
 
   const { bottom } = useSafeAreaInsets();
 
@@ -464,10 +421,10 @@ export function PostScreenView({
                               goBack,
                               group,
                               handleGoToImage,
-                              inspectContextLensPost: contextLensAvailable &&
-                                contextLensOpen
-                                ? inspectContextLensPost
-                                : undefined,
+                              inspectContextLensPost:
+                                contextLensAvailable && contextLensOpen
+                                  ? inspectContextLensPost
+                                  : undefined,
                               negotiationMatch,
                               onPressDelete,
                               onPressRetry,
@@ -498,27 +455,6 @@ export function PostScreenView({
                     {contextLensAvailable &&
                       contextLensOpen &&
                       !isWindowNarrow && (
-                      <ContextLensPanel
-                        events={contextLensStream.events}
-                        streamStatus={contextLensStream.status}
-                        selectedMessage={selectedContextLensMessage}
-                        onClearSelectedMessage={
-                          clearSelectedContextLensMessage
-                        }
-                      />
-                    )}
-                    {contextLensAvailable &&
-                      contextLensOpen &&
-                      isWindowNarrow && (
-                      <View
-                        position="absolute"
-                        top={0}
-                        right={0}
-                        bottom={0}
-                        width="88%"
-                        maxWidth={380}
-                        zIndex={20}
-                      >
                         <ContextLensPanel
                           events={contextLensStream.events}
                           streamStatus={contextLensStream.status}
@@ -526,10 +462,31 @@ export function PostScreenView({
                           onClearSelectedMessage={
                             clearSelectedContextLensMessage
                           }
-                          width="100%"
                         />
-                      </View>
-                    )}
+                      )}
+                    {contextLensAvailable &&
+                      contextLensOpen &&
+                      isWindowNarrow && (
+                        <View
+                          position="absolute"
+                          top={0}
+                          right={0}
+                          bottom={0}
+                          width="88%"
+                          maxWidth={380}
+                          zIndex={20}
+                        >
+                          <ContextLensPanel
+                            events={contextLensStream.events}
+                            streamStatus={contextLensStream.status}
+                            selectedMessage={selectedContextLensMessage}
+                            onClearSelectedMessage={
+                              clearSelectedContextLensMessage
+                            }
+                            width="100%"
+                          />
+                        </View>
+                      )}
                   </XStack>
                   <GroupPreviewSheet
                     group={groupPreview ?? undefined}

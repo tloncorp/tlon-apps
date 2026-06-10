@@ -683,6 +683,8 @@ export const PostBlobDataEntryContextLensSchema = definePostBlobDataEntrySchema(
   1,
   {
     lensId: z.string().min(1),
+    /** ship hosting the bot that produced this run, e.g. `~zod` */
+    botShip: z.string().min(1).optional(),
   }
 );
 

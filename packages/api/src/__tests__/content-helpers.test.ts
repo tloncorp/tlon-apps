@@ -82,6 +82,7 @@ describe('post blob helpers', () => {
       type: 'tlon-context-lens',
       version: 1,
       lensId: 'lens-123',
+      botShip: '~zod',
     });
 
     expect(parsePostBlob(blob)).toEqual([
@@ -89,8 +90,24 @@ describe('post blob helpers', () => {
         type: 'tlon-context-lens',
         version: 1,
         lensId: 'lens-123',
+        botShip: '~zod',
       },
     ]);
+  });
+
+  test('parsePostBlob rejects malformed context lens entries', () => {
+    expect(
+      parsePostBlob(
+        JSON.stringify([{ type: 'tlon-context-lens', version: 1 }])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          { type: 'tlon-context-lens', version: 1, lensId: '' },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
   });
 
   test('parsePostBlob parses registered blob entry types', () => {
