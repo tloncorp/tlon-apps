@@ -13,15 +13,16 @@
         %configure
       %-  frond  :-  'configure'
       %-  frond  :-  'owners'
-      a+(turn ~(tap in owners.action) |=(=ship s+(scot %p ship)))
+      ::  @p face: =,  enjs:format shadows the ship type with its +ship arm
+      a+(turn ~(tap in owners.action) |=(her=@p s+(scot %p her)))
     ::
         %run-event
       %-  frond  :-  'run-event'
-      (pairs ~[['id' s+id-run.action] ['payload' payload.action]])
+      (pairs ~[['id' s+id-run.action] ['payload' s+payload.action]])
     ::
         %run-final
       %-  frond  :-  'run-final'
-      (pairs ~[['id' s+id-run.action] ['payload' payload.action]])
+      (pairs ~[['id' s+id-run.action] ['payload' s+payload.action]])
     ==
   --
 ++  grab
@@ -34,8 +35,8 @@
     %.  jon
     %-  of
     :~  [%configure (ot ~[owners+(cu ~(gas in *(set ship)) (ar (se %p)))])]
-        [%run-event (ot ~[id+so payload+|=(j=^json j)])]
-        [%run-final (ot ~[id+so payload+|=(j=^json j)])]
+        [%run-event (ot ~[id+so payload+so])]
+        [%run-final (ot ~[id+so payload+so])]
     ==
   --
 --

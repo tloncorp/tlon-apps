@@ -12,8 +12,8 @@ export interface LensRunEntry {
   complete: boolean;
   /** @da string of when the latest record arrived on the owner ship */
   received: string;
-  /** opaque run record with an inner schemaVersion */
-  payload: unknown;
+  /** opaque serialized-JSON run record with an inner schemaVersion */
+  payload: string;
 }
 
 export type LensUpdate =

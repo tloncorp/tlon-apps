@@ -10,7 +10,7 @@
       owners=(set ship)
       runs=(map [bot=ship =id-run:l] run:l)
   ==
-++  payload  ^-  json  s+'run-record'
+++  payload  ^-  @t  '{"schemaVersion":1,"summary":"run-record"}'
 ++  setup
   =/  m  (mare ,~)
   ^-  form:m

@@ -22,9 +22,20 @@ export const toLensRun = (entry: ub.LensRunEntry): LensRun => {
     lensId: entry.id,
     complete: entry.complete,
     receivedAt: parseReceived(entry.received),
-    payload: entry.payload,
+    payload: parsePayload(entry.payload),
   };
 };
+
+// The agent relays payloads as opaque serialized-JSON cords; parse once at
+// the API edge so the rest of the client sees structured data.
+function parsePayload(payload: string): unknown {
+  try {
+    return JSON.parse(payload);
+  } catch {
+    logger.log('failed to parse lens payload', payload.slice(0, 100));
+    return null;
+  }
+}
 
 export const toLensRuns = (update: ub.LensUpdate): LensRun[] => {
   if ('run' in update) {

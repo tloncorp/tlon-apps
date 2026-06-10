@@ -15,7 +15,7 @@ The openclaw gateway records a run record per bot response and stamps the result
 
 A self-owned bot (owner ship == bot ship) is handled without a network hop: the fan-out stores directly.
 
-Run payloads are opaque JSON with an inner `schemaVersion`. The gateway enforces size caps and truncation before poking; the ship relays and stores without interpreting the contents.
+Run payloads are opaque serialized JSON (a cord, `@t`) with an inner `schemaVersion`. The gateway enforces size caps and truncation before poking; the ship relays and stores without interpreting the contents. The payload is a cord rather than a `$json` because embedding the recursive `$json` type in mark sample types makes ford's tube nest checks diverge — every json conversion build for the desk stack-overflows.
 
 ## state model
 
@@ -31,7 +31,7 @@ runs    (map [bot=ship id-run=@t] run)   stored run records (owner role)
 ```
 complete  ?      whether a %run-final has been received for this id
 received  @da    when the latest poke for this id arrived
-payload   json   opaque run record
+payload   @t     opaque serialized-JSON run record
 ```
 
 `%run-event` upserts a partial record (`complete=|`); `%run-final` marks it complete. A finalized run is never demoted back to partial by a late `%run-event`.
@@ -49,23 +49,23 @@ Enforced per bot on every store:
 
 ```
 [%configure owners=(set ship)]            set fan-out targets
-[%run-event id-run=@t payload=json]       incremental run milestone
-[%run-final id-run=@t payload=json]       finalized run record
+[%run-event id-run=@t payload=@t]       incremental run milestone
+[%run-final id-run=@t payload=@t]       finalized run record
 ```
 
 JSON poke form (as sent by the gateway over Eyre):
 
 ```json
 { "configure": { "owners": ["~sampel-palnet"] } }
-{ "run-event": { "id": "<lensId>", "payload": { ... } } }
-{ "run-final": { "id": "<lensId>", "payload": { ... } } }
+{ "run-event": { "id": "<lensId>", "payload": "<serialized JSON>" } }
+{ "run-final": { "id": "<lensId>", "payload": "<serialized JSON>" } }
 ```
 
 ### `%context-lens-signal-1` (cross-ship, bot → owner)
 
 ```
-[%run-event id-run=@t payload=json]
-[%run-final id-run=@t payload=json]
+[%run-event id-run=@t payload=@t]
+[%run-final id-run=@t payload=@t]
 ```
 
 Accepted from any ship; records are keyed by the sending ship, so a malicious ship can only write under its own identity. Storage is bounded by per-bot retention. Clients decide which bots they care about.
@@ -82,7 +82,7 @@ Accepted from any ship; records are keyed by the sending ship, so a malicious sh
 `entry` is `[bot=ship id-run=@t run]`. The update mark grows to JSON for Eyre:
 
 ```json
-{ "run": { "bot": "~zod", "id": "...", "complete": true, "received": "~2026.6.10..12.00.00..0000", "payload": { ... } } }
+{ "run": { "bot": "~zod", "id": "...", "complete": true, "received": "~2026.6.10..12.00.00..0000", "payload": "<serialized JSON>" } }
 ```
 
 ## integration notes
