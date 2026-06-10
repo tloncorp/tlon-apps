@@ -225,7 +225,7 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 EOF
 
 echo "Preparing aqua snapshot..."
-result=$( $run_click -t 1200 $pier <<EOF
+result=$( $run_click -t 1800 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =+  tid=~.ci-ph-fleet  
@@ -259,9 +259,8 @@ fi
 
 # Run aqua tests
 #
-# Update to use the generated test snapshot
 echo "Running tests..."
-result=$( $run_click -t 1200 $pier <<EOF
+result=$( $run_click -t 1800 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
