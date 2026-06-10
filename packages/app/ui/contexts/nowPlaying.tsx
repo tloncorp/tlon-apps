@@ -19,7 +19,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
 
 import { useAppStatusChange } from '../../hooks/useAppStatusChange';
 
@@ -179,8 +178,8 @@ export function NowPlayingProvider({
             sourceUrl: mediaItemRef.current.url,
             isPlaying: false,
             loadState: 'loaded',
-            currentTime: toSeconds(audioPlayer.currentTime),
-            duration: toSeconds(audioPlayer.duration),
+            currentTime: audioPlayer.currentTime,
+            duration: audioPlayer.duration,
           });
         }
 
@@ -198,7 +197,7 @@ export function NowPlayingProvider({
             isPlaying: isPlayingRef.current,
             loadState: 'loaded',
             currentTime: seconds,
-            duration: toSeconds(audioPlayer.duration),
+            duration: audioPlayer.duration,
           });
         }
       },
@@ -233,8 +232,8 @@ export function NowPlayingProvider({
         const playback: PlaybackState = status.isLoaded
           ? {
               loadState: 'loaded',
-              currentTime: toSeconds(status.currentTime),
-              duration: toSeconds(status.duration),
+              currentTime: status.currentTime,
+              duration: status.duration,
             }
           : { loadState: status.isBuffering ? 'loading' : 'empty' };
 
@@ -462,13 +461,4 @@ export function useNowPlayingController({
     status,
     isThisSourceLoaded,
   };
-}
-
-function toSeconds(expoAudioUnit: number): number {
-  if (Platform.OS === 'web') {
-    // web is in milliseconds!
-    return expoAudioUnit / 1000;
-  } else {
-    return expoAudioUnit;
-  }
 }
