@@ -29,6 +29,7 @@ DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS = 300
 DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS = 300
 DEFAULT_SSE_READ_TIMEOUT_SECONDS = 60.0
 DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES = 2
+DEFAULT_CONTEXT_MESSAGES = 20
 
 
 def normalize_ship(ship: str) -> str:
@@ -136,6 +137,14 @@ def _parse_int(value: Any, default: int) -> int:
     return parsed if parsed > 0 else default
 
 
+def _parse_non_negative_int(value: Any, default: int) -> int:
+    try:
+        parsed = int(float(str(value).strip()))
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed >= 0 else default
+
+
 def _format_da_from_unix_millis(value: float) -> str:
     dt = datetime.fromtimestamp(value / 1000.0, tz=timezone.utc)
     return f"~{dt.year}.{dt.month}.{dt.day}..{dt.hour:02d}.{dt.minute:02d}.{dt.second:02d}"
@@ -163,6 +172,13 @@ class TlonConfig:
     require_mention: bool = True
     known_bot_users: frozenset[str] = frozenset()
     max_consecutive_bot_responses: int = DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES
+    owner_listen: bool = True
+    owner_listen_disabled_channels: tuple[str, ...] = ()
+    owner_listen_enabled_channels: tuple[str, ...] = ()
+    context_messages: int = DEFAULT_CONTEXT_MESSAGES
+    telemetry_enabled: bool = False
+    telemetry_api_key: str = ""
+    telemetry_host: str = ""
     cli: str = "tlon"
     cli_timeout: float = DEFAULT_CLI_TIMEOUT_SECONDS
     gateway_status_enabled: bool = True
@@ -283,6 +299,62 @@ class TlonConfig:
             ),
             DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES,
         )
+        owner_listen = parse_bool_default(
+            _env_or_extra(
+                env,
+                ("TLON_OWNER_LISTEN",),
+                extra,
+                ("owner_listen",),
+                "true",
+            ),
+            True,
+        )
+        owner_listen_disabled_channels = parse_csv(
+            _env_or_extra(
+                env,
+                ("TLON_OWNER_LISTEN_DISABLED_CHANNELS",),
+                extra,
+                ("owner_listen_disabled_channels",),
+            )
+        )
+        owner_listen_enabled_channels = parse_csv(
+            _env_or_extra(
+                env,
+                ("TLON_OWNER_LISTEN_ENABLED_CHANNELS",),
+                extra,
+                ("owner_listen_enabled_channels",),
+            )
+        )
+        context_messages = _parse_non_negative_int(
+            _env_or_extra(
+                env,
+                ("TLON_CONTEXT_MESSAGES",),
+                extra,
+                ("context_messages",),
+                DEFAULT_CONTEXT_MESSAGES,
+            ),
+            DEFAULT_CONTEXT_MESSAGES,
+        )
+        telemetry_enabled = parse_bool(
+            _env_or_extra(
+                env,
+                ("TLON_TELEMETRY",),
+                extra,
+                ("telemetry", "telemetry_enabled"),
+            )
+        )
+        telemetry_api_key = _env_first(
+            env,
+            ("TLON_TELEMETRY_API_KEY",),
+            extra,
+            ("telemetry_api_key",),
+        )
+        telemetry_host = _env_first(
+            env,
+            ("TLON_TELEMETRY_HOST",),
+            extra,
+            ("telemetry_host",),
+        )
         cli = _env_first(env, ("TLON_CLI",), extra, ("cli",), "tlon")
         timeout_raw = _env_first(
             env,
@@ -393,6 +465,13 @@ class TlonConfig:
             require_mention=require_mention,
             known_bot_users=known_bot_users,
             max_consecutive_bot_responses=max_consecutive_bot_responses,
+            owner_listen=owner_listen,
+            owner_listen_disabled_channels=owner_listen_disabled_channels,
+            owner_listen_enabled_channels=owner_listen_enabled_channels,
+            context_messages=context_messages,
+            telemetry_enabled=telemetry_enabled,
+            telemetry_api_key=telemetry_api_key,
+            telemetry_host=telemetry_host,
             cli=cli,
             cli_timeout=cli_timeout,
             gateway_status_enabled=gateway_status_enabled,
@@ -430,6 +509,9 @@ class TlonConfig:
         return env
 
     def user_allowed(self, ship: str, *, is_dm: bool = False) -> bool:
+        """Deny by default: only the owner, configured allowlists, or the
+        explicit allow-all override authorize a ship. Settings-store grants
+        (approved DMs, channel rules) are layered on by the adapter."""
         ship = normalize_ship(ship)
         if not ship:
             return False
@@ -441,7 +523,7 @@ class TlonConfig:
             return True
         if is_dm and self.dm_allowlist and ship in self.dm_allowlist:
             return True
-        return not self.allowed_users and not self.dm_allowlist
+        return False
 
     def group_free_response_allowed(self) -> bool:
         return bool(self.allow_all_users or self.owner_ship or self.allowed_users)
@@ -480,6 +562,9 @@ CommandRunner = Callable[
     [Sequence[str], Mapping[str, str], float], Awaitable[TlonProcessResult]
 ]
 
+# Called after every CLI invocation with (args, duration_ms, result).
+CliObserver = Callable[[Sequence[str], int, "TlonSendResult"], None]
+
 
 class TlonCLI:
     def __init__(
@@ -487,9 +572,11 @@ class TlonCLI:
         config: TlonConfig,
         *,
         runner: CommandRunner | None = None,
+        observer: CliObserver | None = None,
     ) -> None:
         self.config = config
         self._runner = runner or self._run_subprocess
+        self._observer = observer
 
     async def send_message(self, chat_id: str, text: str) -> TlonSendResult:
         return await self._run(("posts", "send", chat_id, text))
@@ -511,6 +598,16 @@ class TlonCLI:
         return await self._run(tuple(args))
 
     async def _run(self, args: Sequence[str]) -> TlonSendResult:
+        started = time.monotonic()
+        result = await self._run_unobserved(args)
+        if self._observer is not None:
+            try:
+                self._observer(args, int((time.monotonic() - started) * 1000), result)
+            except Exception as exc:
+                logger.debug("[tlon] CLI observer failed: %s", exc)
+        return result
+
+    async def _run_unobserved(self, args: Sequence[str]) -> TlonSendResult:
         command = (self.config.cli, *args)
         try:
             proc = await self._runner(
@@ -903,6 +1000,7 @@ class TlonGatewayStatus:
         config: TlonConfig,
         *,
         client_factory: ClientFactory = TlonSSEClient,
+        on_error: Callable[[str, BaseException], None] | None = None,
     ) -> None:
         self.config = config
         self.owner = config.gateway_status_owner_ship()
@@ -911,6 +1009,15 @@ class TlonGatewayStatus:
         self._client: Optional[TlonSSEClient] = None
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._active = False
+        self._on_error = on_error
+
+    def _report_error(self, operation: str, exc: BaseException) -> None:
+        if self._on_error is None:
+            return
+        try:
+            self._on_error(operation, exc)
+        except Exception as report_exc:
+            logger.debug("[tlon] gateway-status error reporter failed: %s", report_exc)
 
     @property
     def enabled(self) -> bool:
@@ -961,6 +1068,7 @@ class TlonGatewayStatus:
                 await self._gateway_stop(reason)
             except Exception as exc:
                 logger.warning("[tlon] gateway-status stop failed: %s", exc)
+                self._report_error("stop", exc)
         self._active = False
         await self._safe_close_client()
         self._client = None
@@ -974,6 +1082,7 @@ class TlonGatewayStatus:
                 raise
             except Exception as exc:
                 logger.warning("[tlon] gateway-status heartbeat failed: %s", exc)
+                self._report_error("heartbeat", exc)
 
     async def _configure(self) -> None:
         await self._poke(

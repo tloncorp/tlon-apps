@@ -32,7 +32,7 @@ RUN git clone --depth 1 --branch "$HERMES_AGENT_REF" "$HERMES_AGENT_REPO" "$HERM
 RUN python3 -m venv "$HERMES_VENV" \
   && "$HERMES_VENV/bin/python" -m pip install --upgrade pip setuptools wheel \
   && "$HERMES_VENV/bin/python" -m pip install -e "$HERMES_AGENT_DIR[all]" \
-  && "$HERMES_VENV/bin/python" -m pip install "aiohttp>=3.9"
+  && "$HERMES_VENV/bin/python" -m pip install "aiohttp>=3.9" "posthog>=3"
 
 WORKDIR /workspace
 

@@ -1,0 +1,687 @@
+import asyncio
+import importlib.util
+import os
+import sys
+import types
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+
+PACKAGE_DIR = Path(__file__).parent
+PACKAGE_NAME = "hermes_tlon_adapter_approvals_adapter_testpkg"
+
+package = types.ModuleType(PACKAGE_NAME)
+package.__path__ = [str(PACKAGE_DIR)]
+sys.modules[PACKAGE_NAME] = package
+
+
+class Platform(str):
+    pass
+
+
+class PlatformConfig:
+    def __init__(self, extra=None):
+        self.extra = extra or {}
+
+
+class MessageType:
+    TEXT = "text"
+
+
+class MessageEvent:
+    def __init__(
+        self,
+        *,
+        text,
+        message_type,
+        source,
+        raw_message,
+        message_id,
+        reply_to_message_id,
+        timestamp,
+    ):
+        self.text = text
+        self.message_type = message_type
+        self.source = source
+        self.raw_message = raw_message
+        self.message_id = message_id
+        self.reply_to_message_id = reply_to_message_id
+        self.timestamp = timestamp
+
+
+class SendResult:
+    def __init__(
+        self,
+        *,
+        success,
+        message_id=None,
+        error=None,
+        raw_response=None,
+        retryable=False,
+    ):
+        self.success = success
+        self.message_id = message_id
+        self.error = error
+        self.raw_response = raw_response or {}
+        self.retryable = retryable
+
+
+class BasePlatformAdapter:
+    def __init__(self, *, config, platform):
+        self.config = config
+        self.platform = platform
+        self._running = True
+
+    def _mark_connected(self):
+        self._running = True
+
+    def _mark_disconnected(self):
+        self._running = False
+
+    def build_source(self, **kwargs):
+        return types.SimpleNamespace(**kwargs)
+
+    async def handle_message(self, event):
+        raise AssertionError("tests should install a recorder")
+
+
+gateway = types.ModuleType("gateway")
+gateway_config = types.ModuleType("gateway.config")
+gateway_config.Platform = Platform
+gateway_config.PlatformConfig = PlatformConfig
+gateway_platforms = types.ModuleType("gateway.platforms")
+gateway_base = types.ModuleType("gateway.platforms.base")
+gateway_base.BasePlatformAdapter = BasePlatformAdapter
+gateway_base.MessageEvent = MessageEvent
+gateway_base.MessageType = MessageType
+gateway_base.SendResult = SendResult
+sys.modules["gateway"] = gateway
+sys.modules["gateway.config"] = gateway_config
+sys.modules["gateway.platforms"] = gateway_platforms
+sys.modules["gateway.platforms.base"] = gateway_base
+
+
+def load_module(name):
+    module_name = f"{PACKAGE_NAME}.{name}"
+    spec = importlib.util.spec_from_file_location(module_name, PACKAGE_DIR / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+tlon_api = load_module("tlon_api")
+adapter_mod = load_module("adapter")
+
+
+def channel_event(text, *, author="~ten", nest="chat/~pen/general", post_id="170.141"):
+    return {
+        "nest": nest,
+        "response": {
+            "post": {
+                "id": post_id,
+                "r-post": {
+                    "set": {
+                        "essay": {
+                            "author": author,
+                            "sent": 1000,
+                            "content": [{"inline": [text]}],
+                        }
+                    }
+                },
+            }
+        },
+    }
+
+
+def dm_event(text, *, author="~ten", whom="~ten", msg_id="dm-1"):
+    return {
+        "whom": whom,
+        "id": msg_id,
+        "response": {
+            "add": {
+                "essay": {
+                    "author": author,
+                    "sent": 1000,
+                    "content": [{"inline": [text]}],
+                }
+            }
+        },
+    }
+
+
+class FakeSSE:
+    def __init__(self, payloads=None):
+        self.payloads = payloads or {}
+        self.scries = []
+        self.pokes = []
+
+    async def scry(self, path):
+        self.scries.append(path)
+        if path in self.payloads:
+            return self.payloads[path]
+        raise ConnectionError(f"no payload for {path}")
+
+    async def poke(self, app, mark, json_payload):
+        self.pokes.append((app, mark, json_payload))
+        return 1
+
+    def pokes_for(self, mark):
+        return [poke for poke in self.pokes if poke[1] == mark]
+
+    def settings_writes(self, key):
+        return [
+            poke[2]["put-entry"]["value"]
+            for poke in self.pokes
+            if poke[1] == "settings-event"
+            and poke[2]["put-entry"]["entry-key"] == key
+        ]
+
+
+class FakeCLI:
+    def __init__(self):
+        self.messages = []
+        self.replies = []
+        self.commands = []
+
+    async def run_command(self, args):
+        self.commands.append(tuple(args))
+        return tlon_api.TlonSendResult(
+            success=True, command=("tlon-test", *args), stdout="ok\n"
+        )
+
+    async def send_message(self, chat_id, text):
+        self.messages.append((chat_id, text))
+        return tlon_api.TlonSendResult(
+            success=True, command=("tlon-test", "posts", "send"), message_id="post-id"
+        )
+
+    async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+        self.replies.append((chat_id, post_id, text, parent_author))
+        return tlon_api.TlonSendResult(
+            success=True, command=("tlon-test", "posts", "reply"), message_id="reply-id"
+        )
+
+    def notifications(self):
+        return [cmd for cmd in self.commands if cmd[:2] == ("posts", "send")]
+
+
+class AdapterApprovalTests(unittest.TestCase):
+    def make_adapter(self, extra=None):
+        base = {
+            "node_url": "https://pen.tlon.network",
+            "node_id": "~pen",
+            "access_code": "code",
+            "channels": ["chat/~pen/general"],
+            "owner_ship": "~mug",
+        }
+        base.update(extra or {})
+        with patch.dict(os.environ, {}, clear=True):
+            adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
+        adapter._sse = FakeSSE()
+        adapter._cli = FakeCLI()
+        adapter._settings_loaded = True
+        return adapter
+
+    def dispatches(self, adapter, raw, *, dm=False):
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        handler = adapter._handle_dm_event if dm else adapter._handle_channel_event
+        asyncio.run(handler(raw))
+        return events
+
+    # ── deny-by-default + queueing ───────────────────────────────────────
+
+    def test_unknown_dm_queues_approval_with_card(self):
+        adapter = self.make_adapter()
+
+        events = self.dispatches(adapter, dm_event("hi bot, help me"), dm=True)
+
+        self.assertEqual(events, [])
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["type"], "dm")
+        self.assertEqual(pending["requestingShip"], "~ten")
+        self.assertEqual(pending["originalMessage"]["messageText"], "hi bot, help me")
+
+        notifications = adapter._cli.notifications()
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(notifications[0][2], "~mug")
+        self.assertIn("DM request", notifications[0][3])
+        self.assertEqual(notifications[0][4], "--blob")
+        self.assertIn('"a2ui"', notifications[0][5])
+        self.assertIn(f"/allow {pending['id']}", notifications[0][5])
+
+        writes = adapter._sse.settings_writes("pendingApprovals")
+        self.assertEqual(len(writes), 1)
+        self.assertEqual(writes[0][0]["requestingShip"], "~ten")
+
+    def test_unknown_club_message_drops_without_queue(self):
+        adapter = self.make_adapter()
+        events = self.dispatches(
+            adapter,
+            dm_event("hello", author="~ten", whom="0v4.aaaaa.bbbbb"),
+            dm=True,
+        )
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_no_owner_means_plain_deny(self):
+        adapter = self.make_adapter({"owner_ship": ""})
+        events = self.dispatches(adapter, dm_event("hello"), dm=True)
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._cli.notifications(), [])
+
+    def test_unauthorized_channel_mention_queues_channel_approval(self):
+        adapter = self.make_adapter()
+
+        events = self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        self.assertEqual(events, [])
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["type"], "channel")
+        self.assertEqual(pending["channelNest"], "chat/~pen/general")
+        self.assertEqual(pending["originalMessage"]["messageText"], "are you there?")
+
+    def test_unmentioned_unauthorized_channel_chatter_does_not_queue(self):
+        adapter = self.make_adapter()
+        events = self.dispatches(adapter, channel_event("just chatting"))
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_duplicate_dm_updates_without_renotify_within_cooldown(self):
+        adapter = self.make_adapter()
+
+        self.dispatches(adapter, dm_event("first message", msg_id="dm-1"), dm=True)
+        self.dispatches(adapter, dm_event("second message", msg_id="dm-2"), dm=True)
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(
+            adapter._pending_approvals[0]["messagePreview"], "second message"
+        )
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_blocked_ship_requests_are_ignored(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/chat/blocked"] = ["~ten"]
+
+        self.dispatches(adapter, dm_event("hello"), dm=True)
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._cli.notifications(), [])
+
+    # ── DM invites ───────────────────────────────────────────────────────
+
+    def test_invite_from_unknown_ship_queues_with_sentinel(self):
+        adapter = self.make_adapter()
+
+        self.dispatches(adapter, ["~ten", "0v4.club.id"], dm=True)
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["messagePreview"], "(DM invite - no message yet)")
+        self.assertNotIn(("dms", "accept", "~ten"), adapter._cli.commands)
+
+    def test_invite_from_allowed_ship_is_auto_accepted(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+
+        self.dispatches(adapter, ["~ten"], dm=True)
+
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_connect_scry_catches_missed_invites_once(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/chat/dm/invited"] = ["~ten"]
+
+        asyncio.run(adapter._process_pending_dm_invites())
+        asyncio.run(adapter._process_pending_dm_invites())
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    # ── owner actions ────────────────────────────────────────────────────
+
+    def queue_dm_request(self, adapter, text="hi bot"):
+        self.dispatches(adapter, dm_event(text), dm=True)
+        return adapter._pending_approvals[0]["id"]
+
+    def test_allow_adds_to_allowlist_and_replays(self):
+        adapter = self.make_adapter()
+        request_id = self.queue_dm_request(adapter, "what is urbit?")
+
+        events = self.dispatches(
+            adapter, dm_event(f"/allow {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertIn("~ten", adapter._settings_dm_allowlist)
+        self.assertEqual(adapter._sse.settings_writes("dmAllowlist")[-1], ["~ten"])
+        # replayed original message dispatched to the model
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "what is urbit?")
+        self.assertEqual(events[0].source.chat_id, "~ten")
+        confirmation = adapter._cli.messages[-1]
+        self.assertEqual(confirmation[0], "~mug")
+        self.assertIn("can now DM the bot", confirmation[1])
+
+        # subsequent DMs from the approved ship dispatch directly
+        more = self.dispatches(adapter, dm_event("thanks!", msg_id="dm-9"), dm=True)
+        self.assertEqual(len(more), 1)
+
+    def test_allow_invite_accepts_dm_first(self):
+        adapter = self.make_adapter()
+        self.dispatches(adapter, ["~ten"], dm=True)
+        request_id = adapter._pending_approvals[0]["id"]
+
+        events = self.dispatches(
+            adapter, dm_event(f"/allow {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(events, [])  # nothing to replay for an invite
+        self.assertIn(("dms", "accept", "~ten"), adapter._cli.commands)
+        self.assertIn("~ten", adapter._settings_dm_allowlist)
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_reject_removes_without_side_effects(self):
+        adapter = self.make_adapter()
+        request_id = self.queue_dm_request(adapter)
+
+        events = self.dispatches(
+            adapter, dm_event(f"/reject {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertNotIn("~ten", adapter._settings_dm_allowlist)
+        self.assertNotIn(("dms", "decline", "~ten"), adapter._cli.commands)
+        self.assertEqual(adapter._sse.pokes_for("chat-block-ship"), [])
+
+    def test_ban_by_id_blocks_natively(self):
+        adapter = self.make_adapter()
+        request_id = self.queue_dm_request(adapter)
+
+        self.dispatches(
+            adapter, dm_event(f"/ban {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        blocks = adapter._sse.pokes_for("chat-block-ship")
+        self.assertEqual(len(blocks), 1)
+        self.assertEqual(blocks[0][2], {"ship": "~ten"})
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_ban_by_ship_clears_pending_and_unban_reverses(self):
+        adapter = self.make_adapter()
+        self.queue_dm_request(adapter)
+
+        self.dispatches(
+            adapter,
+            dm_event("/ban ~ten", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(len(adapter._sse.pokes_for("chat-block-ship")), 1)
+        self.assertIn("Removed 1 pending request(s).", adapter._cli.messages[-1][1])
+
+        self.dispatches(
+            adapter,
+            dm_event("/unban ~ten", author="~mug", whom="~mug", msg_id="cmd-2"),
+            dm=True,
+        )
+        self.assertEqual(len(adapter._sse.pokes_for("chat-unblock-ship")), 1)
+
+    def test_pending_and_banned_lists(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/chat/blocked"] = ["~bus"]
+        request_id = self.queue_dm_request(adapter)
+
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+        self.assertIn(f"#{request_id}", adapter._cli.messages[-1][1])
+
+        self.dispatches(
+            adapter,
+            dm_event("/banned", author="~mug", whom="~mug", msg_id="cmd-2"),
+            dm=True,
+        )
+        self.assertIn("• ~bus", adapter._cli.messages[-1][1])
+
+    def test_allow_unknown_id_reports_not_found(self):
+        adapter = self.make_adapter()
+        self.dispatches(adapter, dm_event("/allow zzzzz", author="~mug", whom="~mug"), dm=True)
+        self.assertIn("No pending approval found", adapter._cli.messages[-1][1])
+
+    def test_approval_commands_require_owner(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        events = self.dispatches(adapter, dm_event("/pending", author="~ten", whom="~ten"), dm=True)
+        # not intercepted: dispatches to the model as a normal message
+        self.assertEqual(len(events), 1)
+
+    # ── channel approvals + /channel-access ─────────────────────────────
+
+    def test_channel_allow_grants_and_replays_with_context(self):
+        adapter = self.make_adapter()
+        self.dispatches(adapter, channel_event("~pen can you help?"))
+        request_id = adapter._pending_approvals[0]["id"]
+
+        events = self.dispatches(
+            adapter, dm_event(f"/allow {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].source.chat_id, "chat/~pen/general")
+        self.assertEqual(events[0].text, "can you help?")
+        rules_writes = adapter._sse.settings_writes("channelRules")
+        self.assertEqual(
+            rules_writes[-1]["chat/~pen/general"]["allowedShips"], ["~ten"]
+        )
+
+        follow_up = self.dispatches(
+            adapter, channel_event("~pen thanks!", post_id="170.150")
+        )
+        self.assertEqual(len(follow_up), 1)
+
+    def test_channel_access_open_admits_everyone(self):
+        adapter = self.make_adapter()
+        self.dispatches(
+            adapter,
+            channel_event("/channel-access open", author="~mug", post_id="1"),
+        )
+        self.assertEqual(
+            adapter._sse.settings_writes("channelRules")[-1],
+            {"chat/~pen/general": {"mode": "open"}},
+        )
+        self.assertIn("open — anyone here", adapter._cli.messages[-1][1])
+
+        events = self.dispatches(
+            adapter, channel_event("~pen hello!", author="~bus", post_id="2")
+        )
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._pending_approvals, [])
+
+    def test_channel_access_open_unmonitored_nest_starts_monitoring(self):
+        adapter = self.make_adapter()
+        self.dispatches(
+            adapter,
+            dm_event("/channel-access open chat/~ten/lounge", author="~mug", whom="~mug"),
+            dm=True,
+        )
+        self.assertIn("chat/~ten/lounge", adapter._monitored_channels)
+        self.assertEqual(
+            adapter._sse.settings_writes("groupChannels")[-1], ["chat/~ten/lounge"]
+        )
+        self.assertIn("Now monitoring this channel.", adapter._cli.messages[-1][1])
+
+    def test_reply_flow_emits_reply_handled_telemetry(self):
+        adapter = self.make_adapter({"telemetry": True, "telemetry_api_key": "phc_x"})
+        telemetry_mod = sys.modules[f"{PACKAGE_NAME}.telemetry"]
+
+        class FakeTelemetryClient:
+            def __init__(self):
+                self.captures = []
+
+            def capture(self, *, distinct_id, event, properties):
+                self.captures.append((event, properties))
+
+        fake = FakeTelemetryClient()
+        adapter._telemetry = telemetry_mod.TlonTelemetry(
+            adapter.tlon_config, client_factory=lambda key, host: fake
+        )
+        self.assertTrue(adapter._telemetry.enabled)
+
+        events = []
+
+        async def record(event):
+            await adapter.send(event.source.chat_id, "hello from the bot")
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(dm_event("hi there", author="~mug", whom="~mug"))
+        )
+        self.assertEqual(len(events), 1)
+        asyncio.run(adapter.on_processing_complete(events[0], None))
+
+        replies = [props for event, props in fake.captures if event == "TlonBot Reply Handled"]
+        self.assertEqual(len(replies), 1)
+        props = replies[0]
+        self.assertEqual(props["harness"], "hermes")
+        self.assertEqual(props["outcome"], "responded")
+        self.assertEqual(props["chatType"], "dm")
+        self.assertEqual(props["dispatchReason"], "dm")
+        self.assertEqual(props["senderRole"], "owner")
+        self.assertEqual(props["deliveredMessageCount"], 1)
+        self.assertEqual(props["replyCharCount"], len("hello from the bot"))
+
+    def make_instrumented_adapter(self, extra=None):
+        adapter = self.make_adapter(
+            {"telemetry": True, "telemetry_api_key": "phc_x", **(extra or {})}
+        )
+        telemetry_mod = sys.modules[f"{PACKAGE_NAME}.telemetry"]
+
+        class FakeTelemetryClient:
+            def __init__(self):
+                self.captures = []
+
+            def capture(self, *, distinct_id, event, properties):
+                self.captures.append((event, properties))
+
+            def identify(self, *, distinct_id, properties):
+                pass
+
+        fake = FakeTelemetryClient()
+        adapter._telemetry = telemetry_mod.TlonTelemetry(
+            adapter.tlon_config, client_factory=lambda key, host: fake
+        )
+        return adapter, fake
+
+    def test_processing_failure_marks_reply_as_error(self):
+        adapter, fake = self.make_instrumented_adapter()
+        events = []
+
+        async def record(event):
+            events.append(event)  # no reply delivered
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(dm_event("hi", author="~mug", whom="~mug"))
+        )
+        outcome = types.SimpleNamespace(value="failure")
+        asyncio.run(adapter.on_processing_complete(events[0], outcome))
+
+        replies = [props for event, props in fake.captures if event == "TlonBot Reply Handled"]
+        self.assertEqual(replies[0]["outcome"], "error")
+        self.assertEqual(replies[0]["processingOutcome"], "failure")
+
+    def test_handler_exception_reports_event_handler_not_stream_error(self):
+        adapter, fake = self.make_instrumented_adapter()
+
+        async def explode(raw):
+            raise RuntimeError("handler bug for ~ten")
+
+        adapter._handle_dm_event = explode
+        event = types.SimpleNamespace(app="chat", json={"whom": "~ten"})
+        asyncio.run(adapter._route_stream_event(event))  # must not raise
+
+        errors = [props for name, props in fake.captures if name == "TlonBot Error"]
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0]["component"], "event_handler")
+        self.assertEqual(errors[0]["app"], "chat")
+        self.assertEqual(errors[0]["errorType"], "RuntimeError")
+        self.assertNotIn("~ten", errors[0]["detail"])
+
+    def test_invite_accept_failure_emits_approval_error(self):
+        adapter, fake = self.make_instrumented_adapter()
+
+        class AcceptFailingCLI(FakeCLI):
+            async def run_command(self, args):
+                if tuple(args)[:2] == ("dms", "accept"):
+                    self.commands.append(tuple(args))
+                    return tlon_api.TlonSendResult(
+                        success=False,
+                        command=("tlon-test", *args),
+                        error="rsvp poke failed",
+                        returncode=1,
+                    )
+                return await super().run_command(args)
+
+        adapter._cli = AcceptFailingCLI()
+        self.dispatches(adapter, ["~ten"], dm=True)
+        request_id = adapter._pending_approvals[0]["id"]
+
+        self.dispatches(
+            adapter, dm_event(f"/allow {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        # request stays pending and the failure is countable
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        errors = [
+            props
+            for name, props in fake.captures
+            if name == "TlonBot Error" and props.get("operation") == "invite_accept"
+        ]
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0]["component"], "approval")
+
+    def test_settings_event_hot_reloads_approval_state(self):
+        adapter = self.make_adapter()
+        adapter._handle_settings_event(
+            {
+                "settings-event": {
+                    "put-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "dmAllowlist",
+                        "value": ["~bus"],
+                    }
+                }
+            }
+        )
+        self.assertEqual(adapter._settings_dm_allowlist, {"~bus"})
+
+        adapter._handle_settings_event(
+            {
+                "put-entry": {
+                    "desk": "moltbot",
+                    "bucket-key": "tlon",
+                    "entry-key": "channelRules",
+                    "value": {"chat/~pen/general": {"mode": "open"}},
+                }
+            }
+        )
+        self.assertTrue(
+            adapter_mod.is_channel_open(adapter._channel_rules, "chat/~pen/general")
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

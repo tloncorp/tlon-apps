@@ -182,9 +182,11 @@ class TlonComputingPresenceTracker:
         *,
         reporter: TlonComputingPresenceReporter,
         min_update_interval_ms: int = DEFAULT_MIN_UPDATE_INTERVAL_MS,
+        on_error: Optional[Callable[[str, BaseException], None]] = None,
     ) -> None:
         self._reporter = reporter
         self._min_update_interval_ms = max(0, int(min_update_interval_ms))
+        self._on_error = on_error
         self._conversations: dict[str, dict[str, _RunState]] = {}
         self._last_published_state: dict[str, _PublishedState] = {}
         self._last_published_at: dict[str, float] = {}
@@ -364,6 +366,7 @@ class TlonComputingPresenceTracker:
                 conversation_id,
                 exc,
             )
+            self._report_error("flush", exc)
 
     async def _publish_now(self, conversation_id: str, state: _PublishedState) -> None:
         self._clear_pending(conversation_id)
@@ -399,6 +402,14 @@ class TlonComputingPresenceTracker:
                 tool_names.append(tool_name)
         return _PublishedState(thinking=True, tool_names=tuple(tool_names))
 
+    def _report_error(self, action: str, exc: BaseException) -> None:
+        if self._on_error is None:
+            return
+        try:
+            self._on_error(action, exc)
+        except Exception as report_exc:
+            logger.debug("[tlon] presence error reporter failed: %s", report_exc)
+
     async def _safely_sync(
         self,
         conversation_id: str,
@@ -416,6 +427,7 @@ class TlonComputingPresenceTracker:
                 conversation_id,
                 exc,
             )
+            self._report_error(action, exc)
 
 
 _active_tracker: Optional[TlonComputingPresenceTracker] = None

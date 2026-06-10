@@ -225,6 +225,23 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon posts reply'
   ),
   usageErrorCase(
+    'posts send missing blob value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--blob'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send blob without message',
+    ['posts', 'send', 'chat/~host/channel', '--blob', '[]'],
+    'Usage: tlon posts send'
+  ),
+  {
+    name: 'posts send blob rejects non-array json',
+    args: ['posts', 'send', 'chat/~host/channel', 'message', '--blob', '{"a":1}'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--blob must be a JSON array'],
+  },
+  usageErrorCase(
     'settings set missing args',
     ['settings', 'set'],
     'Usage: tlon settings set'
@@ -366,6 +383,14 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'chat/~host/channel',
     'use',
     '--help',
+  ]),
+  authRequiredCase('posts send with valid blob reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'message',
+    '--blob',
+    '[{"type":"a2ui","version":1,"messages":[]}]',
   ]),
   authRequiredCase('posts reply message option-like value reaches auth', [
     'posts',

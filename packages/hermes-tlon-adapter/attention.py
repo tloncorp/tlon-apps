@@ -11,6 +11,7 @@ class AttentionFacts:
     is_authorized: bool
     has_text: bool
     is_mentioned: bool = False
+    is_owner_listen: bool = False
     is_free_response: bool = False
     is_participated_thread: bool = False
 
@@ -34,6 +35,8 @@ def resolve_attention(facts: AttentionFacts) -> AttentionDecision:
         return AttentionDecision("dispatch", "dm")
     if facts.is_mentioned:
         return AttentionDecision("dispatch", "mention")
+    if facts.is_owner_listen:
+        return AttentionDecision("dispatch", "owner-listen")
     if facts.is_free_response:
         return AttentionDecision("dispatch", "free-response")
     if facts.is_participated_thread:

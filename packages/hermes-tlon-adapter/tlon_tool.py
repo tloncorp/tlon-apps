@@ -305,8 +305,20 @@ async def execute_tlon_tool(
             }
         )
 
-    cli = TlonCLI(cfg, runner=runner)
-    return _tool_result(await cli.run_command(args))
+    # Lazy import keeps this module importable standalone (no cycle at load).
+    from .telemetry import cli_context, get_active_telemetry
+
+    telemetry = get_active_telemetry()
+    cli = TlonCLI(
+        cfg,
+        runner=runner,
+        observer=telemetry.observe_cli if telemetry is not None else None,
+    )
+    with cli_context(
+        "model_tool",
+        conversation=_get_session_env("HERMES_SESSION_CHAT_ID", ""),
+    ):
+        return _tool_result(await cli.run_command(args))
 
 
 async def handle_tlon_tool(params: Mapping[str, Any], **_kwargs: Any) -> str:

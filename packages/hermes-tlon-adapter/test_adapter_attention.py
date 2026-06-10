@@ -373,24 +373,12 @@ class AdapterAttentionTests(unittest.TestCase):
             allowed_users = os.environ.get("TLON_ALLOWED_USERS")
 
         self.assertEqual(seed["home_channel"], {"chat_id": "~mug", "name": "~mug"})
-        self.assertEqual(allowed_users, "~mug")
+        # The adapter owns access policy; core's env allowlist is never seeded.
+        self.assertIsNone(allowed_users)
 
-    def test_env_enablement_appends_owner_to_existing_core_allowlist(self):
-        with patch.dict(
-            os.environ,
-            {
-                "TLON_NODE_URL": "https://pen.tlon.network",
-                "TLON_NODE_ID": "~pen",
-                "TLON_ACCESS_CODE": "code",
-                "TLON_OWNER_SHIP": "~mug",
-                "TLON_ALLOWED_USERS": "~nec",
-            },
-            clear=True,
-        ):
-            adapter_mod._env_enablement()
-            allowed_users = os.environ.get("TLON_ALLOWED_USERS")
-
-        self.assertEqual(allowed_users, "~nec,~mug")
+    def test_adapter_enforces_own_access_policy_for_core(self):
+        adapter = self.make_adapter({"owner_ship": "~mug"})
+        self.assertIs(adapter.enforces_own_access_policy, True)
 
     def test_env_enablement_does_not_infer_home_channel_from_allowlist(self):
         with patch.dict(

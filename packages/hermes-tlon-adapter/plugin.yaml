@@ -12,6 +12,7 @@ provides_tools:
   - image_search
 provides_hooks:
   - pre_tool_call
+  - post_tool_call
   - post_api_request
 requires_env:
   - name: TLON_NODE_URL
@@ -38,7 +39,9 @@ optional_env:
     prompt: 'Auto-discover channels?'
     password: false
   - name: TLON_ALLOWED_USERS
-    description: 'Comma-separated ships allowed to interact'
+    description:
+      'Comma-separated ships allowed to interact (access is deny-by-default;
+      unknown ships queue for owner approval)'
     prompt: 'Allowed ships'
     password: false
   - name: TLON_ALLOW_ALL_USERS
@@ -87,6 +90,44 @@ optional_env:
       'Maximum consecutive group dispatch attempts from known bot ships before
       dropping (default: 2)'
     prompt: 'Known-bot response cap'
+    password: false
+  - name: TLON_OWNER_LISTEN
+    description:
+      'Hear the owner without a mention in owner/bot-hosted channels
+      (true/false, default true); %settings store overrides this'
+    prompt: 'Owner-listen?'
+    password: false
+  - name: TLON_OWNER_LISTEN_DISABLED_CHANNELS
+    description:
+      'Comma-separated owned channel nests muted for owner-listen (default seed;
+      %settings store overrides)'
+    prompt: 'Owner-listen muted channels'
+    password: false
+  - name: TLON_OWNER_LISTEN_ENABLED_CHANNELS
+    description:
+      'Comma-separated non-owned channel nests opted into owner-listen (default
+      seed; %settings store overrides)'
+    prompt: 'Owner-listen opt-in channels'
+    password: false
+  - name: TLON_CONTEXT_MESSAGES
+    description:
+      'Recent channel/thread messages prepended as context on group dispatch
+      (default: 20, 0 disables)'
+    prompt: 'Group context messages'
+    password: false
+  - name: TLON_TELEMETRY
+    description:
+      'Enable opt-in PostHog telemetry (true/false, default false); requires
+      TLON_TELEMETRY_API_KEY'
+    prompt: 'Enable telemetry?'
+    password: false
+  - name: TLON_TELEMETRY_API_KEY
+    description: 'PostHog project API key for telemetry'
+    prompt: 'PostHog API key'
+    password: true
+  - name: TLON_TELEMETRY_HOST
+    description: 'PostHog host override (defaults to PostHog US cloud)'
+    prompt: 'PostHog host'
     password: false
   - name: TLON_CLI
     description: 'Path/name for the tlon CLI (default: tlon)'

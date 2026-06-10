@@ -40,12 +40,15 @@ import { type Story, markdownToStory } from './story';
 const POSTS_HELP = `Usage: tlon posts <command>
 
 Commands:
-  send <channel> <message>                 Send a message to a channel
+  send <channel> <message>                 Send a message to a channel [--blob <json>]
   reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship]
   react <channel> <post-id> <emoji>     React to a post with an emoji
   unreact <channel> <post-id>           Remove your reaction from a post
   edit <channel> <post-id> <message>    Edit a post [--title <t>] [--image <url>] [--content <json>]
   delete <channel> <post-id>            Delete a post
+
+Send options:
+  --blob <json>        Attach a post-blob JSON array (e.g. an a2ui entry)
 
 Edit options:
   --title <title>      Set/update notebook post title
@@ -62,7 +65,7 @@ Channel format: chat/~host/channel-name, diary/~host/name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> <message>',
+  send: 'Usage: tlon posts send <channel> <message> [--blob <json>]',
   reply: 'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
   react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
   unreact: 'Usage: tlon posts unreact <channel> <post-id>',
@@ -72,6 +75,7 @@ const POSTS_COMMAND_HELP: Record<string, string> = {
 
 const POST_EDIT_OPTION_FLAGS = ['title', 'content', 'image'] as const;
 const POST_REPLY_OPTION_FLAGS = ['author'] as const;
+const POST_SEND_OPTION_FLAGS = ['blob'] as const;
 
 function getPostsHelp(command?: string): string {
   return command ? POSTS_COMMAND_HELP[command] ?? POSTS_HELP : POSTS_HELP;
@@ -99,6 +103,36 @@ function getPostReplyMessage(args: string[]): string {
   return args.slice(3, firstPostReplyFlagIndex(args)).join(' ');
 }
 
+function firstPostSendFlagIndex(args: string[]): number {
+  const flagIndexes = POST_SEND_OPTION_FLAGS.map((flag) =>
+    args.indexOf(`--${flag}`)
+  ).filter((idx) => idx !== -1);
+  return flagIndexes.length > 0 ? Math.min(...flagIndexes) : args.length;
+}
+
+function getPostSendMessage(args: string[]): string {
+  return args.slice(2, firstPostSendFlagIndex(args)).join(' ');
+}
+
+function validatedSendBlob(args: string[]): string | undefined {
+  const blobIdx = args.indexOf('--blob');
+  if (blobIdx === -1) {
+    return undefined;
+  }
+  const blob = args[blobIdx + 1];
+  if (!blob) {
+    printUsageAndExit(POSTS_COMMAND_HELP.send);
+  }
+  try {
+    if (!Array.isArray(JSON.parse(blob))) {
+      throw new Error('not an array');
+    }
+  } catch {
+    printErrorAndExit('--blob must be a JSON array of post-blob entries');
+  }
+  return blob;
+}
+
 function isPostEditMessageHelpLiteral(args: string[]): boolean {
   return (
     args[0] === 'edit' &&
@@ -109,7 +143,11 @@ function isPostEditMessageHelpLiteral(args: string[]): boolean {
 }
 
 function isPostSendMessageHelpLiteral(args: string[]): boolean {
-  return args[0] === 'send' && !!args[1] && wantsHelp(args.slice(2));
+  return (
+    args[0] === 'send' &&
+    !!args[1] &&
+    wantsHelp(args.slice(2, firstPostSendFlagIndex(args)))
+  );
 }
 
 function isPostReplyMessageHelpLiteral(args: string[]): boolean {
@@ -132,9 +170,10 @@ function validatePostsArgs(args: string[]): void {
 
   switch (command) {
     case 'send': {
-      if (!args[1] || !args.slice(2).join(' ')) {
+      if (!args[1] || !getPostSendMessage(args)) {
         printUsageAndExit(POSTS_COMMAND_HELP.send);
       }
+      validatedSendBlob(args);
       return;
     }
     case 'reply': {
@@ -275,7 +314,8 @@ async function unreactToPost(
 
 async function sendChannelPost(
   nest: string,
-  message: string
+  message: string,
+  blob?: string
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   try {
     const authorId = getCurrentUserId();
@@ -287,6 +327,7 @@ async function sendChannelPost(
       authorId,
       sentAt,
       content,
+      blob,
     });
 
     return { success: true, postId: String(sentAt) };
@@ -429,11 +470,12 @@ async function main() {
     switch (command) {
       case 'send': {
         const channel = args[1];
-        const message = args.slice(2).join(' ');
+        const message = getPostSendMessage(args);
         if (!channel || !message) {
           printUsageAndExit(POSTS_COMMAND_HELP.send);
         }
-        const result = await sendChannelPost(channel, message);
+        const blob = validatedSendBlob(args);
+        const result = await sendChannelPost(channel, message, blob);
         if (!result.success) {
           console.error(`Error: ${result.error}`);
           process.exit(1);
