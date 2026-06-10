@@ -7,7 +7,6 @@ import {
 import { useMemo } from 'react';
 import { Text } from 'react-native';
 
-import { AudioPost } from '../../components/AudioPost';
 import { ChatMessage } from '../../components/ChatMessage';
 import { ColorPost } from '../../components/ColorPost';
 import { useContactName } from '../../components/ContactNameV2';
@@ -24,7 +23,6 @@ import {
   ChatInput,
   ColorInput,
   GalleryInput,
-  MicInput,
   NotebookInput,
 } from '../../components/draftInputs';
 import { ButtonInput } from '../../components/draftInputs/ButtonInput';
@@ -49,7 +47,6 @@ const BUILTIN_CONTENT_RENDERERS: { [id: string]: RenderItemType } = {
   [PostContentRendererId.chat]: ChatMessage,
   [PostContentRendererId.gallery]: GalleryPost,
   [PostContentRendererId.notebook]: NotebookPost,
-  [PostContentRendererId.audio]: AudioPost,
   [PostContentRendererId.color]: ColorPost,
   [PostContentRendererId.raw]: ({ post, contentRendererConfiguration }) => {
     const contactName = useContactName(post.author!.id);
@@ -87,7 +84,6 @@ const BUILTIN_DRAFT_INPUTS: { [id: string]: DraftInputRendererComponent } = {
       )}
     />
   ),
-  [DraftInputId.mic]: MicInput,
   [DraftInputId.color]: ColorInput,
   [DraftInputId.notes]: NotesDraftInput,
 };
