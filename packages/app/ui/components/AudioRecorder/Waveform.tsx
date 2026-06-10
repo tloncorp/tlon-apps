@@ -78,9 +78,7 @@ export function Waveform({
     ) {
       return candlePlaybackPosition;
     }
-    return Math.round(
-      (candlePlaybackPosition / values.length) * maxVisibleCandleCount
-    );
+    return (candlePlaybackPosition / values.length) * maxVisibleCandleCount;
   }, [candlePlaybackPosition, values.length, maxVisibleCandleCount]);
 
   const effectiveVisualRange = useMemo(() => {

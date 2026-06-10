@@ -263,8 +263,10 @@ export function VoiceMemoBlock({
     ) {
       return 0;
     }
+    // fractional position; the Waveform quantizes once against the candles
+    // it actually draws
     return clamp(
-      Math.round((progress.currentTime / progress.duration) * candleCount),
+      (progress.currentTime / progress.duration) * candleCount,
       0,
       candleCount
     );
