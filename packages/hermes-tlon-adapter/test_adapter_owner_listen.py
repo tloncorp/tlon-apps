@@ -617,6 +617,42 @@ class AdapterOwnerListenTests(unittest.TestCase):
             adapter._cli.messages[0][1],
         )
 
+    # ── /tlon-telemetry ──────────────────────────────────────────────────
+
+    def test_telemetry_command_replies_with_status(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+
+        events = self.dispatches(adapter, channel_event("/tlon-telemetry"))
+
+        self.assertEqual(events, [])
+        self.assertEqual(len(adapter._cli.messages), 1)
+        reply = adapter._cli.messages[0][1]
+        self.assertIn("Telemetry: disabled — TLON_TELEMETRY is not enabled", reply)
+        self.assertIn("Distinct id: ~mug", reply)
+        self.assertIn("Bot ship: ~pen", reply)
+
+    def test_telemetry_test_subcommand_reports_disabled(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+
+        self.dispatches(adapter, dm_event("/tlon-telemetry test"), dm=True)
+
+        self.assertIn(
+            "Cannot test: telemetry is disabled", adapter._cli.messages[0][1]
+        )
+
+    def test_telemetry_command_from_non_owner_is_not_intercepted(self):
+        adapter = self.make_adapter({"allowed_users": ["~ten"]})
+        adapter._cli = FakeCLI()
+
+        events = self.dispatches(
+            adapter, channel_event("/tlon-telemetry", author="~ten")
+        )
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._cli.messages, [])
+
     # ── live settings subscription ───────────────────────────────────────
 
     def put_entry_event(self, key, value):

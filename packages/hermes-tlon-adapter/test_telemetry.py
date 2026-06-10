@@ -1,9 +1,12 @@
 import asyncio
 import importlib.util
+import logging
+import os
 import sys
 import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 PACKAGE_DIR = Path(__file__).parent
 PACKAGE_NAME = "hermes_tlon_adapter_telemetry_testpkg"
@@ -122,6 +125,47 @@ class EnablementTests(unittest.TestCase):
         self.assertEqual(props["tlonOwnerShip"], "~mug")
         self.assertEqual(props["tlonBotShip"], "~pen")
         self.assertEqual(props["harness"], "hermes")
+
+    def test_identify_falls_back_to_set_on_posthog_7(self):
+        # posthog-python >= 7 removed identify(); set() is the replacement.
+        class SetOnlyClient:
+            def __init__(self):
+                self.captures = []
+                self.sets = []
+
+            def capture(self, *, distinct_id, event, properties):
+                self.captures.append((distinct_id, event, properties))
+
+            def set(self, *, distinct_id, properties):
+                self.sets.append((distinct_id, properties))
+
+            def flush(self):
+                pass
+
+        fake = SetOnlyClient()
+        tel = telemetry.TlonTelemetry(make_config(), client_factory=lambda key, host: fake)
+        tel.capture("TlonBot Error", {})
+
+        self.assertEqual(len(fake.sets), 1)
+        distinct_id, props = fake.sets[0]
+        self.assertEqual(distinct_id, "~mug")
+        self.assertEqual(props["tlonBotShip"], "~pen")
+        self.assertEqual(tel._identified_as, "~mug")
+
+    def test_identify_unavailable_is_reported_in_status(self):
+        class CaptureOnlyClient:
+            def capture(self, *, distinct_id, event, properties):
+                pass
+
+        tel = telemetry.TlonTelemetry(
+            make_config(), client_factory=lambda key, host: CaptureOnlyClient()
+        )
+        tel.capture("TlonBot Error", {})
+
+        self.assertEqual(tel._identified_as, "")
+        self.assertIn(
+            "Identify: attempted but failed or unavailable", tel.status_report()
+        )
 
     def test_no_owner_skips_events_entirely(self):
         tel, fake = make_telemetry(TLON_OWNER_SHIP="")
@@ -460,6 +504,266 @@ class DiscreteEventTests(unittest.TestCase):
         self.assertEqual(first["key"], "dmAllowlist")
         self.assertNotIn("~zod", first["detail"])
         self.assertEqual(second["errorType"], "error")
+
+
+class DiagnosticsHelperTests(unittest.TestCase):
+    def test_mask_api_key(self):
+        self.assertEqual(telemetry.mask_api_key(""), "not set")
+        self.assertEqual(telemetry.mask_api_key("  "), "not set")
+        self.assertEqual(telemetry.mask_api_key("short"), "set (5 chars)")
+        self.assertEqual(
+            telemetry.mask_api_key("phc_abcdefghijklmnop"), "phc_…mnop (20 chars)"
+        )
+
+    def test_config_source(self):
+        self.assertEqual(
+            telemetry.config_source("telemetry", env={"TLON_TELEMETRY": "true"}),
+            "env TLON_TELEMETRY",
+        )
+        self.assertEqual(
+            telemetry.config_source("telemetry", extra={"telemetry": True}, env={}),
+            "config telemetry",
+        )
+        self.assertEqual(
+            telemetry.config_source(
+                "owner", extra={"owner_ship": "~mug"}, env={"TLON_OWNER_SHIP": "~mug"}
+            ),
+            "env TLON_OWNER_SHIP",
+        )
+        self.assertEqual(telemetry.config_source("api_key", env={}), "unset")
+        # Blank values do not count as set, mirroring TlonConfig.from_env.
+        self.assertEqual(
+            telemetry.config_source(
+                "api_key", extra={"telemetry_api_key": " "}, env={"TLON_TELEMETRY_API_KEY": ""}
+            ),
+            "unset",
+        )
+
+    def test_command_detection(self):
+        self.assertTrue(telemetry.is_telemetry_command("/tlon-telemetry"))
+        self.assertTrue(telemetry.is_telemetry_command("  /Tlon-Telemetry  "))
+        self.assertTrue(telemetry.is_telemetry_command("/tlon-telemetry test"))
+        self.assertFalse(telemetry.is_telemetry_command("/tlon-telemetrys"))
+        self.assertFalse(telemetry.is_telemetry_command("tlon-telemetry"))
+        self.assertEqual(
+            telemetry.telemetry_command_args("/tlon-telemetry test"), ["test"]
+        )
+        self.assertEqual(telemetry.telemetry_command_args("/tlon-telemetry"), [])
+
+    def test_telemetry_debug_config_parsing(self):
+        self.assertFalse(make_config().telemetry_debug)
+        self.assertTrue(make_config(TLON_TELEMETRY_DEBUG="true").telemetry_debug)
+        self.assertTrue(
+            tlon_api.TlonConfig.from_env({"telemetry_debug": True}, env={}).telemetry_debug
+        )
+
+    def test_posthog_sdk_status_reports_version_or_import_error(self):
+        status = telemetry.posthog_sdk_status()
+        # Either a version string or a "not importable" diagnosis — never empty.
+        self.assertTrue(status)
+
+
+class DisabledReasonTests(unittest.TestCase):
+    def test_flag_off(self):
+        tel = telemetry.TlonTelemetry(
+            make_config(TLON_TELEMETRY=""), client_factory=lambda key, host: FakeClient()
+        )
+        self.assertIn("TLON_TELEMETRY is not enabled", tel.disabled_reason)
+
+    def test_missing_api_key(self):
+        tel = telemetry.TlonTelemetry(
+            make_config(TLON_TELEMETRY_API_KEY=""),
+            client_factory=lambda key, host: FakeClient(),
+        )
+        self.assertIn("TLON_TELEMETRY_API_KEY is not set", tel.disabled_reason)
+
+    def test_client_init_failure(self):
+        def boom(key, host):
+            raise ImportError("No module named 'posthog'")
+
+        tel = telemetry.TlonTelemetry(make_config(), client_factory=boom)
+        self.assertIn("PostHog client init failed", tel.disabled_reason)
+        self.assertIn("posthog", tel.disabled_reason)
+
+    def test_enabled_has_no_reason(self):
+        tel, _ = make_telemetry()
+        self.assertIsNone(tel.disabled_reason)
+
+    def test_off_by_default_logs_at_info(self):
+        # The gateway console shows WARNING+ only; a simply-off default must
+        # not appear there, so it stays INFO.
+        with self.assertLogs(telemetry.logger, level="INFO") as cm:
+            telemetry.TlonTelemetry(
+                make_config(TLON_TELEMETRY=""),
+                client_factory=lambda key, host: FakeClient(),
+            )
+        self.assertTrue(any(r.levelno == logging.INFO for r in cm.records))
+        self.assertFalse(any(r.levelno >= logging.WARNING for r in cm.records))
+
+    def test_requested_but_broken_logs_at_warning(self):
+        # Requested (TLON_TELEMETRY=true) but no key — a misconfiguration the
+        # operator must see on a default (WARNING+) console.
+        with self.assertLogs(telemetry.logger, level="INFO") as cm:
+            telemetry.TlonTelemetry(
+                make_config(TLON_TELEMETRY_API_KEY=""),
+                client_factory=lambda key, host: FakeClient(),
+            )
+        warnings = [r for r in cm.records if r.levelno >= logging.WARNING]
+        self.assertTrue(warnings)
+        self.assertIn("telemetry disabled", warnings[0].getMessage())
+
+
+class DiagnosticsCounterTests(unittest.TestCase):
+    def test_capture_counts_and_remembers_last_event(self):
+        tel, fake = make_telemetry()
+        tel.capture("TlonBot Error", {})
+        tel.control_command("owner-listen")
+
+        self.assertEqual(tel._events_captured, 2)
+        self.assertEqual(tel._last_event, "TlonBot Control Command")
+        self.assertEqual(tel._identified_as, "~mug")
+
+    def test_capture_failure_recorded(self):
+        tel, fake = make_telemetry()
+
+        def broken_capture(**kwargs):
+            raise RuntimeError("queue full on ~zod")
+
+        fake.capture = broken_capture
+        tel.capture("TlonBot Error", {})
+
+        self.assertEqual(tel._events_captured, 0)
+        self.assertIn("RuntimeError", tel._last_capture_error)
+        self.assertNotIn("~zod", tel._last_capture_error)
+
+    def test_delivery_error_recording_scrubs_and_counts(self):
+        tel, _ = make_telemetry()
+        tel._record_delivery_error(RuntimeError("401 unauthorized for ~zod"), [1, 2, 3])
+        tel._record_delivery_error("connection reset", None)
+
+        self.assertEqual(tel._delivery_failures, 2)
+        self.assertIn("connection reset", tel._last_delivery_error)
+        report = tel.status_report()
+        self.assertIn("Delivery: 2 failed batches", report)
+        self.assertNotIn("~zod", report)
+
+
+class StatusReportTests(unittest.TestCase):
+    def test_disabled_report_states_reason(self):
+        tel = telemetry.TlonTelemetry(
+            make_config(TLON_TELEMETRY=""), client_factory=lambda key, host: FakeClient()
+        )
+        report = tel.status_report()
+        self.assertIn("Telemetry: disabled — TLON_TELEMETRY is not enabled", report)
+        self.assertIn("Enabled flag: false", report)
+        self.assertIn("API key:", report)
+        self.assertIn("PostHog SDK:", report)
+        self.assertNotIn("Run /tlon-telemetry test", report)
+
+    def test_enabled_report_shows_identity_and_sources(self):
+        fake = FakeClient()
+        config = tlon_api.TlonConfig.from_env(
+            {
+                "node_url": "https://pen.tlon.network",
+                "node_id": "~pen",
+                "access_code": "code",
+                "owner_ship": "~mug",
+                "telemetry": True,
+                "telemetry_api_key": "phc_abcdefghijklmnop",
+            },
+            env={},
+        )
+        tel = telemetry.TlonTelemetry(
+            config,
+            extra={"telemetry": True, "telemetry_api_key": "phc_abcdefghijklmnop", "owner_ship": "~mug"},
+            client_factory=lambda key, host: fake,
+        )
+        tel.capture("TlonBot Error", {})
+
+        with patch.dict(os.environ, {}, clear=True):
+            report = tel.status_report()
+        self.assertIn("Telemetry: enabled", report)
+        self.assertIn("Enabled flag: true (config telemetry)", report)
+        self.assertIn("phc_…mnop (20 chars) (config telemetry_api_key)", report)
+        self.assertIn(f"Host: default ({telemetry.DEFAULT_POSTHOG_HOST})", report)
+        self.assertIn("Distinct id: ~mug (owner ship, config owner_ship)", report)
+        self.assertIn("Bot ship: ~pen", report)
+        self.assertIn("Identify: enqueued as ~mug", report)
+        self.assertIn("Events enqueued: 1", report)
+        self.assertIn("last: TlonBot Error", report)
+        self.assertIn("Delivery: no failed batches observed", report)
+        self.assertIn("Run /tlon-telemetry test", report)
+
+    def test_blocked_when_owner_missing(self):
+        tel, _ = make_telemetry(TLON_OWNER_SHIP="")
+        report = tel.status_report()
+        self.assertIn("enabled but BLOCKED", report)
+        self.assertIn("Distinct id: missing — set TLON_OWNER_SHIP", report)
+        self.assertNotIn("Run /tlon-telemetry test", report)
+
+    def test_no_events_yet(self):
+        tel, _ = make_telemetry()
+        self.assertIn("Events enqueued: none since gateway start", tel.status_report())
+
+
+class DeliveryTestTests(unittest.TestCase):
+    def test_disabled_cannot_test(self):
+        tel = telemetry.TlonTelemetry(
+            make_config(TLON_TELEMETRY=""), client_factory=lambda key, host: FakeClient()
+        )
+        self.assertIn("Cannot test: telemetry is disabled", tel.delivery_test())
+
+    def test_missing_owner_cannot_test(self):
+        tel, _ = make_telemetry(TLON_OWNER_SHIP="")
+        self.assertIn("TLON_OWNER_SHIP is not set", tel.delivery_test())
+
+    def test_success_reports_distinct_id(self):
+        tel, fake = make_telemetry()
+        result = tel.delivery_test()
+        self.assertIn("Test event accepted by PostHog", result)
+        self.assertIn("~mug", result)
+        self.assertEqual(fake.flushes, 1)
+        self.assertEqual(
+            fake.captures[-1][1], telemetry.EVENT_TELEMETRY_TEST
+        )
+        # Reply traces survive, unlike TlonTelemetry.flush().
+        tel.start_reply(
+            "~ten", chat_type="dm", is_thread=False, sender_role="user", dispatch_reason="dm"
+        )
+        tel.delivery_test()
+        self.assertIn("~ten", tel._traces)
+
+    def test_reports_delivery_failure_seen_during_flush(self):
+        tel, fake = make_telemetry()
+
+        def failing_flush():
+            tel._record_delivery_error(RuntimeError("401 unauthorized for ~zod"), [1])
+
+        fake.flush = failing_flush
+        result = tel.delivery_test()
+        self.assertIn("FAILED to deliver", result)
+        self.assertIn("RuntimeError", result)
+        self.assertNotIn("~zod", result)
+
+    def test_flush_exception_reported(self):
+        tel, fake = make_telemetry()
+
+        def raising_flush():
+            raise ConnectionError("posthog.com unreachable")
+
+        fake.flush = raising_flush
+        self.assertIn("Test flush failed", tel.delivery_test())
+
+    def test_capture_failure_reported(self):
+        tel, fake = make_telemetry()
+
+        def broken_capture(**kwargs):
+            raise RuntimeError("enqueue exploded")
+
+        fake.capture = broken_capture
+        result = tel.delivery_test()
+        self.assertIn("could not be enqueued", result)
+        self.assertIn("RuntimeError", result)
 
 
 if __name__ == "__main__":

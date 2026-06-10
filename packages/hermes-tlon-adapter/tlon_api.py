@@ -179,6 +179,7 @@ class TlonConfig:
     telemetry_enabled: bool = False
     telemetry_api_key: str = ""
     telemetry_host: str = ""
+    telemetry_debug: bool = False
     cli: str = "tlon"
     cli_timeout: float = DEFAULT_CLI_TIMEOUT_SECONDS
     gateway_status_enabled: bool = True
@@ -355,6 +356,14 @@ class TlonConfig:
             extra,
             ("telemetry_host",),
         )
+        telemetry_debug = parse_bool(
+            _env_or_extra(
+                env,
+                ("TLON_TELEMETRY_DEBUG",),
+                extra,
+                ("telemetry_debug",),
+            )
+        )
         cli = _env_first(env, ("TLON_CLI",), extra, ("cli",), "tlon")
         timeout_raw = _env_first(
             env,
@@ -472,6 +481,7 @@ class TlonConfig:
             telemetry_enabled=telemetry_enabled,
             telemetry_api_key=telemetry_api_key,
             telemetry_host=telemetry_host,
+            telemetry_debug=telemetry_debug,
             cli=cli,
             cli_timeout=cli_timeout,
             gateway_status_enabled=gateway_status_enabled,

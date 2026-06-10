@@ -129,6 +129,12 @@ optional_env:
     description: 'PostHog host override (defaults to PostHog US cloud)'
     prompt: 'PostHog host'
     password: false
+  - name: TLON_TELEMETRY_DEBUG
+    description:
+      'Verbose telemetry logging: per-event capture logs plus PostHog SDK
+      internals (true/false)'
+    prompt: 'Telemetry debug logs?'
+    password: false
   - name: TLON_CLI
     description: 'Path/name for the tlon CLI (default: tlon)'
     prompt: 'tlon CLI'

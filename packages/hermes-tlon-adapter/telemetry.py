@@ -13,6 +13,13 @@ ship ids are scrubbed from error detail. Uses the official ``posthog`` SDK,
 whose worker thread owns batching and delivery — ``capture`` only enqueues,
 so emits never block the event loop. All emit paths swallow their own errors;
 telemetry must never break messaging.
+
+Debuggability: the constructor always logs the resolved telemetry state
+(enabled, or disabled with the precise reason), the SDK's ``on_error`` hook
+surfaces delivery failures that its worker thread would otherwise swallow,
+``TLON_TELEMETRY_DEBUG=true`` turns on per-event and SDK-internal logging,
+and the owner-only ``/tlon-telemetry`` chat command reports live status
+(``/tlon-telemetry test`` does a synchronous round trip to PostHog).
 """
 
 from __future__ import annotations
@@ -38,8 +45,12 @@ EVENT_GATEWAY_DISCONNECTED = "TlonBot Gateway Disconnected"
 EVENT_SSE_RECONNECT = "TlonBot SSE Reconnect"
 EVENT_APPROVAL = "TlonBot Approval Event"
 EVENT_CONTROL_COMMAND = "TlonBot Control Command"
+EVENT_TELEMETRY_TEST = "TlonBot Telemetry Test"
 
 HARNESS = "hermes"
+
+# The posthog SDK's default ingestion host, shown when no override is set.
+DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com"
 
 # Message-send plumbing: ordinary replies, control-command replies, and owner
 # notifications go through the CLI but are not "CLI use" — replies are already
@@ -62,6 +73,92 @@ def scrub_detail(text: Any, max_chars: int = ERROR_DETAIL_MAX_CHARS) -> str:
     if len(masked) > max_chars:
         masked = masked[: max_chars - 1].rstrip() + "…"
     return masked
+
+
+def scrub_error(error: Any) -> str:
+    """``Type: detail`` for exceptions, scrubbed like any other detail."""
+    if isinstance(error, BaseException):
+        return scrub_detail(f"{type(error).__name__}: {error}")
+    return scrub_detail(error)
+
+
+_TELEMETRY_COMMAND_RE = re.compile(r"^/tlon-telemetry(?:\s|$)", re.IGNORECASE)
+
+
+def is_telemetry_command(text: str) -> bool:
+    return bool(_TELEMETRY_COMMAND_RE.match(str(text or "").strip()))
+
+
+def telemetry_command_args(text: str) -> list[str]:
+    parts = str(text or "").strip().split()
+    return parts[1:] if parts else []
+
+
+def mask_api_key(key: str) -> str:
+    """Identify a key without disclosing it: edges + length only."""
+    key = str(key or "").strip()
+    if not key:
+        return "not set"
+    if len(key) <= 8:
+        return f"set ({len(key)} chars)"
+    return f"{key[:4]}…{key[-4:]} ({len(key)} chars)"
+
+
+# Mirrors the (env names, config-extra keys) lookup order in
+# TlonConfig.from_env so the status report can say where a value came from.
+_CONFIG_SOURCE_NAMES: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "telemetry": (("TLON_TELEMETRY",), ("telemetry", "telemetry_enabled")),
+    "api_key": (("TLON_TELEMETRY_API_KEY",), ("telemetry_api_key",)),
+    "host": (("TLON_TELEMETRY_HOST",), ("telemetry_host",)),
+    "debug": (("TLON_TELEMETRY_DEBUG",), ("telemetry_debug",)),
+    "owner": (("TLON_OWNER_SHIP", "TLON_OWNER"), ("owner_ship", "owner")),
+}
+
+
+def config_source(
+    setting: str,
+    extra: Optional[Mapping[str, Any]] = None,
+    env: Optional[Mapping[str, Any]] = None,
+) -> str:
+    """Where a telemetry setting was resolved from: env var, plugin config, or unset."""
+    env = os.environ if env is None else env
+    extra = extra or {}
+    env_names, extra_names = _CONFIG_SOURCE_NAMES[setting]
+    for name in env_names:
+        value = env.get(name)
+        if value is not None and str(value).strip():
+            return f"env {name}"
+    for name in extra_names:
+        if name not in extra:
+            continue
+        value = extra.get(name)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            continue
+        return f"config {name}"
+    return "unset"
+
+
+def posthog_sdk_status() -> str:
+    """Installed posthog SDK version, or why it cannot be imported."""
+    try:
+        import posthog  # noqa: F401
+    except Exception as exc:
+        return f"not importable ({type(exc).__name__}: {exc})"
+    try:
+        from importlib import metadata
+
+        return metadata.version("posthog")
+    except Exception:
+        return "installed (version unknown)"
+
+
+def _ago(timestamp: float) -> str:
+    delta = max(0, int(time.time() - timestamp))
+    if delta < 60:
+        return f"{delta}s ago"
+    if delta < 3600:
+        return f"{delta // 60}m ago"
+    return f"{delta // 3600}h ago"
 
 
 _ACTION_WORD_RE = re.compile(r"[a-z][a-z-]*")
@@ -170,12 +267,22 @@ class _ReplyTrace:
     provider: Optional[str] = None
 
 
-def _create_posthog_client(api_key: str, host: str):
+def _create_posthog_client(
+    api_key: str,
+    host: str,
+    *,
+    debug: bool = False,
+    on_error: Optional[Callable[..., None]] = None,
+):
     from posthog import Posthog
 
     kwargs: dict[str, Any] = {"disable_geoip": True}
     if host:
         kwargs["host"] = host
+    if debug:
+        kwargs["debug"] = True
+    if on_error is not None:
+        kwargs["on_error"] = on_error
     return Posthog(api_key, **kwargs)
 
 
@@ -184,9 +291,13 @@ class TlonTelemetry:
         self,
         config: TlonConfig,
         *,
-        client_factory: Callable[[str, str], Any] = _create_posthog_client,
+        extra: Optional[Mapping[str, Any]] = None,
+        client_factory: Optional[Callable[[str, str], Any]] = None,
     ) -> None:
         self.config = config
+        self.debug = config.telemetry_debug
+        self.disabled_reason: Optional[str] = None
+        self._extra: dict[str, Any] = dict(extra or {})
         self._client: Any = None
         self._common: dict[str, Any] = {
             "harness": HARNESS,
@@ -197,17 +308,66 @@ class TlonTelemetry:
         self._capture_warned = False
         self._missing_owner_warned = False
         self._identified = False
+        self._identified_as = ""
+        self._events_captured = 0
+        self._last_event = ""
+        self._last_event_at = 0.0
+        self._last_capture_error = ""
+        self._last_capture_error_at = 0.0
+        self._delivery_failures = 0
+        self._last_delivery_error = ""
+        self._last_delivery_error_at = 0.0
 
-        if not (config.telemetry_enabled and config.telemetry_api_key.strip()):
-            return
-        try:
-            self._client = client_factory(
-                config.telemetry_api_key.strip(), config.telemetry_host.strip()
+        api_key = config.telemetry_api_key.strip()
+        if not config.telemetry_enabled:
+            self.disabled_reason = (
+                "TLON_TELEMETRY is not enabled (set TLON_TELEMETRY=true and "
+                "TLON_TELEMETRY_API_KEY to opt in)"
             )
-            logger.info("[tlon] telemetry enabled (PostHog)")
-        except Exception as exc:
-            logger.warning("[tlon] telemetry disabled: PostHog client unavailable: %s", exc)
-            self._client = None
+        elif not api_key:
+            self.disabled_reason = (
+                "TLON_TELEMETRY=true but TLON_TELEMETRY_API_KEY is not set"
+            )
+        else:
+            if client_factory is None:
+                client_factory = lambda key, host: _create_posthog_client(  # noqa: E731
+                    key,
+                    host,
+                    debug=self.debug,
+                    on_error=self._record_delivery_error,
+                )
+            try:
+                self._client = client_factory(api_key, config.telemetry_host.strip())
+            except Exception as exc:
+                self.disabled_reason = (
+                    f"PostHog client init failed: {exc} "
+                    "(is the posthog package installed?)"
+                )
+
+        if self._client is None:
+            # A simply-off default is INFO (most deployments never opt in, and
+            # the gateway console shows WARNING+ only). But if telemetry was
+            # explicitly requested and still can't run — missing key, posthog
+            # not installed — that's a misconfiguration the operator needs to
+            # see on a default console, so escalate to WARNING.
+            level = logging.WARNING if config.telemetry_enabled else logging.INFO
+            logger.log(level, "[tlon] telemetry disabled: %s", self.disabled_reason)
+            return
+        logger.info(
+            "[tlon] telemetry enabled (PostHog): key %s, host %s, "
+            "events identify as owner %s (bot %s), debug %s",
+            mask_api_key(api_key),
+            config.telemetry_host.strip() or f"default ({DEFAULT_POSTHOG_HOST})",
+            config.owner_ship or "<missing>",
+            config.ship_name,
+            "on" if self.debug else "off",
+        )
+        if not config.owner_ship:
+            self._missing_owner_warned = True
+            logger.warning(
+                "[tlon] telemetry is enabled but TLON_OWNER_SHIP is not "
+                "configured; every telemetry event will be skipped"
+            )
 
     @property
     def enabled(self) -> bool:
@@ -245,7 +405,19 @@ class TlonTelemetry:
                 event=event,
                 properties=props,
             )
+            self._events_captured += 1
+            self._last_event = event
+            self._last_event_at = time.time()
+            if self._events_captured == 1 or self.debug:
+                logger.info(
+                    "[tlon] telemetry%s event enqueued: %s (distinct_id=%s)",
+                    " first" if self._events_captured == 1 else "",
+                    event,
+                    owner,
+                )
         except Exception as exc:
+            self._last_capture_error = scrub_error(exc)
+            self._last_capture_error_at = time.time()
             if not self._capture_warned:
                 self._capture_warned = True
                 logger.warning("[tlon] telemetry capture failed (first occurrence): %s", exc)
@@ -257,20 +429,56 @@ class TlonTelemetry:
         if self._identified:
             return
         self._identified = True
+        props = {
+            "harness": HARNESS,
+            "tlonOwnerShip": owner,
+            "tlonBotShip": self.config.ship_name,
+        }
         identify = getattr(self._client, "identify", None)
-        if identify is None:
-            return
+        setter = getattr(self._client, "set", None)
         try:
-            identify(
-                distinct_id=owner,
-                properties={
-                    "harness": HARNESS,
-                    "tlonOwnerShip": owner,
-                    "tlonBotShip": self.config.ship_name,
-                },
+            if identify is not None:
+                identify(distinct_id=owner, properties=props)
+                method = "identify"
+            elif setter is not None:
+                # posthog-python >= 7 removed identify(); set() enqueues the
+                # equivalent $set event for person properties.
+                setter(distinct_id=owner, properties=props)
+                method = "$set"
+            else:
+                logger.warning(
+                    "[tlon] telemetry identify unavailable: posthog client has "
+                    "neither identify() nor set()"
+                )
+                return
+            self._identified_as = owner
+            logger.info(
+                "[tlon] telemetry identify enqueued (%s): owner %s (bot %s)",
+                method,
+                owner,
+                self.config.ship_name,
             )
         except Exception as exc:
-            logger.debug("[tlon] telemetry identify failed: %s", exc)
+            logger.warning("[tlon] telemetry identify failed: %s", exc)
+
+    def _record_delivery_error(self, error: Any, batch: Any = None) -> None:
+        """posthog ``on_error`` hook, called from the SDK's worker thread when
+        a batch upload fails after retries — without this those failures are
+        completely silent and "telemetry is on but nothing arrives" is
+        undiagnosable."""
+        self._delivery_failures += 1
+        self._last_delivery_error = scrub_error(error)
+        self._last_delivery_error_at = time.time()
+        batch_size = len(batch) if isinstance(batch, (list, tuple)) else None
+        suffix = f" ({batch_size} events dropped)" if batch_size else ""
+        if self._delivery_failures == 1 or self.debug:
+            logger.warning(
+                "[tlon] telemetry delivery to PostHog failed%s: %s", suffix, error
+            )
+        else:
+            logger.debug(
+                "[tlon] telemetry delivery to PostHog failed%s: %s", suffix, error
+            )
 
     def flush(self) -> None:
         """Push pending events; keeps the client usable across reconnects."""
@@ -511,6 +719,136 @@ class TlonTelemetry:
 
     def control_command(self, command: str) -> None:
         self.capture(EVENT_CONTROL_COMMAND, {"command": command})
+
+    # ── diagnostics ──────────────────────────────────────────────────────
+
+    def status_report(self) -> str:
+        """Field-per-line live status for logs and the /tlon-telemetry command."""
+
+        def with_source(value: str, setting: str) -> str:
+            source = config_source(setting, self._extra)
+            return value if source == "unset" else f"{value} ({source})"
+
+        owner = self.config.owner_ship
+        if self._client is None:
+            state = f"disabled — {self.disabled_reason}"
+        elif not owner:
+            state = (
+                "enabled but BLOCKED — TLON_OWNER_SHIP is not set, so every "
+                "event is skipped (events need a distinct id)"
+            )
+        else:
+            state = "enabled"
+
+        lines = [
+            f"Telemetry: {state}",
+            "Enabled flag: "
+            + with_source(str(self.config.telemetry_enabled).lower(), "telemetry"),
+            "API key: " + with_source(mask_api_key(self.config.telemetry_api_key), "api_key"),
+            "Host: "
+            + (
+                with_source(self.config.telemetry_host.strip(), "host")
+                if self.config.telemetry_host.strip()
+                else f"default ({DEFAULT_POSTHOG_HOST})"
+            ),
+            f"PostHog SDK: {posthog_sdk_status()}",
+            "Distinct id: "
+            + (
+                f"{owner} (owner ship"
+                + (
+                    f", {config_source('owner', self._extra)}"
+                    if config_source("owner", self._extra) != "unset"
+                    else ""
+                )
+                + ")"
+                if owner
+                else "missing — set TLON_OWNER_SHIP"
+            ),
+            f"Bot ship: {self.config.ship_name or 'missing'}",
+            "Identify: "
+            + (
+                f"enqueued as {self._identified_as}"
+                if self._identified_as
+                else (
+                    "attempted but failed or unavailable (see gateway logs)"
+                    if self._identified
+                    else "not yet (sent with the first event)"
+                )
+            ),
+            "Events enqueued: "
+            + (
+                f"{self._events_captured} since gateway start "
+                f"(last: {self._last_event}, {_ago(self._last_event_at)})"
+                if self._events_captured
+                else "none since gateway start"
+            ),
+        ]
+        if self._last_capture_error:
+            lines.append(
+                f"Capture errors: {self._last_capture_error} "
+                f"({_ago(self._last_capture_error_at)})"
+            )
+        lines.append(
+            "Delivery: "
+            + (
+                f"{self._delivery_failures} failed batches "
+                f"(last: {self._last_delivery_error}, "
+                f"{_ago(self._last_delivery_error_at)})"
+                if self._delivery_failures
+                else "no failed batches observed"
+            )
+        )
+        lines.append(
+            "Debug: "
+            + (
+                with_source("on", "debug")
+                if self.debug
+                else "off (set TLON_TELEMETRY_DEBUG=true for per-event and SDK logs)"
+            )
+        )
+        if self._client is not None and owner:
+            lines.append("Run /tlon-telemetry test to send and flush a test event.")
+        return "\n".join(lines)
+
+    def delivery_test(self) -> str:
+        """Synchronous round trip: enqueue a test event, flush, report.
+
+        Blocks on the SDK flush (network + retries), so call it off the event
+        loop. Unlike :meth:`flush` it leaves reply traces alone.
+        """
+        if self._client is None:
+            return f"Cannot test: telemetry is disabled — {self.disabled_reason}"
+        if not self.config.owner_ship:
+            return (
+                "Cannot test: TLON_OWNER_SHIP is not set, so events have no "
+                "distinct id and are skipped."
+            )
+        failures_before = self._delivery_failures
+        captured_before = self._events_captured
+        self.capture(EVENT_TELEMETRY_TEST, {"trigger": "control_command"})
+        if self._events_captured == captured_before:
+            return (
+                "Test event could not be enqueued: "
+                f"{self._last_capture_error or 'unknown capture error'}"
+            )
+        try:
+            self._client.flush()
+        except Exception as exc:
+            return f"Test flush failed: {scrub_error(exc)}"
+        if self._delivery_failures > failures_before:
+            return (
+                f"Test event FAILED to deliver: {self._last_delivery_error}. "
+                "Check the API key, host, and network egress from the gateway."
+            )
+        # PostHog's ingestion endpoint accepts any well-formed request and
+        # drops wrong-project keys later, so "accepted" cannot promise the
+        # event reached the intended project.
+        return (
+            f"Test event accepted by PostHog: '{EVENT_TELEMETRY_TEST}' sent "
+            f"as {self.config.owner_ship}. If it does not appear in the "
+            "project, the API key likely belongs to a different project — "
+            "mismatched keys are dropped silently during ingestion."
+        )
 
 
 # ── active instance + hook handlers ─────────────────────────────────────

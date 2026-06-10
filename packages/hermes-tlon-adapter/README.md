@@ -200,8 +200,22 @@ Every event carries `harness: "hermes"` (segment from OpenClaw-emitted events), 
 | `TlonBot Gateway Disconnected` / `TlonBot SSE Reconnect` | shutdowns (uptime) and stream reconnects (attempt, backoff, error type)                                                                                                           |
 | `TlonBot Approval Event`     | `queued`/`renotified`/`allowed`/`rejected`/`banned`/`unbanned` with request type                                                                                                                              |
 | `TlonBot Control Command`    | which owner command ran (name only)                                                                                                                                                                           |
+| `TlonBot Telemetry Test`     | manual delivery check triggered by `/tlon-telemetry test`                                                                                                                                                     |
 
 Strictly content-free: no message text, no CLI arguments, no channel nests; ship ids are scrubbed from error detail. Per-message drop events are deliberately not emitted (volume without insight) — unauthorized senders surface as approval `queued` events instead.
+
+### Debugging telemetry
+
+When a deployment shows nothing in PostHog, work through the built-in diagnostics:
+
+1. **Startup log** — the gateway logs the resolved telemetry state at construction, including the *reason* when off: `[tlon] telemetry disabled: TLON_TELEMETRY is not enabled …` / `…API_KEY is not set` / `PostHog client init failed` (posthog package missing), or `[tlon] telemetry enabled (PostHog): key phc_…wxyz (47 chars), host default (https://us.i.posthog.com), events identify as owner ~sampel (bot ~palnet), debug off`.
+
+    **Where these appear.** The gateway console (stderr) shows **WARNING and above by default** — INFO is hidden unless you run the gateway with `-v`. So the *failure* states are logged at WARNING and show up unprompted: telemetry requested but unable to run (no key, posthog not installed), and enabled-but-ownerless (every event skipped). The healthy/off-by-default states are INFO, hidden on a default console. Regardless of console level, **all of it is always written to `~/.hermes/logs/agent.log`** (INFO+, profile-aware) — that file is the reliable place to read the full startup state. When telemetry is genuinely broken you'll see the WARNING on the console; to confirm a *working* config without restarting, use `/tlon-telemetry` (below), which doesn't depend on log level at all.
+2. **`/tlon-telemetry`** (owner-only, deterministic like `/tlon-version`) — replies with live status: each setting's value *and source* (`env TLON_TELEMETRY` vs `config telemetry` vs unset), masked API key, host, installed posthog SDK version, the distinct id events are sent as (the owner ship), whether the one-time identify was enqueued and as whom, events enqueued since gateway start, and any capture or delivery failures with ages.
+3. **`/tlon-telemetry test`** — end-to-end verification: enqueues a `TlonBot Telemetry Test` event and synchronously flushes the SDK queue, then reports `Test event accepted by PostHog … as ~sampel` or the delivery error. This catches the failure modes that are otherwise invisible (malformed API key, wrong region host, blocked egress), because the posthog SDK's worker thread swallows upload errors. May take up to a minute when the network is down (SDK retries). Caveat: PostHog's ingestion endpoint accepts any well-formed batch and drops wrong-project keys later, so an accepted test that never appears in the dashboard means the key belongs to a different project.
+4. **`TLON_TELEMETRY_DEBUG=true`** — logs every capture/identify enqueue at info level plus the posthog SDK's internal debug output, and elevates repeated delivery failures from debug to warning.
+
+Delivery failures are also surfaced without debug mode: the adapter hooks the SDK's `on_error` callback and warns on the first failed batch (`[tlon] telemetry delivery to PostHog failed …`).
 
 ## Group Message Context
 

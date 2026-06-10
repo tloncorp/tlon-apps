@@ -99,7 +99,9 @@ from .telemetry import (
     cli_context,
     handle_post_api_request_telemetry,
     handle_post_tool_call_telemetry,
+    is_telemetry_command,
     set_active_telemetry,
+    telemetry_command_args,
 )
 from .version import (
     content_fingerprint,
@@ -161,6 +163,7 @@ OPTIONAL_ENV = [
     "TLON_TELEMETRY",
     "TLON_TELEMETRY_API_KEY",
     "TLON_TELEMETRY_HOST",
+    "TLON_TELEMETRY_DEBUG",
     "TLON_CLI",
     "TLON_SSE_READ_TIMEOUT_SECONDS",
     "TLON_GATEWAY_STATUS",
@@ -238,7 +241,7 @@ class TlonAdapter(BasePlatformAdapter):
     def __init__(self, config: PlatformConfig):
         super().__init__(config=config, platform=Platform("tlon"))
         self.tlon_config = TlonConfig.from_env(config.extra or {})
-        self._telemetry = TlonTelemetry(self.tlon_config)
+        self._telemetry = TlonTelemetry(self.tlon_config, extra=config.extra or {})
         self._cli = TlonCLI(self.tlon_config, observer=self._telemetry.observe_cli)
         self._connected_at = 0.0
         self._sse: Optional[TlonSSEClient] = None
@@ -959,6 +962,22 @@ class TlonAdapter(BasePlatformAdapter):
         lines = (result.stdout or "").strip().splitlines()
         return lines[0] if lines else "unknown"
 
+    async def _handle_telemetry_command(
+        self,
+        command_text: str,
+        *,
+        reply_chat_id: str,
+        reply_parent_id: Optional[str],
+    ) -> None:
+        """Status works even (especially) when telemetry is disabled; `test`
+        does a blocking PostHog round trip, so it runs off the event loop."""
+        args = telemetry_command_args(command_text)
+        if args and args[0].lower() == "test":
+            reply = await asyncio.to_thread(self._telemetry.delivery_test)
+        else:
+            reply = self._telemetry.status_report()
+        await self._send_control_reply(reply_chat_id, reply_parent_id, reply)
+
     async def _maybe_handle_control_command(
         self,
         message: TlonIncomingMessage,
@@ -989,6 +1008,15 @@ class TlonAdapter(BasePlatformAdapter):
             if self._mark_seen(message):
                 self._telemetry.control_command("tlon-version")
                 await self._handle_tlon_version_command(
+                    reply_chat_id=message.chat_id,
+                    reply_parent_id=reply_parent_id,
+                )
+            return True
+        if is_telemetry_command(command_text):
+            if self._mark_seen(message):
+                self._telemetry.control_command("tlon-telemetry")
+                await self._handle_telemetry_command(
+                    command_text,
                     reply_chat_id=message.chat_id,
                     reply_parent_id=reply_parent_id,
                 )
@@ -1493,6 +1521,8 @@ def _env_enablement() -> dict | None:
         seed["telemetry_api_key"] = tlon.telemetry_api_key
     if tlon.telemetry_host:
         seed["telemetry_host"] = tlon.telemetry_host
+    if tlon.telemetry_debug:
+        seed["telemetry_debug"] = True
     if tlon.owner_ship:
         seed["owner_ship"] = tlon.owner_ship
     if tlon.gateway_status_owner:
