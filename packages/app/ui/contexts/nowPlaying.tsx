@@ -388,12 +388,37 @@ export function useNowPlayingController({
     }
   }, [nowPlaying, sourceUri, isThisSourceLoaded]);
 
+  // Seeking an unloaded source loads it (paused) first. While the load is in
+  // flight, remember only the latest requested position so scrubbing doesn't
+  // race multiple replace() calls.
+  const pendingSeekRef = useRef<number | null>(null);
+  const isLoadingForSeekRef = useRef(false);
   const seekTo = useCallback(
     (seconds: number) => {
-      if (!isThisSourceLoaded) return;
-      nowPlaying.seekTo(seconds);
+      if (sourceUri == null) return;
+      if (isThisSourceLoaded) {
+        nowPlaying.seekTo(seconds);
+        return;
+      }
+      pendingSeekRef.current = seconds;
+      if (isLoadingForSeekRef.current) return;
+      isLoadingForSeekRef.current = true;
+      nowPlaying
+        .replace({ url: sourceUri })
+        .then(() => {
+          if (pendingSeekRef.current != null) {
+            nowPlaying.seekTo(pendingSeekRef.current);
+          }
+        })
+        .catch((e) => {
+          console.error('Failed to load voice memo for seek', e);
+        })
+        .finally(() => {
+          isLoadingForSeekRef.current = false;
+          pendingSeekRef.current = null;
+        });
     },
-    [nowPlaying, isThisSourceLoaded]
+    [nowPlaying, sourceUri, isThisSourceLoaded]
   );
 
   const status = useMemo<null | 'playing' | 'paused' | 'loading'>(() => {

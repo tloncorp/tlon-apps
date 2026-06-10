@@ -260,15 +260,14 @@ export function VoiceMemoBlock({
   const waveformWidthRef = useRef(0);
   const seekToWaveformX = useMutableCallback((x: number) => {
     const width = waveformWidthRef.current;
-    if (
-      progress?.loadState !== 'loaded' ||
-      !isThisSourceLoaded ||
-      progress.duration === 0 ||
-      width <= 0
-    ) {
+    const duration =
+      progress?.loadState === 'loaded' && isThisSourceLoaded
+        ? progress.duration
+        : block.voiceMemo.duration ?? 0;
+    if (duration === 0 || width <= 0) {
       return;
     }
-    seekTo(clamp(x / width, 0, 1) * progress.duration);
+    seekTo(clamp(x / width, 0, 1) * duration);
   });
 
   // throttled so scrubbing doesn't spam the native player with seeks
