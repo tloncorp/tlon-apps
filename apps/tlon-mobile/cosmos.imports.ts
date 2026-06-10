@@ -15,7 +15,6 @@ import * as fixture8 from './../../packages/app/fixtures/Activity.fixture';
 import * as fixture9 from './../../packages/app/fixtures/AddContactsView.fixture';
 import * as fixture10 from './../../packages/app/fixtures/AttachmentPreviewList.fixture';
 import * as fixture11 from './../../packages/app/fixtures/AttestationPane.fixture';
-import * as fixture12 from './../../packages/app/fixtures/AudioEmbed.fixture';
 import * as fixture13 from './../../packages/app/fixtures/AudioRecorder.fixture';
 import * as fixture14 from './../../packages/app/fixtures/Avatar.fixture';
 import * as fixture15 from './../../packages/app/fixtures/BlockSectionList.fixture';
@@ -37,7 +36,6 @@ import * as fixture30 from './../../packages/app/fixtures/DetailView/GalleryDeta
 import * as fixture31 from './../../packages/app/fixtures/DetailView/NotebookDetailView.fixture';
 import * as fixture32 from './../../packages/app/fixtures/DmInviteOptions.fixture';
 import * as fixture33 from './../../packages/app/fixtures/EditProfileScreen.fixture';
-import * as fixture34 from './../../packages/app/fixtures/EmbedContent.fixture';
 import * as fixture35 from './../../packages/app/fixtures/EmptyChannelNotice.fixture';
 import * as fixture36 from './../../packages/app/fixtures/FacePile.fixture';
 import * as fixture37 from './../../packages/app/fixtures/Form.fixture';
@@ -125,7 +123,6 @@ const fixtures = {
   '../../packages/app/fixtures/AttestationPane.fixture.tsx': {
     module: fixture11,
   },
-  '../../packages/app/fixtures/AudioEmbed.fixture.tsx': { module: fixture12 },
   '../../packages/app/fixtures/AudioRecorder.fixture.tsx': {
     module: fixture13,
   },
@@ -175,7 +172,6 @@ const fixtures = {
   '../../packages/app/fixtures/EditProfileScreen.fixture.tsx': {
     module: fixture33,
   },
-  '../../packages/app/fixtures/EmbedContent.fixture.tsx': { module: fixture34 },
   '../../packages/app/fixtures/EmptyChannelNotice.fixture.tsx': {
     module: fixture35,
   },
