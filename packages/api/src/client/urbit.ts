@@ -313,11 +313,13 @@ export async function subscribe<T>(
     }
 
     config.pendingAuth = reauth();
-    return doSub();
+    // keep the err handler wired so the re-established subscription can
+    // recover from a later auth death the same way the initial one does
+    return doSub(retry);
   };
 
   try {
-    return doSub(retry);
+    return await doSub(retry);
   } catch (err) {
     return retry(err);
   }
@@ -422,9 +424,9 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   };
 
   try {
-    return doPoke({ onError: retry });
+    return await doPoke({ onError: retry });
   } catch (err) {
-    retry(err);
+    return retry(err);
   }
 }
 

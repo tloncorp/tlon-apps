@@ -794,6 +794,11 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const areOtherPropsEqual =
     prev.isSelected === next.isSelected &&
     prev.showAuthor === next.showAuthor &&
+    prev.showDayDivider === next.showDayDivider &&
+    prev.showUnreadDivider === next.showUnreadDivider &&
+    prev.unreadCount === next.unreadCount &&
+    prev.isLastPostOfBlock === next.isLastPostOfBlock &&
+    prev.previousPost?.id === next.previousPost?.id &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
