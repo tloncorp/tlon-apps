@@ -88,11 +88,7 @@
 ++  ph-test-create-lure-invite
   =/  m  (strand ,~)
   ^-  form:m
-  =/  arg=^json
-    %-  pairs:enjs:format
-    :~  id+s+'pioneer-personal'
-        tag+s+'personal'
-    ==
+  =/  arg=^json  s+'pioneer-personal'
   ;<  out=^json  bind:m  (run-thread-json ~zod %create-lure-invite arg)
   ::  expect a top-level "url" key with a non-empty string
   ::
