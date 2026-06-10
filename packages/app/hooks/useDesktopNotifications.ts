@@ -16,7 +16,6 @@ interface NotificationData {
 
 export default function useDesktopNotifications(isClientReady: boolean) {
   const processedNotifications = useRef<Set<string>>(new Set());
-  const hasSubscribedToActivity = useRef(false);
   const isElectron = useIsElectron();
 
   const processActivityEvent = useCallback(
@@ -125,22 +124,40 @@ export default function useDesktopNotifications(isClientReady: boolean) {
   useEffect(() => {
     if (!isElectron || !window.electronAPI || !isClientReady) return;
 
-    // subscribeToActivity has no teardown, so guard against stacking a new
-    // live subscription every time this effect re-runs
-    if (!hasSubscribedToActivity.current) {
-      hasSubscribedToActivity.current = true;
-      api.subscribeToActivity((event: api.ActivityEvent) => {
+    let cancelled = false;
+    let subscriptionId: number | null = null;
+
+    api
+      .subscribeToActivity((event: api.ActivityEvent) => {
         logger.log('Activity event:', event);
         if (event.type === 'addActivityEvent' && event.events[0].shouldNotify) {
           processActivityEvent(event.events[0]);
         }
+      })
+      .then((id) => {
+        if (cancelled) {
+          // effect already cleaned up before the subscription landed
+          api.unsubscribe(id);
+        } else {
+          subscriptionId = id;
+        }
+      })
+      .catch((e) => {
+        logger.error(
+          'Failed to subscribe to activity for desktop notifications',
+          e
+        );
+        // the next effect run (e.g. isClientReady cycling) will retry
       });
-    }
 
     const unsubscribeNotificationClick =
       window.electronAPI.onNotificationClicked(handleNotificationClick);
 
     return () => {
+      cancelled = true;
+      if (subscriptionId != null) {
+        api.unsubscribe(subscriptionId);
+      }
       unsubscribeNotificationClick();
     };
   }, [

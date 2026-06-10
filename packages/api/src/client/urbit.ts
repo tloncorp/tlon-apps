@@ -317,7 +317,7 @@ export async function subscribe<T>(
   };
 
   try {
-    return doSub(retry);
+    return await doSub(retry);
   } catch (err) {
     return retry(err);
   }
@@ -422,9 +422,9 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   };
 
   try {
-    return doPoke({ onError: retry });
+    return await doPoke({ onError: retry });
   } catch (err) {
-    retry(err);
+    return retry(err);
   }
 }
 
