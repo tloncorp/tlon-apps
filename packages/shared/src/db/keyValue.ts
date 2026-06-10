@@ -258,6 +258,22 @@ export const channelSortPreference = createStorageItem<ChannelSortPreference>({
   defaultValue: 'recency',
 });
 
+export type NotesNoteDraft = {
+  title: string;
+  body: string;
+  baseRevision: number;
+  stashedAt: number;
+};
+
+/** Crash insurance for the notes editor: drafts stashed between autosave
+ * cycles, keyed by `${notebookFlag}/${noteId}`. Cleared once saved. */
+export const notesNoteDrafts = createStorageItem<
+  Record<string, NotesNoteDraft>
+>({
+  key: 'notesNoteDrafts',
+  defaultValue: {},
+});
+
 export type NotesTreeViewPreference = 'outline' | 'notes';
 
 export const notesTreeViewPreference =
