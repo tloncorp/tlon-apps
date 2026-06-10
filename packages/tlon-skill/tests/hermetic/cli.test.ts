@@ -5,8 +5,8 @@ import { join, resolve } from 'node:path';
 
 import {
   CLI_MATRIX_CASES,
-  COMMAND_FAMILIES,
   type CliCase,
+  HOSTILE_HELP_COMMANDS,
   normalizeCliOutput,
 } from '../../scripts/cli-test-matrix';
 
@@ -170,14 +170,6 @@ function expectCliCase(result: CliResult, testCase: CliCase) {
   }
 }
 
-const hostileHelpCommands = [
-  { name: 'top-level', args: ['--help'] },
-  ...COMMAND_FAMILIES.map((family) => ({
-    name: family,
-    args: [family, '--help'],
-  })),
-];
-
 describe('CLI hermetic subprocess behavior', () => {
   it('prints source CLI version without host credentials', async () => {
     const result = await runCli(['--version']);
@@ -194,7 +186,7 @@ describe('CLI hermetic subprocess behavior', () => {
     });
   }
 
-  for (const command of hostileHelpCommands) {
+  for (const command of HOSTILE_HELP_COMMANDS) {
     it(`prints ${command.name} help with nonexistent TLON_CONFIG_FILE`, async () => {
       const result = await runCli(command.args, {
         prepare: ({ home }) => ({
