@@ -2,7 +2,9 @@ name: e2e-nightly-ios
 
 on:
   schedule:
-    - cron: "0 7 * * *"
+    # - cron: "0 7 * * *"
+    # Temporarily disable by running once a year on Jan 1st
+    - cron: "0 7 1 1 *"
 
 jobs:
   build_ios_for_e2e:
