@@ -30,7 +30,7 @@ export * from './components/ContentReference';
 export { DetailPostView as DetailPostUsingContentConfiguration } from './components/DetailPostUsingContentConfiguration';
 export * from './components/EditProfileScreenView';
 export * from './components/EditableProfileImages';
-export * from './components/Embed';
+export * from './components/VideoPreview';
 export * from './components/Emoji/EmojiPickerSheet';
 export * from './components/FacePile';
 export * from './components/FeatureFlagScreenView';

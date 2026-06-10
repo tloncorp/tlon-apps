@@ -71,7 +71,7 @@ import * as fixture67 from './../../packages/app/fixtures/Text.fixture';
 import * as fixture68 from './../../packages/app/fixtures/Toast.fixture';
 import * as fixture69 from './../../packages/app/fixtures/TwitterVerification.fixture';
 import * as fixture70 from './../../packages/app/fixtures/UserProfileScreen.fixture';
-import * as fixture71 from './../../packages/app/fixtures/VideoEmbed.fixture';
+import * as fixture71 from './../../packages/app/fixtures/VideoPreview.fixture';
 import * as fixture72 from './../../packages/app/fixtures/ViewReactionsSheet.fixture';
 import * as fixture73 from './../../packages/app/fixtures/Waveform.fixture';
 import * as fixture74 from './../../packages/app/fixtures/WayfindingNotices.fixture';
@@ -243,7 +243,7 @@ const fixtures = {
   '../../packages/app/fixtures/UserProfileScreen.fixture.tsx': {
     module: fixture70,
   },
-  '../../packages/app/fixtures/VideoEmbed.fixture.tsx': { module: fixture71 },
+  '../../packages/app/fixtures/VideoPreview.fixture.tsx': { module: fixture71 },
   '../../packages/app/fixtures/ViewReactionsSheet.fixture.tsx': {
     module: fixture72,
   },
