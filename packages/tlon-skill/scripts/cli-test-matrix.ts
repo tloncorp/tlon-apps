@@ -342,6 +342,16 @@ export const NESTED_HELP_CASES: CliCase[] = [
     ['posts', 'unreact', '--help'],
     'Usage: tlon posts unreact'
   ),
+  helpCase(
+    'posts delete --help',
+    ['posts', 'delete', '--help'],
+    'Usage: tlon posts delete'
+  ),
+  helpCase(
+    'posts edit --help',
+    ['posts', 'edit', '--help'],
+    'Usage: tlon posts edit'
+  ),
 ];
 
 export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
@@ -507,6 +517,85 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
   ]),
 ];
 
+// Posts family completion (unreact/delete/edit + family shell). React cases
+// live in MISSING_REQUIRED_CASES, NESTED_HELP_CASES, and
+// LITERAL_OPTION_LIKE_VALUE_CASES from the earlier react migration.
+export const POSTS_FAMILY_CASES: CliCase[] = [
+  usageErrorCase(
+    'posts unreact missing args',
+    ['posts', 'unreact'],
+    'Usage: tlon posts unreact'
+  ),
+  usageErrorCase(
+    'posts delete missing args',
+    ['posts', 'delete'],
+    'Usage: tlon posts delete'
+  ),
+  authRequiredCase('posts unreact valid args reaches auth', [
+    'posts',
+    'unreact',
+    'chat/~host/channel',
+    '170.141',
+  ]),
+  authRequiredCase('posts delete valid args reaches auth', [
+    'posts',
+    'delete',
+    'chat/~host/channel',
+    '170.141',
+  ]),
+  authRequiredCase('posts edit valid args reaches auth', [
+    'posts',
+    'edit',
+    'chat/~host/channel',
+    '170.141',
+    'Updated message',
+  ]),
+  // The minimal help-literal: `--help` in the message slot is treated as edit
+  // message content, so this reaches auth instead of printing help.
+  authRequiredCase('posts edit minimal help-literal reaches auth', [
+    'posts',
+    'edit',
+    'chat/~host/channel',
+    '170.141',
+    '--help',
+  ]),
+  // Auth runs before any filesystem read: a nonexistent --content file must
+  // surface a config error in the hermetic env, never a filesystem error.
+  authRequiredCase('posts edit content file lookup runs after auth', [
+    'posts',
+    'edit',
+    'chat/~host/channel',
+    '170.141',
+    '--content',
+    '/nonexistent/story.json',
+  ]),
+  // Adjacent to the minimal literal but opposite outcome: a help token in an
+  // option slot ends the message slice early, so edit help prints (exit 0).
+  helpCase(
+    'posts edit help token in option slot prints help',
+    ['posts', 'edit', 'chat/~host/channel', '170.141', '--title', '--help'],
+    'Usage: tlon posts edit'
+  ),
+  {
+    name: 'posts send unsupported error',
+    args: ['posts', 'send'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderr:
+      'Error: Channel post send is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon instead.\n',
+    stderrExcludes: [...STACK_PATTERNS, ...AUTH_CONFIG_PATTERNS],
+  },
+  {
+    name: 'posts reply unsupported error',
+    args: ['posts', 'reply'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderr:
+      'Error: Channel post reply is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon and replyTo instead.\n',
+    stderrExcludes: [...STACK_PATTERNS, ...AUTH_CONFIG_PATTERNS],
+  },
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
@@ -517,6 +606,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...SPECIAL_INPUT_CASES,
   ...NESTED_HELP_CASES,
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
+  ...POSTS_FAMILY_CASES,
 ];
 
 export type HostileHelpCommand = {
@@ -526,7 +616,7 @@ export type HostileHelpCommand = {
 
 // Help paths that must perform no credential lookup even under hostile config:
 // the top-level help, every command family's `<family> --help`, and the
-// migrated nested `posts react --help` path.
+// migrated nested `posts <subcommand> --help` paths.
 export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
   { name: 'top-level', args: ['--help'] },
   ...COMMAND_FAMILIES.map((family) => ({
@@ -534,6 +624,9 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     args: [family, '--help'],
   })),
   { name: 'posts react', args: ['posts', 'react', '--help'] },
+  { name: 'posts unreact', args: ['posts', 'unreact', '--help'] },
+  { name: 'posts delete', args: ['posts', 'delete', '--help'] },
+  { name: 'posts edit', args: ['posts', 'edit', '--help'] },
 ];
 
 export function normalizeCliOutput(text: string): string {
