@@ -64,6 +64,9 @@ const DUMMY_WAVEFORM_VALUES = [
   1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
 ];
 
+const WAVEFORM_CANDLE_WIDTH = 3;
+const WAVEFORM_CANDLE_SPACING = 1;
+
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
   context: ContentContext,
@@ -267,7 +270,15 @@ export function VoiceMemoBlock({
     if (duration === 0 || width <= 0) {
       return;
     }
-    seekTo(clamp(x / width, 0, 1) * duration);
+    // The waveform draws whole candles only, so its drawn strip can be
+    // narrower than the container; map the gesture over the strip so
+    // positions line up with the candles.
+    const candleSize = WAVEFORM_CANDLE_WIDTH + WAVEFORM_CANDLE_SPACING;
+    const drawnExtent = Math.floor(width / candleSize) * candleSize;
+    if (drawnExtent <= 0) {
+      return;
+    }
+    seekTo(clamp(x / drawnExtent, 0, 1) * duration);
   });
 
   // throttled so scrubbing doesn't spam the native player with seeks
@@ -368,8 +379,8 @@ export function VoiceMemoBlock({
                 }}
               >
                 <Waveform
-                  candleWidth={3}
-                  candleSpacing={1}
+                  candleWidth={WAVEFORM_CANDLE_WIDTH}
+                  candleSpacing={WAVEFORM_CANDLE_SPACING}
                   candlePlaybackPosition={candlePlaybackPosition}
                   values={
                     block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES
