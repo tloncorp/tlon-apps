@@ -73,11 +73,11 @@ export function Waveform({
   const scaledCandlePlaybackPosition = useMemo(() => {
     if (
       maxVisibleCandleCount == null ||
-      values.length <= maxVisibleCandleCount
+      values.length === maxVisibleCandleCount
     ) {
       return candlePlaybackPosition;
     }
-    return Math.floor(
+    return Math.round(
       (candlePlaybackPosition / values.length) * maxVisibleCandleCount
     );
   }, [candlePlaybackPosition, values.length, maxVisibleCandleCount]);
@@ -111,10 +111,10 @@ export function Waveform({
                 rx={candleWidth / 2}
                 ry={candleWidth / 2}
                 fill={
-                  heightRatio == null
-                    ? candleInactiveColor
-                    : index < scaledCandlePlaybackPosition
-                      ? candleActiveColor
+                  index < scaledCandlePlaybackPosition
+                    ? candleActiveColor
+                    : heightRatio == null
+                      ? candleInactiveColor
                       : candleUnplayedColor
                 }
               />
