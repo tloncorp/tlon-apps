@@ -26,7 +26,7 @@ pnpm test:integration test/cases/07-security.test.ts
 
 This is what CI uses. Requires:
 - `OPENROUTER_API_KEY` in `.env` (or as environment variable)
-- Optional: `../tlonbot` repo cloned for local prompt files (otherwise fetches from GitHub using `TLONBOT_TOKEN`)
+- Optional: tlonbot repo cloned next to the tlon-apps monorepo root (override with `TLONBOT_DIR`) for local prompt files (otherwise fetches from GitHub using `TLONBOT_TOKEN`)
 
 ### Against dev environment
 
@@ -82,11 +82,11 @@ TEST_THIRD_PARTY_CODE=ravsut-bolryd-hapsum-pastul
 For `test:integration` (ephemeral mode), ship credentials are hardcoded. Required environment:
 
 - `OPENROUTER_API_KEY` — required for all tests (LLM provider)
-- `TLONBOT_TOKEN` — required when `../tlonbot` is not mounted (always the case in CI). Used to fetch prompts and the `image-search` plugin from GitHub. Not needed when `../tlonbot` is locally available
+- `TLONBOT_TOKEN` — required when no tlonbot checkout is mounted (always the case in CI). Used to fetch prompts and the `image-search` plugin from GitHub. Not needed when tlonbot is cloned next to the tlon-apps monorepo root (override the location with `TLONBOT_DIR`)
 - `TEST_STORAGE_*` — required for media upload (`09-media`) and image search (`11-image-search`) tests. `09-media` skips when absent; `11-image-search` fails explicitly in compose mode
 - `BRAVE_API_KEY` — required for the image search (`11-image-search`) test. Fails explicitly in compose mode when absent
 
-In CI, all of these should be configured as GitHub Actions secrets. Locally with `../tlonbot` mounted, only `OPENROUTER_API_KEY`, `BRAVE_API_KEY`, and `TEST_STORAGE_*` are needed.
+In CI, all of these should be configured as GitHub Actions secrets; the `TEST_STORAGE_*` values are populated from the repo's existing `E2E_S3_*` secrets (shared with the tlon-web e2e suite) — see `.github/workflows/openclaw-ci.yml`. Locally with tlonbot mounted, only `OPENROUTER_API_KEY`, `BRAVE_API_KEY`, and `TEST_STORAGE_*` are needed.
 
 #### Storage (media upload + image search tests)
 
@@ -107,7 +107,7 @@ TEST_STORAGE_REGION=auto    # optional, defaults to "auto"
 
 The image search test (`11-image-search.test.ts`) additionally requires a Brave Search API key. In CI (`pnpm test:integration`), a missing `BRAVE_API_KEY` fails the test explicitly. In dev mode, the test is skipped.
 
-**Note:** When `../tlonbot` is not mounted (always the case in CI), both `BRAVE_API_KEY` and `TLONBOT_TOKEN` must be present for the `image-search` plugin to be fetched and loaded. `BRAVE_API_KEY` alone is not sufficient — the entrypoint uses `TLONBOT_TOKEN` to authenticate the GitHub API request that fetches the plugin code. When `../tlonbot` is locally mounted, `TLONBOT_TOKEN` is not needed for this test — the plugin loads from the volume mount.
+**Note:** When tlonbot is not mounted (always the case in CI), both `BRAVE_API_KEY` and `TLONBOT_TOKEN` must be present for the `image-search` plugin to be fetched and loaded. `BRAVE_API_KEY` alone is not sufficient — the entrypoint uses `TLONBOT_TOKEN` to authenticate the GitHub API request that fetches the plugin code. When tlonbot is locally mounted (default: a checkout next to the monorepo root, override with `TLONBOT_DIR`), `TLONBOT_TOKEN` is not needed for this test — the plugin loads from the volume mount.
 
 ```bash
 BRAVE_API_KEY=BSA...
