@@ -15,6 +15,7 @@ import {
 } from './Avatar';
 import ContactName from './ContactName';
 import { GroupAvatar } from './GroupAvatar';
+import { UnreadDot } from './UnreadDot';
 
 export interface BaseListItemProps<T> {
   model: T;
@@ -187,6 +188,10 @@ const ListItemCount = ({
     ? '$positiveBackground'
     : '$secondaryBackground';
   const resolvedBackgroundColor = count < 1 ? undefined : backgroundColor;
+  // With no unread count but notified activity (e.g. a reaction, which is
+  // unreads=|), show a dot instead of an empty badge. Muted chats report
+  // notify=false, so they stay quiet.
+  const showNotifyDot = count < 1 && notified && !muted;
   return (
     <View
       key={getAndroidRoundedBackgroundKey(resolvedBackgroundColor)}
@@ -196,18 +201,24 @@ const ListItemCount = ({
       borderRadius="$l"
       {...rest}
     >
-      <ListItemCountNumber hidden={count < 1}>
-        {muted && (
-          <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
-        )}
-        <Text
-          testID="UnreadCountNumber"
-          size="$label/m"
-          color={foregroundColor}
-        >
-          {numberWithMax(count, 256)}
-        </Text>
-      </ListItemCountNumber>
+      {showNotifyDot ? (
+        <ListItemCountNumber testID="UnreadDot">
+          <UnreadDot />
+        </ListItemCountNumber>
+      ) : (
+        <ListItemCountNumber hidden={count < 1}>
+          {muted && (
+            <Icon type="Muted" customSize={[12, 12]} color={foregroundColor} />
+          )}
+          <Text
+            testID="UnreadCountNumber"
+            size="$label/m"
+            color={foregroundColor}
+          >
+            {numberWithMax(count, 256)}
+          </Text>
+        </ListItemCountNumber>
+      )}
     </View>
   );
 };
