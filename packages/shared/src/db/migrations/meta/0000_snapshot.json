@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "cc577004-959d-47bc-9759-f4eb6af9f5f7",
+  "id": "b3c5a540-1b40-4dc1-988d-3585a29c43e9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2779,6 +2779,13 @@
         },
         "web_app_splash_dismissed": {
           "name": "web_app_splash_dismissed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mobile_app_promo_dismissed": {
+          "name": "mobile_app_promo_dismissed",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

@@ -11,11 +11,7 @@ import {
 } from 'react';
 import branch from 'react-native-branch';
 
-import {
-  DEFAULT_LURE,
-  DEFAULT_PRIORITY_TOKEN,
-  MCP_OAUTH_COMPLETION_PATH,
-} from '../constants';
+import { MCP_OAUTH_COMPLETION_PATH } from '../constants';
 import { useGroupNavigation } from '../hooks/useGroupNavigation';
 import { getPathFromWer } from '../utils/string';
 import { useShip } from './ship';
@@ -61,9 +57,11 @@ export const useSignupParams = () => {
     );
   }
 
+  // No lure fallback: when there's no real invite, these stay undefined so the
+  // signup flow sends no lure → backend routes to the default (no-group) policy.
   return {
-    lureId: context.lure?.id ?? DEFAULT_LURE,
-    priorityToken: context.priorityToken ?? DEFAULT_PRIORITY_TOKEN,
+    lureId: context.lure?.id,
+    priorityToken: context.priorityToken,
   };
 };
 

@@ -451,8 +451,10 @@ export type ActivityEvent =
     }
   | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
 
-export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
-  subscribe<ub.ActivityUpdate>(
+export function subscribeToActivity(
+  handler: (event: ActivityEvent) => void
+): Promise<number> {
+  return subscribe<ub.ActivityUpdate>(
     // v5 is the v9-native update stream (carries reacts); v4 down-converts to
     // v8 and drops them. Old backends don't serve v5, so fall back to v4.
     { app: 'activity', path: getActivitySupportsReactions() ? '/v5' : '/v4' },

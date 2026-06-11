@@ -126,7 +126,9 @@ function sortContacts(
   pals: Set<string>
 ) {
   return logSyncDuration('sortContacts', logger, () => {
-    return contacts.sort((a, b) => {
+    // copy before sorting: `contacts` is often a cached query result, and
+    // Array.prototype.sort mutates in place
+    return [...contacts].sort((a, b) => {
       for (const sorter of sortOrder) {
         const result = sorters[sorter](a, b, { pals });
         if (result !== 0) {
