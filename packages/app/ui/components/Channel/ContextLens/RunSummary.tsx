@@ -3,6 +3,7 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 import {
   TONE_COLORS,
   formatDuration,
+  formatWallTime,
   runKindLabel,
   statusLabel,
   statusTone,
@@ -40,11 +41,9 @@ export function RunSummary({
             {statusLabel(lens.status)}
           </SizableText>
         </XStack>
-        {phase ? (
-          <SizableText size="$s" color="$secondaryText">
-            {phase}
-          </SizableText>
-        ) : null}
+        <SizableText size="$s" color="$secondaryText">
+          {phase ?? formatWallTime(lens.updatedAt)}
+        </SizableText>
       </XStack>
 
       <YStack gap="$s">

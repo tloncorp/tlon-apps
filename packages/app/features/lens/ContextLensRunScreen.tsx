@@ -1,10 +1,14 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as store from '@tloncorp/shared/store';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { useA2UINavigation } from '../../hooks/useA2UINavigation';
 import type { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader, ScrollView, SizableText, YStack } from '../../ui';
-import { RunInspector } from '../../ui/components/Channel/ContextLens/RunInspector';
+import {
+  type LensMessageTarget,
+  RunInspector,
+} from '../../ui/components/Channel/ContextLens/RunInspector';
 import { RunSummary } from '../../ui/components/Channel/ContextLens/RunSummary';
 import { lensFromRunPayload } from '../../ui/components/Channel/ContextLens/types';
 
@@ -36,6 +40,29 @@ export function ContextLensRunScreen(props: Props) {
   );
   const loading = runQuery.isLoading || (resolving && !lens);
 
+  const navigateFromA2UI = useA2UINavigation();
+  const handlePressMessage = useCallback(
+    (target: LensMessageTarget) => {
+      // Lens conversation ids are recorded from the bot's perspective: group
+      // channels are nests (contain '/'), but DMs name the counterparty ship
+      // — which on the owner's client is themselves. DM messages live in the
+      // client's DM channel with the bot, whose id is the bot ship.
+      const channelId = target.channelId?.includes('/')
+        ? target.channelId
+        : botShip;
+      if (!channelId) {
+        return;
+      }
+      navigateFromA2UI({
+        type: 'message',
+        channelId,
+        postId: target.postId,
+        authorId: target.authorId,
+      });
+    },
+    [navigateFromA2UI, botShip]
+  );
+
   return (
     <YStack flex={1} backgroundColor="$background">
       <ScreenHeader
@@ -47,7 +74,7 @@ export function ContextLensRunScreen(props: Props) {
         <ScrollView showsVerticalScrollIndicator={false}>
           <YStack gap="$m" padding="$l" paddingBottom="$2xl">
             <RunSummary lens={lens} />
-            <RunInspector lens={lens} />
+            <RunInspector lens={lens} onPressMessage={handlePressMessage} />
           </YStack>
         </ScrollView>
       ) : (

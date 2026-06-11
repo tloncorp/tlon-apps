@@ -1,6 +1,11 @@
-import { YStack } from 'tamagui';
+import { getCanonicalPostId } from '@tloncorp/api/client';
+import * as store from '@tloncorp/shared/store';
+import { Icon } from '@tloncorp/ui';
+import { useMemo, useState } from 'react';
+import { SizableText, XStack, YStack } from 'tamagui';
 
 import {
+  TONE_COLORS,
   formatDuration,
   formatToolName,
   formatWallTime,
@@ -19,15 +24,34 @@ import {
   MutedLine,
   PreviewText,
 } from './primitives';
-import type { ContextLens } from './types';
+import type {
+  ContextLens,
+  ContextLensOutput,
+  ContextLensToolRun,
+} from './types';
 
-export function RunInspector({ lens }: { lens: ContextLens }) {
+export type LensMessageTarget = {
+  postId: string;
+  channelId?: string;
+  authorId?: string;
+};
+
+export function RunInspector({
+  lens,
+  onPressMessage,
+}: {
+  lens: ContextLens;
+  onPressMessage?: (target: LensMessageTarget) => void;
+}) {
   const sources = lens.context.sources ?? [];
   const includedSources = sources.filter((source) => source.included);
   const excludedSources = sources.filter((source) => !source.included);
   const toolRuns = lens.tools.runs ?? [];
   const outputs = lens.outputs ?? [];
   const persistenceEvents = lens.persistence.events ?? [];
+
+  const triggerMessageId = lens.triggerDetails?.messageId ?? lens.messageId;
+  const triggerChannelId = lens.triggerDetails?.conversationId;
 
   return (
     <YStack gap="$s">
@@ -36,7 +60,17 @@ export function RunInspector({ lens }: { lens: ContextLens }) {
         <DetailRow label="Visibility" value={lens.visibility ?? 'owner'} />
         <DetailRow
           label="Message"
-          value={lens.triggerDetails?.messageId ?? lens.messageId}
+          value={triggerMessageId}
+          onPress={
+            onPressMessage && triggerMessageId && triggerChannelId
+              ? () =>
+                  onPressMessage({
+                    postId: triggerMessageId,
+                    channelId: triggerChannelId,
+                    authorId: lens.triggerDetails?.authorShip,
+                  })
+              : undefined
+          }
         />
         <DetailRow
           label="Author"
@@ -85,27 +119,7 @@ export function RunInspector({ lens }: { lens: ContextLens }) {
         {toolRuns.length ? (
           <YStack gap="$xs">
             {toolRuns.map((run) => (
-              <LensListItem
-                key={run.id}
-                title={`${run.callIndex}. ${formatToolName(run.name)}`}
-                meta={run.status}
-                detail={
-                  run.error
-                    ? run.error
-                    : run.argumentSummary
-                      ? `${run.argumentSummary}${run.durationMs ? ` · ${formatDuration(run.durationMs)}` : ''}`
-                      : run.durationMs
-                        ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
-                        : run.phase ?? 'running'
-                }
-                tone={
-                  run.status === 'error'
-                    ? 'negative'
-                    : run.status === 'blocked'
-                      ? 'warning'
-                      : 'positive'
-                }
-              />
+              <ToolRunItem key={run.id} run={run} />
             ))}
           </YStack>
         ) : (
@@ -117,12 +131,10 @@ export function RunInspector({ lens }: { lens: ContextLens }) {
         {outputs.length ? (
           <YStack gap="$xs">
             {outputs.map((output, index) => (
-              <LensListItem
+              <OutputItem
                 key={`${output.messageId}-${index}`}
-                title={output.messageId}
-                meta={`${output.kind} · ${formatWallTime(output.sentAt)}`}
-                detail={output.preview ?? output.conversationId}
-                tone="neutral"
+                output={output}
+                onPressMessage={onPressMessage}
               />
             ))}
           </YStack>
@@ -154,6 +166,161 @@ export function RunInspector({ lens }: { lens: ContextLens }) {
           <MutedLine value={summarizeWrites(lens)} />
         )}
       </InspectorSection>
+    </YStack>
+  );
+}
+
+function ToolRunItem({ run }: { run: ContextLensToolRun }) {
+  const [expanded, setExpanded] = useState(false);
+  const expandable = Boolean(run.argumentDetail);
+  const tone =
+    run.status === 'error'
+      ? 'negative'
+      : run.status === 'blocked'
+        ? 'warning'
+        : 'positive';
+  const detail = run.error
+    ? run.error
+    : run.argumentSummary
+      ? `${run.argumentSummary}${run.durationMs ? ` · ${formatDuration(run.durationMs)}` : ''}`
+      : run.durationMs
+        ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
+        : (run.phase ?? 'running');
+
+  return (
+    <YStack
+      gap="$2xs"
+      minWidth={0}
+      borderLeftWidth={2}
+      borderColor={TONE_COLORS[tone]}
+      paddingLeft="$s"
+      paddingVertical="$2xs"
+      onPress={expandable ? () => setExpanded((value) => !value) : undefined}
+      pressStyle={expandable ? { opacity: 0.6 } : undefined}
+    >
+      <XStack
+        alignItems="center"
+        justifyContent="space-between"
+        gap="$s"
+        minWidth={0}
+      >
+        <SizableText
+          size="$s"
+          color="$primaryText"
+          flex={1}
+          minWidth={0}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
+          {`${run.callIndex}. ${formatToolName(run.name)}`}
+        </SizableText>
+        <XStack alignItems="center" gap="$2xs" flexShrink={0}>
+          <SizableText size="$s" color="$tertiaryText">
+            {run.status}
+          </SizableText>
+          {expandable ? (
+            <Icon
+              type={expanded ? 'ChevronDown' : 'ChevronRight'}
+              color="$tertiaryText"
+              customSize={[16, 16]}
+            />
+          ) : null}
+        </XStack>
+      </XStack>
+      <SizableText size="$s" color="$secondaryText">
+        {detail}
+      </SizableText>
+      {expanded && run.argumentDetail ? (
+        <PreviewText value={run.argumentDetail} />
+      ) : null}
+    </YStack>
+  );
+}
+
+function OutputItem({
+  output,
+  onPressMessage,
+}: {
+  output: ContextLensOutput;
+  onPressMessage?: (target: LensMessageTarget) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const canonicalId = useMemo(() => {
+    try {
+      return getCanonicalPostId(output.messageId);
+    } catch {
+      return null;
+    }
+  }, [output.messageId]);
+  const postQuery = store.usePostWithRelations(
+    expanded && canonicalId ? { id: canonicalId } : null
+  );
+  const fullText = expanded ? (postQuery.data?.textContent ?? null) : null;
+
+  return (
+    <YStack
+      gap="$2xs"
+      minWidth={0}
+      borderLeftWidth={2}
+      borderColor={TONE_COLORS.neutral}
+      paddingLeft="$s"
+      paddingVertical="$2xs"
+    >
+      <XStack
+        alignItems="center"
+        justifyContent="space-between"
+        gap="$s"
+        minWidth={0}
+      >
+        <SizableText
+          size="$s"
+          color="$primaryText"
+          flex={1}
+          minWidth={0}
+          numberOfLines={1}
+          ellipsizeMode="middle"
+        >
+          {output.messageId}
+        </SizableText>
+        <SizableText size="$s" color="$tertiaryText" flexShrink={0}>
+          {`${output.kind} · ${formatWallTime(output.sentAt)}`}
+        </SizableText>
+      </XStack>
+      <SizableText
+        size="$s"
+        color="$secondaryText"
+        numberOfLines={expanded ? undefined : 3}
+      >
+        {fullText ?? output.preview ?? output.conversationId}
+      </SizableText>
+      {expanded && !fullText && postQuery.isLoading ? (
+        <MutedLine value="Loading full output…" />
+      ) : null}
+      <XStack gap="$l" marginTop="$2xs">
+        <SizableText
+          size="$s"
+          color="$positiveActionText"
+          onPress={() => setExpanded((value) => !value)}
+          pressStyle={{ opacity: 0.6 }}
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </SizableText>
+        {onPressMessage ? (
+          <SizableText
+            size="$s"
+            color="$positiveActionText"
+            onPress={() =>
+              onPressMessage({
+                postId: output.messageId,
+                channelId: output.conversationId,
+              })
+            }
+            pressStyle={{ opacity: 0.6 }}
+          >
+            Go to message
+          </SizableText>
+        ) : null}
+      </XStack>
     </YStack>
   );
 }

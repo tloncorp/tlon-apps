@@ -94,6 +94,7 @@ export type ContextLensToolRun = {
   durationMs: number | null;
   status: 'running' | 'completed' | 'error' | 'blocked';
   argumentSummary?: string;
+  argumentDetail?: string;
   resultSummary?: string;
   error?: string;
 };

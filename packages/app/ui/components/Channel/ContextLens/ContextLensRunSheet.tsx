@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { SizableText, YStack } from 'tamagui';
 
 import { ActionSheet } from '../../ActionSheet';
+import { ContactAvatar } from '../../Avatar';
+import { ContactName } from '../../ContactNameV2';
+import { ListItem } from '../../ListItem';
 import { RunSummary } from './RunSummary';
-import { formatWallTime, statusLabel } from './format';
 import { getContextLensStamp } from './lensPost';
 import { lensFromRunPayload } from './types';
 
@@ -55,30 +57,27 @@ export function ContextLensRunSheet({
   const loading = runQuery.isLoading || (resolving && !lens);
 
   return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      snapPointsMode="percent"
-      snapPoints={[60]}
-      hasScrollableContent
-      modal
-    >
-      <ActionSheet.SimpleHeader
-        title={lens ? statusLabel(lens.status) : 'Bot run'}
-        subtitle={
-          lens ? formatWallTime(lens.updatedAt) ?? undefined : undefined
-        }
-      />
-      <ActionSheet.ScrollableContent>
-        <ActionSheet.ContentBlock>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
+      <ActionSheet.Header>
+        {botShip ? <ContactAvatar contactId={botShip} /> : null}
+        <ActionSheet.ActionContent>
+          <ListItem.Title>Bot run</ListItem.Title>
+          {botShip ? (
+            <ListItem.Subtitle>
+              <ContactName contactId={botShip} />
+            </ListItem.Subtitle>
+          ) : null}
+        </ActionSheet.ActionContent>
+      </ActionSheet.Header>
+      <ActionSheet.Content>
+        <ActionSheet.ContentBlock paddingTop={0} paddingBottom={0}>
           {lens ? (
-            <YStack gap="$l">
-              <RunSummary lens={lens} />
-            </YStack>
+            <RunSummary lens={lens} />
           ) : (
             <YStack
               gap="$s"
               padding="$l"
+              minHeight={120}
               alignItems="center"
               justifyContent="center"
             >
@@ -95,23 +94,21 @@ export function ContextLensRunSheet({
           )}
         </ActionSheet.ContentBlock>
         {lens && botShip && lensId && onExpand ? (
-          <ActionSheet.ContentBlock>
-            <ActionSheet.ActionGroup accent="neutral">
-              <ActionSheet.Action
-                action={{
-                  title: 'Expand',
-                  description: 'View the full run inspector',
-                  endIcon: 'ChevronRight',
-                  action: () => {
-                    onOpenChange(false);
-                    onExpand({ botShip, lensId });
-                  },
-                }}
-              />
-            </ActionSheet.ActionGroup>
-          </ActionSheet.ContentBlock>
+          <ActionSheet.ActionGroup accent="neutral">
+            <ActionSheet.Action
+              action={{
+                title: 'Expand',
+                description: 'View the full run inspector',
+                endIcon: 'ChevronRight',
+                action: () => {
+                  onOpenChange(false);
+                  onExpand({ botShip, lensId });
+                },
+              }}
+            />
+          </ActionSheet.ActionGroup>
         ) : null}
-      </ActionSheet.ScrollableContent>
+      </ActionSheet.Content>
     </ActionSheet>
   );
 }

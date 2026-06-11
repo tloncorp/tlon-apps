@@ -32,20 +32,30 @@ export function InspectorSection({
   );
 }
 
-export function Metric({ label, value }: { label: string; value: string }) {
+export function Metric({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress?: () => void;
+}) {
   return (
     <XStack
       alignItems="flex-start"
       justifyContent="space-between"
       gap="$m"
       minWidth={0}
+      onPress={onPress}
+      pressStyle={onPress ? { opacity: 0.6 } : undefined}
     >
       <SizableText size="$s" color="$secondaryText" flexShrink={0}>
         {label}
       </SizableText>
       <SizableText
         size="$s"
-        color="$primaryText"
+        color={onPress ? '$positiveActionText' : '$primaryText'}
         textAlign="right"
         flex={1}
         minWidth={0}
@@ -58,8 +68,16 @@ export function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function DetailRow({ label, value }: { label: string; value: string }) {
-  return <Metric label={label} value={value || 'unknown'} />;
+export function DetailRow({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress?: () => void;
+}) {
+  return <Metric label={label} value={value || 'unknown'} onPress={onPress} />;
 }
 
 export function PreviewText({ value }: { value: string }) {
