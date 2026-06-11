@@ -13,30 +13,36 @@ if [ ! -f "/workspace/tlonbot/openclaw.json" ]; then
   exit 1
 fi
 
-echo "==> Installing plugin dependencies..."
+# The mounted package declares workspace:^ deps that only resolve inside the
+# tlon-apps pnpm workspace. Copy it to a container-local dir (also the
+# id-shaped path OpenClaw's path hint expects) and rewrite those deps to
+# registry versions there, leaving the host checkout untouched. node_modules
+# is a named volume mounted at /workspace/tlon/node_modules.
+echo "==> Copying plugin to /workspace/tlon..."
+mkdir -p /workspace/tlon
+(cd /workspace/openclaw-tlon && tar cf - --exclude ./node_modules --exclude ./.git --exclude ./dist --exclude ./.env .) \
+  | (cd /workspace/tlon && tar xf - --no-same-owner)
 
-# Install openclaw-tlon plugin dependencies (includes @tloncorp/api and @tloncorp/tlon-skill from npm)
-cd /workspace/openclaw-tlon
+echo "==> Installing plugin dependencies..."
+cd /workspace/tlon
+node scripts/resolve-workspace-deps.mjs package.json --registry
 pnpm install
 pnpm build
 ./dev/build-local-api-override.sh
 ./dev/build-local-skill-override.sh
 
 # Expose tlon CLI to PATH
-TLON_BIN_DIR="/workspace/openclaw-tlon/node_modules/.bin"
+TLON_BIN_DIR="/workspace/tlon/node_modules/.bin"
 if [ -f "$TLON_BIN_DIR/tlon" ]; then
   export PATH="$TLON_BIN_DIR:$PATH"
   echo "==> tlon CLI available at $TLON_BIN_DIR/tlon"
 fi
 
-# Expose the plugin at an id-shaped path so OpenClaw's path hint matches the manifest id.
-ln -sfn /workspace/openclaw-tlon /workspace/tlon
-
 # Remove bundled tlon plugin to avoid duplicate ID conflict
 rm -rf "$(npm root -g)/openclaw/extensions/tlon"
 rm -rf "$(npm root -g)/openclaw/dist/extensions/tlon"
 
-# Plugin is loaded from /workspace/openclaw-tlon via plugins.load.paths in config
+# Plugin is loaded from /workspace/tlon via plugins.load.paths in config
 # Skill should be discovered via plugin manifest's "skills" field.
 # Commenting out manual symlink to test manifest-based discovery.
 # echo "==> Installing tlon skill to workspace..."

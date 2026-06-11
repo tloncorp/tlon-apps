@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-PLUGIN_DIR="${PLUGIN_DIR:-/workspace/openclaw-tlon}"
+PLUGIN_DIR="${PLUGIN_DIR:-/workspace/tlon}"
 TLON_APPS_DIR="${TLON_APPS_DIR:-/workspace/tlon-apps}"
 LOCAL_API_DIR="$TLON_APPS_DIR/packages/api"
 LOCAL_DIST_DIR="$LOCAL_API_DIR/dist"

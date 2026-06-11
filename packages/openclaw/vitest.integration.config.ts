@@ -4,12 +4,12 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // Load .env file
 config();
 
-// Unit tests only. The Docker-based integration suite under test/ runs via
-// vitest.integration.config.ts; restricting include here keeps the monorepo's
-// recursive test sweep (`pnpm run -r test`) from ever picking up test/cases.
+// Integration suite config: test/cases/* prompt a live bot against ephemeral
+// fakezod ships (see test/run.sh), so timeouts are generous and files run
+// sequentially to avoid overlapping DM prompts.
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['test/**/*.test.ts'],
     testTimeout: 180_000,
     hookTimeout: 180_000,
     sequence: { shuffle: false },

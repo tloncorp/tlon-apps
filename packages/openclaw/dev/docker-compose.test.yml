@@ -78,7 +78,7 @@ services:
       - fake-model
     volumes:
       - ..:/workspace/openclaw-tlon
-      - openclaw-modules:/workspace/openclaw-tlon/node_modules
+      - openclaw-modules:/workspace/tlon/node_modules
 
 volumes:
   ships-data:

@@ -44,10 +44,10 @@ echo "  TEST_USER_SHIP=$TEST_USER_SHIP"
 # If a specific file is passed as an argument, run only that file.
 if [ $# -gt 0 ] && [[ "$1" == *.test.ts || "$1" == test/* ]]; then
   echo "Running $1..."
-  pnpm vitest run "$@" || exit $?
+  pnpm vitest run --config vitest.integration.config.ts "$@" || exit $?
 else
   for test_file in test/cases/*.test.ts; do
     echo "Running $test_file..."
-    pnpm vitest run "$test_file" "$@" || exit $?
+    pnpm vitest run --config vitest.integration.config.ts "$test_file" "$@" || exit $?
   done
 fi

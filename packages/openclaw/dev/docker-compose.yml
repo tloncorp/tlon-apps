@@ -17,17 +17,21 @@ services:
     ports:
       - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
     volumes:
-      # Mount plugin repo
+      # Mount the plugin package (packages/openclaw). The entrypoint copies it
+      # to a container-local dir before installing, so workspace:^ deps can be
+      # resolved without touching the host checkout.
       - ..:/workspace/openclaw-tlon
-      # Container-local node_modules (avoids host darwin binaries overwriting linux)
-      - openclaw-tlon-modules:/workspace/openclaw-tlon/node_modules
-      # Mount tlonbot for config and prompts
-      - ../../tlonbot:/workspace/tlonbot
-      # Local tlon-apps/homestead checkout for dev-only @tloncorp/api override builds.
-      # Set TLON_APPS_DIR when your local checkout is not named ../tlon-apps.
-      - ${TLON_APPS_DIR:-../../tlon-apps}:/workspace/tlon-apps
-      # Local tlon-skill checkout for dev-only @tloncorp/tlon-skill override.
-      # Set TLON_SKILL_DIR when your local checkout is not named ../tlon-skill.
+      # Container-local node_modules for the install copy (avoids host darwin
+      # binaries overwriting linux, persists across container restarts)
+      - openclaw-tlon-modules:/workspace/tlon/node_modules
+      # Mount tlonbot for config and prompts. Defaults to a checkout sitting
+      # next to the tlon-apps monorepo root; override with TLONBOT_DIR.
+      - ${TLONBOT_DIR:-../../../../tlonbot}:/workspace/tlonbot
+      # The containing tlon-apps monorepo, for dev-only @tloncorp/api override
+      # builds. Defaults to the repo this package lives in.
+      - ${TLON_APPS_DIR:-../../..}:/workspace/tlon-apps
+      # The in-monorepo tlon-skill package, for the dev-only
+      # @tloncorp/tlon-skill override (built from source in the container).
       - ${TLON_SKILL_DIR:-../../tlon-skill}:/workspace/tlon-skill
       # Persist OpenClaw state
       - openclaw-state:/root/.openclaw

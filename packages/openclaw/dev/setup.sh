@@ -14,17 +14,14 @@ clone_if_missing() {
   fi
 }
 
-# Clone tlonbot for config and prompts
-clone_if_missing ../tlonbot tlonbot
+# Clone tlonbot for config and prompts. Default location: sibling of the
+# tlon-apps monorepo root (this package lives at packages/openclaw). Set
+# TLONBOT_DIR when running dev commands if your checkout lives elsewhere.
+clone_if_missing ../../../tlonbot tlonbot
 
-# Clone tlon-apps for the dev-only local @tloncorp/api override flow.
-# If your local checkout uses a different name (for example "homestead"),
-# set TLON_APPS_DIR when running dev/link commands instead.
-clone_if_missing ../tlon-apps tlon-apps
-
-# Clone tlon-skill for the dev-only local @tloncorp/tlon-skill override flow.
-# Set TLON_SKILL_DIR if your local checkout is not named ../tlon-skill.
-clone_if_missing ../tlon-skill tlon-skill
+# @tloncorp/api and @tloncorp/tlon-skill live in this monorepo
+# (packages/api, packages/tlon-skill) — nothing to clone for the dev-only
+# override flows; the compose file mounts them from the containing repo.
 
 # Create .env if missing
 if [ ! -f .env ]; then

@@ -31,8 +31,11 @@ GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
 
 export ZOD_PORT TEN_PORT MUG_PORT
 
+# Default tlonbot checkout location: sibling of the tlon-apps monorepo root.
+TLONBOT_DIR="${TLONBOT_DIR:-$(pwd)/../../../tlonbot}"
+export TLONBOT_DIR
 COMPOSE_FILES="-f dev/docker-compose.test.yml"
-if [ -f "dev/docker-compose.local.yml" ] && [ -d "../tlonbot" ]; then
+if [ -f "dev/docker-compose.local.yml" ] && [ -d "$TLONBOT_DIR" ]; then
   COMPOSE_FILES="$COMPOSE_FILES -f dev/docker-compose.local.yml"
 fi
 

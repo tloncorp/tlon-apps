@@ -2,14 +2,15 @@
 # Run integration tests with ephemeral fakezod ships
 #
 # Works in both CI and local environments:
-#   - With ../tlonbot mounted: uses volume mount for prompts and plugins
-#   - Without ../tlonbot: uses TLONBOT_TOKEN to fetch prompts and image-search plugin from GitHub
+#   - With a tlonbot checkout mounted (default: sibling of the tlon-apps
+#     monorepo, override with TLONBOT_DIR): uses volume mount for prompts and plugins
+#   - Without tlonbot: uses TLONBOT_TOKEN to fetch prompts and image-search plugin from GitHub
 #
 # Prerequisites:
 #   - OPENROUTER_API_KEY (in .env locally, or CI secret)
 #   - BRAVE_API_KEY + TEST_STORAGE_* for image search / media tests
-#   - TLONBOT_TOKEN when ../tlonbot is not mounted (always needed in CI)
-#   - Local only: ../tlonbot repo cloned (removes TLONBOT_TOKEN requirement)
+#   - TLONBOT_TOKEN when tlonbot is not mounted (always needed in CI)
+#   - Local only: tlonbot repo cloned (removes TLONBOT_TOKEN requirement)
 #
 # Usage:
 #   pnpm test:integration
@@ -72,12 +73,16 @@ done
 # Export port vars for docker-compose interpolation
 export ZOD_PORT TEN_PORT MUG_PORT FAKE_MODEL_PORT
 
-# Use test compose file, add local override if tlonbot repo exists
+# Use test compose file, add local override if a tlonbot checkout exists.
+# Default location: sibling of the tlon-apps monorepo root. Exported as an
+# absolute path so docker-compose volume interpolation resolves consistently.
+TLONBOT_DIR="${TLONBOT_DIR:-$(pwd)/../../../tlonbot}"
+export TLONBOT_DIR
 COMPOSE_FILES="-f dev/docker-compose.test.yml"
-if [ -f "dev/docker-compose.local.yml" ] && [ -d "../tlonbot" ]; then
+if [ -f "dev/docker-compose.local.yml" ] && [ -d "$TLONBOT_DIR" ]; then
   COMPOSE_FILES="$COMPOSE_FILES -f dev/docker-compose.local.yml"
   export TEST_TLONBOT_MOUNTED=1
-  echo "==> Using local tlonbot volume mount"
+  echo "==> Using local tlonbot volume mount ($TLONBOT_DIR)"
 fi
 
 # Cleanup function - called on exit (normal, error, or signal-initiated)
@@ -250,7 +255,7 @@ run_one() {
   local start end elapsed
   start=$(date +%s)
   echo "Running $test_file..."
-  pnpm vitest run "$test_file" || TEST_EXIT=$?
+  pnpm vitest run --config vitest.integration.config.ts "$test_file" || TEST_EXIT=$?
   end=$(date +%s)
   elapsed=$((end - start))
   FILE_TIMINGS+=("$(printf '%4ds  %s\n' "$elapsed" "$test_file")")
