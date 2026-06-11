@@ -218,7 +218,7 @@
     ::  map may have no react key. reacts notify exactly when posts do, so mirror
     ::  the map's own %post setting: a source muted before reactions existed
     ::  stays muted, a loud one still notifies. reacts never carry an unread.
-    =+  post=(~(gut by loudness) %post [unreads=& notify=|])
+    =+  post=(~(gut by loudness) %post [*? notify=|])
     (~(gut by loudness) type [unreads=| notify=notify.post])
   ::
   --
