@@ -9,9 +9,8 @@
  * state in "stage cleared, owner still idle", which could otherwise let a
  * duplicate nudge fire on the next tick after restart.
  */
-
-import type { UrbitSSEClient } from "../urbit/sse-client.js";
-import { describeError } from "../urbit/errors.js";
+import { describeError } from '../urbit/errors.js';
+import type { UrbitSSEClient } from '../urbit/sse-client.js';
 
 export type OwnerReplyPersistenceBatch = {
   at: number;
@@ -36,11 +35,11 @@ export type OwnerReplyPersistenceQueue = {
   flush(): Promise<void>;
 };
 
-type Pokeable = Pick<UrbitSSEClient, "poke">;
+type Pokeable = Pick<UrbitSSEClient, 'poke'>;
 
 export function createOwnerReplyPersistenceQueue(
   api: Pokeable,
-  log: { error?: (msg: string) => void } = {},
+  log: { error?: (msg: string) => void } = {}
 ): OwnerReplyPersistenceQueue {
   let tail: Promise<void> = Promise.resolve();
 
@@ -52,25 +51,25 @@ export function createOwnerReplyPersistenceQueue(
           try {
             await Promise.all([
               api.poke({
-                app: "settings",
-                mark: "settings-event",
+                app: 'settings',
+                mark: 'settings-event',
                 json: {
-                  "put-entry": {
-                    desk: "moltbot",
-                    "bucket-key": "tlon",
-                    "entry-key": "lastOwnerMessageAt",
+                  'put-entry': {
+                    desk: 'moltbot',
+                    'bucket-key': 'tlon',
+                    'entry-key': 'lastOwnerMessageAt',
                     value: batch.at,
                   },
                 },
               }),
               api.poke({
-                app: "settings",
-                mark: "settings-event",
+                app: 'settings',
+                mark: 'settings-event',
                 json: {
-                  "put-entry": {
-                    desk: "moltbot",
-                    "bucket-key": "tlon",
-                    "entry-key": "lastOwnerMessageDate",
+                  'put-entry': {
+                    desk: 'moltbot',
+                    'bucket-key': 'tlon',
+                    'entry-key': 'lastOwnerMessageDate',
                     value: batch.date,
                   },
                 },
@@ -79,19 +78,21 @@ export function createOwnerReplyPersistenceQueue(
 
             if (batch.clearStage) {
               await api.poke({
-                app: "settings",
-                mark: "settings-event",
+                app: 'settings',
+                mark: 'settings-event',
                 json: {
-                  "del-entry": {
-                    desk: "moltbot",
-                    "bucket-key": "tlon",
-                    "entry-key": "lastNudgeStage",
+                  'del-entry': {
+                    desk: 'moltbot',
+                    'bucket-key': 'tlon',
+                    'entry-key': 'lastNudgeStage',
                   },
                 },
               });
             }
           } catch (err) {
-            log.error?.(`[tlon] owner-reply persistence failed: ${describeError(err)}`);
+            log.error?.(
+              `[tlon] owner-reply persistence failed: ${describeError(err)}`
+            );
           }
         });
     },
@@ -101,18 +102,20 @@ export function createOwnerReplyPersistenceQueue(
         .then(async () => {
           try {
             await api.poke({
-              app: "settings",
-              mark: "settings-event",
+              app: 'settings',
+              mark: 'settings-event',
               json: {
-                "del-entry": {
-                  desk: "moltbot",
-                  "bucket-key": "tlon",
-                  "entry-key": "lastNudgeStage",
+                'del-entry': {
+                  desk: 'moltbot',
+                  'bucket-key': 'tlon',
+                  'entry-key': 'lastNudgeStage',
                 },
               },
             });
           } catch (err) {
-            log.error?.(`[tlon] owner-reply stage-clear failed: ${describeError(err)}`);
+            log.error?.(
+              `[tlon] owner-reply stage-clear failed: ${describeError(err)}`
+            );
           }
         });
     },

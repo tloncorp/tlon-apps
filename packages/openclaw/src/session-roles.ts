@@ -6,17 +6,16 @@
  * before_tool_call hook provides. Cleanup happens via TTL, not session_end
  * (which provides sessionId, not sessionKey).
  */
+import { sharedMap } from './shared-state.js';
 
-import { sharedMap } from "./shared-state.js";
-
-export type SenderRole = "owner" | "user";
+export type SenderRole = 'owner' | 'user';
 
 interface RoleEntry {
   role: SenderRole;
   timestamp: number;
 }
 
-const sessionRoles = sharedMap<string, RoleEntry>("session-roles");
+const sessionRoles = sharedMap<string, RoleEntry>('session-roles');
 
 // TTL for role entries (1 hour - sessions shouldn't last longer)
 const ROLE_TTL_MS = 60 * 60 * 1000;

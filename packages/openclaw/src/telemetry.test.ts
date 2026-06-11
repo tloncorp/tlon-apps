@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { _testing, createTlonTelemetry, recordToolCall } from './telemetry.js';
 
 const postHogMocks = vi.hoisted(() => ({
   identify: vi.fn(),
@@ -7,19 +9,17 @@ const postHogMocks = vi.hoisted(() => ({
   shutdown: vi.fn(),
 }));
 
-vi.mock("posthog-node", () => ({
+vi.mock('posthog-node', () => ({
   PostHog: vi.fn(
     class MockPostHog {
       constructor() {
         return postHogMocks;
       }
-    },
+    }
   ),
 }));
 
-import { _testing, createTlonTelemetry, recordToolCall } from "./telemetry.js";
-
-describe("telemetry tool tracking", () => {
+describe('telemetry tool tracking', () => {
   beforeEach(() => {
     _testing.clearToolCalls();
     postHogMocks.identify.mockClear();
@@ -32,8 +32,8 @@ describe("telemetry tool tracking", () => {
     return createTlonTelemetry({
       config: {
         enabled: true,
-        apiKey: "phc_test",
-        host: "https://us.i.posthog.com",
+        apiKey: 'phc_test',
+        host: 'https://us.i.posthog.com',
       },
     });
   }
@@ -45,12 +45,12 @@ describe("telemetry tool tracking", () => {
   }) {
     const telemetry = createEnabledTelemetry();
     const replyTelemetry = telemetry?.startReply({
-      sessionKey: params?.sessionKey ?? "session-1",
-      ownerShip: "~zod",
-      botShip: "~nec",
-      chatType: "dm",
+      sessionKey: params?.sessionKey ?? 'session-1',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      chatType: 'dm',
       isThreadReply: false,
-      senderRole: "owner",
+      senderRole: 'owner',
       attachmentCount: 1,
     });
 
@@ -63,8 +63,8 @@ describe("telemetry tool tracking", () => {
       queuedFinal: false,
       queuedFinalCount: 1,
       queuedBlockCount: 0,
-      provider: "anthropic",
-      model: "claude-test",
+      provider: 'anthropic',
+      model: 'claude-test',
       thinkLevel: null,
       dispatchError: params?.dispatchError,
     });
@@ -73,33 +73,33 @@ describe("telemetry tool tracking", () => {
     return postHogMocks.capture.mock.calls.at(-1)?.[0];
   }
 
-  it("captures only tool calls recorded after reply tracking starts", async () => {
+  it('captures only tool calls recorded after reply tracking starts', async () => {
     recordToolCall({
-      sessionKey: "session-1",
-      toolName: "read",
+      sessionKey: 'session-1',
+      toolName: 'read',
       durationMs: 25,
     });
 
     const telemetry = createEnabledTelemetry();
     const replyTelemetry = telemetry?.startReply({
-      sessionKey: "session-1",
-      ownerShip: "~zod",
-      botShip: "~nec",
-      chatType: "dm",
+      sessionKey: 'session-1',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      chatType: 'dm',
       isThreadReply: false,
-      senderRole: "owner",
+      senderRole: 'owner',
       attachmentCount: 1,
     });
 
     recordToolCall({
-      sessionKey: "session-1",
-      toolName: "web_search",
+      sessionKey: 'session-1',
+      toolName: 'web_search',
       durationMs: 125,
     });
     recordToolCall({
-      sessionKey: "session-1",
-      toolName: "read",
-      error: "tool failed",
+      sessionKey: 'session-1',
+      toolName: 'read',
+      error: 'tool failed',
     });
 
     await replyTelemetry?.capture({
@@ -111,29 +111,29 @@ describe("telemetry tool tracking", () => {
       queuedFinal: false,
       queuedFinalCount: 1,
       queuedBlockCount: 0,
-      provider: "anthropic",
-      model: "claude-test",
+      provider: 'anthropic',
+      model: 'claude-test',
       thinkLevel: null,
     });
 
     expect(postHogMocks.capture).toHaveBeenCalledWith({
-      distinctId: "~zod",
-      event: "TlonBot Reply Handled",
+      distinctId: '~zod',
+      event: 'TlonBot Reply Handled',
       properties: expect.objectContaining({
         toolCount: 2,
-        toolNames: ["web_search", "read"],
+        toolNames: ['web_search', 'read'],
         toolTotalDurationMs: 125,
         toolErrorCount: 1,
         toolCalls: [
           {
-            toolName: "web_search",
+            toolName: 'web_search',
             durationMs: 125,
             error: null,
           },
           {
-            toolName: "read",
+            toolName: 'read',
             durationMs: null,
-            error: "tool failed",
+            error: 'tool failed',
           },
         ],
       }),
@@ -142,14 +142,14 @@ describe("telemetry tool tracking", () => {
     await telemetry?.close();
   });
 
-  it("ignores missing session keys", async () => {
+  it('ignores missing session keys', async () => {
     recordToolCall({
-      sessionKey: "",
-      toolName: "web_search",
+      sessionKey: '',
+      toolName: 'web_search',
       durationMs: 50,
     });
 
-    const capturedEvent = await captureReply({ sessionKey: "session-2" });
+    const capturedEvent = await captureReply({ sessionKey: 'session-2' });
 
     expect(capturedEvent?.properties.toolCalls).toEqual([]);
     expect(capturedEvent?.properties.toolNames).toEqual([]);
@@ -158,35 +158,41 @@ describe("telemetry tool tracking", () => {
     expect(capturedEvent?.properties.toolErrorCount).toBe(0);
   });
 
-  it("classifies reply outcomes", async () => {
+  it('classifies reply outcomes', async () => {
     await captureReply({ deliveredMessageCount: 1 });
-    expect(postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.outcome).toBe("responded");
+    expect(
+      postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.outcome
+    ).toBe('responded');
 
     await captureReply({ deliveredMessageCount: 0 });
-    expect(postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.outcome).toBe("no_reply");
+    expect(
+      postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.outcome
+    ).toBe('no_reply');
 
     await captureReply({
       deliveredMessageCount: 0,
-      dispatchError: new Error("boom"),
+      dispatchError: new Error('boom'),
     });
-    expect(postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.outcome).toBe("error");
+    expect(
+      postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.outcome
+    ).toBe('error');
   });
 
-  it("captures camelCase telemetry properties without routing metadata", async () => {
+  it('captures camelCase telemetry properties without routing metadata', async () => {
     const telemetry = createEnabledTelemetry();
     const replyTelemetry = telemetry?.startReply({
-      sessionKey: "session-1",
-      ownerShip: "~zod",
-      botShip: "~nec",
-      chatType: "dm",
+      sessionKey: 'session-1',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      chatType: 'dm',
       isThreadReply: false,
-      senderRole: "owner",
+      senderRole: 'owner',
       attachmentCount: 1,
     });
 
     recordToolCall({
-      sessionKey: "session-1",
-      toolName: "web_search",
+      sessionKey: 'session-1',
+      toolName: 'web_search',
       durationMs: 125,
     });
 
@@ -199,31 +205,31 @@ describe("telemetry tool tracking", () => {
       queuedFinal: false,
       queuedFinalCount: 1,
       queuedBlockCount: 0,
-      provider: "anthropic",
-      model: "claude-test",
+      provider: 'anthropic',
+      model: 'claude-test',
       thinkLevel: null,
     });
 
     expect(postHogMocks.identify).toHaveBeenCalledWith({
-      distinctId: "~zod",
+      distinctId: '~zod',
       properties: {
-        logSource: "openclawPlugin",
-        tlonOwnerShip: "~zod",
-        tlonBotShip: "~nec",
+        logSource: 'openclawPlugin',
+        tlonOwnerShip: '~zod',
+        tlonBotShip: '~nec',
       },
     });
 
     expect(postHogMocks.capture).toHaveBeenCalledWith({
-      distinctId: "~zod",
-      event: "TlonBot Reply Handled",
+      distinctId: '~zod',
+      event: 'TlonBot Reply Handled',
       properties: {
-        logSource: "openclawPlugin",
-        botShip: "~nec",
-        ownerShip: "~zod",
-        outcome: "responded",
-        chatType: "dm",
+        logSource: 'openclawPlugin',
+        botShip: '~nec',
+        ownerShip: '~zod',
+        outcome: 'responded',
+        chatType: 'dm',
         isThreadReply: false,
-        senderRole: "owner",
+        senderRole: 'owner',
         attachmentCount: 1,
         hasAttachments: true,
         deliveredMessageCount: 1,
@@ -234,16 +240,16 @@ describe("telemetry tool tracking", () => {
         queuedFinal: false,
         queuedFinalCount: 1,
         queuedBlockCount: 0,
-        provider: "anthropic",
-        model: "claude-test",
+        provider: 'anthropic',
+        model: 'claude-test',
         thinkLevel: null,
         toolCount: 1,
-        toolNames: ["web_search"],
+        toolNames: ['web_search'],
         toolTotalDurationMs: 125,
         toolErrorCount: 0,
         toolCalls: [
           {
-            toolName: "web_search",
+            toolName: 'web_search',
             durationMs: 125,
             error: null,
           },
@@ -252,9 +258,9 @@ describe("telemetry tool tracking", () => {
     });
 
     const capturedEvent = postHogMocks.capture.mock.calls[0]?.[0];
-    expect(capturedEvent?.properties).not.toHaveProperty("accountId");
-    expect(capturedEvent?.properties).not.toHaveProperty("agentId");
-    expect(capturedEvent?.properties).not.toHaveProperty("channel");
+    expect(capturedEvent?.properties).not.toHaveProperty('accountId');
+    expect(capturedEvent?.properties).not.toHaveProperty('agentId');
+    expect(capturedEvent?.properties).not.toHaveProperty('channel');
 
     await telemetry?.close();
 
@@ -262,50 +268,50 @@ describe("telemetry tool tracking", () => {
     expect(postHogMocks.shutdown).toHaveBeenCalledTimes(1);
   });
 
-  describe("captureHeartbeatNudge", () => {
-    it("emits correct PostHog event with all properties (success case includes messageId and nudgeSentAtMs)", () => {
+  describe('captureHeartbeatNudge', () => {
+    it('emits correct PostHog event with all properties (success case includes messageId and nudgeSentAtMs)', () => {
       const telemetry = createEnabledTelemetry()!;
       telemetry.captureHeartbeatNudge({
-        ownerShip: "~zod",
-        botShip: "~nec",
+        ownerShip: '~zod',
+        botShip: '~nec',
         nudgeStage: 2,
-        nudgeTarget: "~zod",
-        channel: "tlon",
+        nudgeTarget: '~zod',
+        channel: 'tlon',
         success: true,
-        accountId: "default",
-        messageId: "~nec/170.141.184.506.511.632.882.809.306.892.730.368.000",
+        accountId: 'default',
+        messageId: '~nec/170.141.184.506.511.632.882.809.306.892.730.368.000',
         nudgeSentAtMs: 1700000000000,
       });
 
       expect(postHogMocks.capture).toHaveBeenCalledWith({
-        distinctId: "~zod",
-        event: "TlonBot Heartbeat Nudge Sent",
+        distinctId: '~zod',
+        event: 'TlonBot Heartbeat Nudge Sent',
         properties: {
-          logSource: "openclawPlugin",
-          botShip: "~nec",
-          ownerShip: "~zod",
-          trigger: "heartbeat",
+          logSource: 'openclawPlugin',
+          botShip: '~nec',
+          ownerShip: '~zod',
+          trigger: 'heartbeat',
           nudgeStage: 2,
-          nudgeTarget: "~zod",
-          channel: "tlon",
+          nudgeTarget: '~zod',
+          channel: 'tlon',
           success: true,
-          accountId: "default",
-          messageId: "~nec/170.141.184.506.511.632.882.809.306.892.730.368.000",
+          accountId: 'default',
+          messageId: '~nec/170.141.184.506.511.632.882.809.306.892.730.368.000',
           nudgeSentAtMs: 1700000000000,
         },
       });
     });
 
-    it("writes null messageId and null nudgeSentAtMs on send failure", () => {
+    it('writes null messageId and null nudgeSentAtMs on send failure', () => {
       const telemetry = createEnabledTelemetry()!;
       telemetry.captureHeartbeatNudge({
-        ownerShip: "~zod",
-        botShip: "~nec",
+        ownerShip: '~zod',
+        botShip: '~nec',
         nudgeStage: 1,
-        nudgeTarget: "~zod",
-        channel: "tlon",
+        nudgeTarget: '~zod',
+        channel: 'tlon',
         success: false,
-        accountId: "default",
+        accountId: 'default',
         messageId: null,
         nudgeSentAtMs: null,
       });
@@ -316,38 +322,38 @@ describe("telemetry tool tracking", () => {
       expect(captured.properties.nudgeSentAtMs).toBeNull();
     });
 
-    it("identifies owner on first call", () => {
+    it('identifies owner on first call', () => {
       const telemetry = createEnabledTelemetry()!;
       telemetry.captureHeartbeatNudge({
-        ownerShip: "~zod",
-        botShip: "~nec",
+        ownerShip: '~zod',
+        botShip: '~nec',
         nudgeStage: 1,
-        nudgeTarget: "~zod",
-        channel: "tlon",
+        nudgeTarget: '~zod',
+        channel: 'tlon',
         success: true,
         accountId: null,
-        messageId: "~nec/some-id",
+        messageId: '~nec/some-id',
         nudgeSentAtMs: 1700000000000,
       });
 
       expect(postHogMocks.identify).toHaveBeenCalledWith({
-        distinctId: "~zod",
+        distinctId: '~zod',
         properties: {
-          logSource: "openclawPlugin",
-          tlonOwnerShip: "~zod",
-          tlonBotShip: "~nec",
+          logSource: 'openclawPlugin',
+          tlonOwnerShip: '~zod',
+          tlonBotShip: '~nec',
         },
       });
     });
 
-    it("skips if ownerShip is empty", () => {
+    it('skips if ownerShip is empty', () => {
       const telemetry = createEnabledTelemetry()!;
       telemetry.captureHeartbeatNudge({
-        ownerShip: "",
-        botShip: "~nec",
+        ownerShip: '',
+        botShip: '~nec',
         nudgeStage: 1,
-        nudgeTarget: "",
-        channel: "tlon",
+        nudgeTarget: '',
+        channel: 'tlon',
         success: true,
         accountId: null,
         messageId: null,
@@ -358,70 +364,70 @@ describe("telemetry tool tracking", () => {
     });
   });
 
-  describe("captureHeartbeatReengagement", () => {
-    it("emits correct PostHog event with all properties", () => {
+  describe('captureHeartbeatReengagement', () => {
+    it('emits correct PostHog event with all properties', () => {
       const telemetry = createEnabledTelemetry()!;
       telemetry.captureHeartbeatReengagement({
-        ownerShip: "~zod",
-        botShip: "~nec",
+        ownerShip: '~zod',
+        botShip: '~nec',
         nudgeStage: 3,
         nudgeSentAt: 1000,
         reengagedAt: 5000,
         reengagementDelayMs: 4000,
-        channel: "tlon",
-        accountId: "default",
+        channel: 'tlon',
+        accountId: 'default',
       });
 
       expect(postHogMocks.capture).toHaveBeenCalledWith({
-        distinctId: "~zod",
-        event: "TlonBot Heartbeat Nudge Reengaged",
+        distinctId: '~zod',
+        event: 'TlonBot Heartbeat Nudge Reengaged',
         properties: {
-          logSource: "openclawPlugin",
-          botShip: "~nec",
-          ownerShip: "~zod",
+          logSource: 'openclawPlugin',
+          botShip: '~nec',
+          ownerShip: '~zod',
           nudgeStage: 3,
           nudgeSentAt: 1000,
           reengagedAt: 5000,
           reengagementDelayMs: 4000,
-          channel: "tlon",
-          accountId: "default",
+          channel: 'tlon',
+          accountId: 'default',
         },
       });
     });
 
-    it("identifies owner on first call", () => {
+    it('identifies owner on first call', () => {
       const telemetry = createEnabledTelemetry()!;
       telemetry.captureHeartbeatReengagement({
-        ownerShip: "~zod",
-        botShip: "~nec",
+        ownerShip: '~zod',
+        botShip: '~nec',
         nudgeStage: 1,
         nudgeSentAt: 1000,
         reengagedAt: 2000,
         reengagementDelayMs: 1000,
-        channel: "tlon",
+        channel: 'tlon',
         accountId: null,
       });
 
       expect(postHogMocks.identify).toHaveBeenCalledWith({
-        distinctId: "~zod",
+        distinctId: '~zod',
         properties: {
-          logSource: "openclawPlugin",
-          tlonOwnerShip: "~zod",
-          tlonBotShip: "~nec",
+          logSource: 'openclawPlugin',
+          tlonOwnerShip: '~zod',
+          tlonBotShip: '~nec',
         },
       });
     });
 
-    it("skips if ownerShip is empty", () => {
+    it('skips if ownerShip is empty', () => {
       const telemetry = createEnabledTelemetry()!;
       telemetry.captureHeartbeatReengagement({
-        ownerShip: "",
-        botShip: "~nec",
+        ownerShip: '',
+        botShip: '~nec',
         nudgeStage: 1,
         nudgeSentAt: 1000,
         reengagedAt: 2000,
         reengagementDelayMs: 1000,
-        channel: "tlon",
+        channel: 'tlon',
         accountId: null,
       });
 
@@ -429,9 +435,9 @@ describe("telemetry tool tracking", () => {
     });
   });
 
-  it("reply telemetry still works independently", async () => {
+  it('reply telemetry still works independently', async () => {
     const capturedEvent = await captureReply();
-    expect(capturedEvent?.event).toBe("TlonBot Reply Handled");
-    expect(capturedEvent?.properties.outcome).toBe("responded");
+    expect(capturedEvent?.event).toBe('TlonBot Reply Handled');
+    expect(capturedEvent?.properties.outcome).toBe('responded');
   });
 });

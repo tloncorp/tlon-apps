@@ -8,14 +8,13 @@
  * This allows config changes via poke from any Landscape client
  * without requiring a gateway restart.
  */
-
-import type { PendingNudge } from "./pending-nudge.js";
-import type { UrbitSSEClient } from "./urbit/sse-client.js";
+import type { PendingNudge } from './pending-nudge.js';
+import type { UrbitSSEClient } from './urbit/sse-client.js';
 
 /** Pending approval request stored for persistence */
 export type PendingApproval = {
   id: string;
-  type: "dm" | "channel" | "group";
+  type: 'dm' | 'channel' | 'group';
   requestingShip: string;
   channelNest?: string;
   groupFlag?: string;
@@ -50,7 +49,7 @@ export type TlonSettingsStore = {
   channelRules?: Record<
     string,
     {
-      mode?: "restricted" | "open";
+      mode?: 'restricted' | 'open';
       allowedShips?: string[];
     }
   >;
@@ -66,7 +65,7 @@ export type TlonSettingsStore = {
   /** Pending heartbeat nudge attribution awaiting owner re-engagement */
   pendingNudge?: PendingNudge;
   /** Last nudge stage written by heartbeat flow (1, 2, or 3) */
-  lastNudgeStage?: PendingNudge["stage"];
+  lastNudgeStage?: PendingNudge['stage'];
   /** Active-hours window start ("HH:MM") for the nudge scheduler */
   nudgeActiveHoursStart?: string;
   /** Active-hours window end ("HH:MM") for the nudge scheduler */
@@ -84,34 +83,39 @@ export type TlonSettingsState = {
   loaded: boolean;
 };
 
-const SETTINGS_DESK = "moltbot";
-const SETTINGS_BUCKET = "tlon";
+const SETTINGS_DESK = 'moltbot';
+const SETTINGS_BUCKET = 'tlon';
 export const APPROVAL_TTL_MS = 48 * 60 * 60 * 1000;
 /** Sentinel preview used for DM-invite approvals that have no message body yet. */
-export const DM_INVITE_PREVIEW = "(DM invite - no message yet)";
+export const DM_INVITE_PREVIEW = '(DM invite - no message yet)';
 
-function isPendingApprovalExpired(approval: PendingApproval, now = Date.now()): boolean {
+function isPendingApprovalExpired(
+  approval: PendingApproval,
+  now = Date.now()
+): boolean {
   return now - approval.timestamp > APPROVAL_TTL_MS;
 }
 
 function hasUsableOriginalMessage(approval: PendingApproval): boolean {
-  if (approval.type === "group") {
+  if (approval.type === 'group') {
     return true;
   }
-  if (approval.type === "dm" && approval.messagePreview === DM_INVITE_PREVIEW) {
+  if (approval.type === 'dm' && approval.messagePreview === DM_INVITE_PREVIEW) {
     return true;
   }
 
   const message = approval.originalMessage;
   return Boolean(
     message &&
-    typeof message.messageId === "string" &&
-    typeof message.messageText === "string" &&
-    typeof message.timestamp === "number",
+      typeof message.messageId === 'string' &&
+      typeof message.messageText === 'string' &&
+      typeof message.timestamp === 'number'
   );
 }
 
-function summarizePendingApproval(approval: PendingApproval): Record<string, unknown> {
+function summarizePendingApproval(
+  approval: PendingApproval
+): Record<string, unknown> {
   return {
     id: approval.id,
     type: approval.type,
@@ -125,13 +129,23 @@ function summarizePendingApproval(approval: PendingApproval): Record<string, unk
   };
 }
 
-function summarizeSettingsForLog(settings: TlonSettingsStore): Record<string, unknown> {
+function summarizeSettingsForLog(
+  settings: TlonSettingsStore
+): Record<string, unknown> {
   const pendingApprovals = settings.pendingApprovals ?? [];
   return {
-    ...(settings.groupChannels ? { groupChannels: settings.groupChannels.length } : {}),
-    ...(settings.dmAllowlist ? { dmAllowlist: settings.dmAllowlist.length } : {}),
-    ...(settings.autoDiscover !== undefined ? { autoDiscover: settings.autoDiscover } : {}),
-    ...(settings.showModelSig !== undefined ? { showModelSig: settings.showModelSig } : {}),
+    ...(settings.groupChannels
+      ? { groupChannels: settings.groupChannels.length }
+      : {}),
+    ...(settings.dmAllowlist
+      ? { dmAllowlist: settings.dmAllowlist.length }
+      : {}),
+    ...(settings.autoDiscover !== undefined
+      ? { autoDiscover: settings.autoDiscover }
+      : {}),
+    ...(settings.showModelSig !== undefined
+      ? { showModelSig: settings.showModelSig }
+      : {}),
     ...(settings.autoAcceptDmInvites !== undefined
       ? { autoAcceptDmInvites: settings.autoAcceptDmInvites }
       : {}),
@@ -144,7 +158,9 @@ function summarizeSettingsForLog(settings: TlonSettingsStore): Record<string, un
     ...(settings.groupInviteAllowlist
       ? { groupInviteAllowlist: settings.groupInviteAllowlist.length }
       : {}),
-    ...(settings.channelRules ? { channelRules: Object.keys(settings.channelRules).length } : {}),
+    ...(settings.channelRules
+      ? { channelRules: Object.keys(settings.channelRules).length }
+      : {}),
     ...(settings.defaultAuthorizedShips
       ? { defaultAuthorizedShips: settings.defaultAuthorizedShips.length }
       : {}),
@@ -168,11 +184,15 @@ function summarizeSettingsForLog(settings: TlonSettingsStore): Record<string, un
           },
         }
       : {}),
-    ...(settings.lastNudgeStage !== undefined ? { lastNudgeStage: settings.lastNudgeStage } : {}),
+    ...(settings.lastNudgeStage !== undefined
+      ? { lastNudgeStage: settings.lastNudgeStage }
+      : {}),
     ...(settings.nudgeActiveHoursStart
       ? { nudgeActiveHoursStart: settings.nudgeActiveHoursStart }
       : {}),
-    ...(settings.nudgeActiveHoursEnd ? { nudgeActiveHoursEnd: settings.nudgeActiveHoursEnd } : {}),
+    ...(settings.nudgeActiveHoursEnd
+      ? { nudgeActiveHoursEnd: settings.nudgeActiveHoursEnd }
+      : {}),
     ...(settings.nudgeActiveHoursTimezone
       ? { nudgeActiveHoursTimezone: settings.nudgeActiveHoursTimezone }
       : {}),
@@ -180,7 +200,10 @@ function summarizeSettingsForLog(settings: TlonSettingsStore): Record<string, un
       ? { ownerListenEnabled: settings.ownerListenEnabled }
       : {}),
     ...(settings.ownerListenDisabledChannels
-      ? { ownerListenDisabledChannels: settings.ownerListenDisabledChannels.length }
+      ? {
+          ownerListenDisabledChannels:
+            settings.ownerListenDisabledChannels.length,
+        }
       : {}),
   };
 }
@@ -190,7 +213,7 @@ function formatSettingsForLog(settings: TlonSettingsStore): string {
 }
 
 function formatSettingsUpdateValueForLog(key: string, value: unknown): string {
-  if (key === "pendingApprovals") {
+  if (key === 'pendingApprovals') {
     const approvals = parsePendingApprovals(value) ?? [];
     return JSON.stringify({
       count: approvals.length,
@@ -205,14 +228,16 @@ function formatSettingsUpdateValueForLog(key: string, value: unknown): string {
  * Settings-store doesn't support nested objects, so we store as JSON string.
  */
 function parseChannelRules(
-  value: unknown,
-): Record<string, { mode?: "restricted" | "open"; allowedShips?: string[] }> | undefined {
+  value: unknown
+):
+  | Record<string, { mode?: 'restricted' | 'open'; allowedShips?: string[] }>
+  | undefined {
   if (!value) {
     return undefined;
   }
 
   // If it's a string, try to parse as JSON
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value);
       if (isChannelRulesObject(parsed)) {
@@ -241,7 +266,7 @@ function parsePendingNudge(value: unknown): PendingNudge | undefined {
   }
 
   let parsed: unknown = value;
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     try {
       parsed = JSON.parse(value);
     } catch {
@@ -249,15 +274,15 @@ function parsePendingNudge(value: unknown): PendingNudge | undefined {
     }
   }
 
-  if (!parsed || typeof parsed !== "object") {
+  if (!parsed || typeof parsed !== 'object') {
     return undefined;
   }
 
   const obj = parsed as Record<string, unknown>;
   if (
-    typeof obj.sentAt !== "number" ||
-    typeof obj.ownerShip !== "string" ||
-    typeof obj.accountId !== "string" ||
+    typeof obj.sentAt !== 'number' ||
+    typeof obj.ownerShip !== 'string' ||
+    typeof obj.accountId !== 'string' ||
     !(obj.stage === 1 || obj.stage === 2 || obj.stage === 3)
   ) {
     return undefined;
@@ -269,7 +294,7 @@ function parsePendingNudge(value: unknown): PendingNudge | undefined {
     ownerShip: obj.ownerShip,
     accountId: obj.accountId,
   };
-  if (typeof obj.content === "string") {
+  if (typeof obj.content === 'string') {
     base.content = obj.content;
   }
   return base;
@@ -278,8 +303,10 @@ function parsePendingNudge(value: unknown): PendingNudge | undefined {
 /**
  * Parse lastNudgeStage — accepts number or numeric string, must be 1, 2, or 3.
  */
-function parseLastNudgeStage(value: unknown): PendingNudge["stage"] | undefined {
-  const num = typeof value === "string" ? Number(value) : value;
+function parseLastNudgeStage(
+  value: unknown
+): PendingNudge['stage'] | undefined {
+  const num = typeof value === 'string' ? Number(value) : value;
   if (num === 1 || num === 2 || num === 3) {
     return num;
   }
@@ -291,13 +318,13 @@ function parseLastNudgeStage(value: unknown): PendingNudge["stage"] | undefined 
  * The response shape is: { [bucket]: { [key]: value } }
  */
 export function parseSettingsResponse(raw: unknown): TlonSettingsStore {
-  if (!raw || typeof raw !== "object") {
+  if (!raw || typeof raw !== 'object') {
     return {};
   }
 
   const desk = raw as Record<string, unknown>;
   const bucket = desk[SETTINGS_BUCKET];
-  if (!bucket || typeof bucket !== "object") {
+  if (!bucket || typeof bucket !== 'object') {
     return {};
   }
 
@@ -305,60 +332,88 @@ export function parseSettingsResponse(raw: unknown): TlonSettingsStore {
 
   return {
     groupChannels: Array.isArray(settings.groupChannels)
-      ? settings.groupChannels.filter((x): x is string => typeof x === "string")
+      ? settings.groupChannels.filter((x): x is string => typeof x === 'string')
       : undefined,
     dmAllowlist: Array.isArray(settings.dmAllowlist)
-      ? settings.dmAllowlist.filter((x): x is string => typeof x === "string")
+      ? settings.dmAllowlist.filter((x): x is string => typeof x === 'string')
       : undefined,
-    autoDiscover: typeof settings.autoDiscover === "boolean" ? settings.autoDiscover : undefined,
-    showModelSig: typeof settings.showModelSig === "boolean" ? settings.showModelSig : undefined,
+    autoDiscover:
+      typeof settings.autoDiscover === 'boolean'
+        ? settings.autoDiscover
+        : undefined,
+    showModelSig:
+      typeof settings.showModelSig === 'boolean'
+        ? settings.showModelSig
+        : undefined,
     autoAcceptDmInvites:
-      typeof settings.autoAcceptDmInvites === "boolean" ? settings.autoAcceptDmInvites : undefined,
+      typeof settings.autoAcceptDmInvites === 'boolean'
+        ? settings.autoAcceptDmInvites
+        : undefined,
     autoAcceptGroupInvites:
-      typeof settings.autoAcceptGroupInvites === "boolean"
+      typeof settings.autoAcceptGroupInvites === 'boolean'
         ? settings.autoAcceptGroupInvites
         : undefined,
     groupInviteAllowlist: Array.isArray(settings.groupInviteAllowlist)
-      ? settings.groupInviteAllowlist.filter((x): x is string => typeof x === "string")
+      ? settings.groupInviteAllowlist.filter(
+          (x): x is string => typeof x === 'string'
+        )
       : undefined,
     channelRules: parseChannelRules(settings.channelRules),
     defaultAuthorizedShips: Array.isArray(settings.defaultAuthorizedShips)
-      ? settings.defaultAuthorizedShips.filter((x): x is string => typeof x === "string")
+      ? settings.defaultAuthorizedShips.filter(
+          (x): x is string => typeof x === 'string'
+        )
       : undefined,
-    ownerShip: typeof settings.ownerShip === "string" ? settings.ownerShip : undefined,
+    ownerShip:
+      typeof settings.ownerShip === 'string' ? settings.ownerShip : undefined,
     pendingApprovals: parsePendingApprovals(settings.pendingApprovals),
     lastOwnerMessageAt:
-      typeof settings.lastOwnerMessageAt === "number" ? settings.lastOwnerMessageAt : undefined,
+      typeof settings.lastOwnerMessageAt === 'number'
+        ? settings.lastOwnerMessageAt
+        : undefined,
     lastOwnerMessageDate:
-      typeof settings.lastOwnerMessageDate === "string" ? settings.lastOwnerMessageDate : undefined,
+      typeof settings.lastOwnerMessageDate === 'string'
+        ? settings.lastOwnerMessageDate
+        : undefined,
     pendingNudge: parsePendingNudge(settings.pendingNudge),
     lastNudgeStage: parseLastNudgeStage(settings.lastNudgeStage),
     nudgeActiveHoursStart:
-      typeof settings.nudgeActiveHoursStart === "string"
+      typeof settings.nudgeActiveHoursStart === 'string'
         ? settings.nudgeActiveHoursStart
         : undefined,
     nudgeActiveHoursEnd:
-      typeof settings.nudgeActiveHoursEnd === "string" ? settings.nudgeActiveHoursEnd : undefined,
+      typeof settings.nudgeActiveHoursEnd === 'string'
+        ? settings.nudgeActiveHoursEnd
+        : undefined,
     nudgeActiveHoursTimezone:
-      typeof settings.nudgeActiveHoursTimezone === "string"
+      typeof settings.nudgeActiveHoursTimezone === 'string'
         ? settings.nudgeActiveHoursTimezone
         : undefined,
     ownerListenEnabled:
-      typeof settings.ownerListenEnabled === "boolean" ? settings.ownerListenEnabled : undefined,
-    ownerListenDisabledChannels: Array.isArray(settings.ownerListenDisabledChannels)
-      ? settings.ownerListenDisabledChannels.filter((x): x is string => typeof x === "string")
+      typeof settings.ownerListenEnabled === 'boolean'
+        ? settings.ownerListenEnabled
+        : undefined,
+    ownerListenDisabledChannels: Array.isArray(
+      settings.ownerListenDisabledChannels
+    )
+      ? settings.ownerListenDisabledChannels.filter(
+          (x): x is string => typeof x === 'string'
+        )
       : undefined,
   };
 }
 
 function isChannelRulesObject(
-  val: unknown,
-): val is Record<string, { mode?: "restricted" | "open"; allowedShips?: string[] }> {
-  if (!val || typeof val !== "object" || Array.isArray(val)) {
+  val: unknown
+): val is Record<
+  string,
+  { mode?: 'restricted' | 'open'; allowedShips?: string[] }
+> {
+  if (!val || typeof val !== 'object' || Array.isArray(val)) {
     return false;
   }
   for (const [, rule] of Object.entries(val)) {
-    if (!rule || typeof rule !== "object") {
+    if (!rule || typeof rule !== 'object') {
       return false;
     }
   }
@@ -376,7 +431,7 @@ function parsePendingApprovals(value: unknown): PendingApproval[] | undefined {
 
   // If it's a string, try to parse as JSON
   let parsed: unknown = value;
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     try {
       parsed = JSON.parse(value);
     } catch {
@@ -391,56 +446,62 @@ function parsePendingApprovals(value: unknown): PendingApproval[] | undefined {
 
   // Filter to valid, unexpired PendingApproval objects.
   return parsed.filter((item): item is PendingApproval => {
-    if (!item || typeof item !== "object") {
+    if (!item || typeof item !== 'object') {
       return false;
     }
     const obj = item as Record<string, unknown>;
     const valid =
-      typeof obj.id === "string" &&
-      (obj.type === "dm" || obj.type === "channel" || obj.type === "group") &&
-      typeof obj.requestingShip === "string" &&
-      typeof obj.timestamp === "number";
+      typeof obj.id === 'string' &&
+      (obj.type === 'dm' || obj.type === 'channel' || obj.type === 'group') &&
+      typeof obj.requestingShip === 'string' &&
+      typeof obj.timestamp === 'number';
 
     const approval = obj as PendingApproval;
-    return valid && hasUsableOriginalMessage(approval) && !isPendingApprovalExpired(approval);
+    return (
+      valid &&
+      hasUsableOriginalMessage(approval) &&
+      !isPendingApprovalExpired(approval)
+    );
   });
 }
 
 /**
  * Parse a single settings entry update event.
  */
-function parseSettingsEvent(event: unknown): { key: string; value: unknown } | null {
-  if (!event || typeof event !== "object") {
+function parseSettingsEvent(
+  event: unknown
+): { key: string; value: unknown } | null {
+  if (!event || typeof event !== 'object') {
     return null;
   }
 
   let evt = event as Record<string, unknown>;
 
   // Unwrap "settings-event" wrapper if present
-  if (evt["settings-event"] && typeof evt["settings-event"] === "object") {
-    evt = evt["settings-event"] as Record<string, unknown>;
+  if (evt['settings-event'] && typeof evt['settings-event'] === 'object') {
+    evt = evt['settings-event'] as Record<string, unknown>;
   }
 
   // Handle put-entry events
-  if (evt["put-entry"]) {
-    const put = evt["put-entry"] as Record<string, unknown>;
-    if (put.desk !== SETTINGS_DESK || put["bucket-key"] !== SETTINGS_BUCKET) {
+  if (evt['put-entry']) {
+    const put = evt['put-entry'] as Record<string, unknown>;
+    if (put.desk !== SETTINGS_DESK || put['bucket-key'] !== SETTINGS_BUCKET) {
       return null;
     }
     return {
-      key: String(put["entry-key"] ?? ""),
+      key: String(put['entry-key'] ?? ''),
       value: put.value,
     };
   }
 
   // Handle del-entry events
-  if (evt["del-entry"]) {
-    const del = evt["del-entry"] as Record<string, unknown>;
-    if (del.desk !== SETTINGS_DESK || del["bucket-key"] !== SETTINGS_BUCKET) {
+  if (evt['del-entry']) {
+    const del = evt['del-entry'] as Record<string, unknown>;
+    if (del.desk !== SETTINGS_DESK || del['bucket-key'] !== SETTINGS_BUCKET) {
       return null;
     }
     return {
-      key: String(del["entry-key"] ?? ""),
+      key: String(del['entry-key'] ?? ''),
       value: undefined,
     };
   }
@@ -454,79 +515,82 @@ function parseSettingsEvent(event: unknown): { key: string; value: unknown } | n
 export function applySettingsUpdate(
   current: TlonSettingsStore,
   key: string,
-  value: unknown,
+  value: unknown
 ): TlonSettingsStore {
   const next = { ...current };
 
   switch (key) {
-    case "groupChannels":
+    case 'groupChannels':
       next.groupChannels = Array.isArray(value)
-        ? value.filter((x): x is string => typeof x === "string")
+        ? value.filter((x): x is string => typeof x === 'string')
         : undefined;
       break;
-    case "dmAllowlist":
+    case 'dmAllowlist':
       next.dmAllowlist = Array.isArray(value)
-        ? value.filter((x): x is string => typeof x === "string")
+        ? value.filter((x): x is string => typeof x === 'string')
         : undefined;
       break;
-    case "autoDiscover":
-      next.autoDiscover = typeof value === "boolean" ? value : undefined;
+    case 'autoDiscover':
+      next.autoDiscover = typeof value === 'boolean' ? value : undefined;
       break;
-    case "showModelSig":
-      next.showModelSig = typeof value === "boolean" ? value : undefined;
+    case 'showModelSig':
+      next.showModelSig = typeof value === 'boolean' ? value : undefined;
       break;
-    case "autoAcceptDmInvites":
-      next.autoAcceptDmInvites = typeof value === "boolean" ? value : undefined;
+    case 'autoAcceptDmInvites':
+      next.autoAcceptDmInvites = typeof value === 'boolean' ? value : undefined;
       break;
-    case "autoAcceptGroupInvites":
-      next.autoAcceptGroupInvites = typeof value === "boolean" ? value : undefined;
+    case 'autoAcceptGroupInvites':
+      next.autoAcceptGroupInvites =
+        typeof value === 'boolean' ? value : undefined;
       break;
-    case "groupInviteAllowlist":
+    case 'groupInviteAllowlist':
       next.groupInviteAllowlist = Array.isArray(value)
-        ? value.filter((x): x is string => typeof x === "string")
+        ? value.filter((x): x is string => typeof x === 'string')
         : undefined;
       break;
-    case "channelRules":
+    case 'channelRules':
       next.channelRules = parseChannelRules(value);
       break;
-    case "defaultAuthorizedShips":
+    case 'defaultAuthorizedShips':
       next.defaultAuthorizedShips = Array.isArray(value)
-        ? value.filter((x): x is string => typeof x === "string")
+        ? value.filter((x): x is string => typeof x === 'string')
         : undefined;
       break;
-    case "ownerShip":
-      next.ownerShip = typeof value === "string" ? value : undefined;
+    case 'ownerShip':
+      next.ownerShip = typeof value === 'string' ? value : undefined;
       break;
-    case "pendingApprovals":
+    case 'pendingApprovals':
       next.pendingApprovals = parsePendingApprovals(value);
       break;
-    case "lastOwnerMessageAt":
-      next.lastOwnerMessageAt = typeof value === "number" ? value : undefined;
+    case 'lastOwnerMessageAt':
+      next.lastOwnerMessageAt = typeof value === 'number' ? value : undefined;
       break;
-    case "lastOwnerMessageDate":
-      next.lastOwnerMessageDate = typeof value === "string" ? value : undefined;
+    case 'lastOwnerMessageDate':
+      next.lastOwnerMessageDate = typeof value === 'string' ? value : undefined;
       break;
-    case "pendingNudge":
+    case 'pendingNudge':
       next.pendingNudge = parsePendingNudge(value);
       break;
-    case "lastNudgeStage":
+    case 'lastNudgeStage':
       next.lastNudgeStage = parseLastNudgeStage(value);
       break;
-    case "nudgeActiveHoursStart":
-      next.nudgeActiveHoursStart = typeof value === "string" ? value : undefined;
+    case 'nudgeActiveHoursStart':
+      next.nudgeActiveHoursStart =
+        typeof value === 'string' ? value : undefined;
       break;
-    case "nudgeActiveHoursEnd":
-      next.nudgeActiveHoursEnd = typeof value === "string" ? value : undefined;
+    case 'nudgeActiveHoursEnd':
+      next.nudgeActiveHoursEnd = typeof value === 'string' ? value : undefined;
       break;
-    case "nudgeActiveHoursTimezone":
-      next.nudgeActiveHoursTimezone = typeof value === "string" ? value : undefined;
+    case 'nudgeActiveHoursTimezone':
+      next.nudgeActiveHoursTimezone =
+        typeof value === 'string' ? value : undefined;
       break;
-    case "ownerListenEnabled":
-      next.ownerListenEnabled = typeof value === "boolean" ? value : undefined;
+    case 'ownerListenEnabled':
+      next.ownerListenEnabled = typeof value === 'boolean' ? value : undefined;
       break;
-    case "ownerListenDisabledChannels":
+    case 'ownerListenDisabledChannels':
       next.ownerListenDisabledChannels = Array.isArray(value)
-        ? value.filter((x): x is string => typeof x === "string")
+        ? value.filter((x): x is string => typeof x === 'string')
         : undefined;
       break;
   }
@@ -547,7 +611,10 @@ export type SettingsLogger = {
  *   await settings.load();
  *   settings.subscribe((newSettings) => { ... });
  */
-export function createSettingsManager(api: UrbitSSEClient, logger?: SettingsLogger) {
+export function createSettingsManager(
+  api: UrbitSSEClient,
+  logger?: SettingsLogger
+) {
   let state: TlonSettingsState = {
     current: {},
     loaded: false,
@@ -585,18 +652,24 @@ export function createSettingsManager(api: UrbitSSEClient, logger?: SettingsLogg
      */
     async load(): Promise<{ settings: TlonSettingsStore; fresh: boolean }> {
       try {
-        const raw = await api.scry("/settings/all.json");
+        const raw = await api.scry('/settings/all.json');
         // Response shape: { all: { [desk]: { [bucket]: { [key]: value } } } }
-        const allData = raw as { all?: Record<string, Record<string, unknown>> };
+        const allData = raw as {
+          all?: Record<string, Record<string, unknown>>;
+        };
         const deskData = allData?.all?.[SETTINGS_DESK];
         state.current = parseSettingsResponse(deskData ?? {});
         state.loaded = true;
-        logger?.log?.(`[settings] Loaded: ${formatSettingsForLog(state.current)}`);
+        logger?.log?.(
+          `[settings] Loaded: ${formatSettingsForLog(state.current)}`
+        );
         return { settings: state.current, fresh: true };
       } catch (err) {
         // Preserve the last good snapshot on scry failure so refresh fallback
         // does not transiently clobber live runtime state with an empty object.
-        logger?.log?.(`[settings] Load failed (keeping previous settings): ${String(err)}`);
+        logger?.log?.(
+          `[settings] Load failed (keeping previous settings): ${String(err)}`
+        );
         state.loaded = true;
         return { settings: state.current, fresh: false };
       }
@@ -607,8 +680,8 @@ export function createSettingsManager(api: UrbitSSEClient, logger?: SettingsLogg
      */
     async startSubscription(): Promise<void> {
       await api.subscribe({
-        app: "settings",
-        path: "/desk/" + SETTINGS_DESK,
+        app: 'settings',
+        path: '/desk/' + SETTINGS_DESK,
         event: (event) => {
           const update = parseSettingsEvent(event);
           if (!update) {
@@ -618,20 +691,24 @@ export function createSettingsManager(api: UrbitSSEClient, logger?: SettingsLogg
           logger?.log?.(
             `[settings] Update: ${update.key} = ${formatSettingsUpdateValueForLog(
               update.key,
-              update.value,
-            )}`,
+              update.value
+            )}`
           );
-          state.current = applySettingsUpdate(state.current, update.key, update.value);
+          state.current = applySettingsUpdate(
+            state.current,
+            update.key,
+            update.value
+          );
           notify();
         },
         err: (error) => {
           logger?.error?.(`[settings] Subscription error: ${String(error)}`);
         },
         quit: () => {
-          logger?.log?.("[settings] Subscription ended");
+          logger?.log?.('[settings] Subscription ended');
         },
       });
-      logger?.log?.("[settings] Subscribed to settings updates");
+      logger?.log?.('[settings] Subscribed to settings updates');
     },
 
     /**

@@ -1,7 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createNudgeScheduler, DEFAULT_NUDGE_TICK_INTERVAL_MS } from "./nudge-scheduler.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-describe("nudge-scheduler", () => {
+import {
+  DEFAULT_NUDGE_TICK_INTERVAL_MS,
+  createNudgeScheduler,
+} from './nudge-scheduler.js';
+
+describe('nudge-scheduler', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -9,7 +13,7 @@ describe("nudge-scheduler", () => {
     vi.useRealTimers();
   });
 
-  it("fires the first tick on the next macrotask after start", async () => {
+  it('fires the first tick on the next macrotask after start', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const scheduler = createNudgeScheduler({ tick, intervalMs: 10_000 });
 
@@ -21,7 +25,7 @@ describe("nudge-scheduler", () => {
     scheduler.stop();
   });
 
-  it("fires subsequent ticks on the configured interval", async () => {
+  it('fires subsequent ticks on the configured interval', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const scheduler = createNudgeScheduler({ tick, intervalMs: 5_000 });
 
@@ -38,7 +42,7 @@ describe("nudge-scheduler", () => {
     scheduler.stop();
   });
 
-  it("start is idempotent", async () => {
+  it('start is idempotent', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const scheduler = createNudgeScheduler({ tick, intervalMs: 1_000 });
 
@@ -52,7 +56,7 @@ describe("nudge-scheduler", () => {
     scheduler.stop();
   });
 
-  it("stop halts further ticks", async () => {
+  it('stop halts further ticks', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const scheduler = createNudgeScheduler({ tick, intervalMs: 1_000 });
 
@@ -64,7 +68,7 @@ describe("nudge-scheduler", () => {
     expect(tick).toHaveBeenCalledTimes(1);
   });
 
-  it("does not start when abortSignal already aborted", async () => {
+  it('does not start when abortSignal already aborted', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const ac = new AbortController();
     ac.abort();
@@ -80,7 +84,7 @@ describe("nudge-scheduler", () => {
     expect(tick).not.toHaveBeenCalled();
   });
 
-  it("aborted signal skips pending ticks", async () => {
+  it('aborted signal skips pending ticks', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const ac = new AbortController();
     const scheduler = createNudgeScheduler({
@@ -99,13 +103,13 @@ describe("nudge-scheduler", () => {
     scheduler.stop();
   });
 
-  it("reentrancy guard: a timer firing while a tick is in flight is a no-op", async () => {
+  it('reentrancy guard: a timer firing while a tick is in flight is a no-op', async () => {
     let release: (() => void) | null = null;
     const tick = vi.fn().mockImplementation(
       () =>
         new Promise<void>((resolve) => {
           release = resolve;
-        }),
+        })
     );
     const scheduler = createNudgeScheduler({ tick, intervalMs: 1_000 });
 
@@ -123,8 +127,11 @@ describe("nudge-scheduler", () => {
     scheduler.stop();
   });
 
-  it("errors inside tick do not poison the scheduler", async () => {
-    const tick = vi.fn().mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce(undefined);
+  it('errors inside tick do not poison the scheduler', async () => {
+    const tick = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(undefined);
     const errorLog = vi.fn();
     const scheduler = createNudgeScheduler({
       tick,
@@ -142,7 +149,7 @@ describe("nudge-scheduler", () => {
     scheduler.stop();
   });
 
-  it("tickNow allows manual invocation", async () => {
+  it('tickNow allows manual invocation', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const scheduler = createNudgeScheduler({ tick, intervalMs: 1_000 });
 
@@ -151,11 +158,11 @@ describe("nudge-scheduler", () => {
     scheduler.stop();
   });
 
-  it("default interval is 15 minutes", () => {
+  it('default interval is 15 minutes', () => {
     expect(DEFAULT_NUDGE_TICK_INTERVAL_MS).toBe(15 * 60 * 1000);
   });
 
-  it("stop() awaits an in-flight tick before resolving", async () => {
+  it('stop() awaits an in-flight tick before resolving', async () => {
     // Switch to real timers for this test so the in-flight tick's
     // micro/macrotask chain drains naturally.
     vi.useRealTimers();
@@ -165,7 +172,7 @@ describe("nudge-scheduler", () => {
         () =>
           new Promise<void>((resolve) => {
             resolveTick = resolve;
-          }),
+          })
       );
       const scheduler = createNudgeScheduler({ tick, intervalMs: 1_000 });
 
@@ -195,7 +202,7 @@ describe("nudge-scheduler", () => {
     }
   });
 
-  it("stop() is safe to call multiple times and still drains the in-flight tick", async () => {
+  it('stop() is safe to call multiple times and still drains the in-flight tick', async () => {
     vi.useRealTimers();
     try {
       let resolveTick!: () => void;
@@ -203,7 +210,7 @@ describe("nudge-scheduler", () => {
         () =>
           new Promise<void>((resolve) => {
             resolveTick = resolve;
-          }),
+          })
       );
       const scheduler = createNudgeScheduler({ tick, intervalMs: 1_000 });
 
@@ -243,7 +250,7 @@ describe("nudge-scheduler", () => {
     }
   });
 
-  it("stop() resolves immediately when no tick is in flight", async () => {
+  it('stop() resolves immediately when no tick is in flight', async () => {
     const tick = vi.fn().mockResolvedValue(undefined);
     const scheduler = createNudgeScheduler({ tick, intervalMs: 10_000 });
     scheduler.start();

@@ -1,5 +1,5 @@
-import { defineConfig, configDefaults } from "vitest/config";
-import { config } from "dotenv";
+import { config } from 'dotenv';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 // Load .env file
 config();
@@ -11,8 +11,8 @@ export default defineConfig({
     hookTimeout: 180_000,
     // Run tests sequentially (not in parallel)
     sequence: { shuffle: false },
-    pool: "forks",
+    pool: 'forks',
     fileParallelism: false,
-    exclude: [...configDefaults.exclude, "**/.pnpm-store/**"],
+    exclude: [...configDefaults.exclude, '**/.pnpm-store/**'],
   },
 });

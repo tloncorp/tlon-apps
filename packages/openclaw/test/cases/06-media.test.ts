@@ -1,28 +1,35 @@
-import { describe, test, expect, beforeAll, beforeEach } from "vitest";
-import { getFixtures, waitFor, type TestFixtures } from "../lib/index.js";
-import { getLatestSequenceForAuthor, isPostNewerThanSequence } from "../lib/post-baseline.js";
-import { fakeModel } from "../support/fake-model/client.js";
+import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
+
+import { type TestFixtures, getFixtures, waitFor } from '../lib/index.js';
+import {
+  getLatestSequenceForAuthor,
+  isPostNewerThanSequence,
+} from '../lib/post-baseline.js';
+import { fakeModel } from '../support/fake-model/client.js';
 
 const SOURCE_IMAGE_URL =
-  "https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png";
+  'https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png';
 
 // Poke mark verified against fakezod — see plan §1b.
 // JSON keys must be kebab-case (storage-json/hoon), not camelCase.
-const STORAGE_POKE_MARK = "storage-action";
+const STORAGE_POKE_MARK = 'storage-action';
 
 const storageEnv = {
   endpoint: process.env.TEST_STORAGE_ENDPOINT,
   bucket: process.env.TEST_STORAGE_BUCKET,
   accessKey: process.env.TEST_STORAGE_ACCESS_KEY,
   secretKey: process.env.TEST_STORAGE_SECRET_KEY,
-  region: process.env.TEST_STORAGE_REGION ?? "auto",
+  region: process.env.TEST_STORAGE_REGION ?? 'auto',
 };
 
 const hasStorageEnv = Boolean(
-  storageEnv.endpoint && storageEnv.bucket && storageEnv.accessKey && storageEnv.secretKey,
+  storageEnv.endpoint &&
+    storageEnv.bucket &&
+    storageEnv.accessKey &&
+    storageEnv.secretKey
 );
 
-describe("media", () => {
+describe('media', () => {
   let fixtures: TestFixtures;
 
   beforeAll(async () => {
@@ -35,74 +42,82 @@ describe("media", () => {
 
   const mediaTest = hasStorageEnv ? test : test.skip;
 
-  mediaTest("uploads and sends an image via DM", async () => {
+  mediaTest('uploads and sends an image via DM', async () => {
     // ── Seed S3 storage config on bot ship (idempotent) ────────────────
     const rawConfig = await fixtures.botState.scry<{
-      "storage-update": {
+      'storage-update': {
         configuration: {
           buckets: string[];
           currentBucket: string;
           region: string;
         };
       };
-    }>("storage", "/configuration");
-    const config = rawConfig["storage-update"].configuration;
+    }>('storage', '/configuration');
+    const config = rawConfig['storage-update'].configuration;
 
     const rawCreds = await fixtures.botState.scry<{
-      "storage-update": {
+      'storage-update': {
         credentials: {
           endpoint: string;
           accessKeyId: string;
           secretAccessKey: string;
         };
       };
-    }>("storage", "/credentials");
-    const creds = rawCreds["storage-update"].credentials;
+    }>('storage', '/credentials');
+    const creds = rawCreds['storage-update'].credentials;
 
     const pokes: Record<string, unknown>[] = [];
-    if (creds.endpoint !== storageEnv.endpoint) {pokes.push({ "set-endpoint": storageEnv.endpoint });}
-    if (creds.accessKeyId !== storageEnv.accessKey)
-      {pokes.push({ "set-access-key-id": storageEnv.accessKey });}
-    if (creds.secretAccessKey !== storageEnv.secretKey)
-      {pokes.push({ "set-secret-access-key": storageEnv.secretKey });}
-    if (config.region !== storageEnv.region) {pokes.push({ "set-region": storageEnv.region });}
-    if (!config.buckets.includes(storageEnv.bucket!))
-      {pokes.push({ "add-bucket": storageEnv.bucket });}
-    if (config.currentBucket !== storageEnv.bucket)
-      {pokes.push({ "set-current-bucket": storageEnv.bucket });}
+    if (creds.endpoint !== storageEnv.endpoint) {
+      pokes.push({ 'set-endpoint': storageEnv.endpoint });
+    }
+    if (creds.accessKeyId !== storageEnv.accessKey) {
+      pokes.push({ 'set-access-key-id': storageEnv.accessKey });
+    }
+    if (creds.secretAccessKey !== storageEnv.secretKey) {
+      pokes.push({ 'set-secret-access-key': storageEnv.secretKey });
+    }
+    if (config.region !== storageEnv.region) {
+      pokes.push({ 'set-region': storageEnv.region });
+    }
+    if (!config.buckets.includes(storageEnv.bucket!)) {
+      pokes.push({ 'add-bucket': storageEnv.bucket });
+    }
+    if (config.currentBucket !== storageEnv.bucket) {
+      pokes.push({ 'set-current-bucket': storageEnv.bucket });
+    }
 
     for (const json of pokes) {
       await fixtures.botState.poke({
-        app: "storage",
+        app: 'storage',
         mark: STORAGE_POKE_MARK,
         json,
       });
     }
     if (pokes.length > 0) {
       console.log(
-        `[TEST] Seeded ${pokes.length} storage config poke(s), waiting for propagation...`,
+        `[TEST] Seeded ${pokes.length} storage config poke(s), waiting for propagation...`
       );
       await waitFor(
         async () => {
           const cfg = (
             await fixtures.botState.scry<{
-              "storage-update": {
+              'storage-update': {
                 configuration: { currentBucket: string; region: string };
               };
-            }>("storage", "/configuration")
-          )["storage-update"].configuration;
+            }>('storage', '/configuration')
+          )['storage-update'].configuration;
 
           const crd = (
             await fixtures.botState.scry<{
-              "storage-update": {
+              'storage-update': {
                 credentials: {
                   endpoint: string;
                   accessKeyId: string;
                   secretAccessKey: string;
                 };
               };
-            }>("storage", "/credentials")
-          )["storage-update"].credentials;
+            }>('storage', '/credentials')
+          )['storage-update'].credentials;
 
           const ready =
             cfg.currentBucket === storageEnv.bucket &&
@@ -114,9 +129,9 @@ describe("media", () => {
         },
         15_000,
         undefined,
-        "storage config propagation",
+        'storage config propagation'
       );
-      console.log("[TEST] Storage config confirmed");
+      console.log('[TEST] Storage config confirmed');
     }
 
     // ── Capture DM baseline before prompting ─────────────────────────
@@ -124,19 +139,19 @@ describe("media", () => {
       fixtures.userState,
       fixtures.botShip,
       fixtures.botShip,
-      30,
+      30
     );
     console.log(`[TEST] DM baseline sequence: ${baselineSequence}`);
 
     // ── Prompt bot to send image in this DM ──────────────────────────
     const token = `it-media-${Date.now().toString(36)}`;
-    const key = "media-dm-image";
+    const key = 'media-dm-image';
     await fakeModel.script(key, [
       {
-        kind: "tool_call",
-        name: "message",
+        kind: 'tool_call',
+        name: 'message',
         args: {
-          action: "send",
+          action: 'send',
           // DM back to the prompt sender (~ten) — that's the channel the
           // test polls for the image post.
           target: fixtures.userShip,
@@ -144,23 +159,26 @@ describe("media", () => {
           media: SOURCE_IMAGE_URL,
         },
       },
-      { kind: "text", content: "Image sent." },
-      { kind: "text", content: "Image sent." },
+      { kind: 'text', content: 'Image sent.' },
+      { kind: 'text', content: 'Image sent.' },
     ]);
 
     const response = await fixtures.client.prompt(
-      `[tlon-test:${key}] Send an image (media=${SOURCE_IMAGE_URL}) with text "${token}".`,
+      `[tlon-test:${key}] Send an image (media=${SOURCE_IMAGE_URL}) with text "${token}".`
     );
 
     if (!response.success) {
-      throw new Error(response.error ?? "Prompt failed");
+      throw new Error(response.error ?? 'Prompt failed');
     }
 
     // ── Assert: bot sent an image in the DM with rewritten URL ───────
     console.log(`[TEST] Waiting for image DM with token "${token}"...`);
     const result = await waitFor(
       async () => {
-        const posts = await fixtures.userState.channelPosts(fixtures.botShip, 30);
+        const posts = await fixtures.userState.channelPosts(
+          fixtures.botShip,
+          30
+        );
         for (const post of posts ?? []) {
           const p = post as {
             authorId?: string;
@@ -169,18 +187,26 @@ describe("media", () => {
             textContent?: string | null;
             images?: Array<{ src?: string | null }>;
           };
-          if (p.authorId !== fixtures.botShip) {continue;}
-          if (!isPostNewerThanSequence(p, baselineSequence)) {continue;}
-          const text = (p.textContent ?? "").toLowerCase();
-          if (!text.includes(token.toLowerCase())) {continue;}
-          if (!p.images?.length || !p.images[0]?.src) {continue;}
+          if (p.authorId !== fixtures.botShip) {
+            continue;
+          }
+          if (!isPostNewerThanSequence(p, baselineSequence)) {
+            continue;
+          }
+          const text = (p.textContent ?? '').toLowerCase();
+          if (!text.includes(token.toLowerCase())) {
+            continue;
+          }
+          if (!p.images?.length || !p.images[0]?.src) {
+            continue;
+          }
           return { src: p.images[0].src };
         }
         return undefined;
       },
       30_000,
       undefined,
-      "image DM from bot",
+      'image DM from bot'
     );
 
     console.log(`[TEST] Found image DM with src: ${result.src}`);

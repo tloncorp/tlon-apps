@@ -24,7 +24,10 @@ export type PendingNudge = {
 export const DEFAULT_ATTRIBUTION_WINDOW_MS = 72 * 60 * 60 * 1000;
 
 const pendingNudges = new Map<string, PendingNudge>();
-const persistCallbacks = new Map<string, (nudge: PendingNudge | null) => void>();
+const persistCallbacks = new Map<
+  string,
+  (nudge: PendingNudge | null) => void
+>();
 
 export function setPendingNudge(accountId: string, nudge: PendingNudge): void {
   pendingNudges.set(accountId, nudge);
@@ -42,7 +45,7 @@ export function clearPendingNudge(accountId: string): void {
 
 export function registerPersistCallback(
   accountId: string,
-  cb: (nudge: PendingNudge | null) => void,
+  cb: (nudge: PendingNudge | null) => void
 ): void {
   persistCallbacks.set(accountId, cb);
 }
@@ -51,7 +54,10 @@ export function registerPersistCallback(
  * Sync from settings store (startup load or hot-reload).
  * Does NOT trigger persist callback — the data came from the store.
  */
-export function syncPendingNudgeFromStore(accountId: string, nudge: PendingNudge | null): void {
+export function syncPendingNudgeFromStore(
+  accountId: string,
+  nudge: PendingNudge | null
+): void {
   if (nudge) {
     pendingNudges.set(accountId, nudge);
   } else {
@@ -67,7 +73,7 @@ export function syncPendingNudgeFromStore(accountId: string, nudge: PendingNudge
 export function isNudgeEligible(
   nudge: PendingNudge,
   nowMs: number = Date.now(),
-  windowMs: number = DEFAULT_ATTRIBUTION_WINDOW_MS,
+  windowMs: number = DEFAULT_ATTRIBUTION_WINDOW_MS
 ): boolean {
   return nowMs - nudge.sentAt <= windowMs;
 }

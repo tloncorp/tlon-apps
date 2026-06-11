@@ -13,7 +13,7 @@
  * process. Pattern mirrors `openclaw/plugin-sdk/runtime-store`.
  */
 
-const REGISTRY_KEY = Symbol.for("@tloncorp/openclaw.shared-state");
+const REGISTRY_KEY = Symbol.for('@tloncorp/openclaw.shared-state');
 
 type Registry = Map<string, unknown>;
 

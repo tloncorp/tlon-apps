@@ -4,8 +4,7 @@
  * Captures OpenClaw container logs for asserting tool invocations
  * in integration tests run under docker compose (pnpm test:integration).
  */
-
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn } from 'node:child_process';
 
 type LiveToolTraceOptions = {
   composeFile: string;
@@ -18,7 +17,8 @@ export type LiveToolTraceHandle = {
   getLines(): string[];
 };
 
-const TOOL_TRACE_LINE_RE = /(?:embedded run tool (?:start|end):|tooltrace (?:before|after):)/;
+const TOOL_TRACE_LINE_RE =
+  /(?:embedded run tool (?:start|end):|tooltrace (?:before|after):)/;
 
 /**
  * Capture openclaw container logs since a given timestamp.
@@ -30,18 +30,27 @@ const TOOL_TRACE_LINE_RE = /(?:embedded run tool (?:start|end):|tooltrace (?:bef
  */
 export function getContainerLogsSince(
   composeFile: string,
-  sinceIso: string,
+  sinceIso: string
 ): string {
   const output = execFileSync(
-    "docker",
-    ["compose", "-f", composeFile, "logs", "--no-color", "--since", sinceIso, "openclaw"],
-    { encoding: "utf-8", timeout: 10_000, cwd: process.cwd() },
+    'docker',
+    [
+      'compose',
+      '-f',
+      composeFile,
+      'logs',
+      '--no-color',
+      '--since',
+      sinceIso,
+      'openclaw',
+    ],
+    { encoding: 'utf-8', timeout: 10_000, cwd: process.cwd() }
   );
   return output;
 }
 
 function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function stringifyCompact(value: unknown): string {
@@ -58,11 +67,11 @@ function extractToolTraceLine(rawLine: string): string | null {
     return null;
   }
 
-  const embeddedIndex = line.indexOf("embedded run tool ");
+  const embeddedIndex = line.indexOf('embedded run tool ');
   if (embeddedIndex >= 0) {
     const embedded = line.slice(embeddedIndex);
     const match = embedded.match(
-      /^embedded run tool (start|end):.*\btool=([^\s]+)\b(?:.*\btoolCallId=([^\s]+)\b)?/,
+      /^embedded run tool (start|end):.*\btool=([^\s]+)\b(?:.*\btoolCallId=([^\s]+)\b)?/
     );
     if (!match) {
       return embedded;
@@ -73,7 +82,7 @@ function extractToolTraceLine(rawLine: string): string | null {
       : `embedded ${phase} ${toolName}`;
   }
 
-  const tooltraceIndex = line.indexOf("tooltrace ");
+  const tooltraceIndex = line.indexOf('tooltrace ');
   if (tooltraceIndex >= 0) {
     const tooltrace = line.slice(tooltraceIndex);
     const match = tooltrace.match(/^tooltrace (before|after):\s*(\{.*\})$/);
@@ -87,7 +96,7 @@ function extractToolTraceLine(rawLine: string): string | null {
         toolName?: string;
         payload?: unknown;
       };
-      const toolName = parsed.toolName ?? "unknown";
+      const toolName = parsed.toolName ?? 'unknown';
       return `${phase} ${toolName} ${stringifyCompact(parsed.payload ?? {})}`;
     } catch {
       return tooltrace;
@@ -98,11 +107,15 @@ function extractToolTraceLine(rawLine: string): string | null {
 }
 
 function logLiveToolTrace(label: string | undefined, line: string): void {
-  const prefix = label ? `[tooltrace ${label}]` : "[tooltrace]";
+  const prefix = label ? `[tooltrace ${label}]` : '[tooltrace]';
   console.log(`${prefix} ${line}`);
 }
 
-function recordTraceLine(lines: string[], label: string | undefined, line: string | null): void {
+function recordTraceLine(
+  lines: string[],
+  label: string | undefined,
+  line: string | null
+): void {
   if (!line) {
     return;
   }
@@ -115,37 +128,37 @@ function recordTraceLine(lines: string[], label: string | undefined, line: strin
  * docker container logs. Intended for live CI debugging around a single prompt.
  */
 export function startLiveToolTrace(
-  options: LiveToolTraceOptions,
+  options: LiveToolTraceOptions
 ): LiveToolTraceHandle {
   const child = spawn(
-    "docker",
+    'docker',
     [
-      "compose",
-      "-f",
+      'compose',
+      '-f',
       options.composeFile,
-      "logs",
-      "--no-color",
-      "--since",
+      'logs',
+      '--no-color',
+      '--since',
       options.sinceIso,
-      "-f",
-      "openclaw",
+      '-f',
+      'openclaw',
     ],
     {
       cwd: process.cwd(),
-      stdio: ["ignore", "pipe", "pipe"],
-    },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
   );
 
   const lines: string[] = [];
-  let stdoutBuffer = "";
-  let stderrBuffer = "";
+  let stdoutBuffer = '';
+  let stderrBuffer = '';
   let stopPromise: Promise<string[]> | null = null;
 
-  const handleChunk = (chunk: string, kind: "stdout" | "stderr") => {
-    const existing = kind === "stdout" ? stdoutBuffer : stderrBuffer;
+  const handleChunk = (chunk: string, kind: 'stdout' | 'stderr') => {
+    const existing = kind === 'stdout' ? stdoutBuffer : stderrBuffer;
     const combined = existing + chunk;
     const parts = combined.split(/\r?\n/);
-    const remainder = parts.pop() ?? "";
+    const remainder = parts.pop() ?? '';
 
     for (const part of parts) {
       const line = part.trim();
@@ -159,20 +172,20 @@ export function startLiveToolTrace(
       recordTraceLine(lines, options.label, traceLine);
     }
 
-    if (kind === "stdout") {
+    if (kind === 'stdout') {
       stdoutBuffer = remainder;
     } else {
       stderrBuffer = remainder;
     }
   };
 
-  child.stdout.setEncoding("utf-8");
-  child.stdout.on("data", (chunk: string) => handleChunk(chunk, "stdout"));
+  child.stdout.setEncoding('utf-8');
+  child.stdout.on('data', (chunk: string) => handleChunk(chunk, 'stdout'));
 
-  child.stderr.setEncoding("utf-8");
-  child.stderr.on("data", (chunk: string) => handleChunk(chunk, "stderr"));
+  child.stderr.setEncoding('utf-8');
+  child.stderr.on('data', (chunk: string) => handleChunk(chunk, 'stderr'));
 
-  child.on("error", (err) => {
+  child.on('error', (err) => {
     console.warn(`[tooltrace] failed to stream docker logs: ${err}`);
   });
 
@@ -184,10 +197,18 @@ export function startLiveToolTrace(
 
       stopPromise = new Promise<string[]>((resolve) => {
         const finalize = () => {
-          recordTraceLine(lines, options.label, extractToolTraceLine(stdoutBuffer));
-          recordTraceLine(lines, options.label, extractToolTraceLine(stderrBuffer));
-          stdoutBuffer = "";
-          stderrBuffer = "";
+          recordTraceLine(
+            lines,
+            options.label,
+            extractToolTraceLine(stdoutBuffer)
+          );
+          recordTraceLine(
+            lines,
+            options.label,
+            extractToolTraceLine(stderrBuffer)
+          );
+          stdoutBuffer = '';
+          stderrBuffer = '';
           resolve([...lines]);
         };
 
@@ -196,10 +217,10 @@ export function startLiveToolTrace(
           return;
         }
 
-        child.once("close", finalize);
+        child.once('close', finalize);
 
         try {
-          child.kill("SIGTERM");
+          child.kill('SIGTERM');
         } catch {
           finalize();
           return;
@@ -208,7 +229,7 @@ export function startLiveToolTrace(
         setTimeout(() => {
           if (child.exitCode === null && !child.killed) {
             try {
-              child.kill("SIGKILL");
+              child.kill('SIGKILL');
             } catch {
               // Ignore cleanup race.
             }
@@ -239,6 +260,6 @@ export function toolWasInvoked(logs: string, toolName: string): boolean {
   // Match only the structured "embedded run tool start/end" log format.
   // The key distinguisher is "embedded run tool" prefix + " tool=<name>" field.
   return new RegExp(
-    `embedded run tool (?:start|end):.*\\btool=${escaped}\\b`,
+    `embedded run tool (?:start|end):.*\\btool=${escaped}\\b`
   ).test(logs);
 }

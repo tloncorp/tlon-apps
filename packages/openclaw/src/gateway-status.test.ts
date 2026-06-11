@@ -1,6 +1,20 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { gatewayHeartbeat, gatewayStop } from '@tloncorp/api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock("@tloncorp/api", () => ({
+import {
+  API_CLIENT_PARAMS_SLOT,
+  type GatewayStatusManager,
+  type SharedApiClientParams,
+  computeLeaseUntil,
+  createGatewayStatusManager,
+  getGatewayStatusManager,
+  sendGatewayStop,
+  setGatewayStatusManager,
+} from './gateway-status.js';
+import { sharedSlot } from './shared-state.js';
+import { configureTlonApiWithPoke } from './urbit/api-client.js';
+
+vi.mock('@tloncorp/api', () => ({
   gatewayHeartbeat: vi.fn().mockResolvedValue(undefined),
   gatewayStop: vi.fn().mockResolvedValue(undefined),
 }));
@@ -8,31 +22,17 @@ vi.mock("@tloncorp/api", () => ({
 // The heartbeat now calls configureTlonApiWithPoke each tick to defeat
 // OpenClaw plugin module isolation; in tests we stub it to a no-op so the
 // fake @tloncorp/api singleton stays as the vitest mock above.
-vi.mock("./urbit/api-client.js", () => ({
+vi.mock('./urbit/api-client.js', () => ({
   configureTlonApiWithPoke: vi.fn(),
 }));
 
-import { gatewayHeartbeat, gatewayStop } from "@tloncorp/api";
-import { configureTlonApiWithPoke } from "./urbit/api-client.js";
-import { sharedSlot } from "./shared-state.js";
-import {
-  API_CLIENT_PARAMS_SLOT,
-  createGatewayStatusManager,
-  setGatewayStatusManager,
-  getGatewayStatusManager,
-  sendGatewayStop,
-  computeLeaseUntil,
-  type GatewayStatusManager,
-  type SharedApiClientParams,
-} from "./gateway-status.js";
-
 const stubApiClientParams: SharedApiClientParams = {
   poke: vi.fn().mockResolvedValue(undefined),
-  shipName: "test-bot",
-  shipUrl: "http://localhost:8080",
+  shipName: 'test-bot',
+  shipUrl: 'http://localhost:8080',
 };
 
-describe("gateway-status: createGatewayStatusManager", () => {
+describe('gateway-status: createGatewayStatusManager', () => {
   let manager: GatewayStatusManager;
 
   beforeEach(() => {
@@ -41,7 +41,7 @@ describe("gateway-status: createGatewayStatusManager", () => {
     // Publish stub api-client params so the heartbeat's per-tick
     // configure-then-poke can find data in the shared slot and proceed.
     sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT).set(
-      stubApiClientParams,
+      stubApiClientParams
     );
     manager = createGatewayStatusManager({ logger: undefined });
   });
@@ -52,19 +52,19 @@ describe("gateway-status: createGatewayStatusManager", () => {
     vi.useRealTimers();
   });
 
-  it("bootId is a valid UUID", () => {
+  it('bootId is a valid UUID', () => {
     expect(manager.bootId).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     );
   });
 
-  it("each manager gets a unique bootId", () => {
+  it('each manager gets a unique bootId', () => {
     const other = createGatewayStatusManager({ logger: undefined });
     expect(manager.bootId).not.toBe(other.bootId);
   });
 
-  describe("gateway_start coordination", () => {
-    it("signalGatewayStarted resolves waitForGatewayStart", async () => {
+  describe('gateway_start coordination', () => {
+    it('signalGatewayStarted resolves waitForGatewayStart', async () => {
       let resolved = false;
       const p = manager.waitForGatewayStart().then(() => {
         resolved = true;
@@ -76,7 +76,7 @@ describe("gateway-status: createGatewayStatusManager", () => {
       expect(resolved).toBe(true);
     });
 
-    it("waitForGatewayStart resolves immediately if already signaled", async () => {
+    it('waitForGatewayStart resolves immediately if already signaled', async () => {
       manager.signalGatewayStarted();
 
       let resolved = false;
@@ -87,14 +87,14 @@ describe("gateway-status: createGatewayStatusManager", () => {
     });
   });
 
-  describe("heartbeat", () => {
-    it("startHeartbeat is no-op when not activated", () => {
+  describe('heartbeat', () => {
+    it('startHeartbeat is no-op when not activated', () => {
       manager.startHeartbeat();
       vi.advanceTimersByTime(60_000);
       expect(gatewayHeartbeat).not.toHaveBeenCalled();
     });
 
-    it("startHeartbeat is no-op when stopped", () => {
+    it('startHeartbeat is no-op when stopped', () => {
       manager.markActivated();
       manager.markStopped();
       manager.startHeartbeat();
@@ -102,7 +102,7 @@ describe("gateway-status: createGatewayStatusManager", () => {
       expect(gatewayHeartbeat).not.toHaveBeenCalled();
     });
 
-    it("sends periodic heartbeats when activated", () => {
+    it('sends periodic heartbeats when activated', () => {
       manager.markActivated();
       manager.startHeartbeat();
 
@@ -119,7 +119,7 @@ describe("gateway-status: createGatewayStatusManager", () => {
       expect(gatewayHeartbeat).toHaveBeenCalledTimes(2);
     });
 
-    it("stopHeartbeat clears interval", () => {
+    it('stopHeartbeat clears interval', () => {
       manager.markActivated();
       manager.startHeartbeat();
 
@@ -131,15 +131,17 @@ describe("gateway-status: createGatewayStatusManager", () => {
       expect(gatewayHeartbeat).toHaveBeenCalledTimes(1);
     });
 
-    it("stopHeartbeat is idempotent", () => {
+    it('stopHeartbeat is idempotent', () => {
       manager.markActivated();
       manager.startHeartbeat();
       manager.stopHeartbeat();
       manager.stopHeartbeat(); // should not throw
     });
 
-    it("heartbeat error does not crash", () => {
-      vi.mocked(gatewayHeartbeat).mockRejectedValueOnce(new Error("poke failed"));
+    it('heartbeat error does not crash', () => {
+      vi.mocked(gatewayHeartbeat).mockRejectedValueOnce(
+        new Error('poke failed')
+      );
       manager.markActivated();
       manager.startHeartbeat();
 
@@ -152,7 +154,7 @@ describe("gateway-status: createGatewayStatusManager", () => {
       expect(gatewayHeartbeat).toHaveBeenCalledTimes(2);
     });
 
-    it("startHeartbeat does not create duplicate intervals", () => {
+    it('startHeartbeat does not create duplicate intervals', () => {
       manager.markActivated();
       manager.startHeartbeat();
       manager.startHeartbeat(); // second call should be no-op
@@ -161,7 +163,7 @@ describe("gateway-status: createGatewayStatusManager", () => {
       expect(gatewayHeartbeat).toHaveBeenCalledTimes(1); // not 2
     });
 
-    it("skips the heartbeat poke when api-client params are not published", () => {
+    it('skips the heartbeat poke when api-client params are not published', () => {
       // Clear the params the suite beforeEach published. The per-tick body
       // must bail before configuring/pokeing when the shared slot is empty.
       sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT).set(null);
@@ -172,7 +174,7 @@ describe("gateway-status: createGatewayStatusManager", () => {
       expect(gatewayHeartbeat).not.toHaveBeenCalled();
     });
 
-    it("re-activates after stopHeartbeat without markStopped (config-reload survival)", () => {
+    it('re-activates after stopHeartbeat without markStopped (config-reload survival)', () => {
       // First monitor incarnation: activate + heartbeat.
       manager.markActivated();
       manager.startHeartbeat();
@@ -193,35 +195,35 @@ describe("gateway-status: createGatewayStatusManager", () => {
     });
   });
 
-  describe("lifecycle flags", () => {
-    it("starting starts false", () => {
+  describe('lifecycle flags', () => {
+    it('starting starts false', () => {
       expect(manager.starting).toBe(false);
     });
 
-    it("markStarting sets starting", () => {
+    it('markStarting sets starting', () => {
       manager.markStarting();
       expect(manager.starting).toBe(true);
     });
 
-    it("activated starts false", () => {
+    it('activated starts false', () => {
       expect(manager.activated).toBe(false);
     });
 
-    it("markActivated sets activated", () => {
+    it('markActivated sets activated', () => {
       manager.markActivated();
       expect(manager.activated).toBe(true);
     });
 
-    it("stopped starts false", () => {
+    it('stopped starts false', () => {
       expect(manager.stopped).toBe(false);
     });
 
-    it("markStopped sets stopped", () => {
+    it('markStopped sets stopped', () => {
       manager.markStopped();
       expect(manager.stopped).toBe(true);
     });
 
-    it("starting is set independently of activated (in-flight start window)", () => {
+    it('starting is set independently of activated (in-flight start window)', () => {
       // The gateway_stop hook relies on `starting` to know a %gateway-start
       // poke is in flight even before markActivated() runs, so it can still
       // send a matching %gateway-stop during a shutdown that races activation.
@@ -232,25 +234,25 @@ describe("gateway-status: createGatewayStatusManager", () => {
   });
 });
 
-describe("gateway-status: module-level accessor", () => {
+describe('gateway-status: module-level accessor', () => {
   beforeEach(() => {
     setGatewayStatusManager(null);
   });
 
-  it("returns null when not set", () => {
+  it('returns null when not set', () => {
     // Reset by setting to null via internal trick — in real code, null is the initial state
     expect(getGatewayStatusManager()).toBeNull();
   });
 
-  it("stores and retrieves manager", () => {
+  it('stores and retrieves manager', () => {
     const manager = createGatewayStatusManager({ logger: undefined });
     setGatewayStatusManager(manager);
     expect(getGatewayStatusManager()).toBe(manager);
   });
 });
 
-describe("gateway-status: computeLeaseUntil", () => {
-  it("returns a timestamp in the future", () => {
+describe('gateway-status: computeLeaseUntil', () => {
+  it('returns a timestamp in the future', () => {
     const now = Date.now();
     const lease = computeLeaseUntil();
     expect(lease).toBeGreaterThan(now);
@@ -260,7 +262,7 @@ describe("gateway-status: computeLeaseUntil", () => {
   });
 });
 
-describe("gateway-status: sendGatewayStop", () => {
+describe('gateway-status: sendGatewayStop', () => {
   beforeEach(() => {
     vi.mocked(gatewayStop).mockClear();
     vi.mocked(configureTlonApiWithPoke).mockClear();
@@ -271,28 +273,34 @@ describe("gateway-status: sendGatewayStop", () => {
     sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT).set(null);
   });
 
-  it("returns false and does not poke when params are not published", async () => {
-    const sent = await sendGatewayStop({ bootId: "boot-1", reason: "shutdown" });
+  it('returns false and does not poke when params are not published', async () => {
+    const sent = await sendGatewayStop({
+      bootId: 'boot-1',
+      reason: 'shutdown',
+    });
     expect(sent).toBe(false);
     expect(gatewayStop).not.toHaveBeenCalled();
   });
 
-  it("configures the api client before sending the stop poke", async () => {
+  it('configures the api client before sending the stop poke', async () => {
     const params: SharedApiClientParams = {
       poke: vi.fn().mockResolvedValue(undefined),
-      shipName: "test-bot",
-      shipUrl: "http://localhost:8080",
+      shipName: 'test-bot',
+      shipUrl: 'http://localhost:8080',
     };
     sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT).set(params);
 
-    const sent = await sendGatewayStop({ bootId: "boot-1", reason: "shutdown" });
+    const sent = await sendGatewayStop({
+      bootId: 'boot-1',
+      reason: 'shutdown',
+    });
     expect(sent).toBe(true);
     expect(configureTlonApiWithPoke).toHaveBeenCalledTimes(1);
     expect(gatewayStop).toHaveBeenCalledTimes(1);
     // configure must run before the poke so the stop reaches the SSE-bound
     // client in this module's @tloncorp/api instance.
-    const configureOrder =
-      vi.mocked(configureTlonApiWithPoke).mock.invocationCallOrder[0];
+    const configureOrder = vi.mocked(configureTlonApiWithPoke).mock
+      .invocationCallOrder[0];
     const stopOrder = vi.mocked(gatewayStop).mock.invocationCallOrder[0];
     expect(configureOrder).toBeLessThan(stopOrder);
   });

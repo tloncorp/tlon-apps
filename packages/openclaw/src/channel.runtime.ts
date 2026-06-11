@@ -1,32 +1,29 @@
-import crypto from "node:crypto";
+import { scry } from '@tloncorp/api';
+import crypto from 'node:crypto';
 import type {
   ChannelAccountSnapshot,
   ChannelOutboundAdapter,
   ChannelPlugin,
   OpenClawConfig,
-} from "openclaw/plugin-sdk/core";
-import { monitorTlonProvider } from "./monitor/index.js";
-import { tlonSetupWizard } from "./setup-surface.js";
+} from 'openclaw/plugin-sdk/core';
+
+import { monitorTlonProvider } from './monitor/index.js';
+import { tlonSetupWizard } from './setup-surface.js';
+import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
+import { resolveTlonAccount } from './types.js';
+import { withAuthenticatedTlonApi } from './urbit/api-client.js';
+import { authenticate } from './urbit/auth.js';
+import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
+import { urbitFetch } from './urbit/fetch.js';
 import {
-  formatTargetHint,
-  normalizeShip,
-  parseTlonTarget,
-} from "./targets.js";
-import { resolveTlonAccount } from "./types.js";
-import { authenticate } from "./urbit/auth.js";
-import { withAuthenticatedTlonApi } from "./urbit/api-client.js";
-import { ssrfPolicyFromAllowPrivateNetwork } from "./urbit/context.js";
-import { urbitFetch } from "./urbit/fetch.js";
-import {
+  type BotProfile,
   buildMediaStory,
+  sendChannelPost,
   sendDm,
   sendDmWithStory,
-  sendChannelPost,
-  type BotProfile,
-} from "./urbit/send.js";
-import { uploadImageFromUrl } from "./urbit/upload.js";
-import { markdownToStory } from "./urbit/story.js";
-import { scry } from "@tloncorp/api";
+} from './urbit/send.js';
+import { markdownToStory } from './urbit/story.js';
+import { uploadImageFromUrl } from './urbit/upload.js';
 
 type ResolvedTlonAccount = ReturnType<typeof resolveTlonAccount>;
 type ConfiguredTlonAccount = ResolvedTlonAccount & {
@@ -55,16 +52,18 @@ async function getBotProfile(ship: string): Promise<BotProfile | undefined> {
     const selfProfile = await scry<{
       nickname?: { value?: string };
       avatar?: { value?: string };
-    }>({ app: "contacts", path: "/v1/self" });
+    }>({ app: 'contacts', path: '/v1/self' });
 
     const profile: BotProfile = {
-      nickname: selfProfile?.nickname?.value ?? "",
-      avatar: selfProfile?.avatar?.value ?? "",
+      nickname: selfProfile?.nickname?.value ?? '',
+      avatar: selfProfile?.avatar?.value ?? '',
     };
     profileCache.set(ship, profile);
 
     if (profile.nickname || profile.avatar) {
-      console.log(`[tlon] Using self profile for bot meta (${ship}): ${profile.nickname || "(no nickname)"}`);
+      console.log(
+        `[tlon] Using self profile for bot meta (${ship}): ${profile.nickname || '(no nickname)'}`
+      );
       return profile;
     }
   } catch (err) {
@@ -81,7 +80,7 @@ function resolveOutboundContext(params: {
 }) {
   const account = resolveTlonAccount(params.cfg, params.accountId ?? undefined);
   if (!account.configured || !account.ship || !account.url || !account.code) {
-    throw new Error("Tlon account not configured");
+    throw new Error('Tlon account not configured');
   }
 
   const parsed = parseTlonTarget(params.to);
@@ -92,21 +91,38 @@ function resolveOutboundContext(params: {
   return { account: account as ConfiguredTlonAccount, parsed };
 }
 
-function resolveReplyId(replyToId?: string | null, threadId?: string | number | null) {
-  return (replyToId ?? threadId) ? String(replyToId ?? threadId) : undefined;
+function resolveReplyId(
+  replyToId?: string | null,
+  threadId?: string | number | null
+) {
+  return replyToId ?? threadId ? String(replyToId ?? threadId) : undefined;
 }
 
-export const tlonRuntimeOutbound: Pick<ChannelOutboundAdapter, "sendText" | "sendMedia"> = {
+export const tlonRuntimeOutbound: Pick<
+  ChannelOutboundAdapter,
+  'sendText' | 'sendMedia'
+> = {
   sendText: async ({ cfg, to, text, accountId, replyToId, threadId }) => {
     const { account, parsed } = resolveOutboundContext({ cfg, accountId, to });
     return await withAuthenticatedTlonApi(
-      { url: account.url, code: account.code, ship: account.ship, allowPrivateNetwork: account.allowPrivateNetwork ?? undefined },
+      {
+        url: account.url,
+        code: account.code,
+        ship: account.ship,
+        allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
+      },
       async () => {
         const fromShip = normalizeShip(account.ship);
         const replyId = resolveReplyId(replyToId, threadId);
         const botProfile = await getBotProfile(fromShip);
-        if (parsed.kind === "dm") {
-          return await sendDm({ fromShip, toShip: parsed.ship, text, replyToId: replyId, botProfile });
+        if (parsed.kind === 'dm') {
+          return await sendDm({
+            fromShip,
+            toShip: parsed.ship,
+            text,
+            replyToId: replyId,
+            botProfile,
+          });
         }
         return await sendChannelPost({
           fromShip,
@@ -115,21 +131,42 @@ export const tlonRuntimeOutbound: Pick<ChannelOutboundAdapter, "sendText" | "sen
           replyToId: replyId,
           botProfile,
         });
-      },
+      }
     );
   },
-  sendMedia: async ({ cfg, to, text, mediaUrl, accountId, replyToId, threadId }) => {
+  sendMedia: async ({
+    cfg,
+    to,
+    text,
+    mediaUrl,
+    accountId,
+    replyToId,
+    threadId,
+  }) => {
     const { account, parsed } = resolveOutboundContext({ cfg, accountId, to });
     return await withAuthenticatedTlonApi(
-      { url: account.url, code: account.code, ship: account.ship, allowPrivateNetwork: account.allowPrivateNetwork ?? undefined },
+      {
+        url: account.url,
+        code: account.code,
+        ship: account.ship,
+        allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
+      },
       async () => {
-        const uploadedUrl = mediaUrl ? await uploadImageFromUrl(mediaUrl) : undefined;
+        const uploadedUrl = mediaUrl
+          ? await uploadImageFromUrl(mediaUrl)
+          : undefined;
         const fromShip = normalizeShip(account.ship);
         const story = buildMediaStory(text, uploadedUrl);
         const replyId = resolveReplyId(replyToId, threadId);
         const botProfile = await getBotProfile(fromShip);
-        if (parsed.kind === "dm") {
-          return await sendDmWithStory({ fromShip, toShip: parsed.ship, story, replyToId: replyId, botProfile });
+        if (parsed.kind === 'dm') {
+          return await sendDmWithStory({
+            fromShip,
+            toShip: parsed.ship,
+            story,
+            replyToId: replyId,
+            botProfile,
+          });
         }
         return await sendChannelPost({
           fromShip,
@@ -138,25 +175,29 @@ export const tlonRuntimeOutbound: Pick<ChannelOutboundAdapter, "sendText" | "sen
           replyToId: replyId,
           botProfile,
         });
-      },
+      }
     );
   },
 };
 
 export async function probeTlonAccount(account: ConfiguredTlonAccount) {
   try {
-    const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(account.allowPrivateNetwork);
-    const cookie = await authenticate(account.url, account.code, { ssrfPolicy });
+    const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(
+      account.allowPrivateNetwork
+    );
+    const cookie = await authenticate(account.url, account.code, {
+      ssrfPolicy,
+    });
     const { response, release } = await urbitFetch({
       baseUrl: account.url,
-      path: "/~/name",
+      path: '/~/name',
       init: {
-        method: "GET",
+        method: 'GET',
         headers: { Cookie: cookie },
       },
       ssrfPolicy,
       timeoutMs: 30_000,
-      auditContext: "tlon-probe-account",
+      auditContext: 'tlon-probe-account',
     });
     try {
       if (!response.ok) {
@@ -167,12 +208,17 @@ export async function probeTlonAccount(account: ConfiguredTlonAccount) {
       await release();
     }
   } catch (error) {
-    return { ok: false, error: (error as { message?: string })?.message ?? String(error) };
+    return {
+      ok: false,
+      error: (error as { message?: string })?.message ?? String(error),
+    };
   }
 }
 
 export async function startTlonGatewayAccount(
-  ctx: Parameters<NonNullable<NonNullable<ChannelPlugin["gateway"]>["startAccount"]>>[0],
+  ctx: Parameters<
+    NonNullable<NonNullable<ChannelPlugin['gateway']>['startAccount']>
+  >[0]
 ) {
   const account = ctx.account;
   ctx.setStatus({
@@ -180,7 +226,9 @@ export async function startTlonGatewayAccount(
     ship: account.ship,
     url: account.url,
   } as ChannelAccountSnapshot);
-  ctx.log?.info(`[${account.accountId}] starting Tlon provider for ${account.ship ?? "tlon"}`);
+  ctx.log?.info(
+    `[${account.accountId}] starting Tlon provider for ${account.ship ?? 'tlon'}`
+  );
   return monitorTlonProvider({
     runtime: ctx.runtime,
     abortSignal: ctx.abortSignal,

@@ -1,10 +1,15 @@
-import { configureClient } from "@tloncorp/api";
-import { createHttpPokeApi } from "./http-poke.js";
-import { authenticate } from "./auth.js";
-import { ssrfPolicyFromAllowPrivateNetwork } from "./context.js";
-import { urbitFetch } from "./fetch.js";
+import { configureClient } from '@tloncorp/api';
 
-type PokeFn = (params: { app: string; mark: string; json: unknown }) => Promise<unknown>;
+import { authenticate } from './auth.js';
+import { ssrfPolicyFromAllowPrivateNetwork } from './context.js';
+import { urbitFetch } from './fetch.js';
+import { createHttpPokeApi } from './http-poke.js';
+
+type PokeFn = (params: {
+  app: string;
+  mark: string;
+  json: unknown;
+}) => Promise<unknown>;
 type ScryFn = (params: { app: string; path: string }) => Promise<unknown>;
 
 /**
@@ -14,7 +19,8 @@ type ScryFn = (params: { app: string; path: string }) => Promise<unknown>;
  */
 function createClientShim(pokeFn: PokeFn, shipUrl: string, scryFn?: ScryFn) {
   return {
-    poke: (params: { app: string; mark: string; json: unknown }) => pokeFn(params),
+    poke: (params: { app: string; mark: string; json: unknown }) =>
+      pokeFn(params),
     on: () => ({ on: () => ({}) }),
     // connect/eventSource are called by configureClient when code is provided.
     // Our shim should never hit that path (we always inject the client), but
@@ -26,14 +32,18 @@ function createClientShim(pokeFn: PokeFn, shipUrl: string, scryFn?: ScryFn) {
     scryWithInfo: scryFn
       ? async <T>(params: { app: string; path: string }) => {
           const result = await scryFn(params);
-          return { result: result as T, responseSizeInBytes: 0, responseStatus: 200 };
+          return {
+            result: result as T,
+            responseSizeInBytes: 0,
+            responseStatus: 200,
+          };
         }
       : async () => {
-          throw new Error("Scry not supported on this client shim");
+          throw new Error('Scry not supported on this client shim');
         },
     // Properties configureClient may access
     verbose: false,
-    nodeId: "",
+    nodeId: '',
     url: shipUrl,
   } as any;
 }
@@ -46,11 +56,11 @@ export function configureTlonApiWithPoke(
   pokeFn: PokeFn,
   ship: string,
   shipUrl: string,
-  scryFn?: ScryFn,
+  scryFn?: ScryFn
 ): void {
   const shim = createClientShim(pokeFn, shipUrl, scryFn);
   configureClient({
-    shipName: ship.replace(/^~/, ""),
+    shipName: ship.replace(/^~/, ''),
     shipUrl,
     client: shim,
   });
@@ -62,10 +72,17 @@ export function configureTlonApiWithPoke(
  * Supports both poke and scry (needed for uploadFile).
  */
 export async function withAuthenticatedTlonApi<T>(
-  params: { url: string; code: string; ship: string; allowPrivateNetwork?: boolean },
-  fn: () => Promise<T>,
+  params: {
+    url: string;
+    code: string;
+    ship: string;
+    allowPrivateNetwork?: boolean;
+  },
+  fn: () => Promise<T>
 ): Promise<T> {
-  const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(params.allowPrivateNetwork);
+  const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(
+    params.allowPrivateNetwork
+  );
   const cookie = await authenticate(params.url, params.code, { ssrfPolicy });
 
   const api = await createHttpPokeApi({
@@ -82,12 +99,12 @@ export async function withAuthenticatedTlonApi<T>(
       baseUrl: params.url,
       path: scryPath,
       init: {
-        method: "GET",
+        method: 'GET',
         headers: { Cookie: cookie },
       },
       ssrfPolicy,
       timeoutMs: 30_000,
-      auditContext: "tlon-api-scry",
+      auditContext: 'tlon-api-scry',
     });
     try {
       if (!response.ok) {
@@ -101,7 +118,7 @@ export async function withAuthenticatedTlonApi<T>(
 
   const shim = createClientShim(api.poke, params.url, scryFn);
   configureClient({
-    shipName: params.ship.replace(/^~/, ""),
+    shipName: params.ship.replace(/^~/, ''),
     shipUrl: params.url,
     client: shim,
     getCode: async () => params.code,

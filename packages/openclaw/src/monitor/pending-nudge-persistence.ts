@@ -1,4 +1,4 @@
-import type { PendingNudge } from "../pending-nudge.js";
+import type { PendingNudge } from '../pending-nudge.js';
 
 type PendingNudgeWrite = (nudge: PendingNudge | null) => Promise<void>;
 

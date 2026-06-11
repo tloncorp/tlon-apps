@@ -1,12 +1,18 @@
 import {
+  addReaction as apiAddReaction,
+  deletePost as apiDeletePost,
+  removeReaction as apiRemoveReaction,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
-  addReaction as apiAddReaction,
-  removeReaction as apiRemoveReaction,
-  deletePost as apiDeletePost,
-} from "@tloncorp/api";
-import { scot, da } from "@urbit/aura";
-import { markdownToStory, createImageBlock, isImageUrl, type Story } from "./story.js";
+} from '@tloncorp/api';
+import { da, scot } from '@urbit/aura';
+
+import {
+  type Story,
+  createImageBlock,
+  isImageUrl,
+  markdownToStory,
+} from './story.js';
 
 // --- Helpers ---
 
@@ -17,7 +23,7 @@ import { markdownToStory, createImageBlock, isImageUrl, type Story } from "./sto
 function formatPostId(postId: string): string {
   if (/^\d+$/.test(postId)) {
     try {
-      return scot("ud", BigInt(postId));
+      return scot('ud', BigInt(postId));
     } catch {
       // fall through
     }
@@ -31,11 +37,11 @@ function formatPostId(postId: string): string {
  * Returns the components for use with @tloncorp/api which expects them separately.
  */
 function parseWritId(id: string): { author: string; bareId: string } {
-  if (id.includes("/") && id.startsWith("~")) {
-    const idx = id.indexOf("/");
+  if (id.includes('/') && id.startsWith('~')) {
+    const idx = id.indexOf('/');
     return { author: id.slice(0, idx), bareId: id.slice(idx + 1) };
   }
-  return { author: "", bareId: id };
+  return { author: '', bareId: id };
 }
 
 /**
@@ -46,7 +52,7 @@ function parseWritId(id: string): { author: string; bareId: string } {
  * `homestead/packages/shared/src/api/__tests__/dmTapTelemetryRoundTrip.test.ts`.
  */
 export function formatSentAt(sentAt: number): string {
-  return scot("ud", da.fromUnix(sentAt));
+  return scot('ud', da.fromUnix(sentAt));
 }
 
 // --- DMs ---
@@ -106,7 +112,7 @@ export async function sendDmWithStory({
       authorId: fromShip,
       botProfile,
     });
-    return { channel: "tlon" as const, messageId, sentAt };
+    return { channel: 'tlon' as const, messageId, sentAt };
   }
 
   await apiSendPost({
@@ -116,7 +122,7 @@ export async function sendDmWithStory({
     content: story,
     botProfile,
   });
-  return { channel: "tlon" as const, messageId, sentAt };
+  return { channel: 'tlon' as const, messageId, sentAt };
 }
 
 // --- Channel posts (chat, heap, diary) ---
@@ -152,13 +158,13 @@ export async function sendChannelPost({
     await apiSendReply({
       channelId: nest,
       parentId: formattedReplyId,
-      parentAuthor: "", // Not used for channel replies
+      parentAuthor: '', // Not used for channel replies
       content: story,
       sentAt,
       authorId: fromShip,
       botProfile,
     });
-    return { channel: "tlon", messageId: `${fromShip}/${sentAt}` };
+    return { channel: 'tlon', messageId: `${fromShip}/${sentAt}` };
   }
 
   await apiSendPost({
@@ -169,14 +175,17 @@ export async function sendChannelPost({
     metadata: title ? { title } : undefined,
     botProfile,
   });
-  return { channel: "tlon", messageId: `${fromShip}/${sentAt}` };
+  return { channel: 'tlon', messageId: `${fromShip}/${sentAt}` };
 }
 
 // --- Utilities ---
 
-export function buildMediaText(text: string | undefined, mediaUrl: string | undefined): string {
-  const cleanText = text?.trim() ?? "";
-  const cleanUrl = mediaUrl?.trim() ?? "";
+export function buildMediaText(
+  text: string | undefined,
+  mediaUrl: string | undefined
+): string {
+  const cleanText = text?.trim() ?? '';
+  const cleanUrl = mediaUrl?.trim() ?? '';
   if (cleanText && cleanUrl) {
     return `${cleanText}\n${cleanUrl}`;
   }
@@ -189,10 +198,13 @@ export function buildMediaText(text: string | undefined, mediaUrl: string | unde
 /**
  * Build a story with text and optional media (image)
  */
-export function buildMediaStory(text: string | undefined, mediaUrl: string | undefined): Story {
+export function buildMediaStory(
+  text: string | undefined,
+  mediaUrl: string | undefined
+): Story {
   const story: Story = [];
-  const cleanText = text?.trim() ?? "";
-  const cleanUrl = mediaUrl?.trim() ?? "";
+  const cleanText = text?.trim() ?? '';
+  const cleanUrl = mediaUrl?.trim() ?? '';
 
   // Add text content if present
   if (cleanText) {
@@ -201,13 +213,13 @@ export function buildMediaStory(text: string | undefined, mediaUrl: string | und
 
   // Add image block if URL looks like an image
   if (cleanUrl && isImageUrl(cleanUrl)) {
-    story.push(createImageBlock(cleanUrl, ""));
+    story.push(createImageBlock(cleanUrl, ''));
   } else if (cleanUrl) {
     // For non-image URLs, add as a link
     story.push({ inline: [{ link: { href: cleanUrl, content: cleanUrl } }] });
   }
 
-  return story.length > 0 ? story : [{ inline: [""] }];
+  return story.length > 0 ? story : [{ inline: [''] }];
 }
 
 // --- Reactions ---
@@ -228,7 +240,7 @@ export async function addChannelReaction({
   channelName,
   postId,
   react,
-  nestPrefix = "chat",
+  nestPrefix = 'chat',
   parentId,
 }: ChannelReactParams) {
   const nest = `${nestPrefix}/${hostShip}/${channelName}`;
@@ -249,9 +261,9 @@ export async function removeChannelReaction({
   hostShip,
   channelName,
   postId,
-  nestPrefix = "chat",
+  nestPrefix = 'chat',
   parentId,
-}: Omit<ChannelReactParams, "react">) {
+}: Omit<ChannelReactParams, 'react'>) {
   const nest = `${nestPrefix}/${hostShip}/${channelName}`;
   const formattedPostId = formatPostId(postId);
 
@@ -320,7 +332,7 @@ export async function removeDmReaction({
   parentId,
   postAuthor,
   parentAuthor,
-}: Omit<DmReactParams, "react">) {
+}: Omit<DmReactParams, 'react'>) {
   const parsedMessage = parseWritId(messageId);
   const effectivePostAuthor = postAuthor || parsedMessage.author || toShip;
   const formattedPostId = formatPostId(parsedMessage.bareId);
@@ -364,7 +376,7 @@ export async function deleteHeapPost({
   const nest = `heap/${hostShip}/${channelName}`;
   const formattedCurioId = formatPostId(curioId);
 
-  await apiDeletePost(nest, formattedCurioId, "");
+  await apiDeletePost(nest, formattedCurioId, '');
 
   return { ok: true };
 }

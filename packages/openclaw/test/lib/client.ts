@@ -12,15 +12,16 @@
  * Reply text is exposed by `prompt()` only as a smoke signal ("the bot
  * responded with *something*"); meaningful assertions belong on state.
  */
+import { Urbit } from '@tloncorp/api';
+import { da, scot } from '@urbit/aura';
 
-import { Urbit } from "@tloncorp/api";
-import { scot, da } from "@urbit/aura";
-import { markdownToStory, type Story } from "../../src/urbit/story.js";
-import { startLiveToolTrace, type LiveToolTraceHandle } from "./docker-logs.js";
-import { createStateClient, type StateClient } from "./state.js";
+import { type Story, markdownToStory } from '../../src/urbit/story.js';
+import { type LiveToolTraceHandle, startLiveToolTrace } from './docker-logs.js';
+import { type StateClient, createStateClient } from './state.js';
 
 function liveToolTraceEnabled(): boolean {
-  const raw = process.env.TEST_LIVE_TOOL_TRACE ?? process.env.CI_LIVE_TOOL_TRACE ?? "";
+  const raw =
+    process.env.TEST_LIVE_TOOL_TRACE ?? process.env.CI_LIVE_TOOL_TRACE ?? '';
   return /^(1|true|yes|on)$/i.test(raw);
 }
 
@@ -73,8 +74,10 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
 
   const { testUser, bot } = config;
 
-  const testUserShipClean = testUser.shipName.replace(/^~/, "");
-  const testUserShipNorm = testUser.shipName.startsWith("~") ? testUser.shipName : `~${testUser.shipName}`;
+  const testUserShipClean = testUser.shipName.replace(/^~/, '');
+  const testUserShipNorm = testUser.shipName.startsWith('~')
+    ? testUser.shipName
+    : `~${testUser.shipName}`;
   const urbit = new Urbit(testUser.shipUrl, testUser.code);
   urbit.ship = testUserShipClean;
 
@@ -92,12 +95,15 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
    * sendDm because that uses the @tloncorp/api global client configured for
    * the BOT, not the test user.
    */
-  const sendTestUserDm = async (toShip: string, message: string): Promise<void> => {
+  const sendTestUserDm = async (
+    toShip: string,
+    message: string
+  ): Promise<void> => {
     await ensureConnected();
     const story: Story = markdownToStory(message);
-    const targetShip = toShip.startsWith("~") ? toShip : `~${toShip}`;
+    const targetShip = toShip.startsWith('~') ? toShip : `~${toShip}`;
     const sentAt = Date.now();
-    const idUd = scot("ud", da.fromUnix(sentAt));
+    const idUd = scot('ud', da.fromUnix(sentAt));
     const id = `${testUserShipNorm}/${idUd}`;
 
     const action = {
@@ -118,11 +124,11 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
       },
     };
 
-    await urbit.poke({ app: "chat", mark: "chat-dm-action", json: action });
+    await urbit.poke({ app: 'chat', mark: 'chat-dm-action', json: action });
   };
 
   const sendDmWithRetry = async (text: string): Promise<void> => {
-    let lastSendError = "";
+    let lastSendError = '';
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       try {
         await sendTestUserDm(bot.shipName, text);
@@ -143,7 +149,7 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
   const bestEffortStopAfterTimeout = async (): Promise<void> => {
     try {
       console.log(`[timeout cleanup] sending /stop to ${bot.shipName}`);
-      await sendDmWithRetry("/stop");
+      await sendDmWithRetry('/stop');
       await sleep(3000);
       console.log(`[timeout cleanup] /stop sent; gave it 3s to drain`);
     } catch (err) {
@@ -158,7 +164,9 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
 
     async prompt(text, opts = {}) {
       const timeoutMs = opts.timeoutMs ?? 90_000;
-      const botShipNorm = bot.shipName.startsWith("~") ? bot.shipName : `~${bot.shipName}`;
+      const botShipNorm = bot.shipName.startsWith('~')
+        ? bot.shipName
+        : `~${bot.shipName}`;
 
       console.log(`\n[TEST] Sending prompt: ${JSON.stringify(text)}`);
 
@@ -172,8 +180,12 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
         const before = await testUserState.channelPosts(botShipNorm, 30);
         baselineSequence = (before ?? [])
           .map((post) => {
-            const p = post as { authorId?: string; sequenceNum?: number | null };
-            return p.authorId === botShipNorm && typeof p.sequenceNum === "number"
+            const p = post as {
+              authorId?: string;
+              sequenceNum?: number | null;
+            };
+            return p.authorId === botShipNorm &&
+              typeof p.sequenceNum === 'number'
               ? p.sequenceNum
               : -1;
           })
@@ -182,7 +194,9 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
         const errMsg = err instanceof Error ? err.message : String(err);
         const fail = `Failed to capture DM baseline sequence: ${errMsg}`;
         console.log(`[TEST] Response success: false`);
-        console.log(`[TEST] Response text: ${JSON.stringify(fail.slice(0, 500))}`);
+        console.log(
+          `[TEST] Response text: ${JSON.stringify(fail.slice(0, 500))}`
+        );
         return { success: false, error: fail };
       }
 
@@ -192,7 +206,7 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
           ? startLiveToolTrace({
               composeFile,
               sinceIso: new Date().toISOString(),
-              label: "prompt",
+              label: 'prompt',
             })
           : null;
       if (liveToolTrace) {
@@ -206,12 +220,14 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
           const errMsg = err instanceof Error ? err.message : String(err);
           const fail = `Failed to send DM after 3 attempts: ${errMsg}`;
           console.log(`[TEST] Response success: false`);
-          console.log(`[TEST] Response text: ${JSON.stringify(fail.slice(0, 500))}`);
+          console.log(
+            `[TEST] Response text: ${JSON.stringify(fail.slice(0, 500))}`
+          );
           return { success: false, error: fail };
         }
 
         const startTime = Date.now();
-        let lastPollError = "";
+        let lastPollError = '';
         let attempts = 0;
 
         while (Date.now() - startTime < timeoutMs) {
@@ -234,20 +250,22 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
                   authorId: p.authorId,
                   sentAt: p.sentAt,
                   sequenceNum: p.sequenceNum,
-                  text: (p.textContent ?? "").trim(),
+                  text: (p.textContent ?? '').trim(),
                 };
               })
               .filter((post) => post.authorId === botShipNorm)
               .filter((post) => post.text.length > 0);
 
             const candidates = allBotPosts.filter(
-              (p) => typeof p.sequenceNum === "number" && p.sequenceNum > baselineSequence,
+              (p) =>
+                typeof p.sequenceNum === 'number' &&
+                p.sequenceNum > baselineSequence
             );
 
             // Log on first attempt and roughly every 10s (poll = 500ms × 20).
             if (attempts === 1 || attempts % 20 === 0) {
               console.log(
-                `[poll #${attempts}] baselineSequence=${baselineSequence} candidates=${candidates.length} botPosts=${allBotPosts.length}`,
+                `[poll #${attempts}] baselineSequence=${baselineSequence} candidates=${candidates.length} botPosts=${allBotPosts.length}`
               );
               if (allBotPosts.length > 0) {
                 console.log(
@@ -256,18 +274,20 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
                       sequenceNum: p.sequenceNum,
                       sentAt: p.sentAt,
                       text: p.text.slice(0, 40),
-                    })),
-                  )}`,
+                    }))
+                  )}`
                 );
               }
             }
 
             if (candidates.length > 0) {
               const latest = candidates.toSorted(
-                (a, b) => (b.sequenceNum ?? -1) - (a.sequenceNum ?? -1),
+                (a, b) => (b.sequenceNum ?? -1) - (a.sequenceNum ?? -1)
               )[0];
               console.log(`[TEST] Response success: true`);
-              console.log(`[TEST] Response text: ${JSON.stringify(latest.text.slice(0, 500))}`);
+              console.log(
+                `[TEST] Response text: ${JSON.stringify(latest.text.slice(0, 500))}`
+              );
               return { success: true, text: latest.text };
             }
           } catch (err) {
@@ -280,15 +300,19 @@ export function createTlonClient(config: TlonClientConfig): TestClient {
         const timeoutError =
           `Timeout waiting for bot response after ${timeoutMs}ms ` +
           `(attempts=${attempts}, baselineSequence=${baselineSequence}` +
-          (lastPollError ? `, lastPollError=${lastPollError}` : "") +
+          (lastPollError ? `, lastPollError=${lastPollError}` : '') +
           `; sent /stop for cleanup)`;
         console.log(`[TEST] Response success: false`);
-        console.log(`[TEST] Response text: ${JSON.stringify(timeoutError.slice(0, 500))}`);
+        console.log(
+          `[TEST] Response text: ${JSON.stringify(timeoutError.slice(0, 500))}`
+        );
         return { success: false, error: timeoutError };
       } finally {
         if (liveToolTrace) {
           const lines = await liveToolTrace.stop();
-          console.log(`[tooltrace prompt] stopped (${lines.length} tool line(s))`);
+          console.log(
+            `[tooltrace prompt] stopped (${lines.length} tool line(s))`
+          );
         }
       }
     },

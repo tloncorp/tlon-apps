@@ -1,17 +1,24 @@
-import type { ClientPostBlobData } from "@tloncorp/api";
-import { parsePostBlob } from "@tloncorp/api";
-import { randomUUID } from "node:crypto";
-import { createWriteStream } from "node:fs";
-import { mkdir, unlink } from "node:fs/promises";
-import { homedir } from "node:os";
-import * as path from "node:path";
-import { Readable, Transform } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import { fetchWithSsrFGuard } from "openclaw/plugin-sdk/ssrf-runtime";
-import { getDefaultSsrFPolicy } from "../urbit/context.js";
+import type { ClientPostBlobData } from '@tloncorp/api';
+import { parsePostBlob } from '@tloncorp/api';
+import { randomUUID } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
+import { mkdir, unlink } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import * as path from 'node:path';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
+
+import { getDefaultSsrFPolicy } from '../urbit/context.js';
 
 // Default to OpenClaw workspace media directory
-const DEFAULT_MEDIA_DIR = path.join(homedir(), ".openclaw", "workspace", "media", "inbound");
+const DEFAULT_MEDIA_DIR = path.join(
+  homedir(),
+  '.openclaw',
+  'workspace',
+  'media',
+  'inbound'
+);
 export const MAX_BLOB_DOWNLOAD_BYTES = 100 * 1024 * 1024;
 
 export interface ExtractedImage {
@@ -27,7 +34,10 @@ export interface DownloadedMedia {
 
 interface DownloadMediaOptions {
   maxBytes?: number;
-  onTooLarge?: (info: { declaredSizeBytes?: number; observedSizeBytes?: number }) => void;
+  onTooLarge?: (info: {
+    declaredSizeBytes?: number;
+    observedSizeBytes?: number;
+  }) => void;
 }
 
 export interface BlobAttachmentDownloadResult {
@@ -38,7 +48,7 @@ export interface BlobAttachmentDownloadResult {
 class MediaTooLargeError extends Error {
   constructor(
     public readonly observedSizeBytes: number,
-    public readonly maxBytes: number,
+    public readonly maxBytes: number
   ) {
     super(`media exceeds ${maxBytes} byte limit`);
   }
@@ -74,14 +84,14 @@ export function extractImageBlocks(content: unknown): ExtractedImage[] {
 export async function downloadMedia(
   url: string,
   mediaDir: string = DEFAULT_MEDIA_DIR,
-  options: DownloadMediaOptions = {},
+  options: DownloadMediaOptions = {}
 ): Promise<DownloadedMedia | null> {
   let localPath: string | null = null;
 
   try {
     // Validate URL is http/https before fetching
     const parsedUrl = new URL(url);
-    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       console.warn(`[tlon-media] Rejected non-http(s) URL: ${url}`);
       return null;
     }
@@ -93,22 +103,28 @@ export async function downloadMedia(
     // Use fetchWithSsrFGuard directly (not urbitFetch) to preserve the full URL path
     const { response, release } = await fetchWithSsrFGuard({
       url,
-      init: { method: "GET" },
+      init: { method: 'GET' },
       policy: getDefaultSsrFPolicy(),
-      auditContext: "tlon-media-download",
+      auditContext: 'tlon-media-download',
     });
 
     try {
       if (!response.ok) {
-        console.error(`[tlon-media] Failed to fetch ${url}: ${response.status}`);
+        console.error(
+          `[tlon-media] Failed to fetch ${url}: ${response.status}`
+        );
         return null;
       }
 
       // Determine content type and extension
-      const contentType = response.headers.get("content-type") || "application/octet-stream";
-      const ext = getExtensionFromContentType(contentType) || getExtensionFromUrl(url) || "bin";
+      const contentType =
+        response.headers.get('content-type') || 'application/octet-stream';
+      const ext =
+        getExtensionFromContentType(contentType) ||
+        getExtensionFromUrl(url) ||
+        'bin';
 
-      const contentLength = response.headers.get("content-length");
+      const contentLength = response.headers.get('content-length');
       const declaredSizeBytes =
         contentLength && /^\d+$/.test(contentLength)
           ? Number.parseInt(contentLength, 10)
@@ -120,7 +136,7 @@ export async function downloadMedia(
       ) {
         options.onTooLarge?.({ declaredSizeBytes });
         console.warn(
-          `[tlon-media] Skipping ${url}: declared size ${declaredSizeBytes} exceeds ${options.maxBytes} byte limit`,
+          `[tlon-media] Skipping ${url}: declared size ${declaredSizeBytes} exceeds ${options.maxBytes} byte limit`
         );
         return null;
       }
@@ -145,7 +161,9 @@ export async function downloadMedia(
               transform(chunk, _encoding, callback) {
                 observedSizeBytes += Buffer.byteLength(chunk);
                 if (observedSizeBytes > options.maxBytes!) {
-                  callback(new MediaTooLargeError(observedSizeBytes, options.maxBytes!));
+                  callback(
+                    new MediaTooLargeError(observedSizeBytes, options.maxBytes!)
+                  );
                   return;
                 }
                 callback(null, chunk);
@@ -155,7 +173,7 @@ export async function downloadMedia(
       await pipeline(
         Readable.fromWeb(body as any),
         ...(limitTransform ? [limitTransform] : []),
-        writeStream,
+        writeStream
       );
 
       return {
@@ -174,7 +192,7 @@ export async function downloadMedia(
     if (error instanceof MediaTooLargeError) {
       options.onTooLarge?.({ observedSizeBytes: error.observedSizeBytes });
       console.warn(
-        `[tlon-media] Skipping ${url}: streamed size ${error.observedSizeBytes} exceeds ${error.maxBytes} byte limit`,
+        `[tlon-media] Skipping ${url}: streamed size ${error.observedSizeBytes} exceeds ${error.maxBytes} byte limit`
       );
       return null;
     }
@@ -187,26 +205,26 @@ export async function downloadMedia(
 
 function getExtensionFromContentType(contentType: string): string | null {
   const map: Record<string, string> = {
-    "image/jpeg": "jpg",
-    "image/jpg": "jpg",
-    "image/png": "png",
-    "image/gif": "gif",
-    "image/webp": "webp",
-    "image/svg+xml": "svg",
-    "video/mp4": "mp4",
-    "video/webm": "webm",
-    "video/quicktime": "mov",
-    "audio/mpeg": "mp3",
-    "audio/mp4": "m4a",
-    "audio/aac": "aac",
-    "audio/ogg": "ogg",
-    "audio/wav": "wav",
-    "audio/x-m4a": "m4a",
-    "application/pdf": "pdf",
-    "application/zip": "zip",
-    "text/plain": "txt",
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'video/quicktime': 'mov',
+    'audio/mpeg': 'mp3',
+    'audio/mp4': 'm4a',
+    'audio/aac': 'aac',
+    'audio/ogg': 'ogg',
+    'audio/wav': 'wav',
+    'audio/x-m4a': 'm4a',
+    'application/pdf': 'pdf',
+    'application/zip': 'zip',
+    'text/plain': 'txt',
   };
-  return map[contentType.split(";")[0].trim()] ?? null;
+  return map[contentType.split(';')[0].trim()] ?? null;
 }
 
 function getExtensionFromUrl(url: string): string | null {
@@ -225,7 +243,7 @@ function getExtensionFromUrl(url: string): string | null {
  */
 export async function downloadMessageImages(
   content: unknown,
-  mediaDir?: string,
+  mediaDir?: string
 ): Promise<Array<{ path: string; contentType: string }>> {
   const images = extractImageBlocks(content);
   if (images.length === 0) {
@@ -252,7 +270,9 @@ export async function downloadMessageImages(
  * Returns null if blob is empty/missing, otherwise mirrors the API parser's
  * graceful degradation behavior for malformed entries.
  */
-export function parseBlobData(blob: string | null | undefined): ClientPostBlobData | null {
+export function parseBlobData(
+  blob: string | null | undefined
+): ClientPostBlobData | null {
   if (!blob) return null;
   try {
     const parsed = parsePostBlob(blob);
@@ -269,31 +289,34 @@ export function parseBlobData(blob: string | null | undefined): ClientPostBlobDa
  *   🎙️ [voice memo] (12s) "Hey, check this out"
  *   🎬 [clip.mp4] (video/mp4, 1.2MB)
  */
-type BlobFormatMode = "annotation" | "history";
+type BlobFormatMode = 'annotation' | 'history';
 
-function formatBlobEntry(entry: ClientPostBlobData[number], mode: BlobFormatMode): string[] {
-  if (entry.type === "file") {
-    const name = entry.name || "file";
-    if (mode === "history") {
+function formatBlobEntry(
+  entry: ClientPostBlobData[number],
+  mode: BlobFormatMode
+): string[] {
+  if (entry.type === 'file') {
+    const name = entry.name || 'file';
+    if (mode === 'history') {
       return [`[📎 ${name}]`];
     }
-    const mime = entry.mimeType || "unknown";
-    const size = entry.size ? formatFileSize(entry.size) : "?";
+    const mime = entry.mimeType || 'unknown';
+    const size = entry.size ? formatFileSize(entry.size) : '?';
     let line = `📎 [${name}] (${mime}, ${size})`;
     if (entry.fileUri) line += ` ${entry.fileUri}`;
     return [line];
   }
 
-  if (entry.type === "voicememo") {
-    if (mode === "history") {
+  if (entry.type === 'voicememo') {
+    if (mode === 'history') {
       if (entry.transcription) {
         return [`[🎙️ voice memo: "${entry.transcription}"]`];
       }
-      const dur = entry.duration ? `${Math.round(entry.duration)}s` : "";
-      return [`[🎙️ voice memo${dur ? `, ${dur}` : ""}]`];
+      const dur = entry.duration ? `${Math.round(entry.duration)}s` : '';
+      return [`[🎙️ voice memo${dur ? `, ${dur}` : ''}]`];
     }
 
-    const dur = entry.duration ? `${Math.round(entry.duration)}s` : "?";
+    const dur = entry.duration ? `${Math.round(entry.duration)}s` : '?';
     let line = `🎙️ [voice memo] (${dur})`;
     if (entry.fileUri) line += ` ${entry.fileUri}`;
     const lines = [line];
@@ -303,13 +326,13 @@ function formatBlobEntry(entry: ClientPostBlobData[number], mode: BlobFormatMode
     return lines;
   }
 
-  if (entry.type === "video") {
-    const name = entry.name || "video";
-    if (mode === "history") {
+  if (entry.type === 'video') {
+    const name = entry.name || 'video';
+    if (mode === 'history') {
       return [`[🎬 ${name}]`];
     }
-    const mime = entry.mimeType || "video";
-    const size = entry.size ? formatFileSize(entry.size) : "?";
+    const mime = entry.mimeType || 'video';
+    const size = entry.size ? formatFileSize(entry.size) : '?';
     let line = `🎬 [${name}] (${mime}, ${size})`;
     if (entry.fileUri) line += ` ${entry.fileUri}`;
     return [line];
@@ -322,10 +345,10 @@ export function formatBlobAnnotations(blobData: ClientPostBlobData): string {
   const lines: string[] = [];
 
   for (const entry of blobData) {
-    lines.push(...formatBlobEntry(entry, "annotation"));
+    lines.push(...formatBlobEntry(entry, 'annotation'));
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**
@@ -336,10 +359,10 @@ export function formatBlobForHistory(blobData: ClientPostBlobData): string {
   const lines: string[] = [];
 
   for (const entry of blobData) {
-    lines.push(...formatBlobEntry(entry, "history"));
+    lines.push(...formatBlobEntry(entry, 'history'));
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**
@@ -348,21 +371,21 @@ export function formatBlobForHistory(blobData: ClientPostBlobData): string {
  */
 export async function downloadBlobAttachments(
   blobData: ClientPostBlobData,
-  mediaDir?: string,
+  mediaDir?: string
 ): Promise<BlobAttachmentDownloadResult> {
   const attachments: Array<{ path: string; contentType: string }> = [];
   const notices: string[] = [];
 
   for (const entry of blobData) {
-    if (entry.type === "unknown") continue;
+    if (entry.type === 'unknown') continue;
 
-    const uri = "fileUri" in entry ? entry.fileUri : undefined;
+    const uri = 'fileUri' in entry ? entry.fileUri : undefined;
     if (!uri) continue;
 
     // Only download http/https URIs
     try {
       const parsed = new URL(uri);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') continue;
     } catch {
       continue;
     }
@@ -375,7 +398,12 @@ export async function downloadBlobAttachments(
     const downloaded = await downloadMedia(uri, mediaDir, {
       maxBytes: MAX_BLOB_DOWNLOAD_BYTES,
       onTooLarge: ({ declaredSizeBytes, observedSizeBytes }) => {
-        notices.push(formatBlobTooLargeNotice(entry, declaredSizeBytes ?? observedSizeBytes));
+        notices.push(
+          formatBlobTooLargeNotice(
+            entry,
+            declaredSizeBytes ?? observedSizeBytes
+          )
+        );
       },
     });
     if (downloaded) {
@@ -390,11 +418,13 @@ export async function downloadBlobAttachments(
 }
 
 function formatBlobTooLargeNotice(
-  entry: Exclude<ClientPostBlobData[number], { type: "unknown" }>,
-  sizeBytes?: number,
+  entry: Exclude<ClientPostBlobData[number], { type: 'unknown' }>,
+  sizeBytes?: number
 ): string {
-  const label = entry.type === "voicememo" ? "voice memo" : entry.name || "blob attachment";
-  const sizeText = sizeBytes !== undefined ? formatFileSize(sizeBytes) : "unknown size";
+  const label =
+    entry.type === 'voicememo' ? 'voice memo' : entry.name || 'blob attachment';
+  const sizeText =
+    sizeBytes !== undefined ? formatFileSize(sizeBytes) : 'unknown size';
   return `[blob not downloaded: ${label} is ${sizeText}, over the ${formatFileSize(MAX_BLOB_DOWNLOAD_BYTES)} limit]`;
 }
 

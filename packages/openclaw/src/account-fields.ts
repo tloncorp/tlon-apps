@@ -14,12 +14,16 @@ export function buildTlonAccountFields(input: TlonAccountFieldsInput) {
     ...(input.ship ? { ship: input.ship } : {}),
     ...(input.url ? { url: input.url } : {}),
     ...(input.code ? { code: input.code } : {}),
-    ...(typeof input.allowPrivateNetwork === "boolean"
-      ? { network: { dangerouslyAllowPrivateNetwork: input.allowPrivateNetwork } }
+    ...(typeof input.allowPrivateNetwork === 'boolean'
+      ? {
+          network: {
+            dangerouslyAllowPrivateNetwork: input.allowPrivateNetwork,
+          },
+        }
       : {}),
     ...(input.groupChannels ? { groupChannels: input.groupChannels } : {}),
     ...(input.dmAllowlist ? { dmAllowlist: input.dmAllowlist } : {}),
-    ...(typeof input.autoDiscoverChannels === "boolean"
+    ...(typeof input.autoDiscoverChannels === 'boolean'
       ? { autoDiscoverChannels: input.autoDiscoverChannels }
       : {}),
     ...(input.ownerShip ? { ownerShip: input.ownerShip } : {}),

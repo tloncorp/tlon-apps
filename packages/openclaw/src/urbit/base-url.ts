@@ -1,4 +1,4 @@
-import { isBlockedHostnameOrIp } from "openclaw/plugin-sdk/ssrf-runtime";
+import { isBlockedHostnameOrIp } from 'openclaw/plugin-sdk/ssrf-runtime';
 
 export type UrbitBaseUrlValidation =
   | { ok: true; baseUrl: string; hostname: string }
@@ -9,9 +9,9 @@ function hasScheme(value: string): boolean {
 }
 
 export function validateUrbitBaseUrl(raw: string): UrbitBaseUrlValidation {
-  const trimmed = String(raw ?? "").trim();
+  const trimmed = String(raw ?? '').trim();
   if (!trimmed) {
-    return { ok: false, error: "Required" };
+    return { ok: false, error: 'Required' };
   }
 
   const candidate = hasScheme(trimmed) ? trimmed : `https://${trimmed}`;
@@ -20,25 +20,25 @@ export function validateUrbitBaseUrl(raw: string): UrbitBaseUrlValidation {
   try {
     parsed = new URL(candidate);
   } catch {
-    return { ok: false, error: "Invalid URL" };
+    return { ok: false, error: 'Invalid URL' };
   }
 
-  if (!["http:", "https:"].includes(parsed.protocol)) {
-    return { ok: false, error: "URL must use http:// or https://" };
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return { ok: false, error: 'URL must use http:// or https://' };
   }
 
   if (parsed.username || parsed.password) {
-    return { ok: false, error: "URL must not include credentials" };
+    return { ok: false, error: 'URL must not include credentials' };
   }
 
-  const hostname = parsed.hostname.trim().toLowerCase().replace(/\.$/, "");
+  const hostname = parsed.hostname.trim().toLowerCase().replace(/\.$/, '');
   if (!hostname) {
-    return { ok: false, error: "Invalid hostname" };
+    return { ok: false, error: 'Invalid hostname' };
   }
 
   // Normalize to origin so callers can't smuggle paths/query fragments into the base URL,
   // and strip a trailing dot from the hostname (DNS root label).
-  const isIpv6 = hostname.includes(":");
+  const isIpv6 = hostname.includes(':');
   const host = parsed.port
     ? `${isIpv6 ? `[${hostname}]` : hostname}:${parsed.port}`
     : isIpv6
@@ -49,7 +49,7 @@ export function validateUrbitBaseUrl(raw: string): UrbitBaseUrlValidation {
 }
 
 export function isBlockedUrbitHostname(hostname: string): boolean {
-  const normalized = hostname.trim().toLowerCase().replace(/\.$/, "");
+  const normalized = hostname.trim().toLowerCase().replace(/\.$/, '');
   if (!normalized) {
     return false;
   }

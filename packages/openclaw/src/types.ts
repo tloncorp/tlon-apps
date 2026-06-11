@@ -1,4 +1,4 @@
-import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 export type TlonTelemetryConfig = {
   enabled: boolean;
@@ -45,7 +45,7 @@ type TlonTelemetryInput = {
 
 function resolveTelemetryConfig(
   base: TlonTelemetryInput | null | undefined,
-  account: TlonTelemetryInput | null | undefined,
+  account: TlonTelemetryInput | null | undefined
 ): TlonTelemetryConfig {
   return {
     enabled: account?.enabled ?? base?.enabled ?? false,
@@ -56,7 +56,7 @@ function resolveTelemetryConfig(
 
 export function resolveTlonAccount(
   cfg: OpenClawConfig,
-  accountId?: string | null,
+  accountId?: string | null
 ): TlonResolvedAccount {
   const base = cfg.channels?.tlon as
     | {
@@ -87,7 +87,7 @@ export function resolveTlonAccount(
 
   if (!base) {
     return {
-      accountId: accountId || "default",
+      accountId: accountId || 'default',
       name: null,
       enabled: false,
       configured: false,
@@ -116,52 +116,64 @@ export function resolveTlonAccount(
     };
   }
 
-  const useDefault = !accountId || accountId === "default";
+  const useDefault = !accountId || accountId === 'default';
   const account = useDefault ? base : base.accounts?.[accountId];
 
   const ship = (account?.ship ?? base.ship ?? null) as string | null;
   const url = (account?.url ?? base.url ?? null) as string | null;
   const code = (account?.code ?? base.code ?? null) as string | null;
-  const accountNetwork = (account as { network?: { dangerouslyAllowPrivateNetwork?: boolean } })
-    ?.network;
-  const accountAllowPrivateNetwork = (account as { allowPrivateNetwork?: boolean })
-    ?.allowPrivateNetwork;
+  const accountNetwork = (
+    account as { network?: { dangerouslyAllowPrivateNetwork?: boolean } }
+  )?.network;
+  const accountAllowPrivateNetwork = (
+    account as { allowPrivateNetwork?: boolean }
+  )?.allowPrivateNetwork;
   const allowPrivateNetwork = (accountNetwork?.dangerouslyAllowPrivateNetwork ??
     accountAllowPrivateNetwork ??
     base.network?.dangerouslyAllowPrivateNetwork ??
     base.allowPrivateNetwork ??
     null) as boolean | null;
-  const groupChannels = (account?.groupChannels ?? base.groupChannels ?? []) as string[];
-  const dmAllowlist = (account?.dmAllowlist ?? base.dmAllowlist ?? []) as string[];
+  const groupChannels = (account?.groupChannels ??
+    base.groupChannels ??
+    []) as string[];
+  const dmAllowlist = (account?.dmAllowlist ??
+    base.dmAllowlist ??
+    []) as string[];
   const groupInviteAllowlist = (account?.groupInviteAllowlist ??
     base.groupInviteAllowlist ??
     []) as string[];
   const autoDiscoverChannels = (account?.autoDiscoverChannels ??
     base.autoDiscoverChannels ??
     null) as boolean | null;
-  const showModelSignature = (account?.showModelSignature ?? base.showModelSignature ?? null) as
-    | boolean
-    | null;
-  const autoAcceptDmInvites = (account?.autoAcceptDmInvites ?? base.autoAcceptDmInvites ?? null) as
-    | boolean
-    | null;
+  const showModelSignature = (account?.showModelSignature ??
+    base.showModelSignature ??
+    null) as boolean | null;
+  const autoAcceptDmInvites = (account?.autoAcceptDmInvites ??
+    base.autoAcceptDmInvites ??
+    null) as boolean | null;
   const autoAcceptGroupInvites = (account?.autoAcceptGroupInvites ??
     base.autoAcceptGroupInvites ??
     null) as boolean | null;
-  const ownerShip = (account?.ownerShip ?? base.ownerShip ?? null) as string | null;
-  const reactionLevel = (account?.reactionLevel ?? base.reactionLevel ?? null) as string | null;
+  const ownerShip = (account?.ownerShip ?? base.ownerShip ?? null) as
+    | string
+    | null;
+  const reactionLevel = (account?.reactionLevel ??
+    base.reactionLevel ??
+    null) as string | null;
   const maxConsecutiveBotResponses = ((account as Record<string, unknown>)
     ?.maxConsecutiveBotResponses ??
     base.maxConsecutiveBotResponses ??
     null) as number | null;
   const telemetry = resolveTelemetryConfig(
     base.telemetry,
-    (account as { telemetry?: TlonTelemetryInput } | undefined)?.telemetry,
+    (account as { telemetry?: TlonTelemetryInput } | undefined)?.telemetry
   );
-  const defaultAuthorizedShips = ((account as Record<string, unknown>)?.defaultAuthorizedShips ??
+  const defaultAuthorizedShips = ((account as Record<string, unknown>)
+    ?.defaultAuthorizedShips ??
     (base as Record<string, unknown>)?.defaultAuthorizedShips ??
     []) as string[];
-  const ownerListenEnabled = ((account as Record<string, unknown>)?.ownerListenEnabled ??
+  const ownerListenEnabled = ((account as Record<string, unknown>)
+    ?.ownerListenEnabled ??
     (base as Record<string, unknown>)?.ownerListenEnabled ??
     null) as boolean | null;
   const ownerListenDisabledChannels = ((account as Record<string, unknown>)
@@ -171,7 +183,7 @@ export function resolveTlonAccount(
   const configured = Boolean(ship && url && code);
 
   return {
-    accountId: accountId || "default",
+    accountId: accountId || 'default',
     name: (account?.name ?? base.name ?? null) as string | null,
     enabled: (account?.enabled ?? base.enabled ?? true) !== false,
     configured,
@@ -204,7 +216,7 @@ export function listTlonAccountIds(cfg: OpenClawConfig): string[] {
     return [];
   }
   const accounts = base.accounts ?? {};
-  return [...(base.ship ? ["default"] : []), ...Object.keys(accounts)];
+  return [...(base.ship ? ['default'] : []), ...Object.keys(accounts)];
 }
 
 /**

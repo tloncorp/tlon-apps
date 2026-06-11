@@ -3,9 +3,10 @@ import {
   getComputingStatusText,
   serializeComputingStatus,
   setConversationPresence,
-} from "@tloncorp/api";
-import type { RuntimeEnv } from "openclaw/plugin-sdk";
-import { describeError } from "../urbit/errors.js";
+} from '@tloncorp/api';
+import type { RuntimeEnv } from 'openclaw/plugin-sdk';
+
+import { describeError } from '../urbit/errors.js';
 
 type RunState = {
   toolNames: string[];
@@ -17,7 +18,7 @@ type PublishParams = {
   toolNames: string[];
 };
 
-type PublishedState = Omit<PublishParams, "conversationId">;
+type PublishedState = Omit<PublishParams, 'conversationId'>;
 
 const DEFAULT_MIN_UPDATE_INTERVAL_MS = 1_000;
 
@@ -38,7 +39,7 @@ export function createComputingPresenceReporter(): ComputingPresenceReporter {
 
       await setConversationPresence({
         conversationId,
-        topic: "computing",
+        topic: 'computing',
         disclose: [],
         display: {
           text: getComputingStatusText(status),
@@ -58,7 +59,7 @@ export function createComputingPresenceTracker(params?: {
   const runtime = params?.runtime;
   const minUpdateIntervalMs = Math.max(
     0,
-    params?.minUpdateIntervalMs ?? DEFAULT_MIN_UPDATE_INTERVAL_MS,
+    params?.minUpdateIntervalMs ?? DEFAULT_MIN_UPDATE_INTERVAL_MS
   );
   const conversations = new Map<string, Map<string, RunState>>();
   const lastPublishedState = new Map<string, PublishedState>();
@@ -130,7 +131,7 @@ export function createComputingPresenceTracker(params?: {
 
   const publishThrottled = async (
     conversationId: string,
-    state: PublishedState,
+    state: PublishedState
   ) => {
     if (statesEqual(lastPublishedState.get(conversationId), state)) {
       clearPending(conversationId);
@@ -157,7 +158,7 @@ export function createComputingPresenceTracker(params?: {
 
     const timer = setTimeout(() => {
       pendingTimers.delete(conversationId);
-      void safelySync(conversationId, "flush", async () => {
+      void safelySync(conversationId, 'flush', async () => {
         await flushPending(conversationId);
       });
     }, nextAllowedAt - now);
@@ -230,20 +231,20 @@ export function createComputingPresenceTracker(params?: {
   const safelySync = async (
     conversationId: string,
     action: string,
-    fn: () => Promise<void>,
+    fn: () => Promise<void>
   ) => {
     try {
       await fn();
     } catch (error) {
       runtime?.error?.(
-        `[tlon] Failed to ${action} computing presence for ${conversationId}: ${describeError(error)}`,
+        `[tlon] Failed to ${action} computing presence for ${conversationId}: ${describeError(error)}`
       );
     }
   };
 
   return {
     refreshRun: async (params: { conversationId: string; runId: string }) => {
-      await safelySync(params.conversationId, "refresh", async () => {
+      await safelySync(params.conversationId, 'refresh', async () => {
         ensureRun(params.conversationId, params.runId);
         await syncConversation(params.conversationId);
       });
@@ -259,7 +260,7 @@ export function createComputingPresenceTracker(params?: {
         return;
       }
 
-      await safelySync(params.conversationId, "update", async () => {
+      await safelySync(params.conversationId, 'update', async () => {
         const run = ensureRun(params.conversationId, params.runId);
         if (!run.toolNames.includes(toolName)) {
           run.toolNames.push(toolName);
@@ -272,7 +273,7 @@ export function createComputingPresenceTracker(params?: {
       conversationId: string;
       runId: string;
     }) => {
-      await safelySync(params.conversationId, "clear tools for", async () => {
+      await safelySync(params.conversationId, 'clear tools for', async () => {
         const run = getRun(params.conversationId, params.runId);
         if (!run || run.toolNames.length === 0) {
           return;
@@ -284,7 +285,7 @@ export function createComputingPresenceTracker(params?: {
     },
 
     stopRun: async (params: { conversationId: string; runId: string }) => {
-      await safelySync(params.conversationId, "clear", async () => {
+      await safelySync(params.conversationId, 'clear', async () => {
         const runs = conversations.get(params.conversationId);
         if (!runs) {
           if (lastPublishedState.get(params.conversationId)?.thinking) {

@@ -1,11 +1,11 @@
-import { buildChannelConfigSchema } from "openclaw/plugin-sdk/core";
-import { z } from "zod";
+import { buildChannelConfigSchema } from 'openclaw/plugin-sdk/core';
+import { z } from 'zod';
 
 const ShipSchema = z.string().min(1);
 const ChannelNestSchema = z.string().min(1);
 
 export const TlonChannelRuleSchema = z.object({
-  mode: z.enum(["restricted", "open"]).optional(),
+  mode: z.enum(['restricted', 'open']).optional(),
   allowedShips: z.array(ShipSchema).optional(),
 });
 
@@ -13,7 +13,12 @@ export const TlonAuthorizationSchema = z.object({
   channelRules: z.record(z.string(), TlonChannelRuleSchema).optional(),
 });
 
-export const ReactionLevelSchema = z.enum(["off", "ack", "minimal", "extensive"]);
+export const ReactionLevelSchema = z.enum([
+  'off',
+  'ack',
+  'minimal',
+  'extensive',
+]);
 export const TlonTelemetrySchema = z.object({
   enabled: z.boolean().optional(),
   apiKey: z.string().min(1).optional(),
@@ -136,5 +141,5 @@ export const TlonConfigSchema = z.object({
 // — only zod's literal `version.minor` narrowing differs. Cast to the
 // function's declared parameter type so we adopt whichever zod openclaw uses.
 export const tlonChannelConfigSchema = buildChannelConfigSchema(
-  TlonConfigSchema as unknown as Parameters<typeof buildChannelConfigSchema>[0],
+  TlonConfigSchema as unknown as Parameters<typeof buildChannelConfigSchema>[0]
 );

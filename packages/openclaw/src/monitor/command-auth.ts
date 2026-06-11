@@ -4,9 +4,12 @@
  * Pure module with no OpenClaw SDK dependency. Accepts a minimal
  * CommandContextLike instead of the full PluginCommandContext.
  */
-
-import { getBridge, getAllBridges, type ApprovalCommandBridge } from "./command-bridge.js";
-import { normalizeShip } from "../targets.js";
+import { normalizeShip } from '../targets.js';
+import {
+  type ApprovalCommandBridge,
+  getAllBridges,
+  getBridge,
+} from './command-bridge.js';
 
 /** Minimal input shape — avoids coupling to plugin SDK types. */
 export type CommandContextLike = {
@@ -24,7 +27,7 @@ export type CommandContextLike = {
  * 4. Else → error
  */
 export function resolveBridgeForCommand(
-  ctx: CommandContextLike,
+  ctx: CommandContextLike
 ): { bridge: ApprovalCommandBridge } | { error: string } {
   // 1. Try accountId if available
   if (ctx.accountId) {
@@ -34,7 +37,7 @@ export function resolveBridgeForCommand(
 
   // 2. Fallback: enumerate all bridges
   const all = getAllBridges();
-  if (all.size === 0) return { error: "Bot is not connected yet." };
+  if (all.size === 0) return { error: 'Bot is not connected yet.' };
   if (all.size === 1) {
     const [, only] = [...all.entries()][0];
     return checkOwner(ctx, only);
@@ -50,7 +53,8 @@ export function resolveBridgeForCommand(
   }
 
   return {
-    error: "Multiple accounts connected. Run this command from the owner DM for the target account.",
+    error:
+      'Multiple accounts connected. Run this command from the owner DM for the target account.',
   };
 }
 
@@ -60,16 +64,16 @@ export function resolveBridgeForCommand(
  */
 export function checkOwner(
   ctx: CommandContextLike,
-  bridge: ApprovalCommandBridge,
+  bridge: ApprovalCommandBridge
 ): { bridge: ApprovalCommandBridge } | { error: string } {
   if (!bridge.ownerShip) {
-    return { error: "Owner ship not configured." };
+    return { error: 'Owner ship not configured.' };
   }
   if (!ctx.senderId) {
-    return { error: "Cannot identify sender." };
+    return { error: 'Cannot identify sender.' };
   }
   if (normalizeShip(ctx.senderId) !== bridge.ownerShip) {
-    return { error: "Only the bot owner can use this command." };
+    return { error: 'Only the bot owner can use this command.' };
   }
   return { bridge };
 }

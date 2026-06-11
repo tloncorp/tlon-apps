@@ -11,7 +11,7 @@ export type StoryInline =
   | { italics: StoryInline[] }
   | { strike: StoryInline[] }
   | { blockquote: StoryInline[] }
-  | { "inline-code": string }
+  | { 'inline-code': string }
   | { code: string }
   | { ship: string }
   | { link: { href: string; content: string } }
@@ -20,7 +20,12 @@ export type StoryInline =
 
 // Block content types
 export type StoryBlock =
-  | { header: { tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6"; content: StoryInline[] } }
+  | {
+      header: {
+        tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+        content: StoryInline[];
+      };
+    }
   | { code: { code: string; lang: string } }
   | { image: { src: string; height: number; width: number; alt: string } }
   | { rule: null }
@@ -29,7 +34,7 @@ export type StoryBlock =
 export type StoryListing =
   | {
       list: {
-        type: "ordered" | "unordered" | "tasklist";
+        type: 'ordered' | 'unordered' | 'tasklist';
         items: StoryListing[];
         contents: StoryInline[];
       };
@@ -68,7 +73,9 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     }
 
     // Italics: *text* or _text_ (but not inside words for _)
-    const italicsMatch = remaining.match(/^\*([^*]+?)\*|^_([^_]+?)_(?![a-zA-Z0-9])/);
+    const italicsMatch = remaining.match(
+      /^\*([^*]+?)\*|^_([^_]+?)_(?![a-zA-Z0-9])/
+    );
     if (italicsMatch) {
       const content = italicsMatch[1] || italicsMatch[2];
       result.push({ italics: parseInlineMarkdown(content) });
@@ -87,7 +94,7 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     // Inline code: `code`
     const codeMatch = remaining.match(/^`([^`]+)`/);
     if (codeMatch) {
-      result.push({ "inline-code": codeMatch[1] });
+      result.push({ 'inline-code': codeMatch[1] });
       remaining = remaining.slice(codeMatch[0].length);
       continue;
     }
@@ -130,16 +137,16 @@ function parseInlineMarkdown(text: string): StoryInline[] {
     // Plain text: consume until next markdown token or URL start.
     // This prevents swallowing the "https" prefix before "://".
     const specialTokenIndices = [
-      remaining.indexOf("**"),
-      remaining.indexOf("__"),
-      remaining.indexOf("~~"),
-      remaining.indexOf("`"),
-      remaining.indexOf("["),
-      remaining.indexOf("!"),
-      remaining.indexOf("~"),
-      remaining.indexOf("\n"),
-      remaining.indexOf("*"),
-      remaining.indexOf("_"),
+      remaining.indexOf('**'),
+      remaining.indexOf('__'),
+      remaining.indexOf('~~'),
+      remaining.indexOf('`'),
+      remaining.indexOf('['),
+      remaining.indexOf('!'),
+      remaining.indexOf('~'),
+      remaining.indexOf('\n'),
+      remaining.indexOf('*'),
+      remaining.indexOf('_'),
     ].filter((idx) => idx >= 0);
 
     const urlIndex = remaining.search(/https?:\/\//);
@@ -171,7 +178,10 @@ function parseInlineMarkdown(text: string): StoryInline[] {
 function mergeAdjacentStrings(inlines: StoryInline[]): StoryInline[] {
   const result: StoryInline[] = [];
   for (const item of inlines) {
-    if (typeof item === "string" && typeof result[result.length - 1] === "string") {
+    if (
+      typeof item === 'string' &&
+      typeof result[result.length - 1] === 'string'
+    ) {
       result[result.length - 1] = (result[result.length - 1] as string) + item;
     } else {
       result.push(item);
@@ -185,9 +195,9 @@ function mergeAdjacentStrings(inlines: StoryInline[]): StoryInline[] {
  */
 export function createImageBlock(
   src: string,
-  alt: string = "",
+  alt: string = '',
   height: number = 0,
-  width: number = 0,
+  width: number = 0
 ): StoryVerse {
   return {
     block: {
@@ -215,8 +225,10 @@ function processInlinesForImages(inlines: StoryInline[]): {
   const imageBlocks: StoryVerse[] = [];
 
   for (const inline of inlines) {
-    if (typeof inline === "object" && "__image" in inline) {
-      const img = (inline as unknown as { __image: { src: string; alt: string } }).__image;
+    if (typeof inline === 'object' && '__image' in inline) {
+      const img = (
+        inline as unknown as { __image: { src: string; alt: string } }
+      ).__image;
       imageBlocks.push(createImageBlock(img.src, img.alt));
     } else {
       cleanInlines.push(inline);
@@ -231,25 +243,25 @@ function processInlinesForImages(inlines: StoryInline[]): {
  */
 export function markdownToStory(markdown: string): Story {
   const story: Story = [];
-  const lines = markdown.split("\n");
+  const lines = markdown.split('\n');
   let i = 0;
 
   while (i < lines.length) {
     const line = lines[i];
 
     // Code block: ```lang\ncode\n```
-    if (line.startsWith("```")) {
-      const lang = line.slice(3).trim() || "plaintext";
+    if (line.startsWith('```')) {
+      const lang = line.slice(3).trim() || 'plaintext';
       const codeLines: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].startsWith("```")) {
+      while (i < lines.length && !lines[i].startsWith('```')) {
         codeLines.push(lines[i]);
         i++;
       }
       story.push({
         block: {
           code: {
-            code: codeLines.join("\n"),
+            code: codeLines.join('\n'),
             lang,
           },
         },
@@ -262,7 +274,7 @@ export function markdownToStory(markdown: string): Story {
     const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
     if (headerMatch) {
       const level = headerMatch[1].length as 1 | 2 | 3 | 4 | 5 | 6;
-      const tag = `h${level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+      const tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
       story.push({
         block: {
           header: {
@@ -283,13 +295,13 @@ export function markdownToStory(markdown: string): Story {
     }
 
     // Blockquote: > text
-    if (line.startsWith("> ")) {
+    if (line.startsWith('> ')) {
       const quoteLines: string[] = [];
-      while (i < lines.length && lines[i].startsWith("> ")) {
+      while (i < lines.length && lines[i].startsWith('> ')) {
         quoteLines.push(lines[i].slice(2));
         i++;
       }
-      const quoteText = quoteLines.join("\n");
+      const quoteText = quoteLines.join('\n');
       story.push({
         inline: [{ blockquote: parseInlineMarkdown(quoteText) }],
       });
@@ -297,7 +309,7 @@ export function markdownToStory(markdown: string): Story {
     }
 
     // Empty line - skip
-    if (line.trim() === "") {
+    if (line.trim() === '') {
       i++;
       continue;
     }
@@ -306,10 +318,10 @@ export function markdownToStory(markdown: string): Story {
     const paragraphLines: string[] = [];
     while (
       i < lines.length &&
-      lines[i].trim() !== "" &&
-      !lines[i].startsWith("#") &&
-      !lines[i].startsWith("```") &&
-      !lines[i].startsWith("> ") &&
+      lines[i].trim() !== '' &&
+      !lines[i].startsWith('#') &&
+      !lines[i].startsWith('```') &&
+      !lines[i].startsWith('> ') &&
       !/^(-{3,}|\*{3,})$/.test(lines[i].trim())
     ) {
       paragraphLines.push(lines[i]);
@@ -317,14 +329,14 @@ export function markdownToStory(markdown: string): Story {
     }
 
     if (paragraphLines.length > 0) {
-      const paragraphText = paragraphLines.join("\n");
+      const paragraphText = paragraphLines.join('\n');
       // Convert newlines within paragraph to break elements
       const inlines = parseInlineMarkdown(paragraphText);
       // Replace \n in strings with break elements
       const withBreaks: StoryInline[] = [];
       for (const inline of inlines) {
-        if (typeof inline === "string" && inline.includes("\n")) {
-          const parts = inline.split("\n");
+        if (typeof inline === 'string' && inline.includes('\n')) {
+          const parts = inline.split('\n');
           for (let j = 0; j < parts.length; j++) {
             if (parts[j]) {
               withBreaks.push(parts[j]);
@@ -339,7 +351,8 @@ export function markdownToStory(markdown: string): Story {
       }
 
       // Extract any images from inlines and add as separate blocks
-      const { inlines: cleanInlines, imageBlocks } = processInlinesForImages(withBreaks);
+      const { inlines: cleanInlines, imageBlocks } =
+        processInlinesForImages(withBreaks);
 
       if (cleanInlines.length > 0) {
         story.push({ inline: cleanInlines });
@@ -363,5 +376,7 @@ export function textToStory(text: string): Story {
  */
 export function hasMarkdown(text: string): boolean {
   // Check for common markdown patterns
-  return /(\*\*|__|~~|`|^#{1,6}\s|^```|^\s*[-*]\s|\[.*\]\(.*\)|^>\s)/m.test(text);
+  return /(\*\*|__|~~|`|^#{1,6}\s|^```|^\s*[-*]\s|\[.*\]\(.*\)|^>\s)/m.test(
+    text
+  );
 }

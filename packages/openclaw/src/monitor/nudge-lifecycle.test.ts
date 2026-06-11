@@ -9,32 +9,36 @@
  *   - crash-consistency scenarios (partial or missing del-entry)
  *   - final-cleanup drain
  */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { computeTargetStage, daysBetween, resolveLastOwnerInstant } from "../nudge-decision.js";
 import {
-  clearPendingNudge,
+  computeTargetStage,
+  daysBetween,
+  resolveLastOwnerInstant,
+} from '../nudge-decision.js';
+import {
   DEFAULT_ATTRIBUTION_WINDOW_MS,
+  type PendingNudge,
+  clearPendingNudge,
   getPendingNudge,
   isNudgeEligible,
+  _testing as pendingTesting,
   registerPersistCallback,
   setPendingNudge,
   syncPendingNudgeFromStore,
-  type PendingNudge,
-  _testing as pendingTesting,
-} from "../pending-nudge.js";
-import type { TlonSettingsStore } from "../settings.js";
+} from '../pending-nudge.js';
+import type { TlonSettingsStore } from '../settings.js';
 import {
-  _testing as shadowTesting,
   clearShadowsForAccount,
   getLastNudgeStageShadow,
   getLastOwnerActivity,
   ownerActivityFromSettings,
   setLastNudgeStageShadow,
   setLastOwnerActivity,
-} from "./nudge-state.js";
-import { createOwnerReplyPersistenceQueue } from "./owner-reply-persistence.js";
-import { createPendingNudgePersistenceQueue } from "./pending-nudge-persistence.js";
+  _testing as shadowTesting,
+} from './nudge-state.js';
+import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
+import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 
 /**
  * Mirror of the reconcile branch inside `monitorTlonProvider`'s
@@ -46,10 +50,11 @@ function reconcileOwnerActivityShadow(
   accountId: string,
   prevSettings: TlonSettingsStore,
   newSettings: TlonSettingsStore,
-  source: "subscription" | "refresh",
-  opts: { fresh?: boolean } = {},
+  source: 'subscription' | 'refresh',
+  opts: { fresh?: boolean } = {}
 ): void {
-  const shadowReconcileTrusted = source === "subscription" || opts.fresh === true;
+  const shadowReconcileTrusted =
+    source === 'subscription' || opts.fresh === true;
   const ownerActivityChanged =
     prevSettings.lastOwnerMessageAt !== newSettings.lastOwnerMessageAt ||
     prevSettings.lastOwnerMessageDate !== newSettings.lastOwnerMessageDate;
@@ -66,13 +71,18 @@ function reconcileStageShadow(
   accountId: string,
   prevSettings: TlonSettingsStore,
   newSettings: TlonSettingsStore,
-  source: "subscription" | "refresh",
-  opts: { fresh?: boolean } = {},
+  source: 'subscription' | 'refresh',
+  opts: { fresh?: boolean } = {}
 ): void {
-  const shadowReconcileTrusted = source === "subscription" || opts.fresh === true;
-  const stageChanged = prevSettings.lastNudgeStage !== newSettings.lastNudgeStage;
+  const shadowReconcileTrusted =
+    source === 'subscription' || opts.fresh === true;
+  const stageChanged =
+    prevSettings.lastNudgeStage !== newSettings.lastNudgeStage;
   if (shadowReconcileTrusted && stageChanged) {
-    setLastNudgeStageShadow(accountId, (newSettings.lastNudgeStage ?? 0) as 0 | 1 | 2 | 3);
+    setLastNudgeStageShadow(
+      accountId,
+      (newSettings.lastNudgeStage ?? 0) as 0 | 1 | 2 | 3
+    );
   }
 }
 
@@ -81,22 +91,22 @@ beforeEach(() => {
   shadowTesting.clearAll();
 });
 
-const ACCOUNT_ID = "default";
+const ACCOUNT_ID = 'default';
 
 function makePendingNudge(overrides: Partial<PendingNudge> = {}): PendingNudge {
   return {
     sentAt: Date.now() - 1_000,
     stage: 1,
-    ownerShip: "~zod",
+    ownerShip: '~zod',
     accountId: ACCOUNT_ID,
-    content: "Hey!",
+    content: 'Hey!',
     ...overrides,
   };
 }
 
-describe("startup rehydration", () => {
-  it("stale-shadow clearing before a load that returns no fresh data", () => {
-    setLastOwnerActivity(ACCOUNT_ID, { at: 1, date: "2026-01-01" });
+describe('startup rehydration', () => {
+  it('stale-shadow clearing before a load that returns no fresh data', () => {
+    setLastOwnerActivity(ACCOUNT_ID, { at: 1, date: '2026-01-01' });
     setLastNudgeStageShadow(ACCOUNT_ID, 2);
 
     // Monitor runs clearShadowsForAccount BEFORE load.
@@ -111,8 +121,8 @@ describe("startup rehydration", () => {
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(0);
   });
 
-  it("stale-shadow clearing when fresh load has only lastNudgeStage", () => {
-    setLastOwnerActivity(ACCOUNT_ID, { at: 1, date: "2026-01-01" });
+  it('stale-shadow clearing when fresh load has only lastNudgeStage', () => {
+    setLastOwnerActivity(ACCOUNT_ID, { at: 1, date: '2026-01-01' });
     setLastNudgeStageShadow(ACCOUNT_ID, 1);
     clearShadowsForAccount(ACCOUNT_ID);
 
@@ -125,7 +135,7 @@ describe("startup rehydration", () => {
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(2);
   });
 
-  it("clears expired persisted pendingNudge on startup", () => {
+  it('clears expired persisted pendingNudge on startup', () => {
     const persistCb = vi.fn();
 
     const expired: PendingNudge = makePendingNudge({
@@ -145,7 +155,7 @@ describe("startup rehydration", () => {
     expect(persistCb).toHaveBeenCalledWith(null);
   });
 
-  it("keeps a valid persisted pendingNudge on startup", () => {
+  it('keeps a valid persisted pendingNudge on startup', () => {
     const persistCb = vi.fn();
     const valid: PendingNudge = makePendingNudge({ sentAt: Date.now() - 1000 });
     syncPendingNudgeFromStore(ACCOUNT_ID, valid);
@@ -157,17 +167,21 @@ describe("startup rehydration", () => {
   });
 });
 
-describe("owner-reply handler: queue ordering", () => {
-  it("put-entries resolve before the del-entry is issued", async () => {
+describe('owner-reply handler: queue ordering', () => {
+  it('put-entries resolve before the del-entry is issued', async () => {
     const order: string[] = [];
     const entryKeys: string[] = [];
 
     const api = {
       poke: vi.fn(async (params: Record<string, unknown>) => {
         const json = params.json as Record<string, unknown>;
-        const put = json["put-entry"] as Record<string, unknown> | undefined;
-        const del = json["del-entry"] as Record<string, unknown> | undefined;
-        const key = put ? String(put["entry-key"]) : del ? String(del["entry-key"]) : "?";
+        const put = json['put-entry'] as Record<string, unknown> | undefined;
+        const del = json['del-entry'] as Record<string, unknown> | undefined;
+        const key = put
+          ? String(put['entry-key'])
+          : del
+            ? String(del['entry-key'])
+            : '?';
         order.push(`start:${key}`);
         entryKeys.push(key);
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -176,17 +190,17 @@ describe("owner-reply handler: queue ordering", () => {
     };
 
     const queue = createOwnerReplyPersistenceQueue(api);
-    queue.enqueue({ at: 1000, date: "2026-04-21", clearStage: true });
+    queue.enqueue({ at: 1000, date: '2026-04-21', clearStage: true });
     await queue.flush();
 
     // Both put-entries must have ended before the del-entry started.
-    const delStart = order.indexOf("start:lastNudgeStage");
+    const delStart = order.indexOf('start:lastNudgeStage');
     expect(delStart).toBeGreaterThan(-1);
-    expect(order.indexOf("end:lastOwnerMessageAt")).toBeLessThan(delStart);
-    expect(order.indexOf("end:lastOwnerMessageDate")).toBeLessThan(delStart);
+    expect(order.indexOf('end:lastOwnerMessageAt')).toBeLessThan(delStart);
+    expect(order.indexOf('end:lastOwnerMessageDate')).toBeLessThan(delStart);
   });
 
-  it("hot path: handler updates shadows synchronously and does not await the queue", async () => {
+  it('hot path: handler updates shadows synchronously and does not await the queue', async () => {
     const api = {
       poke: vi.fn(async () => undefined),
     };
@@ -194,7 +208,7 @@ describe("owner-reply handler: queue ordering", () => {
     const queue = createOwnerReplyPersistenceQueue(api);
 
     const timestamp = Date.now();
-    const isoDate = new Date(timestamp).toISOString().split("T")[0] ?? "";
+    const isoDate = new Date(timestamp).toISOString().split('T')[0] ?? '';
 
     // Simulate what the monitor does synchronously in the owner-reply handler.
     // `enqueue` must return synchronously, and `queue.flush()` must not be
@@ -221,8 +235,8 @@ describe("owner-reply handler: queue ordering", () => {
   });
 });
 
-describe("owner-reply handler: attribution and stage clearing", () => {
-  it("emits reengagement when owner messages within 72h", () => {
+describe('owner-reply handler: attribution and stage clearing', () => {
+  it('emits reengagement when owner messages within 72h', () => {
     const capture = vi.fn();
     const pending = makePendingNudge({ sentAt: Date.now() - 3600_000 });
     setPendingNudge(ACCOUNT_ID, pending);
@@ -234,26 +248,26 @@ describe("owner-reply handler: attribution and stage clearing", () => {
     const reengagedAt = retrieved!.sentAt + 1234;
     capture({
       ownerShip: retrieved!.ownerShip,
-      botShip: "~nec",
+      botShip: '~nec',
       nudgeStage: retrieved!.stage,
       nudgeSentAt: retrieved!.sentAt,
       reengagedAt,
       reengagementDelayMs: reengagedAt - retrieved!.sentAt,
-      channel: "tlon",
+      channel: 'tlon',
       accountId: retrieved!.accountId,
     });
     clearPendingNudge(ACCOUNT_ID);
 
     expect(capture).toHaveBeenCalledOnce();
     expect(capture.mock.calls[0][0]).toMatchObject({
-      ownerShip: "~zod",
+      ownerShip: '~zod',
       nudgeStage: 1,
       reengagedAt,
     });
     expect(getPendingNudge(ACCOUNT_ID)).toBeNull();
   });
 
-  it("uses inbound message time for the attribution window", () => {
+  it('uses inbound message time for the attribution window', () => {
     const sentAt = 1_000;
     const messageTs = sentAt + DEFAULT_ATTRIBUTION_WINDOW_MS - 1;
     const delayed = sentAt + DEFAULT_ATTRIBUTION_WINDOW_MS + 60_000;
@@ -265,7 +279,7 @@ describe("owner-reply handler: attribution and stage clearing", () => {
     expect(isNudgeEligible(pending, messageTs)).toBe(true);
   });
 
-  it("clears expired pending nudge without emitting telemetry", () => {
+  it('clears expired pending nudge without emitting telemetry', () => {
     const capture = vi.fn();
     const expired = makePendingNudge({
       sentAt: Date.now() - DEFAULT_ATTRIBUTION_WINDOW_MS - 1000,
@@ -278,7 +292,7 @@ describe("owner-reply handler: attribution and stage clearing", () => {
     expect(getPendingNudge(ACCOUNT_ID)).toBeNull();
   });
 
-  it("synchronously updates both shadows before any async poke", () => {
+  it('synchronously updates both shadows before any async poke', () => {
     const pending = makePendingNudge();
     setPendingNudge(ACCOUNT_ID, pending);
 
@@ -288,7 +302,7 @@ describe("owner-reply handler: attribution and stage clearing", () => {
     const queue = createOwnerReplyPersistenceQueue(api);
 
     const timestamp = Date.now();
-    const iso = new Date(timestamp).toISOString().split("T")[0] ?? "";
+    const iso = new Date(timestamp).toISOString().split('T')[0] ?? '';
 
     // Monitor does these first, synchronously.
     setLastOwnerActivity(ACCOUNT_ID, { at: timestamp, date: iso });
@@ -299,7 +313,10 @@ describe("owner-reply handler: attribution and stage clearing", () => {
     }
     queue.enqueue({ at: timestamp, date: iso, clearStage: willClear });
 
-    expect(getLastOwnerActivity(ACCOUNT_ID)).toEqual({ at: timestamp, date: iso });
+    expect(getLastOwnerActivity(ACCOUNT_ID)).toEqual({
+      at: timestamp,
+      date: iso,
+    });
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(0);
   });
 });
@@ -313,9 +330,9 @@ describe("owner-reply handler: attribution and stage clearing", () => {
 function runOwnerReplyHandler(
   accountId: string,
   timestamp: number,
-  queue: ReturnType<typeof createOwnerReplyPersistenceQueue>,
+  queue: ReturnType<typeof createOwnerReplyPersistenceQueue>
 ): { willClearStage: boolean } {
-  const iso = new Date(timestamp).toISOString().split("T")[0] ?? "";
+  const iso = new Date(timestamp).toISOString().split('T')[0] ?? '';
   setLastOwnerActivity(accountId, { at: timestamp, date: iso });
   const pending = getPendingNudge(accountId);
   const shadowStage = getLastNudgeStageShadow(accountId) ?? 0;
@@ -330,8 +347,8 @@ function runOwnerReplyHandler(
   return { willClearStage };
 }
 
-describe("in-flight tick reply race", () => {
-  it("clears stage when owner replies after poke but before pendingNudge is written", async () => {
+describe('in-flight tick reply race', () => {
+  it('clears stage when owner replies after poke but before pendingNudge is written', async () => {
     // Setup: the scheduler has just poked lastNudgeStage = 1 and set the
     // shadow to 1, and is now awaiting sendDm(). pendingNudge has NOT yet
     // been written (setLocalPendingNudge only fires after sendDm resolves).
@@ -343,13 +360,13 @@ describe("in-flight tick reply race", () => {
     const api = {
       poke: vi.fn(async (params: Record<string, unknown>) => {
         const json = params.json as Record<string, unknown>;
-        const put = json["put-entry"] as Record<string, unknown> | undefined;
-        const del = json["del-entry"] as Record<string, unknown> | undefined;
+        const put = json['put-entry'] as Record<string, unknown> | undefined;
+        const del = json['del-entry'] as Record<string, unknown> | undefined;
         if (put) {
-          writes.push(`put:${String(put["entry-key"])}`);
+          writes.push(`put:${String(put['entry-key'])}`);
         }
         if (del) {
-          writes.push(`del:${String(del["entry-key"])}`);
+          writes.push(`del:${String(del['entry-key'])}`);
         }
       }),
     };
@@ -362,10 +379,10 @@ describe("in-flight tick reply race", () => {
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(0);
 
     await queue.flush();
-    expect(writes).toContain("del:lastNudgeStage");
+    expect(writes).toContain('del:lastNudgeStage');
   });
 
-  it("skips the clear when shadow stage is 0 and no pending nudge", async () => {
+  it('skips the clear when shadow stage is 0 and no pending nudge', async () => {
     setLastNudgeStageShadow(ACCOUNT_ID, 0);
     expect(getPendingNudge(ACCOUNT_ID)).toBeNull();
 
@@ -379,16 +396,22 @@ describe("in-flight tick reply race", () => {
     expect(result.willClearStage).toBe(false);
     await queue.flush();
 
-    const keys = (api.poke.mock.calls as Array<[Record<string, unknown>]>).map(([p]) => {
-      const json = p.json as Record<string, unknown>;
-      const put = json["put-entry"] as Record<string, unknown> | undefined;
-      const del = json["del-entry"] as Record<string, unknown> | undefined;
-      return put ? `put:${String(put["entry-key"])}` : del ? `del:${String(del["entry-key"])}` : "?";
-    });
-    expect(keys).not.toContain("del:lastNudgeStage");
+    const keys = (api.poke.mock.calls as Array<[Record<string, unknown>]>).map(
+      ([p]) => {
+        const json = p.json as Record<string, unknown>;
+        const put = json['put-entry'] as Record<string, unknown> | undefined;
+        const del = json['del-entry'] as Record<string, unknown> | undefined;
+        return put
+          ? `put:${String(put['entry-key'])}`
+          : del
+            ? `del:${String(del['entry-key'])}`
+            : '?';
+      }
+    );
+    expect(keys).not.toContain('del:lastNudgeStage');
   });
 
-  it("next inactivity cycle can re-send the same stage after the race", () => {
+  it('next inactivity cycle can re-send the same stage after the race', () => {
     // Scheduler advanced stage to 1, pendingNudge was never written before
     // the owner reply.
     setLastNudgeStageShadow(ACCOUNT_ID, 1);
@@ -408,18 +431,20 @@ describe("in-flight tick reply race", () => {
   });
 });
 
-describe("owner-reply reply-context", () => {
-  it("eligible PendingNudge with content yields a prefix containing the content", () => {
-    const pending = makePendingNudge({ content: "Quick ideas for your week" });
+describe('owner-reply reply-context', () => {
+  it('eligible PendingNudge with content yields a prefix containing the content', () => {
+    const pending = makePendingNudge({ content: 'Quick ideas for your week' });
     setPendingNudge(ACCOUNT_ID, pending);
 
     const timestamp = pending.sentAt + 1000;
-    let messageText = "hey";
+    let messageText = 'hey';
 
     const retrieved = getPendingNudge(ACCOUNT_ID);
     if (retrieved && isNudgeEligible(retrieved, timestamp)) {
       const sentIso = new Date(retrieved.sentAt).toISOString();
-      const contentBlock = retrieved.content ? `Message content:\n\n${retrieved.content}\n\n` : "";
+      const contentBlock = retrieved.content
+        ? `Message content:\n\n${retrieved.content}\n\n`
+        : '';
       messageText =
         `[Context: You recently sent ${retrieved.ownerShip} a stage-${retrieved.stage} ` +
         `re-engagement nudge at ${sentIso}. ${contentBlock}` +
@@ -427,30 +452,33 @@ describe("owner-reply reply-context", () => {
         messageText;
     }
 
-    expect(messageText).toContain("re-engagement nudge");
-    expect(messageText).toContain("Quick ideas for your week");
+    expect(messageText).toContain('re-engagement nudge');
+    expect(messageText).toContain('Quick ideas for your week');
   });
 
-  it("PendingNudge without content omits the content block", () => {
+  it('PendingNudge without content omits the content block', () => {
     const pending = makePendingNudge({ content: undefined });
     setPendingNudge(ACCOUNT_ID, pending);
 
     const retrieved = getPendingNudge(ACCOUNT_ID);
     expect(retrieved!.content).toBeUndefined();
 
-    let messageText = "hey";
+    let messageText = 'hey';
     if (retrieved && isNudgeEligible(retrieved)) {
       const sentIso = new Date(retrieved.sentAt).toISOString();
-      const contentBlock = retrieved.content ? `Message content:\n\n${retrieved.content}\n\n` : "";
+      const contentBlock = retrieved.content
+        ? `Message content:\n\n${retrieved.content}\n\n`
+        : '';
       messageText =
-        `[Context: stage-${retrieved.stage} at ${sentIso}. ${contentBlock}]\n\n` + messageText;
+        `[Context: stage-${retrieved.stage} at ${sentIso}. ${contentBlock}]\n\n` +
+        messageText;
     }
 
-    expect(messageText).not.toContain("Message content");
-    expect(messageText).toContain("stage-1");
+    expect(messageText).not.toContain('Message content');
+    expect(messageText).toContain('stage-1');
   });
 
-  it("expired PendingNudge does not inject reply context", () => {
+  it('expired PendingNudge does not inject reply context', () => {
     const pending = makePendingNudge({
       sentAt: Date.now() - DEFAULT_ATTRIBUTION_WINDOW_MS - 1000,
     });
@@ -474,11 +502,13 @@ describe("owner-reply reply-context", () => {
     pending: PendingNudge | null,
     timestamp: number,
     isGroup: boolean,
-    base: string,
+    base: string
   ): string {
     if (pending && isNudgeEligible(pending, timestamp) && !isGroup) {
       const sentIso = new Date(pending.sentAt).toISOString();
-      const contentBlock = pending.content ? `Message content:\n\n${pending.content}\n\n` : "";
+      const contentBlock = pending.content
+        ? `Message content:\n\n${pending.content}\n\n`
+        : '';
       return (
         `[Context: You recently sent ${pending.ownerShip} a stage-${pending.stage} ` +
         `re-engagement nudge at ${sentIso}. ${contentBlock}` +
@@ -489,34 +519,44 @@ describe("owner-reply reply-context", () => {
     return base;
   }
 
-  it("DM-only: owner DM receives prepended nudge context", () => {
-    const pending = makePendingNudge({ content: "Quick ideas for your week" });
+  it('DM-only: owner DM receives prepended nudge context', () => {
+    const pending = makePendingNudge({ content: 'Quick ideas for your week' });
     setPendingNudge(ACCOUNT_ID, pending);
 
-    const text = applyReplyContext(getPendingNudge(ACCOUNT_ID), pending.sentAt + 1000, false, "hi");
-    expect(text).toContain("re-engagement nudge");
-    expect(text).toContain("Quick ideas for your week");
+    const text = applyReplyContext(
+      getPendingNudge(ACCOUNT_ID),
+      pending.sentAt + 1000,
+      false,
+      'hi'
+    );
+    expect(text).toContain('re-engagement nudge');
+    expect(text).toContain('Quick ideas for your week');
   });
 
-  it("DM-only: owner channel/group message does NOT receive prepended nudge context", () => {
-    const pending = makePendingNudge({ content: "Quick ideas for your week" });
+  it('DM-only: owner channel/group message does NOT receive prepended nudge context', () => {
+    const pending = makePendingNudge({ content: 'Quick ideas for your week' });
     setPendingNudge(ACCOUNT_ID, pending);
 
-    const text = applyReplyContext(getPendingNudge(ACCOUNT_ID), pending.sentAt + 1000, true, "hi");
-    expect(text).toBe("hi");
-    expect(text).not.toContain("re-engagement nudge");
-    expect(text).not.toContain("Quick ideas for your week");
+    const text = applyReplyContext(
+      getPendingNudge(ACCOUNT_ID),
+      pending.sentAt + 1000,
+      true,
+      'hi'
+    );
+    expect(text).toBe('hi');
+    expect(text).not.toContain('re-engagement nudge');
+    expect(text).not.toContain('Quick ideas for your week');
   });
 });
 
-describe("crash-consistency", () => {
-  it("reply crashes before the del-entry; restart sees stage=N, owner=fresh → no send", () => {
+describe('crash-consistency', () => {
+  it('reply crashes before the del-entry; restart sees stage=N, owner=fresh → no send', () => {
     // Simulate persisted state after a crash: the put-entries committed but
     // the del-entry never happened. lastNudgeStage remains at N (e.g. 1).
     const settings = {
       lastNudgeStage: 1 as const,
       lastOwnerMessageAt: Date.now(),
-      lastOwnerMessageDate: new Date().toISOString().split("T")[0],
+      lastOwnerMessageDate: new Date().toISOString().split('T')[0],
     };
 
     // Monitor startup: seed shadows from persisted settings.
@@ -533,7 +573,7 @@ describe("crash-consistency", () => {
     // Safe path: short-circuit is ok for duplicate prevention.
   });
 
-  it("reply crashes mid put-entries; restart sees only lastOwnerMessageAt → no send", () => {
+  it('reply crashes mid put-entries; restart sees only lastOwnerMessageAt → no send', () => {
     const settings = { lastOwnerMessageAt: Date.now() };
 
     clearShadowsForAccount(ACCOUNT_ID);
@@ -545,26 +585,26 @@ describe("crash-consistency", () => {
   });
 });
 
-describe("final-cleanup", () => {
-  it("drains owner-reply queue, pending-nudge queue, then clears shadows", async () => {
+describe('final-cleanup', () => {
+  it('drains owner-reply queue, pending-nudge queue, then clears shadows', async () => {
     const order: string[] = [];
     const ownerApi = {
       poke: vi.fn(async () => {
-        order.push("owner-poke");
+        order.push('owner-poke');
       }),
     };
     const pnApi = vi.fn(async () => {
-      order.push("pn-poke");
+      order.push('pn-poke');
     });
 
     const ownerQueue = createOwnerReplyPersistenceQueue(ownerApi);
     const pnQueue = createPendingNudgePersistenceQueue(pnApi);
 
-    ownerQueue.enqueue({ at: 1, date: "2026-04-21", clearStage: true });
+    ownerQueue.enqueue({ at: 1, date: '2026-04-21', clearStage: true });
     pnQueue.enqueue(null);
 
     // Seed some shadow state to verify cleanup.
-    setLastOwnerActivity(ACCOUNT_ID, { at: 1, date: "2026-04-21" });
+    setLastOwnerActivity(ACCOUNT_ID, { at: 1, date: '2026-04-21' });
     setLastNudgeStageShadow(ACCOUNT_ID, 1);
 
     await ownerQueue.flush();
@@ -577,26 +617,31 @@ describe("final-cleanup", () => {
   });
 });
 
-describe("live-settings owner-activity shadow reconciliation", () => {
+describe('live-settings owner-activity shadow reconciliation', () => {
   const EIGHT_DAYS_MS = 8 * 24 * 60 * 60 * 1000;
   const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
   function makeSettings(at: number | undefined): TlonSettingsStore {
-    if (at == null) {return {};}
+    if (at == null) {
+      return {};
+    }
     return {
       lastOwnerMessageAt: at,
-      lastOwnerMessageDate: new Date(at).toISOString().split("T")[0] ?? "",
+      lastOwnerMessageDate: new Date(at).toISOString().split('T')[0] ?? '',
     };
   }
 
-  it("reconciles the shadow when a post-start poke backdates lastOwnerMessageAt", () => {
+  it('reconciles the shadow when a post-start poke backdates lastOwnerMessageAt', () => {
     const nowMs = Date.now();
     const freshAt = nowMs - THREE_DAYS_MS;
 
     // Startup seeded the shadow from settings that marked the owner as
     // fresh (3 days ago).
     const startupSettings = makeSettings(freshAt);
-    setLastOwnerActivity(ACCOUNT_ID, ownerActivityFromSettings(startupSettings));
+    setLastOwnerActivity(
+      ACCOUNT_ID,
+      ownerActivityFromSettings(startupSettings)
+    );
 
     // Admin pokes %settings to backdate the owner's last activity to 8
     // days ago — the scheduler should now treat the owner as idle even
@@ -607,7 +652,7 @@ describe("live-settings owner-activity shadow reconciliation", () => {
       ACCOUNT_ID,
       startupSettings,
       subscriptionSettings,
-      "subscription",
+      'subscription'
     );
 
     const shadow = getLastOwnerActivity(ACCOUNT_ID);
@@ -619,13 +664,16 @@ describe("live-settings owner-activity shadow reconciliation", () => {
     expect(computeTargetStage(daysBetween(resolved ?? 0, nowMs))).toBe(1);
   });
 
-  it("reconciles the shadow when a post-start poke sets lastOwnerMessageAt to now", () => {
+  it('reconciles the shadow when a post-start poke sets lastOwnerMessageAt to now', () => {
     const nowMs = Date.now();
 
     // Startup seeded the shadow as 8 days idle, so without reconciliation
     // the scheduler would fire a stage-1 nudge.
     const startupSettings = makeSettings(nowMs - EIGHT_DAYS_MS);
-    setLastOwnerActivity(ACCOUNT_ID, ownerActivityFromSettings(startupSettings));
+    setLastOwnerActivity(
+      ACCOUNT_ID,
+      ownerActivityFromSettings(startupSettings)
+    );
 
     // Admin/test harness pokes `lastOwnerMessageAt = now` to simulate
     // that the owner just replied. The scheduler should suppress the
@@ -635,7 +683,7 @@ describe("live-settings owner-activity shadow reconciliation", () => {
       ACCOUNT_ID,
       startupSettings,
       subscriptionSettings,
-      "subscription",
+      'subscription'
     );
 
     const shadow = getLastOwnerActivity(ACCOUNT_ID);
@@ -647,7 +695,7 @@ describe("live-settings owner-activity shadow reconciliation", () => {
     expect(computeTargetStage(idle)).toBeNull();
   });
 
-  it("does not clobber a fresher local shadow from a fallback refresh (fresh: false)", () => {
+  it('does not clobber a fresher local shadow from a fallback refresh (fresh: false)', () => {
     const nowMs = Date.now();
 
     // Local owner reply arrived after startup; the handler updated the
@@ -655,7 +703,7 @@ describe("live-settings owner-activity shadow reconciliation", () => {
     const locallyFreshAt = nowMs - 1000;
     setLastOwnerActivity(ACCOUNT_ID, {
       at: locallyFreshAt,
-      date: new Date(locallyFreshAt).toISOString().split("T")[0] ?? "",
+      date: new Date(locallyFreshAt).toISOString().split('T')[0] ?? '',
     });
 
     // The preserved settings mirror still holds the older value because
@@ -670,20 +718,23 @@ describe("live-settings owner-activity shadow reconciliation", () => {
       ACCOUNT_ID,
       prevSettings,
       staleRefreshSettings,
-      "refresh",
-      { fresh: false },
+      'refresh',
+      { fresh: false }
     );
 
     const shadow = getLastOwnerActivity(ACCOUNT_ID);
     expect(shadow?.at).toBe(locallyFreshAt);
   });
 
-  it("applies a fresh refresh (fresh: true) even after startup", () => {
+  it('applies a fresh refresh (fresh: true) even after startup', () => {
     const nowMs = Date.now();
 
     // Shadow held the startup snapshot value.
     const startupSettings = makeSettings(nowMs - EIGHT_DAYS_MS);
-    setLastOwnerActivity(ACCOUNT_ID, ownerActivityFromSettings(startupSettings));
+    setLastOwnerActivity(
+      ACCOUNT_ID,
+      ownerActivityFromSettings(startupSettings)
+    );
 
     // A subsequent fresh scry succeeds and returns a newer timestamp —
     // the refresh path is trusted when `fresh: true`.
@@ -693,14 +744,14 @@ describe("live-settings owner-activity shadow reconciliation", () => {
       ACCOUNT_ID,
       startupSettings,
       refreshSettings,
-      "refresh",
-      { fresh: true },
+      'refresh',
+      { fresh: true }
     );
 
     expect(getLastOwnerActivity(ACCOUNT_ID)?.at).toBe(refreshedAt);
   });
 
-  it("leaves the shadow alone when a subscription event does not change owner-activity fields", () => {
+  it('leaves the shadow alone when a subscription event does not change owner-activity fields', () => {
     const nowMs = Date.now();
     const seededAt = nowMs - THREE_DAYS_MS;
 
@@ -708,7 +759,7 @@ describe("live-settings owner-activity shadow reconciliation", () => {
     const locallyFreshAt = nowMs - 500;
     setLastOwnerActivity(ACCOUNT_ID, {
       at: locallyFreshAt,
-      date: new Date(locallyFreshAt).toISOString().split("T")[0] ?? "",
+      date: new Date(locallyFreshAt).toISOString().split('T')[0] ?? '',
     });
 
     // Simulate an unrelated subscription event: `prev` and `new` both
@@ -718,100 +769,90 @@ describe("live-settings owner-activity shadow reconciliation", () => {
     const baseSettings = makeSettings(seededAt);
     const unrelatedUpdate: TlonSettingsStore = {
       ...baseSettings,
-      channelRules: { "chat/~zod/foo": { mode: "open", allowedShips: [] } },
+      channelRules: { 'chat/~zod/foo': { mode: 'open', allowedShips: [] } },
     };
     reconcileOwnerActivityShadow(
       ACCOUNT_ID,
       baseSettings,
       unrelatedUpdate,
-      "subscription",
+      'subscription'
     );
 
     expect(getLastOwnerActivity(ACCOUNT_ID)?.at).toBe(locallyFreshAt);
   });
 });
 
-describe("live-settings lastNudgeStage shadow reconciliation", () => {
-  it("subscription clear (del-entry) lowers a non-zero shadow to 0", () => {
+describe('live-settings lastNudgeStage shadow reconciliation', () => {
+  it('subscription clear (del-entry) lowers a non-zero shadow to 0', () => {
     setLastNudgeStageShadow(ACCOUNT_ID, 1);
     const prev: TlonSettingsStore = { lastNudgeStage: 1 };
     // After del-entry the parser leaves lastNudgeStage undefined.
     const next: TlonSettingsStore = {};
-    reconcileStageShadow(ACCOUNT_ID, prev, next, "subscription");
+    reconcileStageShadow(ACCOUNT_ID, prev, next, 'subscription');
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(0);
   });
 
-  it("subscription lower from stage 2 to stage 1 updates the shadow", () => {
+  it('subscription lower from stage 2 to stage 1 updates the shadow', () => {
     setLastNudgeStageShadow(ACCOUNT_ID, 2);
     reconcileStageShadow(
       ACCOUNT_ID,
       { lastNudgeStage: 2 },
       { lastNudgeStage: 1 },
-      "subscription",
+      'subscription'
     );
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(1);
   });
 
-  it("subscription raise from 0 to 1 updates the shadow", () => {
+  it('subscription raise from 0 to 1 updates the shadow', () => {
     setLastNudgeStageShadow(ACCOUNT_ID, 0);
-    reconcileStageShadow(ACCOUNT_ID, {}, { lastNudgeStage: 1 }, "subscription");
+    reconcileStageShadow(ACCOUNT_ID, {}, { lastNudgeStage: 1 }, 'subscription');
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(1);
   });
 
-  it("subscription event without a lastNudgeStage diff does not touch the shadow", () => {
+  it('subscription event without a lastNudgeStage diff does not touch the shadow', () => {
     setLastNudgeStageShadow(ACCOUNT_ID, 2);
     const prev: TlonSettingsStore = { lastNudgeStage: 2 };
     const next: TlonSettingsStore = {
       lastNudgeStage: 2,
       // unrelated key changed:
-      channelRules: { "chat/~zod/foo": { mode: "open", allowedShips: [] } },
+      channelRules: { 'chat/~zod/foo': { mode: 'open', allowedShips: [] } },
     };
-    reconcileStageShadow(ACCOUNT_ID, prev, next, "subscription");
+    reconcileStageShadow(ACCOUNT_ID, prev, next, 'subscription');
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(2);
   });
 
-  it("refresh fresh=false does not lower the shadow even on a stale snapshot diff", () => {
+  it('refresh fresh=false does not lower the shadow even on a stale snapshot diff', () => {
     setLastNudgeStageShadow(ACCOUNT_ID, 2);
-    reconcileStageShadow(
-      ACCOUNT_ID,
-      { lastNudgeStage: 2 },
-      {},
-      "refresh",
-      { fresh: false },
-    );
+    reconcileStageShadow(ACCOUNT_ID, { lastNudgeStage: 2 }, {}, 'refresh', {
+      fresh: false,
+    });
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(2);
   });
 
-  it("refresh fresh=true reconciles a clear into the shadow", () => {
+  it('refresh fresh=true reconciles a clear into the shadow', () => {
     setLastNudgeStageShadow(ACCOUNT_ID, 1);
-    reconcileStageShadow(
-      ACCOUNT_ID,
-      { lastNudgeStage: 1 },
-      {},
-      "refresh",
-      { fresh: true },
-    );
+    reconcileStageShadow(ACCOUNT_ID, { lastNudgeStage: 1 }, {}, 'refresh', {
+      fresh: true,
+    });
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(0);
   });
 
-  it("after a live reset, the duplicate-prevention guard accepts the same stage again", () => {
+  it('after a live reset, the duplicate-prevention guard accepts the same stage again', () => {
     // Prior tick advanced the shadow to 1 and sent stage 1.
     setLastNudgeStageShadow(ACCOUNT_ID, 1);
 
     // External clear arrives via subscription: lastNudgeStage del-entry'd.
-    reconcileStageShadow(
-      ACCOUNT_ID,
-      { lastNudgeStage: 1 },
-      {},
-      "subscription",
-    );
+    reconcileStageShadow(ACCOUNT_ID, { lastNudgeStage: 1 }, {}, 'subscription');
     expect(getLastNudgeStageShadow(ACCOUNT_ID)).toBe(0);
 
     // Model the runner's resolveAuthoritativeStage guard. With the shadow
     // now at 0 and the storage echo also clearing, target=1 > fresh=0 so
     // the runner can re-send stage 1 on the next inactivity cycle.
     const targetStage = 1;
-    const freshStage = Math.max(getLastNudgeStageShadow(ACCOUNT_ID) ?? 0, /* scry: */ 0);
+    const freshStage = Math.max(
+      getLastNudgeStageShadow(ACCOUNT_ID) ?? 0,
+      /* scry: */ 0
+    );
     expect(targetStage > freshStage).toBe(true);
   });
 });

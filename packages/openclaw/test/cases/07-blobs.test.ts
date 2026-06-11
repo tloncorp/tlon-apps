@@ -16,17 +16,18 @@
  *   ~zod = bot ship
  *   ~ten = test user (configured as ownerShip)
  */
-import { describe, test, expect, beforeAll, beforeEach } from "vitest";
-import type { Story } from "@tloncorp/api";
+import type { Story } from '@tloncorp/api';
+import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
+
 import {
+  type TestFixtures,
   getFixtures,
   requireFixtureGroup,
   waitFor,
-  type TestFixtures,
-} from "../lib/index.js";
-import { fakeModel, type ReceivedCall } from "../support/fake-model/client.js";
+} from '../lib/index.js';
+import { type ReceivedCall, fakeModel } from '../support/fake-model/client.js';
 
-describe("blobs", () => {
+describe('blobs', () => {
   let fixtures: TestFixtures;
 
   beforeAll(async () => {
@@ -47,17 +48,22 @@ describe("blobs", () => {
     return [{ inline: [`[tlon-test:${key}] ${text}`] }];
   }
 
-  function storyTaggedWithMention(ship: string, key: string, text: string): Story {
-    const normShip = ship.startsWith("~") ? ship : `~${ship}`;
+  function storyTaggedWithMention(
+    ship: string,
+    key: string,
+    text: string
+  ): Story {
+    const normShip = ship.startsWith('~') ? ship : `~${ship}`;
     return [{ inline: [{ ship: normShip }, ` [tlon-test:${key}] ${text}`] }];
   }
 
   function voiceMemoBlob(transcriptionToken: string): string {
     return JSON.stringify([
       {
-        type: "voicememo",
+        type: 'voicememo',
         version: 1,
-        fileUri: "https://storage.googleapis.com/tlon-test-ci-shared/test-audio/silence.m4a",
+        fileUri:
+          'https://storage.googleapis.com/tlon-test-ci-shared/test-audio/silence.m4a',
         size: 4096,
         duration: 3,
         transcription: `Test voice memo ${transcriptionToken}`,
@@ -68,11 +74,11 @@ describe("blobs", () => {
   function fileBlob(filenameToken: string): string {
     return JSON.stringify([
       {
-        type: "file",
+        type: 'file',
         version: 1,
         fileUri:
-          "https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png",
-        mimeType: "image/png",
+          'https://storage.googleapis.com/tlon-test-ci-shared/test-images/openclaw-image.png',
+        mimeType: 'image/png',
         name: `${filenameToken}.png`,
         size: 12345,
       },
@@ -80,7 +86,10 @@ describe("blobs", () => {
   }
 
   /** Wait for the fake model to record at least one call for `key`. */
-  async function awaitModelCall(key: string, timeoutMs = 30_000): Promise<ReceivedCall> {
+  async function awaitModelCall(
+    key: string,
+    timeoutMs = 30_000
+  ): Promise<ReceivedCall> {
     return waitFor(async () => {
       const calls = await fakeModel.received(key);
       return calls.length > 0 ? calls[0] : undefined;
@@ -89,16 +98,23 @@ describe("blobs", () => {
 
   /** Find a parent post by author + matching text substring. */
   async function findParentPost(
-    viewer: TestFixtures["userState"],
+    viewer: TestFixtures['userState'],
     channelId: string,
     authorId: string,
-    bodySubstring: string,
+    bodySubstring: string
   ): Promise<{ id: string }> {
     return waitFor(async () => {
       const posts = await viewer.channelPosts(channelId, 10);
       const found = (posts ?? []).find((p) => {
-        const pp = p as { id?: string; authorId?: string; textContent?: string | null };
-        return pp.authorId === authorId && (pp.textContent ?? "").includes(bodySubstring);
+        const pp = p as {
+          id?: string;
+          authorId?: string;
+          textContent?: string | null;
+        };
+        return (
+          pp.authorId === authorId &&
+          (pp.textContent ?? '').includes(bodySubstring)
+        );
       }) as { id?: string } | undefined;
       return found?.id ? { id: found.id } : undefined;
     }, 10_000);
@@ -106,14 +122,16 @@ describe("blobs", () => {
 
   // ── DM tests ─────────────────────────────────────────────────────────
 
-  test("voice memo blob in a DM reaches the model with transcription", async () => {
-    const key = "blob-dm-voice";
+  test('voice memo blob in a DM reaches the model with transcription', async () => {
+    const key = 'blob-dm-voice';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [{ kind: "text", content: "got the voice memo" }]);
+    await fakeModel.script(key, [
+      { kind: 'text', content: 'got the voice memo' },
+    ]);
 
     await fixtures.userState.sendPost({
       channelId: fixtures.botShip,
-      content: storyTagged(key, "voice memo attached"),
+      content: storyTagged(key, 'voice memo attached'),
       blob: voiceMemoBlob(transcriptionToken),
     });
 
@@ -121,14 +139,14 @@ describe("blobs", () => {
     expect(call.userText).toContain(transcriptionToken);
   });
 
-  test("file blob in a DM reaches the model with filename", async () => {
-    const key = "blob-dm-file";
+  test('file blob in a DM reaches the model with filename', async () => {
+    const key = 'blob-dm-file';
     const filenameToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [{ kind: "text", content: "got the file" }]);
+    await fakeModel.script(key, [{ kind: 'text', content: 'got the file' }]);
 
     await fixtures.userState.sendPost({
       channelId: fixtures.botShip,
-      content: storyTagged(key, "what is in this file?"),
+      content: storyTagged(key, 'what is in this file?'),
       blob: fileBlob(filenameToken),
     });
 
@@ -136,11 +154,11 @@ describe("blobs", () => {
     expect(call.userText).toContain(`${filenameToken}.png`);
   });
 
-  test("voice memo blob in a DM thread reply reaches the model", async () => {
-    const key = "blob-dm-reply";
+  test('voice memo blob in a DM thread reply reaches the model', async () => {
+    const key = 'blob-dm-reply';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
     const parentMarker = `parent-${transcriptionToken}`;
-    await fakeModel.script(key, [{ kind: "text", content: "got the reply" }]);
+    await fakeModel.script(key, [{ kind: 'text', content: 'got the reply' }]);
 
     // Parent post is a thread anchor only — UNTAGGED and NO blob. The
     // bot will still process it (owner DMs always engage) but that call
@@ -156,14 +174,14 @@ describe("blobs", () => {
       fixtures.userState,
       fixtures.botShip,
       fixtures.userShip,
-      parentMarker,
+      parentMarker
     );
 
     await fixtures.userState.sendReply({
       channelId: fixtures.botShip,
       parentId: parent.id,
       parentAuthor: fixtures.userShip,
-      content: storyTagged(key, "replying with voice"),
+      content: storyTagged(key, 'replying with voice'),
       blob: voiceMemoBlob(transcriptionToken),
     });
 
@@ -176,16 +194,22 @@ describe("blobs", () => {
 
   // ── Channel tests ────────────────────────────────────────────────────
 
-  test("voice memo blob in a channel post reaches the model", async () => {
+  test('voice memo blob in a channel post reaches the model', async () => {
     requireFixtureGroup(fixtures);
     const nest = fixtures.group.chatChannel;
-    const key = "blob-ch-voice";
+    const key = 'blob-ch-voice';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [{ kind: "text", content: "got the channel voice memo" }]);
+    await fakeModel.script(key, [
+      { kind: 'text', content: 'got the channel voice memo' },
+    ]);
 
     await fixtures.userState.sendPost({
       channelId: nest,
-      content: storyTaggedWithMention(fixtures.botShip, key, "voice memo attached"),
+      content: storyTaggedWithMention(
+        fixtures.botShip,
+        key,
+        'voice memo attached'
+      ),
       blob: voiceMemoBlob(transcriptionToken),
     });
 
@@ -193,13 +217,15 @@ describe("blobs", () => {
     expect(call.userText).toContain(transcriptionToken);
   });
 
-  test("file blob in a channel thread reply reaches the model", async () => {
+  test('file blob in a channel thread reply reaches the model', async () => {
     requireFixtureGroup(fixtures);
     const nest = fixtures.group.chatChannel;
-    const key = "blob-ch-reply";
+    const key = 'blob-ch-reply';
     const filenameToken = `${key}-${Date.now().toString(36)}`;
     const parentMarker = `parent-${filenameToken}`;
-    await fakeModel.script(key, [{ kind: "text", content: "got the channel reply" }]);
+    await fakeModel.script(key, [
+      { kind: 'text', content: 'got the channel reply' },
+    ]);
 
     await fixtures.userState.sendPost({
       channelId: nest,
@@ -209,14 +235,14 @@ describe("blobs", () => {
       fixtures.botState,
       nest,
       fixtures.userShip,
-      parentMarker,
+      parentMarker
     );
 
     await fixtures.userState.sendReply({
       channelId: nest,
       parentId: parent.id,
       parentAuthor: fixtures.userShip,
-      content: storyTaggedWithMention(fixtures.botShip, key, "check this file"),
+      content: storyTaggedWithMention(fixtures.botShip, key, 'check this file'),
       blob: fileBlob(filenameToken),
     });
 
@@ -226,10 +252,10 @@ describe("blobs", () => {
     // whose userText carries the reply's blob filename.
     const calls = await waitFor(async () => {
       const c = await fakeModel.received(key);
-      const combined = c.map((x) => x.userText).join("\n");
+      const combined = c.map((x) => x.userText).join('\n');
       return combined.includes(`${filenameToken}.png`) ? c : undefined;
     }, 30_000);
-    const combined = calls.map((c) => c.userText).join("\n");
+    const combined = calls.map((c) => c.userText).join('\n');
     expect(combined).toContain(`${filenameToken}.png`);
   });
 });

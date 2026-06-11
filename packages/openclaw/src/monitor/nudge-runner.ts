@@ -4,34 +4,34 @@
  *
  * The runner owns the tick body. The scheduler owns the timer lifecycle.
  */
+import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
+import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
-import type { OpenClawConfig } from "openclaw/plugin-sdk/core";
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime";
-import type { PendingNudge } from "../pending-nudge.js";
-import type { TlonTelemetryClient } from "../telemetry.js";
-import type { BotProfile } from "../urbit/send.js";
-import type { UrbitSSEClient } from "../urbit/sse-client.js";
-import type { LastOwnerActivity, LastNudgeStageShadow } from "./nudge-state.js";
 import {
   computeTargetStage,
   daysBetween,
   inActiveHours,
   resolveActiveHours,
   resolveLastOwnerInstant,
-} from "../nudge-decision.js";
-import { NUDGE_MESSAGES, type NudgeStage } from "../nudge-messages.js";
+} from '../nudge-decision.js';
+import { NUDGE_MESSAGES, type NudgeStage } from '../nudge-messages.js';
 import {
-  createNudgeScheduler,
   DEFAULT_NUDGE_TICK_INTERVAL_MS,
   type NudgeScheduler,
-} from "../nudge-scheduler.js";
-import type { OwnerReplyPersistenceQueue } from "./owner-reply-persistence.js";
-import { parseSettingsResponse, type TlonSettingsStore } from "../settings.js";
-import { listRunnableTlonAccountIds } from "../types.js";
+  createNudgeScheduler,
+} from '../nudge-scheduler.js';
+import type { PendingNudge } from '../pending-nudge.js';
+import { type TlonSettingsStore, parseSettingsResponse } from '../settings.js';
+import type { TlonTelemetryClient } from '../telemetry.js';
+import { listRunnableTlonAccountIds } from '../types.js';
+import type { BotProfile } from '../urbit/send.js';
+import type { UrbitSSEClient } from '../urbit/sse-client.js';
+import type { LastNudgeStageShadow, LastOwnerActivity } from './nudge-state.js';
+import type { OwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 
 export type NudgeRunnerStartDecision =
   | { start: true; reason: null }
-  | { start: false; reason: "flag-disabled" | "multi-account"; detail: string };
+  | { start: false; reason: 'flag-disabled' | 'multi-account'; detail: string };
 
 /**
  * Decide whether the monitor should construct and start the nudge runner.
@@ -48,15 +48,17 @@ export type NudgeRunnerStartDecision =
  *
  * Pure helper; does not read process state.
  */
-export function shouldStartNudgeRunner(cfg: OpenClawConfig): NudgeRunnerStartDecision {
+export function shouldStartNudgeRunner(
+  cfg: OpenClawConfig
+): NudgeRunnerStartDecision {
   const reengagementEnabled =
-    (cfg.channels?.tlon as { reengagement?: { enabled?: boolean } } | undefined)?.reengagement
-      ?.enabled === true;
+    (cfg.channels?.tlon as { reengagement?: { enabled?: boolean } } | undefined)
+      ?.reengagement?.enabled === true;
   if (!reengagementEnabled) {
     return {
       start: false,
-      reason: "flag-disabled",
-      detail: "channels.tlon.reengagement.enabled is not true",
+      reason: 'flag-disabled',
+      detail: 'channels.tlon.reengagement.enabled is not true',
     };
   }
   // Count *runnable* accounts (enabled + fully configured). Disabled or
@@ -67,7 +69,7 @@ export function shouldStartNudgeRunner(cfg: OpenClawConfig): NudgeRunnerStartDec
   if (accountIds.length !== 1) {
     return {
       start: false,
-      reason: "multi-account",
+      reason: 'multi-account',
       detail: `${accountIds.length} runnable Tlon accounts; runner requires exactly 1`,
     };
   }
@@ -77,20 +79,23 @@ export function shouldStartNudgeRunner(cfg: OpenClawConfig): NudgeRunnerStartDec
 export type NudgeRunnerDeps = {
   accountId: string;
   botShip: string;
-  api: Pick<UrbitSSEClient, "scry" | "poke">;
+  api: Pick<UrbitSSEClient, 'scry' | 'poke'>;
   cfg: OpenClawConfig;
   getSettings: () => TlonSettingsStore;
   getEffectiveOwnerShip: (accountId: string) => string | null;
   getLastOwnerActivity: (accountId: string) => LastOwnerActivity | null;
   getLastNudgeStageShadow: (accountId: string) => LastNudgeStageShadow | null;
-  setLastNudgeStageShadow: (accountId: string, stage: LastNudgeStageShadow) => void;
+  setLastNudgeStageShadow: (
+    accountId: string,
+    stage: LastNudgeStageShadow
+  ) => void;
   setLocalPendingNudge: (accountId: string, nudge: PendingNudge) => void;
   sendDm: (params: {
     fromShip: string;
     toShip: string;
     text: string;
     botProfile?: BotProfile;
-  }) => Promise<{ channel: "tlon"; messageId: string; sentAt: number }>;
+  }) => Promise<{ channel: 'tlon'; messageId: string; sentAt: number }>;
   getBotProfile?: () => BotProfile | undefined;
   telemetry?: TlonTelemetryClient | null;
   runtime?: RuntimeEnv;
@@ -104,7 +109,7 @@ export type NudgeRunnerDeps = {
    * reply-during-poke race, since the handler itself may have observed
    * `shadowStage === 0` in that window and skipped the clear.
    */
-  ownerReplyPersistence?: Pick<OwnerReplyPersistenceQueue, "enqueueStageClear">;
+  ownerReplyPersistence?: Pick<OwnerReplyPersistenceQueue, 'enqueueStageClear'>;
 };
 
 export type NudgeRunner = {
@@ -143,30 +148,32 @@ export function createNudgeRunner(deps: NudgeRunnerDeps): NudgeRunner {
   async function resolveAuthoritativeStage(): Promise<number> {
     const shadow = deps.getLastNudgeStageShadow(deps.accountId) ?? 0;
     try {
-      const raw = await deps.api.scry("/settings/all.json");
+      const raw = await deps.api.scry('/settings/all.json');
       const bucket = (raw as { all?: Record<string, unknown> })?.all?.moltbot;
       const parsed = parseSettingsResponse(bucket ?? {});
       const fresh = parsed.lastNudgeStage ?? 0;
       if (fresh !== shadow) {
         deps.runtime?.log?.(
-          `[tlon] nudge: stage shadow=${shadow} scry=${fresh} — shadow wins (trusted path)`,
+          `[tlon] nudge: stage shadow=${shadow} scry=${fresh} — shadow wins (trusted path)`
         );
       }
     } catch (err) {
-      deps.runtime?.error?.(`[tlon] nudge: fresh lastNudgeStage scry failed: ${String(err)}`);
+      deps.runtime?.error?.(
+        `[tlon] nudge: fresh lastNudgeStage scry failed: ${String(err)}`
+      );
     }
     return shadow;
   }
 
   async function pokeLastNudgeStage(stage: NudgeStage): Promise<void> {
     await deps.api.poke({
-      app: "settings",
-      mark: "settings-event",
+      app: 'settings',
+      mark: 'settings-event',
       json: {
-        "put-entry": {
-          desk: "moltbot",
-          "bucket-key": "tlon",
-          "entry-key": "lastNudgeStage",
+        'put-entry': {
+          desk: 'moltbot',
+          'bucket-key': 'tlon',
+          'entry-key': 'lastNudgeStage',
           value: stage,
         },
       },
@@ -183,39 +190,51 @@ export function createNudgeRunner(deps: NudgeRunnerDeps): NudgeRunner {
   function ownerActivityAdvancedSince(thresholdMs: number): boolean {
     const recheck = resolveLastOwnerInstant(
       deps.getLastOwnerActivity(deps.accountId),
-      deps.getSettings(),
+      deps.getSettings()
     );
     return recheck != null && recheck > thresholdMs;
   }
 
   async function tick(): Promise<void> {
-    if (deps.abortSignal?.aborted) {return;}
+    if (deps.abortSignal?.aborted) {
+      return;
+    }
 
     const settings = deps.getSettings();
     const ownerShip = deps.getEffectiveOwnerShip(deps.accountId);
-    if (!ownerShip) {return;}
+    if (!ownerShip) {
+      return;
+    }
 
     const activeHours = resolveActiveHours(settings, deps.cfg);
-    if (!inActiveHours(new Date(now()), activeHours)) {return;}
+    if (!inActiveHours(new Date(now()), activeHours)) {
+      return;
+    }
 
     const lastOwnerAt = resolveLastOwnerInstant(
       deps.getLastOwnerActivity(deps.accountId),
-      settings,
+      settings
     );
-    if (lastOwnerAt == null) {return;}
+    if (lastOwnerAt == null) {
+      return;
+    }
 
     const idle = daysBetween(lastOwnerAt, now());
     const targetStage = computeTargetStage(idle);
-    if (targetStage == null) {return;}
+    if (targetStage == null) {
+      return;
+    }
 
     const freshStage = await resolveAuthoritativeStage();
-    if (targetStage <= freshStage) {return;}
+    if (targetStage <= freshStage) {
+      return;
+    }
 
     try {
       await pokeLastNudgeStage(targetStage);
     } catch (err) {
       deps.runtime?.error?.(
-        `[tlon] nudge: failed to advance lastNudgeStage to ${targetStage}: ${String(err)}`,
+        `[tlon] nudge: failed to advance lastNudgeStage to ${targetStage}: ${String(err)}`
       );
       return;
     }
@@ -231,7 +250,7 @@ export function createNudgeRunner(deps: NudgeRunnerDeps): NudgeRunner {
     // rules the handler normally observes.
     if (ownerActivityAdvancedSince(lastOwnerAt)) {
       deps.runtime?.log?.(
-        `[tlon] nudge: owner replied between scry and send; clearing stage ${targetStage} for next cycle`,
+        `[tlon] nudge: owner replied between scry and send; clearing stage ${targetStage} for next cycle`
       );
       deps.setLastNudgeStageShadow(deps.accountId, 0);
       deps.ownerReplyPersistence?.enqueueStageClear();
@@ -252,7 +271,11 @@ export function createNudgeRunner(deps: NudgeRunnerDeps): NudgeRunner {
     // `setLocalPendingNudge` write below.
     const localSentAt = now();
     let sent = false;
-    let sendResult: { channel: "tlon"; messageId: string; sentAt: number } | null = null;
+    let sendResult: {
+      channel: 'tlon';
+      messageId: string;
+      sentAt: number;
+    } | null = null;
     try {
       sendResult = await deps.sendDm({
         fromShip: deps.botShip,
@@ -263,7 +286,7 @@ export function createNudgeRunner(deps: NudgeRunnerDeps): NudgeRunner {
       sent = true;
     } catch (sendErr) {
       deps.runtime?.error?.(
-        `[tlon] nudge: send failed after stage advance (stage ${targetStage}): ${String(sendErr)}`,
+        `[tlon] nudge: send failed after stage advance (stage ${targetStage}): ${String(sendErr)}`
       );
     }
 
@@ -276,14 +299,16 @@ export function createNudgeRunner(deps: NudgeRunnerDeps): NudgeRunner {
         botShip: deps.botShip,
         nudgeStage: targetStage,
         nudgeTarget: ownerShip,
-        channel: "tlon",
+        channel: 'tlon',
         success: sent,
         accountId: deps.accountId,
         messageId,
         nudgeSentAtMs: canonicalSentAt,
       });
     } catch (err) {
-      deps.runtime?.error?.(`[tlon] nudge: telemetry capture failed: ${String(err)}`);
+      deps.runtime?.error?.(
+        `[tlon] nudge: telemetry capture failed: ${String(err)}`
+      );
     }
 
     if (sent) {
@@ -294,7 +319,7 @@ export function createNudgeRunner(deps: NudgeRunnerDeps): NudgeRunner {
       // misattribute their message to a nudge we sent moments later.
       if (ownerActivityAdvancedSince(lastOwnerAt)) {
         deps.runtime?.log?.(
-          `[tlon] nudge: owner replied during stage ${targetStage} send; not recording pendingNudge`,
+          `[tlon] nudge: owner replied during stage ${targetStage} send; not recording pendingNudge`
         );
         return;
       }
@@ -311,9 +336,13 @@ export function createNudgeRunner(deps: NudgeRunnerDeps): NudgeRunner {
           content,
         });
       } catch (err) {
-        deps.runtime?.error?.(`[tlon] nudge: setLocalPendingNudge failed: ${String(err)}`);
+        deps.runtime?.error?.(
+          `[tlon] nudge: setLocalPendingNudge failed: ${String(err)}`
+        );
       }
-      deps.runtime?.log?.(`[tlon] nudge: sent stage ${targetStage} to ${ownerShip}`);
+      deps.runtime?.log?.(
+        `[tlon] nudge: sent stage ${targetStage} to ${ownerShip}`
+      );
     }
   }
 

@@ -1,4 +1,9 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+import {
+  createComputingPresenceReporter,
+  createComputingPresenceTracker,
+} from './computing-presence.js';
 
 const {
   createComputingStatus,
@@ -10,7 +15,7 @@ const {
     thinking,
     toolCalls,
   })),
-  getComputingStatusText: vi.fn(() => "Computing"),
+  getComputingStatusText: vi.fn(() => 'Computing'),
   serializeComputingStatus: vi.fn(({ thinking, toolCalls }) => ({
     thinking,
     toolCalls,
@@ -18,47 +23,42 @@ const {
   setConversationPresence: vi.fn(async () => {}),
 }));
 
-vi.mock("@tloncorp/api", () => ({
+vi.mock('@tloncorp/api', () => ({
   createComputingStatus,
   getComputingStatusText,
   serializeComputingStatus,
   setConversationPresence,
 }));
 
-import {
-  createComputingPresenceReporter,
-  createComputingPresenceTracker,
-} from "./computing-presence.js";
-
-describe("createComputingPresenceTracker", () => {
+describe('createComputingPresenceTracker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  test("publishes presence with an empty disclose array", async () => {
+  test('publishes presence with an empty disclose array', async () => {
     const reporter = createComputingPresenceReporter();
 
     await reporter.publish({
-      conversationId: "~nec",
+      conversationId: '~nec',
       thinking: true,
-      toolNames: ["exec"],
+      toolNames: ['exec'],
     });
 
     expect(setConversationPresence).toHaveBeenCalledWith({
-      conversationId: "~nec",
-      topic: "computing",
+      conversationId: '~nec',
+      topic: 'computing',
       disclose: [],
       display: {
-        text: "Computing",
+        text: 'Computing',
         blob: {
           thinking: true,
-          toolCalls: [{ toolName: "exec" }],
+          toolCalls: [{ toolName: 'exec' }],
         },
       },
     });
   });
 
-  test("publishes thinking state for a new run and sends thinking false when the run stops", async () => {
+  test('publishes thinking state for a new run and sends thinking false when the run stops', async () => {
     const reporter = {
       publish: vi.fn(async () => {}),
     };
@@ -66,29 +66,29 @@ describe("createComputingPresenceTracker", () => {
     const tracker = createComputingPresenceTracker({ reporter });
 
     await tracker.refreshRun({
-      conversationId: "~nec",
-      runId: "run-1",
+      conversationId: '~nec',
+      runId: 'run-1',
     });
 
     expect(reporter.publish).toHaveBeenCalledWith({
-      conversationId: "~nec",
+      conversationId: '~nec',
       thinking: true,
       toolNames: [],
     });
 
     await tracker.stopRun({
-      conversationId: "~nec",
-      runId: "run-1",
+      conversationId: '~nec',
+      runId: 'run-1',
     });
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
-      conversationId: "~nec",
+      conversationId: '~nec',
       thinking: false,
       toolNames: [],
     });
   });
 
-  test("throttles intermediate tool updates to at most one publish per second", async () => {
+  test('throttles intermediate tool updates to at most one publish per second', async () => {
     vi.useFakeTimers();
 
     try {
@@ -99,22 +99,22 @@ describe("createComputingPresenceTracker", () => {
       const tracker = createComputingPresenceTracker({ reporter });
 
       await tracker.refreshRun({
-        conversationId: "~nec",
-        runId: "run-1",
+        conversationId: '~nec',
+        runId: 'run-1',
       });
 
       expect(reporter.publish).toHaveBeenCalledTimes(1);
 
       await tracker.addToolCall({
-        conversationId: "~nec",
-        runId: "run-1",
-        toolName: "web_fetch",
+        conversationId: '~nec',
+        runId: 'run-1',
+        toolName: 'web_fetch',
       });
 
       await tracker.addToolCall({
-        conversationId: "~nec",
-        runId: "run-1",
-        toolName: "exec",
+        conversationId: '~nec',
+        runId: 'run-1',
+        toolName: 'exec',
       });
 
       expect(reporter.publish).toHaveBeenCalledTimes(1);
@@ -124,21 +124,21 @@ describe("createComputingPresenceTracker", () => {
 
       await vi.advanceTimersByTimeAsync(1);
       expect(reporter.publish).toHaveBeenLastCalledWith({
-        conversationId: "~nec",
+        conversationId: '~nec',
         thinking: true,
-        toolNames: ["web_fetch", "exec"],
+        toolNames: ['web_fetch', 'exec'],
       });
 
       await tracker.clearToolCalls({
-        conversationId: "~nec",
-        runId: "run-1",
+        conversationId: '~nec',
+        runId: 'run-1',
       });
 
       expect(reporter.publish).toHaveBeenCalledTimes(2);
 
       await vi.advanceTimersByTimeAsync(1_000);
       expect(reporter.publish).toHaveBeenLastCalledWith({
-        conversationId: "~nec",
+        conversationId: '~nec',
         thinking: true,
         toolNames: [],
       });
@@ -147,7 +147,7 @@ describe("createComputingPresenceTracker", () => {
     }
   });
 
-  test("does not republish identical active state on refresh", async () => {
+  test('does not republish identical active state on refresh', async () => {
     const reporter = {
       publish: vi.fn(async () => {}),
     };
@@ -155,85 +155,91 @@ describe("createComputingPresenceTracker", () => {
     const tracker = createComputingPresenceTracker({ reporter });
 
     await tracker.refreshRun({
-      conversationId: "~nec",
-      runId: "run-1",
+      conversationId: '~nec',
+      runId: 'run-1',
     });
 
     await tracker.refreshRun({
-      conversationId: "~nec",
-      runId: "run-1",
+      conversationId: '~nec',
+      runId: 'run-1',
     });
 
     expect(reporter.publish).toHaveBeenCalledTimes(1);
   });
 
-  test("unions active runs in the same conversation", async () => {
+  test('unions active runs in the same conversation', async () => {
     const reporter = {
       publish: vi.fn(async () => {}),
     };
 
-    const tracker = createComputingPresenceTracker({ reporter, minUpdateIntervalMs: 0 });
-
-    await tracker.refreshRun({
-      conversationId: "chat/~bus/general",
-      runId: "run-1",
-    });
-    await tracker.addToolCall({
-      conversationId: "chat/~bus/general",
-      runId: "run-1",
-      toolName: "web_fetch",
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
     });
 
     await tracker.refreshRun({
-      conversationId: "chat/~bus/general",
-      runId: "run-2",
+      conversationId: 'chat/~bus/general',
+      runId: 'run-1',
     });
     await tracker.addToolCall({
-      conversationId: "chat/~bus/general",
-      runId: "run-2",
-      toolName: "exec",
+      conversationId: 'chat/~bus/general',
+      runId: 'run-1',
+      toolName: 'web_fetch',
+    });
+
+    await tracker.refreshRun({
+      conversationId: 'chat/~bus/general',
+      runId: 'run-2',
+    });
+    await tracker.addToolCall({
+      conversationId: 'chat/~bus/general',
+      runId: 'run-2',
+      toolName: 'exec',
     });
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
-      conversationId: "chat/~bus/general",
+      conversationId: 'chat/~bus/general',
       thinking: true,
-      toolNames: ["web_fetch", "exec"],
+      toolNames: ['web_fetch', 'exec'],
     });
 
     await tracker.stopRun({
-      conversationId: "chat/~bus/general",
-      runId: "run-1",
+      conversationId: 'chat/~bus/general',
+      runId: 'run-1',
     });
 
     expect(reporter.publish).toHaveBeenLastCalledWith({
-      conversationId: "chat/~bus/general",
+      conversationId: 'chat/~bus/general',
       thinking: true,
-      toolNames: ["exec"],
+      toolNames: ['exec'],
     });
 
     expect(reporter.publish).toHaveBeenCalledTimes(4);
   });
 
-  test("does not republish thinking false when a stopped run is already missing", async () => {
+  test('does not republish thinking false when a stopped run is already missing', async () => {
     const reporter = {
       publish: vi.fn(async () => {}),
     };
 
-    const tracker = createComputingPresenceTracker({ reporter, minUpdateIntervalMs: 0 });
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
+    });
 
     await tracker.refreshRun({
-      conversationId: "~nec",
-      runId: "run-1",
+      conversationId: '~nec',
+      runId: 'run-1',
     });
 
     await tracker.stopRun({
-      conversationId: "~nec",
-      runId: "run-1",
+      conversationId: '~nec',
+      runId: 'run-1',
     });
 
     await tracker.stopRun({
-      conversationId: "~nec",
-      runId: "run-1",
+      conversationId: '~nec',
+      runId: 'run-1',
     });
 
     expect(reporter.publish).toHaveBeenCalledTimes(2);

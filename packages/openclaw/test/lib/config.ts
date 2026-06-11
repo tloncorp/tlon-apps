@@ -4,9 +4,9 @@
  * Reads test configuration from environment variables.
  * Compatible with the root .env file used by docker-compose.
  */
+import { existsSync } from 'node:fs';
 
-import { existsSync } from "node:fs";
-import type { TestClientConfig, ShipCredentials } from "./client.js";
+import type { ShipCredentials, TestClientConfig } from './client.js';
 
 export interface TestEnvConfig {
   /** Test user credentials (for sending prompts) */
@@ -32,13 +32,13 @@ export interface TestEnvConfig {
  * - TEST_THIRD_PARTY_URL/SHIP/CODE: Optional third-party ship for security tests
  */
 export function getTestConfig(): TestClientConfig {
-  const runningInDocker = existsSync("/.dockerenv");
+  const runningInDocker = existsSync('/.dockerenv');
 
   // Bot ship credentials (for receiving DMs and checking state)
-  let botUrl = requireEnv("TLON_URL");
+  let botUrl = requireEnv('TLON_URL');
   botUrl = normalizeShipUrl(botUrl, runningInDocker);
-  const botShip = requireEnv("TLON_SHIP");
-  const botCode = requireEnv("TLON_CODE");
+  const botShip = requireEnv('TLON_SHIP');
+  const botCode = requireEnv('TLON_CODE');
 
   // Test user ship credentials (for sending DMs)
   let testUserUrl = process.env.TEST_USER_URL ?? botUrl;
@@ -78,14 +78,14 @@ export function getTestConfig(): TestClientConfig {
 function normalizeShipUrl(url: string, runningInDocker: boolean): string {
   // Host tests often use host.docker.internal in .env; map to localhost only outside Docker.
   if (!runningInDocker) {
-    return url.replace("host.docker.internal", "localhost");
+    return url.replace('host.docker.internal', 'localhost');
   }
 
   // In Docker, localhost points to the container itself, not the host ship.
   try {
     const parsed = new URL(url);
-    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
-      parsed.hostname = "host.docker.internal";
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+      parsed.hostname = 'host.docker.internal';
       return parsed.toString();
     }
   } catch {

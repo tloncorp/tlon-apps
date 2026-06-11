@@ -9,7 +9,10 @@
 
 const effectiveOwners = new Map<string, string>();
 
-export function setEffectiveOwnerShip(accountId: string, ship: string | null): void {
+export function setEffectiveOwnerShip(
+  accountId: string,
+  ship: string | null
+): void {
   if (ship) {
     effectiveOwners.set(accountId, ship);
   } else {

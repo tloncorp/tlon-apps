@@ -1,52 +1,62 @@
-import { sendGatewayStop } from "./src/gateway-status.js";
-import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { defineChannelPluginEntry } from "openclaw/plugin-sdk/core";
-import { tlonPlugin } from "./src/channel.js";
-import { createGatewayStatusManager, setGatewayStatusManager } from "./src/gateway-status.js";
-import { resolveBridgeForCommand } from "./src/monitor/command-auth.js";
-import { handleOwnerListenCommand } from "./src/owner-listen-command.js";
-import { setTlonRuntime } from "./src/runtime.js";
-import { getSessionRole } from "./src/session-roles.js";
-import { recordToolCall } from "./src/telemetry.js";
-import { resolveTlonBinary } from "./src/tlon-binary.js";
-import { checkBlockedSendOperation } from "./src/tlon-tool-guard.js";
+import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { defineChannelPluginEntry } from 'openclaw/plugin-sdk/core';
+
+import { tlonPlugin } from './src/channel.js';
+import { sendGatewayStop } from './src/gateway-status.js';
+import {
+  createGatewayStatusManager,
+  setGatewayStatusManager,
+} from './src/gateway-status.js';
+import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
+import { handleOwnerListenCommand } from './src/owner-listen-command.js';
+import { setTlonRuntime } from './src/runtime.js';
+import { getSessionRole } from './src/session-roles.js';
+import { recordToolCall } from './src/telemetry.js';
+import { resolveTlonBinary } from './src/tlon-binary.js';
+import { checkBlockedSendOperation } from './src/tlon-tool-guard.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
-} from "./src/tool-trace.js";
-import { resolveTlonAccount, listTlonAccountIds } from "./src/types.js";
-import { PLUGIN_COMMIT, PLUGIN_VERSION } from "./src/version.generated.js";
+} from './src/tool-trace.js';
+import { listTlonAccountIds, resolveTlonAccount } from './src/types.js';
+import { PLUGIN_COMMIT, PLUGIN_VERSION } from './src/version.generated.js';
 
-export { tlonPlugin } from "./src/channel.js";
-export { setTlonRuntime } from "./src/runtime.js";
+export { tlonPlugin } from './src/channel.js';
+export { setTlonRuntime } from './src/runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 
 // Whitelist of allowed tlon subcommands
 const ALLOWED_TLON_COMMANDS = new Set([
-  "activity",
-  "channels",
-  "contacts",
-  "dms",
-  "expose",
-  "groups",
-  "hooks",
-  "messages",
-  "notebook",
-  "posts",
-  "settings",
-  "upload",
-  "help",
-  "version",
+  'activity',
+  'channels',
+  'contacts',
+  'dms',
+  'expose',
+  'groups',
+  'hooks',
+  'messages',
+  'notebook',
+  'posts',
+  'settings',
+  'upload',
+  'help',
+  'version',
 ]);
 
 /** Credential flags that the tlon skill binary accepts before the subcommand. */
-const CREDENTIAL_FLAGS_WITH_VALUE = new Set(["--config", "--url", "--ship", "--code", "--cookie"]);
+const CREDENTIAL_FLAGS_WITH_VALUE = new Set([
+  '--config',
+  '--url',
+  '--ship',
+  '--code',
+  '--cookie',
+]);
 
 /**
  * Find the first positional argument (subcommand) by skipping credential flags
@@ -57,8 +67,8 @@ function findSubcommandIndex(args: string[]): number {
   while (i < args.length) {
     const arg = args[i];
     // --flag=value form: skip one token
-    if (arg.startsWith("--") && arg.includes("=")) {
-      const flag = arg.slice(0, arg.indexOf("="));
+    if (arg.startsWith('--') && arg.includes('=')) {
+      const flag = arg.slice(0, arg.indexOf('='));
       if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) {
         i += 1;
         continue;
@@ -80,7 +90,7 @@ function findSubcommandIndex(args: string[]): number {
  */
 function shellSplit(str: string): string[] {
   const args: string[] = [];
-  let cur = "";
+  let cur = '';
   let inDouble = false;
   let inSingle = false;
   let escape = false;
@@ -91,7 +101,7 @@ function shellSplit(str: string): string[] {
       escape = false;
       continue;
     }
-    if (ch === "\\" && !inSingle) {
+    if (ch === '\\' && !inSingle) {
       escape = true;
       continue;
     }
@@ -106,7 +116,7 @@ function shellSplit(str: string): string[] {
     if (/\s/.test(ch) && !inDouble && !inSingle) {
       if (cur) {
         args.push(cur);
-        cur = "";
+        cur = '';
       }
       continue;
     }
@@ -124,7 +134,7 @@ function shellSplit(str: string): string[] {
 function runTlonCommand(
   binary: string,
   args: string[],
-  credentials?: { url: string; ship: string; code: string },
+  credentials?: { url: string; ship: string; code: string }
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
@@ -136,22 +146,22 @@ function runTlonCommand(
 
     const child = spawn(binary, args, { env });
 
-    let stdout = "";
-    let stderr = "";
+    let stdout = '';
+    let stderr = '';
 
-    child.stdout.on("data", (data) => {
+    child.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
-    child.stderr.on("data", (data) => {
+    child.stderr.on('data', (data) => {
       stderr += data.toString();
     });
 
-    child.on("error", (err) => {
+    child.on('error', (err) => {
       reject(new Error(`Failed to run tlon: ${err.message}`));
     });
 
-    child.on("close", (code) => {
+    child.on('close', (code) => {
       if (code !== 0) {
         reject(new Error(stderr || `tlon exited with code ${code}`));
       } else {
@@ -162,9 +172,9 @@ function runTlonCommand(
 }
 
 export default defineChannelPluginEntry({
-  id: "tlon",
-  name: "Tlon",
-  description: "Tlon/Urbit channel plugin",
+  id: 'tlon',
+  name: 'Tlon',
+  description: 'Tlon/Urbit channel plugin',
   plugin: tlonPlugin,
   setRuntime: setTlonRuntime,
   registerFull(api) {
@@ -190,7 +200,7 @@ export default defineChannelPluginEntry({
     if (gsAccountIds.length > 1) {
       api.logger.warn(
         `[gateway-status] disabled: ${gsAccountIds.length} Tlon accounts configured, ` +
-          `but v1 only supports one (global @tloncorp/api client cannot target multiple ships)`,
+          `but v1 only supports one (global @tloncorp/api client cannot target multiple ships)`
       );
     } else if (gsAccountIds.length === 1) {
       const gsManager = createGatewayStatusManager({
@@ -201,12 +211,12 @@ export default defineChannelPluginEntry({
       });
       setGatewayStatusManager(gsManager);
 
-      api.on("gateway_start", () => {
+      api.on('gateway_start', () => {
         gsManager.signalGatewayStarted();
-        api.logger.info("[gateway-status] gateway_start received");
+        api.logger.info('[gateway-status] gateway_start received');
       });
 
-      api.on("gateway_stop", async (event) => {
+      api.on('gateway_stop', async (event) => {
         if (gsManager.stopped) {
           return;
         }
@@ -214,7 +224,8 @@ export default defineChannelPluginEntry({
         // in flight (between the %gateway-start poke and markActivated());
         // latching here makes its post-poke recheck bail so it can't start a
         // heartbeat after we've already passed the shutdown hook.
-        const startPokeInFlightOrDone = gsManager.activated || gsManager.starting;
+        const startPokeInFlightOrDone =
+          gsManager.activated || gsManager.starting;
         gsManager.stopHeartbeat();
         gsManager.markStopped();
         // Only send %gateway-stop if a %gateway-start has been or is being
@@ -226,13 +237,15 @@ export default defineChannelPluginEntry({
         try {
           const sent = await sendGatewayStop({
             bootId: gsManager.bootId,
-            reason: event.reason ?? "shutdown",
+            reason: event.reason ?? 'shutdown',
           });
           if (sent) {
-            api.logger.info(`[gateway-status] stopped (reason=${event.reason ?? "shutdown"})`);
+            api.logger.info(
+              `[gateway-status] stopped (reason=${event.reason ?? 'shutdown'})`
+            );
           } else {
             api.logger.warn(
-              "[gateway-status] stop skipped: api-client params not published",
+              '[gateway-status] stop skipped: api-client params not published'
             );
           }
         } catch (err) {
@@ -244,8 +257,8 @@ export default defineChannelPluginEntry({
 
     // Register /tlon-version command
     api.registerCommand({
-      name: "tlon-version",
-      description: "Show Tlon plugin version.",
+      name: 'tlon-version',
+      description: 'Show Tlon plugin version.',
       handler: async () => {
         return { text: `Tlon plugin v${PLUGIN_VERSION} (${PLUGIN_COMMIT})` };
       },
@@ -269,28 +282,30 @@ export default defineChannelPluginEntry({
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
     } else {
-      api.logger.warn(`[tlon] No credentials configured - tlon tool will rely on env vars`);
+      api.logger.warn(
+        `[tlon] No credentials configured - tlon tool will rely on env vars`
+      );
     }
 
     api.registerTool({
-      name: "tlon",
-      label: "Tlon CLI",
+      name: 'tlon',
+      label: 'Tlon CLI',
       description:
-        "Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, posts, settings, upload, expose, hooks. " +
-        "DO NOT use this tool to send messages — use the `message` tool instead. " +
+        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, posts, settings, upload, expose, hooks. ' +
+        'DO NOT use this tool to send messages — use the `message` tool instead. ' +
         "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list'",
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           command: {
-            type: "string",
+            type: 'string',
             description:
-              "The tlon command and arguments (read/admin operations). " +
-              "To send messages, use the `message` tool, not this tool. " +
+              'The tlon command and arguments (read/admin operations). ' +
+              'To send messages, use the `message` tool, not this tool. ' +
               "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20'",
           },
         },
-        required: ["command"],
+        required: ['command'],
       },
       async execute(_id: string, params: { command: string }) {
         try {
@@ -302,8 +317,8 @@ export default defineChannelPluginEntry({
             return {
               content: [
                 {
-                  type: "text" as const,
-                  text: `Error: Unknown tlon subcommand '${subcommand ?? "(none)"}'. Allowed: ${[...ALLOWED_TLON_COMMANDS].join(", ")}`,
+                  type: 'text' as const,
+                  text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${[...ALLOWED_TLON_COMMANDS].join(', ')}`,
                 },
               ],
               details: { error: true },
@@ -314,20 +329,21 @@ export default defineChannelPluginEntry({
           const blocked = checkBlockedSendOperation(args.slice(subIdx));
           if (blocked) {
             return {
-              content: [{ type: "text" as const, text: blocked }],
-              details: { blocked: true, reason: "send_operation" },
+              content: [{ type: 'text' as const, text: blocked }],
+              details: { blocked: true, reason: 'send_operation' },
             };
           }
 
           const output = await runTlonCommand(tlonBinary, args, credentials);
           return {
-            content: [{ type: "text" as const, text: output }],
+            content: [{ type: 'text' as const, text: output }],
             details: undefined,
           };
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           return {
-            content: [{ type: "text" as const, text: `Error: ${message}` }],
+            content: [{ type: 'text' as const, text: `Error: ${message}` }],
             details: { error: true },
           };
         }
@@ -335,28 +351,30 @@ export default defineChannelPluginEntry({
     });
 
     // Tool access control: block sensitive tools for non-owners
-    const ownerOnlyTools = new Set(["tlon", "cron", "read"]);
+    const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
-    api.on("before_tool_call", (event, ctx) => {
-      const role = getSessionRole(ctx.sessionKey ?? "");
+    api.on('before_tool_call', (event, ctx) => {
+      const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
-      const isBlocked = isOwnerOnlyTool && role === "user";
-      const blockReason = isBlocked ? `The ${event.toolName} tool is not available.` : undefined;
+      const isBlocked = isOwnerOnlyTool && role === 'user';
+      const blockReason = isBlocked
+        ? `The ${event.toolName} tool is not available.`
+        : undefined;
 
       if (logToolTraceContents) {
         api.logger.info(
           formatToolTraceEvent({
-            phase: "before",
+            phase: 'before',
             sessionKey: ctx.sessionKey,
             toolName: event.toolName,
             payload: {
               params: event.params,
-              role: role ?? "internal",
+              role: role ?? 'internal',
               blocked: isBlocked,
               ...(blockReason ? { blockReason } : {}),
             },
-          }),
+          })
         );
       }
 
@@ -369,7 +387,7 @@ export default defineChannelPluginEntry({
       // Only block when role is explicitly "user" (non-owner DM).
       if (isBlocked) {
         api.logger.warn(
-          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`,
+          `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
         );
         return {
           block: true,
@@ -378,15 +396,15 @@ export default defineChannelPluginEntry({
       }
 
       api.logger.info(
-        `[tlon] Allowed ${event.toolName} tool for ${role ?? "internal"} session. Session: ${ctx.sessionKey}`,
+        `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
     });
 
-    api.on("after_tool_call", (event, ctx) => {
+    api.on('after_tool_call', (event, ctx) => {
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({
-            phase: "after",
+            phase: 'after',
             sessionKey: ctx.sessionKey,
             toolName: event.toolName,
             payload: {
@@ -395,7 +413,7 @@ export default defineChannelPluginEntry({
               error: event.error ?? null,
               durationMs: event.durationMs ?? null,
             },
-          }),
+          })
         );
       }
 
@@ -409,56 +427,65 @@ export default defineChannelPluginEntry({
 
     // ── Slash commands for approval & admin ────────────────────────────
     api.registerCommand({
-      name: "allow",
-      description: "Allow a pending DM/channel/group request",
+      name: 'allow',
+      description: 'Allow a pending DM/channel/group request',
       acceptsArgs: true,
       handler: async (ctx) => {
         const result = resolveBridgeForCommand(ctx);
-        if ("error" in result) {
+        if ('error' in result) {
           return { text: result.error };
         }
         return {
-          text: await result.bridge.handleAction("approve", ctx.args?.trim() || undefined),
+          text: await result.bridge.handleAction(
+            'approve',
+            ctx.args?.trim() || undefined
+          ),
         };
       },
     });
 
     api.registerCommand({
-      name: "reject",
-      description: "Reject a pending DM/channel/group request",
+      name: 'reject',
+      description: 'Reject a pending DM/channel/group request',
       acceptsArgs: true,
       handler: async (ctx) => {
         const result = resolveBridgeForCommand(ctx);
-        if ("error" in result) {
+        if ('error' in result) {
           return { text: result.error };
         }
         return {
-          text: await result.bridge.handleAction("deny", ctx.args?.trim() || undefined),
+          text: await result.bridge.handleAction(
+            'deny',
+            ctx.args?.trim() || undefined
+          ),
         };
       },
     });
 
     api.registerCommand({
-      name: "ban",
-      description: "Ban a ship and deny its pending request",
+      name: 'ban',
+      description: 'Ban a ship and deny its pending request',
       acceptsArgs: true,
       handler: async (ctx) => {
         const result = resolveBridgeForCommand(ctx);
-        if ("error" in result) {
+        if ('error' in result) {
           return { text: result.error };
         }
         return {
-          text: await result.bridge.handleAction("block", ctx.args?.trim() || undefined),
+          text: await result.bridge.handleAction(
+            'block',
+            ctx.args?.trim() || undefined
+          ),
         };
       },
     });
 
     api.registerCommand({
-      name: "pending",
-      description: "List pending approval requests",
+      name: 'pending',
+      description: 'List pending approval requests',
       handler: async (ctx) => {
         const result = resolveBridgeForCommand(ctx);
-        if ("error" in result) {
+        if ('error' in result) {
           return { text: result.error };
         }
         return { text: await result.bridge.getPendingList() };
@@ -466,11 +493,11 @@ export default defineChannelPluginEntry({
     });
 
     api.registerCommand({
-      name: "banned",
-      description: "List banned ships",
+      name: 'banned',
+      description: 'List banned ships',
       handler: async (ctx) => {
         const result = resolveBridgeForCommand(ctx);
-        if ("error" in result) {
+        if ('error' in result) {
           return { text: result.error };
         }
         return { text: await result.bridge.getBlockedList() };
@@ -478,35 +505,39 @@ export default defineChannelPluginEntry({
     });
 
     api.registerCommand({
-      name: "unban",
-      description: "Unban a ship (e.g. /unban ~sampel-palnet)",
+      name: 'unban',
+      description: 'Unban a ship (e.g. /unban ~sampel-palnet)',
       acceptsArgs: true,
       handler: async (ctx) => {
         const result = resolveBridgeForCommand(ctx);
-        if ("error" in result) {
+        if ('error' in result) {
           return { text: result.error };
         }
         const ship = ctx.args?.trim();
         if (!ship) {
-          return { text: "Usage: /unban ~ship-name" };
+          return { text: 'Usage: /unban ~ship-name' };
         }
         return { text: await result.bridge.handleUnblock(ship) };
       },
     });
 
     api.registerCommand({
-      name: "owner-listen",
+      name: 'owner-listen',
       description:
-        "Control whether the bot listens for the owner without @-mention in owned channels. " +
-        "Usage: /owner-listen [on|off|status|list] [<channel-nest>]; " +
-        "/owner-listen all [on|off] for the global kill switch.",
+        'Control whether the bot listens for the owner without @-mention in owned channels. ' +
+        'Usage: /owner-listen [on|off|status|list] [<channel-nest>]; ' +
+        '/owner-listen all [on|off] for the global kill switch.',
       acceptsArgs: true,
       handler: async (ctx) => {
         const result = resolveBridgeForCommand(ctx);
-        if ("error" in result) {
+        if ('error' in result) {
           return { text: result.error };
         }
-        const text = await handleOwnerListenCommand(result.bridge, ctx.args, ctx.from);
+        const text = await handleOwnerListenCommand(
+          result.bridge,
+          ctx.args,
+          ctx.from
+        );
         return { text };
       },
     });

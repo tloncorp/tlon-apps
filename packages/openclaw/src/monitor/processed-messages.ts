@@ -4,7 +4,9 @@ export type ProcessedMessageTracker = {
   size: () => number;
 };
 
-export function createProcessedMessageTracker(limit = 2000): ProcessedMessageTracker {
+export function createProcessedMessageTracker(
+  limit = 2000
+): ProcessedMessageTracker {
   const seen = new Set<string>();
   const order: string[] = [];
 

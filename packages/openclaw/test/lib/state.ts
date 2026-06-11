@@ -4,27 +4,26 @@
  * Uses @tloncorp/api high-level functions for test assertions.
  * API calls are serialized because @tloncorp/api uses a shared client singleton.
  */
-
 import {
-  createGroup,
-  getCurrentUserId,
   Urbit,
   configureClient,
-  getGroups,
-  getGroup,
-  getContacts,
-  getSettings,
+  createGroup,
   getChannelPosts,
-  getInitialActivity,
+  getContacts,
+  getCurrentUserId,
+  getGroup,
   getGroupAndChannelUnreads,
-  scry,
+  getGroups,
+  getInitialActivity,
+  getSettings,
+  inviteGroupMembers,
+  joinGroup,
   poke,
+  scry,
   sendPost,
   sendReply,
-  joinGroup,
-  inviteGroupMembers,
-} from "@tloncorp/api";
-import type { Story } from "@tloncorp/api";
+} from '@tloncorp/api';
+import type { Story } from '@tloncorp/api';
 
 export interface StateClientConfig {
   shipUrl: string;
@@ -64,7 +63,10 @@ export interface StateClient {
   poke(params: { app: string; mark: string; json: unknown }): Promise<void>;
 
   /** Create a group with a default chat channel */
-  createGroup(title: string, memberIds?: string[]): Promise<{ groupId: string; chatChannel: string }>;
+  createGroup(
+    title: string,
+    memberIds?: string[]
+  ): Promise<{ groupId: string; chatChannel: string }>;
 
   /** Invite ships to a group */
   inviteToGroup(groupId: string, contactIds: string[]): Promise<void>;
@@ -107,7 +109,7 @@ function runExclusive<T>(fn: () => Promise<T>): Promise<T> {
  * Create a state client for querying ship state.
  */
 export function createStateClient(config: StateClientConfig): StateClient {
-  const shipName = config.shipName.replace(/^~/, "");
+  const shipName = config.shipName.replace(/^~/, '');
   const urbit = new Urbit(config.shipUrl, config.code);
   urbit.ship = shipName;
 
@@ -160,7 +162,11 @@ export function createStateClient(config: StateClientConfig): StateClient {
 
     async channelPosts(channelId: string, count = 20) {
       return withClient(async () => {
-        const result = await getChannelPosts({ channelId, count, mode: "newest" });
+        const result = await getChannelPosts({
+          channelId,
+          count,
+          mode: 'newest',
+        });
         return result.posts ?? [];
       });
     },
@@ -189,16 +195,16 @@ export function createStateClient(config: StateClientConfig): StateClient {
           group: {
             id: groupId,
             title,
-            description: "Test fixture group",
+            description: 'Test fixture group',
             hostUserId: getCurrentUserId(),
             currentUserIsHost: true,
             currentUserIsMember: true,
             channels: [
               {
                 id: chatChannel,
-                title: "General",
-                description: "General chat",
-                type: "chat",
+                title: 'General',
+                description: 'General chat',
+                type: 'chat',
                 groupId,
               },
             ],

@@ -6,9 +6,8 @@
  * synchronously by the monitor on observable events. See the plan for
  * `TLON-5628` for the invariants these shadows enforce.
  */
-
-import type { NudgeStage } from "../nudge-messages.js";
-import type { TlonSettingsStore } from "../settings.js";
+import type { NudgeStage } from '../nudge-messages.js';
+import type { TlonSettingsStore } from '../settings.js';
 
 export type LastOwnerActivity = {
   at: number;
@@ -20,7 +19,10 @@ export type LastNudgeStageShadow = 0 | NudgeStage;
 const ownerActivity = new Map<string, LastOwnerActivity>();
 const stageShadow = new Map<string, LastNudgeStageShadow>();
 
-export function setLastOwnerActivity(accountId: string, activity: LastOwnerActivity | null): void {
+export function setLastOwnerActivity(
+  accountId: string,
+  activity: LastOwnerActivity | null
+): void {
   if (activity == null) {
     ownerActivity.delete(accountId);
     return;
@@ -28,15 +30,22 @@ export function setLastOwnerActivity(accountId: string, activity: LastOwnerActiv
   ownerActivity.set(accountId, activity);
 }
 
-export function getLastOwnerActivity(accountId: string): LastOwnerActivity | null {
+export function getLastOwnerActivity(
+  accountId: string
+): LastOwnerActivity | null {
   return ownerActivity.get(accountId) ?? null;
 }
 
-export function setLastNudgeStageShadow(accountId: string, stage: LastNudgeStageShadow): void {
+export function setLastNudgeStageShadow(
+  accountId: string,
+  stage: LastNudgeStageShadow
+): void {
   stageShadow.set(accountId, stage);
 }
 
-export function getLastNudgeStageShadow(accountId: string): LastNudgeStageShadow | null {
+export function getLastNudgeStageShadow(
+  accountId: string
+): LastNudgeStageShadow | null {
   return stageShadow.get(accountId) ?? null;
 }
 
@@ -49,16 +58,23 @@ export function clearShadowsForAccount(accountId: string): void {
  * Derive a seed value for the owner-activity shadow from a loaded
  * settings snapshot. Missing fields seed the shadow as absent.
  */
-export function ownerActivityFromSettings(settings: TlonSettingsStore): LastOwnerActivity | null {
-  const at = typeof settings.lastOwnerMessageAt === "number" ? settings.lastOwnerMessageAt : null;
+export function ownerActivityFromSettings(
+  settings: TlonSettingsStore
+): LastOwnerActivity | null {
+  const at =
+    typeof settings.lastOwnerMessageAt === 'number'
+      ? settings.lastOwnerMessageAt
+      : null;
   const date =
-    typeof settings.lastOwnerMessageDate === "string" ? settings.lastOwnerMessageDate : null;
+    typeof settings.lastOwnerMessageDate === 'string'
+      ? settings.lastOwnerMessageDate
+      : null;
 
   if (at != null && date != null) {
     return { at, date };
   }
   if (at != null) {
-    return { at, date: new Date(at).toISOString().split("T")[0] ?? "" };
+    return { at, date: new Date(at).toISOString().split('T')[0] ?? '' };
   }
   if (date != null) {
     const parsed = Date.parse(date);

@@ -1,9 +1,10 @@
 /**
  * Upload an image from a URL to Tlon storage.
  */
-import { uploadFile } from "@tloncorp/api";
-import { fetchWithSsrFGuard } from "openclaw/plugin-sdk/ssrf-runtime";
-import { getDefaultSsrFPolicy } from "./context.js";
+import { uploadFile } from '@tloncorp/api';
+import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
+
+import { getDefaultSsrFPolicy } from './context.js';
 
 /**
  * Fetch an image from a URL and upload it to Tlon storage.
@@ -15,7 +16,7 @@ export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
   try {
     // Validate URL is http/https before fetching
     const url = new URL(imageUrl);
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
       console.warn(`[tlon] Rejected non-http(s) URL: ${imageUrl}`);
       return imageUrl;
     }
@@ -24,23 +25,25 @@ export async function uploadImageFromUrl(imageUrl: string): Promise<string> {
     // Use fetchWithSsrFGuard directly (not urbitFetch) to preserve the full URL path
     const { response, release } = await fetchWithSsrFGuard({
       url: imageUrl,
-      init: { method: "GET" },
+      init: { method: 'GET' },
       policy: getDefaultSsrFPolicy(),
-      auditContext: "tlon-upload-image",
+      auditContext: 'tlon-upload-image',
     });
 
     try {
       if (!response.ok) {
-        console.warn(`[tlon] Failed to fetch image from ${imageUrl}: ${response.status}`);
+        console.warn(
+          `[tlon] Failed to fetch image from ${imageUrl}: ${response.status}`
+        );
         return imageUrl;
       }
 
-      const contentType = response.headers.get("content-type") || "image/png";
+      const contentType = response.headers.get('content-type') || 'image/png';
       const blob = await response.blob();
 
       // Extract filename from URL or use a default
       const urlPath = new URL(imageUrl).pathname;
-      const fileName = urlPath.split("/").pop() || `upload-${Date.now()}.png`;
+      const fileName = urlPath.split('/').pop() || `upload-${Date.now()}.png`;
 
       // Upload to Tlon storage
       const result = await uploadFile({

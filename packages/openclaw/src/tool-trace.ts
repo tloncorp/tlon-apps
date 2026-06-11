@@ -1,22 +1,23 @@
 const TOOL_TRACE_CONTENT_ENV_VARS = [
-  "TEST_LIVE_TOOL_TRACE_CONTENTS",
-  "CI_LIVE_TOOL_TRACE_CONTENTS",
+  'TEST_LIVE_TOOL_TRACE_CONTENTS',
+  'CI_LIVE_TOOL_TRACE_CONTENTS',
 ] as const;
 
-const REDACTED = "[REDACTED]";
+const REDACTED = '[REDACTED]';
 const MAX_DEPTH = 4;
 const MAX_STRING_LENGTH = 300;
 const MAX_ARRAY_ITEMS = 20;
 const MAX_OBJECT_KEYS = 30;
 
-const SENSITIVE_KEY_RE = /^(?:authorization|auth|password|secret|token|accesstoken|refreshtoken|apikey|api_key|cookie|set-cookie|code)$/i;
+const SENSITIVE_KEY_RE =
+  /^(?:authorization|auth|password|secret|token|accesstoken|refreshtoken|apikey|api_key|cookie|set-cookie|code)$/i;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function truncateString(value: string): string {
-  if (value.startsWith("data:")) {
+  if (value.startsWith('data:')) {
     const prefix = value.slice(0, 48);
     return `${prefix}… [data-url ${value.length} chars]`;
   }
@@ -29,20 +30,24 @@ function truncateString(value: string): string {
 }
 
 function sanitizeValue(value: unknown, depth = 0): unknown {
-  if (value == null || typeof value === "number" || typeof value === "boolean") {
+  if (
+    value == null ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
     return value;
   }
 
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     return truncateString(value);
   }
 
-  if (typeof value === "bigint") {
+  if (typeof value === 'bigint') {
     return value.toString();
   }
 
-  if (typeof value === "function") {
-    return `[Function ${value.name || "anonymous"}]`;
+  if (typeof value === 'function') {
+    return `[Function ${value.name || 'anonymous'}]`;
   }
 
   if (value instanceof Error) {
@@ -63,7 +68,9 @@ function sanitizeValue(value: unknown, depth = 0): unknown {
   }
 
   if (Array.isArray(value)) {
-    const items = value.slice(0, MAX_ARRAY_ITEMS).map((item) => sanitizeValue(item, depth + 1));
+    const items = value
+      .slice(0, MAX_ARRAY_ITEMS)
+      .map((item) => sanitizeValue(item, depth + 1));
     if (value.length > MAX_ARRAY_ITEMS) {
       items.push(`[+${value.length - MAX_ARRAY_ITEMS} more items]`);
     }
@@ -89,11 +96,13 @@ function sanitizeValue(value: unknown, depth = 0): unknown {
 }
 
 export function liveToolTraceContentsEnabled(env = process.env): boolean {
-  return TOOL_TRACE_CONTENT_ENV_VARS.some((name) => /^(1|true|yes|on)$/i.test(env[name] ?? ""));
+  return TOOL_TRACE_CONTENT_ENV_VARS.some((name) =>
+    /^(1|true|yes|on)$/i.test(env[name] ?? '')
+  );
 }
 
 export function formatToolTraceEvent(params: {
-  phase: "before" | "after";
+  phase: 'before' | 'after';
   sessionKey?: string | null;
   toolName: string;
   payload: unknown;
@@ -113,7 +122,7 @@ export function shouldLogAfterToolTrace(event: {
   error?: string;
   result?: unknown;
 }): boolean {
-  if (typeof event.durationMs === "number") {
+  if (typeof event.durationMs === 'number') {
     return true;
   }
 

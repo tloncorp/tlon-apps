@@ -28,7 +28,9 @@ export type NudgeScheduler = {
   readonly isRunning: boolean;
 };
 
-export function createNudgeScheduler(opts: NudgeSchedulerOptions): NudgeScheduler {
+export function createNudgeScheduler(
+  opts: NudgeSchedulerOptions
+): NudgeScheduler {
   const intervalMs = opts.intervalMs ?? DEFAULT_NUDGE_TICK_INTERVAL_MS;
   let timer: NodeJS.Timeout | null = null;
   let running = false;
@@ -39,8 +41,12 @@ export function createNudgeScheduler(opts: NudgeSchedulerOptions): NudgeSchedule
   let activeTick: Promise<void> | null = null;
 
   async function runTick(): Promise<void> {
-    if (opts.abortSignal?.aborted) {return;}
-    if (running) {return;}
+    if (opts.abortSignal?.aborted) {
+      return;
+    }
+    if (running) {
+      return;
+    }
     running = true;
     const task = (async () => {
       try {
@@ -63,17 +69,25 @@ export function createNudgeScheduler(opts: NudgeSchedulerOptions): NudgeSchedule
 
   return {
     start(): void {
-      if (started) {return;}
-      if (opts.abortSignal?.aborted) {return;}
+      if (started) {
+        return;
+      }
+      if (opts.abortSignal?.aborted) {
+        return;
+      }
       started = true;
       // Schedule the first tick on the next macrotask so callers can finish
       // their synchronous startup wiring before the tick observes state.
       setTimeout(() => {
-        if (opts.abortSignal?.aborted || !started) {return;}
+        if (opts.abortSignal?.aborted || !started) {
+          return;
+        }
         void runTick();
       }, 0);
       timer = setInterval(() => {
-        if (opts.abortSignal?.aborted) {return;}
+        if (opts.abortSignal?.aborted) {
+          return;
+        }
         void runTick();
       }, intervalMs);
     },

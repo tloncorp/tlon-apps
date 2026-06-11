@@ -15,34 +15,33 @@
  * If you find yourself wanting to mock aura for a different test, put that
  * test in `send.test.ts` (which already has the file-level mock) instead.
  */
+import { describe, expect, test } from 'vitest';
 
-import { describe, expect, test } from "vitest";
-
-import { formatSentAt } from "./send.js";
+import { formatSentAt } from './send.js';
 
 // The same fixtures used by the Homestead-side canary. Any change here
 // requires landing the same change on the Homestead side as a paired PR.
-const BOT_SHIP = "~botnul-banpex-ravseg-nosduc";
+const BOT_SHIP = '~botnul-banpex-ravseg-nosduc';
 
 const FIXTURES: Array<{ sentAt: number; expectedMessageId: string }> = [
   {
     sentAt: 1700000000000,
     expectedMessageId:
-      "~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.882.809.306.892.730.368.000",
+      '~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.882.809.306.892.730.368.000',
   },
   {
     sentAt: 1700000000123,
     expectedMessageId:
-      "~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.885.078.256.413.796.642.848",
+      '~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.885.078.256.413.796.642.848',
   },
   {
     sentAt: 1700000000999,
     expectedMessageId:
-      "~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.901.237.604.222.366.210.064",
+      '~botnul-banpex-ravseg-nosduc/170.141.184.506.511.632.901.237.604.222.366.210.064',
   },
 ];
 
-describe("formatSentAt — cross-repo messageId fixture pinning", () => {
+describe('formatSentAt — cross-repo messageId fixture pinning', () => {
   for (const fixture of FIXTURES) {
     test(`formats sentAt=${fixture.sentAt} into the pinned messageId`, () => {
       const messageId = `${BOT_SHIP}/${formatSentAt(fixture.sentAt)}`;

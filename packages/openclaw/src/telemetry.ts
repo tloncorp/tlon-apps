@@ -1,7 +1,8 @@
-import type { RuntimeEnv } from "openclaw/plugin-sdk/runtime";
-import { PostHog } from "posthog-node";
-import { sharedMap } from "./shared-state.js";
-import type { TlonTelemetryConfig } from "./types.js";
+import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
+import { PostHog } from 'posthog-node';
+
+import { sharedMap } from './shared-state.js';
+import type { TlonTelemetryConfig } from './types.js';
 
 type ToolCallRecord = {
   toolName: string;
@@ -62,15 +63,15 @@ export type TlonHeartbeatReengagementEvent = {
   accountId: string | null;
 };
 
-export type TlonReplyOutcome = "responded" | "no_reply" | "error";
+export type TlonReplyOutcome = 'responded' | 'no_reply' | 'error';
 
 export type TlonReplyOutcomeEvent = {
   ownerShip: string | null;
   botShip: string;
   outcome: TlonReplyOutcome;
-  chatType: "dm" | "groupChannel";
+  chatType: 'dm' | 'groupChannel';
   isThreadReply: boolean;
-  senderRole: "owner" | "user";
+  senderRole: 'owner' | 'user';
   attachmentCount: number;
   deliveredMessageCount: number;
   replyCharCount: number;
@@ -90,9 +91,9 @@ export type TlonReplyTelemetryStart = {
   sessionKey: string;
   ownerShip: string | null;
   botShip: string;
-  chatType: "dm" | "groupChannel";
+  chatType: 'dm' | 'groupChannel';
   isThreadReply: boolean;
-  senderRole: "owner" | "user";
+  senderRole: 'owner' | 'user';
   attachmentCount: number;
 };
 
@@ -122,13 +123,15 @@ export interface TlonTelemetryClient {
   close(): Promise<void>;
 }
 
-const TLON_TELEMETRY_EVENT_NAME = "TlonBot Reply Handled";
-const TLON_HEARTBEAT_NUDGE_EVENT = "TlonBot Heartbeat Nudge Sent";
-const TLON_HEARTBEAT_REENGAGED_EVENT = "TlonBot Heartbeat Nudge Reengaged";
-const TLON_TELEMETRY_LOG_SOURCE = "openclawPlugin";
+const TLON_TELEMETRY_EVENT_NAME = 'TlonBot Reply Handled';
+const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
+const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
+const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_TOOL_CALLS_PER_SESSION = 200;
-const toolCallsBySession = sharedMap<string, ToolSessionTrace>("telemetry.toolCallsBySession");
+const toolCallsBySession = sharedMap<string, ToolSessionTrace>(
+  'telemetry.toolCallsBySession'
+);
 
 function cleanupToolCalls(now = Date.now()): void {
   for (const [sessionKey, trace] of toolCallsBySession) {
@@ -161,7 +164,8 @@ export function recordToolCall(params: {
   trace.updatedAt = now;
   trace.calls.push({
     toolName: params.toolName,
-    durationMs: typeof params.durationMs === "number" ? params.durationMs : null,
+    durationMs:
+      typeof params.durationMs === 'number' ? params.durationMs : null,
     error: params.error ?? null,
     recordedAt: now,
   });
@@ -178,7 +182,10 @@ function createToolTraceCursor(sessionKey: string): number {
   return toolCallsBySession.get(sessionKey)?.calls.length ?? 0;
 }
 
-function collectToolUsageSince(sessionKey: string, cursor: number): ToolUsageSummary {
+function collectToolUsageSince(
+  sessionKey: string,
+  cursor: number
+): ToolUsageSummary {
   cleanupToolCalls();
 
   const calls =
@@ -194,7 +201,10 @@ function collectToolUsageSince(sessionKey: string, cursor: number): ToolUsageSum
   return {
     calls,
     names: calls.map((call) => call.toolName),
-    totalDurationMs: calls.reduce((total, call) => total + (call.durationMs ?? 0), 0),
+    totalDurationMs: calls.reduce(
+      (total, call) => total + (call.durationMs ?? 0),
+      0
+    ),
     errorCount: calls.filter((call) => call.error).length,
   };
 }
@@ -204,10 +214,10 @@ function resolveReplyOutcome(params: {
   dispatchError?: unknown;
 }): TlonReplyOutcome {
   if (params.deliveredMessageCount > 0) {
-    return "responded";
+    return 'responded';
   }
 
-  return params.dispatchError ? "error" : "no_reply";
+  return params.dispatchError ? 'error' : 'no_reply';
 }
 
 class PostHogTlonTelemetry implements TlonTelemetryClient {
@@ -216,7 +226,11 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
   private readonly identifiedOwners = new Set<string>();
   private missingOwnerWarningLogged = false;
 
-  constructor(params: { apiKey: string; host: string | null; runtime?: RuntimeEnv }) {
+  constructor(params: {
+    apiKey: string;
+    host: string | null;
+    runtime?: RuntimeEnv;
+  }) {
     this.runtime = params.runtime;
     this.client = new PostHog(params.apiKey, {
       host: params.host ?? undefined,
@@ -265,7 +279,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
   }
 
   private captureReplyOutcome(event: TlonReplyOutcomeEvent): void {
-    const ownerShip = event.ownerShip ?? "";
+    const ownerShip = event.ownerShip ?? '';
     if (!this.ensureIdentified(ownerShip, event.botShip)) {
       return;
     }
@@ -312,7 +326,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
       if (!this.missingOwnerWarningLogged) {
         this.missingOwnerWarningLogged = true;
         this.runtime?.log?.(
-          "[tlon] Telemetry is enabled but ownerShip is not configured; skipping telemetry events",
+          '[tlon] Telemetry is enabled but ownerShip is not configured; skipping telemetry events'
         );
       }
       return false;
@@ -344,7 +358,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         logSource: TLON_TELEMETRY_LOG_SOURCE,
         botShip: event.botShip,
         ownerShip: event.ownerShip,
-        trigger: "heartbeat",
+        trigger: 'heartbeat',
         nudgeStage: event.nudgeStage,
         nudgeTarget: event.nudgeTarget,
         channel: event.channel,
@@ -388,7 +402,9 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     try {
       void this.client.shutdown();
     } catch (error) {
-      this.runtime?.error?.(`[tlon] Telemetry shutdown failed: ${String(error)}`);
+      this.runtime?.error?.(
+        `[tlon] Telemetry shutdown failed: ${String(error)}`
+      );
     }
   }
 }
@@ -403,13 +419,13 @@ export function createTlonTelemetry(params: {
 
   if (!params.config.apiKey) {
     params.runtime?.log?.(
-      "[tlon] Telemetry is enabled but telemetry.apiKey is missing; telemetry disabled",
+      '[tlon] Telemetry is enabled but telemetry.apiKey is missing; telemetry disabled'
     );
     return null;
   }
 
   params.runtime?.log?.(
-    `[tlon] Telemetry enabled${params.config.host ? ` (${params.config.host})` : ""}`,
+    `[tlon] Telemetry enabled${params.config.host ? ` (${params.config.host})` : ''}`
   );
 
   return new PostHogTlonTelemetry({

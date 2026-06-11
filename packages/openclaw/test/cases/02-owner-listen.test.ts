@@ -1,4 +1,5 @@
-import type { Story } from "@tloncorp/api";
+import type { Story } from '@tloncorp/api';
+
 /**
  * Owner-listen — plugin's toggle that decides whether the bot responds to
  * the owner's plain (non-mention, non-thread) channel messages.
@@ -15,9 +16,15 @@ import type { Story } from "@tloncorp/api";
  * negative tests here: we send a plain channel post tagged with
  * [tlon-test:KEY], wait a beat, then assert no model call landed for KEY.
  */
-import { describe, test, expect, beforeAll, beforeEach } from "vitest";
-import { getFixtures, requireFixtureGroup, waitFor, type TestFixtures } from "../lib/index.js";
-import { fakeModel } from "../support/fake-model/client.js";
+import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
+
+import {
+  type TestFixtures,
+  getFixtures,
+  requireFixtureGroup,
+  waitFor,
+} from '../lib/index.js';
+import { fakeModel } from '../support/fake-model/client.js';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,11 +35,11 @@ function story(text: string): Story {
 }
 
 function storyWithMention(ship: string, text: string): Story {
-  const norm = ship.startsWith("~") ? ship : `~${ship}`;
+  const norm = ship.startsWith('~') ? ship : `~${ship}`;
   return [{ inline: [{ ship: norm }, ` ${text}`] }];
 }
 
-describe("owner-listen", () => {
+describe('owner-listen', () => {
   let fixtures: TestFixtures;
 
   // How long to wait after sending a channel post before asserting
@@ -57,35 +64,39 @@ describe("owner-listen", () => {
     await pokeOwnerListenDisabledChannels([]);
     await waitFor(async () => {
       const state = await getOwnerListenState();
-      return state.enabled === true && state.disabled.length === 0 ? true : undefined;
+      return state.enabled === true && state.disabled.length === 0
+        ? true
+        : undefined;
     }, 5_000);
     await sleep(PLUGIN_INGEST_HEADROOM_MS);
   });
 
   async function pokeOwnerListenEnabled(enabled: boolean): Promise<void> {
     await fixtures.botState.poke({
-      app: "settings",
-      mark: "settings-event",
+      app: 'settings',
+      mark: 'settings-event',
       json: {
-        "put-entry": {
-          desk: "moltbot",
-          "bucket-key": "tlon",
-          "entry-key": "ownerListenEnabled",
+        'put-entry': {
+          desk: 'moltbot',
+          'bucket-key': 'tlon',
+          'entry-key': 'ownerListenEnabled',
           value: enabled,
         },
       },
     });
   }
 
-  async function pokeOwnerListenDisabledChannels(nests: string[]): Promise<void> {
+  async function pokeOwnerListenDisabledChannels(
+    nests: string[]
+  ): Promise<void> {
     await fixtures.botState.poke({
-      app: "settings",
-      mark: "settings-event",
+      app: 'settings',
+      mark: 'settings-event',
       json: {
-        "put-entry": {
-          desk: "moltbot",
-          "bucket-key": "tlon",
-          "entry-key": "ownerListenDisabledChannels",
+        'put-entry': {
+          desk: 'moltbot',
+          'bucket-key': 'tlon',
+          'entry-key': 'ownerListenDisabledChannels',
           value: nests,
         },
       },
@@ -101,7 +112,9 @@ describe("owner-listen", () => {
     await sleep(PLUGIN_INGEST_HEADROOM_MS);
   }
 
-  async function setOwnerListenDisabledChannels(nests: string[]): Promise<void> {
+  async function setOwnerListenDisabledChannels(
+    nests: string[]
+  ): Promise<void> {
     await pokeOwnerListenDisabledChannels(nests);
     await waitFor(async () => {
       const state = await getOwnerListenState();
@@ -126,7 +139,7 @@ describe("owner-listen", () => {
           };
         };
       };
-    }>("settings", "/all");
+    }>('settings', '/all');
     const tlon = raw?.all?.moltbot?.tlon ?? {};
     return {
       enabled: tlon.ownerListenEnabled,
@@ -138,13 +151,15 @@ describe("owner-listen", () => {
 
   // ── DM behavior ────────────────────────────────────────────────────────
 
-  describe("DMs", () => {
-    test("owner DM is processed regardless of owner-listen state", async () => {
+  describe('DMs', () => {
+    test('owner DM is processed regardless of owner-listen state', async () => {
       // Even with global owner-listen off, owner DMs always engage.
       await setOwnerListenEnabled(false);
 
-      const key = "ol-dm-while-off";
-      await fakeModel.script(key, [{ kind: "text", content: "Heard you in DM." }]);
+      const key = 'ol-dm-while-off';
+      await fakeModel.script(key, [
+        { kind: 'text', content: 'Heard you in DM.' },
+      ]);
 
       await fixtures.userState.sendPost({
         channelId: fixtures.botShip,
@@ -159,12 +174,12 @@ describe("owner-listen", () => {
 
   // ── channel behavior (owner-hosted fixture) ───────────────────────────
 
-  describe("channels (owner-listen enabled)", () => {
+  describe('channels (owner-listen enabled)', () => {
     test("owner's plain channel post engages", async () => {
       requireFixtureGroup(fixtures);
       // Default state: owner-listen on, channel not muted.
-      const key = "ol-plain-engages-when-on";
-      await fakeModel.script(key, [{ kind: "text", content: "Heard you." }]);
+      const key = 'ol-plain-engages-when-on';
+      await fakeModel.script(key, [{ kind: 'text', content: 'Heard you.' }]);
 
       await fixtures.userState.sendPost({
         channelId: fixtures.group.chatChannel,
@@ -177,12 +192,12 @@ describe("owner-listen", () => {
     });
   });
 
-  describe("channels (owner-listen globally disabled)", () => {
+  describe('channels (owner-listen globally disabled)', () => {
     test("owner's plain channel post does NOT engage", async () => {
       requireFixtureGroup(fixtures);
       await setOwnerListenEnabled(false);
 
-      const key = "ol-plain-skipped-when-off";
+      const key = 'ol-plain-skipped-when-off';
       // Intentionally no script — engage would cause 400 noise.
 
       await fixtures.userState.sendPost({
@@ -199,14 +214,14 @@ describe("owner-listen", () => {
       requireFixtureGroup(fixtures);
       await setOwnerListenEnabled(false);
 
-      const key = "ol-mention-overrides-off";
-      await fakeModel.script(key, [{ kind: "text", content: "Mentioned." }]);
+      const key = 'ol-mention-overrides-off';
+      await fakeModel.script(key, [{ kind: 'text', content: 'Mentioned.' }]);
 
       await fixtures.userState.sendPost({
         channelId: fixtures.group.chatChannel,
         content: storyWithMention(
           fixtures.botShip,
-          `[tlon-test:${key}] mention while owner-listen off`,
+          `[tlon-test:${key}] mention while owner-listen off`
         ),
       });
 
@@ -216,13 +231,13 @@ describe("owner-listen", () => {
     });
   });
 
-  describe("channels (per-channel mute)", () => {
+  describe('channels (per-channel mute)', () => {
     test("muted channel skips owner's plain post even when global is on", async () => {
       requireFixtureGroup(fixtures);
       // Global on (default), but THIS channel muted.
       await setOwnerListenDisabledChannels([fixtures.group.chatChannel]);
 
-      const key = "ol-channel-muted-plain";
+      const key = 'ol-channel-muted-plain';
       // No script — engagement would be a bug.
 
       await fixtures.userState.sendPost({
@@ -235,18 +250,20 @@ describe("owner-listen", () => {
       expect(calls.length).toBe(0);
     });
 
-    test("muted channel still engages on @mention", async () => {
+    test('muted channel still engages on @mention', async () => {
       requireFixtureGroup(fixtures);
       await setOwnerListenDisabledChannels([fixtures.group.chatChannel]);
 
-      const key = "ol-channel-muted-mention";
-      await fakeModel.script(key, [{ kind: "text", content: "Mention beats mute." }]);
+      const key = 'ol-channel-muted-mention';
+      await fakeModel.script(key, [
+        { kind: 'text', content: 'Mention beats mute.' },
+      ]);
 
       await fixtures.userState.sendPost({
         channelId: fixtures.group.chatChannel,
         content: storyWithMention(
           fixtures.botShip,
-          `[tlon-test:${key}] mention overrides per-channel mute`,
+          `[tlon-test:${key}] mention overrides per-channel mute`
         ),
       });
 
@@ -258,14 +275,14 @@ describe("owner-listen", () => {
 
   // ── slash command (handled inline by plugin, no model call) ────────────
 
-  describe("slash command", () => {
-    test("/owner-listen all off persists ownerListenEnabled=false", async () => {
+  describe('slash command', () => {
+    test('/owner-listen all off persists ownerListenEnabled=false', async () => {
       // Start with default (enabled true).
       await setOwnerListenEnabled(true);
 
-      const response = await fixtures.client.prompt("/owner-listen all off");
+      const response = await fixtures.client.prompt('/owner-listen all off');
       if (!response.success) {
-        throw new Error(response.error ?? "slash command failed");
+        throw new Error(response.error ?? 'slash command failed');
       }
 
       // Poll the settings store for the new value (slash command writes
@@ -277,12 +294,12 @@ describe("owner-listen", () => {
       expect(state.enabled).toBe(false);
     });
 
-    test("/owner-listen all on persists ownerListenEnabled=true", async () => {
+    test('/owner-listen all on persists ownerListenEnabled=true', async () => {
       await setOwnerListenEnabled(false);
 
-      const response = await fixtures.client.prompt("/owner-listen all on");
+      const response = await fixtures.client.prompt('/owner-listen all on');
       if (!response.success) {
-        throw new Error(response.error ?? "slash command failed");
+        throw new Error(response.error ?? 'slash command failed');
       }
 
       const state = await waitFor(async () => {

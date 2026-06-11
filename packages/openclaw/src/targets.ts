@@ -1,6 +1,6 @@
 export type TlonTarget =
-  | { kind: "dm"; ship: string }
-  | { kind: "channel"; nest: string; hostShip: string; channelName: string };
+  | { kind: 'dm'; ship: string }
+  | { kind: 'channel'; nest: string; hostShip: string; channelName: string };
 
 const SHIP_RE = /^~?[a-z-]+$/i;
 const NEST_RE = /^(chat|heap|diary)\/([^/]+)\/([^/]+)$/i;
@@ -17,11 +17,11 @@ export function normalizeShip(raw: string): string {
   if (!trimmed) {
     return trimmed;
   }
-  return trimmed.startsWith("~") ? trimmed : `~${trimmed}`;
+  return trimmed.startsWith('~') ? trimmed : `~${trimmed}`;
 }
 
 export function parseNest(
-  raw: string,
+  raw: string
 ): { nestPrefix: string; hostShip: string; channelName: string } | null {
   const match = NEST_RE.exec(raw.trim());
   if (!match) {
@@ -34,7 +34,9 @@ export function parseNest(
   };
 }
 
-export function parseChannelNest(raw: string): { hostShip: string; channelName: string } | null {
+export function parseChannelNest(
+  raw: string
+): { hostShip: string; channelName: string } | null {
   const result = parseNest(raw);
   if (!result) {
     return null;
@@ -65,12 +67,12 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
   if (!trimmed) {
     return null;
   }
-  const withoutPrefix = trimmed.replace(/^tlon:/i, "");
+  const withoutPrefix = trimmed.replace(/^tlon:/i, '');
 
   // DM targets: dm/~ship or dm:~ship
   const dmPrefix = withoutPrefix.match(/^dm[/:](.+)$/i);
   if (dmPrefix) {
-    return { kind: "dm", ship: normalizeShip(dmPrefix[1]) };
+    return { kind: 'dm', ship: normalizeShip(dmPrefix[1]) };
   }
 
   // Group/room prefix: group:chat/~host/channel or room:~host/channel
@@ -80,19 +82,19 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
     const parsedNest = parseNest(groupTarget);
     if (parsedNest) {
       return {
-        kind: "channel",
+        kind: 'channel',
         nest: `${parsedNest.nestPrefix}/${parsedNest.hostShip}/${parsedNest.channelName}`,
         hostShip: parsedNest.hostShip,
         channelName: parsedNest.channelName,
       };
     }
     // Legacy format: group:~host/channel (defaults to chat)
-    const parts = groupTarget.split("/");
+    const parts = groupTarget.split('/');
     if (parts.length === 2) {
       const hostShip = normalizeShip(parts[0]);
       const channelName = parts[1];
       return {
-        kind: "channel",
+        kind: 'channel',
         nest: `chat/${hostShip}/${channelName}`,
         hostShip,
         channelName,
@@ -105,7 +107,7 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
   const parsedNest = parseNest(withoutPrefix);
   if (parsedNest) {
     return {
-      kind: "channel",
+      kind: 'channel',
       nest: `${parsedNest.nestPrefix}/${parsedNest.hostShip}/${parsedNest.channelName}`,
       hostShip: parsedNest.hostShip,
       channelName: parsedNest.channelName,
@@ -114,12 +116,12 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
 
   // Bare ship name: treat as DM
   if (SHIP_RE.test(withoutPrefix)) {
-    return { kind: "dm", ship: normalizeShip(withoutPrefix) };
+    return { kind: 'dm', ship: normalizeShip(withoutPrefix) };
   }
 
   return null;
 }
 
 export function formatTargetHint(): string {
-  return "dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel";
+  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel';
 }

@@ -1,7 +1,8 @@
-import { randomUUID } from "node:crypto";
-import { gatewayHeartbeat, gatewayStop } from "@tloncorp/api";
-import { sharedSlot } from "./shared-state.js";
-import { configureTlonApiWithPoke } from "./urbit/api-client.js";
+import { gatewayHeartbeat, gatewayStop } from '@tloncorp/api';
+import { randomUUID } from 'node:crypto';
+
+import { sharedSlot } from './shared-state.js';
+import { configureTlonApiWithPoke } from './urbit/api-client.js';
 
 // Shared-state slot for the @tloncorp/api client params. The monitor
 // publishes its SSE-bound poke + ship coords here; every other module
@@ -9,7 +10,7 @@ import { configureTlonApiWithPoke } from "./urbit/api-client.js";
 // @tloncorp/api singleton before any poke call. Storing a callback would
 // configure the publisher's @tloncorp/api instance, not the reader's, so
 // we deliberately move *data* through the slot, not behavior.
-export const API_CLIENT_PARAMS_SLOT = "@tloncorp/openclaw.api-client-params";
+export const API_CLIENT_PARAMS_SLOT = '@tloncorp/openclaw.api-client-params';
 
 export interface SharedApiClientParams {
   poke: (params: {
@@ -22,7 +23,7 @@ export interface SharedApiClientParams {
 }
 
 const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
-  API_CLIENT_PARAMS_SLOT,
+  API_CLIENT_PARAMS_SLOT
 );
 
 // ── Constants (matching design doc recommendations) ─────────
@@ -132,28 +133,32 @@ export function createGatewayStatusManager(opts: {
           const params = apiClientParamsSlot.get();
           if (!params) {
             opts.logger?.error?.(
-              "[gateway-status] heartbeat skipped: api-client params not published",
+              '[gateway-status] heartbeat skipped: api-client params not published'
             );
             return;
           }
           configureTlonApiWithPoke(
             params.poke,
             params.shipName,
-            params.shipUrl,
+            params.shipUrl
           );
           await gatewayHeartbeat({ bootId, leaseUntil: computeLeaseUntil() });
         } catch (err) {
-          opts.logger?.error?.(`[gateway-status] heartbeat failed: ${String(err)}`);
+          opts.logger?.error?.(
+            `[gateway-status] heartbeat failed: ${String(err)}`
+          );
         }
       }, HEARTBEAT_INTERVAL_MS);
-      opts.logger?.log?.(`[gateway-status] heartbeat started (interval=${HEARTBEAT_INTERVAL_MS}ms)`);
+      opts.logger?.log?.(
+        `[gateway-status] heartbeat started (interval=${HEARTBEAT_INTERVAL_MS}ms)`
+      );
     },
 
     stopHeartbeat() {
       if (heartbeatInterval) {
         clearInterval(heartbeatInterval);
         heartbeatInterval = null;
-        opts.logger?.log?.("[gateway-status] heartbeat stopped");
+        opts.logger?.log?.('[gateway-status] heartbeat stopped');
       }
     },
   };
@@ -161,7 +166,7 @@ export function createGatewayStatusManager(opts: {
 
 // Routed through shared-state so the slot survives plugin module isolation —
 // the extension sets, the monitor reads, and they live in separate contexts.
-const managerSlot = sharedSlot<GatewayStatusManager>("gateway-status.manager");
+const managerSlot = sharedSlot<GatewayStatusManager>('gateway-status.manager');
 
 export function setGatewayStatusManager(m: GatewayStatusManager | null): void {
   managerSlot.set(m);
@@ -190,7 +195,7 @@ export async function sendGatewayStop(params: {
   configureTlonApiWithPoke(
     apiParams.poke,
     apiParams.shipName,
-    apiParams.shipUrl,
+    apiParams.shipUrl
   );
   await gatewayStop({ bootId: params.bootId, reason: params.reason });
   return true;

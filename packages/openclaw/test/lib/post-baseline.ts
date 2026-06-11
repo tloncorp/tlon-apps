@@ -1,4 +1,4 @@
-import { getTextContent } from "@tloncorp/api";
+import { getTextContent } from '@tloncorp/api';
 
 export interface SequencePostView {
   authorId?: string;
@@ -9,22 +9,25 @@ export interface SequencePostView {
 }
 
 export interface SequenceAwareStateClient {
-  channelPosts(channelId: string, count: number): Promise<unknown[] | undefined>;
+  channelPosts(
+    channelId: string,
+    count: number
+  ): Promise<unknown[] | undefined>;
 }
 
 export function extractPostText(post: SequencePostView): string {
-  return (post.textContent ?? getTextContent(post.content) ?? "").trim();
+  return (post.textContent ?? getTextContent(post.content) ?? '').trim();
 }
 
 export function getPostSequence(post: SequencePostView): number {
-  return typeof post.sequenceNum === "number" ? post.sequenceNum : -1;
+  return typeof post.sequenceNum === 'number' ? post.sequenceNum : -1;
 }
 
 export async function getLatestSequenceForAuthor(
   state: SequenceAwareStateClient,
   channelId: string,
   authorId: string,
-  count = 30,
+  count = 30
 ): Promise<number> {
   try {
     const posts = await state.channelPosts(channelId, count);
@@ -41,7 +44,7 @@ export async function getLatestSequenceForAuthor(
 
 export function isPostNewerThanSequence(
   post: SequencePostView,
-  baselineSequence: number,
+  baselineSequence: number
 ): boolean {
   return getPostSequence(post) > baselineSequence;
 }
