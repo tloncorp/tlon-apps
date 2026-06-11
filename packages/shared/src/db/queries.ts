@@ -5338,6 +5338,9 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
                 ),
+                // reacts don't bump an unread count (unreads=|), so gate only on
+                // shouldNotify: a notified, unseen react lights the activity bell
+                eq($activityEvents.type, 'react'),
                 and(
                   gt($groupUnreads.notifyCount, 0),
                   or(
