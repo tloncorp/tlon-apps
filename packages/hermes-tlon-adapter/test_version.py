@@ -117,12 +117,24 @@ class FormatReplyTests(unittest.TestCase):
         self.assertEqual(
             reply.splitlines(),
             [
-                "Adapter: 0.1.0",
-                "Source: main @ abc1234 (clean)",
-                "Fingerprint: fp1:0123456789ab",
-                "Tlon CLI: 0.3.2",
+                "*Harness*: **Hermes**",
+                "*Adapter Version*: **0.1.0**",
+                "*Tlon Skill*: **0.3.2**",
+                "*Fingerprint*: **fp1:0123456789ab**",
+                "*Source*: **main @ abc1234 (clean)**",
             ],
         )
+
+    def test_plain_keys_for_logs(self):
+        reply = version.format_version_reply(
+            adapter_version="0.1.0",
+            source="main @ abc1234 (clean)",
+            fingerprint="fp1:0123456789ab",
+            cli_version="0.3.2",
+            markdown=False,
+        )
+        self.assertEqual(reply.splitlines()[0], "Harness: Hermes")
+        self.assertNotIn("*", reply)
 
     def test_no_git_fallback(self):
         reply = version.format_version_reply(
@@ -131,7 +143,7 @@ class FormatReplyTests(unittest.TestCase):
             fingerprint="fp1:0123456789ab",
             cli_version="0.3.2",
         )
-        self.assertIn("Source: no git checkout", reply)
+        self.assertIn("*Source*: **no git checkout**", reply)
 
 
 if __name__ == "__main__":

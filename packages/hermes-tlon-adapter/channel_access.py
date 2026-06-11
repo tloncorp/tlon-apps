@@ -14,6 +14,7 @@ preserved verbatim apart from the field being changed, so OpenClaw-managed
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional
@@ -39,7 +40,16 @@ def channel_access_command_args(text: str) -> str:
 
 
 def parse_channel_rules(value: Any) -> dict[str, dict[str, Any]]:
-    """Canonicalize nest keys; preserve rule dicts (and unknown fields) verbatim."""
+    """Canonicalize nest keys; preserve rule dicts (and unknown fields) verbatim.
+
+    %settings values cannot be objects, so the rules map is stored as a JSON
+    string (same encoding as OpenClaw); accept both shapes.
+    """
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
     if not isinstance(value, Mapping):
         return {}
     rules: dict[str, dict[str, Any]] = {}

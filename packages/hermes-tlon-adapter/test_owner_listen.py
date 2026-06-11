@@ -360,7 +360,7 @@ class ApplyCommandTests(unittest.TestCase):
             outcome.settings_changes,
             {"ownerListenEnabledChannels": ["chat/~ten/lounge"]},
         )
-        self.assertEqual(outcome.monitor_nest, "chat/~ten/lounge")
+        self.assertEqual(outcome.monitor_nests, ("chat/~ten/lounge",))
         self.assertIn("on (explicitly enabled)", outcome.reply)
         self.assertIn("Now monitoring this channel.", outcome.reply)
 
@@ -371,7 +371,7 @@ class ApplyCommandTests(unittest.TestCase):
             "on chat/~ten/lounge",
             monitored=("chat/~pen/general", "chat/~ten/lounge"),
         )
-        self.assertIsNone(outcome.monitor_nest)
+        self.assertEqual(outcome.monitor_nests, ())
         self.assertNotIn("Now monitoring", outcome.reply)
 
     def test_mute_owned_channel(self):
@@ -401,7 +401,15 @@ class ApplyCommandTests(unittest.TestCase):
         state = make_state(enabled_channels={"chat/~ten/lounge"})
         outcome = self.apply(state, "off chat/~ten/lounge")
         self.assertEqual(state.enabled_channels, set())
-        self.assertEqual(outcome.settings_changes, {"ownerListenEnabledChannels": []})
+        # Sticky mute: explicit off lands in the disabled list too, so it
+        # survives a later default flip to "all".
+        self.assertEqual(
+            outcome.settings_changes,
+            {
+                "ownerListenEnabledChannels": [],
+                "ownerListenDisabledChannels": ["chat/~ten/lounge"],
+            },
+        )
 
     def test_enable_with_global_off_records_override(self):
         state = make_state(enabled=False)
@@ -426,6 +434,165 @@ class ApplyCommandTests(unittest.TestCase):
     def test_unknown_action_returns_usage(self):
         outcome = self.apply(make_state(), "sideways")
         self.assertEqual(outcome.reply, ol.OWNER_LISTEN_USAGE)
+
+
+class DefaultModeTests(unittest.TestCase):
+    def test_default_all_makes_every_channel_active(self):
+        state = make_state(default_all=True)
+        self.assertTrue(
+            ol.owner_listen_active(state, "chat/~ten/lounge", owner_ship=OWNER, bot_ship=BOT)
+        )
+        # explicit mute still wins
+        state.disabled_channels.add("chat/~ten/lounge")
+        self.assertFalse(
+            ol.owner_listen_active(state, "chat/~ten/lounge", owner_ship=OWNER, bot_ship=BOT)
+        )
+
+    def test_default_command_round_trip(self):
+        state = make_state()
+        status = ol.apply_owner_listen_command(
+            state, "default", ctx_nest=None, owner_ship=OWNER, bot_ship=BOT
+        )
+        self.assertEqual(status.reply, "Owner-listen default: owned channels only.")
+
+        outcome = ol.apply_owner_listen_command(
+            state, "default all", ctx_nest=None, owner_ship=OWNER, bot_ship=BOT
+        )
+        self.assertTrue(state.default_all)
+        self.assertEqual(outcome.settings_changes, {"ownerListenDefault": "all"})
+        self.assertIn("all monitored channels", outcome.reply)
+
+        outcome = ol.apply_owner_listen_command(
+            state, "default owned", ctx_nest=None, owner_ship=OWNER, bot_ship=BOT
+        )
+        self.assertFalse(state.default_all)
+        self.assertEqual(outcome.settings_changes, {"ownerListenDefault": "owned"})
+
+        bogus = ol.apply_owner_listen_command(
+            state, "default sideways", ctx_nest=None, owner_ship=OWNER, bot_ship=BOT
+        )
+        self.assertEqual(bogus.reply, "Usage: /owner-listen default [owned|all]")
+
+    def test_default_does_not_collide_with_global_all_toggle(self):
+        state = make_state()
+        outcome = ol.apply_owner_listen_command(
+            state, "all off", ctx_nest=None, owner_ship=OWNER, bot_ship=BOT
+        )
+        self.assertFalse(state.enabled)
+        self.assertFalse(state.default_all)
+        self.assertEqual(outcome.settings_changes, {"ownerListenEnabled": False})
+
+    def test_default_from_settings_and_event(self):
+        state = ol.owner_listen_state_from_settings(
+            {"ownerListenDefault": "all"}, defaults=make_state()
+        )
+        self.assertTrue(state.default_all)
+        # invalid value falls back to defaults
+        state = ol.owner_listen_state_from_settings(
+            {"ownerListenDefault": "sideways"}, defaults=make_state(default_all=True)
+        )
+        self.assertTrue(state.default_all)
+
+        live = make_state()
+        changed = ol.apply_owner_listen_settings_event(
+            live, ol.SettingsEvent(key="ownerListenDefault", value="all"),
+            defaults=make_state(),
+        )
+        self.assertTrue(changed)
+        self.assertTrue(live.default_all)
+
+    def test_status_detail_reflects_all_default(self):
+        state = make_state(default_all=True)
+        outcome = ol.apply_owner_listen_command(
+            state, "status chat/~ten/lounge", ctx_nest=None, owner_ship=OWNER, bot_ship=BOT
+        )
+        self.assertIn("on (active (all-channels default))", outcome.reply)
+
+    def test_list_shows_default(self):
+        reply = ol.apply_owner_listen_command(
+            make_state(default_all=True), "list", ctx_nest=None, owner_ship=OWNER, bot_ship=BOT
+        ).reply
+        self.assertIn("Default: all monitored channels.", reply)
+
+
+class GroupTargetTests(unittest.TestCase):
+    def test_parse_group_flag(self):
+        self.assertEqual(ol.parse_group_flag("~HOST/my-group"), "~host/my-group")
+        self.assertEqual(ol.parse_group_flag("~ten/projects"), "~ten/projects")
+        self.assertIsNone(ol.parse_group_flag("chat/~ten/projects"))
+        self.assertIsNone(ol.parse_group_flag("~ten"))
+        self.assertIsNone(ol.parse_group_flag("nope/projects"))
+
+    def test_group_target_detection(self):
+        self.assertEqual(
+            ol.owner_listen_group_target("on ~ten/projects"), ("on", "~ten/projects")
+        )
+        self.assertEqual(
+            ol.owner_listen_group_target("off ~ten/projects"), ("off", "~ten/projects")
+        )
+        # channel nests and other forms are not group targets
+        self.assertIsNone(ol.owner_listen_group_target("on chat/~ten/projects"))
+        self.assertIsNone(ol.owner_listen_group_target("on"))
+        self.assertIsNone(ol.owner_listen_group_target("all on"))
+
+    def test_group_apply_on_enables_all_channels(self):
+        state = make_state()
+        outcome = ol.apply_owner_listen_group_command(
+            state,
+            "on",
+            "~ten/projects",
+            ["chat/~ten/general", "heap/~ten/art", "chat/~pen/owned-by-bot"],
+            owner_ship=OWNER,
+            bot_ship=BOT,
+            monitored_channels=frozenset({"chat/~ten/general"}),
+        )
+        # non-owned channels land in the enabled set; bot-hosted one doesn't need to
+        self.assertEqual(
+            state.enabled_channels, {"chat/~ten/general", "heap/~ten/art"}
+        )
+        self.assertEqual(
+            sorted(outcome.monitor_nests), ["chat/~pen/owned-by-bot", "heap/~ten/art"]
+        )
+        self.assertIn("on for 3 channel(s) in ~ten/projects", outcome.reply)
+        self.assertIn("Now monitoring 2 of them.", outcome.reply)
+        self.assertEqual(
+            outcome.settings_changes,
+            {"ownerListenEnabledChannels": ["chat/~ten/general", "heap/~ten/art"]},
+        )
+
+    def test_group_apply_off_mutes_all_channels(self):
+        state = make_state(enabled_channels={"chat/~ten/general"})
+        outcome = ol.apply_owner_listen_group_command(
+            state,
+            "off",
+            "~ten/projects",
+            ["chat/~ten/general", "heap/~ten/art"],
+            owner_ship=OWNER,
+            bot_ship=BOT,
+        )
+        self.assertEqual(state.enabled_channels, set())
+        self.assertEqual(
+            state.disabled_channels, {"chat/~ten/general", "heap/~ten/art"}
+        )
+        self.assertIn("muted for 2 channel(s)", outcome.reply)
+        self.assertEqual(outcome.monitor_nests, ())
+
+    def test_group_apply_rejects_other_actions_and_empty(self):
+        state = make_state()
+        self.assertIn(
+            "on|off only",
+            ol.apply_owner_listen_group_command(
+                state, "status", "~ten/projects", ["chat/~ten/general"],
+                owner_ship=OWNER, bot_ship=BOT,
+            ).reply,
+        )
+        self.assertIn(
+            "No channels found",
+            ol.apply_owner_listen_group_command(
+                state, "on", "~ten/projects", [],
+                owner_ship=OWNER, bot_ship=BOT,
+            ).reply,
+        )
 
 
 class ConfigEnvTests(unittest.TestCase):

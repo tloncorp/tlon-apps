@@ -1,5 +1,6 @@
 import asyncio
 import importlib.util
+import json
 import os
 import sys
 import types
@@ -171,12 +172,22 @@ class FakeSSE:
         return [poke for poke in self.pokes if poke[1] == mark]
 
     def settings_writes(self, key):
-        return [
-            poke[2]["put-entry"]["value"]
-            for poke in self.pokes
-            if poke[1] == "settings-event"
-            and poke[2]["put-entry"]["entry-key"] == key
-        ]
+        """Logical values written for a settings key (JSON strings decoded)."""
+        values = []
+        for poke in self.pokes:
+            if poke[1] != "settings-event":
+                continue
+            entry = poke[2]["put-entry"]
+            if entry["entry-key"] != key:
+                continue
+            value = entry["value"]
+            if isinstance(value, str):
+                try:
+                    value = json.loads(value)
+                except json.JSONDecodeError:
+                    pass
+            values.append(value)
+        return values
 
 
 class FakeCLI:
@@ -345,6 +356,149 @@ class AdapterApprovalTests(unittest.TestCase):
 
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    # ── group invites ────────────────────────────────────────────────────
+
+    @staticmethod
+    def foreigns(flag, from_ship, *, title="Project Space"):
+        return {
+            flag: {
+                "invites": [
+                    {
+                        "from": from_ship,
+                        "valid": True,
+                        "time": 1,
+                        "preview": {"meta": {"title": title}},
+                    }
+                ]
+            }
+        }
+
+    @staticmethod
+    def init_with_channels(flag, channels):
+        return {"groups": {flag: {"channels": {nest: {} for nest in channels}}}}
+
+    def test_unknown_group_invite_queues_with_card(self):
+        adapter = self.make_adapter()
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["type"], "group")
+        self.assertEqual(pending["groupFlag"], "~host/projects")
+        self.assertEqual(pending["groupTitle"], "Project Space")
+        self.assertEqual(pending["requestingShip"], "~ten")
+        # did NOT auto-join
+        self.assertNotIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
+        notif = adapter._cli.notifications()[0]
+        self.assertIn("group invite", notif[3])
+        self.assertIn('"a2ui"', notif[5])
+
+    def test_owner_group_invite_auto_accepts_and_adopts_channels(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~host/projects", ["chat/~host/general", "heap/~host/art"]
+        )
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~mug")))
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
+        self.assertIn("chat/~host/general", adapter._monitored_channels)
+        self.assertIn("heap/~host/art", adapter._monitored_channels)
+        self.assertEqual(
+            sorted(adapter._sse.settings_writes("groupChannels")[-1]),
+            ["chat/~host/general", "heap/~host/art"],
+        )
+
+    def test_allowlisted_inviter_auto_accepts(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~ten"})
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~host/projects", []
+        )
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
+
+    def test_group_invite_deduped_by_flag_across_inviters(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        # same flag re-emitted (processed set short-circuits re-queue)
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~bus")))
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_connect_scry_catches_missed_group_invites(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/groups-ui/v7/init"] = {
+            "foreigns": self.foreigns("~host/projects", "~ten"),
+            "groups": {},
+        }
+
+        asyncio.run(adapter._process_pending_group_invites())
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(adapter._pending_approvals[0]["groupFlag"], "~host/projects")
+
+    def test_allow_group_invite_joins_and_adopts_channels(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~host/projects", ["chat/~host/general"]
+        )
+
+        self.dispatches(
+            adapter, dm_event(f"/allow {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
+        self.assertIn("chat/~host/general", adapter._monitored_channels)
+        confirmation = adapter._cli.messages[-1][1]
+        self.assertIn("joining Project Space", confirmation)
+        # discoverability hint for non-owned groups
+        self.assertIn("/owner-listen on ~host/projects", confirmation)
+
+    def test_owner_hosted_group_allow_skips_owner_listen_hint(self):
+        adapter = self.make_adapter()
+        # group hosted by the owner, but invite sent by an unapproved admin
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~mug/home", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~mug/home", []
+        )
+
+        self.dispatches(
+            adapter, dm_event(f"/allow {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertNotIn("/owner-listen", adapter._cli.messages[-1][1])
+
+    def test_reject_group_invite_does_not_join(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+
+        self.dispatches(
+            adapter, dm_event(f"/reject {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertNotIn(("groups", "accept-invite", "~host/projects"), adapter._cli.commands)
+        self.assertIn("declined invite", adapter._cli.messages[-1][1])
+
+    def test_group_invite_no_owner_is_ignored(self):
+        adapter = self.make_adapter({"owner_ship": ""})
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._cli.notifications(), [])
 
     # ── owner actions ────────────────────────────────────────────────────
 
@@ -651,6 +805,28 @@ class AdapterApprovalTests(unittest.TestCase):
         ]
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0]["component"], "approval")
+
+    def test_object_settings_are_persisted_as_json_strings(self):
+        # %settings values cannot hold objects — raw dict pokes are NACKED by
+        # the ship and silently lost on restart. Pin the JSON-string encoding
+        # (which is also what OpenClaw writes).
+        adapter = self.make_adapter()
+        self.dispatches(adapter, dm_event("hi"), dm=True)
+        self.dispatches(
+            adapter, channel_event("/channel-access open", author="~mug", post_id="9")
+        )
+
+        raw = {
+            poke[2]["put-entry"]["entry-key"]: poke[2]["put-entry"]["value"]
+            for poke in adapter._sse.pokes
+            if poke[1] == "settings-event"
+        }
+        self.assertIsInstance(raw["pendingApprovals"], str)
+        self.assertIsInstance(raw["channelRules"], str)
+        self.assertEqual(
+            json.loads(raw["channelRules"]),
+            {"chat/~pen/general": {"mode": "open"}},
+        )
 
     def test_settings_event_hot_reloads_approval_state(self):
         adapter = self.make_adapter()

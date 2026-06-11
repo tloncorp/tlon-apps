@@ -25,6 +25,7 @@ from .tlon_api import normalize_ship
 
 SETTINGS_KEY_PENDING_APPROVALS = "pendingApprovals"
 SETTINGS_KEY_DM_ALLOWLIST = "dmAllowlist"
+SETTINGS_KEY_GROUP_INVITE_ALLOWLIST = "groupInviteAllowlist"
 
 APPROVAL_TTL_MS = 48 * 60 * 60 * 1000
 DM_INVITE_PREVIEW = "(DM invite - no message yet)"
@@ -69,6 +70,10 @@ def approval_nest(approval: Mapping[str, Any]) -> str:
     return str(approval.get("channelNest") or "")
 
 
+def approval_group_flag(approval: Mapping[str, Any]) -> str:
+    return str(approval.get("groupFlag") or "")
+
+
 def _timestamp_ms(approval: Mapping[str, Any]) -> Optional[float]:
     try:
         return float(approval.get("timestamp"))
@@ -92,6 +97,13 @@ def prune_expired(approvals: Iterable[Any], now_ms: float) -> list[dict[str, Any
 
 
 def parse_pending_approvals(value: Any) -> list[dict[str, Any]]:
+    # %settings values cannot be objects, so the list of approvals is stored
+    # as a JSON string (same encoding as OpenClaw); accept both shapes.
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return []
     if not isinstance(value, list):
         return []
     return [dict(item) for item in value if isinstance(item, Mapping)]
@@ -114,6 +126,8 @@ def create_pending_approval(
     now_ms: float,
     existing_ids: Iterable[str] = (),
     channel_nest: Optional[str] = None,
+    group_flag: Optional[str] = None,
+    group_title: Optional[str] = None,
     message_preview: Optional[str] = None,
     original_message: Optional[Mapping[str, Any]] = None,
 ) -> dict[str, Any]:
@@ -125,6 +139,10 @@ def create_pending_approval(
     }
     if channel_nest:
         approval["channelNest"] = channel_nest
+    if group_flag:
+        approval["groupFlag"] = group_flag
+    if group_title:
+        approval["groupTitle"] = truncate(group_title, 80)
     if message_preview:
         approval["messagePreview"] = truncate(message_preview)
     if original_message:
@@ -149,16 +167,21 @@ def find_duplicate(
     approvals: Iterable[Mapping[str, Any]],
     candidate: Mapping[str, Any],
 ) -> Optional[dict[str, Any]]:
+    kind = approval_type(candidate)
     for approval in approvals:
-        if (
-            approval_type(approval) == approval_type(candidate)
-            and approval_ship(approval) == approval_ship(candidate)
-            and (
-                approval_type(candidate) != "channel"
-                or approval_nest(approval) == approval_nest(candidate)
-            )
-        ):
-            return dict(approval)
+        if approval_type(approval) != kind:
+            continue
+        # Group requests dedup by group flag (not inviter); DM/channel dedup by
+        # ship, and channels additionally by nest.
+        if kind == "group":
+            if approval_group_flag(approval) == approval_group_flag(candidate):
+                return dict(approval)
+            continue
+        if approval_ship(approval) != approval_ship(candidate):
+            continue
+        if kind == "channel" and approval_nest(approval) != approval_nest(candidate):
+            continue
+        return dict(approval)
     return None
 
 
@@ -172,6 +195,45 @@ def remove_approval(
         for approval in approvals
         if approval_id(approval).lower() != needle
     ]
+
+
+def parse_foreigns(payload: Any) -> list[dict[str, str]]:
+    """Pending valid group invites from a %groups foreigns map.
+
+    Shape: ``{groupFlag: {invites: [{from, valid, preview: {meta: {title}}}]}}``.
+    Returns one entry per group flag that has at least one valid invite, using
+    the most recent valid invite for inviter/title.
+    """
+    if not isinstance(payload, Mapping):
+        return []
+    invites: list[dict[str, str]] = []
+    for flag, foreign in payload.items():
+        if not isinstance(foreign, Mapping):
+            continue
+        raw_invites = foreign.get("invites")
+        if not isinstance(raw_invites, list):
+            continue
+        valid = [
+            invite
+            for invite in raw_invites
+            if isinstance(invite, Mapping) and invite.get("valid")
+        ]
+        if not valid:
+            continue
+        chosen = max(valid, key=lambda invite: invite.get("time") or 0)
+        inviter = normalize_ship(str(chosen.get("from") or ""))
+        if not inviter:
+            continue
+        preview = chosen.get("preview")
+        title = ""
+        if isinstance(preview, Mapping):
+            meta = preview.get("meta")
+            if isinstance(meta, Mapping):
+                title = str(meta.get("title") or "")
+        invites.append(
+            {"groupFlag": str(flag), "from": inviter, "title": title}
+        )
+    return invites
 
 
 def parse_dm_allowlist(value: Any) -> set[str]:
@@ -215,18 +277,29 @@ def _approval_descriptor(approval: Mapping[str, Any]) -> str:
         return "DM request"
     if kind == "channel":
         return "channel request"
+    if kind == "group":
+        return "group invite"
     return f"{kind} request"
 
 
+def _group_label(approval: Mapping[str, Any]) -> str:
+    return str(approval.get("groupTitle") or "") or approval_group_flag(approval)
+
+
 def format_approval_request(approval: Mapping[str, Any]) -> str:
+    kind = approval_type(approval)
     lines = [f"🔔 New {_approval_descriptor(approval)} #{approval_id(approval)}"]
-    lines.append(f"From: {approval_ship(approval)}")
-    nest = approval_nest(approval)
-    if nest:
-        lines.append(f"Channel: {nest}")
-    preview = str(approval.get("messagePreview") or "")
-    if preview:
-        lines.append(f'Message: "{truncate(preview)}"')
+    if kind == "group":
+        lines.append(f"Inviter: {approval_ship(approval)}")
+        lines.append(f"Group: {_group_label(approval)}")
+    else:
+        lines.append(f"From: {approval_ship(approval)}")
+        nest = approval_nest(approval)
+        if nest:
+            lines.append(f"Channel: {nest}")
+        preview = str(approval.get("messagePreview") or "")
+        if preview:
+            lines.append(f'Message: "{truncate(preview)}"')
     request_id = approval_id(approval)
     lines.append("")
     lines.append(
@@ -242,6 +315,10 @@ def format_pending_list(approvals: Iterable[Mapping[str, Any]]) -> str:
     lines = [f"{len(entries)} pending approval(s):"]
     for approval in entries:
         descriptor = _approval_descriptor(approval)
+        if approval_type(approval) == "group":
+            detail = f" {_group_label(approval)} (from {approval_ship(approval)})"
+            lines.append(f"• #{approval_id(approval)} {descriptor}:{detail}")
+            continue
         nest = approval_nest(approval)
         where = f" in {nest}" if nest else ""
         preview = str(approval.get("messagePreview") or "")
@@ -262,8 +339,12 @@ def format_confirmation(approval: Mapping[str, Any], action: str) -> str:
     if action == "allow":
         if kind == "channel":
             return f"Approved #{request_id}: {ship} can now address the bot in {nest}."
+        if kind == "group":
+            return f"Approved #{request_id}: joining {_group_label(approval)}."
         return f"Approved #{request_id}: {ship} can now DM the bot."
     if action == "reject":
+        if kind == "group":
+            return f"Rejected #{request_id}: declined invite to {_group_label(approval)}."
         return f"Rejected #{request_id} from {ship}."
     if action == "ban":
         return f"Blocked {ship} and removed #{request_id}."
@@ -367,27 +448,48 @@ def _approval_nav_target(approval: Mapping[str, Any]) -> Optional[dict[str, Any]
 
 def _approval_card_title(approval: Mapping[str, Any]) -> str:
     ship = approval_ship(approval)
-    if approval_type(approval) == "channel":
+    kind = approval_type(approval)
+    if kind == "channel":
         return f"Let the bot reply to {ship} in {approval_nest(approval) or 'this channel'}?"
+    if kind == "group":
+        return f"Let the bot join {truncate(_group_label(approval), 60)}?"
     return f"Allow {ship} to DM the bot?"
 
 
 def _approval_card_eyebrow(approval: Mapping[str, Any]) -> str:
-    return "Channel access" if approval_type(approval) == "channel" else "DM access"
+    kind = approval_type(approval)
+    if kind == "channel":
+        return "Channel access"
+    if kind == "group":
+        return "Group invite"
+    return "DM access"
 
 
 def _approval_card_allow_note(approval: Mapping[str, Any]) -> str:
-    if approval_type(approval) == "channel":
+    kind = approval_type(approval)
+    if kind == "channel":
         return "The bot will be able to read and reply to this user in this channel."
+    if kind == "group":
+        return "The bot will join and be able to read and respond in the group's channels."
     return "The bot will be able to read and reply to future DMs from this user."
+
+
+def _approval_card_context_lines(approval: Mapping[str, Any]) -> list[str]:
+    if approval_type(approval) == "group":
+        return [
+            f"Inviter: {approval_ship(approval)}",
+            f"Group: {_group_label(approval)}",
+        ]
+    lines = [f"Sender: {approval_ship(approval)}"]
+    nest = approval_nest(approval)
+    if nest:
+        lines.append(f"Channel: {nest}")
+    return lines
 
 
 def build_approval_card(approval: Mapping[str, Any]) -> dict[str, Any]:
     request_id = approval_id(approval)
-    context_lines = [f"Sender: {approval_ship(approval)}"]
-    nest = approval_nest(approval)
-    if nest:
-        context_lines.append(f"Channel: {nest}")
+    context_lines = _approval_card_context_lines(approval)
     preview = str(approval.get("messagePreview") or "")
     nav_target = _approval_nav_target(approval)
 

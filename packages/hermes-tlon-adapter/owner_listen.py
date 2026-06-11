@@ -28,14 +28,17 @@ SETTINGS_BUCKET = "tlon"
 SETTINGS_KEY_ENABLED = "ownerListenEnabled"
 SETTINGS_KEY_DISABLED_CHANNELS = "ownerListenDisabledChannels"
 SETTINGS_KEY_ENABLED_CHANNELS = "ownerListenEnabledChannels"
+SETTINGS_KEY_DEFAULT = "ownerListenDefault"
 SETTINGS_KEY_GROUP_CHANNELS = "groupChannels"
 
 NEST_PREFIXES = frozenset({"chat", "heap", "diary"})
 
 OWNER_LISTEN_USAGE = (
-    "Usage: /owner-listen [on|off|status|list] [<channel-nest>] | "
-    "/owner-listen all [on|off]"
+    "Usage: /owner-listen [on|off|status|list] [<channel-nest>|<~host/group>] | "
+    "/owner-listen all [on|off] | /owner-listen default [owned|all]"
 )
+
+_GROUP_FLAG_RE = re.compile(r"^~[a-z][a-z-]*/[^/\s]+$", re.IGNORECASE)
 
 _COMMAND_RE = re.compile(r"^/owner-listen(?:\s|$)", re.IGNORECASE)
 
@@ -69,6 +72,18 @@ class OwnerListenState:
     enabled: bool = True
     disabled_channels: set[str] = field(default_factory=set)
     enabled_channels: set[str] = field(default_factory=set)
+    # False: only owner/bot-hosted channels listen by default ("owned");
+    # True: every monitored channel listens by default ("all").
+    default_all: bool = False
+
+
+def parse_group_flag(raw: str) -> Optional[str]:
+    """Canonical ~host/slug group flag, or None if it doesn't look like one."""
+    candidate = str(raw or "").strip()
+    if not _GROUP_FLAG_RE.match(candidate):
+        return None
+    host, slug = candidate.split("/", 1)
+    return f"{_canonical_ship(host)}/{slug}"
 
 
 def owner_listen_active(
@@ -87,6 +102,8 @@ def owner_listen_active(
         return True
     if canonical in state.disabled_channels:
         return False
+    if state.default_all:
+        return True
     return is_owned_channel(canonical, owner_ship=owner_ship, bot_ship=bot_ship)
 
 
@@ -148,7 +165,19 @@ def owner_listen_state_from_settings(
         enabled=enabled,
         disabled_channels=disabled,
         enabled_channels=enabled_channels,
+        default_all=_parse_default_all(
+            bucket.get(SETTINGS_KEY_DEFAULT), defaults.default_all
+        ),
     )
+
+
+def _parse_default_all(value: Any, fallback: bool) -> bool:
+    raw = str(value or "").strip().lower()
+    if raw == "all":
+        return True
+    if raw == "owned":
+        return False
+    return fallback
 
 
 def settings_group_channels(bucket: Mapping[str, Any]) -> set[str]:
@@ -233,6 +262,11 @@ def apply_owner_listen_settings_event(
         changed = state.enabled_channels != enabled_channels
         state.enabled_channels = enabled_channels
         return changed
+    if event.key == SETTINGS_KEY_DEFAULT:
+        default_all = _parse_default_all(event.value, defaults.default_all)
+        changed = state.default_all != default_all
+        state.default_all = default_all
+        return changed
     return False
 
 
@@ -248,7 +282,7 @@ def owner_listen_command_args(text: str) -> str:
 class OwnerListenCommandOutcome:
     reply: str
     settings_changes: dict[str, Any] = field(default_factory=dict)
-    monitor_nest: Optional[str] = None
+    monitor_nests: tuple[str, ...] = ()
 
 
 def _channel_detail(state: OwnerListenState, canonical: str, owned: bool) -> str:
@@ -258,6 +292,8 @@ def _channel_detail(state: OwnerListenState, canonical: str, owned: bool) -> str
         return "explicitly enabled"
     if canonical in state.disabled_channels:
         return "channel is muted"
+    if state.default_all:
+        return "active (all-channels default)"
     if owned:
         return "active"
     return "not enabled for this channel"
@@ -270,7 +306,97 @@ def _channel_effective(state: OwnerListenState, canonical: str, owned: bool) -> 
         return True
     if canonical in state.disabled_channels:
         return False
-    return owned
+    return state.default_all or owned
+
+
+def _default_label(state: OwnerListenState) -> str:
+    return "all monitored channels" if state.default_all else "owned channels only"
+
+
+def _set_channel(state: OwnerListenState, canonical: str, *, on: bool, owned: bool) -> None:
+    """Sticky per-channel override: explicit on/off survives default flips."""
+    if on:
+        state.disabled_channels.discard(canonical)
+        if not owned:
+            state.enabled_channels.add(canonical)
+    else:
+        state.enabled_channels.discard(canonical)
+        state.disabled_channels.add(canonical)
+
+
+def _override_changes(
+    state: OwnerListenState,
+    disabled_before: set[str],
+    enabled_before: set[str],
+) -> dict[str, Any]:
+    changes: dict[str, Any] = {}
+    if state.disabled_channels != disabled_before:
+        changes[SETTINGS_KEY_DISABLED_CHANNELS] = sorted(state.disabled_channels)
+    if state.enabled_channels != enabled_before:
+        changes[SETTINGS_KEY_ENABLED_CHANNELS] = sorted(state.enabled_channels)
+    return changes
+
+
+def owner_listen_group_target(raw_args: str) -> Optional[tuple[str, str]]:
+    """Detect the group form of the command: ``<action> ~host/group``.
+
+    Returns ``(action, canonical_flag)`` when the second token is a group flag
+    (not a 3-part channel nest); the adapter expands it to the group's
+    channels before applying.
+    """
+    args = [part for part in str(raw_args or "").split() if part]
+    if len(args) != 2:
+        return None
+    flag = parse_group_flag(args[1])
+    if flag is None or canonicalize_nest(args[1]) is not None:
+        return None
+    return args[0].lower(), flag
+
+
+def apply_owner_listen_group_command(
+    state: OwnerListenState,
+    action: str,
+    flag: str,
+    channels: Iterable[str],
+    *,
+    owner_ship: str,
+    bot_ship: str,
+    monitored_channels: frozenset[str] | set[str] = frozenset(),
+) -> OwnerListenCommandOutcome:
+    """Apply on/off to every channel of a group at once."""
+    if action not in ("on", "off"):
+        return OwnerListenCommandOutcome(
+            reply=f"Group targets support on|off only. {OWNER_LISTEN_USAGE}"
+        )
+    canonical_channels = sorted(canonical_nest_set(channels))
+    if not canonical_channels:
+        return OwnerListenCommandOutcome(
+            reply=f"No channels found for {flag} (is the bot a member?)"
+        )
+
+    disabled_before = set(state.disabled_channels)
+    enabled_before = set(state.enabled_channels)
+    monitor_nests: list[str] = []
+    for canonical in canonical_channels:
+        owned = is_owned_channel(canonical, owner_ship=owner_ship, bot_ship=bot_ship)
+        _set_channel(state, canonical, on=action == "on", owned=owned)
+        if action == "on" and canonical not in monitored_channels:
+            monitor_nests.append(canonical)
+
+    count = len(canonical_channels)
+    if action == "on":
+        reply = f"Owner-listen on for {count} channel(s) in {flag}."
+        if not state.enabled:
+            reply += " Note: global owner-listen is off; run /owner-listen all on."
+        if monitor_nests:
+            reply += f" Now monitoring {len(monitor_nests)} of them."
+    else:
+        reply = f"Owner-listen muted for {count} channel(s) in {flag}."
+    return OwnerListenCommandOutcome(
+        reply=reply,
+        settings_changes=_override_changes(state, disabled_before, enabled_before),
+        monitor_nests=tuple(monitor_nests),
+    )
 
 
 def apply_owner_listen_command(
@@ -285,12 +411,34 @@ def apply_owner_listen_command(
     """Apply an /owner-listen command to state.
 
     Mutates ``state`` and reports the settings entries that changed so the
-    caller can persist them. ``monitor_nest`` is set when a channel was just
-    enabled but is not currently monitored.
+    caller can persist them. ``monitor_nests`` lists channels that were just
+    enabled but are not currently monitored.
     """
     args = [part for part in str(raw_args or "").split() if part]
     lowered = [part.lower() for part in args]
     changes: dict[str, Any] = {}
+
+    # Default mode — checked before the global branch because "default all"
+    # contains the "all" keyword.
+    if lowered[:1] == ["default"]:
+        sub = lowered[1] if len(lowered) > 1 else ""
+        if not sub:
+            return OwnerListenCommandOutcome(
+                reply=f"Owner-listen default: {_default_label(state)}."
+            )
+        if sub not in ("owned", "all"):
+            return OwnerListenCommandOutcome(
+                reply="Usage: /owner-listen default [owned|all]"
+            )
+        state.default_all = sub == "all"
+        changes[SETTINGS_KEY_DEFAULT] = sub
+        return OwnerListenCommandOutcome(
+            reply=(
+                f"Owner-listen default is now {_default_label(state)}. "
+                "Per-channel on/off overrides still apply."
+            ),
+            settings_changes=changes,
+        )
 
     # Global kill switch — accept either order: "all on", "on all", bare "all".
     if "all" in lowered:
@@ -316,7 +464,7 @@ def apply_owner_listen_command(
 
     if lowered[:1] == ["list"]:
         head = f"Global owner-listen: {'on' if state.enabled else 'off'}."
-        lines = [head]
+        lines = [head, f"Default: {_default_label(state)}."]
         if state.disabled_channels:
             muted = "\n".join(f"• {nest}" for nest in sorted(state.disabled_channels))
             lines.append(f"Muted channels:\n{muted}")
@@ -333,16 +481,25 @@ def apply_owner_listen_command(
     if not target:
         return OwnerListenCommandOutcome(
             reply=(
-                "Usage: /owner-listen [on|off|status|list] [<channel-nest>]\n"
-                "Run inside a channel, pass a nest like chat/~sampel-palnet/foo, "
-                "or use /owner-listen all [on|off] for the global toggle."
+                f"{OWNER_LISTEN_USAGE}\n"
+                "Run inside a channel, pass a nest like chat/~sampel-palnet/foo "
+                "or a group like ~sampel-palnet/my-group, or use "
+                "/owner-listen all [on|off] for the global toggle."
             )
         )
 
     canonical = canonicalize_nest(target)
     if canonical is None:
+        hint = ""
+        if parse_group_flag(target) is not None:
+            # Group flags are expanded by the adapter (it fetches the group's
+            # channels); reaching here means that lookup wasn't available.
+            hint = " Group targets need a connected gateway to expand."
         return OwnerListenCommandOutcome(
-            reply=f"{target} is not a valid channel nest (expected chat/~host/name)."
+            reply=(
+                f"{target} is not a valid channel nest "
+                f"(expected chat/~host/name).{hint}"
+            )
         )
     owned = is_owned_channel(canonical, owner_ship=owner_ship, bot_ship=bot_ship)
 
@@ -358,23 +515,13 @@ def apply_owner_listen_command(
 
     disabled_before = set(state.disabled_channels)
     enabled_before = set(state.enabled_channels)
-    monitor_nest: Optional[str] = None
+    monitor_nests: list[str] = []
 
-    if action == "on":
-        state.disabled_channels.discard(canonical)
-        if not owned:
-            state.enabled_channels.add(canonical)
-        if canonical not in monitored_channels:
-            monitor_nest = canonical
-    else:
-        state.enabled_channels.discard(canonical)
-        if owned:
-            state.disabled_channels.add(canonical)
+    _set_channel(state, canonical, on=action == "on", owned=owned)
+    if action == "on" and canonical not in monitored_channels:
+        monitor_nests.append(canonical)
 
-    if state.disabled_channels != disabled_before:
-        changes[SETTINGS_KEY_DISABLED_CHANNELS] = sorted(state.disabled_channels)
-    if state.enabled_channels != enabled_before:
-        changes[SETTINGS_KEY_ENABLED_CHANNELS] = sorted(state.enabled_channels)
+    changes.update(_override_changes(state, disabled_before, enabled_before))
 
     if action == "on" and not state.enabled:
         return OwnerListenCommandOutcome(
@@ -383,16 +530,16 @@ def apply_owner_listen_command(
                 "recorded). Run /owner-listen all on to enable it."
             ),
             settings_changes=changes,
-            monitor_nest=monitor_nest,
+            monitor_nests=tuple(monitor_nests),
         )
 
     effective = _channel_effective(state, canonical, owned)
     detail = _channel_detail(state, canonical, owned)
     reply = f"Owner-listen for {canonical}: {'on' if effective else 'off'} ({detail})."
-    if monitor_nest and effective:
+    if monitor_nests and effective:
         reply += " Now monitoring this channel."
     return OwnerListenCommandOutcome(
         reply=reply,
         settings_changes=changes,
-        monitor_nest=monitor_nest,
+        monitor_nests=tuple(monitor_nests),
     )

@@ -121,6 +121,7 @@ When `TLON_OWNER_SHIP` is configured, unknown ships are not silently dropped —
 -   a **DM invite** from an unknown ship queues with a `(DM invite - no message yet)` preview (pending invites are also picked up by scry at connect, so invites that arrived while the gateway was down are not lost)
 -   a **DM message** from an unapproved ship in an accepted conversation queues with the message preview and is replayed after approval
 -   an **unauthorized mention** in a restricted group channel queues a channel request; approval grants that ship access in that channel and replays the mention (with channel context)
+-   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls the group's channels into the monitored set so the bot is addressable there. Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept; rejection leaves the invite untouched in Tlon.
 
 The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Tlon clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. Old clients fall back to the text.
 
@@ -128,8 +129,8 @@ Owner commands (deterministic, never wake the model):
 
 ```
 /pending                  list pending requests
-/allow <id>               approve (accepts the DM invite if needed, grants access, replays the message)
-/reject <id>              drop the request; a pending DM invite is left untouched
+/allow <id>               approve (accepts the DM/group invite if needed, grants access, replays the message)
+/reject <id>              drop the request; a pending DM/group invite is left untouched
 /ban <id|~ship>           block natively via %chat (and clear pending requests from that ship)
 /unban ~ship              unblock
 /banned                   list blocked ships
@@ -159,29 +160,33 @@ Owner-listen hears the owner without a mention in group channels, ported from th
 ```
 /owner-listen                       # status for the current channel
 /owner-listen on|off [<nest>]       # toggle a channel (defaults to the current one)
-/owner-listen list                  # global state plus per-channel overrides
+/owner-listen on|off ~host/group    # toggle every channel of a group at once
+/owner-listen list                  # global state, default mode, per-channel overrides
 /owner-listen all on|off            # global kill switch
+/owner-listen default owned|all     # default: owned channels only, or every monitored channel
 ```
 
-The command works from any monitored group channel (mentioned or not — it is an escape hatch that runs before the attention gate) and from the owner DM with an explicit nest. Enabling a channel that is not currently monitored also adds it to the monitored set and persists it.
+The command works from any monitored group channel (mentioned or not — it is an escape hatch that runs before the attention gate) and from the owner DM with an explicit nest or group flag. Enabling channels that are not currently monitored also adds them to the monitored set and persists them. Group targets expand to the group's channels at command time (the bot must be a member); approving a group invite reminds the owner of the group form when the group is not owner/bot-hosted. `default all` flips the no-override default from owned-channels to every monitored channel — including future group joins — with explicit per-channel `on`/`off` overrides staying sticky across default flips.
 
-State lives in the ship's `%settings` store under desk `moltbot`, bucket `tlon`, using the same entry keys as OpenClaw (`ownerListenEnabled`, `ownerListenDisabledChannels`, plus the additive `ownerListenEnabledChannels` and the shared `groupChannels`), so an existing OpenClaw deployment's toggles carry over and survive gateway reboots. The adapter loads the store on connect, subscribes to `%settings` updates for live hot-reload (writes from Landscape or another gateway apply without a restart, matching OpenClaw's del/invalid-entry semantics), and re-syncs after every SSE reconnect since settings events do not replay. `TLON_OWNER_LISTEN*` env vars only seed defaults for keys the store does not have.
+State lives in the ship's `%settings` store under desk `moltbot`, bucket `tlon`, using the same entry keys as OpenClaw (`ownerListenEnabled`, `ownerListenDisabledChannels`, plus the additive `ownerListenEnabledChannels`, `ownerListenDefault`, and the shared `groupChannels`), so an existing OpenClaw deployment's toggles carry over and survive gateway reboots. The adapter loads the store on connect, subscribes to `%settings` updates for live hot-reload (writes from Landscape or another gateway apply without a restart, matching OpenClaw's del/invalid-entry semantics), and re-syncs after every SSE reconnect since settings events do not replay. `TLON_OWNER_LISTEN*` env vars only seed defaults for keys the store does not have.
 
 ## Versioning
 
-`/tlon-version` (owner-only, intercepted deterministically like `/owner-listen`) reports what is running, one `Field: value` per line:
+`/tlon-version` (owner-only, intercepted deterministically like `/owner-listen`) reports what is running, one `Field: value` per line (chat reply italicizes keys and bolds values for scannability; the startup log is plain):
 
 ```
-Adapter: 0.1.0
-Source: lb/hermes-init @ d8ae0c4e (clean)
-Fingerprint: fp1:3f9a2c1b8d02
-Tlon CLI: 0.3.2
+*Harness*: **Hermes**
+*Adapter Version*: **0.1.0**
+*Tlon Skill*: **0.3.2**
+*Fingerprint*: **fp1:3f9a2c1b8d02**
+*Source*: **lb/hermes-init @ d8ae0c4e (clean)**
 ```
 
--   **Adapter** — semver from this package's `package.json`, bumped at releases.
--   **Source** — git branch, short commit, and dirty state, resolved at command time when the install is a git checkout (the dev loop's symlinked monorepo always is). Reads `no git checkout` otherwise.
+-   **Harness** — always `Hermes`; identifies which bot framework is running this node at a glance.
+-   **Adapter Version** — semver from this package's `package.json`, bumped at releases.
+-   **Tlon Skill** — version of the packaged `@tloncorp/tlon-skill` CLI (first line of `tlon --version`).
 -   **Fingerprint** — sha256 over the runtime files (non-test `*.py`, `plugin.yaml`, `prompts/`), so copied or hand-patched installs are still identifiable. To match a fingerprint to a commit, recompute it at a candidate checkout: `python3 -c "import version; print(version.content_fingerprint())"` from this directory.
--   **Tlon CLI** — first line of `tlon --version`.
+-   **Source** — git branch, short commit, and dirty state, resolved at command time when the install is a git checkout (the dev loop's symlinked monorepo always is). Reads `no git checkout` otherwise.
 
 Nothing is generated or checked in; identity is resolved at runtime. The same summary is logged at gateway startup.
 
@@ -216,6 +221,10 @@ When a deployment shows nothing in PostHog, work through the built-in diagnostic
 4. **`TLON_TELEMETRY_DEBUG=true`** — logs every capture/identify enqueue at info level plus the posthog SDK's internal debug output, and elevates repeated delivery failures from debug to warning.
 
 Delivery failures are also surfaced without debug mode: the adapter hooks the SDK's `on_error` callback and warns on the first failed batch (`[tlon] telemetry delivery to PostHog failed …`).
+
+## Reply Placement
+
+Group replies post **top-level** in the channel (Tlon chat channels are linear), and conversations that are already threads are continued in-thread, attached to the thread root. Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every triggering message. DM replies are always plain writs.
 
 ## Group Message Context
 

@@ -114,12 +114,21 @@ def format_version_reply(
     source: Optional[str],
     fingerprint: str,
     cli_version: str,
+    markdown: bool = True,
 ) -> str:
+    """Field-per-line version summary. For the chat reply keys are italicized
+    and values bolded (Tlon markdown) for scannability; pass ``markdown=False``
+    for plain log output."""
+
+    def row(label: str, value: str) -> str:
+        return f"*{label}*: **{value}**" if markdown else f"{label}: {value}"
+
     return "\n".join(
         [
-            f"Adapter: {adapter_version}",
-            f"Source: {source or 'no git checkout'}",
-            f"Fingerprint: {fingerprint}",
-            f"Tlon CLI: {cli_version}",
+            row("Harness", "Hermes"),
+            row("Adapter Version", adapter_version),
+            row("Tlon Skill", cli_version),
+            row("Fingerprint", fingerprint),
+            row("Source", source or "no git checkout"),
         ]
     )

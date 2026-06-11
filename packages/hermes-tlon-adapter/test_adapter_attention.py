@@ -237,8 +237,15 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter = self.make_adapter({"allowed_users": ["~mug"]})
         adapter._cli = FakeCLI()
 
+        # Core passes metadata.thread_id when the bot replies inside a thread;
+        # that (not reply_to) is what makes the send a Tlon thread reply.
         result = asyncio.run(
-            adapter.send("chat/~pen/general", "reply text", reply_to="root-post")
+            adapter.send(
+                "chat/~pen/general",
+                "reply text",
+                reply_to="some-reply-id",
+                metadata={"thread_id": "root-post"},
+            )
         )
         events = asyncio.run(
             self.dispatches(
@@ -337,6 +344,67 @@ class AdapterAttentionTests(unittest.TestCase):
 
         self.assertEqual(len(events), 1)
         self.assertEqual(adapter._known_bot_consecutive_by_channel, {})
+
+    def test_group_reply_is_top_level_unless_thread_metadata(self):
+        adapter = self.make_adapter({"allowed_users": ["~mug"]})
+
+        class RecordingCLI(FakeCLI):
+            def __init__(self):
+                self.sends = []
+                self.thread_replies = []
+
+            async def send_message(self, chat_id, text):
+                self.sends.append((chat_id, text))
+                return await super().send_message(chat_id, text)
+
+            async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+                self.thread_replies.append((chat_id, post_id, text))
+                return await super().send_reply(
+                    chat_id, post_id, text, parent_author=parent_author
+                )
+
+        adapter._cli = RecordingCLI()
+
+        # Core anchors replies to the triggering message, but with no thread
+        # metadata the Tlon reply goes top-level in the channel.
+        asyncio.run(
+            adapter.send("chat/~pen/general", "top-level reply", reply_to="170.141")
+        )
+        self.assertEqual(len(adapter._cli.sends), 1)
+        self.assertEqual(adapter._cli.thread_replies, [])
+        self.assertEqual(adapter._participated_threads, set())
+
+        # Thread metadata carries the thread ROOT — that is what gets threaded.
+        asyncio.run(
+            adapter.send(
+                "chat/~pen/general",
+                "in-thread reply",
+                reply_to="170.150",
+                metadata={"thread_id": "170.100"},
+            )
+        )
+        self.assertEqual(len(adapter._cli.thread_replies), 1)
+        self.assertEqual(adapter._cli.thread_replies[0][1], "170.100")
+        self.assertIn(
+            "chat/~pen/general:170.100", adapter._participated_threads
+        )
+
+    def test_reply_in_thread_config_restores_legacy_threading(self):
+        adapter = self.make_adapter(
+            {"allowed_users": ["~mug"], "reply_in_thread": True}
+        )
+        adapter._cli = FakeCLI()
+        recorded = []
+
+        async def record_reply(chat_id, post_id, text, *, parent_author=None):
+            recorded.append(post_id)
+            return tlon_api.TlonSendResult(
+                success=True, command=("tlon-test",), message_id="reply-id"
+            )
+
+        adapter._cli.send_reply = record_reply
+        asyncio.run(adapter.send("chat/~pen/general", "reply", reply_to="170.141"))
+        self.assertEqual(recorded, ["170.141"])
 
     def test_nickname_fetch_failure_keeps_ship_and_alias_wakes(self):
         adapter = self.make_adapter({"allowed_users": ["~mug"], "bot_mentions": ["arvo"]})

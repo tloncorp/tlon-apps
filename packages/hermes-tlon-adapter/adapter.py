@@ -8,6 +8,7 @@ surface as local/dev workflows.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -29,7 +30,9 @@ from gateway.platforms.base import (
 from .approval import (
     DM_INVITE_PREVIEW,
     SETTINGS_KEY_DM_ALLOWLIST,
+    SETTINGS_KEY_GROUP_INVITE_ALLOWLIST,
     SETTINGS_KEY_PENDING_APPROVALS,
+    approval_group_flag,
     approval_id,
     approval_nest,
     approval_ship,
@@ -44,6 +47,7 @@ from .approval import (
     format_pending_list,
     parse_approval_command,
     parse_dm_allowlist,
+    parse_foreigns,
     parse_pending_approvals,
     prune_expired,
     remove_approval,
@@ -76,11 +80,13 @@ from .owner_listen import (
     SETTINGS_KEY_GROUP_CHANNELS,
     OwnerListenState,
     apply_owner_listen_command,
+    apply_owner_listen_group_command,
     apply_owner_listen_settings_event,
     canonical_nest_set,
     is_owner_listen_command,
     owner_listen_active,
     owner_listen_command_args,
+    owner_listen_group_target,
     owner_listen_state_from_settings,
     parse_settings_bucket,
     parse_settings_event,
@@ -157,6 +163,7 @@ OPTIONAL_ENV = [
     "TLON_KNOWN_BOT_USERS",
     "TLON_MAX_CONSECUTIVE_BOT_RESPONSES",
     "TLON_OWNER_LISTEN",
+    "TLON_OWNER_LISTEN_DEFAULT",
     "TLON_OWNER_LISTEN_DISABLED_CHANNELS",
     "TLON_OWNER_LISTEN_ENABLED_CHANNELS",
     "TLON_CONTEXT_MESSAGES",
@@ -269,8 +276,12 @@ class TlonAdapter(BasePlatformAdapter):
         self._settings_loaded = False
         self._pending_approvals: list[dict[str, Any]] = []
         self._settings_dm_allowlist: set[str] = set()
+        self._settings_group_invite_allowlist: set[str] = set(
+            self.tlon_config.group_invite_allowlist
+        )
         self._channel_rules: dict[str, dict[str, Any]] = {}
         self._processed_dm_invites: set[str] = set()
+        self._processed_group_invites: set[str] = set()
 
     async def connect(self) -> bool:
         if not AIOHTTP_AVAILABLE:
@@ -296,6 +307,7 @@ class TlonAdapter(BasePlatformAdapter):
                     source=source,
                     fingerprint=fingerprint,
                     cli_version=cli_version,
+                    markdown=False,
                 ).replace("\n", " | "),
             )
             self._telemetry.set_common(
@@ -305,6 +317,7 @@ class TlonAdapter(BasePlatformAdapter):
             await self._load_bot_nickname()
             await self._load_settings_state()
             await self._process_pending_dm_invites()
+            await self._process_pending_group_invites()
             await self._start_gateway_status()
             self._stream_task = asyncio.create_task(self._run_stream())
             self._computing_presence.bind_loop(asyncio.get_running_loop())
@@ -355,6 +368,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._participated_threads.clear()
         self._known_bot_consecutive_by_channel.clear()
         self._processed_dm_invites.clear()
+        self._processed_group_invites.clear()
         self._telemetry.flush()
 
     def _build_mention_matcher(self, *, nickname: str = "") -> BotMentionMatcher:
@@ -375,6 +389,7 @@ class TlonAdapter(BasePlatformAdapter):
             enabled_channels=canonical_nest_set(
                 self.tlon_config.owner_listen_enabled_channels
             ),
+            default_all=self.tlon_config.owner_listen_default == "all",
         )
 
     def _is_owner(self, ship: str) -> bool:
@@ -412,6 +427,10 @@ class TlonAdapter(BasePlatformAdapter):
         self._settings_dm_allowlist = parse_dm_allowlist(
             bucket.get(SETTINGS_KEY_DM_ALLOWLIST)
         )
+        if SETTINGS_KEY_GROUP_INVITE_ALLOWLIST in bucket:
+            self._settings_group_invite_allowlist = parse_dm_allowlist(
+                bucket.get(SETTINGS_KEY_GROUP_INVITE_ALLOWLIST)
+            )
         self._channel_rules = parse_channel_rules(bucket.get(SETTINGS_KEY_CHANNEL_RULES))
         self._settings_loaded = True
         logger.info(
@@ -475,6 +494,9 @@ class TlonAdapter(BasePlatformAdapter):
             return
         if event.key == SETTINGS_KEY_DM_ALLOWLIST:
             self._settings_dm_allowlist = parse_dm_allowlist(event.value)
+            return
+        if event.key == SETTINGS_KEY_GROUP_INVITE_ALLOWLIST:
+            self._settings_group_invite_allowlist = parse_dm_allowlist(event.value)
             return
         if event.key == SETTINGS_KEY_CHANNEL_RULES:
             self._channel_rules = parse_channel_rules(event.value)
@@ -557,6 +579,8 @@ class TlonAdapter(BasePlatformAdapter):
         approval_kind: str,
         requesting_ship: str,
         channel_nest: Optional[str] = None,
+        group_flag: Optional[str] = None,
+        group_title: Optional[str] = None,
         message_preview: Optional[str] = None,
         original_message: Optional[dict[str, Any]] = None,
     ) -> None:
@@ -575,6 +599,8 @@ class TlonAdapter(BasePlatformAdapter):
             now_ms=now_ms,
             existing_ids=[approval_id(item) for item in self._pending_approvals],
             channel_nest=channel_nest,
+            group_flag=group_flag,
+            group_title=group_title,
             message_preview=message_preview,
             original_message=original_message,
         )
@@ -643,8 +669,15 @@ class TlonAdapter(BasePlatformAdapter):
             )
 
     async def _persist_pending_approvals(self) -> None:
+        # JSON string, not a raw list of dicts: %settings values cannot hold
+        # objects (the poke would be nacked). Matches OpenClaw's encoding.
         await self._persist_settings_entry(
-            SETTINGS_KEY_PENDING_APPROVALS, self._pending_approvals
+            SETTINGS_KEY_PENDING_APPROVALS, json.dumps(self._pending_approvals)
+        )
+
+    async def _persist_channel_rules(self) -> bool:
+        return await self._persist_settings_entry(
+            SETTINGS_KEY_CHANNEL_RULES, json.dumps(self._channel_rules)
         )
 
     async def _is_ship_blocked(self, ship: str) -> bool:
@@ -772,8 +805,13 @@ class TlonAdapter(BasePlatformAdapter):
                     self._channel_rules = add_channel_allowed_ship(
                         self._channel_rules, nest, ship
                     )
-                    await self._persist_settings_entry(
-                        SETTINGS_KEY_CHANNEL_RULES, self._channel_rules
+                    await self._persist_channel_rules()
+            elif approval_type(approval) == "group":
+                flag = approval_group_flag(approval)
+                if flag and not await self._accept_group_invite(flag):
+                    return (
+                        f"Could not join {flag}: invite accept failed. "
+                        "Request stays pending."
                     )
         elif action == "ban":
             await self._block_ship(ship)
@@ -789,7 +827,20 @@ class TlonAdapter(BasePlatformAdapter):
         )
         if action == "allow":
             await self._replay_approved_message(approval)
-        return format_confirmation(approval, action)
+        reply = format_confirmation(approval, action)
+        if action == "allow" and approval_type(approval) == "group":
+            flag = approval_group_flag(approval)
+            host = normalize_ship(flag.split("/", 1)[0]) if flag else ""
+            already_listening = self._owner_listen.default_all or host in {
+                self.tlon_config.owner_ship,
+                self.tlon_config.ship_name,
+            }
+            if flag and not already_listening:
+                reply += (
+                    f" Reply /owner-listen on {flag} to be heard in its "
+                    "channels without a mention."
+                )
+        return reply
 
     async def _replay_approved_message(self, approval: dict[str, Any]) -> None:
         """Dispatch the message that triggered an approval so it gets answered."""
@@ -880,9 +931,7 @@ class TlonAdapter(BasePlatformAdapter):
         reply = outcome.reply
         if outcome.new_rules is not None:
             self._channel_rules = outcome.new_rules
-            if not await self._persist_settings_entry(
-                SETTINGS_KEY_CHANNEL_RULES, self._channel_rules
-            ):
+            if not await self._persist_channel_rules():
                 reply += (
                     " Warning: could not save channelRules to %settings; this "
                     "change applies now but will revert when the gateway restarts."
@@ -908,21 +957,43 @@ class TlonAdapter(BasePlatformAdapter):
         # store truth when the boot-time load failed.
         if not self._settings_loaded:
             await self._load_settings_state()
-        outcome = apply_owner_listen_command(
-            self._owner_listen,
-            owner_listen_command_args(command_text),
-            ctx_nest=ctx_nest,
-            owner_ship=self.tlon_config.owner_ship,
-            bot_ship=self.tlon_config.ship_name,
-            monitored_channels=frozenset(self._monitored_channels),
-        )
+        raw_args = owner_listen_command_args(command_text)
+        group_target = owner_listen_group_target(raw_args)
+        if group_target is not None:
+            action, flag = group_target
+            channels = await self._fetch_group_channels(flag)
+            if channels is None:
+                await self._send_control_reply(
+                    reply_chat_id,
+                    reply_parent_id,
+                    f"Could not look up channels for {flag}; try again shortly.",
+                )
+                return
+            outcome = apply_owner_listen_group_command(
+                self._owner_listen,
+                action,
+                flag,
+                channels,
+                owner_ship=self.tlon_config.owner_ship,
+                bot_ship=self.tlon_config.ship_name,
+                monitored_channels=frozenset(self._monitored_channels),
+            )
+        else:
+            outcome = apply_owner_listen_command(
+                self._owner_listen,
+                raw_args,
+                ctx_nest=ctx_nest,
+                owner_ship=self.tlon_config.owner_ship,
+                bot_ship=self.tlon_config.ship_name,
+                monitored_channels=frozenset(self._monitored_channels),
+            )
         failed_keys: list[str] = []
         for key, value in outcome.settings_changes.items():
             if not await self._persist_settings_entry(key, value):
                 failed_keys.append(key)
-        if outcome.monitor_nest:
-            self._monitored_channels.add(outcome.monitor_nest)
-            self._settings_group_channels.add(outcome.monitor_nest)
+        if outcome.monitor_nests:
+            self._monitored_channels.update(outcome.monitor_nests)
+            self._settings_group_channels.update(outcome.monitor_nests)
             if not await self._persist_settings_entry(
                 SETTINGS_KEY_GROUP_CHANNELS,
                 sorted(self._settings_group_channels),
@@ -1095,6 +1166,7 @@ class TlonAdapter(BasePlatformAdapter):
         await self._sse.subscribe("channels", "/v2")
         await self._sse.subscribe("chat", "/v3")
         await self._sse.subscribe("settings", f"/desk/{SETTINGS_DESK}")
+        await self._sse.subscribe("groups", "/v1/foreigns")
 
     async def _close_sse(self, *, graceful: bool = True) -> None:
         if self._sse is not None:
@@ -1143,6 +1215,8 @@ class TlonAdapter(BasePlatformAdapter):
                 await self._handle_dm_event(event.json)
             elif event.app == "settings":
                 self._handle_settings_event(event.json)
+            elif event.app == "groups":
+                await self._handle_foreigns(event.json)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -1281,6 +1355,102 @@ class TlonAdapter(BasePlatformAdapter):
             return
         if isinstance(invited, list):
             await self._handle_dm_invites(invited)
+
+    def _group_invite_authorized(self, inviter: str) -> bool:
+        """Owner and the group-invite allowlist auto-accept; else queue."""
+        ship = normalize_ship(inviter)
+        if self.tlon_config.allow_all_users:
+            return True
+        if self.tlon_config.owner_ship and ship == self.tlon_config.owner_ship:
+            return True
+        return ship in self._settings_group_invite_allowlist
+
+    async def _handle_foreigns(self, payload: Any) -> None:
+        """Process the %groups foreigns map (live sub or catch-up scry)."""
+        for invite in parse_foreigns(payload):
+            flag = invite["groupFlag"]
+            if flag in self._processed_group_invites:
+                continue
+            self._processed_group_invites.add(flag)
+            await self._handle_group_invite(
+                flag, inviter=invite["from"], title=invite["title"]
+            )
+
+    async def _handle_group_invite(self, flag: str, *, inviter: str, title: str) -> None:
+        if self._group_invite_authorized(inviter):
+            if await self._accept_group_invite(flag):
+                logger.info("[tlon] auto-accepted group invite %s from %s", flag, inviter)
+            return
+        if not self.tlon_config.owner_ship:
+            logger.info("[tlon] ignoring group invite %s from unauthorized %s", flag, inviter)
+            return
+        await self._queue_approval(
+            approval_kind="group",
+            requesting_ship=inviter,
+            group_flag=flag,
+            group_title=title,
+        )
+
+    async def _accept_group_invite(self, flag: str) -> bool:
+        with cli_context("invite_rsvp"):
+            result = await self._cli.run_command(("groups", "accept-invite", flag))
+        if not result.success:
+            logger.warning("[tlon] failed to accept group invite %s: %s", flag, result.error)
+            self._telemetry.error(
+                "approval", result.error or "group accept failed", operation="group_accept"
+            )
+            return False
+        await self._adopt_group_channels(flag)
+        return True
+
+    async def _fetch_group_channels(self, flag: str) -> Optional[set[str]]:
+        """Channel nests of a group the bot belongs to; None when the lookup
+        is unavailable."""
+        if self._sse is None:
+            return None
+        try:
+            init = await self._sse.scry("/groups-ui/v7/init")
+        except Exception as exc:
+            logger.debug("[tlon] could not scry group channels for %s: %s", flag, exc)
+            return None
+        groups = init.get("groups") if isinstance(init, dict) else None
+        group = groups.get(flag) if isinstance(groups, dict) else None
+        channels = group.get("channels") if isinstance(group, dict) else None
+        if not isinstance(channels, dict):
+            return set()
+        return {
+            nest
+            for nest in channels
+            if isinstance(nest, str)
+            and nest.split("/", 1)[0] in ("chat", "heap", "diary")
+        }
+
+    async def _adopt_group_channels(self, flag: str) -> None:
+        """Pull a newly-joined group's channels into the monitored set so the
+        bot is addressable there, and persist them to groupChannels."""
+        channels = await self._fetch_group_channels(flag)
+        new_channels = (channels or set()) - self._monitored_channels
+        if not new_channels:
+            return
+        self._monitored_channels.update(new_channels)
+        self._settings_group_channels.update(new_channels)
+        await self._persist_settings_entry(
+            SETTINGS_KEY_GROUP_CHANNELS, sorted(self._settings_group_channels)
+        )
+        logger.info("[tlon] monitoring %d channel(s) from joined group %s", len(new_channels), flag)
+
+    async def _process_pending_group_invites(self) -> None:
+        """Catch group invites that arrived while the gateway was down."""
+        if self._sse is None:
+            return
+        try:
+            init = await self._sse.scry("/groups-ui/v7/init")
+        except Exception as exc:
+            logger.debug("[tlon] could not scry pending group invites: %s", exc)
+            return
+        foreigns = init.get("foreigns") if isinstance(init, dict) else None
+        if foreigns is not None:
+            await self._handle_foreigns(foreigns)
 
     async def _with_group_context(
         self,
@@ -1442,7 +1612,15 @@ class TlonAdapter(BasePlatformAdapter):
     ) -> SendResult:
         content = (content or "")[: self.MAX_MESSAGE_LENGTH]
         metadata = metadata or {}
-        is_channel_reply = bool(reply_to and not _is_dm_chat_id(chat_id))
+        # Core anchors every reply to the triggering message (reply_to), but
+        # Tlon chat channels are linear: reply top-level unless the
+        # conversation is already a thread (metadata.thread_id carries the
+        # thread ROOT, which is what Tlon replies must attach to).
+        # reply_in_thread=true restores always-thread-on-the-trigger.
+        thread_parent = str(metadata.get("thread_id") or "") or None
+        if thread_parent is None and self.tlon_config.reply_in_thread:
+            thread_parent = reply_to
+        is_channel_reply = bool(thread_parent and not _is_dm_chat_id(chat_id))
         with cli_context("delivery", conversation=chat_id):
             if is_channel_reply:
                 parent_author = metadata.get("parent_author")
@@ -1450,7 +1628,7 @@ class TlonAdapter(BasePlatformAdapter):
                     parent_author = chat_id
                 result = await self._cli.send_reply(
                     chat_id,
-                    reply_to,
+                    thread_parent,
                     content,
                     parent_author=parent_author,
                 )
@@ -1463,8 +1641,8 @@ class TlonAdapter(BasePlatformAdapter):
             "stderr": result.stderr,
             "returncode": result.returncode,
         }
-        if result.success and is_channel_reply and reply_to:
-            self._participated_threads.add(self._thread_key(chat_id, reply_to))
+        if result.success and is_channel_reply and thread_parent:
+            self._participated_threads.add(self._thread_key(chat_id, thread_parent))
         return SendResult(
             success=result.success,
             message_id=result.message_id,
@@ -1509,6 +1687,8 @@ def _env_enablement() -> dict | None:
         seed["known_bot_users"] = ",".join(sorted(tlon.known_bot_users))
     if not tlon.owner_listen:
         seed["owner_listen"] = False
+    if tlon.owner_listen_default != "owned":
+        seed["owner_listen_default"] = tlon.owner_listen_default
     if tlon.owner_listen_disabled_channels:
         seed["owner_listen_disabled_channels"] = ",".join(tlon.owner_listen_disabled_channels)
     if tlon.owner_listen_enabled_channels:

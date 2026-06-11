@@ -165,6 +165,7 @@ class TlonConfig:
     home_channel: str = ""
     allowed_users: frozenset[str] = frozenset()
     dm_allowlist: frozenset[str] = frozenset()
+    group_invite_allowlist: frozenset[str] = frozenset()
     allow_all_users: bool = False
     owner_ship: str = ""
     bot_mentions: tuple[str, ...] = ()
@@ -172,7 +173,9 @@ class TlonConfig:
     require_mention: bool = True
     known_bot_users: frozenset[str] = frozenset()
     max_consecutive_bot_responses: int = DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES
+    reply_in_thread: bool = False
     owner_listen: bool = True
+    owner_listen_default: str = "owned"
     owner_listen_disabled_channels: tuple[str, ...] = ()
     owner_listen_enabled_channels: tuple[str, ...] = ()
     context_messages: int = DEFAULT_CONTEXT_MESSAGES
@@ -248,6 +251,14 @@ class TlonConfig:
                 ("dm_allowlist",),
             )
         )
+        group_invite_allowlist = parse_ship_csv(
+            _env_or_extra(
+                env,
+                ("TLON_GROUP_INVITE_ALLOWLIST",),
+                extra,
+                ("group_invite_allowlist",),
+            )
+        )
         owner_ship = normalize_ship(
             _env_first(
                 env,
@@ -300,6 +311,14 @@ class TlonConfig:
             ),
             DEFAULT_MAX_CONSECUTIVE_BOT_RESPONSES,
         )
+        reply_in_thread = parse_bool(
+            _env_or_extra(
+                env,
+                ("TLON_REPLY_IN_THREAD",),
+                extra,
+                ("reply_in_thread",),
+            )
+        )
         owner_listen = parse_bool_default(
             _env_or_extra(
                 env,
@@ -310,6 +329,15 @@ class TlonConfig:
             ),
             True,
         )
+        owner_listen_default = _env_first(
+            env,
+            ("TLON_OWNER_LISTEN_DEFAULT",),
+            extra,
+            ("owner_listen_default",),
+            "owned",
+        ).lower()
+        if owner_listen_default not in ("owned", "all"):
+            owner_listen_default = "owned"
         owner_listen_disabled_channels = parse_csv(
             _env_or_extra(
                 env,
@@ -467,6 +495,7 @@ class TlonConfig:
             home_channel=home_channel,
             allowed_users=allowed_users,
             dm_allowlist=dm_allowlist,
+            group_invite_allowlist=group_invite_allowlist,
             allow_all_users=allow_all_users,
             owner_ship=owner_ship,
             bot_mentions=bot_mentions,
@@ -474,7 +503,9 @@ class TlonConfig:
             require_mention=require_mention,
             known_bot_users=known_bot_users,
             max_consecutive_bot_responses=max_consecutive_bot_responses,
+            reply_in_thread=reply_in_thread,
             owner_listen=owner_listen,
+            owner_listen_default=owner_listen_default,
             owner_listen_disabled_channels=owner_listen_disabled_channels,
             owner_listen_enabled_channels=owner_listen_enabled_channels,
             context_messages=context_messages,
@@ -954,6 +985,19 @@ class TlonSSEClient:
             if sub_id in self._subscriptions:
                 app, path = self._subscriptions[sub_id]
                 raise ConnectionError(f"Tlon subscription quit for {app} {path}")
+            return None
+
+        if response == "poke":
+            # Pokes are fire-and-forget on the HTTP layer; the ack/nack arrives
+            # here. A nack means the agent REJECTED the poke (e.g. a settings
+            # value the mark cannot represent) — surface it loudly instead of
+            # letting "successful" writes silently vanish.
+            if "err" in raw:
+                logger.warning(
+                    "[tlon] poke nacked (id=%s): %s",
+                    sub_id,
+                    str(raw.get("err"))[:300],
+                )
             return None
 
         if response != "diff":

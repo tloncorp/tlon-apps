@@ -52,6 +52,12 @@ optional_env:
     description: 'Comma-separated ships allowed to DM'
     prompt: 'Allowed DM ships'
     password: false
+  - name: TLON_GROUP_INVITE_ALLOWLIST
+    description:
+      'Comma-separated ships whose group invites auto-accept (others queue for
+      owner approval); %settings groupInviteAllowlist overrides'
+    prompt: 'Auto-accept group inviters'
+    password: false
   - name: TLON_OWNER_SHIP
     description:
       'Explicit owner ship for home-channel defaults and gateway status'
@@ -73,6 +79,13 @@ optional_env:
       'Comma-separated channel nests where allowed users can trigger replies
       without mentioning the bot'
     prompt: 'Free-response channels'
+    password: false
+  - name: TLON_REPLY_IN_THREAD
+    description:
+      'Group replies start a thread on the triggering message instead of
+      posting top-level (true/false, default false); existing threads are
+      always continued in-thread'
+    prompt: 'Thread group replies?'
     password: false
   - name: TLON_REQUIRE_MENTION
     description:
@@ -96,6 +109,12 @@ optional_env:
       'Hear the owner without a mention in owner/bot-hosted channels
       (true/false, default true); %settings store overrides this'
     prompt: 'Owner-listen?'
+    password: false
+  - name: TLON_OWNER_LISTEN_DEFAULT
+    description:
+      'Owner-listen default scope: owned (owner/bot-hosted channels) or all
+      monitored channels; %settings ownerListenDefault overrides'
+    prompt: 'Owner-listen default (owned|all)'
     password: false
   - name: TLON_OWNER_LISTEN_DISABLED_CHANNELS
     description:

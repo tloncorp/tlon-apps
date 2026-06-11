@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 import types
 import unittest
@@ -39,6 +40,12 @@ class ParseRulesTests(unittest.TestCase):
         )
         self.assertEqual(list(rules), [NEST])
         self.assertEqual(rules[NEST], {"mode": "open", "extra": 1})
+
+    def test_parse_accepts_json_string_encoding(self):
+        # how the value actually round-trips through %settings (and OpenClaw)
+        encoded = json.dumps({NEST: {"mode": "open"}})
+        self.assertEqual(ca.parse_channel_rules(encoded), {NEST: {"mode": "open"}})
+        self.assertEqual(ca.parse_channel_rules("not json"), {})
 
     def test_modes_default_restricted(self):
         rules = {NEST: {"mode": "open"}}

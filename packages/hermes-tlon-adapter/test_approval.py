@@ -77,6 +77,13 @@ class CodecTests(unittest.TestCase):
         self.assertEqual(len(parsed), 1)
         self.assertEqual(parsed[0]["customField"], {"x": 1})
 
+    def test_parse_accepts_json_string_encoding(self):
+        # how the value actually round-trips through %settings (and OpenClaw)
+        encoded = json.dumps([make_approval()])
+        parsed = approval.parse_pending_approvals(encoded)
+        self.assertEqual(parsed[0]["id"], "d1b2c")
+        self.assertEqual(approval.parse_pending_approvals("not json"), [])
+
     def test_find_and_remove(self):
         items = [make_approval(), make_approval(id="c3d4e", type="channel")]
         self.assertIsNotNone(approval.find_approval(items, "d1b2c"))
@@ -105,12 +112,83 @@ class CodecTests(unittest.TestCase):
             )
         )
 
+    def test_find_duplicate_scopes_group_by_flag_not_inviter(self):
+        existing = make_approval(id="g1", type="group", groupFlag="~host/projects")
+        items = [existing]
+        # Same group, different inviter → duplicate (dedup by flag).
+        self.assertIsNotNone(
+            approval.find_duplicate(
+                items,
+                make_approval(id="x", type="group", requestingShip="~bus", groupFlag="~host/projects"),
+            )
+        )
+        # Different group, same inviter → not a duplicate.
+        self.assertIsNone(
+            approval.find_duplicate(
+                items,
+                make_approval(id="x", type="group", groupFlag="~host/other"),
+            )
+        )
+
     def test_parse_dm_allowlist(self):
         self.assertEqual(
             approval.parse_dm_allowlist(["~ten", "bus", "", 7]),
             {"~ten", "~bus", "~7"},
         )
         self.assertEqual(approval.parse_dm_allowlist("nope"), set())
+
+
+def foreign(from_ship, *, valid=True, title="Project Space", time=1):
+    return {
+        "invites": [
+            {
+                "from": from_ship,
+                "valid": valid,
+                "time": time,
+                "preview": {"meta": {"title": title}},
+            }
+        ]
+    }
+
+
+class ForeignsTests(unittest.TestCase):
+    def test_parse_extracts_valid_invites(self):
+        payload = {
+            "~host/projects": foreign("~ten", title="Projects"),
+            "~host/lounge": foreign("~bus", title="Lounge"),
+        }
+        invites = approval.parse_foreigns(payload)
+        by_flag = {inv["groupFlag"]: inv for inv in invites}
+        self.assertEqual(set(by_flag), {"~host/projects", "~host/lounge"})
+        self.assertEqual(by_flag["~host/projects"]["from"], "~ten")
+        self.assertEqual(by_flag["~host/projects"]["title"], "Projects")
+
+    def test_skips_invalid_and_empty(self):
+        payload = {
+            "~host/revoked": foreign("~ten", valid=False),
+            "~host/none": {"invites": []},
+            "~host/notmap": "junk",
+            "~host/good": foreign("~bus"),
+        }
+        invites = approval.parse_foreigns(payload)
+        self.assertEqual([inv["groupFlag"] for inv in invites], ["~host/good"])
+
+    def test_picks_most_recent_valid_invite(self):
+        payload = {
+            "~host/g": {
+                "invites": [
+                    {"from": "~ten", "valid": True, "time": 1, "preview": {"meta": {"title": "Old"}}},
+                    {"from": "~bus", "valid": True, "time": 9, "preview": {"meta": {"title": "New"}}},
+                ]
+            }
+        }
+        invite = approval.parse_foreigns(payload)[0]
+        self.assertEqual(invite["from"], "~bus")
+        self.assertEqual(invite["title"], "New")
+
+    def test_non_mapping_payload(self):
+        self.assertEqual(approval.parse_foreigns(None), [])
+        self.assertEqual(approval.parse_foreigns([]), [])
 
 
 class CommandParseTests(unittest.TestCase):
@@ -157,6 +235,20 @@ class FormattingTests(unittest.TestCase):
         )
         self.assertIn("Rejected", approval.format_confirmation(make_approval(), "reject"))
         self.assertIn("Blocked ~ten", approval.format_confirmation(make_approval(), "ban"))
+
+    def test_group_request_and_confirmations(self):
+        group = make_approval(
+            type="group", groupFlag="~host/projects", groupTitle="Project Space"
+        )
+        request = approval.format_approval_request(group)
+        self.assertIn("group invite", request)
+        self.assertIn("Inviter: ~ten", request)
+        self.assertIn("Group: Project Space", request)
+        self.assertIn("joining Project Space", approval.format_confirmation(group, "allow"))
+        self.assertIn("declined invite to Project Space", approval.format_confirmation(group, "reject"))
+        # falls back to flag when no title
+        no_title = make_approval(type="group", groupFlag="~host/projects")
+        self.assertIn("~host/projects", approval.format_confirmation(no_title, "allow"))
 
     def test_blocked_list(self):
         self.assertEqual(approval.format_blocked_list([]), "No blocked ships.")
@@ -249,6 +341,36 @@ class A2UICardTests(unittest.TestCase):
         components, _ = self.card_components(card)
         self.assertNotIn("viewMessage", components)
         self.assertNotIn("viewMessage", components["actions"]["children"])
+
+    def test_group_card_shape_and_buttons(self):
+        card = approval.build_approval_card(
+            make_approval(
+                id="g9f3a",
+                type="group",
+                requestingShip="~ten",
+                groupFlag="~host/projects",
+                groupTitle="Project Space",
+            )
+        )
+        components, update = self.card_components(card)
+        # fully linked, no dangling refs, no View-message button for invites
+        self.assertNotIn("viewMessage", components)
+        for component in components.values():
+            for ref in [
+                *(component.get("children") or []),
+                *([component["child"]] if component.get("child") else []),
+            ]:
+                self.assertIn(ref, components, f"dangling ref {ref}")
+        self.assertEqual(components["eyebrow"]["text"], "Group invite")
+        self.assertIn("Project Space", components["title"]["text"])
+        context_texts = [
+            components[c]["text"] for c in components if c.startswith("context")
+        ]
+        self.assertIn("Inviter: ~ten", context_texts)
+        self.assertIn("Group: Project Space", context_texts)
+        self.assertEqual(
+            components["allow"]["action"]["event"]["context"]["text"], "/allow g9f3a"
+        )
 
 
 if __name__ == "__main__":

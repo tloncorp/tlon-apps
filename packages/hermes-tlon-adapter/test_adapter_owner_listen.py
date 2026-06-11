@@ -298,6 +298,21 @@ class AdapterOwnerListenTests(unittest.TestCase):
         events = self.dispatches(adapter, channel_event("hello"))
         self.assertEqual(events, [])
 
+    def test_mentions_dispatch_regardless_of_owner_listen_state(self):
+        # Mentions are an unconditional wake: muting a channel or killing
+        # owner-listen globally must never silence the bot's name.
+        muted = self.make_adapter(
+            {"owner_listen_disabled_channels": "chat/~pen/general"}
+        )
+        globally_off = self.make_adapter({"owner_listen": "false"})
+
+        for adapter in (muted, globally_off):
+            unmentioned = self.dispatches(adapter, channel_event("hello", post_id="1"))
+            mentioned = self.dispatches(adapter, channel_event("~pen hello", post_id="2"))
+            self.assertEqual(unmentioned, [])
+            self.assertEqual(len(mentioned), 1)
+            self.assertEqual(mentioned[0].text, "hello")
+
     # ── control-plane command ────────────────────────────────────────────
 
     def test_command_toggles_persist_and_skip_model(self):
@@ -563,6 +578,102 @@ class AdapterOwnerListenTests(unittest.TestCase):
 
         self.assertNotIn("Warning", adapter._cli.messages[0][1])
 
+    # ── group targets + default mode ─────────────────────────────────────
+
+    def test_group_flag_command_enables_all_group_channels(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+        adapter._sse = FakeSSE(
+            payloads={
+                "/groups-ui/v7/init": {
+                    "groups": {
+                        "~ten/projects": {
+                            "channels": {
+                                "chat/~ten/general": {},
+                                "heap/~ten/art": {},
+                                "diary/~ten/notes": {},
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+        events = self.dispatches(
+            adapter,
+            dm_event("/owner-listen on ~ten/projects", author="~mug", whom="~mug"),
+            dm=True,
+        )
+
+        self.assertEqual(events, [])
+        self.assertEqual(
+            adapter._owner_listen.enabled_channels,
+            {"chat/~ten/general", "heap/~ten/art", "diary/~ten/notes"},
+        )
+        self.assertLessEqual(
+            {"chat/~ten/general", "heap/~ten/art", "diary/~ten/notes"},
+            adapter._monitored_channels,
+        )
+        reply = adapter._cli.messages[-1][1]
+        self.assertIn("on for 3 channel(s) in ~ten/projects", reply)
+        self.assertIn("Now monitoring 3 of them.", reply)
+        poked_keys = [
+            poke[2]["put-entry"]["entry-key"]
+            for poke in adapter._sse.pokes
+            if poke[1] == "settings-event"
+        ]
+        self.assertIn("ownerListenEnabledChannels", poked_keys)
+        self.assertIn("groupChannels", poked_keys)
+
+        # owner is now heard in those channels without a mention
+        heard = self.dispatches(
+            adapter, channel_event("hello there", nest="chat/~ten/general")
+        )
+        self.assertEqual(len(heard), 1)
+
+    def test_group_flag_command_reports_lookup_failure(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+        adapter._sse = FakeSSE()  # no init payload -> scry fails
+
+        self.dispatches(
+            adapter,
+            dm_event("/owner-listen on ~ten/projects", author="~mug", whom="~mug"),
+            dm=True,
+        )
+
+        self.assertIn(
+            "Could not look up channels for ~ten/projects",
+            adapter._cli.messages[-1][1],
+        )
+        self.assertEqual(adapter._owner_listen.enabled_channels, set())
+
+    def test_default_all_command_makes_owner_heard_everywhere(self):
+        nest = "chat/~ten/lounge"
+        adapter = self.make_adapter({"channels": ["chat/~pen/general", nest]})
+        adapter._cli = FakeCLI()
+        adapter._sse = FakeSSE()
+
+        before = self.dispatches(adapter, channel_event("hello?", nest=nest, post_id="1"))
+        self.dispatches(
+            adapter,
+            dm_event("/owner-listen default all", author="~mug", whom="~mug"),
+            dm=True,
+        )
+        after = self.dispatches(adapter, channel_event("hello!", nest=nest, post_id="2"))
+
+        self.assertEqual(before, [])
+        self.assertEqual(len(after), 1)
+        self.assertIn(
+            "default is now all monitored channels", adapter._cli.messages[-1][1]
+        )
+        default_writes = [
+            poke[2]["put-entry"]
+            for poke in adapter._sse.pokes
+            if poke[2]["put-entry"]["entry-key"] == "ownerListenDefault"
+        ]
+        self.assertEqual(default_writes[-1]["value"], "all")
+
     # ── /tlon-version ────────────────────────────────────────────────────
 
     def test_version_command_replies_with_field_lines(self):
@@ -575,11 +686,12 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.assertEqual(len(adapter._cli.messages), 1)
         self.assertEqual(adapter._cli.messages[0][0], "chat/~pen/general")
         lines = adapter._cli.messages[0][1].splitlines()
-        self.assertEqual(len(lines), 4)
-        self.assertEqual(lines[0], "Adapter: 0.1.0")
-        self.assertTrue(lines[1].startswith("Source: "))
-        self.assertRegex(lines[2], r"^Fingerprint: fp1:[0-9a-f]{12}$")
-        self.assertEqual(lines[3], "Tlon CLI: 0.3.2")
+        self.assertEqual(len(lines), 5)
+        self.assertEqual(lines[0], "*Harness*: **Hermes**")
+        self.assertEqual(lines[1], "*Adapter Version*: **0.1.0**")
+        self.assertEqual(lines[2], "*Tlon Skill*: **0.3.2**")
+        self.assertRegex(lines[3], r"^\*Fingerprint\*: \*\*fp1:[0-9a-f]{12}\*\*$")
+        self.assertTrue(lines[4].startswith("*Source*: **"))
         self.assertIn(("--version",), adapter._cli.commands)
 
     def test_version_command_works_from_dm_and_with_mention(self):
@@ -613,7 +725,7 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.dispatches(adapter, channel_event("/tlon-version"))
 
         self.assertIn(
-            "Tlon CLI: unavailable (tlon CLI not found: tlon)",
+            "*Tlon Skill*: **unavailable (tlon CLI not found: tlon)**",
             adapter._cli.messages[0][1],
         )
 
@@ -794,7 +906,12 @@ class AdapterOwnerListenTests(unittest.TestCase):
         adapter = self.make_adapter({"allowed_users": ["~ten"]})
         adapter._cli = FakeCLI()
         result = asyncio.run(
-            adapter.send("chat/~pen/general", "bot reply", reply_to="170141")
+            adapter.send(
+                "chat/~pen/general",
+                "bot reply",
+                reply_to="170141",
+                metadata={"thread_id": "170141"},
+            )
         )
         self.assertTrue(result.success)
 
