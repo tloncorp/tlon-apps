@@ -14,6 +14,11 @@ class UrbitModule: NSObject {
     @objc(setUrbit:shipUrl:authCookie:)
     func setUrbit(shipName: String, shipUrl: String, authCookie _: String) {
         try? UrbitModule.loginStore.save(Login(shipName: shipName, shipUrl: shipUrl))
+        // reset the cached backend capability for the new login; JS re-resolves
+        // it from the ship's version. avoids using a prior ship's v9 mark.
+        UserDefaults.forDefaultAppGroup.removeObject(
+            forKey: SettingsStore.activitySupportsReactionsKey
+        )
 
         Task {
             // Delay this a bit so that js init requests have time to fire

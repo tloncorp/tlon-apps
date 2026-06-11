@@ -211,15 +211,21 @@
     ^-  volume:a
     =/  source  (source:evt event)
     =/  loudness=volume-map:a  (get-volumes:src vs source)
-    =/  type  (event-type event)
-    ?.  ?=(?(%react %dm-react) type)
-      (~(gut by loudness) type [unreads=& notify=|])
+    ?.  ?=(?(%react %dm-react) -.event)
+      (~(gut by loudness) (event-type event) [unreads=& notify=|])
     ::  reactions were added after some volume maps were written, so a stored
-    ::  map may have no react key. reacts notify exactly when posts do, so mirror
-    ::  the map's own %post setting: a source muted before reactions existed
-    ::  stays muted, a loud one still notifies. reacts never carry an unread.
-    =+  post=(~(gut by loudness) %post [*? notify=|])
-    (~(gut by loudness) type [unreads=| notify=notify.post])
+    ::  map may have no react key. a react notifies exactly when the message it
+    ::  targets does, so mirror that type's setting: post/reply (dm-post/dm-reply
+    ::  for dms), choosing the reply variant for thread reactions since a
+    ::  followed thread's map only carries %reply. this keeps a muted source
+    ::  muted and a followed thread's reacts notifying. reacts carry no unread.
+    =/  mirror=event-type:a
+      ?-  -.event
+        %react     ?~(parent.event %post %reply)
+        %dm-react  ?~(parent.event %dm-post %dm-reply)
+      ==
+    =+  base=(~(gut by loudness) mirror [*? notify=|])
+    (~(gut by loudness) (event-type event) [unreads=| notify=notify.base])
   ::
   --
 ::
