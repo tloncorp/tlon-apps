@@ -688,7 +688,8 @@ class AdapterOwnerListenTests(unittest.TestCase):
         lines = adapter._cli.messages[0][1].splitlines()
         self.assertEqual(len(lines), 5)
         self.assertEqual(lines[0], "*Harness*: **Hermes**")
-        self.assertEqual(lines[1], "*Adapter Version*: **0.1.0**")
+        # exact version is covered in test_version; here we pin field + format
+        self.assertRegex(lines[1], r"^\*Adapter Version\*: \*\*.+\*\*$")
         self.assertEqual(lines[2], "*Tlon Skill*: **0.3.2**")
         self.assertRegex(lines[3], r"^\*Fingerprint\*: \*\*fp1:[0-9a-f]{12}\*\*$")
         self.assertTrue(lines[4].startswith("*Source*: **"))

@@ -164,6 +164,13 @@ optional_env:
       60)'
     prompt: 'SSE read timeout'
     password: false
+  - name: TLON_HOSTED
+    description:
+      'Force the hosted (memex) image-upload path (true/false). Needed for
+      connections that reach their node over localhost/proxy, where URL-based
+      hosting detection fails. Leave unset for normal node-URL detection.'
+    prompt: 'Force hosted uploads?'
+    password: false
   - name: TLON_SKILL_PATH
     description:
       'Optional path to @tloncorp/tlon-skill/SKILL.md for explicit plugin-skill

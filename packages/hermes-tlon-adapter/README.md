@@ -234,6 +234,8 @@ Hermes' Tlon home channel defaults to the explicit owner DM from `TLON_OWNER_SHI
 
 Tlon profile changes such as nickname, avatar, bio, status, and cover are owner-only in Tlon chat sessions. For avatar/cover changes, the model should upload a direct raster image URL or local file with `tlon upload` and then pass the returned uploaded URL to `tlon contacts update-profile`; source image URLs and SVGs should not be used as profile images.
 
+`tlon upload` detects Tlon hosting from the node URL by default. Connections that reach their node over localhost/proxy fail that heuristic (the URL looks self-hosted), so set `TLON_HOSTED=true` to force the hosted (memex) upload path on such deployments.
+
 When `BRAVE_SEARCH_API_KEY` or `BRAVE_API_KEY` is configured, the adapter registers `image_search` under the Tlon toolset. Use this for user-requested images rather than asking the model to infer direct image URLs from ordinary web search results.
 
 When `TLON_GATEWAY_STATUS` is enabled, the adapter pokes `%gateway-status` on connect, heartbeat, and disconnect. `TLON_GATEWAY_STATUS_OWNER` defaults to `TLON_OWNER_SHIP` when omitted.

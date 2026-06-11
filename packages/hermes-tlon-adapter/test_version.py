@@ -38,7 +38,11 @@ class CommandDetectionTests(unittest.TestCase):
 
 class PluginVersionTests(unittest.TestCase):
     def test_reads_package_json(self):
-        self.assertEqual(version.plugin_version(), "0.1.0")
+        # Compare against package.json directly so this never drifts on bumps.
+        expected = json.loads(
+            (PACKAGE_DIR / "package.json").read_text(encoding="utf-8")
+        )["version"]
+        self.assertEqual(version.plugin_version(), expected)
 
     def test_missing_or_invalid_package_json(self):
         with tempfile.TemporaryDirectory() as tmp:
