@@ -6,7 +6,7 @@ type PokeCall = Record<string, unknown>;
 
 function makeApi() {
   const calls: PokeCall[] = [];
-  let resolvers: Array<() => void> = [];
+  const resolvers: Array<() => void> = [];
   const api = {
     poke: vi.fn(async (params: PokeCall) => {
       calls.push(params);

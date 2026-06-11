@@ -5,13 +5,12 @@
  * for all test suites to use.
  */
 import {
-  type StateClient,
   type TestClient,
-  createStateClient,
   createTestClient,
   createTlonClient,
-  getTestConfig,
-} from './index.js';
+} from './client.js';
+import { getTestConfig } from './config.js';
+import { type StateClient, createStateClient } from './state.js';
 
 export interface TestFixtures {
   /** Test client for sending prompts */

@@ -377,7 +377,8 @@ export async function downloadBlobAttachments(
   const notices: string[] = [];
 
   for (const entry of blobData) {
-    if (entry.type === 'unknown') continue;
+    // a2ui entries carry UI messages, not downloadable media
+    if (entry.type === 'unknown' || entry.type === 'a2ui') continue;
 
     const uri = 'fileUri' in entry ? entry.fileUri : undefined;
     if (!uri) continue;
@@ -418,7 +419,10 @@ export async function downloadBlobAttachments(
 }
 
 function formatBlobTooLargeNotice(
-  entry: Exclude<ClientPostBlobData[number], { type: 'unknown' }>,
+  entry: Exclude<
+    ClientPostBlobData[number],
+    { type: 'unknown' } | { type: 'a2ui' }
+  >,
   sizeBytes?: number
 ): string {
   const label =
