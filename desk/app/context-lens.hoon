@@ -147,11 +147,13 @@
 ++  store
   |=  [bot=ship =id-run:l payload=@t complete=?]
   ^+  cor
-  ::  never demote a finalized run back to partial
+  ::  drop late partials once a run is finalized: overwriting would
+  ::  pair complete=& with a stale partial payload (and fact it out)
   ::
   =/  prev  (~(get by runs) [bot id-run])
-  =/  comp  |(complete ?&(?=(^ prev) complete.u.prev))
-  =/  =run:l  [comp now.bowl payload]
+  ?:  &(?=(^ prev) complete.u.prev !complete)
+    cor
+  =/  =run:l  [complete now.bowl payload]
   =.  runs  (~(put by runs) [bot id-run] run)
   =.  cor  (prune bot)
   (give %fact ~[/v1] %context-lens-update-1 !>(`update:v1:l`[%run bot id-run run]))

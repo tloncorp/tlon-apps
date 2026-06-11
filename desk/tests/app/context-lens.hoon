@@ -114,7 +114,7 @@
   =+  !<(=update:v1:l q.res)
   ?>  ?=(%run -.update)
   (ex-equal !>(complete.run.entry.update) !>(&))
-++  test-late-event-does-not-demote-final
+++  test-late-event-after-final-is-dropped
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -122,13 +122,15 @@
   ;<  *  bind:m
     %-  (do-as ~zod)
     (do-poke %context-lens-signal-1 !>(`signal:v1:l`[%run-final 'lens-4' payload]))
-  ;<  *  bind:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  caz=(list card)  bind:m
     %-  (do-as ~zod)
-    (do-poke %context-lens-signal-1 !>(`signal:v1:l`[%run-event 'lens-4' payload]))
+    (do-poke %context-lens-signal-1 !>(`signal:v1:l`[%run-event 'lens-4' '{"partial":true}']))
+  ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/run/(scot %p ~zod)/lens-4)
   =+  !<(=update:v1:l q.res)
   ?>  ?=(%run -.update)
-  (ex-equal !>(complete.run.entry.update) !>(&))
+  (ex-equal !>(run.entry.update) !>(`run:l`[& ~2024.1.1 payload]))
 ++  test-old-runs-pruned-by-age
   %-  eval-mare
   =/  m  (mare ,~)
