@@ -1,0 +1,6 @@
+# Override for local integration tests - adds tlonbot volume mount
+# Used with: docker compose -f docker-compose.test.yml -f docker-compose.local.yml
+services:
+  openclaw:
+    volumes:
+      - ../../tlonbot:/workspace/tlonbot
