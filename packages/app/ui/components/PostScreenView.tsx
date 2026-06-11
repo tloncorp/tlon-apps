@@ -476,29 +476,6 @@ export function PostScreenView({
                           }
                         />
                       )}
-                    {contextLensAvailable &&
-                      contextLensOpen &&
-                      isWindowNarrow && (
-                        <View
-                          position="absolute"
-                          top={0}
-                          right={0}
-                          bottom={0}
-                          width="88%"
-                          maxWidth={380}
-                          zIndex={20}
-                        >
-                          <ContextLensPanel
-                            events={contextLensStream.events}
-                            streamStatus={contextLensStream.status}
-                            selectedMessage={selectedContextLensMessage}
-                            onClearSelectedMessage={
-                              clearSelectedContextLensMessage
-                            }
-                            width="100%"
-                          />
-                        </View>
-                      )}
                   </XStack>
                   <GroupPreviewSheet
                     group={groupPreview ?? undefined}

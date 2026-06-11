@@ -62,8 +62,8 @@ function EmptySelectedRun({ lookupStatus }: { lookupStatus: LookupStatus }) {
         {copy}
       </SizableText>
       <SizableText size="$s" color="$tertiaryText" textAlign="center">
-        Run records sync from your ship and are retained for about 30 days.
-        This message&rsquo;s run is no longer available.
+        Run records sync from your ship and are retained for about 30 days. This
+        message&rsquo;s run is no longer available.
       </SizableText>
     </YStack>
   );
@@ -126,13 +126,11 @@ export function ContextLensPanel({
   streamStatus,
   selectedMessage,
   onClearSelectedMessage,
-  width = 360,
 }: {
   events: ContextLensEvent[];
   streamStatus: LensStreamState['status'];
   selectedMessage?: ContextLensSelectedMessage | null;
   onClearSelectedMessage?: () => void;
-  width?: number | '100%';
 }) {
   const gatewayConfig = useContextLensGatewayConfig();
   const [selectedRun, setSelectedRun] = useState<ContextLensEvent | null>(null);
@@ -289,7 +287,7 @@ export function ContextLensPanel({
   return (
     <YStack
       testID="ContextLensPanel"
-      width={width}
+      width={360}
       height="100%"
       borderLeftWidth={1}
       borderColor="$border"
