@@ -49,9 +49,12 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const listBottomComponent = useMemo(
       () =>
         shouldShowThinkingState ? (
-          <ThinkingState conversationId={ctx.channel.id} />
+          <ThinkingState
+            conversationId={ctx.channel.id}
+            channelType={ctx.channel.type}
+          />
         ) : undefined,
-      [shouldShowThinkingState, ctx.channel.id]
+      [shouldShowThinkingState, ctx.channel.id, ctx.channel.type]
     );
 
     const renderEmptyComponent = useCallback(() => {
