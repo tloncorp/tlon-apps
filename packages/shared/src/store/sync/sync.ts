@@ -2235,7 +2235,13 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // (persisted) version if the fresh fetch fails.
     await syncAppInfo({ priority: syncStartPriority.low + 1 })
       .then(() => logger.crumb(`finished syncing app info`))
-      .catch(() => syncReactionSupport().catch(() => {}));
+      .catch((err) => {
+        logger.trackError(
+          'Failed to sync app info; falling back to persisted version for reaction capability',
+          { error: err instanceof Error ? err.message : String(err) }
+        );
+        return syncReactionSupport().catch(() => {});
+      });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
