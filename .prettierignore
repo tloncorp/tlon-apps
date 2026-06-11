@@ -287,6 +287,8 @@ clurd
 /packages/tlon-skill/**/.DS_Store
 /packages/tlon-skill/**/dist
 /packages/tlon-skill/**/coverage/
+/packages/tlon-skill/**/release-tarballs/
+/packages/tlon-skill/**/artifacts/
 /packages/tlon-skill/npm/*/tlon
 /packages/tlon-skill/bin/tlon
 /packages/tlon-skill/.claude/settings.local.json

@@ -32,6 +32,7 @@ type RootPackageJson = {
   name: string;
   version: string;
   files?: string[];
+  optionalDependencies?: Record<string, string>;
 };
 
 type PackOutput = Array<{
@@ -140,6 +141,40 @@ function assertRootFilesField(packageJson: RootPackageJson): void {
   }
 }
 
+function injectPlatformOptionalDependencies(
+  packageJson: RootPackageJson
+): RootPackageJson {
+  const optionalDependencies: Record<string, string> = {};
+  for (const target of TARGETS) {
+    optionalDependencies[PLATFORM_PACKAGES[target]] = packageJson.version;
+  }
+  return { ...packageJson, optionalDependencies };
+}
+
+function assertStagedOptionalDependencies(
+  packageJson: RootPackageJson,
+  version: string
+): void {
+  const optionalDependencies = packageJson.optionalDependencies ?? {};
+  const expected = new Set(TARGETS.map((target) => PLATFORM_PACKAGES[target]));
+
+  for (const target of TARGETS) {
+    const name = PLATFORM_PACKAGES[target];
+    const pinned = optionalDependencies[name];
+    if (pinned !== version) {
+      fail(
+        `Staged root manifest optionalDependencies.${name} was ${pinned ?? '<missing>'}, expected ${version}`
+      );
+    }
+  }
+
+  for (const name of Object.keys(optionalDependencies)) {
+    if (!expected.has(name)) {
+      fail(`Staged root manifest has unexpected optionalDependency ${name}`);
+    }
+  }
+}
+
 function parsePackOutput(stdout: string): PackOutput {
   const jsonStart = stdout.indexOf('[');
   if (jsonStart === -1) {
@@ -196,10 +231,17 @@ function stageRootPackage(rootDir: string, stageDir: string): RootPackageJson {
   ) as RootPackageJson;
   assertRootFilesField(packageJson);
 
-  copyRequired(
-    packageJsonPath,
+  // The workspace manifest no longer declares the platform packages as
+  // optionalDependencies (local dev uses dev:link). Inject the four pins at the
+  // current version into the staged manifest so the published wrapper resolves
+  // its native binary, then assert the injection before packing.
+  const stagedPackageJson = injectPlatformOptionalDependencies(packageJson);
+  assertStagedOptionalDependencies(stagedPackageJson, packageJson.version);
+  mkdirSync(stageDir, { recursive: true });
+  writeFileSync(
     join(stageDir, 'package.json'),
-    'root package.json'
+    `${JSON.stringify(stagedPackageJson, null, 2)}\n`,
+    'utf-8'
   );
   copyRequired(
     join(rootDir, 'bin', 'tlon.js'),

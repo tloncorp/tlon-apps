@@ -115,6 +115,17 @@ export async function dismissWebAppSplash() {
   }
 }
 
+export async function dismissMobileAppPromo() {
+  // optimistic update
+  await db.insertSettings({ mobileAppPromoDismissed: true });
+  try {
+    await withRetry(() => api.setSetting('mobileAppPromoDismissed', true));
+  } catch (e) {
+    // don't rollback the optimistic update; we want to avoid re-nagging the
+    // user if the remote write fails
+  }
+}
+
 export async function completeWayfindingTutorial() {
   // optimistic update
   await db.insertSettings({ completedWayfindingTutorial: true });

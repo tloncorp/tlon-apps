@@ -401,8 +401,10 @@ export type ActivityEvent =
     }
   | { type: 'addActivityEvent'; events: db.ActivityEvent[] };
 
-export function subscribeToActivity(handler: (event: ActivityEvent) => void) {
-  subscribe<ub.ActivityUpdate>(
+export function subscribeToActivity(
+  handler: (event: ActivityEvent) => void
+): Promise<number> {
+  return subscribe<ub.ActivityUpdate>(
     { app: 'activity', path: '/v4' },
     async (update: ub.ActivityUpdate) => {
       logger.log(

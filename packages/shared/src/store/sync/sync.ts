@@ -1567,7 +1567,7 @@ export const handleChannelsUpdate = async (
       break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);
-      await db.updateChannel({ id: update.channelId, lastPostId: null }, ctx);
+      await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;
     case 'hidePost':
       await db.updatePost({ id: update.postId, hidden: true }, ctx);

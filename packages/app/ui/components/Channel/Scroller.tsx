@@ -270,7 +270,9 @@ const Scroller = forwardRef(
         const isLastPostOfBlock =
           post.type !== 'notice' &&
           (post.type === 'chat' || post.type === 'reply') &&
-          ((nextItem && nextItem.authorId !== post.authorId) || !isSameDay);
+          nextItem != null &&
+          (nextItem.authorId !== post.authorId ||
+            !isSameDay(post.receivedAt ?? 0, nextItem.receivedAt ?? 0));
         const showAuthor =
           post.type === 'note' ||
           post.type === 'block' ||
@@ -817,6 +819,11 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
   const areOtherPropsEqual =
     prev.isSelected === next.isSelected &&
     prev.showAuthor === next.showAuthor &&
+    prev.showDayDivider === next.showDayDivider &&
+    prev.showUnreadDivider === next.showUnreadDivider &&
+    prev.unreadCount === next.unreadCount &&
+    prev.isLastPostOfBlock === next.isLastPostOfBlock &&
+    prev.previousPost?.id === next.previousPost?.id &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&
     prev.onPressImage === next.onPressImage &&
@@ -825,7 +832,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.onPressBotRun === next.onPressBotRun &&
     prev.activeMessage === next.activeMessage &&
     prev.itemWidth === next.itemWidth &&
-    prev.displayDebugMode === next.displayDebugMode;
+    prev.displayDebugMode === next.displayDebugMode &&
+    prev.isLastPostOfBlock === next.isLastPostOfBlock;
 
   return isItemEqual && areOtherPropsEqual && isIndexEqual;
 });
