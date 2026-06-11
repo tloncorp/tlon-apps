@@ -183,6 +183,7 @@ export function PostScreenView({
   onGroupAction,
   goToDm,
   goToContextLensRuns,
+  goToContextLensRun,
   negotiationMatch,
   selectedPostId,
 }: {
@@ -194,6 +195,7 @@ export function PostScreenView({
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
   goToContextLensRuns?: () => void;
+  goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   selectedPostId?: string | null;
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
@@ -431,6 +433,10 @@ export function PostScreenView({
                                 contextLensAvailable && contextLensOpen
                                   ? inspectContextLensPost
                                   : undefined,
+                              onGoToBotRun:
+                                contextLensAvailable && isWindowNarrow
+                                  ? goToContextLensRun
+                                  : undefined,
                               negotiationMatch,
                               onPressDelete,
                               onPressRetry,
@@ -600,6 +606,7 @@ function SinglePostView({
   goBack,
   handleGoToImage,
   inspectContextLensPost,
+  onGoToBotRun,
   negotiationMatch,
   onPressDelete,
   onPressRetry,
@@ -615,6 +622,7 @@ function SinglePostView({
   group: db.Group | null;
   handleGoToImage?: (post: db.Post, uri?: string) => void;
   inspectContextLensPost?: (post: db.Post) => void;
+  onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
   negotiationMatch: boolean;
   onPressDelete: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
@@ -883,6 +891,7 @@ function SinglePostView({
             highlightPostId={highlightPostId}
             scrollerRef={scrollerRef}
             inspectContextLensPost={inspectContextLensPost}
+            onGoToBotRun={onGoToBotRun}
           />
         ) : null}
 

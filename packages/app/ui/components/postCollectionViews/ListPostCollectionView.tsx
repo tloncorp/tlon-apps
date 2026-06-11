@@ -181,6 +181,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         ref={scrollerRef}
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
+        onGoToBotRun={ctx.goToBotRun}
         highlightPostId={highlightPostId}
         listBottomComponent={listBottomComponent}
       />

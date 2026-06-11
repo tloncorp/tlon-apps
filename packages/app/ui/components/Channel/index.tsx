@@ -282,6 +282,7 @@ interface ChannelProps {
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
   goToContextLensRuns?: () => void;
+  goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
   goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
@@ -331,6 +332,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToChatDetails,
       goToSearch,
       goToContextLensRuns,
+      goToContextLensRun,
       goToMediaViewer,
       goToPost,
       goToDm,
@@ -849,6 +851,10 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                                           contextLensAvailable &&
                                           contextLensOpen
                                             ? inspectContextLensPost
+                                            : undefined,
+                                        goToBotRun:
+                                          contextLensAvailable && isNarrow
+                                            ? goToContextLensRun
                                             : undefined,
                                         hasNewerPosts,
                                         hasOlderPosts,

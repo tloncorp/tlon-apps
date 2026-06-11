@@ -99,11 +99,19 @@ export const useChannelNavigation = ({ channelId }: { channelId: string }) => {
     navigation.push('ContextLensRuns', { channelId });
   }, [navigation, channelId]);
 
+  const navigateToContextLensRun = useCallback(
+    ({ botShip, lensId }: { botShip: string; lensId: string }) => {
+      navigation.push('ContextLensRun', { botShip, lensId, channelId });
+    },
+    [navigation, channelId]
+  );
+
   return {
     navigateToPost,
     navigateToRef,
     navigateToImage,
     navigateToSearch,
     navigateToContextLensRuns,
+    navigateToContextLensRun,
   };
 };

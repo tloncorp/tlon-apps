@@ -49,6 +49,7 @@ import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component'
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { EmojiPickerSheet } from '../Emoji';
 import { ChannelDivider } from './ChannelDivider';
+import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
 import { PostList, PostListMethods } from './PostList';
 import type { ScrollAnchor } from './scrollerTypes';
 
@@ -99,6 +100,7 @@ const Scroller = forwardRef(
       listHeaderComponent,
       listBottomComponent,
       highlightPostId,
+      onGoToBotRun,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -137,6 +139,7 @@ const Scroller = forwardRef(
       listHeaderComponent?: React.ReactElement;
       listBottomComponent?: React.ReactElement;
       highlightPostId?: string | null;
+      onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
     },
     ref
   ) => {
@@ -175,7 +178,12 @@ const Scroller = forwardRef(
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
       null
     );
+    const [viewBotRunPost, setViewBotRunPost] = useState<null | db.Post>(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+
+    const handlePressBotRun = useCallback((post: db.Post) => {
+      setViewBotRunPost(post);
+    }, []);
 
     const listRef = useRef<PostListMethods>(null);
 
@@ -289,6 +297,7 @@ const Scroller = forwardRef(
             Component={renderItem}
             unreadCount={unreadCount}
             setViewReactionsPost={setViewReactionsPost}
+            onPressBotRun={handlePressBotRun}
             onPressRetry={onPressRetry}
             onPressDelete={onPressDelete}
             showReplies={showReplies}
@@ -331,6 +340,7 @@ const Scroller = forwardRef(
         onPressDelete,
         onPressRetry,
         handlePostLongPressed,
+        handlePressBotRun,
         activeMessage,
         showDividers,
         collectionLayout.dividersEnabled,
@@ -570,6 +580,10 @@ const Scroller = forwardRef(
                 setViewReactionsPost(post);
                 setActiveMessage(null);
               }}
+              onViewBotRun={(post) => {
+                setViewBotRunPost(post);
+                setActiveMessage(null);
+              }}
               mode="immediate"
             />
           </Modal>
@@ -589,6 +603,14 @@ const Scroller = forwardRef(
             post={viewReactionsPost}
             open
             onOpenChange={() => setViewReactionsPost(null)}
+          />
+        ) : null}
+        {viewBotRunPost ? (
+          <ContextLensRunSheet
+            post={viewBotRunPost}
+            open
+            onOpenChange={() => setViewBotRunPost(null)}
+            onExpand={onGoToBotRun}
           />
         ) : null}
       </View>
@@ -622,6 +644,7 @@ const BaseScrollerItem = ({
   unreadCount,
   onLayout,
   setViewReactionsPost,
+  onPressBotRun,
   showReplies,
   onPressImage,
   onPressReplies,
@@ -654,6 +677,7 @@ const BaseScrollerItem = ({
   onPressReplies?: (post: db.Post) => void;
   showReplies?: boolean;
   setViewReactionsPost?: (post: db.Post) => void;
+  onPressBotRun?: (post: db.Post) => void;
   onPressPost?: (post: db.Post) => void;
   onLongPressPost: (post: db.Post) => void;
   onPressRetry?: (post: db.Post) => Promise<void>;
@@ -762,6 +786,7 @@ const BaseScrollerItem = ({
           displayDebugMode={displayDebugMode}
           post={post}
           setViewReactionsPost={setViewReactionsPost}
+          onPressBotRun={onPressBotRun}
           showAuthor={showAuthorLive}
           showReplies={showReplies}
           onPressReplies={post.isDeleted ? undefined : onPressReplies}
@@ -797,6 +822,7 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.onPressImage === next.onPressImage &&
     prev.onPressPost === next.onPressPost &&
     prev.onLongPressPost === next.onLongPressPost &&
+    prev.onPressBotRun === next.onPressBotRun &&
     prev.activeMessage === next.activeMessage &&
     prev.itemWidth === next.itemWidth &&
     prev.displayDebugMode === next.displayDebugMode;

@@ -151,6 +151,7 @@ export default function ChannelScreen(props: Props) {
     navigateToRef,
     navigateToSearch,
     navigateToContextLensRuns,
+    navigateToContextLensRun,
   } = useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
   const navigationRef = useRef(props.navigation);
@@ -450,6 +451,7 @@ export default function ChannelScreen(props: Props) {
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
           goToContextLensRuns={navigateToContextLensRuns}
+          goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
           goToChannelDetails={handleGoToChannelDetails}
