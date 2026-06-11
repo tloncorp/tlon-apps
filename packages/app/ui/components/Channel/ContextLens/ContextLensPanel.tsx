@@ -5,18 +5,10 @@ import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
 
 import { RecentRunList } from './RecentRunList';
 import { RunInspector } from './RunInspector';
+import { RunSummary } from './RunSummary';
 import { RunTimeline, buildRunTimeline } from './RunTimeline';
-import {
-  TONE_COLORS,
-  formatDuration,
-  runKindLabel,
-  statusLabel,
-  statusTone,
-  summarizeContext,
-  summarizeWrites,
-} from './format';
+import { TONE_COLORS } from './format';
 import { fetchContextLensRun } from './gatewayClient';
-import { Metric } from './primitives';
 import {
   type ContextLens,
   type ContextLensEvent,
@@ -388,67 +380,7 @@ export function ContextLensPanel({
           {panelMode === 'selected' && !latest ? (
             <EmptySelectedRun lookupStatus={lookupStatus} />
           ) : latest ? (
-            <YStack
-              gap="$m"
-              borderWidth={1}
-              borderColor="$border"
-              borderRadius="$m"
-              padding="$m"
-              backgroundColor="$secondaryBackground"
-            >
-              <XStack alignItems="center" justifyContent="space-between">
-                <XStack alignItems="center" gap="$s">
-                  <View
-                    width={9}
-                    height={9}
-                    borderRadius={999}
-                    backgroundColor={
-                      TONE_COLORS[statusTone(latest.lens.status)]
-                    }
-                  />
-                  <SizableText size="$l" color="$primaryText">
-                    {statusLabel(latest.lens.status)}
-                  </SizableText>
-                </XStack>
-                <SizableText size="$s" color="$secondaryText">
-                  {latest.phase}
-                </SizableText>
-              </XStack>
-
-              <YStack gap="$s">
-                <Metric label="Context" value={summarizeContext(latest.lens)} />
-                <Metric label="Run" value={runKindLabel(latest.lens)} />
-                <Metric
-                  label="Tools"
-                  value={
-                    latest.lens.tools.callCount
-                      ? `${latest.lens.tools.callCount} / ${latest.lens.tools.called.join(', ')}`
-                      : 'none'
-                  }
-                />
-                <Metric label="Writes" value={summarizeWrites(latest.lens)} />
-                <Metric
-                  label="Model"
-                  value={
-                    latest.lens.provider || latest.lens.model
-                      ? [latest.lens.provider, latest.lens.model]
-                          .filter(Boolean)
-                          .join(' / ')
-                      : 'pending'
-                  }
-                />
-                <Metric
-                  label="Runtime"
-                  value={formatDuration(latest.lens.lifecycle.durationMs)}
-                />
-              </YStack>
-
-              {latest.lens.error ? (
-                <SizableText size="$s" color="$negativeActionText">
-                  {latest.lens.error}
-                </SizableText>
-              ) : null}
-            </YStack>
+            <RunSummary lens={latest.lens} phase={latest.phase} />
           ) : (
             <YStack
               alignItems="center"

@@ -167,6 +167,7 @@ export function RecentRunList({
               borderWidth={1}
               borderColor="$border"
               borderRadius="$s"
+              paddingHorizontal="$s"
               paddingVertical="$xs"
               backgroundColor="$background"
             >

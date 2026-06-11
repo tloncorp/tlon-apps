@@ -1,10 +1,10 @@
 import * as db from '@tloncorp/shared/db';
-import * as logic from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import create from 'zustand';
 
 import { useFeatureFlag } from '../../../../lib/featureFlags';
+import { getContextLensStamp } from './lensPost';
 import {
   type ContextLensGatewayConfig,
   fetchRecentContextLensEvents,
@@ -234,21 +234,13 @@ export function useContextLensController() {
   }, []);
 
   const inspectContextLensPost = useCallback((post: db.Post) => {
-    const contextLensEntry = post.blob
-      ? logic
-          .parsePostBlob(post.blob)
-          .find((entry) => entry.type === 'tlon-context-lens')
-      : null;
-    const lensEntry =
-      contextLensEntry?.type === 'tlon-context-lens' ? contextLensEntry : null;
+    const stamp = getContextLensStamp(post);
     setSelectedContextLensMessage({
       id: post.id,
       authorId: post.authorId,
       channelId: post.channelId,
-      lensId: lensEntry?.lensId ?? null,
-      // older blobs predate botShip; the bot authored the post, so its id
-      // is the right fallback for the %context-lens lookup key
-      botShip: lensEntry?.botShip ?? post.authorId ?? null,
+      lensId: stamp?.lensId ?? null,
+      botShip: stamp?.botShip ?? null,
     });
   }, []);
 
