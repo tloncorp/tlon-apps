@@ -257,8 +257,15 @@ export function VoiceMemoBlock({
   block,
   ...props
 }: { block: cn.VoiceMemoBlockData } & ComponentProps<typeof Reference.Frame>) {
-  const { togglePlayback, seekTo, progress, status, isThisSourceLoaded } =
-    useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
+  const {
+    togglePlayback,
+    seekTo,
+    beginScrub,
+    endScrub,
+    progress,
+    status,
+    isThisSourceLoaded,
+  } = useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
 
   const waveformWidthRef = useRef(0);
   const seekToWaveformX = useMutableCallback((x: number) => {
@@ -300,13 +307,16 @@ export function VoiceMemoBlock({
       // channel list
       .activeOffsetX([-10, 10])
       .failOffsetY([-10, 10])
+      // pause a playing memo while scrubbing, resume on release
+      .onStart(() => beginScrub())
       .onUpdate((e) => throttledSeekToWaveformX(e.x))
       .onEnd((e) => {
         throttledSeekToWaveformX.cancel();
         seekToWaveformX(e.x);
-      });
+      })
+      .onFinalize(() => endScrub());
     return Gesture.Race(pan, tap);
-  }, [seekToWaveformX, throttledSeekToWaveformX]);
+  }, [seekToWaveformX, throttledSeekToWaveformX, beginScrub, endScrub]);
 
   const candlePlaybackPosition = useMemo(() => {
     const candleCount = block.voiceMemo.waveformPreview

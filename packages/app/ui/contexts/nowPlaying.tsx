@@ -420,6 +420,23 @@ export function useNowPlayingController({
     [nowPlaying, sourceUri, isThisSourceLoaded]
   );
 
+  // Scrubbing pauses a playing source for the duration of the gesture and
+  // resumes it on release.
+  const wasPlayingBeforeScrubRef = useRef(false);
+  const beginScrub = useCallback(() => {
+    wasPlayingBeforeScrubRef.current =
+      isThisSourceLoaded && nowPlaying.isPlaying;
+    if (wasPlayingBeforeScrubRef.current) {
+      nowPlaying.pause();
+    }
+  }, [nowPlaying, isThisSourceLoaded]);
+  const endScrub = useCallback(() => {
+    if (wasPlayingBeforeScrubRef.current) {
+      wasPlayingBeforeScrubRef.current = false;
+      nowPlaying.play();
+    }
+  }, [nowPlaying]);
+
   const status = useMemo<null | 'playing' | 'paused' | 'loading'>(() => {
     // Playback requested but not confirmed by expo-audio yet
     if (playbackIntent && !progress?.isPlaying) {
@@ -457,6 +474,8 @@ export function useNowPlayingController({
   return {
     togglePlayback,
     seekTo,
+    beginScrub,
+    endScrub,
     progress,
     status,
     isThisSourceLoaded,
