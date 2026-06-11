@@ -68,6 +68,7 @@
   ++  on-peek
     |=  =path
     ^-  (unit (unit cage))
+    ?>  =(src our):bowl
     ?+  path  [~ ~]
         [%x %recent ~]
       ``context-lens-update-1+!>(`update:v1:l`[%runs recent:cor])

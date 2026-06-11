@@ -157,4 +157,21 @@
   %-  ex-fail
   %-  (do-as ~zod)
   (do-watch /v1)
+::  +get-peek calls +on-peek bare (no +mock), so a ?> crash would take
+::  down the runner; mule the calls directly instead of using +ex-fail
+::
+++  test-peek-rejects-foreign-ship
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-src ~zod)
+  |=  s=state
+  =/  recent  (mule |.((~(on-peek agent.s bowl.s) /x/recent)))
+  ?:  ?=(%& -.recent)
+    |+~['expected foreign /x/recent peek to crash']
+  =/  run  (mule |.((~(on-peek agent.s bowl.s) /x/run/(scot %p ~zod)/lens-1)))
+  ?:  ?=(%& -.run)
+    |+~['expected foreign /x/run peek to crash']
+  &+[~ s]
 --
