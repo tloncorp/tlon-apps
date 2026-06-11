@@ -319,9 +319,39 @@ export const NESTED_HELP_CASES: CliCase[] = [
     ['groups', 'info', '--help'],
     'Usage: tlon groups info'
   ),
+  helpCase(
+    'posts react --help',
+    ['posts', 'react', '--help'],
+    'Usage: tlon posts react'
+  ),
+  helpCase(
+    'posts react --help with global credentials',
+    [
+      '--url',
+      'https://cli.tlon.network',
+      '--cookie',
+      'urbauth-~zod=0v-cookie',
+      'posts',
+      'react',
+      '--help',
+    ],
+    'Usage: tlon posts react'
+  ),
+  helpCase(
+    'posts unreact --help',
+    ['posts', 'unreact', '--help'],
+    'Usage: tlon posts unreact'
+  ),
 ];
 
 export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
+  authRequiredCase('posts react valid args reaches auth', [
+    'posts',
+    'react',
+    'chat/~host/channel',
+    '170.141',
+    '👍',
+  ]),
   authRequiredCase('dms send message option-like value reaches auth', [
     'dms',
     'send',
@@ -487,6 +517,23 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...SPECIAL_INPUT_CASES,
   ...NESTED_HELP_CASES,
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
+];
+
+export type HostileHelpCommand = {
+  name: string;
+  args: string[];
+};
+
+// Help paths that must perform no credential lookup even under hostile config:
+// the top-level help, every command family's `<family> --help`, and the
+// migrated nested `posts react --help` path.
+export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
+  { name: 'top-level', args: ['--help'] },
+  ...COMMAND_FAMILIES.map((family) => ({
+    name: family,
+    args: [family, '--help'],
+  })),
+  { name: 'posts react', args: ['posts', 'react', '--help'] },
 ];
 
 export function normalizeCliOutput(text: string): string {
