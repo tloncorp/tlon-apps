@@ -281,6 +281,7 @@ interface ChannelProps {
   goToGroupSettings: () => void;
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToSearch: () => void;
+  goToContextLensRuns?: () => void;
   goToUserProfile: (userId: string) => void;
   goToChannelDetails?: (groupId: string, channelId: string) => void;
   onScrollEndReached?: () => void;
@@ -329,6 +330,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goBack,
       goToChatDetails,
       goToSearch,
+      goToContextLensRuns,
       goToMediaViewer,
       goToPost,
       goToDm,
@@ -792,7 +794,9 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               goToSearch={goToSearch}
                               onToggleContextLens={
                                 contextLensAvailable
-                                  ? toggleContextLens
+                                  ? isNarrow && goToContextLensRuns
+                                    ? goToContextLensRuns
+                                    : toggleContextLens
                                   : undefined
                               }
                               contextLensOpen={

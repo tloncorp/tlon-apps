@@ -182,6 +182,7 @@ export function PostScreenView({
   onPressDelete,
   onGroupAction,
   goToDm,
+  goToContextLensRuns,
   negotiationMatch,
   selectedPostId,
 }: {
@@ -192,6 +193,7 @@ export function PostScreenView({
   handleGoToUserProfile: (userId: string) => void;
   onGroupAction: (action: GroupPreviewAction, group: db.Group) => void;
   goToDm: (participants: string[]) => void;
+  goToContextLensRuns?: () => void;
   selectedPostId?: string | null;
 } & ChannelContext) {
   const isWindowNarrow = utils.useIsWindowNarrow();
@@ -381,7 +383,11 @@ export function PostScreenView({
                     showEditButton={showEdit}
                     goToEdit={handleEditPress}
                     onToggleContextLens={
-                      contextLensAvailable ? toggleContextLens : undefined
+                      contextLensAvailable
+                        ? isWindowNarrow && goToContextLensRuns
+                          ? goToContextLensRuns
+                          : toggleContextLens
+                        : undefined
                     }
                     contextLensOpen={contextLensAvailable && contextLensOpen}
                     contextLensActive={contextLensActive}

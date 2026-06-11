@@ -72,7 +72,7 @@ function PostScreenContent({
       }),
     });
 
-  const { navigateToImage } = useChannelNavigation({
+  const { navigateToImage, navigateToContextLensRuns } = useChannelNavigation({
     channelId: channelId,
   });
 
@@ -145,6 +145,7 @@ function PostScreenContent({
       onPressRetry={handleRetrySend}
       onGroupAction={performGroupAction}
       goToDm={handleGoToDm}
+      goToContextLensRuns={navigateToContextLensRuns}
       negotiationMatch={negotiationStatus.matchedOrPending}
       selectedPostId={selectedPostId}
       // NB: If we're showing posts in a carousel, all carousel items share the
