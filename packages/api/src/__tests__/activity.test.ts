@@ -5,6 +5,7 @@ import {
   fromInitFeedToBucketedActivityEvents,
 } from '../client/activityApi';
 import type { ActivityEvent } from '../types/models';
+import type * as ub from '../urbit';
 import dmFeed from './fixtures/activityDmFeed.json';
 import dmReplyFeed from './fixtures/activityDmReplyFeed.json';
 import initActivityFeeds from './fixtures/activityInitFeeds.json';
@@ -138,6 +139,98 @@ test('converts a dm reply activity event feed from server to client format', () 
   const events = fromFeedToActivityEvents(dmReplyFeed, 'replies');
   expect(events.length).toBe(1);
   expect(events[0]).toStrictEqual(expectedDmReplyEvent);
+});
+
+const postKey = {
+  id: '~poster/170.141.184.506.853.155.647.879.036.981.225.717.760',
+  time: '170.141.184.506.853.155.647.879.036.981.225.717.760',
+};
+const replyParentKey = {
+  id: '~poster/170.141.184.506.852.591.089.314.701.116.289.581.056',
+  time: '170.141.184.506.852.591.089.314.701.116.289.581.056',
+};
+
+const reactFeed: ub.ActivityBundle[] = [
+  {
+    source: { channel: { nest: 'chat/~host/welcome', group: '~host/group' } },
+    latest: postKey.time,
+    'source-key': 'channel/chat/~host/welcome',
+    events: [
+      {
+        time: postKey.time,
+        event: {
+          notified: true,
+          react: {
+            key: postKey,
+            parent: null,
+            channel: 'chat/~host/welcome',
+            group: '~host/group',
+            author: '~reactor',
+            react: '❤️',
+          },
+        },
+      },
+    ],
+  },
+];
+
+test('converts a channel post react activity event to client format', () => {
+  const events = fromFeedToActivityEvents(reactFeed, 'all');
+  expect(events.length).toBe(1);
+  expect(events[0]).toMatchObject({
+    type: 'react',
+    sourceId: 'channel/chat/~host/welcome',
+    channelId: 'chat/~host/welcome',
+    groupId: '~host/group',
+    // the reacting ship, not the original poster
+    authorId: '~reactor',
+    content: '❤️',
+    isMention: false,
+    shouldNotify: true,
+    bucketId: 'all',
+  });
+  expect(events[0].parentId).toBeUndefined();
+});
+
+const dmReplyReactFeed: ub.ActivityBundle[] = [
+  {
+    source: {
+      'dm-thread': { key: replyParentKey, whom: { ship: '~pondus-watbel' } },
+    },
+    latest: postKey.time,
+    'source-key': 'dm-thread/~pondus-watbel',
+    events: [
+      {
+        time: postKey.time,
+        event: {
+          notified: true,
+          'dm-react': {
+            key: postKey,
+            parent: replyParentKey,
+            whom: { ship: '~pondus-watbel' },
+            author: '~reactor',
+            react: '❤️',
+          },
+        },
+      },
+    ],
+  },
+];
+
+test('converts a dm thread react activity event to client format', () => {
+  const events = fromFeedToActivityEvents(dmReplyReactFeed, 'all');
+  expect(events.length).toBe(1);
+  expect(events[0]).toMatchObject({
+    type: 'react',
+    channelId: '~pondus-watbel',
+    authorId: '~reactor',
+    parentId: replyParentKey.id.split('/')[1],
+    parentAuthorId: '~poster',
+    content: '❤️',
+    isMention: false,
+  });
+  // dm reacts have no group
+  expect(events[0].groupId).toBeUndefined();
 });
 
 test('converts activity init feeds from server to client format', () => {

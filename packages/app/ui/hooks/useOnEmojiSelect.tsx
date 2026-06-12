@@ -18,7 +18,7 @@ export default function useOnEmojiSelect(
       if (!post) {
         return;
       }
-      details.self.didReact && details.self.value.includes(value)
+      details.self.didReact && details.self.value === value
         ? store.removePostReaction(post, currentUserId)
         : store.addPostReaction(post, value, currentUserId);
 
