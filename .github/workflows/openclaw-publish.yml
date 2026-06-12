@@ -32,6 +32,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify tag matches package version
+        if: github.event_name == 'push'
+        working-directory: packages/openclaw
+        run: |
+          version=$(node -p "require('./package.json').version")
+          expected="openclaw-v${version}"
+          if [ "${GITHUB_REF_NAME}" != "$expected" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match packages/openclaw version (${expected})" >&2
+            exit 1
+          fi
+          echo "Tag matches package version: ${expected}"
+
       - name: Run tests
         working-directory: packages/openclaw
         run: pnpm test

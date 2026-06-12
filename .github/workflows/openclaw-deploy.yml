@@ -11,6 +11,12 @@ on:
     # Runtime inputs of the deployed plugin only — docs, tests, and the dev
     # harness don't warrant a ship restart. (Production pulls the develop
     # branch ref at restart, so a missed trigger self-heals on the next one.)
+    #
+    # Deliberately NOT watching packages/api or packages/tlon-skill: the
+    # deployed plugin resolves its workspace:^ deps to *published npm
+    # versions* (resolve-workspace-deps.mjs --registry), so develop merges
+    # to those packages change nothing on ships — dep changes reach
+    # production via an npm publish followed by a restart.
     paths:
       - "packages/openclaw/src/**"
       - "packages/openclaw/index.ts"
