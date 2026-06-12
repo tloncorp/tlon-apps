@@ -33,16 +33,13 @@
   /v4/dm/(scot %p target.args)/writs/newest/(scot %ud limit)/light/chat-paged-writs-4
 ;<  =paged-writs:v7:cv  bind:m  (scry paged-writs:v7:cv %gx %chat path)
 =/  writs-list  (tap:on:writs:v7:cv writs.paged-writs)
-::  extract author ship from each writ; treats bot-author entries as their ship
-::
-=/  author-of
-  |=  w=(may:v7:cv writ:v7:cv)
-  ^-  ship
-  =/  a=author:v7:cv  ?:(?=(%| -.w) author.w author.w)
-  ?@(a a ship.a)
 =+  %+  roll  writs-list
     |=  [[=time w=(may:v7:cv writ:v7:cv)] sent=@ud recv=@ud]
-    =/  who  (author-of w)
+    ?:  ?=(%| -.w)
+      [sent recv]
+    =/  who=ship
+      =/  a=author:v7:cv  author.w
+      ?@(a a ship.a)
     ?:  =(who our.bowl)  [+(sent) recv]
     [sent +(recv)]
 =/  out=^json
