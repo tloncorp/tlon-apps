@@ -1,4 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { getCanonicalPostId } from '@tloncorp/api/client';
+import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -42,7 +44,7 @@ export function ContextLensRunScreen(props: Props) {
 
   const navigateFromA2UI = useA2UINavigation();
   const handlePressMessage = useCallback(
-    (target: LensMessageTarget) => {
+    async (target: LensMessageTarget) => {
       // Lens conversation ids are recorded from the bot's perspective: group
       // channels are nests (contain '/'), but DMs name the counterparty ship
       // — which on the owner's client is themselves. DM messages live in the
@@ -53,10 +55,23 @@ export function ContextLensRunScreen(props: Props) {
       if (!channelId) {
         return;
       }
+      // Lens payloads don't record thread parents, so resolve from the local
+      // db — without parentId, threaded replies dead-end in the channel
+      // scroller where they aren't visible.
+      let parentId: string | undefined;
+      try {
+        const post = await db.getPost({
+          postId: getCanonicalPostId(target.postId),
+        });
+        parentId = post?.parentId ?? undefined;
+      } catch {
+        // post not cached locally — fall back to channel navigation
+      }
       navigateFromA2UI({
         type: 'message',
         channelId,
         postId: target.postId,
+        parentId,
         authorId: target.authorId,
       });
     },
