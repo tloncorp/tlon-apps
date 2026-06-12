@@ -321,7 +321,11 @@
         %+  give-update
           (~(del ju subs) context.key.cmd src.bowl)
         [disclose.cmd %set +>.cmd]
-      ?.  (~(has in disclose.cmd) our.bowl)
+      ::  an empty disclose means public, which includes ourselves.
+      ::  without this, the host's own client never sees presence
+      ::  for contexts it hosts.
+      ::
+      ?.  |(=(~ disclose.cmd) (~(has in disclose.cmd) our.bowl))
         [fus this]
       ::TODO  send response too?
       :_  this(places (put-presence places +>.cmd))
@@ -472,13 +476,18 @@
       ?~  p.sign
         :_  this
         [(tell:log %dbug ~['context sub ack ok' >src.bowl< >context<] ~)]~
-      ::  nacked, can't do anything, drop desire
+      ::  nacked. nacks are commonly transient (host hasn't synced the
+      ::  group or channel yet), so keep the desire and retry later.
+      ::  dropping the desire would kill presence for this context until
+      ::  the next full setup.
       ::
-      :_  this(want (~(del in want) src.bowl context))
-      =-  [(tell:log %warn - ~)]~
-      :*  'context sub nacked, dropping desire'
-          >[src=src.bowl context=context]<
-          u.p.sign
+      :_  this
+      :~  (await-setup (add now.bowl ~m5) `[src.bowl context])
+          =-  (tell:log %warn - ~)
+          :*  'context sub nacked, will retry'
+              >[src=src.bowl context=context]<
+              u.p.sign
+          ==
       ==
     ::
         %fact
@@ -569,6 +578,12 @@
     =/  =ship  (slav %p i.t.wire)
     ?<  =(ship our.bowl)  ::  don't subscribe to ourselves
     =*  context  t.t.wire
+    ::  the desire may have been dropped (context left) between the nack
+    ::  retry being scheduled and firing. don't resubscribe in that case.
+    ::
+    ?.  (~(has in want) [ship context])
+      :_  this
+      [(tell:log %dbug ~['setup(specific): no longer wanted, skipping' >ship< >context<] ~)]~
     ?:  (~(has by wex.bowl) [%context context] ship dap.bowl)
       :_  this
       [(tell:log %dbug ~['setup(specific): already subscribed, skipping' >ship< >context<] ~)]~
