@@ -1,6 +1,6 @@
 import { getCanonicalPostId } from '@tloncorp/api/client';
 import * as store from '@tloncorp/shared/store';
-import { Icon } from '@tloncorp/ui';
+import { Icon, Pressable } from '@tloncorp/ui';
 import { useMemo, useState } from 'react';
 import { SizableText, XStack, YStack } from 'tamagui';
 
@@ -187,7 +187,7 @@ function ToolRunItem({ run }: { run: ContextLensToolRun }) {
         ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
         : run.phase ?? 'running';
 
-  return (
+  const content = (
     <YStack
       gap="$2xs"
       minWidth={0}
@@ -195,8 +195,6 @@ function ToolRunItem({ run }: { run: ContextLensToolRun }) {
       borderColor={TONE_COLORS[tone]}
       paddingLeft="$s"
       paddingVertical="$2xs"
-      onPress={expandable ? () => setExpanded((value) => !value) : undefined}
-      pressStyle={expandable ? { opacity: 0.6 } : undefined}
     >
       <XStack
         alignItems="center"
@@ -234,6 +232,19 @@ function ToolRunItem({ run }: { run: ContextLensToolRun }) {
         <PreviewText value={run.argumentDetail} />
       ) : null}
     </YStack>
+  );
+
+  if (!expandable) {
+    return content;
+  }
+
+  return (
+    <Pressable
+      onPress={() => setExpanded((value) => !value)}
+      pressStyle={{ opacity: 0.6 }}
+    >
+      {content}
+    </Pressable>
   );
 }
 

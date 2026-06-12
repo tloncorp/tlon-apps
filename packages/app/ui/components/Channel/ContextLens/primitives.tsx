@@ -1,3 +1,4 @@
+import { Pressable } from '@tloncorp/ui';
 import type { ReactNode } from 'react';
 import { SizableText, XStack, YStack } from 'tamagui';
 
@@ -41,14 +42,12 @@ export function Metric({
   value: string;
   onPress?: () => void;
 }) {
-  return (
+  const row = (
     <XStack
       alignItems="flex-start"
       justifyContent="space-between"
       gap="$m"
       minWidth={0}
-      onPress={onPress}
-      pressStyle={onPress ? { opacity: 0.6 } : undefined}
     >
       <SizableText size="$s" color="$secondaryText" flexShrink={0}>
         {label}
@@ -65,6 +64,16 @@ export function Metric({
         {value}
       </SizableText>
     </XStack>
+  );
+
+  if (!onPress) {
+    return row;
+  }
+
+  return (
+    <Pressable onPress={onPress} pressStyle={{ opacity: 0.6 }}>
+      {row}
+    </Pressable>
   );
 }
 
