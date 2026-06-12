@@ -13,6 +13,7 @@ import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { activityVersionSupportsReactions } from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
@@ -501,7 +502,20 @@ export const syncSettings = async (ctx?: SyncCtx) => {
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
   const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
+  api.setActivitySupportsReactions(
+    activityVersionSupportsReactions(appInfo?.groupsVersion)
+  );
   return db.appInfo.setValue(appInfo);
+};
+
+// Resolves the backend's reaction capability from the last-known (persisted)
+// groups version and applies it to the activity client before it picks endpoint
+// versions. A fresh version is fetched by syncAppInfo, which also updates this.
+export const syncReactionSupport = async () => {
+  const appInfo = await db.appInfo.getValue();
+  api.setActivitySupportsReactions(
+    activityVersionSupportsReactions(appInfo?.groupsVersion)
+  );
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -2236,6 +2250,20 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }
 
     updateSession({ phase: 'low' });
+    // Resolve the backend's reaction capability from the *current* version
+    // before the activity feed and subscription below pick their endpoint
+    // versions, so reactions work on first launch and right after a ship
+    // upgrade rather than only after a restart. Fall back to the last-known
+    // (persisted) version if the fresh fetch fails.
+    await syncAppInfo({ priority: syncStartPriority.low + 1 })
+      .then(() => logger.crumb(`finished syncing app info`))
+      .catch((err) => {
+        logger.trackError(
+          'Failed to sync app info; falling back to persisted version for reaction capability',
+          { error: err instanceof Error ? err.message : String(err) }
+        );
+        return syncReactionSupport().catch(() => {});
+      });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
@@ -2266,9 +2294,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       }).then(() =>
         logger.crumb(`finished syncing push notifications setting`)
       ),
-      syncAppInfo({ priority: syncStartPriority.low + 1 }).then(() => {
-        logger.crumb(`finished syncing app info`);
-      }),
       syncSystemContacts({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),

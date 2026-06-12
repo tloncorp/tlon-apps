@@ -45,6 +45,7 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
+import { useSyncReactionCapability } from '../hooks/useSyncReactionCapability';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
@@ -66,6 +67,7 @@ function AuthenticatedApp() {
   useCheckAppUpdated();
   useFindSuggestedContacts();
   useSyncAppBadge();
+  useSyncReactionCapability();
   const checkForCachedChanges = useCachedChanges();
   const { poorUxReportModal } = usePoorUxShakeReport();
 

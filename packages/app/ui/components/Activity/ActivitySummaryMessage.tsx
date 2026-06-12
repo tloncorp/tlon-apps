@@ -25,7 +25,8 @@ function SummaryMessageRaw({
     relevancy !== 'groupJoinRequest' &&
     relevancy !== 'flaggedPost' &&
     relevancy !== 'flaggedReply' &&
-    relevancy !== 'contactUpdate'
+    relevancy !== 'contactUpdate' &&
+    relevancy !== 'reactedToPost'
   ) {
     return null;
   }
@@ -36,6 +37,18 @@ function SummaryMessageRaw({
       <SummaryText>
         <ActivitySummaryAuthorList contactIds={authors.slice(0, 1)} />
         {` mentioned you`}:
+      </SummaryText>
+    );
+  }
+
+  if (relevancy === 'reactedToPost') {
+    const reactValue = reactDisplayValue(newest.content);
+    return (
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
+        {reactValue
+          ? ` reacted ${reactValue} to your post`
+          : ` reacted to your post`}
       </SummaryText>
     );
   }
@@ -159,6 +172,18 @@ function postVerb(channelType: string) {
       : 'sent';
 }
 
+// Reactions reuse the activity event `content` column to carry the raw react
+// value: a native emoji string, or a custom `{ any }` value.
+function reactDisplayValue(content: unknown): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (content && typeof content === 'object' && 'any' in content) {
+    return String((content as { any: unknown }).any);
+  }
+  return '';
+}
+
 function contactUpdateNoun(event: db.ActivityEvent) {
   if (!event.contactUpdateType) {
     return '';
@@ -185,6 +210,7 @@ type ActivityRelevancy =
   | 'postToChannel'
   | 'flaggedPost'
   | 'flaggedReply'
+  | 'reactedToPost'
   | 'groupJoinRequest'
   | 'contactUpdate';
 
@@ -196,6 +222,10 @@ export function getRelevancy(
 
   if (newest.isMention) {
     return 'mention';
+  }
+
+  if (newest.type === 'react') {
+    return 'reactedToPost';
   }
 
   if (newest.type === 'post' && newest.channel?.type === 'dm') {
