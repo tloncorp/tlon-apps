@@ -1,0 +1,95 @@
+name: Publish @tloncorp/openclaw
+
+on:
+  push:
+    tags:
+      - "openclaw-v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (skip publish)"
+        type: boolean
+        default: true
+      npm_tag:
+        description: "npm tag to publish to, defaults to latest"
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      # Node 22 (repo default), not the old repo's Node 24: the monorepo
+      # install rebuilds better-sqlite3, which has no prebuilds for Node 24.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        working-directory: packages/openclaw
+        run: pnpm test
+
+      - name: Build
+        working-directory: packages/openclaw
+        run: pnpm build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openclaw-dist
+          path: packages/openclaw/dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    if: (startsWith(github.ref, 'refs/tags/openclaw-v') && github.event_name == 'push') || github.event.inputs.dry_run == 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 24 here for npm >= 11.5, required for OIDC trusted publishing
+      # (tokenless --provenance). No pnpm install happens in this job; the
+      # prepare/resolve scripts are dependency-free node.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: openclaw-dist
+          path: packages/openclaw/dist/
+
+      - name: Prepare clean publish package
+        working-directory: packages/openclaw
+        run: node scripts/prepare-publish-package.js
+
+      - name: Verify publish package contents
+        working-directory: packages/openclaw
+        run: |
+          echo "--- .publish/package.json ---"
+          cat .publish/package.json
+          echo
+          if grep -q 'workspace:' .publish/package.json; then
+            echo "::error::unresolved workspace dependency in .publish/package.json"
+            exit 1
+          fi
+          echo "--- npm pack dry-run ---"
+          npm pack --dry-run ./.publish
+
+      - name: Publish to npm
+        working-directory: packages/openclaw
+        env:
+          NPM_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.npm_tag || 'latest' }}
+        run: npm publish ./.publish --access public --provenance --tag "$NPM_TAG"
