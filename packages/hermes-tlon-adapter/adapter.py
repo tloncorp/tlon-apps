@@ -1544,7 +1544,9 @@ class TlonAdapter(BasePlatformAdapter):
             sender_role="owner" if self._is_owner(message.user_id) else "user",
             dispatch_reason=dispatch_reason,
         )
-        reply_context = None if is_dm else message.reply_to_message_id
+        # Thread context flows for DMs too, so the bot replies inside a DM
+        # thread instead of the main conversation.
+        reply_context = message.reply_to_message_id
         source = self.build_source(
             chat_id=message.chat_id,
             chat_name=message.chat_name,
@@ -1613,19 +1615,21 @@ class TlonAdapter(BasePlatformAdapter):
         content = (content or "")[: self.MAX_MESSAGE_LENGTH]
         metadata = metadata or {}
         # Core anchors every reply to the triggering message (reply_to), but
-        # Tlon chat channels are linear: reply top-level unless the
+        # Tlon conversations are linear: reply top-level unless the
         # conversation is already a thread (metadata.thread_id carries the
-        # thread ROOT, which is what Tlon replies must attach to).
+        # thread ROOT, which is what Tlon replies must attach to). This holds
+        # for both group channels and DMs — DM threads thread too.
         # reply_in_thread=true restores always-thread-on-the-trigger.
         thread_parent = str(metadata.get("thread_id") or "") or None
         if thread_parent is None and self.tlon_config.reply_in_thread:
             thread_parent = reply_to
-        is_channel_reply = bool(thread_parent and not _is_dm_chat_id(chat_id))
+        is_thread_reply = bool(thread_parent)
         with cli_context("delivery", conversation=chat_id):
-            if is_channel_reply:
-                parent_author = metadata.get("parent_author")
-                if not parent_author and chat_id.startswith("~"):
-                    parent_author = chat_id
+            if is_thread_reply:
+                # parentAuthor: honor what Hermes passes; otherwise the CLI
+                # attributes the reference to the bot. (We don't assume a DM
+                # partner authored the thread root.)
+                parent_author = metadata.get("parent_author") or None
                 result = await self._cli.send_reply(
                     chat_id,
                     thread_parent,
@@ -1641,7 +1645,7 @@ class TlonAdapter(BasePlatformAdapter):
             "stderr": result.stderr,
             "returncode": result.returncode,
         }
-        if result.success and is_channel_reply and thread_parent:
+        if result.success and is_thread_reply and thread_parent:
             self._participated_threads.add(self._thread_key(chat_id, thread_parent))
         return SendResult(
             success=result.success,
@@ -1842,6 +1846,11 @@ def register(ctx) -> None:
             "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "
+            "To reply to the current conversation, just write your reply and "
+            "Hermes delivers it. To post somewhere else (e.g. a channel of a "
+            "group you host), use the tlon tool's posts send / dms send with "
+            "that target; sending to the current conversation that way is "
+            "blocked. "
             "The platform adapter directly handles owner chat commands for "
             "access and configuration: /owner-listen (no-mention listening), "
             "/channel-access (per-channel open access), /pending, /allow, "

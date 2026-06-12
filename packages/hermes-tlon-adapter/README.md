@@ -224,7 +224,7 @@ Delivery failures are also surfaced without debug mode: the adapter hooks the SD
 
 ## Reply Placement
 
-Group replies post **top-level** in the channel (Tlon chat channels are linear), and conversations that are already threads are continued in-thread, attached to the thread root. Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every triggering message. DM replies are always plain writs.
+Replies post **top-level** in the conversation (Tlon conversations are linear), and messages that arrive inside a thread are answered in that thread, attached to the thread root — this holds for both group channels and DMs (a reply to a DM-thread message lands in that thread, not the main DM). Set `TLON_REPLY_IN_THREAD=true` to instead start a thread on every triggering message.
 
 ## Group Message Context
 

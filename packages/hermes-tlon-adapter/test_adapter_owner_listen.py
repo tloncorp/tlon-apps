@@ -168,6 +168,28 @@ def dm_event(text, *, author="~mug", whom="~mug", msg_id="dm-1"):
     }
 
 
+def dm_thread_reply_event(text, *, author="~mug", whom="~mug", parent_id="170.140"):
+    # A reply inside a DM thread rooted at writ `parent_id`.
+    return {
+        "whom": whom,
+        "id": parent_id,
+        "response": {
+            "reply": {
+                "id": "170.141",
+                "delta": {
+                    "add": {
+                        "memo": {
+                            "author": author,
+                            "sent": 1000,
+                            "content": [{"inline": [text]}],
+                        }
+                    }
+                },
+            }
+        },
+    }
+
+
 def essay(author, text, sent):
     return {"author": author, "sent": sent, "content": [{"inline": [text]}]}
 
@@ -463,6 +485,41 @@ class AdapterOwnerListenTests(unittest.TestCase):
 
         self.assertEqual(len(events), 1)
         self.assertEqual(adapter._cli.messages, [])
+
+    # ── DM thread replies (issue: replies landed in main DM) ─────────────
+
+    def test_top_level_dm_carries_no_thread_context(self):
+        adapter = self.make_adapter({})
+        events = self.dispatches(adapter, dm_event("hi", msg_id="dm-1"), dm=True)
+        self.assertEqual(len(events), 1)
+        self.assertIsNone(events[0].source.thread_id)
+
+    def test_dm_thread_reply_flows_thread_context(self):
+        # Inbound: a reply inside a DM thread must carry the thread root so
+        # Hermes round-trips it back and the bot replies in-thread.
+        adapter = self.make_adapter({})
+        events = self.dispatches(
+            adapter, dm_thread_reply_event("clarify please", parent_id="170.140"), dm=True
+        )
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].source.thread_id, "170.140")
+        self.assertEqual(events[0].reply_to_message_id, "170.140")
+
+    def test_send_threads_dm_reply_when_thread_metadata_present(self):
+        # Outbound: with thread metadata, a DM reply uses posts reply (threaded)
+        # rather than a top-level DM send.
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+
+        asyncio.run(
+            adapter.send("~mug", "in thread", reply_to="x", metadata={"thread_id": "170.140"})
+        )
+        asyncio.run(adapter.send("~mug", "top level"))
+
+        self.assertEqual(len(adapter._cli.replies), 1)
+        self.assertEqual(adapter._cli.replies[0][0], "~mug")
+        self.assertEqual(adapter._cli.replies[0][1], "170.140")
+        self.assertEqual([m[1] for m in adapter._cli.messages], ["top level"])
 
     # ── settings store load ──────────────────────────────────────────────
 

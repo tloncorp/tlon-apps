@@ -35,7 +35,11 @@ CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
     {"--config", "--url", "--ship", "--code", "--cookie"}
 )
 
-BLOCKED_SEND_OPERATIONS = {
+# Message-send operations. These are blocked only when they target the
+# *current* conversation — those must go through Hermes' streaming reply path
+# (TlonAdapter.send()). Sends to any other channel/DM are proactive and allowed
+# through the tool, since "reply normally" can only reach the current chat.
+SEND_OPERATIONS = {
     ("dms", "send"),
     ("dms", "reply"),
     ("posts", "send"),
@@ -55,8 +59,10 @@ TLON_TOOL_DESCRIPTION = (
     "'<subcommand> --help'. "
     "For user-requested group creation, use groups create-owned with "
     "--owner set to the requesting ship. "
-    "Do not use this tool to send messages or create posts; normal Hermes "
-    "replies must go through the Tlon platform adapter."
+    "To reply to the CURRENT conversation, just write the reply — do not use "
+    "posts/dms send here (that path is blocked so Hermes delivers replies). "
+    "To post to a DIFFERENT channel or DM (a proactive send), use posts send / "
+    "dms send with that target, e.g. posts send chat/~host/channel \"...\"."
 )
 
 TLON_TOOL_SCHEMA = {
@@ -81,9 +87,10 @@ TLON_TOOL_SCHEMA = {
                     "chosen image_url, and use the URL returned by tlon upload. "
                     "In Tlon chat sessions, 'groups create' is blocked; use "
                     "'groups create-owned' so the requester is invited and made admin. "
-                    "Sending commands such "
-                    "as 'posts send', 'posts reply', 'dms send', 'dms reply', "
-                    "and 'notebook' are blocked."
+                    "To post to a different channel/DM, use 'posts send "
+                    "<channel> \"...\"' or 'dms send <ship> \"...\"'. Sending to "
+                    "the CURRENT conversation is blocked (reply normally "
+                    "instead); 'notebook' is also blocked."
                 ),
             }
         },
@@ -204,11 +211,31 @@ def _profile_update_block(
     return None
 
 
+def _send_targets_current_conversation(
+    args: Sequence[str],
+    sub_idx: int,
+    session_chat_id: str,
+) -> bool:
+    """True when a send op's target is the conversation the bot is handling.
+
+    The target is the first positional after ``<subcommand> <action>`` (a nest
+    like ``chat/~host/name`` or a ship/club id). Compared case-insensitively;
+    when there is no current conversation (e.g. cron/standalone) nothing is
+    considered current, so proactive sends pass.
+    """
+    chat = str(session_chat_id or "").strip()
+    if not chat or len(args) <= sub_idx + 2:
+        return False
+    target = str(args[sub_idx + 2]).strip()
+    return bool(target) and target.casefold() == chat.casefold()
+
+
 def check_tlon_tool_command(
     args: Sequence[str],
     *,
     session_platform: str = "",
     session_user_id: str = "",
+    session_chat_id: str = "",
     owner_ship: str = "",
 ) -> Optional[str]:
     lowered = [str(arg).lower() for arg in args]
@@ -223,13 +250,19 @@ def check_tlon_tool_command(
 
     command_args = [str(arg).lower() for arg in args[sub_idx:]]
     action = command_args[1] if len(command_args) > 1 else ""
-    if (subcommand, action) in BLOCKED_SEND_OPERATIONS or subcommand == "notebook":
+    if subcommand == "notebook":
         return (
-            "Blocked: this tlon tool is for reading and administration, not "
-            "message delivery. Reply normally in the current Tlon conversation "
-            "so Hermes routes through TlonAdapter.send(). For proactive sends, "
-            "use Hermes' send_message tool so delivery still goes through the "
-            "Tlon platform adapter."
+            "Blocked: notebook posting is not available through this tool. Use "
+            "channel posts instead."
+        )
+    if (subcommand, action) in SEND_OPERATIONS and _send_targets_current_conversation(
+        args, sub_idx, session_chat_id
+    ):
+        return (
+            "Blocked: don't deliver your reply to the current conversation with "
+            "the tlon tool — reply normally so Hermes delivers it through "
+            "TlonAdapter.send(). Sending to other channels or DMs with posts/dms "
+            "send|reply is allowed."
         )
     if subcommand == "groups" and action == "create":
         group_create_block = _user_group_create_block(
@@ -290,6 +323,7 @@ async def execute_tlon_tool(
         args,
         session_platform=_get_session_env("HERMES_SESSION_PLATFORM", ""),
         session_user_id=_get_session_env("HERMES_SESSION_USER_ID", ""),
+        session_chat_id=_get_session_env("HERMES_SESSION_CHAT_ID", ""),
         owner_ship=cfg.owner_ship,
     )
     if blocked:

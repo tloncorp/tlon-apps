@@ -41,22 +41,53 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertEqual(tlon_tool.find_subcommand_index(args), 4)
         self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
 
-    def test_blocks_message_delivery_commands(self):
-        commands = [
-            'dms send ~nec "hello"',
-            'dms reply ~nec 170.141 "hello"',
-            'posts send chat/~zod/general "hello"',
-            'posts reply chat/~zod/general 170.141 "hello"',
-            'notebook diary/~zod/notes "Title"',
+    def test_blocks_sending_to_current_conversation(self):
+        # Targets that equal the session's current chat must go through the
+        # streaming reply path, not the tool.
+        cases = [
+            ('dms send ~nec "hello"', "~nec"),
+            ('dms reply ~nec 170.141 "hello"', "~nec"),
+            ('posts send chat/~zod/general "hi"', "chat/~zod/general"),
+            ('posts reply chat/~zod/general 170.141 "hi"', "chat/~zod/general"),
+            ('posts send Chat/~ZOD/general "hi"', "chat/~zod/general"),  # case-insensitive
         ]
-
-        for command in commands:
+        for command, chat_id in cases:
             with self.subTest(command=command):
                 args, error = tlon_tool.split_tlon_command(command)
                 self.assertIsNone(error)
-                blocked = tlon_tool.check_tlon_tool_command(args)
+                blocked = tlon_tool.check_tlon_tool_command(
+                    args, session_chat_id=chat_id
+                )
                 self.assertIsNotNone(blocked)
-                self.assertIn("TlonAdapter.send", blocked)
+                self.assertIn("current conversation", blocked)
+
+    def test_allows_proactive_sends_to_other_conversations(self):
+        # Posting somewhere other than the current chat is a proactive send —
+        # the only path for it, so it must be allowed.
+        cases = [
+            ('posts send chat/~bot/general "hi"', "~owner"),  # in a DM, post to a channel
+            ('dms send ~friend "hi"', "chat/~zod/general"),  # in a channel, DM someone
+            ('posts reply chat/~bot/general 170.141 "hi"', "~owner"),
+        ]
+        for command, chat_id in cases:
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                self.assertIsNone(
+                    tlon_tool.check_tlon_tool_command(args, session_chat_id=chat_id)
+                )
+
+    def test_allows_sends_when_no_current_conversation(self):
+        # cron/standalone contexts have no current conversation to protect.
+        args, _ = tlon_tool.split_tlon_command('posts send chat/~zod/general "hi"')
+        self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
+
+    def test_blocks_notebook(self):
+        args, error = tlon_tool.split_tlon_command('notebook diary/~zod/notes "Title"')
+        self.assertIsNone(error)
+        blocked = tlon_tool.check_tlon_tool_command(args)
+        self.assertIsNotNone(blocked)
+        self.assertIn("notebook", blocked.lower())
 
     def test_allows_read_and_admin_commands(self):
         for command in (
@@ -194,10 +225,14 @@ class TlonToolExecutionTests(unittest.TestCase):
                 runner=runner,
             )
 
-        payload = json.loads(asyncio.run(run()))
+        # Blocked because the target equals the current conversation.
+        with patch.dict(
+            os.environ, {"HERMES_SESSION_CHAT_ID": "chat/~zod/general"}, clear=False
+        ):
+            payload = json.loads(asyncio.run(run()))
 
         self.assertTrue(payload["blocked"])
-        self.assertIn("TlonAdapter.send", payload["error"])
+        self.assertIn("current conversation", payload["error"])
 
     def test_execute_tlon_tool_uses_session_env_for_group_create_guard(self):
         async def runner(command, env, timeout):
