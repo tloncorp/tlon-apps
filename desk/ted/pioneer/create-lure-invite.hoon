@@ -17,7 +17,9 @@
 =/  m  (strand ,vase)
 ^-  form:m
 ;<  =bowl:spider  bind:m  get-bowl:io
-=+  !<(=json arg)
+=+  !<(arg=(unit json) arg)
+?>  ?=(^ arg)
+=*  json  u.arg
 =/  id=cord  (so:dejs:format json)
 =/  =wire  /lure-invite/(scot %da now.bowl)
 ;<  ~  bind:m

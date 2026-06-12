@@ -14,7 +14,9 @@
 =/  m  (strand ,vase)
 ^-  form:m
 ;<  our=@p  bind:m  get-our
-=+  !<(=json arg)
+=+  !<(arg=(unit json) arg)
+?>  ?=(^ arg)
+=*  json  u.arg
 =/  args=[=flag:g title=@t]
   ((ot flag+flag:dejs:gj title+so ~) json)
 =*  flag   flag.args

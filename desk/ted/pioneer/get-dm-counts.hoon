@@ -23,7 +23,9 @@
 =/  m  (strand ,vase)
 ^-  form:m
 ;<  =bowl:spider  bind:m  get-bowl
-=+  !<(=json arg)
+=+  !<(arg=(unit json) arg)
+?>  ?=(^ arg)
+=*  json  u.arg
 =/  args=[target=ship limit=(unit @ud)]
   ((ot ship+(se %p) limit+(mu ni) ~) json)
 =/  limit=@ud  (fall limit.args 1.000)

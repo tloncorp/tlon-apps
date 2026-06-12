@@ -20,7 +20,9 @@
 =/  m  (strand ,vase)
 ^-  form:m
 ;<  =bowl:spider  bind:m  get-bowl
-=+  !<(=json arg)
+=+  !<(arg=(unit json) arg)
+?>  ?=(^ arg)
+=*  json  u.arg
 =/  args=[=flag:g name=@tas title=@t description=(unit @t) image=(unit @t)]
   %.  json
   %-  ot

@@ -20,7 +20,9 @@
 =/  m  (strand ,vase)
 ^-  form:m
 ;<  =bowl:spider  bind:m  get-bowl:io
-=+  !<(=json arg)
+=+  !<(arg=(unit json) arg)
+?>  ?=(^ arg)
+=*  json  u.arg
 =/  parse-args
   =,  dejs:format
   %-  ot

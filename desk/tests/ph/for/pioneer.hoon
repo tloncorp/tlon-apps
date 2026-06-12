@@ -22,7 +22,7 @@
     (cat 3 name (cat 3 '-' (scot %uv (sham now.bowl name))))
   =/  =beak  [who %groups da+now.bowl]
   =/  file=term  (cat 3 'pioneer-' name)
-  =/  start=start-args:spider  [~ `tid beak file !>(arg)]
+  =/  start=start-args:spider  [~ `tid beak file !>(`(unit json)`[~ arg])]
   =/  watch-path=path  /(scot %p who)/spider/thread-result/[tid]
   ;<  ~  bind:m  (watch-app watch-path [who %spider] /thread-result/[tid])
   ;<  ~  bind:m  (poke-app [who %spider] spider-start+start)
