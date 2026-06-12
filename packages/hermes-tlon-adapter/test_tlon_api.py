@@ -75,6 +75,43 @@ class TlonConfigTests(unittest.TestCase):
         self.assertTrue(cfg.is_complete())
         self.assertEqual(cfg.channels, ("chat/~bus/general",))
 
+    def test_hosting_defaults_off_and_is_not_injected(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+            }
+        )
+        self.assertFalse(cfg.hosting)
+        self.assertNotIn("TLON_HOSTING", cfg.cli_env(base={}))
+
+    def test_hosting_opt_in_via_env_is_injected(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://zod.tlon.network",
+                "TLON_NODE_ID": "~zod",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_HOSTING": "true",
+            }
+        )
+        self.assertTrue(cfg.hosting)
+        # carried explicitly into the subprocess env, independent of os.environ
+        self.assertEqual(cfg.cli_env(base={})["TLON_HOSTING"], "true")
+
+    def test_hosting_opt_in_via_extra_config(self):
+        cfg = tlon_api.TlonConfig.from_env(
+            extra={
+                "node_url": "https://bus.tlon.network",
+                "node_id": "~bus",
+                "access_code": "code",
+                "hosting": True,
+            },
+            env={},
+        )
+        self.assertTrue(cfg.hosting)
+        self.assertEqual(cfg.cli_env(base={})["TLON_HOSTING"], "true")
+
     def test_from_env_accepts_sse_read_timeout(self):
         cfg = tlon_api.TlonConfig.from_env(
             env={

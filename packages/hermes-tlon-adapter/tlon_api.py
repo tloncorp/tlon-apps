@@ -192,6 +192,11 @@ class TlonConfig:
     gateway_status_active_window_seconds: int = DEFAULT_GATEWAY_ACTIVE_WINDOW_SECONDS
     gateway_status_reply_cooldown_seconds: int = DEFAULT_GATEWAY_OFFLINE_REPLY_COOLDOWN_SECONDS
     sse_read_timeout_seconds: float = DEFAULT_SSE_READ_TIMEOUT_SECONDS
+    # Force the hosted (memex) image-upload path. Opt-in: only true when the
+    # operator sets TLON_HOSTING. Read once where the env is reliably present
+    # (the adapter at startup) and carried via this field into CLI invocations,
+    # since the env does not propagate into the model-tool subprocess.
+    hosting: bool = False
 
     @classmethod
     def from_env(
@@ -318,6 +323,9 @@ class TlonConfig:
                 extra,
                 ("reply_in_thread",),
             )
+        )
+        hosting = parse_bool(
+            _env_or_extra(env, ("TLON_HOSTING",), extra, ("hosting",))
         )
         owner_listen = parse_bool_default(
             _env_or_extra(
@@ -504,6 +512,7 @@ class TlonConfig:
             known_bot_users=known_bot_users,
             max_consecutive_bot_responses=max_consecutive_bot_responses,
             reply_in_thread=reply_in_thread,
+            hosting=hosting,
             owner_listen=owner_listen,
             owner_listen_default=owner_listen_default,
             owner_listen_disabled_channels=owner_listen_disabled_channels,
@@ -547,6 +556,12 @@ class TlonConfig:
         if self.cookie:
             env["TLON_COOKIE"] = self.cookie
             env["URBIT_COOKIE"] = self.cookie
+        # Explicitly carry the hosted-upload flag into the subprocess. The
+        # ambient env does not reach the model-tool subprocess, so injecting it
+        # from the config field (resolved where the env is present) is the only
+        # reliable channel — same pattern as the creds above.
+        if self.hosting:
+            env["TLON_HOSTING"] = "true"
         return env
 
     def user_allowed(self, ship: str, *, is_dm: bool = False) -> bool:

@@ -176,6 +176,7 @@ State lives in the ship's `%settings` store under desk `moltbot`, bucket `tlon`,
 
 -   `/tlon version` — what's running (below). `/tlon-version` is a legacy alias for the same output.
 -   `/tlon status storage` — image-upload diagnostic: node URL, whether it looks hosted, the `TLON_HOSTING` override, storage service, S3 credentials, `%genuine` reachability, and the resolved upload path. (Mirrors the decision in `@tloncorp/api`'s `uploadFile`.)
+-   `/tlon status binary` — identifies the exact `tlon` CLI the adapter runs: version, a sha256 content hash (two builds of the same version are distinguishable), size, and build time. Use it to confirm a deploy actually shipped a fresh binary.
 -   `/tlon status telemetry [test]` — telemetry status; `test` sends and flushes a probe event (see [Telemetry](#telemetry)).
 
 ### Version

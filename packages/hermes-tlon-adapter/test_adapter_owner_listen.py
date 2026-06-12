@@ -822,7 +822,9 @@ class AdapterOwnerListenTests(unittest.TestCase):
         )
 
     def test_tlon_status_storage_subcommand(self):
-        adapter = self.make_adapter({})
+        # hosting resolved at construction (from extra), like the real adapter —
+        # the diagnostic reflects the config that actually drives uploads.
+        adapter = self.make_adapter({"hosting": True})
         adapter._cli = FakeCLI()
         adapter._sse = FakeSSE(
             payloads={
@@ -834,14 +836,36 @@ class AdapterOwnerListenTests(unittest.TestCase):
             }
         )
 
-        with patch.dict(os.environ, {"TLON_HOSTING": "true"}, clear=False):
-            self.dispatches(adapter, channel_event("/tlon status storage"))
+        self.dispatches(adapter, channel_event("/tlon status storage"))
 
         reply = adapter._cli.messages[0][1]
         self.assertIn("*Storage service*: **presigned-url**", reply)
         self.assertIn("*TLON_HOSTING*: **set**", reply)
         self.assertIn("*%genuine token*: **reachable**", reply)
         self.assertIn("*Upload path*: **memex (hosted)**", reply)
+
+    def test_tlon_status_binary_reports_hash_and_version(self):
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix="-tlon", delete=False) as fh:
+            fh.write(b"fake tlon binary bytes")
+            binary_path = fh.name
+        adapter = self.make_adapter({"cli": binary_path})
+        adapter._cli = FakeCLI(version_stdout="0.4.0 (deadbeef)\n")
+
+        reply = asyncio.run(adapter._binary_status_reply())
+        os.unlink(binary_path)
+
+        self.assertIn("*Tlon Skill*: **0.4.0 (deadbeef)**", reply)
+        self.assertRegex(reply, r"\*Build\*: \*\*sha256:[0-9a-f]{12}\*\*")
+        self.assertIn("*Size*: **22 bytes**", reply)
+        self.assertIn(binary_path, reply)
+
+    def test_tlon_status_binary_handles_missing_binary(self):
+        adapter = self.make_adapter({"cli": "/nonexistent/tlon-binary"})
+        adapter._cli = FakeCLI(version_stdout="0.4.0\n")
+        reply = asyncio.run(adapter._binary_status_reply())
+        self.assertIn("unreadable", reply)
 
     def test_tlon_bare_and_unknown_show_usage(self):
         adapter = self.make_adapter({})

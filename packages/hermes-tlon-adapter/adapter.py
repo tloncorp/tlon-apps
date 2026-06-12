@@ -8,6 +8,7 @@ surface as local/dev workflows.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -194,7 +195,6 @@ def _is_dm_chat_id(chat_id: str) -> bool:
 # because "-" is neither whitespace nor end-of-string after "tlon".
 _TLON_COMMAND_RE = re.compile(r"^/tlon(?:\s|$)", re.IGNORECASE)
 _HOSTED_URL_SUFFIXES = ("tlon.network", ".test.tlon.systems")
-_TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
 def is_tlon_command(text: str) -> bool:
@@ -209,6 +209,20 @@ def node_url_is_hosted(url: str) -> bool:
     """Mirror @tloncorp/api nodeUrlIsHosted for the storage diagnostic."""
     trimmed = str(url or "").strip().rstrip("/")
     return any(trimmed.endswith(suffix) for suffix in _HOSTED_URL_SUFFIXES)
+
+
+def _hash_binary(path: str) -> tuple[str, int, str]:
+    """sha256 (first 12 hex), byte size, and mtime of a file. Blocking — run
+    off the event loop. Lets us pin the exact `tlon` build, since the semver
+    alone can't distinguish two builds of the same version."""
+    digest = hashlib.sha256()
+    size = 0
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+            size += len(chunk)
+    mtime = datetime.fromtimestamp(os.path.getmtime(path), tz=timezone.utc)
+    return digest.hexdigest()[:12], size, mtime.isoformat(timespec="seconds")
 
 
 def format_storage_status(
@@ -1096,11 +1110,11 @@ class TlonAdapter(BasePlatformAdapter):
         reply_parent_id: Optional[str],
     ) -> None:
         """Debug command namespace: `/tlon version`, `/tlon status storage`,
-        `/tlon status telemetry [test]`."""
+        `/tlon status telemetry [test]`, `/tlon status binary`."""
         args = tlon_command_args(command_text)
         sub = args[0].lower() if args else ""
         target = args[1].lower() if len(args) > 1 else ""
-        usage = "Usage: /tlon [version | status storage | status telemetry]"
+        usage = "Usage: /tlon [version | status storage | status telemetry | status binary]"
 
         if sub == "version":
             self._telemetry.control_command("tlon version")
@@ -1115,11 +1129,31 @@ class TlonAdapter(BasePlatformAdapter):
                 reply = await asyncio.to_thread(self._telemetry.delivery_test)
             else:
                 reply = self._telemetry.status_report()
+        elif sub == "status" and target == "binary":
+            self._telemetry.control_command("tlon status binary")
+            reply = await self._binary_status_reply()
         elif sub == "status":
-            reply = "Usage: /tlon status [storage|telemetry]"
+            reply = "Usage: /tlon status [storage|telemetry|binary]"
         else:
             reply = usage
         await self._send_control_reply(reply_chat_id, reply_parent_id, reply)
+
+    async def _binary_status_reply(self) -> str:
+        """Identify the exact `tlon` binary the adapter is invoking: its
+        version, a content hash (so two builds of the same version are
+        distinguishable), size, and build time."""
+        cli = self.tlon_config.cli
+        path = shutil.which(cli) or cli
+        version = await self._cli_version()
+        rows = [("Tlon Skill", version), ("Path", path)]
+        try:
+            digest, size, mtime = await asyncio.to_thread(_hash_binary, path)
+            rows.append(("Build", f"sha256:{digest}"))
+            rows.append(("Size", f"{size:,} bytes"))
+            rows.append(("Built", mtime))
+        except OSError as exc:
+            rows.append(("Build", f"unreadable ({exc.strerror or exc})"))
+        return "\n".join(f"*{key}*: **{value}**" for key, value in rows)
 
     async def _storage_status_reply(self) -> str:
         service = "unknown"
@@ -1154,7 +1188,7 @@ class TlonAdapter(BasePlatformAdapter):
         return format_storage_status(
             node_url=self.tlon_config.ship_url,
             url_hosted=node_url_is_hosted(self.tlon_config.ship_url),
-            hosting_forced=os.getenv("TLON_HOSTING", "").strip().lower() in _TRUE_VALUES,
+            hosting_forced=self.tlon_config.hosting,
             service=service,
             has_s3_creds=has_s3_creds,
             genuine_reachable=genuine_reachable,
@@ -1966,8 +2000,8 @@ def register(ctx) -> None:
             "access and configuration: /owner-listen (no-mention listening), "
             "/channel-access (per-channel open access), /pending, /allow, "
             "/reject, /ban, /unban, /banned (approvals for unknown ships), "
-            "and /tlon (version, status storage, status telemetry — debug "
-            "info). Point the owner at those commands when asked "
+            "and /tlon (version, status storage, status telemetry, status "
+            "binary — debug info). Point the owner at those commands when asked "
             "rather than changing configuration yourself. "
             "Use concise plain text and basic markdown."
         ),
