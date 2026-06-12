@@ -357,6 +357,24 @@ export function useNowPlayingController({
     }
   }, [playbackIntent, progress, isThisSourceLoaded]);
 
+  // Play and seek share one in-flight load of this source: a second
+  // replace() for the same URL would supersede the first one in the provider
+  // and reject its callbacks (dropping a pending play or seek).
+  const inFlightLoadRef = useRef<Promise<void> | null>(null);
+  const loadSource = useCallback(() => {
+    if (sourceUri == null) {
+      return Promise.reject(new Error('No source to load'));
+    }
+    if (inFlightLoadRef.current == null) {
+      inFlightLoadRef.current = nowPlaying
+        .replace({ url: sourceUri })
+        .finally(() => {
+          inFlightLoadRef.current = null;
+        });
+    }
+    return inFlightLoadRef.current;
+  }, [nowPlaying, sourceUri]);
+
   const togglePlayback = useCallback(() => {
     if (sourceUri == null) return;
     if (isThisSourceLoaded) {
@@ -375,8 +393,7 @@ export function useNowPlayingController({
       // doesn't cause the effect to immediately clear the new intent
       wasLoadedRef.current = false;
       setPlaybackIntent('will-buffer');
-      nowPlaying
-        .replace({ url: sourceUri })
+      loadSource()
         .then(() => {
           nowPlaying.play();
         })
@@ -385,11 +402,11 @@ export function useNowPlayingController({
           setPlaybackIntent(false);
         });
     }
-  }, [nowPlaying, sourceUri, isThisSourceLoaded]);
+  }, [nowPlaying, sourceUri, isThisSourceLoaded, loadSource]);
 
   // Seeking an unloaded source loads it (paused) first. While the load is in
   // flight, remember only the latest requested position so scrubbing doesn't
-  // race multiple replace() calls.
+  // race multiple loads.
   const pendingSeekRef = useRef<number | null>(null);
   const isLoadingForSeekRef = useRef(false);
   const seekTo = useCallback(
@@ -402,8 +419,7 @@ export function useNowPlayingController({
       pendingSeekRef.current = seconds;
       if (isLoadingForSeekRef.current) return;
       isLoadingForSeekRef.current = true;
-      nowPlaying
-        .replace({ url: sourceUri })
+      loadSource()
         .then(() => {
           if (pendingSeekRef.current != null) {
             nowPlaying.seekTo(pendingSeekRef.current);
@@ -417,7 +433,7 @@ export function useNowPlayingController({
           pendingSeekRef.current = null;
         });
     },
-    [nowPlaying, sourceUri, isThisSourceLoaded]
+    [nowPlaying, sourceUri, isThisSourceLoaded, loadSource]
   );
 
   // Scrubbing pauses a playing source for the duration of the gesture and
