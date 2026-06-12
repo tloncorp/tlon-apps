@@ -73,6 +73,7 @@ export function Waveform({
   const scaledCandlePlaybackPosition = useMemo(() => {
     if (
       maxVisibleCandleCount == null ||
+      values.length === 0 ||
       values.length === maxVisibleCandleCount
     ) {
       return candlePlaybackPosition;
