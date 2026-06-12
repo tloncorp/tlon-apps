@@ -185,7 +185,7 @@ function ToolRunItem({ run }: { run: ContextLensToolRun }) {
       ? `${run.argumentSummary}${run.durationMs ? ` · ${formatDuration(run.durationMs)}` : ''}`
       : run.durationMs
         ? `${formatDuration(run.durationMs)}${run.phase ? ` · ${run.phase}` : ''}`
-        : (run.phase ?? 'running');
+        : run.phase ?? 'running';
 
   return (
     <YStack
@@ -255,7 +255,7 @@ function OutputItem({
   const postQuery = store.usePostWithRelations(
     expanded && canonicalId ? { id: canonicalId } : null
   );
-  const fullText = expanded ? (postQuery.data?.textContent ?? null) : null;
+  const fullText = expanded ? postQuery.data?.textContent ?? null : null;
 
   return (
     <YStack

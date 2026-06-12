@@ -4,12 +4,12 @@ import { Platform } from 'react-native';
 import create from 'zustand';
 
 import { useFeatureFlag } from '../../../../lib/featureFlags';
-import { getContextLensStamp } from './lensPost';
 import {
   type ContextLensGatewayConfig,
   fetchRecentContextLensEvents,
   streamContextLensEvents,
 } from './gatewayClient';
+import { getContextLensStamp } from './lensPost';
 import {
   type ContextLensEvent,
   type ContextLensSelectedMessage,

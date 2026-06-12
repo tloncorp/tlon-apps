@@ -97,15 +97,11 @@ describe('post blob helpers', () => {
 
   test('parsePostBlob rejects malformed context lens entries', () => {
     expect(
-      parsePostBlob(
-        JSON.stringify([{ type: 'tlon-context-lens', version: 1 }])
-      )
+      parsePostBlob(JSON.stringify([{ type: 'tlon-context-lens', version: 1 }]))
     ).toEqual([{ type: 'unknown' }]);
     expect(
       parsePostBlob(
-        JSON.stringify([
-          { type: 'tlon-context-lens', version: 1, lensId: '' },
-        ])
+        JSON.stringify([{ type: 'tlon-context-lens', version: 1, lensId: '' }])
       )
     ).toEqual([{ type: 'unknown' }]);
   });

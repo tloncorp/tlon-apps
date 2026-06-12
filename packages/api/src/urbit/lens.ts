@@ -16,6 +16,4 @@ export interface LensRunEntry {
   payload: string;
 }
 
-export type LensUpdate =
-  | { run: LensRunEntry }
-  | { runs: LensRunEntry[] };
+export type LensUpdate = { run: LensRunEntry } | { runs: LensRunEntry[] };
