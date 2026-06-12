@@ -10,6 +10,11 @@
       owners=(set ship)
       runs=(map [bot=ship =id-run:l] run:l)
   ==
++$  state-1
+  $:  %1
+      owners=(set ship)
+      runs=(map [bot=ship =id-run:l] run:l)
+  ==
 ++  payload  ^-  @t  '{"schemaVersion":1,"summary":"run-record"}'
 ++  setup
   =/  m  (mare ,~)
@@ -35,7 +40,7 @@
     (do-poke %context-lens-action-1 !>(`action:v1:l`[%configure (silt ~[~bus])]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(owners.st) !>((silt ~[~bus])))
 ++  test-action-from-foreign-ship-crashes
   %-  eval-mare
@@ -139,7 +144,7 @@
   ;<  *  bind:m
     %-  (do-as ~zod)
     (do-poke %context-lens-signal-1 !>(`signal:v1:l`[%run-final 'old-run' payload]))
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d31))))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
   ;<  *  bind:m
     %-  (do-as ~zod)
     (do-poke %context-lens-signal-1 !>(`signal:v1:l`[%run-final 'new-run' payload]))
@@ -149,6 +154,62 @@
   ;<  ~  bind:m  (ex-equal !>((lent entries.update)) !>(1))
   ?>  ?=(^ entries.update)
   (ex-equal !>(id-run.i.entries.update) !>('new-run'))
+++  test-init-arms-prune-timer
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
+  ;<  caz=(list card)  bind:m  (do-init dap agent)
+  (ex-cards caz (ex-arvo /prune %b %wait (add *@da ~d1)) ~)
+::  upgrading from %0 arms the timer; reloading at %1 must not stack
+::  a second one
+::
+++  test-load-from-0-arms-prune-timer-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-load agent `!>(`state-0`[%0 ~ ~]))
+  ;<  ~  bind:m
+    (ex-cards caz (ex-arvo /prune %b %wait (add ~2024.1.1 ~d1)) ~)
+  ;<  caz=(list card)  bind:m  (do-load agent ~)
+  (ex-cards caz ~)
+++  test-prune-wake-reclaims-and-rearms
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %-  (do-as ~zod)
+    (do-poke %context-lens-signal-1 !>(`signal:v1:l`[%run-final 'old-run' payload]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
+  ;<  caz=(list card)  bind:m  (do-arvo /prune [%behn %wake ~])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  (ex-arvo /prune %b %wait (add (add ~2024.1.1 ~d91) ~d1))
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  (ex-equal !>(~(wyt by runs.st)) !>(0))
+::  even with no timer fire or new store, expired runs must not be
+::  served by /x/recent or /x/run
+::
+++  test-expired-runs-hidden-from-reads
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %-  (do-as ~zod)
+    (do-poke %context-lens-signal-1 !>(`signal:v1:l`[%run-final 'old-run' payload]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
+  ;<  res=cage  bind:m  (got-peek /x/recent)
+  =+  !<(=update:v1:l q.res)
+  ?>  ?=(%runs -.update)
+  ;<  ~  bind:m  (ex-equal !>((lent entries.update)) !>(0))
+  ;<  run=(unit (unit cage))  bind:m  (get-peek /x/run/(scot %p ~zod)/old-run)
+  (ex-equal !>(?=([~ ~] run)) !>(&))
 ++  test-watch-rejects-foreign-ship
   %-  eval-mare
   =/  m  (mare ,~)
