@@ -270,10 +270,14 @@ export function VoiceMemoBlock({
   const waveformWidthRef = useRef(0);
   const seekToWaveformX = useMutableCallback((x: number) => {
     const width = waveformWidthRef.current;
-    const duration =
+    // the loaded duration can be 0 before expo-audio has determined it; fall
+    // back to the memo's metadata duration
+    const loadedDuration =
       progress?.loadState === 'loaded' && isThisSourceLoaded
         ? progress.duration
-        : block.voiceMemo.duration ?? 0;
+        : 0;
+    const duration =
+      loadedDuration > 0 ? loadedDuration : block.voiceMemo.duration ?? 0;
     if (duration === 0 || width <= 0) {
       return;
     }
