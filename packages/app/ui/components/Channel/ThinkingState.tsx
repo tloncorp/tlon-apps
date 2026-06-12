@@ -20,8 +20,7 @@ export function ThinkingState({
     return null;
   }
 
-  const showAvatars =
-    channelType !== 'dm' || computingState.ships.length >= 2;
+  const showAvatars = channelType !== 'dm' || computingState.ships.length >= 2;
   const visibleShips = computingState.ships.slice(0, MAX_VISIBLE_AVATARS);
   const overflowCount = computingState.ships.length - visibleShips.length;
 
