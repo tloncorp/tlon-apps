@@ -412,7 +412,10 @@ export function useNowPlayingController({
   const seekTo = useCallback(
     (seconds: number) => {
       if (sourceUri == null) return;
-      if (isThisSourceLoaded) {
+      // `nowPlaying.nowPlaying` is set synchronously when a load resolves;
+      // checking it covers the gap before the progress event re-renders
+      // `isThisSourceLoaded`
+      if (isThisSourceLoaded || nowPlaying.nowPlaying?.url === sourceUri) {
         nowPlaying.seekTo(seconds);
         return;
       }
@@ -422,7 +425,8 @@ export function useNowPlayingController({
       loadSource()
         .then(() => {
           if (pendingSeekRef.current != null) {
-            nowPlaying.seekTo(pendingSeekRef.current);
+            // hold the guard until the seek itself completes
+            return nowPlaying.seekTo(pendingSeekRef.current);
           }
         })
         .catch((e) => {
