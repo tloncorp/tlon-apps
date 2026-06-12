@@ -23,22 +23,21 @@
 =+  !<(arg=(unit json) arg)
 ?>  ?=(^ arg)
 =*  json  u.arg
-=/  parse-args
-  =,  dejs:format
-  %-  ot
-  :~  flag+flag:dejs:gj
-      title+(mu so)
-      image+(mu so)
-  ==
-=/  args=[=flag:g title=(unit @t) image=(unit @t)]  (parse-args json)
-=*  flag  flag.args
+=/  =flag:g
+  ((ot:dejs:format flag+flag:dejs:gj ~) json)
+=/  maybe-field
+  |=  key=@t
+  %.  json
+  =,(dejs-soft:format (ot key^so ~))
+=/  title=(unit @t)  (maybe-field 'title')
+=/  image=(unit @t)  (maybe-field 'image')
 =/  flag-str=cord  (crip "{<p.flag>}/{(trip q.flag)}")
 =/  fields=(map field:reel cord)
   =/  acc=(map field:reel cord)  [[%'inviteType' 'group'] ~ ~]
-  =?  acc  ?=(^ title.args)
-    (~(put by acc) %'invitedGroupTitle' u.title.args)
-  =?  acc  ?=(^ image.args)
-    (~(put by acc) %'invitedGroupIconImageUrl' u.image.args)
+  =?  acc  ?=(^ title)
+    (~(put by acc) %'invitedGroupTitle' u.title)
+  =?  acc  ?=(^ image)
+    (~(put by acc) %'invitedGroupIconImageUrl' u.image)
   acc
 =/  =metadata:v1:reel  [%groups-0 fields]
 =/  =wire  /group-lure-invite/(scot %da now.bowl)
