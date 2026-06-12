@@ -125,6 +125,44 @@ export function ActivityScreenView({
             console.warn('No parent found for reply', event);
           }
           break;
+        case 'react':
+          // navigate to the reacted-to content: the thread for a react on a
+          // reply, otherwise the channel focused on the reacted post
+          if (event.parent) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              type: 'reaction',
+            });
+            goToThread(event.parent);
+          } else if (event.parentId) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              type: 'reaction',
+            });
+            goToThread(db.assembleParentPostFromActivityEvent(event));
+          } else if (event.channel) {
+            logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+              ...logic.getModelAnalytics({ channel: event.channel }),
+              type: 'reaction',
+            });
+            if (event.postId) {
+              goToChannel(event.channel, event.postId);
+            } else {
+              goToChannel(event.channel);
+            }
+          } else if (event.channelId) {
+            const channel = await db.getChannel({ id: event.channelId });
+            if (channel) {
+              logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {
+                ...logic.getModelAnalytics({ channel }),
+                type: 'reaction',
+              });
+              goToChannel(channel, event.postId ?? undefined);
+            } else {
+              console.warn('No channel found for react', event);
+            }
+          } else {
+            console.warn('No target found for react', event);
+          }
+          break;
         case 'group-ask':
           if (event.group) {
             logger.trackEvent(AnalyticsEvent.ActionSelectActivityEvent, {

@@ -5338,6 +5338,18 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
                 ),
+                // reacts don't bump an unread count (unreads=|), so gate on the
+                // source's notify flag instead: a notified react lights the bell
+                // and clears once the source is read (notify -> false), mirroring
+                // how posts clear via channelUnreads.count. reply reacts carry the
+                // notify bit on the thread, top-level reacts on the channel/dm.
+                and(
+                  eq($activityEvents.type, 'react'),
+                  or(
+                    eq($channelUnreads.notify, true),
+                    eq($threadUnreads.notify, true)
+                  )
+                ),
                 and(
                   gt($groupUnreads.notifyCount, 0),
                   or(
