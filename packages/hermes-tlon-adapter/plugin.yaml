@@ -1,7 +1,7 @@
 name: tlon-platform
 label: Tlon
 kind: platform
-version: 0.1.0
+version: 0.3.0
 description: >
   Tlon Messenger platform adapter for Hermes Agent. Reads inbound messages from
   an authenticated Eyre SSE channel and sends replies through the
@@ -82,9 +82,9 @@ optional_env:
     password: false
   - name: TLON_REPLY_IN_THREAD
     description:
-      'Group replies start a thread on the triggering message instead of
-      posting top-level (true/false, default false); existing threads are
-      always continued in-thread'
+      'Group replies start a thread on the triggering message instead of posting
+      top-level (true/false, default false); existing threads are always
+      continued in-thread'
     prompt: 'Thread group replies?'
     password: false
   - name: TLON_REQUIRE_MENTION
