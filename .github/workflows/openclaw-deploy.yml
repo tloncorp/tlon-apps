@@ -8,8 +8,19 @@ name: Restart OpenClaw Ships
 on:
   push:
     branches: [develop]
+    # Runtime inputs of the deployed plugin only — docs, tests, and the dev
+    # harness don't warrant a ship restart. (Production pulls the develop
+    # branch ref at restart, so a missed trigger self-heals on the next one.)
     paths:
       - "packages/openclaw/src/**"
+      - "packages/openclaw/index.ts"
+      - "packages/openclaw/setup-entry.ts"
+      - "packages/openclaw/setup-api.ts"
+      - "packages/openclaw/package.json"
+      - "packages/openclaw/openclaw.plugin.json"
+      - "packages/openclaw/tsconfig.json"
+      - "packages/openclaw/scripts/**"
+      - "packages/openclaw/.npmrc"
   workflow_dispatch:
     inputs:
       mode:
