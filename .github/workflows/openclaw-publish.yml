@@ -66,6 +66,11 @@ jobs:
         with:
           name: openclaw-publish-package
           path: packages/openclaw/.publish/
+          # Required: the action treats everything under a dot-directory as
+          # hidden and would otherwise upload an empty artifact. Safe here —
+          # .publish/ is exactly the public npm package contents.
+          include-hidden-files: true
+          if-no-files-found: error
 
   publish:
     needs: build
