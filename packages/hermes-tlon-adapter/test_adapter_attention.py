@@ -448,6 +448,32 @@ class AdapterAttentionTests(unittest.TestCase):
         adapter = self.make_adapter({"owner_ship": "~mug"})
         self.assertIs(adapter.enforces_own_access_policy, True)
 
+    def test_node_url_is_hosted(self):
+        self.assertTrue(adapter_mod.node_url_is_hosted("https://sampel.tlon.network"))
+        self.assertTrue(adapter_mod.node_url_is_hosted("https://x.tlon.network/"))
+        self.assertFalse(adapter_mod.node_url_is_hosted("http://localhost:8080"))
+        self.assertFalse(adapter_mod.node_url_is_hosted("https://my.ship.example.com"))
+
+    def test_format_storage_status_decision_matrix(self):
+        f = adapter_mod.format_storage_status
+        # forced hosting + presigned + token → memex
+        r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=True,
+              service="presigned-url", has_s3_creds=False, genuine_reachable=True)
+        self.assertIn("*Upload path*: **memex (hosted)**", r)
+        # forced hosting but no token → memex would fail
+        r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=True,
+              service="presigned-url", has_s3_creds=False, genuine_reachable=False)
+        self.assertIn("would FAIL: no %genuine token", r)
+        # not hosted, no creds → fails (the bug screenshot)
+        r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
+              service="presigned-url", has_s3_creds=False, genuine_reachable=True)
+        self.assertIn("would FAIL: no storage credentials", r)
+        self.assertIn("*TLON_HOSTING*: **unset**", r)
+        # custom S3 creds → S3
+        r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
+              service="credentials", has_s3_creds=True, genuine_reachable=False)
+        self.assertIn("*Upload path*: **S3 (custom credentials)**", r)
+
     def test_env_enablement_does_not_infer_home_channel_from_allowlist(self):
         with patch.dict(
             os.environ,

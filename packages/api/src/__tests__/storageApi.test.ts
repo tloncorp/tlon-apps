@@ -134,7 +134,7 @@ describe('uploadFile default detection (node-url, unchanged)', () => {
   });
 });
 
-describe('uploadFile assume-hosted override (TLON_HOSTED)', () => {
+describe('uploadFile assume-hosted override (TLON_HOSTING)', () => {
   const forced = { hostedDetection: 'assume-hosted' as const };
 
   test('forces the hosted path on a localhost node (URL says not hosted)', async () => {

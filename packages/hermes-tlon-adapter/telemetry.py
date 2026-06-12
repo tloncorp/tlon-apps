@@ -18,8 +18,8 @@ Debuggability: the constructor always logs the resolved telemetry state
 (enabled, or disabled with the precise reason), the SDK's ``on_error`` hook
 surfaces delivery failures that its worker thread would otherwise swallow,
 ``TLON_TELEMETRY_DEBUG=true`` turns on per-event and SDK-internal logging,
-and the owner-only ``/tlon-telemetry`` chat command reports live status
-(``/tlon-telemetry test`` does a synchronous round trip to PostHog).
+and the owner-only ``/tlon status telemetry`` chat command reports live status
+(``/tlon status telemetry test`` does a synchronous round trip to PostHog).
 """
 
 from __future__ import annotations
@@ -80,18 +80,6 @@ def scrub_error(error: Any) -> str:
     if isinstance(error, BaseException):
         return scrub_detail(f"{type(error).__name__}: {error}")
     return scrub_detail(error)
-
-
-_TELEMETRY_COMMAND_RE = re.compile(r"^/tlon-telemetry(?:\s|$)", re.IGNORECASE)
-
-
-def is_telemetry_command(text: str) -> bool:
-    return bool(_TELEMETRY_COMMAND_RE.match(str(text or "").strip()))
-
-
-def telemetry_command_args(text: str) -> list[str]:
-    parts = str(text or "").strip().split()
-    return parts[1:] if parts else []
 
 
 def mask_api_key(key: str) -> str:
@@ -723,7 +711,7 @@ class TlonTelemetry:
     # ── diagnostics ──────────────────────────────────────────────────────
 
     def status_report(self) -> str:
-        """Field-per-line live status for logs and the /tlon-telemetry command."""
+        """Field-per-line live status for logs and /tlon status telemetry."""
 
         def with_source(value: str, setting: str) -> str:
             source = config_source(setting, self._extra)
@@ -807,7 +795,9 @@ class TlonTelemetry:
             )
         )
         if self._client is not None and owner:
-            lines.append("Run /tlon-telemetry test to send and flush a test event.")
+            lines.append(
+                "Run /tlon status telemetry test to send and flush a test event."
+            )
         return "\n".join(lines)
 
     def delivery_test(self) -> str:

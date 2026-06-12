@@ -539,17 +539,6 @@ class DiagnosticsHelperTests(unittest.TestCase):
             "unset",
         )
 
-    def test_command_detection(self):
-        self.assertTrue(telemetry.is_telemetry_command("/tlon-telemetry"))
-        self.assertTrue(telemetry.is_telemetry_command("  /Tlon-Telemetry  "))
-        self.assertTrue(telemetry.is_telemetry_command("/tlon-telemetry test"))
-        self.assertFalse(telemetry.is_telemetry_command("/tlon-telemetrys"))
-        self.assertFalse(telemetry.is_telemetry_command("tlon-telemetry"))
-        self.assertEqual(
-            telemetry.telemetry_command_args("/tlon-telemetry test"), ["test"]
-        )
-        self.assertEqual(telemetry.telemetry_command_args("/tlon-telemetry"), [])
-
     def test_telemetry_debug_config_parsing(self):
         self.assertFalse(make_config().telemetry_debug)
         self.assertTrue(make_config(TLON_TELEMETRY_DEBUG="true").telemetry_debug)
@@ -658,7 +647,7 @@ class StatusReportTests(unittest.TestCase):
         self.assertIn("Enabled flag: false", report)
         self.assertIn("API key:", report)
         self.assertIn("PostHog SDK:", report)
-        self.assertNotIn("Run /tlon-telemetry test", report)
+        self.assertNotIn("Run /tlon status telemetry test", report)
 
     def test_enabled_report_shows_identity_and_sources(self):
         fake = FakeClient()
@@ -692,14 +681,14 @@ class StatusReportTests(unittest.TestCase):
         self.assertIn("Events enqueued: 1", report)
         self.assertIn("last: TlonBot Error", report)
         self.assertIn("Delivery: no failed batches observed", report)
-        self.assertIn("Run /tlon-telemetry test", report)
+        self.assertIn("Run /tlon status telemetry test", report)
 
     def test_blocked_when_owner_missing(self):
         tel, _ = make_telemetry(TLON_OWNER_SHIP="")
         report = tel.status_report()
         self.assertIn("enabled but BLOCKED", report)
         self.assertIn("Distinct id: missing — set TLON_OWNER_SHIP", report)
-        self.assertNotIn("Run /tlon-telemetry test", report)
+        self.assertNotIn("Run /tlon status telemetry test", report)
 
     def test_no_events_yet(self):
         tel, _ = make_telemetry()

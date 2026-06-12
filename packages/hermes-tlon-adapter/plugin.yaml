@@ -1,7 +1,7 @@
 name: tlon-platform
 label: Tlon
 kind: platform
-version: 0.3.0
+version: 0.4.0
 description: >
   Tlon Messenger platform adapter for Hermes Agent. Reads inbound messages from
   an authenticated Eyre SSE channel and sends replies through the
@@ -164,7 +164,7 @@ optional_env:
       60)'
     prompt: 'SSE read timeout'
     password: false
-  - name: TLON_HOSTED
+  - name: TLON_HOSTING
     description:
       'Force the hosted (memex) image-upload path (true/false). Needed for
       connections that reach their node over localhost/proxy, where URL-based

@@ -208,8 +208,8 @@ export async function uploadFile(
     size: params.blob.size,
   });
 
-  // TLON_HOSTED-style override forces the hosted path; otherwise fall back to
-  // the original URL-based detection.
+  // The assume-hosted override (TLON_HOSTING at the CLI layer) forces the
+  // hosted path; otherwise fall back to the original URL-based detection.
   const isHosted =
     params.hostedDetection === 'assume-hosted' || getCurrentUserIsHosted();
   const useMemex =

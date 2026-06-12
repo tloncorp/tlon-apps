@@ -787,37 +787,86 @@ class AdapterOwnerListenTests(unittest.TestCase):
             adapter._cli.messages[0][1],
         )
 
-    # ── /tlon-telemetry ──────────────────────────────────────────────────
+    # ── /tlon command namespace ──────────────────────────────────────────
 
-    def test_telemetry_command_replies_with_status(self):
+    def test_tlon_version_subcommand(self):
         adapter = self.make_adapter({})
         adapter._cli = FakeCLI()
 
-        events = self.dispatches(adapter, channel_event("/tlon-telemetry"))
+        events = self.dispatches(adapter, channel_event("/tlon version"))
 
         self.assertEqual(events, [])
-        self.assertEqual(len(adapter._cli.messages), 1)
+        lines = adapter._cli.messages[0][1].splitlines()
+        self.assertEqual(lines[0], "*Harness*: **Hermes**")
+        self.assertRegex(lines[1], r"^\*Adapter Version\*: \*\*.+\*\*$")
+
+    def test_tlon_status_telemetry_subcommand(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+
+        events = self.dispatches(adapter, channel_event("/tlon status telemetry"))
+
+        self.assertEqual(events, [])
         reply = adapter._cli.messages[0][1]
         self.assertIn("Telemetry: disabled — TLON_TELEMETRY is not enabled", reply)
         self.assertIn("Distinct id: ~mug", reply)
-        self.assertIn("Bot ship: ~pen", reply)
 
-    def test_telemetry_test_subcommand_reports_disabled(self):
+    def test_tlon_status_telemetry_test_subcommand(self):
         adapter = self.make_adapter({})
         adapter._cli = FakeCLI()
 
-        self.dispatches(adapter, dm_event("/tlon-telemetry test"), dm=True)
+        self.dispatches(adapter, dm_event("/tlon status telemetry test"), dm=True)
 
         self.assertIn(
             "Cannot test: telemetry is disabled", adapter._cli.messages[0][1]
         )
 
-    def test_telemetry_command_from_non_owner_is_not_intercepted(self):
+    def test_tlon_status_storage_subcommand(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+        adapter._sse = FakeSSE(
+            payloads={
+                "/storage/configuration": {
+                    "storage-update": {"configuration": {"service": "presigned-url"}}
+                },
+                "/storage/credentials": {"storage-update": {"credentials": None}},
+                "/genuine/secret": "genuine-token",
+            }
+        )
+
+        with patch.dict(os.environ, {"TLON_HOSTING": "true"}, clear=False):
+            self.dispatches(adapter, channel_event("/tlon status storage"))
+
+        reply = adapter._cli.messages[0][1]
+        self.assertIn("*Storage service*: **presigned-url**", reply)
+        self.assertIn("*TLON_HOSTING*: **set**", reply)
+        self.assertIn("*%genuine token*: **reachable**", reply)
+        self.assertIn("*Upload path*: **memex (hosted)**", reply)
+
+    def test_tlon_bare_and_unknown_show_usage(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+
+        self.dispatches(adapter, channel_event("/tlon", post_id="1"))
+        self.dispatches(adapter, channel_event("/tlon wat", post_id="2"))
+
+        for msg in adapter._cli.messages:
+            self.assertIn("Usage: /tlon", msg[1])
+
+    def test_legacy_tlon_version_alias_still_works(self):
+        adapter = self.make_adapter({})
+        adapter._cli = FakeCLI()
+
+        self.dispatches(adapter, channel_event("/tlon-version"))
+
+        self.assertEqual(adapter._cli.messages[0][1].splitlines()[0], "*Harness*: **Hermes**")
+
+    def test_tlon_command_from_non_owner_is_not_intercepted(self):
         adapter = self.make_adapter({"allowed_users": ["~ten"]})
         adapter._cli = FakeCLI()
 
         events = self.dispatches(
-            adapter, channel_event("/tlon-telemetry", author="~ten")
+            adapter, channel_event("/tlon status telemetry", author="~ten")
         )
 
         self.assertEqual(events, [])

@@ -170,9 +170,17 @@ The command works from any monitored group channel (mentioned or not — it is a
 
 State lives in the ship's `%settings` store under desk `moltbot`, bucket `tlon`, using the same entry keys as OpenClaw (`ownerListenEnabled`, `ownerListenDisabledChannels`, plus the additive `ownerListenEnabledChannels`, `ownerListenDefault`, and the shared `groupChannels`), so an existing OpenClaw deployment's toggles carry over and survive gateway reboots. The adapter loads the store on connect, subscribes to `%settings` updates for live hot-reload (writes from Landscape or another gateway apply without a restart, matching OpenClaw's del/invalid-entry semantics), and re-syncs after every SSE reconnect since settings events do not replay. `TLON_OWNER_LISTEN*` env vars only seed defaults for keys the store does not have.
 
-## Versioning
+## Debug commands
 
-`/tlon-version` (owner-only, intercepted deterministically like `/owner-listen`) reports what is running, one `Field: value` per line (chat reply italicizes keys and bolds values for scannability; the startup log is plain):
+`/tlon` is the owner-only debug namespace (intercepted deterministically, like `/owner-listen`):
+
+-   `/tlon version` — what's running (below). `/tlon-version` is a legacy alias for the same output.
+-   `/tlon status storage` — image-upload diagnostic: node URL, whether it looks hosted, the `TLON_HOSTING` override, storage service, S3 credentials, `%genuine` reachability, and the resolved upload path. (Mirrors the decision in `@tloncorp/api`'s `uploadFile`.)
+-   `/tlon status telemetry [test]` — telemetry status; `test` sends and flushes a probe event (see [Telemetry](#telemetry)).
+
+### Version
+
+`/tlon version` reports what is running, one `Field: value` per line (chat reply italicizes keys and bolds values for scannability; the startup log is plain):
 
 ```
 *Harness*: **Hermes**
@@ -205,7 +213,7 @@ Every event carries `harness: "hermes"` (segment from OpenClaw-emitted events), 
 | `TlonBot Gateway Disconnected` / `TlonBot SSE Reconnect` | shutdowns (uptime) and stream reconnects (attempt, backoff, error type)                                                                                                           |
 | `TlonBot Approval Event`     | `queued`/`renotified`/`allowed`/`rejected`/`banned`/`unbanned` with request type                                                                                                                              |
 | `TlonBot Control Command`    | which owner command ran (name only)                                                                                                                                                                           |
-| `TlonBot Telemetry Test`     | manual delivery check triggered by `/tlon-telemetry test`                                                                                                                                                     |
+| `TlonBot Telemetry Test`     | manual delivery check triggered by `/tlon status telemetry test`                                                                                                                                              |
 
 Strictly content-free: no message text, no CLI arguments, no channel nests; ship ids are scrubbed from error detail. Per-message drop events are deliberately not emitted (volume without insight) — unauthorized senders surface as approval `queued` events instead.
 
@@ -215,9 +223,9 @@ When a deployment shows nothing in PostHog, work through the built-in diagnostic
 
 1. **Startup log** — the gateway logs the resolved telemetry state at construction, including the *reason* when off: `[tlon] telemetry disabled: TLON_TELEMETRY is not enabled …` / `…API_KEY is not set` / `PostHog client init failed` (posthog package missing), or `[tlon] telemetry enabled (PostHog): key phc_…wxyz (47 chars), host default (https://us.i.posthog.com), events identify as owner ~sampel (bot ~palnet), debug off`.
 
-    **Where these appear.** The gateway console (stderr) shows **WARNING and above by default** — INFO is hidden unless you run the gateway with `-v`. So the *failure* states are logged at WARNING and show up unprompted: telemetry requested but unable to run (no key, posthog not installed), and enabled-but-ownerless (every event skipped). The healthy/off-by-default states are INFO, hidden on a default console. Regardless of console level, **all of it is always written to `~/.hermes/logs/agent.log`** (INFO+, profile-aware) — that file is the reliable place to read the full startup state. When telemetry is genuinely broken you'll see the WARNING on the console; to confirm a *working* config without restarting, use `/tlon-telemetry` (below), which doesn't depend on log level at all.
-2. **`/tlon-telemetry`** (owner-only, deterministic like `/tlon-version`) — replies with live status: each setting's value *and source* (`env TLON_TELEMETRY` vs `config telemetry` vs unset), masked API key, host, installed posthog SDK version, the distinct id events are sent as (the owner ship), whether the one-time identify was enqueued and as whom, events enqueued since gateway start, and any capture or delivery failures with ages.
-3. **`/tlon-telemetry test`** — end-to-end verification: enqueues a `TlonBot Telemetry Test` event and synchronously flushes the SDK queue, then reports `Test event accepted by PostHog … as ~sampel` or the delivery error. This catches the failure modes that are otherwise invisible (malformed API key, wrong region host, blocked egress), because the posthog SDK's worker thread swallows upload errors. May take up to a minute when the network is down (SDK retries). Caveat: PostHog's ingestion endpoint accepts any well-formed batch and drops wrong-project keys later, so an accepted test that never appears in the dashboard means the key belongs to a different project.
+    **Where these appear.** The gateway console (stderr) shows **WARNING and above by default** — INFO is hidden unless you run the gateway with `-v`. So the *failure* states are logged at WARNING and show up unprompted: telemetry requested but unable to run (no key, posthog not installed), and enabled-but-ownerless (every event skipped). The healthy/off-by-default states are INFO, hidden on a default console. Regardless of console level, **all of it is always written to `~/.hermes/logs/agent.log`** (INFO+, profile-aware) — that file is the reliable place to read the full startup state. When telemetry is genuinely broken you'll see the WARNING on the console; to confirm a *working* config without restarting, use `/tlon status telemetry` (below), which doesn't depend on log level at all.
+2. **`/tlon status telemetry`** (owner-only, deterministic like `/tlon version`) — replies with live status: each setting's value *and source* (`env TLON_TELEMETRY` vs `config telemetry` vs unset), masked API key, host, installed posthog SDK version, the distinct id events are sent as (the owner ship), whether the one-time identify was enqueued and as whom, events enqueued since gateway start, and any capture or delivery failures with ages.
+3. **`/tlon status telemetry test`** — end-to-end verification: enqueues a `TlonBot Telemetry Test` event and synchronously flushes the SDK queue, then reports `Test event accepted by PostHog … as ~sampel` or the delivery error. This catches the failure modes that are otherwise invisible (malformed API key, wrong region host, blocked egress), because the posthog SDK's worker thread swallows upload errors. May take up to a minute when the network is down (SDK retries). Caveat: PostHog's ingestion endpoint accepts any well-formed batch and drops wrong-project keys later, so an accepted test that never appears in the dashboard means the key belongs to a different project.
 4. **`TLON_TELEMETRY_DEBUG=true`** — logs every capture/identify enqueue at info level plus the posthog SDK's internal debug output, and elevates repeated delivery failures from debug to warning.
 
 Delivery failures are also surfaced without debug mode: the adapter hooks the SDK's `on_error` callback and warns on the first failed batch (`[tlon] telemetry delivery to PostHog failed …`).
@@ -234,7 +242,7 @@ Hermes' Tlon home channel defaults to the explicit owner DM from `TLON_OWNER_SHI
 
 Tlon profile changes such as nickname, avatar, bio, status, and cover are owner-only in Tlon chat sessions. For avatar/cover changes, the model should upload a direct raster image URL or local file with `tlon upload` and then pass the returned uploaded URL to `tlon contacts update-profile`; source image URLs and SVGs should not be used as profile images.
 
-`tlon upload` detects Tlon hosting from the node URL by default. Connections that reach their node over localhost/proxy fail that heuristic (the URL looks self-hosted), so set `TLON_HOSTED=true` to force the hosted (memex) upload path on such deployments.
+`tlon upload` detects Tlon hosting from the node URL by default. Connections that reach their node over localhost/proxy fail that heuristic (the URL looks self-hosted), so set `TLON_HOSTING=true` to force the hosted (memex) upload path on such deployments. Run `/tlon status storage` to see which path a node resolves to and why.
 
 When `BRAVE_SEARCH_API_KEY` or `BRAVE_API_KEY` is configured, the adapter registers `image_search` under the Tlon toolset. Use this for user-requested images rather than asking the model to infer direct image URLs from ordinary web search results.
 

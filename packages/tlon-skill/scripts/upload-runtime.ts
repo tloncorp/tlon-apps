@@ -48,8 +48,8 @@ async function readStdin(): Promise<Uint8Array> {
   });
 }
 
-function isTlonHostedForced(): boolean {
-  const raw = (process.env.TLON_HOSTED ?? '').trim().toLowerCase();
+function isTlonHostingForced(): boolean {
+  const raw = (process.env.TLON_HOSTING ?? '').trim().toLowerCase();
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
@@ -79,8 +79,8 @@ export function createUploadDeps(): UploadDeps {
           fileName,
           // Default to URL-based hosted detection. When the connection
           // reaches its node over localhost/proxy that heuristic fails, so an
-          // operator sets TLON_HOSTED to force the hosted (memex) upload path.
-          ...(isTlonHostedForced()
+          // operator sets TLON_HOSTING to force the hosted (memex) upload path.
+          ...(isTlonHostingForced()
             ? { hostedDetection: 'assume-hosted' as const }
             : {}),
         });

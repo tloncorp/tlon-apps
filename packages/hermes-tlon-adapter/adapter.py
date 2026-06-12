@@ -105,9 +105,7 @@ from .telemetry import (
     cli_context,
     handle_post_api_request_telemetry,
     handle_post_tool_call_telemetry,
-    is_telemetry_command,
     set_active_telemetry,
-    telemetry_command_args,
 )
 from .version import (
     content_fingerprint,
@@ -190,6 +188,63 @@ except ImportError:
 def _is_dm_chat_id(chat_id: str) -> bool:
     chat = str(chat_id or "").strip()
     return bool(chat.startswith("~") and normalize_ship(chat) == chat)
+
+
+# `/tlon ...` debug namespace. Does not match `/tlon-version` (legacy alias)
+# because "-" is neither whitespace nor end-of-string after "tlon".
+_TLON_COMMAND_RE = re.compile(r"^/tlon(?:\s|$)", re.IGNORECASE)
+_HOSTED_URL_SUFFIXES = ("tlon.network", ".test.tlon.systems")
+_TRUE_VALUES = {"1", "true", "yes", "on"}
+
+
+def is_tlon_command(text: str) -> bool:
+    return bool(_TLON_COMMAND_RE.match(str(text or "").strip()))
+
+
+def tlon_command_args(text: str) -> list[str]:
+    return _TLON_COMMAND_RE.sub("", str(text or "").strip(), count=1).split()
+
+
+def node_url_is_hosted(url: str) -> bool:
+    """Mirror @tloncorp/api nodeUrlIsHosted for the storage diagnostic."""
+    trimmed = str(url or "").strip().rstrip("/")
+    return any(trimmed.endswith(suffix) for suffix in _HOSTED_URL_SUFFIXES)
+
+
+def format_storage_status(
+    *,
+    node_url: str,
+    url_hosted: bool,
+    hosting_forced: bool,
+    service: str,
+    has_s3_creds: bool,
+    genuine_reachable: bool,
+) -> str:
+    """Diagnostic for image uploads — mirrors the decision in
+    @tloncorp/api uploadFile so an operator can see why a push would route
+    where it does."""
+    is_hosted = hosting_forced or url_hosted
+    use_memex = is_hosted and (service == "presigned-url" or not has_s3_creds)
+    if use_memex:
+        path = (
+            "memex (hosted)"
+            if genuine_reachable
+            else "memex — would FAIL: no %genuine token"
+        )
+    elif has_s3_creds:
+        path = "S3 (custom credentials)"
+    else:
+        path = "would FAIL: no storage credentials configured"
+    rows = [
+        ("Node URL", node_url or "unknown"),
+        ("URL looks hosted", "yes" if url_hosted else "no"),
+        ("TLON_HOSTING", "set" if hosting_forced else "unset"),
+        ("Storage service", service or "unknown"),
+        ("Custom S3 creds", "yes" if has_s3_creds else "no"),
+        ("%genuine token", "reachable" if genuine_reachable else "unavailable"),
+        ("Upload path", path),
+    ]
+    return "\n".join(f"*{key}*: **{value}**" for key, value in rows)
 
 
 _PATP_RE = re.compile(r"^~[a-z][a-z-]*$")
@@ -1033,21 +1088,77 @@ class TlonAdapter(BasePlatformAdapter):
         lines = (result.stdout or "").strip().splitlines()
         return lines[0] if lines else "unknown"
 
-    async def _handle_telemetry_command(
+    async def _handle_tlon_command(
         self,
         command_text: str,
         *,
         reply_chat_id: str,
         reply_parent_id: Optional[str],
     ) -> None:
-        """Status works even (especially) when telemetry is disabled; `test`
-        does a blocking PostHog round trip, so it runs off the event loop."""
-        args = telemetry_command_args(command_text)
-        if args and args[0].lower() == "test":
-            reply = await asyncio.to_thread(self._telemetry.delivery_test)
+        """Debug command namespace: `/tlon version`, `/tlon status storage`,
+        `/tlon status telemetry [test]`."""
+        args = tlon_command_args(command_text)
+        sub = args[0].lower() if args else ""
+        target = args[1].lower() if len(args) > 1 else ""
+        usage = "Usage: /tlon [version | status storage | status telemetry]"
+
+        if sub == "version":
+            self._telemetry.control_command("tlon version")
+            reply = await self._version_reply()
+        elif sub == "status" and target == "storage":
+            self._telemetry.control_command("tlon status storage")
+            reply = await self._storage_status_reply()
+        elif sub == "status" and target == "telemetry":
+            self._telemetry.control_command("tlon status telemetry")
+            if len(args) > 2 and args[2].lower() == "test":
+                # Blocking PostHog round trip — keep it off the event loop.
+                reply = await asyncio.to_thread(self._telemetry.delivery_test)
+            else:
+                reply = self._telemetry.status_report()
+        elif sub == "status":
+            reply = "Usage: /tlon status [storage|telemetry]"
         else:
-            reply = self._telemetry.status_report()
+            reply = usage
         await self._send_control_reply(reply_chat_id, reply_parent_id, reply)
+
+    async def _storage_status_reply(self) -> str:
+        service = "unknown"
+        has_s3_creds = False
+        genuine_reachable = False
+        if self._sse is not None:
+            try:
+                config = await self._sse.scry("/storage/configuration")
+                update = config.get("storage-update") if isinstance(config, dict) else None
+                configuration = update.get("configuration") if isinstance(update, dict) else None
+                if isinstance(configuration, dict):
+                    service = str(configuration.get("service") or "unknown")
+            except Exception as exc:
+                logger.debug("[tlon] storage configuration scry failed: %s", exc)
+            try:
+                creds = await self._sse.scry("/storage/credentials")
+                update = creds.get("storage-update") if isinstance(creds, dict) else None
+                credentials = update.get("credentials") if isinstance(update, dict) else None
+                has_s3_creds = bool(
+                    isinstance(credentials, dict)
+                    and credentials.get("accessKeyId")
+                    and credentials.get("endpoint")
+                    and credentials.get("secretAccessKey")
+                )
+            except Exception as exc:
+                logger.debug("[tlon] storage credentials scry failed: %s", exc)
+            try:
+                token = await self._sse.scry("/genuine/secret")
+                genuine_reachable = bool(token)
+            except Exception as exc:
+                logger.debug("[tlon] genuine token scry failed: %s", exc)
+        return format_storage_status(
+            node_url=self.tlon_config.ship_url,
+            url_hosted=node_url_is_hosted(self.tlon_config.ship_url),
+            hosting_forced=os.getenv("TLON_HOSTING", "").strip().lower() in _TRUE_VALUES,
+            service=service,
+            has_s3_creds=has_s3_creds,
+            genuine_reachable=genuine_reachable,
+        )
 
     async def _maybe_handle_control_command(
         self,
@@ -1075,19 +1186,19 @@ class TlonAdapter(BasePlatformAdapter):
                     reply_parent_id=reply_parent_id,
                 )
             return True
-        if is_tlon_version_command(command_text):
+        if is_tlon_command(command_text):
             if self._mark_seen(message):
-                self._telemetry.control_command("tlon-version")
-                await self._handle_tlon_version_command(
+                await self._handle_tlon_command(
+                    command_text,
                     reply_chat_id=message.chat_id,
                     reply_parent_id=reply_parent_id,
                 )
             return True
-        if is_telemetry_command(command_text):
+        if is_tlon_version_command(command_text):
+            # Legacy alias, kept alongside `/tlon version`.
             if self._mark_seen(message):
-                self._telemetry.control_command("tlon-telemetry")
-                await self._handle_telemetry_command(
-                    command_text,
+                self._telemetry.control_command("tlon-version")
+                await self._handle_tlon_version_command(
                     reply_chat_id=message.chat_id,
                     reply_parent_id=reply_parent_id,
                 )
@@ -1855,7 +1966,8 @@ def register(ctx) -> None:
             "access and configuration: /owner-listen (no-mention listening), "
             "/channel-access (per-channel open access), /pending, /allow, "
             "/reject, /ban, /unban, /banned (approvals for unknown ships), "
-            "and /tlon-version. Point the owner at those commands when asked "
+            "and /tlon (version, status storage, status telemetry — debug "
+            "info). Point the owner at those commands when asked "
             "rather than changing configuration yourself. "
             "Use concise plain text and basic markdown."
         ),
