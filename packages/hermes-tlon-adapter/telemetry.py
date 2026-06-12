@@ -643,17 +643,19 @@ class TlonTelemetry:
             return
         parts = cli_command_parts(args)
         error_kind = cli_error_kind(result)
-        self.capture(
-            EVENT_CLI_CALL,
-            {
-                **parts,
-                "origin": context.origin,
-                "durationMs": duration_ms,
-                "success": result.success,
-                "returncode": result.returncode,
-                "errorKind": error_kind or None,
-            },
-        )
+        properties: dict[str, Any] = {
+            **parts,
+            "origin": context.origin,
+            "durationMs": duration_ms,
+            "success": result.success,
+            "returncode": result.returncode,
+            "errorKind": error_kind or None,
+        }
+        if not result.success and result.error:
+            # The CLI's stderr (scrubbed) — e.g. why an upload failed. Without
+            # this every failure is an opaque "nonzero" returncode.
+            properties["errorDetail"] = scrub_detail(result.error)
+        self.capture(EVENT_CLI_CALL, properties)
         conversation = context.conversation
         trace = self._traces.get(conversation) if conversation else None
         if trace is not None and len(trace.cli_calls) < MAX_CALLS_PER_TRACE:

@@ -384,7 +384,37 @@ class CliObservationTests(unittest.TestCase):
         self.assertEqual(props["origin"], "model_tool")
         self.assertEqual(props["errorKind"], "timeout")
         self.assertFalse(props["success"])
+        self.assertEqual(props["errorDetail"], "timed out")
         self.assertNotIn("secret", str(props))
+
+    def test_cli_failure_detail_is_captured_and_scrubbed(self):
+        # The whole point: surface *why* tlon upload failed, not just "nonzero".
+        tel, fake = make_telemetry()
+        with telemetry.cli_context("model_tool", conversation="~pen"):
+            tel.observe_cli(
+                ["upload", "https://example.com/tree.png"],
+                200,
+                tlon_api.TlonSendResult(
+                    success=False,
+                    command=("tlon",),
+                    returncode=1,
+                    error="Memex upload request failed: 403 for ~pondus-watbel",
+                ),
+            )
+        props = fake.events("TlonBot CLI Call")[0]
+        self.assertIn("Memex upload request failed: 403", props["errorDetail"])
+        self.assertNotIn("pondus-watbel", props["errorDetail"])  # ship masked
+
+    def test_cli_success_has_no_error_detail(self):
+        tel, fake = make_telemetry()
+        with telemetry.cli_context("model_tool", conversation="~pen"):
+            tel.observe_cli(
+                ["groups", "list"],
+                10,
+                tlon_api.TlonSendResult(success=True, command=("tlon",)),
+            )
+        props = fake.events("TlonBot CLI Call")[0]
+        self.assertNotIn("errorDetail", props)
 
     def test_successful_plumbing_sends_are_suppressed(self):
         tel, fake = make_telemetry()
