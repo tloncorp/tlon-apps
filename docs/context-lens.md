@@ -19,7 +19,7 @@ Run payloads are opaque serialized JSON (a cord, `@t`) with an inner `schemaVers
 
 ## state model
 
-State is `state-0`, defined in the app file:
+State is `state-1`, defined in the app file (the `%0` → `%1` upgrade arms the retention timer exactly once; the shape is unchanged):
 
 ```
 owners  (set ship)                       fan-out targets (bot role); ~ means inert
@@ -38,10 +38,16 @@ payload   @t     opaque serialized-JSON run record
 
 ### retention
 
-Enforced per bot on every store:
+Bounds, per bot:
 
--   runs older than 30 days are dropped
--   at most 500 live runs per bot; oldest beyond the cap are dropped
+-   runs older than 90 days are dropped
+-   at most 1000 live runs per bot; oldest beyond the cap are dropped
+
+Enforcement happens in three places:
+
+-   **on store**: every incoming signal prunes that bot's runs
+-   **on a daily timer**: a recurring behn wake on the `/prune` wire prunes all bots, so storage is reclaimed even when a bot stops sending signals
+-   **on read**: `/x/recent` and `/x/run` filter expired runs, so the age bound holds observably regardless of timer or signal cadence (gall scries cannot mutate state, so this is a filter, not a prune)
 
 ## poke surface
 
@@ -77,7 +83,7 @@ Accepted from any ship; records are keyed by the sending ship, so a malicious sh
 ## scry surface
 
 -   `/x/recent` → `%context-lens-update-1` `[%runs (list entry)]` — newest 50 runs across all bots
--   `/x/run/[ship]/[id-run]` → `%context-lens-update-1` `[%run entry]`, or empty (`[~ ~]`) when absent
+-   `/x/run/[ship]/[id-run]` → `%context-lens-update-1` `[%run entry]`, or empty (`[~ ~]`) when absent or expired
 
 `entry` is `[bot=ship id-run=@t run]`. The update mark grows to JSON for Eyre:
 
