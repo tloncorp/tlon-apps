@@ -62,14 +62,28 @@ REPLY_TRACE_TTL_SECONDS = 60 * 60
 MAX_REPLY_TRACES = 50
 MAX_CALLS_PER_TRACE = 200
 ERROR_DETAIL_MAX_CHARS = 200
+# Full multi-line errors (e.g. CLI stderr) get a generous cap — big enough that
+# a real error + stack is never truncated, bounded only against pathological
+# output bloating the PostHog event.
+ERROR_DETAIL_FULL_MAX_CHARS = 8000
 
 _SHIP_RE = re.compile(r"~[a-zA-Z0-9.\-]+")
 
 
 def scrub_detail(text: Any, max_chars: int = ERROR_DETAIL_MAX_CHARS) -> str:
-    """First line only, ship ids masked, truncated."""
+    """First line only, ship ids masked, truncated. For short summaries."""
     first_line = str(text or "").strip().splitlines()[0] if str(text or "").strip() else ""
     masked = _SHIP_RE.sub("~…", first_line)
+    if len(masked) > max_chars:
+        masked = masked[: max_chars - 1].rstrip() + "…"
+    return masked
+
+
+def scrub_full(text: Any, max_chars: int = ERROR_DETAIL_FULL_MAX_CHARS) -> str:
+    """The complete message — all lines preserved, ship ids masked, capped only
+    against pathological sizes. Use when the full error context matters (CLI
+    stderr) rather than a one-line summary."""
+    masked = _SHIP_RE.sub("~…", str(text or "").strip())
     if len(masked) > max_chars:
         masked = masked[: max_chars - 1].rstrip() + "…"
     return masked
@@ -652,9 +666,10 @@ class TlonTelemetry:
             "errorKind": error_kind or None,
         }
         if not result.success and result.error:
-            # The CLI's stderr (scrubbed) — e.g. why an upload failed. Without
-            # this every failure is an opaque "nonzero" returncode.
-            properties["errorDetail"] = scrub_detail(result.error)
+            # The CLI's FULL stderr (all lines, ship-masked) — e.g. why an
+            # upload failed. Capture everything; a one-line summary kept hiding
+            # the real error behind the CLI's auth-note preamble.
+            properties["errorDetail"] = scrub_full(result.error)
         self.capture(EVENT_CLI_CALL, properties)
         conversation = context.conversation
         trace = self._traces.get(conversation) if conversation else None

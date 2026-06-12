@@ -387,23 +387,34 @@ class CliObservationTests(unittest.TestCase):
         self.assertEqual(props["errorDetail"], "timed out")
         self.assertNotIn("secret", str(props))
 
-    def test_cli_failure_detail_is_captured_and_scrubbed(self):
-        # The whole point: surface *why* tlon upload failed, not just "nonzero".
+    def test_cli_failure_detail_captures_full_stderr(self):
+        # The whole point: surface *all* the context for why tlon upload failed.
+        # Real CLI stderr leads with an auth note then the error — keep both.
         tel, fake = make_telemetry()
+        stderr = (
+            "Note: Credentials cached for ~pondus-watbel. Next time run: "
+            "tlon --ship ~pondus-watbel <command>\n"
+            "Error: Memex upload request failed: 403 for ~pondus-watbel"
+        )
         with telemetry.cli_context("model_tool", conversation="~pen"):
             tel.observe_cli(
                 ["upload", "https://example.com/tree.png"],
                 200,
                 tlon_api.TlonSendResult(
-                    success=False,
-                    command=("tlon",),
-                    returncode=1,
-                    error="Memex upload request failed: 403 for ~pondus-watbel",
+                    success=False, command=("tlon",), returncode=1, error=stderr
                 ),
             )
-        props = fake.events("TlonBot CLI Call")[0]
-        self.assertIn("Memex upload request failed: 403", props["errorDetail"])
-        self.assertNotIn("pondus-watbel", props["errorDetail"])  # ship masked
+        detail = fake.events("TlonBot CLI Call")[0]["errorDetail"]
+        # full multi-line capture: both the note and the real error survive
+        self.assertIn("Memex upload request failed: 403", detail)
+        self.assertIn("Credentials cached", detail)
+        self.assertIn("\n", detail)
+        self.assertNotIn("pondus-watbel", detail)  # ships still masked
+
+    def test_scrub_full_preserves_lines_and_caps_size(self):
+        self.assertEqual(telemetry.scrub_full("line1\nline2 ~zod"), "line1\nline2 ~…")
+        capped = telemetry.scrub_full("x" * 9000)
+        self.assertLessEqual(len(capped), telemetry.ERROR_DETAIL_FULL_MAX_CHARS)
 
     def test_cli_success_has_no_error_detail(self):
         tel, fake = make_telemetry()
