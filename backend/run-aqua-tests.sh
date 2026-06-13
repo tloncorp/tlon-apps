@@ -90,7 +90,7 @@ http_port=9090
 if [ ! -d $pier_dir ]
 then
   echo "Generating test ship $ship"
-  $vere -F $pier_dir -c $pier_dir -B $pill --http-port $http_port -x
+  $vere -F $pier_dir -c $pier_dir -B $pill --http-port $http_port -t -x
 
   if [ "$?" -ne 0 ]
   then
