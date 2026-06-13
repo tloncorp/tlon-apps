@@ -2,7 +2,7 @@
 
 click=./backend/click
 #ship_manifest=./apps/tlon-web/e2e/shipManifest.json
-ship="~dev"
+ship="~bud"
 pier_dir=${ship#\~}
 pier=$pier_dir
 
@@ -228,7 +228,7 @@ do
 done
 
 echo "Preparing aqua snapshot..."
-result=$( $run_click -t 600 $pier <<EOF
+result=$( $run_click -t 900 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =+  tid=~.ci-ph-fleet  
