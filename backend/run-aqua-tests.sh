@@ -2,13 +2,13 @@
 
 click=./backend/click
 #ship_manifest=./apps/tlon-web/e2e/shipManifest.json
-ship="~zod"
+ship="~dev"
 pier_dir=${ship#\~}
-pier=$pier_dir-aqua
+pier=$pier_dir
 
 urbit_bin_url="https://urbit.org/install"
 
-arch=`arch`
+arch=`uname -m`
 
 case $OSTYPE in
   linux* )  
@@ -42,34 +42,18 @@ echo $urbit_bin_url
 echo "Running aqua tests"
 
 #download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
-download_url="https://bootstrap.urbit.org/zod-aqua-tests-409k.xst"
+#download_url="https://bootstrap.urbit.org/dev-aqua-409k-2.tar.xz"
 pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2.pill"
 
-archive=`basename $download_url`
+#archive=`basename $download_url`
 pill=`basename $pill_download_url`
 pill_name=`echo $pill | cut -d . -f1`
 
-if [ ! -f $archive ]
-then
-  echo "Downloading ~zod archive $archive"
-  curl -s $download_url > $archive
-fi
-
-# Unpack the pier
-if [ ! -d $pier ]
-then
-  echo "Unpacking pier $archive"
-  tar -xf $archive
-  mv $pier_dir $pier
-fi
-
-if [ ! -d $pier ]
-then
-  echo "Pier $pier not found!"
-  exit 1
-else
-  echo "Pier ready"
-fi
+# if [ ! -f $archive ]
+# then
+#   echo "Downloading ${ship} archive $archive"
+#   curl -s $download_url > $archive
+# fi
 
 if [ ! -f $pill ]
 then
@@ -102,6 +86,18 @@ then
   exit 1
 fi
 
+if [ ! -d $pier_dir ]
+then
+  echo "Booting test ship $ship"
+  $vere -F $pier_dir -c $pier_dir -B $pill -x
+
+  if [ "$?" -ne 0 ]
+  then
+    echo "Failed to boot test ship $ship"
+    exit 1
+  fi
+fi
+
 http_port=9090
 echo "Booting ship"
 ($vere --loom 33 --http-port $http_port -t $pier) &
@@ -120,11 +116,11 @@ echo "Mounting base..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [~zod %hood] kiln-unmount+!>(%base))  
+;<  ~  bind:m  (poke [${ship} %hood] kiln-unmount+!>(%base))  
 ;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
   [(scot %p our.bowl) %base (scot %da now.bowl) ~]  
-;<  ~  bind:m  (poke [~zod %hood] kiln-mount+!>([path %base]))  
+;<  ~  bind:m  (poke [${ship} %hood] kiln-mount+!>([path %base]))  
 (pure:m !>(%ok))  
 EOF
 
@@ -133,11 +129,11 @@ echo "Mounting groups..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [~zod %hood] kiln-unmount+!>(%groups))  
+;<  ~  bind:m  (poke [${ship} %hood] kiln-unmount+!>(%groups))  
 ;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
   [(scot %p our.bowl) %groups (scot %da now.bowl) ~]  
-;<  ~  bind:m  (poke [~zod %hood] kiln-mount+!>([path %groups]))  
+;<  ~  bind:m  (poke [${ship} %hood] kiln-mount+!>([path %groups]))  
 (pure:m !>(%ok))  
 EOF
 
@@ -160,7 +156,7 @@ echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
-;<  ~  bind:m  (poke [~zod %hood] kiln-commit+!>([%base |]))  
+;<  ~  bind:m  (poke [${ship} %hood] kiln-commit+!>([%base |]))  
 (pure:m !>(%ok))  
 EOF
 
@@ -183,7 +179,7 @@ echo "Updating groups desk"
 ${run_click} $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
-;<  ~  bind:m  (poke [~zod %hood] kiln-commit+!>([%groups |]))  
+;<  ~  bind:m  (poke [${ship} %hood] kiln-commit+!>([%groups |]))  
 (pure:m !>(%ok))  
 EOF
 
@@ -205,7 +201,7 @@ desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 if [ $desk_hash_a == $desk_hash_b ]
 then
   echo "Desk upgrade failed ❌"
-  kill -TERM $vere_pid
+  #kill -TERM $vere_pid
   exit 1
 fi
 
@@ -213,16 +209,23 @@ echo "Starting aqua..."
 ${run_click} $pier "/lib/pill/hoon"<<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl    
-;<  ~  bind:m  (poke [~zod %hood] kiln-nuke+!>([%aqua |]))  
+;<  ~  bind:m  (poke [${ship} %hood] kiln-nuke+!>([%aqua |]))  
 =+  .^(=cone:clay %cx /(scot %p p.byk.bowl)//(scot %da now.bowl)/domes)  
 =/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)  
 ;<  ~      bind:m  (sleep ~s0)  
-;<  ~  bind:m  (poke [~zod %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
+;<  ~  bind:m  (poke [${ship} %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
 =+  .^(pil=@ %cx /(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam)  
 =/  pill  ;;(pill:pill (cue pil))  
-;<  ~  bind:m  (poke [~zod %aqua] pill+!>(pill))  
+;<  ~  bind:m  (poke [${ship} %aqua] pill+!>(pill))  
 (pure:m !>(%ok))  
 EOF
+
+echo "Awaiting aqua boot..."
+sleep 3
+while ! curl -s "http://localhost:$http_port"
+do
+  sleep 3
+done
 
 echo "Preparing aqua snapshot..."
 result=$( $run_click -t 1800 $pier <<EOF
