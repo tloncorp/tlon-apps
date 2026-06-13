@@ -112,6 +112,18 @@ then
 fi
 
 http_port=9090
+if [ ! -d $pier_dir ]
+then
+  echo "Generating test ship $ship"
+  $vere -F $pier_dir -c $pier_dir -B $pill --http-port $http_port -x
+
+  if [ "$?" -ne 0 ]
+  then
+    echo "Failed to generate test ship $ship"
+    exit 1
+  fi
+fi
+
 echo "Booting ship"
 ($vere --loom 33 --http-port $http_port -t $pier) &
 vere_pid=$!
@@ -239,7 +251,11 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 EOF
 
 echo "Preparing aqua snapshot..."
+<<<<<<< HEAD
 result=$( $run_click -t 1200 $pier <<EOF
+=======
+result=$( $run_click -t 600 $pier <<EOF
+>>>>>>> 7dbc1c2ee (Aqua tests: adjust timeouts)
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =+  tid=%ci-ph-fleet  
