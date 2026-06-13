@@ -88,6 +88,10 @@
   ?~  fleet  (pure:n ~)
   ;<  ~  bind:n  (sync-desk i.fleet %groups)
   $(fleet t.fleet)
+::  allow agents time to cool down to process
+::  any cards that might have been emitted.
+::
+;<  ~  bind:m  (sleep ~s5)
 ;<  ~  bind:m  (end-test:ph-io vane-tids)
 ;<  =bowl:spider  bind:m  get-bowl
 =/  snap-id=@t

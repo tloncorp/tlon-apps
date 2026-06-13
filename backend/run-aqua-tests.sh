@@ -2,7 +2,7 @@
 
 click=./backend/click
 #ship_manifest=./apps/tlon-web/e2e/shipManifest.json
-ship="~zod"
+ship="~bud"
 pier_dir=${ship#\~}
 pier=$pier_dir-aqua
 
@@ -251,11 +251,7 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 EOF
 
 echo "Preparing aqua snapshot..."
-<<<<<<< HEAD
-result=$( $run_click -t 1200 $pier <<EOF
-=======
-result=$( $run_click -t 600 $pier <<EOF
->>>>>>> 7dbc1c2ee (Aqua tests: adjust timeouts)
+result=$( $run_click -t 900 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =+  tid=%ci-ph-fleet  
