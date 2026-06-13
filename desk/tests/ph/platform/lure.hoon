@@ -91,7 +91,7 @@
   ^-  form:m
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
-    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/bait/noun/noun
+    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/bait/noun
   ;<  [bait=(unit [vic=@t civ=@p])]  bind:m
     (scry-aqua (unit ,[vic=@t civ=@p]) ship aqua-pax)
   (pure:m (need bait))
@@ -102,7 +102,7 @@
   ^-  form:m
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
-    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/service/noun/noun
+    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/service/noun
   ;<  vic=(unit @t)  bind:m
     (scry-aqua (unit @t) ship aqua-pax)
   (pure:m (need vic))
