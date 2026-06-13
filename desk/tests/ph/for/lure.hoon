@@ -85,6 +85,28 @@
       [%'bite-type' '2']
   ==
 ::
+++  scry-reel-bait
+  |=  =ship
+  =/  m  (strand ,[@t @p])
+  ^-  form:m
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/bait/noun
+  ;<  [bait=(unit [vic=@t civ=@p])]  bind:m
+    (scry-aqua (unit ,[vic=@t civ=@p]) ship aqua-pax)
+  (pure:m (need bait))
+::
+++  scry-reel-service
+  |=  =ship
+  =/  m  (strand @t)
+  ^-  form:m
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/service/noun
+  ;<  vic=(unit @t)  bind:m
+    (scry-aqua (unit @t) ship aqua-pax)
+  (pure:m (need vic))
+::
 ++  generate-lure-invite
   |=  =metadata:v1:r
   =/  m  (strand @t)
