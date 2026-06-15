@@ -162,10 +162,12 @@ EOF
 
 # TODO: We should figure out the source ship for this file and delete it
 rm -f $pier/groups/tests/lib/diary-graph.hoon
-rm -f $pier/groups/tests/ph/chat.hoon
 
 # Update the groups desk
 rsync -r desk/ $pier/groups
+
+# Hard-update our tests
+rsync -r --delete desk/tests $pier/groups/tests
 
 result=$( $run_click -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
