@@ -215,12 +215,14 @@ export function useBootSequence() {
         });
       });
 
-      store.leaveGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
-        logger.trackError('failed to leave Tlonbot general group', {
-          errorMessage: e.message,
-          errorStack: e.stack,
+      if (lureMeta?.invitedGroupId !== TLONBOT_GENERAL_GROUP_ID) {
+        store.leaveGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
+          logger.trackError('failed to leave Tlonbot general group', {
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
         });
-      });
+      }
 
       return NodeBootPhase.CHECKING_FOR_INVITE;
     }
