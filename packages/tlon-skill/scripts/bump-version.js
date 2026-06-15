@@ -20,8 +20,6 @@ const packageFiles = [
   'npm/linux-arm64/package.json',
 ];
 
-const tlonSkillPackagePrefix = '@tloncorp/tlon-skill-';
-
 const newVersion = process.argv[2];
 
 if (!newVersion) {
@@ -46,33 +44,12 @@ console.log(`Bumping version to ${newVersion}...\n`);
 
 let failed = false;
 
-function getTlonSkillOptionalDeps(optionalDependencies) {
-  if (!optionalDependencies) {
-    return [];
-  }
-
-  return Object.keys(optionalDependencies).filter((dep) =>
-    dep.startsWith(tlonSkillPackagePrefix)
-  );
-}
-
-function updateTlonSkillOptionalDeps(optionalDependencies) {
-  for (const dep of getTlonSkillOptionalDeps(optionalDependencies)) {
-    optionalDependencies[dep] = newVersion;
-  }
-}
-
 for (const file of packageFiles) {
   const filePath = join(rootDir, file);
   try {
     const pkg = JSON.parse(readFileSync(filePath, 'utf-8'));
     const oldVersion = pkg.version;
     pkg.version = newVersion;
-
-    // Also update optionalDependencies versions in main package.json
-    if (file === 'package.json') {
-      updateTlonSkillOptionalDeps(pkg.optionalDependencies);
-    }
 
     writeFileSync(filePath, JSON.stringify(pkg, null, 2) + '\n');
     console.log(`  ${file}: ${oldVersion} → ${newVersion}`);
@@ -89,6 +66,9 @@ if (failed) {
 
 console.log("\nDone! Don't forget to:");
 console.log('  1. Update CHANGELOG.md (if you have one)');
-console.log('  2. Commit the changes');
-console.log('  3. Tag the release: git tag v' + newVersion);
-console.log('  4. Push: git push && git push --tags');
+console.log('  2. Commit the changes and merge to develop');
+console.log(
+  '  3. Release by tagging tlon-skill-v' +
+    newVersion +
+    ' or dispatching the tlon-skill-publish workflow'
+);

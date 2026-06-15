@@ -8,6 +8,13 @@
 import Foundation
 
 enum SettingsStore {
+    // Written by the app (via UrbitModule) from the backend's groups version,
+    // read by the notification extension to choose the activity-event mark.
+    static let activitySupportsReactionsKey = "activity.supportsReactions"
+    static var activitySupportsReactions: Bool {
+        UserDefaults.forDefaultAppGroup.bool(forKey: activitySupportsReactionsKey)
+    }
+
     static var disableAvatars: Bool = UserDefaults.forDefaultAppGroup.bool(forKey: "settings.calmEngine.disableAvatars") {
         didSet {
             UserDefaults.forDefaultAppGroup.set(disableNicknames, forKey: "settings.calmEngine.disableAvatars")

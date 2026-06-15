@@ -1,8 +1,12 @@
-const maxAttempts = 6;
-const retryDelayMs = 5000;
+const maxWaitMs = 15 * 60 * 1000;
+const retryDelayMs = 20 * 1000;
 let otp;
 let lastBody = '';
 let lastError;
+let attempts = 0;
+
+const startedAt = Date.now();
+const deadline = startedAt + maxWaitMs;
 
 function wait(ms) {
   const startedAt = Date.now();
@@ -26,7 +30,9 @@ function retrieveOtp() {
   return /^\d{6}$/.test(lastBody) ? lastBody : undefined;
 }
 
-for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+while (Date.now() < deadline) {
+  attempts += 1;
+
   try {
     otp = retrieveOtp();
     if (otp) {
@@ -36,19 +42,21 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     lastError = e;
   }
 
-  if (attempt < maxAttempts) {
-    wait(retryDelayMs);
+  const remainingWaitMs = deadline - Date.now();
+  if (!otp && remainingWaitMs > 0) {
+    wait(Math.min(retryDelayMs, remainingWaitMs));
   }
 }
 
 if (!otp) {
+  const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
   const details = lastError
     ? ` Last error: ${lastError.message ?? lastError}`
     : lastBody
       ? ` Last response: ${lastBody}`
       : '';
   throw new Error(
-    `Couldn't retrieve OTP for ${output.signupEmail} after ${maxAttempts} attempts.${details}`
+    `Couldn't retrieve OTP for ${output.signupEmail} after ${attempts} attempts over ${elapsedSeconds}s.${details}`
   );
 }
 

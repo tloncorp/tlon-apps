@@ -3333,11 +3333,14 @@ export const getChannelPostsAround = createReadQuery(
       throw new Error('Reference post not found');
     }
 
-    const sentAt = referencePost.sentAt;
+    const receivedAt = referencePost.receivedAt;
 
     // Get before posts
     const beforePosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [desc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -3352,7 +3355,10 @@ export const getChannelPostsAround = createReadQuery(
 
     // Get after posts
     const afterPosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        gt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [asc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -5331,6 +5337,18 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                 and(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
+                ),
+                // reacts don't bump an unread count (unreads=|), so gate on the
+                // source's notify flag instead: a notified react lights the bell
+                // and clears once the source is read (notify -> false), mirroring
+                // how posts clear via channelUnreads.count. reply reacts carry the
+                // notify bit on the thread, top-level reacts on the channel/dm.
+                and(
+                  eq($activityEvents.type, 'react'),
+                  or(
+                    eq($channelUnreads.notify, true),
+                    eq($threadUnreads.notify, true)
+                  )
                 ),
                 and(
                   gt($groupUnreads.notifyCount, 0),

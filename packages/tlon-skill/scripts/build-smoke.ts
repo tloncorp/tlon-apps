@@ -5,8 +5,8 @@ import { join, resolve } from 'node:path';
 
 import {
   CLI_MATRIX_CASES,
-  COMMAND_FAMILIES,
   type CliCase,
+  HOSTILE_HELP_COMMANDS,
   normalizeCliOutput,
 } from './cli-test-matrix';
 
@@ -155,15 +155,7 @@ for (const testCase of CLI_MATRIX_CASES) {
   assertCase(testCase);
 }
 
-const hostileHelpCommands = [
-  { name: 'top-level', args: ['--help'] },
-  ...COMMAND_FAMILIES.map((family) => ({
-    name: family,
-    args: [family, '--help'],
-  })),
-];
-
-for (const command of hostileHelpCommands) {
+for (const command of HOSTILE_HELP_COMMANDS) {
   assertCase(
     {
       name: `${command.name} help with nonexistent TLON_CONFIG_FILE`,

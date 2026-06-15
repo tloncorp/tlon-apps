@@ -730,8 +730,8 @@ function BareChatInput(
   useEffect(() => {
     if (!hasSetInitialContent) {
       bareChatInputLogger.log('setting initial content');
-      try {
-        getDraft().then((draft) => {
+      getDraft()
+        .then((draft) => {
           bareChatInputLogger.log('got draft', draft);
           if (!editingPost) {
             setInputFromDraft(draft);
@@ -775,10 +775,12 @@ function BareChatInput(
               },
             });
           }
+        })
+        .catch((e) => {
+          // a try/catch around getDraft().then(...) can't catch async
+          // rejections, so handle them here
+          bareChatInputLogger.error('Error setting initial content', e);
         });
-      } catch (e) {
-        bareChatInputLogger.error('Error setting initial content', e);
-      }
     }
   }, [
     getDraft,
