@@ -147,6 +147,39 @@ test('createChannel does not insert a notes channel when the HTTP create fails',
   ).resolves.toBeNull();
 });
 
+test('createChannel rolls back a notes notebook when local channel insert fails', async () => {
+  await insertGroup();
+
+  vi.spyOn(api, 'requestJson').mockResolvedValue({
+    requestId: '1',
+    body: {
+      type: 'notebook',
+      notebook: {
+        host: '~solfer-magfed',
+        flagName: 'native-notes',
+        notebook: { id: 1, title: 'Native notes' },
+      },
+    },
+  });
+  const deleteNotesNotebook = vi
+    .spyOn(api, 'deleteNotesNotebook')
+    .mockResolvedValue(1);
+  vi.spyOn(db, 'insertChannels').mockRejectedValue(new Error('db failed'));
+
+  await expect(
+    createChannel({
+      groupId,
+      title: 'Native notes',
+      channelType: 'notes',
+    })
+  ).rejects.toThrow('Failed to add notes channel to group');
+
+  expect(deleteNotesNotebook).toHaveBeenCalledWith({
+    host: '~solfer-magfed',
+    name: 'native-notes',
+  });
+});
+
 test('markChannelRead clears stale notification-only group unread after channel notification is read', async () => {
   await insertGroupAndChannel();
   await db.insertGroupUnreads([makeGroupUnread()]);

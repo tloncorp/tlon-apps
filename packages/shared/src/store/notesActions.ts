@@ -277,7 +277,7 @@ export async function createNotebookFolder({
   parentFolderId?: number | null;
   name: string;
 }) {
-  await createAndFindNewItem({
+  const created = await createAndFindNewItem({
     notebookFlag,
     list: () => db.getNotesFolders({ notebookFlag }),
     getId: (folder) => folder.folderId,
@@ -288,6 +288,16 @@ export async function createNotebookFolder({
         name,
       }),
   });
+  if (created) {
+    return created;
+  }
+
+  const parentId = parentFolderId ?? null;
+  const after = await db.getNotesFolders({ notebookFlag });
+  return after.find(
+    (folder) =>
+      folder.name === name && (folder.parentFolderId ?? null) === parentId
+  );
 }
 
 export async function saveNotebookNote({
