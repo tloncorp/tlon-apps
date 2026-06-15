@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { _testing, createTlonTelemetry, recordToolCall } from './telemetry.js';
+import { summarizeTlonCommand } from './tlon-tool-command.js';
 
 const postHogMocks = vi.hoisted(() => ({
   identify: vi.fn(),
@@ -129,13 +130,19 @@ describe('telemetry tool tracking', () => {
             toolName: 'web_search',
             durationMs: 125,
             error: null,
+            summaryKey: null,
           },
           {
             toolName: 'read',
             durationMs: null,
             error: 'tool failed',
+            summaryKey: null,
           },
         ],
+        tlonToolCallCount: 0,
+        tlonToolSummaryKeys: [],
+        tlonToolChannelKinds: [],
+        tlonToolUpdateFields: [],
       }),
     });
 
@@ -156,6 +163,10 @@ describe('telemetry tool tracking', () => {
     expect(capturedEvent?.properties.toolCount).toBe(0);
     expect(capturedEvent?.properties.toolTotalDurationMs).toBe(0);
     expect(capturedEvent?.properties.toolErrorCount).toBe(0);
+    expect(capturedEvent?.properties.tlonToolCallCount).toBe(0);
+    expect(capturedEvent?.properties.tlonToolSummaryKeys).toEqual([]);
+    expect(capturedEvent?.properties.tlonToolChannelKinds).toEqual([]);
+    expect(capturedEvent?.properties.tlonToolUpdateFields).toEqual([]);
   });
 
   it('classifies reply outcomes', async () => {
@@ -252,8 +263,13 @@ describe('telemetry tool tracking', () => {
             toolName: 'web_search',
             durationMs: 125,
             error: null,
+            summaryKey: null,
           },
         ],
+        tlonToolCallCount: 0,
+        tlonToolSummaryKeys: [],
+        tlonToolChannelKinds: [],
+        tlonToolUpdateFields: [],
       },
     });
 
@@ -439,5 +455,106 @@ describe('telemetry tool tracking', () => {
     const capturedEvent = await captureReply();
     expect(capturedEvent?.event).toBe('TlonBot Reply Handled');
     expect(capturedEvent?.properties.outcome).toBe('responded');
+  });
+
+  it('captures privacy-safe tlon command summaries', async () => {
+    const telemetry = createEnabledTelemetry();
+    const replyTelemetry = telemetry?.startReply({
+      sessionKey: 'session-1',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      chatType: 'dm',
+      isThreadReply: false,
+      senderRole: 'owner',
+      attachmentCount: 0,
+    });
+
+    recordToolCall({
+      sessionKey: 'session-1',
+      toolName: 'tlon',
+      durationMs: 80,
+      context: summarizeTlonCommand(
+        'groups invite ~zod/quiet-launch ~sampel-palnet ~marzod-marnec'
+      ),
+    });
+    recordToolCall({
+      sessionKey: 'session-1',
+      toolName: 'tlon',
+      durationMs: 40,
+      context: summarizeTlonCommand(
+        'contacts update-profile --nickname "PM Bot" --avatar https://assets.example.com/private.png'
+      ),
+    });
+    recordToolCall({
+      sessionKey: 'session-1',
+      toolName: 'tlon',
+      durationMs: 30,
+      context: summarizeTlonCommand(
+        'groups add-channel ~zod/quiet-launch "Photos" --kind heap'
+      ),
+    });
+
+    await replyTelemetry?.capture({
+      deliveredMessageCount: 1,
+      replyCharCount: 42,
+      replyWordCount: 7,
+      replyMediaCount: 0,
+      dispatchDurationMs: 250,
+      queuedFinal: false,
+      queuedFinalCount: 1,
+      queuedBlockCount: 0,
+      provider: 'anthropic',
+      model: 'claude-test',
+      thinkLevel: null,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenCalledWith({
+      distinctId: '~zod',
+      event: 'TlonBot Reply Handled',
+      properties: expect.objectContaining({
+        tlonToolCallCount: 3,
+        tlonToolSummaryKeys: [
+          'groups.invite',
+          'contacts.update-profile',
+          'groups.add-channel',
+        ],
+        tlonToolChannelKinds: ['heap'],
+        tlonToolUpdateFields: ['nickname', 'avatar'],
+        toolCalls: [
+          {
+            toolName: 'tlon',
+            durationMs: 80,
+            error: null,
+            summaryKey: 'groups.invite',
+          },
+          {
+            toolName: 'tlon',
+            durationMs: 40,
+            error: null,
+            summaryKey: 'contacts.update-profile',
+          },
+          {
+            toolName: 'tlon',
+            durationMs: 30,
+            error: null,
+            summaryKey: 'groups.add-channel',
+          },
+        ],
+      }),
+    });
+
+    const capturedEvent = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(JSON.stringify(capturedEvent?.properties)).not.toContain(
+      '~zod/quiet-launch'
+    );
+    expect(JSON.stringify(capturedEvent?.properties)).not.toContain(
+      '~sampel-palnet'
+    );
+    expect(JSON.stringify(capturedEvent?.properties)).not.toContain('PM Bot');
+    expect(JSON.stringify(capturedEvent?.properties)).not.toContain(
+      'https://assets.example.com/private.png'
+    );
+
+    await telemetry?.close();
   });
 });
