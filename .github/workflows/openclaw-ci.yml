@@ -34,6 +34,14 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # The postbuild step regenerates openclaw.plugin.json from
+      # src/config-schema.ts; the checked-in copy must stay in sync (it's
+      # what the npm package stages and what installers read from git).
+      - name: Check openclaw.plugin.json is up to date
+        run: |
+          git diff --exit-code openclaw.plugin.json || \
+            (echo "::error::openclaw.plugin.json is stale. Run 'pnpm build' in packages/openclaw and commit the regenerated manifest." && exit 1)
+
       - name: Run unit tests
         run: npx vitest run src/ --exclude src/config-schema.test.ts
 
