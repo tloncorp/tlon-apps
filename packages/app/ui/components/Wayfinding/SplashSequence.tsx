@@ -934,18 +934,15 @@ export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
 const TLONBOT_SETUP_POLL_INTERVAL_MS = 5000;
-const TLONBOT_REVIVAL_GROUP_IDS = [
-  '~ramlud-bintun/v1l3qcoq',
-  '~wittyr-witbes/v3s2kbd7',
-];
+const TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS = ['~wittyr-witbes/v3s2kbd7'];
 const BOT_PREVIEW_FALLBACK_USER_SHIP_ID = '~lidlen-pillex';
 
-function prejoinTlonbotRevivalGroups() {
-  TLONBOT_REVIVAL_GROUP_IDS.forEach((groupId) => {
+function prejoinTlonbotRevivalWayfindingGroups() {
+  TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS.forEach((groupId) => {
     api.joinGroup(groupId).catch((error) => {
       logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
         error,
-        context: 'failed to prejoin TlonBot revival group',
+        context: 'failed to prejoin TlonBot revival wayfinding group',
         groupId,
         during: 'TlonBot revival splash',
         severity: AnalyticsSeverity.High,
@@ -1043,6 +1040,7 @@ export function WelcomePane(props: {
       </YStack>
       <Button
         data-testid="lets-get-started"
+        testID="lets-get-started"
         onPress={props.onActionPress}
         label="Let's get started"
         preset="hero"
@@ -1148,6 +1146,7 @@ export function BotNamePane(props: {
             <Field error={error ?? undefined}>
               <TextInput
                 ref={inputRef}
+                testID="bot-name-input"
                 value={props.name}
                 onChangeText={handleNameChange}
                 onBlur={refocusInput}
@@ -1174,6 +1173,8 @@ export function BotNamePane(props: {
           </YStack>
         </YStack>
         <Button
+          data-testid="bot-name-next"
+          testID="bot-name-next"
           onPress={handlePress}
           label="Next"
           preset="hero"
@@ -1332,6 +1333,8 @@ export function BotAvatarPane(props: {
               disabled={(!canUpload && !shouldDeferUpload) || isUploading}
             />
             <Button
+              data-testid="bot-avatar-continue"
+              testID="bot-avatar-continue"
               onPress={props.onActionPress}
               label={isUploading ? 'Uploading…' : 'Continue'}
               preset="hero"
@@ -1350,6 +1353,8 @@ export function BotAvatarPane(props: {
               disabled={!canUpload && !shouldDeferUpload}
             />
             <Button
+              data-testid="bot-avatar-skip"
+              testID="bot-avatar-skip"
               onPress={props.onActionPress}
               label="Skip"
               preset="secondary"
@@ -1422,6 +1427,7 @@ export function BotProviderPane(props: {
           {providers.map((option) => (
             <ModelOptionCard
               key={option.provider}
+              testID={`bot-provider-option-${option.provider}`}
               option={{
                 label: option.label,
                 description: option.requiresKey
@@ -1445,6 +1451,8 @@ export function BotProviderPane(props: {
         </ScrollView>
       </YStack>
       <Button
+        data-testid="bot-provider-next"
+        testID="bot-provider-next"
         onPress={onActionPress}
         label={loading ? 'Validating...' : 'Next'}
         preset="hero"
@@ -1648,9 +1656,10 @@ export function BotModelPane(props: {
           }}
         >
           {visibleModels.length ? (
-            visibleModels.map((m) => (
+            visibleModels.map((m, index) => (
               <ModelOptionCard
                 key={m.id}
+                testID={`bot-model-option-${index}`}
                 option={{ label: m.id, description: '' }}
                 selected={selectedModel === m.id}
                 onPress={() => handleSelectModel(m.id)}
@@ -1674,6 +1683,8 @@ export function BotModelPane(props: {
         </ScrollView>
       </YStack>
       <Button
+        data-testid="bot-model-save"
+        testID="bot-model-save"
         onPress={onActionPress}
         label={loading ? 'Starting bot…' : 'Save'}
         preset="hero"
@@ -1814,7 +1825,7 @@ function TlonBotSetupPane(props: {
             return;
           }
 
-          prejoinTlonbotRevivalGroups();
+          prejoinTlonbotRevivalWayfindingGroups();
           markCurrentUserTlonbotEnabled()
             .then(async () => {
               await db.tlonbotRevivalSetup.setValue((current) => ({
@@ -2383,6 +2394,7 @@ function ConnectContactBookContent(props: {
       <YStack paddingHorizontal="$xl" gap="$l">
         <Button
           data-testid="connect-contact-book"
+          testID="connect-contact-book"
           onPress={handleAction}
           label={
             props.isCompleting
@@ -2397,6 +2409,8 @@ function ConnectContactBookContent(props: {
         />
         {shouldShowConnectOption && (
           <Button
+            data-testid="skip-contact-book"
+            testID="skip-contact-book"
             onPress={props.onSkip}
             label="Skip"
             preset="secondary"
@@ -2694,13 +2708,15 @@ function ModelOptionCard({
   option,
   selected,
   onPress,
+  testID,
 }: {
   option: { label: string; description: string };
   selected: boolean;
   onPress: () => void;
+  testID?: string;
 }) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable testID={testID} onPress={onPress}>
       <ListItem
         backgroundColor={selected ? '$positiveBackground' : '$background'}
         borderWidth={1}

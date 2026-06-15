@@ -170,6 +170,11 @@ function useUniqueSummaryPosts(summary: logic.SourceActivityEvents) {
   return useMemo(() => {
     const seen = new Set();
     return summary.all?.flatMap((event) => {
+      // reacts carry an emoji/custom-react value in `content`, not a story, so
+      // assemblePostFromActivityEvent would choke; they're not source posts.
+      if (event.type === 'react') {
+        return [];
+      }
       if (event.postId && !seen.has(event.postId)) {
         seen.add(event.postId);
         return [getPost(event)];

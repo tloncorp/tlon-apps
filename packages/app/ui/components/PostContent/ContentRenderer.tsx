@@ -57,6 +57,7 @@ function ContentRenderer({
   getImageViewerId,
   onLongPress,
   onA2UIAction,
+  isA2UIActionAvailable,
   isNotice,
   searchQuery,
   ...rest
@@ -69,6 +70,7 @@ function ContentRenderer({
       getImageViewerId={getImageViewerId}
       onLongPress={onLongPress}
       onA2UIAction={onA2UIAction}
+      isA2UIActionAvailable={isA2UIActionAvailable}
       isNotice={isNotice}
       searchQuery={searchQuery}
     >

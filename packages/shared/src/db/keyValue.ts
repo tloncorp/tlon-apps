@@ -199,6 +199,11 @@ export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
   defaultValue: null,
 });
 
+export const webAppSplashOpenCount = createStorageItem<number>({
+  key: 'webAppSplashOpenCount',
+  defaultValue: 0,
+});
+
 export const finishingSelfHostedLogin = createStorageItem<boolean>({
   key: 'finishingSelfHostedLogin',
   defaultValue: false,

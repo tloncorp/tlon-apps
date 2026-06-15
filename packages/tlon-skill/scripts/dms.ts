@@ -1,0 +1,466 @@
+#!/usr/bin/env npx ts-node
+
+/**
+ * Direct Message management for Tlon
+ *
+ * Note: 1:1 DM send/reply is handled by the openclaw-tlon channel plugin.
+ * This script handles club (group DM) messaging and DM management ops only.
+ *
+ * Usage:
+ *   npx ts-node scripts/dms.ts send <club-id> <message>        (group DMs only)
+ *   npx ts-node scripts/dms.ts reply <club-id> <post-id> <msg> (group DMs only)
+ *   npx ts-node scripts/dms.ts react <ship> <post-id> <emoji>
+ *   npx ts-node scripts/dms.ts unreact <ship> <post-id>
+ *   npx ts-node scripts/dms.ts delete <ship> <post-id>
+ *   npx ts-node scripts/dms.ts accept <ship>
+ *   npx ts-node scripts/dms.ts decline <ship>
+ */
+import {
+  addReaction,
+  deletePost,
+  getCurrentUserId,
+  removeReaction,
+  respondToDMInvite,
+  sendPost,
+  sendReply,
+} from '@tloncorp/api';
+import type { Channel } from '@tloncorp/api';
+
+import { ensureClient, normalizeShip } from './api-client';
+import {
+  isHelpArg,
+  printErrorAndExit,
+  printHelpAndExit,
+  printUsageAndExit,
+  wantsHelp,
+} from './cli-utils';
+import { type Story, markdownToStory } from './story';
+
+const DMS_HELP = `Usage: tlon dms <command>
+
+Commands:
+  send <club-id> <message>        Send a message to a group DM
+  reply <club-id> <post-id> <msg> Reply in a group DM (post-id must include author)
+  react <ship> <post-id> <emoji>  React to a DM (post-id must include author)
+  unreact <ship> <post-id>        Remove reaction from a DM (post-id must include author)
+  delete <ship> <post-id>         Delete a DM (post-id may include author)
+  accept <ship>                   Accept a DM invite
+  decline <ship>                  Decline a DM invite`;
+
+const DMS_COMMAND_HELP: Record<string, string> = {
+  send: 'Usage: tlon dms send <club-id> <message>',
+  reply: 'Usage: tlon dms reply <club-id> <post-id> <message>',
+  react: 'Usage: tlon dms react <ship> <post-id> <emoji>',
+  unreact: 'Usage: tlon dms unreact <ship> <post-id>',
+  delete: 'Usage: tlon dms delete <ship> <post-id>',
+  accept: 'Usage: tlon dms accept <ship>',
+  decline: 'Usage: tlon dms decline <ship>',
+};
+
+function getDmsHelp(command?: string): string {
+  return command ? DMS_COMMAND_HELP[command] ?? DMS_HELP : DMS_HELP;
+}
+
+function isDmsMessageHelpLiteral(args: string[]): boolean {
+  const command = args[0];
+  if (command === 'send') {
+    return !!args[1] && wantsHelp(args.slice(2));
+  }
+  if (command === 'reply') {
+    return !!args[1] && !!args[2] && wantsHelp(args.slice(3));
+  }
+  return false;
+}
+
+function validateDmsArgs(args: string[]): void {
+  const command = args[0];
+  if (!command || !DMS_COMMAND_HELP[command]) {
+    printUsageAndExit(DMS_HELP);
+  }
+
+  switch (command) {
+    case 'send': {
+      const clubId = args[1];
+      const message = args.slice(2).join(' ');
+      if (!clubId || !message) printUsageAndExit(DMS_COMMAND_HELP.send);
+      if (!isClub(clubId)) {
+        printErrorAndExit(
+          'send only supports group DMs (club IDs starting with 0v)'
+        );
+      }
+      return;
+    }
+    case 'reply': {
+      const clubId = args[1];
+      const postId = args[2];
+      const message = args.slice(3).join(' ');
+      if (!clubId || !postId || !message)
+        printUsageAndExit(DMS_COMMAND_HELP.reply);
+      if (!isClub(clubId)) {
+        printErrorAndExit(
+          'reply only supports group DMs (club IDs starting with 0v)'
+        );
+      }
+      return;
+    }
+    case 'react': {
+      if (!args[1] || !args[2] || !args[3])
+        printUsageAndExit(DMS_COMMAND_HELP.react);
+      return;
+    }
+    case 'unreact':
+    case 'delete': {
+      if (!args[1] || !args[2]) printUsageAndExit(DMS_COMMAND_HELP[command]);
+      return;
+    }
+    case 'accept':
+    case 'decline': {
+      if (!args[1]) printUsageAndExit(DMS_COMMAND_HELP[command]);
+      return;
+    }
+  }
+}
+
+// Parse content into Story format with rich markdown support
+function parseContent(message: string): Story {
+  return markdownToStory(message);
+}
+
+// Check if the target is a group DM (club)
+function isClub(whom: string): boolean {
+  return whom.startsWith('0v');
+}
+
+function parsePostId(postId: string): { id: string; authorId?: string } {
+  if (postId.includes('/')) {
+    const [author, id] = postId.split('/');
+    return { id, authorId: normalizeShip(author) };
+  }
+  return { id: postId };
+}
+
+// Send a message to a group DM (club)
+async function sendClubMessage(
+  clubId: string,
+  message: string
+): Promise<{ success: boolean; postId?: string; error?: string }> {
+  const authorId = getCurrentUserId();
+  const sentAt = Date.now();
+  const content = parseContent(message);
+
+  try {
+    await sendPost({
+      channelId: clubId,
+      authorId,
+      sentAt,
+      content,
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Reply in a club (group DM)
+async function replyToClub(
+  clubId: string,
+  postId: string,
+  message: string
+): Promise<{ success: boolean; replyId?: string; error?: string }> {
+  const authorId = getCurrentUserId();
+  const sentAt = Date.now();
+  const content = parseContent(message);
+  const parsed = parsePostId(postId);
+
+  if (!parsed.authorId) {
+    return {
+      success: false,
+      error: 'Post ID must include author (e.g., ~ship/123.456)',
+    };
+  }
+
+  try {
+    await sendReply({
+      channelId: clubId,
+      parentId: parsed.id,
+      parentAuthor: parsed.authorId,
+      content,
+      sentAt,
+      authorId,
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// React to a DM
+async function reactToDM(
+  ship: string,
+  postId: string,
+  react: string
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedShip = normalizeShip(ship);
+  const our = getCurrentUserId();
+  const parsed = parsePostId(postId);
+
+  if (!parsed.authorId) {
+    return {
+      success: false,
+      error: 'Post ID must include author (e.g., ~ship/123.456)',
+    };
+  }
+
+  try {
+    await addReaction({
+      channelId: normalizedShip,
+      postId: parsed.id,
+      emoji: react,
+      our,
+      postAuthor: parsed.authorId,
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Remove reaction from a DM
+async function unreactToDM(
+  ship: string,
+  postId: string
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedShip = normalizeShip(ship);
+  const our = getCurrentUserId();
+  const parsed = parsePostId(postId);
+
+  if (!parsed.authorId) {
+    return {
+      success: false,
+      error: 'Post ID must include author (e.g., ~ship/123.456)',
+    };
+  }
+
+  try {
+    await removeReaction({
+      channelId: normalizedShip,
+      postId: parsed.id,
+      our,
+      postAuthor: parsed.authorId,
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Delete a DM
+async function deleteDM(
+  ship: string,
+  postId: string
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedShip = normalizeShip(ship);
+  const authorId = getCurrentUserId();
+  const parsed = parsePostId(postId);
+
+  try {
+    await deletePost(normalizedShip, parsed.id, parsed.authorId ?? authorId);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Accept a DM invite
+async function acceptDM(
+  ship: string
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedShip = normalizeShip(ship);
+  const channel: Channel = {
+    id: normalizedShip,
+    type: 'dm',
+    currentUserIsMember: false,
+    currentUserIsHost: false,
+    contactId: normalizedShip,
+  };
+
+  try {
+    await respondToDMInvite({ channel, accept: true });
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Decline a DM invite
+async function declineDM(
+  ship: string
+): Promise<{ success: boolean; error?: string }> {
+  const normalizedShip = normalizeShip(ship);
+  const channel: Channel = {
+    id: normalizedShip,
+    type: 'dm',
+    currentUserIsMember: false,
+    currentUserIsHost: false,
+    contactId: normalizedShip,
+  };
+
+  try {
+    await respondToDMInvite({ channel, accept: false });
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// CLI
+async function main() {
+  const args = process.argv.slice(2);
+  const command = args[0];
+
+  if (isHelpArg(command)) {
+    printHelpAndExit(DMS_HELP);
+  }
+
+  if (wantsHelp(args.slice(1)) && !isDmsMessageHelpLiteral(args)) {
+    printHelpAndExit(getDmsHelp(command));
+  }
+
+  validateDmsArgs(args);
+
+  await ensureClient(['chat']);
+
+  switch (command) {
+    case 'send': {
+      const clubId = args[1];
+      const message = args.slice(2).join(' ');
+      if (!clubId || !message) {
+        printUsageAndExit(DMS_COMMAND_HELP.send);
+      }
+      if (!isClub(clubId)) {
+        printErrorAndExit(
+          'send only supports group DMs (club IDs starting with 0v)'
+        );
+      }
+      const result = await sendClubMessage(clubId, message);
+      if (result.success) {
+        console.log('✓ Message sent!');
+      } else {
+        console.error(`✗ Failed: ${result.error}`);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'reply': {
+      const clubId = args[1];
+      const postId = args[2];
+      const message = args.slice(3).join(' ');
+      if (!clubId || !postId || !message) {
+        printUsageAndExit(DMS_COMMAND_HELP.reply);
+      }
+      if (!isClub(clubId)) {
+        printErrorAndExit(
+          'reply only supports group DMs (club IDs starting with 0v)'
+        );
+      }
+      const result = await replyToClub(clubId, postId, message);
+      if (result.success) {
+        console.log('✓ Reply sent!');
+      } else {
+        console.error(`✗ Failed: ${result.error}`);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'react': {
+      const ship = args[1];
+      const postId = args[2];
+      const react = args[3];
+      if (!ship || !postId || !react) {
+        printUsageAndExit(DMS_COMMAND_HELP.react);
+      }
+      const result = await reactToDM(ship, postId, react);
+      if (result.success) {
+        console.log('✓ Reaction added!');
+      } else {
+        console.error(`✗ Failed: ${result.error}`);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'unreact': {
+      const ship = args[1];
+      const postId = args[2];
+      if (!ship || !postId) {
+        printUsageAndExit(DMS_COMMAND_HELP.unreact);
+      }
+      const result = await unreactToDM(ship, postId);
+      if (result.success) {
+        console.log('✓ Reaction removed!');
+      } else {
+        console.error(`✗ Failed: ${result.error}`);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'delete': {
+      const ship = args[1];
+      const postId = args[2];
+      if (!ship || !postId) {
+        printUsageAndExit(DMS_COMMAND_HELP.delete);
+      }
+      const result = await deleteDM(ship, postId);
+      if (result.success) {
+        console.log('✓ DM deleted!');
+      } else {
+        console.error(`✗ Failed: ${result.error}`);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'accept': {
+      const ship = args[1];
+      if (!ship) {
+        printUsageAndExit(DMS_COMMAND_HELP.accept);
+      }
+      const result = await acceptDM(ship);
+      if (result.success) {
+        console.log('✓ DM invite accepted!');
+      } else {
+        console.error(`✗ Failed: ${result.error}`);
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'decline': {
+      const ship = args[1];
+      if (!ship) {
+        printUsageAndExit(DMS_COMMAND_HELP.decline);
+      }
+      const result = await declineDM(ship);
+      if (result.success) {
+        console.log('✓ DM invite declined!');
+      } else {
+        console.error(`✗ Failed: ${result.error}`);
+        process.exit(1);
+      }
+      break;
+    }
+
+    default:
+      printUsageAndExit(DMS_HELP);
+  }
+  process.exit(0);
+}
+
+main().catch(printErrorAndExit);
