@@ -246,6 +246,7 @@
   ::  allow virtual vanes to run before we restore snapshot
   ;<  vane-tids=(map term tid:spider)  bind:n  start-simple:ph-io
   ;<  ~  bind:n  (send-events:ph-io [%restore-snap snap]~)
+  ~>  %slog.1^leaf+"Testing {<name>}"
   ;<  now-1=@da  bind:n  get-time
   ;<  =thread-result  bind:n  (await-test-thread test)
   ;<  now-2=@da  bind:n  get-time
