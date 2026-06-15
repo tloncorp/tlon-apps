@@ -208,23 +208,21 @@ export function useBootSequence() {
         });
       }
 
-      const signedUpWithInvite = Boolean(lureMeta?.id);
-      const hasTlonbotEnabled = await db.hostingBotEnabled.getValue();
-      if (!signedUpWithInvite && hasTlonbotEnabled) {
-        api.joinGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
-          logger.trackError('failed to join Tlonbot general group', {
-            errorMessage: e.message,
-            errorStack: e.stack,
-          });
-        });
-      }
-
       store.leaveGroup(TLON_STUDIO).catch((e) => {
         logger.trackError('failed to leave tlon studio group', {
           errorMessage: e.message,
           errorStack: e.stack,
         });
       });
+
+      if (lureMeta?.invitedGroupId !== TLONBOT_GENERAL_GROUP_ID) {
+        store.leaveGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
+          logger.trackError('failed to leave Tlonbot general group', {
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        });
+      }
 
       return NodeBootPhase.CHECKING_FOR_INVITE;
     }
