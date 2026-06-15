@@ -934,18 +934,15 @@ export const SplashSequence = React.memo(SplashSequenceComponent);
 
 const BASIC_PROVIDER_ID = 'basic';
 const TLONBOT_SETUP_POLL_INTERVAL_MS = 5000;
-const TLONBOT_REVIVAL_GROUP_IDS = [
-  '~ramlud-bintun/v1l3qcoq',
-  '~wittyr-witbes/v3s2kbd7',
-];
+const TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS = ['~wittyr-witbes/v3s2kbd7'];
 const BOT_PREVIEW_FALLBACK_USER_SHIP_ID = '~lidlen-pillex';
 
-function prejoinTlonbotRevivalGroups() {
-  TLONBOT_REVIVAL_GROUP_IDS.forEach((groupId) => {
+function prejoinTlonbotRevivalWayfindingGroups() {
+  TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS.forEach((groupId) => {
     api.joinGroup(groupId).catch((error) => {
       logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
         error,
-        context: 'failed to prejoin TlonBot revival group',
+        context: 'failed to prejoin TlonBot revival wayfinding group',
         groupId,
         during: 'TlonBot revival splash',
         severity: AnalyticsSeverity.High,
@@ -1828,7 +1825,7 @@ function TlonBotSetupPane(props: {
             return;
           }
 
-          prejoinTlonbotRevivalGroups();
+          prejoinTlonbotRevivalWayfindingGroups();
           markCurrentUserTlonbotEnabled()
             .then(async () => {
               await db.tlonbotRevivalSetup.setValue((current) => ({
