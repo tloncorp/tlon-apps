@@ -1,5 +1,11 @@
 node_modules
+.pnpm-store/
 .DS_Store
+/packages/hermes-tlon-adapter/.env
+__pycache__/
+*.py[cod]
+# local dev Urbit piers parked at the repo root
+/rus/
 ops
 bin
 !packages/tlon-skill/bin/
