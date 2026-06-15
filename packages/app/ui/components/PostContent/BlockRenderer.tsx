@@ -1,4 +1,5 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
+import { useMutableCallback } from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
@@ -10,7 +11,7 @@ import {
   useCopy,
 } from '@tloncorp/ui';
 import { ImageLoadEventData } from 'expo-image';
-import { clamp } from 'lodash';
+import { clamp, throttle } from 'lodash';
 import React, {
   ComponentProps,
   ComponentType,
@@ -30,7 +31,11 @@ import {
   Platform,
   View as RNView,
 } from 'react-native';
-import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
+import {
+  ScrollView as GHScrollView,
+  Gesture,
+  GestureDetector,
+} from 'react-native-gesture-handler';
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNowPlayingController } from '../../contexts/nowPlaying';
@@ -58,6 +63,9 @@ export const ContentReferenceContext =
 const DUMMY_WAVEFORM_VALUES = [
   1, 0.5, 1, 0.2, 0.8, 0.4, 0.6, 0.3, 0.7, 0.1, 0.9, 0.5, 1, 0.4, 0.6,
 ];
+
+const WAVEFORM_CANDLE_WIDTH = 3;
+const WAVEFORM_CANDLE_SPACING = 1;
 
 export const BlockWrapper = styled(View, {
   name: 'ContentBlock',
@@ -249,8 +257,72 @@ export function VoiceMemoBlock({
   block,
   ...props
 }: { block: cn.VoiceMemoBlockData } & ComponentProps<typeof Reference.Frame>) {
-  const { togglePlayback, progress, status, isThisSourceLoaded } =
-    useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
+  const {
+    togglePlayback,
+    seekTo,
+    beginScrub,
+    endScrub,
+    progress,
+    status,
+    isThisSourceLoaded,
+  } = useNowPlayingController({ sourceUri: block.voiceMemo.fileUri });
+
+  const waveformWidthRef = useRef(0);
+  const seekToWaveformX = useMutableCallback((x: number) => {
+    const width = waveformWidthRef.current;
+    // the loaded duration can be 0 before expo-audio has determined it; fall
+    // back to the memo's metadata duration
+    const loadedDuration =
+      progress?.loadState === 'loaded' && isThisSourceLoaded
+        ? progress.duration
+        : 0;
+    const duration =
+      loadedDuration > 0 ? loadedDuration : block.voiceMemo.duration ?? 0;
+    if (duration === 0 || width <= 0) {
+      return;
+    }
+    // The waveform draws whole candles only, so its drawn strip can be
+    // narrower than the container; map the gesture over the strip so
+    // positions line up with the candles. The last candle ends one spacing
+    // short of the candle slots, so drop the trailing spacing.
+    const candleSize = WAVEFORM_CANDLE_WIDTH + WAVEFORM_CANDLE_SPACING;
+    const candleCount = Math.floor(width / candleSize);
+    const drawnExtent = candleCount * candleSize - WAVEFORM_CANDLE_SPACING;
+    if (drawnExtent <= 0) {
+      return;
+    }
+    seekTo(clamp(x / drawnExtent, 0, 1) * duration);
+  });
+
+  // throttled so scrubbing doesn't spam the native player with seeks
+  const throttledSeekToWaveformX = useMemo(
+    () => throttle(seekToWaveformX, 100),
+    [seekToWaveformX]
+  );
+
+  const seekGesture = useMemo(() => {
+    const hitSlop = { top: 12, bottom: 12 };
+    const tap = Gesture.Tap()
+      .runOnJS(true)
+      .hitSlop(hitSlop)
+      .onEnd((e) => seekToWaveformX(e.x));
+    const pan = Gesture.Pan()
+      .runOnJS(true)
+      .hitSlop(hitSlop)
+      // activate on horizontal drags only, leaving vertical scrolling to the
+      // channel list
+      .activeOffsetX([-10, 10])
+      .failOffsetY([-10, 10])
+      // pause a playing memo while scrubbing, resume on release
+      .onStart(() => beginScrub())
+      .onUpdate((e) => throttledSeekToWaveformX(e.x))
+      .onEnd((e) => {
+        throttledSeekToWaveformX.cancel();
+        seekToWaveformX(e.x);
+      })
+      .onFinalize(() => endScrub());
+    return Gesture.Race(pan, tap);
+  }, [seekToWaveformX, throttledSeekToWaveformX, beginScrub, endScrub]);
 
   const candlePlaybackPosition = useMemo(() => {
     const candleCount = block.voiceMemo.waveformPreview
@@ -264,9 +336,9 @@ export function VoiceMemoBlock({
       return 0;
     }
     return clamp(
-      Math.floor((progress.currentTime / progress.duration) * candleCount),
+      (progress.currentTime / progress.duration) * candleCount,
       0,
-      candleCount - 1
+      candleCount
     );
   }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
 
@@ -315,13 +387,30 @@ export function VoiceMemoBlock({
             })()}
           </Pressable>
           <XStack flex={1} gap={9} alignItems="center">
-            <Waveform
-              candleWidth={3}
-              candleSpacing={1}
-              candlePlaybackPosition={candlePlaybackPosition}
-              values={block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES}
-              style={{ flex: 1, height: 22 }}
-            />
+            <GestureDetector gesture={seekGesture}>
+              <View
+                flex={1}
+                // expands UIKit hit testing so slop touches reach the
+                // gesture handler on iOS; the gestures' own hitSlop covers
+                // RNGH's bounds check (and Android)
+                hitSlop={{ top: 12, bottom: 12 }}
+                onLayout={(e) => {
+                  waveformWidthRef.current = e.nativeEvent.layout.width;
+                }}
+              >
+                <Waveform
+                  candleWidth={WAVEFORM_CANDLE_WIDTH}
+                  candleSpacing={WAVEFORM_CANDLE_SPACING}
+                  candlePlaybackPosition={candlePlaybackPosition}
+                  values={
+                    block.voiceMemo.waveformPreview ?? DUMMY_WAVEFORM_VALUES
+                  }
+                  // the Skia canvas would otherwise capture touches meant for
+                  // the seek gesture
+                  style={{ height: 22, pointerEvents: 'none' }}
+                />
+              </View>
+            </GestureDetector>
             {block.voiceMemo.duration != null && (
               <Text size="$label/s" color="$secondaryText">
                 {progress?.loadState === 'loaded'

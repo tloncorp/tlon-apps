@@ -210,6 +210,76 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon posts react'
   ),
   usageErrorCase(
+    'posts send missing message',
+    ['posts', 'send', 'chat/~host/channel'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts reply missing message',
+    ['posts', 'reply', 'chat/~host/channel', '170.141'],
+    'Usage: tlon posts reply'
+  ),
+  usageErrorCase(
+    'posts reply missing author value',
+    ['posts', 'reply', 'chat/~host/channel', '170.141', 'message', '--author'],
+    'Usage: tlon posts reply'
+  ),
+  usageErrorCase(
+    'posts send missing blob value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--blob'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send blob without message',
+    ['posts', 'send', 'chat/~host/channel', '--blob', '[]'],
+    'Usage: tlon posts send'
+  ),
+  {
+    name: 'posts send blob rejects non-array json',
+    args: [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      'message',
+      '--blob',
+      '{"a":1}',
+    ],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--blob must be a JSON array'],
+  },
+  usageErrorCase(
+    'posts send missing image value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--image'],
+    'Usage: tlon posts send'
+  ),
+  {
+    name: 'posts send rejects non-http image url',
+    args: ['posts', 'send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
+  {
+    name: 'posts send rejects non-http equals image url',
+    args: ['posts', 'send', 'chat/~host/channel', '--image=ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
+  usageErrorCase(
+    'dms send missing image value',
+    ['dms', 'send', '0v5.abcde', '--image'],
+    'Usage: tlon dms send'
+  ),
+  {
+    name: 'dms send rejects non-http equals image url',
+    args: ['dms', 'send', '0v5.abcde', '--image=ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
+  usageErrorCase(
     'settings set missing args',
     ['settings', 'set'],
     'Usage: tlon settings set'
@@ -319,9 +389,39 @@ export const NESTED_HELP_CASES: CliCase[] = [
     ['groups', 'info', '--help'],
     'Usage: tlon groups info'
   ),
+  helpCase(
+    'posts react --help',
+    ['posts', 'react', '--help'],
+    'Usage: tlon posts react'
+  ),
+  helpCase(
+    'posts react --help with global credentials',
+    [
+      '--url',
+      'https://cli.tlon.network',
+      '--cookie',
+      'urbauth-~zod=0v-cookie',
+      'posts',
+      'react',
+      '--help',
+    ],
+    'Usage: tlon posts react'
+  ),
+  helpCase(
+    'posts unreact --help',
+    ['posts', 'unreact', '--help'],
+    'Usage: tlon posts unreact'
+  ),
 ];
 
 export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
+  authRequiredCase('posts react valid args reaches auth', [
+    'posts',
+    'react',
+    'chat/~host/channel',
+    '170.141',
+    '👍',
+  ]),
   authRequiredCase('dms send message option-like value reaches auth', [
     'dms',
     'send',
@@ -340,6 +440,43 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
   authRequiredCase('posts edit message option-like value reaches auth', [
     'posts',
     'edit',
+    'chat/~host/channel',
+    '170.141',
+    'use',
+    '--help',
+  ]),
+  authRequiredCase('posts send message option-like value reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'use',
+    '--help',
+  ]),
+  authRequiredCase('posts send with valid blob reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'message',
+    '--blob',
+    '[{"type":"a2ui","version":1,"messages":[]}]',
+  ]),
+  authRequiredCase('posts send image-only reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    '--image',
+    'https://example.com/x.png',
+  ]),
+  authRequiredCase('dms send image-only reaches auth', [
+    'dms',
+    'send',
+    '0v5.abcde',
+    '--image',
+    'https://example.com/x.png',
+  ]),
+  authRequiredCase('posts reply message option-like value reaches auth', [
+    'posts',
+    'reply',
     'chat/~host/channel',
     '170.141',
     'use',
@@ -487,6 +624,23 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...SPECIAL_INPUT_CASES,
   ...NESTED_HELP_CASES,
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
+];
+
+export type HostileHelpCommand = {
+  name: string;
+  args: string[];
+};
+
+// Help paths that must perform no credential lookup even under hostile config:
+// the top-level help, every command family's `<family> --help`, and the
+// migrated nested `posts react --help` path.
+export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
+  { name: 'top-level', args: ['--help'] },
+  ...COMMAND_FAMILIES.map((family) => ({
+    name: family,
+    args: [family, '--help'],
+  })),
+  { name: 'posts react', args: ['posts', 'react', '--help'] },
 ];
 
 export function normalizeCliOutput(text: string): string {

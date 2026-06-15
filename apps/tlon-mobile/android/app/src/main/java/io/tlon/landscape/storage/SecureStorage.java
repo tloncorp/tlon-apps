@@ -15,6 +15,7 @@ public class SecureStorage {
     public static String SHIP_URL_KEY = "shipUrl";
     public static String AUTH_COOKIE_KEY = "authCookie";
     public static String CHANNEL_URL = "channelUrl";
+    public static String ACTIVITY_SUPPORTS_REACTIONS_KEY = "activitySupportsReactions";
 
     public static SharedPreferences sharedPreferences;
 
@@ -45,6 +46,9 @@ public class SecureStorage {
         editor.remove(SHIP_URL_KEY);
         editor.remove(AUTH_COOKIE_KEY);
         editor.remove(CHANNEL_URL);
+        // clear cached backend capability so a later login to an older backend
+        // doesn't keep fetching the v9 notification mark (which it would 404)
+        editor.remove(ACTIVITY_SUPPORTS_REACTIONS_KEY);
         editor.apply();
     }
 

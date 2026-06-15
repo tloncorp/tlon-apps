@@ -48,6 +48,9 @@ jobs:
       - name: Run Tests
         run: pnpm test:ci
 
+      - name: tlon-skill build smoke
+        run: pnpm --filter '@tloncorp/tlon-skill' build:smoke
+
       - name: Build packages
         run: pnpm build:all
         env:

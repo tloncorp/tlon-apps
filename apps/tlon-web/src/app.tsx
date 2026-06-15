@@ -469,7 +469,6 @@ function ConnectedWebApp() {
   const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
   const telemetry = useTelemetry();
-  useFindSuggestedContacts();
 
   const isNewSignup = useMemo(() => {
     return logic.detectWebSignup();

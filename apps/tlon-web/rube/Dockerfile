@@ -1,11 +1,12 @@
 # syntax=docker/dockerfile:1.4
 # E2E Test Container for Tlon Web
-FROM ubuntu:22.04
+# Node version pinned to match .nvmrc
+FROM node:22.22.0-bookworm
 
 # Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install system dependencies (some already present in the base image; kept explicit)
 RUN apt-get update && apt-get install -y \
     curl \
     git \
@@ -15,13 +16,6 @@ RUN apt-get update && apt-get install -y \
     lsof \
     procps \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Node.js (match version from .nvmrc)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g n \
-    && n 22.22.0 \
-    && hash -r
 
 # Install pnpm
 RUN npm install -g pnpm@9.0.5

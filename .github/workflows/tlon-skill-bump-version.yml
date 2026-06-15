@@ -1,0 +1,57 @@
+name: Tlon Skill Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "New version (e.g. 0.4.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - uses: pnpm/action-setup@v3
+
+      - name: Bump version
+        working-directory: packages/tlon-skill
+        env:
+          VERSION: ${{ inputs.version }}
+        run: node scripts/bump-version.js "$VERSION"
+
+      # bump-version.js bumps only the five `version` fields. The workspace no
+      # longer declares registry optionalDependencies and pnpm importers don't
+      # record a workspace package's own version, so the lockfile normally won't
+      # change; create-pull-request commits it only if it does. The real gate is
+      # that CI's `pnpm install --frozen-lockfile` passes on the bump PR.
+      - name: Refresh lockfile
+        run: pnpm install --lockfile-only
+
+      - name: Create bump PR
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          base: develop
+          branch: release/tlon-skill-bump-v${{ inputs.version }}
+          delete-branch: true
+          commit-message: "tlon-skill: v${{ inputs.version }}"
+          title: "tlon-skill: v${{ inputs.version }}"
+          body: |
+            Automated tlon-skill version bump to `${{ inputs.version }}`.
+
+            This workflow opens a PR against `develop` instead of pushing directly, so it plays nicely with branch protection.
+
+            After merging, release by tagging `tlon-skill-v${{ inputs.version }}` or dispatching the **Tlon Skill Build and Publish** workflow.
+          committer: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>

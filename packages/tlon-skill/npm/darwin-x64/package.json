@@ -16,7 +16,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/tloncorp/tlon-skill"
+    "url": "https://github.com/tloncorp/landscape-apps.git",
+    "directory": "packages/tlon-skill/npm/darwin-x64"
   },
   "license": "MIT"
 }
