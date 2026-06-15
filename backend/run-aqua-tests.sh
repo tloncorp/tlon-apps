@@ -180,6 +180,9 @@ rm -f $pier/groups/tests/ph/chat.hoon
 # Update the groups desk
 rsync -r desk/ $pier/groups
 
+# Hard-update our tests
+rsync -r --delete desk/tests/ $pier/groups/tests
+
 result=$( $run_click -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
