@@ -283,9 +283,11 @@ export function VoiceMemoBlock({
     }
     // The waveform draws whole candles only, so its drawn strip can be
     // narrower than the container; map the gesture over the strip so
-    // positions line up with the candles.
+    // positions line up with the candles. The last candle ends one spacing
+    // short of the candle slots, so drop the trailing spacing.
     const candleSize = WAVEFORM_CANDLE_WIDTH + WAVEFORM_CANDLE_SPACING;
-    const drawnExtent = Math.floor(width / candleSize) * candleSize;
+    const candleCount = Math.floor(width / candleSize);
+    const drawnExtent = candleCount * candleSize - WAVEFORM_CANDLE_SPACING;
     if (drawnExtent <= 0) {
       return;
     }

@@ -359,20 +359,32 @@ export function useNowPlayingController({
 
   // Play and seek share one in-flight load of this source: a second
   // replace() for the same URL would supersede the first one in the provider
-  // and reject its callbacks (dropping a pending play or seek).
-  const inFlightLoadRef = useRef<Promise<void> | null>(null);
+  // and reject its callbacks (dropping a pending play or seek). Keyed by url
+  // so a sourceUri change mid-load (this hook can be reused for a different
+  // memo) starts a fresh load instead of reusing the stale promise.
+  const inFlightLoadRef = useRef<{
+    url: string;
+    promise: Promise<void>;
+  } | null>(null);
   const loadSource = useCallback(() => {
     if (sourceUri == null) {
       return Promise.reject(new Error('No source to load'));
     }
-    if (inFlightLoadRef.current == null) {
-      inFlightLoadRef.current = nowPlaying
-        .replace({ url: sourceUri })
-        .finally(() => {
-          inFlightLoadRef.current = null;
-        });
+    const existing = inFlightLoadRef.current;
+    if (existing != null && existing.url === sourceUri) {
+      return existing.promise;
     }
-    return inFlightLoadRef.current;
+    const entry: { url: string; promise: Promise<void> } = {
+      url: sourceUri,
+      promise: nowPlaying.replace({ url: sourceUri }).finally(() => {
+        // only clear if a newer load hasn't replaced this entry
+        if (inFlightLoadRef.current === entry) {
+          inFlightLoadRef.current = null;
+        }
+      }),
+    };
+    inFlightLoadRef.current = entry;
+    return entry.promise;
   }, [nowPlaying, sourceUri]);
 
   const togglePlayback = useCallback(() => {
@@ -416,7 +428,9 @@ export function useNowPlayingController({
       // checking it covers the gap before the progress event re-renders
       // `isThisSourceLoaded`
       if (isThisSourceLoaded || nowPlaying.nowPlaying?.url === sourceUri) {
-        nowPlaying.seekTo(seconds);
+        nowPlaying.seekTo(seconds).catch((e) => {
+          console.error('Failed to seek voice memo', e);
+        });
         return;
       }
       pendingSeekRef.current = seconds;
