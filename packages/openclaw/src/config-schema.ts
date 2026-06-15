@@ -25,6 +25,43 @@ export const TlonTelemetrySchema = z.object({
   host: z.string().min(1).optional(),
 });
 
+export const TlonLifecycleSchema = z.object({
+  runTimeoutMs: z.number().int().min(1_000).optional(),
+  toolTimeoutMs: z.number().int().min(1_000).optional(),
+});
+
+/**
+ * Context lens: per-run bot introspection surfaced in Tlon clients.
+ *
+ * Default-off. When enabled, the plugin records run metadata (trigger, tool
+ * calls, output) and serves it over gateway HTTP routes. `authToken` is
+ * required for those routes to register — lens data exposes bot internals,
+ * so there is no unauthenticated mode.
+ */
+export const TlonContextLensStoreSchema = z.object({
+  enabled: z.boolean().optional(),
+  path: z.string().min(1).optional(),
+  retainDays: z.number().int().min(1).optional(),
+  maxStored: z.number().int().min(1).optional(),
+});
+
+export const TlonContextLensSchema = z.object({
+  enabled: z.boolean().optional(),
+  ttlMs: z.number().int().min(60_000).optional(),
+  maxEntries: z.number().int().min(1).optional(),
+  visibilityDefault: z.enum(['owner', 'participants', 'internal']).optional(),
+  authToken: z.string().min(16).optional(),
+  allowedOrigins: z.array(z.string().min(1)).optional(),
+  // Owner ships that receive run records via the %context-lens agent (ship sync).
+  // Falls back to `ownerShip` when empty.
+  owners: z.array(ShipSchema).optional(),
+  // Durable on-disk history of finalized runs (default on when the lens is
+  // enabled). Hosted deployments with ephemeral disks can point `path` at a
+  // mounted volume or set `enabled: false` — the store is a restart
+  // backstop, not the source of truth.
+  store: TlonContextLensStoreSchema.optional(),
+});
+
 /**
  * Canonical private-network opt-in. The flat top-level
  * `allowPrivateNetwork` field below is kept as a deprecated alias; new
@@ -84,6 +121,8 @@ export const TlonAccountSchema = z.object({
   // Rate limiting for bot-to-bot responses
   maxConsecutiveBotResponses: z.number().int().min(0).optional(), // Max consecutive responses to another bot (default: 3)
   telemetry: TlonTelemetrySchema.optional(),
+  lifecycle: TlonLifecycleSchema.optional(),
+  contextLens: TlonContextLensSchema.optional(),
   // Owner-listen: in channels hosted by the owner or the bot itself, engage
   // on owner messages without requiring an @-mention. Default: enabled.
   ownerListenEnabled: z.boolean().optional(),
@@ -120,6 +159,8 @@ export const TlonConfigSchema = z.object({
   // Rate limiting for bot-to-bot responses
   maxConsecutiveBotResponses: z.number().int().min(0).optional(), // Max consecutive responses to another bot (default: 3)
   telemetry: TlonTelemetrySchema.optional(),
+  lifecycle: TlonLifecycleSchema.optional(),
+  contextLens: TlonContextLensSchema.optional(),
   // Opt-in hosted-only re-engagement nudges; absent/false keeps the
   // scheduler off even when ownerShip is configured.
   reengagement: TlonReengagementSchema.optional(),

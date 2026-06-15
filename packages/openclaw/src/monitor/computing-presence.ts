@@ -74,21 +74,21 @@ export function createComputingPresenceReporter(): ComputingPresenceReporter {
   };
 }
 
-export function createComputingPresenceTracker(params?: {
+export function createComputingPresenceTracker(trackerOpts?: {
   reporter?: ComputingPresenceReporter;
   runtime?: RuntimeEnv;
   minUpdateIntervalMs?: number;
   maxPublishAgeMs?: number;
 }) {
-  const reporter = params?.reporter ?? createComputingPresenceReporter();
-  const runtime = params?.runtime;
+  const reporter = trackerOpts?.reporter ?? createComputingPresenceReporter();
+  const runtime = trackerOpts?.runtime;
   const minUpdateIntervalMs = Math.max(
     0,
-    params?.minUpdateIntervalMs ?? DEFAULT_MIN_UPDATE_INTERVAL_MS
+    trackerOpts?.minUpdateIntervalMs ?? DEFAULT_MIN_UPDATE_INTERVAL_MS
   );
   const maxPublishAgeMs = Math.max(
     minUpdateIntervalMs,
-    params?.maxPublishAgeMs ?? DEFAULT_MAX_PUBLISH_AGE_MS
+    trackerOpts?.maxPublishAgeMs ?? DEFAULT_MAX_PUBLISH_AGE_MS
   );
   const conversations = new Map<string, Map<string, RunState>>();
   const lastPublishedState = new Map<string, PublishedState>();
