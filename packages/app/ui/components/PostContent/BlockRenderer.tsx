@@ -336,9 +336,9 @@ export function VoiceMemoBlock({
       return 0;
     }
     return clamp(
-      Math.floor((progress.currentTime / progress.duration) * candleCount),
+      (progress.currentTime / progress.duration) * candleCount,
       0,
-      candleCount - 1
+      candleCount
     );
   }, [progress, block.voiceMemo.waveformPreview, isThisSourceLoaded]);
 
