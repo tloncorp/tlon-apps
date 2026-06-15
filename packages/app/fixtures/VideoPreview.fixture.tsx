@@ -1,10 +1,10 @@
-import { VideoEmbed } from '../ui';
+import { VideoPreview } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 
-const VideoEmbedFixture = () => {
+const VideoPreviewFixture = () => {
   return (
     <FixtureWrapper>
-      <VideoEmbed
+      <VideoPreview
         video={{
           src: 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
           width: 640,
@@ -15,15 +15,15 @@ const VideoEmbedFixture = () => {
   );
 };
 
-const VideoEmbedFixtureNoVideo = () => {
+const VideoPreviewFixtureNoVideo = () => {
   return (
     <FixtureWrapper>
-      <VideoEmbed video={{ src: '', width: 100, height: 100 }} />
+      <VideoPreview video={{ src: '', width: 100, height: 100 }} />
     </FixtureWrapper>
   );
 };
 
 export default {
-  basic: <VideoEmbedFixture />,
-  noVideo: <VideoEmbedFixtureNoVideo />,
+  basic: <VideoPreviewFixture />,
+  noVideo: <VideoPreviewFixtureNoVideo />,
 };

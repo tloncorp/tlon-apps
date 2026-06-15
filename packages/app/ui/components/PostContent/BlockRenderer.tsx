@@ -45,9 +45,9 @@ import {
   ContentReferenceLoaderComponent,
   ContentReferenceLoaderProps,
 } from '../ContentReference/types';
-import { VideoEmbed } from '../Embed';
 import { FileUploadPreview } from '../FileUploadPreview';
 import { HighlightedCode } from '../HighlightedCode';
+import { VideoPreview } from '../VideoPreview';
 import { A2UIBlock } from './A2UIBlock';
 import { BlockquoteSideBorder } from './BlockquoteSideBorder';
 import { InlineRenderer } from './InlineRenderer';
@@ -591,10 +591,10 @@ export function VideoBlock({
   block,
   ...props
 }: { block: cn.VideoBlockData } & Omit<
-  ComponentProps<typeof VideoEmbed>,
+  ComponentProps<typeof VideoPreview>,
   'video'
 >) {
-  return <VideoEmbed video={block.video} {...props} />;
+  return <VideoPreview video={block.video} {...props} />;
 }
 
 export function ImageBlock({
@@ -631,7 +631,7 @@ export function ImageBlock({
   const viewerId = getImageViewerId?.(block.src);
 
   // Calculate constrained dimensions that respect both maxWidth and maxHeight
-  // while maintaining the natural aspect ratio (similar to VideoEmbed logic).
+  // while maintaining the natural aspect ratio (similar to VideoPreview logic).
   // Dimensions are applied to the Pressable wrapper so ContentImage fills it.
   const constrainedSize = useMemo(() => {
     const aspect = dimensions.aspect;

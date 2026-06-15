@@ -9,10 +9,10 @@ import { GestureTrigger, Icon, Image, Pressable, Text } from '@tloncorp/ui';
 import { ComponentProps, useCallback } from 'react';
 import { View, styled } from 'tamagui';
 
-import { RootStackParamList } from '../../../navigation/types';
-import { getVideoViewerId } from '../../../utils/mediaViewer';
+import { RootStackParamList } from '../../navigation/types';
+import { getVideoViewerId } from '../../utils/mediaViewer';
 
-type VideoEmbedProps = ComponentProps<typeof View> & {
+type VideoPreviewProps = ComponentProps<typeof View> & {
   video: {
     width: number;
     height: number;
@@ -23,7 +23,7 @@ type VideoEmbedProps = ComponentProps<typeof View> & {
   };
   contentFit?: 'contain' | 'cover';
 };
-const logger = createDevLogger('VideoEmbed', false);
+const logger = createDevLogger('VideoPreview', false);
 
 const OverlayFrame = styled(View, {
   position: 'absolute',
@@ -103,11 +103,11 @@ function resolveConstrainedVideoSize({
   };
 }
 
-export default function VideoEmbed({
+export function VideoPreview({
   video,
   contentFit = 'contain',
   ...props
-}: VideoEmbedProps) {
+}: VideoPreviewProps) {
   const {
     maxWidth,
     maxHeight,
