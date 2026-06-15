@@ -416,11 +416,12 @@ export function useNowPlayingController({
     }
   }, [nowPlaying, sourceUri, isThisSourceLoaded, loadSource]);
 
-  // Seeking an unloaded source loads it (paused) first. While the load is in
-  // flight, remember only the latest requested position so scrubbing doesn't
-  // race multiple loads.
-  const pendingSeekRef = useRef<number | null>(null);
-  const isLoadingForSeekRef = useRef(false);
+  // Seeking an unloaded source loads it (paused) first. The guard and pending
+  // position are keyed by url so that if this hook is reused for a different
+  // memo mid-load, the new seek isn't blocked by the old load and the old
+  // load can't apply its position to the new source.
+  const pendingSeekRef = useRef<{ url: string; seconds: number } | null>(null);
+  const seekLoadUrlRef = useRef<string | null>(null);
   const seekTo = useCallback(
     (seconds: number) => {
       if (sourceUri == null) return;
@@ -433,22 +434,31 @@ export function useNowPlayingController({
         });
         return;
       }
-      pendingSeekRef.current = seconds;
-      if (isLoadingForSeekRef.current) return;
-      isLoadingForSeekRef.current = true;
+      // remember only the latest requested position for this url so scrubbing
+      // doesn't race multiple loads
+      pendingSeekRef.current = { url: sourceUri, seconds };
+      if (seekLoadUrlRef.current === sourceUri) return;
+      const url = sourceUri;
+      seekLoadUrlRef.current = url;
       loadSource()
         .then(() => {
-          if (pendingSeekRef.current != null) {
+          const pending = pendingSeekRef.current;
+          if (pending != null && pending.url === url) {
             // hold the guard until the seek itself completes
-            return nowPlaying.seekTo(pendingSeekRef.current);
+            return nowPlaying.seekTo(pending.seconds);
           }
         })
         .catch((e) => {
           console.error('Failed to load voice memo for seek', e);
         })
         .finally(() => {
-          isLoadingForSeekRef.current = false;
-          pendingSeekRef.current = null;
+          // only clear if a newer seek-load for another url hasn't taken over
+          if (seekLoadUrlRef.current === url) {
+            seekLoadUrlRef.current = null;
+          }
+          if (pendingSeekRef.current?.url === url) {
+            pendingSeekRef.current = null;
+          }
         });
     },
     [nowPlaying, sourceUri, isThisSourceLoaded, loadSource]
