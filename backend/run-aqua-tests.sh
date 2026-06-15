@@ -163,6 +163,9 @@ EOF
 # TODO: We should figure out the source ship for this file and delete it
 rm -f $pier/groups/tests/lib/diary-graph.hoon
 
+# FIXME: workaround clay bugs
+rm -f $pier/groups/tests/for/lure.hoon
+
 # Update the groups desk
 rsync -r desk/ $pier/groups
 
