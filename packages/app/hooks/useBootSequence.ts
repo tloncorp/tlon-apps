@@ -23,6 +23,7 @@ const HANDLE_SCAFFOLD_TIMEOUT = 1000 * 30;
 
 const GETTING_STARTED_GROUP_ID = '~wittyr-witbes/v3s2kbd7';
 const TLON_STUDIO = '~tommur-dostyn/tlon-studio';
+const TLONBOT_GENERAL_GROUP_ID = '~ramlud-bintun/v1l3qcoq';
 
 const logger = createDevLogger('boot sequence', true);
 
@@ -209,6 +210,13 @@ export function useBootSequence() {
 
       store.leaveGroup(TLON_STUDIO).catch((e) => {
         logger.trackError('failed to leave tlon studio group', {
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+      });
+
+      store.leaveGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
+        logger.trackError('failed to leave Tlonbot general group', {
           errorMessage: e.message,
           errorStack: e.stack,
         });
