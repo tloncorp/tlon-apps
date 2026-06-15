@@ -1,4 +1,4 @@
-import { A2UI, appendToPostBlob } from '@tloncorp/api';
+import { A2UI } from './a2ui.js';
 
 export function serializeContextLensReferenceBlob(
   lensId: string,
@@ -43,5 +43,5 @@ export function makeA2UIBlob(
 }
 
 export function serializeBlobField(entry: TlonA2UIBlob): string {
-  return appendToPostBlob(undefined, entry);
+  return JSON.stringify([entry]);
 }
