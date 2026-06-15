@@ -170,7 +170,7 @@ rm -f $pier/groups/tests/for/lure.hoon
 rsync -r desk/ $pier/groups
 
 # Hard-update our tests
-rsync -r --delete desk/tests $pier/groups/tests
+rsync -r --delete desk/tests/ $pier/groups/tests
 
 result=$( $run_click -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
