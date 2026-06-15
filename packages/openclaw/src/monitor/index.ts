@@ -206,6 +206,58 @@ type ChatFirehoseEvent = DmInvite[] | WritResponse;
 /** Refresh stale settings subscription state periodically as a fallback for silently-dead SSE subscriptions. */
 const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
+const GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS = 15_000;
+const GATEWAY_STATUS_ACTIVATION_RETRY_MS = 30_000;
+
+// Bound an activation poke so a silently-hung promise surfaces as a
+// retryable error instead of leaving gateway-status dead for the process
+// lifetime. The underlying poke may still settle after the timeout; the
+// trailing no-op catch keeps a late rejection from becoming an unhandled
+// rejection, and a late duplicate poke is harmless (same bootId/values).
+function withActivationTimeout<T>(
+  promise: Promise<T>,
+  label: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      promise.catch(() => {});
+      reject(
+        new Error(
+          `${label} poke timed out after ${GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS}ms`
+        )
+      );
+    }, GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 /**
  * Extract ship from author field, handling both string (ship) and object (bot-meta) formats.
  */
@@ -910,36 +962,73 @@ export async function monitorTlonProvider(
             return;
           }
 
-          await configureGatewayStatus({
-            owner: capturedOwnerShip,
-            activeWindowSecs: ACTIVE_WINDOW_SECS,
-            offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
-          });
-          // Recheck after each await: this monitor can be torn down
-          // (gatewayStatusCleanupRan), the signal can abort, or the gateway can
-          // stop (gsManager.stopped) while these pokes are in flight. Without
-          // the recheck we would leave a zombie heartbeat interval running.
-          // The cleanup flag is monitor-local on purpose — see
-          // cleanupGatewayStatus for why we don't latch the shared manager.
-          if (signal?.aborted || gatewayStatusCleanupRan || gsManager.stopped) {
-            return;
+          // One-shot activation proved fragile: a single silently-hung poke
+          // (observed when activation raced an SSE reconnect) left
+          // gateway-status dead for the whole process lifetime, so the ship
+          // marked the gateway %down and auto-replied "bot is offline" to
+          // owner DMs. Retry with a per-attempt timeout until activation
+          // sticks or this monitor is torn down.
+          for (let attempt = 1; ; attempt += 1) {
+            if (
+              signal?.aborted ||
+              gatewayStatusCleanupRan ||
+              gsManager.stopped
+            ) {
+              return;
+            }
+            try {
+              await withActivationTimeout(
+                configureGatewayStatus({
+                  owner: capturedOwnerShip,
+                  activeWindowSecs: ACTIVE_WINDOW_SECS,
+                  offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
+                }),
+                '%configure'
+              );
+              // Recheck after each await: this monitor can be torn down
+              // (gatewayStatusCleanupRan), the signal can abort, or the gateway can
+              // stop (gsManager.stopped) while these pokes are in flight. Without
+              // the recheck we would leave a zombie heartbeat interval running.
+              // The cleanup flag is monitor-local on purpose — see
+              // cleanupGatewayStatus for why we don't latch the shared manager.
+              if (
+                signal?.aborted ||
+                gatewayStatusCleanupRan ||
+                gsManager.stopped
+              ) {
+                return;
+              }
+              // Mark starting before the %gateway-start poke so a concurrent
+              // gateway_stop hook knows a start poke is in flight and sends a
+              // matching %gateway-stop even if shutdown lands before markActivated().
+              gsManager.markStarting();
+              await withActivationTimeout(
+                gatewayStart({
+                  bootId: gsManager.bootId,
+                  leaseUntil: computeLeaseUntil(),
+                }),
+                '%gateway-start'
+              );
+              if (
+                signal?.aborted ||
+                gatewayStatusCleanupRan ||
+                gsManager.stopped
+              ) {
+                return;
+              }
+              gsManager.markActivated();
+              gsManager.startHeartbeat();
+              runtime.log?.(
+                `[gateway-status] activated (bootId=${gsManager.bootId}, owner=${capturedOwnerShip}, attempt=${attempt})`
+              );
+              return;
+            } catch (err) {
+              runtime.error?.(
+                `[gateway-status] activation attempt ${attempt} failed: ${String(err)} — retrying in ${GATEWAY_STATUS_ACTIVATION_RETRY_MS / 1000}s`
+              );
+            }
+            await abortableDelay(GATEWAY_STATUS_ACTIVATION_RETRY_MS, signal);
           }
-          // Mark starting before the %gateway-start poke so a concurrent
-          // gateway_stop hook knows a start poke is in flight and sends a
-          // matching %gateway-stop even if shutdown lands before markActivated().
-          gsManager.markStarting();
-          await gatewayStart({
-            bootId: gsManager.bootId,
-            leaseUntil: computeLeaseUntil(),
-          });
-          if (signal?.aborted || gatewayStatusCleanupRan || gsManager.stopped) {
-            return;
-          }
-          gsManager.markActivated();
-          gsManager.startHeartbeat();
-          runtime.log?.(
-            `[gateway-status] activated (bootId=${gsManager.bootId}, owner=${capturedOwnerShip})`
-          );
         } catch (err) {
           runtime.error?.(`[gateway-status] start failed: ${String(err)}`);
         }
@@ -2226,6 +2315,14 @@ export async function monitorTlonProvider(
               );
             },
             keepaliveIntervalMs: 20_000,
+            // The SDK default TTL (60s) fires stopRun mid-dispatch and seals the
+            // callbacks, killing the thinking indicator for the rest of long
+            // runs. stopRun is already wired to deliver/idle/cleanup.
+            maxDurationMs: 0,
+            // The SDK default (2) trips the keepalive permanently after two
+            // transient poke failures, which lets the ship-side presence expire
+            // mid-run. Failures are already logged via onStartError.
+            maxConsecutiveFailures: 5,
           })
         : undefined;
 
