@@ -57,7 +57,10 @@ import { createTlonTelemetry } from '../telemetry.js';
 import { resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
 import { authenticate } from '../urbit/auth.js';
-import { serializeContextLensReferenceBlob } from '../urbit/blob.js';
+import {
+  serializeBlobField,
+  serializeContextLensReferenceBlob,
+} from '../urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
@@ -67,11 +70,12 @@ import { markdownToStory } from '../urbit/story.js';
 import {
   type DisplayContext,
   type PendingApproval,
+  buildApprovalA2UIBlob,
   createPendingApproval,
   emojiToApprovalAction,
   findPendingApproval,
   formatApprovalConfirmation,
-  formatApprovalRequest,
+  formatApprovalRequestNotification,
   formatBlockedList,
   formatPendingList,
   isExpired,
@@ -675,18 +679,37 @@ export async function monitorTlonProvider(
 
     // Group name cache for human-readable display (flag -> title)
     const groupNameCache = new Map<string, string>();
+    const channelNameCache = new Map<string, string>();
+
+    function extractMetadataTitle(value: unknown): string | undefined {
+      if (!value || typeof value !== 'object') {
+        return undefined;
+      }
+      const metadata = value as { meta?: { title?: unknown }; title?: unknown };
+      const title = metadata.meta?.title ?? metadata.title;
+      return typeof title === 'string' && title.trim()
+        ? title.trim()
+        : undefined;
+    }
 
     // Build display context for approval formatting
     function buildDisplayContext(): DisplayContext {
       const channelNames = new Map<string, string>();
       for (const nest of watchedChannels) {
+        const title = channelNameCache.get(nest);
+        if (title) {
+          channelNames.set(nest, title);
+          continue;
+        }
         const parsed = parseChannelNest(nest);
         if (parsed) {
           channelNames.set(nest, parsed.channelName);
         }
       }
       return {
+        contactNames: nicknameCache,
         channelNames,
+        channelGroups: channelToGroup,
         groupNames: groupNameCache,
       };
     }
@@ -707,6 +730,19 @@ export async function monitorTlonProvider(
       }
     }
 
+    function buildApprovalBlobField(
+      approval: PendingApproval,
+      ctx: DisplayContext
+    ): string | undefined {
+      try {
+        return serializeBlobField(buildApprovalA2UIBlob(approval, ctx));
+      } catch (err) {
+        runtime.error?.(
+          `[tlon] Failed to build approval A2UI blob: ${String(err)}`
+        );
+        return undefined;
+      }
+    }
     // Migrate file config to settings store (seed on first run)
     async function migrateConfigToSettings() {
       const migrations: Array<{
@@ -1099,16 +1135,25 @@ export async function monitorTlonProvider(
       })();
     }
 
-    // Run channel discovery AFTER settings are loaded (so settings store value is used)
-    if (effectiveAutoDiscoverChannels) {
+    // Fetch group metadata AFTER settings are loaded so approval cards can display
+    // friendly group names for both auto-discovered and manually configured channels.
+    const shouldFetchGroupMetadata =
+      effectiveAutoDiscoverChannels ||
+      account.groupChannels.length > 0 ||
+      Boolean(currentSettings.groupChannels?.length) ||
+      effectiveAutoAcceptGroupInvites;
+    if (shouldFetchGroupMetadata) {
       try {
         const initData = await fetchInitData(api, runtime);
-        if (initData.channels.length > 0) {
+        if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
           groupChannels = initData.channels;
         }
         // Populate channel-to-group mapping for member hint injection
         for (const [nest, groupFlag] of initData.channelToGroup) {
           channelToGroup.set(nest, groupFlag);
+        }
+        for (const [nest, title] of initData.channelNames) {
+          channelNameCache.set(nest, title);
         }
         // Populate group name cache for human-readable display
         for (const [flag, title] of initData.groupNames) {
@@ -1415,7 +1460,8 @@ export async function monitorTlonProvider(
 
     // Helper to send DM notification to owner. Returns the message ID if sent successfully.
     async function sendOwnerNotification(
-      message: string
+      message: string,
+      blob?: string
     ): Promise<string | undefined> {
       if (!effectiveOwnerShip) {
         runtime.log?.(
@@ -1429,6 +1475,7 @@ export async function monitorTlonProvider(
           fromShip: botShipName,
           toShip: effectiveOwnerShip,
           text: message,
+          blob,
         });
         runtime.log?.(
           `[tlon] Sent notification to owner ${effectiveOwnerShip}`
@@ -1543,8 +1590,11 @@ export async function monitorTlonProvider(
         // Saving before sendOwnerNotification causes a race: the settings subscription
         // event replaces pendingApprovals in-memory, so the notificationMessageId
         // set on the old object reference is lost.
-        const existMsg = formatApprovalRequest(existing, buildDisplayContext());
-        const existNotifId = await sendOwnerNotification(existMsg);
+        const displayContext = buildDisplayContext();
+        const existNotifId = await sendOwnerNotification(
+          formatApprovalRequestNotification(existing, displayContext),
+          buildApprovalBlobField(existing, displayContext)
+        );
         if (existNotifId) {
           existing.notificationMessageId =
             normalizeNotificationId(existNotifId);
@@ -1555,8 +1605,11 @@ export async function monitorTlonProvider(
 
       // Send notification before saving so notificationMessageId is included
       // in the single save. See comment above about the settings subscription race.
-      const message = formatApprovalRequest(approval, buildDisplayContext());
-      const notifId = await sendOwnerNotification(message);
+      const displayContext = buildDisplayContext();
+      const notifId = await sendOwnerNotification(
+        formatApprovalRequestNotification(approval, displayContext),
+        buildApprovalBlobField(approval, displayContext)
+      );
       if (notifId) {
         approval.notificationMessageId = normalizeNotificationId(notifId);
       }
@@ -4027,6 +4080,11 @@ export async function monitorTlonProvider(
                       !channelNest.startsWith('diary/')
                     ) {
                       continue;
+                    }
+
+                    const channelTitle = extractMetadataTitle(_channelData);
+                    if (channelTitle) {
+                      channelNameCache.set(channelNest, channelTitle);
                     }
 
                     // If this is a new channel we're not watching yet, add it
