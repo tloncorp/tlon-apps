@@ -147,6 +147,7 @@ async function createNotesChannel({
   // roles — empty means group-wide readable. Dropping it would create every
   // notes channel open, defeating the group's can-read gate.
   const [groupHost, groupName] = groupId.split('/');
+  let createdNotebookFlag: api.NotesFlag | null = null;
   try {
     const res = await api.requestJson<NotesCreateResponse>(
       '/notes/~/v1/notebooks',
@@ -159,6 +160,7 @@ async function createNotesChannel({
       throw new Error('Failed to create notes notebook');
     }
 
+    createdNotebookFlag = { host: summary.host, name: summary.flagName };
     const channelId = `notes/${summary.host}/${summary.flagName}`;
 
     logger.trackEvent(
@@ -185,6 +187,13 @@ async function createNotesChannel({
     await db.insertChannels([newChannel]);
     return newChannel;
   } catch (e) {
+    if (createdNotebookFlag) {
+      try {
+        await api.deleteNotesNotebook(createdNotebookFlag);
+      } catch (rollbackError) {
+        logger.error('Failed to roll back notes notebook create', rollbackError);
+      }
+    }
     logger.error('Failed to add notes channel', e);
     throw new Error(`Failed to add notes channel to group`);
   }

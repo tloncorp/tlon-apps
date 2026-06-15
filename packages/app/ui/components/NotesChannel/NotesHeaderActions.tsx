@@ -1,8 +1,9 @@
 import type { IconType } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { Fragment, useMemo } from 'react';
 import type { MutableRefObject } from 'react';
 
 import { createActionGroups } from '../ActionSheet';
+import { ScreenHeader } from '../ScreenHeader';
 import { NotesOverflowMenu } from './NotesCommon';
 import type { NotesTreeViewStyle } from './notesTree';
 
@@ -28,11 +29,19 @@ const NOTES_TREE_VIEW_OPTIONS: {
 
 export function NotesHeaderActions({
   canEdit,
+  canImport,
+  isImporting,
+  onImportFiles,
+  onImportFolder,
   openNewSheetRef,
   treeViewStyle,
   onTreeViewStyleChange,
 }: {
   canEdit: boolean;
+  canImport: boolean;
+  isImporting: boolean;
+  onImportFiles: () => void;
+  onImportFolder: () => void;
   openNewSheetRef: MutableRefObject<() => void>;
   treeViewStyle: NotesTreeViewStyle;
   onTreeViewStyleChange: (style: NotesTreeViewStyle) => void;
@@ -50,6 +59,25 @@ export function NotesHeaderActions({
             testID: 'NotesRootNewAction',
           },
         ],
+        canImport && [
+          'neutral',
+          {
+            title: 'Import',
+            description: 'Import markdown or text files.',
+            startIcon: 'ArrowDown',
+            action: onImportFiles,
+            disabled: isImporting,
+            testID: 'NotesImportFilesAction',
+          },
+          {
+            title: 'Import folder',
+            description: 'Import a folder of markdown or text files.',
+            startIcon: 'Folder',
+            action: onImportFolder,
+            disabled: isImporting,
+            testID: 'NotesImportFolderAction',
+          },
+        ],
         [
           'neutral',
           ...NOTES_TREE_VIEW_OPTIONS.map((option) => ({
@@ -64,13 +92,32 @@ export function NotesHeaderActions({
           })),
         ]
       ),
-    [canEdit, onTreeViewStyleChange, openNewSheetRef, treeViewStyle]
+    [
+      canEdit,
+      canImport,
+      isImporting,
+      onImportFiles,
+      onImportFolder,
+      onTreeViewStyleChange,
+      openNewSheetRef,
+      treeViewStyle,
+    ]
   );
 
   return (
-    <NotesOverflowMenu
-      groups={groups}
-      triggerTestID="NotesRootActionsTrigger"
-    />
+    <Fragment>
+      {canEdit ? (
+        <ScreenHeader.TextButton
+          onPress={() => openNewSheetRef.current()}
+          testID="NotesRootNewHeaderAction"
+        >
+          New
+        </ScreenHeader.TextButton>
+      ) : null}
+      <NotesOverflowMenu
+        groups={groups}
+        triggerTestID="NotesRootActionsTrigger"
+      />
+    </Fragment>
   );
 }
