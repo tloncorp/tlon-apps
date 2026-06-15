@@ -45,8 +45,10 @@ class TlonToolGuardTests(unittest.TestCase):
         # Targets that equal the session's current chat must go through the
         # streaming reply path, not the tool.
         cases = [
-            ('dms send ~nec "hello"', "~nec"),
-            ('dms reply ~nec 170.141 "hello"', "~nec"),
+            ('posts send ~nec "hello"', "~nec"),
+            ('posts reply ~nec 170.141 "hello"', "~nec"),
+            ('dms send 0v5.abcde "hello"', "0v5.abcde"),
+            ('dms reply 0v5.abcde 170.141 "hello"', "0v5.abcde"),
             ('posts send chat/~zod/general "hi"', "chat/~zod/general"),
             ('posts reply chat/~zod/general 170.141 "hi"', "chat/~zod/general"),
             ('posts send Chat/~ZOD/general "hi"', "chat/~zod/general"),  # case-insensitive
@@ -66,7 +68,8 @@ class TlonToolGuardTests(unittest.TestCase):
         # the only path for it, so it must be allowed.
         cases = [
             ('posts send chat/~bot/general "hi"', "~owner"),  # in a DM, post to a channel
-            ('dms send ~friend "hi"', "chat/~zod/general"),  # in a channel, DM someone
+            ('posts send ~friend "hi"', "chat/~zod/general"),  # in a channel, DM someone
+            ('dms send 0v5.abcde "hi"', "chat/~zod/general"),  # in a channel, group-DM someone
             ('posts reply chat/~bot/general 170.141 "hi"', "~owner"),
         ]
         for command, chat_id in cases:
@@ -87,11 +90,13 @@ class TlonToolGuardTests(unittest.TestCase):
         # way to deliver an image — allowed even to the current chat.
         cases = [
             ('posts send chat/~zod/general --image https://x/y.png', "chat/~zod/general"),
+            ('posts send chat/~zod/general --image=https://x/y.png', "chat/~zod/general"),
             (
                 'posts send chat/~zod/general "a tree" --image https://x/y.png',
                 "chat/~zod/general",
             ),
             ('dms send 0v5.abcde --image https://x/y.png', "0v5.abcde"),
+            ('dms send 0v5.abcde --image=https://x/y.png', "0v5.abcde"),
         ]
         for command, chat_id in cases:
             with self.subTest(command=command):

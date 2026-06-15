@@ -136,20 +136,28 @@ def channel_event(text, *, author="~ten", nest="chat/~pen/general", post_id="170
     }
 
 
-def dm_event(text, *, author="~ten", whom="~ten", msg_id="dm-1"):
-    return {
-        "whom": whom,
-        "id": msg_id,
-        "response": {
-            "add": {
-                "essay": {
-                    "author": author,
-                    "sent": 1000,
-                    "content": [{"inline": [text]}],
-                }
-            }
-        },
+def dm_event(text, *, author="~ten", whom="~ten", msg_id="dm-1", parent_id=None):
+    essay = {
+        "author": author,
+        "sent": 1000,
+        "content": [{"inline": [text]}],
     }
+    if parent_id:
+        return {
+            "whom": whom,
+            "id": parent_id,
+            "response": {
+                "reply": {
+                    "id": msg_id,
+                    "delta": {
+                        "add": {
+                            "essay": essay,
+                        }
+                    },
+                }
+            },
+        }
+    return {"whom": whom, "id": msg_id, "response": {"add": {"essay": essay}}}
 
 
 class FakeSSE:
@@ -528,6 +536,30 @@ class AdapterApprovalTests(unittest.TestCase):
         # subsequent DMs from the approved ship dispatch directly
         more = self.dispatches(adapter, dm_event("thanks!", msg_id="dm-9"), dm=True)
         self.assertEqual(len(more), 1)
+
+    def test_allow_replays_dm_thread_request_in_thread(self):
+        adapter = self.make_adapter()
+        self.dispatches(
+            adapter,
+            dm_event("thread question", msg_id="dm-reply", parent_id="dm-root"),
+            dm=True,
+        )
+        request_id = adapter._pending_approvals[0]["id"]
+        self.assertEqual(
+            adapter._pending_approvals[0]["originalMessage"]["parentId"], "dm-root"
+        )
+
+        events = self.dispatches(
+            adapter,
+            dm_event(f"/allow {request_id}", author="~mug", whom="~mug"),
+            dm=True,
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "thread question")
+        self.assertEqual(events[0].source.chat_id, "~ten")
+        self.assertEqual(events[0].source.thread_id, "dm-root")
+        self.assertEqual(events[0].reply_to_message_id, "dm-root")
 
     def test_allow_invite_accepts_dm_first(self):
         adapter = self.make_adapter()

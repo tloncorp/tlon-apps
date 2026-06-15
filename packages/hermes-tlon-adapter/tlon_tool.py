@@ -61,8 +61,10 @@ TLON_TOOL_DESCRIPTION = (
     "--owner set to the requesting ship. "
     "To reply to the CURRENT conversation, just write the reply — do not use "
     "posts/dms send here (that path is blocked so Hermes delivers replies). "
-    "To post to a DIFFERENT channel or DM (a proactive send), use posts send / "
-    "dms send with that target, e.g. posts send chat/~host/channel \"...\". "
+    "To post to a DIFFERENT channel or one-to-one DM (a proactive send), use "
+    "posts send with that target, e.g. posts send chat/~host/channel \"...\" "
+    "or posts send ~ship \"...\". Reserve dms send for group-DM club IDs "
+    "starting with 0v. "
     "To send an IMAGE anywhere (including the current conversation): first "
     "'upload <direct-image-url>', then 'posts send <target> [caption] --image "
     "<uploaded-url>' (group DMs: dms send <club-id> ... --image <url>)."
@@ -90,8 +92,10 @@ TLON_TOOL_SCHEMA = {
                     "chosen image_url, and use the URL returned by tlon upload. "
                     "In Tlon chat sessions, 'groups create' is blocked; use "
                     "'groups create-owned' so the requester is invited and made admin. "
-                    "To post to a different channel/DM, use 'posts send "
-                    "<channel> \"...\"' or 'dms send <ship> \"...\"'. Sending to "
+                    "To post to a different channel or one-to-one DM, use "
+                    "'posts send <channel> \"...\"' or 'posts send ~ship \"...\"'. "
+                    "Use 'dms send <club-id> \"...\"' only for group-DM club IDs "
+                    "starting with 0v. Sending to "
                     "the CURRENT conversation is blocked (reply normally "
                     "instead) EXCEPT image sends: 'posts send <target> "
                     "[caption] --image <uploaded-url>' is allowed anywhere — "
@@ -218,9 +222,12 @@ def _profile_update_block(
 
 
 def _has_image_flag(args: Sequence[str]) -> bool:
-    """Image sends (``--image <url>``) are exempt from the current-conversation
-    block: the streaming reply path is text-only, so the tool is the only way
-    to deliver an image anywhere — including the current chat."""
+    """Image sends are exempt from the current-conversation block.
+
+    The streaming reply path is text-only, so the tool is the only way to
+    deliver an image anywhere — including the current chat. Keep this in sync
+    with the Tlon CLI's accepted ``--image <url>`` and ``--image=<url>`` forms.
+    """
     return any(
         str(arg) == "--image" or str(arg).startswith("--image=") for arg in args
     )
@@ -278,8 +285,9 @@ def check_tlon_tool_command(
         return (
             "Blocked: don't deliver your reply to the current conversation with "
             "the tlon tool — reply normally so Hermes delivers it through "
-            "TlonAdapter.send(). Sending to other channels or DMs with posts/dms "
-            "send|reply is allowed, and image sends (posts/dms send --image) are "
+            "TlonAdapter.send(). Sending to other channels or one-to-one DMs "
+            "with posts send|reply is allowed, dms send|reply is reserved for "
+            "group-DM club IDs, and image sends (posts/dms send --image) are "
             "allowed anywhere, including this conversation."
         )
     if subcommand == "groups" and action == "create":

@@ -521,6 +521,55 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.assertEqual(adapter._cli.replies[0][1], "170.140")
         self.assertEqual([m[1] for m in adapter._cli.messages], ["top level"])
 
+    def test_standalone_send_threads_dm_reply_when_thread_id_present(self):
+        class FakeStandaloneCLI:
+            instances = []
+
+            def __init__(self, config):
+                self.config = config
+                self.messages = []
+                self.replies = []
+                self.instances.append(self)
+
+            async def send_message(self, chat_id, text):
+                self.messages.append((chat_id, text))
+                return tlon_api.TlonSendResult(
+                    success=True,
+                    command=("tlon-test", "posts", "send"),
+                    message_id="top-id",
+                )
+
+            async def send_reply(self, chat_id, post_id, text, *, parent_author=None):
+                self.replies.append((chat_id, post_id, text, parent_author))
+                return tlon_api.TlonSendResult(
+                    success=True,
+                    command=("tlon-test", "posts", "reply"),
+                    message_id="reply-id",
+                )
+
+        pconfig = PlatformConfig(
+            extra={
+                "node_url": "https://pen.tlon.network",
+                "node_id": "~pen",
+                "access_code": "code",
+            }
+        )
+
+        with patch.object(adapter_mod, "TlonCLI", FakeStandaloneCLI):
+            result = asyncio.run(
+                adapter_mod._standalone_send(
+                    pconfig, "~ten", "thread reply", thread_id="root-post"
+                )
+            )
+
+        cli = FakeStandaloneCLI.instances[0]
+        self.assertTrue(result["success"])
+        self.assertEqual(cli.messages, [])
+        self.assertEqual(
+            cli.replies,
+            [("~ten", "root-post", "thread reply", "~ten")],
+        )
+
     # ── settings store load ──────────────────────────────────────────────
 
     def test_settings_load_overrides_env_and_merges_group_channels(self):
@@ -555,6 +604,35 @@ class AdapterOwnerListenTests(unittest.TestCase):
             adapter, channel_event("hello", nest="chat/~ten/lounge")
         )
         self.assertEqual(len(events), 1)
+
+    def test_settings_reload_drops_removed_settings_group_channels(self):
+        adapter = self.make_adapter({})
+        adapter._settings_group_channels = {
+            "chat/~ten/lounge",
+            "chat/~bus/dock",
+            "chat/~pen/general",
+        }
+        adapter._monitored_channels.update(adapter._settings_group_channels)
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {
+                        "moltbot": {
+                            "tlon": {
+                                "groupChannels": ["chat/~ten/lounge"],
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertEqual(adapter._settings_group_channels, {"chat/~ten/lounge"})
+        self.assertIn("chat/~ten/lounge", adapter._monitored_channels)
+        self.assertNotIn("chat/~bus/dock", adapter._monitored_channels)
+        self.assertIn("chat/~pen/general", adapter._monitored_channels)
 
     def test_command_loads_store_before_first_list_write(self):
         adapter = self.make_adapter({})

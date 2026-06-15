@@ -34,7 +34,11 @@ import {
   printUsageAndExit,
   wantsHelp,
 } from './cli-utils';
-import { fetchImageVerse, validatedImageFlag } from './image-attach';
+import {
+  fetchImageVerse,
+  imageFlagIndex,
+  validatedImageFlag,
+} from './image-attach';
 import { type Story, type StoryVerse, markdownToStory } from './story';
 
 const DMS_HELP = `Usage: tlon dms <command>
@@ -63,7 +67,7 @@ function getDmsHelp(command?: string): string {
 }
 
 function firstDmSendFlagIndex(args: string[]): number {
-  const idx = args.indexOf('--image');
+  const idx = imageFlagIndex(args);
   return idx !== -1 ? idx : args.length;
 }
 

@@ -260,11 +260,25 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     stdout: '',
     stderrIncludes: ['--image must be an http(s) image URL'],
   },
+  {
+    name: 'posts send rejects non-http equals image url',
+    args: ['posts', 'send', 'chat/~host/channel', '--image=ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
   usageErrorCase(
     'dms send missing image value',
     ['dms', 'send', '0v5.abcde', '--image'],
     'Usage: tlon dms send'
   ),
+  {
+    name: 'dms send rejects non-http equals image url',
+    args: ['dms', 'send', '0v5.abcde', '--image=ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
   usageErrorCase(
     'settings set missing args',
     ['settings', 'set'],

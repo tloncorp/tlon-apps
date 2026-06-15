@@ -165,20 +165,47 @@ export async function fetchImageVerse(
 }
 
 /**
- * Validate an optional `--image <url>` flag. Returns the URL when present,
- * undefined when absent; exits with usage/error output on a malformed flag.
+ * Return the index of an optional `--image <url>` or `--image=<url>` flag.
+ */
+export function imageFlagIndex(args: string[]): number {
+  return args.findIndex(
+    (arg) => arg === '--image' || arg.startsWith('--image=')
+  );
+}
+
+/**
+ * Return the value of an optional `--image <url>` or `--image=<url>` flag.
+ */
+export function imageFlagValue(
+  args: string[],
+  usage: string
+): string | undefined {
+  const idx = imageFlagIndex(args);
+  if (idx === -1) {
+    return undefined;
+  }
+
+  const arg = args[idx];
+  const url = arg.startsWith('--image=')
+    ? arg.slice('--image='.length)
+    : args[idx + 1];
+  if (!url) {
+    printUsageAndExit(usage);
+  }
+  return url;
+}
+
+/**
+ * Validate an optional image flag. Returns the URL when present, undefined
+ * when absent; exits with usage/error output on a malformed flag.
  */
 export function validatedImageFlag(
   args: string[],
   usage: string
 ): string | undefined {
-  const idx = args.indexOf('--image');
-  if (idx === -1) {
-    return undefined;
-  }
-  const url = args[idx + 1];
+  const url = imageFlagValue(args, usage);
   if (!url) {
-    printUsageAndExit(usage);
+    return undefined;
   }
   if (!/^https?:\/\//.test(url)) {
     printErrorAndExit(

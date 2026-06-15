@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 
-import { fetchImageVerse, imageDimensions } from './image-attach';
+import {
+  fetchImageVerse,
+  imageDimensions,
+  imageFlagIndex,
+  imageFlagValue,
+  validatedImageFlag,
+} from './image-attach';
 
 function bytes(...parts: (number[] | string)[]): Uint8Array {
   const out: number[] = [];
@@ -132,5 +138,37 @@ describe('fetchImageVerse', () => {
         fetchReturning(bytes('<html>not an image</html>'))
       )
     ).rejects.toThrow(/Could not determine image dimensions/);
+  });
+});
+
+describe('image flag parsing', () => {
+  it('accepts separated and equals image flags', () => {
+    expect(
+      validatedImageFlag(
+        ['posts', 'send', '~sampel', '--image', 'https://x.example/y.png'],
+        'usage'
+      )
+    ).toBe('https://x.example/y.png');
+    expect(
+      validatedImageFlag(
+        ['posts', 'send', '~sampel', '--image=https://x.example/y.png'],
+        'usage'
+      )
+    ).toBe('https://x.example/y.png');
+  });
+
+  it('finds equals image flags for message boundary parsing', () => {
+    const args = [
+      'posts',
+      'send',
+      '~sampel',
+      'caption',
+      '--image=https://x.example/y.png',
+    ];
+
+    const idx = imageFlagIndex(args);
+
+    expect(idx).toBe(4);
+    expect(imageFlagValue(args, 'usage')).toBe('https://x.example/y.png');
   });
 });

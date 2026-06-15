@@ -24,8 +24,9 @@ that does not automatically include the requester.
 
 For a normal reply in the current Tlon conversation, respond with final
 assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post
-to a different channel or DM (a proactive send), use `posts send` / `dms send`
-with that target.
+to a different channel or one-to-one DM (a proactive send), use `posts send`
+with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs).
+Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
 
 Blocked in Hermes' `tlon` tool: plain-text `posts send`/`posts reply`/`dms
 send`/`dms reply` targeting the **current** conversation (reply normally
@@ -419,6 +420,9 @@ tlon dms decline ~sampel                                 # Decline DM invite
 # Group DM (club) sends
 tlon dms send 0v5.abcde "hello"                          # Send to a group DM
 tlon dms send 0v5.abcde "look" --image https://...       # Send with an image
+
+# One-to-one proactive DMs use posts, not dms
+tlon posts send ~sampel "hello"                           # Send to a 1:1 DM
 ```
 
 ### Expose
@@ -446,6 +450,7 @@ Manage channel posts (sends, reactions, edits, deletes).
 
 ```bash
 tlon posts send chat/~host/slug "Hello"                  # Send a message
+tlon posts send ~sampel "Hello"                          # Send a 1:1 DM
 tlon posts send chat/~host/slug "Look" --image https://storage.../x.png # Send with an image
 tlon posts send chat/~host/slug --image https://...      # Image only (no caption)
 tlon posts react chat/~host/slug 170.141... "👍"         # React to a post

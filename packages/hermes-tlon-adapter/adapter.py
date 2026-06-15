@@ -487,8 +487,15 @@ class TlonAdapter(BasePlatformAdapter):
             return
         bucket = parse_settings_bucket(payload)
         self._owner_listen = owner_listen_state_from_settings(bucket, defaults=defaults)
-        self._settings_group_channels = settings_group_channels(bucket)
-        self._monitored_channels.update(self._settings_group_channels)
+        new_group_channels = settings_group_channels(bucket)
+        removed_group_channels = (
+            self._settings_group_channels
+            - new_group_channels
+            - set(self.tlon_config.channels)
+        )
+        self._monitored_channels.difference_update(removed_group_channels)
+        self._monitored_channels.update(new_group_channels)
+        self._settings_group_channels = new_group_channels
         self._pending_approvals = prune_expired(
             parse_pending_approvals(bucket.get(SETTINGS_KEY_PENDING_APPROVALS)),
             time.time() * 1000.0,
@@ -939,7 +946,7 @@ class TlonAdapter(BasePlatformAdapter):
             user_name=ship,
             text=text,
             message_id=str(original.get("messageId") or approval_id(approval)),
-            reply_to_message_id=None if is_dm else parent_id,
+            reply_to_message_id=parent_id,
             sent_at=sent_at,
             raw={"approvalReplay": approval_id(approval)},
         )
@@ -1901,8 +1908,8 @@ async def _standalone_send(
     if not tlon.is_complete():
         return {"error": "tlon standalone send: TLON node URL/id/access code not configured"}
     cli = TlonCLI(tlon)
-    if thread_id and not _is_dm_chat_id(chat_id):
-        parent_author = chat_id if str(chat_id).startswith("~") else None
+    if thread_id:
+        parent_author = chat_id if _is_dm_chat_id(chat_id) else None
         result = await cli.send_reply(chat_id, thread_id, message, parent_author=parent_author)
     else:
         result = await cli.send_message(chat_id, message)
@@ -1993,10 +2000,11 @@ def register(ctx) -> None:
             "are invited and made admin. "
             "To reply to the current conversation, just write your reply and "
             "Hermes delivers it. To post somewhere else (e.g. a channel of a "
-            "group you host), use the tlon tool's posts send / dms send with "
-            "that target; sending plain text to the current conversation that "
-            "way is blocked. To send an image anywhere — including the current "
-            "conversation — first 'tlon upload <direct-image-url>', then "
+            "group you host or a one-to-one DM), use the tlon tool's posts "
+            "send with that target; reserve dms send for group-DM club IDs "
+            "starting with 0v. Sending plain text to the current conversation "
+            "that way is blocked. To send an image anywhere — including the "
+            "current conversation — first 'tlon upload <direct-image-url>', then "
             "'tlon posts send <target> [caption] --image <uploaded-url>'. "
             "The platform adapter directly handles owner chat commands for "
             "access and configuration: /owner-listen (no-mention listening), "

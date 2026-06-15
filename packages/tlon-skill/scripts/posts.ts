@@ -35,7 +35,13 @@ import {
   printUsageAndExit,
   wantsHelp,
 } from './cli-utils';
-import { fetchImageVerse, validatedImageFlag } from './image-attach';
+import {
+  fetchImageVerse,
+  imageFlagIndex,
+  imageFlagValue,
+  validatedImageFlag,
+} from './image-attach';
+import { defaultReplyParentAuthor } from './post-targets';
 import { type Story, type StoryVerse, markdownToStory } from './story';
 
 const POSTS_HELP = `Usage: tlon posts <command>
@@ -110,7 +116,7 @@ function getPostReplyMessage(args: string[]): string {
 
 function firstPostSendFlagIndex(args: string[]): number {
   const flagIndexes = POST_SEND_OPTION_FLAGS.map((flag) =>
-    args.indexOf(`--${flag}`)
+    flag === 'image' ? imageFlagIndex(args) : args.indexOf(`--${flag}`)
   ).filter((idx) => idx !== -1);
   return flagIndexes.length > 0 ? Math.min(...flagIndexes) : args.length;
 }
@@ -365,7 +371,7 @@ async function replyToChannelPost(
     await sendReply({
       channelId: nest,
       parentId: formatUd(extractNumericId(postId)),
-      parentAuthor: parentAuthor ?? authorId,
+      parentAuthor: defaultReplyParentAuthor(nest, authorId, parentAuthor),
       content,
       sentAt,
       authorId,
@@ -572,12 +578,15 @@ async function main() {
         const postId = args[2];
         const titleIdx = args.indexOf('--title');
         const contentIdx = args.indexOf('--content');
-        const imageIdx = args.indexOf('--image');
+        const imageIdx = imageFlagIndex(args);
 
         const newTitle = titleIdx !== -1 ? args[titleIdx + 1] : undefined;
         const contentFile =
           contentIdx !== -1 ? args[contentIdx + 1] : undefined;
-        const newImage = imageIdx !== -1 ? args[imageIdx + 1] : undefined;
+        const newImage =
+          imageIdx !== -1
+            ? imageFlagValue(args, POSTS_COMMAND_HELP.edit)
+            : undefined;
 
         if (!channel || !postId) {
           printUsageAndExit(POSTS_COMMAND_HELP.edit);
