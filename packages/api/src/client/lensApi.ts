@@ -2,7 +2,7 @@ import { da, parse } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
 import * as ub from '../urbit';
-import { BadResponseError, scry, subscribe } from './urbit';
+import { BadResponseError, poke, scry, subscribe } from './urbit';
 
 const logger = createDevLogger('lensApi', false);
 
@@ -73,6 +73,24 @@ export const getLensRun = async (
     throw error;
   }
 };
+
+/**
+ * Ask the bot to re-run a failed lens run. Pokes our own %context-lens
+ * agent, which relays the request to the bot ship; the bot's gateway
+ * re-dispatches and the retry shows up as a new run.
+ */
+export const retryLensRun = ({
+  botShip,
+  lensId,
+}: {
+  botShip: string;
+  lensId: string;
+}) =>
+  poke({
+    app: 'context-lens',
+    mark: 'context-lens-action-1',
+    json: { retry: { bot: botShip, id: lensId } },
+  });
 
 export const subscribeToLensUpdates = async (
   handler: (runs: LensRun[]) => void

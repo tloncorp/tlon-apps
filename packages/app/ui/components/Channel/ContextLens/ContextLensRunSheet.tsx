@@ -72,7 +72,14 @@ export function ContextLensRunSheet({
       <ActionSheet.Content>
         <ActionSheet.ContentBlock paddingTop={0} paddingBottom={0}>
           {lens ? (
-            <RunSummary lens={lens} />
+            <RunSummary
+              lens={lens}
+              onRetry={
+                botShip && lensId
+                  ? () => store.retryLensRun({ botShip, lensId })
+                  : undefined
+              }
+            />
           ) : (
             <YStack
               gap="$s"

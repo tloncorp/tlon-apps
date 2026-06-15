@@ -7,6 +7,7 @@ export type ContextLensStatus =
   | 'completed'
   | 'no_reply'
   | 'timed_out'
+  | 'aborted'
   | 'error';
 
 export type ContextLens = {
@@ -31,6 +32,8 @@ export type ContextLens = {
     receivedAt?: number;
     preview?: string;
   };
+  /** lensId of the run this one retries, when trigger is "retry". */
+  retryOf?: string;
   model: string | null;
   provider: string | null;
   status: ContextLensStatus;
@@ -153,6 +156,7 @@ export const FINAL_STATUSES = new Set<ContextLensStatus>([
   'completed',
   'no_reply',
   'timed_out',
+  'aborted',
   'error',
 ]);
 

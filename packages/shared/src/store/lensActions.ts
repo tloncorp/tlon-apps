@@ -35,3 +35,19 @@ export async function ensureContextLensRun({
     return null;
   }
 }
+
+/**
+ * Request a re-run of a failed lens run. Best-effort: the poke acks when our
+ * ship accepts it; success is observable as a new run (trigger "retry")
+ * arriving via lens sync.
+ */
+export async function retryLensRun({
+  botShip,
+  lensId,
+}: {
+  botShip: string;
+  lensId: string;
+}): Promise<void> {
+  logger.log('requesting lens run retry', botShip, lensId);
+  await api.retryLensRun({ botShip, lensId });
+}

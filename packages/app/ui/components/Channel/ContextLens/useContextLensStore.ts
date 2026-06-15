@@ -1,4 +1,6 @@
+import { preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import create from 'zustand';
@@ -167,12 +169,34 @@ export function useContextLensGatewayConfig(): ContextLensGatewayConfig | null {
   }, [flagEnabled, url, token]);
 }
 
-// Availability is flag-driven: run history syncs from the ship's %context-lens
-// agent on every platform. The gateway connection (web-only, above) is an
-// optional live-streaming enhancement on top.
-export function useContextLensAvailable() {
+// Availability is flag-gated everywhere; when a channel is provided it is
+// additionally scoped to where the bot actually is: a known bot ship (from
+// synced lens runs) must be the DM counterpart or hold a seat in the
+// channel's group. Without a channel it stays flag-only, for surfaces that
+// already have direct evidence (a lens-stamped post).
+export function useContextLensAvailable(channel?: db.Channel | null) {
   const [flagEnabled] = useFeatureFlag('contextLens');
-  return flagEnabled;
+  const isDm = channel?.type === 'dm';
+  const chatId = !channel
+    ? null
+    : channel.type === 'groupDm'
+      ? channel.id
+      : channel.groupId ?? null;
+  const { data: botShips } = store.useContextLensBotShips();
+  const { data: botsInChat } = store.useContextLensBotsInChat({
+    chatId: flagEnabled ? chatId : null,
+  });
+
+  if (!flagEnabled) {
+    return false;
+  }
+  if (!channel) {
+    return true;
+  }
+  if (isDm) {
+    return (botShips ?? []).includes(preSig(channel.id));
+  }
+  return (botsInChat ?? []).length > 0;
 }
 
 export function useContextLensEvents(): LensStreamState {
@@ -206,8 +230,10 @@ export function useContextLensRuns(events: ContextLensEvent[]) {
   }, [events]);
 }
 
-export function useContextLensController() {
-  const contextLensAvailable = useContextLensAvailable();
+export function useContextLensController(params?: {
+  channel?: db.Channel | null;
+}) {
+  const contextLensAvailable = useContextLensAvailable(params?.channel);
   const [open, setOpen] = useState(false);
   const [selectedContextLensMessage, setSelectedContextLensMessage] =
     useState<ContextLensSelectedMessage | null>(null);

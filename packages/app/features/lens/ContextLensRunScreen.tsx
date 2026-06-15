@@ -88,7 +88,10 @@ export function ContextLensRunScreen(props: Props) {
       {lens ? (
         <ScrollView showsVerticalScrollIndicator={false}>
           <YStack gap="$m" padding="$l" paddingBottom="$2xl">
-            <RunSummary lens={lens} />
+            <RunSummary
+              lens={lens}
+              onRetry={() => store.retryLensRun({ botShip, lensId })}
+            />
             <RunInspector lens={lens} onPressMessage={handlePressMessage} />
           </YStack>
         </ScrollView>

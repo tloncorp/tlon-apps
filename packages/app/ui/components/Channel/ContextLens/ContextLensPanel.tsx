@@ -160,6 +160,13 @@ export function ContextLensPanel({
       ...synced.filter((event) => !live.has(event.lens.lensId)),
     ].sort((left, right) => right.at - left.at);
   }, [liveRuns, recentRunsQuery.data]);
+  const botShipByLensId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of recentRunsQuery.data ?? []) {
+      map.set(row.lensId, row.botShip);
+    }
+    return map;
+  }, [recentRunsQuery.data]);
   const selectedMessageKey = selectedMessage
     ? `${selectedMessage.lensId ?? ''}/${selectedMessage.authorId ?? ''}/${selectedMessage.id}`
     : null;
@@ -378,7 +385,20 @@ export function ContextLensPanel({
           {panelMode === 'selected' && !latest ? (
             <EmptySelectedRun lookupStatus={lookupStatus} />
           ) : latest ? (
-            <RunSummary lens={latest.lens} phase={latest.phase} />
+            <RunSummary
+              lens={latest.lens}
+              phase={latest.phase}
+              onRetry={(() => {
+                const lensId = latest.lens.lensId;
+                const botShip =
+                  botShipByLensId.get(lensId) ??
+                  selectedMessage?.botShip ??
+                  null;
+                return botShip
+                  ? () => store.retryLensRun({ botShip, lensId })
+                  : undefined;
+              })()}
+            />
           ) : (
             <YStack
               alignItems="center"

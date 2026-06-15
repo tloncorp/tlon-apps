@@ -16,6 +16,7 @@ import {
   summarizeContext,
   summarizeWrites,
 } from './format';
+import { parseLensMessageId } from './lensPost';
 import {
   DetailRow,
   InspectorSection,
@@ -57,6 +58,9 @@ export function RunInspector({
     <YStack gap="$s">
       <InspectorSection title="Trigger">
         <DetailRow label="Run" value={runKindLabel(lens)} />
+        {lens.retryOf ? (
+          <DetailRow label="Retry of" value={lens.retryOf.slice(0, 8)} />
+        ) : null}
         <DetailRow label="Visibility" value={lens.visibility ?? 'owner'} />
         <DetailRow
           label="Message"
@@ -266,7 +270,25 @@ function OutputItem({
   const postQuery = store.usePostWithRelations(
     expanded && canonicalId ? { id: canonicalId } : null
   );
-  const fullText = expanded ? postQuery.data?.textContent ?? null : null;
+  // The gateway id encodes the bot's send time, but channel posts are keyed
+  // by host receipt time, so the direct lookup misses for channel outputs.
+  // Fall back to resolving by (channel, author, send time).
+  const directMiss = expanded && !postQuery.isLoading && !postQuery.data;
+  const parsedId = useMemo(
+    () => parseLensMessageId(output.messageId),
+    [output.messageId]
+  );
+  const sentAtQuery = store.usePostBySentAt(
+    directMiss && parsedId && output.conversationId
+      ? {
+          channelId: output.conversationId,
+          authorId: parsedId.authorId,
+          sentAt: parsedId.sentAt,
+        }
+      : null
+  );
+  const resolvedPost = postQuery.data ?? sentAtQuery.data ?? null;
+  const fullText = expanded ? resolvedPost?.textContent ?? null : null;
 
   return (
     <YStack
@@ -304,7 +326,9 @@ function OutputItem({
       >
         {fullText ?? output.preview ?? output.conversationId}
       </SizableText>
-      {expanded && !fullText && postQuery.isLoading ? (
+      {expanded &&
+      !fullText &&
+      (postQuery.isLoading || sentAtQuery.isLoading) ? (
         <MutedLine value="Loading full output…" />
       ) : null}
       <XStack gap="$l" marginTop="$2xs">
@@ -322,7 +346,7 @@ function OutputItem({
             color="$positiveActionText"
             onPress={() =>
               onPressMessage({
-                postId: output.messageId,
+                postId: resolvedPost?.id ?? output.messageId,
                 channelId: output.conversationId,
               })
             }

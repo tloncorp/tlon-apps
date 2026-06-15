@@ -216,7 +216,7 @@ export function PostScreenView({
     toggleContextLens,
     clearSelectedContextLensMessage,
     inspectContextLensPost,
-  } = useContextLensController();
+  } = useContextLensController({ channel });
 
   const [galleryEditShouldBlur, setGalleryEditShouldBlur] = useState(false);
 

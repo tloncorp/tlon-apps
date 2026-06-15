@@ -9,6 +9,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '@tloncorp/api/client/activity';
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
@@ -1485,6 +1486,46 @@ export const getRecentContextLensRuns = createReadQuery(
     });
   },
   ['contextLensRuns']
+);
+
+export const getContextLensBotShips = createReadQuery(
+  'getContextLensBotShips',
+  async (ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .selectDistinct({ botShip: $contextLensRuns.botShip })
+      .from($contextLensRuns);
+    return rows.map((row) => preSig(row.botShip));
+  },
+  ['contextLensRuns']
+);
+
+export const getContextLensBotsInChat = createReadQuery(
+  'getContextLensBotsInChat',
+  async ({ chatId }: { chatId: string }, ctx: QueryCtx) => {
+    const [botRows, memberRows] = await Promise.all([
+      ctx.db
+        .selectDistinct({ botShip: $contextLensRuns.botShip })
+        .from($contextLensRuns),
+      ctx.db
+        .select({
+          contactId: $chatMembers.contactId,
+          status: $chatMembers.status,
+        })
+        .from($chatMembers)
+        .where(eq($chatMembers.chatId, chatId)),
+    ]);
+    // chatMembers.status is only set for invite flows; anything but 'invited'
+    // counts as present. Compare sig-normalized since botShip comes from the
+    // gateway and contactId from groups sync.
+    const members = new Set(
+      memberRows
+        .filter((row) => row.status !== 'invited')
+        .map((row) => preSig(row.contactId))
+    );
+    const botShips = new Set(botRows.map((row) => preSig(row.botShip)));
+    return [...botShips].filter((ship) => members.has(ship));
+  },
+  ['contextLensRuns', 'chatMembers']
 );
 
 export const insertChannelPerms = createWriteQuery(
@@ -4488,6 +4529,32 @@ export const getPostWithRelations = createReadQuery(
   // invalidation path would re-stale every cached per-post entry on any
   // posts-table mutation; the targeted path only touches the specific post.
   []
+);
+
+// Resolves a post by the author's send time when the canonical id is
+// unknown — e.g. context lens output ids encode the bot's send time, while
+// channel posts are keyed by host receipt time.
+export const getPostBySentAt = createReadQuery(
+  'getPostBySentAt',
+  async (
+    {
+      channelId,
+      authorId,
+      sentAt,
+    }: { channelId: string; authorId: string; sentAt: number },
+    ctx: QueryCtx
+  ): Promise<Post | null> => {
+    return ctx.db.query.posts
+      .findFirst({
+        where: and(
+          eq($posts.channelId, channelId),
+          eq($posts.authorId, authorId),
+          eq($posts.sentAt, sentAt)
+        ),
+      })
+      .then(returnNullIfUndefined);
+  },
+  ['posts']
 );
 
 export const getPersonalGroup = createReadQuery(

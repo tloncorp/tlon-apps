@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { lensRunMatchesChannel } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Pressable } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
@@ -36,10 +37,13 @@ export function ContextLensRunsScreen(props: Props) {
   const rows: RunRow[] = useMemo(
     () =>
       (recentRunsQuery.data ?? []).flatMap((row) => {
+        if (channelId && !lensRunMatchesChannel(row, channelId)) {
+          return [];
+        }
         const lens = lensFromRunPayload(row.payload);
         return lens ? [{ botShip: row.botShip, lens }] : [];
       }),
-    [recentRunsQuery.data]
+    [recentRunsQuery.data, channelId]
   );
 
   const openRun = useCallback(
@@ -56,7 +60,7 @@ export function ContextLensRunsScreen(props: Props) {
   return (
     <YStack flex={1} backgroundColor="$background">
       <ScreenHeader
-        title="Bot runs"
+        title={channelId ? 'Bot runs in this channel' : 'Bot runs'}
         backAction={props.navigation.goBack}
         borderBottom
       />

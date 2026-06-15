@@ -23,7 +23,7 @@ export function statusTone(status: ContextLensStatus): LensTone {
   if (status === 'error' || status === 'timed_out') {
     return 'negative';
   }
-  if (status === 'no_reply') {
+  if (status === 'no_reply' || status === 'aborted') {
     return 'warning';
   }
   return 'neutral';
@@ -187,4 +187,23 @@ export function runMeta(lens: ContextLens) {
 
 export function isFinalStatus(status: ContextLensStatus) {
   return FINAL_STATUSES.has(status);
+}
+
+const RETRYABLE_STATUSES = new Set<ContextLensStatus>([
+  'no_reply',
+  'timed_out',
+  'aborted',
+  'error',
+]);
+
+/**
+ * Whether the owner can ask the bot to re-run this run. Completed runs are
+ * excluded (a retry would post a duplicate reply), as are internal runs.
+ */
+export function canRetryLens(lens: ContextLens) {
+  return (
+    RETRYABLE_STATUSES.has(lens.status) &&
+    lens.chatType !== 'internal' &&
+    lens.runKind !== 'internal'
+  );
 }

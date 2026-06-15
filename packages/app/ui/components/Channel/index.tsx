@@ -711,7 +711,7 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       toggleContextLens,
       clearSelectedContextLensMessage,
       inspectContextLensPost,
-    } = useContextLensController();
+    } = useContextLensController({ channel });
     const backgroundColor = getVariableValue(useTheme().background);
 
     useImperativeHandle(

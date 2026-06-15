@@ -1,7 +1,10 @@
+import { Pressable } from '@tloncorp/ui';
+import { useState } from 'react';
 import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import {
   TONE_COLORS,
+  canRetryLens,
   formatDuration,
   formatWallTime,
   runKindLabel,
@@ -13,13 +16,27 @@ import {
 import { Metric } from './primitives';
 import { type ContextLens } from './types';
 
+const RETRY_COOLDOWN_MS = 5000;
+
 export function RunSummary({
   lens,
   phase,
+  onRetry,
 }: {
   lens: ContextLens;
   phase?: string;
+  onRetry?: () => Promise<void> | void;
 }) {
+  const [retrying, setRetrying] = useState(false);
+  const showRetry = Boolean(onRetry) && canRetryLens(lens);
+  const handleRetry = () => {
+    if (retrying || !onRetry) {
+      return;
+    }
+    setRetrying(true);
+    Promise.resolve(onRetry()).catch(() => undefined);
+    setTimeout(() => setRetrying(false), RETRY_COOLDOWN_MS);
+  };
   return (
     <YStack
       gap="$m"
@@ -40,6 +57,25 @@ export function RunSummary({
           <SizableText size="$l" color="$primaryText">
             {statusLabel(lens.status)}
           </SizableText>
+          {showRetry ? (
+            <Pressable
+              testID="LensRetryButton"
+              onPress={handleRetry}
+              disabled={retrying}
+              cursor="pointer"
+              borderWidth={1}
+              borderColor="$border"
+              borderRadius="$s"
+              paddingHorizontal="$s"
+              paddingVertical="$2xs"
+              pressStyle={{ opacity: 0.6 }}
+              opacity={retrying ? 0.5 : 1}
+            >
+              <SizableText size="$s" color="$positiveActionText">
+                {retrying ? 'Retrying…' : 'Retry'}
+              </SizableText>
+            </Pressable>
+          ) : null}
         </XStack>
         <SizableText size="$s" color="$secondaryText">
           {phase ?? formatWallTime(lens.updatedAt)}

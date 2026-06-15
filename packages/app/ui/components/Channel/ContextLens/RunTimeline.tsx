@@ -97,11 +97,13 @@ export function buildRunTimeline(
             ? 'No reply emitted'
             : lens.status === 'timed_out'
               ? 'Timed out'
-              : lens.status === 'error'
-                ? 'Run failed'
-                : 'Delivering reply',
+              : lens.status === 'aborted'
+                ? 'Run aborted'
+                : lens.status === 'error'
+                  ? 'Run failed'
+                  : 'Delivering reply',
       detail:
-        lens.status === 'error' && lens.error
+        (lens.status === 'error' || lens.status === 'aborted') && lens.error
           ? lens.error
           : [
               pluralize(lens.lifecycle.deliveredMessageCount, 'message'),
