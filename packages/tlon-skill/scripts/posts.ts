@@ -70,7 +70,8 @@ Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 const POSTS_COMMAND_HELP: Record<string, string> = {
   send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] (message optional with --image)',
-  reply: 'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
+  reply:
+    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
   react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
   unreact: 'Usage: tlon posts unreact <channel> <post-id>',
   edit: 'Usage: tlon posts edit <channel> <post-id> <message> [--title <title>] [--image <url>] [--content <json-file>]',
@@ -237,7 +238,10 @@ function parseContent(message: string): Story {
   return markdownToStory(message);
 }
 
-function postTargetApps(command: string | undefined, target: string | undefined) {
+function postTargetApps(
+  command: string | undefined,
+  target: string | undefined
+) {
   if ((command === 'send' || command === 'reply') && target) {
     return target.startsWith('~') || target.startsWith('0v')
       ? ['chat' as const]
@@ -495,7 +499,12 @@ async function main() {
             printErrorAndExit(error.message);
           }
         }
-        const result = await sendChannelPost(channel, message, blob, imageVerse);
+        const result = await sendChannelPost(
+          channel,
+          message,
+          blob,
+          imageVerse
+        );
         if (!result.success) {
           console.error(`Error: ${result.error}`);
           process.exit(1);

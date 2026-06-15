@@ -56,7 +56,12 @@ describe('imageDimensions', () => {
       'VP8L',
       [0x00, 0x00, 0x00, 0x00],
       [0x2f],
-      [dims & 0xff, (dims >> 8) & 0xff, (dims >> 16) & 0xff, (dims >> 24) & 0xff],
+      [
+        dims & 0xff,
+        (dims >> 8) & 0xff,
+        (dims >> 16) & 0xff,
+        (dims >> 24) & 0xff,
+      ],
       [0x00, 0x00, 0x00, 0x00, 0x00] // pad past the 30-byte container guard
     );
     expect(imageDimensions(webp)).toEqual({ width: 10, height: 20 });
@@ -77,7 +82,9 @@ describe('imageDimensions', () => {
   });
 
   it('returns null for non-image bytes and truncated headers', () => {
-    expect(imageDimensions(bytes('hello world this is not an image'))).toBeNull();
+    expect(
+      imageDimensions(bytes('hello world this is not an image'))
+    ).toBeNull();
     expect(imageDimensions(PNG_2X3.subarray(0, 12))).toBeNull();
     expect(imageDimensions(bytes([0xff, 0xd8, 0xff, 0xd9]))).toBeNull(); // EOI before SOF
   });
@@ -111,13 +118,19 @@ describe('fetchImageVerse', () => {
 
   it('throws on a non-OK response', async () => {
     await expect(
-      fetchImageVerse('https://x.example/img.png', fetchReturning(PNG_2X3, false, 404))
+      fetchImageVerse(
+        'https://x.example/img.png',
+        fetchReturning(PNG_2X3, false, 404)
+      )
     ).rejects.toThrow('Failed to fetch image: 404');
   });
 
   it('throws when dimensions cannot be determined', async () => {
     await expect(
-      fetchImageVerse('https://x.example/page.html', fetchReturning(bytes('<html>not an image</html>')))
+      fetchImageVerse(
+        'https://x.example/page.html',
+        fetchReturning(bytes('<html>not an image</html>'))
+      )
     ).rejects.toThrow(/Could not determine image dimensions/);
   });
 });

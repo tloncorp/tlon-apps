@@ -142,7 +142,11 @@ describe('uploadFile assume-hosted override (TLON_HOSTING)', () => {
     mockShip({ service: 'presigned-url' });
     mockMemexResponse();
 
-    const result = await uploadFile({ blob, fileName: 'croissant.png', ...forced });
+    const result = await uploadFile({
+      blob,
+      fileName: 'croissant.png',
+      ...forced,
+    });
 
     expect(result.url).toBe('https://storage.tlon.network/~zod/file.png');
     // the override short-circuits URL detection entirely

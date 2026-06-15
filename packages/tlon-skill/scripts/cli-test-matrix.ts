@@ -236,7 +236,14 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
   ),
   {
     name: 'posts send blob rejects non-array json',
-    args: ['posts', 'send', 'chat/~host/channel', 'message', '--blob', '{"a":1}'],
+    args: [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      'message',
+      '--blob',
+      '{"a":1}',
+    ],
     expectedExitCode: 1,
     stdout: '',
     stderrIncludes: ['--blob must be a JSON array'],
