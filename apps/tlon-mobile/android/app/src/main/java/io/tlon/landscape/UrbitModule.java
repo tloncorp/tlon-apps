@@ -29,12 +29,25 @@ public class UrbitModule extends ReactContextBaseJavaModule {
         editor.putString(SecureStorage.AUTH_COOKIE_KEY, authCookie.split(";")[0]);
         String uid = Long.toString(System.currentTimeMillis() / 1000L) + "-" + String.format("%06x", new Random().nextInt(0x1000000));
         editor.putString(SecureStorage.CHANNEL_URL, shipUrl + "/~/channel/" + uid);
+        // reset the cached backend capability for the new login; JS re-resolves
+        // it from the ship's version. avoids using a prior ship's v9 mark.
+        editor.remove(SecureStorage.ACTIVITY_SUPPORTS_REACTIONS_KEY);
         editor.apply();
     }
 
     @ReactMethod
     public void clearUrbit() {
         SecureStorage.clear();
+    }
+
+    // Caches whether the connected backend's %activity supports reactions, so
+    // the notification service can choose the v9 (activity-event-1) vs v8
+    // (activity-event) fetch without scrying for a version itself.
+    @ReactMethod
+    public void setActivitySupportsReactions(boolean supported) {
+        SharedPreferences.Editor editor = SecureStorage.sharedPreferences.edit();
+        editor.putBoolean(SecureStorage.ACTIVITY_SUPPORTS_REACTIONS_KEY, supported);
+        editor.apply();
     }
 
     @ReactMethod
