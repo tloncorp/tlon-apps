@@ -8,6 +8,7 @@ packages/tlon-skill/bin/tlon
 *.tgz
 *.xst
 zod*
+bud
 vere-*
 *.pill
 /rube/zod/
