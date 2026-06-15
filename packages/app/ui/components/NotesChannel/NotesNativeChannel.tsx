@@ -32,6 +32,14 @@ import {
   RenameFolderDialog,
 } from './NotesDialogs';
 import { NotesHeaderActions } from './NotesHeaderActions';
+import {
+  buildNotesImportItems,
+  canSelectNotesImportSourcesFromWeb,
+  makeUniqueNoteTitle,
+  normalizeTitleKey,
+  selectNotesImportSourcesFromWeb,
+} from './notesImport';
+import type { NotesImportMode } from './notesImport';
 import { FolderTreeRow, NoteRow } from './NotesTreeRows';
 import {
   buildFolderNoteCounts,
@@ -67,6 +75,8 @@ export function NotesNativeChannel({
     useState<db.NotesFolder | null>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [notesFilterQuery, setNotesFilterQuery] = useState('');
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [isImportingNotes, setIsImportingNotes] = useState(false);
   const {
     entity: movingNote,
     isPending: isMovingNote,
@@ -101,6 +111,7 @@ export function NotesNativeChannel({
 
   const { folders, notes, canEdit, rootFolderId, joinFailed, gate } =
     useNotebookData(notebookFlag);
+  const canImportNotes = canEdit && canSelectNotesImportSourcesFromWeb();
 
   const parentFolderRows = useMemo(
     () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
@@ -285,6 +296,130 @@ export function NotesNativeChannel({
     },
     [setTreeViewStyle]
   );
+
+  const handleImportNotes = useCallback(async (mode: NotesImportMode) => {
+    const targetRootFolderId = selectedFolderId ?? rootFolderId;
+
+    if (
+      !notebookFlag ||
+      targetRootFolderId == null ||
+      !canEdit ||
+      isImportingNotes
+    ) {
+      return;
+    }
+
+    setError(null);
+    setImportNotice(null);
+    setIsImportingNotes(true);
+    try {
+      const sources = await selectNotesImportSourcesFromWeb(mode);
+      if (!sources) {
+        return;
+      }
+
+      const importItems = buildNotesImportItems(sources);
+      if (importItems.length === 0) {
+        setImportNotice('No markdown or text files found.');
+        return;
+      }
+
+      const foldersByParentAndName = new Map<string, db.NotesFolder>();
+      folders.forEach((folder) => {
+        foldersByParentAndName.set(folderCacheKey(folder), folder);
+      });
+
+      const noteTitlesByFolder = new Map<number, Set<string>>();
+      notes.forEach((note) => {
+        const titles = noteTitlesByFolder.get(note.folderId) ?? new Set();
+        titles.add(normalizeTitleKey(note.title));
+        noteTitlesByFolder.set(note.folderId, titles);
+      });
+
+      const expandedFolderIds = new Set<number>([targetRootFolderId]);
+      const ensureFolderPath = async (segments: string[]) => {
+        let parentFolderId = targetRootFolderId;
+        for (const segment of segments) {
+          const key = folderCacheKey({
+            name: segment,
+            parentFolderId,
+          });
+          const existing = foldersByParentAndName.get(key);
+          if (existing) {
+            parentFolderId = existing.folderId;
+            expandedFolderIds.add(parentFolderId);
+            continue;
+          }
+
+          const folder = await createNotebookFolder({
+            notebookFlag,
+            parentFolderId,
+            name: segment,
+          });
+          if (!folder) {
+            throw new Error(`Failed to create folder ${segment}`);
+          }
+
+          foldersByParentAndName.set(folderCacheKey(folder), folder);
+          parentFolderId = folder.folderId;
+          expandedFolderIds.add(parentFolderId);
+        }
+        return parentFolderId;
+      };
+
+      let importedCount = 0;
+      let failedCount = 0;
+      for (const item of importItems) {
+        try {
+          const folderId = await ensureFolderPath(item.folderSegments);
+          const existingTitles = noteTitlesByFolder.get(folderId) ?? new Set();
+          noteTitlesByFolder.set(folderId, existingTitles);
+          const title = makeUniqueNoteTitle(item.title, existingTitles);
+          await createNotebookNote({
+            notebookFlag,
+            folderId,
+            title,
+            body: item.body,
+          });
+          expandedFolderIds.add(folderId);
+          importedCount += 1;
+        } catch (e) {
+          console.error('Failed to import note', item.source.relativePath, e);
+          failedCount += 1;
+        }
+      }
+
+      expandedFolderIds.forEach(expandFolder);
+      if (importedCount === 0 && failedCount > 0) {
+        throw new Error(
+          `Failed to import ${formatCount(failedCount, 'note')}.`
+        );
+      }
+
+      setImportNotice(formatImportNotice(importedCount, failedCount));
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to import notes'));
+    } finally {
+      setIsImportingNotes(false);
+    }
+  }, [
+    canEdit,
+    expandFolder,
+    folders,
+    isImportingNotes,
+    notebookFlag,
+    notes,
+    rootFolderId,
+    selectedFolderId,
+  ]);
+
+  const handleImportFiles = useCallback(() => {
+    void handleImportNotes('files');
+  }, [handleImportNotes]);
+
+  const handleImportFolder = useCallback(() => {
+    void handleImportNotes('folder');
+  }, [handleImportNotes]);
 
   const handleOpenMoveNote = useCallback(
     (note: db.NotesNote) => {
@@ -492,6 +627,10 @@ export function NotesNativeChannel({
       return (
         <NotesHeaderActions
           canEdit={canEdit}
+          canImport={canImportNotes}
+          isImporting={isImportingNotes}
+          onImportFiles={handleImportFiles}
+          onImportFolder={handleImportFolder}
           openNewSheetRef={openNewSheetRef}
           treeViewStyle={treeViewStyle}
           onTreeViewStyleChange={handleTreeViewStyleChange}
@@ -500,9 +639,13 @@ export function NotesNativeChannel({
     }, [
       canEdit,
       handleTreeViewStyleChange,
+      handleImportFiles,
+      handleImportFolder,
+      isImportingNotes,
       joinFailed,
       notebookFlag,
       treeViewStyle,
+      canImportNotes,
     ])
   );
 
@@ -519,6 +662,7 @@ export function NotesNativeChannel({
   return (
     <YStack flex={1} backgroundColor="$background">
       {error ? <NotesErrorMessage error={error} /> : null}
+      {importNotice ? <NotesImportNotice message={importNotice} /> : null}
 
       <NotesContentFrame
         viewStyle={treeViewStyle}
@@ -686,10 +830,26 @@ function NotesContentFrame({
       maxWidth={760}
       marginHorizontal="auto"
       paddingLeft={viewStyle === 'notes' ? '$m' : '$s'}
-      paddingRight={viewStyle === 'notes' ? '$l' : '$m'}
+      paddingRight={viewStyle === 'notes' ? '$m' : '$s'}
       {...props}
     >
       {children}
+    </YStack>
+  );
+}
+
+function NotesImportNotice({ message }: { message: string }) {
+  return (
+    <YStack
+      paddingHorizontal="$l"
+      paddingVertical="$s"
+      backgroundColor="$secondaryBackground"
+      borderBottomColor="$border"
+      borderBottomWidth={1}
+    >
+      <Text size="$label/s" color="$secondaryText">
+        {message}
+      </Text>
     </YStack>
   );
 }
@@ -709,6 +869,30 @@ function SidebarEmpty({
       {action}
     </YStack>
   );
+}
+
+function folderCacheKey({
+  name,
+  parentFolderId,
+}: {
+  name: string;
+  parentFolderId?: number | null;
+}) {
+  return `${parentFolderId ?? 'root'}:${normalizeTitleKey(name)}`;
+}
+
+function formatImportNotice(importedCount: number, failedCount: number) {
+  if (failedCount === 0) {
+    return `Imported ${formatCount(importedCount, 'note')}.`;
+  }
+  return `Imported ${formatCount(importedCount, 'note')}; ${formatCount(
+    failedCount,
+    'note'
+  )} failed.`;
+}
+
+function formatCount(count: number, label: string) {
+  return `${count} ${label}${count === 1 ? '' : 's'}`;
 }
 
 function NotesTreeSearchInput({
