@@ -82,6 +82,33 @@ class TlonToolGuardTests(unittest.TestCase):
         args, _ = tlon_tool.split_tlon_command('posts send chat/~zod/general "hi"')
         self.assertIsNone(tlon_tool.check_tlon_tool_command(args))
 
+    def test_allows_image_sends_to_current_conversation(self):
+        # The streaming reply path is text-only, so --image sends are the only
+        # way to deliver an image — allowed even to the current chat.
+        cases = [
+            ('posts send chat/~zod/general --image https://x/y.png', "chat/~zod/general"),
+            (
+                'posts send chat/~zod/general "a tree" --image https://x/y.png',
+                "chat/~zod/general",
+            ),
+            ('dms send 0v5.abcde --image https://x/y.png', "0v5.abcde"),
+        ]
+        for command, chat_id in cases:
+            with self.subTest(command=command):
+                args, error = tlon_tool.split_tlon_command(command)
+                self.assertIsNone(error)
+                self.assertIsNone(
+                    tlon_tool.check_tlon_tool_command(args, session_chat_id=chat_id)
+                )
+
+    def test_text_sends_to_current_conversation_stay_blocked(self):
+        args, _ = tlon_tool.split_tlon_command('posts send chat/~zod/general "hi"')
+        blocked = tlon_tool.check_tlon_tool_command(
+            args, session_chat_id="chat/~zod/general"
+        )
+        self.assertIsNotNone(blocked)
+        self.assertIn("--image", blocked)  # block message teaches the escape
+
     def test_blocks_notebook(self):
         args, error = tlon_tool.split_tlon_command('notebook diary/~zod/notes "Title"')
         self.assertIsNone(error)

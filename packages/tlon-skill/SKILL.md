@@ -23,12 +23,15 @@ This invites the requester and makes them an admin. Do not use plain
 that does not automatically include the requester.
 
 For a normal reply in the current Tlon conversation, respond with final
-assistant text and let Hermes deliver it through `TlonAdapter.send()`. For a
-proactive cross-platform send, use Hermes' `send_message` tool so delivery still
-routes through the Tlon platform adapter.
+assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post
+to a different channel or DM (a proactive send), use `posts send` / `dms send`
+with that target.
 
-Blocked in Hermes' `tlon` tool: `posts send`, `posts reply`, `dms send`,
-`dms reply`, and `notebook`.
+Blocked in Hermes' `tlon` tool: plain-text `posts send`/`posts reply`/`dms
+send`/`dms reply` targeting the **current** conversation (reply normally
+instead), and `notebook`. Image sends (`--image`) are allowed anywhere,
+including the current conversation: `tlon upload <direct-image-url>`, then
+`posts send <target> [caption] --image <uploaded-url>`.
 
 ## OpenClaw
 
@@ -412,6 +415,10 @@ tlon dms unreact ~sampel ~author/170.141...              # Remove reaction
 tlon dms delete ~sampel ~author/170.141...               # Delete a DM
 tlon dms accept ~sampel                                  # Accept DM invite
 tlon dms decline ~sampel                                 # Decline DM invite
+
+# Group DM (club) sends
+tlon dms send 0v5.abcde "hello"                          # Send to a group DM
+tlon dms send 0v5.abcde "look" --image https://...       # Send with an image
 ```
 
 ### Expose
@@ -435,15 +442,20 @@ Channel kinds map to content types: chat→msg, diary→note, heap→curio
 
 ### Posts
 
-Manage channel posts (reactions, edits, deletes).
+Manage channel posts (sends, reactions, edits, deletes).
 
 ```bash
+tlon posts send chat/~host/slug "Hello"                  # Send a message
+tlon posts send chat/~host/slug "Look" --image https://storage.../x.png # Send with an image
+tlon posts send chat/~host/slug --image https://...      # Image only (no caption)
 tlon posts react chat/~host/slug 170.141... "👍"         # React to a post
 tlon posts unreact chat/~host/slug 170.141...            # Remove reaction
 tlon posts edit chat/~host/slug 170.141... "New text"    # Edit with plain text
 tlon posts edit diary/~host/slug 170.141... --title "T" --image <url> --content story.json # Edit notebook
 tlon posts delete chat/~host/slug 170.141...             # Delete a post
 ```
+
+Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 
 Edit options for notebooks: `--title`, `--image` (cover URL), `--content` (Story JSON file for rich formatting).
 

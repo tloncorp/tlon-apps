@@ -8,6 +8,8 @@ Do not create or modify Hermes skills during a Tlon chat in order to remember Tl
 
 For user-requested images, avatars, covers, and media, use `image_search` when available. `web_search` returns web pages, and `web_extract` reads page text; neither is a reliable source of direct image bytes. Use an `image_search` result's `image_url` with `tlon upload`, then use the uploaded URL returned by `tlon upload`.
 
+To send an image in a message (any conversation, including the current one): `tlon upload <direct-image-url>`, then `tlon posts send <target> [caption] --image <uploaded-url>` (group DMs: `tlon dms send <club-id> [caption] --image <url>`). The caption is optional. Always pass the URL returned by `tlon upload`, not the source URL.
+
 Preserve exact Tlon identifiers:
 
 -   ship ids such as `~sampel-palnet`

@@ -62,7 +62,10 @@ TLON_TOOL_DESCRIPTION = (
     "To reply to the CURRENT conversation, just write the reply — do not use "
     "posts/dms send here (that path is blocked so Hermes delivers replies). "
     "To post to a DIFFERENT channel or DM (a proactive send), use posts send / "
-    "dms send with that target, e.g. posts send chat/~host/channel \"...\"."
+    "dms send with that target, e.g. posts send chat/~host/channel \"...\". "
+    "To send an IMAGE anywhere (including the current conversation): first "
+    "'upload <direct-image-url>', then 'posts send <target> [caption] --image "
+    "<uploaded-url>' (group DMs: dms send <club-id> ... --image <url>)."
 )
 
 TLON_TOOL_SCHEMA = {
@@ -90,7 +93,10 @@ TLON_TOOL_SCHEMA = {
                     "To post to a different channel/DM, use 'posts send "
                     "<channel> \"...\"' or 'dms send <ship> \"...\"'. Sending to "
                     "the CURRENT conversation is blocked (reply normally "
-                    "instead); 'notebook' is also blocked."
+                    "instead) EXCEPT image sends: 'posts send <target> "
+                    "[caption] --image <uploaded-url>' is allowed anywhere — "
+                    "upload first with 'upload <direct-image-url>'. 'notebook' "
+                    "is blocked."
                 ),
             }
         },
@@ -211,6 +217,15 @@ def _profile_update_block(
     return None
 
 
+def _has_image_flag(args: Sequence[str]) -> bool:
+    """Image sends (``--image <url>``) are exempt from the current-conversation
+    block: the streaming reply path is text-only, so the tool is the only way
+    to deliver an image anywhere — including the current chat."""
+    return any(
+        str(arg) == "--image" or str(arg).startswith("--image=") for arg in args
+    )
+
+
 def _send_targets_current_conversation(
     args: Sequence[str],
     sub_idx: int,
@@ -255,14 +270,17 @@ def check_tlon_tool_command(
             "Blocked: notebook posting is not available through this tool. Use "
             "channel posts instead."
         )
-    if (subcommand, action) in SEND_OPERATIONS and _send_targets_current_conversation(
-        args, sub_idx, session_chat_id
+    if (
+        (subcommand, action) in SEND_OPERATIONS
+        and not _has_image_flag(args)
+        and _send_targets_current_conversation(args, sub_idx, session_chat_id)
     ):
         return (
             "Blocked: don't deliver your reply to the current conversation with "
             "the tlon tool — reply normally so Hermes delivers it through "
             "TlonAdapter.send(). Sending to other channels or DMs with posts/dms "
-            "send|reply is allowed."
+            "send|reply is allowed, and image sends (posts/dms send --image) are "
+            "allowed anywhere, including this conversation."
         )
     if subcommand == "groups" and action == "create":
         group_create_block = _user_group_create_block(

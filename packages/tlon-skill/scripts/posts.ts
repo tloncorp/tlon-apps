@@ -35,12 +35,13 @@ import {
   printUsageAndExit,
   wantsHelp,
 } from './cli-utils';
-import { type Story, markdownToStory } from './story';
+import { fetchImageVerse, validatedImageFlag } from './image-attach';
+import { type Story, type StoryVerse, markdownToStory } from './story';
 
 const POSTS_HELP = `Usage: tlon posts <command>
 
 Commands:
-  send <channel> <message>                 Send a message to a channel [--blob <json>]
+  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>]
   reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship]
   react <channel> <post-id> <emoji>     React to a post with an emoji
   unreact <channel> <post-id>           Remove your reaction from a post
@@ -49,6 +50,8 @@ Commands:
 
 Send options:
   --blob <json>        Attach a post-blob JSON array (e.g. an a2ui entry)
+  --image <url>        Attach an image (direct png/jpeg/gif/webp URL, e.g. from
+                       'tlon upload'); message becomes an optional caption
 
 Edit options:
   --title <title>      Set/update notebook post title
@@ -57,6 +60,7 @@ Edit options:
 
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
+  tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
   tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
   tlon posts edit diary/~host/notes 170.141... --title "New Title" --image https://example.com/cover.jpg --content article.json
@@ -65,7 +69,7 @@ Channel format: chat/~host/channel-name, diary/~host/name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 const POSTS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon posts send <channel> <message> [--blob <json>]',
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] (message optional with --image)',
   reply: 'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
   react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
   unreact: 'Usage: tlon posts unreact <channel> <post-id>',
@@ -75,7 +79,7 @@ const POSTS_COMMAND_HELP: Record<string, string> = {
 
 const POST_EDIT_OPTION_FLAGS = ['title', 'content', 'image'] as const;
 const POST_REPLY_OPTION_FLAGS = ['author'] as const;
-const POST_SEND_OPTION_FLAGS = ['blob'] as const;
+const POST_SEND_OPTION_FLAGS = ['blob', 'image'] as const;
 
 function getPostsHelp(command?: string): string {
   return command ? POSTS_COMMAND_HELP[command] ?? POSTS_HELP : POSTS_HELP;
@@ -170,7 +174,8 @@ function validatePostsArgs(args: string[]): void {
 
   switch (command) {
     case 'send': {
-      if (!args[1] || !getPostSendMessage(args)) {
+      const image = validatedImageFlag(args, POSTS_COMMAND_HELP.send);
+      if (!args[1] || (!getPostSendMessage(args) && !image)) {
         printUsageAndExit(POSTS_COMMAND_HELP.send);
       }
       validatedSendBlob(args);
@@ -315,12 +320,18 @@ async function unreactToPost(
 async function sendChannelPost(
   nest: string,
   message: string,
-  blob?: string
+  blob?: string,
+  imageVerse?: StoryVerse
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   try {
     const authorId = getCurrentUserId();
     const sentAt = Date.now();
-    const content = parseContent(message);
+    // Image block first, caption after — matches how the apps compose
+    // attachment posts.
+    const content: Story = [
+      ...(imageVerse ? [imageVerse] : []),
+      ...(message ? parseContent(message) : []),
+    ];
 
     await sendPost({
       channelId: nest,
@@ -471,11 +482,20 @@ async function main() {
       case 'send': {
         const channel = args[1];
         const message = getPostSendMessage(args);
-        if (!channel || !message) {
+        const imageUrl = validatedImageFlag(args, POSTS_COMMAND_HELP.send);
+        if (!channel || (!message && !imageUrl)) {
           printUsageAndExit(POSTS_COMMAND_HELP.send);
         }
         const blob = validatedSendBlob(args);
-        const result = await sendChannelPost(channel, message, blob);
+        let imageVerse: StoryVerse | undefined;
+        if (imageUrl) {
+          try {
+            imageVerse = await fetchImageVerse(imageUrl);
+          } catch (error: any) {
+            printErrorAndExit(error.message);
+          }
+        }
+        const result = await sendChannelPost(channel, message, blob, imageVerse);
         if (!result.success) {
           console.error(`Error: ${result.error}`);
           process.exit(1);

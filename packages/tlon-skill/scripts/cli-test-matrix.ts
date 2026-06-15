@@ -242,6 +242,23 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     stderrIncludes: ['--blob must be a JSON array'],
   },
   usageErrorCase(
+    'posts send missing image value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--image'],
+    'Usage: tlon posts send'
+  ),
+  {
+    name: 'posts send rejects non-http image url',
+    args: ['posts', 'send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
+  usageErrorCase(
+    'dms send missing image value',
+    ['dms', 'send', '0v5.abcde', '--image'],
+    'Usage: tlon dms send'
+  ),
+  usageErrorCase(
     'settings set missing args',
     ['settings', 'set'],
     'Usage: tlon settings set'
@@ -391,6 +408,20 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     'message',
     '--blob',
     '[{"type":"a2ui","version":1,"messages":[]}]',
+  ]),
+  authRequiredCase('posts send image-only reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    '--image',
+    'https://example.com/x.png',
+  ]),
+  authRequiredCase('dms send image-only reaches auth', [
+    'dms',
+    'send',
+    '0v5.abcde',
+    '--image',
+    'https://example.com/x.png',
   ]),
   authRequiredCase('posts reply message option-like value reaches auth', [
     'posts',

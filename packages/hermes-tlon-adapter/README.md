@@ -245,6 +245,8 @@ Tlon profile changes such as nickname, avatar, bio, status, and cover are owner-
 
 `tlon upload` detects Tlon hosting from the node URL by default. Connections that reach their node over localhost/proxy fail that heuristic (the URL looks self-hosted), so set `TLON_HOSTING=true` to force the hosted (memex) upload path on such deployments. Run `/tlon status storage` to see which path a node resolves to and why.
 
+The bot can also send images in messages: `tlon upload <direct-image-url>` then `tlon posts send <target> [caption] --image <uploaded-url>` (group DMs: `tlon dms send <club-id> … --image <url>`). The CLI reads the image's pixel dimensions from its bytes and attaches a story image block, so clients render it inline. Image sends are exempt from the current-conversation send block — the streaming reply path is text-only, so `--image` is the only way to deliver an image, including into the chat the bot is answering.
+
 When `BRAVE_SEARCH_API_KEY` or `BRAVE_API_KEY` is configured, the adapter registers `image_search` under the Tlon toolset. Use this for user-requested images rather than asking the model to infer direct image URLs from ordinary web search results.
 
 When `TLON_GATEWAY_STATUS` is enabled, the adapter pokes `%gateway-status` on connect, heartbeat, and disconnect. `TLON_GATEWAY_STATUS_OWNER` defaults to `TLON_OWNER_SHIP` when omitted.
