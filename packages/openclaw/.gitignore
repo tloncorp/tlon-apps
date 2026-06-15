@@ -1,0 +1,13 @@
+node_modules/
+dist/
+src/version.generated.ts
+*.log
+.DS_Store
+.env
+.vscode
+WORKLOG.md
+.pnpm-store/
+
+# Publish staging
+.publish/
+*.tgz
