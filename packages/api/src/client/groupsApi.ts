@@ -1535,8 +1535,8 @@ export const toV1GroupsUpdate = (
   // response, emitted when a channel-host agent (e.g. %notes) reports a
   // join/leave. Reconciles membership the same way as a real channel
   // join/leave; lets a second same-ship client learn it without a full sync.
-  if ('active-channels' in event) {
-    const { nest, joined } = event['active-channels'];
+  if ('active-channel' in event) {
+    const { nest, joined } = event['active-channel'];
     return joined
       ? { type: 'joinChannel', channelId: nest, groupId }
       : { type: 'leaveChannel', channelId: nest };

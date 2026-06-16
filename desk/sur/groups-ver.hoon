@@ -115,7 +115,7 @@
     ::  depends on $group, $r-entry, $r-section.
     ::
     ::  %section-order: set section order
-    ::  %active-channels: per-nest active-channels (membership) delta; local-only
+    ::  %active-channel: per-nest active-channels (membership) delta; local-only
     ::
     +$  r-group
       $%  [%create =group]
@@ -127,7 +127,7 @@
           [%section =section-id =r-section]
           [%section-order order=(list section-id)]
           [%flag-content =nest =plan src=ship]
-          [%active-channels =nest joined=?]
+          [%active-channel =nest joined=?]
           [%delete ~]
       ==
     :: $r-entry: depends on $r-ask

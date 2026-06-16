@@ -87,7 +87,7 @@
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
-          ::  relaxed (|): r-group gained the local-only %active-channels
+          ::  relaxed (|): r-group gained the local-only %active-channel
           ::  variant, so its type hash must not be pinned into negotiation.
           :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
@@ -1753,7 +1753,7 @@
       (~(put in active-channels.group) nest)
     (~(del in active-channels.group) nest)
   =.  groups  (~(put by groups) flag net group)
-  =/  =r-groups:v9:gv  [flag [%active-channels nest joined]]
+  =/  =r-groups:v9:gv  [flag [%active-channel nest joined]]
   (give %fact ~[/v1/groups] group-response-1+!>(r-groups))
 ::
 ++  take-channels
