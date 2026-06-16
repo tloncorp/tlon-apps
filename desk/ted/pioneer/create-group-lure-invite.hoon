@@ -42,7 +42,8 @@
 =/  =metadata:v1:reel  [%groups-0 fields]
 =/  =wire  /group-lure-invite/(scot %da now.bowl)
 ;<  ~  bind:m
-  (watch:io wire [our.bowl %reel] /v1/id-link/[flag-str])
+  ::NOTE  deranged path construction because reel does the same...
+  (watch:io wire [our.bowl %reel] (stab (cat 3 '/v1/id-link/' flag-str)))
 ;<  ~  bind:m
   (poke:io [our.bowl %reel] reel-describe+!>([flag-str metadata]))
 ;<  =cage  bind:m  (take-fact:io wire)

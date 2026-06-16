@@ -23,7 +23,8 @@
 =/  id=cord  (so:dejs:format json)
 =/  =wire  /lure-invite/(scot %da now.bowl)
 ;<  ~  bind:m
-  (watch:io wire [our.bowl %reel] /v1/id-link/[id])
+  ::NOTE  deranged path construction because reel does the same
+  (watch:io wire [our.bowl %reel] (stab (cat 3 '/v1/id-link/' id)))
 ;<  ~  bind:m
   %+  poke:io  [our.bowl %reel]
   reel-describe+!>([id `metadata:reel`[tag=%groups-0 [%'inviteType' 'user'] ~ ~]])
