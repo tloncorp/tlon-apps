@@ -7,6 +7,33 @@ description: Interact with Tlon/Urbit API. Use for reading activity, message his
 
 Use the `tlon` command for reading data, managing channels/groups/contacts, and administration.
 
+## Hermes
+
+When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the
+`tlon` CLI for reading data, administration, and management. Do **not** use it
+to send replies or create posts.
+
+For exact command syntax, use the command sections below or run
+`tlon <subcommand> --help` through the tool.
+
+When a Tlon user asks you to create a group for them, use
+`tlon groups create-owned "Name" --owner ~requester [--description "..."]`.
+This invites the requester and makes them an admin. Do not use plain
+`tlon groups create` for user-requested groups; that creates a bot-owned group
+that does not automatically include the requester.
+
+For a normal reply in the current Tlon conversation, respond with final
+assistant text and let Hermes deliver it through `TlonAdapter.send()`. To post
+to a different channel or one-to-one DM (a proactive send), use `posts send`
+with that target (`chat/~host/slug` for channels, `~ship` for one-to-one DMs).
+Reserve `dms send <club-id>` for group DMs, whose club IDs start with `0v`.
+
+Blocked in Hermes' `tlon` tool: plain-text `posts send`/`posts reply`/`dms
+send`/`dms reply` targeting the **current** conversation (reply normally
+instead), and `notebook`. Image sends (`--image`) are allowed anywhere,
+including the current conversation: `tlon upload <direct-image-url>`, then
+`posts send <target> [caption] --image <uploaded-url>`.
+
 ## OpenClaw
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
@@ -242,8 +269,8 @@ Full group management.
 # Basics
 tlon groups list                                         # List your groups
 tlon groups info ~host/slug                              # Get group details
+tlon groups create-owned "Name" --owner ~ship [--description "..."] # Create group for a user, invite owner, make owner admin
 tlon groups create "Name" [--description "..."]          # Create a group
-tlon groups create-owned "Name" --owner ~ship [--description "..."] # Create group, invite owner, make owner admin
 tlon groups join ~host/slug                              # Join public/invited group, or request invite if private
 tlon groups request-invite ~host/slug                    # Request invite to a private group
 tlon groups accept-invite ~host/slug                     # Accept an existing group invite
@@ -389,6 +416,13 @@ tlon dms unreact ~sampel ~author/170.141...              # Remove reaction
 tlon dms delete ~sampel ~author/170.141...               # Delete a DM
 tlon dms accept ~sampel                                  # Accept DM invite
 tlon dms decline ~sampel                                 # Decline DM invite
+
+# Group DM (club) sends
+tlon dms send 0v5.abcde "hello"                          # Send to a group DM
+tlon dms send 0v5.abcde "look" --image https://...       # Send with an image
+
+# One-to-one proactive DMs use posts, not dms
+tlon posts send ~sampel "hello"                           # Send to a 1:1 DM
 ```
 
 ### Expose
@@ -412,15 +446,21 @@ Channel kinds map to content types: chat→msg, diary→note, heap→curio
 
 ### Posts
 
-Manage channel posts (reactions, edits, deletes).
+Manage channel posts (sends, reactions, edits, deletes).
 
 ```bash
+tlon posts send chat/~host/slug "Hello"                  # Send a message
+tlon posts send ~sampel "Hello"                          # Send a 1:1 DM
+tlon posts send chat/~host/slug "Look" --image https://storage.../x.png # Send with an image
+tlon posts send chat/~host/slug --image https://...      # Image only (no caption)
 tlon posts react chat/~host/slug 170.141... "👍"         # React to a post
 tlon posts unreact chat/~host/slug 170.141...            # Remove reaction
 tlon posts edit chat/~host/slug 170.141... "New text"    # Edit with plain text
 tlon posts edit diary/~host/slug 170.141... --title "T" --image <url> --content story.json # Edit notebook
 tlon posts delete chat/~host/slug 170.141...             # Delete a post
 ```
+
+Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
 
 Edit options for notebooks: `--title`, `--image` (cover URL), `--content` (Story JSON file for rich formatting).
 

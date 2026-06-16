@@ -6,11 +6,13 @@ import {
 } from './computing-presence.js';
 
 const {
+  clearConversationPresence,
   createComputingStatus,
   getComputingStatusText,
   serializeComputingStatus,
   setConversationPresence,
 } = vi.hoisted(() => ({
+  clearConversationPresence: vi.fn(async () => {}),
   createComputingStatus: vi.fn(({ thinking, toolCalls }) => ({
     thinking,
     toolCalls,
@@ -24,6 +26,7 @@ const {
 }));
 
 vi.mock('@tloncorp/api', () => ({
+  clearConversationPresence,
   createComputingStatus,
   getComputingStatusText,
   serializeComputingStatus,
@@ -35,7 +38,7 @@ describe('createComputingPresenceTracker', () => {
     vi.clearAllMocks();
   });
 
-  test('publishes presence with an empty disclose array', async () => {
+  test('publishes active presence with an explicit backend timeout', async () => {
     const reporter = createComputingPresenceReporter();
 
     await reporter.publish({
@@ -48,6 +51,7 @@ describe('createComputingPresenceTracker', () => {
       conversationId: '~nec',
       topic: 'computing',
       disclose: [],
+      timeout: '~m1.s30',
       display: {
         text: 'Computing',
         blob: {
@@ -56,6 +60,23 @@ describe('createComputingPresenceTracker', () => {
         },
       },
     });
+    expect(clearConversationPresence).not.toHaveBeenCalled();
+  });
+
+  test('clears computing presence when publishing idle state', async () => {
+    const reporter = createComputingPresenceReporter();
+
+    await reporter.publish({
+      conversationId: '~nec',
+      thinking: false,
+      toolNames: [],
+    });
+
+    expect(clearConversationPresence).toHaveBeenCalledWith({
+      conversationId: '~nec',
+      topic: 'computing',
+    });
+    expect(setConversationPresence).not.toHaveBeenCalled();
   });
 
   test('publishes thinking state for a new run and sends thinking false when the run stops', async () => {
@@ -167,6 +188,48 @@ describe('createComputingPresenceTracker', () => {
     expect(reporter.publish).toHaveBeenCalledTimes(1);
   });
 
+  test('republishes unchanged active state after the keepalive window so ship presence does not expire', async () => {
+    vi.useFakeTimers();
+
+    try {
+      const reporter = {
+        publish: vi.fn(async () => {}),
+      };
+
+      const tracker = createComputingPresenceTracker({ reporter });
+
+      await tracker.refreshRun({
+        conversationId: '~nec',
+        runId: 'run-1',
+      });
+
+      expect(reporter.publish).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(29_999);
+      await tracker.refreshRun({
+        conversationId: '~nec',
+        runId: 'run-1',
+      });
+
+      expect(reporter.publish).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      await tracker.refreshRun({
+        conversationId: '~nec',
+        runId: 'run-1',
+      });
+
+      expect(reporter.publish).toHaveBeenCalledTimes(2);
+      expect(reporter.publish).toHaveBeenLastCalledWith({
+        conversationId: '~nec',
+        thinking: true,
+        toolNames: [],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test('unions active runs in the same conversation', async () => {
     const reporter = {
       publish: vi.fn(async () => {}),
@@ -215,6 +278,89 @@ describe('createComputingPresenceTracker', () => {
     });
 
     expect(reporter.publish).toHaveBeenCalledTimes(4);
+  });
+
+  test('keepalive refresh does not resurrect a stopped run', async () => {
+    const reporter = {
+      publish: vi.fn(async () => {}),
+    };
+
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
+    });
+
+    await tracker.refreshRun({
+      conversationId: '~nec',
+      runId: 'run-1',
+    });
+
+    await tracker.stopRun({
+      conversationId: '~nec',
+      runId: 'run-1',
+    });
+
+    expect(reporter.publish).toHaveBeenLastCalledWith({
+      conversationId: '~nec',
+      thinking: false,
+      toolNames: [],
+    });
+
+    await tracker.refreshRun({
+      conversationId: '~nec',
+      runId: 'run-1',
+    });
+
+    expect(reporter.publish).toHaveBeenCalledTimes(2);
+  });
+
+  test('a tool call resumes a stopped run', async () => {
+    const reporter = {
+      publish: vi.fn(async () => {}),
+    };
+
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
+    });
+
+    await tracker.refreshRun({
+      conversationId: '~nec',
+      runId: 'run-1',
+    });
+
+    await tracker.stopRun({
+      conversationId: '~nec',
+      runId: 'run-1',
+    });
+
+    await tracker.addToolCall({
+      conversationId: '~nec',
+      runId: 'run-1',
+      toolName: 'exec',
+    });
+
+    expect(reporter.publish).toHaveBeenLastCalledWith({
+      conversationId: '~nec',
+      thinking: true,
+      toolNames: ['exec'],
+    });
+
+    await tracker.refreshRun({
+      conversationId: '~nec',
+      runId: 'run-1',
+    });
+
+    await tracker.stopRun({
+      conversationId: '~nec',
+      runId: 'run-1',
+    });
+
+    expect(reporter.publish).toHaveBeenLastCalledWith({
+      conversationId: '~nec',
+      thinking: false,
+      toolNames: [],
+    });
   });
 
   test('does not republish thinking false when a stopped run is already missing', async () => {
