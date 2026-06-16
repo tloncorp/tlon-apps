@@ -188,11 +188,16 @@ async function downloadMedia({
 
     const baseFilename =
       uri.split('/').pop()?.split('?')[0] || `downloaded-${noun}`;
-    const filename = ensureFileExtension(baseFilename);
-    const localUri = `${FileSystem.documentDirectory}${filename}`;
+    const fallbackExtension = mediaType === 'video' ? '.mp4' : '.jpg';
+    // The URL may be extensionless, so download to a temp path first and
+    // derive the real extension from the response's content-type before
+    // saving. Without this, an extensionless video lands in a .jpg-named file
+    // and fails (or imports incorrectly) in MediaLibrary.
+    const tempUri = `${FileSystem.documentDirectory}tmp-${baseFilename}`;
+    let localUri = tempUri;
 
     try {
-      const downloadResult = await FileSystem.downloadAsync(uri, localUri);
+      const downloadResult = await FileSystem.downloadAsync(uri, tempUri);
 
       if (downloadResult.status !== 200) {
         logger.trackError(`Failed to download ${noun}`, {
@@ -200,6 +205,19 @@ async function downloadMedia({
           uri,
         });
         throw new Error(`Download failed with status ${downloadResult.status}`);
+      }
+
+      const contentType =
+        downloadResult.headers['Content-Type'] ??
+        downloadResult.headers['content-type'];
+      const filename = ensureFileExtension(
+        baseFilename,
+        contentType,
+        fallbackExtension
+      );
+      localUri = `${FileSystem.documentDirectory}${filename}`;
+      if (localUri !== tempUri) {
+        await FileSystem.moveAsync({ from: tempUri, to: localUri });
       }
 
       const fileInfo = await FileSystem.getInfoAsync(localUri);
