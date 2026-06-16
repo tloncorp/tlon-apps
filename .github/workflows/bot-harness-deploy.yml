@@ -1,19 +1,19 @@
-name: Restart OpenClaw Ships
+name: Restart Bot Ships
 
-# Restarts the hosted openclaw ship pods so they pick up plugin changes.
-# Pushes to develop touching plugin source restart the internal ships;
+# Restarts the hosted bot ship pods so they pick up plugin changes.
+# Pushes to develop touching bot plugin source restart the internal ships;
 # tlawn (prod) restarts are workflow_dispatch-only, a deliberate human
 # action decoupled from the develop -> master release sync cadence.
 
 on:
   push:
     branches: [develop]
-    # Runtime inputs of the deployed plugin only — docs, tests, and the dev
+    # Runtime inputs of the deployed plugins only — docs, tests, and the dev
     # harness don't warrant a ship restart. (Production pulls the develop
     # branch ref at restart, so a missed trigger self-heals on the next one.)
     #
     # Deliberately NOT watching packages/api or packages/tlon-skill: the
-    # deployed plugin resolves its workspace:^ deps to *published npm
+    # deployed OpenClaw plugin resolves its workspace:^ deps to *published npm
     # versions* (resolve-workspace-deps.mjs --registry), so develop merges
     # to those packages change nothing on ships — dep changes reach
     # production via an npm publish followed by a restart.
@@ -27,6 +27,24 @@ on:
       - "packages/openclaw/tsconfig.json"
       - "packages/openclaw/scripts/**"
       - "packages/openclaw/.npmrc"
+      - "packages/hermes-tlon-adapter/__init__.py"
+      - "packages/hermes-tlon-adapter/adapter.py"
+      - "packages/hermes-tlon-adapter/approval.py"
+      - "packages/hermes-tlon-adapter/attention.py"
+      - "packages/hermes-tlon-adapter/channel_access.py"
+      - "packages/hermes-tlon-adapter/history.py"
+      - "packages/hermes-tlon-adapter/image_search.py"
+      - "packages/hermes-tlon-adapter/mention.py"
+      - "packages/hermes-tlon-adapter/owner_listen.py"
+      - "packages/hermes-tlon-adapter/presence.py"
+      - "packages/hermes-tlon-adapter/telemetry.py"
+      - "packages/hermes-tlon-adapter/tlon_api.py"
+      - "packages/hermes-tlon-adapter/tlon_tool.py"
+      - "packages/hermes-tlon-adapter/version.py"
+      - "packages/hermes-tlon-adapter/plugin.yaml"
+      - "packages/hermes-tlon-adapter/prompts/**"
+      - "packages/hermes-tlon-adapter/requirements.txt"
+      - "packages/hermes-tlon-adapter/package.json"
   workflow_dispatch:
     inputs:
       mode:
