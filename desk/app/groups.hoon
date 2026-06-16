@@ -43,6 +43,7 @@
 /%  m-channel-preview    %channel-preview
 /%  m-channel-preview-1  %channel-preview-1
 /%  m-group-response-1   %group-response-1
+/%  m-group-response-2   %group-response-2
 /%  m-group-action-3     %group-action-3
 /%  m-group-channel-active  %group-channel-active
 /%  m-group-channel-join    %group-channel-join
@@ -87,9 +88,8 @@
           :+  %channel-preview    &  -:!>(*vale:m-channel-preview)
           :+  %channel-preview-1  &  -:!>(*vale:m-channel-preview-1)
         ::
-          ::  relaxed (|): r-group gained the local-only %active-channel
-          ::  variant, so its type hash must not be pinned into negotiation.
-          :+  %group-response-1   |  -:!>(*vale:m-group-response-1)
+          :+  %group-response-1   &  -:!>(*vale:m-group-response-1)
+          :+  %group-response-2   &  -:!>(*vale:m-group-response-2)
           :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
           :+  %group-channel-active  &  -:!>(*vale:m-group-channel-active)
           :+  %group-channel-join    &  -:!>(*vale:m-group-channel-join)
@@ -108,7 +108,7 @@
         [/server/groups/$/$/preview %group-preview-3 ~]
         [/server/groups/index %group-previews-1 ~]
       ::
-        [/v1/groups %group-response-1 ~]
+        [/v1/groups %group-response-1 %group-response-2 ~]
         [/groups/ui %group-action-3 ~]
       ::
         [/v1/channels/$/$/$/preview %channel-preview-1 ~]
@@ -1756,8 +1756,8 @@
       (~(put in active-channels.group) nest)
     (~(del in active-channels.group) nest)
   =.  groups  (~(put by groups) flag net group)
-  =/  =r-groups:v9:gv  [flag [%active-channel nest joined]]
-  (give %fact ~[/v1/groups] group-response-1+!>(r-groups))
+  =/  =r-groups:v10:gv  [flag [%active-channel nest joined]]
+  (give %fact ~[/v1/groups] group-response-2+!>(r-groups))
 ::
 ++  take-channels
   |=  =sign:agent:gall
