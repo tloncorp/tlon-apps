@@ -274,13 +274,13 @@
 ::  $flagged-content: flagged posts and replies that need admin review
 ::
 +$  flagged-content  (map nest (jug plan ship))
-::  $channel-active: channel join/leave report. Third-party backing agents
+::  $channel-active: channel join/leave report. third-party backing agents
 ::  poke this to keep $active-channels current.
 ::
 +$  channel-active  [=flag =nest joined=?]
 ::  $channel-join / $channel-leave: %groups tells a channel-host agent (named
-::  by the nest kind) to join or leave `nest`. join carries the group flag so
-::  the host can record affiliation. See +join-channels / +leave-channels.
+::  by the nest kind) to join or leave .nest. join carries the group flag so
+::  the host can record affiliation. see +join-channels / +leave-channels in groups.
 ::
 +$  channel-join   [=nest group=flag]
 +$  channel-leave  nest
@@ -574,10 +574,6 @@
       [%section =section-id =r-section]
       [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
-      ::  per-nest active-channels (membership) delta. emitted local-only on
-      ::  /v1/groups so a second same-ship client learns join/leave without a
-      ::  full init sync; never crosses the wire. See the %group-channel-active
-      ::  poke arm in app/groups.hoon.
       [%active-channels =nest joined=?]
       [%delete ~]
   ==
