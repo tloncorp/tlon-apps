@@ -19,4 +19,4 @@
 =*  json  u.arg
 =/  app=@tas  ((ot agent+(se %tas) ~) json)
 ;<  running=?  bind:m  (scry ? /gu/[app]/$)
-(pure:m !>(`json`b+running))
+(pure:m !>(`^json`b+running))
