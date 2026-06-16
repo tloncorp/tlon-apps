@@ -30,9 +30,17 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ContextLensRuns'>;
 
 type RunRow = { botShip: string; lens: ContextLens };
 
+// Channel filtering happens in JS against the synced payload, so widen the
+// fetch when scoped to a channel; otherwise the default-50 page can crop out
+// older channel runs whenever there are more recent runs elsewhere. Runs are
+// retained for ~30 days, so this caps well above any realistic per-user load.
+const CHANNEL_FILTER_RUN_LIMIT = 500;
+
 export function ContextLensRunsScreen(props: Props) {
   const channelId = props.route.params?.channelId;
-  const recentRunsQuery = store.useRecentContextLensRuns();
+  const recentRunsQuery = store.useRecentContextLensRuns(
+    channelId ? CHANNEL_FILTER_RUN_LIMIT : undefined
+  );
 
   const rows: RunRow[] = useMemo(
     () =>
