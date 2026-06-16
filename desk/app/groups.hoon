@@ -667,7 +667,7 @@
 ::  +is-joined: are we subscribed to (or host of) this channel? Built-in
 ::  channels kinds scry %channels; any other kind uses the generic
 ::  channel-host convention — the nest kind names the backing agent and we
-::  %gu its /joined/<host>/<name> path. An uninstalled kind reads as |.
+::  %gu its /joined/<host>/<name> path. An unsupported kind reads as |.
 ++  is-joined
   |=  =nest:g
   ^-  ?
@@ -3477,8 +3477,8 @@
         =/  action=a-channels:v9:dv  [%channel nes %leave ~]
         `[%pass wire %agent dock %poke channel-action-1+!>(action)]
       ::  generic channel-host: the nest kind names the backing agent on our
-      ::  ship; poke it %group-channel-leave with the nest. An uninstalled
-      ::  kind just nacks (logged in go-agent, otherwise harmless).
+      ::  ship; poke it %group-channel-leave with the nest. an unsupported
+      ::  kind just nacks (logged in +go-agent, otherwise harmless).
       =/  =dock  [our.bowl p.nes]
       `[%pass wire %agent dock %poke group-channel-leave+!>(`channel-leave:g`[nes])]
     ::
