@@ -163,6 +163,25 @@ describe('gateway-status: createGatewayStatusManager', () => {
       expect(gatewayHeartbeat).toHaveBeenCalledTimes(1); // not 2
     });
 
+    it('does not renew a late activation that finishes after gateway_stop', () => {
+      // Simulate the bounded stale-online race: a %gateway-start poke was in
+      // flight, gateway_stop latched the manager stopped, then the activation
+      // continuation resumed late. Even if it marks activated and asks for a
+      // heartbeat, stopped must win so any ship-side online state expires at
+      // the original lease instead of being renewed forever.
+      manager.markStarting();
+      manager.stopHeartbeat();
+      manager.markStopped();
+
+      manager.markActivated();
+      manager.startHeartbeat();
+
+      vi.advanceTimersByTime(120_000);
+      expect(gatewayHeartbeat).not.toHaveBeenCalled();
+      expect(manager.stopped).toBe(true);
+      expect(manager.activated).toBe(true);
+    });
+
     it('skips the heartbeat poke when api-client params are not published', () => {
       // Clear the params the suite beforeEach published. The per-tick body
       // must bail before configuring/pokeing when the shared slot is empty.

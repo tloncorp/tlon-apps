@@ -1,0 +1,11 @@
+{
+  "name": "@tloncorp/hermes-tlon-adapter",
+  "version": "0.8.0",
+  "private": true,
+  "scripts": {
+    "dev": "./dev/run.sh",
+    "dev:down": "./dev/down.sh",
+    "dev:shell": "./dev/shell.sh",
+    "test": "./dev/test.sh"
+  }
+}

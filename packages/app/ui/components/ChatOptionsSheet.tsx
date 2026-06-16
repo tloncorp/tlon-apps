@@ -1,5 +1,4 @@
 import * as ub from '@tloncorp/api/urbit';
-import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
@@ -10,7 +9,6 @@ import React, {
   memo,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -47,7 +45,6 @@ type ChatOptionsSheetProps = {
   // Make open/onOpenChange optional since we can use context
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onPressConfigureChannel?: () => void;
   chat?: {
     type: 'group' | 'channel';
     id: string;
@@ -519,13 +516,11 @@ const ChannelOptionsSheetLoader = memo(
     open,
     onOpenChange,
     trigger,
-    onPressConfigureChannel,
   }: {
     channelId: string;
     open: boolean;
     onOpenChange: (open: boolean, clearChat?: boolean) => void;
     trigger?: React.ReactNode;
-    onPressConfigureChannel?: () => void;
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const channelQuery = store.useChannel({
@@ -622,7 +617,6 @@ const ChannelOptionsSheetLoader = memo(
             channel={channel}
             onPressNotifications={handlePressNotifications}
             onOpenChange={onOpenChange}
-            onPressConfigureChannel={onPressConfigureChannel}
           />
         )}
       </ActionSheet>
@@ -634,13 +628,11 @@ ChannelOptionsSheetLoader.displayName = 'ChannelOptionsSheetLoader';
 export function ChannelOptionsSheetContent({
   chatTitle,
   channel,
-  onPressConfigureChannel,
   onPressNotifications,
   onOpenChange,
 }: {
   chatTitle: string;
   channel: db.Channel;
-  onPressConfigureChannel?: () => void;
   onPressNotifications: () => void;
   onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
@@ -656,11 +648,6 @@ export function ChannelOptionsSheetContent({
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
-  const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = utils.useIsAdmin(
-    channel.groupId ?? '',
-    currentUserId
-  );
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
@@ -669,7 +656,6 @@ export function ChannelOptionsSheetContent({
   // mark-read doesn't apply
   const canMarkRead =
     !(channel.unread?.count === 0) && !ub.isThirdPartyChannel(channel.id);
-  const enableCustomChannels = useCustomChannelsEnabled();
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
@@ -749,12 +735,6 @@ export function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
           },
-          currentUserIsAdmin &&
-            enableCustomChannels && {
-              title: 'Configure view',
-              action: onPressConfigureChannel,
-              endIcon: 'ChevronRight',
-            },
         ],
 
         hooksPreview && [
@@ -797,9 +777,6 @@ export function ChannelOptionsSheetContent({
       group,
       handlePressChannelDetails,
       handlePressGroupDetails,
-      currentUserIsAdmin,
-      enableCustomChannels,
-      onPressConfigureChannel,
       hooksPreview,
       onPressChannelTemplate,
       currentUserIsChannelHost,
@@ -936,20 +913,4 @@ function SheetBackButton({ onPress }: { onPress: () => void }) {
       <Icon type="ChevronLeft" />
     </IconButton>
   );
-}
-
-function useCustomChannelsEnabled() {
-  const [enableCustomChannels, setEnableCustomChannels] = useState(false);
-  // why useLayoutEffect?
-  // to try to get the synchronous read to avoid flicker on mount
-  useLayoutEffect(() => {
-    return featureFlags.subscribeToFeatureFlag(
-      'customChannelCreation',
-      (flag) => {
-        setEnableCustomChannels(flag);
-      }
-    );
-  }, []);
-
-  return enableCustomChannels;
 }
