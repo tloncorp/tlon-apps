@@ -311,8 +311,11 @@ class TlonAdapter(BasePlatformAdapter):
     # pairing gate — which cannot represent settings-store grants or open
     # channels. The platform registration deliberately does not export
     # allowed_users_env/allow_all_env: core's trust shortcut only applies when
-    # it sees no env allowlist for the platform.
+    # it sees no env allowlist for the platform. Newer Hermes cores also look
+    # for these allowlist policy hints before trusting an own-policy adapter.
     enforces_own_access_policy = True
+    _dm_policy = "allowlist"
+    _group_policy = "allowlist"
 
     def __init__(self, config: PlatformConfig):
         super().__init__(config=config, platform=Platform("tlon"))

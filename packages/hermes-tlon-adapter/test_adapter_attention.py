@@ -447,6 +447,8 @@ class AdapterAttentionTests(unittest.TestCase):
     def test_adapter_enforces_own_access_policy_for_core(self):
         adapter = self.make_adapter({"owner_ship": "~mug"})
         self.assertIs(adapter.enforces_own_access_policy, True)
+        self.assertEqual(adapter._dm_policy, "allowlist")
+        self.assertEqual(adapter._group_policy, "allowlist")
 
     def test_node_url_is_hosted(self):
         self.assertTrue(adapter_mod.node_url_is_hosted("https://sampel.tlon.network"))
