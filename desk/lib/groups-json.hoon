@@ -212,7 +212,7 @@
           %section-order
         (frond 'section-order' a+(turn order.r-group (lead %s)))
       ::
-          %active-channels
+          %active-channel
         %-  pairs
         :~  'nest'^(nest nest.r-group)
             'joined'^b+joined.r-group

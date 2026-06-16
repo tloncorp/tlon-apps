@@ -574,7 +574,7 @@
       [%section =section-id =r-section]
       [%section-order order=(list section-id)]
       [%flag-content =nest =plan src=ship]
-      [%active-channels =nest joined=?]
+      [%active-channel =nest joined=?]
       [%delete ~]
   ==
 +$  r-entry

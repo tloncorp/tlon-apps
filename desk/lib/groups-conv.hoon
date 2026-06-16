@@ -143,9 +143,9 @@
         |=  [=r-group:v9:gv seats=(map ship seat:v9:gv) =admissions:v9:gv]
         ^-  (list diff:v2:gv)
         =/  rs-group-7=(list r-group:v7:gv)
-          ::  %active-channels is a local-only response with no v7/v2
+          ::  %active-channel is a local-only response with no v7/v2
           ::  backcompat representation; drop it from the legacy diff.
-          ?:  ?=([%active-channels *] r-group)  ~
+          ?:  ?=([%active-channel *] r-group)  ~
           ?:  ?=(%create -.r-group)
             [%create (v7:group group.r-group)]~
           ?:  ?=([%section-order *] r-group)
