@@ -267,13 +267,14 @@ function OutputItem({
       return null;
     }
   }, [output.messageId]);
-  const postQuery = store.usePostWithRelations(
-    expanded && canonicalId ? { id: canonicalId } : null
-  );
+  // Always run the id resolution so "Go to message" works from collapsed rows.
   // The gateway id encodes the bot's send time, but channel posts are keyed
-  // by host receipt time, so the direct lookup misses for channel outputs.
-  // Fall back to resolving by (channel, author, send time).
-  const directMiss = expanded && !postQuery.isLoading && !postQuery.data;
+  // by host receipt time, so the direct lookup misses for channel outputs;
+  // fall back to resolving by (channel, author, send time).
+  const postQuery = store.usePostWithRelations(
+    canonicalId ? { id: canonicalId } : null
+  );
+  const directMiss = !postQuery.isLoading && !postQuery.data;
   const parsedId = useMemo(
     () => parseLensMessageId(output.messageId),
     [output.messageId]
@@ -343,14 +344,17 @@ function OutputItem({
         {onPressMessage ? (
           <SizableText
             size="$s"
-            color="$positiveActionText"
-            onPress={() =>
-              onPressMessage({
-                postId: resolvedPost?.id ?? output.messageId,
-                channelId: output.conversationId,
-              })
+            color={resolvedPost ? '$positiveActionText' : '$tertiaryText'}
+            onPress={
+              resolvedPost
+                ? () =>
+                    onPressMessage({
+                      postId: resolvedPost.id,
+                      channelId: output.conversationId,
+                    })
+                : undefined
             }
-            pressStyle={{ opacity: 0.6 }}
+            pressStyle={resolvedPost ? { opacity: 0.6 } : undefined}
           >
             Go to message
           </SizableText>
