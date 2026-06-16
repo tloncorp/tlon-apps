@@ -109,11 +109,11 @@ export const syncInitData = async (
       )
       .then(() => logger.crumb('set left channels'));
     await db
-      .setJoinedNotesChannels(
-        { joinedChannelIds: initData.joinedNotesChannels },
+      .setJoinedThirdPartyChannels(
+        { joinedChannelIds: initData.joinedThirdPartyChannels },
         queryCtx
       )
-      .then(() => logger.crumb('reconciled notes channels'));
+      .then(() => logger.crumb('reconciled third-party channels'));
     updateLastActivityTime();
   };
 

@@ -23,7 +23,7 @@ export interface InitData {
   channelPerms: ChannelInit[];
   joinedGroups: string[];
   joinedChannels: string[];
-  joinedNotesChannels: string[];
+  joinedThirdPartyChannels: string[];
   hiddenPostIds: string[];
   blockedUsers: string[];
   unreads: db.ActivityInit;
@@ -116,8 +116,8 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
   // Third-party channels (e.g. notes) live outside %channels, so they're absent
   // from channelsInit. %groups tracks our membership in each group's
   // active-channels set (populated for third-party kinds), so pull those nests
-  // out as our joined notes channels.
-  const joinedNotesChannels = Object.values(response.groups ?? {}).flatMap(
+  // out as our joined third-party channels.
+  const joinedThirdPartyChannels = Object.values(response.groups ?? {}).flatMap(
     (group) => (group['active-channels'] ?? []).filter(isThirdPartyChannel)
   );
 
@@ -132,7 +132,7 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
     channelPerms: channelsInit,
     joinedGroups,
     joinedChannels,
-    joinedNotesChannels,
+    joinedThirdPartyChannels,
     hiddenPostIds,
     blockedUsers,
   };
