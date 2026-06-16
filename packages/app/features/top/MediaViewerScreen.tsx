@@ -102,7 +102,8 @@ async function downloadMedia({
   }
 
   try {
-    const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync();
+    const { status, canAskAgain } =
+      await MediaLibrary.requestPermissionsAsync();
     let permissionStatus;
 
     switch (status) {
