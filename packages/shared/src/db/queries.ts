@@ -9,7 +9,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '@tloncorp/api/client/activity';
-import { Rank } from '@tloncorp/api/urbit';
+import { CHANNELS_BACKED_KINDS, Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
   Column,
@@ -2811,9 +2811,7 @@ export const setLeftGroupChannels = createWriteQuery(
     // in joinedChannelIds; their membership is derived from group reader-roles
     // in toClientChannel, so we must not flip them to not-a-member here.
     const channelsBacked = or(
-      like($channels.id, 'chat/%'),
-      like($channels.id, 'diary/%'),
-      like($channels.id, 'heap/%')
+      ...CHANNELS_BACKED_KINDS.map((kind) => like($channels.id, `${kind}/%`))
     );
     if (joinedChannelIds.length === 0) {
       return await ctx.db

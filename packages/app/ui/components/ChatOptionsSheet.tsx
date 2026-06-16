@@ -665,9 +665,10 @@ export function ChannelOptionsSheetContent({
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  // notes channels have no %channels/%activity unreads, so mark-read doesn't apply
+  // third-party channels (e.g. notes) have no %channels/%activity unreads, so
+  // mark-read doesn't apply
   const canMarkRead =
-    !(channel.unread?.count === 0) && channel.type !== 'notes';
+    !(channel.unread?.count === 0) && !ub.isThirdPartyChannel(channel.id);
   const enableCustomChannels = useCustomChannelsEnabled();
   const baseVolumeLevel = store.useBaseVolumeLevel();
 

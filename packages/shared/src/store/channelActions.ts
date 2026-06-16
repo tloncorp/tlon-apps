@@ -4,7 +4,11 @@ import {
   StructuredChannelDescriptionPayload,
 } from '@tloncorp/api';
 import { TimeoutError } from '@tloncorp/api';
-import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
+import {
+  GroupChannelV7,
+  getChannelKindFromType,
+  getThirdPartyChannelAgent,
+} from '@tloncorp/api/urbit';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
@@ -256,25 +260,9 @@ export async function deleteChannel({
   }
 
   // For notes channels, also delete the underlying notebook on %notes so we
-  // don't leak orphans. The agent rejects the delete if we're not the host,
-  // which is fine — the listing is already gone from the group either way.
-  if (channelId.startsWith('notes/')) {
-    const [, host, name] = channelId.split('/');
-    if (host && name) {
-      try {
-        await api.poke({
-          app: 'notes',
-          mark: 'notes-action',
-          json: {
-            type: 'notebook',
-            flag: `${host}/${name}`,
-            action: { type: 'delete' },
-          },
-        });
-      } catch (e) {
-        logger.error('Failed to delete notebook in %notes', e);
-      }
-    }
+  // don't leak orphans.
+  if (getThirdPartyChannelAgent(channelId) === 'notes') {
+    await api.deleteNotesNotebook(channelId);
   }
 }
 
@@ -760,16 +748,8 @@ export async function leaveGroupChannel(channelId: string) {
   await db.updateChannel({ id: channelId, currentUserIsMember: false });
 
   try {
-    if (channelId.startsWith('notes/')) {
-      // notes channels aren't %channels-backed; leave the notebook on %notes
-      // (which unsubscribes and reports the leave to %groups) instead of
-      // poking %channels, which would reject the unknown nest.
-      const [, host, name] = channelId.split('/');
-      await api.poke({
-        app: 'notes',
-        mark: 'notes-action',
-        json: { type: 'leave', ship: host, name },
-      });
+    if (getThirdPartyChannelAgent(channelId) === 'notes') {
+      await api.leaveNotesChannel(channelId);
     } else {
       await api.leaveChannel(channelId);
     }
@@ -804,15 +784,8 @@ export async function joinGroupChannel({
   });
 
   try {
-    if (channelId.startsWith('notes/')) {
-      // notes channels aren't %channels-backed; join the notebook on %notes
-      // (subscribe + report to %groups) instead of poking %channels.
-      const [, host, name] = channelId.split('/');
-      await api.poke({
-        app: 'notes',
-        mark: 'notes-action',
-        json: { type: 'join', ship: host, name },
-      });
+    if (getThirdPartyChannelAgent(channelId) === 'notes') {
+      await api.joinNotesChannel(channelId);
     } else {
       await api.joinChannel(channelId, groupId);
     }

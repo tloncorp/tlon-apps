@@ -1,6 +1,7 @@
 import { createDevLogger } from '../lib/logger';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
+import { isThirdPartyChannel } from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
@@ -112,15 +113,12 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
 
   const joinedChannels = channelsInit.map((channel) => channel.channelId);
 
-  // Notes channels live outside %channels, so they're absent from channelsInit.
-  // %groups tracks our membership in each group's active-channels set (it's
-  // populated for the notes kind via the channel-host convention), so pull the
-  // notes nests out as our joined notes channels.
+  // Third-party channels (e.g. notes) live outside %channels, so they're absent
+  // from channelsInit. %groups tracks our membership in each group's
+  // active-channels set (populated for third-party kinds), so pull those nests
+  // out as our joined notes channels.
   const joinedNotesChannels = Object.values(response.groups ?? {}).flatMap(
-    (group) =>
-      (group['active-channels'] ?? []).filter((nest) =>
-        nest.startsWith('notes/')
-      )
+    (group) => (group['active-channels'] ?? []).filter(isThirdPartyChannel)
   );
 
   logger.crumb('returning init data');
