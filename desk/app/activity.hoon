@@ -348,6 +348,7 @@
   |=  [=mark =vase]
   ~>  %spin.['poke']
   ^+  cor
+  ?>  from-self
   ?+  mark  ~|(bad-poke+mark !!)
       %noun
     ?+  q.vase  ~|(bad-poke+mark !!)

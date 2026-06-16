@@ -1,6 +1,5 @@
 import { open } from '@op-engineering/op-sqlite';
 import { AnalyticsEvent, AnalyticsSeverity, escapeLog } from '@tloncorp/shared';
-import * as kv from '@tloncorp/shared/db';
 import { schema, setClient } from '@tloncorp/shared/db';
 import { getTableName } from 'drizzle-orm';
 
@@ -8,6 +7,7 @@ import {
   BaseDb,
   enableLogger,
   logger,
+  resetDbSyncState,
   useMigrations as useMigrationsBase,
 } from './baseDb';
 import { OPSQLite$SQLiteConnection } from './opsqliteConnection';
@@ -139,8 +139,7 @@ export class NativeDb extends BaseDb {
       });
 
       // reset values related to tracking db sync state
-      await kv.headsSyncedAt.resetValue();
-      await kv.changesSyncedAt.resetValue();
+      await resetDbSyncState();
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: completed purge, recreating',

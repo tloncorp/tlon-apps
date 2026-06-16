@@ -6,6 +6,20 @@ function formatId(id: string) {
   return parseIdNumber(id).toString();
 }
 
+// The "display id" for a post reference: the reply's own id when the reference
+// points at a reply, otherwise the (top-level) post id. This is the id under
+// which the hydrated post is fetched, cached, and read back, so it must be
+// computed identically everywhere it's used.
+export function referenceLookupId({
+  postId,
+  replyId,
+}: {
+  postId: string;
+  replyId?: string;
+}): string {
+  return replyId ?? postId;
+}
+
 export function getPostReferencePath(post: db.Post) {
   if (post.parentId) {
     return `/1/chan/${post.channelId}/msg/${formatId(post.parentId)}/${formatId(post.id)}`;
@@ -26,7 +40,12 @@ export function postToContentReference(
     {
       referenceType: 'channel',
       type: 'reference',
-      postId: post.id,
+      // For a reply, postId is the parent/top-level id and replyId the reply's
+      // own id, matching the postId=parent / replyId=reply contract used by the
+      // hydration path. Top-level posts carry only postId.
+      ...(post.parentId
+        ? { postId: post.parentId, replyId: post.id }
+        : { postId: post.id }),
       channelId: post.channelId,
     },
   ];

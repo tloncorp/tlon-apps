@@ -57,6 +57,144 @@ describe('a2ui blob entries', () => {
     expect(parsePostBlob(blob)).toEqual([a2uiBlobEntry]);
   });
 
+  test('validates navigate button actions', () => {
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                {
+                  id: 'root',
+                  component: 'Button',
+                  child: 'label',
+                  action: {
+                    event: {
+                      name: A2UI.action.navigate,
+                      context: {
+                        target: {
+                          type: 'message',
+                          channelId: 'chat/~zod/general',
+                          postId: '170.141.184.507',
+                          parentId: '170.141.184.000',
+                          parentAuthorId: '~nec',
+                          authorId: '~sampel-palnet',
+                          groupId: '~zod/garden',
+                        },
+                      },
+                    },
+                  },
+                },
+                { id: 'label', component: 'Text', text: 'View message' },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(true);
+  });
+
+  test('rejects malformed navigate targets', () => {
+    expect(
+      A2UI.validateBlobEntry({
+        ...a2uiBlobEntry,
+        messages: [
+          a2uiBlobEntry.messages[0],
+          {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 'weather-card',
+              root: 'root',
+              components: [
+                {
+                  id: 'root',
+                  component: 'Button',
+                  child: 'label',
+                  action: {
+                    event: {
+                      name: A2UI.action.navigate,
+                      context: {
+                        target: {
+                          type: 'message',
+                          postId: '170.141.184.507',
+                        },
+                      },
+                    },
+                  },
+                },
+                { id: 'label', component: 'Text', text: 'View message' },
+              ],
+            },
+          },
+        ],
+      })
+    ).toBe(false);
+  });
+
+  test('requires explicit send message text for button actions', () => {
+    const buttonWithoutText = {
+      ...a2uiBlobEntry,
+      messages: [
+        a2uiBlobEntry.messages[0],
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'weather-card',
+            root: 'root',
+            components: [
+              {
+                id: 'root',
+                component: 'Button',
+                child: 'label',
+                action: {
+                  event: {
+                    name: A2UI.action.sendMessage,
+                  },
+                },
+              },
+              { id: 'label', component: 'Text', text: 'Refresh' },
+            ],
+          },
+        },
+      ],
+    };
+    const buttonWithBlankText = {
+      ...buttonWithoutText,
+      messages: [
+        a2uiBlobEntry.messages[0],
+        {
+          version: 'v0.9',
+          updateComponents: {
+            surfaceId: 'weather-card',
+            root: 'root',
+            components: [
+              {
+                id: 'root',
+                component: 'Button',
+                child: 'label',
+                action: {
+                  event: {
+                    name: A2UI.action.sendMessage,
+                    context: { text: '   ' },
+                  },
+                },
+              },
+              { id: 'label', component: 'Text', text: 'Refresh' },
+            ],
+          },
+        },
+      ],
+    };
+
+    expect(A2UI.validateBlobEntry(buttonWithoutText)).toBe(false);
+    expect(A2UI.validateBlobEntry(buttonWithBlankText)).toBe(false);
+  });
+
   test('rejects unsupported a2ui components and actions', () => {
     expect(
       parsePostBlob(

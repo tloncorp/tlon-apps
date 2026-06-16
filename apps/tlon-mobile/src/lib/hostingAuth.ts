@@ -16,6 +16,7 @@ export async function refreshHostingAuth(options: { force?: boolean } = {}) {
 
   if (__DEV__) {
     logger.log('development mode, skipping');
+    return;
   }
 
   const expired = await db.hostingAuthExpired.getValue();

@@ -85,8 +85,9 @@ export function PostReferenceLoader({
 }) {
   const { usePostReference, useChannel, useGroup } = useRequests();
   const postQuery = usePostReference({
-    postId: replyId ? replyId : postId,
-    channelId: channelId,
+    channelId,
+    postId,
+    replyId,
   });
   const { data: channel } = useChannel({ id: channelId });
   const { data: group } = useGroup(channel?.groupId ?? '');

@@ -45,9 +45,11 @@ export function ConfirmDialog({
         },
       },
     ]);
-    // Only run when open changes - not when callbacks are recreated
+    // Only run when open changes - not when callbacks are recreated. Other
+    // props in deps would re-fire a duplicate native Alert while one is
+    // already showing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, title, description, confirmText, cancelText, destructive]);
+  }, [open]);
 
   // Web: use Tamagui Dialog
   if (Platform.OS === 'web') {

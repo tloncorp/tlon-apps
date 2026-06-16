@@ -2665,6 +2665,8 @@
         =+  seat=(~(got by seats.group.se-core) ship)
         =?  roles.seat  ?=(^ roles)
           (~(uni in roles.seat) u.roles)
+        =.  seats.group.se-core
+          (~(put by seats.group.se-core) ship seat)
         (se-update:se-core %seat (sy ship ~) [%add seat])
       ::  send invites to manually added ships
       ::

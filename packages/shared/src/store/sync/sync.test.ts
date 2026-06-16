@@ -601,6 +601,36 @@ test('syncs last posts', async () => {
   );
 });
 
+test('init data repairs latest posts that arrived before channel rows', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await db.headsSyncedAt.resetValue();
+  setScryOutputs([headsData, groupsInitData2]);
+
+  await syncLatestPosts();
+  await syncInitData();
+
+  const missingAfterInit = await client
+    .select({ count: $.countDistinct(db.schema.channels.id) })
+    .from(db.schema.channels)
+    .innerJoin(
+      db.schema.posts,
+      $.eq(db.schema.posts.channelId, db.schema.channels.id)
+    )
+    .where(
+      $.and(
+        $.isNull(db.schema.channels.lastPostId),
+        $.ne(db.schema.posts.type, 'reply'),
+        $.or(
+          $.isNull(db.schema.posts.isDeleted),
+          $.eq(db.schema.posts.isDeleted, false)
+        )
+      )
+    );
+  expect(missingAfterInit[0].count).toBe(0);
+});
+
 test('syncs thread posts', async () => {
   setScryOutput(channelPostWithRepliesData);
   await db.insertChannels([{ id: channelId, type: 'chat' }]);

@@ -148,8 +148,9 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
             return;
           }
           if (maybeAccountIssue === store.HostingAccountIssue.NoInventory) {
-            logger.trackError(AnalyticsEvent.InvitedUserFailedInventoryCheck, {
+            logger.trackError(AnalyticsEvent.SignupFailedInventoryCheck, {
               severity: AnalyticsSeverity.Critical,
+              hadInvite: Boolean(inviteMetadata?.id),
             });
             navigation.navigate('JoinWaitList', {});
             return;

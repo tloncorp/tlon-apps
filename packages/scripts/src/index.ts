@@ -3,6 +3,8 @@ import type * as ub from '@tloncorp/api/urbit';
 import {
   ActivityIncomingEvent,
   getIdParts,
+  getReactAuthorShip,
+  getReactValue,
   getSourceForEvent,
   sourceToString,
 } from '@tloncorp/api/urbit/activity';
@@ -177,6 +179,32 @@ export function renderActivityEventPreview({
       return buildDmNotification(ev['dm-post']);
     case is(ev, 'dm-reply'):
       return buildDmNotification(ev['dm-reply']);
+
+    case is(ev, 'react'):
+      return {
+        notification: {
+          title: postSource({
+            groupId: ev.react.group,
+            channelId: ev.react.channel,
+          }),
+          groupingKey: lit(sourceToString(source)),
+          body: concat([
+            userNickname(getReactAuthorShip(ev.react.author)),
+            lit(` reacted with ${getReactValue(ev.react.react)}`),
+          ]),
+        },
+      };
+
+    case is(ev, 'dm-react'):
+      return {
+        notification: {
+          groupingKey: lit(sourceToString(source)),
+          body: concat([
+            userNickname(getReactAuthorShip(ev['dm-react'].author)),
+            lit(` reacted with ${getReactValue(ev['dm-react'].react)}`),
+          ]),
+        },
+      };
 
     case is(ev, 'dm-invite'):
       return {

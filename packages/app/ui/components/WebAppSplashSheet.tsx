@@ -18,11 +18,22 @@ export function useWebAppSplash() {
 
   useEffect(() => {
     let cancelled = false;
-    db.getSettings().then((settings) => {
-      if (!cancelled && !settings?.webAppSplashDismissed) {
+    async function maybeOpenSplash() {
+      const settings = await db.getSettings();
+      if (settings?.webAppSplashDismissed) {
+        return;
+      }
+
+      const openCount = await db.webAppSplashOpenCount.getValue();
+      const nextOpenCount = openCount + 1;
+      await db.webAppSplashOpenCount.setValue(nextOpenCount);
+
+      if (!cancelled && nextOpenCount >= 2) {
         setOpen(true);
       }
-    });
+    }
+
+    maybeOpenSplash();
     return () => {
       cancelled = true;
     };
