@@ -674,7 +674,10 @@
   ?:  ?=(kind:d p.nest)
     .^(? %gu (channels-scry nest))
   ::  generic channel-host: the kind agent answers a /joined/<host>/<name>
-  ::  scry with a loob.
+  ::  scry with a loob. guard on liveness first so an uninstalled backing
+  ::  agent reads as not joined instead of crashing the scry.
+  ?.  .^(? %gu /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/$)
+    |
   =/  =path
     /(scot %p our.bowl)/[p.nest]/(scot %da now.bowl)/joined/(scot %p p.q.nest)/[q.q.nest]
   .^(? %gu path)
