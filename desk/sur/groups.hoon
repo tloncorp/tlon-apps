@@ -283,7 +283,7 @@
 ::  the host can record affiliation. See +join-channels / +leave-channels.
 ::
 +$  channel-join   [=nest group=flag]
-+$  channel-leave  [=nest]
++$  channel-leave  nest
 ::  %groups acur interface
 ::
 ::  a-* actions

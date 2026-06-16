@@ -3490,13 +3490,11 @@
       ^-  (unit card)
       =/  =wire  (snoc go-area %join-channels)
       ?:  ?=(?(%chat %diary %heap) p.nes)
-        =/  =dock  [our.bowl %channels]
         =/  action=a-channels:v9:dv  [%channel nes %join flag]
-        `[%pass wire %agent dock %poke channel-action-1+!>(action)]
-      ::  generic channel-host: poke the kind-named agent %group-channel-join
-      ::  carrying [nest group-flag].
-      =/  =dock  [our.bowl p.nes]
-      `[%pass wire %agent dock %poke group-channel-join+!>(`channel-join:g`[nes flag])]
+        =/  =cage  channel-action-1+!>(action)
+        `[%pass wire %agent [our.bowl %channels] %poke cage]
+      =/  =cage  group-channel-join+!>(`channel-join:g`[nes flag])
+      `[%pass wire %agent [our.bowl p.nes] %poke cage]
     ::
     ++  go-wake-members
       ~>  %spin.['go-wake-members']
