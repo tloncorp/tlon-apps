@@ -1247,9 +1247,12 @@ export type GroupUpdate =
 export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
-  // Subscribe to v1/groups for all group updates (v9 response format)
+  // Subscribe to v2/groups for all group updates. v2 carries the same
+  // r-group payloads as v1 plus the %active-channel membership deltas for
+  // third-party (e.g. notes) channels; v1 still serves group-response-1 to
+  // agents that blind-cast the canonical r-group stream to v9.
   subscribe<ub.V1GroupResponse>(
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (rawEvent) => {
       const update = toV1GroupsUpdate(rawEvent);
       if (update) {
@@ -1531,10 +1534,10 @@ export const toV1GroupsUpdate = (
     }
   }
 
-  // Per-nest active-channels (membership) delta — a local-only %groups
-  // response, emitted when a channel-host agent (e.g. %notes) reports a
-  // join/leave. Reconciles membership the same way as a real channel
-  // join/leave; lets a second same-ship client learn it without a full sync.
+  // Per-nest active-channels (membership) delta, delivered on the /v2/groups
+  // stream when a third-party agent (e.g. %notes) reports a join/leave.
+  // Reconciles membership the same way as a real channel join/leave; lets a
+  // second same-ship client learn it without a full sync.
   if ('active-channel' in event) {
     const { nest, joined } = event['active-channel'];
     return joined

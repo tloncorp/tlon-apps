@@ -108,7 +108,8 @@
         [/server/groups/$/$/preview %group-preview-3 ~]
         [/server/groups/index %group-previews-1 ~]
       ::
-        [/v1/groups %group-response-1 %group-response-2 ~]
+        [/v1/groups %group-response-1 ~]
+        [/v2/groups %group-response-2 ~]
         [/groups/ui %group-action-3 ~]
       ::
         [/v1/channels/$/$/$/preview %channel-preview-1 ~]
@@ -1142,6 +1143,10 @@
   ::
     [%v1 %groups ~]  ?>(from-self cor)
   ::
+    ::  v2 firehose: full v10 r-group, incl. the %active-channel membership
+    ::  delta. v1 stays group-response-1 for agents that blind-cast to v9.
+    [%v2 %groups ~]  ?>(from-self cor)
+  ::
       [ver=%v1 %channels app=@ ship=@ name=@ %preview ~]
     =/  ship=@p  (slav %p ship.pole)
     =/  =nest:g  [app.pole ship name.pole]
@@ -1757,7 +1762,7 @@
     (~(del in active-channels.group) nest)
   =.  groups  (~(put by groups) flag net group)
   =/  =r-groups:v10:gv  [flag [%active-channel nest joined]]
-  (give %fact ~[/v1/groups] group-response-2+!>(r-groups))
+  (give %fact ~[/v2/groups] group-response-2+!>(r-groups))
 ::
 ++  take-channels
   |=  =sign:agent:gall
@@ -4632,6 +4637,12 @@
     =/  r-groups-9=r-groups:v9:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
+    ::  v2 response: same r-group as v1, carried by the v10 mark so v2
+    ::  subscribers also receive the %active-channel deltas from elsewhere.
+    ::
+    =/  r-groups-10=r-groups:v10:gv  [flag r-group]
+    =/  v2-paths  ~[/v2/groups [%v2 go-area]]
+    =.  cor  (give %fact v2-paths group-response-2+!>(r-groups-10))
     ::  v0 backcompat
     ::
     =/  diffs-2=(list diff:v2:gv)
