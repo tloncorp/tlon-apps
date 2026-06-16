@@ -2856,7 +2856,9 @@ export const setJoinedThirdPartyChannels = createWriteQuery(
   ) => {
     // group channels not backed by %channels (chat/diary/heap), e.g. notes.
     const thirdPartyChannel = and(
-      ...CHANNELS_BACKED_KINDS.map((kind) => not(like($channels.id, `${kind}/%`)))
+      ...CHANNELS_BACKED_KINDS.map((kind) =>
+        not(like($channels.id, `${kind}/%`))
+      )
     );
     // mark the active third-party channels joined
     if (joinedChannelIds.length) {

@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import {
-  getThirdPartyChannelAgent,
-  isThirdPartyChannel,
-} from '../urbit/utils';
+import { getThirdPartyChannelAgent, isThirdPartyChannel } from '../urbit/utils';
 
 describe('third party channels', () => {
   test('%channels-backed kinds have no third-party agent', () => {
