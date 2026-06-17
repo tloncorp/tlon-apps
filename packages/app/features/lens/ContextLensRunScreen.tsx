@@ -55,17 +55,21 @@ export function ContextLensRunScreen(props: Props) {
       if (!channelId) {
         return;
       }
-      // Lens payloads don't record thread parents, so resolve from the local
-      // db — without parentId, threaded replies dead-end in the channel
-      // scroller where they aren't visible.
-      let parentId: string | undefined;
-      try {
-        const post = await db.getPost({
-          postId: getCanonicalPostId(target.postId),
-        });
-        parentId = post?.parentId ?? undefined;
-      } catch {
-        // post not cached locally — fall back to channel navigation
+      // Lens payloads don't record thread parents. Output-row clicks supply
+      // parentId from the resolved local post; trigger-row clicks (which
+      // don't pre-resolve) fall back to a db lookup. Without parentId,
+      // threaded replies dead-end in the channel scroller where they aren't
+      // visible.
+      let parentId: string | undefined = target.parentId;
+      if (!parentId) {
+        try {
+          const post = await db.getPost({
+            postId: getCanonicalPostId(target.postId),
+          });
+          parentId = post?.parentId ?? undefined;
+        } catch {
+          // post not cached locally — fall back to channel navigation
+        }
       }
       navigateFromA2UI({
         type: 'message',

@@ -35,6 +35,7 @@ export type LensMessageTarget = {
   postId: string;
   channelId?: string;
   authorId?: string;
+  parentId?: string;
 };
 
 export function RunInspector({
@@ -351,6 +352,7 @@ function OutputItem({
                     onPressMessage({
                       postId: resolvedPost.id,
                       channelId: output.conversationId,
+                      parentId: resolvedPost.parentId ?? undefined,
                     })
                 : undefined
             }
