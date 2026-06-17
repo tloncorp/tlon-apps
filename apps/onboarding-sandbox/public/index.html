@@ -37,6 +37,8 @@
     <button id="b-down" onclick="run('down')">Stop</button>
   </header>
 
+  <div id="setup" style="display:none; padding:.7rem 1.2rem; background:#fff7e6; border-bottom:1px solid #e0c989; font-size:13px;"></div>
+
   <main>
     <ul id="items"></ul>
     <div class="pane">
@@ -70,6 +72,28 @@
           : `<span class="dot down"></span>Down — click Start`;
         if (s.model) { const sel = $('model'); if ([...sel.options].some((o) => o.value === s.model)) sel.value = s.model; }
       } catch (e) { $('status').textContent = 'status error'; }
+    }
+
+    async function checkPreflight() {
+      let p; try { p = await (await fetch('/api/preflight')).json(); } catch { return; }
+      const box = $('setup');
+      if (p.docker && p.key) { box.style.display = 'none'; return; }
+      let html = '';
+      if (!p.docker) html += `⚠️ <b>Docker isn't running.</b> Start Docker Desktop, then <a href="#" onclick="checkPreflight();return false">re-check</a>.<br>`;
+      if (!p.key) html += `🔑 <b>No provider key set.</b> OpenRouter API key: ` +
+        `<input id="keyin" type="password" size="36" placeholder="sk-or-..."> ` +
+        `<button onclick="saveKey()">Validate &amp; save</button> <span id="keymsg"></span>`;
+      box.innerHTML = html; box.style.display = 'block';
+    }
+    async function saveKey() {
+      const key = $('keyin').value.trim(); const msg = $('keymsg');
+      if (!key) { msg.textContent = 'enter a key'; return; }
+      msg.textContent = 'validating…';
+      try {
+        const r = await fetch('/api/provider-key', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key }) });
+        const j = await r.json();
+        if (j.ok) { msg.textContent = 'saved ✓'; checkPreflight(); } else msg.textContent = j.error || 'failed';
+      } catch (e) { msg.textContent = 'error: ' + e; }
     }
 
     async function loadItems() {
@@ -177,7 +201,7 @@
       setBusy(false); refreshStatus();
     }
 
-    loadModels().then(refreshStatus); loadItems();
+    loadModels().then(refreshStatus); loadItems(); checkPreflight();
   </script>
 </body>
 </html>

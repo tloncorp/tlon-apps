@@ -55,6 +55,7 @@ case "${1:-}" in
   logs)      "$CONTROL" logs ;;
   status)    shift; "$CONTROL" status "$@" ;;
   set-model) shift; "$CONTROL" set-model "$@" ;;
+  set-key)   shift; "$CONTROL" set-key "$@" ;;
   down)      "$CONTROL" down ;;
   *) echo "usage: pnpm onboarding | onboarding:reset | onboarding:logs | onboarding:down" >&2; exit 1 ;;
 esac

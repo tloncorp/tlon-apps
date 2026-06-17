@@ -35,6 +35,13 @@ const json = (res, code, obj) => send(res, code, 'application/json', JSON.string
 const readOr = async (p) => {
   try { return await readFile(p, 'utf8'); } catch { return ''; }
 };
+
+// first-run preflight helpers
+const ENV_FILE = join(TLONBOT_DIR, 'tests', '.env');
+const dockerOk = () => {
+  try { return spawnSync('docker', ['info'], { timeout: 5000, stdio: 'ignore' }).status === 0; } catch { return false; }
+};
+const keyPresent = async () => /^OPENROUTER_API_KEY=.+/m.test(await readOr(ENV_FILE));
 const readBody = (req) =>
   new Promise((resolve) => { let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => resolve(b)); });
 
@@ -98,6 +105,28 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathname === '/api/models') {
       return json(res, 200, { models: MODELS });
+    }
+
+    if (req.method === 'GET' && pathname === '/api/preflight') {
+      return json(res, 200, { docker: dockerOk(), key: await keyPresent() });
+    }
+
+    if (req.method === 'POST' && pathname === '/api/provider-key') {
+      let key = '';
+      try { key = (JSON.parse(await readBody(req)).key || '').trim(); } catch {}
+      if (!key) return json(res, 400, { ok: false, error: 'no key provided' });
+      let valid = false, detail = '';
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const r = await fetch('https://openrouter.ai/api/v1/key', { headers: { authorization: 'Bearer ' + key }, signal: ctrl.signal });
+        clearTimeout(t);
+        valid = r.ok;
+        if (!valid) detail = 'provider returned HTTP ' + r.status;
+      } catch (e) { detail = String(e.message || e); }
+      if (!valid) return json(res, 400, { ok: false, error: 'key rejected (' + detail + ')' });
+      await runCapture(['set-key', key]);
+      return json(res, 200, { ok: true });
     }
 
     if (req.method === 'GET' && pathname === '/api/stream') {
