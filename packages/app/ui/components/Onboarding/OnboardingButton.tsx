@@ -15,20 +15,19 @@ export function OnboardingButton({
   label,
   ...props
 }: OnboardingButtonProps) {
-  const color = secondary ? '$secondaryText' : '$primaryText';
+  // Primary uses the solid `hero` preset, which renders a high-contrast
+  // inverse button (white in dark mode, dark in light mode). Secondary uses an
+  // outline so it reads as a clear alternative without the grayed-out look of a
+  // filled gray button.
   return (
     <Button
       {...props}
-      preset="hero"
-      shadow
+      preset={secondary ? 'outline' : 'hero'}
+      size="large"
+      centered
+      shadow={!secondary}
       label={label}
       width="100%"
-      backgroundColor={color}
-      borderColor={color}
-      pressStyle={{
-        backgroundColor: color,
-        opacity: 0.9,
-      }}
     />
   );
 }
