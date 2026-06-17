@@ -25,10 +25,8 @@ workdir=$(mktemp -d "${TMPDIR:-/tmp/}janeway.XXXXXXXXX")
 trap 'rm -rf "$workdir"' EXIT
 
 git clone --depth 1 --branch "$ref" "https://github.com/$repo.git" "$workdir/src"
-cd "$workdir/src"
-git rev-parse --short HEAD > desk/commit.txt
 
-# Install peru if it isn't already available, then vendor desk dependencies.
+# Install peru if it isn't already available (assemble-desk.sh runs peru sync).
 if ! command -v peru >/dev/null 2>&1; then
   echo "Installing peru..."
   pipx install peru \
@@ -36,11 +34,12 @@ if ! command -v peru >/dev/null 2>&1; then
     || pip3 install --user --break-system-packages peru
   export PATH="$HOME/.local/bin:$PATH"
 fi
-peru sync
+
+# Assemble desk-deps/ (peru-vendored) + desk/ (our source) into a staging dir.
+"$workdir/src/scripts/assemble-desk.sh" "$workdir/assembled"
 
 # Package the assembled, self-contained desk.
-tar czf "$workdir/desk.tgz" -C "$workdir/src" desk
-cd - >/dev/null
+tar czf "$workdir/desk.tgz" -C "$workdir" assembled
 
 # --- SSH key setup ----------------------------------------------------------
 sshpriv=$(mktemp "${TMPDIR:-/tmp/}ssh.XXXXXXXXX")
@@ -67,7 +66,7 @@ staging=\$(mktemp -d)
 tar xzf /tmp/janeway-desk.tgz -C \$staging
 cd /urbit || exit 1
 curl -s --data '{"source":{"dojo":"+hood/mount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
-rsync -avL --delete \$staging/desk/ $folder
+rsync -avL --delete \$staging/assembled/ $folder
 curl -s --data '{"source":{"dojo":"+hood/commit %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
 rm -rf \$staging /tmp/janeway-desk.tgz
 EOF

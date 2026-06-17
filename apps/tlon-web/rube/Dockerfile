@@ -101,8 +101,10 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
 COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
-# peru.yaml is needed for the runtime `peru sync` that vendors desk deps
+# peru.yaml + scripts are needed for the runtime `peru sync` (into desk-deps/)
+# and assemble-desk.sh (desk-deps/ + desk/ -> ship groups desk)
 COPY ../../../peru.yaml /workspace/peru.yaml
+COPY ../../../scripts/ /workspace/scripts/
 
 # Build packages if needed
 WORKDIR /workspace

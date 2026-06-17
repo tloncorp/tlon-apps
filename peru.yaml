@@ -1,9 +1,10 @@
 # peru.yaml — vendor desk dependencies from upstream Urbit projects.
 #
-# Run `./scripts/sync-deps.sh` (or `peru sync`) to populate desk/lib, desk/mar,
-# and desk/sur with the files picked below. These vendored files are gitignored
-# and NOT checked into this repo, so upstream stays pinned but out of our commit
-# history.
+# Run `./scripts/sync-deps.sh` (or `peru sync`) to populate desk-deps/ with the
+# files picked below. desk-deps/ is an entirely-gitignored vendored tree kept
+# SEPARATE from our own source in desk/. A desk is assembled by copying
+# desk-deps/ in first (with --delete) and then our desk/ on top — see
+# scripts/assemble-desk.sh.
 #
 # Why peru instead of rsyncing all of pkg/base-dev: base-dev ships ~119 files
 # (bitcoin, ethereum, wasm, language-server, azimuth, ...). Copying the whole
@@ -15,8 +16,8 @@
 # committed; lib/{strand,strandio,test} and the thread marks are app-local too.
 
 imports:
-  base: desk/
-  landscape: desk/
+  base: desk-deps/
+  landscape: desk-deps/
 
 # %base (urbit/urbit) dev dependencies. Pinned to the 408 kelvin tag, matching
 # desk/sys.kelvin ([%zuse 408]).

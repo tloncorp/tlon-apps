@@ -3,11 +3,10 @@ set -euo pipefail
 
 # Assemble the %groups desk inside an extracted rube pier.
 #
-# Desk dependencies (base-dev + landscape picks) are vendored into desk/ by peru
-# (see ../../../../peru.yaml and ../../../../scripts/sync-deps.sh). After a sync,
-# desk/ is self-contained, so assembling a pier's groups desk is just:
-#   1. peru sync           -> populate desk/lib,mar,sur with pinned upstream files
-#   2. rsync desk/ -> groups (with --delete to clear the pier's stale files)
+# Delegates to scripts/assemble-desk.sh, which layers the peru-vendored deps
+# (desk-deps/, see ../../../../peru.yaml) in with --delete, then our own source
+# (desk/) on top. We `peru sync` once up front, then assemble each pier with
+# SKIP_SYNC=true.
 #
 # This replaces the old approach of rsyncing ALL of pkg/base-dev (~119 files,
 # many unused and some that don't compile on the target kelvin) on top of the
@@ -43,13 +42,13 @@ usage() {
 Usage: $0 [SHIP ...]
 
 Assemble the %$DESK desk inside extracted rube pier(s) under $DIST_DIR:
-runs peru sync to vendor desk dependencies, then rsync's desk/ into each pier's
-%$DESK directory with --delete. Defaults to: ${DEFAULT_SHIPS[*]}
+peru sync's the vendored deps once, then assembles each pier's %$DESK from
+desk-deps/ (--delete) + desk/. Defaults to: ${DEFAULT_SHIPS[*]}
 
 Options:
   --pier PATH      Construct directly into this pier dir (the one containing
                    .urb), bypassing the DIST_DIR/<ship> lookup. Single pier.
-  --skip-sync      Don't run peru sync; assume desk/ is already populated.
+  --skip-sync      Don't run peru sync; assume desk-deps/ is already populated.
 
 Optional environment variables:
   DIST_DIR         Where extracted piers live (default: $RUBE_DIR/dist)
@@ -100,22 +99,20 @@ if ! command -v rsync >/dev/null 2>&1; then
     exit 1
 fi
 
-REPO_DESK="$PROJECT_ROOT/desk"
-if [ ! -d "$REPO_DESK" ]; then
-    print_error "Repo desk not found: $REPO_DESK"
+ASSEMBLE="$PROJECT_ROOT/scripts/assemble-desk.sh"
+if [ ! -x "$ASSEMBLE" ]; then
+    print_error "assemble-desk.sh not found at $ASSEMBLE"
     exit 1
 fi
 
-# Vendor desk dependencies into desk/ via peru unless told to skip.
+# Vendor desk dependencies into desk-deps/ via peru once, up front. Each pier is
+# then assembled with SKIP_SYNC=true so we don't re-sync per ship.
 if [ "$SKIP_SYNC" = "false" ]; then
     print_info "Syncing desk dependencies (peru sync)..."
     "$PROJECT_ROOT/scripts/sync-deps.sh"
 else
-    print_info "Skipping peru sync (--skip-sync); using desk/ as-is"
+    print_info "Skipping peru sync (--skip-sync); using desk-deps/ as-is"
 fi
-
-# Current repo commit, written into the desk like deploy.sh does
-COMMIT_HASH="$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
 
 # Find the pier dir (the one containing .urb) for a ship. Honors --pier, then
 # tries rube's double-nested layout, then a directly-extracted single dir.
@@ -156,20 +153,14 @@ construct_one() {
 
     print_info "Assembling %$DESK for ~$ship at $groups"
 
-    mkdir -p "$groups"
+    # assemble-desk.sh layers desk-deps/ (--delete) then desk/ on top, and
+    # stamps commit.txt. We synced once above, so skip the per-pier sync.
+    SKIP_SYNC=true "$ASSEMBLE" "$groups"
 
-    # desk/ is self-contained after peru sync (app files + vendored picks).
-    # --delete clears the pier's stale committed files (old base-dev, removed
-    # files) so the result is exactly the assembled desk.
-    rsync -aL --delete "$REPO_DESK/" "$groups/"
-
-    # Stamp the build commit, matching deploy.sh
-    echo "$COMMIT_HASH" > "$groups/commit.txt"
-
-    print_status "Assembled %$DESK for ~$ship (commit $COMMIT_HASH)"
+    print_status "Assembled %$DESK for ~$ship"
 }
 
-print_info "Assembling %$DESK for: ${SHIPS[*]} from $REPO_DESK"
+print_info "Assembling %$DESK for: ${SHIPS[*]} (desk-deps/ + desk/)"
 echo ""
 
 failed=()

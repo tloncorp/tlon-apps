@@ -3,32 +3,10 @@ node_modules
 ops
 bin
 
-# Vendored desk dependencies — fetched by scripts/sync-deps.sh (see peru.yaml).
-# Kept out of git so upstream versions stay pinned but out of our history.
-# NOTE: desk/lib/verb.hoon is a locally-patched variant and stays committed.
-desk/lib/azimuth.hoon
-desk/lib/dbug.hoon
-desk/lib/default-agent.hoon
-desk/lib/ethereum.hoon
-desk/lib/mip.hoon
-desk/lib/server.hoon
-desk/lib/skeleton.hoon
-desk/lib/docket.hoon
-desk/sur/spider.hoon
-desk/sur/hood.hoon
-desk/sur/docket.hoon
-desk/sur/settings.hoon
-desk/mar/docket-0.hoon
-desk/mar/bill.hoon
-desk/mar/hoon.hoon
-desk/mar/kelvin.hoon
-desk/mar/mime.hoon
-desk/mar/noun.hoon
-desk/mar/txt.hoon
-desk/mar/css.hoon
-desk/mar/json.hoon
-desk/mar/htm.hoon
-desk/mar/html.hoon
+# Vendored desk dependencies — fetched into desk-deps/ by scripts/sync-deps.sh
+# (see peru.yaml). Kept out of git so upstream stays pinned but out of history;
+# assembled into a desk by scripts/assemble-desk.sh (deps first, then desk/).
+/desk-deps/
 
 # peru state
 /.peru/

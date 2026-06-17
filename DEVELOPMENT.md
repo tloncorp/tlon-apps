@@ -24,12 +24,12 @@ To get started, make sure your %groups desk is mounted:
 |mount %groups
 ```
 
-Sync the latest %groups files. First vendor the desk's base-dev/landscape
-dependencies into `desk/` (they're gitignored — see `peru.yaml`), then rsync:
+Sync the latest %groups files. `assemble-desk.sh` vendors the base-dev/landscape
+dependencies into `desk-deps/` (gitignored — see `peru.yaml`) and layers them
+with our `desk/` into the ship's mounted groups desk:
 
 ```
-./scripts/sync-deps.sh
-rsync -avL desk/ ~/urbit/zod/groups/
+./scripts/assemble-desk.sh ~/urbit/zod/groups
 ```
 
 And commit:
@@ -50,10 +50,10 @@ Since %groups has already been released and is now in the pill. It is very unlik
 4. Assemble the `%landscape` desk (it is built from upstream, not via peru):
     1. From `urbit/urbit`: `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
     2. From `tloncorp/landscape`: `rsync -avL desk/* ~/urbit/zod/landscape/`
-5. Assemble the `%groups` desk from this repo. peru vendors its base-dev and
-   landscape dependencies into `desk/`, so the desk is self-contained:
-    1. `./scripts/sync-deps.sh`
-    2. `rsync -avL --delete desk/ ~/urbit/zod/groups/`
+5. Assemble the `%groups` desk from this repo. `assemble-desk.sh` vendors its
+   base-dev and landscape dependencies into `desk-deps/` via peru, then layers
+   `desk-deps/` + `desk/` into the mounted desk:
+    1. `./scripts/assemble-desk.sh ~/urbit/zod/groups`
 6. Commit and install landscape on local `~zod`:
     1. `|commit %landscape`
     2. `|install our %landscape`

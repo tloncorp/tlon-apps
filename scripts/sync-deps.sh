@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # scripts/sync-deps.sh
 # Vendor %base (urbit/urbit) and %landscape (tloncorp/landscape) desk
-# dependencies into desk/lib, desk/mar, desk/sur using peru, per peru.yaml.
-# Run this after cloning, and after changing peru.yaml, before building or
-# rsync'ing the desk to a ship.
+# dependencies into desk-deps/ using peru, per peru.yaml. Run this after
+# cloning, and after changing peru.yaml. Assemble a desk from desk-deps/ + desk/
+# with scripts/assemble-desk.sh.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
