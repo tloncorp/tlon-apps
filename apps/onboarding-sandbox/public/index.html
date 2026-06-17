@@ -25,7 +25,9 @@
     textarea { flex:1; width:100%; box-sizing:border-box; border:0; padding:1rem; font:13px/1.5 ui-monospace,Menlo,monospace; resize:none; outline:none; }
     .runbar { padding:.6rem 1rem; border-top:1px solid var(--bd); display:flex; gap:.6rem; align-items:center; }
     .runbar small{color:#888}
-    pre#feed { margin:0; background:#111; color:#d8d8d8; padding:.8rem 1rem; height:160px; overflow:auto; white-space:pre-wrap; font-size:12px; }
+    .feedhead { display:flex; align-items:center; padding:.35rem 1rem; font-size:12px; color:#888; background:#f3f3f3; border-top:1px solid var(--bd); }
+    .feedhead button { font-size:11px; padding:.1rem .5rem; }
+    pre#feed { margin:0; background:#111; color:#d8d8d8; padding:.8rem 1rem; height:140px; overflow:auto; white-space:pre-wrap; font-size:12px; }
   </style>
 </head>
 <body>
@@ -47,16 +49,19 @@
         <b id="editTitle">Select an item</b>
         <button id="b-diff" onclick="toggleDiff()" disabled>Diff</button>
         <button id="b-save" onclick="saveItem()" disabled>Save</button>
-        <button id="b-reset-item" onclick="resetItem()" disabled>Reset to source</button>
+        <button id="b-reset-item" onclick="resetItem()" disabled title="restore this item to the shipped original">Discard changes</button>
       </div>
       <textarea id="editor" disabled placeholder="Select a prompt or the intro DM on the left…"></textarea>
       <pre id="diff" style="display:none; flex:1; margin:0; overflow:auto; padding:1rem; background:#0d1117; color:#c9d1d9; font:13px/1.5 ui-monospace,Menlo,monospace; white-space:pre-wrap;"></pre>
       <div class="runbar">
-        <button class="primary" id="b-savereset" onclick="saveAndReset()">Save &amp; reset onboarding</button>
-        <button onclick="location.href='/api/export'">Export patch</button>
-        <small>writes your edits, then replays first-run (clear → render → intro)</small>
+        <button class="primary" id="b-savereset" onclick="saveAndReset()" title="Save your edits, then replay the bot's first-run (clear → render → intro)">Save &amp; reset onboarding</button>
+        <button onclick="location.href='/api/export'" title="Download your edits as a .patch file to share with a developer">Export patch</button>
+        <button onclick="resetAll()" title="Discard your edits to every prompt and the intro, restoring the shipped originals">Discard all changes</button>
       </div>
-      <pre id="feed"></pre>
+      <div id="activity" style="display:none">
+        <div class="feedhead"><span>Activity log</span><button onclick="clearFeed()" style="margin-left:auto">clear</button></div>
+        <pre id="feed"></pre>
+      </div>
     </div>
   </main>
 
@@ -142,6 +147,15 @@
       dirty = false; await selectItem(current);
     }
 
+    async function resetAll() {
+      if (busy) return;
+      if (!confirm('Discard all your edits to every prompt and the intro, restoring the shipped originals?')) return;
+      await fetch('/api/reset-prompts', { method: 'POST' });
+      dirty = false;
+      await loadItems();
+      if (current) await selectItem(current);
+    }
+
     function renderDiff(text) {
       return text.split('\n').map((l) => {
         const e = l.replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -170,6 +184,7 @@
     function stream(label, qs) {
       return new Promise((resolve) => {
         const feed = $('feed');
+        $('activity').style.display = '';
         feed.textContent += `\n=== ${label} ===\n`;
         const es = new EventSource('/api/stream?' + qs);
         es.addEventListener('line', (e) => { feed.textContent += e.data + '\n'; feed.scrollTop = feed.scrollHeight; });
@@ -177,6 +192,8 @@
         es.onerror = () => { es.close(); resolve(); };
       });
     }
+
+    function clearFeed() { $('feed').textContent = ''; $('activity').style.display = 'none'; }
 
     async function run(cmd) {
       if (busy) return; setBusy(true);

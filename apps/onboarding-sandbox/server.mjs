@@ -201,6 +201,14 @@ const server = createServer(async (req, res) => {
       return res.end(patch || '# no local changes\n');
     }
 
+    if (req.method === 'POST' && pathname === '/api/reset-prompts') {
+      for (const it of await listItems()) {
+        const p = itemPaths(it.name);
+        try { await copyFile(p.source, p.sandbox); } catch {}
+      }
+      return json(res, 200, { ok: true });
+    }
+
     const m = pathname.match(/^\/api\/prompts\/([^/]+)(?:\/(reset|diff))?$/);
     if (m) {
       const rawName = decodeURIComponent(m[1]);
