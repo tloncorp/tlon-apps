@@ -14,4 +14,9 @@
 # realm
 -keep class io.realm.react.**
 
+# Expo loads these reflectively for headless JS (background tasks, notifications,
+# share-intent); R8 strips them without an explicit keep, so the class lookup
+# (e.g. RNHeadlessAppLoader) fails at runtime.
+-keep class expo.modules.adapters.react.** { *; }
+
 # Add any project specific keep options here:
