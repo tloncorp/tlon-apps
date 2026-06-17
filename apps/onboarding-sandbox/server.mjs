@@ -21,11 +21,30 @@ const SRC_INTRO = join(TLONBOT_DIR, 'tests', 'dev', 'onboarding-intro.md');
 const PORT = Number(process.env.ONBOARDING_WEB_PORT || 4400);
 
 const STREAM_CMDS = new Set(['start', 'reset', 'down', 'status', 'logs']);
-// Selectable models for v1 — scoped to the configured provider (OpenRouter);
-// cross-provider needs per-provider keys (first-run setup). Override via env.
+// Offline fallback list — used only if the OpenRouter models API can't be
+// reached. The live list comes from openRouterModels(). Override via env.
 const MODELS = (process.env.ONBOARDING_MODELS ||
   'openrouter/minimax/minimax-m2.5,openrouter/minimax/minimax-m2.7,openrouter/openai/gpt-4o-mini,openrouter/anthropic/claude-3.5-sonnet')
   .split(',').map((s) => s.trim()).filter(Boolean);
+
+// Live list of every OpenRouter model (public endpoint, no auth), cached 1h.
+// Returns `openrouter/<id>` ids matching the bot's MODEL format; null on failure.
+let _modelsCache = null, _modelsCacheAt = 0;
+async function openRouterModels() {
+  if (_modelsCache && Date.now() - _modelsCacheAt < 3600000) return _modelsCache;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    const r = await fetch('https://openrouter.ai/api/v1/models', { signal: ctrl.signal });
+    clearTimeout(t);
+    if (r.ok) {
+      const j = await r.json();
+      const list = (j.data || []).map((m) => 'openrouter/' + m.id).filter((s) => s !== 'openrouter/').sort();
+      if (list.length) { _modelsCache = list; _modelsCacheAt = Date.now(); }
+    }
+  } catch {}
+  return _modelsCache;
+}
 
 const send = (res, code, type, body) => {
   res.writeHead(code, { 'content-type': type });
@@ -104,7 +123,8 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && pathname === '/api/models') {
-      return json(res, 200, { models: MODELS });
+      const list = await openRouterModels();
+      return json(res, 200, { models: list && list.length ? list : MODELS });
     }
 
     if (req.method === 'GET' && pathname === '/api/preflight') {
@@ -134,7 +154,7 @@ const server = createServer(async (req, res) => {
       let args;
       if (cmd === 'set-model') {
         const model = url.searchParams.get('model') || '';
-        if (!MODELS.includes(model)) return send(res, 400, 'text/plain', `unknown model: ${model}`);
+        if (!/^openrouter\/[A-Za-z0-9/_.:-]+$/.test(model)) return send(res, 400, 'text/plain', `invalid model: ${model}`);
         args = ['set-model', model];
       } else if (STREAM_CMDS.has(cmd)) {
         args = [cmd];

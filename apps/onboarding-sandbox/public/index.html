@@ -32,7 +32,8 @@
   <header>
     <h1>Onboarding Sandbox</h1>
     <span id="status">loading…</span>
-    <label>Model <select id="model" onchange="setModel(this.value)" title="switch the bot's model (reloads the gateway)"></select></label>
+    <label>Model <input id="model" list="modellist" size="34" placeholder="type to search any OpenRouter model…" title="any OpenRouter model — type to search" /><datalist id="modellist"></datalist></label>
+    <button id="b-setmodel" onclick="setModel(document.getElementById('model').value)">Set</button>
     <button id="b-start" onclick="run('start')">Start</button>
     <button id="b-down" onclick="run('down')">Stop</button>
   </header>
@@ -70,7 +71,7 @@
           ? `<span class="dot up"></span>Running · gateway ${s.gateway}${s.model?` · <code>${s.model}</code>`:''}` +
             ` · <a href="${s.owner.url}" target="_blank">Open chat as ${s.owner.ship}</a> <small>(${s.owner.code})</small>`
           : `<span class="dot down"></span>Down — click Start`;
-        if (s.model) { const sel = $('model'); if ([...sel.options].some((o) => o.value === s.model)) sel.value = s.model; }
+        if (s.model && document.activeElement !== $('model')) $('model').value = s.model;
       } catch (e) { $('status').textContent = 'status error'; }
     }
 
@@ -125,6 +126,7 @@
     }
 
     $('editor').addEventListener('input', () => { dirty = true; $('b-save').disabled = false; });
+    $('model').addEventListener('keydown', (e) => { if (e.key === 'Enter') setModel($('model').value); });
 
     async function saveItem() {
       if (!current) return;
@@ -163,7 +165,7 @@
       }
     }
 
-    function setBusy(b) { busy = b; ['b-start','b-down','b-savereset','model'].forEach(id => $(id).disabled = b); }
+    function setBusy(b) { busy = b; ['b-start','b-down','b-savereset','model','b-setmodel'].forEach(id => $(id).disabled = b); }
 
     function stream(label, qs) {
       return new Promise((resolve) => {
@@ -185,7 +187,7 @@
     async function loadModels() {
       try {
         const { models } = await (await fetch('/api/models')).json();
-        $('model').innerHTML = models.map((m) => `<option value="${m}">${m}</option>`).join('');
+        $('modellist').innerHTML = models.map((m) => `<option value="${m}"></option>`).join('');
       } catch {}
     }
     async function setModel(m) {
