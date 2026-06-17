@@ -18,11 +18,11 @@ module.exports = {
     react: {
       version: 'detect',
     },
-    "import-x/parsers": {
-      "@typescript-eslint/parser": [".ts", ".tsx"],
+    'import-x/parsers': {
+      '@typescript-eslint/parser': ['.ts', '.tsx'],
     },
-    "import-x/resolver": {
-      "typescript": true,
+    'import-x/resolver': {
+      typescript: true,
     },
   },
   parser: '@typescript-eslint/parser',
@@ -33,6 +33,16 @@ module.exports = {
       files: ['**/*.test.{ts,tsx}'],
       rules: {
         'import-x/no-restricted-paths': 'off',
+      },
+    },
+    {
+      files: ['packages/openclaw/**/*.ts'],
+      rules: {
+        // Block-scoped function declarations are well-defined in ESM/strict
+        // mode (ESLint 9 dropped this rule from eslint:recommended for that
+        // reason); the openclaw plugin predates this config and uses them
+        // heavily in its monitor loop.
+        'no-inner-declarations': 'off',
       },
     },
     {
@@ -72,9 +82,9 @@ module.exports = {
           ...importBoundaries({
             basePath: './packages/api/src',
             zones: {
-              'lib': { forbidImportFrom: ['http-api', 'urbit', 'client'] },
+              lib: { forbidImportFrom: ['http-api', 'urbit', 'client'] },
               'http-api': { forbidImportFrom: ['urbit', 'client'] },
-              'urbit': { forbidImportFrom: ['client'] },
+              urbit: { forbidImportFrom: ['client'] },
             },
           }),
           // shared/ submodules (top is forbidden from import from lower):
@@ -85,9 +95,9 @@ module.exports = {
           ...importBoundaries({
             basePath: './packages/shared/src',
             zones: {
-              'utils': { forbidImportFrom: ['logic', 'db', 'store'] },
-              'logic': { forbidImportFrom: ['db', 'store'] },
-              'db': { forbidImportFrom: ['store'] },
+              utils: { forbidImportFrom: ['logic', 'db', 'store'] },
+              logic: { forbidImportFrom: ['db', 'store'] },
+              db: { forbidImportFrom: ['store'] },
             },
           }),
         ],

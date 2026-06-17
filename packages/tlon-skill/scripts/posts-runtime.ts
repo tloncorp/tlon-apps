@@ -5,6 +5,8 @@ import {
   getChannelPosts as apiGetChannelPosts,
   getCurrentUserId as apiGetCurrentUserId,
   removeReaction as apiRemoveReaction,
+  sendPost as apiSendPost,
+  sendReply as apiSendReply,
 } from '@tloncorp/api';
 import * as fs from 'fs';
 
@@ -16,8 +18,11 @@ import type {
   PostLookupQuery,
   PostReactionInput,
   PostReactionRemoveInput,
+  PostReplyInput,
+  PostSendInput,
   PostsDeps,
 } from './commands/posts';
+import { fetchImageVerse } from './image-attach';
 
 function createProcessCommandDeps() {
   return {
@@ -29,12 +34,13 @@ function createProcessCommandDeps() {
 export function createPostsDeps(): PostsDeps {
   return {
     ...createProcessCommandDeps(),
-    authenticate: async () => {
-      await ensureClient(['channels']);
+    authenticate: async (apps) => {
+      await ensureClient(apps);
     },
     getCurrentUserId: () => apiGetCurrentUserId(),
     now: () => Date.now(),
     readFile: (path: string) => fs.readFileSync(path, 'utf-8'),
+    buildImageVerse: (url: string) => fetchImageVerse(url),
     postsApi: {
       addReaction: async (input: PostReactionInput) => {
         try {
@@ -60,6 +66,20 @@ export function createPostsDeps(): PostsDeps {
       editPost: async (input: PostEditInput) => {
         try {
           await apiEditPost(input);
+        } catch (error) {
+          throw commandError(errorMessage(error));
+        }
+      },
+      sendPost: async (input: PostSendInput) => {
+        try {
+          await apiSendPost(input);
+        } catch (error) {
+          throw commandError(errorMessage(error));
+        }
+      },
+      sendReply: async (input: PostReplyInput) => {
+        try {
+          await apiSendReply(input);
         } catch (error) {
           throw commandError(errorMessage(error));
         }

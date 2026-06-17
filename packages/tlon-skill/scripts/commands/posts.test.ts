@@ -1,31 +1,42 @@
 import { describe, expect, it } from 'bun:test';
 
+import type { StoryVerse } from '../story';
 import { commandError } from './command';
 import {
   type ExistingPost,
   POSTS_COMMAND_HELP,
   POSTS_HELP,
   POSTS_REACT_HELP,
+  type PostAuthApp,
   type PostDeleteInput,
   type PostEditInput,
   type PostLookupQuery,
   type PostLookupResult,
   type PostReactionInput,
   type PostReactionRemoveInput,
+  type PostReplyInput,
+  type PostSendInput,
   type PostsDeps,
   run,
 } from './posts';
 
+const IMAGE_VERSE: StoryVerse = {
+  block: { image: { src: 'https://x/y.png', width: 10, height: 20, alt: 'y' } },
+};
+
 interface MakeDepsOptions {
   currentUserId?: string;
   now?: number;
-  authenticate?: () => Promise<void>;
+  authenticate?: (apps: PostAuthApp[]) => Promise<void>;
   addReaction?: (input: PostReactionInput) => Promise<void>;
   removeReaction?: (input: PostReactionRemoveInput) => Promise<void>;
   deletePost?: (input: PostDeleteInput) => Promise<void>;
   editPost?: (input: PostEditInput) => Promise<void>;
+  sendPost?: (input: PostSendInput) => Promise<void>;
+  sendReply?: (input: PostReplyInput) => Promise<void>;
   getChannelPosts?: (query: PostLookupQuery) => Promise<PostLookupResult>;
   readFile?: (path: string) => string;
+  buildImageVerse?: (url: string) => Promise<StoryVerse>;
 }
 
 function makeDeps(options: MakeDepsOptions = {}) {
@@ -33,13 +44,17 @@ function makeDeps(options: MakeDepsOptions = {}) {
   const stderr: string[] = [];
   const calls = {
     authenticate: 0,
+    authenticateApps: [] as PostAuthApp[][],
     getCurrentUserId: 0,
     now: 0,
     readFile: [] as string[],
+    buildImageVerse: [] as string[],
     addReaction: [] as PostReactionInput[],
     removeReaction: [] as PostReactionRemoveInput[],
     deletePost: [] as PostDeleteInput[],
     editPost: [] as PostEditInput[],
+    sendPost: [] as PostSendInput[],
+    sendReply: [] as PostReplyInput[],
     getChannelPosts: [] as PostLookupQuery[],
     order: [] as string[],
   };
@@ -47,10 +62,11 @@ function makeDeps(options: MakeDepsOptions = {}) {
   const deps: PostsDeps = {
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
-    authenticate: async () => {
+    authenticate: async (apps) => {
       calls.authenticate += 1;
+      calls.authenticateApps.push(apps);
       calls.order.push('authenticate');
-      await options.authenticate?.();
+      await options.authenticate?.(apps);
     },
     getCurrentUserId: () => {
       calls.getCurrentUserId += 1;
@@ -67,6 +83,12 @@ function makeDeps(options: MakeDepsOptions = {}) {
       calls.order.push('readFile');
       if (options.readFile) return options.readFile(path);
       throw new Error(`ENOENT: no such file, open '${path}'`);
+    },
+    buildImageVerse: async (url) => {
+      calls.buildImageVerse.push(url);
+      calls.order.push('buildImageVerse');
+      if (options.buildImageVerse) return options.buildImageVerse(url);
+      return IMAGE_VERSE;
     },
     postsApi: {
       addReaction: async (input) => {
@@ -88,6 +110,16 @@ function makeDeps(options: MakeDepsOptions = {}) {
         calls.editPost.push(input);
         calls.order.push('editPost');
         await options.editPost?.(input);
+      },
+      sendPost: async (input) => {
+        calls.sendPost.push(input);
+        calls.order.push('sendPost');
+        await options.sendPost?.(input);
+      },
+      sendReply: async (input) => {
+        calls.sendReply.push(input);
+        calls.order.push('sendReply');
+        await options.sendReply?.(input);
       },
       getChannelPosts: async (query) => {
         calls.getChannelPosts.push(query);
@@ -112,8 +144,11 @@ function expectNoAuthOrApi(context: ReturnType<typeof makeDeps>) {
   expect(context.calls.removeReaction).toEqual([]);
   expect(context.calls.deletePost).toEqual([]);
   expect(context.calls.editPost).toEqual([]);
+  expect(context.calls.sendPost).toEqual([]);
+  expect(context.calls.sendReply).toEqual([]);
   expect(context.calls.getChannelPosts).toEqual([]);
   expect(context.calls.readFile).toEqual([]);
+  expect(context.calls.buildImageVerse).toEqual([]);
 }
 
 describe('posts command help and shell', () => {
@@ -131,6 +166,8 @@ describe('posts command help and shell', () => {
 
   it('prints per-subcommand help for help tokens after the subcommand', async () => {
     const cases = [
+      { args: ['send', '--help'], help: POSTS_COMMAND_HELP.send },
+      { args: ['reply', '-h'], help: POSTS_COMMAND_HELP.reply },
       { args: ['react', '--help'], help: POSTS_COMMAND_HELP.react },
       { args: ['unreact', '-h'], help: POSTS_COMMAND_HELP.unreact },
       { args: ['delete', '--help'], help: POSTS_COMMAND_HELP.delete },
@@ -181,30 +218,246 @@ describe('posts command help and shell', () => {
     expect(context.stderr()).toBe(`${POSTS_HELP}\n`);
     expectNoAuthOrApi(context);
   });
+});
 
-  it('reports unsupported send/reply with exact text before auth', async () => {
-    const cases = [
-      {
-        args: ['send'],
-        message:
-          'Error: Channel post send is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon instead.\n',
-      },
-      {
-        args: ['reply'],
-        message:
-          'Error: Channel post reply is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon and replyTo instead.\n',
-      },
-    ];
-
-    for (const testCase of cases) {
+describe('posts send', () => {
+  it('fails missing channel/message before auth or API work', async () => {
+    for (const args of [['send'], ['send', 'chat/~host/channel']]) {
       const context = makeDeps();
-      const exitCode = await run(testCase.args, context.deps);
+      const exitCode = await run(args, context.deps);
 
       expect(exitCode).toBe(1);
       expect(context.stdout()).toBe('');
-      expect(context.stderr()).toBe(testCase.message);
+      expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
       expectNoAuthOrApi(context);
     }
+  });
+
+  it('rejects a malformed --image flag before auth', async () => {
+    const missingValue = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', 'hi', '--image'],
+        missingValue.deps
+      )
+    ).toBe(1);
+    expect(missingValue.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
+    expectNoAuthOrApi(missingValue);
+
+    const nonHttp = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
+        nonHttp.deps
+      )
+    ).toBe(1);
+    expect(nonHttp.stderr()).toBe(
+      'Error: --image must be an http(s) image URL — upload first with `tlon upload`\n'
+    );
+    expectNoAuthOrApi(nonHttp);
+  });
+
+  it('rejects a malformed --blob flag before auth', async () => {
+    const missingValue = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', 'hi', '--blob'],
+        missingValue.deps
+      )
+    ).toBe(1);
+    expect(missingValue.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
+
+    const nonArray = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', 'hi', '--blob', '{"a":1}'],
+        nonArray.deps
+      )
+    ).toBe(1);
+    expect(nonArray.stderr()).toBe(
+      'Error: --blob must be a JSON array of post-blob entries\n'
+    );
+    expectNoAuthOrApi(nonArray);
+  });
+
+  it('sends a plain message and authenticates against channels', async () => {
+    const context = makeDeps({ currentUserId: '~nec', now: 42 });
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'Hello', 'there'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Message sent\n');
+    expect(context.stderr()).toBe('');
+    expect(context.calls.authenticateApps).toEqual([['channels']]);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        authorId: '~nec',
+        sentAt: 42,
+        content: [{ inline: ['Hello there'] }],
+        blob: undefined,
+      },
+    ]);
+  });
+
+  it('authenticates against chat for DM and group-DM targets', async () => {
+    for (const target of ['~sampel-palnet', '0v5.abcde']) {
+      const context = makeDeps();
+      await run(['send', target, 'hi'], context.deps);
+      expect(context.calls.authenticateApps).toEqual([['chat']]);
+    }
+  });
+
+  it('fetches the image after auth and puts the block before the caption', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'caption', '--image', 'https://x/y.png'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.order).toEqual([
+      'authenticate',
+      'buildImageVerse',
+      'getCurrentUserId',
+      'now',
+      'sendPost',
+    ]);
+    expect(context.calls.buildImageVerse).toEqual(['https://x/y.png']);
+    expect(context.calls.sendPost[0].content).toEqual([
+      IMAGE_VERSE,
+      { inline: ['caption'] },
+    ]);
+  });
+
+  it('sends an image-only post with no caption', async () => {
+    const context = makeDeps();
+    await run(
+      ['send', 'chat/~host/channel', '--image', 'https://x/y.png'],
+      context.deps
+    );
+
+    expect(context.calls.sendPost[0].content).toEqual([IMAGE_VERSE]);
+  });
+
+  it('passes a validated --blob through to the payload', async () => {
+    const context = makeDeps();
+    await run(
+      ['send', 'chat/~host/channel', 'hi', '--blob', '[{"type":"a2ui"}]'],
+      context.deps
+    );
+
+    expect(context.calls.sendPost[0].blob).toBe('[{"type":"a2ui"}]');
+  });
+
+  it('wraps image fetch failures as a stable command error after auth', async () => {
+    const context = makeDeps({
+      buildImageVerse: async () => {
+        throw new Error('Failed to fetch image: 404');
+      },
+    });
+
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '--image', 'https://x/y.png'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe('Error: Failed to fetch image: 404\n');
+    expect(context.stderr()).not.toContain('    at ');
+    expect(context.calls.authenticate).toBe(1);
+    expect(context.calls.sendPost).toEqual([]);
+  });
+});
+
+describe('posts reply', () => {
+  it('fails missing args before auth or API work', async () => {
+    const cases = [
+      ['reply'],
+      ['reply', 'chat/~host/channel'],
+      ['reply', 'chat/~host/channel', '170.141'],
+    ];
+
+    for (const args of cases) {
+      const context = makeDeps();
+      const exitCode = await run(args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.reply}\n`);
+      expectNoAuthOrApi(context);
+    }
+  });
+
+  it('fails a --author flag with no value before auth', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['reply', 'chat/~host/channel', '170.141', 'hi', '--author'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.reply}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('replies, formatting the parent id and defaulting the parent author', async () => {
+    const context = makeDeps({ currentUserId: '~nec', now: 7 });
+    const exitCode = await run(
+      ['reply', 'chat/~host/channel', '~sampel/170141184', 'Thread', 'reply'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('✓ Reply sent\n');
+    expect(context.calls.authenticateApps).toEqual([['channels']]);
+    expect(context.calls.sendReply).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        parentId: '170.141.184',
+        parentAuthor: '~nec',
+        content: [{ inline: ['Thread reply'] }],
+        sentAt: 7,
+        authorId: '~nec',
+      },
+    ]);
+  });
+
+  it('uses an explicit --author as the parent author', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    await run(
+      ['reply', 'chat/~host/channel', '170.141', 'hi', '--author', '~bus'],
+      context.deps
+    );
+
+    expect(context.calls.sendReply[0].parentAuthor).toBe('~bus');
+  });
+
+  it('defaults the parent author to a one-to-one DM target', async () => {
+    const context = makeDeps({ currentUserId: '~nec' });
+    await run(['reply', '~sampel-palnet', '170.141', 'hi'], context.deps);
+
+    expect(context.calls.authenticateApps).toEqual([['chat']]);
+    expect(context.calls.sendReply[0].parentAuthor).toBe('~sampel-palnet');
+  });
+
+  it('routes facade failures through the shared command-error path', async () => {
+    const context = makeDeps({
+      sendReply: async () => {
+        throw commandError('reply failed');
+      },
+    });
+
+    const exitCode = await run(
+      ['reply', 'chat/~host/channel', '170.141', 'hi'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe('Error: reply failed\n');
   });
 });
 

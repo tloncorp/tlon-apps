@@ -106,7 +106,7 @@ const Pressable = forwardRef<any, PressableProps>(
     // On web, we skip this check as it interferes with styled() components
     const hasInteractionHandler = isWeb
       ? true // Always consider web components interactive
-      : (action == null ? onPress : onPressLink) ||
+      : ((to ?? action) == null ? onPress : onPressLink) ||
         onPressIn ||
         onPressOut ||
         onLongPress;

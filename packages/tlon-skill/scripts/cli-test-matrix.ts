@@ -210,6 +210,76 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     'Usage: tlon posts react'
   ),
   usageErrorCase(
+    'posts send missing message',
+    ['posts', 'send', 'chat/~host/channel'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts reply missing message',
+    ['posts', 'reply', 'chat/~host/channel', '170.141'],
+    'Usage: tlon posts reply'
+  ),
+  usageErrorCase(
+    'posts reply missing author value',
+    ['posts', 'reply', 'chat/~host/channel', '170.141', 'message', '--author'],
+    'Usage: tlon posts reply'
+  ),
+  usageErrorCase(
+    'posts send missing blob value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--blob'],
+    'Usage: tlon posts send'
+  ),
+  usageErrorCase(
+    'posts send blob without message',
+    ['posts', 'send', 'chat/~host/channel', '--blob', '[]'],
+    'Usage: tlon posts send'
+  ),
+  {
+    name: 'posts send blob rejects non-array json',
+    args: [
+      'posts',
+      'send',
+      'chat/~host/channel',
+      'message',
+      '--blob',
+      '{"a":1}',
+    ],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--blob must be a JSON array'],
+  },
+  usageErrorCase(
+    'posts send missing image value',
+    ['posts', 'send', 'chat/~host/channel', 'message', '--image'],
+    'Usage: tlon posts send'
+  ),
+  {
+    name: 'posts send rejects non-http image url',
+    args: ['posts', 'send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
+  {
+    name: 'posts send rejects non-http equals image url',
+    args: ['posts', 'send', 'chat/~host/channel', '--image=ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
+  usageErrorCase(
+    'dms send missing image value',
+    ['dms', 'send', '0v5.abcde', '--image'],
+    'Usage: tlon dms send'
+  ),
+  {
+    name: 'dms send rejects non-http equals image url',
+    args: ['dms', 'send', '0v5.abcde', '--image=ftp://x/y.png'],
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: ['--image must be an http(s) image URL'],
+  },
+  usageErrorCase(
     'settings set missing args',
     ['settings', 'set'],
     'Usage: tlon settings set'
@@ -338,6 +408,16 @@ export const NESTED_HELP_CASES: CliCase[] = [
     'Usage: tlon posts react'
   ),
   helpCase(
+    'posts send --help',
+    ['posts', 'send', '--help'],
+    'Usage: tlon posts send'
+  ),
+  helpCase(
+    'posts reply --help',
+    ['posts', 'reply', '--help'],
+    'Usage: tlon posts reply'
+  ),
+  helpCase(
     'posts unreact --help',
     ['posts', 'unreact', '--help'],
     'Usage: tlon posts unreact'
@@ -380,6 +460,43 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
   authRequiredCase('posts edit message option-like value reaches auth', [
     'posts',
     'edit',
+    'chat/~host/channel',
+    '170.141',
+    'use',
+    '--help',
+  ]),
+  authRequiredCase('posts send message option-like value reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'use',
+    '--help',
+  ]),
+  authRequiredCase('posts send with valid blob reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    'message',
+    '--blob',
+    '[{"type":"a2ui","version":1,"messages":[]}]',
+  ]),
+  authRequiredCase('posts send image-only reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    '--image',
+    'https://example.com/x.png',
+  ]),
+  authRequiredCase('dms send image-only reaches auth', [
+    'dms',
+    'send',
+    '0v5.abcde',
+    '--image',
+    'https://example.com/x.png',
+  ]),
+  authRequiredCase('posts reply message option-like value reaches auth', [
+    'posts',
+    'reply',
     'chat/~host/channel',
     '170.141',
     'use',
@@ -517,9 +634,9 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
   ]),
 ];
 
-// Posts family completion (unreact/delete/edit + family shell). React cases
-// live in MISSING_REQUIRED_CASES, NESTED_HELP_CASES, and
-// LITERAL_OPTION_LIKE_VALUE_CASES from the earlier react migration.
+// Posts family completion (send/reply/unreact/delete/edit + family shell).
+// Additional react/send/reply cases live in MISSING_REQUIRED_CASES,
+// NESTED_HELP_CASES, and LITERAL_OPTION_LIKE_VALUE_CASES.
 export const POSTS_FAMILY_CASES: CliCase[] = [
   usageErrorCase(
     'posts unreact missing args',
@@ -576,24 +693,21 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
     ['posts', 'edit', 'chat/~host/channel', '170.141', '--title', '--help'],
     'Usage: tlon posts edit'
   ),
-  {
-    name: 'posts send unsupported error',
-    args: ['posts', 'send'],
-    expectedExitCode: 1,
-    stdout: '',
-    stderr:
-      'Error: Channel post send is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon instead.\n',
-    stderrExcludes: [...STACK_PATTERNS, ...AUTH_CONFIG_PATTERNS],
-  },
-  {
-    name: 'posts reply unsupported error',
-    args: ['posts', 'reply'],
-    expectedExitCode: 1,
-    stdout: '',
-    stderr:
-      'Error: Channel post reply is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon and replyTo instead.\n',
-    stderrExcludes: [...STACK_PATTERNS, ...AUTH_CONFIG_PATTERNS],
-  },
+  // send/reply help-literal quirk: a help token in the message slot is treated
+  // as literal message content, so these reach auth instead of printing help.
+  authRequiredCase('posts send minimal help-literal reaches auth', [
+    'posts',
+    'send',
+    'chat/~host/channel',
+    '--help',
+  ]),
+  authRequiredCase('posts reply minimal help-literal reaches auth', [
+    'posts',
+    'reply',
+    'chat/~host/channel',
+    '170.141',
+    '--help',
+  ]),
 ];
 
 export const CLI_MATRIX_CASES: CliCase[] = [
@@ -624,6 +738,8 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
     args: [family, '--help'],
   })),
   { name: 'posts react', args: ['posts', 'react', '--help'] },
+  { name: 'posts send', args: ['posts', 'send', '--help'] },
+  { name: 'posts reply', args: ['posts', 'reply', '--help'] },
   { name: 'posts unreact', args: ['posts', 'unreact', '--help'] },
   { name: 'posts delete', args: ['posts', 'delete', '--help'] },
   { name: 'posts edit', args: ['posts', 'edit', '--help'] },

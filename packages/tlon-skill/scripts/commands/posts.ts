@@ -1,4 +1,5 @@
-import { type Story, markdownToStory } from '../story';
+import { defaultReplyParentAuthor } from '../post-targets';
+import { type Story, type StoryVerse, markdownToStory } from '../story';
 import {
   type CommandDeps,
   commandError,
@@ -12,13 +13,18 @@ import {
 
 export const POSTS_HELP = `Usage: tlon posts <command>
 
-Note: Sending and replying to posts is handled by the Tlon channel plugin.
-
 Commands:
+  send <channel> [message]                 Send a message to a channel [--blob <json>] [--image <url>]
+  reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship]
   react <channel> <post-id> <emoji>     React to a post with an emoji
   unreact <channel> <post-id>           Remove your reaction from a post
   edit <channel> <post-id> <message>    Edit a post [--title <t>] [--image <url>] [--content <json>]
   delete <channel> <post-id>            Delete a post
+
+Send options:
+  --blob <json>        Attach a post-blob JSON array (e.g. an a2ui entry)
+  --image <url>        Attach an image (direct png/jpeg/gif/webp URL, e.g. from
+                       'tlon upload'); message becomes an optional caption
 
 Edit options:
   --title <title>      Set/update notebook post title
@@ -26,6 +32,9 @@ Edit options:
   --content <file>     Use Story JSON file for rich content (notebooks)
 
 Examples:
+  tlon posts send chat/~host/channel "Hello from tlon"
+  tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
+  tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
   tlon posts edit diary/~host/notes 170.141... --title "New Title" --image https://example.com/cover.jpg --content article.json
 
@@ -33,6 +42,9 @@ Channel format: chat/~host/channel-name, diary/~host/name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
+  send: 'Usage: tlon posts send <channel> [message] [--blob <json>] [--image <url>] (message optional with --image)',
+  reply:
+    'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
   react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
   unreact: 'Usage: tlon posts unreact <channel> <post-id>',
   edit: 'Usage: tlon posts edit <channel> <post-id> <message> [--title <title>] [--image <url>] [--content <json-file>]',
@@ -43,13 +55,9 @@ export const POSTS_COMMAND_HELP: Record<string, string> = {
 // command help map above. The react usage line must stay byte-identical.
 export const POSTS_REACT_HELP = POSTS_COMMAND_HELP.react;
 
-const POSTS_UNSUPPORTED_COMMAND_ERRORS: Record<string, string> = {
-  send: 'Channel post send is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon instead.',
-  reply:
-    'Channel post reply is handled by the Tlon channel plugin.\nUse the channel message tool with channel=tlon and replyTo instead.',
-};
-
 const POST_EDIT_OPTION_FLAGS = ['title', 'content', 'image'] as const;
+const POST_REPLY_OPTION_FLAGS = ['author'] as const;
+const POST_SEND_OPTION_FLAGS = ['blob', 'image'] as const;
 
 export interface PostReactionInput {
   channelId: string;
@@ -88,6 +96,23 @@ export interface PostEditInput {
   metadata: PostEditMetadata;
 }
 
+export interface PostSendInput {
+  channelId: string;
+  authorId: string;
+  sentAt: number;
+  content: Story;
+  blob?: string;
+}
+
+export interface PostReplyInput {
+  channelId: string;
+  parentId: string;
+  parentAuthor: string;
+  content: Story;
+  sentAt: number;
+  authorId: string;
+}
+
 export interface PostLookupQuery {
   channelId: string;
   cursor: string;
@@ -113,31 +138,44 @@ export interface PostsApi {
   removeReaction: (input: PostReactionRemoveInput) => Promise<void>;
   deletePost: (input: PostDeleteInput) => Promise<void>;
   editPost: (input: PostEditInput) => Promise<void>;
+  sendPost: (input: PostSendInput) => Promise<void>;
+  sendReply: (input: PostReplyInput) => Promise<void>;
   getChannelPosts: (query: PostLookupQuery) => Promise<PostLookupResult>;
 }
 
+// Subset of the api-client's subscription apps that posts targets can need.
+export type PostAuthApp = 'channels' | 'chat';
+
 export interface PostsDeps extends CommandDeps {
-  authenticate: () => Promise<void>;
+  authenticate: (apps: PostAuthApp[]) => Promise<void>;
   getCurrentUserId: () => string;
   now: () => number;
   readFile: (path: string) => string;
+  // Fetch an image URL and build its story image verse (network IO).
+  buildImageVerse: (url: string) => Promise<StoryVerse>;
   postsApi: PostsApi;
 }
 
 type ParsedPostsArgs =
   | { kind: 'help'; help: string }
-  | { kind: 'react'; channelId: string; postId: string; emoji: string }
-  | { kind: 'unreact'; channelId: string; postId: string }
-  | { kind: 'delete'; channelId: string; postId: string }
   | {
-      kind: 'edit';
+      kind: 'send';
+      channelId: string;
+      message: string;
+      imageUrl?: string;
+      blob?: string;
+    }
+  | {
+      kind: 'reply';
       channelId: string;
       postId: string;
       message: string;
-      title?: string;
-      image?: string;
-      contentFile?: string;
-    };
+      parentAuthor?: string;
+    }
+  | { kind: 'react'; channelId: string; postId: string; emoji: string }
+  | { kind: 'unreact'; channelId: string; postId: string }
+  | { kind: 'delete'; channelId: string; postId: string }
+  | { kind: 'edit'; channelId: string; postId: string; args: string[] };
 
 function extractNumericId(id: string): string {
   const slash = id.indexOf('/');
@@ -167,31 +205,96 @@ function getPostsHelp(command: string | undefined): string {
     : POSTS_HELP;
 }
 
-function firstPostEditFlagIndex(args: string[]): number {
-  const flagIndexes = POST_EDIT_OPTION_FLAGS.map((flag) =>
-    args.indexOf(`--${flag}`)
-  ).filter((idx) => idx !== -1);
-  return flagIndexes.length > 0 ? Math.min(...flagIndexes) : args.length;
-}
-
-function getPostEditMessage(args: string[]): string {
-  return args.slice(3, firstPostEditFlagIndex(args)).join(' ');
-}
-
-// The edit message slice can legitimately contain `--help`/`-h` as literal
-// message content. When it does, help is suppressed and the token is treated
-// as the message, matching legacy behavior.
-function isPostEditMessageHelpLiteral(args: string[]): boolean {
-  return (
-    args[0] === 'edit' &&
-    !!args[1] &&
-    !!args[2] &&
-    wantsHelp(args.slice(3, firstPostEditFlagIndex(args)))
+// Index of an optional `--image <url>` or `--image=<url>` flag.
+function imageFlagIndex(args: string[]): number {
+  return args.findIndex(
+    (arg) => arg === '--image' || arg.startsWith('--image=')
   );
 }
 
-// Legacy `hasOptionValue(args, 'content', POST_EDIT_OPTION_FLAGS)`: true only
-// when `--content` is followed by a value that is not itself an edit flag.
+// Value of an optional `--image <url>` / `--image=<url>` flag. Throws a usage
+// error when the flag is present but its value is missing.
+function imageFlagValue(args: string[], usage: string): string | undefined {
+  const idx = imageFlagIndex(args);
+  if (idx === -1) {
+    return undefined;
+  }
+  const arg = args[idx];
+  const url = arg.startsWith('--image=')
+    ? arg.slice('--image='.length)
+    : args[idx + 1];
+  if (!url) {
+    throw usageError(usage);
+  }
+  return url;
+}
+
+// Validate an optional image flag: returns the URL when present and http(s),
+// undefined when absent; throws on a malformed flag/value.
+function validatedImageFlag(args: string[], usage: string): string | undefined {
+  const url = imageFlagValue(args, usage);
+  if (!url) {
+    return undefined;
+  }
+  if (!/^https?:\/\//.test(url)) {
+    throw commandError(
+      '--image must be an http(s) image URL — upload first with `tlon upload`'
+    );
+  }
+  return url;
+}
+
+function validatedSendBlob(args: string[]): string | undefined {
+  const blobIdx = args.indexOf('--blob');
+  if (blobIdx === -1) {
+    return undefined;
+  }
+  const blob = args[blobIdx + 1];
+  if (!blob) {
+    throw usageError(POSTS_COMMAND_HELP.send);
+  }
+  try {
+    if (!Array.isArray(JSON.parse(blob))) {
+      throw new Error('not an array');
+    }
+  } catch {
+    throw commandError('--blob must be a JSON array of post-blob entries');
+  }
+  return blob;
+}
+
+// Plain `--flag` boundary scan. Edit/reply use this for all their flags — a
+// `--image=url` token is deliberately NOT a flag boundary for edit, matching
+// legacy behavior.
+function firstFlagIndex(args: string[], flags: readonly string[]): number {
+  const indexes = flags
+    .map((flag) => args.indexOf(`--${flag}`))
+    .filter((idx) => idx !== -1);
+  return indexes.length > 0 ? Math.min(...indexes) : args.length;
+}
+
+// Send treats `--image`/`--image=` (via imageFlagIndex) as a boundary too.
+function firstPostSendFlagIndex(args: string[]): number {
+  const indexes = POST_SEND_OPTION_FLAGS.map((flag) =>
+    flag === 'image' ? imageFlagIndex(args) : args.indexOf(`--${flag}`)
+  ).filter((idx) => idx !== -1);
+  return indexes.length > 0 ? Math.min(...indexes) : args.length;
+}
+
+function getPostEditMessage(args: string[]): string {
+  return args.slice(3, firstFlagIndex(args, POST_EDIT_OPTION_FLAGS)).join(' ');
+}
+
+function getPostSendMessage(args: string[]): string {
+  return args.slice(2, firstPostSendFlagIndex(args)).join(' ');
+}
+
+function getPostReplyMessage(args: string[]): string {
+  return args.slice(3, firstFlagIndex(args, POST_REPLY_OPTION_FLAGS)).join(' ');
+}
+
+// `hasOptionValue(args, 'content', POST_EDIT_OPTION_FLAGS)`: true only when
+// `--content` is followed by a value that is not itself an edit flag.
 function hasContentOptionValue(args: string[]): boolean {
   const idx = args.indexOf('--content');
   const value = idx !== -1 ? args[idx + 1] : undefined;
@@ -201,6 +304,48 @@ function hasContentOptionValue(args: string[]): boolean {
   return !POST_EDIT_OPTION_FLAGS.some((flag) => value === `--${flag}`);
 }
 
+// When the message slice for a write subcommand contains a `--help`/`-h` token,
+// help is suppressed and the token is treated as literal message content.
+function isPostEditMessageHelpLiteral(args: string[]): boolean {
+  return (
+    args[0] === 'edit' &&
+    !!args[1] &&
+    !!args[2] &&
+    wantsHelp(args.slice(3, firstFlagIndex(args, POST_EDIT_OPTION_FLAGS)))
+  );
+}
+
+function isPostSendMessageHelpLiteral(args: string[]): boolean {
+  return (
+    args[0] === 'send' &&
+    !!args[1] &&
+    wantsHelp(args.slice(2, firstPostSendFlagIndex(args)))
+  );
+}
+
+function isPostReplyMessageHelpLiteral(args: string[]): boolean {
+  return (
+    args[0] === 'reply' &&
+    !!args[1] &&
+    !!args[2] &&
+    wantsHelp(args.slice(3, firstFlagIndex(args, POST_REPLY_OPTION_FLAGS)))
+  );
+}
+
+// Send/reply may target a one-to-one DM or group DM, which is served by %chat
+// rather than %channels; everything else authenticates against %channels.
+function postTargetApps(
+  command: string,
+  target: string | undefined
+): PostAuthApp[] {
+  if ((command === 'send' || command === 'reply') && target) {
+    return target.startsWith('~') || target.startsWith('0v')
+      ? ['chat']
+      : ['channels'];
+  }
+  return ['channels'];
+}
+
 function parseArgs(args: string[]): ParsedPostsArgs {
   const command = args[0];
 
@@ -208,7 +353,12 @@ function parseArgs(args: string[]): ParsedPostsArgs {
     return { kind: 'help', help: POSTS_HELP };
   }
 
-  if (wantsHelp(args.slice(1)) && !isPostEditMessageHelpLiteral(args)) {
+  if (
+    wantsHelp(args.slice(1)) &&
+    !isPostEditMessageHelpLiteral(args) &&
+    !isPostSendMessageHelpLiteral(args) &&
+    !isPostReplyMessageHelpLiteral(args)
+  ) {
     return { kind: 'help', help: getPostsHelp(command) };
   }
 
@@ -216,15 +366,34 @@ function parseArgs(args: string[]): ParsedPostsArgs {
     throw usageError(POSTS_HELP);
   }
 
-  if (POSTS_UNSUPPORTED_COMMAND_ERRORS[command]) {
-    throw commandError(POSTS_UNSUPPORTED_COMMAND_ERRORS[command]);
-  }
-
   if (!POSTS_COMMAND_HELP[command]) {
     throw usageError(POSTS_HELP);
   }
 
   switch (command) {
+    case 'send': {
+      const imageUrl = validatedImageFlag(args, POSTS_COMMAND_HELP.send);
+      const message = getPostSendMessage(args);
+      if (!args[1] || (!message && !imageUrl)) {
+        throw usageError(POSTS_COMMAND_HELP.send);
+      }
+      const blob = validatedSendBlob(args);
+      return { kind: 'send', channelId: args[1], message, imageUrl, blob };
+    }
+    case 'reply': {
+      const channelId = args[1];
+      const postId = args[2];
+      const message = getPostReplyMessage(args);
+      if (!channelId || !postId || !message) {
+        throw usageError(POSTS_COMMAND_HELP.reply);
+      }
+      const authorIdx = args.indexOf('--author');
+      if (authorIdx !== -1 && !args[authorIdx + 1]) {
+        throw usageError(POSTS_COMMAND_HELP.reply);
+      }
+      const parentAuthor = authorIdx !== -1 ? args[authorIdx + 1] : undefined;
+      return { kind: 'reply', channelId, postId, message, parentAuthor };
+    }
     case 'react': {
       const [, channelId, postId, emoji] = args;
       if (!channelId || !postId || !emoji) {
@@ -256,20 +425,7 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (!message && !hasContentOptionValue(args)) {
         throw usageError(POSTS_COMMAND_HELP.edit);
       }
-      // Flag values are read positionally with no validation, matching legacy:
-      // `--title --image url` takes `--image` as the title.
-      const titleIdx = args.indexOf('--title');
-      const contentIdx = args.indexOf('--content');
-      const imageIdx = args.indexOf('--image');
-      return {
-        kind: 'edit',
-        channelId,
-        postId,
-        message,
-        title: titleIdx !== -1 ? args[titleIdx + 1] : undefined,
-        image: imageIdx !== -1 ? args[imageIdx + 1] : undefined,
-        contentFile: contentIdx !== -1 ? args[contentIdx + 1] : undefined,
-      };
+      return { kind: 'edit', channelId, postId, args };
     }
   }
 
@@ -315,6 +471,69 @@ async function deletePost(
   });
 }
 
+async function buildImageVerse(
+  url: string,
+  deps: PostsDeps
+): Promise<StoryVerse> {
+  try {
+    return await deps.buildImageVerse(url);
+  } catch (error) {
+    throw commandError(errorMessage(error));
+  }
+}
+
+async function sendPost(
+  parsed: {
+    channelId: string;
+    message: string;
+    imageUrl?: string;
+    blob?: string;
+  },
+  deps: PostsDeps
+): Promise<void> {
+  // Image block first, caption after — matches how the apps compose
+  // attachment posts.
+  const imageVerse = parsed.imageUrl
+    ? await buildImageVerse(parsed.imageUrl, deps)
+    : undefined;
+  const content: Story = [
+    ...(imageVerse ? [imageVerse] : []),
+    ...(parsed.message ? markdownToStory(parsed.message) : []),
+  ];
+
+  await deps.postsApi.sendPost({
+    channelId: parsed.channelId,
+    authorId: deps.getCurrentUserId(),
+    sentAt: deps.now(),
+    content,
+    blob: parsed.blob,
+  });
+}
+
+async function sendReply(
+  parsed: {
+    channelId: string;
+    postId: string;
+    message: string;
+    parentAuthor?: string;
+  },
+  deps: PostsDeps
+): Promise<void> {
+  const authorId = deps.getCurrentUserId();
+  await deps.postsApi.sendReply({
+    channelId: parsed.channelId,
+    parentId: formatPostId(parsed.postId),
+    parentAuthor: defaultReplyParentAuthor(
+      parsed.channelId,
+      authorId,
+      parsed.parentAuthor
+    ),
+    content: markdownToStory(parsed.message),
+    sentAt: deps.now(),
+    authorId,
+  });
+}
+
 // Fetch existing post to preserve metadata during edits. Returns null on any
 // lookup error, matching legacy behavior.
 async function fetchExistingPost(
@@ -349,16 +568,19 @@ function readContentFile(path: string, deps: PostsDeps): Story {
 }
 
 async function editPost(
-  parsed: {
-    channelId: string;
-    postId: string;
-    message: string;
-    title?: string;
-    image?: string;
-    contentFile?: string;
-  },
+  parsed: { channelId: string; postId: string; args: string[] },
   deps: PostsDeps
 ): Promise<void> {
+  const { args } = parsed;
+  const titleIdx = args.indexOf('--title');
+  const contentIdx = args.indexOf('--content');
+  const newTitle = titleIdx !== -1 ? args[titleIdx + 1] : undefined;
+  const contentFile = contentIdx !== -1 ? args[contentIdx + 1] : undefined;
+  const newImage =
+    imageFlagIndex(args) !== -1
+      ? imageFlagValue(args, POSTS_COMMAND_HELP.edit)
+      : undefined;
+
   const existing = await fetchExistingPost(
     parsed.channelId,
     parsed.postId,
@@ -366,16 +588,15 @@ async function editPost(
   );
 
   const metadata: PostEditMetadata = {
-    title: parsed.title ?? existing?.title ?? undefined,
-    image: parsed.image ?? existing?.image ?? undefined,
+    title: newTitle ?? existing?.title ?? undefined,
+    image: newImage ?? existing?.image ?? undefined,
     description: existing?.description ?? undefined,
     cover: existing?.cover ?? undefined,
   };
 
-  const content =
-    parsed.contentFile !== undefined
-      ? readContentFile(parsed.contentFile, deps)
-      : markdownToStory(parsed.message);
+  const content = contentFile
+    ? readContentFile(contentFile, deps)
+    : markdownToStory(getPostEditMessage(args));
 
   await deps.postsApi.editPost({
     channelId: parsed.channelId,
@@ -395,9 +616,17 @@ export async function run(args: string[], deps: PostsDeps): Promise<number> {
       return writeHelp(deps, parsed.help);
     }
 
-    await deps.authenticate();
+    await deps.authenticate(postTargetApps(parsed.kind, parsed.channelId));
 
     switch (parsed.kind) {
+      case 'send':
+        await sendPost(parsed, deps);
+        writeLine(deps.stdout, '✓ Message sent');
+        return 0;
+      case 'reply':
+        await sendReply(parsed, deps);
+        writeLine(deps.stdout, '✓ Reply sent');
+        return 0;
       case 'react':
         await reactToPost(parsed, deps);
         writeLine(deps.stdout, '✓ Reaction added');

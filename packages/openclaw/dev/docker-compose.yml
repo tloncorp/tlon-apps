@@ -1,0 +1,46 @@
+services:
+  openclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ../.env
+    environment:
+      # Default to MiniMax 2.1 via OpenRouter if MODEL not set in .env
+      - MODEL=${MODEL:-openrouter/minimax/minimax-m2.1}
+      # Inside the container, the local tlon-apps/homestead checkout is always mounted here.
+      # This must not use the host absolute path from .env.
+      - TLON_APPS_DIR=/workspace/tlon-apps
+      # Inside the container, the local tlon-skill checkout is always mounted here.
+      # This must not use the host absolute path from .env.
+      - TLON_SKILL_DIR=/workspace/tlon-skill
+    ports:
+      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+    volumes:
+      # Mount the plugin package (packages/openclaw). The entrypoint copies it
+      # to a container-local dir before installing, so workspace:^ deps can be
+      # resolved without touching the host checkout.
+      - ..:/workspace/openclaw-tlon
+      # Container-local node_modules for the install copy (avoids host darwin
+      # binaries overwriting linux, persists across container restarts)
+      - openclaw-tlon-modules:/workspace/tlon/node_modules
+      # Mount tlonbot for config and prompts. Defaults to a checkout sitting
+      # next to the tlon-apps monorepo root; override with TLONBOT_DIR.
+      - ${TLONBOT_DIR:-../../../../tlonbot}:/workspace/tlonbot
+      # The containing tlon-apps monorepo, for dev-only @tloncorp/api override
+      # builds. Defaults to the repo this package lives in.
+      - ${TLON_APPS_DIR:-../../..}:/workspace/tlon-apps
+      # The in-monorepo tlon-skill package, for the dev-only
+      # @tloncorp/tlon-skill override (built from source in the container).
+      - ${TLON_SKILL_DIR:-../../tlon-skill}:/workspace/tlon-skill
+      # Persist OpenClaw state
+      - openclaw-state:/root/.openclaw
+      # Config from tlonbot (copied + patched by entrypoint, not mounted directly)
+      # The entrypoint copies /workspace/tlonbot/openclaw.json → /root/.openclaw/openclaw.json
+      # and patches in env vars (BRAVE_API_KEY, etc.)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  openclaw-state:
+  openclaw-tlon-modules:
