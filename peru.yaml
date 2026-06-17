@@ -25,7 +25,11 @@ git module base:
   rev: 408k-rc2
   pick:
     # libraries the desk imports (transitive closure):
-    #   default-agent -> skeleton; ethereum/dbug have no further deps
+    #   default-agent -> skeleton; azimuth -> ethereum; ethereum/dbug standalone
+    # azimuth is only reached via the aqua test framework (lib/aqua-azimuth ->
+    # lib/ph/io), so it isn't built by a normal %groups commit, but the aqua
+    # tests need it.
+    - pkg/base-dev/lib/azimuth.hoon
     - pkg/base-dev/lib/dbug.hoon
     - pkg/base-dev/lib/default-agent.hoon
     - pkg/base-dev/lib/ethereum.hoon

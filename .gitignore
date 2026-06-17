@@ -6,6 +6,7 @@ bin
 # Vendored desk dependencies — fetched by scripts/sync-deps.sh (see peru.yaml).
 # Kept out of git so upstream versions stay pinned but out of our history.
 # NOTE: desk/lib/verb.hoon is a locally-patched variant and stays committed.
+desk/lib/azimuth.hoon
 desk/lib/dbug.hoon
 desk/lib/default-agent.hoon
 desk/lib/ethereum.hoon
