@@ -14,35 +14,44 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 TLONBOT_DIR="${TLONBOT_DIR:-$REPO_ROOT/../tlonbot}"
 CONTROL="$TLONBOT_DIR/tests/dev/onboarding.sh"
-SANDBOX_DIR="$HERE/.sandbox-prompts"
+SANDBOX_DIR="$HERE/.sandbox-prompts"           # editable prompt copies (→ workspace)
+SANDBOX_INTRO="$HERE/.sandbox-intro.md"         # editable welcome-DM copy (→ send-intro)
+SRC_INTRO="$TLONBOT_DIR/tests/dev/onboarding-intro.md"
 
 [ -d "$TLONBOT_DIR" ] || { echo "ERROR: tlonbot checkout not found at $TLONBOT_DIR — set TLONBOT_DIR." >&2; exit 1; }
 [ -x "$CONTROL" ]     || { echo "ERROR: control plane not found/executable: $CONTROL" >&2; exit 1; }
 
-# Editable sandbox copies of tlonbot/prompts. Private content in a public repo,
-# so the path MUST be gitignored — the initializer refuses otherwise.
-ensure_sandbox_prompts() {
-  if ! git -C "$REPO_ROOT" check-ignore -q "$SANDBOX_DIR"; then
-    echo "ERROR: $SANDBOX_DIR is not gitignored — refusing to copy private prompts" >&2
-    echo "       into a tracked path. Add it to .gitignore first." >&2
-    exit 1
-  fi
+# Editable sandbox copies of the private tlonbot prompts + intro. These hold
+# private content in a public repo, so the paths MUST be gitignored — the
+# initializer refuses otherwise.
+ensure_sandbox() {
+  for p in "$SANDBOX_DIR" "$SANDBOX_INTRO"; do
+    if ! git -C "$REPO_ROOT" check-ignore -q "$p"; then
+      echo "ERROR: $p is not gitignored — refusing to copy private content into a tracked path." >&2
+      exit 1
+    fi
+  done
   if [ ! -d "$SANDBOX_DIR" ] || [ -z "$(ls -A "$SANDBOX_DIR" 2>/dev/null)" ]; then
     echo "Initializing sandbox prompt copies from $TLONBOT_DIR/prompts ..."
     mkdir -p "$SANDBOX_DIR"
     cp "$TLONBOT_DIR"/prompts/*.md "$SANDBOX_DIR"/
   fi
+  if [ ! -f "$SANDBOX_INTRO" ] && [ -f "$SRC_INTRO" ]; then
+    echo "Initializing sandbox intro copy from $SRC_INTRO ..."
+    cp "$SRC_INTRO" "$SANDBOX_INTRO"
+  fi
 }
 
 case "${1:-}" in
   start|"")
-    ensure_sandbox_prompts
-    "$CONTROL" start "$SANDBOX_DIR"
+    ensure_sandbox
+    TLONBOT_INTRO_FILE="$SANDBOX_INTRO" "$CONTROL" start "$SANDBOX_DIR"
     ;;
   reset)
-    ensure_sandbox_prompts
-    "$CONTROL" reset "$SANDBOX_DIR"
+    ensure_sandbox
+    TLONBOT_INTRO_FILE="$SANDBOX_INTRO" "$CONTROL" reset "$SANDBOX_DIR"
     ;;
+  init)   ensure_sandbox ;;
   logs)   "$CONTROL" logs ;;
   status) shift; "$CONTROL" status "$@" ;;
   down)   "$CONTROL" down ;;

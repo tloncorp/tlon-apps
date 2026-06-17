@@ -1,27 +1,46 @@
-// Onboarding sandbox control server (Phase 2, step 1 — zero-dep skeleton).
+// Onboarding sandbox control server (Phase 2).
 //
-// Thin HTTP/SSE layer over the orchestrator (scripts/onboarding-sandbox/run.sh).
-// It spawns whitelisted orchestrator subcommands and streams their output to the
-// browser as the activity feed; it embeds NO Urbit/stack logic. Built-in modules
-// only (no deps / no install). Binds to localhost.
+// Thin HTTP/SSE layer over the orchestrator (scripts/onboarding-sandbox/run.sh)
+// plus prompt-file CRUD on the gitignored sandbox copies. Embeds NO Urbit/stack
+// logic. Built-in modules only (no deps / no install). Binds to localhost.
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, readdir, copyFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
 const RUN = join(REPO_ROOT, 'scripts', 'onboarding-sandbox', 'run.sh');
+const SBX = join(REPO_ROOT, 'scripts', 'onboarding-sandbox');
+const SANDBOX_DIR = join(SBX, '.sandbox-prompts');
+const SANDBOX_INTRO = join(SBX, '.sandbox-intro.md');
+const TLONBOT_DIR = process.env.TLONBOT_DIR || join(REPO_ROOT, '..', 'tlonbot');
+const SRC_PROMPTS = join(TLONBOT_DIR, 'prompts');
+const SRC_INTRO = join(TLONBOT_DIR, 'tests', 'dev', 'onboarding-intro.md');
 const PORT = Number(process.env.ONBOARDING_WEB_PORT || 4400);
 
-// Only these orchestrator subcommands may ever be spawned.
 const STREAM_CMDS = new Set(['start', 'reset', 'down', 'status', 'logs']);
 
 const send = (res, code, type, body) => {
   res.writeHead(code, { 'content-type': type });
   res.end(body);
 };
+const json = (res, code, obj) => send(res, code, 'application/json', JSON.stringify(obj));
+const readOr = async (p) => {
+  try { return await readFile(p, 'utf8'); } catch { return ''; }
+};
+const readBody = (req) =>
+  new Promise((resolve) => { let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => resolve(b)); });
+
+// Map an item name to its sandbox + source paths. `intro` is the welcome DM;
+// otherwise a prompt .md file (validated — no path traversal).
+function itemPaths(name) {
+  if (name === 'intro') return { sandbox: SANDBOX_INTRO, source: SRC_INTRO, kind: 'intro' };
+  if (/^[A-Za-z0-9_.-]+\.md$/.test(name) && !name.includes('..'))
+    return { sandbox: join(SANDBOX_DIR, name), source: join(SRC_PROMPTS, name), kind: 'prompt' };
+  return null;
+}
 
 const runCapture = (args) =>
   new Promise((resolve) => {
@@ -29,58 +48,77 @@ const runCapture = (args) =>
     let out = '';
     p.stdout.on('data', (d) => (out += d));
     p.on('close', () => resolve(out));
-    p.on('error', (e) => resolve(JSON.stringify({ up: false, error: String(e) })));
+    p.on('error', () => resolve(''));
   });
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
+  const { pathname } = url;
   try {
-    if (req.method === 'GET' && url.pathname === '/') {
-      const html = await readFile(join(HERE, 'public', 'index.html'));
-      return send(res, 200, 'text/html; charset=utf-8', html);
+    if (req.method === 'GET' && pathname === '/') {
+      return send(res, 200, 'text/html; charset=utf-8', await readFile(join(HERE, 'public', 'index.html')));
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/status') {
+    if (req.method === 'GET' && pathname === '/api/status') {
       const out = await runCapture(['status', '--json']);
       return send(res, 200, 'application/json', out.trim() || '{"up":false}');
     }
 
-    if (req.method === 'GET' && url.pathname === '/api/stream') {
+    if (req.method === 'GET' && pathname === '/api/stream') {
       const cmd = url.searchParams.get('cmd') || '';
       if (!STREAM_CMDS.has(cmd)) return send(res, 400, 'text/plain', `unknown cmd: ${cmd}`);
-      res.writeHead(200, {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-cache',
-        connection: 'keep-alive',
-      });
+      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
       const emit = (event, data) => res.write(`event: ${event}\ndata: ${data}\n\n`);
       emit('line', `$ onboarding ${cmd}`);
       const p = spawn(RUN, [cmd], { cwd: REPO_ROOT });
-      const pipe = (stream) => {
+      const pipe = (s) => {
         let buf = '';
-        stream.on('data', (d) => {
+        s.on('data', (d) => {
           buf += d;
           let i;
-          while ((i = buf.indexOf('\n')) >= 0) {
-            emit('line', buf.slice(0, i));
-            buf = buf.slice(i + 1);
-          }
+          while ((i = buf.indexOf('\n')) >= 0) { emit('line', buf.slice(0, i)); buf = buf.slice(i + 1); }
         });
-        stream.on('end', () => buf && emit('line', buf));
+        s.on('end', () => buf && emit('line', buf));
       };
-      pipe(p.stdout);
-      pipe(p.stderr);
-      p.on('close', (code) => {
-        emit('done', String(code ?? -1));
-        res.end();
-      });
-      p.on('error', (e) => {
-        emit('line', `spawn error: ${e}`);
-        emit('done', '-1');
-        res.end();
-      });
+      pipe(p.stdout); pipe(p.stderr);
+      p.on('close', (code) => { emit('done', String(code ?? -1)); res.end(); });
+      p.on('error', (e) => { emit('line', `spawn error: ${e}`); emit('done', '-1'); res.end(); });
       req.on('close', () => p.kill());
       return;
+    }
+
+    // --- prompt CRUD (sandbox copies) ---
+    if (req.method === 'GET' && pathname === '/api/prompts') {
+      await runCapture(['init']); // ensure sandbox copies exist (idempotent)
+      const items = [];
+      let files = [];
+      try { files = (await readdir(SANDBOX_DIR)).filter((f) => f.endsWith('.md')).sort(); } catch {}
+      for (const f of files) {
+        const [sb, src] = [await readOr(join(SANDBOX_DIR, f)), await readOr(join(SRC_PROMPTS, f))];
+        items.push({ name: f, kind: 'prompt', modified: sb !== src });
+      }
+      const [iSb, iSrc] = [await readOr(SANDBOX_INTRO), await readOr(SRC_INTRO)];
+      items.push({ name: 'intro', kind: 'intro', label: 'Intro DM', modified: iSb !== iSrc });
+      return json(res, 200, { items });
+    }
+
+    const m = pathname.match(/^\/api\/prompts\/([^/]+)(\/reset)?$/);
+    if (m) {
+      const it = itemPaths(decodeURIComponent(m[1]));
+      if (!it) return json(res, 400, { error: 'bad item name' });
+      if (m[2] && req.method === 'POST') {            // reset to source
+        await copyFile(it.source, it.sandbox);
+        return json(res, 200, { ok: true });
+      }
+      if (req.method === 'GET') {
+        const content = await readOr(it.sandbox);
+        const source = await readOr(it.source);
+        return json(res, 200, { name: decodeURIComponent(m[1]), kind: it.kind, content, source, modified: content !== source });
+      }
+      if (req.method === 'PUT') {                       // save edit
+        await writeFile(it.sandbox, await readBody(req));
+        return json(res, 200, { ok: true });
+      }
     }
 
     send(res, 404, 'text/plain', 'not found');

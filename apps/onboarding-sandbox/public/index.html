@@ -5,80 +5,136 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Onboarding Sandbox</title>
   <style>
-    body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
-    h1 { font-size: 1.3rem; }
-    #status { padding: .75rem 1rem; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; }
-    .dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; margin-right: .4rem; vertical-align: middle; }
-    .up { background: #2e9e44; } .down { background: #bbb; }
-    .actions { margin: 1rem 0; display: flex; gap: .5rem; flex-wrap: wrap; }
-    button { font: inherit; padding: .4rem .9rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
-    button.primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-    button:disabled { opacity: .5; cursor: default; }
-    a.owner { font-weight: 600; }
-    pre#feed { background: #111; color: #d8d8d8; padding: 1rem; border-radius: 8px; height: 320px; overflow: auto; white-space: pre-wrap; font-size: 12px; }
+    :root { --bd:#ddd; --bg:#fafafa; --ink:#1a1a1a; }
+    body { font: 14px/1.5 -apple-system, system-ui, sans-serif; margin: 0; color: var(--ink); }
+    header { padding: .8rem 1.2rem; border-bottom: 1px solid var(--bd); display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+    header h1 { font-size: 1.05rem; margin: 0; }
+    #status { flex: 1; min-width: 240px; }
+    .dot { display:inline-block; width:.6rem; height:.6rem; border-radius:50%; margin-right:.35rem; vertical-align:middle; }
+    .up{background:#2e9e44}.down{background:#bbb}.mod{background:#e0991b}
+    button { font:inherit; padding:.35rem .8rem; border:1px solid #ccc; border-radius:6px; background:#fff; cursor:pointer; }
+    button.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+    button:disabled{opacity:.5;cursor:default}
+    main { display:grid; grid-template-columns: 220px 1fr; gap:0; height: calc(100vh - 58px); }
+    #items { border-right:1px solid var(--bd); overflow:auto; padding:.5rem; margin:0; list-style:none; }
+    #items li { padding:.4rem .6rem; border-radius:6px; cursor:pointer; }
+    #items li:hover{background:var(--bg)} #items li.sel{background:#eef}
+    .pane { display:flex; flex-direction:column; min-width:0; }
+    .editbar { padding:.5rem 1rem; border-bottom:1px solid var(--bd); display:flex; align-items:center; gap:.6rem; }
+    .editbar b{flex:1}
+    textarea { flex:1; width:100%; box-sizing:border-box; border:0; padding:1rem; font:13px/1.5 ui-monospace,Menlo,monospace; resize:none; outline:none; }
+    .runbar { padding:.6rem 1rem; border-top:1px solid var(--bd); display:flex; gap:.6rem; align-items:center; }
+    .runbar small{color:#888}
+    pre#feed { margin:0; background:#111; color:#d8d8d8; padding:.8rem 1rem; height:160px; overflow:auto; white-space:pre-wrap; font-size:12px; }
   </style>
 </head>
 <body>
-  <h1>Onboarding Sandbox</h1>
-  <div id="status">loading…</div>
-
-  <div class="actions">
+  <header>
+    <h1>Onboarding Sandbox</h1>
+    <span id="status">loading…</span>
     <button id="b-start" onclick="run('start')">Start</button>
-    <button id="b-reset" class="primary" onclick="run('reset')">Save &amp; reset onboarding</button>
     <button id="b-down" onclick="run('down')">Stop</button>
-    <button onclick="refresh()">Refresh</button>
-  </div>
+  </header>
 
-  <h3>Activity</h3>
-  <pre id="feed"></pre>
+  <main>
+    <ul id="items"></ul>
+    <div class="pane">
+      <div class="editbar">
+        <b id="editTitle">Select an item</b>
+        <button id="b-save" onclick="saveItem()" disabled>Save</button>
+        <button id="b-reset-item" onclick="resetItem()" disabled>Reset to source</button>
+      </div>
+      <textarea id="editor" disabled placeholder="Select a prompt or the intro DM on the left…"></textarea>
+      <div class="runbar">
+        <button class="primary" id="b-savereset" onclick="saveAndReset()">Save &amp; reset onboarding</button>
+        <small>writes your edits, then replays first-run (clear → render → intro)</small>
+      </div>
+      <pre id="feed"></pre>
+    </div>
+  </main>
 
   <script>
     const $ = (id) => document.getElementById(id);
-    let busy = false;
+    let current = null, dirty = false, busy = false;
 
-    async function refresh() {
+    async function refreshStatus() {
       try {
         const s = await (await fetch('/api/status')).json();
-        if (s.up) {
-          $('status').innerHTML =
-            `<span class="dot up"></span><b>Running</b> — gateway ${s.gateway}` +
-            (s.model ? `, model <code>${s.model}</code>` : '') +
-            ` &nbsp;·&nbsp; <a class="owner" href="${s.owner.url}" target="_blank">Open chat as ${s.owner.ship}</a>` +
-            ` <small>(code ${s.owner.code})</small>`;
-        } else {
-          $('status').innerHTML = `<span class="dot down"></span><b>Down</b> — click Start`;
-        }
-      } catch (e) {
-        $('status').textContent = 'status error: ' + e;
+        $('status').innerHTML = s.up
+          ? `<span class="dot up"></span>Running · gateway ${s.gateway}${s.model?` · <code>${s.model}</code>`:''}` +
+            ` · <a href="${s.owner.url}" target="_blank">Open chat as ${s.owner.ship}</a> <small>(${s.owner.code})</small>`
+          : `<span class="dot down"></span>Down — click Start`;
+      } catch (e) { $('status').textContent = 'status error'; }
+    }
+
+    async function loadItems() {
+      const { items } = await (await fetch('/api/prompts')).json();
+      const ul = $('items');
+      ul.innerHTML = '';
+      for (const it of items) {
+        const li = document.createElement('li');
+        if (it.name === current) li.className = 'sel';
+        li.innerHTML = (it.modified ? '<span class="dot mod" title="modified"></span>' : '<span class="dot" style="background:transparent"></span>') +
+          (it.label || it.name);
+        li.onclick = () => selectItem(it.name);
+        ul.appendChild(li);
       }
     }
 
-    function run(cmd) {
-      if (busy) return;
-      busy = true;
-      ['b-start', 'b-reset', 'b-down'].forEach((id) => ($(id).disabled = true));
-      const feed = $('feed');
-      feed.textContent += `\n=== ${cmd} ===\n`;
-      const es = new EventSource('/api/stream?cmd=' + encodeURIComponent(cmd));
-      es.addEventListener('line', (e) => {
-        feed.textContent += e.data + '\n';
-        feed.scrollTop = feed.scrollHeight;
-      });
-      es.addEventListener('done', (e) => {
-        feed.textContent += `(exit ${e.data})\n`;
-        es.close();
-        busy = false;
-        ['b-start', 'b-reset', 'b-down'].forEach((id) => ($(id).disabled = false));
-        refresh();
-      });
-      es.onerror = () => {
-        es.close();
-        busy = false;
-        ['b-start', 'b-reset', 'b-down'].forEach((id) => ($(id).disabled = false));
-      };
+    async function selectItem(name) {
+      if (dirty && !confirm('Discard unsaved changes?')) return;
+      const it = await (await fetch('/api/prompts/' + encodeURIComponent(name))).json();
+      current = name; dirty = false;
+      $('editTitle').textContent = name === 'intro' ? 'Intro DM' : name;
+      const ed = $('editor');
+      ed.value = it.content; ed.disabled = false;
+      $('b-save').disabled = true; $('b-reset-item').disabled = !it.modified;
+      loadItems();
     }
 
-    refresh();
+    $('editor').addEventListener('input', () => { dirty = true; $('b-save').disabled = false; });
+
+    async function saveItem() {
+      if (!current) return;
+      await fetch('/api/prompts/' + encodeURIComponent(current), { method: 'PUT', body: $('editor').value });
+      dirty = false; $('b-save').disabled = true;
+      await loadItems(); await selectItemQuiet();
+    }
+    async function selectItemQuiet() { if (current) { const it = await (await fetch('/api/prompts/'+encodeURIComponent(current))).json(); $('b-reset-item').disabled = !it.modified; } }
+
+    async function resetItem() {
+      if (!current) return;
+      await fetch('/api/prompts/' + encodeURIComponent(current) + '/reset', { method: 'POST' });
+      dirty = false; await selectItem(current);
+    }
+
+    function setBusy(b) { busy = b; ['b-start','b-down','b-savereset'].forEach(id => $(id).disabled = b); }
+
+    function stream(cmd) {
+      return new Promise((resolve) => {
+        const feed = $('feed');
+        feed.textContent += `\n=== ${cmd} ===\n`;
+        const es = new EventSource('/api/stream?cmd=' + encodeURIComponent(cmd));
+        es.addEventListener('line', (e) => { feed.textContent += e.data + '\n'; feed.scrollTop = feed.scrollHeight; });
+        es.addEventListener('done', (e) => { feed.textContent += `(exit ${e.data})\n`; es.close(); resolve(); });
+        es.onerror = () => { es.close(); resolve(); };
+      });
+    }
+
+    async function run(cmd) {
+      if (busy) return; setBusy(true);
+      await stream(cmd);
+      setBusy(false); refreshStatus();
+    }
+
+    async function saveAndReset() {
+      if (busy) return; setBusy(true);
+      if (dirty && current) await saveItem();
+      await stream('reset');
+      setBusy(false); refreshStatus();
+    }
+
+    refreshStatus(); loadItems();
   </script>
 </body>
 </html>
