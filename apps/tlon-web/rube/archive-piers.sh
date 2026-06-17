@@ -99,6 +99,22 @@ print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
 }
 
+# Resolve a ship's pier dir (the one containing .urb), supporting both rube's
+# double-nested extract ($DIST_DIR/<ship>/<ship>) and a tarball extracted
+# directly ($DIST_DIR/<ship>). Echoes the path; defaults to the double-nested
+# path when neither exists (for error messages).
+resolve_pier() {
+    local ship=$1
+    local c
+    for c in "$DIST_DIR/$ship/$ship" "$DIST_DIR/$ship"; do
+        if [ -d "$c/.urb" ]; then
+            echo "$c"
+            return 0
+        fi
+    done
+    echo "$DIST_DIR/$ship/$ship"
+}
+
 # Function to extract current version from manifest
 get_current_version() {
     local ship=$1
@@ -429,7 +445,7 @@ sync_ship_snapshots() {
     chmod +x "$urbit_binary"
 
     for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
-        local pier_path="$DIST_DIR/$ship/$ship"
+        local pier_path="$(resolve_pier "$ship")"
 
         if [ ! -d "$pier_path" ]; then
             print_warning "Pier not found: $pier_path, skipping sync"
@@ -480,7 +496,7 @@ roll_and_chop_piers() {
     chmod +x "$urbit_binary"
 
     for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
-        local pier_path="$DIST_DIR/$ship/$ship"
+        local pier_path="$(resolve_pier "$ship")"
 
         # Skip if pier doesn't exist
         if [ ! -d "$pier_path" ]; then
@@ -711,7 +727,7 @@ validate_archive_locally() {
 # Clean pier before archiving
 clean_pier() {
     local ship=$1
-    local pier_path="$DIST_DIR/$ship/$ship"
+    local pier_path="$(resolve_pier "$ship")"
 
     print_info "Cleaning $ship pier..." >&2
 
@@ -741,9 +757,16 @@ archive_pier() {
 
     print_info "Archiving $ship as $archive_name..." >&2
 
+    # Resolve the pier dir (double- or single-nested) and its parent. We tar the
+    # pier as "<ship>/" from its parent so the archive root is always <ship>/,
+    # matching what rube expects on extraction, regardless of local layout.
+    local pier_path="$(resolve_pier "$ship")"
+    local pier_parent="$(dirname "$pier_path")"
+    local pier_name="$(basename "$pier_path")"
+
     # Check the pier directory exists
-    if [ ! -d "$DIST_DIR/$ship" ]; then
-        print_error "Pier directory not found: $DIST_DIR/$ship" >&2
+    if [ ! -d "$pier_path/.urb" ]; then
+        print_error "Pier not found or invalid: $pier_path" >&2
         echo ""
         return 1
     fi
@@ -774,22 +797,23 @@ core.*
 EOF
 
     # Create the archive (exclude problematic files using exclude file)
-    # Use subshell to avoid affecting parent directory
+    # Use subshell to avoid affecting parent directory. archive_path is absolute,
+    # so it is correct regardless of the cwd we tar from.
     (
-        cd "$DIST_DIR/$ship"
+        cd "$pier_parent"
 
-        # Archive just the inner ship directory (e.g., zod/zod becomes just zod in archive)
-        # Try different tar options based on what's available
+        # Archive just the pier dir as "<ship>/" so the archive root matches what
+        # rube expects. Try different tar options based on what's available.
         # Redirect stderr to suppress extended attributes warnings
         if tar --version 2>/dev/null | grep -q "GNU tar"; then
             # GNU tar
-            tar --exclude-from="$exclude_file" --format=gnu -czf "../$archive_name" "$ship/" 2>/dev/null
+            tar --exclude-from="$exclude_file" --format=gnu -czf "$archive_path" "$pier_name/" 2>/dev/null
         elif command -v gtar &> /dev/null; then
             # GNU tar as gtar (common on macOS with homebrew)
-            gtar --exclude-from="$exclude_file" --format=gnu -czf "../$archive_name" "$ship/" 2>/dev/null
+            gtar --exclude-from="$exclude_file" --format=gnu -czf "$archive_path" "$pier_name/" 2>/dev/null
         else
             # BSD tar (macOS default) - use -X flag for exclude file
-            tar -X "$exclude_file" -czf "../$archive_name" "$ship/" 2>/dev/null
+            tar -X "$exclude_file" -czf "$archive_path" "$pier_name/" 2>/dev/null
         fi
     )
 
@@ -931,11 +955,14 @@ main() {
             exit 1
         fi
 
-        # Validate each pier to be archived exists and looks like a real pier
+        # Validate each pier to be archived exists and looks like a real pier.
+        # resolve_pier accepts either $DIST_DIR/<ship>/<ship> (rube extract) or
+        # $DIST_DIR/<ship> (tarball extracted directly).
         for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
-            if [ ! -d "$DIST_DIR/$ship/$ship/.urb" ]; then
-                print_error "Pier not found or invalid: $DIST_DIR/$ship/$ship"
-                print_info "Place prepared piers at $DIST_DIR/<ship>/<ship> before using --skip-prepare"
+            pier="$(resolve_pier "$ship")"
+            if [ ! -d "$pier/.urb" ]; then
+                print_error "Pier not found or invalid: $pier"
+                print_info "Place prepared piers at $DIST_DIR/<ship>/<ship> or $DIST_DIR/<ship> before using --skip-prepare"
                 exit 1
             fi
         done
