@@ -14,7 +14,14 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     lsof \
     procps \
+    rsync \
+    python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install peru — rube runs `peru sync` at runtime to vendor desk dependencies
+# (base-dev + landscape picks) into desk/ before assembling ship desks.
+RUN pip3 install --no-cache-dir peru
 
 # Install Node.js (match version from .nvmrc)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -94,6 +101,8 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
 COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
+# peru.yaml is needed for the runtime `peru sync` that vendors desk deps
+COPY ../../../peru.yaml /workspace/peru.yaml
 
 # Build packages if needed
 WORKDIR /workspace

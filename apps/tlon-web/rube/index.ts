@@ -8,7 +8,6 @@
 import * as childProcess from 'child_process';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import * as fsExtra from 'fs-extra';
 import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
@@ -672,9 +671,22 @@ const bootShip = (
   });
 };
 
+// Vendor the desk's base-dev/landscape dependencies into desk/ via peru (see
+// peru.yaml). These files are gitignored, so a fresh checkout/build context
+// lacks them until synced. Idempotent and cached, so cheap to run every time.
+const syncDeskDeps = () => {
+  const repoRoot = path.resolve(__dirname, '../../../../');
+  console.log('Vendoring desk dependencies with peru (peru sync)...');
+  childProcess.execSync('peru sync', { cwd: repoRoot, stdio: 'inherit' });
+};
+
 const copyDesks = async (): Promise<string[]> => {
   const groups = path.resolve(__dirname, '../../../../desk');
   const shipsNeedingUpdates: string[] = [];
+
+  // Populate desk/ with vendored deps BEFORE diffing/copying so the comparison
+  // and the copied tree both include them.
+  syncDeskDeps();
 
   for (const ship of Object.values(ships) as Ship[]) {
     if (targetShip && targetShip !== ship.ship) {
@@ -688,7 +700,11 @@ const copyDesks = async (): Promise<string[]> => {
 
       try {
         console.log(`Copying desk changes to ${ship.ship}`);
-        await fsExtra.copy(groups, groupsDir, { overwrite: true });
+        // --delete clears the ship's stale committed files (old base-dev,
+        // since-removed files) so the result is exactly the assembled desk.
+        childProcess.execSync(`rsync -aL --delete "${groups}/" "${groupsDir}/"`, {
+          stdio: 'inherit',
+        });
         shipsNeedingUpdates.push(ship.ship);
       } catch (e) {
         console.error('Error copying desks', e);

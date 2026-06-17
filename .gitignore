@@ -2,6 +2,36 @@ node_modules
 .DS_Store
 ops
 bin
+
+# Vendored desk dependencies — fetched by scripts/sync-deps.sh (see peru.yaml).
+# Kept out of git so upstream versions stay pinned but out of our history.
+# NOTE: desk/lib/verb.hoon is a locally-patched variant and stays committed.
+desk/lib/dbug.hoon
+desk/lib/default-agent.hoon
+desk/lib/ethereum.hoon
+desk/lib/mip.hoon
+desk/lib/server.hoon
+desk/lib/skeleton.hoon
+desk/lib/docket.hoon
+desk/sur/spider.hoon
+desk/sur/hood.hoon
+desk/sur/docket.hoon
+desk/sur/settings.hoon
+desk/mar/docket-0.hoon
+desk/mar/bill.hoon
+desk/mar/hoon.hoon
+desk/mar/kelvin.hoon
+desk/mar/mime.hoon
+desk/mar/noun.hoon
+desk/mar/txt.hoon
+desk/mar/css.hoon
+desk/mar/json.hoon
+desk/mar/htm.hoon
+desk/mar/html.hoon
+
+# peru state
+/.peru/
+/peru.lock
 *.tgz
 *.xst
 zod*

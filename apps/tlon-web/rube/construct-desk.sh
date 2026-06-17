@@ -1,21 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-# Reconstruct the %groups desk inside an extracted rube pier by layering desk
-# sources the same way the deploy pipeline does (.github/helpers/deploy.sh and
-# ops/sync.sh), rather than rube's naive overlay copy.
+# Assemble the %groups desk inside an extracted rube pier.
 #
-# rube's copyDesks() does a single overwrite-copy of this repo's desk/ on top of
-# the pier's committed groups desk, with NO --delete and NO fresh base-dev. That
-# leaves the OLD-kelvin base-dev files (zuse/lull/etc.) and any since-removed
-# files in place -- which is exactly what fails to compile under 408.
+# Desk dependencies (base-dev + landscape picks) are vendored into desk/ by peru
+# (see ../../../../peru.yaml and ../../../../scripts/sync-deps.sh). After a sync,
+# desk/ is self-contained, so assembling a pier's groups desk is just:
+#   1. peru sync           -> populate desk/lib,mar,sur with pinned upstream files
+#   2. rsync desk/ -> groups (with --delete to clear the pier's stale files)
 #
-# This script rebuilds groups/ from scratch by layering, with --delete on the
-# base-dev pass so stale files are removed:
-#   1. base-dev/        from urbit/urbit  (--delete: clears stale, sets kelvin)
-#   2. desk-dev/        from tloncorp/landscape
-#   3. landscape-dev/   from this repo
-#   4. desk/            from this repo
+# This replaces the old approach of rsyncing ALL of pkg/base-dev (~119 files,
+# many unused and some that don't compile on the target kelvin) on top of the
+# pier's committed desk. peru picks only the transitively-required subset.
 #
 # It only constructs files on disk. ORDER MATTERS: 'mount %groups' writes clay's
 # current desk OUT to the dir on first mount (clobbering disk), and the files
@@ -46,18 +42,14 @@ usage() {
     cat <<EOF
 Usage: $0 [SHIP ...]
 
-Reconstruct the %$DESK desk inside extracted rube pier(s) under $DIST_DIR by
-layering desk sources (base-dev, landscape desk-dev, this repo) with --delete,
-the way the deploy pipeline does. Defaults to: ${DEFAULT_SHIPS[*]}
-
-Required environment variables:
-  URBIT_PATH       Path to a urbit/urbit checkout at the TARGET kelvin
-                   (provides pkg/base-dev/)
-  LANDSCAPE_PATH   Path to a tloncorp/landscape checkout (provides desk-dev/)
+Assemble the %$DESK desk inside extracted rube pier(s) under $DIST_DIR:
+runs peru sync to vendor desk dependencies, then rsync's desk/ into each pier's
+%$DESK directory with --delete. Defaults to: ${DEFAULT_SHIPS[*]}
 
 Options:
   --pier PATH      Construct directly into this pier dir (the one containing
                    .urb), bypassing the DIST_DIR/<ship> lookup. Single pier.
+  --skip-sync      Don't run peru sync; assume desk/ is already populated.
 
 Optional environment variables:
   DIST_DIR         Where extracted piers live (default: $RUBE_DIR/dist)
@@ -69,14 +61,15 @@ Pier location: for each ship, looks for the pier dir containing .urb at either
 Use --pier to point somewhere else entirely.
 
 Examples:
-  URBIT_PATH=~/src/urbit LANDSCAPE_PATH=~/src/landscape $0
-  URBIT_PATH=~/src/urbit LANDSCAPE_PATH=~/src/landscape $0 zod
-  URBIT_PATH=~/src/urbit LANDSCAPE_PATH=~/src/landscape $0 --pier /tmp/zod
+  $0
+  $0 zod
+  $0 --pier /tmp/zod
 EOF
 }
 
 # Optional explicit pier path (overrides DIST_DIR/<ship> resolution)
 PIER_OVERRIDE=""
+SKIP_SYNC=false
 POSITIONAL=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -85,6 +78,7 @@ while [ "$#" -gt 0 ]; do
             if [ "$#" -lt 2 ]; then print_error "--pier requires a path"; exit 1; fi
             PIER_OVERRIDE="$2"; shift 2 ;;
         --pier=*) PIER_OVERRIDE="${1#*=}"; shift ;;
+        --skip-sync) SKIP_SYNC=true; shift ;;
         *) POSITIONAL+=("$1"); shift ;;
     esac
 done
@@ -101,42 +95,23 @@ if [ -n "$PIER_OVERRIDE" ] && [ "${#SHIPS[@]}" -gt 1 ]; then
     exit 1
 fi
 
-# Validate prerequisites
 if ! command -v rsync >/dev/null 2>&1; then
     print_error "rsync is required but not installed"
     exit 1
 fi
 
-if [ -z "${URBIT_PATH:-}" ]; then
-    print_error "URBIT_PATH is not set (path to urbit/urbit checkout at the target kelvin)"
-    usage
-    exit 1
-fi
-
-if [ -z "${LANDSCAPE_PATH:-}" ]; then
-    print_error "LANDSCAPE_PATH is not set (path to tloncorp/landscape checkout)"
-    usage
-    exit 1
-fi
-
-BASE_DEV="$URBIT_PATH/pkg/base-dev"
-DESK_DEV="$LANDSCAPE_PATH/desk-dev"
-LANDSCAPE_DEV="$PROJECT_ROOT/landscape-dev"
 REPO_DESK="$PROJECT_ROOT/desk"
-
-for src in "$BASE_DEV" "$DESK_DEV" "$LANDSCAPE_DEV" "$REPO_DESK"; do
-    if [ ! -d "$src" ]; then
-        print_error "Source directory not found: $src"
-        exit 1
-    fi
-done
-
-# Show what kelvin base-dev declares so mismatches are caught early
-if [ -f "$BASE_DEV/sys.kelvin" ]; then
-    print_info "base-dev sys.kelvin: $(cat "$BASE_DEV/sys.kelvin")"
+if [ ! -d "$REPO_DESK" ]; then
+    print_error "Repo desk not found: $REPO_DESK"
+    exit 1
 fi
-if [ -f "$REPO_DESK/sys.kelvin" ]; then
-    print_info "repo desk sys.kelvin: $(cat "$REPO_DESK/sys.kelvin")"
+
+# Vendor desk dependencies into desk/ via peru unless told to skip.
+if [ "$SKIP_SYNC" = "false" ]; then
+    print_info "Syncing desk dependencies (peru sync)..."
+    "$PROJECT_ROOT/scripts/sync-deps.sh"
+else
+    print_info "Skipping peru sync (--skip-sync); using desk/ as-is"
 fi
 
 # Current repo commit, written into the desk like deploy.sh does
@@ -179,31 +154,22 @@ construct_one() {
         return 1
     fi
 
-    print_info "Reconstructing %$DESK for ~$ship at $groups"
+    print_info "Assembling %$DESK for ~$ship at $groups"
 
     mkdir -p "$groups"
 
-    # 1. base-dev with --delete: clears stale files, installs new-kelvin
-    #    kernel-dev sources. Trailing slashes copy directory CONTENTS.
-    rsync -aL --delete "$BASE_DEV/" "$groups/"
-    # 2. landscape desk-dev
-    rsync -aL "$DESK_DEV/" "$groups/"
-    # 3. this repo's landscape-dev (lib + sur overrides)
-    rsync -aL "$LANDSCAPE_DEV/" "$groups/"
-    # 4. this repo's desk (app files; its sys.kelvin wins, setting the kelvin)
-    rsync -aL "$REPO_DESK/" "$groups/"
+    # desk/ is self-contained after peru sync (app files + vendored picks).
+    # --delete clears the pier's stale committed files (old base-dev, removed
+    # files) so the result is exactly the assembled desk.
+    rsync -aL --delete "$REPO_DESK/" "$groups/"
 
     # Stamp the build commit, matching deploy.sh
     echo "$COMMIT_HASH" > "$groups/commit.txt"
 
-    print_status "Constructed %$DESK for ~$ship (commit $COMMIT_HASH)"
+    print_status "Assembled %$DESK for ~$ship (commit $COMMIT_HASH)"
 }
 
-print_info "Constructing %$DESK for: ${SHIPS[*]}"
-print_info "  base-dev:      $BASE_DEV"
-print_info "  desk-dev:      $DESK_DEV"
-print_info "  landscape-dev: $LANDSCAPE_DEV"
-print_info "  desk:          $REPO_DESK"
+print_info "Assembling %$DESK for: ${SHIPS[*]} from $REPO_DESK"
 echo ""
 
 failed=()
@@ -219,7 +185,7 @@ if [ "${#failed[@]}" -gt 0 ]; then
     exit 1
 fi
 
-print_status "All desks constructed"
+print_status "All desks assembled"
 print_warning "These files are on disk only -- not yet in clay."
 print_info "Apply with this ORDER (mount clobbers disk, commit captures it):"
 print_info "  1. boot the pier"

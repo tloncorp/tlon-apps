@@ -24,10 +24,12 @@ To get started, make sure your %groups desk is mounted:
 |mount %groups
 ```
 
-Sync the latest %groups files:
+Sync the latest %groups files. First vendor the desk's base-dev/landscape
+dependencies into `desk/` (they're gitignored — see `peru.yaml`), then rsync:
 
 ```
-rsync -avL desk/* ~/urbit/zod/groups/
+./scripts/sync-deps.sh
+rsync -avL desk/ ~/urbit/zod/groups/
 ```
 
 And commit:
@@ -36,7 +38,7 @@ And commit:
 |commit %groups
 ```
 
-Since %groups has already been released and is now in the pill. It is very unlikely that you would have to create this desk from scratch, but if you do you can follow these instructions or use Tlon's [Bouncer](https://github.com/tloncorp/bouncer) utility (requires Ruby 3+).
+Since %groups has already been released and is now in the pill. It is very unlikely that you would have to create this desk from scratch, but if you do you can follow these instructions.
 
 1. Clone or pull latest versions of this repo, `tloncorp/landscape` and `urbit/urbit`.
 2. Boot a fake ship. Use local networking with `-F` like so: `urbit -F zod`
@@ -45,19 +47,17 @@ Since %groups has already been released and is now in the pill. It is very unlik
     2. `|mount %landscape`
     3. `|new-desk %groups`
     4. `|mount %groups`
-4. From the `urbit/urbit` repo:
-    1. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
-    2. `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/groups/`
-5. From the `tloncorp/landscape` repo:
-    1. `rsync -avL desk/* ~/urbit/zod/landscape/`
-    2. `rsync -avL desk-dev/* ~/urbit/zod/groups/`
-6. From this repo:
-    1. `rsync -avL desk/* ~/urbit/zod/groups/`
-    2. `rsync -avL landscape-dev/* ~/urbit/zod/groups/`
-7. Commit and install landscape on local `~zod`:
+4. Assemble the `%landscape` desk (it is built from upstream, not via peru):
+    1. From `urbit/urbit`: `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
+    2. From `tloncorp/landscape`: `rsync -avL desk/* ~/urbit/zod/landscape/`
+5. Assemble the `%groups` desk from this repo. peru vendors its base-dev and
+   landscape dependencies into `desk/`, so the desk is self-contained:
+    1. `./scripts/sync-deps.sh`
+    2. `rsync -avL --delete desk/ ~/urbit/zod/groups/`
+6. Commit and install landscape on local `~zod`:
     1. `|commit %landscape`
     2. `|install our %landscape`
-8. Similarly commit and install Tlon:
+7. Similarly commit and install Tlon:
     1. `|commit %groups`
     2. `|install our %groups`
 
