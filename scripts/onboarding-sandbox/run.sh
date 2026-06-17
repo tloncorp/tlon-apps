@@ -44,7 +44,7 @@ case "${1:-}" in
     "$CONTROL" reset "$SANDBOX_DIR"
     ;;
   logs)   "$CONTROL" logs ;;
-  status) "$CONTROL" status ;;
+  status) shift; "$CONTROL" status "$@" ;;
   down)   "$CONTROL" down ;;
   *) echo "usage: pnpm onboarding | onboarding:reset | onboarding:logs | onboarding:down" >&2; exit 1 ;;
 esac
