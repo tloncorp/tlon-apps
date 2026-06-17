@@ -51,9 +51,10 @@ case "${1:-}" in
     ensure_sandbox
     TLONBOT_INTRO_FILE="$SANDBOX_INTRO" "$CONTROL" reset "$SANDBOX_DIR"
     ;;
-  init)   ensure_sandbox ;;
-  logs)   "$CONTROL" logs ;;
-  status) shift; "$CONTROL" status "$@" ;;
-  down)   "$CONTROL" down ;;
+  init)      ensure_sandbox ;;
+  logs)      "$CONTROL" logs ;;
+  status)    shift; "$CONTROL" status "$@" ;;
+  set-model) shift; "$CONTROL" set-model "$@" ;;
+  down)      "$CONTROL" down ;;
   *) echo "usage: pnpm onboarding | onboarding:reset | onboarding:logs | onboarding:down" >&2; exit 1 ;;
 esac

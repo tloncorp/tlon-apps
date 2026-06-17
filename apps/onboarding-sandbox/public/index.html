@@ -32,6 +32,7 @@
   <header>
     <h1>Onboarding Sandbox</h1>
     <span id="status">loading…</span>
+    <label>Model <select id="model" onchange="setModel(this.value)" title="switch the bot's model (reloads the gateway)"></select></label>
     <button id="b-start" onclick="run('start')">Start</button>
     <button id="b-down" onclick="run('down')">Stop</button>
   </header>
@@ -67,6 +68,7 @@
           ? `<span class="dot up"></span>Running · gateway ${s.gateway}${s.model?` · <code>${s.model}</code>`:''}` +
             ` · <a href="${s.owner.url}" target="_blank">Open chat as ${s.owner.ship}</a> <small>(${s.owner.code})</small>`
           : `<span class="dot down"></span>Down — click Start`;
+        if (s.model) { const sel = $('model'); if ([...sel.options].some((o) => o.value === s.model)) sel.value = s.model; }
       } catch (e) { $('status').textContent = 'status error'; }
     }
 
@@ -137,13 +139,13 @@
       }
     }
 
-    function setBusy(b) { busy = b; ['b-start','b-down','b-savereset'].forEach(id => $(id).disabled = b); }
+    function setBusy(b) { busy = b; ['b-start','b-down','b-savereset','model'].forEach(id => $(id).disabled = b); }
 
-    function stream(cmd) {
+    function stream(label, qs) {
       return new Promise((resolve) => {
         const feed = $('feed');
-        feed.textContent += `\n=== ${cmd} ===\n`;
-        const es = new EventSource('/api/stream?cmd=' + encodeURIComponent(cmd));
+        feed.textContent += `\n=== ${label} ===\n`;
+        const es = new EventSource('/api/stream?' + qs);
         es.addEventListener('line', (e) => { feed.textContent += e.data + '\n'; feed.scrollTop = feed.scrollHeight; });
         es.addEventListener('done', (e) => { feed.textContent += `(exit ${e.data})\n`; es.close(); resolve(); });
         es.onerror = () => { es.close(); resolve(); };
@@ -152,18 +154,30 @@
 
     async function run(cmd) {
       if (busy) return; setBusy(true);
-      await stream(cmd);
+      await stream(cmd, 'cmd=' + cmd);
+      setBusy(false); refreshStatus();
+    }
+
+    async function loadModels() {
+      try {
+        const { models } = await (await fetch('/api/models')).json();
+        $('model').innerHTML = models.map((m) => `<option value="${m}">${m}</option>`).join('');
+      } catch {}
+    }
+    async function setModel(m) {
+      if (busy || !m) return; setBusy(true);
+      await stream('set-model ' + m, 'cmd=set-model&model=' + encodeURIComponent(m));
       setBusy(false); refreshStatus();
     }
 
     async function saveAndReset() {
       if (busy) return; setBusy(true);
       if (dirty && current) await saveItem();
-      await stream('reset');
+      await stream('reset', 'cmd=reset');
       setBusy(false); refreshStatus();
     }
 
-    refreshStatus(); loadItems();
+    loadModels().then(refreshStatus); loadItems();
   </script>
 </body>
 </html>
