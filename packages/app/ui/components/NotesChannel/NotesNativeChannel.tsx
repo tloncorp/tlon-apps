@@ -106,7 +106,6 @@ export function NotesNativeChannel({
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(
     () => new Set()
   );
-  const openNewSheetRef = useRef<() => void>(() => {});
   const initializedFolderIdsRef = useRef<Set<number>>(new Set());
 
   const { folders, notes, canEdit, rootFolderId, joinFailed, gate } =
@@ -289,6 +288,10 @@ export function NotesNativeChannel({
   const handleOpenNewSheet = useCallback(() => {
     setNewActionSheetOpen(true);
   }, []);
+
+  const handleOpenCreateFolder = useCallback(() => {
+    handleAddFolderOpenChange(true);
+  }, [handleAddFolderOpenChange]);
 
   const handleTreeViewStyleChange = useCallback(
     (style: NotesTreeViewStyle) => {
@@ -564,7 +567,7 @@ export function NotesNativeChannel({
         startIcon: 'ChannelNote',
         action: () => {
           setNewActionSheetOpen(false);
-          handleCreateNote();
+          void handleCreateNote();
         },
         disabled: isCreatingNote,
         testID: 'NotesNewNoteAction',
@@ -575,15 +578,15 @@ export function NotesNativeChannel({
         startIcon: 'Folder',
         action: () => {
           setNewActionSheetOpen(false);
-          handleAddFolderOpenChange(true);
+          handleOpenCreateFolder();
         },
         disabled: isCreatingFolder,
         testID: 'NotesNewFolderAction',
       },
     ],
     [
-      handleAddFolderOpenChange,
       handleCreateNote,
+      handleOpenCreateFolder,
       isCreatingFolder,
       isCreatingNote,
     ]
@@ -619,8 +622,6 @@ export function NotesNativeChannel({
     [expandedFolderIds]
   );
 
-  openNewSheetRef.current = handleOpenNewSheet;
-
   useRegisterChannelHeaderItem(
     useMemo(() => {
       if (!notebookFlag || joinFailed) return null;
@@ -628,10 +629,13 @@ export function NotesNativeChannel({
         <NotesHeaderActions
           canEdit={canEdit}
           canImport={canImportNotes}
+          isCreatingFolder={isCreatingFolder}
+          isCreatingNote={isCreatingNote}
           isImporting={isImportingNotes}
+          onCreateFolder={handleOpenCreateFolder}
+          onCreateNote={handleCreateNote}
           onImportFiles={handleImportFiles}
           onImportFolder={handleImportFolder}
-          openNewSheetRef={openNewSheetRef}
           treeViewStyle={treeViewStyle}
           onTreeViewStyleChange={handleTreeViewStyleChange}
         />
@@ -639,8 +643,12 @@ export function NotesNativeChannel({
     }, [
       canEdit,
       handleTreeViewStyleChange,
+      handleCreateNote,
+      handleOpenCreateFolder,
       handleImportFiles,
       handleImportFolder,
+      isCreatingFolder,
+      isCreatingNote,
       isImportingNotes,
       joinFailed,
       notebookFlag,

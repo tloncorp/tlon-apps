@@ -1,6 +1,5 @@
 import type { IconType } from '@tloncorp/ui';
 import { Fragment, useMemo } from 'react';
-import type { MutableRefObject } from 'react';
 
 import { createActionGroups } from '../ActionSheet';
 import { ScreenHeader } from '../ScreenHeader';
@@ -30,19 +29,25 @@ const NOTES_TREE_VIEW_OPTIONS: {
 export function NotesHeaderActions({
   canEdit,
   canImport,
+  isCreatingFolder,
+  isCreatingNote,
   isImporting,
+  onCreateFolder,
+  onCreateNote,
   onImportFiles,
   onImportFolder,
-  openNewSheetRef,
   treeViewStyle,
   onTreeViewStyleChange,
 }: {
   canEdit: boolean;
   canImport: boolean;
+  isCreatingFolder: boolean;
+  isCreatingNote: boolean;
   isImporting: boolean;
+  onCreateFolder: () => void;
+  onCreateNote: () => Promise<void> | void;
   onImportFiles: () => void;
   onImportFolder: () => void;
-  openNewSheetRef: MutableRefObject<() => void>;
   treeViewStyle: NotesTreeViewStyle;
   onTreeViewStyleChange: (style: NotesTreeViewStyle) => void;
 }) {
@@ -52,11 +57,20 @@ export function NotesHeaderActions({
         canEdit && [
           'neutral',
           {
-            title: 'New',
-            description: 'Create a note or folder.',
-            startIcon: 'Add',
-            action: () => openNewSheetRef.current(),
-            testID: 'NotesRootNewAction',
+            title: 'New note',
+            description: 'Create a note in the selected folder.',
+            startIcon: 'ChannelNote',
+            action: () => void onCreateNote(),
+            disabled: isCreatingNote,
+            testID: 'NotesRootNewNoteAction',
+          },
+          {
+            title: 'New folder',
+            description: 'Create a folder under the selected folder.',
+            startIcon: 'Folder',
+            action: onCreateFolder,
+            disabled: isCreatingFolder,
+            testID: 'NotesRootNewFolderAction',
           },
         ],
         canImport && [
@@ -95,11 +109,14 @@ export function NotesHeaderActions({
     [
       canEdit,
       canImport,
+      isCreatingFolder,
+      isCreatingNote,
       isImporting,
+      onCreateFolder,
+      onCreateNote,
       onImportFiles,
       onImportFolder,
       onTreeViewStyleChange,
-      openNewSheetRef,
       treeViewStyle,
     ]
   );
@@ -108,7 +125,8 @@ export function NotesHeaderActions({
     <Fragment>
       {canEdit ? (
         <ScreenHeader.TextButton
-          onPress={() => openNewSheetRef.current()}
+          disabled={isCreatingNote}
+          onPress={isCreatingNote ? undefined : () => void onCreateNote()}
           testID="NotesRootNewHeaderAction"
         >
           New
