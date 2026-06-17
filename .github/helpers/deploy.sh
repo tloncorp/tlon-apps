@@ -2,6 +2,11 @@
 
 # this script deploys a desk to a ship from a github repository
 # assumes gcloud credentials are loaded and gcloud installed.
+#
+# The desk is assembled HERE (in the runner): we clone the repo at $ref, vendor
+# its desk dependencies with peru (see peru.yaml — base-dev + landscape picks),
+# and ship the finished desk/ down to the ship VM. The remote only unpacks it
+# and commits — it needs no peru, no git, and no urbit/landscape clones.
 
 repo=$1
 desk=$2
@@ -9,42 +14,64 @@ ship=$3
 zone=$4
 project=$5
 ref=${6:-"develop"}
-[ "$desk" == "tm-alpha" ] && from="tm-alpha-desk" || from="desk"
 folder=$ship/$desk
 
 echo "Deploying $desk from $ref of $repo to $ship in $zone of $project"
 set -e
 set -o pipefail
-cmdfile=$(mktemp "${TMPDIR:-/tmp/}janeway.XXXXXXXXX")
-# mktemp only used for generating a random folder name below
-cmds='
-source_repo=$(mktemp --dry-run /tmp/repo.janeway.XXXXXXXXX)
-git clone --depth 1 --branch '$ref' https://github.com/'$repo'.git $source_repo
-urbit_repo=$(mktemp --dry-run /tmp/repo.urbit.XXXXXXXXX)
-git clone --depth 1 https://github.com/urbit/urbit.git $urbit_repo -b '$URBIT_REPO_TAG' --single-branch
-landscape_repo=$(mktemp --dry-run /tmp/repo.landscape.XXXXXXXXX)
-git clone --depth 1 --branch master https://github.com/tloncorp/landscape.git $landscape_repo
-cd $source_repo
-git rev-parse --short HEAD > desk/commit.txt
-cd /urbit || return
-curl -s --data '\''{"source":{"dojo":"+hood/mount %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
-rsync -avL --delete $urbit_repo/pkg/base-dev/ '$folder'
-rsync -avL $landscape_repo/desk-dev/ '$folder'
-rsync -avL $source_repo/landscape-dev/ '$folder'
-rsync -avL $source_repo/'$from'/ '$folder'
-curl -s --data '\''{"source":{"dojo":"+hood/commit %'$desk'"},"sink":{"app":"hood"}}'\'' http://localhost:12321
-rm -rf $source_repo
-rm -rf $urbit_repo
-rm -rf $landscape_repo
-'
-echo "$cmds"
-echo "$cmds" >> "$cmdfile"
+
+# --- Assemble the desk in the runner ---------------------------------------
+workdir=$(mktemp -d "${TMPDIR:-/tmp/}janeway.XXXXXXXXX")
+trap 'rm -rf "$workdir"' EXIT
+
+git clone --depth 1 --branch "$ref" "https://github.com/$repo.git" "$workdir/src"
+
+# Install peru if it isn't already available (assemble-desk.sh runs peru sync).
+if ! command -v peru >/dev/null 2>&1; then
+  echo "Installing peru..."
+  pipx install peru \
+    || pip install --user peru \
+    || pip3 install --user --break-system-packages peru
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+
+# Assemble desk-deps/ (peru-vendored) + desk/ (our source) into a staging dir.
+"$workdir/src/scripts/assemble-desk.sh" "$workdir/assembled"
+
+# Package the assembled, self-contained desk.
+tar czf "$workdir/desk.tgz" -C "$workdir" assembled
+
+# --- SSH key setup ----------------------------------------------------------
 sshpriv=$(mktemp "${TMPDIR:-/tmp/}ssh.XXXXXXXXX")
 sshpub=$sshpriv.pub
 echo "$SSH_PUB_KEY" >> "$sshpub"
 echo "$SSH_SEC_KEY" >> "$sshpriv"
-chmod 600 $sshpub
-chmod 600 $sshpriv
+chmod 600 "$sshpub"
+chmod 600 "$sshpriv"
+
+# --- Ship the assembled desk to the remote over the IAP tunnel --------------
+gcloud compute scp \
+  --project "$project" \
+  --tunnel-through-iap \
+  --ssh-key-file "$sshpriv" \
+  --zone "$zone" --verbosity info \
+  "$workdir/desk.tgz" urb@"$ship":/tmp/janeway-desk.tgz
+
+# --- Remote: mount, unpack into clay, commit --------------------------------
+# $desk and $folder are expanded here (in the runner); \$staging is deferred to
+# the remote. No clones / peru / base-dev rsync on the ship.
+cmdfile=$(mktemp "${TMPDIR:-/tmp/}janeway.XXXXXXXXX")
+cat > "$cmdfile" <<EOF
+staging=\$(mktemp -d)
+tar xzf /tmp/janeway-desk.tgz -C \$staging
+cd /urbit || exit 1
+curl -s --data '{"source":{"dojo":"+hood/mount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
+rsync -avL --delete \$staging/assembled/ $folder
+curl -s --data '{"source":{"dojo":"+hood/commit %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
+rm -rf \$staging /tmp/janeway-desk.tgz
+EOF
+echo "Remote commands:"
+cat "$cmdfile"
 
 gcloud compute \
   --project "$project" \

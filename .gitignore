@@ -2,6 +2,15 @@ node_modules
 .DS_Store
 ops
 bin
+
+# Vendored desk dependencies — fetched into desk-deps/ by scripts/sync-deps.sh
+# (see peru.yaml). Kept out of git so upstream stays pinned but out of history;
+# assembled into a desk by scripts/assemble-desk.sh (deps first, then desk/).
+/desk-deps/
+
+# peru state
+/.peru/
+/peru.lock
 *.tgz
 *.xst
 zod*

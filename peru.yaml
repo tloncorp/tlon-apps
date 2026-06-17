@@ -1,0 +1,67 @@
+# peru.yaml — vendor desk dependencies from upstream Urbit projects.
+#
+# Run `./scripts/sync-deps.sh` (or `peru sync`) to populate desk-deps/ with the
+# files picked below. desk-deps/ is an entirely-gitignored vendored tree kept
+# SEPARATE from our own source in desk/. A desk is assembled by copying
+# desk-deps/ in first (with --delete) and then our desk/ on top — see
+# scripts/assemble-desk.sh.
+#
+# Why peru instead of rsyncing all of pkg/base-dev: base-dev ships ~119 files
+# (bitcoin, ethereum, wasm, language-server, azimuth, ...). Copying the whole
+# tree in pulls files this desk does not use, some of which fail to compile on
+# the target kelvin. We pick only the transitively-required subset.
+#
+# IMPORTANT: do NOT add anything this repo patches or owns to the pick lists.
+# Notably desk/lib/verb.hoon is a locally-patched 3-arg variant and stays
+# committed; lib/{strand,strandio,test} and the thread marks are app-local too.
+
+imports:
+  base: desk-deps/
+  landscape: desk-deps/
+
+# %base (urbit/urbit) dev dependencies. Pinned to the 408 kelvin tag, matching
+# desk/sys.kelvin ([%zuse 408]).
+git module base:
+  url: https://github.com/urbit/urbit.git
+  rev: 408k-rc2
+  pick:
+    # libraries the desk imports (transitive closure):
+    #   default-agent -> skeleton; azimuth -> ethereum; ethereum/dbug standalone
+    # azimuth is only reached via the aqua test framework (lib/aqua-azimuth ->
+    # lib/ph/io), so it isn't built by a normal %groups commit, but the aqua
+    # tests need it.
+    - pkg/base-dev/lib/azimuth.hoon
+    - pkg/base-dev/lib/dbug.hoon
+    - pkg/base-dev/lib/default-agent.hoon
+    - pkg/base-dev/lib/ethereum.hoon
+    - pkg/base-dev/lib/mip.hoon
+    - pkg/base-dev/lib/server.hoon
+    - pkg/base-dev/lib/skeleton.hoon
+    # thread types (spider sur; its /+ strand resolves to our local strand)
+    - pkg/base-dev/sur/spider.hoon
+    # %hood actions, used by the raze thread (ted/raze.hoon)
+    - pkg/base-dev/sur/hood.hoon
+    # standard marks clay needs to build/serve the desk
+    - pkg/base-dev/mar/bill.hoon
+    - pkg/base-dev/mar/hoon.hoon
+    - pkg/base-dev/mar/kelvin.hoon
+    - pkg/base-dev/mar/mime.hoon
+    - pkg/base-dev/mar/noun.hoon
+    - pkg/base-dev/mar/txt.hoon
+    - pkg/base-dev/mar/css.hoon
+    - pkg/base-dev/mar/json.hoon
+    - pkg/base-dev/mar/htm.hoon
+    - pkg/base-dev/mar/html.hoon
+  export: pkg/base-dev
+
+# %landscape (tloncorp/landscape) docket + settings types. No 408 tag exists
+# yet; pinned to the 408 branch commit. Bump to a tag when landscape releases.
+git module landscape:
+  url: https://github.com/tloncorp/landscape.git
+  rev: 5193635
+  pick:
+    - desk/lib/docket.hoon
+    - desk/mar/docket-0.hoon
+    - desk/sur/docket.hoon
+    - desk/sur/settings.hoon
+  export: desk
