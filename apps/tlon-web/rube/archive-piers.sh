@@ -8,6 +8,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
 DIST_DIR="$RUBE_DIR/dist"
+# Binary used for sync/pack/meld/roll/chop. Normally downloaded by rube during
+# prepare_ships; with --skip-prepare you must supply one that runs on THIS host
+# and matches the piers' kelvin. Override with URBIT_BINARY=/path/to/urbit.
+URBIT_BINARY="${URBIT_BINARY:-$RUBE_DIR/dist/urbit_extracted/urbit}"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
 DOCKERFILE="$PROJECT_ROOT/apps/tlon-web/rube/Dockerfile"
 
@@ -23,6 +27,7 @@ SKIP_CLEANUP=${SKIP_CLEANUP:-false}
 SKIP_MELD=${SKIP_MELD:-false}
 VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
 FRESH_BOOT=${FRESH_BOOT:-false}
+SKIP_PREPARE=${SKIP_PREPARE:-false}
 
 # Parse command line arguments
 for arg in "$@"; do
@@ -35,11 +40,16 @@ for arg in "$@"; do
             VERIFY_AFTER_UPLOAD=true
             shift
             ;;
+        --skip-prepare)
+            SKIP_PREPARE=true
+            shift
+            ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --fresh               Boot fresh fakeships instead of using existing archives"
+            echo "  --skip-prepare        Skip ship prep/re-extraction; archive piers already in dist/"
             echo "  --verify              Run verify-archives.sh after successful upload"
             echo "  --help                Show this help message"
             echo ""
@@ -48,6 +58,8 @@ for arg in "$@"; do
             echo "  SKIP_UPLOAD=true      Create archives but skip GCS upload"
             echo "  SKIP_CLEANUP=true     Keep local archives after upload"
             echo "  SKIP_MELD=true        Skip meld operation (for low-memory systems)"
+            echo "  SKIP_PREPARE=true     Skip ship prep/re-extraction (same as --skip-prepare)"
+            echo "  URBIT_BINARY=PATH     Urbit binary to use for sync/roll/chop (must run on this host)"
             echo ""
             exit 0
             ;;
@@ -407,7 +419,7 @@ prepare_ships() {
 sync_ship_snapshots() {
     print_info "Re-booting ships briefly to sync snapshots..."
 
-    local urbit_binary="$RUBE_DIR/dist/urbit_extracted/urbit"
+    local urbit_binary="$URBIT_BINARY"
 
     if [ ! -f "$urbit_binary" ]; then
         print_error "Urbit binary not found at $urbit_binary"
@@ -456,7 +468,7 @@ roll_and_chop_piers() {
     fi
 
     # Find urbit binary
-    local urbit_binary="$RUBE_DIR/dist/urbit_extracted/urbit"
+    local urbit_binary="$URBIT_BINARY"
 
     if [ ! -f "$urbit_binary" ]; then
         print_error "Urbit binary not found at $urbit_binary"
@@ -905,8 +917,32 @@ main() {
         print_info "Created manifest backup: $manifest_backup"
     fi
 
-    # Prepare ships with latest desk code
-    prepare_ships
+    # Prepare ships with latest desk code (unless archiving pre-existing dist piers)
+    if [ "$SKIP_PREPARE" = "true" ]; then
+        print_warning "SKIP_PREPARE is set - skipping ship preparation/re-extraction"
+        print_info "Archiving piers already present in $DIST_DIR (your work will NOT be re-extracted)"
+
+        # The binary won't be auto-downloaded (that happens during prepare_ships),
+        # and sync/roll/chop will exec it locally, so it must exist and run here.
+        if [ ! -f "$URBIT_BINARY" ]; then
+            print_error "Urbit binary not found at $URBIT_BINARY"
+            print_info "Supply a binary that runs on THIS host and matches the piers' kelvin,"
+            print_info "or set URBIT_BINARY=/path/to/urbit"
+            exit 1
+        fi
+
+        # Validate each pier to be archived exists and looks like a real pier
+        for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+            if [ ! -d "$DIST_DIR/$ship/$ship/.urb" ]; then
+                print_error "Pier not found or invalid: $DIST_DIR/$ship/$ship"
+                print_info "Place prepared piers at $DIST_DIR/<ship>/<ship> before using --skip-prepare"
+                exit 1
+            fi
+        done
+        print_status "Found prepared piers for: ${SHIPS_TO_ARCHIVE[*]}"
+    else
+        prepare_ships
+    fi
 
     # Re-boot ships briefly to sync snapshots
     sync_ship_snapshots
