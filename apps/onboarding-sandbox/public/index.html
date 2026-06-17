@@ -41,12 +41,15 @@
     <div class="pane">
       <div class="editbar">
         <b id="editTitle">Select an item</b>
+        <button id="b-diff" onclick="toggleDiff()" disabled>Diff</button>
         <button id="b-save" onclick="saveItem()" disabled>Save</button>
         <button id="b-reset-item" onclick="resetItem()" disabled>Reset to source</button>
       </div>
       <textarea id="editor" disabled placeholder="Select a prompt or the intro DM on the left…"></textarea>
+      <pre id="diff" style="display:none; flex:1; margin:0; overflow:auto; padding:1rem; background:#0d1117; color:#c9d1d9; font:13px/1.5 ui-monospace,Menlo,monospace; white-space:pre-wrap;"></pre>
       <div class="runbar">
         <button class="primary" id="b-savereset" onclick="saveAndReset()">Save &amp; reset onboarding</button>
+        <button onclick="location.href='/api/export'">Export patch</button>
         <small>writes your edits, then replays first-run (clear → render → intro)</small>
       </div>
       <pre id="feed"></pre>
@@ -55,7 +58,7 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
-    let current = null, dirty = false, busy = false;
+    let current = null, dirty = false, busy = false, diffOpen = false;
 
     async function refreshStatus() {
       try {
@@ -84,11 +87,14 @@
     async function selectItem(name) {
       if (dirty && !confirm('Discard unsaved changes?')) return;
       const it = await (await fetch('/api/prompts/' + encodeURIComponent(name))).json();
-      current = name; dirty = false;
+      current = name; dirty = false; diffOpen = false;
       $('editTitle').textContent = name === 'intro' ? 'Intro DM' : name;
       const ed = $('editor');
-      ed.value = it.content; ed.disabled = false;
-      $('b-save').disabled = true; $('b-reset-item').disabled = !it.modified;
+      ed.value = it.content; ed.disabled = false; ed.style.display = '';
+      $('diff').style.display = 'none';
+      $('b-save').disabled = true;
+      $('b-reset-item').disabled = !it.modified;
+      $('b-diff').disabled = false; $('b-diff').textContent = 'Diff';
       loadItems();
     }
 
@@ -106,6 +112,29 @@
       if (!current) return;
       await fetch('/api/prompts/' + encodeURIComponent(current) + '/reset', { method: 'POST' });
       dirty = false; await selectItem(current);
+    }
+
+    function renderDiff(text) {
+      return text.split('\n').map((l) => {
+        const e = l.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        if (l.startsWith('+') && !l.startsWith('+++')) return `<span style="color:#7ee787">${e}</span>`;
+        if (l.startsWith('-') && !l.startsWith('---')) return `<span style="color:#ff7b72">${e}</span>`;
+        if (l.startsWith('@@')) return `<span style="color:#79c0ff">${e}</span>`;
+        return e;
+      }).join('\n');
+    }
+    async function toggleDiff() {
+      if (!current) return;
+      diffOpen = !diffOpen;
+      if (diffOpen) {
+        const t = await (await fetch('/api/prompts/' + encodeURIComponent(current) + '/diff')).text();
+        $('diff').innerHTML = t.trim() ? renderDiff(t) : '(no changes vs source)';
+        $('editor').style.display = 'none'; $('diff').style.display = 'block';
+        $('b-diff').textContent = 'Edit';
+      } else {
+        $('editor').style.display = ''; $('diff').style.display = 'none';
+        $('b-diff').textContent = 'Diff';
+      }
     }
 
     function setBusy(b) { busy = b; ['b-start','b-down','b-savereset'].forEach(id => $(id).disabled = b); }

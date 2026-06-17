@@ -4,7 +4,7 @@
 // plus prompt-file CRUD on the gitignored sandbox copies. Embeds NO Urbit/stack
 // logic. Built-in modules only (no deps / no install). Binds to localhost.
 import { createServer } from 'node:http';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile, readdir, copyFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -40,6 +40,33 @@ function itemPaths(name) {
   if (/^[A-Za-z0-9_.-]+\.md$/.test(name) && !name.includes('..'))
     return { sandbox: join(SANDBOX_DIR, name), source: join(SRC_PROMPTS, name), kind: 'prompt' };
   return null;
+}
+
+// Path an item would have in the tlonbot repo (so exported patches apply there).
+const tlonRel = (name) => (name === 'intro' ? 'tests/dev/onboarding-intro.md' : 'prompts/' + name);
+
+// Unified diff (source -> sandbox) for one item, labelled with tlonbot paths.
+function unifiedDiff(name) {
+  const it = itemPaths(name);
+  const rel = tlonRel(name);
+  const r = spawnSync('diff', ['-u', '-L', 'a/' + rel, '-L', 'b/' + rel, it.source, it.sandbox], { encoding: 'utf8' });
+  return r.stdout || ''; // diff exits 1 when files differ — expected, not an error
+}
+
+// List editable items (prompts + intro) with modified flags; ensures the sandbox
+// copies exist first (idempotent).
+async function listItems() {
+  await runCapture(['init']);
+  const items = [];
+  let files = [];
+  try { files = (await readdir(SANDBOX_DIR)).filter((f) => f.endsWith('.md')).sort(); } catch {}
+  for (const f of files) {
+    const [sb, src] = [await readOr(join(SANDBOX_DIR, f)), await readOr(join(SRC_PROMPTS, f))];
+    items.push({ name: f, kind: 'prompt', modified: sb !== src });
+  }
+  const [iSb, iSrc] = [await readOr(SANDBOX_INTRO), await readOr(SRC_INTRO)];
+  items.push({ name: 'intro', kind: 'intro', label: 'Intro DM', modified: iSb !== iSrc });
+  return items;
 }
 
 const runCapture = (args) =>
@@ -89,33 +116,43 @@ const server = createServer(async (req, res) => {
 
     // --- prompt CRUD (sandbox copies) ---
     if (req.method === 'GET' && pathname === '/api/prompts') {
-      await runCapture(['init']); // ensure sandbox copies exist (idempotent)
-      const items = [];
-      let files = [];
-      try { files = (await readdir(SANDBOX_DIR)).filter((f) => f.endsWith('.md')).sort(); } catch {}
-      for (const f of files) {
-        const [sb, src] = [await readOr(join(SANDBOX_DIR, f)), await readOr(join(SRC_PROMPTS, f))];
-        items.push({ name: f, kind: 'prompt', modified: sb !== src });
-      }
-      const [iSb, iSrc] = [await readOr(SANDBOX_INTRO), await readOr(SRC_INTRO)];
-      items.push({ name: 'intro', kind: 'intro', label: 'Intro DM', modified: iSb !== iSrc });
-      return json(res, 200, { items });
+      return json(res, 200, { items: await listItems() });
     }
 
-    const m = pathname.match(/^\/api\/prompts\/([^/]+)(\/reset)?$/);
+    if (req.method === 'GET' && pathname === '/api/export') {
+      const mods = (await listItems()).filter((i) => i.modified);
+      let patch = '';
+      for (const i of mods) {
+        let d = unifiedDiff(i.name);
+        if (d && !d.endsWith('\n')) d += '\n';
+        patch += `diff --git a/${tlonRel(i.name)} b/${tlonRel(i.name)}\n` + d;
+      }
+      res.writeHead(200, {
+        'content-type': 'text/x-patch; charset=utf-8',
+        'content-disposition': 'attachment; filename="onboarding-prompts.patch"',
+      });
+      return res.end(patch || '# no local changes\n');
+    }
+
+    const m = pathname.match(/^\/api\/prompts\/([^/]+)(?:\/(reset|diff))?$/);
     if (m) {
-      const it = itemPaths(decodeURIComponent(m[1]));
+      const rawName = decodeURIComponent(m[1]);
+      const it = itemPaths(rawName);
       if (!it) return json(res, 400, { error: 'bad item name' });
-      if (m[2] && req.method === 'POST') {            // reset to source
+      const action = m[2];
+      if (action === 'reset' && req.method === 'POST') {       // reset to source
         await copyFile(it.source, it.sandbox);
         return json(res, 200, { ok: true });
       }
-      if (req.method === 'GET') {
+      if (action === 'diff' && req.method === 'GET') {         // unified diff
+        return send(res, 200, 'text/plain; charset=utf-8', unifiedDiff(rawName));
+      }
+      if (!action && req.method === 'GET') {
         const content = await readOr(it.sandbox);
         const source = await readOr(it.source);
-        return json(res, 200, { name: decodeURIComponent(m[1]), kind: it.kind, content, source, modified: content !== source });
+        return json(res, 200, { name: rawName, kind: it.kind, content, source, modified: content !== source });
       }
-      if (req.method === 'PUT') {                       // save edit
+      if (!action && req.method === 'PUT') {                    // save edit
         await writeFile(it.sandbox, await readBody(req));
         return json(res, 200, { ok: true });
       }
