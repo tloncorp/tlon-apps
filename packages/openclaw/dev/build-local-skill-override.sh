@@ -1,8 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-PLUGIN_DIR="${PLUGIN_DIR:-/workspace/openclaw-tlon}"
-TLON_SKILL_DIR="${TLON_SKILL_DIR:-/workspace/tlon-skill}"
+# /workspace/tlon is the container-local plugin copy openclaw actually loads
+# (the entrypoint installs there); link the override into it, matching
+# build-local-api-override.sh. The bind-mounted /workspace/openclaw-tlon is
+# not on plugins.load.paths, so linking there would be a no-op.
+PLUGIN_DIR="${PLUGIN_DIR:-/workspace/tlon}"
+# Build from the in-monorepo package so workspace/hoisted deps resolve
+# (@tloncorp/api symlink + @urbit/* at the monorepo root). Compose sets this
+# explicitly; the default mirrors it for standalone invocations.
+TLON_SKILL_DIR="${TLON_SKILL_DIR:-/workspace/tlon-apps/packages/tlon-skill}"
 
 if [ ! -f "$TLON_SKILL_DIR/package.json" ]; then
   echo "==> No local tlon-skill checkout found at $TLON_SKILL_DIR; using published @tloncorp/tlon-skill"
