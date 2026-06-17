@@ -9,7 +9,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps, DragEvent, ReactNode } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
@@ -34,12 +34,13 @@ import {
 import { NotesHeaderActions } from './NotesHeaderActions';
 import {
   buildNotesImportItems,
-  canSelectNotesImportSourcesFromWeb,
+  canSelectNotesImportSources,
   makeUniqueNoteTitle,
   normalizeTitleKey,
-  selectNotesImportSourcesFromWeb,
+  readNotesImportSourcesFromDataTransfer,
+  selectNotesImportSources,
 } from './notesImport';
-import type { NotesImportMode } from './notesImport';
+import type { NotesImportMode, NotesImportSource } from './notesImport';
 import { FolderTreeRow, NoteRow } from './NotesTreeRows';
 import {
   buildFolderNoteCounts,
@@ -76,6 +77,7 @@ export function NotesNativeChannel({
   const [renameFolderName, setRenameFolderName] = useState('');
   const [notesFilterQuery, setNotesFilterQuery] = useState('');
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [isDragImportActive, setIsDragImportActive] = useState(false);
   const [isImportingNotes, setIsImportingNotes] = useState(false);
   const {
     entity: movingNote,
@@ -106,11 +108,13 @@ export function NotesNativeChannel({
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(
     () => new Set()
   );
+  const dragImportDepthRef = useRef(0);
   const initializedFolderIdsRef = useRef<Set<number>>(new Set());
 
   const { folders, notes, canEdit, rootFolderId, joinFailed, gate } =
     useNotebookData(notebookFlag);
-  const canImportNotes = canEdit && canSelectNotesImportSourcesFromWeb();
+  const canImportFiles = canEdit && canSelectNotesImportSources('files');
+  const canImportFolder = canEdit && canSelectNotesImportSources('folder');
 
   const parentFolderRows = useMemo(
     () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
@@ -300,23 +304,12 @@ export function NotesNativeChannel({
     [setTreeViewStyle]
   );
 
-  const handleImportNotes = useCallback(async (mode: NotesImportMode) => {
-    const targetRootFolderId = selectedFolderId ?? rootFolderId;
-
-    if (
-      !notebookFlag ||
-      targetRootFolderId == null ||
-      !canEdit ||
-      isImportingNotes
-    ) {
-      return;
-    }
-
-    setError(null);
-    setImportNotice(null);
-    setIsImportingNotes(true);
-    try {
-      const sources = await selectNotesImportSourcesFromWeb(mode);
+  const importNotesFromSources = useCallback(
+    async (
+      sources: NotesImportSource[] | null,
+      targetRootFolderId: number,
+      importNotebookFlag: string
+    ) => {
       if (!sources) {
         return;
       }
@@ -355,7 +348,7 @@ export function NotesNativeChannel({
           }
 
           const folder = await createNotebookFolder({
-            notebookFlag,
+            notebookFlag: importNotebookFlag,
             parentFolderId,
             name: segment,
           });
@@ -379,7 +372,7 @@ export function NotesNativeChannel({
           noteTitlesByFolder.set(folderId, existingTitles);
           const title = makeUniqueNoteTitle(item.title, existingTitles);
           await createNotebookNote({
-            notebookFlag,
+            notebookFlag: importNotebookFlag,
             folderId,
             title,
             body: item.body,
@@ -400,21 +393,61 @@ export function NotesNativeChannel({
       }
 
       setImportNotice(formatImportNotice(importedCount, failedCount));
-    } catch (e) {
-      setError(errorMessage(e, 'Failed to import notes'));
-    } finally {
-      setIsImportingNotes(false);
-    }
-  }, [
-    canEdit,
-    expandFolder,
-    folders,
-    isImportingNotes,
-    notebookFlag,
-    notes,
-    rootFolderId,
-    selectedFolderId,
-  ]);
+    },
+    [expandFolder, folders, notes]
+  );
+
+  const runImport = useCallback(
+    async (readSources: () => Promise<NotesImportSource[] | null>) => {
+      const targetRootFolderId = selectedFolderId ?? rootFolderId;
+
+      if (
+        !notebookFlag ||
+        targetRootFolderId == null ||
+        !canEdit ||
+        isImportingNotes
+      ) {
+        return;
+      }
+
+      setError(null);
+      setImportNotice(null);
+      setIsImportingNotes(true);
+      try {
+        await importNotesFromSources(
+          await readSources(),
+          targetRootFolderId,
+          notebookFlag
+        );
+      } catch (e) {
+        setError(errorMessage(e, 'Failed to import notes'));
+      } finally {
+        setIsImportingNotes(false);
+      }
+    },
+    [
+      canEdit,
+      importNotesFromSources,
+      isImportingNotes,
+      notebookFlag,
+      rootFolderId,
+      selectedFolderId,
+    ]
+  );
+
+  const handleImportNotes = useCallback(
+    async (mode: NotesImportMode) => {
+      await runImport(() => selectNotesImportSources(mode));
+    },
+    [runImport]
+  );
+
+  const handleImportDroppedData = useCallback(
+    async (dataTransfer: DataTransfer) => {
+      await runImport(() => readNotesImportSourcesFromDataTransfer(dataTransfer));
+    },
+    [runImport]
+  );
 
   const handleImportFiles = useCallback(() => {
     void handleImportNotes('files');
@@ -423,6 +456,75 @@ export function NotesNativeChannel({
   const handleImportFolder = useCallback(() => {
     void handleImportNotes('folder');
   }, [handleImportNotes]);
+
+  const canDropImportNotes =
+    canEdit && canSelectNotesImportSources('folder') && !joinFailed;
+
+  const hasFileDrag = useCallback((event: DragEvent) => {
+    return Array.from(event.dataTransfer.types ?? []).includes('Files');
+  }, []);
+
+  const handleImportDragEnter = useCallback(
+    (event: DragEvent) => {
+      if (!canDropImportNotes || !hasFileDrag(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragImportDepthRef.current += 1;
+      setIsDragImportActive(true);
+    },
+    [canDropImportNotes, hasFileDrag]
+  );
+
+  const handleImportDragOver = useCallback(
+    (event: DragEvent) => {
+      if (!canDropImportNotes || !hasFileDrag(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = isImportingNotes ? 'none' : 'copy';
+    },
+    [canDropImportNotes, hasFileDrag, isImportingNotes]
+  );
+
+  const handleImportDragLeave = useCallback(
+    (event: DragEvent) => {
+      if (!canDropImportNotes || !hasFileDrag(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragImportDepthRef.current = Math.max(0, dragImportDepthRef.current - 1);
+      if (dragImportDepthRef.current === 0) {
+        setIsDragImportActive(false);
+      }
+    },
+    [canDropImportNotes, hasFileDrag]
+  );
+
+  const handleImportDrop = useCallback(
+    (event: DragEvent) => {
+      if (!canDropImportNotes || !hasFileDrag(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragImportDepthRef.current = 0;
+      setIsDragImportActive(false);
+      void handleImportDroppedData(event.dataTransfer);
+    },
+    [canDropImportNotes, handleImportDroppedData, hasFileDrag]
+  );
+
+  const dropImportProps = canDropImportNotes
+    ? ({
+        onDragEnter: handleImportDragEnter,
+        onDragLeave: handleImportDragLeave,
+        onDragOver: handleImportDragOver,
+        onDrop: handleImportDrop,
+      } as unknown as ComponentProps<typeof YStack>)
+    : {};
+
+  useEffect(() => {
+    if (!canDropImportNotes) {
+      dragImportDepthRef.current = 0;
+      setIsDragImportActive(false);
+    }
+  }, [canDropImportNotes]);
 
   const handleOpenMoveNote = useCallback(
     (note: db.NotesNote) => {
@@ -628,7 +730,8 @@ export function NotesNativeChannel({
       return (
         <NotesHeaderActions
           canEdit={canEdit}
-          canImport={canImportNotes}
+          canImportFiles={canImportFiles}
+          canImportFolder={canImportFolder}
           isCreatingFolder={isCreatingFolder}
           isCreatingNote={isCreatingNote}
           isImporting={isImportingNotes}
@@ -647,13 +750,14 @@ export function NotesNativeChannel({
       handleOpenCreateFolder,
       handleImportFiles,
       handleImportFolder,
+      canImportFiles,
+      canImportFolder,
       isCreatingFolder,
       isCreatingNote,
       isImportingNotes,
       joinFailed,
       notebookFlag,
       treeViewStyle,
-      canImportNotes,
     ])
   );
 
@@ -668,7 +772,12 @@ export function NotesNativeChannel({
   }
 
   return (
-    <YStack flex={1} backgroundColor="$background">
+    <YStack
+      flex={1}
+      backgroundColor="$background"
+      position="relative"
+      {...dropImportProps}
+    >
       {error ? <NotesErrorMessage error={error} /> : null}
       {importNotice ? <NotesImportNotice message={importNotice} /> : null}
 
@@ -767,6 +876,20 @@ export function NotesNativeChannel({
           </YStack>
         </NotesContentFrame>
       </ScrollView>
+      {isDragImportActive ? (
+        <YStack
+          pointerEvents="none"
+          position="absolute"
+          top={0}
+          right={0}
+          bottom={0}
+          left={0}
+          borderColor="$positiveText"
+          borderWidth={2}
+          backgroundColor="$backgroundHover"
+          opacity={0.7}
+        />
+      ) : null}
       <SimpleActionSheet
         open={newActionSheetOpen}
         onOpenChange={setNewActionSheetOpen}

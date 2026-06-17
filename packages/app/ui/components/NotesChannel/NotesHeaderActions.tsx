@@ -28,7 +28,8 @@ const NOTES_TREE_VIEW_OPTIONS: {
 
 export function NotesHeaderActions({
   canEdit,
-  canImport,
+  canImportFiles,
+  canImportFolder,
   isCreatingFolder,
   isCreatingNote,
   isImporting,
@@ -40,7 +41,8 @@ export function NotesHeaderActions({
   onTreeViewStyleChange,
 }: {
   canEdit: boolean;
-  canImport: boolean;
+  canImportFiles: boolean;
+  canImportFolder: boolean;
   isCreatingFolder: boolean;
   isCreatingNote: boolean;
   isImporting: boolean;
@@ -73,9 +75,9 @@ export function NotesHeaderActions({
             testID: 'NotesRootNewFolderAction',
           },
         ],
-        canImport && [
+        (canImportFiles || canImportFolder) && [
           'neutral',
-          {
+          canImportFiles && {
             title: 'Import',
             description: 'Import markdown or text files.',
             startIcon: 'ArrowDown',
@@ -83,7 +85,7 @@ export function NotesHeaderActions({
             disabled: isImporting,
             testID: 'NotesImportFilesAction',
           },
-          {
+          canImportFolder && {
             title: 'Import folder',
             description: 'Import a folder of markdown or text files.',
             startIcon: 'Folder',
@@ -108,7 +110,8 @@ export function NotesHeaderActions({
       ),
     [
       canEdit,
-      canImport,
+      canImportFiles,
+      canImportFolder,
       isCreatingFolder,
       isCreatingNote,
       isImporting,

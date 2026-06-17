@@ -27,7 +27,6 @@ import {
   forwardRef,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -56,7 +55,6 @@ import { useChannelShareIntent } from '../../contexts/shareIntent';
 import * as utils from '../../utils';
 import { FileDrop } from '../FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
-import { ChannelConfigurationBar } from '../ManageChannels/CreateChannelSheet';
 import { PostCollectionView } from '../PostCollectionView';
 import SystemNotices from '../SystemNotices';
 import { DraftInputContext } from '../draftInputs';
@@ -310,11 +308,7 @@ interface ChannelProps {
   onPressScrollToBottom?: () => void;
 }
 
-interface ChannelMethods {
-  openChannelConfigurationBar: () => void;
-}
-
-export const Channel = forwardRef<ChannelMethods, ChannelProps>(
+export const Channel = forwardRef<unknown, ChannelProps>(
   function Channel(
     {
       channel,
@@ -331,7 +325,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       goToPost,
       goToDm,
       goToUserProfile,
-      goToChannelDetails,
       goToGroupSettings,
       onScrollEndReached,
       onScrollStartReached,
@@ -358,9 +351,8 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
       startDraft,
       onPressScrollToBottom,
     },
-    ref
+    _ref
   ) {
-    const [editingConfiguration, setEditingConfiguration] = useState(false);
     const [inputShouldBlur, setInputShouldBlur] = useState(false);
     const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
     const [showHeaderLoading, setShowHeaderLoading] = useState(false);
@@ -376,7 +368,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
     const currentUserId = useCurrentUserId();
     const canWrite = utils.useCanWrite(channel, currentUserId);
     const canRead = utils.useCanRead(channel, currentUserId);
-    const isGroupAdmin = utils.useIsAdmin(channel.groupId ?? '', currentUserId);
     const collectionRef = useRef<PostCollectionHandle>(null);
 
     const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -701,16 +692,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
 
     const backgroundColor = getVariableValue(useTheme().background);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        openChannelConfigurationBar() {
-          setEditingConfiguration(true);
-        },
-      }),
-      []
-    );
-
     const channelProviderValue = useMemo(() => ({ channel }), [channel]);
 
     const includeJoinRequestNotice = useMemo(() => {
@@ -899,14 +880,6 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                               <DmInviteOptions
                                 channel={channel}
                                 goBack={goBack}
-                              />
-                            )}
-                            {editingConfiguration && (
-                              <ChannelConfigurationBar
-                                channel={channel}
-                                onPressDone={() =>
-                                  setEditingConfiguration(false)
-                                }
                               />
                             )}
                           </YStack>
