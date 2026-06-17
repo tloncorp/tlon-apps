@@ -766,29 +766,27 @@ export const Channel = forwardRef<ChannelMethods, ChannelProps>(
                     >
                       <ChannelHeaderItemsProvider>
                         <>
-                          {channel.type !== 'notes' && (
-                            <ChannelHeader
-                              channel={channel}
-                              group={group}
-                              title={title ?? ''}
-                              description={''}
-                              goBack={
-                                isNarrow ||
-                                draftInputPresentationMode === 'fullscreen'
-                                  ? handleGoBack
-                                  : undefined
-                              }
-                              goToChatDetails={goToChatDetails}
-                              goToProfile={handleGoToProfile}
-                              goToSearch={goToSearch}
-                              showSpinner={showHeaderLoading}
-                              showSearchButton={
-                                channel.type === 'chat' ||
-                                channel.type === 'dm' ||
-                                channel.type === 'groupDm'
-                              }
-                            />
-                          )}
+                          <ChannelHeader
+                            channel={channel}
+                            group={group}
+                            title={title ?? ''}
+                            description={''}
+                            goBack={
+                              isNarrow ||
+                              draftInputPresentationMode === 'fullscreen'
+                                ? handleGoBack
+                                : undefined
+                            }
+                            goToChatDetails={goToChatDetails}
+                            goToProfile={handleGoToProfile}
+                            goToSearch={goToSearch}
+                            showSpinner={showHeaderLoading}
+                            showSearchButton={
+                              channel.type === 'chat' ||
+                              channel.type === 'dm' ||
+                              channel.type === 'groupDm'
+                            }
+                          />
                           {shouldShowPinnedPostBanner && (
                             <PinnedPostBanner
                               channel={channel}
