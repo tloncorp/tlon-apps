@@ -12,6 +12,8 @@ import { getTextContent } from '@tloncorp/api';
  *
  * Skill-owned operations (read history, list channels, etc.) live in the
  * skill's own test suite and are NOT covered here.
+ *
+ * @tlon-e2e openclaw: channel.post_message, dm.thread_reply, channel.ship_mention, channel.nickname_mention, channel.thread_participation, post.reaction_roundtrip
  */
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 

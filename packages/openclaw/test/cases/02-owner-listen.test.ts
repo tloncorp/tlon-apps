@@ -15,6 +15,8 @@ import type { Story } from '@tloncorp/api';
  * The fake-model's GET /v1/_received endpoint is the key tool for the
  * negative tests here: we send a plain channel post tagged with
  * [tlon-test:KEY], wait a beat, then assert no model call landed for KEY.
+ *
+ * @tlon-e2e openclaw: owner_listen.owner_dm, owner_listen.channel_plain_on, owner_listen.channel_plain_off, owner_listen.mention_when_off, owner_listen.muted_channel_plain, owner_listen.muted_channel_mention, owner_listen.command_off_persists, owner_listen.command_on_persists
  */
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 

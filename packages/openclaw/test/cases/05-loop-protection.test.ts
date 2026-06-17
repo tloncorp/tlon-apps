@@ -7,6 +7,8 @@
  * LIMITATIONS:
  * Full bot-to-bot loop testing requires two OpenClaw bots in the same channel.
  * The current test environment only has one bot, so loop scenarios are skipped.
+ *
+ * @tlon-e2e openclaw: loop.human_dm_processed, loop.repeated_human_dms_processed, loop.non_owner_without_bot_profile_processed, dm.basic_reply
  */
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 

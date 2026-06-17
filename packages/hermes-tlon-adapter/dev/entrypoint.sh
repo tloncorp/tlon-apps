@@ -177,7 +177,22 @@ provider = (
     or ""
 ).strip()
 model = (os.environ.get("HERMES_MODEL") or os.environ.get("MODEL") or "").strip()
-if provider or model:
+model_base_url = (
+    os.environ.get("HERMES_MODEL_BASE_URL")
+    or os.environ.get("HERMES_BASE_URL")
+    or ""
+).strip()
+model_api_key = (
+    os.environ.get("HERMES_MODEL_API_KEY")
+    or os.environ.get("HERMES_API_KEY")
+    or ""
+).strip()
+model_api_mode = (
+    os.environ.get("HERMES_MODEL_API_MODE")
+    or os.environ.get("HERMES_API_MODE")
+    or ""
+).strip()
+if provider or model or model_base_url or model_api_key or model_api_mode:
     model_config = config.get("model")
     if not isinstance(model_config, dict):
         model_config = {}
@@ -185,6 +200,12 @@ if provider or model:
         model_config["provider"] = provider
     if model:
         model_config["default"] = model
+    if model_base_url:
+        model_config["base_url"] = model_base_url.rstrip("/")
+    if model_api_key:
+        model_config["api_key"] = model_api_key
+    if model_api_mode:
+        model_config["api_mode"] = model_api_mode
     config["model"] = model_config
 
 web_backend = (os.environ.get("HERMES_WEB_BACKEND") or "").strip()

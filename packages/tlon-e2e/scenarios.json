@@ -1,0 +1,331 @@
+{
+  "platforms": {
+    "openclaw": {
+      "label": "OpenClaw",
+      "testDir": "packages/openclaw/test/cases"
+    },
+    "hermes": {
+      "label": "Hermes",
+      "testDir": "packages/hermes-tlon-adapter/test/cases"
+    }
+  },
+  "groups": [
+    {
+      "id": "00-connectivity",
+      "title": "Connectivity",
+      "files": {
+        "openclaw": "packages/openclaw/test/cases/00-connectivity.test.ts",
+        "hermes": "packages/hermes-tlon-adapter/test/cases/00-connectivity.test.ts"
+      }
+    },
+    {
+      "id": "01-messages",
+      "title": "Messages",
+      "files": {
+        "openclaw": "packages/openclaw/test/cases/01-messages.test.ts",
+        "hermes": "packages/hermes-tlon-adapter/test/cases/01-messages.test.ts"
+      }
+    },
+    {
+      "id": "02-owner-listen",
+      "title": "Owner Listen",
+      "files": {
+        "openclaw": "packages/openclaw/test/cases/02-owner-listen.test.ts",
+        "hermes": "packages/hermes-tlon-adapter/test/cases/02-owner-listen.test.ts"
+      }
+    },
+    {
+      "id": "03-heartbeat",
+      "title": "Heartbeat",
+      "files": {
+        "openclaw": "packages/openclaw/test/cases/03-heartbeat.test.ts"
+      }
+    },
+    {
+      "id": "04-security",
+      "title": "Security",
+      "files": {
+        "openclaw": "packages/openclaw/test/cases/04-security.test.ts",
+        "hermes": "packages/hermes-tlon-adapter/test/cases/04-security.test.ts"
+      }
+    },
+    {
+      "id": "05-loop-protection",
+      "title": "Loop Protection",
+      "files": {
+        "openclaw": "packages/openclaw/test/cases/05-loop-protection.test.ts",
+        "hermes": "packages/hermes-tlon-adapter/test/cases/05-loop-protection.test.ts"
+      }
+    },
+    {
+      "id": "06-media",
+      "title": "Media",
+      "files": {
+        "openclaw": "packages/openclaw/test/cases/06-media.test.ts",
+        "hermes": "packages/hermes-tlon-adapter/test/cases/06-media.test.ts"
+      }
+    },
+    {
+      "id": "07-blobs",
+      "title": "Blobs",
+      "files": {
+        "openclaw": "packages/openclaw/test/cases/07-blobs.test.ts",
+        "hermes": "packages/hermes-tlon-adapter/test/cases/07-blobs.test.ts"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "connectivity.fake_ships",
+      "group": "00-connectivity",
+      "title": "Connect to bot and user fakezod ships",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "state.contacts",
+      "group": "00-connectivity",
+      "title": "Read contacts from fake ships",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "state.bot_profile",
+      "group": "00-connectivity",
+      "title": "Read bot self profile",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "state.groups",
+      "group": "00-connectivity",
+      "title": "Read groups from bot ship",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "state.settings",
+      "group": "00-connectivity",
+      "title": "Read Tlon settings from bot ship",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "dm.send_from_user",
+      "group": "00-connectivity",
+      "title": "Send a DM from user ship to bot ship",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "dm.basic_reply",
+      "group": "00-connectivity",
+      "title": "Allowed owner DM receives a bot response",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "dm.thread_reply",
+      "group": "01-messages",
+      "title": "Bot processes a DM thread reply",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "channel.post_message",
+      "group": "01-messages",
+      "title": "Bot posts a message into a channel",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "channel.ship_mention",
+      "group": "01-messages",
+      "title": "Bot engages on @ship mention",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "channel.nickname_mention",
+      "group": "01-messages",
+      "title": "Bot engages on nickname mention",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "channel.thread_participation",
+      "group": "01-messages",
+      "title": "Bot engages in a channel thread it participates in",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "post.reaction_roundtrip",
+      "group": "01-messages",
+      "title": "Bot adds and removes a post reaction",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "owner_listen.owner_dm",
+      "group": "02-owner-listen",
+      "title": "Owner DM is processed regardless of owner-listen state",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "owner_listen.channel_plain_on",
+      "group": "02-owner-listen",
+      "title": "Owner plain channel post engages when owner-listen is on",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "owner_listen.channel_plain_off",
+      "group": "02-owner-listen",
+      "title": "Owner plain channel post is ignored when owner-listen is off",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "owner_listen.mention_when_off",
+      "group": "02-owner-listen",
+      "title": "Owner @mention still engages when owner-listen is off",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "owner_listen.muted_channel_plain",
+      "group": "02-owner-listen",
+      "title": "Muted channel suppresses owner-listen plain post",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "owner_listen.muted_channel_mention",
+      "group": "02-owner-listen",
+      "title": "Muted channel still engages on @mention",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "owner_listen.command_off_persists",
+      "group": "02-owner-listen",
+      "title": "Owner-listen off command persists disabled state",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "owner_listen.command_on_persists",
+      "group": "02-owner-listen",
+      "title": "Owner-listen on command persists enabled state",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "openclaw.heartbeat.idle_owner_nudge",
+      "group": "03-heartbeat",
+      "title": "OpenClaw sends idle-owner re-engagement nudge",
+      "platforms": ["openclaw"]
+    },
+    {
+      "id": "tlon_tool.owner_profile_update",
+      "group": "04-security",
+      "title": "Owner can use the Tlon tool for profile update",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "tlon_tool.non_owner_restricted",
+      "group": "04-security",
+      "title": "Non-owner cannot use restricted Tlon tools",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.blocked_dm_ignored",
+      "group": "04-security",
+      "title": "Blocked non-owner DMs are ignored",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.blocked_allowlisted_ignored",
+      "group": "04-security",
+      "title": "Blocked ship remains blocked even when allowlisted",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.banned_command",
+      "group": "04-security",
+      "title": "Banned command lists blocked ships",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.unban_blocked",
+      "group": "04-security",
+      "title": "Unban command removes a blocked ship",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.unban_not_blocked",
+      "group": "04-security",
+      "title": "Unban command reports when ship is not blocked",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.approve_reaction",
+      "group": "04-security",
+      "title": "Approve reaction grants pending DM request",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.deny_reaction",
+      "group": "04-security",
+      "title": "Deny reaction removes pending DM request",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.allowlist_removal_requires_approval",
+      "group": "04-security",
+      "title": "Removing allowlist grant makes next DM require approval",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "security.block_reaction_removes_allowlist",
+      "group": "04-security",
+      "title": "Block reaction removes ship from allowlist",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "loop.human_dm_processed",
+      "group": "05-loop-protection",
+      "title": "Human DM is processed and loop counter resets",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "loop.repeated_human_dms_processed",
+      "group": "05-loop-protection",
+      "title": "Repeated human DMs are all processed",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "loop.non_owner_without_bot_profile_processed",
+      "group": "05-loop-protection",
+      "title": "Non-owner without bot profile is treated as human",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "media.dm_image_send",
+      "group": "06-media",
+      "title": "Bot uploads and sends an image via DM",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "blob.dm_voice_context",
+      "group": "07-blobs",
+      "title": "DM voice memo transcription reaches model context",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "blob.dm_file_context",
+      "group": "07-blobs",
+      "title": "DM file filename reaches model context",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "blob.dm_thread_voice_context",
+      "group": "07-blobs",
+      "title": "DM thread voice memo transcription reaches model context",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "blob.channel_voice_context",
+      "group": "07-blobs",
+      "title": "Channel voice memo transcription reaches model context",
+      "platforms": ["openclaw", "hermes"]
+    },
+    {
+      "id": "blob.channel_thread_file_context",
+      "group": "07-blobs",
+      "title": "Channel thread file filename reaches model context",
+      "platforms": ["openclaw", "hermes"]
+    }
+  ]
+}

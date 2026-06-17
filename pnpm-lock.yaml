@@ -1210,6 +1210,28 @@ importers:
         specifier: ^1.0.4
         version: 1.5.0(@types/node@22.19.20)(jsdom@23.2.0)(lightningcss@1.31.1)(terser@5.46.0)
 
+  packages/hermes-tlon-adapter:
+    dependencies:
+      '@tloncorp/api':
+        specifier: workspace:^
+        version: link:../api
+      '@urbit/aura':
+        specifier: ^3.0.0
+        version: 3.0.0
+    devDependencies:
+      '@types/node':
+        specifier: ^25.4.0
+        version: 25.9.3
+      dotenv:
+        specifier: ^17.2.4
+        version: 17.4.2
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^4.0.0
+        version: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.9.3)(jsdom@23.2.0)(msw@0.44.2(encoding@0.1.13)(typescript@5.9.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@1.21.0)(terser@5.46.0)(yaml@2.8.2))
+
   packages/openclaw:
     dependencies:
       '@tloncorp/api':
@@ -1246,8 +1268,6 @@ importers:
       vitest:
         specifier: ^4.0.0
         version: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.9.3)(jsdom@23.2.0)(msw@0.44.2(encoding@0.1.13)(typescript@5.9.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@1.21.0)(terser@5.46.0)(yaml@2.8.2))
-
-  packages/hermes-tlon-adapter: {}
 
   packages/scripts:
     dependencies:

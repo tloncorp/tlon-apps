@@ -3,6 +3,8 @@
  *
  * Basic tests to verify we can connect to ships and scry data.
  * Run these first to isolate connectivity issues from bot logic.
+ *
+ * @tlon-e2e openclaw: connectivity.fake_ships, state.contacts, state.bot_profile, state.groups, state.settings, dm.send_from_user
  */
 import { beforeAll, describe, expect, test } from 'vitest';
 

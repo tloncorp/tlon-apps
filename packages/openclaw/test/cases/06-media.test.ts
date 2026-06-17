@@ -1,5 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
+// @tlon-e2e openclaw: media.dm_image_send
+
 import { type TestFixtures, getFixtures, waitFor } from '../lib/index.js';
 import {
   getLatestSequenceForAuthor,

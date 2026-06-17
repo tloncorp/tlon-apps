@@ -15,6 +15,8 @@
  * TEST ENVIRONMENT:
  *   ~zod = bot ship
  *   ~ten = test user (configured as ownerShip)
+ *
+ * @tlon-e2e openclaw: blob.dm_voice_context, blob.dm_file_context, blob.dm_thread_voice_context, blob.channel_voice_context, blob.channel_thread_file_context
  */
 import type { Story } from '@tloncorp/api';
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';

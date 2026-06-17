@@ -8,6 +8,8 @@
  *
  * Requires the test harness to shorten the nudge tick interval so the
  * scheduler actually fires within the test window.
+ *
+ * @tlon-e2e openclaw: openclaw.heartbeat.idle_owner_nudge
  */
 import { type PostContent, getTextContent } from '@tloncorp/api';
 import { beforeAll, describe, expect, test } from 'vitest';

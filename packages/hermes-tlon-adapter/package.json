@@ -2,10 +2,24 @@
   "name": "@tloncorp/hermes-tlon-adapter",
   "version": "0.8.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "./dev/run.sh",
     "dev:down": "./dev/down.sh",
     "dev:shell": "./dev/shell.sh",
-    "test": "./dev/test.sh"
+    "test": "./dev/test.sh",
+    "test:unit": "./dev/test.sh",
+    "test:integration": "bash ./test/run.sh",
+    "test:all": "./dev/test.sh && bash ./test/run.sh"
+  },
+  "dependencies": {
+    "@tloncorp/api": "workspace:^",
+    "@urbit/aura": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.4.0",
+    "dotenv": "^17.2.4",
+    "typescript": "^5.7.0",
+    "vitest": "^4.0.0"
   }
 }

@@ -1,0 +1,68 @@
+name: Hermes Tlon Adapter CI
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/hermes-tlon-adapter/**"
+      - "packages/api/**"
+      - "packages/tlon-skill/**"
+      - "packages/openclaw/test/support/fake-model/**"
+      - ".github/workflows/hermes-tlon-adapter-ci.yml"
+
+jobs:
+  unit-test:
+    name: Unit Tests
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    defaults:
+      run:
+        working-directory: packages/hermes-tlon-adapter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+  integration-test:
+    name: Integration Tests
+    runs-on: blacksmith-8vcpu-ubuntu-2204
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: hermes-tlon-test
+    defaults:
+      run:
+        working-directory: packages/hermes-tlon-adapter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      - name: Run integration tests
+        run: pnpm test:integration
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose -f dev/docker-compose.test.yml logs || true

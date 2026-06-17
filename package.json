@@ -30,6 +30,8 @@
     "dev:desktop": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-desktop' dev\"",
     "dev:web": "pnpm --filter 'tlon-web' dev",
     "e2e": "pnpm --filter 'tlon-web' e2e",
+    "tlon:e2e:coverage": "node scripts/check-tlon-e2e-coverage.mjs",
+    "tlon:e2e:coverage:check": "node scripts/check-tlon-e2e-coverage.mjs --strict",
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
     "test:ci": "npm rebuild better-sqlite3 && pnpm build:api && pnpm run -r test run",
     "lint:all": "pnpm -r lint",

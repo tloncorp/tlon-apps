@@ -10,6 +10,8 @@
  *   ~zod = bot ship
  *   ~ten = test user (configured as ownerShip)
  *   ~mug = third-party ship (non-owner, for security tests)
+ *
+ * @tlon-e2e openclaw: tlon_tool.owner_profile_update, tlon_tool.non_owner_restricted, security.banned_command, security.unban_blocked, security.unban_not_blocked, security.blocked_dm_ignored, security.blocked_allowlisted_ignored, security.approve_reaction, security.deny_reaction, security.allowlist_removal_requires_approval, security.block_reaction_removes_allowlist
  */
 import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
