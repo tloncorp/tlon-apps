@@ -1,9 +1,15 @@
+import fs from 'node:fs';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import {
   type ContextLensEvent,
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
+import {
+  type ContextLensStore,
+  getContextLensStore,
+  lensFinalizedAt,
+} from './context-lens-store.js';
 import type { ContextLens, ContextLensStatus } from './context-lens.js';
 import {
   API_CLIENT_PARAMS_SLOT,
@@ -17,11 +23,17 @@ const PAYLOAD_SCHEMA_VERSION = 1;
 const MAX_SUMMARY_CHARS = 4_096;
 const MAX_PAYLOAD_CHARS = 50 * 1_024;
 const MAX_TRACKED_RUNS = 1_000;
+const MAX_SYNCED_IDS = 1_000;
+const REPLAY_POLL_MS = 2_000;
+const REPLAY_GIVE_UP_MS = 10 * 60_000;
+const REPLAY_WINDOW_MS = 24 * 60 * 60 * 1_000;
+const REPLAY_MAX_RUNS = 50;
 
 const TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
   'completed',
   'no_reply',
   'timed_out',
+  'aborted',
   'error',
 ]);
 
@@ -41,6 +53,33 @@ const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
 const shipSyncUnsubscribeSlot = sharedSlot<() => void>(
   'contextLens.shipSync.unsubscribe'
 );
+const replayCancelSlot = sharedSlot<() => void>(
+  'contextLens.shipSync.replayCancel'
+);
+
+export function syncedLensIdsPath(storeFilePath: string): string {
+  return `${storeFilePath}.synced.json`;
+}
+
+export function loadSyncedLensIds(filePath: string): Set<string> {
+  try {
+    const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (!Array.isArray(parsed)) {
+      return new Set();
+    }
+    return new Set(parsed.filter((id): id is string => typeof id === 'string'));
+  } catch {
+    return new Set();
+  }
+}
+
+export function recordSyncedLensId(filePath: string, lensId: string): void {
+  const ids = loadSyncedLensIds(filePath);
+  ids.delete(lensId);
+  ids.add(lensId);
+  const trimmed = [...ids].slice(-MAX_SYNCED_IDS);
+  fs.writeFileSync(filePath, JSON.stringify(trimmed), { mode: 0o600 });
+}
 
 function truncateSummary(value: string | undefined): string | undefined {
   if (value === undefined || value.length <= MAX_SUMMARY_CHARS) {
@@ -58,8 +97,11 @@ function truncateSummary(value: string | undefined): string | undefined {
  * stay small. Full untruncated runs remain on gateway disk (Phase 2 store).
  */
 export function buildLensRunPayload(lens: ContextLens): string {
+  // retrySeed is gateway-only (raw chat text + blob JSON): keep pokes lean
+  // and avoid mirroring message bodies onto the ship a second time.
+  const { retrySeed: _retrySeed, ...rest } = lens;
   const slim: ContextLens = {
-    ...lens,
+    ...rest,
     context: {
       ...lens.context,
       sources: lens.context.sources.map((source) => ({
@@ -157,15 +199,21 @@ export function createContextLensShipSync(opts: {
   owners: string[];
   logger: SyncLogger;
   getParams?: () => SharedApiClientParams | null;
+  /** Called after a run-final poke is acked — basis for boot-time replay. */
+  onRunFinal?: (lens: ContextLens) => void;
 }): ContextLensShipSync {
-  const { owners, logger } = opts;
+  const { owners, logger, onRunFinal } = opts;
   const getParams = opts.getParams ?? (() => apiClientParamsSlot.get() ?? null);
 
   const lastStatusByLensId = new Map<string, ContextLensStatus>();
   let configuredFor: SharedApiClientParams | null = null;
   let queue: Promise<void> = Promise.resolve();
 
-  const enqueuePoke = (label: string, json: unknown) => {
+  const enqueuePoke = (
+    label: string,
+    json: unknown,
+    onSuccess?: () => void
+  ) => {
     queue = queue
       .then(async () => {
         const params = getParams();
@@ -188,6 +236,13 @@ export function createContextLensShipSync(opts: {
           mark: 'context-lens-action-1',
           json,
         });
+        try {
+          onSuccess?.();
+        } catch (error) {
+          logger.warn(
+            `[tlon] Context lens ship sync bookkeeping failed (${label}): ${String(error)}`
+          );
+        }
       })
       .catch((error) => {
         // A failed %configure must retry before the next run poke.
@@ -205,9 +260,13 @@ export function createContextLensShipSync(opts: {
     }
     if (TERMINAL_STATUSES.has(lens.status)) {
       lastStatusByLensId.delete(lens.lensId);
-      enqueuePoke(`run-final ${lens.lensId}`, {
-        'run-final': { id: lens.lensId, payload: buildLensRunPayload(lens) },
-      });
+      enqueuePoke(
+        `run-final ${lens.lensId}`,
+        {
+          'run-final': { id: lens.lensId, payload: buildLensRunPayload(lens) },
+        },
+        onRunFinal ? () => onRunFinal(lens) : undefined
+      );
       return;
     }
     if (lens.status === lastStatusByLensId.get(lens.lensId)) {
@@ -234,6 +293,75 @@ export function createContextLensShipSync(opts: {
 }
 
 /**
+ * Re-poke terminal runs whose run-final never reached the ship — e.g. runs
+ * finalized during a SIGTERM shutdown, where the store write (sync fs)
+ * landed but the poke died with the process. Without this the ship copy
+ * stays frozen at the last in-flight status forever. Idempotent ship-side
+ * (last write wins per run id); bounded by a recency window and a count cap
+ * so a first boot without a synced-ids file cannot flood the ship.
+ */
+export function replayUnsyncedFinalRuns(
+  store: ContextLensStore,
+  sync: ContextLensShipSync,
+  logger: SyncLogger,
+  now = Date.now()
+): number {
+  const synced = loadSyncedLensIds(syncedLensIdsPath(store.filePath));
+  const cutoff = now - REPLAY_WINDOW_MS;
+  const missed = store
+    .list()
+    .filter(
+      (lens) =>
+        TERMINAL_STATUSES.has(lens.status) &&
+        lens.visibility !== 'internal' &&
+        !synced.has(lens.lensId) &&
+        lensFinalizedAt(lens) > cutoff
+    )
+    .slice(-REPLAY_MAX_RUNS);
+  if (missed.length === 0) {
+    return 0;
+  }
+  logger.info(
+    `[tlon] Context lens ship sync replaying ${missed.length} unsynced terminal run(s)`
+  );
+  for (const lens of missed) {
+    sync.handleEvent({ seq: 0, at: now, phase: 'replay', lens });
+  }
+  return missed.length;
+}
+
+function startShipSyncReplay(
+  sync: ContextLensShipSync,
+  logger: SyncLogger
+): void {
+  replayCancelSlot.get()?.();
+  const startedAt = Date.now();
+  // Poll: at init time neither the api-client params (monitor not connected)
+  // nor the disk store (initialized after ship sync) exist yet.
+  const timer = setInterval(() => {
+    if (Date.now() - startedAt > REPLAY_GIVE_UP_MS) {
+      stop();
+      return;
+    }
+    const store = getContextLensStore();
+    if (!store || !apiClientParamsSlot.get()) {
+      return;
+    }
+    stop();
+    try {
+      replayUnsyncedFinalRuns(store, sync, logger);
+    } catch (error) {
+      logger.warn(
+        `[tlon] Context lens ship sync replay failed: ${String(error)}`
+      );
+    }
+  }, REPLAY_POLL_MS);
+  timer.unref?.();
+  const stop = () => clearInterval(timer);
+  replayCancelSlot.set(stop);
+}
+
+/**
  * Wire ship sync to the lens event stream. Returns true when active, false
  * when the lens is disabled or no owners resolve (no contextLens.owners and
  * no ownerShip).
@@ -242,19 +370,41 @@ export function initContextLensShipSync(api: {
   config: OpenClawConfig;
   logger: SyncLogger;
 }): boolean {
+  // Tear down any prior subscription/replay first: a config reload that
+  // disables the lens or empties owners must not leak the previous
+  // subscriber, which would keep fanning runs to the former owner list.
+  const teardown = () => {
+    shipSyncUnsubscribeSlot.get()?.();
+    shipSyncUnsubscribeSlot.set(null);
+    replayCancelSlot.get()?.();
+    replayCancelSlot.set(null);
+  };
   if (!resolveTlonAccount(api.config).contextLens.enabled) {
+    teardown();
     return false;
   }
   const owners = resolveLensOwners(api.config);
   if (owners.length === 0) {
+    teardown();
     api.logger.info(
       '[tlon] Context lens ship sync disabled: no owners configured (set contextLens.owners or ownerShip)'
     );
     return false;
   }
-  const sync = createContextLensShipSync({ owners, logger: api.logger });
+  const sync = createContextLensShipSync({
+    owners,
+    logger: api.logger,
+    onRunFinal: (lens) => {
+      const store = getContextLensStore();
+      if (!store) {
+        return;
+      }
+      recordSyncedLensId(syncedLensIdsPath(store.filePath), lens.lensId);
+    },
+  });
   shipSyncUnsubscribeSlot.get()?.();
   shipSyncUnsubscribeSlot.set(subscribeToContextLensEvents(sync.handleEvent));
+  startShipSyncReplay(sync, api.logger);
   api.logger.info(
     `[tlon] Context lens ship sync enabled, fanning out to ${owners.join(', ')}`
   );
