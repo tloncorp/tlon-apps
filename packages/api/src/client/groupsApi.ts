@@ -484,7 +484,7 @@ export const updateGroupMeta = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -507,7 +507,7 @@ export const deleteGroup = async (groupId: string) => {
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -546,7 +546,7 @@ export const addNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -637,7 +637,7 @@ export const addChannelToNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -718,7 +718,7 @@ export const addChannelToGroup = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
