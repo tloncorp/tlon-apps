@@ -3,12 +3,12 @@
 // Thin HTTP/SSE layer over the orchestrator (scripts/onboarding-sandbox/run.sh)
 // plus prompt-file CRUD on the gitignored sandbox copies. Embeds NO Urbit/stack
 // logic. Built-in modules only (no deps / no install). Binds to localhost.
+import { spawn, spawnSync } from 'node:child_process';
+import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import net from 'node:net';
-import { spawn, spawnSync } from 'node:child_process';
-import { readFile, writeFile, readdir, copyFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
@@ -24,24 +24,38 @@ const PORT = Number(process.env.ONBOARDING_WEB_PORT || 4400);
 const STREAM_CMDS = new Set(['start', 'reset', 'down', 'status', 'logs']);
 // Offline fallback list — used only if the OpenRouter models API can't be
 // reached. The live list comes from openRouterModels(). Override via env.
-const MODELS = (process.env.ONBOARDING_MODELS ||
-  'openrouter/minimax/minimax-m2.5,openrouter/minimax/minimax-m2.7,openrouter/openai/gpt-4o-mini,openrouter/anthropic/claude-3.5-sonnet')
-  .split(',').map((s) => s.trim()).filter(Boolean);
+const MODELS = (
+  process.env.ONBOARDING_MODELS ||
+  'openrouter/minimax/minimax-m2.5,openrouter/minimax/minimax-m2.7,openrouter/openai/gpt-4o-mini,openrouter/anthropic/claude-3.5-sonnet'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 // Live list of every OpenRouter model (public endpoint, no auth), cached 1h.
 // Returns `openrouter/<id>` ids matching the bot's MODEL format; null on failure.
-let _modelsCache = null, _modelsCacheAt = 0;
+let _modelsCache = null,
+  _modelsCacheAt = 0;
 async function openRouterModels() {
-  if (_modelsCache && Date.now() - _modelsCacheAt < 3600000) return _modelsCache;
+  if (_modelsCache && Date.now() - _modelsCacheAt < 3600000)
+    return _modelsCache;
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
-    const r = await fetch('https://openrouter.ai/api/v1/models', { signal: ctrl.signal });
+    const r = await fetch('https://openrouter.ai/api/v1/models', {
+      signal: ctrl.signal,
+    });
     clearTimeout(t);
     if (r.ok) {
       const j = await r.json();
-      const list = (j.data || []).map((m) => 'openrouter/' + m.id).filter((s) => s !== 'openrouter/').sort();
-      if (list.length) { _modelsCache = list; _modelsCacheAt = Date.now(); }
+      const list = (j.data || [])
+        .map((m) => 'openrouter/' + m.id)
+        .filter((s) => s !== 'openrouter/')
+        .sort();
+      if (list.length) {
+        _modelsCache = list;
+        _modelsCacheAt = Date.now();
+      }
     }
   } catch {}
   return _modelsCache;
@@ -51,37 +65,64 @@ const send = (res, code, type, body) => {
   res.writeHead(code, { 'content-type': type });
   res.end(body);
 };
-const json = (res, code, obj) => send(res, code, 'application/json', JSON.stringify(obj));
+const json = (res, code, obj) =>
+  send(res, code, 'application/json', JSON.stringify(obj));
 const readOr = async (p) => {
-  try { return await readFile(p, 'utf8'); } catch { return ''; }
+  try {
+    return await readFile(p, 'utf8');
+  } catch {
+    return '';
+  }
 };
 
 // first-run preflight helpers
 const ENV_FILE = join(TLONBOT_DIR, 'tests', '.env');
 const dockerOk = () => {
-  try { return spawnSync('docker', ['info'], { timeout: 5000, stdio: 'ignore' }).status === 0; } catch { return false; }
+  try {
+    return (
+      spawnSync('docker', ['info'], { timeout: 5000, stdio: 'ignore' })
+        .status === 0
+    );
+  } catch {
+    return false;
+  }
 };
-const keyPresent = async () => /^OPENROUTER_API_KEY=.+/m.test(await readOr(ENV_FILE));
+const keyPresent = async () =>
+  /^OPENROUTER_API_KEY=.+/m.test(await readOr(ENV_FILE));
 const readBody = (req) =>
-  new Promise((resolve) => { let b = ''; req.on('data', (d) => (b += d)); req.on('end', () => resolve(b)); });
+  new Promise((resolve) => {
+    let b = '';
+    req.on('data', (d) => (b += d));
+    req.on('end', () => resolve(b));
+  });
 
 // Map an item name to its sandbox + source paths. `intro` is the welcome DM;
 // otherwise a prompt .md file (validated — no path traversal).
 function itemPaths(name) {
-  if (name === 'intro') return { sandbox: SANDBOX_INTRO, source: SRC_INTRO, kind: 'intro' };
+  if (name === 'intro')
+    return { sandbox: SANDBOX_INTRO, source: SRC_INTRO, kind: 'intro' };
   if (/^[A-Za-z0-9_.-]+\.md$/.test(name) && !name.includes('..'))
-    return { sandbox: join(SANDBOX_DIR, name), source: join(SRC_PROMPTS, name), kind: 'prompt' };
+    return {
+      sandbox: join(SANDBOX_DIR, name),
+      source: join(SRC_PROMPTS, name),
+      kind: 'prompt',
+    };
   return null;
 }
 
 // Path an item would have in the tlonbot repo (so exported patches apply there).
-const tlonRel = (name) => (name === 'intro' ? 'tests/dev/onboarding-intro.md' : 'prompts/' + name);
+const tlonRel = (name) =>
+  name === 'intro' ? 'tests/dev/onboarding-intro.md' : 'prompts/' + name;
 
 // Unified diff (source -> sandbox) for one item, labelled with tlonbot paths.
 function unifiedDiff(name) {
   const it = itemPaths(name);
   const rel = tlonRel(name);
-  const r = spawnSync('diff', ['-u', '-L', 'a/' + rel, '-L', 'b/' + rel, it.source, it.sandbox], { encoding: 'utf8' });
+  const r = spawnSync(
+    'diff',
+    ['-u', '-L', 'a/' + rel, '-L', 'b/' + rel, it.source, it.sandbox],
+    { encoding: 'utf8' }
+  );
   return r.stdout || ''; // diff exits 1 when files differ — expected, not an error
 }
 
@@ -91,13 +132,25 @@ async function listItems() {
   await runCapture(['init']);
   const items = [];
   let files = [];
-  try { files = (await readdir(SANDBOX_DIR)).filter((f) => f.endsWith('.md')).sort(); } catch {}
+  try {
+    files = (await readdir(SANDBOX_DIR))
+      .filter((f) => f.endsWith('.md'))
+      .sort();
+  } catch {}
   for (const f of files) {
-    const [sb, src] = [await readOr(join(SANDBOX_DIR, f)), await readOr(join(SRC_PROMPTS, f))];
+    const [sb, src] = [
+      await readOr(join(SANDBOX_DIR, f)),
+      await readOr(join(SRC_PROMPTS, f)),
+    ];
     items.push({ name: f, kind: 'prompt', modified: sb !== src });
   }
   const [iSb, iSrc] = [await readOr(SANDBOX_INTRO), await readOr(SRC_INTRO)];
-  items.push({ name: 'intro', kind: 'intro', label: 'Intro DM', modified: iSb !== iSrc });
+  items.push({
+    name: 'intro',
+    kind: 'intro',
+    label: 'Intro DM',
+    modified: iSb !== iSrc,
+  });
   return items;
 }
 
@@ -122,25 +175,41 @@ let proxyPort = null;
 // Parse the canonical owner Eyre target (host/port) from `status --json`.
 async function ownerTarget() {
   try {
-    const o = JSON.parse((await runCapture(['status', '--json'])).trim() || '{}');
+    const o = JSON.parse(
+      (await runCapture(['status', '--json'])).trim() || '{}'
+    );
     if (!o.up || !o.owner?.url) return null;
     const u = new URL(o.owner.url);
-    return { host: u.hostname === 'localhost' ? '127.0.0.1' : u.hostname, port: Number(u.port) };
-  } catch { return null; }
+    return {
+      host: u.hostname === 'localhost' ? '127.0.0.1' : u.hostname,
+      port: Number(u.port),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function closeProxy() {
-  if (proxyServer) { try { proxyServer.close(); } catch {} proxyServer = null; }
+  if (proxyServer) {
+    try {
+      proxyServer.close();
+    } catch {}
+    proxyServer = null;
+  }
   proxyPort = null;
 }
 
 // Start a fresh proxy on an OS-assigned port forwarding to the owner ship.
 async function rotateProxy() {
   const target = await ownerTarget();
-  if (!target) { closeProxy(); return; }
+  if (!target) {
+    closeProxy();
+    return;
+  }
   const next = net.createServer((client) => {
     const upstream = net.connect(target.port, target.host);
-    client.pipe(upstream); upstream.pipe(client);
+    client.pipe(upstream);
+    upstream.pipe(client);
     client.on('error', () => upstream.destroy());
     upstream.on('error', () => client.destroy());
   });
@@ -151,17 +220,28 @@ async function rotateProxy() {
   const old = proxyServer;
   proxyServer = next;
   proxyPort = next.address().port;
-  if (old) { try { old.close(); } catch {} } // stops new conns; existing tabs drain
+  if (old) {
+    try {
+      old.close();
+    } catch {}
+  } // stops new conns; existing tabs drain
 }
 
-async function ensureProxy() { if (!proxyServer) await rotateProxy(); }
+async function ensureProxy() {
+  if (!proxyServer) await rotateProxy();
+}
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const { pathname } = url;
   try {
     if (req.method === 'GET' && pathname === '/') {
-      return send(res, 200, 'text/html; charset=utf-8', await readFile(join(HERE, 'public', 'index.html')));
+      return send(
+        res,
+        200,
+        'text/html; charset=utf-8',
+        await readFile(join(HERE, 'public', 'index.html'))
+      );
     }
 
     if (req.method === 'GET' && pathname === '/api/status') {
@@ -170,15 +250,16 @@ const server = createServer(async (req, res) => {
       try {
         const o = JSON.parse(txt);
         if (o.up) {
-          await ensureProxy();            // first status after the stack is up
+          await ensureProxy(); // first status after the stack is up
           if (o.owner?.url && proxyPort) {
             const u = new URL(o.owner.url);
-            u.hostname = 'localhost'; u.port = String(proxyPort);
+            u.hostname = 'localhost';
+            u.port = String(proxyPort);
             o.owner.url = u.toString();
             txt = JSON.stringify(o);
           }
         } else {
-          closeProxy();                   // stack down → drop the proxy
+          closeProxy(); // stack down → drop the proxy
         }
       } catch {}
       return send(res, 200, 'application/json', txt);
@@ -195,18 +276,30 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'POST' && pathname === '/api/provider-key') {
       let key = '';
-      try { key = (JSON.parse(await readBody(req)).key || '').trim(); } catch {}
+      try {
+        key = (JSON.parse(await readBody(req)).key || '').trim();
+      } catch {}
       if (!key) return json(res, 400, { ok: false, error: 'no key provided' });
-      let valid = false, detail = '';
+      let valid = false,
+        detail = '';
       try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 8000);
-        const r = await fetch('https://openrouter.ai/api/v1/key', { headers: { authorization: 'Bearer ' + key }, signal: ctrl.signal });
+        const r = await fetch('https://openrouter.ai/api/v1/key', {
+          headers: { authorization: 'Bearer ' + key },
+          signal: ctrl.signal,
+        });
         clearTimeout(t);
         valid = r.ok;
         if (!valid) detail = 'provider returned HTTP ' + r.status;
-      } catch (e) { detail = String(e.message || e); }
-      if (!valid) return json(res, 400, { ok: false, error: 'key rejected (' + detail + ')' });
+      } catch (e) {
+        detail = String(e.message || e);
+      }
+      if (!valid)
+        return json(res, 400, {
+          ok: false,
+          error: 'key rejected (' + detail + ')',
+        });
       await runCapture(['set-key', key]);
       return json(res, 200, { ok: true });
     }
@@ -216,15 +309,21 @@ const server = createServer(async (req, res) => {
       let args;
       if (cmd === 'set-model') {
         const model = url.searchParams.get('model') || '';
-        if (!/^openrouter\/[A-Za-z0-9/_.:-]+$/.test(model)) return send(res, 400, 'text/plain', `invalid model: ${model}`);
+        if (!/^openrouter\/[A-Za-z0-9/_.:-]+$/.test(model))
+          return send(res, 400, 'text/plain', `invalid model: ${model}`);
         args = ['set-model', model];
       } else if (STREAM_CMDS.has(cmd)) {
         args = [cmd];
       } else {
         return send(res, 400, 'text/plain', `unknown cmd: ${cmd}`);
       }
-      res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
-      const emit = (event, data) => res.write(`event: ${event}\ndata: ${data}\n\n`);
+      res.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache',
+        connection: 'keep-alive',
+      });
+      const emit = (event, data) =>
+        res.write(`event: ${event}\ndata: ${data}\n\n`);
       emit('line', `$ onboarding ${args.join(' ')}`);
       const p = spawn(RUN, args, { cwd: REPO_ROOT });
       const pipe = (s) => {
@@ -232,19 +331,33 @@ const server = createServer(async (req, res) => {
         s.on('data', (d) => {
           buf += d;
           let i;
-          while ((i = buf.indexOf('\n')) >= 0) { emit('line', buf.slice(0, i)); buf = buf.slice(i + 1); }
+          while ((i = buf.indexOf('\n')) >= 0) {
+            emit('line', buf.slice(0, i));
+            buf = buf.slice(i + 1);
+          }
         });
         s.on('end', () => buf && emit('line', buf));
       };
-      pipe(p.stdout); pipe(p.stderr);
+      pipe(p.stdout);
+      pipe(p.stderr);
       p.on('close', async (code) => {
         // give the tester a fresh-origin (clean-cache) owner link after each
         // start/reset; tear the proxy down on stop
-        if (code === 0 && (cmd === 'start' || cmd === 'reset')) { try { await rotateProxy(); } catch {} }
-        else if (cmd === 'down') { closeProxy(); }
-        emit('done', String(code ?? -1)); res.end();
+        if (code === 0 && (cmd === 'start' || cmd === 'reset')) {
+          try {
+            await rotateProxy();
+          } catch {}
+        } else if (cmd === 'down') {
+          closeProxy();
+        }
+        emit('done', String(code ?? -1));
+        res.end();
       });
-      p.on('error', (e) => { emit('line', `spawn error: ${e}`); emit('done', '-1'); res.end(); });
+      p.on('error', (e) => {
+        emit('line', `spawn error: ${e}`);
+        emit('done', '-1');
+        res.end();
+      });
       req.on('close', () => p.kill());
       return;
     }
@@ -264,7 +377,8 @@ const server = createServer(async (req, res) => {
       }
       res.writeHead(200, {
         'content-type': 'text/x-patch; charset=utf-8',
-        'content-disposition': 'attachment; filename="onboarding-prompts.patch"',
+        'content-disposition':
+          'attachment; filename="onboarding-prompts.patch"',
       });
       return res.end(patch || '# no local changes\n');
     }
@@ -272,7 +386,9 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && pathname === '/api/reset-prompts') {
       for (const it of await listItems()) {
         const p = itemPaths(it.name);
-        try { await copyFile(p.source, p.sandbox); } catch {}
+        try {
+          await copyFile(p.source, p.sandbox);
+        } catch {}
       }
       return json(res, 200, { ok: true });
     }
@@ -283,19 +399,33 @@ const server = createServer(async (req, res) => {
       const it = itemPaths(rawName);
       if (!it) return json(res, 400, { error: 'bad item name' });
       const action = m[2];
-      if (action === 'reset' && req.method === 'POST') {       // reset to source
+      if (action === 'reset' && req.method === 'POST') {
+        // reset to source
         await copyFile(it.source, it.sandbox);
         return json(res, 200, { ok: true });
       }
-      if (action === 'diff' && req.method === 'GET') {         // unified diff
-        return send(res, 200, 'text/plain; charset=utf-8', unifiedDiff(rawName));
+      if (action === 'diff' && req.method === 'GET') {
+        // unified diff
+        return send(
+          res,
+          200,
+          'text/plain; charset=utf-8',
+          unifiedDiff(rawName)
+        );
       }
       if (!action && req.method === 'GET') {
         const content = await readOr(it.sandbox);
         const source = await readOr(it.source);
-        return json(res, 200, { name: rawName, kind: it.kind, content, source, modified: content !== source });
+        return json(res, 200, {
+          name: rawName,
+          kind: it.kind,
+          content,
+          source,
+          modified: content !== source,
+        });
       }
-      if (!action && req.method === 'PUT') {                    // save edit
+      if (!action && req.method === 'PUT') {
+        // save edit
         await writeFile(it.sandbox, await readBody(req));
         return json(res, 200, { ok: true });
       }
