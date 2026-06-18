@@ -42,6 +42,15 @@ const config = {
   ...(sharedCacheStores ? { cacheStores: sharedCacheStores } : {}),
   transformer: {
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
+    // Expo's default Metro config sets inlineRequires:false; enable it so module
+    // factories evaluate on first use instead of eagerly at boot, cutting the
+    // synchronous module-eval on the cold-start critical path.
+    getTransformOptions: async () => ({
+      transform: {
+        experimentalImportSupport: true,
+        inlineRequires: true,
+      },
+    }),
   },
   server: {
     enhanceMiddleware: (metroMiddleware) => {
