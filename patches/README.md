@@ -221,3 +221,49 @@ Removal:
 Remove this patch once `react-native-gesture-handler` ships a version of
 `ReanimatedSwipeable` that disables pointer events on the hidden action
 container, and we confirm the Android repro no longer needs the local fix.
+
+## react-native-phone-input@1.3.7
+
+Why:
+The package bundles `google-libphonenumber` (~688KB) solely for phone-number
+parsing, validation, and as-you-type formatting. We already ship
+`libphonenumber-js` (smaller, tree-shakeable, used directly across onboarding
+and the API layer), so the app carries two phone-number libraries. This patch
+points `react-native-phone-input` at `libphonenumber-js` instead, dropping
+`google-libphonenumber` from the bundle entirely (~570KB off the release JS
+bundle).
+
+What it does:
+In `dist/PhoneNumber.js`, replaces google-libphonenumber's `PhoneNumberUtil`
+(`parse` / `isValidNumber` / `getNumberType`) and `AsYouTypeFormatter` with the
+`libphonenumber-js` equivalents (`parsePhoneNumberFromString`, `.isValid()`,
+`.getType()`, `AsYouType`). The component supplies lowercase iso2 region codes
+(e.g. `us`), but libphonenumber-js requires an uppercase `CountryCode` (`US`),
+so the patch uppercases the region before each call.
+
+Note: libphonenumber-js formats the national number with spaces
+(`+1 202 555 0123`) where google-libphonenumber used dashes
+(`+1 202-555-0123`). Validation, country detection, and the submitted value are
+unchanged; only the separator style differs.
+
+Local patch:
+`patches/react-native-phone-input@1.3.7.patch`
+
+Upstream:
+- `react-native-phone-input` `1.4.1` (latest as of June 2026) still depends on
+  `google-libphonenumber@^3.2.32`, so there is no upstream version to upgrade
+  to; the durable fix is to upstream the `libphonenumber-js` switch.
+
+Validation:
+- Rebuild the app and open the phone-number screen (signup phone entry or
+  "Log in with phone number").
+- Type a number and confirm as-you-type formatting, the country flag, and
+  validation (the submit button enabling on a valid number) all work; check a
+  non-US country too.
+- Confirm `google-libphonenumber` no longer appears in the release bundle.
+
+Removal:
+Remove this patch once `react-native-phone-input` ships a version that no longer
+depends on `google-libphonenumber` (or we replace the component with a
+`libphonenumber-js`-based input), and we confirm the phone-number flow still
+works without the local patch.
