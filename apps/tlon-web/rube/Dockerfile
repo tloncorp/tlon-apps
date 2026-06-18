@@ -24,13 +24,6 @@ RUN apt-get update && apt-get install -y \
 # (base-dev + landscape picks) into desk/ before assembling ship desks.
 RUN pip3 install --no-cache-dir --break-system-packages peru
 
-# Install Node.js (match version from .nvmrc)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install -g n \
-    && n 20.11.0 \
-    && hash -r
-
 # Install pnpm
 RUN npm install -g pnpm@9.0.5
 
