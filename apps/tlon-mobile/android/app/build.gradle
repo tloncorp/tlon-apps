@@ -47,7 +47,10 @@ afterEvaluate {
 react {
     entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"].execute(null, rootDir).text.trim())
     reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
-    hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
+    // SDK 56 / Hermes V1 ships hermesc in the `hermes-compiler` package, not
+    // react-native/sdks/hermesc. Resolve it via node so it works under pnpm's
+    // hoisted (workspace-root) node_modules layout.
+    hermesCommand = new File(["node", "--print", "require.resolve('hermes-compiler/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/hermesc/%OS-BIN%/hermesc"
     codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
 
     // Use Expo CLI to bundle the app, this ensures the Metro config
@@ -238,6 +241,9 @@ dependencies {
 
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("androidx.security:security-crypto-ktx:1.1.0-alpha06")
+    // RN 0.85 no longer pulls lifecycle-process transitively; MainApplication
+    // uses ProcessLifecycleOwner, so depend on it explicitly.
+    implementation("androidx.lifecycle:lifecycle-process:2.9.3")
     implementation("com.android.volley:volley:1.2.1")
     implementation "com.google.firebase:firebase-messaging:24.0.1"
 
