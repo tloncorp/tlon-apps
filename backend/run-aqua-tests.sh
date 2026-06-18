@@ -99,7 +99,7 @@ then
 fi
 
 echo "Booting ship"
-($vere --loom 33 --http-port $http_port -d -t $pier) &
+($vere --loom 33 --http-port $http_port -t $pier) &
 vere_pid=$!
 
 function await_ship
@@ -202,8 +202,8 @@ desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 if [ $desk_hash_a == $desk_hash_b ]
 then
   echo "Desk upgrade failed ❌"
-  #kill -TERM $vere_pid
-  #exit 1
+  kill -TERM $vere_pid
+  exit 1
 fi
 
 echo "Starting %aqua..."
