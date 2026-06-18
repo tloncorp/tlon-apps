@@ -1,0 +1,64 @@
+diff --git a/dist/PhoneNumber.js b/dist/PhoneNumber.js
+index 489949d1434f0e0c78443238bff0fd23f89f4b21..c6a4488d583dc074adcf4452889cdc3cb52073ea 100644
+--- a/dist/PhoneNumber.js
++++ b/dist/PhoneNumber.js
+@@ -4,11 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
+ };
+ Object.defineProperty(exports, "__esModule", { value: true });
+ const lodash_1 = __importDefault(require("lodash"));
+-const google_libphonenumber_1 = __importDefault(require("google-libphonenumber"));
++const libphonenumber_js_1 = require("libphonenumber-js");
+ const country_1 = __importDefault(require("./country"));
+-const numberType_json_1 = __importDefault(require("./resources/numberType.json")); // eslint-disable-line @typescript-eslint/no-unused-vars
+-const phoneUtil = google_libphonenumber_1.default.PhoneNumberUtil.getInstance();
+-const asYouTypeFormatter = google_libphonenumber_1.default.AsYouTypeFormatter;
++// react-native-phone-input uses lowercase iso2 ("us"); libphonenumber-js
++// requires an uppercase CountryCode ("US") or it returns undefined.
++const toCountryCode = (iso2) => (iso2 ? iso2.toUpperCase() : undefined);
+ class PhoneNumber {
+     // eslint-disable-next-line class-methods-use-this
+     getAllCountries() {
+@@ -61,7 +61,7 @@ class PhoneNumber {
+     // eslint-disable-next-line class-methods-use-this
+     parse(number, iso2) {
+         try {
+-            return phoneUtil.parse(number, iso2);
++            return libphonenumber_js_1.parsePhoneNumberFromString(number, toCountryCode(iso2)) || null;
+         }
+         catch (err) {
+             console.log(`Exception was thrown: ${err.toString()}`);
+@@ -71,28 +71,22 @@ class PhoneNumber {
+     isValidNumber(number, iso2) {
+         const phoneInfo = this.parse(number, iso2);
+         if (phoneInfo) {
+-            return phoneUtil.isValidNumber(phoneInfo);
++            return phoneInfo.isValid();
+         }
+         return false;
+     }
+     // eslint-disable-next-line class-methods-use-this
+     format(number, iso2) {
+-        const formatter = new asYouTypeFormatter(iso2); // eslint-disable-line new-cap
+-        let formatted;
+-        number.replace(/-/g, '')
++        const formatter = new libphonenumber_js_1.AsYouType(toCountryCode(iso2));
++        const stripped = number.replace(/-/g, '')
+             .replace(/ /g, '')
+             .replace(/\(/g, '')
+-            .replace(/\)/g, '')
+-            .split('')
+-            .forEach((n) => {
+-            formatted = formatter.inputDigit(n);
+-        });
+-        return formatted;
++            .replace(/\)/g, '');
++        return formatter.input(stripped);
+     }
+     getNumberType(number, iso2) {
+         const phoneInfo = this.parse(number, iso2);
+-        const typeIndex = phoneInfo ? phoneUtil.getNumberType(phoneInfo) : -1;
+-        return lodash_1.default.findKey(numberType_json_1.default, (noType) => noType === typeIndex);
++        return phoneInfo ? phoneInfo.getType() : undefined;
+     }
+     // eslint-disable-next-line class-methods-use-this
+     getCountryDataByCode(iso2) {
