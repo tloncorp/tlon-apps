@@ -4,6 +4,7 @@
 // plus prompt-file CRUD on the gitignored sandbox copies. Embeds NO Urbit/stack
 // logic. Built-in modules only (no deps / no install). Binds to localhost.
 import { createServer } from 'node:http';
+import net from 'node:net';
 import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile, readdir, copyFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -109,6 +110,52 @@ const runCapture = (args) =>
     p.on('error', () => resolve(''));
   });
 
+// --- owner cache-busting proxy ---------------------------------------------
+// The web client caches the conversation in IndexedDB keyed by ORIGIN (incl.
+// port), and a backend nuke doesn't purge it. So after each start/reset we
+// expose ~ten's Eyre on a FRESH localhost port: a new origin = empty client
+// cache = clean sync from the (already-cleared) backend. This is a transparent
+// TCP forward to the port the stack already publishes — no Urbit logic here.
+let proxyServer = null;
+let proxyPort = null;
+
+// Parse the canonical owner Eyre target (host/port) from `status --json`.
+async function ownerTarget() {
+  try {
+    const o = JSON.parse((await runCapture(['status', '--json'])).trim() || '{}');
+    if (!o.up || !o.owner?.url) return null;
+    const u = new URL(o.owner.url);
+    return { host: u.hostname === 'localhost' ? '127.0.0.1' : u.hostname, port: Number(u.port) };
+  } catch { return null; }
+}
+
+function closeProxy() {
+  if (proxyServer) { try { proxyServer.close(); } catch {} proxyServer = null; }
+  proxyPort = null;
+}
+
+// Start a fresh proxy on an OS-assigned port forwarding to the owner ship.
+async function rotateProxy() {
+  const target = await ownerTarget();
+  if (!target) { closeProxy(); return; }
+  const next = net.createServer((client) => {
+    const upstream = net.connect(target.port, target.host);
+    client.pipe(upstream); upstream.pipe(client);
+    client.on('error', () => upstream.destroy());
+    upstream.on('error', () => client.destroy());
+  });
+  await new Promise((resolve, reject) => {
+    next.once('error', reject);
+    next.listen(0, '127.0.0.1', resolve);
+  });
+  const old = proxyServer;
+  proxyServer = next;
+  proxyPort = next.address().port;
+  if (old) { try { old.close(); } catch {} } // stops new conns; existing tabs drain
+}
+
+async function ensureProxy() { if (!proxyServer) await rotateProxy(); }
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const { pathname } = url;
@@ -119,7 +166,22 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'GET' && pathname === '/api/status') {
       const out = await runCapture(['status', '--json']);
-      return send(res, 200, 'application/json', out.trim() || '{"up":false}');
+      let txt = out.trim() || '{"up":false}';
+      try {
+        const o = JSON.parse(txt);
+        if (o.up) {
+          await ensureProxy();            // first status after the stack is up
+          if (o.owner?.url && proxyPort) {
+            const u = new URL(o.owner.url);
+            u.hostname = 'localhost'; u.port = String(proxyPort);
+            o.owner.url = u.toString();
+            txt = JSON.stringify(o);
+          }
+        } else {
+          closeProxy();                   // stack down → drop the proxy
+        }
+      } catch {}
+      return send(res, 200, 'application/json', txt);
     }
 
     if (req.method === 'GET' && pathname === '/api/models') {
@@ -175,7 +237,13 @@ const server = createServer(async (req, res) => {
         s.on('end', () => buf && emit('line', buf));
       };
       pipe(p.stdout); pipe(p.stderr);
-      p.on('close', (code) => { emit('done', String(code ?? -1)); res.end(); });
+      p.on('close', async (code) => {
+        // give the tester a fresh-origin (clean-cache) owner link after each
+        // start/reset; tear the proxy down on stop
+        if (code === 0 && (cmd === 'start' || cmd === 'reset')) { try { await rotateProxy(); } catch {} }
+        else if (cmd === 'down') { closeProxy(); }
+        emit('done', String(code ?? -1)); res.end();
+      });
       p.on('error', (e) => { emit('line', `spawn error: ${e}`); emit('done', '-1'); res.end(); });
       req.on('close', () => p.kill());
       return;

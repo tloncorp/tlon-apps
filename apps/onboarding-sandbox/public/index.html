@@ -74,9 +74,17 @@
         const s = await (await fetch('/api/status')).json();
         $('status').innerHTML = s.up
           ? `<span class="dot up"></span>Running · gateway ${s.gateway}${s.model?` · <code>${s.model}</code>`:''}` +
-            ` · <a href="${s.owner.url}" target="_blank">Open chat as ${s.owner.ship}</a> <small>(${s.owner.code})</small>`
+            ` · <a href="${s.owner.url}" target="_blank" title="Opens on a fresh port after each reset — click again post-reset to get a clean conversation">Open chat as ${s.owner.ship}</a> <small>(${s.owner.code})</small>`
           : `<span class="dot down"></span>Down — click Start`;
         if (s.model && document.activeElement !== $('model')) $('model').value = s.model;
+        // reset + model-switch need a running stack; disable them when down
+        const live = !!s.up;
+        $('b-savereset').disabled = !live;
+        $('b-setmodel').disabled = !live;
+        $('b-savereset').title = live
+          ? "Save your edits, then replay the bot's first-run (clear → render → intro)"
+          : 'Start the sandbox first, then you can reset onboarding';
+        $('b-setmodel').title = live ? 'switch the bot model (reloads the gateway)' : 'Start the sandbox first to switch models';
       } catch (e) { $('status').textContent = 'status error'; }
     }
 
@@ -131,7 +139,7 @@
     }
 
     $('editor').addEventListener('input', () => { dirty = true; $('b-save').disabled = false; });
-    $('model').addEventListener('keydown', (e) => { if (e.key === 'Enter') setModel($('model').value); });
+    $('model').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !$('b-setmodel').disabled) setModel($('model').value); });
 
     async function saveItem() {
       if (!current) return;
