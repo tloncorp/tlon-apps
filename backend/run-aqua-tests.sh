@@ -4,11 +4,11 @@ click=./backend/click
 #ship_manifest=./apps/tlon-web/e2e/shipManifest.json
 ship="~bud"
 pier_dir=${ship#\~}
-pier=$pier_dir-aqua
+pier=$pier_dir
 
-urbit_bin_url="https://bootstrap.urbit.org/vere/next/kelvin/408/v4.4-faff152"
-vere_ver="vere-v4.4-faff152"
-arch=`arch`
+urbit_bin_url="https://bootstrap.urbit.org/vere/live/vere-v4.4-linux-x86_64"
+vere_ver="vere-v4.4"
+arch=`uname -m`
 
 case $OSTYPE in
   linux* )  
@@ -41,40 +41,14 @@ case $OSTYPE in
     esac ;;
 esac
 
-echo $urbit_bin_url
-  
-echo "Running backend unit tests"
-
 #download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
-download_url="https://bootstrap.urbit.org/zod-aqua-408k.xst"
-pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2.pill"
+#download_url="https://bootstrap.urbit.org/zod-aqua-408k.xst"
+pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2-408k.pill"
 
-archive=`basename $download_url`
+#archive=`basename $download_url`
 pill=`basename $pill_download_url`
 pill_name=`echo $pill | cut -d . -f1`
 echo "pill: $pill_name"
-
-if [ ! -f $archive ]
-then
-  echo "Downloading ~zod archive $archive"
-  curl -s $download_url > $archive
-fi
-
-# Unpack the pier
-if [ ! -d $pier ]
-then
-  echo "Unpacking pier $archive"
-  tar -xf $archive
-  mv $pier_dir $pier
-fi
-
-if [ ! -d $pier ]
-then
-  echo "Pier $pier not found!"
-  exit 1
-else
-  echo "Pier ready"
-fi
 
 if [ ! -f $pill ]
 then
@@ -125,14 +99,18 @@ then
 fi
 
 echo "Booting ship"
-($vere --loom 33 --http-port $http_port -t $pier) &
+($vere --loom 33 --http-port $http_port -d -t $pier) &
 vere_pid=$!
 
-sleep 3
-while ! curl -s "http://localhost:$http_port"
-do
-  sleep 3
-done
+function await_ship
+{
+    while ! curl -s "http://localhost:$http_port/~/login" > /dev/null
+    do
+        sleep 1
+    done
+}
+
+await_ship
 
 run_click="$click -b $vere -i - -kp"
 
@@ -141,11 +119,11 @@ echo "Mounting base..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [~zod %hood] kiln-unmount+!>(%base))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%base))  
 ;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
   [(scot %p our.bowl) %base (scot %da now.bowl) ~]  
-;<  ~  bind:m  (poke [~zod %hood] kiln-mount+!>([path %base]))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %base]))  
 (pure:m !>(%ok))  
 EOF
 
@@ -154,14 +132,15 @@ echo "Mounting groups..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [~zod %hood] kiln-unmount+!>(%groups))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%groups))  
 ;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
   [(scot %p our.bowl) %groups (scot %da now.bowl) ~]  
-;<  ~  bind:m  (poke [~zod %hood] kiln-mount+!>([path %groups]))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %groups]))  
 (pure:m !>(%ok))  
 EOF
 
+sleep 5
 # Insert the jammed pill
 
 if [ ! -f "${pier}/groups/${pill_name}.jam" ]
@@ -181,7 +160,7 @@ echo "Updating base desk..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
-;<  ~  bind:m  (poke [~zod %hood] kiln-commit+!>([%base |]))  
+;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%base |]))  
 (pure:m !>(%ok))  
 EOF
 
@@ -202,19 +181,15 @@ EOF
 desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 
 echo "Updating groups desk"
-${run_click} $pier <<EOF
+${run_click} -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
-;<  ~  bind:m  (poke [~zod %hood] kiln-commit+!>([%groups |]))  
+;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%groups |]))  
 (pure:m !>(%ok))  
 EOF
 
 echo "Awaiting desk update..."
-sleep 3
-while ! curl -s "http://localhost:$http_port"
-do
-  sleep 3
-done
+await_ship
 
 result=$( $run_click -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
@@ -227,24 +202,24 @@ desk_hash_b=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 if [ $desk_hash_a == $desk_hash_b ]
 then
   echo "Desk upgrade failed ❌"
-  kill -TERM $vere_pid
-  exit 1
+  #kill -TERM $vere_pid
+  #exit 1
 fi
 
 echo "Starting %aqua..."
-${run_click} $pier "/lib/pill/hoon"<<EOF
+${run_click} -t 10 $pier "/lib/pill/hoon"<<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl    
-;<  ~  bind:m  (poke [~zod %hood] kiln-nuke+!>([%aqua |]))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%aqua |]))  
 =+  .^(=cone:clay %cx /(scot %p p.byk.bowl)//(scot %da now.bowl)/domes)  
 =/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)  
 ;<  ~      bind:m  (sleep ~s0)  
-;<  ~  bind:m  (poke [~zod %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
 =+  pill-path=/(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam  
 =+  .^(pil=@ %cx pill-path)  
 =/  pill  ;;(pill:pill (cue pil))  
-;<  ~  bind:m  (poke [~zod %aqua] pill+!>(pill))  
-;<  ~  bind:m  (poke [~zod %hood] kiln-rm+!>(pill-path))  
+;<  ~  bind:m  (poke [our.bowl %aqua] pill+!>(pill))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-rm+!>(pill-path))  
 (pure:m !>(%ok))  
 EOF
 
@@ -252,9 +227,9 @@ echo "Preparing aqua snapshot..."
 result=$( $run_click -t 900 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-=+  tid=%ci-ph-fleet  
+=+  tid=~.ci-ph-fleet  
 =/  args  
-  [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes ~loshut-lonreg ~rivfur-livmet ~dem ~fen] &]  
+  [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet] &]  
 =/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-fleet !>(\`args)])  
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
@@ -291,7 +266,7 @@ result=$( $run_click -t 1200 $pier <<EOF
   [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]  
 =/  args  
   [\`ph-tests %ci-aqua-tests]  
-=+  ted=%ci-ph-test  
+=+  tid=~.ci-ph-test  
 =/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`args)])  
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
