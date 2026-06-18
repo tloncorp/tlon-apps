@@ -2,7 +2,6 @@ import { parse, render } from '@urbit/aura';
 import { Atom, Cell, Noun, dejs, jam } from '@urbit/nockjs';
 
 import { EventEmitter } from '../lib/EventEmitter';
-import { readArrayBufferFromBlob } from '../lib/blob';
 import { createDevLogger } from '../lib/logger';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
 import { desig } from '../lib/urbit';
@@ -995,8 +994,7 @@ export class Urbit {
         return Promise.reject(response);
       }
 
-      const responseBlob = await response.blob();
-      const buffer = await readArrayBufferFromBlob(responseBlob);
+      const buffer = await response.arrayBuffer();
 
       try {
         const unpacked = await unpackJamBytes(buffer);
