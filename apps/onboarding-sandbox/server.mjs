@@ -26,6 +26,13 @@ const PORT = Number(process.env.ONBOARDING_WEB_PORT || 4400);
 // port. Paired with a Host check below to also defend DNS rebinding.
 const TOKEN = randomBytes(24).toString('hex');
 
+// Settable model ids. Used both to FILTER the offered list and to VALIDATE
+// set-model, so the picker never offers a model the control plane will reject
+// (e.g. `~`-prefixed aliases — excluded here, and a tilde is unsafe in the
+// control plane's shell anyway). Keeps `:` for OpenRouter `:free`/`:nitro`
+// variants; the tlonbot cmd_set_model pattern matches this set.
+const MODEL_RE = /^openrouter\/[A-Za-z0-9/_.:-]+$/;
+
 const STREAM_CMDS = new Set(['start', 'reset', 'down', 'status', 'logs']);
 // Offline fallback list — used only if the OpenRouter models API can't be
 // reached. The live list comes from openRouterModels(). Override via env.
@@ -55,7 +62,7 @@ async function openRouterModels() {
       const j = await r.json();
       const list = (j.data || [])
         .map((m) => 'openrouter/' + m.id)
-        .filter((s) => s !== 'openrouter/')
+        .filter((s) => MODEL_RE.test(s))
         .sort();
       if (list.length) {
         _modelsCache = list;
@@ -353,7 +360,7 @@ const server = createServer(async (req, res) => {
       let args;
       if (cmd === 'set-model') {
         const model = url.searchParams.get('model') || '';
-        if (!/^openrouter\/[A-Za-z0-9/_.:-]+$/.test(model))
+        if (!MODEL_RE.test(model))
           return send(res, 400, 'text/plain', `invalid model: ${model}`);
         args = ['set-model', model];
       } else if (STREAM_CMDS.has(cmd)) {
