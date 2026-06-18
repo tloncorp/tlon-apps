@@ -1887,10 +1887,10 @@
     |=  =u-group:g
     ~>  %spin.['se-update']
     ^+  se-core
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-update {<flag>} u-group={<u-group>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-update {<flag>} u-group={<u-group>}"
+    ::  ==
     =/  time
       |-
       =/  update  (get:log-on:g group-log now.bowl)
@@ -2103,10 +2103,10 @@
       (se-admit src.bowl tok)
     =/  has-token=?  ?=(^ tok)
     =/  joined=?  (se-is-joined src.bowl)
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-join {<flag>} src={<src.bowl>} privacy={<privacy.ad>} has-token={<has-token>} access={<access>} joined={<joined>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-join {<flag>} src={<src.bowl>} privacy={<privacy.ad>} has-token={<has-token>} access={<access>} joined={<joined>}"
+    ::  ==
     ~|  %se-c-join-access-denied
     ?>  access
     ?:  joined  se-core
@@ -2127,10 +2127,10 @@
     ?<  ?=(%secret privacy.ad)
     ?>  (lte (met 3 (jam story)) size-limit)
     =/  joined=?  (se-is-joined src.bowl)
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-ask {<flag>} src={<src.bowl>} privacy={<privacy.ad>} joined={<joined>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-ask {<flag>} src={<src.bowl>} privacy={<privacy.ad>} joined={<joined>}"
+    ::  ==
     ?:  joined  se-core
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
@@ -2234,10 +2234,10 @@
     ::
     =*  se-src-is-admin   (se-is-admin src.bowl)
     =*  se-src-is-member  (se-is-member src.bowl)
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-group {<flag>} src={<src.bowl>} command={<-.c-group>} admin={<se-src-is-admin>} member={<se-src-is-member>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-group {<flag>} src={<src.bowl>} command={<-.c-group>} admin={<se-src-is-admin>} member={<se-src-is-member>}"
+    ::  ==
     ::
     ?-    -.c-group
         %meta
@@ -2285,10 +2285,10 @@
     |=  =c-entry:g
     ~>  %spin.['se-c-entry']
     ^+  se-core
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-entry {<flag>} src={<src.bowl>} command={<-.c-entry>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry {<flag>} src={<src.bowl>} command={<-.c-entry>}"
+    ::  ==
     ?-  -.c-entry
       %privacy  (se-c-entry-privacy privacy.c-entry)
       %ban      (se-c-entry-ban c-ban.c-entry)
@@ -2302,10 +2302,10 @@
     |=  =privacy:g
     ~>  %spin.['se-c-entry-privacy']
     ^+  se-core
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-entry-privacy {<flag>} src={<src.bowl>} old={<privacy.ad>} new={<privacy>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-privacy {<flag>} src={<src.bowl>} old={<privacy.ad>} new={<privacy>}"
+    ::  ==
     =.  privacy.ad  privacy
     (se-update [%entry %privacy privacy])
   ::  +se-c-entry-ban: execute an entry ban command
@@ -2327,10 +2327,10 @@
     |=  =c-ban:g
     ~>  %spin.['se-c-entry-ban']
     ^+  se-core
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-entry-ban {<flag>} src={<src.bowl>} c-ban={<c-ban>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-ban {<flag>} src={<src.bowl>} c-ban={<c-ban>}"
+    ::  ==
     ::  disallow operations affecting the host
     ?<  ?|  ?&  ?=(?(%add-ships %del-ships) -.c-ban)
                 (~(has in ships.c-ban) our.bowl)
@@ -2442,10 +2442,10 @@
     |=  =c-token:g
     ~>  %spin.['se-c-entry-token']
     ^-  [(unit token:g) _se-core]
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-entry-token {<flag>} src={<src.bowl>} c-token={<c-token>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-token {<flag>} src={<src.bowl>} c-token={<c-token>}"
+    ::  ==
     ?-    -.c-token
         %add
       =*  c-token-add  c-token-add.c-token
@@ -2531,10 +2531,10 @@
     |=  [ships=(set ship) =c-pending:g]
     ~>  %spin.['se-c-entry-pending']
     ^+  se-core
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-entry-pending {<flag>} src={<src.bowl>} ships={<ships>} c-pending={<c-pending>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-pending {<flag>} src={<src.bowl>} ships={<ships>} c-pending={<c-pending>}"
+    ::  ==
     ?<  ?&  ?=(%add -.c-pending)
             (~(any in ships) se-is-banned)
         ==
@@ -2590,10 +2590,10 @@
     ~>  %spin.['se-c-entry-ask']
     ^+  se-core
     =/  request-ships=(set ship)  ~(key by requests.ad)
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-entry-ask {<flag>} src={<src.bowl>} ships={<ships>} c-ask={<c-ask>} requests={<request-ships>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-ask {<flag>} src={<src.bowl>} ships={<ships>} c-ask={<c-ask>} requests={<request-ships>}"
+    ::  ==
     ?-    c-ask
         %approve
       =/  reqs=(set ship)
@@ -2648,10 +2648,10 @@
     ~>  %spin.['se-c-seat']
     ^+  se-core
     =/  user-join  =(ships (sy src.bowl ~))
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-c-seat {<flag>} src={<src.bowl>} ships={<ships>} c-seat={<c-seat>} user-join={<user-join>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-seat {<flag>} src={<src.bowl>} ships={<ships>} c-seat={<c-seat>} user-join={<user-join>}"
+    ::  ==
     ::
     ?-    -.c-seat
         %add
@@ -3151,10 +3151,10 @@
     |=  =path
     ~>  %spin.['se-watch']
     ^+  se-core
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-watch {<flag>} src={<src.bowl>} path={<path>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-watch {<flag>} src={<src.bowl>} path={<path>}"
+    ::  ==
     ?+    path  ~|(se-watch-bad+path !!)
         ::  receive updates since .time
         ::
@@ -3284,10 +3284,10 @@
     |=  =ship
     ~>  %spin.['se-watch-ask']
     ^+  se-core
-    =.  cor
-      %+  tell:log  %dbug
-      :~  leaf+"+se-watch-ask {<flag>} src={<src.bowl>} ship={<ship>} privacy={<privacy.ad>}"
-      ==
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-watch-ask {<flag>} src={<src.bowl>} ship={<ship>} privacy={<privacy.ad>}"
+    ::  ==
     ?.  =(%public privacy.ad)  ::TMI
       :: for a private group we wait until the request is approved
       se-core
@@ -3517,7 +3517,7 @@
     ^+  go-core
     =*  log  ~(. l `'group-join')
     ?:  go-has-sub  go-core
-    =.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
+    ::=.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
     (go-start-updates delay)
   ::  +go-leave-subs: leave group subscriptions
   ::
@@ -4614,7 +4614,7 @@
     =/  r-groups-9=r-groups:v9:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
     =*  log  ~(. l `'group-join')
-    =.  cor  (tell:log %dbug leaf+"+go-response /v1/groups fact {<r-groups-9>}" ~)
+    ::=.  cor  (tell:log %dbug leaf+"+go-response /v1/groups fact {<r-groups-9>}" ~)
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
     ::  v0 backcompat
     ::
@@ -4794,7 +4794,7 @@
     =/  foreign-8  (v8:foreign:v10:gc foreign)
     =/  foreigns-8=foreigns:v8:gv  (my flag^foreign-8 ~)
     =*  log  ~(. l `'group-join')
-    =.  cor  (tell:log %dbug leaf+"+fi-give-update /v1/foreigns fact {<foreigns-8>}" ~)
+    ::=.  cor  (tell:log %dbug leaf+"+fi-give-update /v1/foreigns fact {<foreigns-8>}" ~)
     =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(foreigns-8))
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
     fi-core
@@ -4910,7 +4910,7 @@
       =.  progress  `%error
       fi-core
     =.  progress  `%join
-    =.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
+    ::=.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
     =.  cor
       %-  submit-activity
@@ -4951,7 +4951,7 @@
       =.  cor  (fail:log 'group join failed' u.p)
       =.  progress  `%error
       fi-core
-    =.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
+    ::=.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
     =.  progress  `%done
     fi-core
   ::  +fi-error: end a foreign sequence with an error
