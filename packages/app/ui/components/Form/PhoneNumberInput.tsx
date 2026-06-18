@@ -1,28 +1,46 @@
 import { isValidPhoneNumber } from 'libphonenumber-js';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, UseFormReturn } from 'react-hook-form';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { CountryPicker } from 'react-native-country-codes-picker';
-import PhoneInput from 'react-native-phone-input';
+import {
+  TransformerTextInput,
+  type TransformerTextInputInstance,
+} from 'react-native-transformer-text-input';
+import { PhoneNumberTransformer } from 'react-native-transformer-text-input/formatters/phone-number';
 import { useTheme } from 'tamagui';
 
 import { Field } from './Field';
+import {
+  detectCountryFromInput,
+  getCallingCode,
+  getFlag,
+  toE164,
+} from './phoneNumberValue';
 
-export function PhoneNumberInput({
-  form,
-  shouldFocus = true,
-}: {
+type Props = {
   form: UseFormReturn<{ phoneNumber: string }>;
   shouldFocus?: boolean;
-}) {
+};
+
+export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const phoneInputRef = useRef<PhoneInput>(null);
+  const [country, setCountry] = useState('US');
+  const inputRef = useRef<TransformerTextInputInstance>(null);
   const theme = useTheme();
 
+  // One international transformer: the calling code is part of the editable
+  // text and the country is detected from it as the user types.
+  const transformer = useMemo(
+    () => new PhoneNumberTransformer({ international: true }),
+    []
+  );
+
   useEffect(() => {
-    // wait for transition to complete, then focus
     if (shouldFocus) {
-      phoneInputRef.current?.focus();
+      inputRef.current?.focus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -40,25 +58,44 @@ export function PhoneNumberInput({
             label="Phone Number"
             error={form.formState.errors.phoneNumber?.message}
           >
-            <PhoneInput
-              ref={phoneInputRef}
-              onPressFlag={() => setShowCountryPicker(true)}
-              onChangePhoneNumber={onChange}
+            <View
               style={{
-                padding: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
                 borderWidth: 1,
                 borderColor: theme.border.val,
                 borderRadius: 8,
                 backgroundColor: theme.background.val,
+                paddingHorizontal: 12,
               }}
-              // @ts-expect-error removes browser outline on web
-              textStyle={{
-                color: theme.primaryText.val,
-                outlineStyle: 'none',
-              }}
-              initialCountry="us"
-              autoFormat={true}
-            />
+            >
+              <TouchableOpacity
+                onPress={() => setShowCountryPicker(true)}
+                style={{ paddingVertical: 16, paddingRight: 8 }}
+              >
+                <Text style={{ fontSize: 20 }}>{getFlag(country)}</Text>
+              </TouchableOpacity>
+              <TransformerTextInput
+                ref={inputRef}
+                transformer={transformer}
+                defaultValue={`+${getCallingCode('US')} `}
+                keyboardType="phone-pad"
+                onChangeText={(text) => {
+                  const detected = detectCountryFromInput(text);
+                  if (detected) {
+                    setCountry(detected);
+                  }
+                  onChange(toE164(text));
+                }}
+                style={{
+                  flex: 1,
+                  paddingVertical: 16,
+                  color: theme.primaryText.val,
+                  // @ts-expect-error removes browser outline on web
+                  outlineStyle: 'none',
+                }}
+              />
+            </View>
           </Field>
         )}
       />
@@ -66,7 +103,13 @@ export function PhoneNumberInput({
         lang="en"
         show={showCountryPicker}
         pickerButtonOnPress={(item) => {
-          phoneInputRef.current?.selectCountry(item.code.toLowerCase());
+          const next = item.code.toUpperCase();
+          setCountry(next);
+          const prefilled = `+${getCallingCode(next)} `;
+          inputRef.current?.update({ value: prefilled, transform: true });
+          form.setValue('phoneNumber', toE164(prefilled), {
+            shouldValidate: false,
+          });
           setShowCountryPicker(false);
         }}
         style={{
