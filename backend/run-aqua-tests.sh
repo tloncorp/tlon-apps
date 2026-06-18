@@ -181,7 +181,7 @@ EOF
 desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 
 echo "Updating groups desk"
-${run_click} -t 5 $pier <<EOF
+${run_click} -t 10 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%groups |]))  
