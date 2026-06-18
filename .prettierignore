@@ -3,9 +3,13 @@ node_modules
 .DS_Store
 ops
 bin
+/desk-deps/
+/.peru/
+/peru.lock
 *.tgz
 *.xst
 zod*
+bud
 vere-*
 *.pill
 /rube/zod/
@@ -22,6 +26,7 @@ dump.sqlite3
 .claude
 .gitattributes
 clurd
+.obsidian
 # From apps/tlon-desktop/.gitignore
 /apps/tlon-desktop/build/
 /apps/tlon-desktop/dist/

@@ -43,6 +43,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 -   `pnpm install` - Install all dependencies
 -   `pnpm run deps` - Install dependencies including iOS pods
 
+### Desk Dependencies (peru)
+
+The Hoon `desk/` holds only our own source. Its upstream dependencies (base-dev
++ landscape libs/marks/sur) are vendored by [peru](https://github.com/buildinspace/peru)
+into a separate, **gitignored** `desk-deps/` tree, per `peru.yaml`. This replaced
+rsyncing all of `pkg/base-dev` (~119 files), which pulled in unused files that
+broke compilation on new kelvins.
+
+-   A fresh checkout's `desk/{lib,sur,mar}` is intentionally **missing** the
+    standard files (`dbug`, `default-agent`, `server`, `docket`, `json`, `hoon`,
+    …) — they live in `desk-deps/` after a sync. Don't "fix" this by committing
+    them.
+-   `./scripts/sync-deps.sh` (= `peru sync`) — populate `desk-deps/`. Run after
+    cloning and after editing `peru.yaml`. Requires peru (`pipx install peru`).
+-   `./scripts/assemble-desk.sh <target>` — build a full desk into `<target>`:
+    rsync `desk-deps/` in with `--delete`, then `desk/` on top, then stamp
+    `commit.txt`. This is how a `%groups` desk is assembled for a ship (used by
+    `deploy.sh`, rube, and local dev — see DEVELOPMENT.md).
+-   Upstream revs (urbit tag, landscape commit) are **pinned in `peru.yaml`**.
+    To build against a different kernel, change the rev there on your branch.
+-   `desk/lib/verb.hoon` is a locally-patched variant and stays committed — do
+    NOT add patched or repo-owned files to the peru pick lists.
+
 ### Database Migrations
 
 -   `pnpm generate:migration` - Generate Drizzle migration files after schema changes

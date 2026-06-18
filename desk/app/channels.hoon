@@ -1105,21 +1105,19 @@
   ~>  %spin.['run-import']
   ^+  cor
   =.  pimp  ~
-  ?-  -.egg-any
-      ?(%15 %16)
-    ?.  ?=(%live +<.egg-any)
-      ~&  [dap.bowl %egg-any-not-live]
-      cor
-    =/  bak
-      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
-    ::  restore as much data as we can. we don't restart subscriptions here,
-    ::  we wait for the groups agent to tell us which ones to re-join.
-    ::
-    =.  v-channels    (~(uni by v-channels:bak) v-channels)
-    =.  voc           (~(uni by voc:bak) voc)
-    =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
-    (emil (prod-next:imp [our dap]:bowl))
-  ==
+  =/  =egg:gall  (latest:egg-aid:gall egg-any)
+  ?.  ?=(%live -.egg)
+    ~&  [dap.bowl %egg-not-live]
+    cor
+  =/  bak
+    (load -:!>(*versioned-state:load) +>.old-state.egg)
+  ::  restore as much data as we can. we don't restart subscriptions here,
+  ::  we wait for the groups agent to tell us which ones to re-join.
+  ::
+  =.  v-channels    (~(uni by v-channels:bak) v-channels)
+  =.  voc           (~(uni by voc:bak) voc)
+  =.  hidden-posts  (~(uni in hidden-posts:bak) hidden-posts)
+  (emil (prod-next:imp [our dap]:bowl))
 ++  watch
   |=  =(pole knot)
   ~>  %spin.['watch']
@@ -2140,7 +2138,7 @@
     ?.  =(our.bowl ship.nest)
       =/  count  ?:(=(%diary kind.nest) '20' '100')
       /[kind.nest]/[name.nest]/checkpoint/before/[count]
-    /[kind.nest]/[name.nest]/checkpoint/time-range/(scot %da *@da)
+    /[kind.nest]/[name.nest]/checkpoint/time-range/(scot:h136 %da *@da)
   ::
   ++  ca-start-updates
     |=  delay=?
@@ -2150,7 +2148,7 @@
       (bind (ram:on-v-posts:c posts.channel) head)
     %.  delay
     %^  safe-watch  ca-sub-wire  [ship.nest server]
-    /[kind.nest]/[name.nest]/updates/(scot %da (fall tim *@da))
+    /[kind.nest]/[name.nest]/updates/(scot:h136 %da (fall tim *@da))
   ::
   ++  ca-agent
     |=  [=wire =sign:agent:gall]
@@ -2325,7 +2323,7 @@
     %+  welp
       /[kind.nest]/[name.nest]/checkpoint/time-range
     ~|  `*`key.u.checkpoint-start
-    /(scot %da *@da)/(scot %da key.u.checkpoint-start)
+    /(scot:h136 %da *@da)/(scot:h136 %da key.u.checkpoint-start)
   ::
   ++  ca-ingest-backlog
     |=  chk=u-checkpoint:c
@@ -2432,7 +2430,9 @@
             %|  seq.post.u-post
           ==
         =?  pending.channel  ?=(%& -.post.u-post)
-          =/  client-id  [author sent]:post.u-post
+          =/  =client-id:c
+            :_  sent.post.u-post
+            (get-author-ship:utils author.post.u-post)
           pending.channel(posts (~(del by posts.pending.channel) client-id))
         (ca-response %post id-post %set post)
       ::
@@ -2508,7 +2508,9 @@
           (on-reply:ca-activity post +.reply.u-reply)
         =?  pending.channel  ?=(%& -.reply.u-reply)
           =/  reply-essay  +>+.reply.u-reply
-          =/  client-id  [author sent]:reply-essay
+          =/  =client-id:c
+            :_  sent.reply-essay
+            (get-author-ship:utils author.reply-essay)
           =/  new-replies  (~(del by replies.pending.channel) [id-post client-id])
           pending.channel(replies new-replies)
         (put-reply reply.u-reply %set reply)
