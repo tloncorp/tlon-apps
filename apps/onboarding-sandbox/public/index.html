@@ -239,7 +239,7 @@
             Save &amp; reset onboarding
           </button>
           <button
-            onclick="location.href='/api/export'"
+            onclick="location.href='/api/export?token='+encodeURIComponent(window.__TOKEN__||'')"
             title="Download your edits as a .patch file to share with a developer"
           >
             Export patch
@@ -269,6 +269,21 @@
         dirty = false,
         busy = false,
         diffOpen = false;
+
+      // Per-run token (injected by the server) sent on every /api/* call so a
+      // cross-origin page can't drive the sandbox. EventSource and the export
+      // link append it to their URLs themselves (below).
+      const TOKEN = window.__TOKEN__ || '';
+      const _fetch = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        if (typeof input === 'string' && input.startsWith('/api/')) {
+          input +=
+            (input.includes('?') ? '&' : '?') +
+            'token=' +
+            encodeURIComponent(TOKEN);
+        }
+        return _fetch(input, init);
+      };
 
       async function refreshStatus() {
         try {
@@ -478,7 +493,9 @@
           const feed = $('feed');
           $('activity').style.display = '';
           feed.textContent += `\n=== ${label} ===\n`;
-          const es = new EventSource('/api/stream?' + qs);
+          const es = new EventSource(
+            '/api/stream?' + qs + '&token=' + encodeURIComponent(TOKEN)
+          );
           es.addEventListener('line', (e) => {
             feed.textContent += e.data + '\n';
             feed.scrollTop = feed.scrollHeight;

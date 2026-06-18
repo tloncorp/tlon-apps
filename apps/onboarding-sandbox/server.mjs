@@ -4,6 +4,7 @@
 // plus prompt-file CRUD on the gitignored sandbox copies. Embeds NO Urbit/stack
 // logic. Built-in modules only (no deps / no install). Binds to localhost.
 import { spawn, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import net from 'node:net';
@@ -20,6 +21,10 @@ const TLONBOT_DIR = process.env.TLONBOT_DIR || join(REPO_ROOT, '..', 'tlonbot');
 const SRC_PROMPTS = join(TLONBOT_DIR, 'prompts');
 const SRC_INTRO = join(TLONBOT_DIR, 'tests', 'dev', 'onboarding-intro.md');
 const PORT = Number(process.env.ONBOARDING_WEB_PORT || 4400);
+// Per-run CSRF token: injected into the served page and required on /api/*, so a
+// drive-by page in the browser can't trigger sandbox commands on this localhost
+// port. Paired with a Host check below to also defend DNS rebinding.
+const TOKEN = randomBytes(24).toString('hex');
 
 const STREAM_CMDS = new Set(['start', 'reset', 'down', 'status', 'logs']);
 // Offline fallback list — used only if the OpenRouter models API can't be
@@ -163,6 +168,19 @@ const runCapture = (args) =>
     p.on('error', () => resolve(''));
   });
 
+// Like runCapture, but feeds `input` on stdin and closes it — for secrets (the
+// provider key) so they never land in the child's argv (visible via ps/proc).
+const runWithStdin = (args, input) =>
+  new Promise((resolve) => {
+    const p = spawn(RUN, args, { cwd: REPO_ROOT });
+    let out = '';
+    p.stdout.on('data', (d) => (out += d));
+    p.on('close', () => resolve(out));
+    p.on('error', () => resolve(''));
+    p.stdin.write(input);
+    p.stdin.end();
+  });
+
 // --- owner cache-busting proxy ---------------------------------------------
 // The web client caches the conversation in IndexedDB keyed by ORIGIN (incl.
 // port), and a backend nuke doesn't purge it. So after each start/reset we
@@ -235,12 +253,26 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const { pathname } = url;
   try {
+    // CSRF + DNS-rebinding guard: /api/* requires the per-run token and a
+    // localhost Host. GET / is exempt — it delivers the token to the page.
+    if (pathname.startsWith('/api/')) {
+      const host = (req.headers.host || '').split(':')[0];
+      const hostOk = host === 'localhost' || host === '127.0.0.1';
+      const t = url.searchParams.get('token') || req.headers['x-sandbox-token'];
+      if (!hostOk || t !== TOKEN)
+        return send(res, 403, 'text/plain', 'forbidden');
+    }
+
     if (req.method === 'GET' && pathname === '/') {
+      const html = await readFile(join(HERE, 'public', 'index.html'), 'utf8');
       return send(
         res,
         200,
         'text/html; charset=utf-8',
-        await readFile(join(HERE, 'public', 'index.html'))
+        html.replace(
+          '</head>',
+          `<script>window.__TOKEN__=${JSON.stringify(TOKEN)}</script></head>`
+        )
       );
     }
 
@@ -300,7 +332,7 @@ const server = createServer(async (req, res) => {
           ok: false,
           error: 'key rejected (' + detail + ')',
         });
-      await runCapture(['set-key', key]);
+      await runWithStdin(['set-key'], key);
       return json(res, 200, { ok: true });
     }
 
