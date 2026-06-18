@@ -81,41 +81,18 @@
       [%'inviterNickname' 'Aqua Zod']
       [%'inviterAvatarImage' 'https://zod.arvo.network/avatar.png']
       [%'inviteType' 'user']
-      [%'invitedGroupId' '~zod/personal-invite-link']
+      [%'invitedGroupId' '']
       [%'bite-type' '2']
   ==
-::
-++  scry-reel-bait
-  |=  =ship
-  =/  m  (strand ,[@t @p])
-  ^-  form:m
-  ;<  =bowl:strand  bind:m  get-bowl
-  =/  aqua-pax
-    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/bait/noun
-  ;<  [bait=(unit [vic=@t civ=@p])]  bind:m
-    (scry-aqua (unit ,[vic=@t civ=@p]) ship aqua-pax)
-  (pure:m (need bait))
-::
-++  scry-reel-service
-  |=  =ship
-  =/  m  (strand @t)
-  ^-  form:m
-  ;<  =bowl:strand  bind:m  get-bowl
-  =/  aqua-pax
-    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/service/noun
-  ;<  vic=(unit @t)  bind:m
-    (scry-aqua (unit @t) ship aqua-pax)
-  (pure:m (need vic))
 ::
 ++  generate-lure-invite
   |=  =metadata:v1:r
   =/  m  (strand @t)
   ^-  form:m
-  =+  group-id=(~(got by fields.metadata) %'invitedGroupId')
-  =+  lure-path=(stab (cat 3 '/v1/id-link/' group-id))
+  =+  lure-path=(stab (cat 3 '/v1/id-link/' my-test-group-id))
   ;<  ~  bind:m  (poke-app [~zod %reel] verb+[%volume %info])
   ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] lure-path)
-  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[group-id metadata])
+  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[my-test-group-id metadata])
   ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
   ;<  ~  bind:m  (leave-app /~zod/reel/v1/id-link [~zod %reel])
   ;<  ~  bind:m  (ex-equal !>(p.kag) !>(%json))
