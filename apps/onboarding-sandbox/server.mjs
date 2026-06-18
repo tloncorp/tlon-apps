@@ -173,10 +173,12 @@ const runCapture = (args) =>
 const runWithStdin = (args, input) =>
   new Promise((resolve) => {
     const p = spawn(RUN, args, { cwd: REPO_ROOT });
-    let out = '';
+    let out = '',
+      err = '';
     p.stdout.on('data', (d) => (out += d));
-    p.on('close', () => resolve(out));
-    p.on('error', () => resolve(''));
+    p.stderr.on('data', (d) => (err += d));
+    p.on('close', (code) => resolve({ code: code ?? -1, out, err }));
+    p.on('error', (e) => resolve({ code: -1, out, err: String(e) }));
     p.stdin.write(input);
     p.stdin.end();
   });
@@ -334,7 +336,15 @@ const server = createServer(async (req, res) => {
           ok: false,
           error: 'key rejected (' + detail + ')',
         });
-      await runWithStdin(['set-key'], key);
+      const saved = await runWithStdin(['set-key'], key);
+      if (saved.code !== 0) {
+        const why =
+          saved.err.trim() || saved.out.trim() || `exit ${saved.code}`;
+        return json(res, 500, {
+          ok: false,
+          error: 'failed to save key: ' + why,
+        });
+      }
       return json(res, 200, { ok: true });
     }
 

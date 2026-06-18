@@ -32,11 +32,11 @@ ensure_sandbox() {
     fi
   done
   # Sync the prompt SET with the source (tlonbot) on every run, preserving the
-  # tester's edits: add source files missing from the sandbox, prune sandbox
-  # files removed upstream, and leave files present in both untouched. (Renames
-  # show up as prune + add, so an edit to a renamed file is lost — rare.)
+  # tester's edits: add source files missing from the sandbox, quarantine sandbox
+  # files removed upstream (never delete — these gitignored copies are the only
+  # copy of the tester's edits), and leave files present in both untouched.
   mkdir -p "$SANDBOX_DIR"
-  local f base added=0 pruned=0
+  local f base added=0 orphaned=0 orphan_dir="$SANDBOX_DIR/.orphaned"
   for f in "$TLONBOT_DIR"/prompts/*.md; do
     [ -f "$f" ] || continue
     base="$(basename "$f")"
@@ -45,10 +45,12 @@ ensure_sandbox() {
   for f in "$SANDBOX_DIR"/*.md; do
     [ -f "$f" ] || continue
     base="$(basename "$f")"
-    if [ ! -f "$TLONBOT_DIR/prompts/$base" ]; then rm -f "$f"; pruned=$((pruned + 1)); fi
+    if [ ! -f "$TLONBOT_DIR/prompts/$base" ]; then
+      mkdir -p "$orphan_dir"; mv "$f" "$orphan_dir/$base"; orphaned=$((orphaned + 1))
+    fi
   done
-  [ "$added" -gt 0 ]  && echo "sandbox prompts: added $added new file(s) from $TLONBOT_DIR/prompts"
-  [ "$pruned" -gt 0 ] && echo "sandbox prompts: pruned $pruned file(s) removed upstream"
+  [ "$added" -gt 0 ]    && echo "sandbox prompts: added $added new file(s) from $TLONBOT_DIR/prompts"
+  [ "$orphaned" -gt 0 ] && echo "sandbox prompts: moved $orphaned removed-upstream file(s) to $orphan_dir (preserved, not deleted)"
   if [ ! -f "$SANDBOX_INTRO" ] && [ -f "$SRC_INTRO" ]; then
     echo "Initializing sandbox intro copy from $SRC_INTRO ..."
     cp "$SRC_INTRO" "$SANDBOX_INTRO"
