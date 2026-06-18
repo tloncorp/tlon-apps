@@ -53,6 +53,7 @@ export default function AttachmentSheet({
   onAttach,
   mediaType,
   allowVideoInMediaPicker,
+  attachToContext = true,
 }: {
   isOpen: boolean;
   showClearOption?: boolean;
@@ -61,6 +62,7 @@ export default function AttachmentSheet({
   onAttach?: (assets: Attachment.UploadIntent[]) => void;
   mediaType: 'image' | 'all';
   allowVideoInMediaPicker?: boolean;
+  attachToContext?: boolean;
 }) {
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
@@ -122,13 +124,21 @@ export default function AttachmentSheet({
         const atts = [
           Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
         ];
-        attachAssets(atts);
+        if (attachToContext) {
+          attachAssets(atts);
+        }
         onAttach?.(atts);
       } catch (error) {
         logger.trackError('Error pasting from clipboard', error);
       }
     }, 50);
-  }, [attachAssets, onAttach, onOpenChange, getClipboardImageData]);
+  }, [
+    attachAssets,
+    attachToContext,
+    onAttach,
+    onOpenChange,
+    getClipboardImageData,
+  ]);
 
   const placeholderUploadIntent: Attachment.UploadIntent = useMemo(
     () =>
@@ -172,11 +182,13 @@ export default function AttachmentSheet({
       }
 
       if (normalizedUploadIntents.length > 0) {
-        attachAssets(normalizedUploadIntents);
+        if (attachToContext) {
+          attachAssets(normalizedUploadIntents);
+        }
         onAttach?.(normalizedUploadIntents);
       }
     },
-    [attachAssets, onAttach]
+    [attachAssets, attachToContext, onAttach]
   );
 
   const takePicture = useCallback(
@@ -196,7 +208,7 @@ export default function AttachmentSheet({
 
           // Immediately set the placeholder attachment to show in the UI
           // skip on web, the browser doesn't like trying to load a file that doesn't exist
-          if (Platform.OS !== 'web') {
+          if (attachToContext && Platform.OS !== 'web') {
             attachAssets([placeholderUploadIntent]);
           }
 
@@ -219,18 +231,23 @@ export default function AttachmentSheet({
             ]);
           } else {
             // If user canceled, remove the placeholder
-            clearAttachments();
+            if (attachToContext) {
+              clearAttachments();
+            }
           }
         } catch (e) {
           console.error('Error taking picture', e);
           logger.trackError('Error taking picture', e);
           // In case of error, remove the placeholder
-          clearAttachments();
+          if (attachToContext) {
+            clearAttachments();
+          }
         }
       }, 50); // Small delay to ensure the sheet closes first
     },
     [
       attachAssets,
+      attachToContext,
       clearAttachments,
       onOpenChange,
       cameraPermissionStatus,
@@ -315,7 +332,7 @@ export default function AttachmentSheet({
 
         // Show loading placeholder as soon as the sheet closes, before waiting
         // on the native media picker round-trip.
-        if (Platform.OS !== 'web') {
+        if (attachToContext && Platform.OS !== 'web') {
           attachAssets([placeholderUploadIntent]);
         }
 
@@ -344,19 +361,25 @@ export default function AttachmentSheet({
           }
 
           if (normalizedUploadIntents.length > 0) {
-            attachAssets(normalizedUploadIntents);
+            if (attachToContext) {
+              attachAssets(normalizedUploadIntents);
+            }
             onAttach?.(normalizedUploadIntents);
           }
         } else {
           // If user canceled, remove the placeholder
-          clearAttachments();
+          if (attachToContext) {
+            clearAttachments();
+          }
         }
       } catch (e) {
         console.error('Error picking image', e);
         logger.trackError('Error picking image', e);
 
         // In case of error, remove the placeholder
-        clearAttachments();
+        if (attachToContext) {
+          clearAttachments();
+        }
       }
     };
 
@@ -375,6 +398,7 @@ export default function AttachmentSheet({
     }, 50);
   }, [
     attachAssets,
+    attachToContext,
     clearAttachments,
     onOpenChange,
     mediaLibraryPermissionStatus,

@@ -100,6 +100,11 @@ const BaseContactName = RawText.styleable<{
     const formattedId = useMemo(() => {
       return showContactId ? formatUserId(contactId, expandLongIds) : null;
     }, [contactId, expandLongIds, showContactId]);
+    const contactNameProps = useContactNameProps({
+      contactId,
+      expandLongIds,
+      mode,
+    });
 
     if (showContactId && !formattedId) {
       console.error('unable to display invalid id', contactId);
@@ -108,7 +113,7 @@ const BaseContactName = RawText.styleable<{
 
     return (
       <RawText
-        {...useContactNameProps({ contactId, expandLongIds, mode })}
+        {...contactNameProps}
         {...props}
         style={props.style ?? { whiteSpace: 'nowrap' }}
       ></RawText>

@@ -132,14 +132,13 @@ class NotificationService: UNNotificationServiceExtension {
         return preview
     }
 
-    private func applyGenericMessage(_ message: String, uid: String, notification: UNMutableNotificationContent) -> UNNotificationContent {
+    private func applyGenericMessage(_ message: String, notification: UNMutableNotificationContent) -> UNNotificationContent {
         if notification.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             notification.title = "Tlon"
         }
         notification.body = message
         notification.sound = UNNotificationSound.default
         notification.interruptionLevel = .active
-        notification.userInfo["uid"] = uid
         notification.userInfo["genericMessage"] = message
         return notification
     }
@@ -183,15 +182,14 @@ class NotificationService: UNNotificationServiceExtension {
               contentHandler(notifContent)
               return
 
-          case .message(let uid, let message):
+          case .message(let message):
               let notifContent = bestAttemptContent ?? UNMutableNotificationContent()
               let notification = notifContent.mutableCopy() as! UNMutableNotificationContent
               let renderedNotification = applyGenericMessage(
                 message,
-                uid: uid,
                 notification: notification
               )
-              await NotificationLogger.logDelivery(properties: ["uid": .string(uid), "message": .string("Generic notification delivered successfully")])
+              await NotificationLogger.logDelivery(properties: ["message": .string("Generic notification delivered successfully")])
               contentHandler(renderedNotification)
               return
 

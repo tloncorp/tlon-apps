@@ -2,11 +2,13 @@ import {
   HostingError,
   checkPhoneVerify as checkPhoneVerifyApi,
   clearShipRevivalStatus as clearHostedShipRevivalStatus,
+  getShip as getHostedShip,
   getHostingUser,
   getLandscapeAuthCookie,
   getNodeStatus,
   getShipAccessCode,
   logInHostingUser,
+  markUserTlonbotEnabled,
   requestPhoneVerify as requestPhoneVerifyApi,
   signUpHostingUser,
 } from '@tloncorp/api';
@@ -17,6 +19,7 @@ import * as domain from '../domain';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { withRetry } from '../logic';
+import { initializeCachedHostedInviteLinks } from './inviteActions';
 
 const logger = createDevLogger('hostingActions', true);
 
@@ -174,7 +177,10 @@ export async function logInHostedUser({
 
 export async function checkHostingNodeStatus(
   supressStatusLog?: boolean
-): Promise<{ status: domain.HostedNodeStatus; guideFirstLogin: boolean }> {
+): Promise<{
+  status: domain.HostedNodeStatus;
+  onboardingFlow?: Extract<domain.OnboardingFlow, 'tlonbotRevival'>;
+}> {
   const nodeId = await db.hostedUserNodeId.getValue();
   if (!nodeId) {
     logger.trackError(AnalyticsEvent.LoginAnomaly, {
@@ -184,7 +190,18 @@ export async function checkHostingNodeStatus(
   }
 
   try {
-    const { status: nodeStatus, showWayfinding } = await getNodeStatus(nodeId);
+    const {
+      status: nodeStatus,
+      showWayfinding,
+      ship,
+    } = await getNodeStatus(nodeId);
+    await initializeCachedHostedInviteLinks({
+      personalLureToken: ship?.personalLureToken,
+      homeGroupLureToken: ship?.homeGroupLureToken,
+      nodeId,
+      source: 'checkHostingNodeStatus',
+    });
+
     if (nodeStatus === domain.HostedNodeStatus.Running) {
       await db.hostedNodeIsRunning.setValue(true);
     }
@@ -210,13 +227,18 @@ export async function checkHostingNodeStatus(
       }
     }
 
-    return { status: nodeStatus, guideFirstLogin: showWayfinding };
+    const onboardingFlow = showWayfinding ? 'tlonbotRevival' : undefined;
+
+    return {
+      status: nodeStatus,
+      onboardingFlow,
+    };
   } catch (e) {
     logger.trackError(AnalyticsEvent.LoginDebug, {
       error: e,
       context: 'Failed to get node status',
     });
-    return { status: domain.HostedNodeStatus.Unknown, guideFirstLogin: false };
+    return { status: domain.HostedNodeStatus.Unknown };
   }
 }
 
@@ -292,7 +314,42 @@ export async function clearShipRevivalStatus() {
     throw new Error('Cannot clear revival status, no node ID found');
   }
 
-  // note: the Hosting api only lets us blindly toggle the revival status,
-  // not explicitly clear it
-  await clearHostedShipRevivalStatus(nodeId);
+  await withRetry(() => clearHostedShipRevivalStatus(nodeId), {
+    startingDelay: 1000,
+    numOfAttempts: 4,
+    maxDelay: 4000,
+  });
+}
+
+export async function markCurrentUserTlonbotEnabled() {
+  const userId = await db.hostingUserId.getValue();
+  if (!userId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to mark TlonBot enabled without user ID',
+    });
+    throw new Error('Cannot mark TlonBot enabled, no user ID found');
+  }
+
+  await markUserTlonbotEnabled(userId);
+  await db.hostingBotEnabled.setValue(true);
+}
+
+export async function checkCurrentNodeIsTlonbotReady() {
+  const nodeId = await db.hostedUserNodeId.getValue();
+  if (!nodeId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to check TlonBot readiness without node ID',
+    });
+    throw new Error('Cannot check TlonBot readiness, no node ID found');
+  }
+
+  const result = await getHostedShip(nodeId);
+  await initializeCachedHostedInviteLinks({
+    personalLureToken: result.ship.personalLureToken,
+    homeGroupLureToken: result.ship.homeGroupLureToken,
+    nodeId,
+    source: 'checkCurrentNodeIsTlonbotReady',
+  });
+
+  return result.ship.botReady === true;
 }

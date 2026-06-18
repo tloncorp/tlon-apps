@@ -165,8 +165,59 @@
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
   ?>  ?=(%14 -.old)
-  =.  state  old
+  =.  state  (recompile-hooks old)
   inflate-io
+  ::  we drop hooks cores and state to avoid vase migration shenanigans
+  ::
+  ++  recompile-hooks
+    |=  s=state-14
+    ^-  current-state
+    %=  s
+        hooks.hooks
+      %-  ~(run by hooks.hooks.s)
+      |=  hb=hook-blind
+      =/  =hook:h  hb(compiled `(unit vase)`~, state !>(~))
+      =/  result=(each vase tang)
+        (compile:utils src.hook)
+      ?:  ?=(%| -.result)
+        hook  ::TODO  give response?
+        :: %-  ho-give-response
+        :: [%set id name.hook src.hook meta.hook `p.result]
+      =.  compiled.hook  `p.result
+      hook
+      ::TODO  give response if ?=(~ compiled.hb) ?
+      :: %-  ho-give-response
+      :: [%set id name.hook src.hook meta.hook ~]
+    ::
+        waiting.hooks
+      %-  ~(run by waiting.hooks.s)
+      |=  [=origin:h wb=waiting-hook-blind]
+      ::TODO  how sane is it to drop this? should we drop .waiting wholesale?
+      [origin wb(data !>(~))]
+    ==
+  ::
+  +$  hooks-blind
+    $:  hooks=(map id-hook:h hook-blind)
+        order=(map nest:c (list id-hook:h))
+        crons=(map id-hook:h cron:h)
+        waiting=(map id-wait:h [=origin:h waiting-hook-blind])
+    ==
+  +$  hook-blind
+    $:  id=id-hook:h
+        version=%0
+        name=@t
+        meta=data:m
+        src=@t
+        compiled=(unit *)
+        state=*
+        config=(map nest:c config:h)
+    ==
+  +$  waiting-hook-blind
+    $:  id=id-wait:h
+        hook=id-hook:h
+        data=*
+        fires-at=time
+    ==
   ::
   +$  versioned-state
     $%  state-14
@@ -185,11 +236,16 @@
         state-1
         state-0
     ==
-  +$  state-14  current-state
+  +$  state-14
+    $:  %14
+        =v-channels:v10:cv
+        hooks=hooks-blind
+        =pimp:imp
+    ==
   +$  state-13
     $:  %13
         =v-channels:v9:cv
-        =hooks:h
+        hooks=hooks-blind
         =pimp:imp
     ==
   +$  state-12  _%*(. *state-13 - %12)
@@ -197,25 +253,25 @@
   +$  state-10
     $:  %10
         =v-channels:v9:cv
-        =hooks:h
+        hooks=hooks-blind
         =pimp:imp
     ==
   +$  state-9
     $:  %9
         =v-channels:v8:cv
-        =hooks:h
+        hooks=hooks-blind
         =pimp:imp
     ==
   +$  state-8
     $:  %8
         =v-channels:v8:cv
-        =hooks:h
+        hooks=hooks-blind
         =pimp:imp
     ==
   +$  state-7
     $:  %7
         =v-channels:v7:cv
-        =hooks:h
+        hooks=hooks-blind
         =pimp:imp
     ==
   +$  state-6
@@ -599,40 +655,38 @@
   |=  =egg-any:gall
   ~>  %spin.['run-import']
   =.  pimp  ~
-  ?-  -.egg-any
-      ?(%15 %16)
-    ?.  ?=(%live +<.egg-any)
-      ~&  [dap.bowl %egg-any-not-live]
-      cor
-    =/  bak
-      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
-    ::  for channels that we're gonna restore, tell previous subscribers to
-    ::  try again
-    ::
-    =.  cor
-      =/  ded=(list [=ship =path])
-        ~(val by bitt.egg-any)
-      |-  ^+  cor
-      ?~  ded                                   cor
-      ?:  =(our.bowl ship.i.ded)                $(ded t.ded)
-      ?.  ?=([kind:c @ %updates *] path.i.ded)  $(ded t.ded)
-      =/  =nest:c  [i.path.i.ded our.bowl i.t.path.i.ded]
-      ?.  &((~(has by v-channels:bak) nest) !(~(has by v-channels) nest))
-        $(ded t.ded)
-      =/  =cage  noun+!>([%channel-wake [i i.t]:path.i.ded])
-      ::NOTE  this assumes it was their %channels agent subscribing to us,
-      ::      which we actually cannot know. but a false positive here should
-      ::      be harmless.
-      =.  cor  (emit %pass /wake %agent [ship.i.ded %channels] %poke cage)
+  =/  =egg:gall  (latest:egg-aid:gall egg-any)
+  ?.  ?=(%live -.egg)
+    ~&  [dap.bowl %egg-not-live]
+    cor
+  =/  bak
+    (load -:!>(*versioned-state:load) +>.old-state.egg)
+  ::  for channels that we're gonna restore, tell previous subscribers to
+  ::  try again
+  ::
+  =.  cor
+    =/  ded=(list [=ship =path])
+      ~(val by bitt.egg)
+    |-  ^+  cor
+    ?~  ded                                   cor
+    ?:  =(our.bowl ship.i.ded)                $(ded t.ded)
+    ?.  ?=([kind:c @ %updates *] path.i.ded)  $(ded t.ded)
+    =/  =nest:c  [i.path.i.ded our.bowl i.t.path.i.ded]
+    ?.  &((~(has by v-channels:bak) nest) !(~(has by v-channels) nest))
       $(ded t.ded)
-    ::  if both the backup and our latest have a channel, keep only our
-    ::  version. we could do a "deep merge" but presently unclear how that
-    ::  would affect existing subscribers/what would be the correct behavior
-    ::  wrt them.
-    ::
-    =.  v-channels  (~(uni by v-channels:bak) v-channels)
-    (emil (prod-next:imp [our dap]:bowl))
-  ==
+    =/  =cage  noun+!>([%channel-wake [i i.t]:path.i.ded])
+    ::NOTE  this assumes it was their %channels agent subscribing to us,
+    ::      which we actually cannot know. but a false positive here should
+    ::      be harmless.
+    =.  cor  (emit %pass /wake %agent [ship.i.ded %channels] %poke cage)
+    $(ded t.ded)
+  ::  if both the backup and our latest have a channel, keep only our
+  ::  version. we could do a "deep merge" but presently unclear how that
+  ::  would affect existing subscribers/what would be the correct behavior
+  ::  wrt them.
+  ::
+  =.  v-channels  (~(uni by v-channels:bak) v-channels)
+  (emil (prod-next:imp [our dap]:bowl))
 ::
 ++  watch
   |=  =(pole knot)

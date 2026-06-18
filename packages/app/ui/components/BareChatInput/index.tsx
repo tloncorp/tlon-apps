@@ -1,4 +1,4 @@
-import { toContentReference } from '@tloncorp/api';
+import { getCurrentUserId, toContentReference } from '@tloncorp/api';
 import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
@@ -840,10 +840,10 @@ function BareChatInput(
         tappedChatInput: true,
       }));
     }
-    if (logic.isBotHomeGroupChatChannel(channelId)) {
+    if (logic.isBotHomeGroupChatChannel(getCurrentUserId(), channelId)) {
       db.wayfindingProgress.setValue((prev) => ({
         ...prev,
-        tappedBotMention: true,
+        tappedHomeGroupHint: true,
       }));
     }
   }, [channelId]);

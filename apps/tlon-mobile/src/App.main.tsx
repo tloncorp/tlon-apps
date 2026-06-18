@@ -1,7 +1,6 @@
 import { useAsyncStorageDevTools } from '@dev-plugins/async-storage';
 import { useReactNavigationDevTools } from '@dev-plugins/react-navigation';
 import { useReactQueryDevTools } from '@dev-plugins/react-query';
-import NetInfo from '@react-native-community/netinfo';
 import {
   DarkTheme,
   DefaultTheme,
@@ -11,11 +10,10 @@ import {
 } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
-import { FORCE_SPLASH_SEQUENCE } from '@tloncorp/app/constants';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
-import { useShip } from '@tloncorp/app/contexts/ship';
-import { useConfigureUrbitClient } from '@tloncorp/app/hooks/useConfigureUrbitClient';
+import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
@@ -32,15 +30,16 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OnboardingStack } from './OnboardingStack';
 import AuthenticatedApp from './components/AuthenticatedApp';
+import { useTopLevelRouting } from './hooks/useTopLevelRouting';
 import { registerBackgroundSyncTask } from './lib/backgroundSync';
 import { inviteSystemContacts } from './lib/contactsHelpers';
-import { SignupProvider, useSignupContext } from './lib/signupContext';
+import { SignupProvider } from './lib/signupContext';
 
 const splashscreenLogger = createDevLogger('splashscreen', false);
 
@@ -89,83 +88,25 @@ const App = () => {
   const isDarkMode = useIsDarkMode();
   const {
     isLoading,
-    isAuthenticated,
-    needsSplashSequence,
-    clearNeedsSplashSequence,
-  } = useShip();
-  const [connected, setConnected] = useState(true);
-  const signupContext = useSignupContext();
-
-  const finishingSelfHostedLogin = db.finishingSelfHostedLogin.useValue();
-  const haveHostedLogin = db.haveHostedLogin.useValue();
-  const hostedAccountInitialized = db.hostedAccountIsInitialized.useValue();
-  const hostedNodeRunning = db.hostedNodeIsRunning.useValue();
-  const hostingBotEnabled = db.hostingBotEnabled.useValue();
-
-  const currentlyOnboarding = useMemo(() => {
-    return signupContext.email || signupContext.phoneNumber;
-  }, [signupContext.email, signupContext.phoneNumber]);
+    connected,
+    showAuthenticatedApp,
+    showSplashSequence,
+    activeSplashSequenceMode,
+    hostingBotEnabled,
+    handleClearSplash,
+  } = useTopLevelRouting();
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
+  const handleSplashLogout = useCallback(async () => {
+    await db.clearSessionStorageItems();
+    await handleLogout();
+  }, [handleLogout]);
 
   usePreloadedEmojis();
 
   useEffect(() => {
     registerBackgroundSyncTask();
   }, []);
-
-  useEffect(() => {
-    const unsubscribeFromNetInfo = NetInfo.addEventListener(
-      ({ isConnected }) => {
-        setConnected(isConnected ?? true);
-      }
-    );
-
-    return () => {
-      unsubscribeFromNetInfo();
-    };
-  }, []);
-
-  const showAuthenticatedApp = useMemo(() => {
-    const blockedOnSignup = currentlyOnboarding;
-    const blockedOnLoginHosted =
-      haveHostedLogin && (!hostedAccountInitialized || !hostedNodeRunning);
-    const blockedOnLoginSelfHosted = finishingSelfHostedLogin;
-    return (
-      isAuthenticated &&
-      !blockedOnSignup &&
-      !blockedOnLoginHosted &&
-      !blockedOnLoginSelfHosted
-    );
-  }, [
-    currentlyOnboarding,
-    haveHostedLogin,
-    hostedAccountInitialized,
-    hostedNodeRunning,
-    finishingSelfHostedLogin,
-    isAuthenticated,
-  ]);
-
-  // FORCE_SPLASH_SEQUENCE triggers the splash on first render but doesn't
-  // prevent it from being dismissed — clearNeedsSplashSequence still works.
-  const [forcedSplash, setForcedSplash] = useState(FORCE_SPLASH_SEQUENCE);
-  const showSplashSequence = useMemo(() => {
-    return showAuthenticatedApp && (forcedSplash || needsSplashSequence);
-  }, [showAuthenticatedApp, forcedSplash, needsSplashSequence]);
-
-  const handleClearSplash = useCallback(() => {
-    setForcedSplash(false);
-    clearNeedsSplashSequence();
-  }, [clearNeedsSplashSequence]);
-
-  // Splash renders instead of AuthenticatedApp, which is where the urbit
-  // client is normally configured. The splash's bot-avatar uploader hits
-  // storage code that reads the current user via the urbit client, so we
-  // configure it here too.
-  const configureClient = useConfigureUrbitClient();
-  useEffect(() => {
-    if (showSplashSequence) {
-      configureClient();
-    }
-  }, [showSplashSequence, configureClient]);
 
   return (
     <View height={'100%'} width={'100%'} backgroundColor="$background">
@@ -179,7 +120,9 @@ const App = () => {
             <SplashSequence
               onCompleted={handleClearSplash}
               inviteSystemContacts={inviteSystemContacts}
-              hostingBotEnabled={hostingBotEnabled ?? false}
+              hostingBotEnabled={hostingBotEnabled}
+              splashSequenceMode={activeSplashSequenceMode}
+              onLogout={handleSplashLogout}
             />
           </AppDataProvider>
         ) : showAuthenticatedApp ? (
