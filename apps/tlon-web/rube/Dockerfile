@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install peru — rube runs `peru sync` at runtime to vendor desk dependencies
 # (base-dev + landscape picks) into desk/ before assembling ship desks.
-RUN pip3 install --no-cache-dir peru
+RUN pip3 install --no-cache-dir --break-system-packages peru
 
 # Install Node.js (match version from .nvmrc)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
