@@ -6,7 +6,7 @@ ship="~bud"
 pier_dir=${ship#\~}
 pier=$pier_dir
 
-urbit_bin_url="https://bootstrap.urbit.org/vere/live/vere-v4.4-linux-x86_64"
+urbit_bin_url="https://storage.googleapis.com/bootstrap.urbit.org/vere/live/v4.4"
 vere_ver="vere-v4.4"
 arch=`uname -m`
 
