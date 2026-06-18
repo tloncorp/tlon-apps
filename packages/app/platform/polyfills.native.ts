@@ -1,10 +1,12 @@
 import { fetch as expoFetch } from 'expo/fetch';
+//@ts-expect-error no typedefs
+import { polyfill as polyfillEncoding } from 'react-native-polyfill-globals/src/encoding';
+//@ts-expect-error no typedefs
+import { polyfill as polyfillReadableStream } from 'react-native-polyfill-globals/src/readable-stream';
 
-// TextEncoder (Hermes), and TextDecoder + ReadableStream (Expo's winter runtime
-// and Metro globals) are provided by the platform, so no fetch/encoding
-// polyfills are needed here. No-op, kept for parity with polyfills.ts (web).
 export const initializePolyfills = () => {
-  // no-op
+  polyfillReadableStream();
+  polyfillEncoding();
 };
 
 // expo/fetch is a native streaming fetch (Response.body as a ReadableStream),
