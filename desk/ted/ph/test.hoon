@@ -79,7 +79,7 @@
   %+  turn  test-arms
   |=  =test-arm
   ^-  test
-  [(weld path /[name.test-arm]) strand.test-arm]
+  [(weld (snip path) /[name.test-arm]) strand.test-arm]
 ::  +await-test-thread: run and return result of an aqua test thread
 ::
 ++  await-test-thread

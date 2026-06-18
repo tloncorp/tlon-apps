@@ -11,6 +11,7 @@ import { Attachment, DEFAULT_BOT_CONFIG } from '@tloncorp/shared/domain';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import {
+  checkCurrentNodeIsTlonbotReady,
   clearShipRevivalStatus,
   markCurrentUserTlonbotEnabled,
   syncStart,
@@ -273,6 +274,18 @@ function SplashSequenceComponent(props: {
               cachedNickname?.trim() || userContact?.nickname?.trim();
             if (resolvedUserNickname) {
               setUserNickname(resolvedUserNickname);
+              if (shouldDeferTlonbotSetup) {
+                db.tlonbotRevivalSetup
+                  .setValue((current) => ({
+                    ...current,
+                    nickname: current.nickname ?? resolvedUserNickname,
+                  }))
+                  .catch((error) => {
+                    logger.trackError('Failed to cache revival nickname', {
+                      error,
+                    });
+                  });
+              }
             }
             if (botInfo?.moon) {
               // Hosting returns the moon prefix (e.g., `pinser-botter`); the
@@ -1761,13 +1774,7 @@ function TlonBotSetupPane(props: {
 
     foregroundReadinessCheckRef.current = true;
     try {
-      const shipId = await db.hostedUserNodeId.getValue();
-
-      if (!shipId) {
-        return;
-      }
-
-      const isReady = await api.checkNodeIsTlonbotReady(shipId);
+      const isReady = await checkCurrentNodeIsTlonbotReady();
       if (isReady) {
         await applyDeferredSetup().catch((error) =>
           logger.trackError('Deferred Tlonbot setup failed', {
@@ -1809,11 +1816,6 @@ function TlonBotSetupPane(props: {
     const checkReadiness = async () => {
       try {
         const setup = await db.tlonbotRevivalSetup.getValue();
-        const shipId = await db.hostedUserNodeId.getValue();
-
-        if (!shipId) {
-          throw new Error('No ship ID found during TlonBot revival setup');
-        }
 
         if (
           !setup.provisioningStarted &&
@@ -1841,10 +1843,7 @@ function TlonBotSetupPane(props: {
             });
         }
 
-        const isReady = await api.awaitNodeTlonbotReady(shipId, {
-          timeoutMs: 30_000,
-          pollIntervalMs: TLONBOT_SETUP_POLL_INTERVAL_MS,
-        });
+        const isReady = await checkCurrentNodeIsTlonbotReady();
         if (isReady) {
           if (!cancelled) {
             await applyDeferredSetup().catch((error) =>
