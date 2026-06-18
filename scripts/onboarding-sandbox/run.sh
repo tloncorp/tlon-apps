@@ -31,11 +31,24 @@ ensure_sandbox() {
       exit 1
     fi
   done
-  if [ ! -d "$SANDBOX_DIR" ] || [ -z "$(ls -A "$SANDBOX_DIR" 2>/dev/null)" ]; then
-    echo "Initializing sandbox prompt copies from $TLONBOT_DIR/prompts ..."
-    mkdir -p "$SANDBOX_DIR"
-    cp "$TLONBOT_DIR"/prompts/*.md "$SANDBOX_DIR"/
-  fi
+  # Sync the prompt SET with the source (tlonbot) on every run, preserving the
+  # tester's edits: add source files missing from the sandbox, prune sandbox
+  # files removed upstream, and leave files present in both untouched. (Renames
+  # show up as prune + add, so an edit to a renamed file is lost — rare.)
+  mkdir -p "$SANDBOX_DIR"
+  local f base added=0 pruned=0
+  for f in "$TLONBOT_DIR"/prompts/*.md; do
+    [ -f "$f" ] || continue
+    base="$(basename "$f")"
+    if [ ! -f "$SANDBOX_DIR/$base" ]; then cp "$f" "$SANDBOX_DIR/$base"; added=$((added + 1)); fi
+  done
+  for f in "$SANDBOX_DIR"/*.md; do
+    [ -f "$f" ] || continue
+    base="$(basename "$f")"
+    if [ ! -f "$TLONBOT_DIR/prompts/$base" ]; then rm -f "$f"; pruned=$((pruned + 1)); fi
+  done
+  [ "$added" -gt 0 ]  && echo "sandbox prompts: added $added new file(s) from $TLONBOT_DIR/prompts"
+  [ "$pruned" -gt 0 ] && echo "sandbox prompts: pruned $pruned file(s) removed upstream"
   if [ ! -f "$SANDBOX_INTRO" ] && [ -f "$SRC_INTRO" ]; then
     echo "Initializing sandbox intro copy from $SRC_INTRO ..."
     cp "$SRC_INTRO" "$SANDBOX_INTRO"

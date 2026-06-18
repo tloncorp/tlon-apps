@@ -253,14 +253,16 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const { pathname } = url;
   try {
-    // CSRF + DNS-rebinding guard: /api/* requires the per-run token and a
-    // localhost Host. GET / is exempt — it delivers the token to the page.
+    // DNS-rebinding guard on EVERY request, including GET / — otherwise a
+    // rebound foreign domain could read the token from the page and replay it
+    // straight to localhost. Only real localhost Hosts are allowed.
+    const host = (req.headers.host || '').split(':')[0];
+    if (host !== 'localhost' && host !== '127.0.0.1')
+      return send(res, 403, 'text/plain', 'forbidden');
+    // CSRF guard: /api/* additionally requires the per-run token.
     if (pathname.startsWith('/api/')) {
-      const host = (req.headers.host || '').split(':')[0];
-      const hostOk = host === 'localhost' || host === '127.0.0.1';
       const t = url.searchParams.get('token') || req.headers['x-sandbox-token'];
-      if (!hostOk || t !== TOKEN)
-        return send(res, 403, 'text/plain', 'forbidden');
+      if (t !== TOKEN) return send(res, 403, 'text/plain', 'forbidden');
     }
 
     if (req.method === 'GET' && pathname === '/') {
