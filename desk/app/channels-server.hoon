@@ -170,7 +170,7 @@
   ::  we drop hooks cores and state to avoid vase migration shenanigans
   ::
   ++  recompile-hooks
-    |=  s=state-15
+    |=  s=state-14
     ^-  current-state
     %=  s
         hooks.hooks
