@@ -22,20 +22,6 @@
   =.  raw-files
     |-
     =*  loop  $
-    ::  compare hashes
-    =/  host-cz=@uvI
-      .^(@uvI %cz (weld sab path))
-    =/  aqua-cz=(unit @uvI)
-      ;;  (unit @uvI)
-      ::FIXME  this works with a mold in a wet gate.
-      ::       see +scry-aqua in /lib/ph/io.hoon.
-      .^  (unit *)  %gx  (scot %p our.bowl)  %aqua  (scot %da now.bowl)
-          %i  (scot %p her)  :: aqua scry
-          %cz
-          (snoc (weld /(scot %p her)/[desk]/(scot %da now.bowl) path) %noun)
-      ==
-    ?:  &(?=(^ aqua-cz) =(host-cz u.aqua-cz))
-      raw-files
     =+  .^(=arch %cy (weld sab path))
     =.  raw-files
       %+  roll  ~(tap in ~(key by dir.arch))
@@ -88,10 +74,6 @@
   ?~  fleet  (pure:n ~)
   ;<  ~  bind:n  (sync-desk i.fleet %groups)
   $(fleet t.fleet)
-::  allow agents time to cool down to process
-::  any cards that might have been emitted.
-::
-;<  ~  bind:m  (sleep ~s5)
 ;<  ~  bind:m  (end-test:ph-io vane-tids)
 ;<  =bowl:spider  bind:m  get-bowl
 =/  snap-id=@t
