@@ -65,6 +65,7 @@ cat > "$cmdfile" <<EOF
 staging=\$(mktemp -d)
 tar xzf /tmp/janeway-desk.tgz -C \$staging
 cd /urbit || exit 1
+curl -s --data '{"source":{"dojo":"+hood/unmount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
 curl -s --data '{"source":{"dojo":"+hood/mount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
 rsync -avL --delete \$staging/assembled/ $folder
 curl -s --data '{"source":{"dojo":"+hood/commit %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
