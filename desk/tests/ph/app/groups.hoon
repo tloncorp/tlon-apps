@@ -157,6 +157,7 @@
 ++  ph-test-group-join-private-pending-invite
   =/  m  (strand ,~)
   ^-  form:m
+  ;<  ~  bind:m  (watch-app /~zod/groups/v1/groups [~zod %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [~bud %groups] /v1/groups)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ::
