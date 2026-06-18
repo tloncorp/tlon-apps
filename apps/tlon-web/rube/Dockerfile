@@ -15,7 +15,21 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     lsof \
     procps \
+    rsync \
+    python3 \
+    python3-pip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install peru — rube runs `peru sync` at runtime to vendor desk dependencies
+# (base-dev + landscape picks) into desk/ before assembling ship desks.
+RUN pip3 install --no-cache-dir peru
+
+# Install Node.js (match version from .nvmrc)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g n \
+    && n 20.11.0 \
+    && hash -r
 
 # Install pnpm
 RUN npm install -g pnpm@9.0.5
@@ -65,10 +79,10 @@ WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
-        "https://bootstrap.urbit.org/rube-zod25.tgz zod.tgz" \
+        "https://bootstrap.urbit.org/rube-zod27.tgz zod.tgz" \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
-        "https://bootstrap.urbit.org/rube-ten25.tgz ten.tgz" \
-        "https://bootstrap.urbit.org/rube-mug25.tgz mug.tgz" \
+        "https://bootstrap.urbit.org/rube-ten27.tgz ten.tgz" \
+        "https://bootstrap.urbit.org/rube-mug27.tgz mug.tgz" \
         "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \
@@ -86,6 +100,10 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
 COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
+# peru.yaml + scripts are needed for the runtime `peru sync` (into desk-deps/)
+# and assemble-desk.sh (desk-deps/ + desk/ -> ship groups desk)
+COPY ../../../peru.yaml /workspace/peru.yaml
+COPY ../../../scripts/ /workspace/scripts/
 
 # Build packages if needed
 WORKDIR /workspace
