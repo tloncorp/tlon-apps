@@ -218,6 +218,21 @@ def _string_list(value: Any) -> list[str]:
     return [str(item).strip() for item in value if str(item).strip()]
 
 
+def _config_flag_enabled(value: Any, *, default: bool = True) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if not text:
+        return default
+    if text in _TRUTHY_ENV_VALUES:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 def _hermes_tool_permission_snapshot(
     env: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
@@ -244,9 +259,17 @@ def _hermes_tool_permission_snapshot(
 
         config = load_config()
         platform_toolsets = config.get("platform_toolsets") or {}
+        tlon_toolsets = (
+            _string_list(platform_toolsets.get("tlon"))
+            if isinstance(platform_toolsets, dict)
+            else []
+        )
         explicit_tlon_toolsets = (
             isinstance(platform_toolsets, dict)
             and isinstance(platform_toolsets.get("tlon"), list)
+        )
+        configured_tlon_toolsets = (
+            tlon_toolsets if explicit_tlon_toolsets else _string_list(config.get("toolsets"))
         )
         enabled_toolsets = sorted(
             str(name)
@@ -259,6 +282,20 @@ def _hermes_tool_permission_snapshot(
         disabled_toolsets = _string_list(
             agent_config.get("disabled_toolsets") if isinstance(agent_config, dict) else []
         )
+        mcp_servers = config.get("mcp_servers")
+        if not isinstance(mcp_servers, dict):
+            mcp_servers = {}
+        configured_mcp_servers = sorted(str(name) for name in mcp_servers)
+        enabled_mcp_servers = sorted(
+            str(name)
+            for name, server_config in mcp_servers.items()
+            if isinstance(server_config, dict)
+            and _config_flag_enabled(server_config.get("enabled"), default=True)
+        )
+        explicit_mcp_servers = sorted(
+            set(configured_tlon_toolsets) & set(enabled_mcp_servers)
+        )
+        resolved_mcp_servers = set(enabled_toolsets) & set(enabled_mcp_servers)
         cronjob_toolset_enabled = "cronjob" in enabled_toolsets
         cronjob_disabled = "cronjob" in disabled_toolsets
         snapshot.update(
@@ -266,6 +303,17 @@ def _hermes_tool_permission_snapshot(
                 "hermesTlonPlatformToolsetsExplicit": explicit_tlon_toolsets,
                 "hermesTlonToolsetsResolved": enabled_toolsets[:80],
                 "hermesTlonToolsetsCount": len(enabled_toolsets),
+                "hermesMcpServersConfigured": configured_mcp_servers[:80],
+                "hermesMcpServersConfiguredCount": len(configured_mcp_servers),
+                "hermesMcpServersEnabled": enabled_mcp_servers[:80],
+                "hermesMcpServersEnabledCount": len(enabled_mcp_servers),
+                "hermesMcpExplicitServerAllowlist": explicit_mcp_servers[:80],
+                "hermesMcpExplicitServerAllowlistCount": len(explicit_mcp_servers),
+                "hermesMcpDefaultServerSetEnabled": bool(
+                    resolved_mcp_servers
+                    and not explicit_mcp_servers
+                    and "no_mcp" not in configured_tlon_toolsets
+                ),
                 "hermesCronjobToolsetEnabled": cronjob_toolset_enabled,
                 "hermesCronjobDisabledByAgentConfig": cronjob_disabled,
                 "hermesCronjobAvailableAtStartup": (
@@ -273,12 +321,60 @@ def _hermes_tool_permission_snapshot(
                 ),
             }
         )
+        try:
+            from tools.registry import registry  # type: ignore
+            from toolsets import resolve_toolset  # type: ignore
+
+            tool_to_toolset = registry.get_tool_to_toolset_map()
+            registered_mcp_tools = {
+                tool: toolset
+                for tool, toolset in tool_to_toolset.items()
+                if str(toolset).startswith("mcp-")
+            }
+            registered_mcp_toolsets = sorted(set(registered_mcp_tools.values()))
+            resolved_tool_names: set[str] = set()
+            for toolset in enabled_toolsets:
+                resolved_tool_names.update(str(name) for name in resolve_toolset(toolset))
+            visible_mcp_tools = {
+                tool: toolset
+                for tool, toolset in registered_mcp_tools.items()
+                if tool in resolved_tool_names
+            }
+            snapshot.update(
+                {
+                    "hermesMcpRegisteredToolsets": registered_mcp_toolsets[:80],
+                    "hermesMcpRegisteredToolsetsCount": len(registered_mcp_toolsets),
+                    "hermesMcpRegisteredToolsCount": len(registered_mcp_tools),
+                    "hermesMcpRegisteredToolsEnabledForTlonCount": len(visible_mcp_tools),
+                }
+            )
+        except Exception as exc:
+            snapshot.update(
+                {
+                    "hermesMcpRegisteredToolsets": None,
+                    "hermesMcpRegisteredToolsetsCount": None,
+                    "hermesMcpRegisteredToolsCount": None,
+                    "hermesMcpRegisteredToolsEnabledForTlonCount": None,
+                    "hermesMcpRegistryErrorType": type(exc).__name__,
+                }
+            )
     except Exception as exc:
         snapshot.update(
             {
                 "hermesTlonPlatformToolsetsExplicit": None,
                 "hermesTlonToolsetsResolved": None,
                 "hermesTlonToolsetsCount": None,
+                "hermesMcpServersConfigured": None,
+                "hermesMcpServersConfiguredCount": None,
+                "hermesMcpServersEnabled": None,
+                "hermesMcpServersEnabledCount": None,
+                "hermesMcpExplicitServerAllowlist": None,
+                "hermesMcpExplicitServerAllowlistCount": None,
+                "hermesMcpDefaultServerSetEnabled": None,
+                "hermesMcpRegisteredToolsets": None,
+                "hermesMcpRegisteredToolsetsCount": None,
+                "hermesMcpRegisteredToolsCount": None,
+                "hermesMcpRegisteredToolsEnabledForTlonCount": None,
                 "hermesCronjobToolsetEnabled": None,
                 "hermesCronjobDisabledByAgentConfig": None,
                 "hermesCronjobAvailableAtStartup": None,
@@ -483,7 +579,9 @@ class TlonAdapter(BasePlatformAdapter):
             hermes_permissions = _hermes_tool_permission_snapshot()
             logger.info(
                 "[tlon] Hermes permissions: cronjob available=%s toolset=%s runtime=%s "
-                "disabled=%s flags(interactive=%s gateway=%s exec_ask=%s) home_channel=%s",
+                "disabled=%s flags(interactive=%s gateway=%s exec_ask=%s) home_channel=%s "
+                "mcp_servers=%s mcp_enabled=%s mcp_registered_toolsets=%s "
+                "mcp_registered_tools=%s mcp_visible_tools=%s",
                 hermes_permissions.get("hermesCronjobAvailableAtStartup"),
                 hermes_permissions.get("hermesCronjobToolsetEnabled"),
                 hermes_permissions.get("hermesCronjobRuntimeAllowed"),
@@ -492,6 +590,11 @@ class TlonAdapter(BasePlatformAdapter):
                 hermes_permissions.get("hermesCronjobEnvGatewaySession"),
                 hermes_permissions.get("hermesCronjobEnvExecAsk"),
                 hermes_permissions.get("hermesCronDeliveryHomeChannelConfigured"),
+                hermes_permissions.get("hermesMcpServersConfiguredCount"),
+                hermes_permissions.get("hermesMcpServersEnabledCount"),
+                hermes_permissions.get("hermesMcpRegisteredToolsetsCount"),
+                hermes_permissions.get("hermesMcpRegisteredToolsCount"),
+                hermes_permissions.get("hermesMcpRegisteredToolsEnabledForTlonCount"),
             )
             self._telemetry.gateway_connected(
                 {

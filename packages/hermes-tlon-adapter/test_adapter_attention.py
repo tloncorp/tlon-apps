@@ -177,7 +177,14 @@ class FakeCLI:
 
 
 class HermesToolPermissionSnapshotTests(unittest.TestCase):
-    def _with_fake_hermes_config(self, config, enabled_toolsets):
+    def _with_fake_hermes_config(
+        self,
+        config,
+        enabled_toolsets,
+        *,
+        registry_toolsets=None,
+        registry_aliases=None,
+    ):
         parent = types.ModuleType("hermes_cli")
         parent.__path__ = []
         config_mod = types.ModuleType("hermes_cli.config")
@@ -186,12 +193,40 @@ class HermesToolPermissionSnapshotTests(unittest.TestCase):
         tools_config_mod._get_platform_tools = (
             lambda loaded, platform, include_default_mcp_servers=True: enabled_toolsets
         )
+        toolsets_mod = types.ModuleType("toolsets")
+        tools_parent = types.ModuleType("tools")
+        tools_parent.__path__ = []
+        registry_mod = types.ModuleType("tools.registry")
+        registry_toolsets = registry_toolsets or {}
+        registry_aliases = registry_aliases or {}
+
+        def resolve_toolset(name):
+            # Match Hermes' collision behavior: the built-in/plugin "tlon"
+            # toolset wins over an MCP alias with the same raw server name.
+            if name == "tlon":
+                return [tool for tool, toolset in registry_toolsets.items() if toolset == "tlon"]
+            target = registry_aliases.get(name, name)
+            return [tool for tool, toolset in registry_toolsets.items() if toolset == target]
+
+        toolsets_mod.resolve_toolset = resolve_toolset
+
+        class FakeRegistry:
+            def get_tool_to_toolset_map(self):
+                return registry_toolsets
+
+            def get_registered_toolset_aliases(self):
+                return registry_aliases
+
+        registry_mod.registry = FakeRegistry()
         return patch.dict(
             sys.modules,
             {
                 "hermes_cli": parent,
                 "hermes_cli.config": config_mod,
                 "hermes_cli.tools_config": tools_config_mod,
+                "toolsets": toolsets_mod,
+                "tools": tools_parent,
+                "tools.registry": registry_mod,
             },
         )
 
@@ -236,6 +271,85 @@ class HermesToolPermissionSnapshotTests(unittest.TestCase):
         self.assertFalse(snapshot["hermesCronjobRuntimeAllowed"])
         self.assertTrue(snapshot["hermesCronjobToolsetEnabled"])
         self.assertFalse(snapshot["hermesCronjobAvailableAtStartup"])
+
+    def test_mcp_snapshot_counts_configured_registered_and_visible_tools(self):
+        config = {
+            "platform_toolsets": {"tlon": ["tlon", "tlon-mcp"]},
+            "mcp_servers": {
+                "tlon-mcp": {"enabled": True},
+                "linear": {"enabled": False},
+            },
+        }
+
+        with self._with_fake_hermes_config(
+            config,
+            {"tlon", "tlon-mcp"},
+            registry_toolsets={
+                "mcp_tlon_mcp_search": "mcp-tlon-mcp",
+                "tlon": "tlon",
+            },
+            registry_aliases={"tlon-mcp": "mcp-tlon-mcp"},
+        ):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertEqual(snapshot["hermesMcpServersConfigured"], ["linear", "tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpServersConfiguredCount"], 2)
+        self.assertEqual(snapshot["hermesMcpServersEnabled"], ["tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpServersEnabledCount"], 1)
+        self.assertEqual(snapshot["hermesMcpExplicitServerAllowlist"], ["tlon-mcp"])
+        self.assertFalse(snapshot["hermesMcpDefaultServerSetEnabled"])
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsets"], ["mcp-tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsetsCount"], 1)
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsCount"], 1)
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsEnabledForTlonCount"], 1)
+
+    def test_mcp_snapshot_detects_server_name_collision_with_tlon_toolset(self):
+        config = {
+            "platform_toolsets": {"tlon": ["tlon", "cronjob"]},
+            "mcp_servers": {"tlon": {"enabled": True}},
+        }
+
+        with self._with_fake_hermes_config(
+            config,
+            {"tlon", "cronjob"},
+            registry_toolsets={
+                "mcp_tlon_search": "mcp-tlon",
+                "tlon": "tlon",
+            },
+            registry_aliases={"tlon": "mcp-tlon"},
+        ):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertEqual(snapshot["hermesMcpServersEnabled"], ["tlon"])
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsets"], ["mcp-tlon"])
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsCount"], 1)
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsEnabledForTlonCount"], 0)
+
+    def test_mcp_snapshot_identifies_default_server_set(self):
+        config = {
+            "platform_toolsets": {"tlon": ["tlon", "cronjob"]},
+            "mcp_servers": {"tlon-mcp": {"enabled": "true"}},
+        }
+
+        with self._with_fake_hermes_config(config, {"tlon", "cronjob", "tlon-mcp"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertEqual(snapshot["hermesMcpServersEnabled"], ["tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpExplicitServerAllowlist"], [])
+        self.assertTrue(snapshot["hermesMcpDefaultServerSetEnabled"])
+
+    def test_mcp_snapshot_does_not_mark_default_server_set_when_unresolved(self):
+        config = {
+            "platform_toolsets": {"tlon": ["tlon", "cronjob"]},
+            "mcp_servers": {"tlon-mcp": {"enabled": True}},
+        }
+
+        with self._with_fake_hermes_config(config, {"tlon", "cronjob"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertEqual(snapshot["hermesMcpServersEnabled"], ["tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpExplicitServerAllowlist"], [])
+        self.assertFalse(snapshot["hermesMcpDefaultServerSetEnabled"])
 
 
 class AdapterAttentionTests(unittest.TestCase):
