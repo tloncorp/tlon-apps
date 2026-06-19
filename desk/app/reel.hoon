@@ -10,6 +10,7 @@
       state-4
       state-5
       state-6
+      state-7
   ==
 ::
 ::  vic: URL of bait service
@@ -78,13 +79,26 @@
       stable-id=(map cord token:reel)
       =^subs:s
   ==
++$  state-7
+  $:  %7
+      vic=@t
+      civ=ship
+      our-profile=contact:t
+      our-metadata=(map token:reel metadata:v1:reel)
+      open-link-requests=(set (pair ship cord))
+      ::
+      :: outstanding describes. true when metadata had been modified.
+      open-describes=(map token:reel ?)  
+      stable-id=(map cord token:reel)
+      =^subs:s
+  ==
 ::
 ::  url with old style token
 ++  url-for-token
   |=  [vic=cord token=cord]
   (cat 3 vic token)
 --
-=|  state-6
+=|  state-7
 =*  state  -
 ::
 %-  agent:dbug
@@ -194,7 +208,14 @@
     :_  old(- %6)
     =+  wait=(~(rad og eny.bowl) ~h1)
     [%pass /load/profile %arvo %b %wait (add now.bowl wait)]~
-  ?>  ?=(%6 -.old)
+  =?  old  ?=(%6 -.old)
+    %=  old  -  %7
+        open-describes  
+      %-  ~(gas by *(map token:reel ?))
+      ^-  (list (pair token:reel ?))
+      (turn ~(tap in open-describes.old) (late &))  ::  force sync on open describes
+    ==
+  ?>  ?=(%7 -.old)
   =.  state  old
   :_  this
   %+  weld  caz
@@ -221,7 +242,11 @@
         %set-ship
       ::  since we're changing providers, we need to regenerate links
       ::  we'll use whatever key we currently have as the nonce
-      :_  this(civ civ.command, open-describes ~(key by our-metadata))
+      =/  opens
+        %-  ~(gas by *(map token:reel ?))
+        ^-  (list (pair token:reel ?))
+        (turn ~(tap in ~(key by our-metadata)) (late |))
+      :_  this(civ civ.command, open-describes opens)
       %+  turn  ~(tap by our-metadata)
       |=  [token=cord =metadata:reel]
       ^-  card
@@ -310,7 +335,7 @@
     =?  our-metadata  ?=(^ old-token)
       (~(del by our-metadata) u.old-token)
     =.  our-metadata  (~(put by our-metadata) nonce metadata)
-    =.  open-describes  (~(put in open-describes) nonce)
+    =.  open-describes  (~(put by open-describes) nonce |)
     =.  stable-id  (~(put by stable-id) id nonce)
     :_  this
     ~[[%pass /describe %agent [civ %bait] %poke %bait-describe !>([nonce metadata])]]
@@ -319,10 +344,10 @@
     ?>  =(civ src.bowl)
     =+  !<(confirmation:reel vase)
     =+  log=~(. l bowl 'flow'^s+'lure' ~)
-    =.  open-describes  (~(del in open-describes) nonce)
+    =/  sync=?  (~(got by open-describes) nonce)
+    =.  open-describes  (~(del by open-describes) nonce)
     =/  ids=(list [id=cord =token:reel])
-      %+  skim
-        ~(tap by stable-id)
+      %+  skim  ~(tap by stable-id)
       |=  [key=cord =token:reel]
       =(nonce token)
     ?~  ids
@@ -342,12 +367,15 @@
           ~[leaf+"invite link for {(trip id)} created"]
         ~['event'^s+'Invite Link Created' 'lure-id'^s+token]
     :_  %_  this  our-metadata
-          ::  swap out the nonce for the token in our-metadata
           (~(put by (~(del by our-metadata) nonce)) token u.md)
         ==
     =/  url  (cat 3 vic token)
     =/  path  (stab (cat 3 '/v1/id-link/' id))
-    ~[[%give %fact ~[path] %json !>(s+url)]]
+    ?.  sync
+      [%give %fact ~[path] %json !>(s+url)]~
+    :~  [%pass /update/open %agent [civ %bait] %poke bait-update+!>([token u.md])]
+        [%give %fact ~[path] %json !>(s+url)]
+    ==
   ::
       %reel-undescribe
     ?>  =(our.bowl src.bowl)
@@ -391,6 +419,12 @@
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
     %-  (fail:log %poke-ack 'profile update failed' u.p.sign)
+    `this
+  ::
+      [%update %open ~]
+    ?>  ?=(%poke-ack -.sign)
+    ?~  p.sign  `this
+    %-  (fail:log %poke-ack 'open update failed' u.p.sign)
     `this
   ::
       [%update %group ~]
@@ -453,15 +487,16 @@
       ::  update our lure links with new nickname, avatar image
       ::  and color. also update open-graph metadata.
       ::
-      =^  caz=(list card)  our-metadata
-        %+  ~(rib by our-metadata)  *(list card)
-        |=  [[=token:reel meta=metadata:reel] caz=(list card)]
-        ^-  [(list card) [token:reel metadata:reel]]
+      =*  token-update  ,[token:reel metadata:reel]
+      =^  updates=(list token-update)  our-metadata
+        %+  ~(rib by our-metadata)  *(list token-update)
+        |=  [[=token:reel meta=metadata:reel] ups=(list token-update)]
+        ^-  [(list token-update) [token:reel metadata:reel]]
         =;  new-update=_update
           :_  :-  token
               meta(fields (~(uni by fields.meta) fields.new-update))
-          :_  caz
-          [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token new-update])]
+          :_  ups
+          [token new-update]
         ::  insert open-graph metadata into update
         ::
         =+  type=(~(get by fields.meta) %'inviteType')
@@ -487,6 +522,15 @@
           update
         ::  unknown invite type, ignore
         update
+      =^  caz=(list card)  open-describes
+        %+  roll  updates
+        |=  [[=token:reel update=metadata:reel] caz=(list card) =_open-describes]
+        =/  cad=card
+          [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token update])]
+        :-  [cad caz]
+        ?.  (~(has by ^open-describes) token)
+          open-describes
+        (~(put by open-describes) token &)
       [caz this]
     ==
   ::
@@ -537,9 +581,11 @@
           our-metadata
         %+  ~(put by our-metadata)  u.token
         u.our-meta(fields (~(uni by fields.u.our-meta) fields.update))
+      =+  log=~(. l bowl 'flow'^s+'lure' 'lure-id'^s+id 'has-token'^s+?:(?=(^ token) 'true' 'false') ~)
       ::  update the bait provider if we are the group host
       ::
-      ?.  =(p.flag our.bowl)  `this
+      ?.  =(p.flag our.bowl)
+        `this
       :_  this
       [%pass /update/group %agent [civ %bait] %poke bait-update-group+!>([flag update])]~
     ==
@@ -577,7 +623,7 @@
       [%v1 %id-link id=*]
     =/  id  (crip +:(spud id.pole))
     ?~  token=(~(get by stable-id) id)  `this
-    ?:  (~(has in open-describes) u.token)
+    ?:  (~(has by open-describes) u.token)
       ::  when the confirmation comes back we'll send the fact
       `this
     =/  url  (cat 3 vic u.token)

@@ -1,5 +1,5 @@
 /-  spider
-/-  c=chat, g=groups, gv=groups-ver, r=reel
+/-  c=chat, g=groups, gv=groups-ver, r=reel, t=contacts
 /+  *ph-io, *ph-test
 =,  strand=strand:spider
 ::
@@ -84,6 +84,19 @@
       [%'invitedGroupId' '~zod/personal-invite-link']
       [%'bite-type' '2']
   ==
+++  nickname-profile
+  |=  nickname=@t
+  ^-  contact:t
+  %-  ~(gas by *(map @tas value:t))
+  :~  [%nickname text+nickname]
+  ==
+::
+++  poke-app-event
+  |=  [=dock =page]
+  ^-  aqua-event
+  =/  =task:gall
+    [%deal [p.dock p.dock /aqua] q.dock %raw-poke page]
+  [%event p.dock /g/aqua/deal task]
 ::
 ++  generate-lure-invite
   |=  =metadata:v1:r
@@ -110,6 +123,87 @@
   ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-id)
   ;<  invite-link=@t  bind:m  (generate-lure-invite lure-group-metadata)
   (ex-not-equal !>(invite-link) !>(''))
+::
+::  +ph-test-lure-race-group: check group metadata update race condition 
+::
+::  scenario
+::
+::  ~zod hosts a group and starts creating a lure invite. before the bait
+::  provider confirms the lure token, ~zod updates the group title. this
+::  triggers an update to be sent to the provider, causing the invite
+::  metadata to be updated.
+::
+++  ph-test-lure-race-group
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  create-test-group
+  ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] /v1/id-link/~zod/test-group)
+  =/  describe-event=aqua-event
+    (poke-app-event [~zod %reel] reel-describe+[my-test-group-id lure-group-metadata])
+  =/  =c-groups:g
+    [%group my-test-flag [%meta ['Racing Group' 'Fast racing' '' '']]]
+  =/  group-meta-event=aqua-event
+    (poke-app-event [~zod %groups] group-command+c-groups)
+  ;<  ~  bind:m  (send-events ~[describe-event group-meta-event])
+  ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
+  ?>  =(%json p.kag)
+  =+  !<(=json q.kag)
+  ?>  ?=(%s -.json)
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /gx/~loshut-lonreg/bait/(scot %da now.bowl)/metadata/noun
+  ;<  token-metadata=(unit (map token:r metadata:v1:r))  bind:m
+    (scry-aqua (unit (map token:r metadata:v1:r)) ~loshut-lonreg aqua-pax)
+  =/  metadata-map=(map token:r metadata:v1:r)
+    (need token-metadata)
+  =/  metadata-count=@ud  (lent ~(tap by metadata-map))
+  ;<  ~  bind:m  (ex-equal !>(metadata-count) !>(`@ud`1))
+  =/  metadata=metadata:v1:r
+    (need (head ~(tap by metadata-map)))
+  ;<  ~  bind:m
+    (ex-equal !>((~(get by fields.metadata) %'invitedGroupTitle')) !>(`'Racing Group'))
+  ;<  ~  bind:m
+    (ex-equal !>((~(get by fields.metadata) %'invitedGroupDescription')) !>(`'Fast racing'))
+  (pure:m ~)
+::
+::  +ph-test-lure-race-profile: check profile update race condition
+::
+::  scenario
+::
+::  ~zod hosts a group and starts creating a lure invite. before the bait
+::  provider confirms the lure token, ~zod updates his profile nickname,
+::  marking the outstanding lure invite as modified. when confirmation
+::  arrives, ~zod sends out an update to the bait provider.
+::
+++  ph-test-lure-race-profile
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  create-test-group
+  ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] /v1/id-link/~zod/test-group)
+  =/  describe-event=aqua-event
+    (poke-app-event [~zod %reel] reel-describe+[my-test-group-id lure-group-metadata])
+  =/  profile-event=aqua-event
+    (poke-app-event [~zod %contacts] contact-action-1+[%self (nickname-profile 'Racing Driver')])
+  ;<  ~  bind:m  (send-events ~[describe-event profile-event])
+  ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
+  ?>  =(%json p.kag)
+  =+  !<(=json q.kag)
+  ?>  ?=(%s -.json)
+  ;<  ~  bind:m  (sleep ~s3)
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /gx/~loshut-lonreg/bait/(scot %da now.bowl)/metadata/noun
+  ;<  token-metadata=(unit (map token:r metadata:v1:r))  bind:m
+    (scry-aqua (unit (map token:r metadata:v1:r)) ~loshut-lonreg aqua-pax)
+  =/  metadata-map=(map token:r metadata:v1:r)
+    (need token-metadata)
+  =/  metadata-count=@ud  (lent ~(tap by metadata-map))
+  ;<  ~  bind:m  (ex-equal !>(metadata-count) !>(`@ud`1))
+  =/  metadata=metadata:v1:r
+    (need (head ~(tap by metadata-map)))
+  ;<  ~  bind:m
+    (ex-equal !>((~(get by fields.metadata) %'inviterNickname')) !>(`'Racing Driver'))
+  (pure:m ~)
 ::
 ++  eyre-authenticate
   |=  =ship
