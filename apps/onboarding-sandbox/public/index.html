@@ -548,6 +548,12 @@
       async function run(cmd) {
         if (busy) return;
         setBusy(true);
+        // start renders the on-disk sandbox prompts (via reset), so flush the
+        // dirty item first or the first run uses the pre-edit text.
+        if (cmd === 'start' && dirty && current && !(await saveItem())) {
+          setBusy(false);
+          return;
+        }
         await stream(cmd, 'cmd=' + cmd);
         setBusy(false);
         refreshStatus();
