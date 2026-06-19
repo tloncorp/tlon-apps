@@ -12,9 +12,9 @@ import { useTheme } from 'tamagui';
 
 import { Field } from './Field';
 import {
-  detectCountryFromInput,
   getCallingCode,
   getFlag,
+  parsePhoneInput,
   toE164,
 } from './phoneNumberValue';
 
@@ -81,11 +81,11 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
                 defaultValue={`+${getCallingCode('US')} `}
                 keyboardType="phone-pad"
                 onChangeText={(text) => {
-                  const detected = detectCountryFromInput(text);
-                  if (detected) {
-                    setCountry(detected);
+                  const { country, e164 } = parsePhoneInput(text);
+                  if (country) {
+                    setCountry(country);
                   }
-                  onChange(toE164(text));
+                  onChange(e164);
                 }}
                 style={{
                   flex: 1,

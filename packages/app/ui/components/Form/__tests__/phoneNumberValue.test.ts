@@ -5,6 +5,7 @@ import {
   detectCountryFromInput,
   getCallingCode,
   getFlag,
+  parsePhoneInput,
   toE164,
 } from '../phoneNumberValue';
 
@@ -54,6 +55,27 @@ describe('phoneNumberValue', () => {
     it('resolves non-NANP countries from the calling code', () => {
       expect(detectCountryFromInput('+44 20 7946 0958')).toBe('GB');
       expect(detectCountryFromInput('+33 6 12 34 56 78')).toBe('FR');
+    });
+  });
+
+  describe('parsePhoneInput', () => {
+    it('derives country and E.164 from one parse', () => {
+      expect(parsePhoneInput('+1 (415) 555-2671')).toEqual({
+        country: 'US',
+        e164: '+14155552671',
+      });
+      expect(parsePhoneInput('+44 7700 900123')).toEqual({
+        country: 'GB',
+        e164: '+447700900123',
+      });
+    });
+
+    it('matches detectCountryFromInput + toE164 for partial input', () => {
+      const value = '+1 514';
+      expect(parsePhoneInput(value)).toEqual({
+        country: detectCountryFromInput(value),
+        e164: toE164(value),
+      });
     });
   });
 });
