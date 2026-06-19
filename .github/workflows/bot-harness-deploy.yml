@@ -121,7 +121,7 @@ jobs:
             echo "Restarting tlawn (non-internal) ships"
           fi
 
-          for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 admin@ovh-oregon-1 admin@ovh-oregon-2 admin@ovh-oregon-3; do
+          for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 solaris-ship-manager@ovh-oregon-1 solaris-ship-manager@ovh-oregon-2 solaris-ship-manager@ovh-oregon-3; do
             echo "=== Restarting ships in context: $ctx ==="
             kubectl --context "$ctx" get ships -n tlon -ojson \
               | jq -r "$JQ_FILTER" \
