@@ -196,13 +196,8 @@ async function main() {
         break;
       }
       case 'posts': {
-        if (scriptArgs[0] === 'react') {
-          const exitCode = await runPostsCommand(scriptArgs, createPostsDeps());
-          process.exit(exitCode);
-          break;
-        }
-        process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./posts');
+        const exitCode = await runPostsCommand(scriptArgs, createPostsDeps());
+        process.exit(exitCode);
         break;
       }
       case 'settings': {

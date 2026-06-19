@@ -64,7 +64,7 @@
   ::  self-join the group
   ::
   ;<  *  bind:m  (do-poke group-command+!>([%join my-flag ~]))
-  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot %da *@da)))
+  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot:h136 %da *@da)))
   ;<  =bowl:gall  bind:m  get-bowl
   (pure:m caz)
 ::
@@ -85,7 +85,7 @@
   ::  self-join the group
   ::
   ;<  *  bind:m  (do-poke group-command+!>([%join my-flag ~]))
-  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot %da *@da)))
+  ;<  *  bind:m  (do-watch (weld se-area /updates/~zod/(scot:h136 %da *@da)))
   ;<  =bowl:gall  bind:m  get-bowl
   (pure:m caz)
 ::
@@ -131,7 +131,7 @@
 ++  ex-update
   |=  [=time =u-group:v9:gv]
   %+  ex-fact
-    ~[/server/groups/~zod/my-test-group/updates/~zod/(scot %da *@da)]
+    ~[/server/groups/~zod/my-test-group/updates/~zod/(scot:h136 %da *@da)]
   group-update+!>(`update:g`[time u-group])
 ::
 ++  ex-arvo-token-expire
@@ -530,7 +530,6 @@
         (ex-update now.bowl [%entry %token %add token0 token-meta])
         ::
         ::  invite ~nec
-        (ex-poke (snoc nec-wire %old) [~nec my-agent] group-foreign-1+!>(a-foreigns-7))
         (ex-poke nec-wire [~nec my-agent] group-foreign-2+!>(a-foreigns-8))
         ::
         ::  entry update
@@ -585,12 +584,10 @@
     :~  ::
         ::  invite ~dev
         (ex-arvo-token-expire token0 expiry)
-        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  invite ~fun
         (ex-arvo-token-expire token1 expiry)
-        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
         ::
         ::  self-join and foreigns update
@@ -639,7 +636,6 @@
         (ex-update (add now.bowl tick) [%entry %token %del token1])
         ::
         ::  invite ~fun
-        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
         ::
         ::  entry update
@@ -674,11 +670,9 @@
     %+  ex-cards  caz
     :~  ::
         ::  invite ~dev
-        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7))
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8))
         ::
         ::  invite ~fun
-        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7))
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8))
         ::
         ::  self-join and foreigns update
@@ -722,7 +716,6 @@
         (ex-poke fun-revoke-wire [~fun my-agent] group-foreign-2+!>([%revoke my-flag ~]))
         ::
         ::  invite ~fun
-        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
         ::
         ::  entry update
@@ -760,7 +753,6 @@
     :~  ::
         ::  invite ~dev
         (ex-arvo-token-expire token0 (add now.bowl ~d365))
-        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  self-join and foreigns update
@@ -827,7 +819,6 @@
     :~  ::
         ::  invite ~dev
         (ex-arvo-token-expire token0 (add now.bowl ~d365))
-        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  self-join and foreigns update
@@ -894,7 +885,6 @@
     :~  ::
         ::  invite ~dev
         (ex-arvo-token-expire token0 (add now.bowl ~d365))
-        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  self-join and foreigns update
@@ -966,12 +956,10 @@
     :~  ::
         ::  invite ~dev
         (ex-arvo-token-expire token0 expiry)
-        (ex-poke (snoc dev-wire %old) [~dev my-agent] group-foreign-1+!>(a-foreigns-7-dev))
         (ex-poke dev-wire [~dev my-agent] group-foreign-2+!>(a-foreigns-8-dev))
         ::
         ::  invite ~fun
         (ex-arvo-token-expire token1 expiry)
-        (ex-poke (snoc fun-wire %old) [~fun my-agent] group-foreign-1+!>(a-foreigns-7-fun))
         (ex-poke fun-wire [~fun my-agent] group-foreign-2+!>(a-foreigns-8-fun))
         ::
         ::  self-join and foreigns update
