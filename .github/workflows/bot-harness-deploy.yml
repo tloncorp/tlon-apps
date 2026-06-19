@@ -1,0 +1,130 @@
+name: Restart Bot Ships
+
+# Restarts the hosted bot ship pods so they pick up plugin changes.
+# Pushes to develop touching bot plugin source restart the internal ships;
+# tlawn (prod) restarts are workflow_dispatch-only, a deliberate human
+# action decoupled from the develop -> master release sync cadence.
+
+on:
+  push:
+    branches: [develop]
+    # Runtime inputs of the deployed plugins only — docs, tests, and the dev
+    # harness don't warrant a ship restart. (Production pulls the develop
+    # branch ref at restart, so a missed trigger self-heals on the next one.)
+    #
+    # Deliberately NOT watching packages/api or packages/tlon-skill: the
+    # deployed OpenClaw plugin resolves its workspace:^ deps to *published npm
+    # versions* (resolve-workspace-deps.mjs --registry), so develop merges
+    # to those packages change nothing on ships — dep changes reach
+    # production via an npm publish followed by a restart.
+    paths:
+      - "packages/openclaw/src/**"
+      - "packages/openclaw/index.ts"
+      - "packages/openclaw/setup-entry.ts"
+      - "packages/openclaw/setup-api.ts"
+      - "packages/openclaw/package.json"
+      - "packages/openclaw/openclaw.plugin.json"
+      - "packages/openclaw/tsconfig.json"
+      - "packages/openclaw/scripts/**"
+      - "packages/openclaw/.npmrc"
+      - "packages/hermes-tlon-adapter/__init__.py"
+      - "packages/hermes-tlon-adapter/adapter.py"
+      - "packages/hermes-tlon-adapter/approval.py"
+      - "packages/hermes-tlon-adapter/attention.py"
+      - "packages/hermes-tlon-adapter/channel_access.py"
+      - "packages/hermes-tlon-adapter/history.py"
+      - "packages/hermes-tlon-adapter/image_search.py"
+      - "packages/hermes-tlon-adapter/mention.py"
+      - "packages/hermes-tlon-adapter/owner_listen.py"
+      - "packages/hermes-tlon-adapter/presence.py"
+      - "packages/hermes-tlon-adapter/telemetry.py"
+      - "packages/hermes-tlon-adapter/tlon_api.py"
+      - "packages/hermes-tlon-adapter/tlon_tool.py"
+      - "packages/hermes-tlon-adapter/version.py"
+      - "packages/hermes-tlon-adapter/plugin.yaml"
+      - "packages/hermes-tlon-adapter/prompts/**"
+      - "packages/hermes-tlon-adapter/requirements.txt"
+      - "packages/hermes-tlon-adapter/package.json"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Which ships to restart"
+        required: true
+        type: choice
+        options:
+          - internal
+          - tlawn
+
+jobs:
+  restart-ships:
+    name: Restart Ships
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deploy credentials
+        id: creds
+        run: |
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "::warning::GCP_SA_KEY secret is not set; skipping ship restart"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: steps.creds.outputs.present == 'true'
+        uses: google-github-actions/setup-gcloud@v0.3.0
+        with:
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
+          project_id: prod-f0181862
+
+      - name: Get GKE credentials
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+          gcloud container clusters get-credentials us-east5-cluster1 --zone us-east5 --project prod-f0181862
+
+      - name: Set up kubeconfig for OVH cluster
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d >> "$HOME/.kube/config"
+
+      - name: Install tools
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          sudo apt-get install -y -qq jq
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Determine mode
+        id: mode
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=internal" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Restart ships
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          MODE="${{ steps.mode.outputs.mode }}"
+
+          if [ "$MODE" = "internal" ]; then
+            JQ_FILTER='.items[] | select(.spec.internal == true) | .metadata.name'
+            echo "Restarting internal ships"
+          else
+            JQ_FILTER='.items[] | select(.spec.tlawn.enabled == true and .spec.internal != true) | .metadata.name'
+            echo "Restarting tlawn (non-internal) ships"
+          fi
+
+          for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 solaris-ship-manager@ovh-oregon-1 solaris-ship-manager@ovh-oregon-2 solaris-ship-manager@ovh-oregon-3; do
+            echo "=== Restarting ships in context: $ctx ==="
+            kubectl --context "$ctx" get ships -n tlon -ojson \
+              | jq -r "$JQ_FILTER" \
+              | xargs -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon &'
+            wait
+          done

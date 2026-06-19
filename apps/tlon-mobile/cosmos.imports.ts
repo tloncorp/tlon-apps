@@ -15,7 +15,6 @@ import * as fixture8 from './../../packages/app/fixtures/Activity.fixture';
 import * as fixture9 from './../../packages/app/fixtures/AddContactsView.fixture';
 import * as fixture10 from './../../packages/app/fixtures/AttachmentPreviewList.fixture';
 import * as fixture11 from './../../packages/app/fixtures/AttestationPane.fixture';
-import * as fixture12 from './../../packages/app/fixtures/AudioEmbed.fixture';
 import * as fixture13 from './../../packages/app/fixtures/AudioRecorder.fixture';
 import * as fixture14 from './../../packages/app/fixtures/Avatar.fixture';
 import * as fixture15 from './../../packages/app/fixtures/BlockSectionList.fixture';
@@ -23,7 +22,6 @@ import * as fixture16 from './../../packages/app/fixtures/Button.fixture';
 import * as fixture17 from './../../packages/app/fixtures/ButtonV2.fixture';
 import * as fixture18 from './../../packages/app/fixtures/Carousel.fixture';
 import * as fixture19 from './../../packages/app/fixtures/Channel.fixture';
-import * as fixture20 from './../../packages/app/fixtures/ChannelConfigurationBar.fixture';
 import * as fixture21 from './../../packages/app/fixtures/ChannelDivider.fixture';
 import * as fixture22 from './../../packages/app/fixtures/ChannelHeader.fixture';
 import * as fixture23 from './../../packages/app/fixtures/ChannelListItem.fixture';
@@ -37,7 +35,6 @@ import * as fixture30 from './../../packages/app/fixtures/DetailView/GalleryDeta
 import * as fixture31 from './../../packages/app/fixtures/DetailView/NotebookDetailView.fixture';
 import * as fixture32 from './../../packages/app/fixtures/DmInviteOptions.fixture';
 import * as fixture33 from './../../packages/app/fixtures/EditProfileScreen.fixture';
-import * as fixture34 from './../../packages/app/fixtures/EmbedContent.fixture';
 import * as fixture35 from './../../packages/app/fixtures/EmptyChannelNotice.fixture';
 import * as fixture36 from './../../packages/app/fixtures/FacePile.fixture';
 import * as fixture37 from './../../packages/app/fixtures/Form.fixture';
@@ -67,14 +64,13 @@ import * as fixture60 from './../../packages/app/fixtures/SearchBar.fixture';
 import * as fixture61 from './../../packages/app/fixtures/SplashSequence.fixture';
 import * as fixture62 from './../../packages/app/fixtures/StoppedNodePushSheet.fixture';
 import * as fixture63 from './../../packages/app/fixtures/StorageQuotaIndicator.fixture';
-import * as fixture64 from './../../packages/app/fixtures/SummaryCollectionView.fixture';
 import * as fixture65 from './../../packages/app/fixtures/SystemNotice.fixture';
 import * as fixture66 from './../../packages/app/fixtures/SystemNotices.fixture';
 import * as fixture67 from './../../packages/app/fixtures/Text.fixture';
 import * as fixture68 from './../../packages/app/fixtures/Toast.fixture';
 import * as fixture69 from './../../packages/app/fixtures/TwitterVerification.fixture';
 import * as fixture70 from './../../packages/app/fixtures/UserProfileScreen.fixture';
-import * as fixture71 from './../../packages/app/fixtures/VideoEmbed.fixture';
+import * as fixture71 from './../../packages/app/fixtures/VideoPreview.fixture';
 import * as fixture72 from './../../packages/app/fixtures/ViewReactionsSheet.fixture';
 import * as fixture73 from './../../packages/app/fixtures/Waveform.fixture';
 import * as fixture74 from './../../packages/app/fixtures/WayfindingNotices.fixture';
@@ -125,7 +121,6 @@ const fixtures = {
   '../../packages/app/fixtures/AttestationPane.fixture.tsx': {
     module: fixture11,
   },
-  '../../packages/app/fixtures/AudioEmbed.fixture.tsx': { module: fixture12 },
   '../../packages/app/fixtures/AudioRecorder.fixture.tsx': {
     module: fixture13,
   },
@@ -137,9 +132,6 @@ const fixtures = {
   '../../packages/app/fixtures/ButtonV2.fixture.tsx': { module: fixture17 },
   '../../packages/app/fixtures/Carousel.fixture.tsx': { module: fixture18 },
   '../../packages/app/fixtures/Channel.fixture.tsx': { module: fixture19 },
-  '../../packages/app/fixtures/ChannelConfigurationBar.fixture.tsx': {
-    module: fixture20,
-  },
   '../../packages/app/fixtures/ChannelDivider.fixture.tsx': {
     module: fixture21,
   },
@@ -175,7 +167,6 @@ const fixtures = {
   '../../packages/app/fixtures/EditProfileScreen.fixture.tsx': {
     module: fixture33,
   },
-  '../../packages/app/fixtures/EmbedContent.fixture.tsx': { module: fixture34 },
   '../../packages/app/fixtures/EmptyChannelNotice.fixture.tsx': {
     module: fixture35,
   },
@@ -236,9 +227,6 @@ const fixtures = {
   '../../packages/app/fixtures/StorageQuotaIndicator.fixture.tsx': {
     module: fixture63,
   },
-  '../../packages/app/fixtures/SummaryCollectionView.fixture.tsx': {
-    module: fixture64,
-  },
   '../../packages/app/fixtures/SystemNotice.fixture.tsx': { module: fixture65 },
   '../../packages/app/fixtures/SystemNotices.fixture.tsx': {
     module: fixture66,
@@ -251,7 +239,7 @@ const fixtures = {
   '../../packages/app/fixtures/UserProfileScreen.fixture.tsx': {
     module: fixture70,
   },
-  '../../packages/app/fixtures/VideoEmbed.fixture.tsx': { module: fixture71 },
+  '../../packages/app/fixtures/VideoPreview.fixture.tsx': { module: fixture71 },
   '../../packages/app/fixtures/ViewReactionsSheet.fixture.tsx': {
     module: fixture72,
   },
