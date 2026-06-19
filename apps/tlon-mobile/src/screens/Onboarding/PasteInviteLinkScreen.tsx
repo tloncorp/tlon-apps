@@ -3,7 +3,6 @@ import { DEFAULT_INVITE_LINK_URL } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useTelemetryId } from '@tloncorp/app/hooks/useTelemetry';
 import {
-  Button,
   Field,
   LoadingSpinner,
   OnboardingTextBlock,
@@ -183,14 +182,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                 <XStack marginTop="$2xl" justifyContent="center">
                   {checkingInput && <LoadingSpinner />}
                 </XStack>
-                <Button
-                  preset="secondaryOutline"
-                  marginTop="$4xl"
-                  width="100%"
-                  label="I don't have an invite"
-                  centered
-                  onPress={() => navigation.navigate('Signup')}
-                />
               </YStack>
             </YStack>
           </YStack>
