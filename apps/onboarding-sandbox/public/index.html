@@ -377,6 +377,7 @@
       }
 
       async function selectItem(name) {
+        if (busy) return; // don't re-enable the editor while a command is streaming
         if (dirty && !confirm('Discard unsaved changes?')) return;
         const it = await (
           await fetch('/api/prompts/' + encodeURIComponent(name))

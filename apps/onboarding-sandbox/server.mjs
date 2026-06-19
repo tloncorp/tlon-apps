@@ -221,6 +221,10 @@ const runWithStdin = (args, input) =>
     p.stderr.on('data', (d) => (err += d));
     p.on('close', (code) => resolve({ code: code ?? -1, out, err }));
     p.on('error', (e) => resolve({ code: -1, out, err: String(e) }));
+    // The child may exit before reading stdin (e.g. run.sh aborts on a missing
+    // TLONBOT_DIR), which EPIPEs this write; swallow it so it doesn't crash the
+    // server — the close handler still reports the real failure.
+    p.stdin.on('error', () => {});
     p.stdin.write(input);
     p.stdin.end();
   });
