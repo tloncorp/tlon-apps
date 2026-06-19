@@ -3,7 +3,7 @@ onFlowComplete:
   - runScript: scripts/handleSignupSuccess.js
 ---
 - runFlow: subflows/launch.yaml
-- assertVisible: 'Join with new account'
+- assertVisible: 'Sign up'
 
 # enter signup flow
 - tapOn: 'Join with an invite'
