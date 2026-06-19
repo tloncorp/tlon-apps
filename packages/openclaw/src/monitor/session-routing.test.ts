@@ -9,6 +9,7 @@ import {
   recordTlonInboundRoute,
   recordTlonRouteAndDispatch,
   routeUpdateWillSkipByPin,
+  tlonDeliveryContext,
 } from './session-routing.js';
 
 function makeRoute(
@@ -321,6 +322,23 @@ describe('recordTlonInboundRoute', () => {
 
     expect(logDebug).toHaveBeenCalledTimes(1);
     expect(logError).not.toHaveBeenCalled();
+  });
+});
+
+describe('tlonDeliveryContext', () => {
+  it('builds a Tlon delivery context for a channel nest target', () => {
+    expect(tlonDeliveryContext('tlon:chat/~host/general', 'acct-1')).toEqual({
+      channel: 'tlon',
+      to: 'tlon:chat/~host/general',
+      accountId: 'acct-1',
+    });
+  });
+
+  it('omits accountId when not provided', () => {
+    expect(tlonDeliveryContext('tlon:~zod')).toEqual({
+      channel: 'tlon',
+      to: 'tlon:~zod',
+    });
   });
 });
 
