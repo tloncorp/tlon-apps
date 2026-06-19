@@ -79,28 +79,32 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
-::  %steward-action-1 is accepted from ourselves, or from a moon we
-::  sponsor. a bot is typically a moon of the owner planet; the owner
-::  accepts lens runs from itself and from its own moons. a moon's
-::  sponsor is its low 32 bits and is immutable, so we derive it
-::  directly rather than scrying jael ((end 5) for any non-moon equals
-::  the ship itself, so the inequality excludes galaxies/stars/planets).
+::  %steward-action-1 auth is per-variant rather than blanket-gated, since
+::  the lens module accepts two distinct inbound shapes:
+::    %entry: data flowing in from the bot's gateway (src=our) or fanning
+::            in from a moon we sponsor (src is a bot we own).
+::    %retry: an owner-initiated retry request, which cross-ship from the
+::            owner planet to the bot moon — owner is not a moon we sponsor,
+::            so the entry gate would reject it.
+::  gateway and top-level %configure remain self-only.
 ::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
   ?+  mark  ~|(bad-poke-mark+mark !!)
       %steward-action-1
-    ?>  ?|  =(src.bowl our.bowl)
-            ?&  !=(src.bowl (end 5 src.bowl))
-                =(our.bowl (end 5 src.bowl))
-            ==
-        ==
     =+  !<(=action:v1:s vase)
     ?-  -.action
-      %configure  cor(owner.state `owner.action)
-      %lens       (le-poke-action:le-core action.action)
-      %gateway    (ga-poke-action:ga-core action.action)
+        %configure
+      ?>  =(src.bowl our.bowl)
+      cor(owner.state `owner.action)
+    ::
+        %lens
+      (le-poke-action:le-core action.action)
+    ::
+        %gateway
+      ?>  =(src.bowl our.bowl)
+      (ga-poke-action:ga-core action.action)
     ==
   ==
 ::
@@ -191,19 +195,59 @@
     ^-  ?
     (lth received.run (sub now.bowl max-run-age))
   ::
-  ::  the same action arrives in two roles (the ownership gate in +poke
-  ::  has already vetted src as ourselves or a moon we sponsor):
+  ::  lens-action auth: per-variant, since %entry and %retry take pokes from
+  ::  different src shapes.
+  ::    %entry: src=our (bot's own gateway) or src is a moon we sponsor (a
+  ::            bot we own fanning a run to us as its owner).
+  ::    %retry: src=our (local client) or src is the configured owner (an
+  ::            owner planet poking its bot moon).
+  ::
+  ++  le-poke-action
+    |=  =action:lens:s
+    ^+  cor
+    ?-  -.action
+        %entry
+      ?>  ?|  =(src.bowl our.bowl)
+              ?&  !=(src.bowl (end 5 src.bowl))
+                  =(our.bowl (end 5 src.bowl))
+              ==
+          ==
+      (le-handle-entry id.action payload.action final.action)
+    ::
+        %retry
+      ?>  ?|  =(src.bowl our.bowl)
+              ?&  ?=(^ owner.state)
+                  =(src.bowl u.owner.state)
+              ==
+          ==
+      (le-handle-retry id.action src.bowl)
+    ==
+  ::
+  ::  the same %entry action arrives in two roles:
   ::    - bot role (src==our): our own gateway poked us; fan the run out
   ::      to our configured owner.
   ::    - owner role (src is a sponsored moon): one of our bots sent us
   ::      its run; store it keyed by src.bowl so we can serve it to clients.
   ::
-  ++  le-poke-action
-    |=  =action:lens:s
+  ++  le-handle-entry
+    |=  [=id:lens:s =payload:lens:s final=?]
     ^+  cor
     ?:  =(src.bowl our.bowl)
-      (le-fan-out id.action payload.action final.action)
-    (le-store src.bowl id.action payload.action final.action)
+      (le-fan-out id payload final)
+    (le-store src.bowl id payload final)
+  ::
+  ::  retry: emit a fact on /v1/lens that the local gateway picks up and
+  ::  re-dispatches. retry doesn't mutate stored state — the gateway will
+  ::  create a new lens run with a fresh id and poke us back with %entry.
+  ::
+  ++  le-handle-retry
+    |=  [=id:lens:s requester=ship]
+    ^+  cor
+    %+  give  %fact
+    :*  ~[/v1/lens]
+        %steward-update-1
+        !>(`update:v1:s`[%lens %retry-requested id requester])
+    ==
   ::
   ++  le-watch
     |=  =path
@@ -225,7 +269,7 @@
       =/  =id:lens:s  i.t.t.t.path
       ?~  r=(~(get by lens.state) [bot id])  [~ ~]
       ?:  (le-expired u.r)  [~ ~]
-      ``steward-update-1+!>(`update:v1:s`[%lens bot id u.r])
+      ``steward-update-1+!>(`update:v1:s`[%lens %entry bot id u.r])
     ==
   ::
   ++  le-fan-out
@@ -235,7 +279,7 @@
     ?:  =(u.owner.state our.bowl)
       ::  self-owned bot: store directly, no network hop
       (le-store our.bowl id payload final)
-    =/  =action:lens:s  [id payload final]
+    =/  =action:lens:s  [%entry id payload final]
     %-  emit
     :^    %pass
         /lens/fanout/(scot %p u.owner.state)/(scot %t id)
@@ -257,7 +301,7 @@
     %+  give  %fact
     :*  ~[/v1/lens]
         %steward-update-1
-        !>(`update:v1:s`[%lens bot id run])
+        !>(`update:v1:s`[%lens %entry bot id run])
     ==
   ::
   ++  le-prune
@@ -310,7 +354,7 @@
       (gth received.run.a received.run.b)
     %+  turn  (scag 50 sorted)
     |=  [[bot=ship =id:lens:s] =run:lens:s]
-    [bot id run]
+    `update:lens:s`[%entry bot id run]
   --
 ::
 ++  ga-core

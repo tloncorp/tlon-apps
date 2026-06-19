@@ -55,7 +55,7 @@ One agent, two roles; the same code runs on every ship, and the role is determin
 
 A self-owned bot (`owner` equal to `our`) is stored directly during fan-out with no network hop.
 
-A lens action is a single shape — `[id=@t payload=@t final=?]`. `final=&` marks the run complete; `final=|` is an in-progress milestone that upserts a partial record. A finalized run is never demoted back to partial by a late `final=|` (the late partial is dropped).
+Lens actions form a tagged union: `%entry` carries a run milestone and is the data ingress path; `%retry` is an owner-initiated request to re-dispatch a finalized run. `%entry` is `[%entry id=@t payload=@t final=?]` — `final=&` marks the run complete, `final=|` upserts an in-progress partial, and a finalized run is never demoted by a late `final=|` (the late partial is dropped). `%retry` is `[%retry id=@t]`; it emits a `%retry-requested` fact on `/v1/lens` for the local gateway to pick up and dispatch, but does not mutate stored state — the new run lands later as an `%entry` from the gateway with a fresh `id` (and `retryOf` pointing to the original).
 
 ### retention
 
@@ -77,21 +77,32 @@ While the gateway is not live, a DM from the configured `owner` triggers a canne
 
 ## poke surface — `%steward-action-1`
 
-Gated on **ownership**, not strict locality: accepted iff `src` is `our`, or `src` is a moon `our` sponsors (a moon's sponsor is its immutable low 32 bits, derived directly — no jael scry). A bot is typically a moon of the owner planet, so the owner accepts lens runs from itself and from its own moons.
+Auth is per-variant rather than blanket-gated:
+
+- `%configure` and `%gateway` require `src == our` (local only).
+- `%lens %entry` requires `src == our` or `src` is a moon `our` sponsors — the data ingress shape, used by the bot's local gateway and by cross-ship fan-out from a moon to its sponsor (a moon's sponsor is its immutable low 32 bits, derived directly — no jael scry).
+- `%lens %retry` requires `src == our` or `src` is the configured `owner` — covers a cross-ship retry poke from an owner planet to a bot moon (the `%entry` gate would reject this direction since the owner isn't a moon the bot sponsors).
 
 JSON poke forms (as sent over Eyre / Ames):
 
 ```json
 { "configure": { "owner": "~sampel-palnet" } }
-{ "lens": { "id": "<lensId>", "payload": "<serialized JSON>", "final": true } }
+{ "lens": { "entry": { "id": "<lensId>", "payload": "<serialized JSON>", "final": true } } }
+{ "lens": { "retry": { "id": "<lensId>" } } }
 ```
 
 Hoon types (`sur/steward.hoon`):
 
 ```
 [%configure owner=ship]               top-level: set the shared owner
-[%lens id=@t payload=@t final=?]      a lens run milestone (final=& finalizes)
+[%lens action:lens]                   inner: %entry or %retry, see below
 [%gateway action:gateway]             gateway lifecycle (configure/start/heartbeat/stop)
+
+++  lens
+  +$  action
+    $%  [%entry id=@t payload=@t final=?]  a lens run milestone (final=& finalizes)
+        [%retry id=@t]                     owner-initiated re-dispatch request
+    ==
 ```
 
 The gateway action wraps the harness liveness protocol (see the gateway module above):
@@ -105,20 +116,23 @@ The gateway action wraps the harness liveness protocol (see the gateway module a
 
 ## subscription surface
 
-- `/v1/lens` (local only, `?> =(src our)`): `%steward-update-1` `[%lens entry]` facts, one per stored run. No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
+- `/v1/lens` (local only, `?> =(src our)`): `%steward-update-1` lens facts. Two variants:
+  - `[%lens %entry entry]` — emitted on every store and on every retry receipt? No: only on entry store. Clients backfill via `/x/v1/lens/recent`.
+  - `[%lens %retry-requested id=@t requester=ship]` — emitted when an owner pokes `%retry`, to signal the local gateway to re-dispatch.
 - `/v1/gateway` (local only): `%steward-update-1` `[%gateway ...]` facts — `%status` (on lifecycle transitions, plus an initial fact on subscribe), `%owner-activity`, and `%auto-reply`.
 
 ## scry surface
 
-- `/x/v1/lens/recent` → `%noun` `(list update:lens)` — newest 50 non-expired runs across all bots, for backfill.
-- `/x/v1/lens/run/[ship]/[id]` → `%steward-update-1` `[%lens entry]`, or empty (`[~ ~]`) when absent or expired.
+- `/x/v1/lens/recent` → `%noun` `(list update:lens)` — newest 50 non-expired runs across all bots as `%entry` updates, for backfill.
+- `/x/v1/lens/run/[ship]/[id]` → `%steward-update-1` `[%lens %entry entry]`, or empty (`[~ ~]`) when absent or expired.
 - `/x/v1/gateway/status` → `%noun` `[status (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
 
 `entry` is `[bot=ship id=@t run]`. The lens update mark grows to JSON for Eyre:
 
 ```json
-{ "lens": { "bot": "~zod", "id": "...", "complete": true, "received": "~2026.6.10..12.00.00..0000", "payload": "<serialized JSON>" } }
+{ "lens": { "entry": { "bot": "~zod", "id": "...", "complete": true, "received": "~2026.6.10..12.00.00..0000", "payload": "<serialized JSON>" } } }
+{ "lens": { "retry-requested": { "id": "...", "requester": "~sampel-palnet" } } }
 ```
 
 ## lifecycle and invariants

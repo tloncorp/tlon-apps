@@ -1,7 +1,9 @@
 ::  steward-update-1: mark for steward outbound updates and scry results
 ::
-::    lens update is now a single entry (bot + id + run), not a union.
-::    dispatched by module key: {"lens": {...lens-entry...}}
+::    dispatched by module key: {"lens": {...}} or {"gateway": {...}}.
+::    lens variants:
+::      {"entry": {bot, id, complete, received, payload}} — a run record
+::      {"retry-requested": {id, requester}} — owner asked for a re-dispatch
 ::    adding a future module means adding a variant to $update in sur/steward,
 ::    not a new mark file.
 ::
@@ -18,14 +20,30 @@
     ?-  -.update
         %lens
       %-  frond  :-  'lens'
-      (entry update.update)
+      (lens-update update.update)
     ::
         %gateway
       %-  frond  :-  'gateway'
       (gateway-update update.update)
     ==
+    ++  lens-update
+      |=  upd=update:lens:v1:s
+      ^-  ^json
+      =,  enjs:format
+      ?-  -.upd
+          %entry
+        %-  frond  :-  'entry'
+        (entry entry.upd)
+      ::
+          %retry-requested
+        %-  frond  :-  'retry-requested'
+        %-  pairs
+        :~  ['id' s+id.upd]
+            ['requester' s+(scot %p requester.upd)]
+        ==
+      ==
     ++  entry
-      |=  e=update:lens:v1:s
+      |=  e=entry:lens:v1:s
       ^-  ^json
       =,  enjs:format
       %-  pairs

@@ -1,12 +1,18 @@
-::  steward-action-1: mark for steward inbound actions (LOCAL ONLY)
+::  steward-action-1: mark for steward inbound actions.
 ::
-::    dispatched by module key: {"configure": {...}} or {"lens": {...}}
-::      or {"gateway": {...}}
+::    dispatched by module key: {"configure": {...}}, {"lens": {...}}, or
+::    {"gateway": {...}}.
 ::    %configure sets the owner (top-level, not module-scoped).
-::    %lens wraps a single run action {id, payload, final}.
+::    %lens wraps a lens-module action — see lens variants below.
 ::    %gateway wraps a gateway lifecycle action (configure/start/heartbeat/stop).
 ::    adding a future module means adding a variant to $action in sur/steward,
 ::    not a new mark file.
+::
+::    lens variants:
+::      {"entry": {"id":..., "payload":..., "final":...}}
+::          gateway pushes a run record. local-only path (src=our or moon).
+::      {"retry": {"id":...}}
+::          owner-initiated retry of a finalized run. cross-ship from owner.
 ::
 ::    NOTE: the %gateway configure maps offline-reply-cooldown → reply-cooldown
 ::    in the gateway sub-grab, mirroring gateway-status.
@@ -28,15 +34,29 @@
     ::
         %lens
       %-  frond  :-  'lens'
-      %-  pairs
-      :~  ['id' s+id.action.action]
-          ['payload' s+payload.action.action]
-          ['final' b+final.action.action]
-      ==
+      (lens-grow action.action)
     ::
         %gateway
       %-  frond  :-  'gateway'
       (gateway-grow action.action)
+    ==
+  ++  lens-grow
+    |=  act=action:lens:s
+    ^-  ^json
+    =,  enjs:format
+    ?-  -.act
+        %entry
+      %-  frond  :-  'entry'
+      %-  pairs
+      :~  ['id' s+id.act]
+          ['payload' s+payload.act]
+          ['final' b+final.act]
+      ==
+    ::
+        %retry
+      %-  frond  :-  'retry'
+      %-  frond  :-  'id'
+      s+id.act
     ==
   ++  gateway-grow
     |=  act=action:gateway:s
@@ -86,10 +106,19 @@
       [%configure ((ot ~[owner+(se %p)]) val)]
     ::
         'lens'
-      [%lens ((ot ~[id+so payload+so final+bo]) val)]
+      [%lens (lens-grab val)]
     ::
         'gateway'
       [%gateway (gateway-grab val)]
+    ==
+  ++  lens-grab
+    |=  jon=^json
+    ^-  action:lens:v1:s
+    =,  dejs:format
+    %.  jon
+    %-  of
+    :~  [%entry (ot ~[id+so payload+so final+bo])]
+        [%retry (ot ~[id+so])]
     ==
   ++  gateway-grab
     |=  jon=^json

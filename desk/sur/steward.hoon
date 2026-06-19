@@ -43,12 +43,31 @@
   ::
   +$  entry  [bot=ship =id =run]
   ::
-  ::  $action: add new lens run
+  ::  $action: lens module inbound actions.
   ::
-  +$  action  [=id payload=@t final=?]
-  ::  $update: lens subscription update, currently only a single run update
+  ::    %entry: gateway pushes a run record (partial or final). authoritative
+  ::            data flow into the store; src is self (gateway local poke) or
+  ::            a moon we sponsor (cross-ship fan-out from a bot to its owner).
+  ::    %retry: owner-initiated request to re-dispatch a finalized run that
+  ::            failed or aborted. src must be the configured owner (a cross-
+  ::            ship poke from the owner's mobile/web client to the bot ship)
+  ::            or self. emits a %retry-requested fact on /v1/lens for the
+  ::            bot's local gateway to pick up and dispatch.
   ::
-  +$  update  entry
+  +$  action
+    $%  [%entry =id payload=@t final=?]
+        [%retry =id]
+    ==
+  ::  $update: lens subscription update.
+  ::
+  ::    %entry: a stored run record (insert or update).
+  ::    %retry-requested: a retry was requested for run .id by .requester;
+  ::                      the local gateway should re-dispatch.
+  ::
+  +$  update
+    $%  [%entry =entry]
+        [%retry-requested =id requester=ship]
+    ==
   --
 ::  gateway module types
 ::
