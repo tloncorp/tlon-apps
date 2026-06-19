@@ -62,58 +62,6 @@ export const allCollectionRenderers = {
     displayName: 'Notes',
     enumTag: 'notes',
   },
-  'tlon.r0.collection.carousel': {
-    displayName: 'Carousel',
-    enumTag: 'carousel',
-    parametersSchema: {
-      ...standardCollectionParameters(),
-      scrollDirection: {
-        displayName: 'Scroll direction',
-        type: 'radio',
-        options: [
-          {
-            displayName: 'Horizontal',
-            value: 'horizontal',
-          },
-          {
-            displayName: 'Vertical',
-            value: 'vertical',
-          },
-        ],
-      },
-    },
-  },
-  'tlon.r0.collection.cards': {
-    displayName: 'Cards',
-    enumTag: 'cards',
-    parametersSchema: standardCollectionParameters(),
-  },
-  'tlon.r0.collection.sign': {
-    displayName: 'Sign',
-    enumTag: 'sign',
-    parametersSchema: standardCollectionParameters(),
-  },
-  'tlon.r0.collection.boardroom': {
-    displayName: 'Boardroom',
-    enumTag: 'boardroom',
-    parametersSchema: standardCollectionParameters(),
-  },
-  'tlon.r0.collection.strobe': {
-    displayName: 'Strobe',
-    enumTag: 'strobe',
-    parametersSchema: {
-      ...standardCollectionParameters(),
-      interval: {
-        displayName: 'Frame rate in milliseconds',
-        type: 'string',
-      },
-    },
-  },
-  'tlon.r0.collection.summaries': {
-    displayName: 'Summaries',
-    enumTag: 'summaries',
-    parametersSchema: standardCollectionParameters(),
-  },
 } as const satisfies Record<string, ComponentSpec>;
 
 export const allDraftInputs = {
@@ -132,24 +80,6 @@ export const allDraftInputs = {
   'tlon.r0.input.notes': {
     displayName: 'Notes',
     enumTag: 'notes',
-  },
-  'tlon.r0.input.yo': {
-    displayName: 'Yo',
-    enumTag: 'yo',
-    parametersSchema: {
-      text: {
-        displayName: 'Message text',
-        type: 'string',
-      },
-    },
-  },
-  'tlon.r0.input.mic': {
-    displayName: 'Mic',
-    enumTag: 'mic',
-  },
-  'tlon.r0.input.color': {
-    displayName: 'Color',
-    enumTag: 'color',
   },
 } as const satisfies Record<string, ComponentSpec>;
 
@@ -189,32 +119,6 @@ export const allContentRenderers = {
   'tlon.r0.content.notes': {
     displayName: 'Notes',
     enumTag: 'notes',
-  },
-  'tlon.r0.content.audio': {
-    displayName: 'Audio',
-    enumTag: 'audio',
-  },
-  'tlon.r0.content.color': {
-    displayName: 'Color',
-    enumTag: 'color',
-  },
-  'tlon.r0.content.raw': {
-    displayName: 'Raw',
-    enumTag: 'raw',
-    parametersSchema: {
-      fontFamily: {
-        displayName: 'Font family',
-        type: 'string',
-      },
-    },
-  },
-  'tlon.r0.content.yell': {
-    displayName: 'Yell',
-    enumTag: 'yell',
-  },
-  'tlon.r0.content.scratchpad': {
-    displayName: 'Scratchpad',
-    enumTag: 'scratchpad',
   },
 } as const satisfies Record<string, ComponentSpec>;
 

@@ -1,11 +1,21 @@
 # From .gitignore
 node_modules
+.pnpm-store/
 .DS_Store
+/packages/hermes-tlon-adapter/.env
+__pycache__/
+*.py[cod]
+/scripts/onboarding-sandbox/.sandbox-prompts
+/scripts/onboarding-sandbox/.sandbox-intro.md
+/rus/
 ops
 bin
 !packages/tlon-skill/bin/
 !packages/tlon-skill/bin/tlon.js
 packages/tlon-skill/bin/tlon
+/desk-deps/
+/.peru/
+/peru.lock
 *.tgz
 *.xst
 zod*
@@ -27,6 +37,7 @@ dump.sqlite3
 .claude
 .gitattributes
 clurd
+.obsidian
 # From apps/tlon-desktop/.gitignore
 /apps/tlon-desktop/build/
 /apps/tlon-desktop/dist/

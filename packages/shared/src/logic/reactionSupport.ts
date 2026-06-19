@@ -2,12 +2,11 @@ import { isVersionBelow, parseVersion } from './semver';
 
 // The first deployed %groups release that ships reaction support: the v9
 // %activity endpoints (v6 feed, v5 subscription, activity-action-1 /
-// activity-event-1 marks) plus react emission. The reactions code is on develop
-// but unreleased; the latest deployed version is 11.2.2, so this is the next
-// release. Below it, the client uses the pre-reaction endpoints (v5 feed, v4
+// activity-event-1 marks) plus react emission. 11.4.0 is the confirmed
+// reactions release; 11.3.0 is the previous release without it. Below the
+// minimum, the client uses the pre-reaction endpoints (v5 feed, v4
 // subscription, v8 marks), which work on older backends.
-// TODO(reactions): confirm this matches the release that actually deploys reactions.
-export const REACTIONS_MIN_GROUPS_VERSION = '11.3.0';
+export const REACTIONS_MIN_GROUPS_VERSION = '11.4.0';
 
 // Whether a backend at the given groups version supports reactions. Conservative
 // by design: anything that isn't a fully valid semver (e.g. 'n/a' when the

@@ -35,6 +35,7 @@ import {
   useToast,
 } from '../../ui';
 import {
+  ChannelHost,
   ChannelQuickActions,
   LeaveActionsSection,
   MembersList,
@@ -287,6 +288,7 @@ function ChatDetailsScreenView() {
                 actionsEnabled={actionsEnabled}
                 onEditChannelPrivacy={handleEditChannelPrivacy}
               />
+              <ChannelHost channel={channel} />
             </>
           )}
 
