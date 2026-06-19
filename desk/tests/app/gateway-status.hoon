@@ -18,7 +18,7 @@
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
   (pure:m ~)
 ::
-::  configure forwards TWO steward pokes: top-level owners + gateway timing
+::  configure forwards TWO steward pokes: top-level owner + gateway timing
 ::
 ++  test-configure-forwards-two-steward-pokes
   %-  eval-mare
@@ -32,7 +32,7 @@
       :*  /steward/proxy
           [~dev %steward]
           %steward-action-1
-          !>(`action:v1:s`[%configure (silt ~[~bus])])
+          !>(`action:v1:s`[%configure ~bus])
       ==
       %-  ex-poke
       :*  /steward/proxy

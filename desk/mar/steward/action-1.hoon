@@ -2,16 +2,14 @@
 ::
 ::    dispatched by module key: {"configure": {...}} or {"lens": {...}}
 ::      or {"gateway": {...}}
-::    %configure sets owners (top-level, not module-scoped).
+::    %configure sets the owner (top-level, not module-scoped).
 ::    %lens wraps a single run action {id, payload, final}.
 ::    %gateway wraps a gateway lifecycle action (configure/start/heartbeat/stop).
 ::    adding a future module means adding a variant to $action in sur/steward,
 ::    not a new mark file.
 ::
-::    NOTE: the JSON grab for %configure uses {"owners": ["~ship"]} (an array
-::    of @p strings), not the gateway-status configure shape (which had a
-::    single owner field). the %gateway configure maps offline-reply-cooldown
-::    → reply-cooldown in the gateway sub-grab, mirroring gateway-status.
+::    NOTE: the %gateway configure maps offline-reply-cooldown → reply-cooldown
+::    in the gateway sub-grab, mirroring gateway-status.
 ::
 /-  s=steward
 |_  =action:v1:s
@@ -25,8 +23,8 @@
     ?-  -.action
         %configure
       %-  frond  :-  'configure'
-      %-  frond  :-  'owners'
-      a+(turn ~(tap in owners.action) |=(her=@p s+(scot %p her)))
+      %-  frond  :-  'owner'
+      s+(scot %p owner.action)
     ::
         %lens
       %-  frond  :-  'lens'
@@ -85,7 +83,7 @@
     =/  val=^json  q.i.kv
     ?+  key  ~|(unknown-steward-action-key+key !!)
         'configure'
-      [%configure (silt ((ar (se %p)) val))]
+      [%configure ((ot ~[owner+(se %p)]) val)]
     ::
         'lens'
       [%lens ((ot ~[id+so payload+so final+bo]) val)]

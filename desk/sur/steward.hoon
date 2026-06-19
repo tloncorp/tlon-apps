@@ -3,7 +3,7 @@
 ::
 |%
 +$  action
-  $%  [%configure owners=(set ship)]
+  $%  [%configure owner=ship]
       [%lens =action:lens]
       [%gateway =action:gateway]
   ==
@@ -30,7 +30,7 @@
   +$  payload  @t
   ::  $run: a stored lens run record
   ::
-  ::    .complete: whether the run is complete (all owners have acknowledged)
+  ::    .complete: whether a finalized (final=&) record has been received
   ::    .received: the timestamp when the run was received
   ::    .payload: the opaque serialized JSON payload
   ::

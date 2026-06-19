@@ -7,7 +7,7 @@
 ++  dap  %steward
 +$  state-0
   $:  %0
-      owners=(set ship)
+      owner=(unit ship)
       lens=state:lens:s
       gateway=state:gateway:s
   ==
@@ -38,11 +38,11 @@
   (pure:m ~)
 ::
 ++  configure
-  |=  owners=(set ship)
+  |=  owner=ship
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%configure owners]))
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure owner]))
   (pure:m ~)
 ::
 ++  ga-configure
@@ -65,17 +65,17 @@
 ::  LENS MODULE TESTS
 ::  ==========================================================
 ::
-++  test-configure-sets-owners
+++  test-configure-sets-owner
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  caz=(list card)  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%configure (silt ~[~bus])]))
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
-  (ex-equal !>(owners.st) !>((silt ~[~bus])))
+  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
 ::  a completely foreign ship (not ourselves, not our moon) must crash
 ::  the ownership gate on %steward-action-1
@@ -87,7 +87,7 @@
   ;<  ~  bind:m  setup
   %-  ex-fail
   %-  (do-as ~zod)
-  (do-poke %steward-action-1 !>(`action:v1:s`[%configure (silt ~[~zod])]))
+  (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~zod]))
 ::
 ::  a moon we sponsor must be accepted by the ownership gate
 ::
@@ -117,12 +117,12 @@
 ::
 ::  fan-out to a non-self owner emits a %steward-action-1 poke on /lens/fanout/...
 ::
-++  test-run-final-fans-out-to-owners
+++  test-run-final-fans-out-to-owner
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure (silt ~[~bus]))
+  ;<  ~  bind:m  (configure ~bus)
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-1' payload &]))
   %+  ex-cards  caz
@@ -141,7 +141,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure (silt ~[~dev]))
+  ;<  ~  bind:m  (configure ~dev)
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-1' payload &]))
   ;<  ~  bind:m
@@ -317,15 +317,15 @@
 ::  GATEWAY MODULE TESTS
 ::  ==========================================================
 ::
-::  After setup+configure-owners+ga-configure the gateway has an owner
-::  (owners non-empty) and timing configured. lifecycle pokes use the
+::  After setup+configure+ga-configure the gateway has an owner
+::  (owner set) and timing configured. lifecycle pokes use the
 ::  steward-action-1 mark with [%gateway ...] payload.
 ::
 ++  setup-gateway
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure (silt ~[~bus]))
+  ;<  ~  bind:m  (configure ~bus)
   ;<  ~  bind:m  ga-configure
   (pure:m ~)
 ::
@@ -488,7 +488,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
-  ;<  ~  bind:m  (configure (silt ~[~dev]))
+  ;<  ~  bind:m  (configure ~dev)
   ;<  ~  bind:m  ga-configure
   ;<  caz=(list card)  bind:m  (do-agent (make-dm-fact ~dev ~2024.1.1))
   (ex-cards caz ~)

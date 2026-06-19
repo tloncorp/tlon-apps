@@ -3,7 +3,7 @@
 ::    an agent that manages our harnesses. it currently tracks the state of the
 ::    harness gateway, as well as execution runs for each bot message.
 ::
-::    the bot itself runs steward as well as the bot's owners, so that things
+::    the bot itself runs steward as well as the bot's owner, so that things
 ::    like lens data can be scried locally by the owner.
 ::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
@@ -12,7 +12,7 @@
 +$  card  card:agent:gall
 +$  state-0
   $:  %0
-      owners=(set ship)
+      owner=(unit ship)
       lens=state:lens:s
       gateway=state:gateway:s
   ==
@@ -98,7 +98,7 @@
         ==
     =+  !<(=action:v1:s vase)
     ?-  -.action
-      %configure  cor(owners.state owners.action)
+      %configure  cor(owner.state `owner.action)
       %lens       (le-poke-action:le-core action.action)
       %gateway    (ga-poke-action:ga-core action.action)
     ==
@@ -135,7 +135,7 @@
     ?+    -.sign  cor
         %fact
       ?.  ?=(%activity-update-5 p.cage.sign)  cor
-      ?:  =(~ owners.state)  cor
+      ?:  ?=(~ owner.state)  cor
       =+  !<(=update:v9:av q.cage.sign)
       ?.  ?=(%add -.update)  cor
       (ga-handle-activity-add:ga-core source.update event.update)
@@ -194,7 +194,7 @@
   ::  the same action arrives in two roles (the ownership gate in +poke
   ::  has already vetted src as ourselves or a moon we sponsor):
   ::    - bot role (src==our): our own gateway poked us; fan the run out
-  ::      to our configured owners.
+  ::      to our configured owner.
   ::    - owner role (src is a sponsored moon): one of our bots sent us
   ::      its run; store it keyed by src.bowl so we can serve it to clients.
   ::
@@ -231,20 +231,16 @@
   ++  le-fan-out
     |=  [=id:lens:s =payload:lens:s final=?]
     ^+  cor
+    ?~  owner.state  cor
+    ?:  =(u.owner.state our.bowl)
+      ::  self-owned bot: store directly, no network hop
+      (le-store our.bowl id payload final)
     =/  =action:lens:s  [id payload final]
-    =/  targets  ~(tap in owners.state)
-    |-  ^+  cor
-    ?~  targets  cor
-    =.  cor
-      ?:  =(i.targets our.bowl)
-        ::  self-owned bot: store directly, no network hop
-        (le-store our.bowl id payload final)
-      %-  emit
-      :^    %pass
-          /lens/fanout/(scot %p i.targets)/(scot %t id)
-        %agent
-      [[i.targets %steward] %poke %steward-action-1 !>(`action:v1:s`[%lens action])]
-    $(targets t.targets)
+    %-  emit
+    :^    %pass
+        /lens/fanout/(scot %p u.owner.state)/(scot %t id)
+      %agent
+    [[u.owner.state %steward] %poke %steward-action-1 !>(`action:v1:s`[%lens action])]
   ::
   ++  le-store
     |=  [bot=ship =id:lens:s =payload:lens:s final=?]
@@ -317,16 +313,9 @@
     [bot id run]
   --
 ::
-::  owners-set semantics: the gateway logic was originally single-owner;
-::  owners is now a (set ship). tracking is global across all owners —
-::  last-owner-msg/-id track the most recent DM from any owner, auto-replies
-::  go to the sender of the triggering DM, and restart/back-online notices
-::  go to the most recently active owner. for a single owner this is
-::  identical to the prior behavior.
-::
 ++  ga-core
   |%
-  ++  ga-has-owner  ^-  ?  !=(~ owners.state)
+  ++  ga-has-owner  ^-  ?  ?=(^ owner.state)
   ::
   ++  ga-is-gateway-live
     ^-  ?
@@ -493,7 +482,7 @@
       ==
     ?~  mkey  cor
     =*  sender  p.id.u.mkey
-    ?.  (~(has in owners.state) sender)  cor
+    ?.  =(`sender owner.state)  cor
     ?:  =(sender our.bowl)  cor
     =.  last-owner-msg.gateway.state  now.bowl
     =.  last-owner-msg-id.gateway.state  `u.mkey

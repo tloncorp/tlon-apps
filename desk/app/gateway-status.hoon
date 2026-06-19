@@ -138,8 +138,8 @@
 ++  forward-configure
   |=  [who=ship win=@dr orc=@dr]
   ^+  cor
-  ::  two steward pokes: top-level owners set + gateway timing configure
-  =.  cor  (steward-poke [%configure (silt ~[who])])
+  ::  two steward pokes: top-level owner + gateway timing configure
+  =.  cor  (steward-poke [%configure who])
   (steward-poke [%gateway %configure win orc])
 ::
 ++  forward-start

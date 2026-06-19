@@ -27,12 +27,12 @@ State is `state-0`, defined in the app file. Cross-cutting config is top level; 
 
 ```
 state-0
-  owners   (set ship)                  shared config: bots fan out to these / owner DMs to watch; ~ = inert
+  owner    (unit ship)                 shared config: bot fans runs out to it / its DMs are watched; ~ = inert
   lens     (map [bot=ship id=@t] run)   stored lens run records (owner role)
   gateway  <gateway state>              harness liveness + auto-reply bookkeeping
 ```
 
-`owners` is shared: the lens module fans runs out to these ships, and the gateway module treats DMs from these ships as owner activity worth auto-replying to.
+`owner` is shared: the lens module fans runs out to it, and the gateway module treats its DMs as owner activity worth auto-replying to.
 
 `run` (in `sur/steward.hoon`, under `++lens`):
 
@@ -50,10 +50,10 @@ Makes a bot's run records — trigger, tool calls, timings, output — durable o
 
 One agent, two roles; the same code runs on every ship, and the role is determined by **who poked it** (the `%steward-action-1` ownership gate has already vetted the source — see below):
 
-- **bot ship role** (`src == our`): the local gateway pokes `%steward-action-1` with a run record (`{"lens": {...}}`). `le-poke-action` fans it out to every ship in `owners` as a `%steward-action-1` poke. Ames retries until ack, so owner-ship downtime or gateway restarts don't drop finalized runs once poked.
+- **bot ship role** (`src == our`): the local gateway pokes `%steward-action-1` with a run record (`{"lens": {...}}`). `le-poke-action` fans it out to the configured `owner` as a `%steward-action-1` poke. Ames retries until ack, so owner-ship downtime or gateway restarts don't drop finalized runs once poked.
 - **owner ship role** (`src` is a moon we sponsor): a bot sent us its run. `le-poke-action` stores it keyed `[bot=src id]`, gives a fact on `/v1/lens`, and answers scries for clients.
 
-A self-owned bot (an owner in `owners` equal to `our`) is stored directly during fan-out with no network hop.
+A self-owned bot (`owner` equal to `our`) is stored directly during fan-out with no network hop.
 
 A lens action is a single shape — `[id=@t payload=@t final=?]`. `final=&` marks the run complete; `final=|` is an in-progress milestone that upserts a partial record. A finalized run is never demoted back to partial by a late `final=|` (the late partial is dropped).
 
@@ -71,9 +71,9 @@ Tracks the liveness of an external harness process and sends offline DM auto-rep
 
 The harness reports its lifecycle via the `%gateway` action: `%gateway-start` (with a `boot-id` and a lease expiry), periodic `%gateway-heartbeat`s that extend the lease, and a graceful `%gateway-stop`. A behn timer on `/gateway/lease-check` fires at the lease expiry; if no heartbeat renewed it, the gateway is marked `%down`. `boot-id` matching distinguishes graceful-stop recovery from crash recovery exactly as in the original agent (stop clears `boot-id` so late heartbeats can't revive it; crash/expiry retains it so a delayed heartbeat can).
 
-While the gateway is not live, a DM from any ship in `owners` triggers a canned offline auto-reply to that sender (subject to a dedupe on the triggering message key and a `reply-cooldown`). Around stop/start transitions, a "restarting" / "back online" notice is sent to the most-recently-active owner if they messaged within `active-window`. Inbound owner DMs are observed via a subscription to `%activity /v5`.
+While the gateway is not live, a DM from the configured `owner` triggers a canned offline auto-reply to that ship (subject to a dedupe on the triggering message key and a `reply-cooldown`). Around stop/start transitions, a "restarting" / "back online" notice is sent to the owner if they messaged within `active-window`. Inbound owner DMs are observed via a subscription to `%activity /v5`.
 
-`owners` is the shared top-level set. The single-owner case behaves identically to `%gateway-status`; with multiple owners, owner-activity tracking is global (most-recent across owners) and notices target the last owner to have messaged.
+`owner` is the shared top-level `(unit ship)`, set via the top-level `%configure`. This matches `%gateway-status`'s original single-owner model.
 
 ## poke surface — `%steward-action-1`
 
@@ -82,14 +82,14 @@ Gated on **ownership**, not strict locality: accepted iff `src` is `our`, or `sr
 JSON poke forms (as sent over Eyre / Ames):
 
 ```json
-{ "configure": { "owners": ["~sampel-palnet"] } }
+{ "configure": { "owner": "~sampel-palnet" } }
 { "lens": { "id": "<lensId>", "payload": "<serialized JSON>", "final": true } }
 ```
 
 Hoon types (`sur/steward.hoon`):
 
 ```
-[%configure owners=(set ship)]        top-level: set fan-out / owner set
+[%configure owner=ship]               top-level: set the shared owner
 [%lens id=@t payload=@t final=?]      a lens run milestone (final=& finalizes)
 [%gateway action:gateway]             gateway lifecycle (configure/start/heartbeat/stop)
 ```
@@ -97,7 +97,7 @@ Hoon types (`sur/steward.hoon`):
 The gateway action wraps the harness liveness protocol (see the gateway module above):
 
 ```
-[%gateway %configure active-window=@dr reply-cooldown=@dr]   set notice/cooldown timing (owners set separately)
+[%gateway %configure active-window=@dr reply-cooldown=@dr]   set notice/cooldown timing (owner set separately)
 [%gateway %gateway-start boot-id=@t lease-until=@da]         a gateway instance started
 [%gateway %gateway-heartbeat boot-id=@t lease-until=@da]     extend the lease (boot-id must match)
 [%gateway %gateway-stop boot-id=@t reason=@t]                graceful stop (boot-id must match)
