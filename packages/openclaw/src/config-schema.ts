@@ -52,9 +52,9 @@ export const TlonContextLensSchema = z.object({
   visibilityDefault: z.enum(['owner', 'participants', 'internal']).optional(),
   authToken: z.string().min(16).optional(),
   allowedOrigins: z.array(z.string().min(1)).optional(),
-  // Owner ships that receive run records via the %context-lens agent (ship sync).
-  // Falls back to `ownerShip` when empty.
-  owners: z.array(ShipSchema).optional(),
+  // Owner ship that receives run records via the %steward agent (ship sync).
+  // Falls back to `ownerShip` when unset.
+  owner: ShipSchema.optional(),
   // Durable on-disk history of finalized runs (default on when the lens is
   // enabled). Hosted deployments with ephemeral disks can point `path` at a
   // mounted volume or set `enabled: false` — the store is a restart

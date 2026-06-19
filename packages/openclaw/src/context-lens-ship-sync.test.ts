@@ -10,7 +10,7 @@ import {
   createContextLensShipSync,
   initContextLensShipSync,
   isContextLensEffectivelyEnabled,
-  resolveLensOwners,
+  resolveLensOwner,
 } from './context-lens-ship-sync.js';
 import { type ContextLens, createContextLensRegistry } from './context-lens.js';
 import {
@@ -48,23 +48,22 @@ function makeParams(pokes: RecordedPoke[]): SharedApiClientParams {
 
 const silentLogger = { info: () => {}, warn: () => {} };
 
-describe('resolveLensOwners', () => {
+describe('resolveLensOwner', () => {
   function makeConfig(tlon: Record<string, unknown>): OpenClawConfig {
     return { channels: { tlon: { ship: '~zod', ...tlon } } } as OpenClawConfig;
   }
 
-  it('normalizes and dedupes configured owners', () => {
-    const owners = resolveLensOwners(
-      makeConfig({ contextLens: { owners: ['bus', '~bus', '~dev'] } })
-    );
-    expect(owners).toEqual(['~bus', '~dev']);
+  it('normalizes the configured owner', () => {
+    expect(
+      resolveLensOwner(makeConfig({ contextLens: { owner: 'bus' } }))
+    ).toEqual('~bus');
   });
 
-  it('falls back to ownerShip when owners is empty', () => {
+  it('falls back to ownerShip when owner is unset', () => {
     expect(
-      resolveLensOwners(makeConfig({ ownerShip: 'dev', contextLens: {} }))
-    ).toEqual(['~dev']);
-    expect(resolveLensOwners(makeConfig({ contextLens: {} }))).toEqual([]);
+      resolveLensOwner(makeConfig({ ownerShip: 'dev', contextLens: {} }))
+    ).toEqual('~dev');
+    expect(resolveLensOwner(makeConfig({ contextLens: {} }))).toBeNull();
   });
 });
 
@@ -76,7 +75,7 @@ describe('isContextLensEffectivelyEnabled', () => {
   it('is enabled for ship-sync-only configs (owners, no authToken)', () => {
     expect(
       isContextLensEffectivelyEnabled(
-        makeConfig({ contextLens: { enabled: true, owners: ['~bus'] } })
+        makeConfig({ contextLens: { enabled: true, owner: '~bus' } })
       )
     ).toBe(true);
     expect(
@@ -111,7 +110,7 @@ describe('isContextLensEffectivelyEnabled', () => {
           contextLens: {
             enabled: false,
             authToken: 'a-token-of-sufficient-length',
-            owners: ['~bus'],
+            owner: '~bus',
           },
         })
       )
@@ -185,7 +184,7 @@ describe('createContextLensShipSync', () => {
     const pokes: RecordedPoke[] = [];
     const params = makeParams(pokes);
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: silentLogger,
       getParams: () => params,
     });
@@ -198,27 +197,26 @@ describe('createContextLensShipSync', () => {
 
     expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
       'configure',
-      'run-event',
-      'run-event',
-      'run-final',
+      'lens',
+      'lens',
+      'lens',
     ]);
     expect(
-      pokes.every(
-        (p) => p.app === 'context-lens' && p.mark === 'context-lens-action-1'
-      )
+      pokes.every((p) => p.app === 'steward' && p.mark === 'steward-action-1')
     ).toBe(true);
-    expect(pokes[0].json).toEqual({ configure: { owners: ['~bus'] } });
+    expect(pokes[0].json).toEqual({ configure: { owner: '~bus' } });
     const final = pokes[3].json as {
-      'run-final': { id: string; payload: unknown };
+      lens: { id: string; payload: unknown; final: boolean };
     };
-    expect(final['run-final'].id).toBe(lens.lensId);
+    expect(final.lens.id).toBe(lens.lensId);
+    expect(final.lens.final).toBe(true);
   });
 
   it('skips repeat events with an unchanged status', async () => {
     const pokes: RecordedPoke[] = [];
     const params = makeParams(pokes);
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: silentLogger,
       getParams: () => params,
     });
@@ -229,14 +227,14 @@ describe('createContextLensShipSync', () => {
     sync.handleEvent(makeEvent(lens));
     await sync.flush();
 
-    expect(pokes).toHaveLength(2); // configure + one run-event
+    expect(pokes).toHaveLength(2); // configure + one lens poke
   });
 
   it('ignores internal-visibility runs', async () => {
     const pokes: RecordedPoke[] = [];
     const params = makeParams(pokes);
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: silentLogger,
       getParams: () => params,
     });
@@ -254,7 +252,7 @@ describe('createContextLensShipSync', () => {
     const params = makeParams(pokes);
     let connected = false;
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: silentLogger,
       getParams: () => (connected ? params : null),
     });
@@ -268,7 +266,7 @@ describe('createContextLensShipSync', () => {
     await sync.flush();
     expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
       'configure',
-      'run-final',
+      'lens',
     ]);
   });
 
@@ -290,7 +288,7 @@ describe('createContextLensShipSync', () => {
     let current = flaky;
     const warnings: string[] = [];
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: { info: () => {}, warn: (m) => warnings.push(m) },
       getParams: () => current,
     });
@@ -306,7 +304,7 @@ describe('createContextLensShipSync', () => {
     await sync.flush();
     expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
       'configure',
-      'run-final',
+      'lens',
     ]);
 
     // New params instance (monitor restart): configure re-asserted.
@@ -315,9 +313,9 @@ describe('createContextLensShipSync', () => {
     await sync.flush();
     expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
       'configure',
-      'run-final',
+      'lens',
       'configure',
-      'run-final',
+      'lens',
     ]);
   });
 });
@@ -338,7 +336,7 @@ describe('initContextLensShipSync', () => {
             contextLens: {
               enabled: true,
               authToken: 'a-token-of-sufficient-length',
-              owners: ['~bus'],
+              owner: '~bus',
             },
           },
         },
@@ -355,7 +353,7 @@ describe('initContextLensShipSync', () => {
 
       expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
         'configure',
-        'run-final',
+        'lens',
       ]);
     } finally {
       slot.set(previousParams);
