@@ -43,7 +43,7 @@ ensure_sandbox() {
   local src_dir="$TLONBOT_DIR/prompts"
   local base_dir="$SANDBOX_DIR/.base" orphan_dir="$SANDBOX_DIR/.orphaned"
   mkdir -p "$SANDBOX_DIR" "$base_dir"
-  local f name sbx bse added=0 refreshed=0 orphaned=0
+  local f name sbx bse dest n2 added=0 refreshed=0 orphaned=0
   for f in "$src_dir"/*.md; do
     [ -f "$f" ] || continue
     name="$(basename "$f")"; sbx="$SANDBOX_DIR/$name"; bse="$base_dir/$name"
@@ -61,7 +61,10 @@ ensure_sandbox() {
     [ -f "$f" ] || continue
     name="$(basename "$f")"
     if [ ! -f "$src_dir/$name" ]; then
-      mkdir -p "$orphan_dir"; mv "$f" "$orphan_dir/$name"; rm -f "$base_dir/$name"; orphaned=$((orphaned + 1))
+      mkdir -p "$orphan_dir"
+      dest="$orphan_dir/$name"; n2=1
+      while [ -e "$dest" ]; do dest="$orphan_dir/$name.$n2"; n2=$((n2 + 1)); done  # don't clobber an earlier quarantine
+      mv "$f" "$dest"; rm -f "$base_dir/$name"; orphaned=$((orphaned + 1))
     fi
   done
   [ "$added" -gt 0 ]     && echo "sandbox prompts: added $added new file(s) from $src_dir"
