@@ -1,12 +1,27 @@
-import { expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 
-import { toPostData, toPostReplyData, toPostsData } from '../client/postsApi';
+import {
+  getPostReference,
+  toPostData,
+  toPostReplyData,
+  toPostsData,
+} from '../client/postsApi';
+import { subscribeOnce } from '../client/urbit';
 import type { Post } from '../types/models';
 import * as ub from '../urbit';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
 import rawChannelPostsData from './fixtures/channelPosts.json';
 import rawDmPostWithRepliesData from './fixtures/dmPostWithReplies.json';
 import rawGroupDmPostWithRepliesData from './fixtures/groupDmPostWithReplies.json';
+
+vi.mock('../client/urbit', async () => {
+  const actual =
+    await vi.importActual<typeof import('../client/urbit')>('../client/urbit');
+  return {
+    ...actual,
+    subscribeOnce: vi.fn(),
+  };
+});
 
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',
@@ -96,6 +111,96 @@ test('toPostReplyData extracts authorId from BotProfile reply-essay author', () 
   );
   expect(result.authorId).toBe('~bot-test');
   expect(typeof result.authorId).toBe('string');
+});
+
+const CHANNEL_ID = 'chat/~zod/test';
+const PARENT_ID = '170.141.184.506.535.164.684.262.900.635.183.087.616';
+const REPLY_ID = '170.141.184.506.535.176.367.510.061.158.978.551.808';
+
+function makeReplySaid(): ub.Said {
+  return {
+    nest: CHANNEL_ID,
+    reference: {
+      reply: {
+        'id-post': PARENT_ID,
+        reply: {
+          seal: {
+            id: REPLY_ID,
+            'parent-id': PARENT_ID,
+            reacts: {},
+          },
+          'reply-essay': {
+            content: [{ inline: ['a threaded reply'] }],
+            author: '~zod',
+            sent: 1701276293246,
+            blob: null,
+          },
+        },
+      },
+    },
+  };
+}
+
+function makePostSaid(): ub.Said {
+  return {
+    nest: CHANNEL_ID,
+    reference: {
+      post: {
+        seal: {
+          id: PARENT_ID,
+          reacts: {},
+          replies: null,
+          meta: { replyCount: 0, lastRepliers: [], lastReply: null },
+        },
+        essay: {
+          author: '~zod',
+          content: [{ inline: ['a top-level post'] }],
+          sent: 1701275662689,
+          kind: 'chat',
+          blob: null,
+          meta: null,
+        },
+        type: 'post',
+      },
+    },
+  };
+}
+
+beforeEach(() => {
+  vi.mocked(subscribeOnce).mockReset();
+});
+
+test('getPostReference requests the parent/reply said path for reply refs', async () => {
+  vi.mocked(subscribeOnce).mockResolvedValueOnce(makeReplySaid());
+  const post = await getPostReference({
+    channelId: CHANNEL_ID,
+    postId: PARENT_ID,
+    replyId: REPLY_ID,
+  });
+
+  // The v5 said path includes the channel host as the `ask` ship.
+  expect(vi.mocked(subscribeOnce).mock.calls[0][0]).toEqual({
+    app: 'channels',
+    path: `/v5/said/~zod/${CHANNEL_ID}/post/${PARENT_ID}/${REPLY_ID}`,
+  });
+  // The hydrated post is keyed by the reply's own id, and the parent is preserved.
+  expect(post.id).toBe(REPLY_ID);
+  expect(post.parentId).toBe(PARENT_ID);
+});
+
+test('getPostReference requests the top-level said path for top-level refs', async () => {
+  vi.mocked(subscribeOnce).mockResolvedValueOnce(makePostSaid());
+  const post = await getPostReference({
+    channelId: CHANNEL_ID,
+    postId: PARENT_ID,
+  });
+
+  expect(vi.mocked(subscribeOnce).mock.calls[0][0]).toEqual({
+    app: 'channels',
+    path: `/v5/said/~zod/${CHANNEL_ID}/post/${PARENT_ID}`,
+  });
+  // Top-level refs are keyed by the post id, unchanged from prior behavior.
+  expect(post.id).toBe(PARENT_ID);
 });
 
 test('toPostData', async () => {

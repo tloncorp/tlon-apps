@@ -1,0 +1,42 @@
+# Files that change during the iOS/Android build but don't affect the
+# resulting native binary's behaviour. Excluding them keeps the
+# @expo/fingerprint hash stable across pre-build and post-build state —
+# required for the EAS buildCacheProvider to ever hit.
+
+# --- iOS ---
+
+# Swift Package Manager resolved lockfile: created by Xcode the first
+# time it resolves SPM deps, doesn't exist in a fresh checkout.
+ios/**/Package.resolved
+
+# --- Android ---
+
+# Android Studio IDE state: appears the first time someone opens the
+# project in Android Studio. Not produced by `expo run:android`, but
+# diverges from a fresh checkout if anyone has opened the project.
+android/.idea/**
+
+# Gradle/SDK paths: auto-generated, contains absolute sdk.dir on the
+# build machine.
+android/local.properties
+
+
+# Embedded JS bundle output (release-only). Not produced by Debug
+# variants, but present in main repo if `pnpm generate` has ever been
+# run, so we exclude proactively.
+android/app/src/main/assets/bundle.jsbundle
+
+# --- Fingerprint compute optimization ---
+# Skia's lib/ alone is 3137 files (~75% of the package's tracked files).
+# Source maps + built JS output in autolinked packages are not consumed by
+# the native build. Excluding them drops fingerprint compute by ~26% on
+# warm cache (4.7s → 3.5s) without affecting build correctness.
+
+# Source maps: never an input to native builds.
+**/*.map
+
+# Built JS output in third-party node_modules. Autolinking reads native
+# sources (cpp/, apple/, android/, podspec, etc.) — not the lib/ tree.
+# Note: config plugins live under <pkg>/plugin/build/, not <pkg>/lib/,
+# so they're unaffected.
+**/node_modules/**/lib/**

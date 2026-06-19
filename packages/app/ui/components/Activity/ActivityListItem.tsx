@@ -30,6 +30,7 @@ export const ActivityListItem = React.memo(function ActivityListItem({
   if (
     event.type === 'post' ||
     event.type === 'reply' ||
+    event.type === 'react' ||
     event.type === 'flag-post' ||
     event.type === 'flag-reply' ||
     event.type === 'group-ask' ||
@@ -117,7 +118,7 @@ export function ActivityListItemContent({
 
         <YStack>
           <SummaryMessage summary={summary} />
-          {!['group-ask'].includes(summary.type) ? (
+          {!['group-ask', 'react'].includes(summary.type) ? (
             <ActivitySourceContent
               summary={summary}
               pressHandler={pressHandler}

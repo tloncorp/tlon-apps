@@ -7,6 +7,7 @@ import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useInviteSystemContactHandler } from '../../hooks/useInviteSystemContactHandler';
+import { useMarkMatchesSeen } from '../../hooks/useMarkMatchesSeen';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   AppDataContextProvider,
@@ -46,6 +47,8 @@ export default function ContactsScreen(props: Props) {
     () => systemContacts?.filter((contact) => !contact.contactId),
     [systemContacts]
   );
+
+  useMarkMatchesSeen();
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
@@ -106,7 +109,7 @@ export default function ContactsScreen(props: Props) {
                 type="Settings"
                 testID="ContactsSettingsButton"
                 onPress={() => {
-                  navigate('Settings');
+                  navigate('Settings', undefined, { pop: true });
                 }}
               />
             }
@@ -128,13 +131,13 @@ export default function ContactsScreen(props: Props) {
           />
           <NavBarView
             navigateToContacts={() => {
-              navigate('Contacts');
+              navigate('Contacts', undefined, { pop: true });
             }}
             navigateToHome={() => {
-              navigate('ChatList');
+              navigate('ChatList', undefined, { pop: true });
             }}
             navigateToNotifications={() => {
-              navigate('Activity');
+              navigate('Activity', undefined, { pop: true });
             }}
             currentRoute="Contacts"
             currentUserId={currentUser}

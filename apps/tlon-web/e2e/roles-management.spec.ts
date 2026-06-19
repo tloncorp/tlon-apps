@@ -162,9 +162,11 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
 
   // After clicking Save on Channel privacy, navigate back to exit any settings screens
   // The exact navigation state varies, so we navigate back until we can open group settings
+  // In React Navigation v7, all stacked screens are in the DOM, so use .last() to target
+  // the topmost screen's back button
   for (let i = 0; i < 3; i++) {
     try {
-      const backButton = page.getByTestId('HeaderBackButton').first();
+      const backButton = page.getByTestId('HeaderBackButton').last();
       if (await backButton.isVisible({ timeout: 500 })) {
         await backButton.click();
         await page.waitForTimeout(300);
@@ -241,9 +243,12 @@ test('should manage roles lifecycle: create, assign, modify permissions, rename,
   await page.waitForTimeout(2000);
 
   // After clicking Save on Channel privacy, navigate back to exit any settings screens
+  // The exact navigation state varies, so we navigate back until we can open group settings
+  // In React Navigation v7, all stacked screens are in the DOM, so use .last() to target
+  // the topmost screen's back button
   for (let i = 0; i < 3; i++) {
     try {
-      const backButton = page.getByTestId('HeaderBackButton').first();
+      const backButton = page.getByTestId('HeaderBackButton').last();
       if (await backButton.isVisible({ timeout: 500 })) {
         await backButton.click();
         await page.waitForTimeout(300);

@@ -232,8 +232,10 @@ export default function ChannelScreen(props: Props) {
 
   const filteredPosts = useMemo(
     () =>
-      channel?.type !== 'chat' ? posts?.filter((p) => !p.isDeleted) : posts,
-    [posts, channel]
+      channelConfiguration?.includeDeletedPosts
+        ? posts
+        : posts?.filter((p) => !p.isDeleted),
+    [posts, channelConfiguration?.includeDeletedPosts]
   );
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
@@ -372,8 +374,10 @@ export default function ChannelScreen(props: Props) {
   const handleGoToGroupSettings = useCallback(() => {
     if (group) {
       navigationRef.current.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
+        state: {
+          routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
+          index: 0,
+        },
       });
     }
   }, [group, navigationRef]);
@@ -388,13 +392,6 @@ export default function ChannelScreen(props: Props) {
     },
     [navigationRef]
   );
-
-  const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
-  const handleConfigureChannel = useCallback(() => {
-    if (channelRef.current) {
-      channelRef.current.openChannelConfigurationBar();
-    }
-  }, [channelRef]);
 
   const initialChat = useMemo(
     () =>
@@ -414,14 +411,12 @@ export default function ChannelScreen(props: Props) {
     <ChatOptionsProvider
       initialChat={initialChat}
       useGroup={store.useGroup}
-      onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <Channel
           key={currentChannelId}
-          ref={channelRef}
           channel={channel}
           initialChannelUnread={
             clearedCursor ? undefined : initialChannelUnread

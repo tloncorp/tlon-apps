@@ -124,19 +124,40 @@ export default function useDesktopNotifications(isClientReady: boolean) {
   useEffect(() => {
     if (!isElectron || !window.electronAPI || !isClientReady) return;
 
-    const handleActivityEvent = (event: api.ActivityEvent) => {
-      logger.log('Activity event:', event);
-      if (event.type === 'addActivityEvent' && event.events[0].shouldNotify) {
-        processActivityEvent(event.events[0]);
-      }
-    };
+    let cancelled = false;
+    let subscriptionId: number | null = null;
 
-    api.subscribeToActivity(handleActivityEvent);
+    api
+      .subscribeToActivity((event: api.ActivityEvent) => {
+        logger.log('Activity event:', event);
+        if (event.type === 'addActivityEvent' && event.events[0].shouldNotify) {
+          processActivityEvent(event.events[0]);
+        }
+      })
+      .then((id) => {
+        if (cancelled) {
+          // effect already cleaned up before the subscription landed
+          api.unsubscribe(id);
+        } else {
+          subscriptionId = id;
+        }
+      })
+      .catch((e) => {
+        logger.error(
+          'Failed to subscribe to activity for desktop notifications',
+          e
+        );
+        // the next effect run (e.g. isClientReady cycling) will retry
+      });
 
     const unsubscribeNotificationClick =
       window.electronAPI.onNotificationClicked(handleNotificationClick);
 
     return () => {
+      cancelled = true;
+      if (subscriptionId != null) {
+        api.unsubscribe(subscriptionId);
+      }
       unsubscribeNotificationClick();
     };
   }, [

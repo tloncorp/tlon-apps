@@ -46,7 +46,7 @@ function MockedUrbitClientProvider({ children }: PropsWithChildren<object>) {
 export const FixtureWrapper = (props: FixtureWrapperProps) => {
   return (
     <ToastProvider>
-      <NavigationContainer>
+      <NavigationContainer navigationInChildEnabled>
         <MockedUrbitClientProvider>
           <InnerWrapper {...props} />
         </MockedUrbitClientProvider>

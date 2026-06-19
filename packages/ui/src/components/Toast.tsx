@@ -14,11 +14,16 @@ import { Text } from './TextV2';
 import { View } from './View';
 
 const ToastContext = createContext<{
-  showToast: (options: { message: string; duration?: number }) => void;
+  showToast: (options: {
+    bottomOffset?: number;
+    duration?: number;
+    message: string;
+  }) => void;
   dismissToast: () => void;
 } | null>(null);
 
 type Toast = {
+  bottomOffset?: number;
   message: string;
   duration: number;
 };
@@ -27,6 +32,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [toast, setToast] = useState<{
+    bottomOffset?: number;
     message: string;
     visible: boolean;
   }>({
@@ -48,7 +54,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
 
     isProcessingRef.current = true;
 
-    setToast({ message: next.message, visible: true });
+    setToast({
+      bottomOffset: next.bottomOffset,
+      message: next.message,
+      visible: true,
+    });
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
@@ -72,8 +82,16 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const showToast = useCallback(
-    ({ message, duration = 3000 }: { message: string; duration?: number }) => {
-      queueRef.current.push({ message, duration });
+    ({
+      bottomOffset,
+      message,
+      duration = 3000,
+    }: {
+      bottomOffset?: number;
+      message: string;
+      duration?: number;
+    }) => {
+      queueRef.current.push({ bottomOffset, message, duration });
       processQueue();
     },
     [processQueue]
@@ -117,6 +135,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
       <Portal>
         <ToastView
           visible={toast.visible}
+          bottomOffset={toast.bottomOffset}
           message={toast.message}
           onDismiss={dismissToast}
         />
@@ -155,15 +174,18 @@ const ToastText = styled(Text, {
 });
 
 function ToastView({
+  bottomOffset,
   visible,
   message,
   onDismiss,
 }: {
+  bottomOffset?: number;
   visible: boolean;
   message: string;
   onDismiss: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const defaultBottomOffset = Platform.OS === 'web' ? 60 : 64;
 
   if (!visible) {
     return null;
@@ -185,7 +207,7 @@ function ToastView({
       <Pressable onPress={onDismiss}>
         <ToastBox
           backgroundColor={'$positiveActionText'}
-          marginBottom={insets.bottom + (Platform.OS === 'web' ? 60 : 64)}
+          marginBottom={insets.bottom + (bottomOffset ?? defaultBottomOffset)}
           testID="ToastMessage"
         >
           <ToastText>{message}</ToastText>

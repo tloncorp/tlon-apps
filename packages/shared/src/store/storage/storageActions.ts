@@ -1,12 +1,10 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { RNFile, getCurrentUserId } from '@tloncorp/api';
-//REVIEW  why doesn't this work here?
-// import { desig } from '@tloncorp/api/urbit';
 import { desig } from '@tloncorp/api/lib/urbit';
 import { Attachment } from '@tloncorp/api/types/attachment';
 import { da, render } from '@urbit/aura';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SaveFormat, manipulateAsync } from 'expo-image-manipulator';
 
 import * as db from '../../db';
@@ -200,8 +198,15 @@ async function uploadImageAsset(
       logger.log('resizing asset', asset.uri);
       let resizedAsset = asset;
       const originalMimeType = asset.mimeType;
-      // avoid resizing gifs
-      if (!asset.mimeType?.includes('gif')) {
+      // Only resize when we know it's a non-gif image. If mimeType is missing
+      // or non-image, upload the original bytes — re-encoding through the
+      // canvas-backed manipulator would clobber the format (e.g. animated
+      // gifs flattened to a single PNG/JPEG frame).
+      const canResize =
+        !!asset.mimeType &&
+        asset.mimeType.startsWith('image/') &&
+        !asset.mimeType.includes('gif');
+      if (canResize) {
         const format = getSaveFormat(asset.mimeType);
         resizedAsset = await manipulateAsync(
           asset.uri,

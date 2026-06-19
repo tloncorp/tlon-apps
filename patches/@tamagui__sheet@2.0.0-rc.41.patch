@@ -1,0 +1,36 @@
+diff --git a/dist/cjs/SheetContext.cjs b/dist/cjs/SheetContext.cjs
+index bd211df7951d9ae9af1c6cf766386a4e89827afc..36ec681de8996452b9e618883527e4154d7d58c9 100644
+--- a/dist/cjs/SheetContext.cjs
++++ b/dist/cjs/SheetContext.cjs
+@@ -31,4 +31,4 @@ module.exports = __toCommonJS(SheetContext_exports);
+ var import_create_context = require("@tamagui/create-context");
+ var import_constants = require("./constants.cjs");
+ const [createSheetContext, createSheetScope] = (0, import_create_context.createContextScope)(import_constants.SHEET_NAME);
+-const [SheetProvider, useSheetContext] = createSheetContext(import_constants.SHEET_NAME, {});
+\ No newline at end of file
++const [SheetProvider, useSheetContext] = createSheetContext(import_constants.SHEET_NAME, { setHasScrollView: () => {}, scrollBridge: { onParentDragging: () => () => {} } });
+\ No newline at end of file
+diff --git a/dist/esm/SheetContext.mjs b/dist/esm/SheetContext.mjs
+index b99c623ea1fdd65ace07140d538ab4f79e5ee409..2920eb5de63b88d78fc7a1698b8d9c04d5fa96a3 100644
+--- a/dist/esm/SheetContext.mjs
++++ b/dist/esm/SheetContext.mjs
+@@ -1,6 +1,6 @@
+ import { createContextScope } from "@tamagui/create-context";
+ import { SHEET_NAME } from "./constants.mjs";
+ const [createSheetContext, createSheetScope] = createContextScope(SHEET_NAME);
+-const [SheetProvider, useSheetContext] = createSheetContext(SHEET_NAME, {});
++const [SheetProvider, useSheetContext] = createSheetContext(SHEET_NAME, { setHasScrollView: () => {}, scrollBridge: { onParentDragging: () => () => {} } });
+ export { SheetProvider, createSheetContext, createSheetScope, useSheetContext };
+ //# sourceMappingURL=SheetContext.mjs.map
+diff --git a/dist/esm/SheetContext.native.js b/dist/esm/SheetContext.native.js
+index 341069c0ec9e0f1729c1f8f6b5b11a3cc4ffe7b8..84d7c1ccf7011584d8f56a2908f5653834485be2 100644
+--- a/dist/esm/SheetContext.native.js
++++ b/dist/esm/SheetContext.native.js
+@@ -1,6 +1,6 @@
+ import { createContextScope } from "@tamagui/create-context";
+ import { SHEET_NAME } from "./constants.native.js";
+ var [createSheetContext, createSheetScope] = createContextScope(SHEET_NAME);
+-var [SheetProvider, useSheetContext] = createSheetContext(SHEET_NAME, {});
++var [SheetProvider, useSheetContext] = createSheetContext(SHEET_NAME, { setHasScrollView: () => {}, scrollBridge: { onParentDragging: () => () => {} } });
+ export { SheetProvider, createSheetContext, createSheetScope, useSheetContext };
+ //# sourceMappingURL=SheetContext.native.js.map

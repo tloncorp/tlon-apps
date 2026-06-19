@@ -1,7 +1,16 @@
 node_modules
+.pnpm-store/
 .DS_Store
+/packages/hermes-tlon-adapter/.env
+__pycache__/
+*.py[cod]
+# local dev Urbit piers parked at the repo root
+/rus/
 ops
 bin
+!packages/tlon-skill/bin/
+!packages/tlon-skill/bin/tlon.js
+packages/tlon-skill/bin/tlon
 
 # Vendored desk dependencies — fetched into desk-deps/ by scripts/sync-deps.sh
 # (see peru.yaml). Kept out of git so upstream stays pinned but out of history;
@@ -26,6 +35,7 @@ gha-creds-*
 tsconfig.tsbuildinfo
 launch.json
 expo-env.d.ts
+.expo
 # Playwright MCP development logs
 apps/tlon-web/playwright-dev.log
 apps/tlon-web/.playwright-dev.pid

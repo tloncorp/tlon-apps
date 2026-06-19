@@ -1,6 +1,5 @@
 import { open } from '@op-engineering/op-sqlite';
 import { AnalyticsEvent, AnalyticsSeverity, escapeLog } from '@tloncorp/shared';
-import * as kv from '@tloncorp/shared/db';
 import { schema, setClient } from '@tloncorp/shared/db';
 import { getTableName } from 'drizzle-orm';
 
@@ -8,6 +7,7 @@ import {
   BaseDb,
   enableLogger,
   logger,
+  resetDbSyncState,
   useMigrations as useMigrationsBase,
 } from './baseDb';
 import { OPSQLite$SQLiteConnection } from './opsqliteConnection';
@@ -139,8 +139,7 @@ export class NativeDb extends BaseDb {
       });
 
       // reset values related to tracking db sync state
-      await kv.headsSyncedAt.resetValue();
-      await kv.changesSyncedAt.resetValue();
+      await resetDbSyncState();
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: completed purge, recreating',
@@ -162,6 +161,18 @@ export class NativeDb extends BaseDb {
 
   async getDbPath(): Promise<string | undefined> {
     return this.connection?.getDbPath();
+  }
+
+  async exportDb(destinationPath: string): Promise<void> {
+    await this.ensureDbReady();
+
+    if (!this.connection) {
+      throw new Error('exportDb: attempted before connection was set up');
+    }
+
+    await this.connection.execute(
+      `VACUUM INTO '${destinationPath.replace(/'/g, "''")}'`
+    );
   }
 
   async ensureDbReady() {
@@ -407,6 +418,8 @@ export const setupDb = () => nativeDb.setupDb();
 export const ensureDbReady = () => nativeDb.ensureDbReady();
 export const purgeDb = () => nativeDb.purgeDb();
 export const getDbPath = () => nativeDb.getDbPath();
+export const exportDb = (destinationPath: string) =>
+  nativeDb.exportDb(destinationPath);
 export const resetDb = () => nativeDb.resetDb();
 export const runMigrations = () => nativeDb.runMigrations();
 export const useMigrations = () => useMigrationsBase(nativeDb);

@@ -18,6 +18,7 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useInviteParam } from '../../hooks/useInviteParam';
 import { useRenderCount } from '../../hooks/useRenderCount';
 import { useResolvedChats } from '../../hooks/useResolvedChats';
+import { useShowWebSplashModal } from '../../hooks/useShowWebSplashModal';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import {
   ChatOptionsProvider,
@@ -53,7 +54,7 @@ export const HomeSidebar = memo(
       id: selectedGroupId ?? '',
     });
     const { setIsOpen } = useGlobalSearch();
-    const showSplash = store.useShowWebSplashModal();
+    const showSplash = useShowWebSplashModal();
 
     const { data: chats } = store.useCurrentChats();
     const { performGroupAction } = useGroupActions();
@@ -69,7 +70,9 @@ export const HomeSidebar = memo(
     );
 
     /* Log an error if this screen takes more than 30 seconds to resolve to "Connected" */
-    const connectionTimeout = useRef<NodeJS.Timeout | null>(null);
+    const connectionTimeout = useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
     const connectionAttempts = useRef(0);
 
     useEffect(() => {
@@ -257,7 +260,12 @@ export const HomeSidebar = memo(
                     </Text>
                   </View>
                 ) : (
-                  <ChatList data={displayData} onPressItem={onPressChat} />
+                  <ChatList
+                    data={displayData}
+                    onPressItem={onPressChat}
+                    disableScrollAnchoring
+                    scrollerTestID="HomeSidebarChatScroller"
+                  />
                 )}
               </View>
               <MobileAppPromoBanner />

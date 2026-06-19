@@ -1,6 +1,5 @@
 import { schema, setClient } from '@tloncorp/shared/db';
 import { handleChange } from '@tloncorp/shared/db';
-import * as kv from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 
@@ -8,6 +7,7 @@ import {
   BaseDb,
   changeLogTable,
   logger,
+  resetDbSyncState,
   useMigrations as useMigrationsBase,
 } from './baseDb';
 
@@ -130,8 +130,7 @@ export class ElectronDb extends BaseDb {
     this.client = null;
 
     // reset values related to tracking db sync state
-    await kv.headsSyncedAt.resetValue();
-    await kv.changesSyncedAt.resetValue();
+    await resetDbSyncState();
 
     logger.log('Purged Electron SQLite database, reconnecting');
     await this.setupDb();

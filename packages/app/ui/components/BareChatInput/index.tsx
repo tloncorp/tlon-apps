@@ -3,7 +3,6 @@ import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
 import {
   Attachment,
   JSONToInlines,
-  LinkAttachment,
   REF_REGEX,
   createDevLogger,
   diaryMixedToJSON,
@@ -21,6 +20,7 @@ import {
 } from '@tloncorp/ui';
 import {
   type ForwardedRef,
+  ReactElement,
   forwardRef,
   useCallback,
   useEffect,
@@ -64,6 +64,16 @@ import {
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
 const DEFAULT_KEYBOARD_HEIGHT = 300;
+
+function normalizePreviewUrl(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    parsedUrl.hash = '';
+    return parsedUrl.toString();
+  } catch {
+    return url;
+  }
+}
 
 function useKeyboardHeight(maxInputHeightBasic: number) {
   const [maxInputHeight, setMaxInputHeight] = useState(maxInputHeightBasic);
@@ -130,6 +140,8 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
               uri,
               height: img.height,
               width: img.width,
+              mimeType: file.type || undefined,
+              fileSize: file.size,
             },
           });
         };
@@ -175,7 +187,7 @@ function TextWithMentions({
   }
 
   const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
-  const textParts: JSX.Element[] = [];
+  const textParts: ReactElement[] = [];
 
   if (sortedMentions[0].start > 0) {
     textParts.push(
@@ -294,6 +306,7 @@ function BareChatInput(
     handleMention,
     handleSelectMention,
     handleMentionEscape,
+    resetMentionMode,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
@@ -450,6 +463,7 @@ function BareChatInput(
       bareChatInputLogger.log('resetting input height');
       setInputHeight(initialHeight);
       setEditingPost?.(undefined);
+      resetMentionMode();
 
       try {
         bareChatInputLogger.log('sending message');
@@ -483,6 +497,7 @@ function BareChatInput(
       channelId,
       setMentions,
       initialHeight,
+      resetMentionMode,
     ]
   );
 
@@ -555,34 +570,23 @@ function BareChatInput(
     const matches = textOutsideCodeBlocks.match(urlRegex) || [];
 
     // Normalize URLs (remove hash) and deduplicate
-    const currentUrls = [
-      ...new Set(
-        matches.map((url) => {
-          try {
-            const parsedUrl = new URL(url);
-            parsedUrl.hash = '';
-            return parsedUrl.toString();
-          } catch {
-            return url;
-          }
-        })
-      ),
-    ];
+    const currentUrls = [...new Set(matches.map(normalizePreviewUrl))];
 
     const prevUrls = prevUrlsRef.current;
-    const currentAttachments = attachmentsRef.current;
+    const linksByUrl = new Map(
+      attachmentsRef.current
+        .filter((a) => a.type === 'link')
+        .map((a) => [normalizePreviewUrl(a.url), a] as const)
+    );
 
-    // Find URLs that were removed from text
     const removedUrls = prevUrls.filter((url) => !currentUrls.includes(url));
-
-    // Find URLs that were added to text
-    const addedUrls = currentUrls.filter((url) => !prevUrls.includes(url));
+    const addedUrls = currentUrls.filter(
+      (url) => !prevUrls.includes(url) && !linksByUrl.has(url)
+    );
 
     // Remove attachments for URLs no longer in text
     removedUrls.forEach((url) => {
-      const attachment = currentAttachments.find(
-        (a): a is LinkAttachment => a.type === 'link' && a.url === url
-      );
+      const attachment = linksByUrl.get(url);
       if (attachment) {
         bareChatInputLogger.log('removing stale link attachment', { url });
         removeAttachment(attachment);
@@ -726,8 +730,8 @@ function BareChatInput(
   useEffect(() => {
     if (!hasSetInitialContent) {
       bareChatInputLogger.log('setting initial content');
-      try {
-        getDraft().then((draft) => {
+      getDraft()
+        .then((draft) => {
           bareChatInputLogger.log('got draft', draft);
           if (!editingPost) {
             setInputFromDraft(draft);
@@ -771,10 +775,12 @@ function BareChatInput(
               },
             });
           }
+        })
+        .catch((e) => {
+          // a try/catch around getDraft().then(...) can't catch async
+          // rejections, so handle them here
+          bareChatInputLogger.error('Error setting initial content', e);
         });
-      } catch (e) {
-        bareChatInputLogger.error('Error setting initial content', e);
-      }
     }
   }, [
     getDraft,
@@ -804,7 +810,16 @@ function BareChatInput(
     clearDraft();
     clearAttachments();
     setInputHeight(initialHeight);
-  }, [setEditingPost, clearDraft, clearAttachments, initialHeight]);
+    resetMentionMode();
+    setMentions([]);
+  }, [
+    setEditingPost,
+    clearDraft,
+    clearAttachments,
+    initialHeight,
+    resetMentionMode,
+    setMentions,
+  ]);
 
   const theme = useTheme();
   const placeholderTextColor = {
@@ -960,7 +975,7 @@ function BareChatInput(
               letterSpacing: -0.032,
               color: inputTextColor,
               ...(isWeb ? placeholderTextColor : {}),
-              ...(isWeb ? { outlineStyle: 'none' } : {}),
+              ...(isWeb ? ({ outlineStyle: 'none' } as any) : {}),
             }}
             // Hack to prevent @p's getting squiggled on web
             spellCheck={!mentions.length}

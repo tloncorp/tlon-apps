@@ -56,11 +56,22 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   personalGroup: db.Group | null;
   botHomeGroup: db.Group | null;
 }> {
-  if (!lureMeta) {
-    throw new Error('no stored invite found, cannot check');
-  }
-  const { invitedGroupId, inviterUserId, inviteType } = lureMeta;
   const tlonTeam = `~wittyr-witbes`;
+  const tlonTeamDM = await db.getChannel({ id: tlonTeam });
+  const personalGroup = await db.getPersonalGroup();
+  const botHomeGroup = await db.getBotHomeGroup();
+
+  if (!lureMeta) {
+    return {
+      invitedDm: null,
+      invitedGroup: null,
+      tlonTeamDM,
+      personalGroup,
+      botHomeGroup,
+    };
+  }
+
+  const { invitedGroupId, inviterUserId, inviteType } = lureMeta;
   const isPersonalInvite = inviteType === 'user';
   if (!inviterUserId || (!isPersonalInvite && !invitedGroupId)) {
     logger.trackEvent(AnalyticsEvent.InviteError, {
@@ -73,12 +84,9 @@ async function getInvitedGroupAndDm(lureMeta: AppInvite | null): Promise<{
   }
   // use api client to see if you have pending DM and group invite
   const invitedDm = await db.getChannel({ id: inviterUserId });
-  const tlonTeamDM = await db.getChannel({ id: tlonTeam });
-  const personalGroup = await db.getPersonalGroup();
   const invitedGroup = isPersonalInvite
     ? null
     : await db.getGroup({ id: invitedGroupId! });
-  const botHomeGroup = await db.getBotHomeGroup();
 
   return { invitedDm, invitedGroup, tlonTeamDM, personalGroup, botHomeGroup };
 }
