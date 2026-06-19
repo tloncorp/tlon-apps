@@ -419,6 +419,22 @@ export async function recordTlonRouteAndDispatch<T>(params: {
   });
 }
 
+/**
+ * Build a Tlon `deliveryContext` for an enqueued system event (reactions,
+ * group-join notices). System-event turns resolve delivery from the event's
+ * `deliveryContext` or the session store; attaching this ensures a later
+ * system/heartbeat turn driven by the event routes to Tlon instead of falling
+ * back to webchat, even on a session that hasn't persisted an inbound route yet.
+ * `to` is the provider-qualified target (`tlon:~ship` for DMs, `tlon:<nest>` for
+ * channels), matching `OriginatingTo` and the durable route.
+ */
+export function tlonDeliveryContext(
+  to: string,
+  accountId?: string
+): { channel: 'tlon'; to: string; accountId?: string } {
+  return { channel: 'tlon', to, ...(accountId ? { accountId } : {}) };
+}
+
 /** Phase 0 diagnostic gate: enabled via `TLON_OPENCLAW_ROUTE_DEBUG=1`. */
 export function isRouteDebugEnabled(): boolean {
   return process.env.TLON_OPENCLAW_ROUTE_DEBUG === '1';

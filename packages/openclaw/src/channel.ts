@@ -15,13 +15,13 @@ import {
 
 import { tlonMessageActions } from './actions.js';
 import { tlonChannelConfigSchema } from './config-schema.js';
+import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import {
   applyTlonSetupConfig,
   createTlonSetupWizardBase,
   resolveTlonSetupConfigured,
   tlonSetupAdapter,
 } from './setup-core.js';
-import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 

@@ -106,6 +106,7 @@ import {
   isRouteDebugEnabled,
   recordTlonRouteAndDispatch,
   routeUpdateWillSkipByPin,
+  tlonDeliveryContext,
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
 import {
@@ -2690,6 +2691,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${nest}`,
+                    route.accountId
+                  ),
                 });
               }
             } catch (err: any) {
@@ -3110,6 +3116,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${reactAuthor}:${action}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${partnerShip || reactAuthor}`,
+                    route.accountId
+                  ),
                 });
                 runtime.log?.(`[tlon] DM_REACTION: ${eventText}`);
               }
@@ -3614,7 +3625,14 @@ export async function monitorTlonProvider(
                             const memberDisplay = formatShipWithNickname(ship);
                             core.system.enqueueSystemEvent(
                               `[${memberDisplay} joined group ${groupFlag}]`,
-                              { sessionKey: route.sessionKey }
+                              {
+                                sessionKey: route.sessionKey,
+                                // Route any resulting system turn back to Tlon.
+                                deliveryContext: tlonDeliveryContext(
+                                  `tlon:${nest}`,
+                                  route.accountId
+                                ),
+                              }
                             );
                             runtime.log?.(
                               `[tlon] Member joined: ${ship} → ${groupFlag}`
