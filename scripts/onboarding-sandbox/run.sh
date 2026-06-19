@@ -49,6 +49,8 @@ ensure_sandbox() {
     name="$(basename "$f")"; sbx="$SANDBOX_DIR/$name"; bse="$base_dir/$name"
     if [ ! -f "$sbx" ]; then
       cp "$f" "$sbx"; cp "$f" "$bse"; added=$((added + 1))
+    elif cmp -s "$sbx" "$f"; then
+      cmp -s "$bse" "$f" || cp "$f" "$bse"                 # sandbox already matches source: rebaseline (e.g. the edit was merged upstream)
     elif [ ! -f "$bse" ]; then
       cp "$f" "$bse"                                       # legacy copy: start tracking
     elif cmp -s "$sbx" "$bse" && ! cmp -s "$f" "$bse"; then
@@ -71,7 +73,9 @@ ensure_sandbox() {
     echo "Initializing sandbox intro copy from $SRC_INTRO ..."
     cp "$SRC_INTRO" "$SANDBOX_INTRO"; cp "$SRC_INTRO" "$intro_base"
   elif [ -f "$SANDBOX_INTRO" ] && [ -f "$SRC_INTRO" ]; then
-    if [ ! -f "$intro_base" ]; then
+    if cmp -s "$SANDBOX_INTRO" "$SRC_INTRO"; then
+      cmp -s "$intro_base" "$SRC_INTRO" || cp "$SRC_INTRO" "$intro_base"   # sandbox matches source: rebaseline
+    elif [ ! -f "$intro_base" ]; then
       cp "$SRC_INTRO" "$intro_base"
     elif cmp -s "$SANDBOX_INTRO" "$intro_base" && ! cmp -s "$SRC_INTRO" "$intro_base"; then
       cp "$SRC_INTRO" "$SANDBOX_INTRO"; cp "$SRC_INTRO" "$intro_base"

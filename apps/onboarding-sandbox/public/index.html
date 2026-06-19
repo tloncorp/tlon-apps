@@ -239,6 +239,7 @@
             Save &amp; reset onboarding
           </button>
           <button
+            id="b-export"
             onclick="exportPatch()"
             title="Download your edits as a .patch file to share with a developer"
           >
@@ -317,11 +318,13 @@
           return;
         }
         const box = $('setup');
-        if (p.docker && p.key) {
+        if (p.docker && p.key && p.tlonbot) {
           box.style.display = 'none';
           return;
         }
         let html = '';
+        if (!p.tlonbot)
+          html += `⚠️ <b>tlonbot checkout not found.</b> Check out the private tlonbot repo next to tlon-apps (or set TLONBOT_DIR), then <a href="#" onclick="checkPreflight();return false">re-check</a>.<br>`;
         if (!p.docker)
           html += `⚠️ <b>Docker isn't running.</b> Start Docker Desktop, then <a href="#" onclick="checkPreflight();return false">re-check</a>.<br>`;
         if (!p.key)
@@ -404,15 +407,22 @@
       });
 
       async function saveItem() {
-        if (!current) return;
-        await fetch('/api/prompts/' + encodeURIComponent(current), {
+        if (!current) return false;
+        const res = await fetch('/api/prompts/' + encodeURIComponent(current), {
           method: 'PUT',
           body: $('editor').value,
         });
+        if (!res.ok) {
+          alert(
+            'Save failed (' + res.status + '). Your edit is kept — try again.'
+          );
+          return false;
+        }
         dirty = false;
         $('b-save').disabled = true;
         await loadItems();
         await selectItemQuiet();
+        return true;
       }
       async function selectItemQuiet() {
         if (current) {
@@ -424,10 +434,15 @@
       }
 
       async function resetItem() {
-        if (!current) return;
-        await fetch('/api/prompts/' + encodeURIComponent(current) + '/reset', {
-          method: 'POST',
-        });
+        if (!current || busy) return;
+        const res = await fetch(
+          '/api/prompts/' + encodeURIComponent(current) + '/reset',
+          { method: 'POST' }
+        );
+        if (!res.ok) {
+          alert('Discard failed (' + res.status + ').');
+          return;
+        }
         dirty = false;
         await selectItem(current);
       }
@@ -440,7 +455,11 @@
           )
         )
           return;
-        await fetch('/api/reset-prompts', { method: 'POST' });
+        const res = await fetch('/api/reset-prompts', { method: 'POST' });
+        if (!res.ok) {
+          alert('Discard all failed (' + res.status + ').');
+          return;
+        }
         dirty = false;
         await loadItems();
         if (current) await selectItem(current);
@@ -483,9 +502,17 @@
 
       function setBusy(b) {
         busy = b;
-        ['b-start', 'b-down', 'b-savereset', 'model', 'b-setmodel'].forEach(
-          (id) => ($(id).disabled = b)
-        );
+        [
+          'b-start',
+          'b-down',
+          'b-savereset',
+          'model',
+          'b-setmodel',
+          'b-save',
+          'b-reset-item',
+          'b-export',
+          'editor',
+        ].forEach((id) => ($(id).disabled = b));
       }
 
       function stream(label, qs) {
@@ -547,7 +574,10 @@
       async function saveAndReset() {
         if (busy) return;
         setBusy(true);
-        if (dirty && current) await saveItem();
+        if (dirty && current && !(await saveItem())) {
+          setBusy(false);
+          return;
+        }
         await stream('reset', 'cmd=reset');
         setBusy(false);
         refreshStatus();
@@ -556,7 +586,8 @@
       // Flush the unsaved textarea first so the exported patch includes the
       // edits the tester can see (the server builds it from on-disk files).
       async function exportPatch() {
-        if (dirty && current) await saveItem();
+        if (busy) return;
+        if (dirty && current && !(await saveItem())) return;
         location.href = '/api/export?token=' + encodeURIComponent(TOKEN);
       }
 

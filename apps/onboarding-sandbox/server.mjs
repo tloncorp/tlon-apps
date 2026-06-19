@@ -5,6 +5,7 @@
 // logic. Built-in modules only (no deps / no install). Binds to localhost.
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import {
   copyFile,
   mkdir,
@@ -107,6 +108,10 @@ const dockerOk = () => {
 };
 const keyPresent = async () =>
   /^OPENROUTER_API_KEY=.+/m.test(await readOr(ENV_FILE));
+// The orchestrator needs the sibling tlonbot checkout; if it's missing, run.sh
+// aborts and the UI would otherwise look blank/silent. Surface it in preflight.
+const tlonbotOk = () =>
+  existsSync(join(TLONBOT_DIR, 'tests', 'dev', 'onboarding.sh'));
 const readBody = (req) =>
   new Promise((resolve) => {
     let b = '';
@@ -158,7 +163,14 @@ function unifiedDiff(name) {
     ['-u', '-L', 'a/' + rel, '-L', 'b/' + rel, it.source, it.sandbox],
     { encoding: 'utf8' }
   );
-  return r.stdout || ''; // diff exits 1 when files differ — expected, not an error
+  // diff exits 0 (same) or 1 (differ — expected); a spawn error or status > 1 is
+  // a real failure and must not be silently rendered as "no changes".
+  if (r.error || (typeof r.status === 'number' && r.status > 1)) {
+    throw new Error(
+      'diff failed: ' + (r.error?.message || r.stderr || `status ${r.status}`)
+    );
+  }
+  return r.stdout || '';
 }
 
 // List editable items (prompts + intro) with modified flags; ensures the sandbox
@@ -221,19 +233,27 @@ const runWithStdin = (args, input) =>
 // TCP forward to the port the stack already publishes — no Urbit logic here.
 let proxyServer = null;
 let proxyPort = null;
+let rotating = null; // serializes rotateProxy so concurrent callers can't leak a listener
 
-// Parse the canonical owner Eyre target (host/port) from `status --json`.
-async function ownerTarget() {
+// Derive the owner Eyre target (host/port) from a parsed `status --json` object.
+function targetFromStatus(o) {
+  if (!o || !o.up || !o.owner?.url) return null;
   try {
-    const o = JSON.parse(
-      (await runCapture(['status', '--json'])).trim() || '{}'
-    );
-    if (!o.up || !o.owner?.url) return null;
     const u = new URL(o.owner.url);
     return {
       host: u.hostname === 'localhost' ? '127.0.0.1' : u.hostname,
       port: Number(u.port),
     };
+  } catch {
+    return null;
+  }
+}
+
+async function ownerTarget() {
+  try {
+    return targetFromStatus(
+      JSON.parse((await runCapture(['status', '--json'])).trim() || '{}')
+    );
   } catch {
     return null;
   }
@@ -250,35 +270,44 @@ function closeProxy() {
 }
 
 // Start a fresh proxy on an OS-assigned port forwarding to the owner ship.
-async function rotateProxy() {
-  const target = await ownerTarget();
-  if (!target) {
-    closeProxy();
-    return;
-  }
-  const next = net.createServer((client) => {
-    const upstream = net.connect(target.port, target.host);
-    client.pipe(upstream);
-    upstream.pipe(client);
-    client.on('error', () => upstream.destroy());
-    upstream.on('error', () => client.destroy());
+// Serialized: a second caller during an in-flight rotation joins it rather than
+// creating a parallel listener (which would orphan one). `target` lets callers
+// that already parsed status (e.g. /api/status) skip a second shell-out.
+async function rotateProxy(target) {
+  if (rotating) return rotating;
+  rotating = (async () => {
+    const t = target ?? (await ownerTarget());
+    if (!t) {
+      closeProxy();
+      return;
+    }
+    const next = net.createServer((client) => {
+      const upstream = net.connect(t.port, t.host);
+      client.pipe(upstream);
+      upstream.pipe(client);
+      client.on('error', () => upstream.destroy());
+      upstream.on('error', () => client.destroy());
+    });
+    await new Promise((resolve, reject) => {
+      next.once('error', reject);
+      next.listen(0, '127.0.0.1', resolve);
+    });
+    const old = proxyServer;
+    proxyServer = next;
+    proxyPort = next.address().port;
+    if (old) {
+      try {
+        old.close();
+      } catch {}
+    } // stops new conns; existing tabs drain
+  })().finally(() => {
+    rotating = null;
   });
-  await new Promise((resolve, reject) => {
-    next.once('error', reject);
-    next.listen(0, '127.0.0.1', resolve);
-  });
-  const old = proxyServer;
-  proxyServer = next;
-  proxyPort = next.address().port;
-  if (old) {
-    try {
-      old.close();
-    } catch {}
-  } // stops new conns; existing tabs drain
+  return rotating;
 }
 
-async function ensureProxy() {
-  if (!proxyServer) await rotateProxy();
+async function ensureProxy(target) {
+  if (!proxyServer) await rotateProxy(target);
 }
 
 const server = createServer(async (req, res) => {
@@ -316,7 +345,7 @@ const server = createServer(async (req, res) => {
       try {
         const o = JSON.parse(txt);
         if (o.up) {
-          await ensureProxy(); // first status after the stack is up
+          await ensureProxy(targetFromStatus(o)); // first status after the stack is up
           if (o.owner?.url && proxyPort) {
             const u = new URL(o.owner.url);
             u.hostname = 'localhost';
@@ -337,7 +366,11 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && pathname === '/api/preflight') {
-      return json(res, 200, { docker: dockerOk(), key: await keyPresent() });
+      return json(res, 200, {
+        docker: dockerOk(),
+        key: await keyPresent(),
+        tlonbot: tlonbotOk(),
+      });
     }
 
     if (req.method === 'POST' && pathname === '/api/provider-key') {
@@ -458,12 +491,20 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && pathname === '/api/reset-prompts') {
+      const failed = [];
       for (const it of await listItems()) {
         const p = itemPaths(it.name);
         try {
           await discardToSource(p);
-        } catch {}
+        } catch {
+          failed.push(it.name);
+        }
       }
+      if (failed.length)
+        return json(res, 500, {
+          ok: false,
+          error: 'failed to reset: ' + failed.join(', '),
+        });
       return json(res, 200, { ok: true });
     }
 
