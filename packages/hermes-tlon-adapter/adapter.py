@@ -147,14 +147,30 @@ logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
-REQUIRED_ENV = ["TLON_NODE_URL", "TLON_NODE_ID", "TLON_ACCESS_CODE"]
+REQUIRED_ENV = [
+    "TLON_NODE_URL",
+    "TLON_NODE_ID",
+    "TLON_ACCESS_CODE",
+    "TLON_OWNER_SHIP",
+]
+OWNER_ONLY_TLON_TOOLS = frozenset(
+    {
+        "tlon",
+        "cronjob",
+        "read",
+        "read_file",
+        "write_file",
+        "patch",
+        "search_files",
+    }
+)
+OWNER_ONLY_TLON_TOOLSETS = frozenset({"file"})
 OPTIONAL_ENV = [
     "TLON_CHANNELS",
     "TLON_AUTO_DISCOVER",
     "TLON_ALLOWED_USERS",
     "TLON_ALLOW_ALL_USERS",
     "TLON_DM_ALLOWLIST",
-    "TLON_OWNER_SHIP",
     "TLON_HOME_CHANNEL",
     "TLON_BOT_MENTIONS",
     "TLON_FREE_RESPONSE_CHANNELS",
@@ -2081,19 +2097,65 @@ def _session_env(name: str, default: str = "") -> str:
     return get_session_env(name, default)
 
 
+def _registered_toolset(tool_name: str) -> str:
+    try:
+        from model_tools import get_toolset_for_tool
+    except Exception:
+        return ""
+    try:
+        return str(get_toolset_for_tool(tool_name) or "").strip()
+    except Exception:
+        return ""
+
+
+def _is_owner_only_tlon_tool(tool_name: str) -> bool:
+    tool = str(tool_name or "").strip()
+    tool_key = tool.casefold()
+    if tool_key in OWNER_ONLY_TLON_TOOLS:
+        return True
+
+    toolset = _registered_toolset(tool)
+    toolset_key = toolset.casefold()
+    if toolset_key in OWNER_ONLY_TLON_TOOLSETS:
+        return True
+    return tool_key.startswith("mcp_") or toolset_key.startswith("mcp-")
+
+
+def _tool_access_block(message: str) -> dict:
+    return {"action": "block", "message": message}
+
+
 def block_tlon_session_tool(tool_name: str, args: Optional[dict] = None, **_kwargs: Any) -> Optional[dict]:
     del args
     if _session_env("HERMES_SESSION_PLATFORM", "").lower() != "tlon":
         return None
-    if str(tool_name or "").strip() == "skill_manage":
-        return {
-            "action": "block",
-            "message": (
-                "Blocked: Tlon chat sessions use the managed Tlon prompt and "
-                "plugin-owned tlon skill. Do not create or modify Hermes skills "
-                "while handling a Tlon message."
-            ),
-        }
+
+    tool = str(tool_name or "").strip()
+    owner = TlonConfig.from_env().owner_ship
+    if not owner:
+        return _tool_access_block(
+            "Blocked: Tlon owner identity is not configured. Set TLON_OWNER_SHIP "
+            "before allowing tool use from Tlon chat sessions."
+        )
+
+    if tool == "skill_manage":
+        return _tool_access_block(
+            "Blocked: Tlon chat sessions use the managed Tlon prompt and "
+            "plugin-owned tlon skill. Do not create or modify Hermes skills "
+            "while handling a Tlon message."
+        )
+
+    if not _is_owner_only_tlon_tool(tool):
+        return None
+
+    sender = normalize_ship(_session_env("HERMES_SESSION_USER_ID", ""))
+    if not sender:
+        return _tool_access_block(
+            f"Blocked: {tool} is owner-only in Tlon chats and no Tlon sender "
+            "identity is available."
+        )
+    if sender != owner:
+        return _tool_access_block(f"Blocked: {tool} is owner-only in Tlon chats.")
     return None
 
 

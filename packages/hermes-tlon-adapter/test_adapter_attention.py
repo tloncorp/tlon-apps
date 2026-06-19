@@ -687,8 +687,33 @@ class AdapterAttentionTests(unittest.TestCase):
             {"chat_id": "chat/~pen/home", "name": "chat/~pen/home"},
         )
 
+    def test_tlon_session_blocks_all_tools_without_owner_identity(self):
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "HERMES_SESSION_USER_ID": "~pen",
+            },
+            clear=True,
+        ):
+            block = adapter_mod.block_tlon_session_tool(
+                "image_search",
+                {"query": "moon"},
+            )
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("owner identity is not configured", block["message"])
+
     def test_tlon_session_blocks_skill_management(self):
-        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "tlon"}, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
             block = adapter_mod.block_tlon_session_tool(
                 "skill_manage",
                 {"action": "create"},
@@ -706,6 +731,95 @@ class AdapterAttentionTests(unittest.TestCase):
             )
 
         self.assertIsNone(block)
+
+    def test_non_owner_tlon_session_blocks_owner_only_tools(self):
+        owner_only_tools = (
+            "tlon",
+            "cronjob",
+            "read",
+            "read_file",
+            "write_file",
+            "patch",
+            "search_files",
+            "mcp_tlon_mcp_search",
+        )
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "HERMES_SESSION_USER_ID": "~mug",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
+            for tool_name in owner_only_tools:
+                with self.subTest(tool_name=tool_name):
+                    block = adapter_mod.block_tlon_session_tool(tool_name, {})
+                    self.assertIsNotNone(block)
+                    self.assertEqual(block["action"], "block")
+                    self.assertIn("owner-only", block["message"])
+
+    def test_owner_tlon_session_allows_owner_only_tools(self):
+        owner_only_tools = (
+            "tlon",
+            "cronjob",
+            "read",
+            "read_file",
+            "write_file",
+            "patch",
+            "search_files",
+            "mcp_tlon_mcp_search",
+        )
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "HERMES_SESSION_USER_ID": "~pen",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
+            for tool_name in owner_only_tools:
+                with self.subTest(tool_name=tool_name):
+                    block = adapter_mod.block_tlon_session_tool(tool_name, {})
+                    self.assertIsNone(block)
+
+    def test_tlon_session_blocks_owner_only_tool_without_sender_identity(self):
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
+            block = adapter_mod.block_tlon_session_tool("cronjob", {})
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("no Tlon sender identity", block["message"])
+
+    def test_tlon_session_blocks_registry_mcp_tool_for_non_owner(self):
+        fake_model_tools = types.ModuleType("model_tools")
+        fake_model_tools.get_toolset_for_tool = (
+            lambda tool_name: "mcp-urbit" if tool_name == "linear_create_issue" else None
+        )
+
+        with patch.dict(sys.modules, {"model_tools": fake_model_tools}):
+            with patch.dict(
+                os.environ,
+                {
+                    "HERMES_SESSION_PLATFORM": "tlon",
+                    "HERMES_SESSION_USER_ID": "~mug",
+                    "TLON_OWNER_SHIP": "~pen",
+                },
+                clear=True,
+            ):
+                block = adapter_mod.block_tlon_session_tool("linear_create_issue", {})
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("owner-only", block["message"])
 
 
 if __name__ == "__main__":
