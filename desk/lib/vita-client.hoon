@@ -55,15 +55,15 @@
   ^-  $-(agent:gall agent:gall)
   |^  agent
   ::
-  +$  state-0
-    $:  %0
+  +$  state-1
+    $:  %1
         =config
         last=time
     ==
   +$  card  card:agent:gall
   ++  agent
     |=  inner=agent:gall
-    =|  state-0
+    =|  state-1
     =*  state  -
     ^-  agent:gall
     |_  =bowl:gall
@@ -75,7 +75,7 @@
       =.  config  init
       =^  cards  inner  on-init:ag
       [cards this]
-    ++  on-save  !>([[%vita-client state] on-save:ag])
+    ++  on-save  (slop !>([%vita-client state]) on-save:ag)
     ::
     :: use pattern from lib/gossip to retain wrapper state
     ++  on-load
@@ -85,10 +85,21 @@
         =.  config  init
         =^  cards   inner   (on-load:ag ole)
         [cards this]
-      =+  !<([[%vita-client old=state-0] ile=vase] ole)
-      =.  state  old
-      =^  cards  inner  (on-load:ag ile)
-      [cards this]
+      |^  =+  !<([%vita-client old=state-any] (slot 2 ole))
+          =^  ile=vase  state
+            ?-  -.old
+              %0  ::  0 double-vased. fix coincided with h136->h135
+                  ::
+                  :-  (next-vase:h136 !<(vase:h136 (slot 3 ole)))
+                  old(- %1)
+              %1  [(slot 3 ole) old]
+            ==
+          =^  cards  inner  (on-load:ag ile)
+          [cards this]
+      ::
+      +$  state-any  $%(state-0 state-1)
+      +$  state-0    [%0 =^config last=time]
+      --
     ++  on-poke
       |=  [=mark =vase]
       ^-  (quip card _this)

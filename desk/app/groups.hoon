@@ -610,54 +610,50 @@
   ~>  %spin.['run-import']
   ^+  cor
   =.  pimp  ~
-  ?-  -.egg-any
-      ?(%15 %16)
-    ?.  ?=(%live +<.egg-any)
-      ~&  [dap.bowl %egg-any-not-live]
-      cor
-    =/  bak  (load -:!>([*any-state:load ~]) +>.old-state.egg-any)
-    ::  restore any previews & invites we might've had
-    ::
-    =.  foreigns
-      %+  roll  ~(tap by foreigns:bak)
-      |=  [[=flag:g far=foreign:g] =_foreigns]
-      %+  ~(put by foreigns)  flag
-      ?.  (~(has by foreigns) flag)
-        far(lookup ~, progress ~, token ~)
-      =/  hav  (~(got by foreigns) flag)
-      ::  merge foreign:
-      ::  1. join invite lists
-      ::  2. preserve current lookup, progress and token
-      ::  3. prefer current preview
-      ::
-      :*  (weld invites.hav invites.far)
-          lookup.hav
-          ?~(preview.hav preview.far preview.hav)
-          progress.hav
-          token.hav
-      ==
-    ::  restore the groups we were in, taking care to re-establish
-    ::  subscriptions to the group, and to tell %channels to re-establish
-    ::  its subscriptions to the groups' channels as well.
-    ::
-    =.  cor
-      %+  roll  ~(tap by groups:bak)
-      |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
-      ?:  (~(has by groups.cor) flag)
-        cor
-      =.  groups.cor  (~(put by groups.cor) flag gr)
-      =+  goc=(go-abed:go-core:cor flag)
-      =.  goc  (go-safe-sub:goc |)
-      =.  cor  go-abet:goc
-      ::  wake our members if we are the host
-      ::
-      =?  cor  =(p.flag our.bowl)
-        (emil:cor go-wake-members:go-pass:goc)
-      %-  emil:cor
-      %-  join-channels:go-pass:goc
-      ~(tap in ~(key by channels.group.gr))
+  =/  =egg:gall  (latest:egg-aid:gall egg-any)
+  ?.  ?=(%live -.egg)
+    ~&  [dap.bowl %egg-not-live]
     cor
-  ==
+  =/  bak  (load -:!>([*any-state:load ~]) +>.old-state.egg)
+  ::  restore any previews & invites we might've had
+  ::
+  =.  foreigns
+    %+  roll  ~(tap by foreigns:bak)
+    |=  [[=flag:g far=foreign:g] =_foreigns]
+    %+  ~(put by foreigns)  flag
+    ?.  (~(has by foreigns) flag)
+      far(lookup ~, progress ~, token ~)
+    =/  hav  (~(got by foreigns) flag)
+    ::  merge foreign:
+    ::  1. join invite lists
+    ::  2. preserve current lookup, progress and token
+    ::  3. prefer current preview
+    ::
+    :*  (weld invites.hav invites.far)
+        lookup.hav
+        ?~(preview.hav preview.far preview.hav)
+        progress.hav
+        token.hav
+    ==
+  ::  restore the groups we were in, taking care to re-establish
+  ::  subscriptions to the group, and to tell %channels to re-establish
+  ::  its subscriptions to the groups' channels as well.
+  ::
+  %+  roll  ~(tap by groups:bak)
+  |=  [[=flag:g gr=[=net:g =group:g]] =_cor]
+  ?:  (~(has by groups.cor) flag)
+    cor
+  =.  groups.cor  (~(put by groups.cor) flag gr)
+  =+  goc=(go-abed:go-core:cor flag)
+  =.  goc  (go-safe-sub:goc |)
+  =.  cor  go-abet:goc
+  ::  wake our members if we are the host
+  ::
+  =?  cor  =(p.flag our.bowl)
+    (emil:cor go-wake-members:go-pass:goc)
+  %-  emil:cor
+  %-  join-channels:go-pass:goc
+  ~(tap in ~(key by channels.group.gr))
 ::
 ++  channels-scry
   |=  =nest:g
@@ -1446,7 +1442,9 @@
     ::  ignore responses after group has been deleted
     ::
     ?:  ?&  !(~(has by groups) ship name.pole)
-            &(?=(%poke-ack -.sign) ?=([%invite %revoke ship=@ ~] rest.pole))
+            ?|  &(?=(%poke-ack -.sign) ?=([%invite %revoke ship=@ ~] rest.pole))
+                &(?=(%poke-ack -.sign) ?=([%invite %send ship=@ ~] rest.pole))
+            ==
         ==
       cor
     se-abet:(se-agent:(se-abed:se-core ship name.pole) rest.pole sign)
@@ -1462,6 +1460,7 @@
                 ?=([%command %delete ~] rest.pole)
                 ?=([%leave-channels ~] rest.pole)
                 ?=([%invite %revoke @ ~] rest.pole)
+                ?=([%invite %send @ ~] rest.pole)
             ==
         ==
       cor
@@ -1830,9 +1829,10 @@
 ::
 ++  size-limit  256.000  :: 256KB
 ++  se-core
-  |_  [=flag:g =log:g =group:g gone=_|]
+  |_  [=flag:g group-log=log:g =group:g gone=_|]
   ::
-  +*  ad  admissions.group
+  +*  ad   admissions.group
+      log  ~(. l `'se-core')
   ::
   ++  se-core  .
   ++  emit  |=(=card se-core(cor cor(cards [card cards])))
@@ -1849,7 +1849,7 @@
     ?~  gru  ~|(%se-abed-group-not-found !!)
     =/  [=net:g =group:g]  u.gru
     ?>  ?=(%pub -.net)
-    se-core(flag flag, log log.net, group group)
+    se-core(flag flag, group-log log.net, group group)
   ::  +se-abet: final
   ::
   ++  se-abet
@@ -1870,7 +1870,7 @@
     %_  cor  groups
       ?:  gone
         (~(del by groups) flag)
-      (~(put by groups) flag [%pub log] group)
+      (~(put by groups) flag [%pub group-log] group)
     ==
 
   ::  +se-area: group base path
@@ -1914,13 +1914,17 @@
     |=  =u-group:g
     ~>  %spin.['se-update']
     ^+  se-core
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-update {<flag>} u-group={<u-group>}"
+    ::  ==
     =/  time
       |-
-      =/  update  (get:log-on:g log now.bowl)
+      =/  update  (get:log-on:g group-log now.bowl)
       ?~  update  now.bowl
       $(now.bowl `@da`(add now.bowl ^~((div ~s1 (bex 16)))))
     =/  =update:g  [time u-group]
-    =.  log  (put:log-on:g log update)
+    =.  group-log  (put:log-on:g group-log update)
     (se-give-update update)
   ::  +se-pass: server cards core
   ::
@@ -1933,13 +1937,6 @@
       =/  =a-foreigns:v9:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
-    ++  send-old-invite
-      |=  [=ship =invite:v7:gv]
-      ~>  %spin.['send-old-invite']
-      =/  =wire  (weld se-area /invite/send/(scot %p ship)/old)
-      =/  =a-foreigns:v7:gv
-        [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
       ~>  %spin.['revoke-invite']
@@ -2027,6 +2024,7 @@
     ?>  from-self
     ?>  ((sane %tas) name.create)
     ?>  (lte (met 3 (jam create)) size-limit)
+    =.  cor  (tell:l %info leaf+"se-c-create {<flag>} create={<create>}" ~)
     =/  =flag:g  [our.bowl name.create]
     =/  =admissions:g
       %*  .  *admissions:g
@@ -2130,9 +2128,15 @@
     ^+  se-core
     =^  access=?  ad
       (se-admit src.bowl tok)
+    =/  has-token=?  ?=(^ tok)
+    =/  joined=?  (se-is-joined src.bowl)
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-join {<flag>} src={<src.bowl>} privacy={<privacy.ad>} has-token={<has-token>} access={<access>} joined={<joined>}"
+    ::  ==
     ~|  %se-c-join-access-denied
     ?>  access
-    ?:  (se-is-joined src.bowl)  se-core
+    ?:  joined  se-core
     (se-c-seat (sy src.bowl ~) [%add ~])
   ::  +se-c-ask: handle a group ask request
   ::
@@ -2149,7 +2153,12 @@
     ^+  se-core
     ?<  ?=(%secret privacy.ad)
     ?>  (lte (met 3 (jam story)) size-limit)
-    ?:  (se-is-joined src.bowl)  se-core
+    =/  joined=?  (se-is-joined src.bowl)
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-ask {<flag>} src={<src.bowl>} privacy={<privacy.ad>} joined={<joined>}"
+    ::  ==
+    ?:  joined  se-core
     ?:  ?=(%public privacy.ad)
       ::  public group: wait until we receive the ask watch
       se-core
@@ -2252,6 +2261,10 @@
     ::
     =*  se-src-is-admin   (se-is-admin src.bowl)
     =*  se-src-is-member  (se-is-member src.bowl)
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-group {<flag>} src={<src.bowl>} command={<-.c-group>} admin={<se-src-is-admin>} member={<se-src-is-member>}"
+    ::  ==
     ::
     ?-    -.c-group
         %meta
@@ -2299,6 +2312,10 @@
     |=  =c-entry:g
     ~>  %spin.['se-c-entry']
     ^+  se-core
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry {<flag>} src={<src.bowl>} command={<-.c-entry>}"
+    ::  ==
     ?-  -.c-entry
       %privacy  (se-c-entry-privacy privacy.c-entry)
       %ban      (se-c-entry-ban c-ban.c-entry)
@@ -2312,6 +2329,10 @@
     |=  =privacy:g
     ~>  %spin.['se-c-entry-privacy']
     ^+  se-core
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-privacy {<flag>} src={<src.bowl>} old={<privacy.ad>} new={<privacy>}"
+    ::  ==
     =.  privacy.ad  privacy
     (se-update [%entry %privacy privacy])
   ::  +se-c-entry-ban: execute an entry ban command
@@ -2333,6 +2354,10 @@
     |=  =c-ban:g
     ~>  %spin.['se-c-entry-ban']
     ^+  se-core
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-ban {<flag>} src={<src.bowl>} c-ban={<c-ban>}"
+    ::  ==
     ::  disallow operations affecting the host
     ?<  ?|  ?&  ?=(?(%add-ships %del-ships) -.c-ban)
                 (~(has in ships.c-ban) our.bowl)
@@ -2444,6 +2469,10 @@
     |=  =c-token:g
     ~>  %spin.['se-c-entry-token']
     ^-  [(unit token:g) _se-core]
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-token {<flag>} src={<src.bowl>} c-token={<c-token>}"
+    ::  ==
     ?-    -.c-token
         %add
       =*  c-token-add  c-token-add.c-token
@@ -2529,6 +2558,10 @@
     |=  [ships=(set ship) =c-pending:g]
     ~>  %spin.['se-c-entry-pending']
     ^+  se-core
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-pending {<flag>} src={<src.bowl>} ships={<ships>} c-pending={<c-pending>}"
+    ::  ==
     ?<  ?&  ?=(%add -.c-pending)
             (~(any in ships) se-is-banned)
         ==
@@ -2583,6 +2616,11 @@
     |=  [ships=(set ship) c-ask=?(%approve %deny)]
     ~>  %spin.['se-c-entry-ask']
     ^+  se-core
+    =/  request-ships=(set ship)  ~(key by requests.ad)
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-entry-ask {<flag>} src={<src.bowl>} ships={<ships>} c-ask={<c-ask>} requests={<request-ships>}"
+    ::  ==
     ?-    c-ask
         %approve
       =/  reqs=(set ship)
@@ -2637,6 +2675,10 @@
     ~>  %spin.['se-c-seat']
     ^+  se-core
     =/  user-join  =(ships (sy src.bowl ~))
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-c-seat {<flag>} src={<src.bowl>} ships={<ships>} c-seat={<c-seat>} user-join={<user-join>}"
+    ::  ==
     ::
     ?-    -.c-seat
         %add
@@ -2745,7 +2787,7 @@
       =+  paths=(se-ships-subscription-paths new-admins)
       ?:  =(~ paths)  se-core
       =/  time
-        ?~  update=(ram:log-on:g log)  now.bowl
+        ?~  update=(ram:log-on:g group-log)  now.bowl
         -.u.update
       =/  gr=group:g  group
       ::  clear local state for the update
@@ -2800,11 +2842,6 @@
     =.  se-core  (se-revoke-invite ship)
     =.  invited.ad
       (~(put by invited.ad) ship [now.bowl token.invite])
-    ::TODO sent only for backcompat. Remove when the update
-    ::     settles in the network.
-    ::
-    =.  se-core
-      (emit (send-old-invite:se-pass ship (v7:invite:v8:gc invite)))
     (emit (send-invite:se-pass ship invite))
   ::  +se-revoke-invite: revoke a previously issued invite for a .ship
   ::
@@ -2939,7 +2976,7 @@
       =+  paths=(se-ships-subscription-paths new-admins)
       ?:  =(~ paths)  se-core
       =/  time
-        ?~  update=(ram:log-on:g log)  now.bowl
+        ?~  update=(ram:log-on:g group-log)  now.bowl
         -.u.update
       =/  gr=group:g  group
       ::  clear local state
@@ -3154,6 +3191,10 @@
     |=  =path
     ~>  %spin.['se-watch']
     ^+  se-core
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-watch {<flag>} src={<src.bowl>} path={<path>}"
+    ::  ==
     ?+    path  ~|(se-watch-bad+path !!)
         ::  receive updates since .time
         ::
@@ -3208,7 +3249,7 @@
       =.  active-channels.gr     ~
       (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create gr] ~ ~]))
     ::
-    =/  =log:g  (lot:log-on:g log `da ~)
+    =/  =log:g  (lot:log-on:g group-log `da ~)
     ::  filter out admin updates
     ::
     =?  log  !(se-is-admin ship)
@@ -3283,6 +3324,10 @@
     |=  =ship
     ~>  %spin.['se-watch-ask']
     ^+  se-core
+    ::=.  cor
+    ::  %+  tell:log  %dbug
+    ::  :~  leaf+"+se-watch-ask {<flag>} src={<src.bowl>} ship={<ship>} privacy={<privacy.ad>}"
+    ::  ==
     ?.  =(%public privacy.ad)  ::TMI
       :: for a private group we wait until the request is approved
       se-core
@@ -3303,14 +3348,6 @@
       ?~  p.sign  se-core
       =.  cor  %+  ~(tell l ~)  %crit
           [leaf+"failed to invite {<ship>}" u.p.sign]
-      se-core
-    ::
-        [%invite %send ship=@ %old ~]
-      =/  ship=@p  (slav %p i.t.t.wire)
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to invite {<ship>} (backcompat)" u.p.sign]
       se-core
     ::
         [%invite %revoke ship=@ ~]
@@ -3334,7 +3371,8 @@
 ::
 ++  go-core
   |_  [=flag:g =net:g =group:g gone=_|]
-  +*  ad  admissions.group
+  +*  ad   admissions.group
+      log  ~(. l `'go-core')
   ::
   ++  go-core  .
   ++  emit  |=(=card go-core(cor cor(cards [card cards])))
@@ -3441,13 +3479,6 @@
       =/  =a-foreigns:v8:gv
         [%invite invite]
       [%pass wire %agent [ship dap.bowl] %poke group-foreign-2+!>(a-foreigns)]
-    ++  send-old-invite
-      |=  [=ship =invite:v7:gv]
-      ~>  %spin.['send-old-invite']
-      =/  =wire  (weld go-area /invite/send/(scot %p ship)/old)
-      =/  =a-foreigns:v7:gv
-        [%invite invite]
-      [%pass wire %agent [ship dap.bowl] %poke group-foreign-1+!>(a-foreigns)]
     ++  revoke-invite
       |=  [=ship tok=(unit token:g)]
       ~>  %spin.['revoke-invite']
@@ -3529,7 +3560,7 @@
     ^+  go-core
     =*  log  ~(. l `'group-join')
     ?:  go-has-sub  go-core
-    =.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
+    ::=.  cor  (tell:log %dbug leaf+"+go-safe-sub subscribing to {<flag>}" ~)
     (go-start-updates delay)
   ::  +go-leave-subs: leave group subscriptions
   ::
@@ -3547,7 +3578,7 @@
       ?:  ?=(%pub -.net)  *@da
       time.net
     =/  sub-path=path
-      (weld go-server-path /updates/(scot %p our.bowl)/(scot %da sub-time))
+      (weld go-server-path /updates/(scot %p our.bowl)/(scot:h136 %da sub-time))
     =.  cor
       %.  delay
       (safe-watch go-sub-wire [p.flag server] sub-path)
@@ -3645,6 +3676,9 @@
       ::
       ::  TODO: this loses the note.a-invite.
       ::
+      :: TODO: crash on non-admins trying to send invites for a secret or
+      ::       private group
+      ::
       =.  go-core  (emit:go-core (request-token:go-pass:go-core ship))
       go-core
     =/  =invite:v8:gv
@@ -3669,11 +3703,6 @@
     =.  go-core  (go-revoke-invite ship)
     =.  invited.ad
       (~(put by invited.ad) ship [now.bowl token.invite])
-    ::TODO sent only for backcompat. Remove when the update
-    ::     settles in the network.
-    ::
-    =.  go-core
-      (emit (send-old-invite:go-pass ship (v7:invite:v8:gc invite)))
     (emit (send-invite:go-pass ship invite))
   ::  +go-revoke-invite: revoke a previously issued invite
   ::
@@ -3803,14 +3832,6 @@
       =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
       go-core
     ::
-        ::  invited a ship to the group (backcompat)
-        ::
-        [%invite %send ship=@ %old ~]
-      =/  ship=@p  (slav %p i.t.t.wire)
-      ?>  ?=(%poke-ack -.sign)
-      ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
-      go-core
         ::  revoked invitation
         ::
         [%invite %revoke ship=@ ~]
@@ -4636,6 +4657,8 @@
     ::
     =/  r-groups-9=r-groups:v9:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
+    =*  log  ~(. l `'group-join')
+    ::=.  cor  (tell:log %dbug leaf+"+go-response /v1/groups fact {<r-groups-9>}" ~)
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
     ::  v2 response: same r-group as v1, carried by the v10 mark so v2
     ::  subscribers also receive the %active-channel deltas from elsewhere.
@@ -4819,7 +4842,10 @@
       %-  gang:v2:foreign:v7:gc
       (v7:foreign:v10:gc foreign)
     =/  foreign-8  (v8:foreign:v10:gc foreign)
-    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(`foreigns:v8:gv`(my flag^foreign-8 ~)))
+    =/  foreigns-8=foreigns:v8:gv  (my flag^foreign-8 ~)
+    =*  log  ~(. l `'group-join')
+    ::=.  cor  (tell:log %dbug leaf+"+fi-give-update /v1/foreigns fact {<foreigns-8>}" ~)
+    =.  cor  (give %fact ~[/v1/foreigns] foreigns-1+!>(foreigns-8))
     =.  cor  (give %fact ~[/gangs/updates] gangs+!>(`gangs:v2:gv`(my flag^gang-2 ~)))
     fi-core
   ::
@@ -4865,6 +4891,12 @@
       =/  =path  (weld fi-server-path /ask/(scot %p our.bowl))
       =/  =cage
         group-command+!>(`c-groups:g`[%ask flag story])
+      ::  NOTE: because of poke and watch transmitted over different
+      ::  flows, the group ask flow is vulnerable to race conditions, 
+      ::  where an ask request is approved before subscription is
+      ::  established.
+      ::
+      ::
       :~  [%pass wire %agent [p.flag server] %poke cage]
           [%pass wire %agent [p.flag server] %watch path]
       ==
@@ -4927,7 +4959,7 @@
       =.  progress  `%error
       fi-core
     =.  progress  `%join
-    =.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
+    ::=.  cor  (tell:log %dbug leaf+"+fi-join with token {<tok>}" ~)
     =.  cor  (emit (join:fi-pass tok))
     =.  cor
       %-  submit-activity
@@ -4968,7 +5000,7 @@
       =.  cor  (fail:log 'group join failed' u.p)
       =.  progress  `%error
       fi-core
-    =.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
+    ::=.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
     =.  progress  `%done
     fi-core
   ::  +fi-error: end a foreign sequence with an error
