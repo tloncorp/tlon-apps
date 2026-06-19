@@ -22,22 +22,22 @@ services:
         cd /data
 
         echo "==> Downloading zod..."
-        curl -fSL https://bootstrap.urbit.org/rube-zod25.tgz -o rube-zod25.tgz || { echo "Failed to download zod"; exit 1; }
-        ls -la rube-zod25.tgz
+        curl -fSL https://bootstrap.urbit.org/rube-zod27.tgz -o rube-zod27.tgz || { echo "Failed to download zod"; exit 1; }
+        ls -la rube-zod27.tgz
         echo "==> Extracting zod..."
-        tar xzf rube-zod25.tgz || { echo "Failed to extract zod"; exit 1; }
+        tar xzf rube-zod27.tgz || { echo "Failed to extract zod"; exit 1; }
 
         echo "==> Downloading ten..."
-        curl -fSL https://bootstrap.urbit.org/rube-ten25.tgz -o rube-ten25.tgz || { echo "Failed to download ten"; exit 1; }
-        ls -la rube-ten25.tgz
+        curl -fSL https://bootstrap.urbit.org/rube-ten27.tgz -o rube-ten27.tgz || { echo "Failed to download ten"; exit 1; }
+        ls -la rube-ten27.tgz
         echo "==> Extracting ten..."
-        tar xzf rube-ten25.tgz || { echo "Failed to extract ten"; exit 1; }
+        tar xzf rube-ten27.tgz || { echo "Failed to extract ten"; exit 1; }
 
         echo "==> Downloading mug..."
-        curl -fSL https://bootstrap.urbit.org/rube-mug25.tgz -o rube-mug25.tgz || { echo "Failed to download mug"; exit 1; }
-        ls -la rube-mug25.tgz
+        curl -fSL https://bootstrap.urbit.org/rube-mug27.tgz -o rube-mug27.tgz || { echo "Failed to download mug"; exit 1; }
+        ls -la rube-mug27.tgz
         echo "==> Extracting mug..."
-        tar xzf rube-mug25.tgz || { echo "Failed to extract mug"; exit 1; }
+        tar xzf rube-mug27.tgz || { echo "Failed to extract mug"; exit 1; }
 
         echo "==> Downloading vere..."
         curl -fSL https://urbit.org/install/linux-x86_64/latest | tar xz || { echo "Failed to download vere"; exit 1; }
