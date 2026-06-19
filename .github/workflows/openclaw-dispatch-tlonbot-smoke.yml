@@ -1,0 +1,39 @@
+name: Dispatch tlonbot smoke
+
+# When a commit touching the openclaw plugin lands on develop (post-PR
+# merge), trigger tlonbot's e2e smoke workflow with this commit's SHA as
+# the plugin ref. tlonbot pins its bot container's plugin checkout to that
+# exact SHA, so the smoke is pinned to "did this specific plugin commit
+# play nicely with tlonbot's prompts/persona".
+#
+# We trust the openclaw CI workflow's PR-gating to have already passed for
+# this commit; this workflow does not re-run any tests, just dispatches.
+# The repo/path payload fields tell tlonbot to clone tlon-apps and find
+# the plugin at packages/openclaw (it falls back to the legacy
+# openclaw-tlon repo when they are absent).
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "packages/openclaw/**"
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger tlonbot smoke
+        env:
+          GH_TOKEN: ${{ secrets.TLONBOT_DISPATCH_TOKEN }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::warning::TLONBOT_DISPATCH_TOKEN secret is not set; skipping dispatch"
+            exit 0
+          fi
+          echo "Dispatching tlonbot smoke for plugin ref $GITHUB_SHA"
+          gh api repos/tloncorp/tlonbot/dispatches \
+            --method POST \
+            --field event_type=tlonbot-smoke-test \
+            --field 'client_payload[ref]='"$GITHUB_SHA" \
+            --field 'client_payload[repo]=tloncorp/tlon-apps' \
+            --field 'client_payload[path]=packages/openclaw'

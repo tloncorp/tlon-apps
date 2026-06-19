@@ -84,10 +84,6 @@ export type RootStackParamList = {
   ChannelMeta: {
     channelId: string;
   };
-  PostUsingContentConfiguration: {
-    postId: string;
-    channelId: string;
-  };
   ChannelTemplate: {
     channelId: string;
   };

@@ -269,6 +269,96 @@ describe('parseNotificationPayload', () => {
     );
   });
 
+  it('parses channel post react activity to the channel', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        react: {
+          key: childKey,
+          parent: null,
+          group: '~sampel-palnet/test',
+          channel: 'chat/~sampel-palnet/test',
+          author: '~sampel-palnet',
+          react: '❤️',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      meta: { errorsFromExtension: undefined },
+      channelId: 'chat/~sampel-palnet/test',
+      postInfo: null,
+    });
+  });
+
+  it('parses channel reply react activity to the parent thread', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        react: {
+          key: childKey,
+          parent: parentKey,
+          group: '~sampel-palnet/test',
+          channel: 'chat/~sampel-palnet/test',
+          author: '~sampel-palnet',
+          react: '❤️',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      meta: { errorsFromExtension: undefined },
+      channelId: 'chat/~sampel-palnet/test',
+      postInfo: {
+        id: parentId.split('/')[1],
+        authorId: '~sampel-palnet',
+        isDm: false,
+      },
+    });
+  });
+
+  it('parses DM react activity to the DM channel', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        'dm-react': {
+          key: childKey,
+          parent: null,
+          whom: { ship: '~sampel-palnet' },
+          author: '~sampel-palnet',
+          react: '❤️',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      meta: { errorsFromExtension: undefined },
+      channelId: '~sampel-palnet',
+      postInfo: null,
+    });
+  });
+
+  it('parses DM thread react activity to the parent thread', () => {
+    const result = parseNotificationPayload(
+      payloadFor({
+        'dm-react': {
+          key: childKey,
+          parent: parentKey,
+          whom: { club: groupDmId },
+          author: '~sampel-palnet',
+          react: '❤️',
+        },
+      })
+    );
+
+    expect(result).toEqual({
+      meta: { errorsFromExtension: undefined },
+      channelId: groupDmId,
+      postInfo: {
+        id: parentId.split('/')[1],
+        authorId: '~sampel-palnet',
+        isDm: false,
+      },
+    });
+  });
+
   it('ignores malformed activity JSON without throwing', () => {
     expect(() =>
       parseNotificationPayload({ activityEventJsonString: '{' })

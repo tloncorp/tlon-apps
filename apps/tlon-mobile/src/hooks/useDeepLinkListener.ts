@@ -55,7 +55,9 @@ export const useDeepLinkListener = () => {
                 lure.invitedGroupId
               );
 
-              store.redeemInviteIfNeeded(lure);
+              store.redeemInviteIfNeeded(lure).catch((e) => {
+                logger.error('Failed to redeem invite', lure, e);
+              });
               const previewGroupId = lure.invitedGroupId || lure.group;
               if (previewGroupId) {
                 reset([

@@ -8,7 +8,6 @@
 import * as childProcess from 'child_process';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import * as fsExtra from 'fs-extra';
 import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
@@ -573,9 +572,10 @@ const bootShip = (
   binaryPath: string,
   pierPath: string,
   httpPort: string,
-  ship: ShipName
+  ship: ShipName,
+  options: { resume?: boolean } = {}
 ) => {
-  if (FRESH_BOOT) {
+  if (FRESH_BOOT && !options.resume) {
     // For fresh boot, use -F to create a new fakeship
     // pierPath is e.g. dist/zod/zod - parent dir is dist/zod/
     const parentDir = path.dirname(pierPath);
@@ -672,9 +672,21 @@ const bootShip = (
   });
 };
 
+const REPO_ROOT = path.resolve(__dirname, '../../../../');
+
+// Vendor the desk's base-dev/landscape dependencies into desk-deps/ via peru
+// (see peru.yaml). desk-deps/ is gitignored, so a fresh checkout/build context
+// lacks it until synced. Idempotent and cached, so cheap to run every time.
+const syncDeskDeps = () => {
+  console.log('Vendoring desk dependencies with peru (peru sync)...');
+  childProcess.execSync('peru sync', { cwd: REPO_ROOT, stdio: 'inherit' });
+};
+
 const copyDesks = async (): Promise<string[]> => {
-  const groups = path.resolve(__dirname, '../../../../desk');
   const shipsNeedingUpdates: string[] = [];
+
+  // Populate desk-deps/ once before assembling each ship's desk.
+  syncDeskDeps();
 
   for (const ship of Object.values(ships) as Ship[]) {
     if (targetShip && targetShip !== ship.ship) {
@@ -688,7 +700,13 @@ const copyDesks = async (): Promise<string[]> => {
 
       try {
         console.log(`Copying desk changes to ${ship.ship}`);
-        await fsExtra.copy(groups, groupsDir, { overwrite: true });
+        // assemble-desk.sh layers desk-deps/ (--delete) then desk/ on top, so
+        // the result is exactly the assembled desk with stale files cleared.
+        // We synced once above, so skip the per-ship sync.
+        childProcess.execSync(
+          `bash "${REPO_ROOT}/scripts/assemble-desk.sh" "${groupsDir}"`,
+          { env: { ...process.env, SKIP_SYNC: 'true' }, stdio: 'inherit' }
+        );
         shipsNeedingUpdates.push(ship.ship);
       } catch (e) {
         console.error('Error copying desks', e);
@@ -839,6 +857,54 @@ const getPortsFromFiles = async () =>
     resolve();
   });
 
+const rebootShip = async (ship: Ship) => {
+  const shipName = ship.ship as ShipName;
+  const pierPath = IN_CONTAINER
+    ? ship.extractPath
+    : path.join(ship.extractPath, shipName);
+
+  // The ship runs daemonized (-d), so shipProcesses only tracks the
+  // launcher. Kill any surviving runtime for this pier by path. Matching
+  // on the pier path catches both the king and the serf (<pier>/.run),
+  // and bracketing the first character keeps the pattern from matching
+  // this command's own shell.
+  const pierPattern = pierPath.replace(/^(.)/, '[$1]');
+  await execPromise(
+    `pids=$(ps aux | grep "${pierPattern}" | awk '{print $2}'); [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true`
+  );
+
+  // A crashed runtime leaves .http.ports behind; remove it so its
+  // reappearance tells us the rebooted ship is actually listening.
+  const httpPortsFile = path.join(pierPath, '.http.ports');
+  if (fs.existsSync(httpPortsFile)) {
+    fs.rmSync(httpPortsFile);
+  }
+
+  const binaryPath = path.join(WORKSPACE_DIR, 'urbit_extracted', 'urbit');
+  console.log(`Rebooting ~${shipName} at ${pierPath}`);
+  bootShip(binaryPath, pierPath, ship.httpPort, shipName, { resume: true });
+
+  // The loopback port is OS-assigned and changes across reboots, so poll
+  // until we can parse a fresh one rather than just waiting for the file.
+  const maxAttempts = 60;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (fs.existsSync(httpPortsFile)) {
+      const lines = fs.readFileSync(httpPortsFile, 'utf8').split('\n');
+      const port = lines.map(parseLoopbackPort).find(Boolean);
+      if (port) {
+        ships[shipName].loopbackPort = port;
+        console.log(`Rebooted ~${shipName}; loopback port is now ${port}`);
+        return;
+      }
+    }
+    await sleep(1000);
+  }
+
+  throw new Error(
+    `~${shipName} did not come back up within ${maxAttempts}s of rebooting`
+  );
+};
+
 const mountDesks = async () => {
   console.log('Mounting desks on all ships');
 
@@ -875,15 +941,36 @@ const commitDesks = async (shipsNeedingUpdates: string[]) => {
     }
 
     if (shipsNeedingUpdates.includes(ship.ship)) {
-      await hoodCommand(
-        ship.ship as ShipName,
-        `commit %groups`,
-        ship.loopbackPort
-      );
-      await assertShipHealthy(
-        ship.ship as ShipName,
-        'post-commit ship health check'
-      );
+      // The vere runtime can segfault while rescanning the mounted desk
+      // during the commit (u3_readdir_r in pkg/vere/io/unix.c). The crash
+      // is memory-layout dependent, so rebooting the pier and re-running
+      // the (idempotent) commit nearly always succeeds.
+      const maxAttempts = 4;
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+          await hoodCommand(
+            ship.ship as ShipName,
+            `commit %groups`,
+            ship.loopbackPort
+          );
+          await assertShipHealthy(
+            ship.ship as ShipName,
+            'post-commit ship health check'
+          );
+          break;
+        } catch (error) {
+          if (
+            !(error instanceof ShipUnavailableError) ||
+            attempt === maxAttempts
+          ) {
+            throw error;
+          }
+          console.log(
+            `~${ship.ship} became unreachable during desk commit (attempt ${attempt}/${maxAttempts}), rebooting and retrying...`
+          );
+          await rebootShip(ship);
+        }
+      }
     }
   }
 };
