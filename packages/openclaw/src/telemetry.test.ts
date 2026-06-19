@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { _testing, createTlonTelemetry, recordToolCall } from './telemetry.js';
+import {
+  _testing,
+  createTlonTelemetry,
+  recordToolCall,
+  reportOutboundRoute,
+  setOutboundRouteReporter,
+} from './telemetry.js';
 
 const postHogMocks = vi.hoisted(() => ({
   identify: vi.fn(),
@@ -439,5 +445,83 @@ describe('telemetry tool tracking', () => {
     const capturedEvent = await captureReply();
     expect(capturedEvent?.event).toBe('TlonBot Reply Handled');
     expect(capturedEvent?.properties.outcome).toBe('responded');
+  });
+});
+
+describe('outbound route telemetry', () => {
+  beforeEach(() => {
+    postHogMocks.identify.mockClear();
+    postHogMocks.capture.mockClear();
+    setOutboundRouteReporter(null);
+  });
+
+  function createEnabledTelemetry() {
+    return createTlonTelemetry({
+      config: { enabled: true, apiKey: 'phc_test', host: null },
+    });
+  }
+
+  it('captures a webchat (off-Tlon) send as the tracked leak', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureOutboundRoute({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      resolvedChannel: 'webchat',
+      routedToTlon: false,
+      targetKind: 'unknown',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Outbound Routed');
+    expect(call.distinctId).toBe('~zod');
+    expect(call.properties.resolvedChannel).toBe('webchat');
+    expect(call.properties.routedToTlon).toBe(false);
+  });
+
+  it('captures a healthy Tlon send', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureOutboundRoute({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      resolvedChannel: 'tlon',
+      routedToTlon: true,
+      targetKind: 'dm',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.routedToTlon).toBe(true);
+    expect(call.properties.targetKind).toBe('dm');
+  });
+
+  it('skips capture when ownerShip is not configured', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureOutboundRoute({
+      ownerShip: null,
+      botShip: '~nec',
+      resolvedChannel: 'webchat',
+      routedToTlon: false,
+      targetKind: 'unknown',
+    });
+    expect(postHogMocks.capture).not.toHaveBeenCalled();
+  });
+
+  it('reportOutboundRoute forwards to the registered reporter, and null clears it', () => {
+    const reporter = vi.fn();
+    setOutboundRouteReporter(reporter);
+    reportOutboundRoute({
+      resolvedChannel: 'webchat',
+      routedToTlon: false,
+      targetKind: 'unknown',
+    });
+    expect(reporter).toHaveBeenCalledTimes(1);
+    expect(reporter.mock.calls[0][0].routedToTlon).toBe(false);
+
+    setOutboundRouteReporter(null);
+    reportOutboundRoute({
+      resolvedChannel: 'tlon',
+      routedToTlon: true,
+      targetKind: 'dm',
+    });
+    expect(reporter).toHaveBeenCalledTimes(1);
   });
 });
