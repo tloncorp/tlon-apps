@@ -9,7 +9,7 @@ import {
   interleaveActivityEvents,
   toSourceActivityEvents,
 } from '@tloncorp/api/client/activity';
-import { CHANNELS_BACKED_KINDS, Rank } from '@tloncorp/api/urbit';
+import { Rank } from '@tloncorp/api/urbit';
 import {
   AnyColumn,
   Column,
@@ -28,7 +28,6 @@ import {
   inArray,
   isNotNull,
   isNull,
-  like,
   lt,
   lte,
   max,
@@ -2686,74 +2685,6 @@ export const getChannelNavSection = createReadQuery(
   ['groupNavSectionChannels']
 );
 
-/* This sets which channels the current user is a member of, which is what we key off of
-when determining channels to show in the UI. There's no direct setting for this on
-the backend. Instead we look at two things:
-   1) do you have an unreads entry for the channel?
-   2) if you do, do you have read permissions for it?
-    Read permissions are stored as an array of roles. If the array is empty, anyone
-    can read the channel. If it's not empty, we check to make sure the user has one of the
-    reader roles.
-*/
-export const setJoinedGroupChannels = createWriteQuery(
-  'setJoinedGroupChannels',
-  async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
-    const currentUserId = getCurrentUserId();
-    if (channelIds.length === 0) return;
-
-    const channels = await ctx.db.query.channels.findMany({
-      with: {
-        readerRoles: true,
-        group: {
-          with: {
-            roles: {
-              with: {
-                members: true,
-              },
-            },
-          },
-        },
-      },
-    });
-    const channelsIndex = new Map<string, Channel>();
-    for (const channel of channels) {
-      channelsIndex.set(channel.id, channel);
-    }
-
-    const channelsWhereMember = channelIds.filter((id) => {
-      const channel = channelsIndex.get(id);
-      const isOpenChannel = channel?.readerRoles?.length === 0;
-
-      const userRolesForGroup =
-        channel?.group?.roles
-          ?.filter((role) =>
-            role.members?.map((m) => m.contactId).includes(currentUserId)
-          )
-          .map((role) => role.id) ?? [];
-
-      const isClosedButCanRead = channel?.readerRoles
-        ?.map((r) => r.roleId)
-        .some((r) => userRolesForGroup.includes(r));
-      return isOpenChannel || isClosedButCanRead;
-    });
-    if (channelsWhereMember.length) {
-      logger.log('setJoinedGroupChannels', channelIds);
-      return await ctx.db
-        .update($channels)
-        .set({
-          currentUserIsMember: true,
-        })
-        .where(
-          and(
-            inArray($channels.id, channelsWhereMember),
-            isNotNull($channels.groupId)
-          )
-        );
-    }
-  },
-  ['channels']
-);
-
 export const addJoinedGroupChannel = createWriteQuery(
   'addJoinedGroupChannel',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
@@ -2799,82 +2730,30 @@ export const removeJoinedGroupChannel = createWriteQuery(
   ['channels']
 );
 
-export const setLeftGroupChannels = createWriteQuery(
-  'setLeftGroupChannels',
+// Single source of truth for group-channel membership. %groups tracks our
+// membership in every group's active-channels set, across all channel kinds —
+// first-party chat/diary/heap and third-party (e.g. notes) alike.
+// joinedChannelIds is the union of those sets. We mark those channels joined
+// and every other group channel left, so this two-way reconcile handles join,
+// leave, revoke, and re-gain in one pass.
+export const reconcileJoinedGroupChannels = createWriteQuery(
+  'reconcileJoinedGroupChannels',
   async (
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    // This reconcile is driven by %channels' joined-channel list, so it only
-    // governs %channels-backed channels (chat/diary/heap). Channels backed by
-    // other agents (e.g. %notes) aren't tracked by %channels and never appear
-    // in joinedChannelIds; their membership is derived from group reader-roles
-    // in toClientChannel, so we must not flip them to not-a-member here.
-    const channelsBacked = or(
-      ...CHANNELS_BACKED_KINDS.map((kind) => like($channels.id, `${kind}/%`))
-    );
-    if (joinedChannelIds.length === 0) {
-      return await ctx.db
-        .update($channels)
-        .set({ currentUserIsMember: false })
-        .where(
-          and(
-            isNotNull($channels.groupId),
-            eq($channels.currentUserIsMember, true),
-            channelsBacked
-          )
-        );
-    }
-    return await ctx.db
-      .update($channels)
-      .set({
-        currentUserIsMember: false,
-      })
-      .where(
-        and(
-          notInArray($channels.id, joinedChannelIds),
-          isNotNull($channels.groupId),
-          eq($channels.currentUserIsMember, true),
-          channelsBacked
-        )
-      );
-  },
-  ['channels']
-);
-
-// Two-way membership reconcile for notes channels. Notes aren't tracked by
-// %channels (so they're excluded from setLeftGroupChannels); instead %groups
-// tracks our membership in each group's active-channels set. joinedChannelIds
-// is the third-party nests from those sets. We set those channels joined and
-// every other group third-party channel left — so this handles join, leave,
-// revoke, and re-gain, unlike a one-directional flip.
-export const setJoinedThirdPartyChannels = createWriteQuery(
-  'setJoinedThirdPartyChannels',
-  async (
-    { joinedChannelIds }: { joinedChannelIds: string[] },
-    ctx: QueryCtx
-  ) => {
-    // group channels not backed by %channels (chat/diary/heap), e.g. notes.
-    const thirdPartyChannel = and(
-      ...CHANNELS_BACKED_KINDS.map((kind) =>
-        not(like($channels.id, `${kind}/%`))
-      )
-    );
-    // mark the active third-party channels joined
     if (joinedChannelIds.length) {
       await ctx.db
         .update($channels)
         .set({ currentUserIsMember: true })
-        .where(and(thirdPartyChannel, inArray($channels.id, joinedChannelIds)));
+        .where(inArray($channels.id, joinedChannelIds));
     }
-    // mark every other group third-party channel left
     return await ctx.db
       .update($channels)
       .set({ currentUserIsMember: false })
       .where(
         and(
           isNotNull($channels.groupId),
-          thirdPartyChannel,
           eq($channels.currentUserIsMember, true),
           joinedChannelIds.length
             ? notInArray($channels.id, joinedChannelIds)

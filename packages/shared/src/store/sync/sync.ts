@@ -77,7 +77,6 @@ export const syncInitData = async (
     await persistUnreads({
       unreads: initData.unreads,
       ctx: queryCtx,
-      includesAllUnreads: true,
     }).then(() => logger.crumb('persisted unreads'));
 
     await db
@@ -103,17 +102,11 @@ export const syncInitData = async (
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
     await db
-      .setLeftGroupChannels(
-        { joinedChannelIds: initData.joinedChannels },
+      .reconcileJoinedGroupChannels(
+        { joinedChannelIds: initData.joinedGroupChannels },
         queryCtx
       )
-      .then(() => logger.crumb('set left channels'));
-    await db
-      .setJoinedThirdPartyChannels(
-        { joinedChannelIds: initData.joinedThirdPartyChannels },
-        queryCtx
-      )
-      .then(() => logger.crumb('reconciled third-party channels'));
+      .then(() => logger.crumb('reconciled group channel membership'));
     updateLastActivityTime();
   };
 
@@ -797,10 +790,8 @@ export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
   );
   checkForNewlyJoined(unreads);
   return queryCtx
-    ? persistUnreads({ unreads, ctx: queryCtx, includesAllUnreads: true })
-    : batchEffects('initialUnreads', (ctx) =>
-        persistUnreads({ unreads, ctx, includesAllUnreads: true })
-      );
+    ? persistUnreads({ unreads, ctx: queryCtx })
+    : batchEffects('initialUnreads', (ctx) => persistUnreads({ unreads, ctx }));
 };
 
 export const syncChannelThreadUnreads = async (
@@ -1612,12 +1603,6 @@ export const handleChannelsUpdate = async (
     }
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' }, ctx);
-      break;
-    case 'joinChannelSuccess':
-      await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
-      break;
-    case 'leaveChannelSuccess':
-      await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
       break;
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(

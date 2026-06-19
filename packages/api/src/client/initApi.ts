@@ -1,7 +1,6 @@
 import { createDevLogger } from '../lib/logger';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
-import { isThirdPartyChannel } from '../urbit';
 import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
@@ -22,8 +21,7 @@ export interface InitData {
   channels: db.Channel[];
   channelPerms: ChannelInit[];
   joinedGroups: string[];
-  joinedChannels: string[];
-  joinedThirdPartyChannels: string[];
+  joinedGroupChannels: string[];
   hiddenPostIds: string[];
   blockedUsers: string[];
   unreads: db.ActivityInit;
@@ -107,18 +105,14 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
   logger.crumb('extracting joined groups');
 
   const joinedGroups = groups.map((group) => group.id);
-  // Not fully reflective of which channels you're a member of, but if a channel is _not_
-  // in here, you're definitely not a member of it
+
   logger.crumb('extracting joined channels');
 
-  const joinedChannels = channelsInit.map((channel) => channel.channelId);
-
-  // Third-party channels (e.g. notes) live outside %channels, so they're absent
-  // from channelsInit. %groups tracks our membership in each group's
-  // active-channels set (populated for third-party kinds), so pull those nests
-  // out as our joined third-party channels.
-  const joinedThirdPartyChannels = Object.values(response.groups ?? {}).flatMap(
-    (group) => (group['active-channels'] ?? []).filter(isThirdPartyChannel)
+  // %groups is the single source of truth for group-channel membership: it
+  // tracks our membership in every group's active-channels set, across all
+  // channel kinds (first-party chat/diary/heap and third-party e.g. notes).
+  const joinedGroupChannels = Object.values(response.groups ?? {}).flatMap(
+    (group) => group['active-channels'] ?? []
   );
 
   logger.crumb('returning init data');
@@ -131,8 +125,7 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
     joinedGroups,
-    joinedChannels,
-    joinedThirdPartyChannels,
+    joinedGroupChannels,
     hiddenPostIds,
     blockedUsers,
   };
