@@ -56,7 +56,7 @@
   [snap-id fleet sync]:u.args
 ;<  =bowl:spider  bind:m  get-bowl
 ::  remove duplicates
-=.  fleet  ~(tap in (silt fleet))
+=/  fleet=(list ship)  ~(tap in (silt fleet))
 ~>  %slog.1^(crip "Booting fleet {<fleet>}")
 ;<  vane-tids=(map term tid:spider)  bind:m  start-simple:ph-io
 ;<  ~  bind:m
@@ -74,14 +74,10 @@
   ?~  fleet  (pure:n ~)
   ;<  ~  bind:n  (sync-desk i.fleet %groups)
   $(fleet t.fleet)
-::  allow agents time to cool down to process
-::  any cards that might have been emitted.
-::
-;<  ~  bind:m  (sleep ~s5)
 ;<  ~  bind:m  (end-test:ph-io vane-tids)
 ;<  =bowl:spider  bind:m  get-bowl
 =/  snap-id=@t
-  ?~  snap-id  
+  ?~  snap-id
     =+  eny=(end 3^4 (sham eny.bowl))
     (cat 3 'aqua-tests-' (scot %uv eny))
   u.snap-id
