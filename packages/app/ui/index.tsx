@@ -80,6 +80,7 @@ export { ConnectedPostView } from './components/postCollectionViews/shared';
 export * from './contexts/groups';
 export * from './contexts/chatOptions';
 export * from './contexts/navigation';
+export * from './contexts/notebookSidebar';
 export * from './contexts/thread';
 export * from './contexts/channel';
 export * from './contexts/appDataContext';

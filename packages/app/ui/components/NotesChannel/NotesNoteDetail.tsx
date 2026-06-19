@@ -61,10 +61,12 @@ function clearDraftStash(
 }
 
 export function NotesNoteDetail({
+  headerActionsPlacement = 'channel-header',
   noteId,
   notebookFlag,
   onDeleted,
 }: {
+  headerActionsPlacement?: 'channel-header' | 'inline' | 'none';
   noteId: number | null;
   notebookFlag: string | null | undefined;
   onDeleted?: () => void;
@@ -189,7 +191,15 @@ export function NotesNoteDetail({
       setSaveState('error');
       setError(errorMessage(e, 'Failed to save note'));
     }
-  }, [bodyDraft, canEdit, draftBase, isDirty, notebookFlag, runSave, titleDraft]);
+  }, [
+    bodyDraft,
+    canEdit,
+    draftBase,
+    isDirty,
+    notebookFlag,
+    runSave,
+    titleDraft,
+  ]);
 
   useEffect(() => {
     if (!isDirty || !canEdit || saveState === 'saving') return;
@@ -375,7 +385,13 @@ export function NotesNoteDetail({
 
   useRegisterChannelHeaderItem(
     useMemo(() => {
-      if (!canEdit || !selectedNote) return null;
+      if (
+        headerActionsPlacement !== 'channel-header' ||
+        !canEdit ||
+        !selectedNote
+      ) {
+        return null;
+      }
       return (
         <NotesDetailHeaderActions
           isMoving={isMovingNote}
@@ -387,6 +403,7 @@ export function NotesNoteDetail({
       canEdit,
       handleDeleteSelectedNote,
       handleOpenMoveSheet,
+      headerActionsPlacement,
       isMovingNote,
       selectedNote,
     ])
@@ -410,6 +427,15 @@ export function NotesNoteDetail({
     return <NotesMessage title="Note not found" />;
   }
 
+  const inlineActions =
+    headerActionsPlacement === 'inline' && canEdit ? (
+      <NotesDetailHeaderActions
+        isMoving={isMovingNote}
+        onDelete={handleDeleteSelectedNote}
+        onMove={handleOpenMoveSheet}
+      />
+    ) : null;
+
   return (
     <YStack flex={1} backgroundColor="$background">
       {error ? <NotesErrorMessage error={error} /> : null}
@@ -422,7 +448,7 @@ export function NotesNoteDetail({
           borderBottomColor="$border"
           borderBottomWidth={1}
         >
-          <XStack alignItems="center">
+          <XStack alignItems="center" gap="$s">
             <Input
               flex={1}
               width="100%"
@@ -441,6 +467,20 @@ export function NotesNoteDetail({
               paddingVertical={0}
               disabled={!canEdit}
             />
+            {headerActionsPlacement === 'inline' ? (
+              <Button
+                size="small"
+                fill="outline"
+                type="secondary"
+                backgroundColor="$background"
+                borderColor="$border"
+                leadingIcon={isPreviewing ? 'EditList' : 'EyeOpen'}
+                label={isPreviewing ? 'Edit' : 'Preview'}
+                onPress={() => setIsPreviewing((previewing) => !previewing)}
+                testID="NotesPreviewToggle"
+              />
+            ) : null}
+            {inlineActions}
           </XStack>
           <XStack gap="$s" alignItems="center" flexWrap="wrap">
             <MetadataPill
@@ -498,22 +538,24 @@ export function NotesNoteDetail({
               testID="NotesBodyInput"
             />
           )}
-          <Button
-            position="absolute"
-            right="$xl"
-            bottom={64}
-            zIndex={100}
-            size="small"
-            fill="outline"
-            type="secondary"
-            backgroundColor="$background"
-            borderColor="$border"
-            leadingIcon={isPreviewing ? 'EditList' : 'EyeOpen'}
-            label={isPreviewing ? 'Edit' : 'Preview'}
-            shadow
-            onPress={() => setIsPreviewing((previewing) => !previewing)}
-            testID="NotesPreviewToggle"
-          />
+          {headerActionsPlacement === 'inline' ? null : (
+            <Button
+              position="absolute"
+              right="$xl"
+              bottom={64}
+              zIndex={100}
+              size="small"
+              fill="outline"
+              type="secondary"
+              backgroundColor="$background"
+              borderColor="$border"
+              leadingIcon={isPreviewing ? 'EditList' : 'EyeOpen'}
+              label={isPreviewing ? 'Edit' : 'Preview'}
+              shadow
+              onPress={() => setIsPreviewing((previewing) => !previewing)}
+              testID="NotesPreviewToggle"
+            />
+          )}
         </YStack>
       </YStack>
       <MoveNoteSheet

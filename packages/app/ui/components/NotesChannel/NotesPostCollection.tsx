@@ -7,7 +7,7 @@ import { NotesNativeChannel } from './NotesNativeChannel';
 
 export const NotesPostCollection: IPostCollectionView = forwardRef(
   function NotesPostCollection(_props, forwardedRef) {
-    const { channel } = usePostCollectionContext();
+    const { channel, channelDisplayTitle } = usePostCollectionContext();
     const notebookFlag = useMemo(
       () => notesNotebookFlagFromChannelId(channel.id),
       [channel.id]
@@ -22,6 +22,7 @@ export const NotesPostCollection: IPostCollectionView = forwardRef(
     return (
       <NotesNativeChannel
         channelId={channel.id}
+        channelTitle={channelDisplayTitle ?? undefined}
         groupId={channel.groupId}
         notebookFlag={notebookFlag}
       />

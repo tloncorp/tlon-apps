@@ -265,6 +265,20 @@ export function buildNotesTreeRows({
   return rows;
 }
 
+export function getNextNoteIdAfterDelete(
+  rows: NotesTreeRow[],
+  deletedNoteId: number
+) {
+  const noteIds = rows.flatMap((row) =>
+    row.type === 'note' ? [row.note.noteId] : []
+  );
+  const deletedIndex = noteIds.indexOf(deletedNoteId);
+  if (deletedIndex === -1) {
+    return null;
+  }
+  return noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null;
+}
+
 /**
  * Counts the notes in each folder and all of its descendants by crediting
  * every note to its folder's ancestor chain — one pass over the notes instead

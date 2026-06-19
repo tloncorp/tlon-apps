@@ -364,6 +364,8 @@ export const Channel = forwardRef<unknown, ChannelProps>(
       typeof setTimeout
     > | null>(null);
     const title = utils.useChannelTitle(channel);
+    const chatTitle = utils.useChatTitle(channel, group);
+    const channelDisplayTitle = chatTitle ?? title;
     const groups = useMemo(() => (group ? [group] : null), [group]);
     const currentUserId = useCurrentUserId();
     const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -761,6 +763,9 @@ export const Channel = forwardRef<unknown, ChannelProps>(
                             goToChatDetails={goToChatDetails}
                             goToProfile={handleGoToProfile}
                             goToSearch={goToSearch}
+                            hideIdentity={
+                              channel.type === 'notes' && !isNarrow
+                            }
                             showSpinner={showHeaderLoading}
                             showSearchButton={
                               channel.type === 'chat' ||
@@ -787,6 +792,7 @@ export const Channel = forwardRef<unknown, ChannelProps>(
                                   <PostCollectionContext.Provider
                                     value={{
                                       channel,
+                                      channelDisplayTitle,
                                       collectionConfiguration:
                                         channel.contentConfiguration == null
                                           ? undefined

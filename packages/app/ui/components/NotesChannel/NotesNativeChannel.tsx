@@ -7,16 +7,17 @@ import {
   renameNotebookFolder,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Text } from '@tloncorp/ui';
+import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ComponentProps, DragEvent, ReactNode } from 'react';
-import { ScrollView, YStack } from 'tamagui';
+import type { ComponentProps, DragEvent } from 'react';
+import { Platform } from 'react-native';
+import { YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
+import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import type { Action } from '../ActionSheet';
 import { SimpleActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import { TextInput } from '../Form';
 import {
   MoveNoteSheet,
   NotebookGateMessage,
@@ -32,6 +33,8 @@ import {
   RenameFolderDialog,
 } from './NotesDialogs';
 import { NotesHeaderActions } from './NotesHeaderActions';
+import { NotesNoteDetail } from './NotesNoteDetail';
+import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import {
   buildNotesImportItems,
   canSelectNotesImportSources,
@@ -41,28 +44,33 @@ import {
   selectNotesImportSources,
 } from './notesImport';
 import type { NotesImportMode, NotesImportSource } from './notesImport';
-import { FolderTreeRow, NoteRow } from './NotesTreeRows';
 import {
   buildFolderNoteCounts,
   buildFolderRows,
   buildNotesTreeRows,
   filterNotesTreeData,
   getFolderLabel,
+  getNextNoteIdAfterDelete,
   normalizeSearchText,
 } from './notesTree';
 import type { NotesTreeViewStyle } from './notesTree';
 
 export function NotesNativeChannel({
   channelId,
+  channelTitle,
   groupId,
   notebookFlag,
 }: {
   channelId: string;
+  channelTitle?: string;
   groupId?: string | null;
   notebookFlag: string | null | undefined;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const isWindowNarrow = useIsWindowNarrow();
+  const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderParentId, setNewFolderParentId] = useState<number | null>(
     null
@@ -113,6 +121,7 @@ export function NotesNativeChannel({
 
   const { folders, notes, canEdit, rootFolderId, joinFailed, gate } =
     useNotebookData(notebookFlag);
+
   const canImportFiles = canEdit && canSelectNotesImportSources('files');
   const canImportFolder = canEdit && canSelectNotesImportSources('folder');
 
@@ -165,6 +174,22 @@ export function NotesNativeChannel({
       treeNotes,
     ]
   );
+  useEffect(() => {
+    if (!useDesktopSplit || selectedNoteId !== null) return;
+    const firstNote = treeRows.find((row) => row.type === 'note')?.note;
+    if (!firstNote) return;
+    setSelectedNoteId(firstNote.noteId);
+    setSelectedFolderId(firstNote.folderId);
+  }, [selectedNoteId, treeRows, useDesktopSplit]);
+
+  useEffect(() => {
+    if (
+      selectedNoteId !== null &&
+      !notes.some((note) => note.noteId === selectedNoteId)
+    ) {
+      setSelectedNoteId(null);
+    }
+  }, [notes, selectedNoteId]);
 
   useEffect(() => {
     setExpandedFolderIds((currentIds) => {
@@ -190,13 +215,19 @@ export function NotesNativeChannel({
 
   const openNote = useCallback(
     (note: db.NotesNote) => {
+      if (useDesktopSplit) {
+        setSelectedNoteId(note.noteId);
+        setSelectedFolderId(note.folderId);
+        return;
+      }
+
       navigation.navigate('NotesDetail', {
         channelId,
         groupId: groupId ?? undefined,
         noteId: note.noteId,
       });
     },
-    [channelId, groupId, navigation]
+    [channelId, groupId, navigation, useDesktopSplit]
   );
 
   const expandFolder = useCallback((folderId: number) => {
@@ -444,7 +475,9 @@ export function NotesNativeChannel({
 
   const handleImportDroppedData = useCallback(
     async (dataTransfer: DataTransfer) => {
-      await runImport(() => readNotesImportSourcesFromDataTransfer(dataTransfer));
+      await runImport(() =>
+        readNotesImportSourcesFromDataTransfer(dataTransfer)
+      );
     },
     [runImport]
   );
@@ -686,12 +719,7 @@ export function NotesNativeChannel({
         testID: 'NotesNewFolderAction',
       },
     ],
-    [
-      handleCreateNote,
-      handleOpenCreateFolder,
-      isCreatingFolder,
-      isCreatingNote,
-    ]
+    [handleCreateNote, handleOpenCreateFolder, isCreatingFolder, isCreatingNote]
   );
 
   const toggleFolder = useCallback(
@@ -724,41 +752,90 @@ export function NotesNativeChannel({
     [expandedFolderIds]
   );
 
-  useRegisterChannelHeaderItem(
-    useMemo(() => {
-      if (!notebookFlag || joinFailed) return null;
-      return (
-        <NotesHeaderActions
-          canEdit={canEdit}
-          canImportFiles={canImportFiles}
-          canImportFolder={canImportFolder}
-          isCreatingFolder={isCreatingFolder}
-          isCreatingNote={isCreatingNote}
-          isImporting={isImportingNotes}
-          onCreateFolder={handleOpenCreateFolder}
-          onCreateNote={handleCreateNote}
-          onImportFiles={handleImportFiles}
-          onImportFolder={handleImportFolder}
-          treeViewStyle={treeViewStyle}
-          onTreeViewStyleChange={handleTreeViewStyleChange}
-        />
-      );
-    }, [
-      canEdit,
-      handleTreeViewStyleChange,
-      handleCreateNote,
-      handleOpenCreateFolder,
-      handleImportFiles,
-      handleImportFolder,
-      canImportFiles,
-      canImportFolder,
-      isCreatingFolder,
-      isCreatingNote,
-      isImportingNotes,
-      joinFailed,
-      notebookFlag,
-      treeViewStyle,
-    ])
+  const handleDesktopNoteDeleted = useCallback(() => {
+    if (selectedNoteId === null) return;
+    const nextNoteId = getNextNoteIdAfterDelete(treeRows, selectedNoteId);
+    setSelectedNoteId(nextNoteId);
+    if (nextNoteId !== null) {
+      const nextNote = notes.find((note) => note.noteId === nextNoteId);
+      if (nextNote) {
+        setSelectedFolderId(nextNote.folderId);
+      }
+    }
+  }, [notes, selectedNoteId, treeRows]);
+
+  const headerActions = useMemo(() => {
+    if (!notebookFlag || joinFailed) return null;
+    return (
+      <NotesHeaderActions
+        canEdit={canEdit}
+        canImportFiles={canImportFiles}
+        canImportFolder={canImportFolder}
+        isCreatingFolder={isCreatingFolder}
+        isCreatingNote={isCreatingNote}
+        isImporting={isImportingNotes}
+        onCreateFolder={handleOpenCreateFolder}
+        onCreateNote={handleCreateNote}
+        onImportFiles={handleImportFiles}
+        onImportFolder={handleImportFolder}
+        primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
+        treeViewStyle={treeViewStyle}
+        onTreeViewStyleChange={handleTreeViewStyleChange}
+      />
+    );
+  }, [
+    canEdit,
+    canImportFiles,
+    canImportFolder,
+    handleCreateNote,
+    handleImportFiles,
+    handleImportFolder,
+    handleOpenCreateFolder,
+    handleTreeViewStyleChange,
+    isCreatingFolder,
+    isCreatingNote,
+    isImportingNotes,
+    joinFailed,
+    notebookFlag,
+    treeViewStyle,
+    useDesktopSplit,
+  ]);
+
+  useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
+
+  const notesTreePane = (
+    <NotesTreePane
+      canEdit={canEdit}
+      isCreatingFolder={isCreatingFolder}
+      isCreatingNote={isCreatingNote}
+      layout={useDesktopSplit ? 'takeover' : 'stack'}
+      normalizedQuery={normalizedNotesFilterQuery}
+      notesFilterQuery={notesFilterQuery}
+      selectedFolderId={selectedFolderId}
+      selectedNoteId={useDesktopSplit ? selectedNoteId : null}
+      treeRows={treeRows}
+      treeViewStyle={treeViewStyle}
+      onClearSearch={() => setNotesFilterQuery('')}
+      onCreate={handleOpenNewSheet}
+      onFolderActions={handleOpenFolderActions}
+      onMoveNote={handleOpenMoveNote}
+      onOpenNote={openNote}
+      onQueryChange={setNotesFilterQuery}
+      onToggleFolder={toggleFolder}
+    />
+  );
+
+  useNotebookSidebarRegistration(
+    useDesktopSplit && !gate
+      ? {
+          channelId,
+          actions: headerActions,
+          content: notesTreePane,
+          groupId,
+          title: channelTitle ?? 'Notebook',
+        }
+      : null,
+    channelId
   );
 
   if (gate) {
@@ -771,6 +848,25 @@ export function NotesNativeChannel({
     );
   }
 
+  const noteDetailPane = (
+    <YStack flex={1} minWidth={0} backgroundColor="$background">
+      {selectedNoteId === null ? (
+        <NotesEmptyDetailPane
+          canEdit={canEdit}
+          isCreating={isCreatingNote}
+          onCreateNote={handleCreateNote}
+        />
+      ) : (
+        <NotesNoteDetail
+          headerActionsPlacement="inline"
+          noteId={selectedNoteId}
+          notebookFlag={notebookFlag}
+          onDeleted={handleDesktopNoteDeleted}
+        />
+      )}
+    </YStack>
+  );
+
   return (
     <YStack
       flex={1}
@@ -781,101 +877,7 @@ export function NotesNativeChannel({
       {error ? <NotesErrorMessage error={error} /> : null}
       {importNotice ? <NotesImportNotice message={importNotice} /> : null}
 
-      <NotesContentFrame
-        viewStyle={treeViewStyle}
-        paddingTop={treeViewStyle === 'notes' ? '$l' : '$m'}
-        paddingBottom="$s"
-        backgroundColor="$background"
-      >
-        <NotesTreeSearchInput
-          query={notesFilterQuery}
-          onQueryChange={setNotesFilterQuery}
-        />
-      </NotesContentFrame>
-
-      <ScrollView flex={1}>
-        <NotesContentFrame
-          viewStyle={treeViewStyle}
-          paddingTop="$s"
-          paddingBottom={treeViewStyle === 'notes' ? '$l' : '$m'}
-        >
-          <YStack
-            gap={treeViewStyle === 'notes' ? 0 : 2}
-            borderColor={treeViewStyle === 'notes' ? '$border' : 'transparent'}
-            borderWidth={treeViewStyle === 'notes' ? 1 : 0}
-            borderRadius={treeViewStyle === 'notes' ? '$xl' : 0}
-            overflow={treeViewStyle === 'notes' ? 'hidden' : 'visible'}
-            backgroundColor={
-              treeViewStyle === 'notes' ? '$background' : 'transparent'
-            }
-          >
-            {treeRows.length === 0 ? (
-              <SidebarEmpty
-                title={
-                  normalizedNotesFilterQuery
-                    ? 'No matching notes or folders'
-                    : 'No notes or folders'
-                }
-                action={
-                  normalizedNotesFilterQuery ? (
-                    <Button
-                      size="small"
-                      fill="ghost"
-                      type="secondary"
-                      leadingIcon="Close"
-                      label="Clear search"
-                      onPress={() => setNotesFilterQuery('')}
-                    />
-                  ) : canEdit ? (
-                    <Button
-                      size="small"
-                      fill="ghost"
-                      type="primary"
-                      leadingIcon="Add"
-                      label="New"
-                      loading={isCreatingNote || isCreatingFolder}
-                      onPress={handleOpenNewSheet}
-                    />
-                  ) : null
-                }
-              />
-            ) : (
-              treeRows.map((row) =>
-                row.type === 'folder' ? (
-                  <FolderTreeRow
-                    key={row.folder.id}
-                    depth={row.depth}
-                    expanded={row.expanded}
-                    hasChildren={row.hasChildren}
-                    label={getFolderLabel(row.folder)}
-                    noteCount={row.noteCount}
-                    selected={selectedFolderId === row.folder.folderId}
-                    viewStyle={treeViewStyle}
-                    onOpenMenu={
-                      canEdit
-                        ? () => handleOpenFolderActions(row.folder)
-                        : undefined
-                    }
-                    onPress={() =>
-                      toggleFolder(row.folder.folderId, row.hasChildren)
-                    }
-                  />
-                ) : (
-                  <NoteRow
-                    key={row.note.id}
-                    canEdit={canEdit}
-                    depth={row.depth}
-                    note={row.note}
-                    viewStyle={treeViewStyle}
-                    onMove={() => handleOpenMoveNote(row.note)}
-                    onPress={() => openNote(row.note)}
-                  />
-                )
-              )
-            )}
-          </YStack>
-        </NotesContentFrame>
-      </ScrollView>
+      {useDesktopSplit ? noteDetailPane : notesTreePane}
       {isDragImportActive ? (
         <YStack
           pointerEvents="none"
@@ -947,28 +949,6 @@ export function NotesNativeChannel({
   );
 }
 
-function NotesContentFrame({
-  viewStyle,
-  children,
-  ...props
-}: {
-  viewStyle: NotesTreeViewStyle;
-  children: ReactNode;
-} & Omit<ComponentProps<typeof YStack>, 'children'>) {
-  return (
-    <YStack
-      width="100%"
-      maxWidth={760}
-      marginHorizontal="auto"
-      paddingLeft={viewStyle === 'notes' ? '$m' : '$s'}
-      paddingRight={viewStyle === 'notes' ? '$m' : '$s'}
-      {...props}
-    >
-      {children}
-    </YStack>
-  );
-}
-
 function NotesImportNotice({ message }: { message: string }) {
   return (
     <YStack
@@ -981,23 +961,6 @@ function NotesImportNotice({ message }: { message: string }) {
       <Text size="$label/s" color="$secondaryText">
         {message}
       </Text>
-    </YStack>
-  );
-}
-
-function SidebarEmpty({
-  title,
-  action,
-}: {
-  title: string;
-  action?: ReactNode;
-}) {
-  return (
-    <YStack padding="$l" gap="$m" alignItems="flex-start">
-      <Text size="$label/m" color="$tertiaryText" letterSpacing={0}>
-        {title}
-      </Text>
-      {action}
     </YStack>
   );
 }
@@ -1024,33 +987,4 @@ function formatImportNotice(importedCount: number, failedCount: number) {
 
 function formatCount(count: number, label: string) {
   return `${count} ${label}${count === 1 ? '' : 's'}`;
-}
-
-function NotesTreeSearchInput({
-  query,
-  onQueryChange,
-}: {
-  query: string;
-  onQueryChange: (query: string) => void;
-}) {
-  return (
-    <TextInput
-      icon="Search"
-      placeholder="Search notes"
-      value={query}
-      onChangeText={onQueryChange}
-      spellCheck={false}
-      autoCorrect={false}
-      autoCapitalize="none"
-      testID="NotesTreeSearchInput"
-      rightControls={
-        query !== '' ? (
-          <TextInput.InnerButton
-            label="Clear"
-            onPress={() => onQueryChange('')}
-          />
-        ) : null
-      }
-    />
-  );
 }

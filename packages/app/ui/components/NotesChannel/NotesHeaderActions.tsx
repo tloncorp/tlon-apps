@@ -37,6 +37,7 @@ export function NotesHeaderActions({
   onCreateNote,
   onImportFiles,
   onImportFolder,
+  primaryActionVariant = 'text',
   treeViewStyle,
   onTreeViewStyleChange,
 }: {
@@ -50,6 +51,7 @@ export function NotesHeaderActions({
   onCreateNote: () => Promise<void> | void;
   onImportFiles: () => void;
   onImportFolder: () => void;
+  primaryActionVariant?: 'icon' | 'text';
   treeViewStyle: NotesTreeViewStyle;
   onTreeViewStyleChange: (style: NotesTreeViewStyle) => void;
 }) {
@@ -126,7 +128,15 @@ export function NotesHeaderActions({
 
   return (
     <Fragment>
-      {canEdit ? (
+      {canEdit && primaryActionVariant === 'icon' ? (
+        <ScreenHeader.IconButton
+          aria-label="New note"
+          color={isCreatingNote ? '$tertiaryText' : '$primaryText'}
+          onPress={isCreatingNote ? undefined : () => void onCreateNote()}
+          testID="NotesRootNewHeaderAction"
+          type="Add"
+        />
+      ) : canEdit ? (
         <ScreenHeader.TextButton
           disabled={isCreatingNote}
           onPress={isCreatingNote ? undefined : () => void onCreateNote()}

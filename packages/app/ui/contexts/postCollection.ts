@@ -6,6 +6,7 @@ import type { MinimalRenderItemType, RenderItemType } from './componentsKits';
 
 export interface PostCollectionContextValue {
   channel: db.Channel;
+  channelDisplayTitle?: string | null;
   collectionConfiguration?: Record<string, JSONValue>;
   editingPost?: db.Post;
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;

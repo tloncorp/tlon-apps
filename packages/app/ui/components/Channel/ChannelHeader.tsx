@@ -92,6 +92,7 @@ export function ChannelHeader({
   goToProfile,
   showSpinner,
   loadingSubtitle = 'Loading messages…',
+  hideIdentity = false,
   showSearchButton = false,
   showEditButton = false,
   post,
@@ -108,6 +109,7 @@ export function ChannelHeader({
   goToProfile?: () => void;
   showSpinner?: boolean;
   loadingSubtitle?: string;
+  hideIdentity?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
   post?: db.Post;
@@ -122,7 +124,7 @@ export function ChannelHeader({
   const { data: dmContact } = useContact({ id: dmContactId || '' });
   const { data: notesAvailable = false } = useNotesDeskAvailable();
 
-  const getChannelTypeName = (channelType: db.Channel['type']) => {
+  const getChannelTypeName = useCallback((channelType: db.Channel['type']) => {
     switch (channelType) {
       case 'chat':
         return 'Chat channel';
@@ -135,7 +137,7 @@ export function ChannelHeader({
       default:
         return 'Channel';
     }
-  };
+  }, [notesAvailable]);
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
@@ -239,6 +241,7 @@ export function ChannelHeader({
     description,
     dmContactId,
     dmContact?.status,
+    getChannelTypeName,
     post,
   ]);
 
@@ -320,21 +323,23 @@ export function ChannelHeader({
 
   return (
     <ScreenHeader
-      title={displayTitle}
+      title={hideIdentity ? null : displayTitle}
       titleIcon={
-        <>
-          {avatarElement || titleIcon}
-          {channelHost && !isWindowNarrow && (
-            <ConnectionStatus contactId={channelHost} type="indicator" />
-          )}
-        </>
+        hideIdentity ? null : (
+          <>
+            {avatarElement || titleIcon}
+            {channelHost && !isWindowNarrow && (
+              <ConnectionStatus contactId={channelHost} type="indicator" />
+            )}
+          </>
+        )
       }
-      subtitle={displaySubtitle}
+      subtitle={hideIdentity ? undefined : displaySubtitle}
       testID="ChannelHeaderTitle"
-      showSubtitle
+      showSubtitle={!hideIdentity}
       borderBottom
-      loadingSubtitle={headerLoadingSubtitle}
-      onTitlePress={handleTitlePress}
+      loadingSubtitle={hideIdentity ? null : headerLoadingSubtitle}
+      onTitlePress={hideIdentity ? undefined : handleTitlePress}
       useHorizontalTitleLayout={!isWindowNarrow}
       leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
       rightControls={

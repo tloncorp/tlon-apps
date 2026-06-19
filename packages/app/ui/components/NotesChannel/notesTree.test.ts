@@ -5,6 +5,7 @@ import {
   buildFolderNoteCounts,
   buildNotesTreeRows,
   filterNotesTreeData,
+  getNextNoteIdAfterDelete,
   normalizeSearchText,
 } from './notesTree';
 
@@ -163,5 +164,37 @@ describe('notes tree helpers', () => {
     expect(renderedFolders.sort()).toEqual([10, 11, 12]);
     expect(new Set(renderedFolders).size).toBe(renderedFolders.length);
     expect(rows.filter((row) => row.type === 'note')).toHaveLength(2);
+  });
+
+  test('selects the next visible note after deleting the selected note', () => {
+    const folders = [root];
+    const alpha = makeNote(1, 1, 'Alpha');
+    const beta = makeNote(2, 1, 'Beta');
+    const gamma = makeNote(3, 1, 'Gamma');
+    const rows = buildNotesTreeRows({
+      expandedFolderIds: new Set(),
+      folderNoteCounts: buildFolderNoteCounts(folders, [alpha, beta, gamma]),
+      folders,
+      notes: [alpha, beta, gamma],
+      rootFolderId: 1,
+    });
+
+    expect(getNextNoteIdAfterDelete(rows, 1)).toBe(2);
+    expect(getNextNoteIdAfterDelete(rows, 2)).toBe(3);
+    expect(getNextNoteIdAfterDelete(rows, 3)).toBe(2);
+  });
+
+  test('clears selection after deleting the only visible note', () => {
+    const folders = [root];
+    const rows = buildNotesTreeRows({
+      expandedFolderIds: new Set(),
+      folderNoteCounts: buildFolderNoteCounts(folders, []),
+      folders,
+      notes: [makeNote(1, 1, 'Alpha')],
+      rootFolderId: 1,
+    });
+
+    expect(getNextNoteIdAfterDelete(rows, 1)).toBeNull();
+    expect(getNextNoteIdAfterDelete(rows, 2)).toBeNull();
   });
 });

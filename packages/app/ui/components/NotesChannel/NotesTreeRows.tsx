@@ -145,6 +145,7 @@ export function NoteRow({
   canEdit,
   depth,
   note,
+  selected = false,
   viewStyle,
   onMove,
   onPress,
@@ -152,6 +153,7 @@ export function NoteRow({
   canEdit: boolean;
   depth: number;
   note: db.NotesNote;
+  selected?: boolean;
   viewStyle: NotesTreeViewStyle;
   onMove: () => void;
   onPress: () => void;
@@ -249,12 +251,17 @@ export function NoteRow({
         onPress={onPress}
         testID={`NotesNoteRow-${note.noteId}`}
       >
-        <NotesViewRow minHeight={58} depth={depth}>
-          <Icon type="ChannelNote" size="$m" color="$tertiaryText" />
-          <YStack flex={1} minWidth={0} gap={2}>
+        <NotesViewRow minHeight={64} depth={depth} selected={selected}>
+          <Icon
+            type="ChannelNote"
+            size="$m"
+            color={selected ? '$primaryText' : '$tertiaryText'}
+          />
+          <YStack flex={1} minWidth={0} gap="$s">
             <Text
               size="$label/l"
-              color="$primaryText"
+              color={selected ? '$primaryText' : '$secondaryText'}
+              fontWeight={selected ? '600' : '400'}
               numberOfLines={1}
               letterSpacing={0}
             >
@@ -276,6 +283,7 @@ export function NoteRow({
   return (
     <TreeRowFrame
       depth={depth}
+      selected={selected}
       onMouseEnter={handleHoverIn}
       onMouseLeave={handleHoverOut}
       onOpenMenu={canEdit ? openActions : undefined}
@@ -286,11 +294,16 @@ export function NoteRow({
       <ListItem.SystemIcon
         icon="ChannelNote"
         size="$2xl"
-        color="$tertiaryText"
+        color={selected ? '$primaryText' : '$tertiaryText'}
         backgroundColor="transparent"
       />
       <ListItem.MainContent height="auto" minHeight={0}>
-        <ListItem.Title size="$label/m" color="$primaryText" letterSpacing={0}>
+        <ListItem.Title
+          size="$label/m"
+          color={selected ? '$primaryText' : '$secondaryText'}
+          fontWeight={selected ? '600' : '400'}
+          letterSpacing={0}
+        >
           {note.title || 'Untitled'}
         </ListItem.Title>
       </ListItem.MainContent>

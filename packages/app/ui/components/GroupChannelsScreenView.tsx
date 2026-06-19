@@ -9,7 +9,7 @@ import {
 } from '@tloncorp/ui';
 import { LoadingSpinner } from '@tloncorp/ui';
 import { capitalize } from 'lodash';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -24,9 +24,9 @@ import { useRenderCount } from '../../hooks/useRenderCount';
 import { useRootNavigation } from '../../navigation/utils';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions';
+import { useNotebookSidebarContent } from '../contexts/notebookSidebar';
 import { useGroupTitle, useIsAdmin } from '../utils/channelUtils';
 import { Badge } from './Badge';
-import { ChatOptionsSheet } from './ChatOptionsSheet';
 import { GroupAvatar } from './GroupAvatar';
 import { CreateChannelSheet } from './ManageChannels/CreateChannelSheet';
 import { ScreenHeader } from './ScreenHeader';
@@ -43,6 +43,7 @@ function isSectionHeader(item: ChannelListData): item is SectionHeaderData {
 
 type GroupChannelsScreenViewProps = {
   group: db.Group | null;
+  focusedChannelId?: string;
   unjoinedChannels?: db.Channel[];
   onChannelPressed: (channel: db.Channel) => void;
   onJoinChannel: (channel: db.Channel) => void;
@@ -54,6 +55,7 @@ type GroupChannelsScreenViewProps = {
 export const GroupChannelsScreenView = React.memo(
   function GroupChannelsScreenViewComponent({
     group,
+    focusedChannelId,
     unjoinedChannels = [],
     onChannelPressed,
     onJoinChannel,
@@ -113,6 +115,37 @@ export const GroupChannelsScreenView = React.memo(
 
     const listSectionTitleColor = getVariableValue(useTheme().secondaryText);
     const isWindowNarrow = useIsWindowNarrow();
+    const notebookSidebarContent = useNotebookSidebarContent();
+    const [
+      dismissedNotebookSidebarChannelId,
+      setDismissedNotebookSidebarChannelId,
+    ] = useState<string | null>(null);
+    const shouldShowNotebookSidebar =
+      !isWindowNarrow &&
+      !!notebookSidebarContent &&
+      notebookSidebarContent.groupId === group?.id &&
+      notebookSidebarContent.channelId === focusedChannelId &&
+      dismissedNotebookSidebarChannelId !== notebookSidebarContent.channelId;
+
+    useEffect(() => {
+      setDismissedNotebookSidebarChannelId(null);
+    }, [focusedChannelId]);
+
+    const handleChannelPress = useCallback(
+      (channel: db.Channel) => {
+        if (channel.id === dismissedNotebookSidebarChannelId) {
+          setDismissedNotebookSidebarChannelId(null);
+        }
+        onChannelPressed(channel);
+      },
+      [dismissedNotebookSidebarChannelId, onChannelPressed]
+    );
+
+    const handleDismissNotebookSidebar = useCallback(() => {
+      if (notebookSidebarContent) {
+        setDismissedNotebookSidebarChannelId(notebookSidebarContent.channelId);
+      }
+    }, [notebookSidebarContent]);
 
     const listItems: ChannelListData[] = useMemo(() => {
       if (!group || !group.channels || group.channels.length === 0) {
@@ -215,7 +248,7 @@ export const GroupChannelsScreenView = React.memo(
           <ChannelListItem
             key={item.id}
             model={item}
-            onPress={isUnjoined ? onJoinChannel : onChannelPressed}
+            onPress={isUnjoined ? onJoinChannel : handleChannelPress}
             onLongPress={!isUnjoined ? handleOpenChannelOptions : undefined}
             useTypeIcon={true}
             dimmed={isUnjoined}
@@ -233,7 +266,7 @@ export const GroupChannelsScreenView = React.memo(
       [
         unjoinedChannels,
         onJoinChannel,
-        onChannelPressed,
+        handleChannelPress,
         handleOpenChannelOptions,
         listSectionTitleColor,
       ]
@@ -246,6 +279,23 @@ export const GroupChannelsScreenView = React.memo(
     const getItemType = useCallback((item: ChannelListData) => {
       return isSectionHeader(item) ? 'sectionHeader' : 'channel';
     }, []);
+
+    if (shouldShowNotebookSidebar) {
+      return (
+        <View flex={1}>
+          <ScreenHeader
+            title={notebookSidebarContent.title}
+            testID="NotebookSidebarBackHeader"
+            borderBottom
+            backAction={handleDismissNotebookSidebar}
+            rightControls={notebookSidebarContent.actions}
+          />
+          <YStack flex={1} minHeight={0}>
+            {notebookSidebarContent.content}
+          </YStack>
+        </View>
+      );
+    }
 
     return (
       <View flex={1}>
@@ -284,22 +334,24 @@ export const GroupChannelsScreenView = React.memo(
             <LoadingSpinner />
           </YStack>
         ) : group && group.channels && group.channels.length > 0 ? (
-          <YStack flex={1}>
-            <SystemNotices.ConnectedJoinRequestNotice
-              group={group}
-              onViewRequests={onGoToGroupMembers}
-            />
-            <FlashList
-              data={listItems}
-              renderItem={renderItem}
-              keyExtractor={keyExtractor}
-              getItemType={getItemType}
-              contentContainerStyle={{
-                paddingTop: getTokenValue('$l'),
-                paddingHorizontal: getTokenValue('$l'),
-                paddingBottom: insets.bottom,
-              }}
-            />
+          <YStack flex={1} minHeight={0}>
+            <YStack flex={1}>
+              <SystemNotices.ConnectedJoinRequestNotice
+                group={group}
+                onViewRequests={onGoToGroupMembers}
+              />
+              <FlashList
+                data={listItems}
+                renderItem={renderItem}
+                keyExtractor={keyExtractor}
+                getItemType={getItemType}
+                contentContainerStyle={{
+                  paddingTop: getTokenValue('$l'),
+                  paddingHorizontal: getTokenValue('$l'),
+                  paddingBottom: insets.bottom,
+                }}
+              />
+            </YStack>
           </YStack>
         ) : group && group.channels && group.channels.length === 0 ? (
           // Only show "no channels" message when we're certain the group has fully synced
