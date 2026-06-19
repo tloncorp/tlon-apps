@@ -5,7 +5,13 @@
 // logic. Built-in modules only (no deps / no install). Binds to localhost.
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { copyFile, readFile, readdir, writeFile } from 'node:fs/promises';
+import {
+  copyFile,
+  mkdir,
+  readFile,
+  readdir,
+  writeFile,
+} from 'node:fs/promises';
 import { createServer } from 'node:http';
 import net from 'node:net';
 import { dirname, join } from 'node:path';
@@ -111,15 +117,32 @@ const readBody = (req) =>
 // Map an item name to its sandbox + source paths. `intro` is the welcome DM;
 // otherwise a prompt .md file (validated — no path traversal).
 function itemPaths(name) {
+  // `base` mirrors run.sh's .sandbox-prompts/.base snapshot (source content at
+  // copy time); discarding must update it too or run.sh later treats the
+  // reset-to-source copy as a user edit.
   if (name === 'intro')
-    return { sandbox: SANDBOX_INTRO, source: SRC_INTRO, kind: 'intro' };
+    return {
+      sandbox: SANDBOX_INTRO,
+      source: SRC_INTRO,
+      base: join(SANDBOX_DIR, '.base', '.intro'),
+      kind: 'intro',
+    };
   if (/^[A-Za-z0-9_.-]+\.md$/.test(name) && !name.includes('..'))
     return {
       sandbox: join(SANDBOX_DIR, name),
       source: join(SRC_PROMPTS, name),
+      base: join(SANDBOX_DIR, '.base', name),
       kind: 'prompt',
     };
   return null;
+}
+
+// Reset a sandbox item to source AND update its base snapshot, so run.sh sees it
+// as unedited (== base) and keeps refreshing it on future upstream changes.
+async function discardToSource(it) {
+  await copyFile(it.source, it.sandbox);
+  await mkdir(dirname(it.base), { recursive: true });
+  await copyFile(it.source, it.base);
 }
 
 // Path an item would have in the tlonbot repo (so exported patches apply there).
@@ -438,7 +461,7 @@ const server = createServer(async (req, res) => {
       for (const it of await listItems()) {
         const p = itemPaths(it.name);
         try {
-          await copyFile(p.source, p.sandbox);
+          await discardToSource(p);
         } catch {}
       }
       return json(res, 200, { ok: true });
@@ -451,8 +474,8 @@ const server = createServer(async (req, res) => {
       if (!it) return json(res, 400, { error: 'bad item name' });
       const action = m[2];
       if (action === 'reset' && req.method === 'POST') {
-        // reset to source
-        await copyFile(it.source, it.sandbox);
+        // reset to source (+ base, so it reads as unedited going forward)
+        await discardToSource(it);
         return json(res, 200, { ok: true });
       }
       if (action === 'diff' && req.method === 'GET') {
