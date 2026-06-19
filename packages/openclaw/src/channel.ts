@@ -21,6 +21,7 @@ import {
   resolveTlonSetupConfigured,
   tlonSetupAdapter,
 } from './setup-core.js';
+import { resolveTlonOutboundSessionRoute } from './session-route.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
 import { listTlonAccountIds, resolveTlonAccount } from './types.js';
 
@@ -115,6 +116,7 @@ export const tlonPlugin = createChatChannelPlugin({
         }),
     },
     messaging: {
+      targetPrefixes: ['tlon'],
       normalizeTarget: (target) => {
         const parsed = parseTlonTarget(target);
         if (!parsed) {
@@ -125,10 +127,21 @@ export const tlonPlugin = createChatChannelPlugin({
         }
         return parsed.nest;
       },
+      parseExplicitTarget: ({ raw }) => {
+        const parsed = parseTlonTarget(raw);
+        if (!parsed) {
+          return null;
+        }
+        return parsed.kind === 'dm'
+          ? { to: parsed.ship, chatType: 'direct' }
+          : { to: parsed.nest, chatType: 'group' };
+      },
       targetResolver: {
         looksLikeId: (target) => Boolean(parseTlonTarget(target)),
         hint: formatTargetHint(),
       },
+      resolveOutboundSessionRoute: (params) =>
+        resolveTlonOutboundSessionRoute(params),
     },
     actions: tlonMessageActions,
     agentPrompt: {
