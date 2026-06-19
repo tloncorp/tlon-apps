@@ -4,16 +4,20 @@
 
 ## proxy behavior
 
-`%gateway-status` keeps no real state (a trivial `[%2 ~]`; `on-load` accepts the previously-shipped `state-1` and discards it). On each `%gateway-status-action-1` poke (still gated `?> =(src our)`), it forwards to `[our %steward] %steward-action-1`:
+`%gateway-status` keeps no real state (a trivial `[%2 ~]`). On `on-load` from the previously-shipped `state-1`, it seeds `%steward` with the carried-over owner + timing (see "upgrade migration" below), then settles into the trivial state. On each `%gateway-status-action-1` poke (still gated `?> =(src our)`), it forwards to `[our %steward] %steward-action-1`:
 
-| `%gateway-status-action-1`                | forwarded `%steward-action-1`                                          |
-| ----------------------------------------- | ---------------------------------------------------------------------- |
-| `%configure owner active-window cooldown` | `[%configure (silt ~[owner])]` **and** `[%gateway %configure win orc]` |
-| `%gateway-start boot-id lease-until`      | `[%gateway %gateway-start boot-id lease-until]`                        |
-| `%gateway-heartbeat boot-id lease-until`  | `[%gateway %gateway-heartbeat boot-id lease-until]`                    |
-| `%gateway-stop boot-id reason`            | `[%gateway %gateway-stop boot-id reason]`                              |
+| `%gateway-status-action-1`                | forwarded `%steward-action-1`                              |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| `%configure owner active-window cooldown` | `[%configure owner]` **and** `[%gateway %configure win orc]` |
+| `%gateway-start boot-id lease-until`      | `[%gateway %gateway-start boot-id lease-until]`            |
+| `%gateway-heartbeat boot-id lease-until`  | `[%gateway %gateway-heartbeat boot-id lease-until]`        |
+| `%gateway-stop boot-id reason`            | `[%gateway %gateway-stop boot-id reason]`                  |
 
-`%configure` splits into two pokes because `owner` is now the shared top-level `owners` set in `%steward`, separate from the gateway module's timing config. There are no subscriptions or scries — nothing consumed them.
+`%configure` splits into two pokes because `owner` is now the shared top-level `%steward` owner, separate from the gateway module's timing config. There are no subscriptions or scries — nothing consumed them.
+
+### upgrade migration
+
+A production ship upgrading from the pre-proxy agent (`state-1`) would otherwise lose its owner, so `on-load` forwards `[%configure owner]` + `[%gateway %configure active-window reply-cooldown]` to `%steward` to carry that config across. `boot-id`/`lease`/`status` are **not** seeded — the gateway re-establishes liveness on its next `%gateway-start`/heartbeat cycle (forwarded heartbeats whose `boot-id` predates the upgrade are harmlessly ignored, not nacked, once the owner is set).
 
 ---
 

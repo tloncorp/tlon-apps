@@ -77,7 +77,9 @@ While the gateway is not live, a DM from the configured `owner` triggers a canne
 
 ## poke surface — `%steward-action-1`
 
-Gated on **ownership**, not strict locality: accepted iff `src` is `our`, or `src` is a moon `our` sponsors (a moon's sponsor is its immutable low 32 bits, derived directly — no jael scry). A bot is typically a moon of the owner planet, so the owner accepts lens runs from itself and from its own moons.
+Gated on **ownership**, not strict locality: accepted iff `src` is `our`, or `src` is a ship `our` sponsors (per jael, via `+sein:title`). A bot is typically a moon of the owner planet, so the owner accepts lens runs from itself and from its own moons; sponsorship rejects comets and unrelated ships.
+
+Per-action, the gate tightens: **`%configure` and `%gateway` require `src == our`** — only the local gateway sets the owner or drives liveness. `%lens` is the one action a sponsored moon may submit (its own runs, stored keyed by `src`), so a bot moon cannot repoint the owner or forge gateway state.
 
 JSON poke forms (as sent over Eyre / Ames):
 

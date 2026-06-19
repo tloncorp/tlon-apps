@@ -81,8 +81,22 @@
         [~ this(state p.attempt2)]
       %-  (slog 'gateway-status: on-load unrecognized state, resetting' ~)
       `this
-    ::  old state-0 or state-1: discard, stay as trivial proxy state
-    `this
+    ::  upgrade from the pre-proxy agent (state-0/state-1): carry the owner +
+    ::  timing over to %steward so liveness config survives the migration,
+    ::  then settle into the trivial proxy state. boot-id/lease aren't seeded —
+    ::  the gateway re-establishes liveness on its next start/heartbeat cycle.
+    ::
+    =/  old  p.attempt
+    :_  this
+    ?~  owner.old  ~
+    :~  :*  %pass  /steward/proxy  %agent  [our.bowl %steward]  %poke
+            %steward-action-1  !>(`action:v1:s`[%configure u.owner.old])
+        ==
+        :*  %pass  /steward/proxy  %agent  [our.bowl %steward]  %poke
+            %steward-action-1
+            !>(`action:v1:s`[%gateway %configure active-window.old reply-cooldown.old])
+        ==
+    ==
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)

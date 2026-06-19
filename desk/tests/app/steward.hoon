@@ -25,6 +25,12 @@
   ^-  (unit vase)
   ?+  path  ~
     [%gu @ %activity @ %$ ~]  `!>(&)
+  ::  mock jael +sein for the %steward-action-1 ownership gate. a moon's
+  ::  sponsor is its low 32 bits; a galaxy (e.g. ~zod) sponsors itself —
+  ::  both reproduced by (end 5 who) for the ships these tests use.
+  ::
+      [%j @ %sein @ @ ~]
+    `!>(`@p`(end 5 (slav %p i.t.t.t.t.path)))
   ==
 ::
 ++  setup
@@ -88,6 +94,18 @@
   %-  ex-fail
   %-  (do-as ~zod)
   (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~zod]))
+::
+::  %configure is local-only: a sponsored moon passes the ownership gate
+::  (it may submit %lens runs) but must not be able to repoint the owner.
+::
+++  test-configure-from-moon-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
 ::
 ::  a moon we sponsor must be accepted by the ownership gate
 ::

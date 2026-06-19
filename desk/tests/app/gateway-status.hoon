@@ -4,11 +4,30 @@
 ::    these tests verify the translation layer: each gateway-status action
 ::    must emit the correct %steward-action-1 poke(s).
 ::
-/-  gs=gateway-status, s=steward
+/-  gs=gateway-status, s=steward, a=activity
 /+  *test-agent
 /=  agent  /app/gateway-status
 |%
 ++  dap  %gateway-status
+::  the pre-proxy persisted state, for the on-load migration test
+::
++$  state-1
+  $:  %1
+      owner=(unit ship)
+      last-owner-msg=@da
+      last-owner-msg-id=(unit message-key:a)
+      =status:gs
+      boot-id=(unit @t)
+      lease-until=(unit @da)
+      last-heartbeat=(unit @da)
+      last-stop=(unit @da)
+      last-start=(unit @da)
+      pending-restart=?
+      last-auto-reply=(unit @da)
+      last-auto-reply-to=(unit message-key:a)
+      reply-cooldown=@dr
+      active-window=@dr
+  ==
 ::
 ++  setup
   =/  m  (mare ,~)
@@ -95,6 +114,48 @@
           [~dev %steward]
           %steward-action-1
           !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'shutdown'])
+      ==
+  ==
+::
+::  upgrading from the pre-proxy agent carries the owner + timing over to
+::  %steward so liveness config survives the migration (active-window first,
+::  reply-cooldown second).
+::
+++  test-on-load-seeds-steward-from-old-state
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  old=state-1
+    :*  %1
+        `~bus
+        ~2024.1.1
+        ~
+        %up
+        `'boot-1'
+        `(add ~2024.1.1 ~m2)
+        ~
+        ~
+        ~
+        &
+        ~
+        ~
+        ~m3
+        ~m5
+    ==
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /steward/proxy
+          [~dev %steward]
+          %steward-action-1
+          !>(`action:v1:s`[%configure ~bus])
+      ==
+      %-  ex-poke
+      :*  /steward/proxy
+          [~dev %steward]
+          %steward-action-1
+          !>(`action:v1:s`[%gateway %configure ~m5 ~m3])
       ==
   ==
 --

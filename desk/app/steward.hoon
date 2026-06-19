@@ -79,12 +79,14 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
-::  %steward-action-1 is accepted from ourselves, or from a moon we
-::  sponsor. a bot is typically a moon of the owner planet; the owner
-::  accepts lens runs from itself and from its own moons. a moon's
-::  sponsor is its low 32 bits and is immutable, so we derive it
-::  directly rather than scrying jael ((end 5) for any non-moon equals
-::  the ship itself, so the inequality excludes galaxies/stars/planets).
+::  %steward-action-1 is accepted from ourselves, or from a ship we
+::  sponsor (jael is the authority, via +sein:title). a bot is typically
+::  a moon of the owner planet, so the owner accepts lens runs from itself
+::  and from its own moons; sponsorship rejects comets and unrelated ships.
+::
+::  %configure and %gateway sub-actions additionally require src==our: only
+::  the local gateway sets the owner / drives liveness. %lens is the one
+::  action a sponsored moon may submit (its runs, stored keyed by src).
 ::
 ++  poke
   |=  [=mark =vase]
@@ -92,13 +94,11 @@
   ?+  mark  ~|(bad-poke-mark+mark !!)
       %steward-action-1
     ?>  ?|  =(src.bowl our.bowl)
-            ?&  !=(src.bowl (end 5 src.bowl))
-                =(our.bowl (end 5 src.bowl))
-            ==
+            =(our.bowl (sein:title our.bowl now.bowl src.bowl))
         ==
     =+  !<(=action:v1:s vase)
     ?-  -.action
-      %configure  cor(owner.state `owner.action)
+      %configure  ?>(=(src.bowl our.bowl) cor(owner.state `owner.action))
       %lens       (le-poke-action:le-core action.action)
       %gateway    (ga-poke-action:ga-core action.action)
     ==
