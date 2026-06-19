@@ -15,9 +15,21 @@
 ::
 ++  lens
   |%
-  ::  $state: lens tracked bot runs
+  ::  $state-0: legacy lens state (steward state-0). Plain map of runs.
   ::
-  +$  state  (map [bot=ship =id] run)
+  +$  state-0  (map [bot=ship =id] run)
+  ::  $state: lens module state.
+  ::
+  ::    .runs is the durable store of finalized + partial run records,
+  ::    keyed by [bot id].
+  ::    .max-runs-per-bot caps the count per bot (oldest beyond the cap
+  ::    are pruned on next insert or %configure). No time-based expiry —
+  ::    lens runs are durable memory, not transient logs.
+  ::
+  +$  state
+    $:  runs=(map [bot=ship =id] run)
+        max-runs-per-bot=@ud
+    ==
   ::  $id: gateway-assigned run identifier (the lensId stamped on posts)
   ::
   +$  id  @t
@@ -53,10 +65,14 @@
   ::            ship poke from the owner's mobile/web client to the bot ship)
   ::            or self. emits a %retry-requested fact on /v1/lens for the
   ::            bot's local gateway to pick up and dispatch.
+  ::    %configure: set the per-ship lens config. Currently the only knob is
+  ::            .max-runs-per-bot. Local only (src=our). On set, applies the
+  ::            new cap immediately by pruning every bot to size.
   ::
   +$  action
     $%  [%entry =id payload=@t final=?]
         [%retry =id]
+        [%configure max-runs-per-bot=@ud]
     ==
   ::  $update: lens subscription update.
   ::

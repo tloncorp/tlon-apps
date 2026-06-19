@@ -10,15 +10,28 @@
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
+::  legacy steward state (lens was a bare map, no time-cap-free retention
+::  config). on-load migrates this into state-1 with a default cap.
+::
 +$  state-0
   $:  %0
+      owner=(unit ship)
+      lens=state-0:lens:s
+      gateway=state:gateway:s
+  ==
++$  state-1
+  $:  %1
       owner=(unit ship)
       lens=state:lens:s
       gateway=state:gateway:s
   ==
+::  default cap on first install or on state-0 → state-1 migration. set
+::  generously: at ~20KB/run that's ~200MB per bot, well within modern
+::  loom budgets. ships that want more (or less) can poke %lens %configure.
 ::
+++  default-max-runs-per-bot  ^-  @ud  10.000
 --
-=|  state-0
+=|  state-1
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -30,16 +43,29 @@
       cor   ~(. +> [bowl ~])
   ++  on-init
     ^-  (quip card _this)
-    [~[wait-prune:le-core:cor watch-activity:cor] this]
+    =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
+    [~[watch-activity:cor] this]
   ++  on-save  !>(state)
   ++  on-load
     |=  ole=vase
     ^-  (quip card _this)
-    =/  attempt  (mule |.(!<(state-0 ole)))
-    ?:  ?=(%& -.attempt)
-      [~ this(state p.attempt)]
+    ::  try current state-1 first, then state-0 with migration, then bunt.
+    ::
+    =/  one  (mule |.(!<(state-1 ole)))
+    ?:  ?=(%& -.one)
+      [~ this(state p.one)]
+    =/  zero  (mule |.(!<(state-0 ole)))
+    ?:  ?=(%& -.zero)
+      =/  upgraded=state-1
+        :*  %1
+            owner.p.zero
+            [lens.p.zero default-max-runs-per-bot]
+            gateway.p.zero
+        ==
+      [~ this(state upgraded)]
     %-  (slog 'steward: on-load state mismatch, resetting to bunt' ~)
-    [~[wait-prune:le-core:cor watch-activity:cor] this]
+    =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
+    [~[watch-activity:cor] this]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -164,13 +190,6 @@
   |=  [=wire sign=sign-arvo]
   ^+  cor
   ?+  wire  cor
-      [%lens %prune ~]
-    ?.  ?=([%behn %wake *] sign)  cor
-    =?  cor  ?=(^ error.sign)
-      ((slog 'steward: lens prune wake failed' u.error.sign) cor)
-    =.  cor  le-prune-all:le-core
-    (emit wait-prune:le-core)
-  ::
       [%gateway %lease-check ~]
     ?.  ?=([%behn %wake *] sign)  cor
     ga-lease-check:ga-core
@@ -182,18 +201,18 @@
 ::
 ++  le-core
   |%
-  ++  max-runs-per-bot  ^-  @ud  1.000
-  ++  max-run-age       ^-  @dr  ~d90
-  ++  prune-interval    ^-  @dr  ~d1
+  ::  retention is count-bounded only; the cap lives in state and is set
+  ::  by %lens %configure (default in default-max-runs-per-bot on init /
+  ::  state-0 migration). No time-based expiry — lens runs are durable
+  ::  memory of agent activity, not transient logs.
   ::
-  ++  wait-prune
-    ^-  card
-    [%pass /lens/prune %arvo %b %wait (add now.bowl prune-interval)]
-  ::
-  ++  le-expired
-    |=  =run:lens:s
-    ^-  ?
-    (lth received.run (sub now.bowl max-run-age))
+  ++  le-handle-configure
+    |=  cap=@ud
+    ^+  cor
+    =.  max-runs-per-bot.lens.state  cap
+    ::  the new cap takes effect on every bot immediately.
+    ::
+    le-prune-all
   ::
   ::  lens-action auth: per-variant, since %entry and %retry take pokes from
   ::  different src shapes.
@@ -221,6 +240,10 @@
               ==
           ==
       (le-handle-retry id.action src.bowl)
+    ::
+        %configure
+      ?>  =(src.bowl our.bowl)
+      (le-handle-configure max-runs-per-bot.action)
     ==
   ::
   ::  the same %entry action arrives in two roles:
@@ -262,14 +285,24 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
         [%v1 %recent ~]
-      ``noun+!>(le-recent)
+      ``noun+!>((le-recent 50))
+    ::
+        [%v1 %recent @ ~]
+      =/  parsed  (slaw %ud i.t.t.path)
+      ?~  parsed  [~ ~]
+      ``noun+!>((le-recent u.parsed))
+    ::
+        [%v1 %since @ ~]
+      =/  parsed  (slaw %da i.t.t.path)
+      ?~  parsed  [~ ~]
+      ``noun+!>((le-since u.parsed))
     ::
         [%v1 %run @ @ ~]
-      =/  bot  (slav %p i.t.t.path)
+      =/  parsed-bot  (slaw %p i.t.t.path)
+      ?~  parsed-bot  [~ ~]
       =/  =id:lens:s  i.t.t.t.path
-      ?~  r=(~(get by lens.state) [bot id])  [~ ~]
-      ?:  (le-expired u.r)  [~ ~]
-      ``steward-update-1+!>(`update:v1:s`[%lens %entry bot id u.r])
+      ?~  r=(~(get by runs.lens.state) [u.parsed-bot id])  [~ ~]
+      ``steward-update-1+!>(`update:v1:s`[%lens %entry u.parsed-bot id u.r])
     ==
   ::
   ++  le-fan-out
@@ -292,11 +325,11 @@
     ::  drop late partials once a run is finalized: overwriting would
     ::  pair complete=& with a stale partial payload (and fact it out)
     ::
-    =/  prev  (~(get by lens.state) [bot id])
+    =/  prev  (~(get by runs.lens.state) [bot id])
     ?:  &(?=(^ prev) complete.u.prev !final)
       cor
     =/  =run:lens:s  [final now.bowl payload]
-    =.  lens.state  (~(put by lens.state) [bot id] run)
+    =.  runs.lens.state  (~(put by runs.lens.state) [bot id] run)
     =.  cor  (le-prune bot)
     %+  give  %fact
     :*  ~[/v1/lens]
@@ -304,31 +337,29 @@
         !>(`update:v1:s`[%lens %entry bot id run])
     ==
   ::
+  ::  trim a single bot's records to .max-runs-per-bot, dropping the
+  ::  oldest by .received first. invoked on every insert (bounds that
+  ::  bot's tail) and on %configure (applies a new cap to every bot).
+  ::
   ++  le-prune
     |=  for=ship
     ^+  cor
     =/  mine
-      %+  skim  ~(tap by lens.state)
+      %+  skim  ~(tap by runs.lens.state)
       |=  [[bot=ship *] *]
       =(bot for)
-    =/  dead
-      %+  skim  mine
-      |=  [* =run:lens:s]
-      (le-expired run)
-    =/  live
-      %+  skip  mine
-      |=  [* =run:lens:s]
-      (le-expired run)
-    =?  dead  (gth (lent live) max-runs-per-bot)
-      =/  sorted
-        %+  sort  live
-        |=  [a=[* =run:lens:s] b=[* =run:lens:s]]
-        (lth received.run.a received.run.b)
-      (weld dead (scag (sub (lent live) max-runs-per-bot) sorted))
-    =/  keys  (turn dead |=([k=[bot=ship =id:lens:s] *] k))
+    ?:  (lte (lent mine) max-runs-per-bot.lens.state)
+      cor
+    =/  sorted
+      %+  sort  mine
+      |=  [a=[* =run:lens:s] b=[* =run:lens:s]]
+      (lth received.run.a received.run.b)
+    =/  to-drop
+      (scag (sub (lent mine) max-runs-per-bot.lens.state) sorted)
+    =/  keys  (turn to-drop |=([k=[bot=ship =id:lens:s] *] k))
     |-  ^+  cor
     ?~  keys  cor
-    =.  lens.state  (~(del by lens.state) i.keys)
+    =.  runs.lens.state  (~(del by runs.lens.state) i.keys)
     $(keys t.keys)
   ::
   ++  le-prune-all
@@ -336,23 +367,40 @@
     =/  bots=(list ship)
       %~  tap  in
       %-  ~(gas in *(set ship))
-      (turn ~(tap by lens.state) |=([[bot=ship *] *] bot))
+      (turn ~(tap by runs.lens.state) |=([[bot=ship *] *] bot))
     |-  ^+  cor
     ?~  bots  cor
     =.  cor  (le-prune i.bots)
     $(bots t.bots)
   ::
+  ::  newest .count runs across all bots, as %entry updates.
+  ::
   ++  le-recent
+    |=  count=@ud
+    ^-  (list update:lens:s)
+    =/  sorted
+      %+  sort  ~(tap by runs.lens.state)
+      |=  [a=[* =run:lens:s] b=[* =run:lens:s]]
+      (gth received.run.a received.run.b)
+    %+  turn  (scag count sorted)
+    |=  [[bot=ship =id:lens:s] =run:lens:s]
+    `update:lens:s`[%entry bot id run]
+  ::
+  ::  every entry with .received >= cutoff, newest first. paginate
+  ::  history by passing the oldest .received from the last page.
+  ::
+  ++  le-since
+    |=  cutoff=@da
     ^-  (list update:lens:s)
     =/  fresh
-      %+  skip  ~(tap by lens.state)
+      %+  skim  ~(tap by runs.lens.state)
       |=  [* =run:lens:s]
-      (le-expired run)
+      (gte received.run cutoff)
     =/  sorted
       %+  sort  fresh
       |=  [a=[* =run:lens:s] b=[* =run:lens:s]]
       (gth received.run.a received.run.b)
-    %+  turn  (scag 50 sorted)
+    %+  turn  sorted
     |=  [[bot=ship =id:lens:s] =run:lens:s]
     `update:lens:s`[%entry bot id run]
   --

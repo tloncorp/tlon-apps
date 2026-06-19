@@ -23,14 +23,23 @@ The app helper core keeps each module's logic in its own sub-core: `le-core` for
 
 ## state model
 
-State is `state-0`, defined in the app file. Cross-cutting config is top level; each module owns its own slice:
+State is `state-1`, defined in the app file. Cross-cutting config is top level; each module owns its own slice:
 
 ```
-state-0
-  owner    (unit ship)                 shared config: bot fans runs out to it / its DMs are watched; ~ = inert
-  lens     (map [bot=ship id=@t] run)   stored lens run records (owner role)
+state-1
+  owner    (unit ship)                  shared config: bot fans runs out to it / its DMs are watched; ~ = inert
+  lens     state:lens                   stored lens run records + retention cap (owner role)
   gateway  <gateway state>              harness liveness + auto-reply bookkeeping
 ```
+
+`lens` itself is a record:
+
+```
+runs                (map [bot=ship id=@t] run)   stored lens run records
+max-runs-per-bot    @ud                          retention cap; default 10,000, set by %lens %configure
+```
+
+`state-0` (legacy: `lens` was a bare map, no cap field) is migrated forward by `on-load`.
 
 `owner` is shared: the lens module fans runs out to it, and the gateway module treats its DMs as owner activity worth auto-replying to.
 
@@ -59,11 +68,12 @@ Lens actions form a tagged union: `%entry` carries a run milestone and is the da
 
 ### retention
 
-Bounds, per bot: runs older than 90 days are dropped; at most 1000 live runs per bot (oldest beyond the cap dropped). Enforced in three places:
+Count-bounded per bot, no time-based expiry — lens runs are durable memory of agent activity, not transient logs. The cap is `max-runs-per-bot` in lens state; default is 10,000 (set on init or on state-0 → state-1 migration), and configurable per-ship via the `%lens %configure` action. Enforced in two places:
 
-- **on store**: every incoming run prunes that bot's records.
-- **on a daily timer**: a recurring behn wake on the `/lens/prune` wire prunes all bots and re-arms itself, so storage is reclaimed even when a bot goes quiet.
-- **on read**: `/x/v1/lens/recent` and `/x/v1/lens/run` filter expired runs, so the age bound holds observably regardless of timer cadence (gall scries cannot mutate state, so this is a filter, not a prune).
+- **on store**: every incoming `%entry` prunes that bot's records to the cap (oldest by `received` dropped first).
+- **on `%configure`**: changing the cap applies it to every bot immediately, so a lowered cap takes effect without waiting for the next per-bot insert.
+
+There is no periodic prune timer and no read-time filter — the cap is the only bound, and runs are never silently aged out.
 
 ## module: gateway
 
@@ -89,19 +99,21 @@ JSON poke forms (as sent over Eyre / Ames):
 { "configure": { "owner": "~sampel-palnet" } }
 { "lens": { "entry": { "id": "<lensId>", "payload": "<serialized JSON>", "final": true } } }
 { "lens": { "retry": { "id": "<lensId>" } } }
+{ "lens": { "configure": { "max-runs-per-bot": 25000 } } }
 ```
 
 Hoon types (`sur/steward.hoon`):
 
 ```
 [%configure owner=ship]               top-level: set the shared owner
-[%lens action:lens]                   inner: %entry or %retry, see below
+[%lens action:lens]                   inner: %entry, %retry, or %configure
 [%gateway action:gateway]             gateway lifecycle (configure/start/heartbeat/stop)
 
 ++  lens
   +$  action
     $%  [%entry id=@t payload=@t final=?]  a lens run milestone (final=& finalizes)
         [%retry id=@t]                     owner-initiated re-dispatch request
+        [%configure max-runs-per-bot=@ud]  set the per-bot retention cap
     ==
 ```
 
@@ -123,8 +135,10 @@ The gateway action wraps the harness liveness protocol (see the gateway module a
 
 ## scry surface
 
-- `/x/v1/lens/recent` → `%noun` `(list update:lens)` — newest 50 non-expired runs across all bots as `%entry` updates, for backfill.
-- `/x/v1/lens/run/[ship]/[id]` → `%steward-update-1` `[%lens %entry entry]`, or empty (`[~ ~]`) when absent or expired.
+- `/x/v1/lens/recent` → `%noun` `(list update:lens)` — newest 50 runs across all bots as `%entry` updates, for first-page backfill.
+- `/x/v1/lens/recent/[count]` → `%noun` `(list update:lens)` — newest `count` runs across all bots; paginate by varying count.
+- `/x/v1/lens/since/[da]` → `%noun` `(list update:lens)` — every run with `received >= da`, newest first; paginate back through history by passing the oldest `received` from the previous page.
+- `/x/v1/lens/run/[ship]/[id]` → `%steward-update-1` `[%lens %entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
 
@@ -137,10 +151,10 @@ The gateway action wraps the harness liveness protocol (see the gateway module a
 
 ## lifecycle and invariants
 
-- `on-init` arms the daily lens prune timer (`/lens/prune` behn wire) and subscribes to `%activity /v5` for the gateway module. The prune timer is armed once; reloading at `%0` does not stack a second one.
-- `on-load` accepts state `%0` only — `%steward` is greenfield with no prior versions; an unreadable state resets to bunt and re-arms the timers/subscriptions.
-- Wires: lens fan-out on `/lens/fanout/[owner-p]/[id-t]`, lens prune on `/lens/prune`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
-- `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the `%steward-action-1` poke is ownership-gated (to admit a bot's runs).
+- `on-init` seeds the lens config (`max-runs-per-bot` = `default-max-runs-per-bot`) and subscribes to `%activity /v5` for the gateway module. There is no prune timer.
+- `on-load` tries state-1 first, then state-0 with migration (legacy lens map is wrapped into the new record, default cap applied), then bunt on failure.
+- Wires: lens fan-out on `/lens/fanout/[owner-p]/[id-t]`, gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
+- `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. The `%steward-action-1` poke is gated per-variant (see "poke surface" above).
 
 ## integration notes
 

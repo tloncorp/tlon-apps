@@ -5,10 +5,19 @@
 /=  agent  /app/steward
 |%
 ++  dap  %steward
++$  state-1
+  $:  %1
+      owner=(unit ship)
+      lens=state:lens:s
+      gateway=state:gateway:s
+  ==
+::  state-0 is the legacy shape; the agent migrates it forward on-load.
+::  kept here only for the migration test.
+::
 +$  state-0
   $:  %0
       owner=(unit ship)
-      lens=state:lens:s
+      lens=state-0:lens:s
       gateway=state:gateway:s
   ==
 ++  payload  ^-  @t  '{"schemaVersion":1,"summary":"run-record"}'
@@ -74,7 +83,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
 ::  a completely foreign ship (not ourselves, not our moon) must crash
@@ -218,77 +227,182 @@
   ?>  ?=(%entry -.update.update)
   (ex-equal !>(run.entry.update.update) !>(`run:lens:s`[& ~2024.1.1 payload]))
 ::
-::  runs older than max-run-age (90d) are pruned on the next store
+::  on-init seeds the lens config (default max-runs-per-bot) and subscribes
+::  to %activity. there is no prune timer — pruning is count-based and runs
+::  on every insert and every %configure.
 ::
-++  test-old-runs-pruned-by-age
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  setup
-  ;<  *  bind:m
-    %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'old-run' payload &]))
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
-  ;<  *  bind:m
-    %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'new-run' payload &]))
-  ;<  res=cage  bind:m  (got-peek /x/v1/lens/recent)
-  =+  !<(entries=(list update:lens:s) q.res)
-  ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(1))
-  ?>  ?=(^ entries)
-  ?>  ?=(%entry -.i.entries)
-  (ex-equal !>(id.entry.i.entries) !>('new-run'))
-::
-::  on-init arms the prune timer AND the activity subscription
-::
-++  test-init-arms-prune-timer-and-activity
+++  test-init-seeds-config-and-activity
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
   ;<  caz=(list card)  bind:m  (do-init dap agent)
-  %+  ex-cards  caz
-  :~  (ex-arvo /lens/prune %b %wait (add *@da ~d1))
-      (ex-task /activity [~dev %activity] %watch /v5)
-  ==
-::
-::  a prune wake runs prune-all and re-arms the timer
-::
-++  test-prune-wake-reclaims-and-rearms
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  setup
-  ;<  *  bind:m
-    %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'old-run' payload &]))
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
-  ;<  caz=(list card)  bind:m  (do-arvo /lens/prune [%behn %wake ~])
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-arvo /lens/prune %b %wait (add (add ~2024.1.1 ~d91) ~d1))
+    :~  (ex-task /activity [~dev %activity] %watch /v5)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
-  (ex-equal !>(~(wyt by lens.st)) !>(0))
+  =/  st  !<(state-1 !<(vase q.res))
+  (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`10.000))
 ::
-::  even with no timer fire or new store, expired runs must not be
-::  served by /x/v1/lens/recent or /x/v1/lens/run
+::  on-load migrates a legacy state-0 (lens as bare map, no cap) into
+::  state-1 with the default cap, preserving the stored runs.
 ::
-++  test-expired-runs-hidden-from-reads
+++  test-state-0-migrates-to-state-1
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  legacy-run=run:lens:s  [& ~2024.1.1 payload]
+  =/  legacy-lens=state-0:lens:s
+    (malt ~[[[moon 'old-id'] legacy-run]])
+  =/  ole=state-0  [%0 `~bus legacy-lens *state:gateway:s]
+  ;<  *  bind:m  (do-load agent `!>(ole))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
+  ;<  ~  bind:m  (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`10.000))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
+  ?~  got=(~(get by runs.lens.st) [moon 'old-id'])
+    |+~['expected migrated run to be present']
+  (ex-equal !>(u.got) !>(legacy-run))
+::
+::  count-based prune: the oldest entries beyond max-runs-per-bot get
+::  dropped on the next insert. configure the cap to 2, store 3 runs from
+::  the same bot in time order, and assert the oldest is gone.
+::
+++  test-count-cap-prunes-oldest-on-insert
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %configure 2]))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'r1' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'r2' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.3)))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'r3' payload &]))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by runs.lens.st)) !>(2))
+  ;<  ~  bind:m
+    (ex-equal !>((~(has by runs.lens.st) [moon 'r1'])) !>(|))
+  ;<  ~  bind:m
+    (ex-equal !>((~(has by runs.lens.st) [moon 'r2'])) !>(&))
+  (ex-equal !>((~(has by runs.lens.st) [moon 'r3'])) !>(&))
+::
+::  %configure lowers the cap and the new cap takes effect immediately
+::  across every bot — not lazily on the next per-bot insert.
+::
+++  test-configure-applies-cap-across-all-bots
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'old-run' payload &]))
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
-  ;<  res=cage  bind:m  (got-peek /x/v1/lens/recent)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'a1' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'a2' payload &]))
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %configure 1]))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
+  ::  the newer entry survives, the older was dropped.
+  ::
+  (ex-equal !>((~(has by runs.lens.st) [moon 'a2'])) !>(&))
+::
+::  /x/v1/lens/recent (no arg) defaults to 50; /x/v1/lens/recent/<n>
+::  caps the returned list to <n> newest. /x/v1/lens/since/<da> returns
+::  every entry with received >= cutoff.
+::
+++  test-recent-windowed-with-count
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'w1' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'w2' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.3)))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'w3' payload &]))
+  ;<  res=cage  bind:m  (got-peek /x/v1/lens/recent/2)
   =+  !<(entries=(list update:lens:s) q.res)
-  ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(0))
-  ;<  run=(unit (unit cage))  bind:m  (get-peek /x/v1/lens/run/(scot %p moon)/old-run)
+  ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(2))
+  ?>  ?=(^ entries)
+  ?>  ?=(%entry -.i.entries)
+  (ex-equal !>(id.entry.i.entries) !>('w3'))
+::
+++  test-since-returns-entries-from-cutoff
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 's1' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.5)))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 's2' payload &]))
+  ;<  res=cage  bind:m  (got-peek /x/v1/lens/since/(scot %da ~2024.1.3))
+  =+  !<(entries=(list update:lens:s) q.res)
+  ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(1))
+  ?>  ?=(^ entries)
+  ?>  ?=(%entry -.i.entries)
+  (ex-equal !>(id.entry.i.entries) !>('s2'))
+::
+::  cap=0 means "store nothing"; the new entry is inserted then pruned
+::  immediately. permitted as a config value (an admin tool to disable
+::  storage without ripping out the agent).
+::
+++  test-configure-cap-zero-drops-everything
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %configure 0]))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'z1' payload &]))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  (ex-equal !>(~(wyt by runs.lens.st)) !>(0))
+::
+::  malformed scry args return [~ ~] (not found) rather than crashing
+::  the agent. covers all paths that take a parsed atom.
+::
+++  test-malformed-scry-args-return-not-found
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  recent=(unit (unit cage))  bind:m
+    (get-peek /x/v1/lens/recent/not-a-number)
+  ;<  ~  bind:m  (ex-equal !>(?=([~ ~] recent)) !>(&))
+  ;<  since=(unit (unit cage))  bind:m
+    (get-peek /x/v1/lens/since/not-a-date)
+  ;<  ~  bind:m  (ex-equal !>(?=([~ ~] since)) !>(&))
+  ;<  run=(unit (unit cage))  bind:m
+    (get-peek /x/v1/lens/run/not-a-ship/some-id)
   (ex-equal !>(?=([~ ~] run)) !>(&))
 ++  test-watch-rejects-foreign-ship
   %-  eval-mare
@@ -397,8 +511,8 @@
     %-  (do-as ~bus)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry 'lens-r5']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
-  (ex-equal !>(~(wyt by lens.st)) !>(0))
+  =/  st  !<(state-1 !<(vase q.res))
+  (ex-equal !>(~(wyt by runs.lens.st)) !>(0))
 ::
 ::  retry against an existing finalized entry must not touch the stored
 ::  record (no overwrite, no demotion, no entry-fact re-emission).
@@ -457,7 +571,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup-gateway
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(active-window.gateway.st) !>(~m5))
   (ex-equal !>(reply-cooldown.gateway.st) !>(~m5))
 ::
@@ -483,7 +597,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(lease-until.gateway.st) !>(`lease-time))
 ::
@@ -501,7 +615,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(|))
   (ex-equal !>(lease-until.gateway.st) !>(`new-lease))
@@ -517,7 +631,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -532,7 +646,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-old' 'stale']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(`'boot-1'))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
@@ -551,7 +665,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(~))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
@@ -567,7 +681,7 @@
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -663,13 +777,13 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::

@@ -57,6 +57,11 @@
       %-  frond  :-  'retry'
       %-  frond  :-  'id'
       s+id.act
+    ::
+        %configure
+      %-  frond  :-  'configure'
+      %-  frond  :-  'max-runs-per-bot'
+      (numb max-runs-per-bot.act)
     ==
   ++  gateway-grow
     |=  act=action:gateway:s
@@ -119,6 +124,7 @@
     %-  of
     :~  [%entry (ot ~[id+so payload+so final+bo])]
         [%retry (ot ~[id+so])]
+        [%configure (ot ~[max-runs-per-bot+ni])]
     ==
   ++  gateway-grab
     |=  jon=^json
