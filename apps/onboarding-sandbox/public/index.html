@@ -239,7 +239,7 @@
             Save &amp; reset onboarding
           </button>
           <button
-            onclick="location.href='/api/export?token='+encodeURIComponent(window.__TOKEN__||'')"
+            onclick="exportPatch()"
             title="Download your edits as a .patch file to share with a developer"
           >
             Export patch
@@ -551,6 +551,13 @@
         await stream('reset', 'cmd=reset');
         setBusy(false);
         refreshStatus();
+      }
+
+      // Flush the unsaved textarea first so the exported patch includes the
+      // edits the tester can see (the server builds it from on-disk files).
+      async function exportPatch() {
+        if (dirty && current) await saveItem();
+        location.href = '/api/export?token=' + encodeURIComponent(TOKEN);
       }
 
       loadModels().then(refreshStatus);

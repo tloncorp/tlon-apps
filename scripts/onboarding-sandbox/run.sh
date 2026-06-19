@@ -31,29 +31,52 @@ ensure_sandbox() {
       exit 1
     fi
   done
-  # Sync the prompt SET with the source (tlonbot) on every run, preserving the
-  # tester's edits: add source files missing from the sandbox, quarantine sandbox
-  # files removed upstream (never delete — these gitignored copies are the only
-  # copy of the tester's edits), and leave files present in both untouched.
-  mkdir -p "$SANDBOX_DIR"
-  local f base added=0 orphaned=0 orphan_dir="$SANDBOX_DIR/.orphaned"
-  for f in "$TLONBOT_DIR"/prompts/*.md; do
+  # Sync the prompt SET with the source (tlonbot) on every run. A hidden .base/
+  # records the source content at copy time, so we can tell the tester's edits
+  # from unedited-but-stale copies:
+  #   - new file              -> copy to sandbox + base
+  #   - unedited & src changed -> refresh sandbox + base (fixes staleness AND the
+  #                               false "modified" flag for files the user never touched)
+  #   - edited (!= base)      -> preserve, never clobber
+  #   - legacy (no base yet)  -> record current source as base, leave the copy (self-heals next change)
+  #   - removed upstream      -> quarantine (never delete) + drop its base
+  local src_dir="$TLONBOT_DIR/prompts"
+  local base_dir="$SANDBOX_DIR/.base" orphan_dir="$SANDBOX_DIR/.orphaned"
+  mkdir -p "$SANDBOX_DIR" "$base_dir"
+  local f name sbx bse added=0 refreshed=0 orphaned=0
+  for f in "$src_dir"/*.md; do
     [ -f "$f" ] || continue
-    base="$(basename "$f")"
-    if [ ! -f "$SANDBOX_DIR/$base" ]; then cp "$f" "$SANDBOX_DIR/$base"; added=$((added + 1)); fi
+    name="$(basename "$f")"; sbx="$SANDBOX_DIR/$name"; bse="$base_dir/$name"
+    if [ ! -f "$sbx" ]; then
+      cp "$f" "$sbx"; cp "$f" "$bse"; added=$((added + 1))
+    elif [ ! -f "$bse" ]; then
+      cp "$f" "$bse"                                       # legacy copy: start tracking
+    elif cmp -s "$sbx" "$bse" && ! cmp -s "$f" "$bse"; then
+      cp "$f" "$sbx"; cp "$f" "$bse"; refreshed=$((refreshed + 1))   # unedited + upstream changed
+    fi
   done
   for f in "$SANDBOX_DIR"/*.md; do
     [ -f "$f" ] || continue
-    base="$(basename "$f")"
-    if [ ! -f "$TLONBOT_DIR/prompts/$base" ]; then
-      mkdir -p "$orphan_dir"; mv "$f" "$orphan_dir/$base"; orphaned=$((orphaned + 1))
+    name="$(basename "$f")"
+    if [ ! -f "$src_dir/$name" ]; then
+      mkdir -p "$orphan_dir"; mv "$f" "$orphan_dir/$name"; rm -f "$base_dir/$name"; orphaned=$((orphaned + 1))
     fi
   done
-  [ "$added" -gt 0 ]    && echo "sandbox prompts: added $added new file(s) from $TLONBOT_DIR/prompts"
-  [ "$orphaned" -gt 0 ] && echo "sandbox prompts: moved $orphaned removed-upstream file(s) to $orphan_dir (preserved, not deleted)"
+  [ "$added" -gt 0 ]     && echo "sandbox prompts: added $added new file(s) from $src_dir"
+  [ "$refreshed" -gt 0 ] && echo "sandbox prompts: refreshed $refreshed unedited file(s) from upstream"
+  [ "$orphaned" -gt 0 ]  && echo "sandbox prompts: moved $orphaned removed-upstream file(s) to $orphan_dir (preserved, not deleted)"
+  # intro: same base-tracking as the prompts (single file)
+  local intro_base="$base_dir/.intro"
   if [ ! -f "$SANDBOX_INTRO" ] && [ -f "$SRC_INTRO" ]; then
     echo "Initializing sandbox intro copy from $SRC_INTRO ..."
-    cp "$SRC_INTRO" "$SANDBOX_INTRO"
+    cp "$SRC_INTRO" "$SANDBOX_INTRO"; cp "$SRC_INTRO" "$intro_base"
+  elif [ -f "$SANDBOX_INTRO" ] && [ -f "$SRC_INTRO" ]; then
+    if [ ! -f "$intro_base" ]; then
+      cp "$SRC_INTRO" "$intro_base"
+    elif cmp -s "$SANDBOX_INTRO" "$intro_base" && ! cmp -s "$SRC_INTRO" "$intro_base"; then
+      cp "$SRC_INTRO" "$SANDBOX_INTRO"; cp "$SRC_INTRO" "$intro_base"
+      echo "sandbox intro: refreshed from upstream (unedited)"
+    fi
   fi
 }
 
