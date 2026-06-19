@@ -91,7 +91,6 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
                   flex: 1,
                   paddingVertical: 16,
                   color: theme.primaryText.val,
-                  // @ts-expect-error removes browser outline on web
                   outlineStyle: 'none',
                 }}
               />
