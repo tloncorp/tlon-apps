@@ -18,7 +18,7 @@ import time
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -177,6 +177,7 @@ OPTIONAL_ENV = [
     "BRAVE_SEARCH_API_KEY",
     "BRAVE_API_KEY",
 ]
+_TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
 
 try:
     import aiohttp as _aiohttp  # noqa: F401
@@ -203,6 +204,89 @@ def is_tlon_command(text: str) -> bool:
 
 def tlon_command_args(text: str) -> list[str]:
     return _TLON_COMMAND_RE.sub("", str(text or "").strip(), count=1).split()
+
+
+def _env_flag_enabled(name: str, env: Mapping[str, str] | None = None) -> bool:
+    source_env = os.environ if env is None else env
+    value = source_env.get(name, "")
+    return str(value).strip().lower() in _TRUTHY_ENV_VALUES
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _hermes_tool_permission_snapshot(
+    env: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """Content-free startup snapshot of Hermes tool gates for this process."""
+    source_env = os.environ if env is None else env
+    interactive = _env_flag_enabled("HERMES_INTERACTIVE", source_env)
+    gateway_session = _env_flag_enabled("HERMES_GATEWAY_SESSION", source_env)
+    exec_ask = _env_flag_enabled("HERMES_EXEC_ASK", source_env)
+    runtime_allowed = interactive or gateway_session or exec_ask
+
+    snapshot: dict[str, Any] = {
+        "hermesCronjobEnvInteractive": interactive,
+        "hermesCronjobEnvGatewaySession": gateway_session,
+        "hermesCronjobEnvExecAsk": exec_ask,
+        "hermesCronjobRuntimeAllowed": runtime_allowed,
+        "hermesCronDeliveryHomeChannelConfigured": bool(
+            str(source_env.get("TLON_HOME_CHANNEL", "")).strip()
+        ),
+    }
+
+    try:
+        from hermes_cli.config import load_config  # type: ignore
+        from hermes_cli.tools_config import _get_platform_tools  # type: ignore
+
+        config = load_config()
+        platform_toolsets = config.get("platform_toolsets") or {}
+        explicit_tlon_toolsets = (
+            isinstance(platform_toolsets, dict)
+            and isinstance(platform_toolsets.get("tlon"), list)
+        )
+        enabled_toolsets = sorted(
+            str(name)
+            for name in _get_platform_tools(
+                config,
+                "tlon",
+            )
+        )
+        agent_config = config.get("agent") or {}
+        disabled_toolsets = _string_list(
+            agent_config.get("disabled_toolsets") if isinstance(agent_config, dict) else []
+        )
+        cronjob_toolset_enabled = "cronjob" in enabled_toolsets
+        cronjob_disabled = "cronjob" in disabled_toolsets
+        snapshot.update(
+            {
+                "hermesTlonPlatformToolsetsExplicit": explicit_tlon_toolsets,
+                "hermesTlonToolsetsResolved": enabled_toolsets[:80],
+                "hermesTlonToolsetsCount": len(enabled_toolsets),
+                "hermesCronjobToolsetEnabled": cronjob_toolset_enabled,
+                "hermesCronjobDisabledByAgentConfig": cronjob_disabled,
+                "hermesCronjobAvailableAtStartup": (
+                    runtime_allowed and cronjob_toolset_enabled and not cronjob_disabled
+                ),
+            }
+        )
+    except Exception as exc:
+        snapshot.update(
+            {
+                "hermesTlonPlatformToolsetsExplicit": None,
+                "hermesTlonToolsetsResolved": None,
+                "hermesTlonToolsetsCount": None,
+                "hermesCronjobToolsetEnabled": None,
+                "hermesCronjobDisabledByAgentConfig": None,
+                "hermesCronjobAvailableAtStartup": None,
+                "hermesToolsetConfigErrorType": type(exc).__name__,
+            }
+        )
+
+    return snapshot
 
 
 def node_url_is_hosted(url: str) -> bool:
@@ -396,6 +480,19 @@ class TlonAdapter(BasePlatformAdapter):
             set_active_computing_presence_tracker(self._computing_presence)
             self._mark_connected()
             self._connected_at = time.monotonic()
+            hermes_permissions = _hermes_tool_permission_snapshot()
+            logger.info(
+                "[tlon] Hermes permissions: cronjob available=%s toolset=%s runtime=%s "
+                "disabled=%s flags(interactive=%s gateway=%s exec_ask=%s) home_channel=%s",
+                hermes_permissions.get("hermesCronjobAvailableAtStartup"),
+                hermes_permissions.get("hermesCronjobToolsetEnabled"),
+                hermes_permissions.get("hermesCronjobRuntimeAllowed"),
+                hermes_permissions.get("hermesCronjobDisabledByAgentConfig"),
+                hermes_permissions.get("hermesCronjobEnvInteractive"),
+                hermes_permissions.get("hermesCronjobEnvGatewaySession"),
+                hermes_permissions.get("hermesCronjobEnvExecAsk"),
+                hermes_permissions.get("hermesCronDeliveryHomeChannelConfigured"),
+            )
             self._telemetry.gateway_connected(
                 {
                     "source": source,
@@ -405,6 +502,7 @@ class TlonAdapter(BasePlatformAdapter):
                     "channelRules": len(self._channel_rules),
                     "approvedDms": len(self._settings_dm_allowlist),
                     "settingsLoaded": self._settings_loaded,
+                    **hermes_permissions,
                 }
             )
             logger.info("[tlon] connected to %s as %s", self.tlon_config.ship_url, self.tlon_config.ship_name)

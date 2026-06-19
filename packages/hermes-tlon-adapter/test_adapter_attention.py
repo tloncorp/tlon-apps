@@ -176,6 +176,68 @@ class FakeCLI:
         )
 
 
+class HermesToolPermissionSnapshotTests(unittest.TestCase):
+    def _with_fake_hermes_config(self, config, enabled_toolsets):
+        parent = types.ModuleType("hermes_cli")
+        parent.__path__ = []
+        config_mod = types.ModuleType("hermes_cli.config")
+        config_mod.load_config = lambda: config
+        tools_config_mod = types.ModuleType("hermes_cli.tools_config")
+        tools_config_mod._get_platform_tools = (
+            lambda loaded, platform, include_default_mcp_servers=True: enabled_toolsets
+        )
+        return patch.dict(
+            sys.modules,
+            {
+                "hermes_cli": parent,
+                "hermes_cli.config": config_mod,
+                "hermes_cli.tools_config": tools_config_mod,
+            },
+        )
+
+    def test_cronjob_available_when_runtime_and_toolset_are_enabled(self):
+        env = {"HERMES_EXEC_ASK": "1", "TLON_HOME_CHANNEL": "chat/~pen/general"}
+        config = {
+            "platform_toolsets": {"tlon": ["web", "cronjob"]},
+            "agent": {"disabled_toolsets": ["messaging"]},
+        }
+
+        with self._with_fake_hermes_config(config, {"web", "cronjob", "tlon"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot(env)
+
+        self.assertTrue(snapshot["hermesCronjobRuntimeAllowed"])
+        self.assertTrue(snapshot["hermesCronjobToolsetEnabled"])
+        self.assertFalse(snapshot["hermesCronjobDisabledByAgentConfig"])
+        self.assertTrue(snapshot["hermesCronjobAvailableAtStartup"])
+        self.assertTrue(snapshot["hermesCronDeliveryHomeChannelConfigured"])
+        self.assertEqual(snapshot["hermesTlonToolsetsResolved"], ["cronjob", "tlon", "web"])
+
+    def test_cronjob_unavailable_when_agent_config_disables_it(self):
+        env = {"HERMES_GATEWAY_SESSION": "true"}
+        config = {
+            "platform_toolsets": {"tlon": ["cronjob"]},
+            "agent": {"disabled_toolsets": ["cronjob"]},
+        }
+
+        with self._with_fake_hermes_config(config, {"cronjob"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot(env)
+
+        self.assertTrue(snapshot["hermesCronjobRuntimeAllowed"])
+        self.assertTrue(snapshot["hermesCronjobToolsetEnabled"])
+        self.assertTrue(snapshot["hermesCronjobDisabledByAgentConfig"])
+        self.assertFalse(snapshot["hermesCronjobAvailableAtStartup"])
+
+    def test_cronjob_unavailable_without_runtime_permission_flags(self):
+        config = {"platform_toolsets": {"tlon": ["cronjob"]}}
+
+        with self._with_fake_hermes_config(config, {"cronjob"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertFalse(snapshot["hermesCronjobRuntimeAllowed"])
+        self.assertTrue(snapshot["hermesCronjobToolsetEnabled"])
+        self.assertFalse(snapshot["hermesCronjobAvailableAtStartup"])
+
+
 class AdapterAttentionTests(unittest.TestCase):
     def make_adapter(self, extra):
         base = {
