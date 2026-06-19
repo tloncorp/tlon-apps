@@ -3270,7 +3270,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNTransformerTextInput (0.3.0):
+  - RNTransformerTextInput (0.4.1):
     - boost
     - DoubleConversion
     - fast_float
@@ -4059,7 +4059,7 @@ SPEC CHECKSUMS:
   RNScreens: 2e9c41cd099b1ca50136af8d57c3594214d0086a
   RNSentry: 4832a7acd1fe48982149f585e1802f4d9fc7b00a
   RNSVG: 94a1be05fab4043354bcf7104f0f9b0e2231ef05
-  RNTransformerTextInput: 00a932b82e72c55e4879f99f2351e4f1551903d9
+  RNTransformerTextInput: 7368582bc3506ddcdc5aa5b60ea59a22698d6125
   RNWorklets: ee58e869ea579800ec5f2f1cb6ae195fd3537546
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
