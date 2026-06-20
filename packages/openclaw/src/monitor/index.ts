@@ -4043,20 +4043,30 @@ export async function monitorTlonProvider(
       });
       runtime.log?.('[tlon] Subscribed to contacts updates (/v1/news)');
 
-      // Subscribe to the bot ship's context-lens agent for owner-initiated
-      // retries. The agent verifies the requester is an owner before giving
-      // the fact; the checks here are defense-in-depth.
+      // Subscribe to the bot ship's %steward lens module for owner-initiated
+      // retries. The agent verifies the requester before emitting the fact;
+      // the checks here are defense-in-depth. /v1/lens carries both %entry
+      // and %retry-requested updates — we ignore entries (they're echoes of
+      // our own pokes) and act only on the retry signal.
       if (contextLensEnabled) {
         const recentRetryDispatches = new Map<string, number>();
         const RETRY_DEDUP_MS = 60_000;
         const handleLensRetryFact = async (data: unknown) => {
-          const retry = (
-            data as { retry?: { id?: unknown; requester?: unknown } } | null
-          )?.retry;
-          const lensId = typeof retry?.id === 'string' ? retry.id : '';
+          const update = (
+            data as {
+              lens?: {
+                'retry-requested'?: { id?: unknown; requester?: unknown };
+              };
+            } | null
+          )?.lens?.['retry-requested'];
+          if (!update) {
+            // %entry updates (our own pokes echoing back) — ignore.
+            return;
+          }
+          const lensId = typeof update.id === 'string' ? update.id : '';
           const requester =
-            typeof retry?.requester === 'string'
-              ? normalizeShip(retry.requester)
+            typeof update.requester === 'string'
+              ? normalizeShip(update.requester)
               : '';
           if (!lensId || !requester) {
             return;
@@ -4137,34 +4147,35 @@ export async function monitorTlonProvider(
         };
         try {
           await api.subscribe({
-            app: 'context-lens',
-            path: '/v1/gateway',
+            app: 'steward',
+            path: '/v1/lens',
             event: (data) => {
               handleLensRetryFact(data).catch((error: any) => {
                 runtime.error?.(
-                  `[tlon] Context lens retry handler error: ${error?.message ?? String(error)}`
+                  `[tlon] Steward lens retry handler error: ${error?.message ?? String(error)}`
                 );
               });
             },
             err: (error) => {
               runtime.error?.(
-                `[tlon] Context lens gateway subscription error: ${String(error)}`
+                `[tlon] Steward lens subscription error: ${String(error)}`
               );
             },
             quit: () => {
               runtime.log?.(
-                '[tlon] Context lens gateway quit received, SSE client will resubscribe'
+                '[tlon] Steward lens quit received, SSE client will resubscribe'
               );
             },
           });
           runtime.log?.(
-            '[tlon] Subscribed to context-lens gateway facts (/v1/gateway)'
+            '[tlon] Subscribed to steward lens facts (/v1/lens) for retry signals'
           );
         } catch (error: any) {
-          // Older desks without the /v1/gateway watch path nack the subscribe;
-          // retries are unavailable but everything else keeps working.
+          // Ships without %steward (or older context-lens-only ships) nack
+          // the subscribe; retries are unavailable but everything else keeps
+          // working.
           runtime.log?.(
-            `[tlon] Context lens gateway subscription unavailable: ${error?.message ?? String(error)}`
+            `[tlon] Steward lens subscription unavailable: ${error?.message ?? String(error)}`
           );
         }
       }
