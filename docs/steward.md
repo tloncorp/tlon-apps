@@ -64,7 +64,7 @@ One agent, two roles; the same code runs on every ship, and the role is determin
 
 A self-owned bot (`owner` equal to `our`) is stored directly during fan-out with no network hop.
 
-Lens actions form a tagged union: `%entry` carries a run milestone and is the data ingress path; `%retry` is an owner-initiated request to re-dispatch a finalized run. `%entry` is `[%entry id=@t payload=@t final=?]` — `final=&` marks the run complete, `final=|` upserts an in-progress partial, and a finalized run is never demoted by a late `final=|` (the late partial is dropped). `%retry` is `[%retry id=@t]`; it emits a `%retry-requested` fact on `/v1/lens` for the local gateway to pick up and dispatch, but does not mutate stored state — the new run lands later as an `%entry` from the gateway with a fresh `id` (and `retryOf` pointing to the original).
+Lens actions form a tagged union: `%entry` carries a run milestone and is the data ingress path; `%retry` is an owner-initiated request to re-dispatch a finalized run. `%entry` is `[%entry id=@t payload=@t final=?]` — `final=&` marks the run complete, `final=|` upserts an in-progress partial, and a finalized run is never demoted by a late `final=|` (the late partial is dropped). `%retry` is `[%retry bot=ship id=@t]`; the agent routes it by `bot`: if `bot == our.bowl` we emit a `%retry-requested` fact on `/v1/lens` for the local gateway, otherwise we cross-ship poke that bot's steward (which then emits the fact on its own side). Retry doesn't mutate stored state — the new run lands later as an `%entry` from the bot's gateway with a fresh `id` (and `retryOf` pointing to the original).
 
 ### retention
 
@@ -91,14 +91,14 @@ Auth is per-variant rather than blanket-gated:
 
 - `%configure` and `%gateway` require `src == our` (local only).
 - `%lens %entry` requires `src == our` or `src` is a moon `our` sponsors — the data ingress shape, used by the bot's local gateway and by cross-ship fan-out from a moon to its sponsor (a moon's sponsor is its immutable low 32 bits, derived directly — no jael scry).
-- `%lens %retry` requires `src == our` or `src` is the configured `owner` — covers a cross-ship retry poke from an owner planet to a bot moon (the `%entry` gate would reject this direction since the owner isn't a moon the bot sponsors).
+- `%lens %retry` requires `src == our` or `src` is the configured `owner`. Two-hop routing: a client on the owner ship pokes its local steward (src=our), the owner's steward checks `bot.action`; if `bot == our.bowl` it emits the fact directly, else it cross-ship pokes the bot's steward, which then accepts (src=owner, which the bot has configured) and emits the fact.
 
 JSON poke forms (as sent over Eyre / Ames):
 
 ```json
 { "configure": { "owner": "~sampel-palnet" } }
 { "lens": { "entry": { "id": "<lensId>", "payload": "<serialized JSON>", "final": true } } }
-{ "lens": { "retry": { "id": "<lensId>" } } }
+{ "lens": { "retry": { "bot": "~sampel-bot", "id": "<lensId>" } } }
 { "lens": { "configure": { "max-runs-per-bot": 25000 } } }
 ```
 
@@ -111,9 +111,9 @@ Hoon types (`sur/steward.hoon`):
 
 ++  lens
   +$  action
-    $%  [%entry id=@t payload=@t final=?]  a lens run milestone (final=& finalizes)
-        [%retry id=@t]                     owner-initiated re-dispatch request
-        [%configure max-runs-per-bot=@ud]  set the per-bot retention cap
+    $%  [%entry id=@t payload=@t final=?]   a lens run milestone (final=& finalizes)
+        [%retry bot=ship id=@t]             owner-initiated re-dispatch request
+        [%configure max-runs-per-bot=@ud]   set the per-bot retention cap
     ==
 ```
 

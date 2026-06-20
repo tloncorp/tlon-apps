@@ -161,6 +161,13 @@
       ((slog 'steward: lens run fan-out nacked' u.p.sign) cor)
     ==
   ::
+      [%lens %retry *]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: lens retry relay nacked' u.p.sign) cor)
+    ==
+  ::
       [%activity ~]
     ?+    -.sign  cor
         %fact
@@ -214,12 +221,17 @@
     ::
     le-prune-all
   ::
-  ::  lens-action auth: per-variant, since %entry and %retry take pokes from
-  ::  different src shapes.
-  ::    %entry: src=our (bot's own gateway) or src is a moon we sponsor (a
-  ::            bot we own fanning a run to us as its owner).
-  ::    %retry: src=our (local client) or src is the configured owner (an
-  ::            owner planet poking its bot moon).
+  ::  lens-action auth: per-variant, since each shape has a different src
+  ::  expectation.
+  ::    %entry: src=our (bot's own gateway pokes locally) or src is a moon we
+  ::            sponsor (a bot we own fanning a run to us as its owner).
+  ::            data flow: bot → owner.
+  ::    %retry: src=our (local client OR an owner-side relay forwarding to
+  ::            its own bot when bot == our) or src is the configured owner
+  ::            (an owner planet relaying a retry to its bot moon).
+  ::            data flow: owner → bot, with the owner's steward acting as
+  ::            the cross-ship relay if bot != our.
+  ::    %configure: src=our only.
   ::
   ++  le-poke-action
     |=  =action:lens:s
@@ -239,7 +251,7 @@
                   =(src.bowl u.owner.state)
               ==
           ==
-      (le-handle-retry id.action src.bowl)
+      (le-handle-retry bot.action id.action src.bowl)
     ::
         %configure
       ?>  =(src.bowl our.bowl)
@@ -259,18 +271,36 @@
       (le-fan-out id payload final)
     (le-store src.bowl id payload final)
   ::
-  ::  retry: emit a fact on /v1/lens that the local gateway picks up and
-  ::  re-dispatches. retry doesn't mutate stored state — the gateway will
-  ::  create a new lens run with a fresh id and poke us back with %entry.
+  ::  retry: route based on whether we are the targeted bot or just the
+  ::  owner-side relay.
+  ::    bot == our: we run the bot's gateway locally; emit the retry fact
+  ::                on /v1/lens for the gateway to pick up. .requester is
+  ::                whoever first poked (the local client, or the cross-
+  ::                ship owner if we received this via fan-out).
+  ::    bot != our: we are the owner forwarding a retry to a bot moon we
+  ::                own. cross-ship poke that bot's steward with the same
+  ::                action; the bot will recognize bot == our.bowl there
+  ::                and emit the fact for its local gateway.
+  ::  retry never mutates stored state — the gateway will create a new
+  ::  lens run with a fresh id and poke us back via %entry.
   ::
   ++  le-handle-retry
-    |=  [=id:lens:s requester=ship]
+    |=  [bot=ship =id:lens:s requester=ship]
     ^+  cor
-    %+  give  %fact
-    :*  ~[/v1/lens]
-        %steward-update-1
-        !>(`update:v1:s`[%lens %retry-requested id requester])
-    ==
+    ?:  =(bot our.bowl)
+      %+  give  %fact
+      :*  ~[/v1/lens]
+          %steward-update-1
+          !>(`update:v1:s`[%lens %retry-requested id requester])
+      ==
+    %-  emit
+    :^    %pass
+        /lens/retry/(scot %p bot)/(scot %t id)
+      %agent
+    :+  [bot %steward]
+      %poke
+    :-  %steward-action-1
+    !>(`action:v1:s`[%lens %retry bot id])
   ::
   ++  le-watch
     |=  =path

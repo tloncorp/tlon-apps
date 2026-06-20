@@ -61,24 +61,28 @@
   ::            data flow into the store; src is self (gateway local poke) or
   ::            a moon we sponsor (cross-ship fan-out from a bot to its owner).
   ::    %retry: owner-initiated request to re-dispatch a finalized run that
-  ::            failed or aborted. src must be the configured owner (a cross-
-  ::            ship poke from the owner's mobile/web client to the bot ship)
-  ::            or self. emits a %retry-requested fact on /v1/lens for the
-  ::            bot's local gateway to pick up and dispatch.
+  ::            failed or aborted. carries .bot so the agent can route it:
+  ::            received locally (src=our) and bot == our, emit a fact for
+  ::            the local gateway; received locally but bot != our, cross-
+  ::            ship poke the bot's steward; received cross-ship from the
+  ::            configured owner with bot == our, emit a fact. (the symmetric
+  ::            case to %entry, which is bot → owner; %retry is owner → bot.)
   ::    %configure: set the per-ship lens config. Currently the only knob is
   ::            .max-runs-per-bot. Local only (src=our). On set, applies the
   ::            new cap immediately by pruning every bot to size.
   ::
   +$  action
     $%  [%entry =id payload=@t final=?]
-        [%retry =id]
+        [%retry bot=ship =id]
         [%configure max-runs-per-bot=@ud]
     ==
   ::  $update: lens subscription update.
   ::
   ::    %entry: a stored run record (insert or update).
   ::    %retry-requested: a retry was requested for run .id by .requester;
-  ::                      the local gateway should re-dispatch.
+  ::                      the local gateway should re-dispatch. Only emitted
+  ::                      on the bot ship (the owner-side relay forwards the
+  ::                      poke to the bot, which then emits this fact).
   ::
   +$  update
     $%  [%entry =entry]

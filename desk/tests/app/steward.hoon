@@ -434,11 +434,11 @@
 ::  RETRY ACTION TESTS
 ::  ==========================================================
 ::
-::  retry from the configured owner (cross-ship poke from owner planet to
-::  bot moon) emits a %retry-requested fact on /v1/lens for the local
-::  gateway to dispatch. retry doesn't mutate stored state.
+::  retry from the configured owner targeting our.bowl as bot (cross-ship
+::  poke owner → bot) emits a %retry-requested fact on /v1/lens for the
+::  local gateway to dispatch. retry doesn't mutate stored state.
 ::
-++  test-retry-from-owner-emits-fact
+++  test-retry-from-owner-targeting-self-emits-fact
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -446,7 +446,7 @@
   ;<  ~  bind:m  (configure ~bus)
   ;<  caz=(list card)  bind:m
     %-  (do-as ~bus)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry 'lens-r1']))
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry ~dev 'lens-r1']))
   %+  ex-cards  caz
   :~  %-  ex-fact
       :*  ~[/v1/lens]
@@ -455,17 +455,17 @@
       ==
   ==
 ::
-::  a local retry (src=our, e.g. self-owned bot whose owner is our ship)
-::  is permitted and tags the requester as our.bowl.
+::  self-poked retry targeting our.bowl (the local-client + self-owned-bot
+::  case) emits the fact with the local ship tagged as requester.
 ::
-++  test-retry-from-self-emits-fact
+++  test-retry-from-self-targeting-self-emits-fact
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~dev)
   ;<  caz=(list card)  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry 'lens-r2']))
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry ~dev 'lens-r2']))
   %+  ex-cards  caz
   :~  %-  ex-fact
       :*  ~[/v1/lens]
@@ -474,7 +474,28 @@
       ==
   ==
 ::
-::  retry from a non-owner, non-self ship must crash the auth gate.
+::  self-poked retry targeting a DIFFERENT bot (owner-side relay path):
+::  we forward the same action to the bot's steward over Ames and emit
+::  no local fact. the bot will accept (src=owner) and emit its own fact.
+::
+++  test-retry-self-poked-bot-elsewhere-relays
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry ~bus 'lens-r-relay']))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /lens/retry/(scot %p ~bus)/(scot %t 'lens-r-relay')
+          [~bus %steward]
+          %steward-action-1
+          !>(`action:v1:s`[%lens %retry ~bus 'lens-r-relay'])
+      ==
+  ==
+::
+::  retry from a non-owner, non-self ship must crash the auth gate
+::  regardless of bot.
 ::
 ++  test-retry-from-non-owner-rejected
   %-  eval-mare
@@ -484,7 +505,7 @@
   ;<  ~  bind:m  (configure ~bus)
   %-  ex-fail
   %-  (do-as ~zod)
-  (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry 'lens-r3']))
+  (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry ~dev 'lens-r3']))
 ::
 ::  retry when no owner is configured: only self is accepted.
 ::
@@ -495,7 +516,7 @@
   ;<  ~  bind:m  setup
   %-  ex-fail
   %-  (do-as ~bus)
-  (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry 'lens-r4']))
+  (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry ~dev 'lens-r4']))
 ::
 ::  retry does NOT mutate the lens store (no new run record is created;
 ::  no entry fact is emitted). the gateway is expected to dispatch and
@@ -509,7 +530,7 @@
   ;<  ~  bind:m  (configure ~bus)
   ;<  *  bind:m
     %-  (do-as ~bus)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry 'lens-r5']))
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry ~dev 'lens-r5']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(0))
@@ -529,12 +550,12 @@
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'lens-r6' payload &]))
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
-  ::  retry it from the owner; the entry must remain unchanged and only
-  ::  the retry-requested fact must be emitted (no entry fact).
+  ::  retry it from the owner targeting us; the entry must remain unchanged
+  ::  and only the retry-requested fact must be emitted (no entry fact).
   ::
   ;<  caz=(list card)  bind:m
     %-  (do-as ~bus)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry 'lens-r6']))
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry ~dev 'lens-r6']))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-fact

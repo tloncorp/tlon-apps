@@ -11,8 +11,11 @@
 ::    lens variants:
 ::      {"entry": {"id":..., "payload":..., "final":...}}
 ::          gateway pushes a run record. local-only path (src=our or moon).
-::      {"retry": {"id":...}}
-::          owner-initiated retry of a finalized run. cross-ship from owner.
+::      {"retry": {"bot":"~ship", "id":...}}
+::          owner-initiated retry of a finalized run. routed via the
+::          owner's steward to the bot's steward (cross-ship).
+::      {"configure": {"max-runs-per-bot":N}}
+::          per-ship retention cap; applied to every bot immediately.
 ::
 ::    NOTE: the %gateway configure maps offline-reply-cooldown → reply-cooldown
 ::    in the gateway sub-grab, mirroring gateway-status.
@@ -55,8 +58,10 @@
     ::
         %retry
       %-  frond  :-  'retry'
-      %-  frond  :-  'id'
-      s+id.act
+      %-  pairs
+      :~  ['bot' s+(scot %p bot.act)]
+          ['id' s+id.act]
+      ==
     ::
         %configure
       %-  frond  :-  'configure'
@@ -123,7 +128,7 @@
     %.  jon
     %-  of
     :~  [%entry (ot ~[id+so payload+so final+bo])]
-        [%retry (ot ~[id+so])]
+        [%retry (ot ~[bot+(se %p) id+so])]
         [%configure (ot ~[max-runs-per-bot+ni])]
     ==
   ++  gateway-grab
