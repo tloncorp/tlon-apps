@@ -158,6 +158,20 @@ export function resolveLensOwners(
 }
 
 /**
+ * %steward's lens module stores a single owner ship (`unit ship`). If the
+ * config lists multiple `contextLens.owners`, we pick the first and ignore
+ * the rest — multi-owner fan-out is no longer supported on the agent side.
+ * Returns null when no owner is configured (sync stays inert).
+ */
+export function resolveLensOwner(
+  config: OpenClawConfig,
+  accountId?: string | null
+): string | null {
+  const owners = resolveLensOwners(config, accountId);
+  return owners[0] ?? null;
+}
+
+/**
  * True when at least one context-lens consumer can read recorded runs: the
  * HTTP routes (need authToken) or the ship sync (needs resolvable owners).
  * The monitor must record runs whenever either path is live — gating the
@@ -184,25 +198,27 @@ export type ContextLensShipSync = {
 };
 
 /**
- * Mirror context-lens runs to the bot ship's %context-lens agent, which fans them
- * out to owner ships for durable, mobile-reachable history.
+ * Mirror context-lens runs to the bot ship's %steward agent (lens module),
+ * which fans them out to the configured owner ship for durable, mobile-
+ * reachable history.
  *
- * - terminal status → `%run-final`
- * - non-terminal status transitions → `%run-event` milestones
+ * - terminal status → `[%entry id payload final=true]`
+ * - non-terminal status transitions → `[%entry id payload final=false]`
  *
  * Pokes ride the monitor-published api-client params (the same slot the
- * gateway-status heartbeat uses). The agent's `owners` set is configured
- * lazily: once per params-slot instance, ordered before any run poke via a
- * serial queue, so monitor restarts re-assert the config.
+ * gateway-status heartbeat uses). The agent's owner is configured lazily
+ * (once per params-slot instance, ordered before any run poke via a serial
+ * queue) so monitor restarts re-assert the config.
  */
 export function createContextLensShipSync(opts: {
-  owners: string[];
+  /** The single configured owner ship (%steward stores `unit ship`). */
+  owner: string;
   logger: SyncLogger;
   getParams?: () => SharedApiClientParams | null;
-  /** Called after a run-final poke is acked — basis for boot-time replay. */
+  /** Called after a final entry poke is acked — basis for boot-time replay. */
   onRunFinal?: (lens: ContextLens) => void;
 }): ContextLensShipSync {
-  const { owners, logger, onRunFinal } = opts;
+  const { owner, logger, onRunFinal } = opts;
   const getParams = opts.getParams ?? (() => apiClientParamsSlot.get() ?? null);
 
   const lastStatusByLensId = new Map<string, ContextLensStatus>();
@@ -224,16 +240,21 @@ export function createContextLensShipSync(opts: {
           return;
         }
         if (params !== configuredFor) {
+          // %steward's top-level %configure is per-ship (sets the singular
+          // owner); the lens module's own configure sub-action sets the
+          // retention cap. We only assert the owner here; retention is left
+          // at the steward default unless an operator pokes %lens
+          // %configure separately.
           await params.poke({
-            app: 'context-lens',
-            mark: 'context-lens-action-1',
-            json: { configure: { owners } },
+            app: 'steward',
+            mark: 'steward-action-1',
+            json: { configure: { owner } },
           });
           configuredFor = params;
         }
         await params.poke({
-          app: 'context-lens',
-          mark: 'context-lens-action-1',
+          app: 'steward',
+          mark: 'steward-action-1',
           json,
         });
         try {
@@ -261,9 +282,15 @@ export function createContextLensShipSync(opts: {
     if (TERMINAL_STATUSES.has(lens.status)) {
       lastStatusByLensId.delete(lens.lensId);
       enqueuePoke(
-        `run-final ${lens.lensId}`,
+        `entry-final ${lens.lensId}`,
         {
-          'run-final': { id: lens.lensId, payload: buildLensRunPayload(lens) },
+          lens: {
+            entry: {
+              id: lens.lensId,
+              payload: buildLensRunPayload(lens),
+              final: true,
+            },
+          },
         },
         onRunFinal ? () => onRunFinal(lens) : undefined
       );
@@ -281,8 +308,14 @@ export function createContextLensShipSync(opts: {
       }
       lastStatusByLensId.delete(oldest);
     }
-    enqueuePoke(`run-event ${lens.lensId}`, {
-      'run-event': { id: lens.lensId, payload: buildLensRunPayload(lens) },
+    enqueuePoke(`entry-partial ${lens.lensId}`, {
+      lens: {
+        entry: {
+          id: lens.lensId,
+          payload: buildLensRunPayload(lens),
+          final: false,
+        },
+      },
     });
   };
 
@@ -383,16 +416,22 @@ export function initContextLensShipSync(api: {
     teardown();
     return false;
   }
-  const owners = resolveLensOwners(api.config);
-  if (owners.length === 0) {
+  const owner = resolveLensOwner(api.config);
+  if (!owner) {
     teardown();
     api.logger.info(
-      '[tlon] Context lens ship sync disabled: no owners configured (set contextLens.owners or ownerShip)'
+      '[tlon] Context lens ship sync disabled: no owner configured (set contextLens.owners or ownerShip)'
     );
     return false;
   }
+  const owners = resolveLensOwners(api.config);
+  if (owners.length > 1) {
+    api.logger.warn(
+      `[tlon] Context lens ship sync: %steward stores a single owner; using ${owner}, ignoring ${owners.slice(1).join(', ')}`
+    );
+  }
   const sync = createContextLensShipSync({
-    owners,
+    owner,
     logger: api.logger,
     onRunFinal: (lens) => {
       const store = getContextLensStore();
@@ -406,7 +445,7 @@ export function initContextLensShipSync(api: {
   shipSyncUnsubscribeSlot.set(subscribeToContextLensEvents(sync.handleEvent));
   startShipSyncReplay(sync, api.logger);
   api.logger.info(
-    `[tlon] Context lens ship sync enabled, fanning out to ${owners.join(', ')}`
+    `[tlon] Context lens ship sync enabled, fanning out to ${owner}`
   );
   return true;
 }
