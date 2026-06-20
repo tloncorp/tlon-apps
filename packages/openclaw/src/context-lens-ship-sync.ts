@@ -89,7 +89,7 @@ function truncateSummary(value: string | undefined): string | undefined {
 }
 
 /**
- * Build the opaque run payload poked to %context-lens, serialized to a JSON
+ * Build the opaque run payload poked to %steward, serialized to a JSON
  * string (the agent stores payloads as cords — embedding $json in Hoon mark
  * sample types breaks ford tube builds). The lens snapshot is passed
  * through with per-field truncation (tool args/results, previews) and a
@@ -326,7 +326,7 @@ export function createContextLensShipSync(opts: {
 }
 
 /**
- * Re-poke terminal runs whose run-final never reached the ship — e.g. runs
+ * Re-poke terminal runs whose final %entry never reached the ship — e.g. runs
  * finalized during a SIGTERM shutdown, where the store write (sync fs)
  * landed but the poke died with the process. Without this the ship copy
  * stays frozen at the last in-flight status forever. Idempotent ship-side

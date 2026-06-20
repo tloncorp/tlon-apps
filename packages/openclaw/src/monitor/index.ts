@@ -12,7 +12,7 @@ import {
 } from '../context-lens-events.js';
 import {
   isContextLensEffectivelyEnabled,
-  resolveLensOwners,
+  resolveLensOwner,
 } from '../context-lens-ship-sync.js';
 import { getContextLensStore } from '../context-lens-store.js';
 import {
@@ -3795,10 +3795,13 @@ export async function monitorTlonProvider(
           if (!lensId || !requester) {
             return;
           }
-          const owners = resolveLensOwners(cfg, opts.accountId ?? undefined);
-          if (!owners.includes(requester)) {
+          // Align with the singular owner the agent actually stores; any
+          // "extra" configured owners are ignored at sync-configure time too,
+          // so accepting their retries here would be inconsistent.
+          const owner = resolveLensOwner(cfg, opts.accountId ?? undefined);
+          if (!owner || owner !== requester) {
             runtime.log?.(
-              `[tlon] Context lens retry refused for ${lensId}: requester ${requester} is not an owner`
+              `[tlon] Context lens retry refused for ${lensId}: requester ${requester} is not the configured owner`
             );
             return;
           }
