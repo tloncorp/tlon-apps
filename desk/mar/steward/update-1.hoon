@@ -41,6 +41,10 @@
         :~  ['id' s+id.upd]
             ['requester' s+(scot %p requester.upd)]
         ==
+      ::
+          %recent
+        %-  frond  :-  'recent'
+        a+(turn entries.upd entry)
       ==
     ++  entry
       |=  e=entry:lens:v1:s

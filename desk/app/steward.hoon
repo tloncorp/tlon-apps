@@ -315,17 +315,17 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
         [%v1 %recent ~]
-      ``noun+!>((le-recent 50))
+      ``steward-update-1+!>(`update:v1:s`[%lens %recent (le-recent 50)])
     ::
         [%v1 %recent @ ~]
       =/  parsed  (slaw %ud i.t.t.path)
       ?~  parsed  [~ ~]
-      ``noun+!>((le-recent u.parsed))
+      ``steward-update-1+!>(`update:v1:s`[%lens %recent (le-recent u.parsed)])
     ::
         [%v1 %since @ ~]
       =/  parsed  (slaw %da i.t.t.path)
       ?~  parsed  [~ ~]
-      ``noun+!>((le-since u.parsed))
+      ``steward-update-1+!>(`update:v1:s`[%lens %recent (le-since u.parsed)])
     ::
         [%v1 %run @ @ ~]
       =/  parsed-bot  (slaw %p i.t.t.path)
@@ -403,25 +403,25 @@
     =.  cor  (le-prune i.bots)
     $(bots t.bots)
   ::
-  ::  newest .count runs across all bots, as %entry updates.
+  ::  newest .count entries across all bots.
   ::
   ++  le-recent
     |=  count=@ud
-    ^-  (list update:lens:s)
+    ^-  (list entry:lens:s)
     =/  sorted
       %+  sort  ~(tap by runs.lens.state)
       |=  [a=[* =run:lens:s] b=[* =run:lens:s]]
       (gth received.run.a received.run.b)
     %+  turn  (scag count sorted)
     |=  [[bot=ship =id:lens:s] =run:lens:s]
-    `update:lens:s`[%entry bot id run]
+    `entry:lens:s`[bot id run]
   ::
   ::  every entry with .received >= cutoff, newest first. paginate
   ::  history by passing the oldest .received from the last page.
   ::
   ++  le-since
     |=  cutoff=@da
-    ^-  (list update:lens:s)
+    ^-  (list entry:lens:s)
     =/  fresh
       %+  skim  ~(tap by runs.lens.state)
       |=  [* =run:lens:s]
@@ -432,7 +432,7 @@
       (gth received.run.a received.run.b)
     %+  turn  sorted
     |=  [[bot=ship =id:lens:s] =run:lens:s]
-    `update:lens:s`[%entry bot id run]
+    `entry:lens:s`[bot id run]
   --
 ::
 ++  ga-core

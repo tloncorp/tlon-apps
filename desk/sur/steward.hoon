@@ -83,10 +83,15 @@
   ::                      the local gateway should re-dispatch. Only emitted
   ::                      on the bot ship (the owner-side relay forwards the
   ::                      poke to the bot, which then emits this fact).
+  ::    %recent: a batch of entries, returned by the /recent and /since
+  ::             scries. The scry path returns this in a steward-update-1
+  ::             cage so HTTP clients can scry as .json; the fact/sub
+  ::             channel never carries this variant.
   ::
   +$  update
     $%  [%entry =entry]
         [%retry-requested =id requester=ship]
+        [%recent entries=(list entry)]
     ==
   --
 ::  gateway module types

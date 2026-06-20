@@ -135,10 +135,12 @@ The gateway action wraps the harness liveness protocol (see the gateway module a
 
 ## scry surface
 
-- `/x/v1/lens/recent` → `%noun` `(list update:lens)` — newest 50 runs across all bots as `%entry` updates, for first-page backfill.
-- `/x/v1/lens/recent/[count]` → `%noun` `(list update:lens)` — newest `count` runs across all bots; paginate by varying count.
-- `/x/v1/lens/since/[da]` → `%noun` `(list update:lens)` — every run with `received >= da`, newest first; paginate back through history by passing the oldest `received` from the previous page.
-- `/x/v1/lens/run/[ship]/[id]` → `%steward-update-1` `[%lens %entry entry]`, or empty (`[~ ~]`) when absent.
+All lens scries return a `%steward-update-1` cage so HTTP clients can scry as `.json` (the mark's grow handles the conversion). List responses are wrapped in the `%recent` update variant.
+
+- `/x/v1/lens/recent` → `[%lens %recent entries]` — newest 50 entries across all bots, for first-page backfill.
+- `/x/v1/lens/recent/[count]` → `[%lens %recent entries]` — newest `count` entries.
+- `/x/v1/lens/since/[da]` → `[%lens %recent entries]` — every entry with `received >= da`, newest first; paginate back through history by passing the oldest `received` from the previous page.
+- `/x/v1/lens/run/[ship]/[id]` → `[%lens %entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
 
@@ -147,6 +149,7 @@ The gateway action wraps the harness liveness protocol (see the gateway module a
 ```json
 { "lens": { "entry": { "bot": "~zod", "id": "...", "complete": true, "received": "~2026.6.10..12.00.00..0000", "payload": "<serialized JSON>" } } }
 { "lens": { "retry-requested": { "id": "...", "requester": "~sampel-palnet" } } }
+{ "lens": { "recent": [{ "bot": "~zod", "id": "...", "complete": true, "received": "~...", "payload": "<serialized JSON>" }, ...] } }
 ```
 
 ## lifecycle and invariants

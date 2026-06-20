@@ -344,11 +344,12 @@
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'w3' payload &]))
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/recent/2)
-  =+  !<(entries=(list update:lens:s) q.res)
-  ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(2))
-  ?>  ?=(^ entries)
-  ?>  ?=(%entry -.i.entries)
-  (ex-equal !>(id.entry.i.entries) !>('w3'))
+  =+  !<(=update:v1:s q.res)
+  ?>  ?=(%lens -.update)
+  ?>  ?=(%recent -.update.update)
+  ;<  ~  bind:m  (ex-equal !>((lent entries.update.update)) !>(2))
+  ?>  ?=(^ entries.update.update)
+  (ex-equal !>(id.i.entries.update.update) !>('w3'))
 ::
 ++  test-since-returns-entries-from-cutoff
   %-  eval-mare
@@ -363,11 +364,12 @@
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 's2' payload &]))
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/since/(scot %da ~2024.1.3))
-  =+  !<(entries=(list update:lens:s) q.res)
-  ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(1))
-  ?>  ?=(^ entries)
-  ?>  ?=(%entry -.i.entries)
-  (ex-equal !>(id.entry.i.entries) !>('s2'))
+  =+  !<(=update:v1:s q.res)
+  ?>  ?=(%lens -.update)
+  ?>  ?=(%recent -.update.update)
+  ;<  ~  bind:m  (ex-equal !>((lent entries.update.update)) !>(1))
+  ?>  ?=(^ entries.update.update)
+  (ex-equal !>(id.i.entries.update.update) !>('s2'))
 ::
 ::  cap=0 means "store nothing"; the new entry is inserted then pruned
 ::  immediately. permitted as a config value (an admin tool to disable
