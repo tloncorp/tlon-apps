@@ -165,7 +165,7 @@ export function isContextLensEventActive(event: ContextLensEvent) {
 }
 
 /**
- * Extract the lens snapshot from a %context-lens run record payload (the gateway
+ * Extract the lens snapshot from a %steward lens entry payload payload (the gateway
  * pokes `{ schemaVersion: 1, lens }`; tool summaries may be truncated).
  */
 export function lensFromRunPayload(payload: unknown): ContextLens | null {

@@ -1267,7 +1267,7 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
   }),
 }));
 
-// Per-run bot introspection records synced from the %context-lens agent. Payload is
+// Per-run bot introspection records synced from the %steward agent (lens module). Payload is
 // the gateway's opaque run record (inner schemaVersion); see docs/context-lens.md.
 export const contextLensRuns = sqliteTable(
   'context_lens_runs',

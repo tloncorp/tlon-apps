@@ -142,7 +142,7 @@ export function ContextLensPanel({
   } | null>(null);
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
   const liveRuns = useContextLensRuns(events);
-  // synced %context-lens records back the list when the gateway stream is absent
+  // synced %steward lens entrys back the list when the gateway stream is absent
   // (mobile, remote) and keep history across gateway restarts
   const recentRunsQuery = store.useRecentContextLensRuns();
   const runs = useMemo(() => {
@@ -248,7 +248,7 @@ export function ContextLensPanel({
     setLookupStatus('loading');
     const controller = new AbortController();
     const resolve = async (): Promise<ContextLens | null> => {
-      // synced %context-lens record first (works on every platform), then the
+      // synced %steward lens entry first (works on every platform), then the
       // gateway's full run record as a live-gateway enhancement
       if (botShip) {
         const run = await store

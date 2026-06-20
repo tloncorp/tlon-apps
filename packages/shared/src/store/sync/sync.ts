@@ -950,7 +950,7 @@ export const syncLensRuns = async (ctx?: SyncCtx) => {
     try {
       return await api.getRecentLensRuns();
     } catch (e) {
-      // older ships don't have the %context-lens agent
+      // older ships don't have the %steward agent (lens module)
       if (e instanceof api.BadResponseError && e.status === 404) {
         return null;
       }
@@ -2342,7 +2342,7 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToStorageUpdates(createHandler(handleStorageUpdate)),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
       api.subscribeToSettings(createHandler(handleSettingsUpdate)),
-      // returns null (and skips backfill) when the ship lacks the %context-lens agent
+      // returns null (and skips backfill) when the ship lacks the %steward agent (lens module)
       api.subscribeToLensUpdates(handleLensUpdate).then((subscribed) => {
         if (subscribed === null) {
           return;

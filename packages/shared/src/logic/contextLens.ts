@@ -6,7 +6,7 @@ export interface LensConversation {
 }
 
 /**
- * Pull the conversation coordinates out of a %context-lens run payload
+ * Pull the conversation coordinates out of a %steward lens entry payload
  * (`{ schemaVersion: 1, lens }`) without depending on the full lens type.
  */
 export function extractLensConversation(

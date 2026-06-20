@@ -46,7 +46,7 @@ export function getContextLensStamp(post: db.Post): ContextLensStamp | null {
   return {
     lensId: entry.lensId,
     // older blobs predate botShip; the bot authored the post, so its id
-    // is the right fallback for the %context-lens lookup key
+    // is the right fallback for the %steward [bot id] lookup key
     botShip: entry.botShip ?? post.authorId ?? null,
   };
 }
