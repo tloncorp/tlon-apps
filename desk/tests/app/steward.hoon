@@ -537,6 +537,28 @@
   =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(0))
 ::
+::  payloads larger than the agent cap (512KB) are dropped without store
+::  mutation or fact emission — a misbehaving gateway can't force
+::  unbounded growth via a single poke.
+::
+++  test-oversized-entry-payload-dropped
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~dev)
+  ::  build a payload one byte over the cap.
+  ::
+  =/  big-payload=@t
+    (crip (reap (add 524.288 1) 'a'))
+  ;<  caz=(list card)  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'big' big-payload &]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-1 !<(vase q.res))
+  (ex-equal !>(~(wyt by runs.lens.st)) !>(0))
+::
 ::  retry against an existing finalized entry must not touch the stored
 ::  record (no overwrite, no demotion, no entry-fact re-emission).
 ::

@@ -213,6 +213,13 @@
   ::  state-0 migration). No time-based expiry — lens runs are durable
   ::  memory of agent activity, not transient logs.
   ::
+  ::  payloads are opaque to %steward, but a sponsored moon could send
+  ::  arbitrarily large cords. cap incoming bytes so a misbehaving (or
+  ::  compromised) gateway can't blow up loom usage with a single poke.
+  ::  the gateway-side truncates to ~50KB; this is a hard ceiling.
+  ::
+  ++  max-payload-bytes  ^-  @ud  524.288
+  ::
   ++  le-handle-configure
     |=  cap=@ud
     ^+  cor
@@ -267,6 +274,12 @@
   ++  le-handle-entry
     |=  [=id:lens:s =payload:lens:s final=?]
     ^+  cor
+    ::  drop oversized payloads to keep loom usage bounded; a sponsored
+    ::  moon misbehaving (or compromised) can't force unbounded growth.
+    ::
+    ?:  (gth (met 3 payload) max-payload-bytes)
+      %-  (slog leaf+"steward: lens payload oversized, dropping" ~)
+      cor
     ?:  =(src.bowl our.bowl)
       (le-fan-out id payload final)
     (le-store src.bowl id payload final)
