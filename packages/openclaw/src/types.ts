@@ -27,7 +27,7 @@ export type TlonContextLensConfig = {
   visibilityDefault: TlonContextLensVisibility;
   authToken: string | null;
   allowedOrigins: string[];
-  /** Owner ships receiving run records via %context-lens ship sync; empty falls back to ownerShip. */
+  /** Owner ships receiving run records via %steward ship sync; empty falls back to ownerShip. %steward stores a singular owner, so only the first entry is used (others are logged and ignored). */
   owners: string[];
   store: TlonContextLensStoreConfig;
 };
@@ -326,7 +326,7 @@ export function resolveTlonAccount(
 /**
  * Context lens is effectively on only when enabled AND at least one reader
  * path exists: an auth token (gateway HTTP/SSE routes) or owner ships
- * (%context-lens ship sync). Without either, recording and blob stamping would
+ * (%steward ship sync). Without either, recording and blob stamping would
  * produce data nothing can read.
  */
 export function isContextLensEnabled(

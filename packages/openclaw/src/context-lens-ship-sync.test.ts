@@ -241,6 +241,17 @@ describe('createContextLensShipSync', () => {
       )
     ).toBe(true);
     expect(pokes[0].json).toEqual({ configure: { owner: '~bus' } });
+    // partial entry assertions: same lensId, non-empty payload, final=false.
+    const partialPoke = pokes[1].json as {
+      lens: { entry: { id: string; payload: unknown; final: boolean } };
+    };
+    expect(partialPoke.lens.entry.id).toBe(lens.lensId);
+    expect(typeof partialPoke.lens.entry.payload).toBe('string');
+    expect((partialPoke.lens.entry.payload as string).length).toBeGreaterThan(
+      0
+    );
+    expect(partialPoke.lens.entry.final).toBe(false);
+    // final entry assertions: same lensId, final=true.
     const finalPoke = pokes[3].json as {
       lens: { entry: { id: string; payload: unknown; final: boolean } };
     };
