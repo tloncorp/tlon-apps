@@ -14,7 +14,9 @@ import {
 } from '@tloncorp/ui';
 import { PermissionStatus } from 'expo-modules-core';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
+// Platform-split wrapper: native re-exports expo-media-library/legacy; web is a
+// no-op stub (the API is only ever called on native — see the isWeb guard below).
+import * as MediaLibrary from './mediaLibrary';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
