@@ -64,6 +64,9 @@ patchedDependencies:
   expo-background-task@1.0.10:
     hash: 4yafclgkl4ngiac5x4cqdtcfvy
     path: patches/expo-background-task@1.0.10.patch
+  expo-image-manipulator@14.0.8:
+    hash: elmdj7gokbajxnedmrgeiwyaym
+    path: patches/expo-image-manipulator@14.0.8.patch
   expo-image-picker@17.0.10:
     hash: czhrjgdiv3v6vqlm6qvuorhdtu
     path: patches/expo-image-picker@17.0.10.patch
@@ -145,6 +148,8 @@ importers:
       vitest:
         specifier: ^1.2.2
         version: 1.5.0(@types/node@22.19.20)(jsdom@23.2.0)(lightningcss@1.31.1)(terser@5.46.0)
+
+  apps/onboarding-sandbox: {}
 
   apps/tlon-desktop:
     dependencies:
@@ -349,7 +354,7 @@ importers:
         version: 3.0.11(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native-web@0.19.12(encoding@0.1.13)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-image-manipulator:
         specifier: ~14.0.8
-        version: 14.0.8(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
+        version: 14.0.8(patch_hash=elmdj7gokbajxnedmrgeiwyaym)(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
       expo-image-picker:
         specifier: ~17.0.10
         version: 17.0.10(patch_hash=czhrjgdiv3v6vqlm6qvuorhdtu)(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))
@@ -1198,6 +1203,8 @@ importers:
         specifier: ^1.0.4
         version: 1.5.0(@types/node@22.19.20)(jsdom@23.2.0)(lightningcss@1.31.1)(terser@5.46.0)
 
+  packages/hermes-tlon-adapter: {}
+
   packages/openclaw:
     dependencies:
       '@tloncorp/api':
@@ -1234,8 +1241,6 @@ importers:
       vitest:
         specifier: ^4.0.0
         version: 4.1.8(@opentelemetry/api@1.9.0)(@types/node@25.9.3)(jsdom@23.2.0)(msw@0.44.2(encoding@0.1.13)(typescript@5.9.3))(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@1.21.0)(terser@5.46.0)(yaml@2.8.2))
-
-  packages/hermes-tlon-adapter: {}
 
   packages/scripts:
     dependencies:
@@ -26596,7 +26601,7 @@ snapshots:
     dependencies:
       expo: 54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
 
-  expo-image-manipulator@14.0.8(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)):
+  expo-image-manipulator@14.0.8(patch_hash=elmdj7gokbajxnedmrgeiwyaym)(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)):
     dependencies:
       expo: 54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-image-loader: 6.0.0(expo@54.0.33(@babel/core@7.29.0)(graphql@16.6.0)(react-native-webview@13.15.0(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(patch_hash=uszx554kwcqz53utcvfh7ypuii)(@babel/core@7.29.0)(@react-native-community/cli@13.6.9(encoding@0.1.13))(@react-native/metro-config@0.81.5(@babel/core@7.29.0))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))

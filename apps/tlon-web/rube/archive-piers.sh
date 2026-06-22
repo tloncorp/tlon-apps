@@ -8,6 +8,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
 DIST_DIR="$RUBE_DIR/dist"
+# Binary used for sync/pack/meld/roll/chop. Normally downloaded by rube during
+# prepare_ships; with --skip-prepare you must supply one that runs on THIS host
+# and matches the piers' kelvin. Override with URBIT_BINARY=/path/to/urbit.
+URBIT_BINARY="${URBIT_BINARY:-$RUBE_DIR/dist/urbit_extracted/urbit}"
 MANIFEST_FILE="$PROJECT_ROOT/apps/tlon-web/e2e/shipManifest.json"
 DOCKERFILE="$PROJECT_ROOT/apps/tlon-web/rube/Dockerfile"
 
@@ -23,6 +27,7 @@ SKIP_CLEANUP=${SKIP_CLEANUP:-false}
 SKIP_MELD=${SKIP_MELD:-false}
 VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
 FRESH_BOOT=${FRESH_BOOT:-false}
+SKIP_PREPARE=${SKIP_PREPARE:-false}
 
 # Parse command line arguments
 for arg in "$@"; do
@@ -35,11 +40,16 @@ for arg in "$@"; do
             VERIFY_AFTER_UPLOAD=true
             shift
             ;;
+        --skip-prepare)
+            SKIP_PREPARE=true
+            shift
+            ;;
         --help)
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --fresh               Boot fresh fakeships instead of using existing archives"
+            echo "  --skip-prepare        Skip ship prep/re-extraction; archive piers already in dist/"
             echo "  --verify              Run verify-archives.sh after successful upload"
             echo "  --help                Show this help message"
             echo ""
@@ -48,6 +58,8 @@ for arg in "$@"; do
             echo "  SKIP_UPLOAD=true      Create archives but skip GCS upload"
             echo "  SKIP_CLEANUP=true     Keep local archives after upload"
             echo "  SKIP_MELD=true        Skip meld operation (for low-memory systems)"
+            echo "  SKIP_PREPARE=true     Skip ship prep/re-extraction (same as --skip-prepare)"
+            echo "  URBIT_BINARY=PATH     Urbit binary to use for sync/roll/chop (must run on this host)"
             echo ""
             exit 0
             ;;
@@ -85,6 +97,22 @@ print_error() {
 
 print_info() {
     echo -e "${BLUE}ℹ${NC} $1"
+}
+
+# Resolve a ship's pier dir (the one containing .urb), supporting both rube's
+# double-nested extract ($DIST_DIR/<ship>/<ship>) and a tarball extracted
+# directly ($DIST_DIR/<ship>). Echoes the path; defaults to the double-nested
+# path when neither exists (for error messages).
+resolve_pier() {
+    local ship=$1
+    local c
+    for c in "$DIST_DIR/$ship/$ship" "$DIST_DIR/$ship"; do
+        if [ -d "$c/.urb" ]; then
+            echo "$c"
+            return 0
+        fi
+    done
+    echo "$DIST_DIR/$ship/$ship"
 }
 
 # Function to extract current version from manifest
@@ -407,7 +435,7 @@ prepare_ships() {
 sync_ship_snapshots() {
     print_info "Re-booting ships briefly to sync snapshots..."
 
-    local urbit_binary="$RUBE_DIR/dist/urbit_extracted/urbit"
+    local urbit_binary="$URBIT_BINARY"
 
     if [ ! -f "$urbit_binary" ]; then
         print_error "Urbit binary not found at $urbit_binary"
@@ -417,7 +445,7 @@ sync_ship_snapshots() {
     chmod +x "$urbit_binary"
 
     for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
-        local pier_path="$DIST_DIR/$ship/$ship"
+        local pier_path="$(resolve_pier "$ship")"
 
         if [ ! -d "$pier_path" ]; then
             print_warning "Pier not found: $pier_path, skipping sync"
@@ -456,7 +484,7 @@ roll_and_chop_piers() {
     fi
 
     # Find urbit binary
-    local urbit_binary="$RUBE_DIR/dist/urbit_extracted/urbit"
+    local urbit_binary="$URBIT_BINARY"
 
     if [ ! -f "$urbit_binary" ]; then
         print_error "Urbit binary not found at $urbit_binary"
@@ -468,7 +496,7 @@ roll_and_chop_piers() {
     chmod +x "$urbit_binary"
 
     for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
-        local pier_path="$DIST_DIR/$ship/$ship"
+        local pier_path="$(resolve_pier "$ship")"
 
         # Skip if pier doesn't exist
         if [ ! -d "$pier_path" ]; then
@@ -699,7 +727,7 @@ validate_archive_locally() {
 # Clean pier before archiving
 clean_pier() {
     local ship=$1
-    local pier_path="$DIST_DIR/$ship/$ship"
+    local pier_path="$(resolve_pier "$ship")"
 
     print_info "Cleaning $ship pier..." >&2
 
@@ -729,9 +757,16 @@ archive_pier() {
 
     print_info "Archiving $ship as $archive_name..." >&2
 
+    # Resolve the pier dir (double- or single-nested) and its parent. We tar the
+    # pier as "<ship>/" from its parent so the archive root is always <ship>/,
+    # matching what rube expects on extraction, regardless of local layout.
+    local pier_path="$(resolve_pier "$ship")"
+    local pier_parent="$(dirname "$pier_path")"
+    local pier_name="$(basename "$pier_path")"
+
     # Check the pier directory exists
-    if [ ! -d "$DIST_DIR/$ship" ]; then
-        print_error "Pier directory not found: $DIST_DIR/$ship" >&2
+    if [ ! -d "$pier_path/.urb" ]; then
+        print_error "Pier not found or invalid: $pier_path" >&2
         echo ""
         return 1
     fi
@@ -762,22 +797,23 @@ core.*
 EOF
 
     # Create the archive (exclude problematic files using exclude file)
-    # Use subshell to avoid affecting parent directory
+    # Use subshell to avoid affecting parent directory. archive_path is absolute,
+    # so it is correct regardless of the cwd we tar from.
     (
-        cd "$DIST_DIR/$ship"
+        cd "$pier_parent"
 
-        # Archive just the inner ship directory (e.g., zod/zod becomes just zod in archive)
-        # Try different tar options based on what's available
+        # Archive just the pier dir as "<ship>/" so the archive root matches what
+        # rube expects. Try different tar options based on what's available.
         # Redirect stderr to suppress extended attributes warnings
         if tar --version 2>/dev/null | grep -q "GNU tar"; then
             # GNU tar
-            tar --exclude-from="$exclude_file" --format=gnu -czf "../$archive_name" "$ship/" 2>/dev/null
+            tar --exclude-from="$exclude_file" --format=gnu -czf "$archive_path" "$pier_name/" 2>/dev/null
         elif command -v gtar &> /dev/null; then
             # GNU tar as gtar (common on macOS with homebrew)
-            gtar --exclude-from="$exclude_file" --format=gnu -czf "../$archive_name" "$ship/" 2>/dev/null
+            gtar --exclude-from="$exclude_file" --format=gnu -czf "$archive_path" "$pier_name/" 2>/dev/null
         else
             # BSD tar (macOS default) - use -X flag for exclude file
-            tar -X "$exclude_file" -czf "../$archive_name" "$ship/" 2>/dev/null
+            tar -X "$exclude_file" -czf "$archive_path" "$pier_name/" 2>/dev/null
         fi
     )
 
@@ -905,8 +941,35 @@ main() {
         print_info "Created manifest backup: $manifest_backup"
     fi
 
-    # Prepare ships with latest desk code
-    prepare_ships
+    # Prepare ships with latest desk code (unless archiving pre-existing dist piers)
+    if [ "$SKIP_PREPARE" = "true" ]; then
+        print_warning "SKIP_PREPARE is set - skipping ship preparation/re-extraction"
+        print_info "Archiving piers already present in $DIST_DIR (your work will NOT be re-extracted)"
+
+        # The binary won't be auto-downloaded (that happens during prepare_ships),
+        # and sync/roll/chop will exec it locally, so it must exist and run here.
+        if [ ! -f "$URBIT_BINARY" ]; then
+            print_error "Urbit binary not found at $URBIT_BINARY"
+            print_info "Supply a binary that runs on THIS host and matches the piers' kelvin,"
+            print_info "or set URBIT_BINARY=/path/to/urbit"
+            exit 1
+        fi
+
+        # Validate each pier to be archived exists and looks like a real pier.
+        # resolve_pier accepts either $DIST_DIR/<ship>/<ship> (rube extract) or
+        # $DIST_DIR/<ship> (tarball extracted directly).
+        for ship in "${SHIPS_TO_ARCHIVE[@]}"; do
+            pier="$(resolve_pier "$ship")"
+            if [ ! -d "$pier/.urb" ]; then
+                print_error "Pier not found or invalid: $pier"
+                print_info "Place prepared piers at $DIST_DIR/<ship>/<ship> or $DIST_DIR/<ship> before using --skip-prepare"
+                exit 1
+            fi
+        done
+        print_status "Found prepared piers for: ${SHIPS_TO_ARCHIVE[*]}"
+    else
+        prepare_ships
+    fi
 
     # Re-boot ships briefly to sync snapshots
     sync_ship_snapshots

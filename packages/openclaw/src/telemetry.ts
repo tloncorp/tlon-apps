@@ -1,7 +1,7 @@
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
-import { sharedMap } from './shared-state.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
 import type { TlonTelemetryConfig } from './types.js';
 
 type ToolCallRecord = {
@@ -116,14 +116,36 @@ export interface TlonReplyTelemetrySession {
   capture(result: TlonReplyTelemetryResult): Promise<void>;
 }
 
+/**
+ * One outbound send seen by OpenClaw's `message_sending` hook, tagged with which
+ * channel it resolved to. This fires for both the primary streamed reply (which
+ * resolves to `tlon`, so `routedToTlon: true`) and route-dependent sends (the
+ * shared `message` tool, subagents — which can resolve elsewhere). So
+ * `routedToTlon: false` is the meaningful signal: a send that went somewhere
+ * users can't see (e.g. webchat) — the bug this tracks. The `true` events
+ * include healthy primary replies, so prefer the off-Tlon count over a raw rate.
+ */
+export type TlonOutboundRouteEvent = {
+  resolvedChannel: string;
+  routedToTlon: boolean;
+  targetKind: 'dm' | 'group' | 'unknown';
+};
+
 export interface TlonTelemetryClient {
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
   captureHeartbeatReengagement(event: TlonHeartbeatReengagementEvent): void;
+  captureOutboundRoute(
+    event: TlonOutboundRouteEvent & {
+      ownerShip?: string | null;
+      botShip: string;
+    }
+  ): void;
   close(): Promise<void>;
 }
 
 const TLON_TELEMETRY_EVENT_NAME = 'TlonBot Reply Handled';
+const TLON_OUTBOUND_ROUTED_EVENT = 'TlonBot Outbound Routed';
 const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
 const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
@@ -321,6 +343,31 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureOutboundRoute(
+    event: TlonOutboundRouteEvent & {
+      ownerShip?: string | null;
+      botShip: string;
+    }
+  ): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_OUTBOUND_ROUTED_EVENT,
+      properties: {
+        logSource: TLON_TELEMETRY_LOG_SOURCE,
+        botShip: event.botShip,
+        ownerShip: event.ownerShip,
+        resolvedChannel: event.resolvedChannel,
+        routedToTlon: event.routedToTlon,
+        targetKind: event.targetKind,
+      },
+    });
+  }
+
   private ensureIdentified(ownerShip: string, botShip: string): boolean {
     if (!ownerShip) {
       if (!this.missingOwnerWarningLogged) {
@@ -433,6 +480,30 @@ export function createTlonTelemetry(params: {
     host: params.config.host,
     runtime: params.runtime,
   });
+}
+
+/**
+ * Bridge so the global `message_sending` hook (registered in the extension
+ * entry) can report route resolutions to the per-account telemetry client
+ * (created in the monitor's runtime context). The two run in separate plugin
+ * module contexts, so this must go through the shared-state slot, not a plain
+ * module singleton. The monitor publishes a reporter bound to its telemetry
+ * client + owner/bot ships; the hook calls `reportOutboundRoute`.
+ */
+export type OutboundRouteReporter = (event: TlonOutboundRouteEvent) => void;
+
+const outboundRouteReporterSlot = sharedSlot<OutboundRouteReporter>(
+  'telemetry.outboundRouteReporter'
+);
+
+export function setOutboundRouteReporter(
+  reporter: OutboundRouteReporter | null
+): void {
+  outboundRouteReporterSlot.set(reporter);
+}
+
+export function reportOutboundRoute(event: TlonOutboundRouteEvent): void {
+  outboundRouteReporterSlot.get()?.(event);
 }
 
 export const _testing = {
