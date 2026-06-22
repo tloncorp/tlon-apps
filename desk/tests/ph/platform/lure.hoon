@@ -284,6 +284,7 @@
   ;<  =json  bind:m  (wait-for-app-fact-value json /~zod/reel/v1/id-link [~zod %reel])
   ?>  ?=(%s -.json)
   =/  token=token:r  (rsh [3 (met 3 vic)] p.json)
+  ;<  ~  bind:m  (sleep ~s3)
   ;<  =bowl:strand  bind:m  get-bowl
   =/  aqua-pax
     /gx/~loshut-lonreg/bait/(scot %da now.bowl)/[token]/metadata/noun
