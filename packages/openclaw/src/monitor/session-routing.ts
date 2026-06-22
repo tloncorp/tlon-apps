@@ -9,8 +9,8 @@ import { canonicalizeNest, normalizeShip } from '../targets.js';
 
 /**
  * Durable last-route update for a Tlon inbound turn. Mirrors the SDK's
- * `InboundLastRouteUpdate` shape; the Phase 2 call site passes this straight to
- * `core.channel.session.recordInboundSession`, which type-checks it against the
+ * `InboundLastRouteUpdate` shape; the monitor's record call site passes this
+ * straight to `core.channel.session.recordInboundSession`, which type-checks it against the
  * real SDK type. We keep a local alias here so the pure helper has no dependency
  * on internal SDK type paths.
  *
@@ -73,7 +73,7 @@ export type TlonInboundRouteRecord = {
  * route. Pure: no I/O, no SDK store access. The caller passes the result to
  * `recordInboundSession` (see `recordTlonInboundRoute`).
  *
- * Routing rules (see the routing-gap plan, Phase 1):
+ * Routing rules:
  * - DM: persist `tlon:<senderShip>`. When the last-route session is the agent
  *   main session and a single owner is pinned, attach `mainDmOwnerPin` so a
  *   non-owner DM cannot silently overwrite the owner/main route.
@@ -435,7 +435,7 @@ export function tlonDeliveryContext(
   return { channel: 'tlon', to, ...(accountId ? { accountId } : {}) };
 }
 
-/** Phase 0 diagnostic gate: enabled via `TLON_OPENCLAW_ROUTE_DEBUG=1`. */
+/** Route-debug gate: enabled via `TLON_OPENCLAW_ROUTE_DEBUG=1`. */
 export function isRouteDebugEnabled(): boolean {
   return process.env.TLON_OPENCLAW_ROUTE_DEBUG === '1';
 }

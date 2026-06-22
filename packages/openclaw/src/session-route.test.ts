@@ -71,7 +71,7 @@ describe('resolveTlonOutboundSessionRoute', () => {
   });
 });
 
-describe('tlonPlugin messaging surface (Phase 4 wiring)', () => {
+describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
   const messaging = tlonPlugin.messaging;
 
   it('declares tlon as an explicit target prefix', () => {

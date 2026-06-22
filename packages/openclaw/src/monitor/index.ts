@@ -471,11 +471,11 @@ export async function monitorTlonProvider(
   });
 
   // Outer try/finally wraps everything from slot publication onward.
-  // The reviewer's P2: a synchronous throw between slot publication and
-  // the inner try at ~line 2719 (constructor, queue setup, bridge
-  // setup, channel discovery, future edits in this large pre-try
-  // region) would leave the shared slot orphaned. This outer finally
-  // catches all of those and runs cleanup unconditionally.
+  // A synchronous throw between slot publication and the inner try
+  // (constructor, queue setup, bridge setup, channel discovery, future
+  // edits in this large pre-try region) would leave the shared slot
+  // orphaned. This outer finally catches all of those and runs cleanup
+  // unconditionally.
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
 
