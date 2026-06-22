@@ -176,6 +176,182 @@ class FakeCLI:
         )
 
 
+class HermesToolPermissionSnapshotTests(unittest.TestCase):
+    def _with_fake_hermes_config(
+        self,
+        config,
+        enabled_toolsets,
+        *,
+        registry_toolsets=None,
+        registry_aliases=None,
+    ):
+        parent = types.ModuleType("hermes_cli")
+        parent.__path__ = []
+        config_mod = types.ModuleType("hermes_cli.config")
+        config_mod.load_config = lambda: config
+        tools_config_mod = types.ModuleType("hermes_cli.tools_config")
+        tools_config_mod._get_platform_tools = (
+            lambda loaded, platform, include_default_mcp_servers=True: enabled_toolsets
+        )
+        toolsets_mod = types.ModuleType("toolsets")
+        tools_parent = types.ModuleType("tools")
+        tools_parent.__path__ = []
+        registry_mod = types.ModuleType("tools.registry")
+        registry_toolsets = registry_toolsets or {}
+        registry_aliases = registry_aliases or {}
+
+        def resolve_toolset(name):
+            # Match Hermes' collision behavior: the built-in/plugin "tlon"
+            # toolset wins over an MCP alias with the same raw server name.
+            if name == "tlon":
+                return [tool for tool, toolset in registry_toolsets.items() if toolset == "tlon"]
+            target = registry_aliases.get(name, name)
+            return [tool for tool, toolset in registry_toolsets.items() if toolset == target]
+
+        toolsets_mod.resolve_toolset = resolve_toolset
+
+        class FakeRegistry:
+            def get_tool_to_toolset_map(self):
+                return registry_toolsets
+
+            def get_registered_toolset_aliases(self):
+                return registry_aliases
+
+        registry_mod.registry = FakeRegistry()
+        return patch.dict(
+            sys.modules,
+            {
+                "hermes_cli": parent,
+                "hermes_cli.config": config_mod,
+                "hermes_cli.tools_config": tools_config_mod,
+                "toolsets": toolsets_mod,
+                "tools": tools_parent,
+                "tools.registry": registry_mod,
+            },
+        )
+
+    def test_cronjob_available_when_runtime_and_toolset_are_enabled(self):
+        env = {"HERMES_EXEC_ASK": "1", "TLON_HOME_CHANNEL": "chat/~pen/general"}
+        config = {
+            "platform_toolsets": {"tlon": ["web", "cronjob"]},
+            "agent": {"disabled_toolsets": ["messaging"]},
+        }
+
+        with self._with_fake_hermes_config(config, {"web", "cronjob", "tlon"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot(env)
+
+        self.assertTrue(snapshot["hermesCronjobRuntimeAllowed"])
+        self.assertTrue(snapshot["hermesCronjobToolsetEnabled"])
+        self.assertFalse(snapshot["hermesCronjobDisabledByAgentConfig"])
+        self.assertTrue(snapshot["hermesCronjobAvailableAtStartup"])
+        self.assertTrue(snapshot["hermesCronDeliveryHomeChannelConfigured"])
+        self.assertEqual(snapshot["hermesTlonToolsetsResolved"], ["cronjob", "tlon", "web"])
+
+    def test_cronjob_unavailable_when_agent_config_disables_it(self):
+        env = {"HERMES_GATEWAY_SESSION": "true"}
+        config = {
+            "platform_toolsets": {"tlon": ["cronjob"]},
+            "agent": {"disabled_toolsets": ["cronjob"]},
+        }
+
+        with self._with_fake_hermes_config(config, {"cronjob"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot(env)
+
+        self.assertTrue(snapshot["hermesCronjobRuntimeAllowed"])
+        self.assertTrue(snapshot["hermesCronjobToolsetEnabled"])
+        self.assertTrue(snapshot["hermesCronjobDisabledByAgentConfig"])
+        self.assertFalse(snapshot["hermesCronjobAvailableAtStartup"])
+
+    def test_cronjob_unavailable_without_runtime_permission_flags(self):
+        config = {"platform_toolsets": {"tlon": ["cronjob"]}}
+
+        with self._with_fake_hermes_config(config, {"cronjob"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertFalse(snapshot["hermesCronjobRuntimeAllowed"])
+        self.assertTrue(snapshot["hermesCronjobToolsetEnabled"])
+        self.assertFalse(snapshot["hermesCronjobAvailableAtStartup"])
+
+    def test_mcp_snapshot_counts_configured_registered_and_visible_tools(self):
+        config = {
+            "platform_toolsets": {"tlon": ["tlon", "tlon-mcp"]},
+            "mcp_servers": {
+                "tlon-mcp": {"enabled": True},
+                "linear": {"enabled": False},
+            },
+        }
+
+        with self._with_fake_hermes_config(
+            config,
+            {"tlon", "tlon-mcp"},
+            registry_toolsets={
+                "mcp_tlon_mcp_search": "mcp-tlon-mcp",
+                "tlon": "tlon",
+            },
+            registry_aliases={"tlon-mcp": "mcp-tlon-mcp"},
+        ):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertEqual(snapshot["hermesMcpServersConfigured"], ["linear", "tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpServersConfiguredCount"], 2)
+        self.assertEqual(snapshot["hermesMcpServersEnabled"], ["tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpServersEnabledCount"], 1)
+        self.assertEqual(snapshot["hermesMcpExplicitServerAllowlist"], ["tlon-mcp"])
+        self.assertFalse(snapshot["hermesMcpDefaultServerSetEnabled"])
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsets"], ["mcp-tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsetsCount"], 1)
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsCount"], 1)
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsEnabledForTlonCount"], 1)
+
+    def test_mcp_snapshot_detects_server_name_collision_with_tlon_toolset(self):
+        config = {
+            "platform_toolsets": {"tlon": ["tlon", "cronjob"]},
+            "mcp_servers": {"tlon": {"enabled": True}},
+        }
+
+        with self._with_fake_hermes_config(
+            config,
+            {"tlon", "cronjob"},
+            registry_toolsets={
+                "mcp_tlon_search": "mcp-tlon",
+                "tlon": "tlon",
+            },
+            registry_aliases={"tlon": "mcp-tlon"},
+        ):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertEqual(snapshot["hermesMcpServersEnabled"], ["tlon"])
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsets"], ["mcp-tlon"])
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsCount"], 1)
+        self.assertEqual(snapshot["hermesMcpRegisteredToolsEnabledForTlonCount"], 0)
+
+    def test_mcp_snapshot_identifies_default_server_set(self):
+        config = {
+            "platform_toolsets": {"tlon": ["tlon", "cronjob"]},
+            "mcp_servers": {"tlon-mcp": {"enabled": "true"}},
+        }
+
+        with self._with_fake_hermes_config(config, {"tlon", "cronjob", "tlon-mcp"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertEqual(snapshot["hermesMcpServersEnabled"], ["tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpExplicitServerAllowlist"], [])
+        self.assertTrue(snapshot["hermesMcpDefaultServerSetEnabled"])
+
+    def test_mcp_snapshot_does_not_mark_default_server_set_when_unresolved(self):
+        config = {
+            "platform_toolsets": {"tlon": ["tlon", "cronjob"]},
+            "mcp_servers": {"tlon-mcp": {"enabled": True}},
+        }
+
+        with self._with_fake_hermes_config(config, {"tlon", "cronjob"}):
+            snapshot = adapter_mod._hermes_tool_permission_snapshot({})
+
+        self.assertEqual(snapshot["hermesMcpServersEnabled"], ["tlon-mcp"])
+        self.assertEqual(snapshot["hermesMcpExplicitServerAllowlist"], [])
+        self.assertFalse(snapshot["hermesMcpDefaultServerSetEnabled"])
+
+
 class AdapterAttentionTests(unittest.TestCase):
     def make_adapter(self, extra):
         base = {
@@ -511,8 +687,33 @@ class AdapterAttentionTests(unittest.TestCase):
             {"chat_id": "chat/~pen/home", "name": "chat/~pen/home"},
         )
 
+    def test_tlon_session_blocks_all_tools_without_owner_identity(self):
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "HERMES_SESSION_USER_ID": "~pen",
+            },
+            clear=True,
+        ):
+            block = adapter_mod.block_tlon_session_tool(
+                "image_search",
+                {"query": "moon"},
+            )
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("owner identity is not configured", block["message"])
+
     def test_tlon_session_blocks_skill_management(self):
-        with patch.dict(os.environ, {"HERMES_SESSION_PLATFORM": "tlon"}, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
             block = adapter_mod.block_tlon_session_tool(
                 "skill_manage",
                 {"action": "create"},
@@ -530,6 +731,95 @@ class AdapterAttentionTests(unittest.TestCase):
             )
 
         self.assertIsNone(block)
+
+    def test_non_owner_tlon_session_blocks_owner_only_tools(self):
+        owner_only_tools = (
+            "tlon",
+            "cronjob",
+            "read",
+            "read_file",
+            "write_file",
+            "patch",
+            "search_files",
+            "mcp_tlon_mcp_search",
+        )
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "HERMES_SESSION_USER_ID": "~mug",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
+            for tool_name in owner_only_tools:
+                with self.subTest(tool_name=tool_name):
+                    block = adapter_mod.block_tlon_session_tool(tool_name, {})
+                    self.assertIsNotNone(block)
+                    self.assertEqual(block["action"], "block")
+                    self.assertIn("owner-only", block["message"])
+
+    def test_owner_tlon_session_allows_owner_only_tools(self):
+        owner_only_tools = (
+            "tlon",
+            "cronjob",
+            "read",
+            "read_file",
+            "write_file",
+            "patch",
+            "search_files",
+            "mcp_tlon_mcp_search",
+        )
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "HERMES_SESSION_USER_ID": "~pen",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
+            for tool_name in owner_only_tools:
+                with self.subTest(tool_name=tool_name):
+                    block = adapter_mod.block_tlon_session_tool(tool_name, {})
+                    self.assertIsNone(block)
+
+    def test_tlon_session_blocks_owner_only_tool_without_sender_identity(self):
+        with patch.dict(
+            os.environ,
+            {
+                "HERMES_SESSION_PLATFORM": "tlon",
+                "TLON_OWNER_SHIP": "~pen",
+            },
+            clear=True,
+        ):
+            block = adapter_mod.block_tlon_session_tool("cronjob", {})
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("no Tlon sender identity", block["message"])
+
+    def test_tlon_session_blocks_registry_mcp_tool_for_non_owner(self):
+        fake_model_tools = types.ModuleType("model_tools")
+        fake_model_tools.get_toolset_for_tool = (
+            lambda tool_name: "mcp-urbit" if tool_name == "linear_create_issue" else None
+        )
+
+        with patch.dict(sys.modules, {"model_tools": fake_model_tools}):
+            with patch.dict(
+                os.environ,
+                {
+                    "HERMES_SESSION_PLATFORM": "tlon",
+                    "HERMES_SESSION_USER_ID": "~mug",
+                    "TLON_OWNER_SHIP": "~pen",
+                },
+                clear=True,
+            ):
+                block = adapter_mod.block_tlon_session_tool("linear_create_issue", {})
+
+        self.assertIsNotNone(block)
+        self.assertEqual(block["action"], "block")
+        self.assertIn("owner-only", block["message"])
 
 
 if __name__ == "__main__":
