@@ -6,7 +6,7 @@ import {
 import { parseTlonTarget } from './targets.js';
 
 /**
- * Channel-native outbound session-route builder for Tlon (Phase 4).
+ * Channel-native outbound session-route builder for Tlon.
  *
  * Lets explicit outbound sends to a Tlon target (e.g. the shared `message` tool
  * with `to: tlon:~ship`) derive a stable Tlon session route, so they resolve
