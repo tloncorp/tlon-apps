@@ -1,4 +1,4 @@
-import { FlashList, ListRenderItem } from '@shopify/flash-list';
+import { FlashList, FlashListRef, ListRenderItem } from '@shopify/flash-list';
 import * as db from '@tloncorp/shared/db';
 import { isEqual } from 'lodash';
 import React, { useCallback, useMemo } from 'react';
@@ -29,12 +29,14 @@ export const ChatList = React.memo(function ChatListComponent({
   onLoad,
   disableScrollAnchoring,
   scrollerTestID,
+  scrollRef,
 }: {
   data: SectionedChatData;
   onPressItem?: (chat: db.Chat) => void;
   onLoad?: () => void;
   disableScrollAnchoring?: boolean;
   scrollerTestID?: string;
+  scrollRef?: React.RefObject<FlashListRef<ChatListItemData> | null>;
 }) {
   const flashListProps = useMemo(
     () => buildChatListFlashListProps({ data, disableScrollAnchoring }),
@@ -112,6 +114,7 @@ export const ChatList = React.memo(function ChatListComponent({
 
   return (
     <FlashList
+      ref={scrollRef}
       data={listItems}
       contentContainerStyle={contentContainerStyle}
       keyExtractor={getChatKey}
