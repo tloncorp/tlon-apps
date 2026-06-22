@@ -44,10 +44,8 @@
         %-  frond  :-  'status'
         %-  pairs
         :~  ['status' s+(crip (trip status.upd))]
-            ['lease-until'
-              ?~  lease-until.upd  ~
-              s+(scot %da u.lease-until.upd)
-            ]
+            :-  'lease-until'
+            ?~(lease-until.upd ~ s+(scot %da u.lease-until.upd))
         ==
       ::
           %owner-activity

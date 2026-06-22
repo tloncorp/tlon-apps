@@ -76,20 +76,11 @@
     |=  jon=^json
     ^-  action:v1:s
     =,  dejs:format
-    ?.  ?=([%o *] jon)  ~|(bad-steward-action-json+jon !!)
-    =/  kv  ~(tap by p.jon)
-    ?~  kv  ~|(empty-steward-action-json+jon !!)
-    =/  key=@t  p.i.kv
-    =/  val=^json  q.i.kv
-    ?+  key  ~|(unknown-steward-action-key+key !!)
-        'configure'
-      [%configure ((ot ~[owner+(se %p)]) val)]
-    ::
-        'lens'
-      [%lens ((ot ~[id+so payload+so final+bo]) val)]
-    ::
-        'gateway'
-      [%gateway (gateway-grab val)]
+    %.  jon
+    %-  of
+    :~  configure+(ot ~[owner+(se %p)])
+        lens+(ot ~[id+so payload+so final+bo])
+        gateway+gateway-grab
     ==
   ++  gateway-grab
     |=  jon=^json
