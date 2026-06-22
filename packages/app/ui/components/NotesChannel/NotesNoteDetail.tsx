@@ -3,6 +3,7 @@ import {
   deleteNotebookNote,
   markdownToStory,
   moveNotebookNote,
+  normalizeNotebookNoteTitle,
   saveNotebookNote,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -101,7 +102,7 @@ export function NotesNoteDetail({
     selectedNote &&
       draftBase &&
       draftsMatchSelectedNote &&
-      ((titleDraft.trim() || 'Untitled') !== draftBase.title ||
+      (normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
         bodyDraft !== draftBase.bodyMd)
   );
   const folderRows = useMemo(
@@ -235,7 +236,7 @@ export function NotesNoteDetail({
     const ctx = flushCtxRef.current;
     if (!ctx || !ctx.flag || !ctx.base || !ctx.canEdit) return;
     const dirty =
-      (ctx.title.trim() || 'Untitled') !== ctx.base.title ||
+      normalizeNotebookNoteTitle(ctx.title) !== ctx.base.title ||
       ctx.body !== ctx.base.bodyMd;
     if (!dirty) return;
     const { flag, base, title, body } = ctx;

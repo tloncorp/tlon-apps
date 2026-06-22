@@ -13,6 +13,10 @@ const logger = createDevLogger('notesActions', false);
 
 const NOTES_SYNC_STALE_TIME = 15_000;
 
+export function normalizeNotebookNoteTitle(title: string) {
+  return title.trim();
+}
+
 export function notesNotebookFlagFromChannelId(channelId: string) {
   const flag = api.parseNotesChannelId(channelId);
   return flag ? api.formatNotesFlag(flag) : null;
@@ -311,7 +315,7 @@ export async function saveNotebookNote({
   title: string;
   body: string;
 }) {
-  const nextTitle = title.trim() || 'Untitled';
+  const nextTitle = normalizeNotebookNoteTitle(title);
   const shouldRename = nextTitle !== note.title;
   const shouldUpdateBody = body !== note.bodyMd;
 

@@ -269,7 +269,7 @@ export function NotesNativeChannel({
       const note = await createNotebookNote({
         notebookFlag,
         folderId: targetFolderId,
-        title: 'Untitled',
+        title: '',
       });
       if (note) {
         openNote(note);
