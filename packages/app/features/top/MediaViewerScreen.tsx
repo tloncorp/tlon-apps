@@ -14,9 +14,9 @@ import {
 } from '@tloncorp/ui';
 import { PermissionStatus } from 'expo-modules-core';
 import * as FileSystem from 'expo-file-system/legacy';
-// Platform-split wrapper: native re-exports expo-media-library/legacy; web is a
-// no-op stub (the API is only ever called on native — see the isWeb guard below).
-import * as MediaLibrary from './mediaLibrary';
+// Platform-split: native re-exports the expo-media-library Next API; web is a
+// no-op stub (only ever called on native — see the isWeb guard below).
+import { Asset, requestPermissionsAsync } from './mediaLibrary';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
@@ -105,8 +105,7 @@ async function downloadMedia({
   }
 
   try {
-    const { status, canAskAgain } =
-      await MediaLibrary.requestPermissionsAsync();
+    const { status, canAskAgain } = await requestPermissionsAsync();
     let permissionStatus;
 
     switch (status) {
@@ -129,7 +128,7 @@ async function downloadMedia({
                 text: 'Grant Permission',
                 onPress: async () => {
                   const { status: retryStatus } =
-                    await MediaLibrary.requestPermissionsAsync();
+                    await requestPermissionsAsync();
                   if (retryStatus !== PermissionStatus.GRANTED) {
                     logger.trackError(
                       'Photo library permission denied after retry',
@@ -172,7 +171,7 @@ async function downloadMedia({
           return;
         }
       case PermissionStatus.UNDETERMINED: {
-        const result = await MediaLibrary.requestPermissionsAsync();
+        const result = await requestPermissionsAsync();
         permissionStatus = result.status;
         if (permissionStatus !== PermissionStatus.GRANTED) {
           logger.trackError(
@@ -236,7 +235,7 @@ async function downloadMedia({
         const fileUri = localUri.startsWith('file://')
           ? localUri
           : `file://${localUri}`;
-        await MediaLibrary.saveToLibraryAsync(fileUri);
+        await Asset.create(fileUri);
         Alert.alert('Success', `${Noun} saved to your photos!`);
       } catch (saveError) {
         logger.trackError(`Failed to save ${noun} to library`, {
