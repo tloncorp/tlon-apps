@@ -250,7 +250,7 @@
       %+  turn  ~(tap by our-metadata)
       |=  [token=cord =metadata:reel]
       ^-  card
-      [%pass /describe %agent [civ %bait] %poke %bait-describe !>([token metadata])]
+      [%pass /bait %agent [civ %bait] %poke %bait-describe !>([token metadata])]
     ==
   ::
       %reel-bite
@@ -338,7 +338,7 @@
     =.  open-describes  (~(put by open-describes) nonce |)
     =.  stable-id  (~(put by stable-id) id nonce)
     :_  this
-    ~[[%pass /describe %agent [civ %bait] %poke %bait-describe !>([nonce metadata])]]
+    ~[[%pass /bait %agent [civ %bait] %poke %bait-describe !>([nonce metadata])]]
   ::
       %reel-confirmation
     ?>  =(civ src.bowl)
@@ -373,7 +373,7 @@
     =/  path  (stab (cat 3 '/v1/id-link/' id))
     ?.  sync
       [%give %fact ~[path] %json !>(s+url)]~
-    :~  [%pass /update/open %agent [civ %bait] %poke bait-update+!>([token u.md])]
+    :~  [%pass /bait %agent [civ %bait] %poke bait-update+!>([token u.md])]
         [%give %fact ~[path] %json !>(s+url)]
     ==
   ::
@@ -386,7 +386,7 @@
           ~[leaf+"invite link removed"]
         ~['event'^s+'Invite Link Removed' 'lure-id'^s+token]
     :_  this(our-metadata (~(del by our-metadata) token))
-    ~[[%pass /undescribe %agent [civ %bait] %poke %bait-undescribe !>(token)]]
+    ~[[%pass /bait %agent [civ %bait] %poke %bait-undescribe !>(token)]]
   ::  old pokes for getting links, we no longer use these because all links
   ::  are unique to that ship/user and can be scried out
   ::
@@ -421,16 +421,10 @@
     %-  (fail:log %poke-ack 'profile update failed' u.p.sign)
     `this
   ::
-      [%update %open ~]
+      [%bait ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
-    %-  (fail:log %poke-ack 'open update failed' u.p.sign)
-    `this
-  ::
-      [%update %group ~]
-    ?>  ?=(%poke-ack -.sign)
-    ?~  p.sign  `this
-    %-  (fail:log %poke-ack 'group meta update failed' u.p.sign)
+    %-  (fail:log %poke-ack 'bait operation failed' u.p.sign)
     `this
   ::
       [%contacts ~]
@@ -526,7 +520,7 @@
         %+  roll  updates
         |=  [[=token:reel update=metadata:reel] caz=(list card) =_open-describes]
         =/  cad=card
-          [%pass /update/profile %agent [civ %bait] %poke bait-update+!>([token update])]
+          [%pass /bait %agent [civ %bait] %poke bait-update+!>([token update])]
         :-  [cad caz]
         ?.  (~(has by ^open-describes) token)
           open-describes
@@ -587,7 +581,7 @@
       ?.  =(p.flag our.bowl)
         `this
       :_  this
-      [%pass /update/group %agent [civ %bait] %poke bait-update-group+!>([flag update])]~
+      [%pass /bait %agent [civ %bait] %poke bait-update-group+!>([flag update])]~
     ==
   ::
       [%token-link @ name=@ ~]
