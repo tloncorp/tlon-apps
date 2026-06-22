@@ -16,6 +16,7 @@ import { Popover, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
+import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
 import * as utils from '../utils';
 import {
   Action,
@@ -24,7 +25,6 @@ import {
   createActionGroups,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
-import { useNotificationLevelOptions } from './NotificationLevelSelector';
 
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
@@ -851,33 +851,18 @@ function NotificationsSheetContent({
   onPressBack: () => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
-  const { updateVolume, group, channel } = useChatOptions();
-  const { data: currentChannelVolume } = store.useChannelVolumeLevel(
-    channel?.id ?? ''
-  );
-  const { data: currentGroupVolume } = store.useGroupVolumeLevel(
-    group?.id ?? ''
-  );
-  const currentVolumeLevel = channel?.id
-    ? currentChannelVolume
-    : currentGroupVolume;
-
-  // Use shared hook with 'loud' level for channel/group overrides
-  const notificationOptions = useNotificationLevelOptions({
-    includeLoud: true,
-    shortDescriptions: true,
-  });
+  const { currentLevel, options, updateVolume } = useChatVolumeOptions();
 
   const notificationActions = useMemo(
     () =>
       createActionGroups([
         'neutral',
-        ...notificationOptions.map(
+        ...options.map(
           ({ title, value }): Action => ({
             title,
-            accent: currentVolumeLevel === value ? 'positive' : 'neutral',
+            accent: currentLevel === value ? 'positive' : 'neutral',
             action: () => updateVolume(value),
-            endIcon: currentVolumeLevel === value ? 'Checkmark' : undefined,
+            endIcon: currentLevel === value ? 'Checkmark' : undefined,
           })
         ),
         !isWindowNarrow && {
@@ -886,13 +871,7 @@ function NotificationsSheetContent({
           startIcon: 'ChevronLeft',
         },
       ]),
-    [
-      currentVolumeLevel,
-      updateVolume,
-      isWindowNarrow,
-      onPressBack,
-      notificationOptions,
-    ]
+    [currentLevel, updateVolume, isWindowNarrow, onPressBack, options]
   );
   return (
     <ChatOptionsSheetContent
