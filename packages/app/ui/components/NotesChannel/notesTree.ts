@@ -1,5 +1,11 @@
 import { makePrettyShortDate } from '@tloncorp/api/lib/utils';
 import * as db from '@tloncorp/shared/db';
+import {
+  PlaintextPreviewConfig,
+  convertContent,
+  markdownToStory,
+  plaintextPreviewOf,
+} from '@tloncorp/shared/logic';
 
 export type NotesTreeViewStyle = db.NotesTreeViewPreference;
 export type FolderRow = { folder: db.NotesFolder; depth: number; path: string };
@@ -364,6 +370,19 @@ export function formatNoteDate(timestamp: number | null | undefined) {
   return makePrettyShortDate(new Date(unixMs));
 }
 
+export function getNoteBodyPreview(bodyMd: string) {
+  try {
+    return compactPreviewText(
+      plaintextPreviewOf(
+        convertContent(markdownToStory(bodyMd), null),
+        PlaintextPreviewConfig.inlineConfig
+      )
+    );
+  } catch {
+    return compactPreviewText(bodyMd);
+  }
+}
+
 export function collectDescendantFolderIds(
   folders: db.NotesFolder[],
   folderId: number
@@ -388,4 +407,8 @@ export function collectDescendantFolderIds(
     });
   }
   return ids;
+}
+
+function compactPreviewText(text: string) {
+  return text.replace(/\s+/g, ' ').trim().slice(0, 180);
 }

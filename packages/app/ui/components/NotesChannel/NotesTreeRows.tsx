@@ -8,26 +8,26 @@ import { TamaguiWebElement, XStack, YStack, styled } from 'tamagui';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-import { formatNoteDate } from './notesTree';
+import { formatNoteDate, getNoteBodyPreview } from './notesTree';
 import type { NotesTreeViewStyle } from './notesTree';
 
 const TREE_ROW_HEIGHT = 44;
-const TREE_LEVEL_WIDTH = 20;
+const TREE_LEVEL_WIDTH = 24;
 const TREE_ROW_LEFT_PADDING = 2;
 const TREE_ROW_GAP = 6;
 const TREE_GUIDE_LEFT = TREE_ROW_LEFT_PADDING + TREE_ROW_GAP;
-const TREE_CARET_CENTER_Y = TREE_ROW_HEIGHT / 2;
 const TREE_CHILD_GUIDE_CARET_OFFSET = 8;
 const TREE_CHILD_GUIDE_TOP =
-  TREE_CARET_CENTER_Y + TREE_CHILD_GUIDE_CARET_OFFSET;
+  TREE_ROW_HEIGHT / 2 + TREE_CHILD_GUIDE_CARET_OFFSET;
+const NOTES_VIEW_LEFT_PADDING = 0;
 
 // Row frame for the comfortable ('notes') view; the outline view uses
 // TreeRowFrame below.
 const NotesViewRow = styled(XStack, {
   alignItems: 'center',
-  gap: '$m',
-  paddingVertical: '$s',
-  paddingRight: '$m',
+  gap: '$s',
+  paddingVertical: 0,
+  paddingRight: '$s',
   backgroundColor: '$background',
   borderBottomColor: '$border',
   borderBottomWidth: 1,
@@ -38,7 +38,7 @@ const NotesViewRow = styled(XStack, {
       },
     },
     depth: (depth: number) => ({
-      paddingLeft: 8 + depth * TREE_LEVEL_WIDTH,
+      paddingLeft: NOTES_VIEW_LEFT_PADDING + depth * TREE_LEVEL_WIDTH,
     }),
   } as const,
 });
@@ -64,18 +64,47 @@ export function FolderTreeRow({
   onOpenMenu?: () => void;
   onPress: () => void;
 }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const actionsTrigger =
+    onOpenMenu && Platform.OS === 'web' && isHovered ? (
+      <OverflowTriggerButton
+        paddingHorizontal="$xs"
+        paddingVertical="$xs"
+        marginRight="$-xs"
+        onPress={(event) => {
+          event.stopPropagation();
+          onOpenMenu?.();
+        }}
+      />
+    ) : null;
+
+  const handleHoverIn = useCallback(() => {
+    if (Platform.OS === 'web') {
+      setIsHovered(true);
+    }
+  }, []);
+
+  const handleHoverOut = useCallback(() => {
+    if (Platform.OS === 'web') {
+      setIsHovered(false);
+    }
+  }, []);
+
   if (viewStyle === 'notes') {
     return (
       <TreeRowPressable
+        onMouseEnter={handleHoverIn}
+        onMouseLeave={handleHoverOut}
         onOpenMenu={onOpenMenu}
         onPress={onPress}
         testID={`NotesFolderRow-${label}`}
       >
-        <NotesViewRow minHeight={56} depth={depth} selected={selected}>
+        <NotesViewRow minHeight="$5xl" depth={depth} selected={selected}>
+          <TreeChevron expanded={expanded} hasChildren={hasChildren} />
           <Icon
             type="Folder"
             size="$m"
-            color={selected ? '$primaryText' : '$systemNoticeText'}
+            color={selected ? '$primaryText' : '$tertiaryText'}
           />
           <Text
             flex={1}
@@ -88,12 +117,10 @@ export function FolderTreeRow({
           >
             {label}
           </Text>
+          {actionsTrigger}
           {noteCount > 0 ? (
-            <Text size="$label/m" color="$tertiaryText" letterSpacing={0}>
-              {noteCount}
-            </Text>
+            <CountFrame count={noteCount} size="$label/m" />
           ) : null}
-          <TreeChevron expanded={expanded} hasChildren={hasChildren} />
         </NotesViewRow>
       </TreeRowPressable>
     );
@@ -104,6 +131,8 @@ export function FolderTreeRow({
       depth={depth}
       showChildGuide={expanded && hasChildren}
       selected={selected}
+      onMouseEnter={handleHoverIn}
+      onMouseLeave={handleHoverOut}
       onOpenMenu={onOpenMenu}
       onPress={onPress}
       testID={`NotesFolderRow-${label}`}
@@ -125,15 +154,14 @@ export function FolderTreeRow({
           {label}
         </ListItem.Title>
       </ListItem.MainContent>
-      {noteCount > 0 ? (
+      {noteCount > 0 || actionsTrigger ? (
         <ListItem.EndContent paddingTop={0}>
-          <ListItem.Subtitle
-            size="$label/s"
-            color="$tertiaryText"
-            letterSpacing={0}
-          >
-            {noteCount}
-          </ListItem.Subtitle>
+          <XStack alignItems="center" gap="$xs">
+            {actionsTrigger}
+            {noteCount > 0 ? (
+              <CountFrame count={noteCount} size="$label/s" />
+            ) : null}
+          </XStack>
         </ListItem.EndContent>
       ) : null}
     </TreeRowFrame>
@@ -160,6 +188,10 @@ export function NoteRow({
   onPress: () => void;
 }) {
   const updatedAt = formatNoteDate(note.updatedAt);
+  const bodyPreview = useMemo(
+    () => getNoteBodyPreview(note.bodyMd),
+    [note.bodyMd]
+  );
   const [actionsOpen, setActionsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -260,7 +292,8 @@ export function NoteRow({
         onPress={onPress}
         testID={`NotesNoteRow-${note.noteId}`}
       >
-        <NotesViewRow minHeight={64} depth={depth} selected={selected}>
+        <NotesViewRow minHeight="$5xl" depth={depth} selected={selected}>
+          <TreeLeadingSpacer />
           <Icon
             type="ChannelNote"
             size="$m"
@@ -270,20 +303,25 @@ export function NoteRow({
             <Text
               size="$label/l"
               color={selected ? '$primaryText' : '$secondaryText'}
-              fontWeight={selected ? '600' : '400'}
+              fontWeight="400"
               numberOfLines={1}
               letterSpacing={0}
             >
               {note.title || 'Untitled'}
             </Text>
-            {updatedAt ? (
-              <Text size="$label/s" color="$tertiaryText" letterSpacing={0}>
-                {updatedAt}
+            {bodyPreview ? (
+              <Text
+                size="$label/s"
+                color="$tertiaryText"
+                numberOfLines={1}
+                letterSpacing={0}
+              >
+                {bodyPreview}
               </Text>
             ) : null}
           </YStack>
           {actionsMenu}
-          <Icon type="ChevronRight" size="$s" color="$tertiaryText" />
+          <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
         </NotesViewRow>
       </TreeRowPressable>
     );
@@ -299,7 +337,7 @@ export function NoteRow({
       onPress={onPress}
       testID={`NotesNoteRow-${note.noteId}`}
     >
-      <XStack width={20} />
+      <TreeLeadingSpacer />
       <ListItem.SystemIcon
         icon="ChannelNote"
         size="$2xl"
@@ -310,7 +348,7 @@ export function NoteRow({
         <ListItem.Title
           size="$label/m"
           color={selected ? '$primaryText' : '$secondaryText'}
-          fontWeight={selected ? '600' : '400'}
+          fontWeight="400"
           letterSpacing={0}
         >
           {note.title || 'Untitled'}
@@ -336,6 +374,22 @@ export function NoteRow({
   );
 }
 
+function CountFrame({
+  count,
+  size,
+}: {
+  count: number;
+  size: '$label/m' | '$label/s';
+}) {
+  return (
+    <XStack width="$2xl" alignItems="center" justifyContent="center">
+      <Text size={size} color="$tertiaryText" letterSpacing={0}>
+        {count}
+      </Text>
+    </XStack>
+  );
+}
+
 function TreeChevron({
   expanded,
   hasChildren,
@@ -344,16 +398,25 @@ function TreeChevron({
   hasChildren: boolean;
 }) {
   return (
-    <XStack width={20} height={20} alignItems="center" justifyContent="center">
+    <XStack
+      width="$2xl"
+      height="$2xl"
+      alignItems="center"
+      justifyContent="center"
+    >
       {hasChildren ? (
         <Icon
           type={expanded ? 'ChevronDown' : 'ChevronRight'}
-          size="$s"
+          size="$m"
           color="$tertiaryText"
         />
       ) : null}
     </XStack>
   );
+}
+
+function TreeLeadingSpacer() {
+  return <XStack width="$2xl" height="$2xl" flexShrink={0} />;
 }
 
 function TreeRowFrame({
