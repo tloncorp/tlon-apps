@@ -41,7 +41,6 @@ export function NotesTreePane({
   selectedNoteId,
   treeRows,
   treeViewStyle,
-  onClearSearch,
   onCreate,
   onDeleteNote,
   onFolderActions,
@@ -60,7 +59,6 @@ export function NotesTreePane({
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
   treeViewStyle: NotesTreeViewStyle;
-  onClearSearch: () => void;
   onCreate: () => void;
   onDeleteNote: (note: db.NotesNote) => void;
   onFolderActions: (folder: db.NotesFolder) => void;
@@ -80,7 +78,6 @@ export function NotesTreePane({
       selectedNoteId={selectedNoteId}
       treeRows={treeRows}
       treeViewStyle={rowViewStyle}
-      onClearSearch={onClearSearch}
       onCreate={onCreate}
       onDeleteNote={onDeleteNote}
       onFolderActions={onFolderActions}
@@ -143,7 +140,6 @@ function NotesTreeRowsList({
   selectedNoteId,
   treeRows,
   treeViewStyle,
-  onClearSearch,
   onCreate,
   onDeleteNote,
   onFolderActions,
@@ -160,7 +156,6 @@ function NotesTreeRowsList({
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
   treeViewStyle: NotesTreeViewStyle;
-  onClearSearch: () => void;
   onCreate: () => void;
   onDeleteNote: (note: db.NotesNote) => void;
   onFolderActions: (folder: db.NotesFolder) => void;
@@ -193,16 +188,7 @@ function NotesTreeRowsList({
               : 'No notes or folders'
           }
           action={
-            normalizedQuery ? (
-              <Button
-                size="small"
-                fill="ghost"
-                type="secondary"
-                leadingIcon="Close"
-                label="Clear search"
-                onPress={onClearSearch}
-              />
-            ) : canEdit ? (
+            !normalizedQuery && canEdit ? (
               <Button
                 size="small"
                 fill="ghost"

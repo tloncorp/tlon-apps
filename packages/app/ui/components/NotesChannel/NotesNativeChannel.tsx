@@ -1016,7 +1016,6 @@ export function NotesNativeChannel({
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
       treeViewStyle={treeViewStyle}
-      onClearSearch={() => setNotesFilterQuery('')}
       onCreate={handleOpenNewSheet}
       onDeleteNote={handleDeleteNote}
       onFolderActions={handleOpenFolderActions}
