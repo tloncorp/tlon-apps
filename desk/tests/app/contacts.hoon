@@ -798,7 +798,7 @@
   ::  update is sent
   ::
   ;<  ~  b  (set-src ~sun)
-  ;<  caz=(list card)  b  (do-watch /v1/contact/at/(scot %da now.bowl))
+  ;<  caz=(list card)  b  (do-watch /v1/contact/at/(scot:h136 %da now.bowl))
   ;<  ~  b
     %+  ex-cards  caz
     :~  (ex-fact ~ contact-update-1+!>([%full now con]))
@@ -807,7 +807,7 @@
   ::  no update is sent - already at latest
   ::
   ;<  ~  b  (set-src ~sun)
-  ;<  caz=(list card)  b  (do-watch /v1/contact/at/(scot %da now))
+  ;<  caz=(list card)  b  (do-watch /v1/contact/at/(scot:h136 %da now))
   (ex-cards caz ~)
 ::
 ::  +test-sub-profile
@@ -872,7 +872,7 @@
   %+  ex-cards  caz
   :~  %^  ex-task  /contact
           [~sun %contacts]
-          [%watch /v1/contact/at/(scot %da (add now.bowl tick))]
+          [%watch /v1/contact/at/(scot:h136 %da (add now.bowl tick))]
   ==
 ::
 ++  test-peek-0-all
