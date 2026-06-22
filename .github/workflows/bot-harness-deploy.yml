@@ -69,7 +69,7 @@ jobs:
           else
             echo "present=true" >> "$GITHUB_OUTPUT"
           fi
- 
+
       - name: Authenticate to Google Cloud
         if: steps.creds.outputs.present == 'true'
         uses: google-github-actions/setup-gcloud@v0.3.0
@@ -77,18 +77,18 @@ jobs:
           service_account_email: ${{ secrets.GCP_SA_EMAIL }}
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: prod-f0181862
- 
+
       - name: Get GKE credentials
         if: steps.creds.outputs.present == 'true'
         run: |
           export USE_GKE_GCLOUD_AUTH_PLUGIN=True
           gcloud container clusters get-credentials us-east5-cluster1 --zone us-east5 --project prod-f0181862
- 
+
       - name: Set up kubeconfig for OVH cluster
         if: steps.creds.outputs.present == 'true'
         run: |
           echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > "$HOME/.kube/ovh.config"
- 
+
       - name: Install tools
         if: steps.creds.outputs.present == 'true'
         run: |
@@ -97,7 +97,7 @@ jobs:
           sudo mv kubectl /usr/local/bin/
           sudo apt-get install -y -qq jq
           gcloud components install gke-gcloud-auth-plugin --quiet
- 
+
       - name: Determine mode
         id: mode
         if: steps.creds.outputs.present == 'true'
@@ -107,7 +107,7 @@ jobs:
           else
             echo "mode=internal" >> "$GITHUB_OUTPUT"
           fi
- 
+
       - name: Restart ships
         if: steps.creds.outputs.present == 'true'
         run: |
