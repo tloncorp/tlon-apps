@@ -88,7 +88,7 @@
       open-link-requests=(set (pair ship cord))
       ::
       :: outstanding describes. true when metadata had been modified.
-      open-describes=(map token:reel ?)  
+      open-describes=(map token:reel ?)
       stable-id=(map cord token:reel)
       =^subs:s
   ==
@@ -210,7 +210,7 @@
     [%pass /load/profile %arvo %b %wait (add now.bowl wait)]~
   =?  old  ?=(%6 -.old)
     %=  old  -  %7
-        open-describes  
+        open-describes
       %-  ~(gas by *(map token:reel ?))
       ^-  (list (pair token:reel ?))
       (turn ~(tap in open-describes.old) (late &))  ::  force sync on open describes
