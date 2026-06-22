@@ -2,14 +2,14 @@
 /+  *test-agent, test, s=subscriber, t=contacts, reel-utils=reel
 /=  reel-agent  /app/reel
 |%
-+$  state-5
-  $:  %6
++$  state-7
+  $:  %7
       vic=@t
       civ=ship
       our-profile=contact:t
       our-metadata=(map token:reel metadata:reel)
       open-link-requests=(set (pair ship cord))
-      open-describes=(set token:reel)
+      open-describes=(map token:reel ?)
       stable-id=(map cord token:reel)
       =^subs:s
   ==
@@ -67,7 +67,7 @@
   ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>([id metadata]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /describe [provider %bait] bait-describe+!>([nonce (v1:metadata:v0:conv:reel-utils metadata)]))
+    :~  (ex-poke /bait [provider %bait] bait-describe+!>([nonce (v1:metadata:v0:conv:reel-utils metadata)]))
     ==
   ;<  *  bind:m  (set-src provider)
   ;<  caz=(list card)  bind:m  (do-poke reel-confirmation+!>([nonce token]))
@@ -152,7 +152,7 @@
   ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~sampel-palnet/sunrise' group-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /describe [provider %bait] bait-describe+!>(`[nonce:reel metadata:reel]`[nonce group-invite-meta]))
+    :~  (ex-poke /bait [provider %bait] bait-describe+!>(`[nonce:reel metadata:reel]`[nonce group-invite-meta]))
     ==
   ::  when the agent receives a confirmation, it registers the group invite
   ::  link locally.
@@ -171,7 +171,7 @@
   ;<  caz=(list card)  bind:m  (do-poke reel-describe+!>(['~zod/personal-invite-link' personal-invite-meta]))
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /describe [provider %bait] bait-describe+!>([nonce personal-invite-meta]))
+    :~  (ex-poke /bait [provider %bait] bait-describe+!>([nonce personal-invite-meta]))
     ==
   ::  when the agent receives a confirmation, it registers the personal invite
   ::  link locally.
@@ -231,7 +231,7 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /update/group [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
+    :~  (ex-poke /bait [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
     ==
   ;<  =metadata:reel  bind:m
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
@@ -268,7 +268,7 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /update/group [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
+    :~  (ex-poke /bait [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
     ==
   ::  when a group is deleted, the group host updates the provider with
   ::  invitedGroupDeleted set to true.
@@ -284,7 +284,7 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /update/group [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
+    :~  (ex-poke /bait [provider %bait] bait-update-group+!>([~sampel-palnet^%sunrise update]))
     ==
   ;<  =metadata:reel  bind:m
     (get-full-peek metadata:reel /x/v1/metadata/~sampel-palnet/sunrise)
@@ -354,8 +354,8 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /update/profile [provider %bait] bait-update+!>([~.0v2 personal-update]))
-        (ex-poke /update/profile [provider %bait] bait-update+!>([~.0v1 group-update]))
+    :~  (ex-poke /bait [provider %bait] bait-update+!>([~.0v2 personal-update]))
+        (ex-poke /bait [provider %bait] bait-update+!>([~.0v1 group-update]))
     ==
   ::  verify that the personal invite has been updated locally
   ::
