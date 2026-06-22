@@ -359,10 +359,12 @@
     =/  =action:dm:v7:cv  [target diff]
     (emit %pass /gateway/dm/send %agent [our.bowl %chat] %poke %chat-dm-action-2 !>(action))
   ::
+  ::  restart/back-online notices go to the currently configured owner,
+  ::  not whoever last messaged (which may be a since-replaced owner).
+  ::
   ++  ga-notice-target
     ^-  (unit ship)
-    ?~  last-owner-msg-id.gateway.state  ~
-    `p.id.u.last-owner-msg-id.gateway.state
+    owner.state
   ::
   ++  ga-poke-action
     |=  =action:gateway:s

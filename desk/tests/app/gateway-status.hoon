@@ -117,15 +117,16 @@
       ==
   ==
 ::
-::  upgrading from the pre-proxy agent carries the owner + timing over to
-::  %steward so liveness config survives the migration (active-window first,
-::  reply-cooldown second).
+::  upgrading from the pre-proxy agent with a LIVE gateway (boot-id + lease)
+::  carries owner + timing AND replays %gateway-start, so %steward comes up
+::  %up with the matching boot-id (no false offline replies before restart).
 ::
-++  test-on-load-seeds-steward-from-old-state
+++  test-on-load-seeds-steward-live-gateway
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  =/  lut  (add ~2024.1.1 ~m2)
   =/  old=state-1
     :*  %1
         `~bus
@@ -133,7 +134,7 @@
         ~
         %up
         `'boot-1'
-        `(add ~2024.1.1 ~m2)
+        `lut
         ~
         ~
         ~
@@ -142,6 +143,38 @@
         ~
         ~m3
         ~m5
+    ==
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /steward/proxy
+          [~dev %steward]
+          %steward-action-1
+          !>(`action:v1:s`[%configure ~bus])
+      ==
+      %-  ex-poke
+      :*  /steward/proxy
+          [~dev %steward]
+          %steward-action-1
+          !>(`action:v1:s`[%gateway %configure ~m5 ~m3])
+      ==
+      %-  ex-poke
+      :*  /steward/proxy
+          [~dev %steward]
+          %steward-action-1
+          !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lut])
+      ==
+  ==
+::  with no live gateway (boot-id ~) only owner + timing are seeded — no
+::  spurious %gateway-start.
+::
+++  test-on-load-seeds-steward-no-live-gateway
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  old=state-1
+    :*  %1  `~bus  ~2024.1.1  ~  %down  ~  ~  ~  ~  ~  |  ~  ~  ~m3  ~m5
     ==
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
   %+  ex-cards  caz

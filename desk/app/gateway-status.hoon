@@ -81,22 +81,27 @@
         [~ this(state p.attempt2)]
       %-  (slog 'gateway-status: on-load unrecognized state, resetting' ~)
       `this
-    ::  upgrade from the pre-proxy agent (state-0/state-1): carry the owner +
-    ::  timing over to %steward so liveness config survives the migration,
-    ::  then settle into the trivial proxy state. boot-id/lease aren't seeded —
-    ::  the gateway re-establishes liveness on its next start/heartbeat cycle.
+    ::  upgrade from the pre-proxy agent (state-0/state-1): carry liveness
+    ::  config over to %steward so the migration is seamless. owner + timing
+    ::  always; and if a gateway instance was live (boot-id + lease set),
+    ::  replay its %gateway-start so %steward comes up %up with the matching
+    ::  boot-id. otherwise the running gateway's heartbeats (old boot-id) would
+    ::  never match steward's empty boot-id, so it would stay %down and owner
+    ::  DMs would get false offline auto-replies until the gateway restarts.
     ::
     =/  old  p.attempt
-    :_  this
-    ?~  owner.old  ~
-    :~  :*  %pass  /steward/proxy  %agent  [our.bowl %steward]  %poke
-            %steward-action-1  !>(`action:v1:s`[%configure u.owner.old])
-        ==
-        :*  %pass  /steward/proxy  %agent  [our.bowl %steward]  %poke
-            %steward-action-1
-            !>(`action:v1:s`[%gateway %configure active-window.old reply-cooldown.old])
-        ==
-    ==
+    ?~  owner.old  `this
+    =/  spk
+      |=  =action:v1:s
+      ^-  card
+      [%pass /steward/proxy %agent [our.bowl %steward] %poke %steward-action-1 !>(action)]
+    =/  cards=(list card)
+      :~  (spk [%configure u.owner.old])
+          (spk [%gateway %configure active-window.old reply-cooldown.old])
+      ==
+    =?  cards  ?&(?=(^ boot-id.old) ?=(^ lease-until.old))
+      (snoc cards (spk [%gateway %gateway-start u.boot-id.old u.lease-until.old]))
+    [cards this]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
