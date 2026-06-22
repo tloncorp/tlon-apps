@@ -134,6 +134,23 @@ export function useNotificationLevelOptions(
   );
 }
 
+// A stored level may not appear in the current menu — e.g. a DM that inherited
+// a base 'soft'/'loud' level or carries a legacy 'soft'/'loud' override, while
+// the DM menu only offers all-or-nothing. Map such a level to a displayed
+// option so the menu always shows a checked row: a notifying level collapses
+// to the most permissive offered option, 'hush' (muted) is always available.
+// Purely presentational — the stored value only changes when the user taps.
+export function normalizeLevelToOptions(
+  level: ub.NotificationLevel | null | undefined,
+  options: RadioInputOption<ub.NotificationLevel>[]
+): ub.NotificationLevel | null | undefined {
+  if (!level || options.some((option) => option.value === level)) {
+    return level;
+  }
+  const fallback = options.find((option) => option.value !== 'hush');
+  return fallback?.value ?? level;
+}
+
 export function NotificationLevelSelector({
   value,
   onChange,

@@ -2,6 +2,7 @@ import * as store from '@tloncorp/shared/store';
 
 import {
   getNotificationLevelContext,
+  normalizeLevelToOptions,
   useNotificationLevelOptions,
 } from '../../components/NotificationLevelSelector';
 import { useChatOptions } from './useChatOptions';
@@ -19,13 +20,17 @@ export function useChatVolumeOptions() {
   const { data: currentGroupVolume } = store.useGroupVolumeLevel(
     group?.id ?? ''
   );
-  const currentLevel = channel?.id ? currentChannelVolume : currentGroupVolume;
+  const rawLevel = channel?.id ? currentChannelVolume : currentGroupVolume;
 
   const options = useNotificationLevelOptions({
     includeLoud: true,
     shortDescriptions: true,
     context: getNotificationLevelContext(channel),
   });
+
+  // A stored level not offered by this menu (e.g. a legacy/inherited 'soft' on
+  // a DM) would otherwise leave no row checked.
+  const currentLevel = normalizeLevelToOptions(rawLevel, options);
 
   return { currentLevel, options, updateVolume };
 }
