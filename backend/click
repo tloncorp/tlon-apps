@@ -92,7 +92,7 @@ EOF
 full() {
   $CLICK_CMD "$HOON" $DEPS |
   $EVAL_CMD eval --jam $JAM_OPTS |
-  socat -T $TIMEOUT -,ignoreeof UNIX-CONNECT:"$PIER/.urb/conn.sock" |
+  socat -t $TIMEOUT -,ignoreeof UNIX-CONNECT:"$PIER/.urb/conn.sock" |
   $EVAL_CMD eval --cue $CUE_OPTS
 }
 
