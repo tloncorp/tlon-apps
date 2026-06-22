@@ -112,8 +112,8 @@ function await_ship
 
 await_ship
 
-# Allow 20m for longest running operations
-TIMEOUT=1200
+# Allow 10m for longest running operations
+TIMEOUT=600
 
 run_click="$click -t $TIMEOUT -b $vere -i - -kp"
 
