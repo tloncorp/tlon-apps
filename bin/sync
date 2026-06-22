@@ -1,3 +1,0 @@
-#!/usr/bin/env sh
-
-ruby ~/dev/urbit/bouncer/bouncer.rb -c ~/dev/urbit/tlon-apps/ops/sync.yml "$@"

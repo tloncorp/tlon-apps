@@ -175,7 +175,7 @@ export const RequestPhoneVerifyScreen = ({
             color: theme.primaryText?.val ?? '#000',
             borderWidth: 1,
             borderColor: theme.border?.val ?? '#ccc',
-            padding: 16,
+            paddingHorizontal: 16,
           },
           line: {
             backgroundColor: isDarkMode

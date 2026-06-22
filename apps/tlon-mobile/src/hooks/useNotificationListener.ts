@@ -54,6 +54,21 @@ type RouteStack = {
   params?: RootStackParamList[keyof RootStackParamList];
 }[];
 
+// Route stack for a group-invite notification tap: reset to the chat list with the invited
+// group's preview open, marked as a notification-opened invite so ChatList gates it on invite
+// state (see ChatListScreen / groupInvitePreview).
+export function groupInvitePreviewRouteStack(groupId: string): RouteStack {
+  return [
+    {
+      name: 'ChatList',
+      params: {
+        previewGroupId: groupId,
+        previewGroupFromInviteNotification: true,
+      },
+    },
+  ];
+}
+
 function payloadFromNotification(
   notification: Notification
 ): ReturnType<typeof parseNotificationPayload> {
@@ -233,6 +248,15 @@ export default function useNotificationListener() {
       return true;
     }
 
+    async function goToGroupInvite(groupId: string) {
+      // Reset (not navigate) so the destination is deterministic regardless of the current
+      // stack (cold start, on a channel/post/settings screen, or already on ChatList).
+      const typedReset = createTypedReset(navigation);
+      typedReset(groupInvitePreviewRouteStack(groupId));
+      setNotifToProcess(null);
+      return true;
+    }
+
     async function gotToChannel(channelId: string, postInfo?: PostInfo | null) {
       const channel = await db.getChannelWithRelations({ id: channelId });
       if (!channel) {
@@ -334,6 +358,8 @@ export default function useNotificationListener() {
         switch (notificationData.type) {
           case 'groupJoinRequest':
             return () => goToGroupMembers(notificationData.groupId);
+          case 'groupInvite':
+            return () => goToGroupInvite(notificationData.groupId);
           case 'contactMatched':
             return () => goToUserProfile(notificationData.contactId);
           case 'contactsMatched':

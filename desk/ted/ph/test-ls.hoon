@@ -71,23 +71,6 @@
 ++  has-test-prefix
   |=  a=term  ^-  ?
   =((end [3 8] a) 'ph-test-')
-::  +resolve-test-paths: add test names to paths to form full test identifiers
-::
-++  resolve-test-paths
-  |=  paths-to-test=(list [path (list test-arm)])
-  ^-  (list test)
-  %-  sort  :_  |=([a=test b=test] (aor path.a path.b))
-  ^-  (list test)
-  %-  zing
-  %+  turn  paths-to-test
-  |=  [=path test-arms=(list test-arm)]
-  ^-  (list test)
-  ::  for each test, add the test's name to .path
-  ::
-  %+  turn  test-arms
-  |=  =test-arm
-  ^-  test
-  [(weld path /[name.test-arm]) strand.test-arm]
 --
 ^-  thread:spider
 |=  args=vase
@@ -124,12 +107,17 @@
 =/  test-sets=(list [path (list test-arm)])
   %+  turn  test-cores
   ?~  arm-pat
-    |=([=path =vase] [path (get-test-arms path vase)])
+    |=  [=path =vase]
+    :-  path
+    %+  sort  (get-test-arms path vase)
+    |=([a=test-arm b=test-arm] (aor name.a name.b))
   ::  filter based on arm pattern
   ::
   =+  len=(met 3 u.arm-pat)
   |=  [=path =vase]
   :-  path
+  =-  %+  sort  -
+    |=([a=test-arm b=test-arm] (aor name.a name.b))
   %+  skim  (get-test-arms path vase)
   |=  =test-arm
   =((cut 3 [0 len] name.test-arm) u.arm-pat)
@@ -138,7 +126,7 @@
   ?.  ?=(~ failed-builds)
     (pure:m !>(|))
   (pure:m !>(&))
-=*  path  -.i.test-sets
+=/  =path  (snip -.i.test-sets)
 =*  test-arms  +.i.test-sets
 =+  num-arms=(lent test-arms)
 ?:  =(0 num-arms)  $(test-sets t.test-sets)
@@ -149,5 +137,5 @@
 ~>  %slog.0^leaf+"{<path>} ({test-num})"
 |-
 ?~  test-arms  ^$(test-sets t.test-sets)
-~>  %slog.0^leaf+"  - {<name.i.test-arms>}"
+~>  %slog.0^leaf+"  - {(trip name.i.test-arms)}"
 $(test-arms t.test-arms)

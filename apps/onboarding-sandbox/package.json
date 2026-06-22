@@ -1,0 +1,10 @@
+{
+  "name": "@tloncorp/onboarding-sandbox-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Onboarding sandbox web control plane (Phase 2): node control server + UI over the orchestrator. Phase-2 step 1 is a zero-dep skeleton; the editor/diff/model-selector UI will move to Vite+React.",
+  "scripts": {
+    "dev": "node server.mjs"
+  }
+}
