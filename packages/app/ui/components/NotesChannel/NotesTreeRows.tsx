@@ -3,7 +3,13 @@ import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
-import { TamaguiWebElement, XStack, YStack, styled } from 'tamagui';
+import {
+  TamaguiWebElement,
+  XStack,
+  YStack,
+  getTokenValue,
+  styled,
+} from 'tamagui';
 
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
@@ -19,7 +25,7 @@ const TREE_GUIDE_LEFT = TREE_ROW_LEFT_PADDING + TREE_ROW_GAP;
 const TREE_CHILD_GUIDE_CARET_OFFSET = 8;
 const TREE_CHILD_GUIDE_TOP =
   TREE_ROW_HEIGHT / 2 + TREE_CHILD_GUIDE_CARET_OFFSET;
-const NOTES_VIEW_LEFT_PADDING = 0;
+const NOTES_VIEW_LEFT_PADDING = getTokenValue('$s', 'space');
 
 // Row frame for the comfortable ('notes') view; the outline view uses
 // TreeRowFrame below.
