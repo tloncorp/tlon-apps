@@ -6,6 +6,7 @@ import {
   buildNotesTreeRows,
   filterNotesTreeData,
   getNextNoteIdAfterDelete,
+  getNextNoteIdAfterFolderDelete,
   normalizeSearchText,
 } from './notesTree';
 
@@ -196,5 +197,47 @@ describe('notes tree helpers', () => {
 
     expect(getNextNoteIdAfterDelete(rows, 1)).toBeNull();
     expect(getNextNoteIdAfterDelete(rows, 2)).toBeNull();
+  });
+
+  test('selects the nearest surviving note after deleting a folder', () => {
+    const folders = [root, projects, backlog, archive];
+    const alpha = makeNote(1, 1, 'Alpha');
+    const beta = makeNote(2, 2, 'Beta');
+    const gamma = makeNote(3, 4, 'Gamma');
+    const omega = makeNote(4, 3, 'Omega');
+    const rows = buildNotesTreeRows({
+      expandedFolderIds: new Set([2, 3, 4]),
+      folderNoteCounts: buildFolderNoteCounts(folders, [
+        alpha,
+        beta,
+        gamma,
+        omega,
+      ]),
+      folders,
+      notes: [alpha, beta, gamma, omega],
+      rootFolderId: 1,
+    });
+
+    expect(
+      getNextNoteIdAfterFolderDelete({
+        rows,
+        deletedFolderIds: new Set([2, 4]),
+        selectedNoteId: 3,
+      })
+    ).toBe(1);
+    expect(
+      getNextNoteIdAfterFolderDelete({
+        rows,
+        deletedFolderIds: new Set([2, 4]),
+        selectedNoteId: 2,
+      })
+    ).toBe(1);
+    expect(
+      getNextNoteIdAfterFolderDelete({
+        rows,
+        deletedFolderIds: new Set([2, 4]),
+        selectedNoteId: 1,
+      })
+    ).toBe(1);
   });
 });

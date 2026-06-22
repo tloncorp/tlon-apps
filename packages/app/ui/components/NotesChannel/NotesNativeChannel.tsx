@@ -2,6 +2,8 @@ import { NavigationProp, useNavigation } from '@react-navigation/native';
 import {
   createNotebookFolder,
   createNotebookNote,
+  deleteNotebookFolder,
+  deleteNotebookNote,
   moveNotebookFolder,
   moveNotebookNote,
   renameNotebookFolder,
@@ -10,7 +12,7 @@ import * as db from '@tloncorp/shared/db';
 import { Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps, DragEvent } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
@@ -48,9 +50,11 @@ import {
   buildFolderNoteCounts,
   buildFolderRows,
   buildNotesTreeRows,
+  collectDescendantFolderIds,
   filterNotesTreeData,
   getFolderLabel,
   getNextNoteIdAfterDelete,
+  getNextNoteIdAfterFolderDelete,
   normalizeSearchText,
 } from './notesTree';
 import type { NotesTreeViewStyle } from './notesTree';
@@ -87,6 +91,7 @@ export function NotesNativeChannel({
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [isDragImportActive, setIsDragImportActive] = useState(false);
   const [isImportingNotes, setIsImportingNotes] = useState(false);
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const {
     entity: movingNote,
     isPending: isMovingNote,
@@ -600,12 +605,82 @@ export function NotesNativeChannel({
     ]
   );
 
+  const handleNoteDeleted = useCallback(
+    (deletedNoteId: number) => {
+      if (selectedNoteId !== deletedNoteId) return;
+
+      const nextNoteId = getNextNoteIdAfterDelete(treeRows, deletedNoteId);
+      setSelectedNoteId(nextNoteId);
+      if (nextNoteId !== null) {
+        const nextNote = notes.find((note) => note.noteId === nextNoteId);
+        if (nextNote) {
+          setSelectedFolderId(nextNote.folderId);
+        }
+      }
+    },
+    [notes, selectedNoteId, treeRows]
+  );
+
+  const runDeleteNote = useCallback(
+    async (note: db.NotesNote) => {
+      if (!notebookFlag || !canEdit) return;
+
+      await runAction('Failed to delete note', async () => {
+        await deleteNotebookNote({
+          notebookFlag,
+          noteId: note.noteId,
+        });
+        handleNoteDeleted(note.noteId);
+      });
+    },
+    [canEdit, handleNoteDeleted, notebookFlag, runAction]
+  );
+
+  const handleDeleteNote = useCallback(
+    (note: db.NotesNote) => {
+      if (!canEdit) return;
+
+      const title = note.title || 'Untitled';
+      if (Platform.OS === 'web') {
+        const confirm = (
+          globalThis as { confirm?: (message: string) => boolean }
+        ).confirm;
+        if (
+          typeof confirm === 'function' &&
+          !confirm(
+            `Delete "${title}"?\n\nThis note will be removed from the notebook.`
+          )
+        ) {
+          return;
+        }
+        void runDeleteNote(note);
+        return;
+      }
+
+      Alert.alert(
+        'Delete note',
+        `Delete "${title}"? This note will be removed from the notebook.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              void runDeleteNote(note);
+            },
+          },
+        ]
+      );
+    },
+    [canEdit, runDeleteNote]
+  );
+
   const handleOpenFolderActions = useCallback(
     (folder: db.NotesFolder) => {
-      if (!canEdit) return;
+      if (!canEdit || folder.folderId === rootFolderId) return;
       setFolderActionsFolder(folder);
     },
-    [canEdit]
+    [canEdit, rootFolderId]
   );
 
   const handleOpenRenameFolder = useCallback(
@@ -623,6 +698,139 @@ export function NotesNativeChannel({
       openMoveFolderDialog(folder);
     },
     [openMoveFolderDialog]
+  );
+
+  const getFolderDeleteSummary = useCallback(
+    (folder: db.NotesFolder) => {
+      const folderIds = collectDescendantFolderIds(folders, folder.folderId);
+      return {
+        folderIds,
+        nestedFolderCount: Math.max(0, folderIds.size - 1),
+        noteCount: notes.filter((note) => folderIds.has(note.folderId)).length,
+      };
+    },
+    [folders, notes]
+  );
+
+  const updateSelectionAfterFolderDelete = useCallback(
+    (deletedFolderIds: Set<number>) => {
+      if (selectedFolderId !== null && deletedFolderIds.has(selectedFolderId)) {
+        setSelectedFolderId(null);
+      }
+
+      if (selectedNoteId === null) {
+        return;
+      }
+
+      const selectedNote = notes.find((note) => note.noteId === selectedNoteId);
+      if (!selectedNote || !deletedFolderIds.has(selectedNote.folderId)) {
+        return;
+      }
+
+      const nextNoteId = getNextNoteIdAfterFolderDelete({
+        rows: treeRows,
+        deletedFolderIds,
+        selectedNoteId,
+      });
+      setSelectedNoteId(nextNoteId);
+      if (nextNoteId !== null) {
+        const nextNote = notes.find((note) => note.noteId === nextNoteId);
+        if (nextNote) {
+          setSelectedFolderId(nextNote.folderId);
+        }
+      }
+    },
+    [notes, selectedFolderId, selectedNoteId, treeRows]
+  );
+
+  const runDeleteFolder = useCallback(
+    async (folder: db.NotesFolder, deletedFolderIds: Set<number>) => {
+      if (
+        !notebookFlag ||
+        !canEdit ||
+        isDeletingFolder ||
+        folder.folderId === rootFolderId
+      ) {
+        return;
+      }
+
+      setFolderActionsFolder(null);
+      setIsDeletingFolder(true);
+      await runAction('Failed to delete folder', async () => {
+        await deleteNotebookFolder({
+          notebookFlag,
+          folder,
+        });
+        updateSelectionAfterFolderDelete(deletedFolderIds);
+        setExpandedFolderIds((currentIds) => {
+          if (![...deletedFolderIds].some((id) => currentIds.has(id))) {
+            return currentIds;
+          }
+
+          const nextIds = new Set(currentIds);
+          deletedFolderIds.forEach((folderId) => nextIds.delete(folderId));
+          return nextIds;
+        });
+      });
+      setIsDeletingFolder(false);
+    },
+    [
+      canEdit,
+      isDeletingFolder,
+      notebookFlag,
+      rootFolderId,
+      runAction,
+      updateSelectionAfterFolderDelete,
+    ]
+  );
+
+  const handleDeleteFolder = useCallback(
+    (folder: db.NotesFolder) => {
+      if (!canEdit || folder.folderId === rootFolderId) return;
+
+      setFolderActionsFolder(null);
+      const summary = getFolderDeleteSummary(folder);
+      const contents = [
+        summary.noteCount > 0 ? formatCount(summary.noteCount, 'note') : null,
+        summary.nestedFolderCount > 0
+          ? formatCount(summary.nestedFolderCount, 'folder')
+          : null,
+      ].filter(Boolean);
+      const hasContents = contents.length > 0;
+      const label = getFolderLabel(folder);
+      const message = hasContents
+        ? `Delete "${label}"?\n\nThis will permanently delete ${contents.join(
+            ' and '
+          )} inside this folder.`
+        : `Delete "${label}"?\n\nThis folder will be permanently deleted.`;
+
+      if (Platform.OS === 'web') {
+        const confirm = (
+          globalThis as { confirm?: (message: string) => boolean }
+        ).confirm;
+        if (typeof confirm === 'function' && !confirm(message)) {
+          return;
+        }
+        void runDeleteFolder(folder, summary.folderIds);
+        return;
+      }
+
+      Alert.alert(
+        hasContents ? 'Delete folder and contents?' : 'Delete folder?',
+        message.replace(/\n\n/g, ' '),
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              void runDeleteFolder(folder, summary.folderIds);
+            },
+          },
+        ]
+      );
+    },
+    [canEdit, getFolderDeleteSummary, rootFolderId, runDeleteFolder]
   );
 
   const handleRenameFolder = useCallback(async () => {
@@ -754,15 +962,8 @@ export function NotesNativeChannel({
 
   const handleDesktopNoteDeleted = useCallback(() => {
     if (selectedNoteId === null) return;
-    const nextNoteId = getNextNoteIdAfterDelete(treeRows, selectedNoteId);
-    setSelectedNoteId(nextNoteId);
-    if (nextNoteId !== null) {
-      const nextNote = notes.find((note) => note.noteId === nextNoteId);
-      if (nextNote) {
-        setSelectedFolderId(nextNote.folderId);
-      }
-    }
-  }, [notes, selectedNoteId, treeRows]);
+    handleNoteDeleted(selectedNoteId);
+  }, [handleNoteDeleted, selectedNoteId]);
 
   const headerActions = useMemo(() => {
     if (!notebookFlag || joinFailed) return null;
@@ -817,6 +1018,7 @@ export function NotesNativeChannel({
       treeViewStyle={treeViewStyle}
       onClearSearch={() => setNotesFilterQuery('')}
       onCreate={handleOpenNewSheet}
+      onDeleteNote={handleDeleteNote}
       onFolderActions={handleOpenFolderActions}
       onMoveNote={handleOpenMoveNote}
       onOpenNote={openNote}
@@ -920,6 +1122,8 @@ export function NotesNativeChannel({
       />
       <FolderActionsSheet
         folder={folderActionsFolder}
+        isDeleting={isDeletingFolder}
+        onDelete={handleDeleteFolder}
         onMove={handleOpenMoveFolder}
         onOpenChange={(open) => {
           if (!open) setFolderActionsFolder(null);

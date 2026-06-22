@@ -861,7 +861,7 @@ export const SimpleActionGroupList = ({
           <ActionSheet.Action
             key={index}
             action={action}
-            testID={`ActionSheetAction-${action.title}`}
+            testID={action.testID ?? `ActionSheetAction-${action.title}`}
           />
         ))}
       </ActionSheet.ActionGroup>

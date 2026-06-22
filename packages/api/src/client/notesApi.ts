@@ -69,7 +69,8 @@ export type NotesStreamEvent = {
 // action surface is documented with the %notes agent.
 export type NotesFolderAction =
   | { type: 'rename'; name: string }
-  | { type: 'move'; newParent: number };
+  | { type: 'move'; newParent: number }
+  | { type: 'delete'; recursive: boolean };
 
 export type NotesNoteAction =
   | { type: 'rename'; title: string }
@@ -226,6 +227,22 @@ export async function moveNotesFolder({
     type: 'folder',
     id: folderId,
     action: { type: 'move', newParent },
+  });
+}
+
+export async function deleteNotesFolder({
+  flag,
+  folderId,
+  recursive = true,
+}: {
+  flag: NotesFlag | string;
+  folderId: number;
+  recursive?: boolean;
+}) {
+  return notebookAction(flag, {
+    type: 'folder',
+    id: folderId,
+    action: { type: 'delete', recursive },
   });
 }
 

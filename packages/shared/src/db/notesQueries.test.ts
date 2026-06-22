@@ -118,3 +118,33 @@ test('saveNotesNotebookSnapshot replaces stale folders, notes, and members', asy
     expect.objectContaining({ contactId: '~new-member', role: 'editor' }),
   ]);
 });
+
+test('deleteNotesFolders removes folders and notes in those folders', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotebook(),
+    folders: [
+      makeFolder(1, '/', null),
+      makeFolder(2, 'Projects', 1),
+      makeFolder(3, 'Archive', 1),
+      makeFolder(4, 'Backlog', 2),
+    ],
+    notes: [
+      makeNote(1, 1, 'Root note'),
+      makeNote(2, 2, 'Project note'),
+      makeNote(3, 4, 'Backlog note'),
+      makeNote(4, 3, 'Archive note'),
+    ],
+    members: [],
+  });
+
+  await db.deleteNotesFolders({
+    notebookFlag,
+    folderIds: [2, 4],
+  });
+
+  const folders = await db.getNotesFolders({ notebookFlag });
+  const notes = await db.getNotesNotes({ notebookFlag });
+
+  expect(folders.map((folder) => folder.folderId).sort()).toEqual([1, 3]);
+  expect(notes.map((note) => note.noteId).sort()).toEqual([1, 4]);
+});

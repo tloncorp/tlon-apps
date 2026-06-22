@@ -43,6 +43,7 @@ export function NotesTreePane({
   treeViewStyle,
   onClearSearch,
   onCreate,
+  onDeleteNote,
   onFolderActions,
   onMoveNote,
   onOpenNote,
@@ -61,6 +62,7 @@ export function NotesTreePane({
   treeViewStyle: NotesTreeViewStyle;
   onClearSearch: () => void;
   onCreate: () => void;
+  onDeleteNote: (note: db.NotesNote) => void;
   onFolderActions: (folder: db.NotesFolder) => void;
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
@@ -80,6 +82,7 @@ export function NotesTreePane({
       treeViewStyle={rowViewStyle}
       onClearSearch={onClearSearch}
       onCreate={onCreate}
+      onDeleteNote={onDeleteNote}
       onFolderActions={onFolderActions}
       onMoveNote={onMoveNote}
       onOpenNote={onOpenNote}
@@ -142,6 +145,7 @@ function NotesTreeRowsList({
   treeViewStyle,
   onClearSearch,
   onCreate,
+  onDeleteNote,
   onFolderActions,
   onMoveNote,
   onOpenNote,
@@ -158,6 +162,7 @@ function NotesTreeRowsList({
   treeViewStyle: NotesTreeViewStyle;
   onClearSearch: () => void;
   onCreate: () => void;
+  onDeleteNote: (note: db.NotesNote) => void;
   onFolderActions: (folder: db.NotesFolder) => void;
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
@@ -237,6 +242,7 @@ function NotesTreeRowsList({
               note={row.note}
               selected={selectedNoteId === row.note.noteId}
               viewStyle={treeViewStyle}
+              onDelete={() => onDeleteNote(row.note)}
               onMove={() => onMoveNote(row.note)}
               onPress={() => onOpenNote(row.note)}
             />

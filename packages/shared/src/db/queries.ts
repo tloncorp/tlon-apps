@@ -558,6 +558,38 @@ export const deleteNotesNote = createWriteQuery(
   ['notesNotes']
 );
 
+export const deleteNotesFolders = createWriteQuery(
+  'deleteNotesFolders',
+  async (
+    { notebookFlag, folderIds }: { notebookFlag: string; folderIds: number[] },
+    ctx: QueryCtx
+  ) => {
+    if (folderIds.length === 0) {
+      return;
+    }
+
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesNotes)
+        .where(
+          and(
+            eq($notesNotes.notebookFlag, notebookFlag),
+            inArray($notesNotes.folderId, folderIds)
+          )
+        );
+      await txCtx.db
+        .delete($notesFolders)
+        .where(
+          and(
+            eq($notesFolders.notebookFlag, notebookFlag),
+            inArray($notesFolders.folderId, folderIds)
+          )
+        );
+    });
+  },
+  ['notesFolders', 'notesNotes']
+);
+
 export const setNotesNotebookLastOpened = createWriteQuery(
   'setNotesNotebookLastOpened',
   async (

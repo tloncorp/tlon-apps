@@ -444,11 +444,57 @@ export async function deleteNotebookNote({
   await syncNotesNotebookWithRetry(notebookFlag);
 }
 
+export async function deleteNotebookFolder({
+  notebookFlag,
+  folder,
+}: {
+  notebookFlag: string;
+  folder: db.NotesFolder;
+}) {
+  const folders = await db.getNotesFolders({ notebookFlag });
+  const folderIds = collectDescendantFolderIds(folders, folder.folderId);
+
+  await api.deleteNotesFolder({
+    flag: notebookFlag,
+    folderId: folder.folderId,
+  });
+  await db.deleteNotesFolders({ notebookFlag, folderIds });
+  await syncNotesNotebookWithRetry(notebookFlag, async () => {
+    const nextFolders = await db.getNotesFolders({ notebookFlag });
+    return folderIds.every(
+      (folderId) =>
+        !nextFolders.some((nextFolder) => nextFolder.folderId === folderId)
+    );
+  });
+}
+
 export async function markNotesNotebookOpened(notebookFlag: string) {
   return db.setNotesNotebookLastOpened({
     notebookFlag,
     openedAt: Date.now(),
   });
+}
+
+function collectDescendantFolderIds(
+  folders: db.NotesFolder[],
+  folderId: number
+) {
+  const ids = new Set([folderId]);
+  let added = true;
+  while (added) {
+    added = false;
+    folders.forEach((folder) => {
+      if (
+        folder.parentFolderId != null &&
+        ids.has(folder.parentFolderId) &&
+        !ids.has(folder.folderId)
+      ) {
+        ids.add(folder.folderId);
+        added = true;
+      }
+    });
+  }
+  return Array.from(ids);
 }
 
 async function notesNotebookIsJoined(flag: api.NotesFlag) {

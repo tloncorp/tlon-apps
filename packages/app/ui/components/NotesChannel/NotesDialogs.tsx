@@ -4,8 +4,7 @@ import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
-import type { Action } from '../ActionSheet';
-import { ActionSheet } from '../ActionSheet';
+import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { FolderPicker, NotesDialog } from './NotesCommon';
 import type { FolderRow } from './notesTree';
@@ -210,12 +209,16 @@ export function MoveFolderSheet({
 
 export function FolderActionsSheet({
   folder,
+  isDeleting,
+  onDelete,
   onMove,
   onOpenChange,
   onRename,
   open,
 }: {
   folder: db.NotesFolder | null;
+  isDeleting: boolean;
+  onDelete: (folder: db.NotesFolder) => void;
   onMove: (folder: db.NotesFolder) => void;
   onOpenChange: (open: boolean) => void;
   onRename: (folder: db.NotesFolder) => void;
@@ -223,32 +226,51 @@ export function FolderActionsSheet({
 }) {
   const isWeb = Platform.OS === 'web';
   const label = getFolderLabel(folder);
-  const actions = useMemo<Action[]>(
-    () => [
-      {
-        title: 'Rename folder',
-        description: 'Update the folder name.',
-        startIcon: 'EditList',
-        action: () => {
-          if (folder) {
-            onRename(folder);
-          }
-        },
-        testID: 'NotesRenameFolderAction',
-      },
-      {
-        title: 'Move folder',
-        description: 'Choose a new parent folder.',
-        startIcon: 'Folder',
-        action: () => {
-          if (folder) {
-            onMove(folder);
-          }
-        },
-        testID: 'NotesMoveFolderAction',
-      },
-    ],
-    [folder, onMove, onRename]
+  const actionGroups = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: 'Rename folder',
+            description: 'Update the folder name.',
+            startIcon: 'EditList',
+            action: () => {
+              if (folder) {
+                onRename(folder);
+              }
+            },
+            testID: 'NotesRenameFolderAction',
+          },
+          {
+            title: 'Move folder',
+            description: 'Choose a new parent folder.',
+            startIcon: 'Folder',
+            action: () => {
+              if (folder) {
+                onMove(folder);
+              }
+            },
+            testID: 'NotesMoveFolderAction',
+          },
+        ],
+        [
+          'negative',
+          {
+            title: 'Delete folder',
+            description: 'Delete this folder and its contents.',
+            startIcon: 'Close',
+            action: () => {
+              if (folder) {
+                onDelete(folder);
+              }
+            },
+            disabled: isDeleting,
+            testID: 'NotesDeleteFolderAction',
+          },
+        ]
+      ),
+    [folder, isDeleting, onDelete, onMove, onRename]
   );
 
   return (
@@ -263,15 +285,7 @@ export function FolderActionsSheet({
     >
       <ActionSheet.SimpleHeader title={label} subtitle="Folder actions" />
       <ActionSheet.Content>
-        <ActionSheet.ActionGroup accent="neutral">
-          {actions.map((action) => (
-            <ActionSheet.Action
-              key={action.title}
-              action={action}
-              testID={action.testID}
-            />
-          ))}
-        </ActionSheet.ActionGroup>
+        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.Content>
     </ActionSheet>
   );

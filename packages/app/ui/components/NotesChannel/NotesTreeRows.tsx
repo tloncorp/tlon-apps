@@ -5,8 +5,7 @@ import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { TamaguiWebElement, XStack, YStack, styled } from 'tamagui';
 
-import type { Action } from '../ActionSheet';
-import { ActionSheet } from '../ActionSheet';
+import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { formatNoteDate } from './notesTree';
@@ -147,6 +146,7 @@ export function NoteRow({
   note,
   selected = false,
   viewStyle,
+  onDelete,
   onMove,
   onPress,
 }: {
@@ -155,6 +155,7 @@ export function NoteRow({
   note: db.NotesNote;
   selected?: boolean;
   viewStyle: NotesTreeViewStyle;
+  onDelete: () => void;
   onMove: () => void;
   onPress: () => void;
 }) {
@@ -180,29 +181,45 @@ export function NoteRow({
     }
   }, []);
 
-  const actions = useMemo<Action[]>(
-    () => [
-      {
-        title: 'Open note',
-        startIcon: 'ChannelNote',
-        action: () => {
-          setActionsOpen(false);
-          onPress();
-        },
-        testID: `NotesOpenNoteAction-${note.noteId}`,
-      },
-      {
-        title: 'Move to folder',
-        startIcon: 'Folder',
-        action: () => {
-          setActionsOpen(false);
-          onMove();
-        },
-        disabled: !canEdit,
-        testID: `NotesMoveNoteAction-${note.noteId}`,
-      },
-    ],
-    [canEdit, note.noteId, onMove, onPress]
+  const actionGroups = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: 'Open note',
+            startIcon: 'ChannelNote',
+            action: () => {
+              setActionsOpen(false);
+              onPress();
+            },
+            testID: `NotesOpenNoteAction-${note.noteId}`,
+          },
+          {
+            title: 'Move to folder',
+            startIcon: 'Folder',
+            action: () => {
+              setActionsOpen(false);
+              onMove();
+            },
+            disabled: !canEdit,
+            testID: `NotesMoveNoteAction-${note.noteId}`,
+          },
+        ],
+        canEdit && [
+          'negative',
+          {
+            title: 'Delete note',
+            startIcon: 'Close',
+            action: () => {
+              setActionsOpen(false);
+              onDelete();
+            },
+            testID: `NotesDeleteNoteAction-${note.noteId}`,
+          },
+        ]
+      ),
+    [canEdit, note.noteId, onDelete, onMove, onPress]
   );
 
   const shouldShowActionsTrigger =
@@ -229,15 +246,7 @@ export function NoteRow({
         snapPointsMode="fit"
       >
         <ActionSheet.Content>
-          <ActionSheet.ActionGroup accent="neutral">
-            {actions.map((action) => (
-              <ActionSheet.Action
-                key={action.title}
-                action={action}
-                testID={action.testID}
-              />
-            ))}
-          </ActionSheet.ActionGroup>
+          <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
         </ActionSheet.Content>
       </ActionSheet>
     ) : null;

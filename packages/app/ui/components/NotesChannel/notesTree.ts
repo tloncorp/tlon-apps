@@ -279,6 +279,43 @@ export function getNextNoteIdAfterDelete(
   return noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null;
 }
 
+export function getNextNoteIdAfterFolderDelete({
+  rows,
+  deletedFolderIds,
+  selectedNoteId,
+}: {
+  rows: NotesTreeRow[];
+  deletedFolderIds: Set<number>;
+  selectedNoteId: number;
+}) {
+  const noteRows = rows.flatMap((row) => (row.type === 'note' ? [row] : []));
+  const selectedIndex = noteRows.findIndex(
+    (row) => row.note.noteId === selectedNoteId
+  );
+  if (selectedIndex === -1) {
+    return null;
+  }
+
+  const isDeleted = (row: (typeof noteRows)[number]) =>
+    deletedFolderIds.has(row.note.folderId);
+  if (!isDeleted(noteRows[selectedIndex])) {
+    return selectedNoteId;
+  }
+
+  const after = noteRows
+    .slice(selectedIndex + 1)
+    .find((row) => !isDeleted(row));
+  if (after) {
+    return after.note.noteId;
+  }
+
+  const before = noteRows
+    .slice(0, selectedIndex)
+    .reverse()
+    .find((row) => !isDeleted(row));
+  return before?.note.noteId ?? null;
+}
+
 /**
  * Counts the notes in each folder and all of its descendants by crediting
  * every note to its folder's ancestor chain — one pass over the notes instead
