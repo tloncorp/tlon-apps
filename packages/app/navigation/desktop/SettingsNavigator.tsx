@@ -25,6 +25,10 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { DESKTOP_SIDEBAR_WIDTH, SettingsScreenView } from '../../ui';
+import {
+  openExternalBotSettings,
+  useHasExpectedBotDm,
+} from '../../utils/botSettings';
 
 const SettingsDrawer = createDrawerNavigator();
 
@@ -37,7 +41,14 @@ function DrawerContent(props: DrawerContentComponentProps) {
   const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
-  const botEnabled = Platform.OS !== 'web' && isHostedUser && hostingBotEnabled;
+  const hasExpectedBotDm = useHasExpectedBotDm(
+    currentUserId,
+    Platform.OS === 'web' && isHostedUser
+  );
+  const botEnabled =
+    Platform.OS === 'web'
+      ? isHostedUser && hasExpectedBotDm
+      : isHostedUser && hostingBotEnabled;
   const focusedRoute = props.state.routes[props.state.index];
 
   const onAppInfoPressed = useCallback(() => {
@@ -57,6 +68,10 @@ function DrawerContent(props: DrawerContentComponentProps) {
   }, [navigate]);
 
   const onBotSettingsPressed = useCallback(() => {
+    if (Platform.OS === 'web') {
+      openExternalBotSettings();
+      return;
+    }
     navigate('BotSettings');
   }, [navigate]);
 
