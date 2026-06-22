@@ -4,6 +4,9 @@ node_modules
 /packages/hermes-tlon-adapter/.env
 __pycache__/
 *.py[cod]
+# onboarding sandbox: editable copies of private tlonbot prompts/intro — never commit
+/scripts/onboarding-sandbox/.sandbox-prompts
+/scripts/onboarding-sandbox/.sandbox-intro.md
 # local dev Urbit piers parked at the repo root
 /rus/
 ops

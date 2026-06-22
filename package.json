@@ -3,6 +3,11 @@
   "name": "tlon-apps",
   "type": "module",
   "scripts": {
+    "onboarding": "scripts/onboarding-sandbox/run.sh start",
+    "onboarding:reset": "scripts/onboarding-sandbox/run.sh reset",
+    "onboarding:logs": "scripts/onboarding-sandbox/run.sh logs",
+    "onboarding:down": "scripts/onboarding-sandbox/run.sh down",
+    "onboarding:web": "node apps/onboarding-sandbox/server.mjs",
     "build:api": "pnpm --filter '@tloncorp/api' build",
     "dev:api": "pnpm --filter '@tloncorp/api' watch",
     "build:shared": "pnpm --filter '@tloncorp/shared' build",

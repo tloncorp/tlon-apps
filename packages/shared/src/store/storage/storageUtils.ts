@@ -23,7 +23,8 @@ const mimeToExt: Record<string, string> = {
 
 export function ensureFileExtension(
   filename: string,
-  contentType?: string
+  contentType?: string,
+  fallbackExtension = '.jpg'
 ): string {
   if (/\.(jpg|jpeg|png|gif|webp|heic|heif|mp4|mov|webm)$/i.test(filename)) {
     return filename;
@@ -36,7 +37,7 @@ export function ensureFileExtension(
     }
   }
 
-  return `${filename}.jpg`;
+  return `${filename}${fallbackExtension}`;
 }
 
 export function getExtensionFromMimeType(mimeType?: string): string {
