@@ -11,10 +11,12 @@ import {
   setGatewayStatusManager,
 } from './src/gateway-status.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
+import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
-import { recordToolCall } from './src/telemetry.js';
+import { parseTlonTarget } from './src/targets.js';
+import { recordToolCall, reportOutboundRoute } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { checkBlockedSendOperation } from './src/tlon-tool-guard.js';
 import {
@@ -423,6 +425,48 @@ export default defineChannelPluginEntry({
         durationMs: event.durationMs,
         error: event.error,
       });
+    });
+
+    // ── Route diagnostics ───────────────────────────────────────────────
+    // Fires for every outbound send OpenClaw routes — the primary streamed
+    // reply (resolves to `tlon`) and route-dependent sends (the shared
+    // `message` tool, subagents, which can resolve elsewhere). `ctx.channelId`
+    // is where the send resolved; `routedToTlon: false` (e.g. `webchat`) is the
+    // leak this work targets. Read-only; never alters delivery.
+    //
+    // Two sinks: a PostHog event (the primary, fleet-wide signal — gated by the
+    // existing telemetry config, on in hosted prod) so we can count how often
+    // sends land off-Tlon; and a debug-gated local log for single-gateway
+    // triage.
+    api.on('message_sending', (event, ctx) => {
+      const resolvedChannel = ctx.channelId;
+      const routedToTlon = resolvedChannel === 'tlon';
+      // Only infer target kind for Tlon targets; a webchat target id is not a
+      // Tlon target and must not be misclassified.
+      const parsedTarget = routedToTlon ? parseTlonTarget(event.to) : null;
+      const targetKind =
+        parsedTarget?.kind === 'dm'
+          ? 'dm'
+          : parsedTarget?.kind === 'channel'
+            ? 'group'
+            : 'unknown';
+
+      reportOutboundRoute({ resolvedChannel, routedToTlon, targetKind });
+
+      if (isRouteDebugEnabled()) {
+        api.logger.info(
+          `[tlon][route-debug] message_sending ${JSON.stringify({
+            channelId: ctx.channelId,
+            to: event.to,
+            routedToTlon,
+            targetKind,
+            sessionKey: ctx.sessionKey ?? null,
+            conversationId: ctx.conversationId ?? null,
+            messageId: ctx.messageId ?? null,
+            threadId: event.threadId ?? null,
+          })}`
+        );
+      }
     });
 
     // ── Slash commands for approval & admin ────────────────────────────

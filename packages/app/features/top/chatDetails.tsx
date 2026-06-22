@@ -33,6 +33,7 @@ import {
   useIsAdmin,
 } from '../../ui';
 import { ConnectionIndicatorAction } from '../../ui/components/ConnectionStatus';
+import { getChannelHost } from '../../ui/utils';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 // Utility functions
@@ -252,6 +253,54 @@ export function MembersList({
           onPressGoToProfile={handlePressGoToProfile}
         />
       ) : null}
+    </View>
+  );
+}
+
+// ChannelHost - displays the ship that hosts a channel
+
+export function ChannelHost({ channel }: { channel: db.Channel }) {
+  const currentUserId = useCurrentUserId();
+  const { navigation } = useRootNavigation();
+
+  const hostId = useMemo(() => {
+    if (!channel.groupId) {
+      return null;
+    }
+    try {
+      return getChannelHost(channel, currentUserId);
+    } catch {
+      return null;
+    }
+  }, [channel, currentUserId]);
+
+  const handlePress = useCallback(
+    (contactId: string) => {
+      navigation.navigate('UserProfile', { userId: contactId });
+    },
+    [navigation]
+  );
+
+  if (!hostId) {
+    return null;
+  }
+
+  return (
+    <View paddingHorizontal={'$l'}>
+      <PaddedBlock width="100%" gap="$l" paddingBottom="$xl">
+        <TlonText.Text size="$label/m" color="$tertiaryText">
+          Host
+        </TlonText.Text>
+        <ContactListItem
+          size="$3xl"
+          height="auto"
+          padding={0}
+          showNickname
+          contactId={hostId}
+          onPress={handlePress}
+          testID="ChannelHost"
+        />
+      </PaddedBlock>
     </View>
   );
 }
