@@ -38,7 +38,6 @@ type ChatOptionsProviderProps = {
   onSelectSort?: (sortBy: 'recency' | 'arranged') => void;
   onLeaveGroup?: () => void;
   onLeaveChannel?: (groupId: string, channelId: string) => void;
-  onPressConfigureChannel?: () => void;
   onPressDeleteGroup?: () => void;
   initialChat?: {
     id: string;
@@ -64,7 +63,6 @@ export const ChatOptionsProvider = ({
   onPressChatDetails = noop,
   onLeaveGroup: navigateOnLeave,
   onLeaveChannel: navigateToGroupOnLeave,
-  onPressConfigureChannel,
 }: ChatOptionsProviderProps) => {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [inviteSheetOpen, setInviteSheetOpen] = useState(false);
@@ -412,14 +410,6 @@ export const ChatOptionsProvider = ({
             open={sheetOpen && (chat?.type === 'channel' ? !!channel : !!group)}
             onOpenChange={setSheetOpen}
             chat={chat}
-            onPressConfigureChannel={
-              onPressConfigureChannel == null
-                ? undefined
-                : () => {
-                    onPressConfigureChannel();
-                    setSheetOpen(false);
-                  }
-            }
           />
           <InviteUsersSheet
             open={inviteSheetOpen}

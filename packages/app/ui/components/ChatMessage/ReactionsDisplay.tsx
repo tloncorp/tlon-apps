@@ -178,13 +178,10 @@ export function ReactionsDisplay({
               <Tooltip.Trigger
                 borderRadius="$s"
                 cursor="pointer"
-                onPress={() => handleModifyYourReaction(reaction.value)}
-                onLongPress={
-                  isWeb ? undefined : () => handleOpenReactions(post)
-                }
                 testID="ReactionDisplay"
               >
-                <XStack
+                <Pressable
+                  flexDirection="row"
                   justifyContent="center"
                   alignItems="center"
                   backgroundColor={
@@ -202,17 +199,20 @@ export function ReactionsDisplay({
                       : '$border'
                   }
                   gap={'$s'}
-                  disabled={
-                    !canWrite ||
-                    (reactionDetails.self.didReact &&
-                      reaction.value !== reactionDetails.self.value)
+                  onPress={
+                    canWrite
+                      ? () => handleModifyYourReaction(reaction.value)
+                      : undefined
+                  }
+                  onLongPress={
+                    isWeb ? undefined : () => handleOpenReactions(post)
                   }
                 >
                   <SizableEmoji emojiInput={reaction.value} fontSize="$s" />
                   {reaction.count > 0 && (
                     <Text size="$label/m">{reaction.count}</Text>
                   )}
-                </XStack>
+                </Pressable>
               </Tooltip.Trigger>
               <ReactionTooltipContent reaction={reaction} />
             </Tooltip>

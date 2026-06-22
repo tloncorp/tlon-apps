@@ -4,6 +4,9 @@ node_modules/
 .DS_Store
 dist
 coverage/
+# Local release-validation output (CI uses artifact uploads)
+release-tarballs/
+artifacts/
 # Ignore binaries, keep package.json
 npm/*/tlon
 bin/tlon

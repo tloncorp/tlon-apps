@@ -1,21 +1,28 @@
 import * as Clipboard from 'expo-clipboard';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useCopy(copied: string) {
   const [didCopy, setDidCopy] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const doCopy = useCallback(async () => {
     await Clipboard.setStringAsync(copied);
     setDidCopy(true);
 
-    const timeout = setTimeout(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
       setDidCopy(false);
     }, 2000);
-
-    return () => {
-      setDidCopy(false);
-      clearTimeout(timeout);
-    };
   }, [copied]);
 
   return { doCopy, didCopy };

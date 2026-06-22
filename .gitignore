@@ -1,13 +1,32 @@
 node_modules
+.pnpm-store/
 .DS_Store
+/packages/hermes-tlon-adapter/.env
+__pycache__/
+*.py[cod]
+# onboarding sandbox: editable copies of private tlonbot prompts/intro — never commit
+/scripts/onboarding-sandbox/.sandbox-prompts
+/scripts/onboarding-sandbox/.sandbox-intro.md
+# local dev Urbit piers parked at the repo root
+/rus/
 ops
 bin
 !packages/tlon-skill/bin/
 !packages/tlon-skill/bin/tlon.js
 packages/tlon-skill/bin/tlon
+
+# Vendored desk dependencies — fetched into desk-deps/ by scripts/sync-deps.sh
+# (see peru.yaml). Kept out of git so upstream stays pinned but out of history;
+# assembled into a desk by scripts/assemble-desk.sh (deps first, then desk/).
+/desk-deps/
+
+# peru state
+/.peru/
+/peru.lock
 *.tgz
 *.xst
 zod*
+bud
 vere-*
 *.pill
 /rube/zod/
@@ -29,3 +48,5 @@ dump.sqlite3
 
 .gitattributes
 clurd
+
+.obsidian
