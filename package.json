@@ -61,6 +61,7 @@
   "packageManager": "pnpm@9.0.5+sha256.61bd66913b52012107ec25a6ee4d6a161021ab99e04f6acee3aa50d0e34b4af9",
   "pnpm": {
     "patchedDependencies": {
+      "@urbit/http-api@3.2.0-dev": "patches/@urbit__http-api@3.2.0-dev.patch",
       "@types/testing-library__jest-dom@5.14.5": "patches/@types__testing-library__jest-dom@5.14.5.patch",
       "tailwind-rn@4.2.0": "patches/tailwind-rn@4.2.0.patch",
       "any-ascii@0.3.2": "patches/any-ascii@0.3.2.patch",

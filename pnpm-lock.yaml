@@ -66,6 +66,9 @@ patchedDependencies:
   '@types/testing-library__jest-dom@5.14.5':
     hash: n4thxxgg24py6nu2jafoa3v4pa
     path: patches/@types__testing-library__jest-dom@5.14.5.patch
+  '@urbit/http-api@3.2.0-dev':
+    hash: xpqesqdkgacl4ngzea4xqx77xe
+    path: patches/@urbit__http-api@3.2.0-dev.patch
   any-ascii@0.3.2:
     hash: 5ofxtlxe6za2xqrbq5pqbz7wb4
     path: patches/any-ascii@0.3.2.patch
@@ -276,7 +279,7 @@ importers:
         version: 3.0.0
       '@urbit/http-api':
         specifier: 3.2.0-dev
-        version: 3.2.0-dev
+        version: 3.2.0-dev(patch_hash=xpqesqdkgacl4ngzea4xqx77xe)
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
@@ -721,7 +724,7 @@ importers:
         version: 3.0.0
       '@urbit/http-api':
         specifier: 3.2.0-dev
-        version: 3.2.0-dev
+        version: 3.2.0-dev(patch_hash=xpqesqdkgacl4ngzea4xqx77xe)
       '@urbit/sigil-js':
         specifier: ^2.2.0
         version: 2.2.0
@@ -24116,7 +24119,7 @@ snapshots:
 
   '@urbit/aura@3.0.0': {}
 
-  '@urbit/http-api@3.2.0-dev':
+  '@urbit/http-api@3.2.0-dev(patch_hash=xpqesqdkgacl4ngzea4xqx77xe)':
     dependencies:
       '@babel/runtime': 7.28.6
       '@types/node': 20.19.31
