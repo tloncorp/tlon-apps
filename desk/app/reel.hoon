@@ -344,7 +344,7 @@
     ?>  =(civ src.bowl)
     =+  !<(confirmation:reel vase)
     =+  log=~(. l bowl 'flow'^s+'lure' ~)
-    =/  sync=?  (~(got by open-describes) nonce)
+    =/  sync=?  (~(gut by open-describes) nonce |)
     =.  open-describes  (~(del by open-describes) nonce)
     =/  ids=(list [id=cord =token:reel])
       %+  skim  ~(tap by stable-id)

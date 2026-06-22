@@ -354,8 +354,8 @@
     ==
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-poke /update/profile [provider %bait] bait-update+!>([~.0v1 group-update]))
-        (ex-poke /update/profile [provider %bait] bait-update+!>([~.0v2 personal-update]))
+    :~  (ex-poke /update/profile [provider %bait] bait-update+!>([~.0v2 personal-update]))
+        (ex-poke /update/profile [provider %bait] bait-update+!>([~.0v1 group-update]))
     ==
   ::  verify that the personal invite has been updated locally
   ::
