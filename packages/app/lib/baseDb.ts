@@ -1,5 +1,5 @@
 import { createDevLogger } from '@tloncorp/shared';
-import { handleChange } from '@tloncorp/shared/db';
+import * as sharedDb from '@tloncorp/shared/db';
 import { perfMark } from '@tloncorp/shared/perfLog';
 import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
@@ -44,6 +44,13 @@ export function useMigrations(db: BaseDb) {
   );
 }
 
+export async function resetDbSyncState() {
+  await sharedDb.headsSyncedAt.resetValue();
+  await sharedDb.changesSyncedAt.resetValue();
+  await sharedDb.didSyncInitialPosts.resetValue();
+  await sharedDb.userHasCompletedFirstSync.resetValue();
+}
+
 export abstract class BaseDb {
   protected client: any = null;
   protected isPolling = false;
@@ -60,7 +67,7 @@ export abstract class BaseDb {
     try {
       const changes = await this.client.select().from(changeLogTable).all();
       for (const change of changes) {
-        handleChange({
+        sharedDb.handleChange({
           table: change.table_name,
           operation: change.operation as 'INSERT' | 'UPDATE' | 'DELETE',
           row: JSON.parse(change.row_data ?? ''),

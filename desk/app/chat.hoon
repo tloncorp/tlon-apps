@@ -324,7 +324,6 @@
 +*  wood  ~(. wood-lib [bowl wood-state])
     log   ~(. logs [our.bowl /logs])
     ol    (kol gte)
-    log      ~(. logs [our.bowl /logs])
 ++  abet  [(flop cards) state]
 ++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
@@ -1042,71 +1041,68 @@
     action(diff.q.q (v3:diff-writs:v2:cc diff.q.q.action))
   ::
       %egg-any
-    =+  !<(=egg-any:gall vase)
-    ?-  -.egg-any
-        ?(%15 %16)
-      ?.  ?=(%live +<.egg-any)
-        ~&  [dap.bowl %egg-any-not-live]
-        cor
-      =/  bak=_cor
-        (load -:!>(*[versioned-state:load @ud]) q.old-state.egg-any)
-      ::  restore previous data, doing a "deep merge" where possible.
-      ::  in doing so we must take care around sequence numbers.
-      ::  to keep that logic simple, we merge the message lists and
-      ::  re-number all the messages in sequence.
-      ::
-      =.  dms
-        %+  roll  ~(tap by dms:bak)
-        |=  [[=ship =dm:c] =_dms]
-        %+  ~(put by dms)  ship
-        ?.  (~(has by dms) ship)
-          dm
-        =/  hav  (~(got by dms) ship)
-        =/  [num=@ud wit=writs:c]
-          %^  (dip:on:writs:c ,@ud)
-              (uni:on:writs:c wit.pact.dm wit.pact.hav)
-            0
-          |=  [n=@ud k=time v=(may:c writ:c)]
-          ^-  [(unit (may:c writ:c)) ? @ud]
-          :_  [| +(n)]
-          :-  ~
-          ?:(?=(%| -.v) v(seq +(n)) v(seq +(n)))
-        :*  :^    num
-                wit
-              (~(uni by dex.pact.dm) dex.pact.hav)
-            ::NOTE  if we renumbered message above, arguably this should
-            ::      also add new upd entries for all those posts, but we
-            ::      assume (for now) that /changes consistency across exports
-            ::      isn't strictly necessary
-            (uni:updated-on:c upd.pact.dm upd.pact.hav)
-          ::
-            remark.hav
-            net.hav
-            |(pin.hav pin.dm)
-        ==
-      =.  clubs
-        %+  roll  ~(tap by clubs:bak)
-        |=  [[=id:club:c =club:c] =_clubs]
-        %+  ~(put by clubs)  id
-        ?.  (~(has by clubs) id)
-          club
-        =/  hav  (~(got by clubs) id)
-        :*  (~(uni in heard.club) heard.hav)
-            remark.hav
-          ::
-            :^    (max num.pact.club num.pact.hav)
-                (uni:on:writs:c wit.pact.club wit.pact.hav)
-              (~(uni by dex.pact.club) dex.pact.hav)
-            (uni:updated-on:c upd.pact.club upd.pact.hav)
-          ::
-            crew.hav
-        ==
-      =.  pins             pins:bak
-      =.  blocked          (~(uni in blocked:bak) blocked)
-      =.  blocked-by       (~(uni in blocked-by:bak) blocked-by)
-      =.  hidden-messages  (~(uni in hidden-messages:bak) hidden-messages)
+    =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
+    ?.  ?=(%live -.egg)
+      ~&  [dap.bowl %egg-not-live]
       cor
-    ==
+    =/  bak=_cor
+      (load -:!>(*[versioned-state:load @ud]) q.old-state.egg)
+    ::  restore previous data, doing a "deep merge" where possible.
+    ::  in doing so we must take care around sequence numbers.
+    ::  to keep that logic simple, we merge the message lists and
+    ::  re-number all the messages in sequence.
+    ::
+    =.  dms
+      %+  roll  ~(tap by dms:bak)
+      |=  [[=ship =dm:c] =_dms]
+      %+  ~(put by dms)  ship
+      ?.  (~(has by dms) ship)
+        dm
+      =/  hav  (~(got by dms) ship)
+      =/  [num=@ud wit=writs:c]
+        %^  (dip:on:writs:c ,@ud)
+            (uni:on:writs:c wit.pact.dm wit.pact.hav)
+          0
+        |=  [n=@ud k=time v=(may:c writ:c)]
+        ^-  [(unit (may:c writ:c)) ? @ud]
+        :_  [| +(n)]
+        :-  ~
+        ?:(?=(%| -.v) v(seq +(n)) v(seq +(n)))
+      :*  :^    num
+              wit
+            (~(uni by dex.pact.dm) dex.pact.hav)
+          ::NOTE  if we renumbered message above, arguably this should
+          ::      also add new upd entries for all those posts, but we
+          ::      assume (for now) that /changes consistency across exports
+          ::      isn't strictly necessary
+          (uni:updated-on:c upd.pact.dm upd.pact.hav)
+        ::
+          remark.hav
+          net.hav
+          |(pin.hav pin.dm)
+      ==
+    =.  clubs
+      %+  roll  ~(tap by clubs:bak)
+      |=  [[=id:club:c =club:c] =_clubs]
+      %+  ~(put by clubs)  id
+      ?.  (~(has by clubs) id)
+        club
+      =/  hav  (~(got by clubs) id)
+      :*  (~(uni in heard.club) heard.hav)
+          remark.hav
+        ::
+          :^    (max num.pact.club num.pact.hav)
+              (uni:on:writs:c wit.pact.club wit.pact.hav)
+            (~(uni by dex.pact.club) dex.pact.hav)
+          (uni:updated-on:c upd.pact.club upd.pact.hav)
+        ::
+          crew.hav
+      ==
+    =.  pins             pins:bak
+    =.  blocked          (~(uni in blocked:bak) blocked)
+    =.  blocked-by       (~(uni in blocked-by:bak) blocked-by)
+    =.  hidden-messages  (~(uni in hidden-messages:bak) hidden-messages)
+    cor
   ==
   ++  pin
     |=  ps=(list whom:c)
@@ -1540,7 +1536,7 @@
   (give %fact ~[/unreads] chat-unread-update+!>([whom unread]))
 ::
 ++  pass-activity
-  =,  v8:av
+  =,  v9:av
   |=  $:  =whom
           $=  concern
           $%  [%invite ~]
@@ -1548,6 +1544,8 @@
               [%delete-post key=message-key]
               [%reply key=message-key top=message-key]
               [%delete-reply key=message-key top=message-key]
+              [%react key=message-key top=(unit message-key) =author:c =react:c]
+              [%delete-react key=message-key top=(unit message-key) =author:c =react:c]
           ==
           content=story:d
           mention=?
@@ -1558,34 +1556,51 @@
   =;  actions=(list action)
     %-  emil
     %+  turn  actions
-    |=  =action:v8:av
-    =/  =cage  activity-action+!>(action)
+    |=  =action:v9:av
+    =/  =cage  activity-action-1+!>(action)
     [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
-  ?:  ?&  ?=(?(%post %reply) -.concern)
-          .=  our.bowl
-          p.id:?-(-.concern %post key.concern, %reply key.concern)
+  ?:  ?&  ?=(?(%post %reply %react) -.concern)
+        ::
+          =/  author-ship=@p
+            ?-  -.concern
+              %post   p.id.key.concern
+              %reply  p.id.key.concern
+              %react  (get-author-ship:utils author.concern)
+            ==
+          =(our.bowl author-ship)
       ==
     =/  =source
-      ?:  ?=(%post -.concern)  [%dm whom]
-      [%dm-thread top.concern whom]
+      ?-  -.concern
+        %post    [%dm whom]
+        %reply   [%dm-thread top.concern whom]
+        %react   ?^(top.concern [%dm-thread u.top.concern whom] [%dm whom])
+      ==
     :~  [%read source [%all `now.bowl |]]
         [%bump source]
     ==
   ?:  ?=(%delete-reply -.concern)
-    =/  =source:v8:av  [%dm-thread top.concern whom]
-    =/  =incoming-event:v8:av
+    =/  =source:v9:av  [%dm-thread top.concern whom]
+    =/  =incoming-event:v9:av
       [%dm-reply key.concern top.concern whom content mention]
     [%del-event source incoming-event]~
   ?:  ?=(%delete-post -.concern)
     :~  [%del %dm-thread key.concern whom]
         [%del-event [%dm whom] [%dm-post key.concern whom content mention]]
     ==
+  ?:  ?=(%delete-react -.concern)
+    =/  =source:v9:av
+      ?~  top.concern
+        [%dm whom]
+      [%dm-thread u.top.concern whom]
+    =,  concern
+    [%del-event source [%dm-react key top whom author react]]~
   :_  ~
   :-  %add
   ?-  -.concern
     %post    [%dm-post key.concern whom content mention]
     %reply   [%dm-reply key.concern top.concern whom content mention]
     %invite  [%dm-invite whom]
+    %react   [%dm-react key.concern top.concern whom author.concern react.concern]
   ==
 ::
 ++  make-notice
@@ -2037,6 +2052,8 @@
                 [%delete-post key=message-key]
                 [%reply key=message-key top=message-key]
                 [%delete-reply key=message-key top=message-key]
+                [%react key=message-key top=(unit message-key) =author:c =react:c]
+                [%delete-react key=message-key top=(unit message-key) =author:c =react:c]
             ==
             content=story:d
             mention=?
@@ -2229,8 +2246,26 @@
         ?:  ?=(%| -.writ.u.had)  ~
         (get-reply:cu-pact id.q.diff.delta replies.writ.u.had)
       =.  pact.club  (reduce:cu-pact now.bowl from-self diff.delta)
-      ?-  -.q.diff.delta
-          ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
+      ?-    -.q.diff.delta
+          %add-react
+        =?  cu-core  &(?=(^ had) ?=(%& -.writ.u.had))
+          =/  message-key  [p.diff.delta time.u.had]
+          =*  content  content.writ.u.had
+          =/  concern  [%react message-key ~ [author react]:q.diff.delta]
+          (cu-activity concern content |)
+        (cu-give-writs-diff diff.delta)
+      ::
+          %del-react
+        =?  cu-core  &(?=(^ had) ?=(%& -.writ.u.had))
+          =/  message-key  [p.diff.delta time.u.had]
+          =*  content  content.writ.u.had
+          =*  react-author  author.q.diff.delta
+          ?~  react=(~(get by reacts.writ.u.had) react-author)
+            cu-core
+          =/  concern  [%delete-react message-key ~ react-author u.react]
+          (cu-activity concern content |)
+        (cu-give-writs-diff diff.delta)
+      ::
           %add
         =.  time.q.diff.delta  (~(get by dex.pact.club) p.diff.delta)
         =*  essay   essay.q.diff.delta
@@ -2260,7 +2295,26 @@
         ?:  ?=(%| -.writ.u.entry)  cu-core
         =.  meta.q.diff.delta  `reply-meta.writ.u.entry
         ?-  -.delt
-            ?(%add-react %del-react)  (cu-give-writs-diff diff.delta)
+            %add-react
+          =?  cu-core  ?&(?=(^ reply) ?=(%& -.reply.u.reply))
+            =/  top-key  [id time]:writ.u.entry
+            =/  message-key  [id time]:reply.u.reply
+            =*  content  content.reply.u.reply
+            =/  concern  [%react message-key `top-key author.delt react.delt]
+            (cu-activity concern content |)
+          (cu-give-writs-diff diff.delta)
+        ::
+            %del-react
+          =?  cu-core  ?&(?=(^ reply) ?=(%& -.reply.u.reply))
+            =/  top-key  [id time]:writ.u.entry
+            =/  message-key  [id time]:reply.u.reply
+            =*  content  content.reply.u.reply
+            =*  react-author  author.delt
+            ?~  react=(~(get by reacts.reply.u.reply) react-author)
+              cu-core
+            =/  concern  [%delete-react message-key `top-key react-author u.react]
+            (cu-activity concern content |)
+          (cu-give-writs-diff diff.delta)
         ::
             %del
           =?  cu-core  &(?=(^ reply) ?=(%& -.reply.u.reply))
@@ -2569,6 +2623,8 @@
                 [%delete-post key=message-key:a]
                 [%reply key=message-key:a top=message-key:a]
                 [%delete-reply key=message-key:a top=message-key:a]
+                [%react key=message-key:a top=(unit message-key:a) =author:c =react:c]
+                [%delete-react key=message-key:a top=(unit message-key:a) =author:c =react:c]
             ==
             content=story:d
             mention=?
@@ -2683,8 +2739,25 @@
     =?  cor  &(=(net.dm %invited) !=(ship our.bowl))
       =.  dms  (~(put by dms) ship dm)  ::NOTE  +give-invites needs latest state
       give-invites
-    ?-  -.q.diff
-        ?(%add-react %del-react)  (di-give-writs-diff diff)
+    ?-    -.q.diff
+         %add-react
+      =?  di-core  &(?=(^ had) ?=(%& -.writ.u.had))
+        =/  message-key  [p.diff time.u.had]
+        =*  content  content.writ.u.had
+        =/  concern  [%react message-key ~ author.q.diff react.q.diff]
+        (di-activity concern content |)
+      (di-give-writs-diff diff)
+    ::
+        %del-react
+      =?  di-core  &(?=(^ had) ?=(%& -.writ.u.had))
+        =/  message-key  [p.diff time.u.had]
+        =*  content  content.writ.u.had
+        =*  react-author  author.q.diff
+        ?~  react=(~(get by reacts.writ.u.had) react-author)
+          di-core
+        =/  concern  [%delete-react message-key ~ react-author u.react]
+        (di-activity concern content |)
+      (di-give-writs-diff diff)
     ::
         %add
       =.  time.q.diff  (~(get by dex.pact.dm) p.diff)
@@ -2714,8 +2787,28 @@
       ?~  entry  di-core
       ?:  ?=(%| -.writ.u.entry)  di-core
       =.  meta.q.diff  `reply-meta.writ:(need entry)
-      ?-  -.delta
-          ?(%add-react %del-react)  (di-give-writs-diff diff)
+      ?-    -.delta
+          %add-react
+        =?  di-core  ?&(?=(^ reply) ?=(%& -.reply.u.reply))
+          =/  top-key  [id time]:writ.u.entry
+          =/  message-key  [id time]:reply.u.reply
+          =*  content  content.reply.u.reply
+          =/  mention  (was-mentioned:utils content our.bowl ~)
+          =/  concern  [%react message-key `top-key author.delta react.delta]
+          (di-activity concern content mention)
+        (di-give-writs-diff diff)
+      ::
+          %del-react
+        =?  di-core  ?&(?=(^ reply) ?=(%& -.reply.u.reply))
+          =/  top-key  [id time]:writ.u.entry
+          =/  message-key  [id time]:reply.u.reply
+          =*  content  content.reply.u.reply
+          =*  react-author  author.delta
+          ?~  react=(~(get by reacts.reply.u.reply) react-author)
+            di-core
+          =/  concern  [%delete-react message-key `top-key react-author u.react]
+          (di-activity concern content |)
+        (di-give-writs-diff diff)
       ::
           %del
         =?  di-core  &(?=(^ reply) ?=(%& -.reply.u.reply))

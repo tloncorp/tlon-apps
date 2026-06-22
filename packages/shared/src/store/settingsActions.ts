@@ -63,7 +63,7 @@ export async function completeWayfindingSplash() {
     tappedAddNote: false,
     tappedAddCollection: false,
     tappedChatInput: false,
-    tappedBotMention: false,
+    tappedHomeGroupHint: false,
   }));
 
   // optimistic update
@@ -79,6 +79,50 @@ export async function completeWayfindingSplash() {
 
     // don't rollback the optimistic update, we want to avoid showing
     // the splash sequence again
+  }
+}
+
+export async function completeRevivalSplash() {
+  // Revived users should get the home add and Tlonbot chat tooltips, not the
+  // full first-run coach mark sequence.
+  await db.wayfindingProgress.setValue((prev) => ({
+    ...prev,
+    tappedHomeAdd: false,
+    tappedHomeGroupHint: false,
+  }));
+
+  // Marking the splash complete keeps other clients from showing the modal again.
+  await db.insertSettings({ completedWayfindingSplash: true });
+  try {
+    await withRetry(() => api.setSetting('completedWayfindingSplash', true));
+  } catch (e) {
+    logger.trackEvent(AnalyticsEvent.WayfindingDebug, {
+      context: 'failed to mark remote setting completed',
+      settingName: 'completedWayfindingSplash',
+      severity: AnalyticsSeverity.High,
+    });
+  }
+}
+
+export async function dismissWebAppSplash() {
+  // optimistic update
+  await db.insertSettings({ webAppSplashDismissed: true });
+  try {
+    await withRetry(() => api.setSetting('webAppSplashDismissed', true));
+  } catch (e) {
+    // don't rollback the optimistic update; we want to avoid re-nagging the
+    // user if the remote write fails
+  }
+}
+
+export async function dismissMobileAppPromo() {
+  // optimistic update
+  await db.insertSettings({ mobileAppPromoDismissed: true });
+  try {
+    await withRetry(() => api.setSetting('mobileAppPromoDismissed', true));
+  } catch (e) {
+    // don't rollback the optimistic update; we want to avoid re-nagging the
+    // user if the remote write fails
   }
 }
 

@@ -1,17 +1,17 @@
 import type { Schema } from '@tloncorp/shared/db';
-import { schema, setClient } from '@tloncorp/shared/db';
-import {
-  changesSyncedAt,
-  headsSyncedAt,
-  sqliteContent,
-} from '@tloncorp/shared/db';
+import { schema, setClient, sqliteContent } from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
 import { readArrayBufferFromBlob } from '@tloncorp/shared/utils';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
 import { debounce } from 'lodash';
 import { SQLocalDrizzle } from 'sqlocal/drizzle';
 
-import { BaseDb, logger, useMigrations as useMigrationsBase } from './baseDb';
+import {
+  BaseDb,
+  logger,
+  resetDbSyncState,
+  useMigrations as useMigrationsBase,
+} from './baseDb';
 import { TRIGGER_SETUP } from './triggers';
 import migrate from './webMigrator';
 
@@ -103,10 +103,9 @@ export class WebDb extends BaseDb {
 
       // No persisted DB carried sync state forward, so anything we previously
       // tracked in localStorage about "what has been synced" is meaningless.
-      // Reset the sync watermarks so the initial sync refetches heads.
+      // Reset the sync markers so the initial sync hydrates the new DB.
       if (!loadedFromFile) {
-        await headsSyncedAt.resetValue();
-        await changesSyncedAt.resetValue();
+        await resetDbSyncState();
       }
 
       logger.log('sqlocal instance created', { sqlocal: this.sqlocal });
@@ -281,13 +280,13 @@ export class WebDb extends BaseDb {
     if (!this.sqlocal) {
       logger.warn('purgeDb called before setupDb, ignoring');
       await sqliteContent.resetValue();
+      await resetDbSyncState();
       return;
     }
     logger.log('purging sqlite database');
     this.saveToFile.cancel();
     await sqliteContent.resetValue();
-    await headsSyncedAt.resetValue();
-    await changesSyncedAt.resetValue();
+    await resetDbSyncState();
     await this.sqlocal.destroy();
     this.sqlocal = null;
     this.client = null;

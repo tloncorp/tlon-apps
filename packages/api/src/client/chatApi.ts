@@ -292,6 +292,14 @@ export const getDms = async (): Promise<GetDmsResponse> => {
   return toClientDms(result);
 };
 
+export const getDmInvites = async (): Promise<GetDmsResponse> => {
+  const result = (await scry({
+    app: 'chat',
+    path: '/dm/invited',
+  })) as string[];
+  return toClientDms(result, true);
+};
+
 export const toClientDms = (
   dmContacts: string[],
   areInvites?: boolean

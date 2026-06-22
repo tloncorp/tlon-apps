@@ -51,6 +51,15 @@ export interface BottomSheetWrapperProps {
    * sheets that exhibit Android render desync after close (TLON-5664).
    */
   unmountOnClose?: boolean;
+
+  /**
+   * Forwards Gorhom's `BottomSheetModal` `stackBehavior` prop on native;
+   * ignored on web. Use `'push'` for a modal presented from within another
+   * presented modal so Gorhom does not call `.minimize()` on the parent;
+   * the default `'switch'` minimizes the parent, which our wrapper interprets
+   * as a user dismissal (see TLON-5891).
+   */
+  stackBehavior?: 'replace' | 'push' | 'switch';
 }
 
 export interface BottomSheetScrollViewProps {

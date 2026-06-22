@@ -40,6 +40,7 @@ import {
 } from '../../test/helpers';
 import rawGroupsInit2 from '../../test/init.json';
 import {
+  ensureDmInviteChannel,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
@@ -97,6 +98,16 @@ const outputData = [
     itemId: inputData[2],
   },
 ];
+
+const dmChannel = (id: string, isDmInvite: boolean): db.Channel => ({
+  id,
+  type: 'dm',
+  title: '',
+  description: '',
+  isDmInvite,
+  contactId: id,
+  members: [{ chatId: id, contactId: id, membershipType: 'channel' }],
+});
 
 test('syncs pins', async () => {
   setScryOutput(inputData);
@@ -317,6 +328,7 @@ test('syncs dms', async () => {
         },
       },
     },
+    ['~sampel-palnet'],
   ]);
   await syncDms();
 
@@ -377,6 +389,107 @@ test('syncs dms', async () => {
         .build(),
     })
   );
+
+  const inviteChannel = await db.getChannel({
+    id: '~sampel-palnet',
+    includeMembers: true,
+  });
+  expect(inviteChannel).toEqual(
+    db.buildChannel({
+      id: '~sampel-palnet',
+      type: 'dm',
+      contactId: '~sampel-palnet',
+      title: '',
+      description: '',
+      isDmInvite: true,
+      lastPostSequenceNum: null,
+      currentUserIsMember: null,
+      members: [
+        {
+          chatId: '~sampel-palnet',
+          contactId: '~sampel-palnet',
+          contact: null,
+          joinedAt: null,
+          membershipType: 'channel',
+          status: null,
+        },
+      ],
+    })
+  );
+});
+
+test('syncDms lets regular DMs win when backend invite state overlaps', async () => {
+  setScryOutputs([['~sampel-palnet'], {}, ['~sampel-palnet']]);
+
+  await syncDms();
+
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(false);
+});
+
+test('ensureDmInviteChannel inserts a pending single-DM invite from backend invites', async () => {
+  setScryOutputs([[], ['~sampel-palnet']]);
+
+  const result = await ensureDmInviteChannel({
+    channelId: '~sampel-palnet',
+  });
+
+  expect(result).toEqual({ found: true, state: 'pending-invite' });
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(true);
+  expect(channel?.contactId).toBe('~sampel-palnet');
+});
+
+test('ensureDmInviteChannel refreshes the target as a regular DM from backend DMs', async () => {
+  await db.insertChannels([dmChannel('~sampel-palnet', true)]);
+  setScryOutputs([['~sampel-palnet'], []]);
+
+  const result = await ensureDmInviteChannel({
+    channelId: '~sampel-palnet',
+  });
+
+  expect(result).toEqual({ found: true, state: 'regular-dm' });
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(false);
+  expect(channel?.contactId).toBe('~sampel-palnet');
+});
+
+test('ensureDmInviteChannel deletes the target when a local invite is stale', async () => {
+  await db.insertChannels([
+    dmChannel('~sampel-palnet', true),
+    {
+      ...dmChannel('~wicdev-wisryt', true),
+      title: 'Unrelated request',
+    },
+  ]);
+  setScryOutputs([[], []]);
+
+  const result = await ensureDmInviteChannel({
+    channelId: '~sampel-palnet',
+  });
+
+  expect(result).toEqual({ found: false, state: 'missing' });
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+
+  const unrelated = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(unrelated?.isDmInvite).toBe(true);
+  expect(unrelated?.title).toBe('Unrelated request');
+});
+
+test('ensureDmInviteChannel returns missing without deleting a non-invite local channel', async () => {
+  await db.insertChannels([dmChannel('~sampel-palnet', false)]);
+  setScryOutputs([[], []]);
+
+  const result = await ensureDmInviteChannel({
+    channelId: '~sampel-palnet',
+  });
+
+  expect(result).toEqual({ found: false, state: 'missing' });
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.isDmInvite).toBe(false);
 });
 
 const groupId = '~solfer-magfed/test-group';
@@ -486,6 +599,36 @@ test('syncs last posts', async () => {
   expect(chatsWithLatestPosts.length).toEqual(
     chats.unpinned.length - (NUM_EMPTY_TEST_GROUPS + NUM_EMPTY_TEST_CHANNELS)
   );
+});
+
+test('init data repairs latest posts that arrived before channel rows', async () => {
+  const client = getClient();
+  if (!client) throw new Error('test db not initialized');
+
+  await db.headsSyncedAt.resetValue();
+  setScryOutputs([headsData, groupsInitData2]);
+
+  await syncLatestPosts();
+  await syncInitData();
+
+  const missingAfterInit = await client
+    .select({ count: $.countDistinct(db.schema.channels.id) })
+    .from(db.schema.channels)
+    .innerJoin(
+      db.schema.posts,
+      $.eq(db.schema.posts.channelId, db.schema.channels.id)
+    )
+    .where(
+      $.and(
+        $.isNull(db.schema.channels.lastPostId),
+        $.ne(db.schema.posts.type, 'reply'),
+        $.or(
+          $.isNull(db.schema.posts.isDeleted),
+          $.eq(db.schema.posts.isDeleted, false)
+        )
+      )
+    );
+  expect(missingAfterInit[0].count).toBe(0);
 });
 
 test('syncs thread posts', async () => {

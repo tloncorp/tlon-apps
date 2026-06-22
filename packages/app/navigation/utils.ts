@@ -1,10 +1,10 @@
 import {
   CommonActions,
   NavigationProp,
+  StackActions,
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -16,7 +16,15 @@ import type {
   DesktopBasePathStackParamList,
   MobileBasePathStackParamList,
 } from './BasePathNavigator';
+import {
+  TOP_LEVEL_DRAWER_ROUTES,
+  getActiveTopLevelDrawerRouteName,
+  getDesktopPostRoute,
+  screenNameFromChannelId,
+} from './routeHelpers';
 import { CombinedParamList, RootStackParamList } from './types';
+
+export { screenNameFromChannelId } from './routeHelpers';
 
 const logger = createDevLogger('nav-utils', false);
 
@@ -187,11 +195,6 @@ export function useNavigateToPost() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
   const { lastOpenTab } = useGlobalSearch();
-  const activityIndex = navigation
-    .getState()
-    ?.routes.findIndex((route) => route.name === 'Activity');
-  const currentScreenIsActivity =
-    navigation.getState()?.index === activityIndex;
 
   return useCallback(
     (post: db.Post, options?: { selectedPostId?: string | null }) => {
@@ -203,48 +206,51 @@ export function useNavigateToPost() {
         selectedPostId: options?.selectedPostId,
       };
 
+      // Evaluate at press time (not hook-render time) against the live parent
+      // navigator chain. The desktop Activity drawer is nested, so inspecting
+      // only the locally-scoped state misses the top-level `Activity` route.
+      const currentScreenIsActivity =
+        getActiveTopLevelDrawerRouteName(navigation) === 'Activity';
+
       if (!isWindowNarrow && currentScreenIsActivity) {
         const tab = getTab(navigation, lastOpenTab);
         logger.log('navigateToPost', tab, postParams);
 
-        navigation.navigate(
-          tab,
-          {
-            screen: 'Channel',
-            params: {
-              screen: 'Post',
-              params: postParams,
-            },
-          },
-          { pop: true }
-        );
+        navigation.navigate(getDesktopPostRoute(tab, postParams));
         return;
       }
 
       navigation.navigate('Post', postParams, { pop: true });
     },
-    [isWindowNarrow, currentScreenIsActivity, navigation, lastOpenTab]
+    [isWindowNarrow, navigation, lastOpenTab]
   );
 }
 
 export function useNavigateBackFromPost() {
   const isWindowNarrow = useIsWindowNarrow();
   const navigation = useNavigation();
-  const length = navigation.getState()?.routes.length;
-  const lastScreen = navigation.getState()?.routes[length - 2];
-  const lastScreenWasActivity = lastScreen?.name === 'Activity';
-  // @ts-expect-error - ChannelRoot is fine here.
-  const lastScreenWasChannel = lastScreen?.name === 'ChannelRoot';
-  const lastChannelWasChat =
-    // @ts-expect-error - we know we'll have a channelId here if lastScreenWasChannel
-    lastScreenWasChannel && lastScreen?.params?.channelId
-      ? // @ts-expect-error - we know we'll have a channelId here if lastScreenWasChannel
-        lastScreen.params.channelId.startsWith('chat')
-      : false;
 
   return useCallback(
     (channel: db.Channel, postId: string) => {
-      const isChatShaped = ['chat', 'dm', 'groupDM'].includes(channel.type);
+      // Read route state at action time (not at hook-render time) and identify
+      // the previous route via state.index, so the decision doesn't depend on
+      // stack shape or stale captured values.
+      const state = navigation.getState();
+      const previousRoute =
+        state && state.index > 0 ? state.routes[state.index - 1] : undefined;
+
+      const previousRouteParams = previousRoute?.params as
+        | { channelId?: string }
+        | undefined;
+      const lastScreenWasActivity = previousRoute?.name === 'Activity';
+      // @ts-expect-error - ChannelRoot is fine here.
+      const lastScreenWasChannel = previousRoute?.name === 'ChannelRoot';
+      const lastChannelWasChat =
+        lastScreenWasChannel && previousRouteParams?.channelId
+          ? previousRouteParams.channelId.startsWith('chat')
+          : false;
+
+      const isChatShaped = ['chat', 'dm', 'groupDm'].includes(channel.type);
       if (lastChannelWasChat && !isChatShaped) {
         // if we're returning from viewing a notebook/gallery post and the last
         // channel was a chat, we should navigate to the chat instead of the
@@ -258,17 +264,22 @@ export function useNavigateBackFromPost() {
       }
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
-        navigation.navigate(
-          screenName,
-          {
-            channelId: channel.id,
-            // we don't want to highlight the selected post we're returning from
-            // if we aren't in a chat
-            selectedPostId: isChatShaped ? postId : undefined,
-            ...(channel.groupId ? { groupId: channel.groupId } : {}),
-          },
-          { pop: true }
-        );
+        const params = {
+          channelId: channel.id,
+          // we don't want to highlight the selected post we're returning from
+          // if we aren't in a chat
+          selectedPostId: isChatShaped ? postId : undefined,
+          ...(channel.groupId ? { groupId: channel.groupId } : {}),
+        };
+        // popTo pops back to the target channel if it's already in the stack
+        // (the normal in-channel thread case), or replaces the focused Post in
+        // place if it isn't (e.g. a thread opened from a reference in a DM) —
+        // never pushing a duplicate channel that would leave Post underneath
+        // and create a back-stack loop. Note: with no getId on the stack
+        // screens, popTo matches by name only, so it won't preserve a stacked
+        // same-name route for a *different* channel; we accept that rather than
+        // add getId (which would change pop/dedupe matching app-wide).
+        navigation.dispatch(StackActions.popTo(screenName, params));
       } else {
         navigation.navigate(
           // @ts-expect-error - ChannelRoot is fine here.
@@ -282,7 +293,7 @@ export function useNavigateBackFromPost() {
         );
       }
     },
-    [navigation, isWindowNarrow, lastScreenWasActivity]
+    [navigation, isWindowNarrow]
   );
 }
 
@@ -311,8 +322,7 @@ function getTab(
 
   const last = state.routes[state.index];
   logger.log('last route name', last.name);
-  const drawers = ['Home', 'Messages', 'Activity', 'Profile', 'Settings'];
-  if (!drawers.includes(last.name)) {
+  if (!(TOP_LEVEL_DRAWER_ROUTES as readonly string[]).includes(last.name)) {
     logger.log('not top level drawer, getting tab from parent');
     return getTab(navigation.getParent(), lastOpenTab);
   }
@@ -413,6 +423,21 @@ export function useRootNavigation() {
     navigationRef.current.goBack();
   }, [navigationRef]);
 
+  const navigateToBotSettings = useCallback(() => {
+    if (isWindowNarrow) {
+      navigationRef.current.navigate('BotSettings');
+      return;
+    }
+
+    const navigateToNestedSettings = navigationRef.current.navigate as (
+      screen: 'Settings',
+      params: { screen: 'BotSettings' }
+    ) => void;
+    navigateToNestedSettings('Settings', {
+      screen: 'BotSettings',
+    });
+  }, [isWindowNarrow, navigationRef]);
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -435,19 +460,21 @@ export function useRootNavigation() {
       resetToChannel,
       resetToDm,
       navigateBack,
+      navigateToBotSettings,
     }),
     [
       navigation,
+      navigateBack,
       navigateToChannel,
       navigateToChatDetails,
       navigateToChatVolume,
+      navigateToBotSettings,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
       resetToGroup,
       resetToChannel,
       resetToDm,
-      navigateBack,
     ]
   );
 }
@@ -520,12 +547,4 @@ export async function getMainGroupRoute(
       pop: true,
     } as const;
   }
-}
-
-export function screenNameFromChannelId(channelId: string) {
-  return isDmChannelId(channelId)
-    ? 'DM'
-    : isGroupDmChannelId(channelId)
-      ? 'GroupDM'
-      : 'Channel';
 }

@@ -641,6 +641,50 @@ export const getSystemContactsBatchByContactId = createReadQuery(
   ['systemContacts', 'systemContactSentInvites']
 );
 
+// Returns the system contacts linked to the given contactIds whose
+// linked contact has no customNickname yet. Used by contact-discovery
+// to apply the address-book name as a default — we only fill in names
+// the user hasn't set themselves.
+export const getUnnamedSystemContactsByContactId = createReadQuery(
+  'getUnnamedSystemContactsByContactId',
+  async (
+    contactIds: string[],
+    ctx: QueryCtx
+  ): Promise<
+    Array<{
+      contactId: string;
+      firstName: string | null;
+      lastName: string | null;
+    }>
+  > => {
+    if (!contactIds.length) return [];
+    const rows = await ctx.db
+      .select({
+        contactId: $systemContacts.contactId,
+        firstName: $systemContacts.firstName,
+        lastName: $systemContacts.lastName,
+      })
+      .from($systemContacts)
+      .leftJoin($contacts, eq($systemContacts.contactId, $contacts.id))
+      .where(
+        and(
+          inArray($systemContacts.contactId, contactIds),
+          or(isNull($contacts.customNickname), eq($contacts.customNickname, ''))
+        )
+      );
+    return rows.filter(
+      (
+        r
+      ): r is {
+        contactId: string;
+        firstName: string | null;
+        lastName: string | null;
+      } => r.contactId !== null
+    );
+  },
+  ['systemContacts', 'contacts']
+);
+
 export const getUninvitedSystemContactsShortlist = createReadQuery(
   'getUninvitedSystemContactsShortlist',
   async (ctx: QueryCtx): Promise<SystemContact[]> => {
@@ -1255,21 +1299,30 @@ export const insertGroups = createWriteQuery(
             });
         }
       }
-      await setLastPosts(null, txCtx);
+      const channelIds = groups.flatMap(
+        (g) => g.channels?.map((c) => c.id) ?? []
+      );
+      await setLastPosts(null, txCtx, channelIds);
     });
   },
-  ({ groups }) =>
-    groups.length
-      ? [
-          'groups',
-          'groupRoles',
-          'contacts',
-          'chatMembers',
-          'chatMemberGroupRoles',
-          'channels',
-          'pins',
-        ]
-      : []
+  ({ groups }) => {
+    if (!groups.length) {
+      return [];
+    }
+    const effects: TableName[] = [
+      'groups',
+      'groupRoles',
+      'contacts',
+      'chatMembers',
+      'chatMemberGroupRoles',
+      'channels',
+      'pins',
+    ];
+    if (groups.some((group) => group.channels?.length)) {
+      effects.push('posts');
+    }
+    return effects;
+  }
 );
 
 export const insertGroupPreviews = createWriteQuery(
@@ -1857,23 +1910,79 @@ export const removeChatMembers = createWriteQuery(
   ['chatMembers', 'groups']
 );
 
-export const getUnreadsCountWithoutMuted = createReadQuery(
-  'getUnreadsCountWithoutMuted',
-  async ({ type }: { type?: ChannelUnread['type'] }, ctx: QueryCtx) => {
-    const result = await ctx.db
+export const getNotifyingUnreadSourceCount = createReadQuery(
+  'getNotifyingUnreadSourceCount',
+  async (ctx: QueryCtx) => {
+    const channelCountResult = await ctx.db
       .select({ count: count() })
       .from($channelUnreads)
-      .where(() =>
-        and(
-          $channelUnreads.notify,
-          gt($channelUnreads.count, 0),
-          type ? eq($channelUnreads.type, type) : undefined
-        )
-      );
-    return result[0]?.count ?? 0;
+      .where(eq($channelUnreads.notify, true));
+
+    const groupCountResult = await ctx.db
+      .select({ count: count() })
+      .from($groupUnreads)
+      .where(eq($groupUnreads.notify, true));
+    const threadCountResult = await ctx.db
+      .select({ count: count() })
+      .from($threadUnreads)
+      .where(eq($threadUnreads.notify, true));
+
+    // Each query returns one aggregate row; sum the row counts.
+    return (
+      (channelCountResult[0]?.count ?? 0) +
+      (groupCountResult[0]?.count ?? 0) +
+      (threadCountResult[0]?.count ?? 0)
+    );
   },
-  ['channelUnreads']
+  ['channelUnreads', 'groupUnreads', 'threadUnreads']
 );
+
+function threadUnreadActivityPredicate() {
+  return or(ne($threadUnreads.count, 0), eq($threadUnreads.notify, true));
+}
+
+async function hasNotifyingThreadUnreadByChannel(
+  ctx: QueryCtx,
+  channelId: string
+) {
+  const result = await ctx.db
+    .select({ channelId: $threadUnreads.channelId })
+    .from($threadUnreads)
+    .where(
+      and(
+        eq($threadUnreads.channelId, channelId),
+        eq($threadUnreads.notify, true)
+      )
+    )
+    .limit(1);
+
+  return result.length > 0;
+}
+
+async function getNotifyingChildChannelCountByGroup(
+  ctx: QueryCtx,
+  groupId: string
+) {
+  const channelResult = await ctx.db
+    .select({ channelId: $channelUnreads.channelId })
+    .from($channelUnreads)
+    .innerJoin($channels, eq($channelUnreads.channelId, $channels.id))
+    .where(
+      and(eq($channels.groupId, groupId), eq($channelUnreads.notify, true))
+    );
+
+  const threadResult = await ctx.db
+    .selectDistinct({ channelId: $threadUnreads.channelId })
+    .from($threadUnreads)
+    .innerJoin($channels, eq($threadUnreads.channelId, $channels.id))
+    .where(
+      and(eq($channels.groupId, groupId), eq($threadUnreads.notify, true))
+    );
+
+  return new Set(
+    [...channelResult, ...threadResult].map((row) => row.channelId)
+  ).size;
+}
 
 export interface GetUnreadsOptions {
   orderBy?: 'updatedAt';
@@ -2072,6 +2181,20 @@ export const getChannelUnread = createReadQuery(
   ['channelUnreads']
 );
 
+export const getNotifyingChannelUnreadsByGroup = createReadQuery(
+  'getNotifyingChannelUnreadsByGroup',
+  async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
+    return ctx.db
+      .select(getTableColumns($channelUnreads))
+      .from($channelUnreads)
+      .innerJoin($channels, eq($channelUnreads.channelId, $channels.id))
+      .where(
+        and(eq($channels.groupId, groupId), eq($channelUnreads.notify, true))
+      );
+  },
+  ['channelUnreads', 'channels']
+);
+
 export const getGroupUnread = createReadQuery(
   'getGroupUnread',
   async ({ groupId }: { groupId: string }, ctx: QueryCtx) => {
@@ -2242,7 +2365,11 @@ async function insertChannelsInternal(channels: Channel[], ctx: QueryCtx) {
       await insertMembers({ members: channel.members }, ctx);
     }
   }
-  await setLastPosts(null, ctx);
+  await setLastPosts(
+    null,
+    ctx,
+    channels.map((c) => c.id)
+  );
 }
 
 export const insertChannels = createWriteQuery(
@@ -2263,7 +2390,7 @@ export const insertChannels = createWriteQuery(
       await insertChannelsInternal(channels, txCtx);
     });
   },
-  ['channels']
+  ['channels', 'posts', 'groups']
 );
 
 export const updateChannel = createWriteQuery(
@@ -3206,11 +3333,14 @@ export const getChannelPostsAround = createReadQuery(
       throw new Error('Reference post not found');
     }
 
-    const sentAt = referencePost.sentAt;
+    const receivedAt = referencePost.receivedAt;
 
     // Get before posts
     const beforePosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [desc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -3225,7 +3355,10 @@ export const getChannelPostsAround = createReadQuery(
 
     // Get after posts
     const afterPosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        gt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [asc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -3519,26 +3652,72 @@ export const getHiddenPosts = createReadQuery(
   ['posts']
 );
 
-async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
-  if (!newPosts?.length) return;
-
-  const uniqueChannels = new Set(newPosts.map((p) => p.channelId));
+async function setLastPosts(
+  newPosts: Post[] | null,
+  ctx: QueryCtx,
+  affectedChannelIds?: string[]
+) {
+  const channelIds =
+    affectedChannelIds ??
+    (newPosts ? [...new Set(newPosts.map((p) => p.channelId))] : undefined);
 
   // Single-channel fast path — the common receive case.
-  // Monotonic UPDATE driven by the incoming batch avoids the 3 correlated
-  // subqueries the multi-channel path runs. Only advances lastPost* forward.
-  // Paths that need a full recompute after a delete/edit (e.g.
-  // markPostAsDeleted in sync.ts) already explicitly reset lastPostId.
-  if (uniqueChannels.size === 1) {
+  // Monotonic UPDATE driven by the incoming batch avoids correlated subqueries
+  // and only advances lastPost* forward.
+  if (newPosts?.length && channelIds?.length === 1) {
     await setLastPostsMonotonic(newPosts, ctx);
     return;
   }
 
-  const channelIds = Array.from(uniqueChannels);
+  // Multi-channel batches and metadata-only calls (e.g. channels inserted after
+  // heads posts) recompute from local rows. This keeps the result idempotent no
+  // matter whether posts or channel/group metadata were written first.
+  if (channelIds && channelIds.length === 0) {
+    return;
+  }
 
-  // Multi-channel batched fallback (sync bursts spanning many channels).
-  // lastPostId/lastPostAt: point to the newest *previewable* post (not deleted)
-  // lastPostSequenceNum: always the newest post for syncing (even if deleted)
+  const channelIdFilter = channelIds?.length
+    ? inArray($channels.id, channelIds)
+    : undefined;
+  const postChannelIdFilter = channelIds?.length
+    ? inArray($posts.channelId, channelIds)
+    : undefined;
+  const latestLocalSequenceNum = ctx.db
+    .select({ sequenceNum: $posts.sequenceNum })
+    .from($posts)
+    .where(
+      and(
+        eq($posts.channelId, $channels.id),
+        not(eq($posts.type, 'reply')),
+        isNotNull($posts.sequenceNum)
+      )
+    )
+    .orderBy(desc($posts.sequenceNum))
+    .limit(1);
+
+  // Backfill posts whose group could not be known when they were inserted
+  // before their channel row existed.
+  await ctx.db
+    .update($posts)
+    .set({
+      groupId: sql`(SELECT ${$channels.groupId} FROM ${$channels} WHERE ${$channels.id} = ${$posts.channelId})`,
+    })
+    .where(
+      and(
+        isNull($posts.groupId),
+        postChannelIdFilter,
+        sql`EXISTS (
+          SELECT 1 FROM ${$channels}
+          WHERE ${$channels.id} = ${$posts.channelId}
+            AND ${$channels.groupId} IS NOT NULL
+        )`
+      )
+    );
+
+  // lastPostId/lastPostAt: newest previewable post (not deleted).
+  // lastPostSequenceNum: newest sequenced non-reply post for sync tracking,
+  // but only if it advances the existing server-known watermark. Local rows
+  // can be a partial window behind the backend head.
   await ctx.db
     .update($channels)
     .set({
@@ -3566,47 +3745,46 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
         )
         .orderBy(desc($posts.receivedAt))
         .limit(1)}`,
-      lastPostSequenceNum: sql`${ctx.db
-        .select({ sequenceNum: $posts.sequenceNum })
-        .from($posts)
-        .where(
-          and(
-            eq($posts.channelId, $channels.id),
-            not(eq($posts.type, 'reply')),
-            isNotNull($posts.sequenceNum)
-          )
-        )
-        .orderBy(desc($posts.sequenceNum))
-        .limit(1)}`,
+      lastPostSequenceNum: sql`CASE
+        WHEN ${latestLocalSequenceNum} IS NULL THEN ${$channels.lastPostSequenceNum}
+        WHEN ${$channels.lastPostSequenceNum} IS NULL THEN ${latestLocalSequenceNum}
+        WHEN ${latestLocalSequenceNum} > ${$channels.lastPostSequenceNum} THEN ${latestLocalSequenceNum}
+        ELSE ${$channels.lastPostSequenceNum}
+      END`,
     })
     .where(
       and(
-        inArray($channels.id, channelIds),
-        or(
-          isNull($channels.lastPostSequenceNum),
-          isNull($channels.lastPostId),
-          lt(
-            $channels.lastPostId,
-            ctx.db
-              .select({ maxId: max($posts.id) })
-              .from($posts)
-              .where(eq($posts.channelId, $channels.id))
-          )
-        )
+        channelIdFilter,
+        sql`EXISTS (
+          SELECT 1 FROM ${$posts}
+          WHERE ${$posts.channelId} = ${$channels.id}
+            AND ${$posts.type} != 'reply'
+        )`
       )
     );
 
-  // Update groups
-  const updatedChannelIds = await ctx.db
-    .select({ id: $channels.id, groupId: $channels.groupId })
-    .from($channels)
-    .where(inArray($channels.id, channelIds));
-
-  const updatedGroupIds: string[] = [
-    ...new Set(updatedChannelIds.map((c) => c.groupId)),
-  ] as string[];
-
-  if (!updatedGroupIds.length) return;
+  // Update only groups touched by the channel set when possible. When doing a
+  // bulk repair, leave the filter undefined and recompute all groups.
+  let groupIdFilter;
+  if (channelIds?.length) {
+    const affectedGroups = await ctx.db
+      .select({ id: $channels.groupId })
+      .from($channels)
+      .where(
+        and(inArray($channels.id, channelIds), isNotNull($channels.groupId))
+      );
+    const affectedGroupIds = [
+      ...new Set(
+        affectedGroups
+          .map((group) => group.id)
+          .filter((id): id is string => id != null)
+      ),
+    ];
+    if (affectedGroupIds.length === 0) {
+      return;
+    }
+    groupIdFilter = inArray($groups.id, affectedGroupIds);
+  }
 
   await ctx.db
     .update($groups)
@@ -3614,31 +3792,35 @@ async function setLastPosts(newPosts: Post[] | null, ctx: QueryCtx) {
       lastPostId: sql`${ctx.db
         .select({ lastPostId: $channels.lastPostId })
         .from($channels)
-        .where(eq($channels.groupId, $groups.id))
+        .where(
+          and(
+            eq($channels.groupId, $groups.id),
+            isNotNull($channels.lastPostId),
+            sql`EXISTS (
+              SELECT 1 FROM ${$posts}
+              WHERE ${$posts.id} = ${$channels.lastPostId}
+            )`
+          )
+        )
         .orderBy(desc($channels.lastPostAt))
         .limit(1)}`,
       lastPostAt: sql`${ctx.db
         .select({ lastPostAt: $channels.lastPostAt })
         .from($channels)
-        .where(eq($channels.groupId, $groups.id))
+        .where(
+          and(
+            eq($channels.groupId, $groups.id),
+            isNotNull($channels.lastPostId),
+            sql`EXISTS (
+              SELECT 1 FROM ${$posts}
+              WHERE ${$posts.id} = ${$channels.lastPostId}
+            )`
+          )
+        )
         .orderBy(desc($channels.lastPostAt))
         .limit(1)}`,
     })
-    .where(
-      and(
-        inArray($groups.id, updatedGroupIds),
-        or(
-          isNull($groups.lastPostId),
-          lt(
-            $groups.lastPostId,
-            ctx.db
-              .select({ maxId: max($posts.id) })
-              .from($posts)
-              .where(eq($posts.groupId, $groups.id))
-          )
-        )
-      )
-    );
+    .where(groupIdFilter);
 }
 
 async function setLastPostsMonotonic(newPosts: Post[], ctx: QueryCtx) {
@@ -4275,6 +4457,7 @@ export const getPersonalGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4295,6 +4478,7 @@ export const getBotHomeGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4353,6 +4537,7 @@ export const getGroup = createReadQuery(
   [
     'groups',
     'channelUnreads',
+    'groupUnreads',
     'volumeSettings',
     'channels',
     'groupJoinRequests',
@@ -4488,6 +4673,32 @@ export const updateContact = createWriteQuery(
       .update($contacts)
       .set(contact)
       .where(eq($contacts.id, contact.id));
+  },
+  ['contacts']
+);
+
+export const markContactsAsMatched = createWriteQuery(
+  'markContactsAsMatched',
+  async (
+    { contactIds, matchedAt }: { contactIds: string[]; matchedAt: number },
+    ctx: QueryCtx
+  ) => {
+    if (!contactIds.length) return;
+    return ctx.db
+      .update($contacts)
+      .set({ matchedAt })
+      .where(inArray($contacts.id, contactIds));
+  },
+  ['contacts']
+);
+
+export const clearContactsMatchedAt = createWriteQuery(
+  'clearContactsMatchedAt',
+  async (_: void, ctx: QueryCtx) => {
+    return ctx.db
+      .update($contacts)
+      .set({ matchedAt: null })
+      .where(isNotNull($contacts.matchedAt));
   },
   ['contacts']
 );
@@ -4821,10 +5032,23 @@ export const updateGroupUnreadCount = createWriteQuery(
 
     if (existingUnread) {
       const existingCount = existingUnread.count ?? 0;
-      if (existingCount && existingCount - decrement >= 0) {
+      const nextCount = existingCount - decrement;
+      if (existingCount && nextCount >= 0) {
+        const remainingNotifyCount =
+          nextCount === 0
+            ? await getNotifyingChildChannelCountByGroup(ctx, groupId)
+            : null;
         return ctx.db
           .update($groupUnreads)
-          .set({ count: existingCount - decrement })
+          .set({
+            count: nextCount,
+            ...(remainingNotifyCount !== null
+              ? {
+                  notify: remainingNotifyCount > 0,
+                  notifyCount: remainingNotifyCount,
+                }
+              : {}),
+          })
           .where(eq($groupUnreads.groupId, groupId));
       }
     }
@@ -4866,27 +5090,43 @@ export const insertChannelUnreads = createWriteQuery(
           .values(threadUnreads)
           .onConflictDoUpdate({
             target: [$threadUnreads.threadId, $threadUnreads.channelId],
-            set: conflictUpdateSetAll($channelUnreads),
+            set: conflictUpdateSetAll($threadUnreads),
           });
       }
     });
   },
-  (unreads) => (unreads.length ? ['channelUnreads'] : [])
+  (unreads) => {
+    if (unreads.length === 0) {
+      return [];
+    }
+    return unreads.some((u) => (u.threadUnreads?.length ?? 0) > 0)
+      ? ['channelUnreads', 'threadUnreads']
+      : ['channelUnreads'];
+  }
 );
 
 export const clearChannelUnread = createWriteQuery(
   'clearChannelUnread',
   async (channelId: string, ctx: QueryCtx) => {
+    const hasThreadNotification = await hasNotifyingThreadUnreadByChannel(
+      ctx,
+      channelId
+    );
     return ctx.db
       .update($channelUnreads)
-      .set({ count: 0, countWithoutThreads: 0, firstUnreadPostId: null })
+      .set({
+        count: 0,
+        countWithoutThreads: 0,
+        notify: hasThreadNotification,
+        firstUnreadPostId: null,
+      })
       .where(eq($channelUnreads.channelId, channelId));
   },
   ['channelUnreads']
 );
 
 export const updateChannelUnreadCount = createWriteQuery(
-  'updateGroupUnreadCount',
+  'updateChannelUnreadCount',
   async (
     { channelId, decrement }: { channelId: string; decrement: number },
     ctx: QueryCtx
@@ -4897,15 +5137,25 @@ export const updateChannelUnreadCount = createWriteQuery(
 
     if (existingUnread) {
       const existingCount = existingUnread.count ?? 0;
-      if (existingCount && existingCount - decrement >= 0) {
+      const nextCount = existingCount - decrement;
+      if (existingCount && nextCount >= 0) {
+        const hasThreadNotification =
+          nextCount === 0
+            ? await hasNotifyingThreadUnreadByChannel(ctx, channelId)
+            : null;
         return ctx.db
           .update($channelUnreads)
-          .set({ count: existingCount - decrement })
+          .set({
+            count: nextCount,
+            ...(hasThreadNotification !== null
+              ? { notify: hasThreadNotification }
+              : {}),
+          })
           .where(eq($channelUnreads.channelId, channelId));
       }
     }
   },
-  ['groupUnreads']
+  ['channelUnreads']
 );
 
 export const insertThreadUnreads = createWriteQuery(
@@ -4932,7 +5182,7 @@ export const getThreadUnreadsByChannel = createReadQuery(
     return ctx.db.query.threadUnreads.findMany({
       where: and(
         eq($threadUnreads.channelId, channelId),
-        excludeRead ? not(eq($threadUnreads.count, 0)) : undefined
+        excludeRead ? threadUnreadActivityPredicate() : undefined
       ),
     });
   },
@@ -4947,7 +5197,7 @@ export const clearThreadUnread = createWriteQuery(
   ) => {
     return ctx.db
       .update($threadUnreads)
-      .set({ count: 0, firstUnreadPostId: null })
+      .set({ count: 0, notify: false, firstUnreadPostId: null })
       .where(
         and(
           eq($threadUnreads.channelId, channelId),
@@ -4963,7 +5213,7 @@ export const clearChannelThreadUnreads = createWriteQuery(
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
     return ctx.db
       .update($threadUnreads)
-      .set({ count: 0, firstUnreadPostId: null })
+      .set({ count: 0, notify: false, firstUnreadPostId: null })
       .where(eq($threadUnreads.channelId, channelId));
   },
   ['threadUnreads']
@@ -5087,6 +5337,18 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                 and(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
+                ),
+                // reacts don't bump an unread count (unreads=|), so gate on the
+                // source's notify flag instead: a notified react lights the bell
+                // and clears once the source is read (notify -> false), mirroring
+                // how posts clear via channelUnreads.count. reply reacts carry the
+                // notify bit on the thread, top-level reacts on the channel/dm.
+                and(
+                  eq($activityEvents.type, 'react'),
+                  or(
+                    eq($channelUnreads.notify, true),
+                    eq($threadUnreads.notify, true)
+                  )
                 ),
                 and(
                   gt($groupUnreads.notifyCount, 0),

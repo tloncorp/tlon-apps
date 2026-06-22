@@ -5,16 +5,18 @@ import * as db from '@tloncorp/shared/db';
 import * as Application from 'expo-application';
 import { useEffect, useState } from 'react';
 import { useCallback } from 'react';
-import { Alert, Platform, ScrollView, Switch } from 'react-native';
+import { Alert, Platform, Switch } from 'react-native';
 import { getEmailClients, openComposer } from 'react-native-email-link';
 
 import { NOTIFY_PROVIDER, NOTIFY_SERVICE } from '../../constants';
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
+import { downloadDb } from '../../lib/downloadDb';
 import { RootStackParamList } from '../../navigation/types';
 import {
   AppSetting,
   Button,
   ScreenHeader,
+  SettingsContentScrollView,
   SizableText,
   Text,
   View,
@@ -121,13 +123,7 @@ export function AppInfoScreen(props: Props) {
           isWindowNarrow ? () => props.navigation.goBack() : undefined
         }
       />
-      <ScrollView
-        contentContainerStyle={{
-          width: '100%',
-          maxWidth: 600,
-          marginHorizontal: 'auto',
-        }}
-      >
+      <SettingsContentScrollView>
         <YStack
           marginTop="$xl"
           marginHorizontal="$2xl"
@@ -171,7 +167,6 @@ export function AppInfoScreen(props: Props) {
             value={permittedSchedulerId ?? 'Not found'}
             copyable
           />
-
           <XStack
             key="debug-toggle"
             justifyContent="space-between"
@@ -201,8 +196,16 @@ export function AppInfoScreen(props: Props) {
               <Text>{logId}</Text>
             </YStack>
           )}
+          {Platform.OS !== 'web' && (
+            <Button
+              preset="secondaryOutline"
+              marginTop="$xl"
+              onPress={downloadDb}
+              label="Export DB"
+            />
+          )}
         </YStack>
-      </ScrollView>
+      </SettingsContentScrollView>
     </View>
   );
 }

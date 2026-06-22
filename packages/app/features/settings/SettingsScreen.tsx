@@ -11,7 +11,7 @@ import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
-import { SettingsScreenView, View } from '../../ui';
+import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -23,7 +23,7 @@ export default function SettingsScreen(props: Props) {
   const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
-  const botEnabled = isHostedUser && hostingBotEnabled;
+  const botEnabled = Platform.OS !== 'web' && isHostedUser && hostingBotEnabled;
   const navigationRef = useMutableRef(props.navigation);
 
   const onAppInfoPressed = useCallback(() => {
@@ -82,6 +82,7 @@ export default function SettingsScreen(props: Props) {
         onExperimentalFeaturesPressed={onExperimentalFeaturesPressed}
         onThemePressed={onThemePressed}
         onPrivacyPressed={onPrivacyPressed}
+        onWebAppPressed={isHostedUser ? openTlonWebApp : undefined}
         dmLink={dmLink}
         onBackPressed={onBack}
         botEnabled={botEnabled}

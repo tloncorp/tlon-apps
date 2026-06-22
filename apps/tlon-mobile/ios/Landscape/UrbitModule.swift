@@ -14,6 +14,11 @@ class UrbitModule: NSObject {
     @objc(setUrbit:shipUrl:authCookie:)
     func setUrbit(shipName: String, shipUrl: String, authCookie _: String) {
         try? UrbitModule.loginStore.save(Login(shipName: shipName, shipUrl: shipUrl))
+        // reset the cached backend capability for the new login; JS re-resolves
+        // it from the ship's version. avoids using a prior ship's v9 mark.
+        UserDefaults.forDefaultAppGroup.removeObject(
+            forKey: SettingsStore.activitySupportsReactionsKey
+        )
 
         Task {
             // Delay this a bit so that js init requests have time to fire
@@ -25,11 +30,21 @@ class UrbitModule: NSObject {
 
     @objc func clearUrbit() {
         try? UrbitModule.loginStore.delete()
+        // clear cached backend capability so a later login to an older backend
+        // doesn't keep fetching the v9 notification mark (which it would 404)
+        UserDefaults.forDefaultAppGroup.removeObject(
+            forKey: SettingsStore.activitySupportsReactionsKey
+        )
     }
 
     @objc(setPostHogApiKey:)
     func setPostHogApiKey(apiKey: String) {
         UserDefaults.forDefaultAppGroup.set(apiKey, forKey: "postHogApiKey")
+    }
+
+    @objc(setActivitySupportsReactions:)
+    func setActivitySupportsReactions(supported: Bool) {
+        UserDefaults.forDefaultAppGroup.set(supported, forKey: SettingsStore.activitySupportsReactionsKey)
     }
 
     @objc(updateBadgeCount:uid:)

@@ -3,7 +3,11 @@ import { jest } from '@jest/globals';
 import 'react-native-gesture-handler/jestSetup';
 import RNSafeAreaContextMock from 'react-native-safe-area-context/jest/mock';
 
-require('react-native-reanimated').setUpTests();
+// react-native-reanimated v4 removed `setUpTests`; use the bundled jest mock instead.
+// Loads as `react-native-reanimated/mock` (no JSI-bound modules) so tests run under Node.
+jest.mock('react-native-reanimated', () =>
+  require('react-native-reanimated/mock')
+);
 
 // TODO: Why is `doMock` necessary? Why doesn't `require`ing inline work?
 jest.doMock('react-native-safe-area-context', () => RNSafeAreaContextMock);
@@ -12,9 +16,6 @@ jest.mock('@gorhom/bottom-sheet', () => ({
   __esModule: true,
   ...require('@gorhom/bottom-sheet/mock'),
 }));
-
-// Silence the warning: Animated: `useNativeDriver` is not supported because the native animated module is missing
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
 
 jest.mock('expo-clipboard', () => ({
   getStringAsync: jest.fn(async () => ''),

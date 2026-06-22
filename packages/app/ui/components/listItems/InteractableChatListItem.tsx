@@ -259,7 +259,7 @@ function Action({
   handleAction?: () => void;
 }) {
   return (
-    <View flex={0.5}>
+    <View flex={1}>
       <Icon
         minWidth={80}
         type={iconType}

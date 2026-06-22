@@ -11,9 +11,37 @@ import {
   User,
   getConstants,
 } from '../types';
+import type {
+  HostingHeartBeatCode,
+  TlawnBotInfo,
+  TlawnConfig,
+  TlawnOAuthProvider,
+  TlawnOAuthStartRequest,
+  TlawnOAuthStartResponse,
+  TlawnOAuthStatus,
+  TlawnPrimaryModelUpdate,
+  TlawnProviderConfigInfo,
+  TlawnProviderModel,
+} from '../types/hosting';
+
+export type {
+  HostingHeartBeatCode,
+  TlawnBotInfo,
+  TlawnConfig,
+  TlawnModelEntry,
+  TlawnOAuthGrant,
+  TlawnOAuthProvider,
+  TlawnOAuthProviderKind,
+  TlawnOAuthStartRequest,
+  TlawnOAuthStartResponse,
+  TlawnOAuthStatus,
+  TlawnOAuthUpstream,
+  TlawnPrimaryModelUpdate,
+  TlawnProviderConfigInfo,
+  TlawnProviderModel,
+} from '../types/hosting';
 
 const logger = createDevLogger('hostingApi', false);
-
 interface StoredValue<T> {
   getValue: () => Promise<T>;
   setValue: (value: T) => Promise<void>;
@@ -226,40 +254,16 @@ function jsonInit(method: string, body: unknown): RequestInit {
   };
 }
 
-// --- Tlawn (bot) types ---
-
-export interface TlawnProviderConfigInfo {
-  keys: Record<string, string>;
-  models: TlawnModelEntry[];
-  defaultKeys: Record<string, { key: string; id?: string }>;
+interface TlawnOAuthProvidersResponse {
+  providers: TlawnOAuthProvider[];
 }
 
-export interface TlawnModelEntry {
-  provider: string;
-  model: string;
+interface RawTlawnOAuthStartResponse {
+  authorizeUrl: string;
 }
 
-export interface TlawnPrimaryModelUpdate {
-  provider: string;
-  model: string;
-  fallbacks?: TlawnModelEntry[];
-}
-
-export interface TlawnBotInfo {
-  enabled: boolean;
-  provider?: string;
-  model?: string;
-  moon?: string;
-}
-
-export interface TlawnConfig {
-  dmAllowlist: string[];
-  defaultAuthorizedShips: string[];
-  channelRules: Record<string, { mode: string; allowedShips: string[] }>;
-  groupChannels: string[];
-  groupInviteAllowlist: string[];
-  autoAcceptDmInvites: boolean;
-  autoDiscoverChannels: boolean;
+function normalizeTlawnShipId(ship: string) {
+  return encodeURIComponent(ship.replace(/^~/, ''));
 }
 
 // --- Tlawn (bot) user-level endpoints ---
@@ -303,11 +307,6 @@ export async function setTlawnPrimaryModel(
   );
 }
 
-export interface TlawnProviderModel {
-  id: string;
-  [key: string]: unknown;
-}
-
 /**
  * Validate an API key and list available models for a provider.
  * Returns the raw provider response (e.g. { data: [{ id: "model-id", ... }] }).
@@ -326,6 +325,66 @@ export async function getTlawnProviderModels(
 
 export async function getTlawnBotInfo(ship: string): Promise<TlawnBotInfo> {
   return hostingFetch<TlawnBotInfo>(`/v1/tlawn/ships/${ship}`);
+}
+
+export async function getTlawnOAuthStatus(
+  ship: string
+): Promise<TlawnOAuthStatus> {
+  return hostingFetch<TlawnOAuthStatus>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/status`
+  );
+}
+
+export async function getTlawnOAuthProviders(): Promise<TlawnOAuthProvider[]> {
+  const response = await hostingFetch<TlawnOAuthProvidersResponse>(
+    '/v1/tlawn/oauth/providers'
+  );
+  if (!Array.isArray(response.providers)) {
+    throw new HostingError(
+      'OAuth providers response did not include providers',
+      {
+        method: 'GET',
+        path: '/v1/tlawn/oauth/providers',
+        status: null,
+      }
+    );
+  }
+
+  return response.providers;
+}
+
+export async function startTlawnOAuth(
+  ship: string,
+  request: TlawnOAuthStartRequest
+): Promise<TlawnOAuthStartResponse> {
+  const body = {
+    provider: request.providerId,
+    returnTo: request.finalRedirectUrl,
+  };
+  const response = await hostingFetch<RawTlawnOAuthStartResponse>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/start`,
+    jsonInit('POST', body)
+  );
+  const authUrl = response.authorizeUrl;
+  if (!authUrl) {
+    throw new HostingError('OAuth start did not return authorizeUrl', {
+      method: 'POST',
+      path: `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/start`,
+      status: null,
+    });
+  }
+
+  return { authUrl };
+}
+
+export async function deleteTlawnOAuthGrant(
+  ship: string,
+  providerId: string
+): Promise<void> {
+  await fetchVoid(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/oauth/grants/${encodeURIComponent(providerId)}`,
+    { method: 'DELETE' }
+  );
 }
 
 // These endpoints return `string | null` (not an object) so they can't go
@@ -365,6 +424,73 @@ async function fetchNullableString(
   }
 
   return typeof parsed === 'string' ? parsed : null;
+}
+
+async function fetchVoid(path: string, init?: RequestInit): Promise<void> {
+  const response = await rawHostingFetch(path, init);
+  if (response.ok) {
+    return;
+  }
+
+  const text = await response.text();
+  let parsed: unknown = null;
+  try {
+    parsed = text.length === 0 ? null : JSON.parse(text);
+  } catch {
+    parsed = null;
+  }
+
+  const message =
+    parsed && typeof parsed === 'object' && 'message' in parsed
+      ? String((parsed as { message: unknown }).message)
+      : 'An unknown error has occurred.';
+  const err = new HostingError(message, {
+    method: init?.method ?? 'GET',
+    path,
+    status: response.status,
+  });
+  logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
+    details: err.details,
+    errorMessage: err.message,
+    errorStack: err.stack,
+  });
+  throw err;
+}
+
+export async function setUserTlonbotEnabled(
+  user: string,
+  enabled: boolean
+): Promise<void> {
+  await fetchVoid(`/v1/tlawn/users/${user}/bot-enabled/${enabled}`, {
+    method: 'PUT',
+  });
+}
+
+export async function markUserTlonbotEnabled(user: string): Promise<void> {
+  await setUserTlonbotEnabled(user, true);
+}
+
+export async function checkNodeIsTlonbotReady(ship: string): Promise<boolean> {
+  const result = await getShip(ship);
+  return result.ship.botReady === true;
+}
+
+export async function awaitNodeTlonbotReady(
+  ship: string,
+  {
+    timeoutMs = 60_000,
+    pollIntervalMs = 5000,
+  }: { timeoutMs?: number; pollIntervalMs?: number } = {}
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await checkNodeIsTlonbotReady(ship)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+
+  return false;
 }
 
 export async function getTlawnNickname(ship: string): Promise<string | null> {
@@ -444,7 +570,6 @@ export async function awaitBotRunning(
   return false;
 }
 
-export type HostingHeartBeatCode = 'expired' | 'ok' | 'unknown';
 export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await sessionStore.userId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
@@ -488,11 +613,19 @@ export const getHostingAvailability = async (params: {
   email?: string;
   lure?: string;
   priorityToken?: string;
-}) =>
-  hostingFetch<{
+}) => {
+  // Only include keys that are actually set — `new URLSearchParams({lure: undefined})`
+  // serializes to the literal string "undefined", which the backend would then try to
+  // match/bite as a lure. Omitting `lure` is what selects the open (no-group) signup path.
+  const query = new URLSearchParams();
+  if (params.email) query.set('email', params.email);
+  if (params.lure) query.set('lure', params.lure);
+  if (params.priorityToken) query.set('priorityToken', params.priorityToken);
+  return hostingFetch<{
     enabled: boolean;
     validEmail: boolean;
-  }>(`/v1/sign-up?${new URLSearchParams(params)}`);
+  }>(`/v1/sign-up?${query}`);
+};
 
 export const addUserToWaitlist = async ({
   email,
@@ -612,7 +745,7 @@ export const logInHostingUser = async (params: {
           botEnabled: result.botEnabled,
         },
       });
-      sessionStore.botEnabled.setValue(result.botEnabled);
+      await sessionStore.botEnabled.setValue(result.botEnabled);
     }
   }
 
@@ -805,11 +938,17 @@ export const getShip = async (shipId: string) => {
   return ship;
 };
 
-export const clearShipRevivalStatus = async (shipId: string) => {
-  return hostingFetch(`/v1/ships/${shipId}/wayfinding`, {
+export const setShipRevivalStatus = async (
+  shipId: string,
+  enabled: boolean
+) => {
+  return fetchVoid(`/v1/ships/${shipId}/wayfinding/${enabled}`, {
     method: 'PATCH',
   });
 };
+
+export const clearShipRevivalStatus = async (shipId: string) =>
+  setShipRevivalStatus(shipId, false);
 
 export const getShipAccessCode = async (shipId: string) =>
   hostingFetch<{ code: string }>(`/v1/ships/${shipId}/network`);
@@ -830,7 +969,11 @@ export const bootShip = async (shipId: string) =>
 
 export const getNodeStatus = async (
   nodeId: string
-): Promise<{ status: domain.HostedNodeStatus; showWayfinding: boolean }> => {
+): Promise<{
+  status: domain.HostedNodeStatus;
+  showWayfinding: boolean;
+  ship?: domain.HostedShipInfo;
+}> => {
   let result = null;
   try {
     result = await getShip(nodeId);
@@ -842,10 +985,11 @@ export const getNodeStatus = async (
   const isBooting = result.ship?.booting;
   const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
   const showWayfinding = result.ship?.showWayfinding ?? false;
+  const ship = result.ship;
 
   // If user has a ready ship, let's use it
   if (nodeStatus === 'Ready') {
-    return { status: domain.HostedNodeStatus.Running, showWayfinding };
+    return { status: domain.HostedNodeStatus.Running, showWayfinding, ship };
   }
 
   // If user has a paused ship, resume it
@@ -853,11 +997,15 @@ export const getNodeStatus = async (
     if (!isBooting) {
       await resumeShip(nodeId);
     }
-    return { status: domain.HostedNodeStatus.Paused, showWayfinding };
+    return { status: domain.HostedNodeStatus.Paused, showWayfinding, ship };
   }
 
   if (nodeStatus === 'UnderMaintenance' || manualUpdateNeeded) {
-    return { status: domain.HostedNodeStatus.UnderMaintenance, showWayfinding };
+    return {
+      status: domain.HostedNodeStatus.UnderMaintenance,
+      showWayfinding,
+      ship,
+    };
   }
 
   // If user has a suspended ship, boot it
@@ -875,15 +1023,16 @@ export const getNodeStatus = async (
           return {
             status: domain.HostedNodeStatus.UnderMaintenance,
             showWayfinding,
+            ship,
           };
         }
         throw err;
       }
     }
-    return { status: domain.HostedNodeStatus.Suspended, showWayfinding };
+    return { status: domain.HostedNodeStatus.Suspended, showWayfinding, ship };
   }
 
-  return { status: domain.HostedNodeStatus.Unknown, showWayfinding };
+  return { status: domain.HostedNodeStatus.Unknown, showWayfinding, ship };
 };
 
 export const inviteShipWithLure = async (params: {

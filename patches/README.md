@@ -187,3 +187,73 @@ Removal:
 Remove this patch once we upgrade to a Reanimated version that includes an
 upstream fix for the web JS updater path and confirm production web no longer
 needs the local guards or transform fallback.
+
+## react-native-gesture-handler@2.28.0
+
+Why:
+On Android, `ReanimatedSwipeable` leaves both the left and right action
+containers mounted as absolute-fill views. The hidden side's container is
+animated to `opacity: 0` but still receives touches, so taps on a revealed
+quick action (e.g. "Mark as read" from a left swipe on a chat list item) are
+swallowed by the opposite-side container sitting on top in z-order and never
+reach the visible action.
+
+What it does:
+In `src/components/ReanimatedSwipeable/ReanimatedSwipeable.tsx`, the patch
+adds `pointerEvents: showLeftProgress.value === 0 ? 'none' : 'auto'` to
+`leftActionAnimation` and the symmetric guard to `rightActionAnimation`, so
+the hidden side stops intercepting touches alongside its opacity going to 0.
+
+Local patch:
+`patches/react-native-gesture-handler@2.28.0.patch`
+
+Upstream:
+- no matching upstream fix found as of May 2026; `ReanimatedSwipeable` on
+  `main` still animates only opacity on the action containers
+
+Validation:
+- Rebuild the Android app
+- On a chat list item, swipe to reveal the "Mark as read" (or other) quick
+  action and tap it. The tap should fire instead of being swallowed.
+- Linear: `TLON-5659`
+
+Removal:
+Remove this patch once `react-native-gesture-handler` ships a version of
+`ReanimatedSwipeable` that disables pointer events on the hidden action
+container, and we confirm the Android repro no longer needs the local fix.
+
+## expo-image-manipulator@14.0.8
+
+Why:
+Expo's iOS orientation transformer normalizes images by manually creating a
+`CGContext` with the source image's bit depth and color space, but with a
+hard-coded `premultipliedLast` bitmap layout. HDR/10-bit HEIC images can fail
+that context allocation with `Image context has been lost`, which prevents
+mobile image uploads from finishing.
+
+What it does:
+Skips orientation normalization when `UIImage.imageOrientation` is already
+`.up`. For non-upright images, uses Expo's `UIGraphicsImageRenderer` helper and
+`UIImage.draw(in:)` instead of constructing a raw bitmap context. This lets
+UIKit choose a supported backing context while still applying orientation and
+mirroring before the requested resize runs.
+
+Local patch:
+`patches/expo-image-manipulator@14.0.8.patch`
+
+Upstream:
+- no matching Expo upstream fix found as of June 2026
+- related public reports: `Expensify/App#81702`,
+  `SDWebImage/SDWebImage#3333`
+
+Validation:
+- Rebuild the iOS app so the native patch is compiled in
+- On iOS with Screen Capture set to HDR, upload an HDR HEIC screenshot that
+  previously failed with `Image context has been lost`
+- Confirm a rotated or mirrored HEIC/JPEG still exports upright
+- Confirm ordinary JPEG and HEIC uploads still resize and upload
+
+Removal:
+Remove this patch once `expo-image-manipulator` ships an equivalent orientation
+normalization fix, or once we replace upload resizing with a lower-level ImageIO
+thumbnail path.

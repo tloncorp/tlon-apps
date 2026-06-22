@@ -3,13 +3,13 @@ import { DEFAULT_INVITE_LINK_URL } from '@tloncorp/app/constants';
 import { useBranch, useLureMetadata } from '@tloncorp/app/contexts/branch';
 import { useTelemetryId } from '@tloncorp/app/hooks/useTelemetry';
 import {
-  Button,
   Field,
-  Image,
   LoadingSpinner,
+  OnboardingTextBlock,
   Pressable,
   ScreenHeader,
   TextInput,
+  TlonText,
   View,
   XStack,
   YStack,
@@ -132,14 +132,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
       <ScreenHeader
         backgroundColor="$secondaryBackground"
         backAction={() => navigation.goBack()}
-        rightControls={
-          <ScreenHeader.TextButton
-            disabled={!lureMeta}
-            onPress={() => navigation.navigate('Signup')}
-          >
-            Next
-          </ScreenHeader.TextButton>
-        }
       />
       <SafeAreaView style={{ flex: 1 }}>
         <Pressable
@@ -148,14 +140,16 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
           onPress={() => Keyboard.dismiss()}
         >
           <YStack marginTop="$4xl" paddingHorizontal="$2xl" flex={1}>
-            <XStack justifyContent="center">
-              <Image
-                width={80}
-                height={80}
-                source={require('../../../assets/images/welcome-icon.png')}
-              />
-            </XStack>
-            <YStack marginTop="$6xl" flex={1} justifyContent="space-between">
+            <OnboardingTextBlock>
+              <TlonText.Text size="$label/xl" color="$primaryText">
+                Have an invite?
+              </TlonText.Text>
+              <TlonText.Text size="$body" color="$secondaryText">
+                If someone invited you to Tlon Messenger, enter it now to stay
+                connected.
+              </TlonText.Text>
+            </OnboardingTextBlock>
+            <YStack marginTop="$2xl" flex={1}>
               <YStack>
                 <Controller
                   control={control}
@@ -189,14 +183,6 @@ export const PasteInviteLinkScreen = ({ navigation }: Props) => {
                   {checkingInput && <LoadingSpinner />}
                 </XStack>
               </YStack>
-              <Button
-                preset="secondaryOutline"
-                marginBottom="$l"
-                width="100%"
-                label="No invite? Join waitlist"
-                centered
-                onPress={() => navigation.navigate('JoinWaitList', {})}
-              />
             </YStack>
           </YStack>
         </Pressable>

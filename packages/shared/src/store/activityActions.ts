@@ -171,12 +171,15 @@ export async function setDefaultNotificationLevel(
 }
 
 export async function markAllRead() {
+  const baseUnread = await db.getBaseUnread();
+
   await db.insertBaseUnread({
     id: BASE_UNREADS_SINGLETON_KEY,
     count: 0,
     updatedAt: Date.now(),
     notify: false,
     notifyCount: 0,
+    notifTimestamp: baseUnread?.notifTimestamp,
   });
   await api.readAll();
 }
@@ -219,7 +222,11 @@ export async function setBaseVolumeLevel(params: {
     });
     if (existingSetting) {
       await db.setVolumes({ volumes: [existingSetting] });
+    } else {
+      await db.clearVolumeSetting('base');
     }
+
+    throw e;
   }
 }
 

@@ -1,4 +1,5 @@
 export { udToDate } from './apiUtils';
+export * from './a2ui';
 export * from './channelContentConfig';
 export * from './channelsApi';
 export * from './chatApi';
@@ -23,6 +24,7 @@ export {
   HostingError,
   addUserToWaitlist,
   allocateReservedShip,
+  awaitNodeTlonbotReady,
   assignShipToUser,
   bootShip,
   checkIfAccountDeleted,
@@ -44,8 +46,12 @@ export {
   reserveShip,
   resendEmailVerification,
   resumeShip,
+  setShipRevivalStatus,
+  setUserTlonbotEnabled,
   signUpHostingUser,
   verifyEmailDigits,
+  markUserTlonbotEnabled,
+  checkNodeIsTlonbotReady,
   // Tlawn (bot) endpoints
   getTlawnProviderKeys,
   setTlawnProviderKey,
@@ -53,6 +59,10 @@ export {
   setTlawnPrimaryModel,
   getTlawnProviderModels,
   getTlawnBotInfo,
+  getTlawnOAuthProviders,
+  getTlawnOAuthStatus,
+  startTlawnOAuth,
+  deleteTlawnOAuthGrant,
   getTlawnNickname,
   setTlawnNickname,
   getTlawnAvatar,
@@ -71,7 +81,14 @@ export type {
   TlawnBotInfo,
   TlawnConfig,
   TlawnProviderModel,
-} from './hostingApi';
+  TlawnOAuthGrant,
+  TlawnOAuthProvider,
+  TlawnOAuthProviderKind,
+  TlawnOAuthStatus,
+  TlawnOAuthStartRequest,
+  TlawnOAuthStartResponse,
+  TlawnOAuthUpstream,
+} from '../types/hosting';
 export * from './apiUtils';
 export * from './metagrabApi';
 export * from './changesApi';

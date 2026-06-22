@@ -1,3 +1,4 @@
+import { JSONContent } from '@tloncorp/api/urbit';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
@@ -143,6 +144,14 @@ const ConnectedAction = memo(function ConnectedAction({
         // Quote needs the active composer surface. Search/detail surfaces can
         // render actions without one, so hide Quote there.
         return !!draftInputContext?.canStartDraft;
+      case 'replyToComment':
+        // Only show on actual comments (replies), and only where a composer
+        // is mounted to receive the prefilled mention.
+        return (
+          !!post.parentId &&
+          post.authorId !== currentUserId &&
+          !!draftInputContext?.canStartDraft
+        );
       default:
         return true;
     }
@@ -304,6 +313,9 @@ export async function handleAction({
         addAttachment({ type: 'reference', reference, path });
       }
       break;
+    case 'replyToComment':
+      await prependMentionToDraft(draftTextTarget, post.authorId);
+      break;
     case 'edit':
       onEdit?.();
       break;
@@ -370,6 +382,52 @@ async function prependTextToDraft(
       }))
     )
   );
+  ctx.startDraft?.();
+}
+
+async function prependMentionToDraft(
+  ctx: DraftTextTarget | null | undefined,
+  authorId: string
+) {
+  if (!ctx) {
+    throw new Error('Cannot prepend mention without a draft input context');
+  }
+
+  const draft = await ctx.getDraft();
+  const firstChild = draft?.content?.[0]?.content?.[0];
+  // No-op if the draft already starts with this mention.
+  if (firstChild?.type === 'mention' && firstChild.attrs?.id === authorId) {
+    ctx.startDraft?.();
+    return;
+  }
+
+  const mentionNode: JSONContent = {
+    type: 'mention',
+    attrs: { id: authorId },
+  };
+  const spaceNode: JSONContent = { type: 'text', text: ' ' };
+
+  // Splice the mention + space into the first paragraph of the existing
+  // draft. Editing the JSON directly preserves the trailing space, which
+  // textAndMentionsToContent would otherwise trim away on an empty draft.
+  const existingDocContent = draft?.content ?? [];
+  const [firstBlock, ...restBlocks] = existingDocContent;
+  const firstParagraphContent =
+    firstBlock?.type === 'paragraph' ? firstBlock.content ?? [] : [];
+
+  const nextFirstParagraph: JSONContent = {
+    type: 'paragraph',
+    content: [mentionNode, spaceNode, ...firstParagraphContent],
+  };
+  const nextDocContent =
+    firstBlock?.type === 'paragraph'
+      ? [nextFirstParagraph, ...restBlocks]
+      : [nextFirstParagraph, ...existingDocContent];
+
+  await ctx.storeDraft({
+    ...(draft ?? { type: 'doc' }),
+    content: nextDocContent,
+  });
   ctx.startDraft?.();
 }
 
@@ -446,6 +504,9 @@ export function useDisplaySpecForChannelActionId(
 
       case 'quote':
         return { label: 'Quote' };
+
+      case 'replyToComment':
+        return { label: 'Reply' };
 
       case 'report':
         return {

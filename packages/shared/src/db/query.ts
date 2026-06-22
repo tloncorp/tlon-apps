@@ -207,7 +207,6 @@ export async function withCtxOrDefault<T>(
       : 0;
     let scanned = 0;
     queryClient.invalidateQueries({
-      fetchStatus: 'idle',
       predicate: (query) => {
         scanned++;
         const tableKey = query.queryKey[1];

@@ -3,11 +3,18 @@
   "name": "tlon-apps",
   "type": "module",
   "scripts": {
+    "onboarding": "scripts/onboarding-sandbox/run.sh start",
+    "onboarding:reset": "scripts/onboarding-sandbox/run.sh reset",
+    "onboarding:logs": "scripts/onboarding-sandbox/run.sh logs",
+    "onboarding:down": "scripts/onboarding-sandbox/run.sh down",
+    "onboarding:web": "node apps/onboarding-sandbox/server.mjs",
     "build:api": "pnpm --filter '@tloncorp/api' build",
     "dev:api": "pnpm --filter '@tloncorp/api' watch",
     "build:shared": "pnpm --filter '@tloncorp/shared' build",
     "build:ui": "pnpm --filter '@tloncorp/ui' build",
     "build:editor": "pnpm --filter '@tloncorp/editor' build",
+    "build:tlon-skill": "pnpm --filter '@tloncorp/tlon-skill' build",
+    "build:openclaw": "pnpm --filter '@tloncorp/openclaw' build",
     "build:web": "pnpm --filter 'tlon-web' build",
     "build:mobile": "pnpm --filter 'tlon-mobile' build",
     "build:desktop": "pnpm run build:packages && pnpm --filter 'tlon-desktop' build:prepare",
@@ -15,6 +22,7 @@
     "build:packages": "pnpm run build:api && pnpm run build:shared && pnpm run build:ui && pnpm run build:editor",
     "build:mobile-release": "pnpm run build:packages && pnpm run build:mobile",
     "build:all": "pnpm run build:packages && pnpm run build:apps",
+    "clean:all": "rm -rf apps/tlon-web/node_modules && rm -rf apps/tlon-mobile/node_modules && rm -rf packages/shared/dist && rm -rf packages/shared/node_modules && rm -rf packages/ui/dist && rm -rf packages/ui/node_modules && rm -rf node_modules && rm -rf packages/editor/dist && rm -rf apps/tlon-web-new/node_modules && rm -rf packages/api/node_modules && rm -rf packages/api/dist",
     "cosmos:native": "pnpm --filter 'tlon-mobile' cosmos",
     "cosmos:web": "pnpm --filter 'tlon-web' cosmos",
     "cosmos": "concurrently \"pnpm run cosmos:native\" \"pnpm run cosmos:web\"",
@@ -28,7 +36,7 @@
     "dev:web": "pnpm --filter 'tlon-web' dev",
     "e2e": "pnpm --filter 'tlon-web' e2e",
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
-    "test:ci": "npm rebuild better-sqlite3 && pnpm run -r test run",
+    "test:ci": "npm rebuild better-sqlite3 && pnpm build:api && pnpm run -r test run",
     "lint:all": "pnpm -r lint",
     "patch:expo-share-intent": "node scripts/regenerate-expo-share-intent-patch.mjs",
     "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo"
@@ -79,7 +87,9 @@
       "@tamagui/web@2.0.0-rc.41": "patches/@tamagui__web@2.0.0-rc.41.patch",
       "@tamagui/sheet@2.0.0-rc.41": "patches/@tamagui__sheet@2.0.0-rc.41.patch",
       "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch",
-      "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch"
+      "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch",
+      "react-native-gesture-handler@2.28.0": "patches/react-native-gesture-handler@2.28.0.patch",
+      "expo-image-manipulator@14.0.8": "patches/expo-image-manipulator@14.0.8.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {

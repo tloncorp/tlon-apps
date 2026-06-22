@@ -1328,6 +1328,7 @@
     --
   ::
   ++  v8
+    =,  v7
     |%
     ++  a-groups
       ^-  $-(json a-groups:v8:gv)
@@ -1369,6 +1370,7 @@
       ==
     --
   ++  v7
+    =,  v6
     |%
     ++  a-groups
       ^-  $-(json a-groups:v7:gv)
