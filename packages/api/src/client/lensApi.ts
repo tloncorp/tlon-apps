@@ -22,36 +22,19 @@ export const toLensRun = (entry: ub.LensRunEntry): LensRun => {
     lensId: entry.id,
     complete: entry.complete,
     receivedAt: parseReceived(entry.received),
-    payload: parsePayload(entry.payload),
+    // %steward relays the run record as structured JSON, not a cord — pass
+    // it through unchanged.
+    payload: entry.payload,
   };
 };
 
-// The agent relays payloads as opaque serialized-JSON cords; parse once at
-// the API edge so the rest of the client sees structured data.
-function parsePayload(payload: string): unknown {
-  try {
-    return JSON.parse(payload);
-  } catch {
-    logger.log('failed to parse lens payload', payload.slice(0, 100));
-    return null;
-  }
-}
-
-export const toLensRuns = (update: ub.LensUpdate): LensRun[] => {
-  if ('run' in update) {
-    return [toLensRun(update.run)];
-  }
-
-  return update.runs.map(toLensRun);
-};
-
 export const getRecentLensRuns = async (): Promise<LensRun[]> => {
-  const response = await scry<ub.LensUpdate>({
-    app: 'context-lens',
-    path: '/recent',
+  const response = await scry<ub.LensRunEntry[]>({
+    app: 'steward',
+    path: '/v1/lens/recent',
   });
 
-  return toLensRuns(response);
+  return response.map(toLensRun);
 };
 
 export const getLensRun = async (
@@ -59,12 +42,12 @@ export const getLensRun = async (
   lensId: string
 ): Promise<LensRun | null> => {
   try {
-    const response = await scry<ub.LensUpdate>({
-      app: 'context-lens',
-      path: `/run/${botShip}/${lensId}`,
+    const response = await scry<ub.LensRunEntry>({
+      app: 'steward',
+      path: `/v1/lens/run/${botShip}/${lensId}`,
     });
 
-    return toLensRuns(response)[0] ?? null;
+    return toLensRun(response);
   } catch (error) {
     if (error instanceof BadResponseError && error.status === 404) {
       return null;
@@ -75,9 +58,9 @@ export const getLensRun = async (
 };
 
 /**
- * Ask the bot to re-run a failed lens run. Pokes our own %context-lens
- * agent, which relays the request to the bot ship; the bot's gateway
- * re-dispatches and the retry shows up as a new run.
+ * Ask the bot to re-run a failed lens run. Pokes our own %steward agent,
+ * which relays the request to the bot ship; the bot's gateway re-dispatches
+ * and the retry shows up as a new run.
  */
 export const retryLensRun = ({
   botShip,
@@ -87,24 +70,24 @@ export const retryLensRun = ({
   lensId: string;
 }) =>
   poke({
-    app: 'context-lens',
-    mark: 'context-lens-action-1',
+    app: 'steward',
+    mark: 'steward-lens-action-1',
     json: { retry: { bot: botShip, id: lensId } },
   });
 
 export const subscribeToLensUpdates = async (
   handler: (runs: LensRun[]) => void
 ) => {
-  // Older ships don't have the %context-lens agent; probe with a scry so a missing
+  // Older ships don't have the %steward agent; probe with a scry so a missing
   // agent skips the subscription instead of wedging sync.
   try {
-    await scry<ub.LensUpdate>({
-      app: 'context-lens',
-      path: '/recent',
+    await scry<ub.LensRunEntry[]>({
+      app: 'steward',
+      path: '/v1/lens/recent',
     });
   } catch (error) {
     if (error instanceof BadResponseError && error.status === 404) {
-      logger.trackEvent('%context-lens agent missing');
+      logger.trackEvent('%steward agent missing');
       logger.warn('lens agent unavailable, skipping lens subscription');
       return null;
     }
@@ -112,14 +95,14 @@ export const subscribeToLensUpdates = async (
     throw error;
   }
 
-  return subscribe<ub.LensUpdate>(
+  return subscribe<ub.LensRunEntry>(
     {
-      app: 'context-lens',
-      path: '/v1',
+      app: 'steward',
+      path: '/v1/lens',
     },
     (event) => {
       logger.log('raw lens event', event);
-      handler(toLensRuns(event));
+      handler([toLensRun(event)]);
     }
   );
 };

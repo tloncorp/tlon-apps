@@ -1,6 +1,6 @@
 /**
- * Wire types for the %context-lens agent (per-run bot introspection).
- * See desk/sur/context-lens.hoon and docs/context-lens.md.
+ * Wire types for the %steward agent's lens module (per-run bot introspection).
+ * See desk/sur/steward/lens.hoon and docs/steward.md.
  */
 
 export interface LensRunEntry {
@@ -12,8 +12,6 @@ export interface LensRunEntry {
   complete: boolean;
   /** @da string of when the latest record arrived on the owner ship */
   received: string;
-  /** opaque serialized-JSON run record with an inner schemaVersion */
-  payload: string;
+  /** the run record, relayed as structured JSON with an inner schemaVersion */
+  payload: unknown;
 }
-
-export type LensUpdate = { run: LensRunEntry } | { runs: LensRunEntry[] };

@@ -23,7 +23,7 @@ export function ContextLensRunScreen(props: Props) {
   useEffect(() => {
     let cancelled = false;
     setResolving(true);
-    // db-first; scries the owner ship's %context-lens agent on a local miss
+    // db-first; scries the owner ship's %steward agent on a local miss
     // and caches the result, which re-renders the query below
     store.ensureContextLensRun({ botShip, lensId }).finally(() => {
       if (!cancelled) {
