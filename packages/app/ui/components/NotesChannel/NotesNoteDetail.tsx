@@ -3,8 +3,13 @@ import {
   deleteNotebookNote,
   markdownToStory,
   moveNotebookNote,
+  noteIsPublished,
   normalizeNotebookNoteTitle,
+  publishedNotePath,
+  publishNotebookNote,
   saveNotebookNote,
+  unpublishNotebookNote,
+  usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
@@ -81,6 +86,8 @@ export function NotesNoteDetail({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isUnpublishing, setIsUnpublishing] = useState(false);
   const {
     entity: movingNote,
     isPending: isMovingNote,
@@ -96,6 +103,17 @@ export function NotesNoteDetail({
     if (noteId === null) return null;
     return notes.find((note) => note.noteId === noteId) ?? null;
   }, [noteId, notes]);
+  const {
+    data: publishedNotes,
+    refetch: refetchPublishedNotes,
+  } = usePublishedNotesForNotebook({
+    notebookFlag,
+    enabled: Boolean(notebookFlag && selectedNote),
+  });
+  const selectedNoteIsPublished = noteIsPublished(
+    publishedNotes,
+    selectedNote?.noteId
+  );
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
@@ -168,7 +186,8 @@ export function NotesNoteDetail({
   );
 
   const saveSelectedNote = useCallback(async () => {
-    if (!notebookFlag || !draftBase || !isDirty || !canEdit) return;
+    if (!notebookFlag || !draftBase || !canEdit) return false;
+    if (!isDirty) return true;
     setSaveState('saving');
     setError(null);
     try {
@@ -188,9 +207,11 @@ export function NotesNoteDetail({
         body: bodyDraft,
       });
       setSaveState('saved');
+      return true;
     } catch (e) {
       setSaveState('error');
       setError(errorMessage(e, 'Failed to save note'));
+      return false;
     }
   }, [
     bodyDraft,
@@ -384,6 +405,73 @@ export function NotesNoteDetail({
     }
   }, [openMoveDialog, selectedNote]);
 
+  const openPublishedNote = useCallback(() => {
+    if (!notebookFlag || !selectedNote || Platform.OS !== 'web') return;
+    const url = new URL(
+      publishedNotePath(notebookFlag, selectedNote.noteId),
+      window.location.origin
+    ).toString();
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, [notebookFlag, selectedNote]);
+
+  const handlePublishSelectedNote = useCallback(async () => {
+    if (!notebookFlag || !selectedNote || !canEdit || isPublishing) return;
+
+    setIsPublishing(true);
+    setError(null);
+    try {
+      const saved = await saveSelectedNote();
+      if (!saved) return;
+
+      await publishNotebookNote({
+        notebookFlag,
+        noteId: selectedNote.noteId,
+        title: titleDraft,
+        body: bodyDraft,
+      });
+      await refetchPublishedNotes();
+      openPublishedNote();
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to publish note'));
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [
+    bodyDraft,
+    canEdit,
+    isPublishing,
+    notebookFlag,
+    openPublishedNote,
+    refetchPublishedNotes,
+    saveSelectedNote,
+    selectedNote,
+    titleDraft,
+  ]);
+
+  const handleUnpublishSelectedNote = useCallback(async () => {
+    if (!notebookFlag || !selectedNote || !canEdit || isUnpublishing) return;
+
+    setIsUnpublishing(true);
+    setError(null);
+    try {
+      await unpublishNotebookNote({
+        notebookFlag,
+        noteId: selectedNote.noteId,
+      });
+      await refetchPublishedNotes();
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to unpublish note'));
+    } finally {
+      setIsUnpublishing(false);
+    }
+  }, [
+    canEdit,
+    isUnpublishing,
+    notebookFlag,
+    refetchPublishedNotes,
+    selectedNote,
+  ]);
+
   useRegisterChannelHeaderItem(
     useMemo(() => {
       if (
@@ -396,17 +484,30 @@ export function NotesNoteDetail({
       return (
         <NotesDetailHeaderActions
           isMoving={isMovingNote}
+          isPublished={selectedNoteIsPublished}
+          isPublishing={isPublishing}
+          isUnpublishing={isUnpublishing}
+          canViewPublished={Platform.OS === 'web'}
           onDelete={handleDeleteSelectedNote}
           onMove={handleOpenMoveSheet}
+          onPublish={handlePublishSelectedNote}
+          onUnpublish={handleUnpublishSelectedNote}
+          onViewPublished={openPublishedNote}
         />
       );
     }, [
       canEdit,
       handleDeleteSelectedNote,
       handleOpenMoveSheet,
+      handlePublishSelectedNote,
+      handleUnpublishSelectedNote,
       headerActionsPlacement,
       isMovingNote,
+      isPublishing,
+      isUnpublishing,
+      openPublishedNote,
       selectedNote,
+      selectedNoteIsPublished,
     ])
   );
 
@@ -432,8 +533,15 @@ export function NotesNoteDetail({
     headerActionsPlacement === 'inline' && canEdit ? (
       <NotesDetailHeaderActions
         isMoving={isMovingNote}
+        isPublished={selectedNoteIsPublished}
+        isPublishing={isPublishing}
+        isUnpublishing={isUnpublishing}
+        canViewPublished={Platform.OS === 'web'}
         onDelete={handleDeleteSelectedNote}
         onMove={handleOpenMoveSheet}
+        onPublish={handlePublishSelectedNote}
+        onUnpublish={handleUnpublishSelectedNote}
+        onViewPublished={openPublishedNote}
       />
     ) : null;
 
@@ -572,13 +680,27 @@ export function NotesNoteDetail({
 }
 
 function NotesDetailHeaderActions({
+  canViewPublished,
   isMoving,
+  isPublished,
+  isPublishing,
+  isUnpublishing,
   onDelete,
   onMove,
+  onPublish,
+  onUnpublish,
+  onViewPublished,
 }: {
+  canViewPublished: boolean;
   isMoving: boolean;
+  isPublished: boolean;
+  isPublishing: boolean;
+  isUnpublishing: boolean;
   onDelete: () => void;
   onMove: () => void;
+  onPublish: () => void;
+  onUnpublish: () => void;
+  onViewPublished: () => void;
 }) {
   const groups = useMemo(
     () =>
@@ -592,9 +714,30 @@ function NotesDetailHeaderActions({
             disabled: isMoving,
             testID: 'NotesDetailMoveAction',
           },
+          {
+            title: isPublished ? 'Update published note' : 'Publish to web',
+            startIcon: 'EyeOpen',
+            action: onPublish,
+            disabled: isPublishing,
+            testID: 'NotesDetailPublishAction',
+          },
+          isPublished &&
+            canViewPublished && {
+              title: 'View published note',
+              startIcon: 'Link',
+              action: onViewPublished,
+              testID: 'NotesDetailViewPublishedAction',
+            },
         ],
         [
           'negative',
+          isPublished && {
+            title: 'Unpublish note',
+            startIcon: 'EyeClosed',
+            action: onUnpublish,
+            disabled: isUnpublishing,
+            testID: 'NotesDetailUnpublishAction',
+          },
           {
             title: 'Delete note',
             startIcon: 'Close',
@@ -604,7 +747,18 @@ function NotesDetailHeaderActions({
           },
         ]
       ),
-    [isMoving, onDelete, onMove]
+    [
+      canViewPublished,
+      isMoving,
+      isPublished,
+      isPublishing,
+      isUnpublishing,
+      onDelete,
+      onMove,
+      onPublish,
+      onUnpublish,
+      onViewPublished,
+    ]
   );
 
   return (

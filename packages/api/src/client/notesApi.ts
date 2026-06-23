@@ -54,6 +54,12 @@ export interface NotesMemberRecord {
   role: NotesRole;
 }
 
+export interface NotesPublishedRecord {
+  host: string;
+  flagName: string;
+  noteId: number;
+}
+
 /**
  * Stream events carry typed update payloads (see the %notes agent docs for
  * the full wire format), but the client treats any event as a signal to
@@ -76,7 +82,9 @@ export type NotesNoteAction =
   | { type: 'rename'; title: string }
   | { type: 'move'; folder: number }
   | { type: 'delete' }
-  | { type: 'update'; body: string; expectedRevision: number };
+  | { type: 'update'; body: string; expectedRevision: number }
+  | { type: 'publish'; html: string }
+  | { type: 'unpublish' };
 
 export type NotesNotebookAction =
   | { type: 'delete' }
@@ -171,6 +179,10 @@ export async function listNotesMembers(
 ): Promise<NotesMemberRecord[]> {
   const { host, name } = requireNotesFlag(flag);
   return scryNotesList(`/v0/members/${host}/${name}`);
+}
+
+export async function listPublishedNotes(): Promise<NotesPublishedRecord[]> {
+  return scryNotesList('/v0/published');
 }
 
 export async function deleteNotesNotebook(flag: NotesFlag | string) {
@@ -321,6 +333,36 @@ export async function deleteNotesNote({
     type: 'note',
     id: noteId,
     action: { type: 'delete' },
+  });
+}
+
+export async function publishNotesNote({
+  flag,
+  noteId,
+  html,
+}: {
+  flag: NotesFlag | string;
+  noteId: number;
+  html: string;
+}) {
+  return notebookAction(flag, {
+    type: 'note',
+    id: noteId,
+    action: { type: 'publish', html },
+  });
+}
+
+export async function unpublishNotesNote({
+  flag,
+  noteId,
+}: {
+  flag: NotesFlag | string;
+  noteId: number;
+}) {
+  return notebookAction(flag, {
+    type: 'note',
+    id: noteId,
+    action: { type: 'unpublish' },
   });
 }
 

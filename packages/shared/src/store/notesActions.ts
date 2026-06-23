@@ -6,12 +6,17 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import type { WrappedQuery } from '../db/query';
 import { createDevLogger } from '../debug';
-import { withRetry } from '../logic';
+import {
+  publishedNotePath,
+  renderPublishedNoteHtml,
+  withRetry,
+} from '../logic';
 import { useKeyFromQueryDeps } from './useKeyFromQueryDeps';
 
 const logger = createDevLogger('notesActions', false);
 
 const NOTES_SYNC_STALE_TIME = 15_000;
+const NOTES_PUBLISHED_STALE_TIME = 15_000;
 
 export function normalizeNotebookNoteTitle(title: string) {
   return title.trim();
@@ -214,6 +219,39 @@ export const useNotesNotes = createNotebookQueryHook(
   db.getNotesNotes
 );
 
+export function usePublishedNotesForNotebook({
+  notebookFlag,
+  enabled = true,
+}: {
+  notebookFlag: string | null | undefined;
+  enabled?: boolean;
+}) {
+  return useQuery({
+    queryKey: ['notesPublished', notebookFlag],
+    queryFn: () => listPublishedNotesForNotebook(notebookFlag!),
+    enabled: enabled && Boolean(notebookFlag),
+    staleTime: NOTES_PUBLISHED_STALE_TIME,
+  });
+}
+
+export async function listPublishedNotesForNotebook(notebookFlag: string) {
+  const { parsed } = requireNotesNotebookFlag(notebookFlag);
+  const published = await api.listPublishedNotes();
+  return published.filter(
+    (record) =>
+      record.host === parsed.host && record.flagName === parsed.name
+  );
+}
+
+export function noteIsPublished(
+  published: api.NotesPublishedRecord[] | null | undefined,
+  noteId: number | null | undefined
+) {
+  return noteId != null
+    ? Boolean(published?.some((record) => record.noteId === noteId))
+    : false;
+}
+
 /**
  * Snapshots existing item ids, runs the create action, then syncs until an
  * item with an unseen id appears locally. Returns that item, or null if it
@@ -354,6 +392,40 @@ export async function saveNotebookNote({
     );
   });
   return db.getNotesNote({ notebookFlag, noteId: note.noteId });
+}
+
+export async function publishNotebookNote({
+  notebookFlag,
+  noteId,
+  title,
+  body,
+}: {
+  notebookFlag: string;
+  noteId: number;
+  title: string;
+  body: string;
+}) {
+  await api.publishNotesNote({
+    flag: notebookFlag,
+    noteId,
+    html: renderPublishedNoteHtml({ title, body }),
+  });
+  await waitForPublishedNoteState(notebookFlag, noteId, true);
+  return publishedNotePath(notebookFlag, noteId);
+}
+
+export async function unpublishNotebookNote({
+  notebookFlag,
+  noteId,
+}: {
+  notebookFlag: string;
+  noteId: number;
+}) {
+  await api.unpublishNotesNote({
+    flag: notebookFlag,
+    noteId,
+  });
+  await waitForPublishedNoteState(notebookFlag, noteId, false);
 }
 
 export async function moveNotebookNote({
@@ -524,6 +596,33 @@ async function syncNotesNotebookWithRetry(
       async () => {
         await syncNotesNotebook(notebookFlag);
         if (isReady && !(await isReady())) {
+          throw notYetSynced;
+        }
+      },
+      {
+        numOfAttempts: 8,
+        startingDelay: 300,
+        timeMultiple: 1,
+        retry: (e) => e === notYetSynced,
+      }
+    );
+  } catch (e) {
+    if (e !== notYetSynced) {
+      throw e;
+    }
+  }
+}
+
+async function waitForPublishedNoteState(
+  notebookFlag: string,
+  noteId: number,
+  expected: boolean
+) {
+  try {
+    await withRetry(
+      async () => {
+        const published = await listPublishedNotesForNotebook(notebookFlag);
+        if (noteIsPublished(published, noteId) !== expected) {
           throw notYetSynced;
         }
       },
