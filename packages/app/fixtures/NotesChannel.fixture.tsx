@@ -161,6 +161,13 @@ function seedNotesQueries() {
     ['notesNotes', new Set(['notesNotes']), notebookFlag],
     notes
   );
+  queryClient.setQueryData(
+    ['notesPublished', notebookFlag],
+    [
+      { host: '~zod', flagName: 'native-notes-fixture', noteId: 4 },
+      { host: '~zod', flagName: 'native-notes-fixture', noteId: 5 },
+    ]
+  );
 }
 
 function useSeedNotesFixtureData() {
@@ -243,6 +250,7 @@ function NotebookContentsListFixture() {
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
     initialSelection.noteId
   );
+  const publishedNoteIds = useMemo(() => new Set([4, 5]), []);
 
   useEffect(() => {
     setActiveFolderId(initialSelection.activeFolderId);
@@ -297,8 +305,14 @@ function NotebookContentsListFixture() {
           ) : null}
           <NotesTreePane
             canEdit={canEdit}
+            getPublishedNoteUrl={(note) =>
+              `https://test.tlon.app/notes/native-notes-fixture/${note.noteId}`
+            }
             isDeletingFolder={false}
+            isNotePublished={(noteId) => publishedNoteIds.has(noteId)}
             layout={usePhoneViewport ? 'stack' : 'takeover'}
+            publishDisabled={false}
+            publishingAction={null}
             selectedNoteId={selectedNoteId}
             treeRows={treeRows}
             onCreateFolderInFolder={() => {}}
@@ -309,8 +323,11 @@ function NotebookContentsListFixture() {
             onMoveNote={() => {}}
             onOpenNote={openNote}
             onOpenFolder={openFolder}
+            onPublishNote={() => {}}
             onRenameFolder={() => {}}
             onRenameNote={() => {}}
+            onUnpublishNote={() => {}}
+            onViewPublishedNote={() => {}}
           />
         </YStack>
       </ChannelHeaderItemsProvider>
@@ -358,8 +375,11 @@ function NotesTreeFixture() {
         >
           <NotesTreePane
             canEdit
+            isNotePublished={() => false}
             isDeletingFolder={false}
             layout="takeover"
+            publishDisabled={false}
+            publishingAction={null}
             selectedNoteId={1}
             treeRows={treeRows}
             onCreateFolderInFolder={() => {}}
@@ -370,8 +390,10 @@ function NotesTreeFixture() {
             onMoveNote={() => {}}
             onOpenNote={() => {}}
             onOpenFolder={(folder) => setActiveFolderId(folder.folderId)}
+            onPublishNote={() => {}}
             onRenameFolder={() => {}}
             onRenameNote={() => {}}
+            onUnpublishNote={() => {}}
           />
         </YStack>
         <YStack flex={1} backgroundColor="$background" />

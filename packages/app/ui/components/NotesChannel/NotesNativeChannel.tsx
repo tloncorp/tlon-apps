@@ -11,16 +11,24 @@ import {
   deleteNotebookNote,
   moveNotebookFolder,
   moveNotebookNote,
+  noteIsPublished,
+  publishNotebookNote,
+  publishedNotePath,
+  publishedNoteUrl,
   renameNotebookFolder,
+  unpublishNotebookNote,
   useMutableCallback,
+  usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
 import { useIsWindowNarrow, useToast } from '@tloncorp/ui';
-import { useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Linking, Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
+import { useShip } from '../../../contexts/ship';
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { ActionSheet } from '../ActionSheet';
@@ -44,7 +52,11 @@ import {
   createNotesNewNoteAction,
 } from './NotesHeaderActions';
 import { MoveNoteSheet } from './NotesMoveSheets';
-import { NotesNoteDetail } from './NotesNoteDetail';
+import {
+  NotesNoteDetail,
+  type NotesNoteDraftSnapshot,
+  getNotesNoteDraftSnapshot,
+} from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
 import { trackNotesActionError } from './notesTelemetry';
@@ -90,6 +102,8 @@ function withMoveOperationTimeout(operation: Promise<void>): Promise<void> {
   });
 }
 
+type PublishingAction = 'publish' | 'unpublish' | null;
+
 export function NotesNativeChannel({
   channelId,
   channelTitle,
@@ -105,6 +119,7 @@ export function NotesNativeChannel({
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isFocused = useIsFocused();
+  const { shipUrl } = useShip();
   const isWindowNarrow = useIsWindowNarrow();
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
@@ -120,6 +135,8 @@ export function NotesNativeChannel({
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newActionSheetOpen, setNewActionSheetOpen] = useState(false);
+  const [publishingAction, setPublishingAction] =
+    useState<PublishingAction>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const {
@@ -148,11 +165,17 @@ export function NotesNativeChannel({
   } = useEntityDialog<db.NotesFolder>();
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
   const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
+  const activeNoteDraftRef = useRef<NotesNoteDraftSnapshot | null>(null);
 
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
     { syncEnabled: isFocused }
   );
+  const { data: publishedNotes, refetch: refetchPublishedNotes } =
+    usePublishedNotesForNotebook({
+      notebookFlag,
+      enabled: Boolean(notebookFlag),
+    });
 
   const canImportFiles = canEdit && canSelectNotesImportSources('files');
   const canImportFolder = canEdit && canSelectNotesImportSources('folder');
@@ -178,6 +201,56 @@ export function NotesNativeChannel({
       }),
     [activeFolderId, folderNoteCounts, folders, notes, rootFolderId]
   );
+  const isNotePublished = useMemo(
+    () => (noteId: number) => noteIsPublished(publishedNotes, noteId),
+    [publishedNotes]
+  );
+  const getPublishedNoteUrl = useMemo(
+    () => (note: db.NotesNote) => {
+      if (!notebookFlag) {
+        return null;
+      }
+
+      return publishedNoteUrl(
+        publishedNotePath(notebookFlag, note.noteId),
+        shipUrl
+      );
+    },
+    [notebookFlag, shipUrl]
+  );
+  const getPublishedNoteShareUrl = useMemo(
+    () => (publishedPath: string) => {
+      return publishedNoteUrl(publishedPath, shipUrl);
+    },
+    [shipUrl]
+  );
+  const handleNoteDraftChange = useMutableCallback(
+    (draft: NotesNoteDraftSnapshot | null) => {
+      activeNoteDraftRef.current = draft;
+    }
+  );
+  const getNotePublishContent = useMutableCallback((note: db.NotesNote) => {
+    const activeDraft = activeNoteDraftRef.current;
+    const draft =
+      activeDraft &&
+      activeDraft.notebookFlag === notebookFlag &&
+      activeDraft.noteId === note.noteId
+        ? activeDraft
+        : notebookFlag
+          ? getNotesNoteDraftSnapshot(notebookFlag, note.noteId)
+          : null;
+    if (draft) {
+      return {
+        title: draft.title,
+        body: draft.body,
+      };
+    }
+
+    return {
+      title: note.title,
+      body: note.bodyMd,
+    };
+  });
   const selectNoteInPane = useMutableCallback((noteId: number | null) => {
     setSelectedNoteId(noteId);
     const note =
@@ -341,7 +414,7 @@ export function NotesNativeChannel({
     notebookFlag,
     notes,
     rootFolderId,
-    selectedFolderId,
+    selectedFolderId: selectedFolderId ?? activeFolderId,
     setError,
   });
 
@@ -412,6 +485,81 @@ export function NotesNativeChannel({
   const handleRenameNote = useMutableCallback((note: db.NotesNote) => {
     if (!canEdit) return;
     openNote(note, { focusTitle: true });
+  });
+
+  const openPublishedUrl = useMutableCallback(async (url: string) => {
+    if (Platform.OS === 'web') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    await Linking.openURL(url);
+  });
+
+  const handleViewPublishedNote = useMutableCallback((note: db.NotesNote) => {
+    const publishedUrl = getPublishedNoteUrl(note);
+    if (!publishedUrl) return;
+    void openPublishedUrl(publishedUrl).catch((e) => {
+      const message = errorMessage(e, 'Failed to open published note');
+      trackNotesActionError('view published note', e, message);
+      setError(message);
+    });
+  });
+
+  const handlePublishNote = useMutableCallback(async (note: db.NotesNote) => {
+    if (!notebookFlag || !canEdit || publishingAction) return;
+
+    setPublishingAction('publish');
+    try {
+      let publishedUrl: string | null = null;
+      await runAction('Failed to publish note', async () => {
+        const content = getNotePublishContent(note);
+        const publishedPath = await publishNotebookNote({
+          notebookFlag,
+          noteId: note.noteId,
+          title: content.title,
+          body: content.body,
+        });
+        await refetchPublishedNotes();
+        publishedUrl = getPublishedNoteShareUrl(publishedPath);
+      });
+
+      if (publishedUrl) {
+        try {
+          await Clipboard.setStringAsync(publishedUrl);
+          showToast({
+            message: 'Published note. Link copied to clipboard.',
+            duration: 2000,
+          });
+        } catch (e) {
+          const message = errorMessage(
+            e,
+            'Published note, but failed to copy link'
+          );
+          trackNotesActionError('copy published note link', e, message);
+          setError(message);
+        }
+      }
+    } finally {
+      setPublishingAction(null);
+    }
+  });
+
+  const handleUnpublishNote = useMutableCallback(async (note: db.NotesNote) => {
+    if (!notebookFlag || !canEdit || publishingAction) return;
+
+    setPublishingAction('unpublish');
+    try {
+      await runAction('Failed to unpublish note', async () => {
+        await unpublishNotebookNote({
+          notebookFlag,
+          noteId: note.noteId,
+        });
+        await refetchPublishedNotes();
+      });
+    } finally {
+      setPublishingAction(null);
+    }
   });
 
   const handleOpenRenameFolder = useMutableCallback(
@@ -643,8 +791,12 @@ export function NotesNativeChannel({
   const notesTreePane = (
     <NotesTreePane
       canEdit={canEdit}
+      getPublishedNoteUrl={getPublishedNoteUrl}
       isDeletingFolder={isDeletingFolder}
+      isNotePublished={isNotePublished}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
+      publishDisabled={publishingAction !== null}
+      publishingAction={publishingAction}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
       onDeleteFolder={handleDeleteFolder}
@@ -652,11 +804,14 @@ export function NotesNativeChannel({
       onMoveFolder={openMoveFolderDialog}
       onMoveNote={openMoveNoteDialog}
       onOpenNote={openNote}
+      onPublishNote={handlePublishNote}
       onCreateFolderInFolder={(folder) => openAddFolderDialog(folder.folderId)}
       onCreateNoteInFolder={(folder) => void handleCreateNote(folder.folderId)}
       onRenameFolder={handleOpenRenameFolder}
       onRenameNote={handleRenameNote}
       onOpenFolder={openFolder}
+      onUnpublishNote={handleUnpublishNote}
+      onViewPublishedNote={handleViewPublishedNote}
     />
   );
 
@@ -697,6 +852,7 @@ export function NotesNativeChannel({
           headerActionsPlacement="inline"
           noteId={selectedNoteId}
           notebookFlag={notebookFlag}
+          onDraftChange={handleNoteDraftChange}
           onTitleAutoFocused={handleTitleAutoFocused}
           startInEdit={startEditNoteId === selectedNoteId}
           // This embedded pane shares the shell's notebook; syncing here too

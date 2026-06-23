@@ -14,6 +14,8 @@ import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { NotesActionMenu } from './NotesActions';
 import { noteTimestampMs } from './notesTree';
 
+type PublishingAction = 'publish' | 'unpublish' | null;
+
 export function FolderTreeRow({
   canEdit,
   folder,
@@ -122,20 +124,34 @@ export function FolderTreeRow({
 
 export function NoteRow({
   canEdit,
+  isPublished,
   note,
+  publishDisabled,
+  publishedUrl,
+  publishingAction,
   selected = false,
   onDelete,
   onMove,
   onPress,
+  onPublish,
   onRename,
+  onUnpublish,
+  onViewPublished,
 }: {
   canEdit: boolean;
+  isPublished: boolean;
   note: db.NotesNote;
+  publishDisabled: boolean;
+  publishedUrl?: string | null;
+  publishingAction: PublishingAction;
   selected?: boolean;
   onDelete: () => void;
   onMove: () => void;
   onPress: () => void;
+  onPublish: () => void;
   onRename: () => void;
+  onUnpublish: () => void;
+  onViewPublished?: () => void;
 }) {
   const updatedAt = noteTimestampMs(note.updatedAt ?? note.createdAt);
   const bodyPreview = getNoteBodyPreview(note.bodyMd);
@@ -156,8 +172,34 @@ export function NoteRow({
         testID: `NotesMoveNoteAction-${note.noteId}`,
       },
     ],
+    [
+      'neutral',
+      {
+        title: isPublished ? 'Update published note' : 'Publish to web',
+        description: isPublished ? publishedUrl ?? undefined : undefined,
+        startIcon: 'EyeOpen',
+        action: onPublish,
+        disabled: publishDisabled,
+        testID: `NotesPublishNoteAction-${note.noteId}`,
+      },
+      isPublished && publishedUrl && onViewPublished
+        ? {
+            title: 'View published note',
+            startIcon: 'Link',
+            action: onViewPublished,
+            testID: `NotesViewPublishedNoteAction-${note.noteId}`,
+          }
+        : null,
+    ],
     canEdit && [
       'negative',
+      isPublished && {
+        title: 'Unpublish note',
+        startIcon: 'EyeClosed',
+        action: onUnpublish,
+        disabled: publishDisabled || publishingAction === 'unpublish',
+        testID: `NotesUnpublishNoteAction-${note.noteId}`,
+      },
       {
         title: 'Delete note',
         startIcon: 'Trash',
