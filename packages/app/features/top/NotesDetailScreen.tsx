@@ -4,8 +4,8 @@ import * as store from '@tloncorp/shared/store';
 import { YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
-import { NotesNoteDetail } from '../../ui/components/NotesChannel/NotesNoteDetail';
 import { ChannelHeader, ChannelHeaderItemsProvider } from '../../ui';
+import { NotesNoteDetail } from '../../ui/components/NotesChannel/NotesNoteDetail';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NotesDetail'>;
 

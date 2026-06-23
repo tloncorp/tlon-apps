@@ -172,7 +172,10 @@ export function MoveFolderSheet({
 
   if (folder) {
     collectDescendantFolderIds(folders, folder.folderId).forEach((id) => {
-      disabledFolders.set(id, id === folder.folderId ? 'This folder' : 'Nested');
+      disabledFolders.set(
+        id,
+        id === folder.folderId ? 'This folder' : 'Nested'
+      );
     });
 
     if (folder.parentFolderId !== null && folder.parentFolderId !== undefined) {
