@@ -82,7 +82,6 @@ export function NotesTreePane({
   onRenameFolder: (folder: db.NotesFolder) => void;
   onToggleFolder: (folderId: number, hasChildren: boolean) => void;
 }) {
-  const rowViewStyle = layout === 'takeover' ? 'notes' : treeViewStyle;
   const treeList = (
     <NotesTreeRowsList
       canEdit={canEdit}
@@ -93,7 +92,7 @@ export function NotesTreePane({
       selectedFolderId={selectedFolderId}
       selectedNoteId={selectedNoteId}
       treeRows={treeRows}
-      treeViewStyle={rowViewStyle}
+      treeViewStyle={treeViewStyle}
       onCreate={onCreate}
       onDeleteFolder={onDeleteFolder}
       onDeleteNote={onDeleteNote}
