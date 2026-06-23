@@ -33,6 +33,10 @@ class NotificationService: UNNotificationServiceExtension {
 
         // Store the JSON string in notification userInfo
         notification.userInfo["activityEventJsonString"] = activityEventJsonString
+        // Ensure `uid` is forwarded to JS on tap. The mutableCopy from
+        // bestAttemptContent inherits userInfo from the original request, but
+        // be explicit so a future refactor cannot drop it.
+        notification.userInfo["uid"] = uid
 
         // If we have a preview, make sure to fully replace server-provided title / body.
         notification.title = ""
