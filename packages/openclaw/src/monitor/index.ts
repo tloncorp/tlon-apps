@@ -1,5 +1,6 @@
 import type { Story } from '@tloncorp/api';
 import { configureGatewayStatus, gatewayStart } from '@tloncorp/api';
+import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
@@ -42,7 +43,11 @@ import {
   normalizeShip,
   parseChannelNest,
 } from '../targets.js';
-import { createTlonTelemetry, setOutboundRouteReporter } from '../telemetry.js';
+import {
+  createTlonTelemetry,
+  setOutboundRouteReporter,
+  setSessionTelemetryReporter,
+} from '../telemetry.js';
 import { resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
 import { authenticate } from '../urbit/auth.js';
@@ -573,6 +578,19 @@ export async function monitorTlonProvider(
         botShip: botShipName,
       })
     );
+    setSessionTelemetryReporter((report) => {
+      switch (report.kind) {
+        case 'lifecycle':
+          telemetry?.captureSessionLifecycle(report.event);
+          break;
+        case 'watchdog':
+          telemetry?.captureSessionWatchdog(report.event);
+          break;
+        case 'recovery':
+          telemetry?.captureSessionRecovery(report.event);
+          break;
+      }
+    });
 
     // Track threads we've participated in (by parentId) - respond without mention requirement
     const participatedThreads = new Set<string>();
@@ -2325,11 +2343,16 @@ export async function monitorTlonProvider(
           : undefined;
 
       const dispatchStartTime = Date.now();
+      const runId = randomUUID();
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
+        runId,
+        accountId: account.accountId,
+        agentId: route.agentId,
         ownerShip: effectiveOwnerShip,
         botShip: botShipName,
         chatType: isGroup ? 'groupChannel' : 'dm',
+        destinationKind: isGroup ? 'groupChannel' : 'dm',
         isThreadReply: Boolean(isThreadReply),
         senderRole,
         attachmentCount,
@@ -2338,6 +2361,9 @@ export async function monitorTlonProvider(
       let selectedModel: string | null = null;
       let selectedThinkLevel: string | null = null;
       let deliveredMessageCount = 0;
+      let sendAttemptCount = 0;
+      let sendErrorCount = 0;
+      let sendErrorKind: string | null = null;
       let replyCharCount = 0;
       let replyWordCount = 0;
       let replyMediaCount = 0;
@@ -2400,6 +2426,7 @@ export async function monitorTlonProvider(
           typeof core.channel.reply.dispatchReplyWithBufferedBlockDispatcher
         >[0]['replyOptions']
       > = {
+        runId,
         onModelSelected: ({ provider, model, thinkLevel }) => {
           selectedProvider = provider;
           selectedModel = model;
@@ -2428,6 +2455,9 @@ export async function monitorTlonProvider(
         | {
             queuedFinal: boolean;
             counts: Record<string, number>;
+            failedCounts?: Partial<Record<string, number>>;
+            sourceReplyDeliveryMode?: string;
+            beforeAgentRunBlocked?: boolean;
           }
         | undefined;
       let dispatchError: unknown;
@@ -2521,6 +2551,7 @@ export async function monitorTlonProvider(
                     );
                   }
 
+                  sendAttemptCount += 1;
                   if (isGroup && groupChannel) {
                     // Send to any channel type (chat, heap, diary) using the nest directly
                     await sendChannelPost({
@@ -2549,13 +2580,6 @@ export async function monitorTlonProvider(
                     });
                   }
 
-                  if (presenceConversationId) {
-                    await computingPresence.stopRun({
-                      conversationId: presenceConversationId,
-                      runId: presenceRunId,
-                    });
-                  }
-
                   deliveredMessageCount += 1;
                   replyCharCount += replyText.length;
                   replyWordCount += replyText.trim()
@@ -2566,9 +2590,18 @@ export async function monitorTlonProvider(
                     : payload.mediaUrl
                       ? 1
                       : 0;
+
+                  if (presenceConversationId) {
+                    await computingPresence.stopRun({
+                      conversationId: presenceConversationId,
+                      runId: presenceRunId,
+                    });
+                  }
                 },
                 onError: (err, info) => {
                   const dispatchDuration = Date.now() - dispatchStartTime;
+                  sendErrorCount += 1;
+                  sendErrorKind = info.kind;
                   runtime.error?.(
                     `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
                   );
@@ -2581,6 +2614,9 @@ export async function monitorTlonProvider(
         throw error;
       } finally {
         await replyTelemetry?.capture({
+          sendAttemptCount,
+          sendErrorCount,
+          sendErrorKind,
           deliveredMessageCount,
           replyCharCount,
           replyWordCount,
@@ -2589,6 +2625,10 @@ export async function monitorTlonProvider(
           queuedFinal: dispatchResult?.queuedFinal ?? false,
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
+          failedCounts: dispatchResult?.failedCounts,
+          sourceReplyDeliveryMode:
+            dispatchResult?.sourceReplyDeliveryMode ?? null,
+          beforeAgentRunBlocked: dispatchResult?.beforeAgentRunBlocked === true,
           provider: selectedProvider,
           model: selectedModel,
           thinkLevel: selectedThinkLevel,
@@ -4134,6 +4174,7 @@ export async function monitorTlonProvider(
       await pendingNudgePersistence.flush();
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);
+      setSessionTelemetryReporter(null);
       await telemetry?.close();
       try {
         await api?.close();

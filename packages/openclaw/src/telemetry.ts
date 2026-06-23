@@ -17,6 +17,21 @@ type ToolSessionTrace = {
   calls: ToolCallRecord[];
 };
 
+type ReplyDispatchKind = 'tool' | 'block' | 'final';
+type ReplyDispatchCounts = Partial<Record<ReplyDispatchKind, number>>;
+type TlonDestinationKind = 'dm' | 'groupChannel';
+
+type TlonSessionTelemetryContext = {
+  sessionKey: string;
+  sessionId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  accountId: string | null;
+  agentId: string | null;
+  destinationKind: TlonDestinationKind;
+  updatedAt: number;
+};
+
 export type ToolUsageSummary = {
   calls: Array<{
     toolName: string;
@@ -64,16 +79,26 @@ export type TlonHeartbeatReengagementEvent = {
   accountId: string | null;
 };
 
-export type TlonReplyOutcome = 'responded' | 'no_reply' | 'error';
+export type TlonReplyOutcome = 'responded' | 'no_reply' | 'error' | 'abandoned';
 
 export type TlonReplyOutcomeEvent = {
+  sessionKey: string;
+  sessionId: string | null;
+  runId: string | null;
+  accountId: string | null;
+  agentId: string | null;
   ownerShip: string | null;
   botShip: string;
   outcome: TlonReplyOutcome;
   chatType: 'dm' | 'groupChannel';
+  destinationKind: TlonDestinationKind;
   isThreadReply: boolean;
   senderRole: 'owner' | 'user';
   attachmentCount: number;
+  sendAttemptCount: number;
+  sendError: boolean;
+  sendErrorCount: number;
+  sendErrorKind: string | null;
   deliveredMessageCount: number;
   replyCharCount: number;
   replyWordCount: number;
@@ -82,6 +107,15 @@ export type TlonReplyOutcomeEvent = {
   queuedFinal: boolean;
   queuedFinalCount: number;
   queuedBlockCount: number;
+  failedToolCount: number;
+  failedBlockCount: number;
+  failedFinalCount: number;
+  failedReplyCount: number;
+  sourceReplyDeliveryMode: string | null;
+  beforeAgentRunBlocked: boolean;
+  dispatchError: boolean;
+  dispatchErrorKind: string | null;
+  abandonedReason: string | null;
   provider: string | null;
   model: string | null;
   thinkLevel: string | null;
@@ -90,9 +124,14 @@ export type TlonReplyOutcomeEvent = {
 
 export type TlonReplyTelemetryStart = {
   sessionKey: string;
+  sessionId?: string | null;
+  runId?: string | null;
+  accountId?: string | null;
+  agentId?: string | null;
   ownerShip: string | null;
   botShip: string;
   chatType: 'dm' | 'groupChannel';
+  destinationKind?: TlonDestinationKind;
   isThreadReply: boolean;
   senderRole: 'owner' | 'user';
   attachmentCount: number;
@@ -113,6 +152,9 @@ export type TlonGatewayConnectedEvent = {
 };
 
 export type TlonReplyTelemetryResult = {
+  sendAttemptCount?: number;
+  sendErrorCount?: number;
+  sendErrorKind?: string | null;
   deliveredMessageCount: number;
   replyCharCount: number;
   replyWordCount: number;
@@ -121,6 +163,9 @@ export type TlonReplyTelemetryResult = {
   queuedFinal: boolean;
   queuedFinalCount: number;
   queuedBlockCount: number;
+  failedCounts?: ReplyDispatchCounts;
+  sourceReplyDeliveryMode?: string | null;
+  beforeAgentRunBlocked?: boolean;
   provider: string | null;
   model: string | null;
   thinkLevel: string | null;
@@ -146,11 +191,80 @@ export type TlonOutboundRouteEvent = {
   targetKind: 'dm' | 'group' | 'unknown';
 };
 
+export type TlonSessionLifecycleEvent = {
+  lifecycleEvent: 'session_start' | 'session_end';
+  sessionKey: string;
+  sessionId: string | null;
+  accountId: string | null;
+  agentId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  destinationKind: TlonDestinationKind;
+  reason: string | null;
+  messageCount: number | null;
+  durationMs: number | null;
+  transcriptArchived: boolean | null;
+  hasNextSession: boolean;
+};
+
+export type TlonSessionWatchdogEvent = {
+  diagnosticType: 'session.stalled' | 'session.stuck';
+  sessionKey: string;
+  sessionId: string | null;
+  accountId: string | null;
+  agentId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  destinationKind: TlonDestinationKind;
+  state: string;
+  ageMs: number;
+  queueDepth: number | null;
+  reason: string | null;
+  classification: string;
+  activeWorkKind: string | null;
+  lastProgressAgeMs: number | null;
+  lastProgressReason: string | null;
+  activeToolName: string | null;
+  activeToolAgeMs: number | null;
+  terminalProgressStale: boolean;
+};
+
+export type TlonSessionRecoveryEvent = {
+  diagnosticType: 'session.recovery.requested' | 'session.recovery.completed';
+  sessionKey: string;
+  sessionId: string | null;
+  accountId: string | null;
+  agentId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  destinationKind: TlonDestinationKind;
+  state: string;
+  stateGeneration: number | null;
+  ageMs: number;
+  queueDepth: number | null;
+  reason: string | null;
+  activeWorkKind: string | null;
+  allowActiveAbort: boolean;
+  status: string | null;
+  action: string | null;
+  outcomeReason: string | null;
+  released: number | null;
+  stale: boolean;
+};
+
+export type TlonSessionTelemetryReport =
+  | { kind: 'lifecycle'; event: TlonSessionLifecycleEvent }
+  | { kind: 'watchdog'; event: TlonSessionWatchdogEvent }
+  | { kind: 'recovery'; event: TlonSessionRecoveryEvent };
+
 export interface TlonTelemetryClient {
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
   captureHeartbeatReengagement(event: TlonHeartbeatReengagementEvent): void;
+  captureSessionLifecycle(event: TlonSessionLifecycleEvent): void;
+  captureSessionWatchdog(event: TlonSessionWatchdogEvent): void;
+  captureSessionRecovery(event: TlonSessionRecoveryEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -163,14 +277,25 @@ export interface TlonTelemetryClient {
 const TLON_TELEMETRY_EVENT_NAME = 'TlonBot Reply Handled';
 const TLON_GATEWAY_CONNECTED_EVENT = 'TlonBot Gateway Connected';
 const TLON_OUTBOUND_ROUTED_EVENT = 'TlonBot Outbound Routed';
+const TLON_SESSION_LIFECYCLE_EVENT = 'TlonBot Session Lifecycle';
+const TLON_SESSION_WATCHDOG_EVENT = 'TlonBot Session Watchdog';
+const TLON_SESSION_RECOVERY_EVENT = 'TlonBot Session Recovery';
 const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
 const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_TOOL_CALLS_PER_SESSION = 200;
+const REPLY_TRACE_TTL_MS = 60 * 60 * 1000;
+const MAX_ACTIVE_REPLY_TRACES = 50;
+const SESSION_CONTEXT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MAX_SESSION_CONTEXTS = 5_000;
 const toolCallsBySession = sharedMap<string, ToolSessionTrace>(
   'telemetry.toolCallsBySession'
 );
+const sessionContextsBySessionKey = sharedMap<
+  string,
+  TlonSessionTelemetryContext
+>('telemetry.sessionContextsBySessionKey');
 
 function cleanupToolCalls(now = Date.now()): void {
   for (const [sessionKey, trace] of toolCallsBySession) {
@@ -248,22 +373,160 @@ function collectToolUsageSince(
   };
 }
 
+function cleanupSessionContexts(now = Date.now()): void {
+  for (const [sessionKey, context] of sessionContextsBySessionKey) {
+    if (now - context.updatedAt > SESSION_CONTEXT_TTL_MS) {
+      sessionContextsBySessionKey.delete(sessionKey);
+    }
+  }
+
+  while (sessionContextsBySessionKey.size > MAX_SESSION_CONTEXTS) {
+    const oldestKey = [...sessionContextsBySessionKey.entries()].sort(
+      (a, b) => a[1].updatedAt - b[1].updatedAt
+    )[0]?.[0];
+    if (!oldestKey) {
+      break;
+    }
+    sessionContextsBySessionKey.delete(oldestKey);
+  }
+}
+
+function rememberTlonSessionContext(params: {
+  sessionKey: string;
+  sessionId?: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  accountId?: string | null;
+  agentId?: string | null;
+  destinationKind: TlonDestinationKind;
+}): void {
+  const sessionKey = params.sessionKey.trim();
+  if (!sessionKey) {
+    return;
+  }
+
+  const now = Date.now();
+  cleanupSessionContexts(now);
+  const existing = sessionContextsBySessionKey.get(sessionKey);
+  sessionContextsBySessionKey.set(sessionKey, {
+    sessionKey,
+    sessionId: optionalString(params.sessionId) ?? existing?.sessionId ?? null,
+    ownerShip: params.ownerShip,
+    botShip: params.botShip,
+    accountId: params.accountId ?? null,
+    agentId: params.agentId ?? null,
+    destinationKind: params.destinationKind,
+    updatedAt: now,
+  });
+}
+
+function lookupTlonSessionContext(
+  sessionKey?: string | null
+): TlonSessionTelemetryContext | null {
+  const normalized = sessionKey?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  cleanupSessionContexts();
+  const context = sessionContextsBySessionKey.get(normalized);
+  if (!context) {
+    return null;
+  }
+
+  context.updatedAt = Date.now();
+  sessionContextsBySessionKey.set(normalized, context);
+  return context;
+}
+
+function updateTlonSessionContextSessionId(
+  context: TlonSessionTelemetryContext,
+  sessionId?: string | null
+): TlonSessionTelemetryContext {
+  const normalizedSessionId = optionalString(sessionId);
+  if (!normalizedSessionId || context.sessionId === normalizedSessionId) {
+    return context;
+  }
+
+  const updated = {
+    ...context,
+    sessionId: normalizedSessionId,
+    updatedAt: Date.now(),
+  };
+  sessionContextsBySessionKey.set(updated.sessionKey, updated);
+  return updated;
+}
+
+function countDispatchFailures(
+  counts: ReplyDispatchCounts | undefined,
+  kind: ReplyDispatchKind
+): number {
+  const value = counts?.[kind];
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, value)
+    : 0;
+}
+
+function classifyError(error: unknown): string | null {
+  if (!error) {
+    return null;
+  }
+  if (error instanceof Error) {
+    return error.name || 'Error';
+  }
+  if (typeof error === 'object' && error !== null) {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string' && code.trim()) {
+      return code.trim().slice(0, 80);
+    }
+    const name = (error as { name?: unknown }).name;
+    if (typeof name === 'string' && name.trim()) {
+      return name.trim().slice(0, 80);
+    }
+    return 'object';
+  }
+  return typeof error;
+}
+
 function resolveReplyOutcome(params: {
   deliveredMessageCount: number;
+  sendError?: boolean;
+  failedCounts?: ReplyDispatchCounts;
   dispatchError?: unknown;
 }): TlonReplyOutcome {
   if (params.deliveredMessageCount > 0) {
     return 'responded';
   }
 
-  return params.dispatchError ? 'error' : 'no_reply';
+  const failedReplyCount =
+    countDispatchFailures(params.failedCounts, 'tool') +
+    countDispatchFailures(params.failedCounts, 'block') +
+    countDispatchFailures(params.failedCounts, 'final');
+
+  return params.dispatchError || params.sendError || failedReplyCount > 0
+    ? 'error'
+    : 'no_reply';
 }
+
+type ActiveReplyTrace = {
+  params: TlonReplyTelemetryStart & {
+    sessionId: string | null;
+    runId: string | null;
+    accountId: string | null;
+    agentId: string | null;
+    destinationKind: TlonDestinationKind;
+  };
+  startedAt: number;
+  toolTraceCursor: number;
+  timeout: ReturnType<typeof setTimeout>;
+};
 
 class PostHogTlonTelemetry implements TlonTelemetryClient {
   private readonly client: PostHog;
   private readonly runtime?: RuntimeEnv;
   private readonly versionIdentity = getTlonVersionIdentity();
   private readonly identifiedOwners = new Set<string>();
+  private readonly activeReplyTraces = new Map<symbol, ActiveReplyTrace>();
   private missingOwnerWarningLogged = false;
 
   constructor(params: {
@@ -316,24 +579,91 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
   }
 
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession {
+    const normalizedParams: ActiveReplyTrace['params'] = {
+      ...params,
+      sessionId: optionalString(params.sessionId),
+      runId: params.runId ?? null,
+      accountId: params.accountId ?? null,
+      agentId: params.agentId ?? null,
+      destinationKind: params.destinationKind ?? params.chatType,
+    };
     const toolTraceCursor = createToolTraceCursor(params.sessionKey);
+    rememberTlonSessionContext({
+      sessionKey: normalizedParams.sessionKey,
+      sessionId: normalizedParams.sessionId,
+      ownerShip: normalizedParams.ownerShip,
+      botShip: normalizedParams.botShip,
+      accountId: normalizedParams.accountId,
+      agentId: normalizedParams.agentId,
+      destinationKind: normalizedParams.destinationKind,
+    });
+
+    this.pruneActiveReplyTraces();
+    const token = Symbol(normalizedParams.sessionKey);
+    const trace: ActiveReplyTrace = {
+      params: normalizedParams,
+      startedAt: Date.now(),
+      toolTraceCursor,
+      timeout: setTimeout(() => {
+        this.captureAbandonedReplyTrace(token, 'stale');
+      }, REPLY_TRACE_TTL_MS),
+    };
+    trace.timeout.unref?.();
+    this.activeReplyTraces.set(token, trace);
+    this.pruneActiveReplyTraces();
 
     return {
       capture: async (result) => {
+        const activeTrace = this.activeReplyTraces.get(token);
+        if (!activeTrace) {
+          return;
+        }
+        this.activeReplyTraces.delete(token);
+        clearTimeout(activeTrace.timeout);
+
         // Yield once so after_tool_call hooks for the just-finished reply have time to run.
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+        const failedToolCount = countDispatchFailures(
+          result.failedCounts,
+          'tool'
+        );
+        const failedBlockCount = countDispatchFailures(
+          result.failedCounts,
+          'block'
+        );
+        const failedFinalCount = countDispatchFailures(
+          result.failedCounts,
+          'final'
+        );
+        const sendErrorCount = Math.max(0, result.sendErrorCount ?? 0);
+        const sessionContext = lookupTlonSessionContext(
+          activeTrace.params.sessionKey
+        );
+
         this.captureReplyOutcome({
-          ownerShip: params.ownerShip,
-          botShip: params.botShip,
+          sessionKey: activeTrace.params.sessionKey,
+          sessionId: sessionContext?.sessionId ?? activeTrace.params.sessionId,
+          runId: activeTrace.params.runId,
+          accountId: activeTrace.params.accountId,
+          agentId: activeTrace.params.agentId,
+          ownerShip: activeTrace.params.ownerShip,
+          botShip: activeTrace.params.botShip,
           outcome: resolveReplyOutcome({
             deliveredMessageCount: result.deliveredMessageCount,
+            sendError: sendErrorCount > 0,
+            failedCounts: result.failedCounts,
             dispatchError: result.dispatchError,
           }),
-          chatType: params.chatType,
-          isThreadReply: params.isThreadReply,
-          senderRole: params.senderRole,
-          attachmentCount: params.attachmentCount,
+          chatType: activeTrace.params.chatType,
+          destinationKind: activeTrace.params.destinationKind,
+          isThreadReply: activeTrace.params.isThreadReply,
+          senderRole: activeTrace.params.senderRole,
+          attachmentCount: activeTrace.params.attachmentCount,
+          sendAttemptCount: Math.max(0, result.sendAttemptCount ?? 0),
+          sendError: sendErrorCount > 0,
+          sendErrorCount,
+          sendErrorKind: result.sendErrorKind ?? null,
           deliveredMessageCount: result.deliveredMessageCount,
           replyCharCount: result.replyCharCount,
           replyWordCount: result.replyWordCount,
@@ -342,13 +672,98 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           queuedFinal: result.queuedFinal,
           queuedFinalCount: result.queuedFinalCount,
           queuedBlockCount: result.queuedBlockCount,
+          failedToolCount,
+          failedBlockCount,
+          failedFinalCount,
+          failedReplyCount:
+            failedToolCount + failedBlockCount + failedFinalCount,
+          sourceReplyDeliveryMode: result.sourceReplyDeliveryMode ?? null,
+          beforeAgentRunBlocked: result.beforeAgentRunBlocked === true,
+          dispatchError: Boolean(result.dispatchError),
+          dispatchErrorKind: classifyError(result.dispatchError),
+          abandonedReason: null,
           provider: result.provider,
           model: result.model,
           thinkLevel: result.thinkLevel,
-          toolUsage: collectToolUsageSince(params.sessionKey, toolTraceCursor),
+          toolUsage: collectToolUsageSince(
+            activeTrace.params.sessionKey,
+            activeTrace.toolTraceCursor
+          ),
         });
       },
     };
+  }
+
+  private captureAbandonedReplyTrace(token: symbol, reason: string): void {
+    const trace = this.activeReplyTraces.get(token);
+    if (!trace) {
+      return;
+    }
+    this.activeReplyTraces.delete(token);
+    clearTimeout(trace.timeout);
+    const sessionContext = lookupTlonSessionContext(trace.params.sessionKey);
+
+    this.captureReplyOutcome({
+      sessionKey: trace.params.sessionKey,
+      sessionId: sessionContext?.sessionId ?? trace.params.sessionId,
+      runId: trace.params.runId,
+      accountId: trace.params.accountId,
+      agentId: trace.params.agentId,
+      ownerShip: trace.params.ownerShip,
+      botShip: trace.params.botShip,
+      outcome: 'abandoned',
+      chatType: trace.params.chatType,
+      destinationKind: trace.params.destinationKind,
+      isThreadReply: trace.params.isThreadReply,
+      senderRole: trace.params.senderRole,
+      attachmentCount: trace.params.attachmentCount,
+      sendAttemptCount: 0,
+      sendError: false,
+      sendErrorCount: 0,
+      sendErrorKind: null,
+      deliveredMessageCount: 0,
+      replyCharCount: 0,
+      replyWordCount: 0,
+      replyMediaCount: 0,
+      dispatchDurationMs: Date.now() - trace.startedAt,
+      queuedFinal: false,
+      queuedFinalCount: 0,
+      queuedBlockCount: 0,
+      failedToolCount: 0,
+      failedBlockCount: 0,
+      failedFinalCount: 0,
+      failedReplyCount: 0,
+      sourceReplyDeliveryMode: null,
+      beforeAgentRunBlocked: false,
+      dispatchError: false,
+      dispatchErrorKind: null,
+      abandonedReason: reason,
+      provider: null,
+      model: null,
+      thinkLevel: null,
+      toolUsage: collectToolUsageSince(
+        trace.params.sessionKey,
+        trace.toolTraceCursor
+      ),
+    });
+  }
+
+  private pruneActiveReplyTraces(now = Date.now()): void {
+    for (const [token, trace] of this.activeReplyTraces) {
+      if (now - trace.startedAt > REPLY_TRACE_TTL_MS) {
+        this.captureAbandonedReplyTrace(token, 'stale');
+      }
+    }
+
+    while (this.activeReplyTraces.size > MAX_ACTIVE_REPLY_TRACES) {
+      const oldest = [...this.activeReplyTraces.entries()].sort(
+        (a, b) => a[1].startedAt - b[1].startedAt
+      )[0];
+      if (!oldest) {
+        break;
+      }
+      this.captureAbandonedReplyTrace(oldest[0], 'max_traces');
+    }
   }
 
   private captureReplyOutcome(event: TlonReplyOutcomeEvent): void {
@@ -361,14 +776,24 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
       distinctId: ownerShip,
       event: TLON_TELEMETRY_EVENT_NAME,
       properties: this.properties({
+        sessionKey: event.sessionKey,
+        sessionId: event.sessionId,
+        runId: event.runId,
+        accountId: event.accountId,
+        agentId: event.agentId,
         botShip: event.botShip,
         ownerShip: event.ownerShip,
         outcome: event.outcome,
         chatType: event.chatType,
+        destinationKind: event.destinationKind,
         isThreadReply: event.isThreadReply,
         senderRole: event.senderRole,
         attachmentCount: event.attachmentCount,
         hasAttachments: event.attachmentCount > 0,
+        sendAttemptCount: event.sendAttemptCount,
+        sendError: event.sendError,
+        sendErrorCount: event.sendErrorCount,
+        sendErrorKind: event.sendErrorKind,
         deliveredMessageCount: event.deliveredMessageCount,
         replyCharCount: event.replyCharCount,
         replyWordCount: event.replyWordCount,
@@ -377,6 +802,15 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         queuedFinal: event.queuedFinal,
         queuedFinalCount: event.queuedFinalCount,
         queuedBlockCount: event.queuedBlockCount,
+        failedToolCount: event.failedToolCount,
+        failedBlockCount: event.failedBlockCount,
+        failedFinalCount: event.failedFinalCount,
+        failedReplyCount: event.failedReplyCount,
+        sourceReplyDeliveryMode: event.sourceReplyDeliveryMode,
+        beforeAgentRunBlocked: event.beforeAgentRunBlocked,
+        dispatchError: event.dispatchError,
+        dispatchErrorKind: event.dispatchErrorKind,
+        abandonedReason: event.abandonedReason,
         provider: event.provider,
         model: event.model,
         thinkLevel: event.thinkLevel,
@@ -389,6 +823,100 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           durationMs: call.durationMs,
           error: call.error,
         })),
+      }),
+    });
+  }
+
+  captureSessionLifecycle(event: TlonSessionLifecycleEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_SESSION_LIFECYCLE_EVENT,
+      properties: this.properties({
+        botShip: event.botShip,
+        ownerShip: event.ownerShip,
+        accountId: event.accountId,
+        agentId: event.agentId,
+        sessionKey: event.sessionKey,
+        sessionId: event.sessionId,
+        lifecycleEvent: event.lifecycleEvent,
+        destinationKind: event.destinationKind,
+        reason: event.reason,
+        messageCount: event.messageCount,
+        durationMs: event.durationMs,
+        transcriptArchived: event.transcriptArchived,
+        hasNextSession: event.hasNextSession,
+      }),
+    });
+  }
+
+  captureSessionWatchdog(event: TlonSessionWatchdogEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_SESSION_WATCHDOG_EVENT,
+      properties: this.properties({
+        botShip: event.botShip,
+        ownerShip: event.ownerShip,
+        accountId: event.accountId,
+        agentId: event.agentId,
+        sessionKey: event.sessionKey,
+        sessionId: event.sessionId,
+        diagnosticType: event.diagnosticType,
+        destinationKind: event.destinationKind,
+        state: event.state,
+        ageMs: event.ageMs,
+        queueDepth: event.queueDepth,
+        reason: event.reason,
+        classification: event.classification,
+        activeWorkKind: event.activeWorkKind,
+        lastProgressAgeMs: event.lastProgressAgeMs,
+        lastProgressReason: event.lastProgressReason,
+        activeToolName: event.activeToolName,
+        activeToolAgeMs: event.activeToolAgeMs,
+        terminalProgressStale: event.terminalProgressStale,
+      }),
+    });
+  }
+
+  captureSessionRecovery(event: TlonSessionRecoveryEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_SESSION_RECOVERY_EVENT,
+      properties: this.properties({
+        botShip: event.botShip,
+        ownerShip: event.ownerShip,
+        accountId: event.accountId,
+        agentId: event.agentId,
+        sessionKey: event.sessionKey,
+        sessionId: event.sessionId,
+        diagnosticType: event.diagnosticType,
+        destinationKind: event.destinationKind,
+        state: event.state,
+        stateGeneration: event.stateGeneration,
+        ageMs: event.ageMs,
+        queueDepth: event.queueDepth,
+        reason: event.reason,
+        activeWorkKind: event.activeWorkKind,
+        allowActiveAbort: event.allowActiveAbort,
+        status: event.status,
+        action: event.action,
+        outcomeReason: event.outcomeReason,
+        released: event.released,
+        stale: event.stale,
       }),
     });
   }
@@ -488,6 +1016,10 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
   }
 
   async close(): Promise<void> {
+    for (const token of [...this.activeReplyTraces.keys()]) {
+      this.captureAbandonedReplyTrace(token, 'telemetry_close');
+    }
+
     try {
       await this.client.flush();
     } catch (error) {
@@ -539,9 +1071,62 @@ export function createTlonTelemetry(params: {
  * client + owner/bot ships; the hook calls `reportOutboundRoute`.
  */
 export type OutboundRouteReporter = (event: TlonOutboundRouteEvent) => void;
+export type SessionTelemetryReporter = (
+  report: TlonSessionTelemetryReport
+) => void;
+
+export type TlonSessionLifecycleReportInput = {
+  lifecycleEvent: 'session_start' | 'session_end';
+  sessionKey?: string | null;
+  sessionId?: string | null;
+  agentId?: string | null;
+  reason?: string | null;
+  messageCount?: number | null;
+  durationMs?: number | null;
+  transcriptArchived?: boolean | null;
+  hasNextSession?: boolean;
+};
+
+export type TlonSessionDiagnosticReportInput =
+  | {
+      type: 'session.stalled' | 'session.stuck';
+      sessionKey?: string | null;
+      sessionId?: string | null;
+      state: string;
+      ageMs: number;
+      queueDepth?: number;
+      reason?: string;
+      classification: string;
+      activeWorkKind?: string;
+      lastProgressAgeMs?: number;
+      lastProgressReason?: string;
+      activeToolName?: string;
+      activeToolAgeMs?: number;
+      terminalProgressStale?: boolean;
+    }
+  | {
+      type: 'session.recovery.requested' | 'session.recovery.completed';
+      sessionKey?: string | null;
+      sessionId?: string | null;
+      state: string;
+      stateGeneration?: number;
+      ageMs: number;
+      queueDepth?: number;
+      reason?: string;
+      activeWorkKind?: string;
+      allowActiveAbort?: boolean;
+      status?: string;
+      action?: string;
+      outcomeReason?: string;
+      released?: number;
+      stale?: boolean;
+    };
 
 const outboundRouteReporterSlot = sharedSlot<OutboundRouteReporter>(
   'telemetry.outboundRouteReporter'
+);
+const sessionTelemetryReporterSlot = sharedSlot<SessionTelemetryReporter>(
+  'telemetry.sessionTelemetryReporter'
 );
 
 export function setOutboundRouteReporter(
@@ -554,7 +1139,131 @@ export function reportOutboundRoute(event: TlonOutboundRouteEvent): void {
   outboundRouteReporterSlot.get()?.(event);
 }
 
+export function setSessionTelemetryReporter(
+  reporter: SessionTelemetryReporter | null
+): void {
+  sessionTelemetryReporterSlot.set(reporter);
+}
+
+function optionalString(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function optionalNumber(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+export function reportSessionLifecycle(
+  event: TlonSessionLifecycleReportInput
+): void {
+  const rememberedContext = lookupTlonSessionContext(event.sessionKey);
+  const context = rememberedContext
+    ? updateTlonSessionContextSessionId(rememberedContext, event.sessionId)
+    : null;
+  if (!context) {
+    return;
+  }
+
+  sessionTelemetryReporterSlot.get()?.({
+    kind: 'lifecycle',
+    event: {
+      lifecycleEvent: event.lifecycleEvent,
+      sessionKey: context.sessionKey,
+      sessionId: context.sessionId,
+      accountId: context.accountId,
+      agentId: optionalString(event.agentId) ?? context.agentId,
+      ownerShip: context.ownerShip,
+      botShip: context.botShip,
+      destinationKind: context.destinationKind,
+      reason: optionalString(event.reason),
+      messageCount: optionalNumber(event.messageCount),
+      durationMs: optionalNumber(event.durationMs),
+      transcriptArchived:
+        typeof event.transcriptArchived === 'boolean'
+          ? event.transcriptArchived
+          : null,
+      hasNextSession: event.hasNextSession === true,
+    },
+  });
+}
+
+export function reportSessionDiagnostic(
+  event: TlonSessionDiagnosticReportInput
+): void {
+  const rememberedContext = lookupTlonSessionContext(event.sessionKey);
+  const context = rememberedContext
+    ? updateTlonSessionContextSessionId(rememberedContext, event.sessionId)
+    : null;
+  if (!context) {
+    return;
+  }
+
+  if (event.type === 'session.stalled' || event.type === 'session.stuck') {
+    sessionTelemetryReporterSlot.get()?.({
+      kind: 'watchdog',
+      event: {
+        diagnosticType: event.type,
+        sessionKey: context.sessionKey,
+        sessionId: context.sessionId,
+        accountId: context.accountId,
+        agentId: context.agentId,
+        ownerShip: context.ownerShip,
+        botShip: context.botShip,
+        destinationKind: context.destinationKind,
+        state: event.state,
+        ageMs: event.ageMs,
+        queueDepth: optionalNumber(event.queueDepth),
+        reason: optionalString(event.reason),
+        classification: event.classification,
+        activeWorkKind: optionalString(event.activeWorkKind),
+        lastProgressAgeMs: optionalNumber(event.lastProgressAgeMs),
+        lastProgressReason: optionalString(event.lastProgressReason),
+        activeToolName: optionalString(event.activeToolName),
+        activeToolAgeMs: optionalNumber(event.activeToolAgeMs),
+        terminalProgressStale: event.terminalProgressStale === true,
+      },
+    });
+    return;
+  }
+
+  const recoveryEvent = event as Extract<
+    TlonSessionDiagnosticReportInput,
+    {
+      type: 'session.recovery.requested' | 'session.recovery.completed';
+    }
+  >;
+
+  sessionTelemetryReporterSlot.get()?.({
+    kind: 'recovery',
+    event: {
+      diagnosticType: recoveryEvent.type,
+      sessionKey: context.sessionKey,
+      sessionId: context.sessionId,
+      accountId: context.accountId,
+      agentId: context.agentId,
+      ownerShip: context.ownerShip,
+      botShip: context.botShip,
+      destinationKind: context.destinationKind,
+      state: recoveryEvent.state,
+      stateGeneration: optionalNumber(recoveryEvent.stateGeneration),
+      ageMs: recoveryEvent.ageMs,
+      queueDepth: optionalNumber(recoveryEvent.queueDepth),
+      reason: optionalString(recoveryEvent.reason),
+      activeWorkKind: optionalString(recoveryEvent.activeWorkKind),
+      allowActiveAbort: recoveryEvent.allowActiveAbort === true,
+      status: optionalString(recoveryEvent.status),
+      action: optionalString(recoveryEvent.action),
+      outcomeReason: optionalString(recoveryEvent.outcomeReason),
+      released: optionalNumber(recoveryEvent.released),
+      stale: recoveryEvent.stale === true,
+    },
+  });
+}
+
 export const _testing = {
   clearToolCalls: () => toolCallsBySession.clear(),
+  clearSessionContexts: () => sessionContextsBySessionKey.clear(),
+  getReplyTraceTtlMs: () => REPLY_TRACE_TTL_MS,
   getToolTraceTtlMs: () => TOOL_TRACE_TTL_MS,
 };

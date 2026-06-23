@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineChannelPluginEntry } from 'openclaw/plugin-sdk/core';
+import { onDiagnosticEvent } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
 import { sendGatewayStop } from './src/gateway-status.js';
@@ -16,7 +17,13 @@ import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
-import { recordToolCall, reportOutboundRoute } from './src/telemetry.js';
+import {
+  type TlonSessionDiagnosticReportInput,
+  recordToolCall,
+  reportOutboundRoute,
+  reportSessionDiagnostic,
+  reportSessionLifecycle,
+} from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { checkBlockedSendOperation } from './src/tlon-tool-guard.js';
 import {
@@ -218,6 +225,17 @@ async function readTlonSkillVersion(binary: string): Promise<string> {
   } catch (error) {
     return `unavailable (${summarizeError(error)})`;
   }
+}
+
+function isTlonSessionDiagnosticEvent(event: {
+  type: string;
+}): event is TlonSessionDiagnosticReportInput {
+  return (
+    event.type === 'session.stalled' ||
+    event.type === 'session.stuck' ||
+    event.type === 'session.recovery.requested' ||
+    event.type === 'session.recovery.completed'
+  );
 }
 
 export default defineChannelPluginEntry({
@@ -504,6 +522,49 @@ export default defineChannelPluginEntry({
         error: event.error,
       });
     });
+
+    // ── Session lifecycle / watchdog telemetry ─────────────────────────
+    // These hooks are global to OpenClaw, so telemetry.ts filters them through
+    // session keys remembered from Tlon inbound replies before emitting.
+    api.on('session_start', (event, ctx) => {
+      reportSessionLifecycle({
+        lifecycleEvent: 'session_start',
+        sessionKey: event.sessionKey ?? ctx.sessionKey,
+        sessionId: event.sessionId ?? ctx.sessionId,
+        agentId: ctx.agentId,
+        hasNextSession: false,
+      });
+    });
+
+    api.on('session_end', (event, ctx) => {
+      reportSessionLifecycle({
+        lifecycleEvent: 'session_end',
+        sessionKey: event.sessionKey ?? ctx.sessionKey,
+        sessionId: event.sessionId ?? ctx.sessionId,
+        agentId: ctx.agentId,
+        reason: event.reason ?? null,
+        messageCount: event.messageCount,
+        durationMs: event.durationMs ?? null,
+        transcriptArchived: event.transcriptArchived ?? null,
+        hasNextSession: Boolean(event.nextSessionId ?? event.nextSessionKey),
+      });
+    });
+
+    let diagnosticEventsUnsubscribed = false;
+    const unsubscribeDiagnosticEvents = onDiagnosticEvent((event) => {
+      const candidate = event as unknown as { type: string };
+      if (isTlonSessionDiagnosticEvent(candidate)) {
+        reportSessionDiagnostic(candidate);
+      }
+    });
+    const unsubscribeDiagnosticEventsOnce = () => {
+      if (diagnosticEventsUnsubscribed) {
+        return;
+      }
+      diagnosticEventsUnsubscribed = true;
+      unsubscribeDiagnosticEvents();
+    };
+    api.on('gateway_stop', unsubscribeDiagnosticEventsOnce);
 
     // ── Route diagnostics ───────────────────────────────────────────────
     // Fires for every outbound send OpenClaw routes — the primary streamed
