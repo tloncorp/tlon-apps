@@ -4662,10 +4662,6 @@
     =*  log  ~(. l `'group-join')
     ::=.  cor  (tell:log %dbug leaf+"+go-response /v1/groups fact {<r-groups-9>}" ~)
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
-    ::  v2 response: same $r-group payload as v1, carried by the v10 mark so v2
-    ::  subscribers can also receive the %active-channel deltas sent out by
-    ::  +update-active-channel.
-    ::
     =/  r-groups-10=r-groups:v10:gv  [flag r-group]
     =/  v2-paths  ~[/v2/groups [%v2 go-area]]
     =.  cor  (give %fact v2-paths group-response-2+!>(r-groups-10))
