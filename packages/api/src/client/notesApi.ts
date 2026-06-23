@@ -158,17 +158,23 @@ export async function getNotesNotebook(
   }
 }
 
-export async function listNotesFolders(flag: NotesFlag | string): Promise<NotesFolder[]> {
+export async function listNotesFolders(
+  flag: NotesFlag | string
+): Promise<NotesFolder[]> {
   const { host, name } = requireNotesFlag(flag);
   return scryNotesList(`/v0/folders/${host}/${name}`);
 }
 
-export async function listNotes(flag: NotesFlag | string): Promise<NotesNote[]> {
+export async function listNotes(
+  flag: NotesFlag | string
+): Promise<NotesNote[]> {
   const { host, name } = requireNotesFlag(flag);
   return scryNotesList(`/v0/notes/${host}/${name}`);
 }
 
-export async function listNotesMembers(flag: NotesFlag | string): Promise<NotesMemberRecord[]> {
+export async function listNotesMembers(
+  flag: NotesFlag | string
+): Promise<NotesMemberRecord[]> {
   const { host, name } = requireNotesFlag(flag);
   return scryNotesList(`/v0/members/${host}/${name}`);
 }
