@@ -1,4 +1,6 @@
+import type * as ub from '@tloncorp/api/urbit';
 import * as store from '@tloncorp/shared/store';
+import { useCallback } from 'react';
 
 import {
   getNotificationLevelContext,
@@ -33,8 +35,22 @@ export function useChatVolumeOptions() {
   // the effective base level before matching. A remaining level not offered by
   // this menu (e.g. a legacy/inherited 'soft' on a DM) would otherwise leave no
   // row checked.
-  const effectiveLevel = rawLevel === 'default' ? baseVolume : rawLevel;
+  const isInheriting = rawLevel === 'default';
+  const effectiveLevel = isInheriting ? baseVolume : rawLevel;
   const currentLevel = normalizeLevelToOptions(effectiveLevel, options);
 
-  return { currentLevel, options, updateVolume };
+  // While inheriting, the checked row only reflects the inherited default.
+  // Re-tapping it must keep inheriting rather than pin a concrete override —
+  // otherwise future app-default changes would stop applying to this chat.
+  const setVolume = useCallback(
+    (level: ub.NotificationLevel | null) => {
+      if (isInheriting && level === currentLevel) {
+        return;
+      }
+      updateVolume(level);
+    },
+    [isInheriting, currentLevel, updateVolume]
+  );
+
+  return { currentLevel, options, updateVolume: setVolume };
 }
