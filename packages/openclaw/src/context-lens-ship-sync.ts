@@ -49,15 +49,22 @@ function truncateSummary(value: string | undefined): string | undefined {
   return `${value.slice(0, MAX_SUMMARY_CHARS)}… [truncated]`;
 }
 
+/** The run record poked to %steward as the lens action's `payload`. */
+export type LensRunPayload = {
+  schemaVersion: number;
+  lens: ContextLens;
+  truncated?: boolean;
+};
+
 /**
- * Build the opaque run payload poked to %steward, serialized to a JSON
- * string (the agent stores payloads as cords — embedding $json in Hoon mark
- * sample types breaks ford tube builds). The lens snapshot is passed
- * through with per-field truncation (tool args/results, previews) and a
- * total size cap, since the ship stores it verbatim and ames pokes should
- * stay small. Full untruncated runs remain on gateway disk (Phase 2 store).
+ * Build the run payload poked to %steward (lens module) as a JSON object —
+ * the agent stores it as a typed $json value, so it travels as structured
+ * JSON, not a serialized cord. The lens snapshot is passed through with
+ * per-field truncation (tool args/results, previews) and a total size cap,
+ * since the ship stores it verbatim and ames pokes should stay small. Full
+ * untruncated runs remain on gateway disk (Phase 2 store).
  */
-export function buildLensRunPayload(lens: ContextLens): string {
+export function buildLensRunPayload(lens: ContextLens): LensRunPayload {
   const slim: ContextLens = {
     ...lens,
     context: {
@@ -77,11 +84,11 @@ export function buildLensRunPayload(lens: ContextLens): string {
       })),
     },
   };
-  const payload = JSON.stringify({
+  const payload: LensRunPayload = {
     schemaVersion: PAYLOAD_SCHEMA_VERSION,
     lens: slim,
-  });
-  if (payload.length <= MAX_PAYLOAD_CHARS) {
+  };
+  if (JSON.stringify(payload).length <= MAX_PAYLOAD_CHARS) {
     return payload;
   }
   // Still oversized (e.g. hundreds of tool runs): drop the bulky arrays but
@@ -93,11 +100,11 @@ export function buildLensRunPayload(lens: ContextLens): string {
     tools: { ...slim.tools, runs: [] },
     outputs: [],
   };
-  return JSON.stringify({
+  return {
     schemaVersion: PAYLOAD_SCHEMA_VERSION,
     lens: skeleton,
     truncated: true,
-  });
+  };
 }
 
 export function resolveLensOwner(
@@ -185,7 +192,7 @@ export function createContextLensShipSync(opts: {
         }
         await params.poke({
           app: 'steward',
-          mark: 'steward-action-1',
+          mark: 'steward-lens-action-1',
           json,
         });
       })
@@ -206,11 +213,9 @@ export function createContextLensShipSync(opts: {
     if (TERMINAL_STATUSES.has(lens.status)) {
       lastStatusByLensId.delete(lens.lensId);
       enqueuePoke(`run-final ${lens.lensId}`, {
-        lens: {
-          id: lens.lensId,
-          payload: buildLensRunPayload(lens),
-          final: true,
-        },
+        id: lens.lensId,
+        payload: buildLensRunPayload(lens),
+        final: true,
       });
       return;
     }
@@ -227,11 +232,9 @@ export function createContextLensShipSync(opts: {
       lastStatusByLensId.delete(oldest);
     }
     enqueuePoke(`run-event ${lens.lensId}`, {
-      lens: {
-        id: lens.lensId,
-        payload: buildLensRunPayload(lens),
-        final: false,
-      },
+      id: lens.lensId,
+      payload: buildLensRunPayload(lens),
+      final: false,
     });
   };
 
