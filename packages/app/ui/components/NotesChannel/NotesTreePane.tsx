@@ -8,8 +8,12 @@ import type { NotesTreeRow } from './notesTree';
 
 export function NotesTreePane({
   canEdit,
+  getPublishedNoteUrl,
   isDeletingFolder,
+  isNotePublished,
   layout,
+  publishDisabled,
+  publishingAction,
   selectedFolderId,
   selectedNoteId,
   treeRows,
@@ -20,13 +24,20 @@ export function NotesTreePane({
   onMoveFolder,
   onMoveNote,
   onOpenNote,
+  onPublishNote,
   onRenameFolder,
   onRenameNote,
   onOpenFolder,
+  onUnpublishNote,
+  onViewPublishedNote,
 }: {
   canEdit: boolean;
+  getPublishedNoteUrl?: (note: db.NotesNote) => string | null;
   isDeletingFolder: boolean;
+  isNotePublished: (noteId: number) => boolean;
   layout: 'stack' | 'takeover';
+  publishDisabled: boolean;
+  publishingAction: 'publish' | 'unpublish' | null;
   selectedFolderId: number | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
@@ -37,9 +48,12 @@ export function NotesTreePane({
   onMoveFolder: (folder: db.NotesFolder) => void;
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
+  onPublishNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onRenameNote: (note: db.NotesNote) => void;
   onOpenFolder: (folder: db.NotesFolder) => void;
+  onUnpublishNote: (note: db.NotesNote) => void;
+  onViewPublishedNote?: (note: db.NotesNote) => void;
 }) {
   if (treeRows.length === 0) {
     return (
@@ -58,7 +72,11 @@ export function NotesTreePane({
   const treeList = (
     <NotesTreeRowsList
       canEdit={canEdit}
+      getPublishedNoteUrl={getPublishedNoteUrl}
       isDeletingFolder={isDeletingFolder}
+      isNotePublished={isNotePublished}
+      publishDisabled={publishDisabled}
+      publishingAction={publishingAction}
       selectedFolderId={selectedFolderId}
       selectedNoteId={selectedNoteId}
       treeRows={treeRows}
@@ -69,9 +87,12 @@ export function NotesTreePane({
       onMoveFolder={onMoveFolder}
       onMoveNote={onMoveNote}
       onOpenNote={onOpenNote}
+      onPublishNote={onPublishNote}
       onRenameFolder={onRenameFolder}
       onRenameNote={onRenameNote}
       onOpenFolder={onOpenFolder}
+      onUnpublishNote={onUnpublishNote}
+      onViewPublishedNote={onViewPublishedNote}
     />
   );
 
@@ -106,7 +127,11 @@ export function NotesTreePane({
 
 function NotesTreeRowsList({
   canEdit,
+  getPublishedNoteUrl,
   isDeletingFolder,
+  isNotePublished,
+  publishDisabled,
+  publishingAction,
   selectedFolderId,
   selectedNoteId,
   treeRows,
@@ -117,12 +142,19 @@ function NotesTreeRowsList({
   onMoveFolder,
   onMoveNote,
   onOpenNote,
+  onPublishNote,
   onRenameFolder,
   onRenameNote,
   onOpenFolder,
+  onUnpublishNote,
+  onViewPublishedNote,
 }: {
   canEdit: boolean;
+  getPublishedNoteUrl?: (note: db.NotesNote) => string | null;
   isDeletingFolder: boolean;
+  isNotePublished: (noteId: number) => boolean;
+  publishDisabled: boolean;
+  publishingAction: 'publish' | 'unpublish' | null;
   selectedFolderId: number | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
@@ -133,9 +165,12 @@ function NotesTreeRowsList({
   onMoveFolder: (folder: db.NotesFolder) => void;
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
+  onPublishNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onRenameNote: (note: db.NotesNote) => void;
   onOpenFolder: (folder: db.NotesFolder) => void;
+  onUnpublishNote: (note: db.NotesNote) => void;
+  onViewPublishedNote?: (note: db.NotesNote) => void;
 }) {
   return (
     <YStack>
@@ -162,12 +197,27 @@ function NotesTreeRowsList({
             key={row.note.id}
             canEdit={canEdit}
             depth={row.depth}
+            isPublished={isNotePublished(row.note.noteId)}
             note={row.note}
+            publishDisabled={publishDisabled}
+            publishedUrl={
+              isNotePublished(row.note.noteId)
+                ? getPublishedNoteUrl?.(row.note) ?? null
+                : null
+            }
+            publishingAction={publishingAction}
             selected={selectedNoteId === row.note.noteId}
             onDelete={() => onDeleteNote(row.note)}
             onMove={() => onMoveNote(row.note)}
             onPress={() => onOpenNote(row.note)}
+            onPublish={() => onPublishNote(row.note)}
             onRename={() => onRenameNote(row.note)}
+            onUnpublish={() => onUnpublishNote(row.note)}
+            onViewPublished={
+              onViewPublishedNote
+                ? () => onViewPublishedNote(row.note)
+                : undefined
+            }
           />
         )
       )}
