@@ -41,6 +41,7 @@ import {
 } from './NotesHeaderActions';
 import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
+import { canSelectNotesImportSources } from './notesImport';
 import {
   buildFolderNoteCounts,
   buildFolderRows,
@@ -49,6 +50,7 @@ import {
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
 } from './notesTree';
+import { useNotesImportController } from './useNotesImportController';
 
 export function NotesNativeChannel({
   channelId,
@@ -109,6 +111,9 @@ export function NotesNativeChannel({
 
   const { folders, notes, canEdit, rootFolderId, gate } =
     useNotebookData(notebookFlag);
+
+  const canImportFiles = canEdit && canSelectNotesImportSources('files');
+  const canImportFolder = canEdit && canSelectNotesImportSources('folder');
 
   const parentFolderRows = useMemo(
     () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
@@ -283,6 +288,26 @@ export function NotesNativeChannel({
         (currentParentId) => currentParentId ?? selectedFolderId ?? rootFolderId
       );
     }
+  });
+
+  const canDropImportNotes = canImportFolder && gate !== 'unjoinable';
+  const {
+    dropImportProps,
+    importFiles,
+    importFolder,
+    importNotice,
+    isDragImportActive,
+    isImportingNotes,
+  } = useNotesImportController({
+    canDropImportNotes,
+    canEdit,
+    expandFolder,
+    folders,
+    notebookFlag,
+    notes,
+    rootFolderId,
+    selectedFolderId,
+    setError,
   });
 
   const handleMoveNoteToFolder = useMutableCallback(
@@ -488,6 +513,34 @@ export function NotesNativeChannel({
       disabled: isCreatingFolder,
       testID: 'NotesNewFolderAction',
     }),
+    ...(canImportFiles
+      ? [
+          {
+            title: 'Import',
+            startIcon: 'ArrowDown' as const,
+            action: () => {
+              setNewActionSheetOpen(false);
+              importFiles();
+            },
+            disabled: isImportingNotes,
+            testID: 'NotesImportFilesAction',
+          },
+        ]
+      : []),
+    ...(canImportFolder
+      ? [
+          {
+            title: 'Import folder',
+            startIcon: 'Folder' as const,
+            action: () => {
+              setNewActionSheetOpen(false);
+              importFolder();
+            },
+            disabled: isImportingNotes,
+            testID: 'NotesImportFolderAction',
+          },
+        ]
+      : []),
   ];
 
   const toggleFolder = useMutableCallback(
@@ -596,10 +649,30 @@ export function NotesNativeChannel({
   );
 
   return (
-    <YStack flex={1} backgroundColor="$background" position="relative">
+    <YStack
+      flex={1}
+      backgroundColor="$background"
+      position="relative"
+      {...dropImportProps}
+    >
       {error ? <NotesBanner message={error} tone="negative" /> : null}
+      {importNotice ? <NotesBanner message={importNotice} /> : null}
 
       {useDesktopSplit ? noteDetailPane : notesTreePane}
+      {isDragImportActive ? (
+        <YStack
+          pointerEvents="none"
+          position="absolute"
+          top={0}
+          right={0}
+          bottom={0}
+          left={0}
+          borderColor="$positiveText"
+          borderWidth={2}
+          backgroundColor="$backgroundHover"
+          opacity={0.7}
+        />
+      ) : null}
       <SimpleActionSheet
         open={newActionSheetOpen}
         onOpenChange={setNewActionSheetOpen}
