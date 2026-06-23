@@ -221,6 +221,9 @@
 /%  group-cancel                %group-cancel
 /%  group-changed-groups-1      %group-changed-groups-1
 /%  group-changed-groups-2      %group-changed-groups-2
+/%  group-channel-active        %group-channel-active
+/%  group-channel-join          %group-channel-join
+/%  group-channel-leave         %group-channel-leave
 /%  group-command               %group-command
 /%  group-create-thread         %group-create-thread
 /%  group-foreign-1             %group-foreign-1
@@ -245,6 +248,7 @@
 /%  group-previews-1            %group-previews-1
 /%  group-rescind               %group-rescind
 /%  group-response-1            %group-response-1
+/%  group-response-2            %group-response-2
 /%  group-token                 %group-token
 /%  group-ui                    %group-ui
 /%  group-ui-1                  %group-ui-1
@@ -570,6 +574,9 @@
       $:  %group-cancel                $+  group-cancel                p=_*vale:group-cancel                ==
       $:  %group-changed-groups-1      $+  group-changed-groups-1      p=_*vale:group-changed-groups-1      ==
       $:  %group-changed-groups-2      $+  group-changed-groups-2      p=_*vale:group-changed-groups-2      ==
+      $:  %group-channel-active        $+  group-channel-active        p=_*vale:group-channel-active        ==
+      $:  %group-channel-join          $+  group-channel-join          p=_*vale:group-channel-join          ==
+      $:  %group-channel-leave         $+  group-channel-leave         p=_*vale:group-channel-leave         ==
       $:  %group-command               $+  group-command               p=_*vale:group-command               ==
       $:  %group-create-thread         $+  group-create-thread         p=_*vale:group-create-thread         ==
       $:  %group-foreign-1             $+  group-foreign-1             p=_*vale:group-foreign-1             ==
@@ -594,6 +601,7 @@
       $:  %group-previews-1            $+  group-previews-1            p=_*vale:group-previews-1            ==
       $:  %group-rescind               $+  group-rescind               p=_*vale:group-rescind               ==
       $:  %group-response-1            $+  group-response-1            p=_*vale:group-response-1            ==
+      $:  %group-response-2            $+  group-response-2            p=_*vale:group-response-2            ==
       $:  %group-token                 $+  group-token                 p=_*vale:group-token                 ==
       $:  %group-ui                    $+  group-ui                    p=_*vale:group-ui                    ==
       $:  %group-ui-1                  $+  group-ui-1                  p=_*vale:group-ui-1                  ==
@@ -921,6 +929,9 @@
     %group-cancel                [-.rail !>(+.rail)]
     %group-changed-groups-1      [-.rail !>(+.rail)]
     %group-changed-groups-2      [-.rail !>(+.rail)]
+    %group-channel-active        [-.rail !>(+.rail)]
+    %group-channel-join          [-.rail !>(+.rail)]
+    %group-channel-leave         [-.rail !>(+.rail)]
     %group-command               [-.rail !>(+.rail)]
     %group-create-thread         [-.rail !>(+.rail)]
     %group-foreign-1             [-.rail !>(+.rail)]
@@ -945,6 +956,7 @@
     %group-previews-1            [-.rail !>(+.rail)]
     %group-rescind               [-.rail !>(+.rail)]
     %group-response-1            [-.rail !>(+.rail)]
+    %group-response-2            [-.rail !>(+.rail)]
     %group-token                 [-.rail !>(+.rail)]
     %group-ui                    [-.rail !>(+.rail)]
     %group-ui-1                  [-.rail !>(+.rail)]
@@ -1270,6 +1282,9 @@
     %group-cancel                [p !<(_*vale:group-cancel q)]
     %group-changed-groups-1      [p !<(_*vale:group-changed-groups-1 q)]
     %group-changed-groups-2      [p !<(_*vale:group-changed-groups-2 q)]
+    %group-channel-active        [p !<(_*vale:group-channel-active q)]
+    %group-channel-join          [p !<(_*vale:group-channel-join q)]
+    %group-channel-leave         [p !<(_*vale:group-channel-leave q)]
     %group-command               [p !<(_*vale:group-command q)]
     %group-create-thread         [p !<(_*vale:group-create-thread q)]
     %group-foreign-1             [p !<(_*vale:group-foreign-1 q)]
@@ -1294,6 +1309,7 @@
     %group-previews-1            [p !<(_*vale:group-previews-1 q)]
     %group-rescind               [p !<(_*vale:group-rescind q)]
     %group-response-1            [p !<(_*vale:group-response-1 q)]
+    %group-response-2            [p !<(_*vale:group-response-2 q)]
     %group-token                 [p !<(_*vale:group-token q)]
     %group-ui                    [p !<(_*vale:group-ui q)]
     %group-ui-1                  [p !<(_*vale:group-ui-1 q)]
@@ -1619,6 +1635,9 @@
       :-  %group-cancel                -:!>(*vale:group-cancel)
       :-  %group-changed-groups-1      -:!>(*vale:group-changed-groups-1)
       :-  %group-changed-groups-2      -:!>(*vale:group-changed-groups-2)
+      :-  %group-channel-active        -:!>(*vale:group-channel-active)
+      :-  %group-channel-join          -:!>(*vale:group-channel-join)
+      :-  %group-channel-leave         -:!>(*vale:group-channel-leave)
       :-  %group-command               -:!>(*vale:group-command)
       :-  %group-create-thread         -:!>(*vale:group-create-thread)
       :-  %group-foreign-1             -:!>(*vale:group-foreign-1)
@@ -1643,6 +1662,7 @@
       :-  %group-previews-1            -:!>(*vale:group-previews-1)
       :-  %group-rescind               -:!>(*vale:group-rescind)
       :-  %group-response-1            -:!>(*vale:group-response-1)
+      :-  %group-response-2            -:!>(*vale:group-response-2)
       :-  %group-token                 -:!>(*vale:group-token)
       :-  %group-ui                    -:!>(*vale:group-ui)
       :-  %group-ui-1                  -:!>(*vale:group-ui-1)
