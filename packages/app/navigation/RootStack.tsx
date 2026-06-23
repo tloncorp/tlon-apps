@@ -33,6 +33,7 @@ import { ChatVolumeScreen } from '../features/top/ChatVolumeScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
+import { NotesDetailScreen } from '../features/top/NotesDetailScreen';
 import PostScreen from '../features/top/PostScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
@@ -101,6 +102,7 @@ export function RootStack() {
       <Root.Screen name="ContextLensRuns" component={ContextLensRunsScreen} />
       <Root.Screen name="ContextLensRun" component={ContextLensRunScreen} />
       <Root.Screen name="Post" component={PostScreen} />
+      <Root.Screen name="NotesDetail" component={NotesDetailScreen} />
       <Root.Screen name="GroupChannels" component={GroupChannelsScreen} />
       <Root.Screen
         name="MediaViewer"
