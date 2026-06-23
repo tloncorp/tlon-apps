@@ -29,12 +29,12 @@ export const toLensRun = (entry: ub.LensRunEntry): LensRun => {
 };
 
 export const getRecentLensRuns = async (): Promise<LensRun[]> => {
-  const response = await scry<ub.LensRunEntry[]>({
+  const response = await scry<{ recent: ub.LensRunEntry[] }>({
     app: 'steward',
     path: '/v1/lens/recent',
   });
 
-  return response.map(toLensRun);
+  return response.recent.map(toLensRun);
 };
 
 export const getLensRun = async (
@@ -42,12 +42,12 @@ export const getLensRun = async (
   lensId: string
 ): Promise<LensRun | null> => {
   try {
-    const response = await scry<ub.LensRunEntry>({
+    const response = await scry<{ entry: ub.LensRunEntry }>({
       app: 'steward',
       path: `/v1/lens/run/${botShip}/${lensId}`,
     });
 
-    return toLensRun(response);
+    return toLensRun(response.entry);
   } catch (error) {
     if (error instanceof BadResponseError && error.status === 404) {
       return null;
@@ -81,7 +81,7 @@ export const subscribeToLensUpdates = async (
   // Older ships don't have the %steward agent; probe with a scry so a missing
   // agent skips the subscription instead of wedging sync.
   try {
-    await scry<ub.LensRunEntry[]>({
+    await scry<{ recent: ub.LensRunEntry[] }>({
       app: 'steward',
       path: '/v1/lens/recent',
     });
@@ -95,14 +95,18 @@ export const subscribeToLensUpdates = async (
     throw error;
   }
 
-  return subscribe<ub.LensRunEntry>(
+  return subscribe<ub.LensUpdate>(
     {
       app: 'steward',
       path: '/v1/lens',
     },
     (event) => {
       logger.log('raw lens event', event);
-      handler([toLensRun(event)]);
+      // /v1/lens carries %entry (a stored run, for us) and %retry-requested
+      // (for the bot's own gateway); only the former concerns the client.
+      if ('entry' in event) {
+        handler([toLensRun(event.entry)]);
+      }
     }
   );
 };

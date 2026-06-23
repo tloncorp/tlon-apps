@@ -15,3 +15,15 @@ export interface LensRunEntry {
   /** the run record, relayed as structured JSON with an inner schemaVersion */
   payload: unknown;
 }
+
+/**
+ * The lens update (steward-lens-update-1), a tagged union:
+ *   - `entry`: a single run, facted on /v1/lens and returned by the /run scry
+ *   - `recent`: a batch, returned by the /recent and /since scries
+ *   - `retry-requested`: emitted on the bot ship for its gateway; the
+ *     owner-side client ignores it
+ */
+export type LensUpdate =
+  | { entry: LensRunEntry }
+  | { recent: LensRunEntry[] }
+  | { 'retry-requested': { id: string; requester: string } };
