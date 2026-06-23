@@ -377,16 +377,12 @@ export async function downloadBlobAttachments(
   const notices: string[] = [];
 
   for (const entry of blobData) {
-    // a2ui entries carry UI messages and tlon-context-lens entries carry a
-    // bot-run reference — neither is downloadable media
-    if (
-      entry.type === 'unknown' ||
-      entry.type === 'a2ui' ||
-      entry.type === 'tlon-context-lens'
-    ) {
-      continue;
-    }
+    // a2ui entries carry UI messages, not downloadable media
+    if (entry.type === 'unknown' || entry.type === 'a2ui') continue;
 
+    // non-media entries (e.g. a tlon-context-lens bot-run reference) have no
+    // fileUri, so they're skipped here. Narrow via property presence rather
+    // than type literals — the blob union differs across build environments.
     const uri = 'fileUri' in entry ? entry.fileUri : undefined;
     if (!uri) continue;
 
@@ -398,8 +394,9 @@ export async function downloadBlobAttachments(
       continue;
     }
 
-    if (entry.size !== undefined && entry.size > MAX_BLOB_DOWNLOAD_BYTES) {
-      notices.push(formatBlobTooLargeNotice(entry, entry.size));
+    const declaredSize = 'size' in entry ? entry.size : undefined;
+    if (declaredSize !== undefined && declaredSize > MAX_BLOB_DOWNLOAD_BYTES) {
+      notices.push(formatBlobTooLargeNotice(entry, declaredSize));
       continue;
     }
 
@@ -428,12 +425,13 @@ export async function downloadBlobAttachments(
 function formatBlobTooLargeNotice(
   entry: Exclude<
     ClientPostBlobData[number],
-    { type: 'unknown' } | { type: 'a2ui' } | { type: 'tlon-context-lens' }
+    { type: 'unknown' } | { type: 'a2ui' }
   >,
   sizeBytes?: number
 ): string {
+  const name = 'name' in entry ? entry.name : undefined;
   const label =
-    entry.type === 'voicememo' ? 'voice memo' : entry.name || 'blob attachment';
+    entry.type === 'voicememo' ? 'voice memo' : name || 'blob attachment';
   const sizeText =
     sizeBytes !== undefined ? formatFileSize(sizeBytes) : 'unknown size';
   return `[blob not downloaded: ${label} is ${sizeText}, over the ${formatFileSize(MAX_BLOB_DOWNLOAD_BYTES)} limit]`;
