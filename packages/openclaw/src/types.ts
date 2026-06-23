@@ -27,8 +27,8 @@ export type TlonContextLensConfig = {
   visibilityDefault: TlonContextLensVisibility;
   authToken: string | null;
   allowedOrigins: string[];
-  /** Owner ships receiving run records via %context-lens ship sync; empty falls back to ownerShip. */
-  owners: string[];
+  /** Owner ship receiving run records via the steward lens module; unset falls back to ownerShip. */
+  owner: string | null;
   store: TlonContextLensStoreConfig;
 };
 
@@ -90,7 +90,7 @@ type TlonContextLensInput = {
   visibilityDefault?: TlonContextLensVisibility;
   authToken?: string;
   allowedOrigins?: string[];
-  owners?: string[];
+  owner?: string;
   store?: TlonContextLensStoreInput;
 };
 
@@ -127,7 +127,7 @@ function resolveContextLensConfig(
       account?.visibilityDefault ?? base?.visibilityDefault ?? 'owner',
     authToken: account?.authToken ?? base?.authToken ?? null,
     allowedOrigins: account?.allowedOrigins ?? base?.allowedOrigins ?? [],
-    owners: account?.owners ?? base?.owners ?? [],
+    owner: account?.owner ?? base?.owner ?? null,
     store: {
       enabled: account?.store?.enabled ?? base?.store?.enabled ?? true,
       path: account?.store?.path ?? base?.store?.path ?? null,
@@ -207,7 +207,7 @@ export function resolveTlonAccount(
         visibilityDefault: 'owner',
         authToken: null,
         allowedOrigins: [],
-        owners: [],
+        owner: null,
         store: {
           enabled: true,
           path: null,
@@ -339,9 +339,7 @@ export function isContextLensEnabled(
     return false;
   }
   return (
-    Boolean(lens.authToken) ||
-    lens.owners.length > 0 ||
-    Boolean(account.ownerShip)
+    Boolean(lens.authToken) || Boolean(lens.owner) || Boolean(account.ownerShip)
   );
 }
 

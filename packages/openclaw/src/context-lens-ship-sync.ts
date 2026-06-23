@@ -49,15 +49,22 @@ function truncateSummary(value: string | undefined): string | undefined {
   return `${value.slice(0, MAX_SUMMARY_CHARS)}… [truncated]`;
 }
 
+/** The run record poked to %steward as the lens action's `payload`. */
+export type LensRunPayload = {
+  schemaVersion: number;
+  lens: ContextLens;
+  truncated?: boolean;
+};
+
 /**
- * Build the opaque run payload poked to %context-lens, serialized to a JSON
- * string (the agent stores payloads as cords — embedding $json in Hoon mark
- * sample types breaks ford tube builds). The lens snapshot is passed
- * through with per-field truncation (tool args/results, previews) and a
- * total size cap, since the ship stores it verbatim and ames pokes should
- * stay small. Full untruncated runs remain on gateway disk (Phase 2 store).
+ * Build the run payload poked to %steward (lens module) as a JSON object —
+ * the agent stores it as a typed $json value, so it travels as structured
+ * JSON, not a serialized cord. The lens snapshot is passed through with
+ * per-field truncation (tool args/results, previews) and a total size cap,
+ * since the ship stores it verbatim and ames pokes should stay small. Full
+ * untruncated runs remain on gateway disk (Phase 2 store).
  */
-export function buildLensRunPayload(lens: ContextLens): string {
+export function buildLensRunPayload(lens: ContextLens): LensRunPayload {
   const slim: ContextLens = {
     ...lens,
     context: {
@@ -77,11 +84,11 @@ export function buildLensRunPayload(lens: ContextLens): string {
       })),
     },
   };
-  const payload = JSON.stringify({
+  const payload: LensRunPayload = {
     schemaVersion: PAYLOAD_SCHEMA_VERSION,
     lens: slim,
-  });
-  if (payload.length <= MAX_PAYLOAD_CHARS) {
+  };
+  if (JSON.stringify(payload).length <= MAX_PAYLOAD_CHARS) {
     return payload;
   }
   // Still oversized (e.g. hundreds of tool runs): drop the bulky arrays but
@@ -93,31 +100,31 @@ export function buildLensRunPayload(lens: ContextLens): string {
     tools: { ...slim.tools, runs: [] },
     outputs: [],
   };
-  return JSON.stringify({
+  return {
     schemaVersion: PAYLOAD_SCHEMA_VERSION,
     lens: skeleton,
     truncated: true,
-  });
+  };
 }
 
-export function resolveLensOwners(
+export function resolveLensOwner(
   config: OpenClawConfig,
   accountId?: string | null
-): string[] {
+): string | null {
   const account = resolveTlonAccount(config, accountId);
-  const configured = account.contextLens.owners
-    .map((ship) => normalizeShip(ship))
-    .filter((ship) => ship.length > 0);
+  const configured = account.contextLens.owner
+    ? normalizeShip(account.contextLens.owner)
+    : '';
   if (configured.length > 0) {
-    return [...new Set(configured)];
+    return configured;
   }
   const owner = account.ownerShip ? normalizeShip(account.ownerShip) : '';
-  return owner ? [owner] : [];
+  return owner.length > 0 ? owner : null;
 }
 
 /**
  * True when at least one context-lens consumer can read recorded runs: the
- * HTTP routes (need authToken) or the ship sync (needs resolvable owners).
+ * HTTP routes (need authToken) or the ship sync (needs a resolvable owner).
  * The monitor must record runs whenever either path is live — gating the
  * registry on authToken alone starves a ship-sync-only config.
  */
@@ -131,7 +138,7 @@ export function isContextLensEffectivelyEnabled(
   }
   return (
     Boolean(account.contextLens.authToken) ||
-    resolveLensOwners(config, accountId).length > 0
+    resolveLensOwner(config, accountId) !== null
   );
 }
 
@@ -142,23 +149,23 @@ export type ContextLensShipSync = {
 };
 
 /**
- * Mirror context-lens runs to the bot ship's %context-lens agent, which fans them
- * out to owner ships for durable, mobile-reachable history.
+ * Mirror context-lens runs to the bot ship's %steward agent (lens module),
+ * which fans them out to the owner ship for durable, mobile-reachable history.
  *
- * - terminal status → `%run-final`
- * - non-terminal status transitions → `%run-event` milestones
+ * - terminal status → finalized lens poke (`final: true`)
+ * - non-terminal status transitions → milestone lens pokes (`final: false`)
  *
  * Pokes ride the monitor-published api-client params (the same slot the
- * gateway-status heartbeat uses). The agent's `owners` set is configured
+ * gateway-status heartbeat uses). The agent's `owner` is configured
  * lazily: once per params-slot instance, ordered before any run poke via a
  * serial queue, so monitor restarts re-assert the config.
  */
 export function createContextLensShipSync(opts: {
-  owners: string[];
+  owner: string;
   logger: SyncLogger;
   getParams?: () => SharedApiClientParams | null;
 }): ContextLensShipSync {
-  const { owners, logger } = opts;
+  const { owner, logger } = opts;
   const getParams = opts.getParams ?? (() => apiClientParamsSlot.get() ?? null);
 
   const lastStatusByLensId = new Map<string, ContextLensStatus>();
@@ -177,15 +184,15 @@ export function createContextLensShipSync(opts: {
         }
         if (params !== configuredFor) {
           await params.poke({
-            app: 'context-lens',
-            mark: 'context-lens-action-1',
-            json: { configure: { owners } },
+            app: 'steward',
+            mark: 'steward-action-1',
+            json: { configure: { owner } },
           });
           configuredFor = params;
         }
         await params.poke({
-          app: 'context-lens',
-          mark: 'context-lens-action-1',
+          app: 'steward',
+          mark: 'steward-lens-action-1',
           json,
         });
       })
@@ -206,7 +213,11 @@ export function createContextLensShipSync(opts: {
     if (TERMINAL_STATUSES.has(lens.status)) {
       lastStatusByLensId.delete(lens.lensId);
       enqueuePoke(`run-final ${lens.lensId}`, {
-        'run-final': { id: lens.lensId, payload: buildLensRunPayload(lens) },
+        entry: {
+          id: lens.lensId,
+          payload: buildLensRunPayload(lens),
+          final: true,
+        },
       });
       return;
     }
@@ -223,7 +234,11 @@ export function createContextLensShipSync(opts: {
       lastStatusByLensId.delete(oldest);
     }
     enqueuePoke(`run-event ${lens.lensId}`, {
-      'run-event': { id: lens.lensId, payload: buildLensRunPayload(lens) },
+      entry: {
+        id: lens.lensId,
+        payload: buildLensRunPayload(lens),
+        final: false,
+      },
     });
   };
 
@@ -235,7 +250,7 @@ export function createContextLensShipSync(opts: {
 
 /**
  * Wire ship sync to the lens event stream. Returns true when active, false
- * when the lens is disabled or no owners resolve (no contextLens.owners and
+ * when the lens is disabled or no owner resolves (no contextLens.owner and
  * no ownerShip).
  */
 export function initContextLensShipSync(api: {
@@ -245,18 +260,18 @@ export function initContextLensShipSync(api: {
   if (!resolveTlonAccount(api.config).contextLens.enabled) {
     return false;
   }
-  const owners = resolveLensOwners(api.config);
-  if (owners.length === 0) {
+  const owner = resolveLensOwner(api.config);
+  if (owner === null) {
     api.logger.info(
-      '[tlon] Context lens ship sync disabled: no owners configured (set contextLens.owners or ownerShip)'
+      '[tlon] Context lens ship sync disabled: no owner configured (set contextLens.owner or ownerShip)'
     );
     return false;
   }
-  const sync = createContextLensShipSync({ owners, logger: api.logger });
+  const sync = createContextLensShipSync({ owner, logger: api.logger });
   shipSyncUnsubscribeSlot.get()?.();
   shipSyncUnsubscribeSlot.set(subscribeToContextLensEvents(sync.handleEvent));
   api.logger.info(
-    `[tlon] Context lens ship sync enabled, fanning out to ${owners.join(', ')}`
+    `[tlon] Context lens ship sync enabled, fanning out to ${owner}`
   );
   return true;
 }
