@@ -45,7 +45,7 @@ export function GestureMediaViewer({
   enableLoop,
   maxZoomScale,
 }: GestureMediaViewerProps) {
-  const generatedIdRef = useRef<string>();
+  const generatedIdRef = useRef<string>(undefined);
   if (!generatedIdRef.current) {
     generatedIdRef.current = generateGestureMediaViewerId();
   }

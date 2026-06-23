@@ -252,7 +252,7 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %17
+    $:  %18
         =v-channels:v10:cv
         voc=(map [nest:cv plan:cv] (unit said:v10:cv))
         hidden-posts=(set id-post:cv)
@@ -402,7 +402,8 @@
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   =?  old  ?=(%15 -.old)  (state-15-to-16 old)
   =?  old  ?=(%16 -.old)  (state-16-to-17 old)
-  ?>  ?=(%17 -.old)
+  =?  old  ?=(%17 -.old)  (state-17-to-18 old)
+  ?>  ?=(%18 -.old)
   ::  periodically clear .debounce to avoid space leak
   ::
   =.  debounce  ~
@@ -410,7 +411,8 @@
   inflate-io
   ::
   +$  versioned-state
-    $%  state-17
+    $%  state-18
+        state-17
         state-16
         state-15
         state-14
@@ -429,7 +431,8 @@
         state-1
         state-0
     ==
-  +$  state-17  current-state
+  +$  state-18  current-state
+  +$  state-17  _%*(. *state-18 - %17)
   +$  state-16
     $:  %16
         =v-channels:v9:cv
@@ -519,6 +522,13 @@
         :: delayed resubscribes
         =^subs:s
         =pimp:imp
+    ==
+  ::
+  ++  state-17-to-18
+    |=  =state-17
+    ^-  state-18
+    %=  state-17  -  %18
+      v-channels  (~(run by v-channels.state-17) channel:recover-emoji:utils)
     ==
   ::
   ++  state-16-to-17
@@ -1122,7 +1132,7 @@
   |=  =(pole knot)
   ~>  %spin.['watch']
   ^+  cor
-  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4) *] pole)
+  =?  pole  !?=([?(%v0 %v1 %v2 %v3 %v4 %v5) *] pole)
     [%v0 pole]
   ?+  pole  ~|(bad-watch-path+`path`pole !!)
     [?(%v0 %v1 %v2 %v3 %v4) ~]  ?>(from-self cor)
@@ -1768,7 +1778,7 @@
     (give %fact ~[/unreads /v0/unreads /v1/unreads] channel-unread-update+!>([nest ca-unread]))
   ::
   ++  ca-activity
-    =,  v8:av
+    =,  v9:av
     |%
     ++  blocked
       |=  who=ship
@@ -1783,7 +1793,7 @@
       .^(? %gu p)
     ::
     ++  on-post
-      |=  v-post:c
+      |=  v-post:d
       ~>  %spin.['on-post']
       ^+  ca-core
       =*  author-ship  (get-author-ship:utils author)
@@ -1800,8 +1810,44 @@
         [%add %post [[author-ship id] id] nest group.perm.channel content mention]
       (send ~[action])
     ::
+    ++  on-post-react
+      |=  [post=v-post:d new=reacts:d old=reacts:d]
+      ~>  %spin.['on-post-react']
+      ^+  ca-core
+      ?.  running
+        ca-core
+      =*  post-author  (get-author-ship:utils author.post)
+      =/  =message-key
+        [[post-author id.post] id.post]
+      =/  =source  [%channel nest group.perm.channel]
+      =/  post-is-ours  =(post-author our.bowl)
+      =/  del-actions=(list action)
+        ?.  post-is-ours  ~
+        %+  roll  ~(tap by old)
+        |=  [[=author:d =react:d] actions=(list action)]
+        =/  new-react=(unit react:d)  (~(get by new) author)
+        ?:  =(new-react `react)  actions
+        :_  actions
+        [%del-event source [%react message-key ~ nest group.perm.channel author react]]
+      =/  add-actions=(list action)
+        %+  roll  ~(tap by new)
+        |=  [[=author:d =react:d] actions=(list action)]
+        =/  old-react=(unit react:d)  (~(get by old) author)
+        ?:  =(old-react `react)  actions
+        =/  author-ship  (get-author-ship:utils author)
+        ?:  =(author-ship our.bowl)
+          :_  actions
+          [%read source [%all `now.bowl |]]
+        ?.  post-is-ours  actions
+        ?:  (blocked author-ship)  actions
+        :_  actions
+        [%add %react message-key ~ nest group.perm.channel author react]
+      =/  actions=(list action)  (welp del-actions add-actions)
+      ?~  actions  ca-core
+      (send actions)
+    ::
     ++  on-post-delete
-      |=  v-post:c
+      |=  v-post:d
       ~>  %spin.['on-post-delete']
       ^+  ca-core
       ::  remove any activity that might've happened under this post
@@ -1817,7 +1863,7 @@
       (send [%del thread] [%del-event chan incoming-event] ~)
     ::
     ++  on-reply
-      |=  [parent=v-post:c v-reply:c]
+      |=  [parent=v-post:d v-reply:d]
       ~>  %spin.['on-reply']
       =*  parent-author  (get-author-ship:utils author.parent)
       =*  reply-author   (get-author-ship:utils author)
@@ -1834,8 +1880,8 @@
       =/  seat=(unit seat:v7:gv)  (get-seat group.perm.channel our.bowl)
       =/  mention=?  (was-mentioned:utils content our.bowl seat)
       =/  in-replies
-          %+  lien  (tap:on-v-replies:c replies.parent)
-          |=  [=time reply=(may:c v-reply:c)]
+          %+  lien  (tap:on-v-replies:d replies.parent)
+          |=  [=time reply=(may:d v-reply:d)]
           ?:  ?=(%| -.reply)  |
           =((get-author-ship:utils author.reply) our.bowl)
       =/  =action
@@ -1851,8 +1897,8 @@
       ::  and if we're the author of the post, mentioned, or in the replies.
       ::
       =/  thread=source  [%thread parent-key nest group.perm.channel]
-      =/  =path  (scry-path %activity /v4/volume-settings/noun)
-      =+  .^(settings=volume-settings %gx path)
+      =/  =path  (scry-path %activity /v5/volume-settings/noun)
+      =+  .^(settings=volume-settings:v9:av %gx path)
       ?.  ?&  !(~(has by settings) thread)
               ?|  mention
                   in-replies
@@ -1862,8 +1908,48 @@
         (send ~[action])
       =/  vm=volume-map  [[%reply & &] ~ ~]
       (send ~[[%adjust thread `vm] action])
+    ::
+    ++  on-reply-react
+      |=  [post=v-post:d reply=v-reply:d new=reacts:d old=reacts:d]
+      ~>  %spin.['on-reply-react']
+      ^+  ca-core
+      ?.  running
+        ca-core
+      =*  parent-author  (get-author-ship:utils author.post)
+      =/  parent-key=message-key
+        [[parent-author id.post] id.post]
+      =*  reply-author  (get-author-ship:utils author.reply)
+      =/  reply-key
+        [[reply-author id.reply] id.reply]
+      =/  =source  [%thread parent-key nest group.perm.channel]
+      =/  reply-is-ours  =(reply-author our.bowl)
+      =/  del-actions=(list action)
+        ?.  reply-is-ours  ~
+        %+  roll  ~(tap by old)
+        |=  [[=author:d =react:d] actions=(list action)]
+        =/  new-react=(unit react:d)  (~(get by new) author)
+        ?:  =(new-react `react)  actions
+        :_  actions
+        [%del-event source [%react reply-key `parent-key nest group.perm.channel author react]]
+      =/  add-actions=(list action)
+        %+  roll  ~(tap by new)
+        |=  [[=author:d =react:d] actions=(list action)]
+        =/  old-react=(unit react:d)  (~(get by old) author)
+        ?:  =(old-react `react)  actions
+        =/  author-ship  (get-author-ship:utils author)
+        ?:  =(author-ship our.bowl)
+          :_  actions
+          [%read source [%all `now.bowl |]]
+        ?.  reply-is-ours  actions
+        ?:  (blocked author-ship)  actions
+        :_  actions
+        [%add %react reply-key `parent-key nest group.perm.channel author react]
+      =/  actions=(list action)  (welp del-actions add-actions)
+      ?~  actions  ca-core
+      (send actions)
+    ::
     ++  on-reply-delete
-      |=  [parent=v-post:c reply=v-reply:c]
+      |=  [parent=v-post:d reply=v-reply:d]
       ~>  %spin.['on-reply-delete']
       ^+  ca-core
       =*  parent-author  (get-author-ship:utils author.parent)
@@ -1890,7 +1976,7 @@
       %-  emil
       %+  turn  actions
       |=  =action
-      =/  =cage  activity-action+!>(action)
+      =/  =cage  activity-action-1+!>(action)
       [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
     --
   ::
@@ -1964,6 +2050,19 @@
         ca-core
       =?  debounce  ?=(%add -.c-post.a-channel)
         (~(put ju debounce) nest sent.essay.c-post.a-channel)
+      ::  bad clients may submit shortcode strings as reactions,
+      ::  as opposed to the direct unicode emoji.
+      ::  reject their action when they do.
+      ::
+      ?<  ?|  ?&  ?=([%add-react * * @] c-post.a-channel)
+                  (gth (met 3 q.c-post.a-channel) 1)
+                  =(':' (end 3^1 q.c-post.a-channel))
+              ==
+              ?&  ?=([%reply * %add-react * * @] c-post.a-channel)
+                  (gth (met 3 q.c-reply.c-post.a-channel) 1)
+                  =(':' (end 3^1 q.c-reply.c-post.a-channel))
+              ==
+          ==
       =/  source=(unit source:a)
         ?.  ?=(%reply -.c-post.a-channel)
           `[%channel nest group.perm.channel]
@@ -2460,13 +2559,19 @@
         (~(put ju diffs.future.channel) id-post u-post)
       ca-core
     ::
-    ?-  -.u-post
+    ?-    -.u-post
         %reply
       (ca-u-reply id-post +.u.post id.u-post u-reply.u-post)
+    ::
         %reacts
       =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.post)))
       =/  merged  (ca-apply-reacts reacts.u.post reacts.u-post)
       ?:  =(merged reacts.u.post)  ca-core
+      =.  ca-core
+        %^  on-post-react:ca-activity
+            +.u.post
+          (uv-reacts:utils merged)
+        (uv-reacts:utils reacts.u.post)
       =.  posts.channel
         (put:on-v-posts:c posts.channel id-post u.post(reacts merged))
       (ca-response %post id-post %reacts (uv-reacts:utils merged))
@@ -2519,7 +2624,6 @@
         =.  ca-core
           (on-reply-delete:ca-activity post +.u.reply)
         (put-reply reply.u-reply %set reply.u-reply)
-      ::
       =*  old  u.reply
       =*  new  reply.u-reply
       =/  merged  (ca-apply-reply id-reply old new)
@@ -2527,11 +2631,19 @@
       ?:  =(merged old)  ca-core
       =.  ca-core  (ca-heed ~[author.new])
       (put-reply merged %set &+(uv-reply-4:utils id-post +.merged))
+    ::  reacts
     ::
     ?~  reply  ca-core
     =.  ca-core  (ca-heed ~(tap in ~(key by reacts.u.reply)))
     =/  merged  (ca-apply-reacts reacts.u.reply reacts.u-reply)
     ?:  =(merged reacts.u.reply)  ca-core
+    =.  ca-core
+      %:  on-reply-react:ca-activity
+        post
+        +.u.reply
+        (uv-reacts:utils merged)
+        (uv-reacts:utils reacts.u.reply)
+      ==
     (put-reply u.reply(reacts merged) %reacts (uv-reacts:utils merged))
     ::
     ::  put a reply into a post by id
@@ -2584,7 +2696,14 @@
     ^-  v-reacts:c
     %-  (~(uno by old) new)
     |=  [* a=(rev:c (unit react:c)) b=(rev:c (unit react:c))]
-    +:(apply-rev:c a b)
+    =/  [changed=? rac=(rev:c (unit react:c))]
+      (apply-rev:c a b)
+    ?.  changed  rac
+    ::  if the received react is a shortcode, sanitize it into its unicode.
+    ::  (ones in state were already migrated, and channels-server sanitizes
+    ::  on-ingress too... but old servers might not!)
+    ::
+    (react:recover-emoji:utils rac)
   ::
   ++  ca-apply-replies
     |=  [old=v-replies:c new=v-replies:c]
@@ -3456,9 +3575,9 @@
     =/  =source:v8:av  [%channel nest flag]
     ?.  (can-read:ca-perms our.bowl)
       (send:ca-activity [%adjust source ~] ~)
-    =/  setting=(unit volume-map:v8:av)
+    =/  setting=(unit volume-map:v9:av)
       ?.  running:ca-activity  ~
-      =+  .^(=volume-settings:v8:av %gx (scry-path %activity /v4/volume-settings/noun))
+      =+  .^(=volume-settings:v9:av %gx (scry-path %activity /v5/volume-settings/noun))
       (~(get by volume-settings) source)
     =.  ca-core
       ::  if we don't have a setting, no-op

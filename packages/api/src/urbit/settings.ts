@@ -79,6 +79,8 @@ export type GroupsSettings = {
   completedWayfindingSplash?: boolean;
   completedWayfindingTutorial?: boolean;
   disableTlonInfraEnhancement?: boolean;
+  webAppSplashDismissed?: boolean;
+  mobileAppPromoDismissed?: boolean;
 } & Record<string, unknown>;
 
 export type TalkSettings = {

@@ -1,3 +1,12 @@
+::  contacts: user profile and contact book
+::
+::  the contacts agent manages the user's public profile, as well
+::  as track profiles of network peers, creating an implicit social graph.
+::  it also manages the contact book, which contains the profiles of
+::  network peers marked as contacts, together with user-defined
+::  metadata and profile data overlays.
+::
+::
 /-  activity-ver
 /+  default-agent, dbug, verb, neg=negotiate
 /+  *contacts, kol
@@ -804,24 +813,27 @@
         (~(get by book) id+u.id)
       ``contact-page-0+!>(`^page`(fall page *^page))
       ::
-        [%x %v1 %all ~]
+        [%x %v1 %directory ~]
       =|  dir=directory
+      ::  export self
+      ::
+      =.  dir  (~(put by dir) our.bowl [& con.rof ~])
       ::  export all ship contacts
       ::
       =.  dir
         %-  ~(rep by book)
         |=  [[=kip =page] =_dir]
-        ?^  kip
-          dir
-        (~(put by dir) kip (contact-uni page))
-      ::  export all peers
+        ?^  kip  dir
+        =*  who  kip
+        (~(put by dir) who [& page])
+      ::  export all peers skipping contacts
       ::
       =.  dir
         %-  ~(rep by peers)
         |=  [[who=ship far=foreign] =_dir]
         ?~  for.far  dir
         ?:  (~(has by dir) who)  dir
-        (~(put by dir) who con.for.far)
+        (~(put by dir) who [| con.for.far ~])
       ``contact-directory-0+!>(dir)
       ::
         [%x %v1 %changes since=@ ~]

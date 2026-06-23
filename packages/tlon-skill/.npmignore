@@ -1,0 +1,2 @@
+# Don't publish the local dev binary - platform packages provide it
+bin/tlon

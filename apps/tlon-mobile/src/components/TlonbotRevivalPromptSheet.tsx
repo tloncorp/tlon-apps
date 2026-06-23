@@ -61,6 +61,7 @@ export function useTlonbotRevivalPrompt() {
 
     logger.trackEvent(AnalyticsEvent.InitiatedTlonbotRevival, {
       source: 'authenticated_prompt',
+      severity: AnalyticsSeverity.High,
     });
 
     setShip({

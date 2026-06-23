@@ -11,6 +11,8 @@ import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemCon
 import { AttestationScreen } from '../features/profile/AttestationScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
+import { BotMcpSettingsScreen } from '../features/settings/BotMcpSettingsScreen';
+import { BotOtherSettingsScreen } from '../features/settings/BotOtherSettingsScreen';
 import { BotSettingsScreen } from '../features/settings/BotSettingsScreen';
 import { EditProfileScreen } from '../features/settings/EditProfileScreen';
 import { FeatureFlagScreen } from '../features/settings/FeatureFlagScreen';
@@ -30,7 +32,6 @@ import ContactsScreen from '../features/top/ContactsScreen';
 import { GroupChannelsScreen } from '../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../features/top/MediaViewerScreen';
 import PostScreen from '../features/top/PostScreen';
-import { PostUsingContentConfigurationScreen } from '../features/top/PostUsingContentConfigurationScreen';
 import { UserProfileScreen } from '../features/top/UserProfileScreen';
 import { useIsDarkMode } from '../hooks/useIsDarkMode';
 import { useFeatureFlag } from '../lib/featureFlags';
@@ -114,6 +115,16 @@ export function RootStack() {
         component={BotSettingsScreen}
         options={{ gestureEnabled: false }}
       />
+      <Root.Screen
+        name="BotMcpSettings"
+        component={BotMcpSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
+      <Root.Screen
+        name="BotOtherSettings"
+        component={BotOtherSettingsScreen}
+        options={{ gestureEnabled: false }}
+      />
       <Root.Screen name="BlockedUsers" component={BlockedUsersScreen} />
       <Root.Screen name="Theme" component={ThemeScreen} />
       <Root.Screen name="AppInfo" component={AppInfoScreen} />
@@ -129,10 +140,6 @@ export function RootStack() {
       <Root.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
       <Root.Screen name="ChannelMembers" component={ChannelMembersScreen} />
       <Root.Screen name="ChannelMeta" component={ChannelMetaScreen} />
-      <Root.Screen
-        name="PostUsingContentConfiguration"
-        component={PostUsingContentConfigurationScreen}
-      />
       <Root.Screen name="ChannelTemplate" component={ChannelTemplateScreen} />
       <Root.Screen
         name="InviteSystemContacts"

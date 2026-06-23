@@ -1,5 +1,5 @@
 import { Post } from '@tloncorp/shared/db';
-import { BlockData, convertContent } from '@tloncorp/shared/logic';
+import { type A2UI, BlockData, convertContent } from '@tloncorp/shared/logic';
 import { useContext, useMemo } from 'react';
 import { createStyledContext } from 'tamagui';
 
@@ -30,6 +30,8 @@ export interface ContentContextProps {
   onPressImage?: (src: string) => void;
   getImageViewerId?: (src: string) => string | undefined;
   onLongPress?: () => void;
+  onA2UIAction?: (action: A2UI.Button['action']) => void | Promise<void>;
+  isA2UIActionAvailable?: (action: A2UI.Button['action']) => boolean;
   searchQuery?: string;
 }
 

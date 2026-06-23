@@ -156,6 +156,13 @@ export interface PokeHandlers {
   onError?: (e: any) => void;
 }
 
+export class PokeAckTimeoutError extends Error {
+  constructor(timeout: number) {
+    super(`Poke ack timed out after ${timeout}ms`);
+    this.name = 'PokeAckTimeoutError';
+  }
+}
+
 export type PokeInterface<T> = PokeHandlers & Poke<T>;
 export type NounPokeInterface = PokeHandlers & NounPoke;
 

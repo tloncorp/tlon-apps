@@ -255,13 +255,13 @@
 ++  server  dap.bowl
 ::
 ++  submit-activity
-  |=  =action:v8:av
+  |=  =action:v9:av
   ~>  %spin.['submit-activity']
   ^+  cor
   ?.  .^(? %gu /(scot %p our.bowl)/activity/(scot %da now.bowl)/$)
     cor
   %-  emit
-  =/  =cage  activity-action+!>(`action:v8:av`action)
+  =/  =cage  activity-action-1+!>(`action:v9:av`action)
   [%pass /activity/submit %agent [our.bowl %activity] %poke cage]
 ::  |l: logging core
 ::
@@ -2754,12 +2754,20 @@
         [ship new-admins]
       =.  se-core  (se-update %seat ships [%add-roles roles.c-seat])
       ?:  =(~ new-admins)  se-core
+      ::  when a ship acquires admin rights it receives the full view of
+      ::  the group, including information restricted to admins.
+      ::
       =+  paths=(se-ships-subscription-paths new-admins)
       ?:  =(~ paths)  se-core
       =/  time
         ?~  update=(ram:log-on:g group-log)  now.bowl
         -.u.update
-      =/  =update:g  [time %create group]
+      =/  gr=group:g  group
+      ::  clear local state for the update
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      =/  =update:g  [time %create gr]
       (give %fact paths group-update+!>(update))
     ::
         %del-roles
@@ -2943,7 +2951,12 @@
       =/  time
         ?~  update=(ram:log-on:g group-log)  now.bowl
         -.u.update
-      =/  =update:g  [time %create group]
+      =/  gr=group:g  group
+      ::  clear local state
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      =/  =update:g  [time %create gr]
       (give %fact paths group-update+!>(update))
     ::
         %del-admin
@@ -3193,7 +3206,7 @@
     ?:  =(*@da da)
       ::  filter out admin data
       ::
-      =/  =group:g
+      =/  gr=group:g
         ?:  (se-is-admin ship)  group
         ::  only admins receive state updates regarding
         ::  tokens, pending ships and requests.
@@ -3203,11 +3216,11 @@
           pending.admissions   ~
           requests.admissions  ~
         ==
-      ::  the invited list is local
-      =.  invited.admissions.group  ~
-      ::  clear .active-channels, as this is updated locally
-      =.  active-channels.group  ~
-      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create group] ~ ~]))
+      ::  clear local state
+      ::
+      =.  invited.admissions.gr  ~
+      =.  active-channels.gr     ~
+      (give %fact ~ group-log+!>(`log:g`[now.bowl^[%create gr] ~ ~]))
     ::
     =/  =log:g  (lot:log-on:g group-log `da ~)
     ::  filter out admin updates
@@ -3386,10 +3399,10 @@
       ::TODO port %activity to new %groups types
       :-  %add
       ?-  -.concern
-        %ask   [%group-ask ^flag ship]
-        %join  [%group-join ^flag ship]
-        %kick  [%group-kick ^flag ship]
-        %role  [%group-role ^flag ship (~(run in roles) |=(=role-id:g `sect:v0:gv`role-id))]
+        %ask   [%group-ask ^^flag ship]
+        %join  [%group-join ^^flag ship]
+        %kick  [%group-kick ^^flag ship]
+        %role  [%group-role ^^flag ship (~(run in roles) |=(=role-id:g `sect:v0:gv`role-id))]
         %flag-post  [%flag-post key nest group]
         %flag-reply  [%flag-reply key parent nest group]
       ==
@@ -3941,12 +3954,19 @@
     |=  gr=group:g
     ~>  %spin.['go-u-create']
     ^+  go-core
-    =.  go-core  (go-response %create gr)
-    ?:  go-our-host  go-core
+    ?:  go-our-host
+      ::  use the full server state for sending the response
+      (go-response %create group)
     ::
     ?>  ?=(%sub -.net)
-    =.  group  gr
-    go-core
+    ::  update group while preserving local state
+    ::
+    =.  group
+      %_  gr
+        invited.admissions  invited.admissions.group
+        active-channels     active-channels.group
+      ==
+    (go-response %create group)
   ::  +go-u-meta: apply meta update
   ::
   ++  go-u-meta
@@ -4800,13 +4820,12 @@
     fi-core
   ::
   ++  fi-activity
-    =,  v8:av
     |=  concern=[%group-invite =ship]
     ^+  fi-core
     =.  cor
       %-  submit-activity
-      ^-  action
-      [%add %group-invite ^flag ship.concern]
+      ^-  action:v9:av
+      [%add %group-invite flag ship.concern]
     fi-core
   ::  +fi-area: foreign base path
   ++  fi-area  `path`/foreigns/(scot %p p.flag)/[q.flag]

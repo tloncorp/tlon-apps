@@ -110,7 +110,7 @@ export type KindDataChat = {
 };
 
 export type KindData = KindDataDiary | KindDataChat | KindDataHeap;
-export type Kind = 'heap' | 'diary' | 'chat';
+export type Kind = 'heap' | 'diary' | 'chat' | 'notes';
 
 export interface PostEssay {
   content: Story;

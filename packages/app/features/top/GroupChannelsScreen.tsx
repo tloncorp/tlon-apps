@@ -43,8 +43,10 @@ export function GroupChannelsScreenContent({
   const handleGoToGroupMembers = useCallback(() => {
     if (group) {
       navigation.navigate('GroupSettings', {
-        screen: 'GroupMembers',
-        params: { groupId: group.id },
+        state: {
+          routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
+          index: 0,
+        },
       });
     }
   }, [group, navigation]);
@@ -62,7 +64,7 @@ export function GroupChannelsScreenContent({
 
   const handleGoBackPressed = useCallback(() => {
     if (isWindowNarrow) {
-      navigation.navigate('ChatList');
+      navigation.navigate('ChatList', undefined, { pop: true });
     } else {
       // Reset is necessary on desktop to ensure that the ChannelStack is cleared
       navigation.reset({

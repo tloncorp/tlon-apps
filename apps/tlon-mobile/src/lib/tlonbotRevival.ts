@@ -7,17 +7,14 @@ import {
 
 const logger = createDevLogger('tlonbotRevival', true);
 
-const TLONBOT_REVIVAL_GROUP_IDS = [
-  '~ramlud-bintun/v1l3qcoq',
-  '~wittyr-witbes/v3s2kbd7',
-];
+const TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS = ['~wittyr-witbes/v3s2kbd7'];
 
-export function prejoinTlonbotRevivalGroups() {
-  TLONBOT_REVIVAL_GROUP_IDS.forEach((groupId) => {
+export function prejoinTlonbotRevivalWayfindingGroups() {
+  TLONBOT_REVIVAL_WAYFINDING_GROUP_IDS.forEach((groupId) => {
     api.joinGroup(groupId).catch((error) => {
       logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
         error,
-        context: 'failed to prejoin TlonBot revival group',
+        context: 'failed to prejoin TlonBot revival wayfinding group',
         groupId,
         during: 'mobile TlonBot revival',
         severity: AnalyticsSeverity.High,

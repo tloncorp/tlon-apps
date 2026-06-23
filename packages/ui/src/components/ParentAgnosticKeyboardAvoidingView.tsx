@@ -34,7 +34,6 @@ export function ParentAgnosticKeyboardAvoidingView({
     pageY: number;
     height: number;
   } | null>(null);
-
   const measure = React.useCallback(() => {
     containerRef.current?.measure((_x, _y, _width, height, _pageX, pageY) => {
       setContainerFrame({ pageY, height });
@@ -43,6 +42,15 @@ export function ParentAgnosticKeyboardAvoidingView({
 
   React.useEffect(() => {
     const sub = Keyboard.addListener('keyboardWillChangeFrame', (event) => {
+      // When the app is backgrounded, iOS fires this event with
+      // screenY=0 and height=0, which is not a real keyboard frame.
+      // Ignore these to prevent padding from accumulating.
+      if (
+        event.endCoordinates.screenY === 0 &&
+        event.endCoordinates.height === 0
+      ) {
+        return;
+      }
       keyboardAnimationDurationRef.current = event.duration;
       measure();
       setKeyboardFrame(event.endCoordinates);
@@ -54,7 +62,10 @@ export function ParentAgnosticKeyboardAvoidingView({
     if (keyboardFrame == null || containerFrame == null) {
       return 0;
     }
-    return containerFrame.pageY + containerFrame.height - keyboardFrame.screenY;
+    return Math.max(
+      0,
+      containerFrame.pageY + containerFrame.height - keyboardFrame.screenY
+    );
   }, [keyboardFrame, containerFrame]);
 
   // Why `useLayoutEffect`?

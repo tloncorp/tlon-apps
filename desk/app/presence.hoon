@@ -591,7 +591,7 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  ::TODO  want to ~(del by want) if ?=(%fact term) but don't know the wire...
+  ::TODO  want to ~(del in want) if ?=(%fact term) but don't know the wire...
   %.  [~ this]
   (slog (rap 3 dap.bowl ': +on-fail: ' term ~) tang)
 ::

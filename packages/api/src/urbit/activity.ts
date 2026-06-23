@@ -2,7 +2,7 @@ import { da } from '@urbit/aura';
 import _ from 'lodash';
 
 import type { UnionToIntersection } from '../lib/utilityTypes';
-import { Kind, Story } from './channel';
+import { Author, Kind, React, Story } from './channel';
 import { ContactBookProfile } from './contact';
 import {
   nestToFlag,
@@ -19,6 +19,8 @@ export type ExtendedEventType =
   | 'post-mention'
   | 'reply'
   | 'reply-mention'
+  | 'react'
+  | 'dm-react'
   | 'dm-invite'
   | 'dm-post'
   | 'dm-post-mention'
@@ -170,6 +172,31 @@ export interface ContactEvent {
   };
 }
 
+export interface ReactEvent {
+  react: {
+    key: MessageKey;
+    // present when reacting to a reply; null when reacting to a top-level post
+    parent: MessageKey | null;
+    channel: string;
+    group: string;
+    // the ship that reacted
+    author: Author;
+    react: React;
+  };
+}
+
+export interface DmReactEvent {
+  'dm-react': {
+    key: MessageKey;
+    // present when reacting to a thread reply; null when reacting to the dm
+    parent: MessageKey | null;
+    whom: Whom;
+    // the ship that reacted
+    author: Author;
+    react: React;
+  };
+}
+
 export type ActivityIncomingEvent =
   | GroupKickEvent
   | GroupJoinEvent
@@ -183,6 +210,8 @@ export type ActivityIncomingEvent =
   | DmReplyEvent
   | PostEvent
   | ReplyEvent
+  | ReactEvent
+  | DmReactEvent
   | ContactEvent;
 
 export type ActivityEvent = {
@@ -407,11 +436,18 @@ const notifyOffEvents: ExtendedEventType[] = [
   'group-role',
 ];
 
+// reacts notify like posts (on at loud/medium/default, off at soft/hush). They
+// live outside onEvents/notifyOffEvents so getLevelFromVolumeMap ignores them
+// when inferring a level — adding them there would change level inference.
+const reactEvents: ExtendedEventType[] = ['react', 'dm-react'];
+
 const allEvents: ExtendedEventType[] = [
   'post',
   'post-mention',
   'reply',
   'reply-mention',
+  'react',
+  'dm-react',
   'dm-invite',
   'dm-post',
   'dm-post-mention',
@@ -425,6 +461,13 @@ const allEvents: ExtendedEventType[] = [
   'flag-post',
   'flag-reply',
 ];
+
+// Reacts never contribute to unread badges (the backend excludes them from
+// unread counts), so we always write them with unreads off regardless of the
+// source's unread preference.
+function volumeUnreads(event: ExtendedEventType, unreads: boolean): boolean {
+  return reactEvents.includes(event) ? false : unreads;
+}
 
 export function getUnreadsFromVolumeMap(vmap: VolumeMap): boolean {
   return _.some(vmap, (v) => !!v?.unreads);
@@ -465,29 +508,34 @@ export function getVolumeMap(
   const emptyMap: VolumeMap = {};
   if (level === 'loud') {
     return allEvents.reduce((acc, e) => {
-      acc[e] = { unreads, notify: true };
+      acc[e] = { unreads: volumeUnreads(e, unreads), notify: true };
       return acc;
     }, emptyMap);
   }
 
   if (level === 'hush') {
     return allEvents.reduce((acc, e) => {
-      acc[e] = { unreads, notify: false };
+      acc[e] = { unreads: volumeUnreads(e, unreads), notify: false };
       return acc;
     }, {} as VolumeMap);
   }
 
   return allEvents.reduce((acc, e) => {
+    const u = volumeUnreads(e, unreads);
     if (onEvents.includes(e)) {
-      acc[e] = { unreads, notify: true };
+      acc[e] = { unreads: u, notify: true };
     }
 
     if (notifyOffEvents.includes(e)) {
-      acc[e] = { unreads, notify: false };
+      acc[e] = { unreads: u, notify: false };
     }
 
-    if (e === 'post') {
-      acc[e] = { unreads, notify: level === 'medium' || level === 'default' };
+    // posts and reacts notify at medium/default, off at soft
+    if (e === 'post' || reactEvents.includes(e)) {
+      acc[e] = {
+        unreads: u,
+        notify: level === 'medium' || level === 'default',
+      };
     }
 
     return acc;
@@ -666,6 +714,20 @@ export const isReply = (event: ActivityEvent) => {
   return false;
 };
 
+export const isReact = (event: ActivityEvent) =>
+  'react' in event || 'dm-react' in event;
+
+// The react author/value fields mirror %channels/%chat: the author is either a
+// bare ship or a bot profile, and the react is either a shortcode string or a
+// custom `{ any }` value.
+export function getReactAuthorShip(author: Author): string {
+  return typeof author === 'string' ? author : author.ship;
+}
+
+export function getReactValue(react: React): string {
+  return typeof react === 'string' ? react : react.any;
+}
+
 export const isAsk = (event: ActivityEvent) => 'group-ask' in event;
 
 export const isInvite = (event: ActivityEvent) => 'group-invite' in event;
@@ -718,6 +780,26 @@ export function getSourceForEvent(event: ActivityEvent): Source {
         whom: event['dm-reply'].whom,
       },
     };
+  }
+
+  if ('react' in event) {
+    const { react } = event;
+    return react.parent
+      ? {
+          thread: {
+            key: react.parent,
+            channel: react.channel,
+            group: react.group,
+          },
+        }
+      : { channel: { nest: react.channel, group: react.group } };
+  }
+
+  if ('dm-react' in event) {
+    const react = event['dm-react'];
+    return react.parent
+      ? { 'dm-thread': { key: react.parent, whom: react.whom } }
+      : { dm: react.whom };
   }
 
   if ('group-ask' in event) {
@@ -808,6 +890,14 @@ export function getAuthor(event: ActivityEvent) {
     return getIdParts(event['flag-reply'].key.id).author;
   }
 
+  if ('react' in event) {
+    return getReactAuthorShip(event.react.author);
+  }
+
+  if ('dm-react' in event) {
+    return getReactAuthorShip(event['dm-react'].author);
+  }
+
   if ('group-ask' in event) {
     return event['group-ask'].ship;
   }
@@ -833,6 +923,7 @@ export type ActivityRelevancy =
   | 'groupMeta'
   | 'flaggedPost'
   | 'flaggedReply'
+  | 'reactedToPost'
   | 'groupJoinRequest';
 
 export function getRelevancy(
@@ -841,6 +932,10 @@ export function getRelevancy(
 ): ActivityRelevancy {
   if (isMention(event)) {
     return 'mention';
+  }
+
+  if (isReact(event)) {
+    return 'reactedToPost';
   }
 
   if ('dm-post' in event && 'ship' in event['dm-post'].whom) {

@@ -1,6 +1,6 @@
 import { UrbitModuleSpec } from '@tloncorp/app/utils/urbitModule';
 import { createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useEffect } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
@@ -9,23 +9,34 @@ const UrbitModule = TurboModuleRegistry.get('UrbitModule') as UrbitModuleSpec;
 const logger = createDevLogger('useSyncAppBadge', false);
 
 export function useSyncAppBadge() {
+  const { data: baseUnread } = store.useBaseUnread();
+  const { data: notifyingUnreadSourceCount } =
+    store.useNotifyingUnreadSourceCount();
+
   useEffect(() => {
-    db.observeWrites<db.BaseUnread>(db.ObservableField.BaseUnread, (unread) => {
-      if (Platform.OS === 'ios' && unread.notifTimestamp) {
-        try {
-          UrbitModule.updateBadgeCount(
-            unread.notifyCount ?? 0,
-            unread.notifTimestamp
-          );
-        } catch (e) {
-          logger.trackError('Failed to sync OS badge count', {
-            error: e.toString(),
-            errorStack: e.stack,
-            count: unread.notifyCount,
-            updatedAt: unread.updatedAt,
-          });
-        }
-      }
-    });
-  }, []);
+    if (Platform.OS !== 'ios' || !baseUnread?.notifTimestamp) {
+      return;
+    }
+
+    const baseCount = baseUnread.notifyCount ?? 0;
+    // Nonzero badge counts stay backend-driven. Local unread state is only
+    // used to clear a stale badge after the last notifying source is read.
+    const count = notifyingUnreadSourceCount === 0 ? 0 : baseCount;
+
+    try {
+      UrbitModule.updateBadgeCount(count, baseUnread.notifTimestamp);
+    } catch (e) {
+      logger.trackError('Failed to sync OS badge count', {
+        error: e.toString(),
+        errorStack: e.stack,
+        count,
+        updatedAt: baseUnread.updatedAt,
+      });
+    }
+  }, [
+    baseUnread?.notifTimestamp,
+    baseUnread?.notifyCount,
+    baseUnread?.updatedAt,
+    notifyingUnreadSourceCount,
+  ]);
 }

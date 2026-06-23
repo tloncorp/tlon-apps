@@ -80,6 +80,7 @@ export function useOnboardingHelpers() {
 
         logger.trackEvent(AnalyticsEvent.InitiatedTlonbotRevival, {
           source: 'post_login',
+          severity: AnalyticsSeverity.High,
         });
         await db.tlonbotRevivalSetup.setValue((current) => ({
           ...current,

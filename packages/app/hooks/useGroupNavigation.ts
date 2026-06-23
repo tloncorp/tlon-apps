@@ -44,7 +44,7 @@ export const useGroupNavigation = () => {
   );
 
   const goToHome = useCallback(() => {
-    navigationRef.current.navigate('ChatList');
+    navigationRef.current.navigate('ChatList', undefined, { pop: true });
   }, [navigationRef]);
 
   return {

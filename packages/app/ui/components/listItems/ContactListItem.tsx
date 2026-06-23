@@ -21,6 +21,7 @@ export const ContactListItem = ({
   matchText,
   subtitle,
   size = '$2xl',
+  hoverStyle,
   ...props
 }: {
   contactId: string;
@@ -44,6 +45,7 @@ export const ContactListItem = ({
       borderRadius="$xl"
       onPress={handlePress}
       onLongPress={handleLongPress}
+      hoverStyle={hoverStyle}
     >
       <ListItem alignItems="center" justifyContent="flex-start" {...props}>
         {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}

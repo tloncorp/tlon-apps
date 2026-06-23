@@ -116,11 +116,8 @@ export default function AttachmentSheet({
           throw new Error('No image data available in clipboard');
         }
 
-        // TODO: we're doing two layers of conversion here:
-        //   clipboardData -> ImagePickerAsset -> UploadIntent
-        // `createImageAssetFromClipboardData` in particular lies about the
-        // image's dimensions - we should probably remove one layer
-        const clipboardAsset = createImageAssetFromClipboardData(clipboardData);
+        const clipboardAsset =
+          await createImageAssetFromClipboardData(clipboardData);
         const atts = [
           Attachment.UploadIntent.fromImagePickerAsset(clipboardAsset),
         ];
@@ -265,20 +262,21 @@ export default function AttachmentSheet({
   const draftInputContext = useDraftInputContext();
   const audioRecorder = useAudioRecorderController({
     async onSubmit({ audioFilePath, waveformPreview }) {
+      const audioFileUri = filePathToFileUri(audioFilePath);
       const duration = await (async () => {
         try {
-          return await getAudioFileDurationSeconds(audioFilePath);
+          return await getAudioFileDurationSeconds(audioFileUri);
         } catch {
           return undefined;
         }
       })();
       const attachment: VoiceMemoAttachment = {
         type: 'voicememo',
-        localUri: filePathToFileUri(audioFilePath),
-        size: getFileSize(audioFilePath) ?? -1,
+        localUri: audioFileUri,
+        size: getFileSize(audioFileUri) ?? -1,
         waveformPreview,
         duration: duration ?? undefined,
-        mimeType: getMimeType(audioFilePath) ?? undefined,
+        mimeType: getMimeType(audioFileUri) ?? undefined,
       };
       audioRecorder.dismiss();
 
@@ -341,6 +339,7 @@ export default function AttachmentSheet({
           allowsEditing: false,
           quality: 0.5,
           exif: false,
+          shouldDownloadFromNetwork: true,
         });
 
         if (!result.canceled) {

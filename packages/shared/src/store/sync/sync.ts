@@ -2,16 +2,19 @@ import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
+import { isLanyardMockEnabled } from '@tloncorp/api/dev/lanyardMock';
 import { ChannelStatus } from '@urbit/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
 import * as db from '../../db';
-import { QueryCtx, batchEffects } from '../../db/query';
+import { QueryCtx, batchEffects, withTransactionCtx } from '../../db/query';
 import { queryClient } from '../../db/reactQuery';
 import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
+import { activityVersionSupportsReactions } from '../../logic';
+import { perfMark, perfTime } from '../../perfLog';
 import {
   INFINITE_ACTIVITY_QUERY_KEY,
   resetActivityFetchers,
@@ -22,7 +25,11 @@ import * as LocalCache from '../cachedData';
 import { addContacts, updateContactMetadata } from '../contactActions';
 import { updateChannelSections } from '../groupActions';
 import { verifyUserInviteLink } from '../inviteActions';
-import { discoverContacts } from '../lanyardActions';
+import {
+  discoverContacts,
+  invokeContactsMatchedHandler,
+  partitionDiscoveryMatches,
+} from '../lanyardActions';
 import { useLureState } from '../lure';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
@@ -307,9 +314,22 @@ export const syncLatestChanges = async ({
     };
   }
 
-  const result = await syncQueue.add('latestChanges', syncCtx, () => {
-    return fetchChangesSince(syncFrom);
-  });
+  const perfStop = perfMark('syncLatestChanges.total');
+  const result = await perfTime(
+    'syncLatestChanges.fetch',
+    () =>
+      syncQueue.add('latestChanges', syncCtx, () =>
+        fetchChangesSince(syncFrom)
+      ),
+    (r) => ({
+      posts: r.posts.length,
+      groups: r.groups.length,
+      contacts: r.contacts.length,
+      channelUnreads: r.unreads.channelUnreads.length,
+      groupUnreads: r.unreads.groupUnreads.length,
+      threadUnreads: r.unreads.threadActivity.length,
+    })
+  );
   logger.trackEvent('sync changes debug', {
     context: 'fetched changes',
     ...callCtx,
@@ -318,10 +338,6 @@ export const syncLatestChanges = async ({
   const doneFetching = Date.now();
   logger.log(`fetched latest changes: ${doneFetching - start}ms`, result);
 
-  const topLevelPosts = result.posts.filter(
-    (post) =>
-      !post.parentId && post.type !== 'reply' && post.sequenceNum != null
-  );
   // before we insert the changes, confirm they're not stale from a delayed bg sync
   // or previous app open. Use time since method began as delayed bg sync or previous
   // app open. Use time since method began as a heuristic
@@ -333,8 +349,16 @@ export const syncLatestChanges = async ({
     );
   }
 
-  await db.insertChanges(result, queryCtx);
-  notifyChannelPostListenersFromLatestChanges(topLevelPosts);
+  await perfTime(
+    'syncLatestChanges.insertChanges',
+    () => db.insertChanges(result, queryCtx),
+    { posts: result.posts.length }
+  );
+  const topLevelPosts = await perfTime(
+    'syncLatestChanges.notifyListeners',
+    () => notifyChannelPostListenersFromLatestChanges(result.posts),
+    (topLevelPosts) => ({ topLevelPosts })
+  );
   logger.trackEvent('sync changes debug', {
     context: 'inserted changes',
     ...callCtx,
@@ -375,6 +399,11 @@ export const syncLatestChanges = async ({
   const groupUnreadCounts = Object.fromEntries(
     result.unreads.groupUnreads.map((u) => [u.groupId, u.count ?? 0])
   );
+  perfStop({
+    posts: result.posts.length,
+    topLevelPosts,
+    hadChanges: String(hadChanges),
+  });
   return {
     hadChanges,
     nodeBusyStatus: result.nodeBusyStatus ?? null,
@@ -387,18 +416,22 @@ export const syncLatestChanges = async ({
 };
 
 function notifyChannelPostListenersFromLatestChanges(posts: db.Post[]) {
-  if (!posts.length) {
-    return;
-  }
-
   const seenIds = new Set<string>();
+  let notified = 0;
   for (const post of posts) {
-    if (seenIds.has(post.id)) {
+    if (
+      post.parentId ||
+      post.type === 'reply' ||
+      post.sequenceNum == null ||
+      seenIds.has(post.id)
+    ) {
       continue;
     }
     seenIds.add(post.id);
     addToChannelPosts(post);
+    notified++;
   }
+  return notified;
 }
 
 export const syncCachedChanges = async (input: {
@@ -410,6 +443,7 @@ export const syncCachedChanges = async (input: {
   if (syncedAt && input.begin <= syncedAt && input.end > syncedAt) {
     // cached changes are valid, insert them
     await db.insertChanges(input.changes);
+    notifyChannelPostListenersFromLatestChanges(input.changes.posts);
     await db.changesSyncedAt.setValue(input.end);
     return true;
   }
@@ -468,18 +502,44 @@ export const syncSettings = async (ctx?: SyncCtx) => {
 
 export const syncAppInfo = async (ctx?: SyncCtx) => {
   const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
+  api.setActivitySupportsReactions(
+    activityVersionSupportsReactions(appInfo?.groupsVersion)
+  );
   return db.appInfo.setValue(appInfo);
 };
 
-export const syncVolumeSettings = async (ctx?: SyncCtx) => {
-  const volumeSettings = await syncQueue.add('volumeSettings', ctx, () =>
-    api.getVolumeSettings()
+// Resolves the backend's reaction capability from the last-known (persisted)
+// groups version and applies it to the activity client before it picks endpoint
+// versions. A fresh version is fetched by syncAppInfo, which also updates this.
+export const syncReactionSupport = async () => {
+  const appInfo = await db.appInfo.getValue();
+  api.setActivitySupportsReactions(
+    activityVersionSupportsReactions(appInfo?.groupsVersion)
   );
-  const clientVolumes = extractClientVolumes(volumeSettings);
-  await db.setVolumes({ volumes: clientVolumes, deleteOthers: true });
 };
 
-export const syncSystemContacts = async (_ctx?: SyncCtx) => {
+export const syncVolumeSettings = async (ctx?: SyncCtx) => {
+  const clientVolumes = await perfTime(
+    'syncVolumeSettings.fetch',
+    async () => {
+      const volumeSettings = await syncQueue.add('volumeSettings', ctx, () =>
+        api.getVolumeSettings()
+      );
+      return extractClientVolumes(volumeSettings);
+    },
+    (cv) => ({
+      total: cv.length,
+      threadScoped: cv.filter((v) => v.itemType === 'thread').length,
+    })
+  );
+  await perfTime('syncVolumeSettings.setVolumes', () =>
+    db.setVolumes({ volumes: clientVolumes, deleteOthers: true })
+  );
+};
+
+export const syncSystemContacts = async (
+  _ctx?: SyncCtx
+): Promise<db.SystemContact[]> => {
   const systemContacts = await getSystemContacts();
   try {
     await db.insertSystemContacts({ systemContacts });
@@ -487,6 +547,7 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
       context: 'inserted system contacts',
       numContacts: systemContacts.length,
     });
+    return systemContacts;
   } catch (error) {
     logger.trackEvent(AnalyticsEvent.ErrorSystemContacts, {
       context: 'failed to insert system contacts',
@@ -499,8 +560,18 @@ export const syncSystemContacts = async (_ctx?: SyncCtx) => {
   }
 };
 
-export const syncContactDiscovery = async (ctx?: SyncCtx) => {
+export type ContactDiscoveryResult = {
+  newMatches: [string, string][];
+};
+
+export const syncContactDiscovery = async (
+  ctx?: SyncCtx,
+  opts?: { invokeHandler?: boolean }
+): Promise<ContactDiscoveryResult> => {
   logger.log('syncContactDiscovery: starting');
+  const invokeHandler = opts?.invokeHandler !== false;
+  const empty: ContactDiscoveryResult = { newMatches: [] };
+  const isMocked = isLanyardMockEnabled();
   const currentUserId = api.getCurrentUserId();
   const currentUserAttestations = await db.getUserAttestations({
     userId: currentUserId,
@@ -509,14 +580,14 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
   const hasPhoneAttestation = currentUserAttestations.some(
     (attestation) => attestation.type === 'phone' && attestation.value
   );
-  if (!hasPhoneAttestation) {
+  if (!hasPhoneAttestation && !isMocked) {
     logger.log(
       'syncContactDiscovery: skipping contact discovery since no phone attestation found'
     );
     logger.trackEvent(AnalyticsEvent.DebugSystemContacts, {
       context: 'no phone attestation found, skipping discovery',
     });
-    return;
+    return empty;
   }
   const systemContacts = await getSystemContacts();
   const phoneNumbers = systemContacts
@@ -532,7 +603,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
     });
     // this should also mean we no-op on web since we don't have any
     // system contacts
-    return;
+    return empty;
   }
 
   try {
@@ -542,6 +613,11 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       )
     ).filter((match) => match[1] !== currentUserId);
     logger.log('syncContactDiscovery: got contact discovery matches', matches);
+
+    const { newMatches } = await partitionDiscoveryMatches(matches, {
+      isMocked,
+    });
+    const newMatchIds = newMatches.map(([, id]) => id);
 
     await db.linkSystemContacts({ matches }).catch((e) => {
       logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -554,33 +630,54 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       'syncContactDiscovery: inserted contact discovery matches',
       matches
     );
-    const contactIds = matches.map((m) => m[1]);
-    await addContacts(contactIds).catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'failed to add contacts',
-        severity: AnalyticsSeverity.Critical,
-        error: e,
-      });
-    });
-    logger.log('syncContactDiscovery: added contacts', contactIds);
-    const newContacts = await db.getSystemContactsBatchByContactId(contactIds);
 
-    await Promise.all(
-      newContacts
-        .filter((c) => !!c.contactId)
-        .map((contact) =>
-          updateContactMetadata(contact.contactId!, {
-            nickname:
-              `${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+    if (newMatchIds.length > 0) {
+      await addContacts(newMatchIds).catch((e) => {
+        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+          context: 'failed to add contacts',
+          severity: AnalyticsSeverity.Critical,
+          error: e,
+        });
+      });
+      logger.log('syncContactDiscovery: added contacts', newMatchIds);
+
+      await db
+        .markContactsAsMatched({
+          contactIds: newMatchIds,
+          matchedAt: Date.now(),
+        })
+        .catch((e) => {
+          logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+            context: 'failed to mark contacts as matched',
+            error: e,
+          });
+        });
+
+      // Apply the address-book name as customNickname only for new
+      // matches whose contact doesn't already have one. The query
+      // does the join + filter, so we just map to API calls here.
+      const contactsToName =
+        await db.getUnnamedSystemContactsByContactId(newMatchIds);
+      await Promise.all(
+        contactsToName.map((c) =>
+          updateContactMetadata(c.contactId, {
+            nickname: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
           })
         )
-    ).catch((e) => {
-      logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
-        context: 'failed to update contact metadata',
-        severity: AnalyticsSeverity.Critical,
-        error: e,
+      ).catch((e) => {
+        logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
+          context: 'failed to update contact metadata',
+          severity: AnalyticsSeverity.Critical,
+          error: e,
+        });
       });
-    });
+    }
+
+    if (invokeHandler && newMatches.length > 0) {
+      await invokeContactsMatchedHandler(newMatchIds);
+    }
+
+    return { newMatches };
   } catch (error) {
     logger.error('error discovering contacts', error);
     logger.trackEvent(AnalyticsEvent.ErrorContactMatching, {
@@ -588,6 +685,7 @@ export const syncContactDiscovery = async (ctx?: SyncCtx) => {
       severity: AnalyticsSeverity.Critical,
       error,
     });
+    return empty;
   }
 };
 
@@ -625,10 +723,66 @@ export const syncGroups = async (ctx?: SyncCtx) => {
 };
 
 export const syncDms = async (ctx?: SyncCtx) => {
-  const [dms, groupDms] = await syncQueue.add('dms', ctx, () =>
-    Promise.all([api.getDms(), api.getGroupDms()])
+  const [dms, groupDms, dmInvites] = await syncQueue.add('dms', ctx, () =>
+    Promise.all([api.getDms(), api.getGroupDms(), api.getDmInvites()])
   );
-  await db.insertChannels([...dms, ...groupDms]);
+  const regularDmIds = new Set(dms.map((dm) => dm.id));
+  const pendingInvites = dmInvites.filter(
+    (invite) => !regularDmIds.has(invite.id)
+  );
+  await db.insertChannels([...dms, ...groupDms, ...pendingInvites]);
+};
+
+export type EnsureDmInviteChannelResult =
+  | { found: true; state: 'regular-dm' }
+  | { found: true; state: 'pending-invite' }
+  | { found: false; state: 'missing' };
+
+export const ensureDmInviteChannel = async ({
+  channelId,
+  syncCtx,
+  queryCtx,
+}: {
+  channelId: string;
+  syncCtx?: SyncCtx;
+  queryCtx?: QueryCtx;
+}): Promise<EnsureDmInviteChannelResult> => {
+  const { dms, invites } = await syncQueue.add(
+    'ensureDmInviteChannel',
+    syncCtx,
+    async () => {
+      const [dms, invites] = await Promise.all([
+        api.getDms(),
+        api.getDmInvites(),
+      ]);
+      return { dms, invites };
+    }
+  );
+
+  const write = async (ctx: QueryCtx): Promise<EnsureDmInviteChannelResult> => {
+    const regularDm = dms.find((dm) => dm.id === channelId);
+    if (regularDm) {
+      await db.insertChannels([regularDm], ctx);
+      return { found: true, state: 'regular-dm' };
+    }
+
+    const invite = invites.find((dmInvite) => dmInvite.id === channelId);
+    if (invite) {
+      await db.insertChannels([invite], ctx);
+      return { found: true, state: 'pending-invite' };
+    }
+
+    const localChannel = await db.getChannel({ id: channelId }, ctx);
+    if (localChannel?.isDmInvite) {
+      await db.deleteChannels([channelId], ctx);
+    }
+
+    return { found: false, state: 'missing' };
+  };
+
+  return queryCtx
+    ? write(queryCtx)
+    : batchEffects('ensureDmInviteChannel', write);
 };
 
 export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
@@ -756,16 +910,26 @@ export const syncStorageSettings = (ctx?: SyncCtx) => {
 };
 
 export const resetActivity = async (syncCtx?: SyncCtx) => {
-  const { relevantUnreads, events } = await syncQueue.add(
-    'getInitialActivity',
-    syncCtx,
-    () => api.getInitialActivity()
+  const { relevantUnreads, events } = await perfTime(
+    'resetActivity.fetch',
+    () =>
+      syncQueue.add('getInitialActivity', syncCtx, () =>
+        api.getInitialActivity()
+      ),
+    (r) => ({
+      events: r.events.length,
+      threadUnreads: r.relevantUnreads.threadActivity.length,
+      channelUnreads: r.relevantUnreads.channelUnreads.length,
+      groupUnreads: r.relevantUnreads.groupUnreads.length,
+    })
   );
-  await batchEffects('resetActivity', async (ctx) => {
-    await db.clearActivityEvents(ctx);
-    await db.insertActivityEvents(events, ctx);
-    await persistUnreads({ unreads: relevantUnreads, ctx });
-  });
+  await perfTime('resetActivity.write', () =>
+    batchEffects('resetActivity', async (ctx) => {
+      await db.clearActivityEvents(ctx);
+      await db.insertActivityEvents(events, ctx);
+      await persistUnreads({ unreads: relevantUnreads, ctx });
+    })
+  );
   resetActivityFetchers();
 };
 
@@ -787,7 +951,10 @@ async function handleLanyardUpdate(update: api.LanyardUpdate) {
   }
 }
 
-async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
+export async function handleGroupUpdate(
+  update: api.GroupUpdate,
+  ctx: QueryCtx
+) {
   logger.log('received group update', update.type);
   updateLastActivityTime();
 
@@ -1095,10 +1262,37 @@ async function handleGroupUpdate(update: api.GroupUpdate, ctx: QueryCtx) {
     case 'addChannelToNavSection':
       logger.log('adding channel to nav section', update);
 
-      await db.addChannelToNavSection({
-        channelId: update.channelId,
-        groupNavSectionId: update.sectionId,
-        index: 0,
+      // Treat the event as authoritative: the channel's nav section is now
+      // `update.navSectionId`. Remove it from any other nav section it may
+      // be persisted in locally before adding, so the local DB doesn't end
+      // up with the same channelId in multiple sections (the schema
+      // tolerates this; the product invariant doesn't).
+      //
+      // The remove+add is wrapped in a single transaction so an FK
+      // failure on the insert (e.g. the target nav section row doesn't
+      // exist locally yet) rolls back the dedup delete instead of
+      // leaving the channel orphaned in no section.
+      //
+      // Note: the event carries both `sectionId` (bare backend zone id) and
+      // `navSectionId` (`${groupId}-${sectionId}`, which is the local PK
+      // and the FK target on `group_nav_section_channels`). All DB writes
+      // here use `navSectionId`.
+      await withTransactionCtx(ctx, async (txCtx) => {
+        await db.removeChannelFromOtherNavSections(
+          {
+            channelId: update.channelId,
+            keepInSectionId: update.navSectionId,
+          },
+          txCtx
+        );
+        await db.addChannelToNavSection(
+          {
+            channelId: update.channelId,
+            groupNavSectionId: update.navSectionId,
+            index: 0,
+          },
+          txCtx
+        );
       });
       break;
     case 'setUnjoinedGroups':
@@ -1365,7 +1559,7 @@ export const handleChannelsUpdate = async (
       break;
     case 'deletePost':
       await db.markPostAsDeleted(update.postId, ctx);
-      await db.updateChannel({ id: update.channelId, lastPostId: null }, ctx);
+      await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;
     case 'hidePost':
       await db.updatePost({ id: update.postId, hidden: true }, ctx);
@@ -1545,49 +1739,58 @@ export async function handleAddPost(
   ctx?: QueryCtx
 ) {
   logger.log('event: add post', post);
-  // We frequently get duplicate addPost events from the api,
-  // so skip if we've just added this.
-  if (post.id === lastAdded) {
-    logger.log('skipping duplicate post.');
-  } else {
-    lastAdded = post.id;
-  }
+  await perfTime(
+    'handleAddPost.total',
+    async () => {
+      // We frequently get duplicate addPost events from the api,
+      // so skip if we've just added this.
+      if (post.id === lastAdded) {
+        logger.log('skipping duplicate post.');
+      } else {
+        lastAdded = post.id;
+      }
 
-  // first check if it's a reply. If it is and we haven't already cached
-  // it, we need to add it to the parent post
-  if (post.parentId) {
-    const cachedReply = await db.getPostByCacheId({
+      // first check if it's a reply. If it is and we haven't already cached
+      // it, we need to add it to the parent post
+      if (post.parentId) {
+        const cachedReply = await db.getPostByCacheId({
+          channelId: post.channelId,
+          sentAt: post.sentAt,
+          authorId: post.authorId,
+        });
+        if (!cachedReply) {
+          await perfTime('handleAddPost.addReplyToPost', () =>
+            db.addReplyToPost(
+              {
+                parentId: post.parentId!,
+                replyAuthor: post.authorId,
+                replyTime: post.sentAt,
+                replyMeta,
+              },
+              ctx
+            )
+          );
+        }
+        await perfTime(
+          'handleAddPost.insertChannelPosts',
+          () => db.insertChannelPosts({ posts: [post] }, ctx),
+          { isReply: 'true' }
+        );
+      } else {
+        addToChannelPosts(post);
+        await perfTime(
+          'handleAddPost.insertChannelPosts',
+          () => db.insertChannelPosts({ posts: [post] }, ctx),
+          { isReply: 'false' }
+        );
+      }
+      updateLastActivityTime();
+    },
+    {
+      isReply: post.parentId ? 'true' : 'false',
       channelId: post.channelId,
-      sentAt: post.sentAt,
-      authorId: post.authorId,
-    });
-    if (!cachedReply) {
-      await db.addReplyToPost(
-        {
-          parentId: post.parentId,
-          replyAuthor: post.authorId,
-          replyTime: post.sentAt,
-          replyMeta,
-        },
-        ctx
-      );
     }
-    await db.insertChannelPosts(
-      {
-        posts: [post],
-      },
-      ctx
-    );
-  } else {
-    addToChannelPosts(post);
-    await db.insertChannelPosts(
-      {
-        posts: [post],
-      },
-      ctx
-    );
-  }
-  updateLastActivityTime();
+  );
 }
 
 export async function syncSequencedPosts(
@@ -1740,24 +1943,34 @@ export async function syncChannelMessageDelivery({
 }: {
   channelId: string;
 }) {
-  if (currentPendingMessageSyncs.has(channelId)) {
+  // Dedupe: if a delivery-sync is already in flight for this channel, reuse
+  // it. The existing loop's isStillPending check already covers any messages
+  // sent while it was running. Without this guard, rapid sends stack up
+  // independent backoff loops, each firing its own syncPosts poll under load.
+  const existing = currentPendingMessageSyncs.get(channelId);
+  if (existing) {
     logger.log(`message delivery sync already in progress for ${channelId}`);
+    return existing;
   }
 
-  try {
-    logger.log(`syncing messsage delivery for ${channelId}`);
-    const syncPromise = syncChannelWithBackoff({ channelId });
-    currentPendingMessageSyncs.set(channelId, syncPromise);
-    await syncPromise;
-    logger.crumb(`all messages in channel are delivered`);
-    logger.sensitiveCrumb(`channelId: ${channelId}`);
-  } catch (e) {
-    logger.error(
-      `some messages in ${channelId} still undelivered, is the channel offline?`
-    );
-  } finally {
-    currentPendingMessageSyncs.delete(channelId);
-  }
+  const syncPromise = (async () => {
+    try {
+      logger.log(`syncing messsage delivery for ${channelId}`);
+      const result = await syncChannelWithBackoff({ channelId });
+      logger.crumb(`all messages in channel are delivered`);
+      logger.sensitiveCrumb(`channelId: ${channelId}`);
+      return result;
+    } catch (e) {
+      logger.error(
+        `some messages in ${channelId} still undelivered, is the channel offline?`
+      );
+      return false;
+    } finally {
+      currentPendingMessageSyncs.delete(channelId);
+    }
+  })();
+  currentPendingMessageSyncs.set(channelId, syncPromise);
+  return syncPromise;
 }
 
 export async function syncChannelWithBackoff({
@@ -1766,7 +1979,11 @@ export async function syncChannelWithBackoff({
   channelId: string;
 }): Promise<boolean> {
   async function isStillPending() {
-    return (await db.getPendingPosts(channelId)).length > 0;
+    // Delivery polling uses the dedicated `getDeliveryPendingPosts` query:
+    // it keeps in-flight `enqueued` / `pending` rows visible even when the
+    // user has locally cleared them, so mid-flight deletes still reconcile
+    // against the server. UI ghost-row filtering lives in `getPendingPosts`.
+    return (await db.getDeliveryPendingPosts(channelId)).length > 0;
   }
 
   const checkDelivered = async () => {
@@ -2011,6 +2228,20 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }
 
     updateSession({ phase: 'low' });
+    // Resolve the backend's reaction capability from the *current* version
+    // before the activity feed and subscription below pick their endpoint
+    // versions, so reactions work on first launch and right after a ship
+    // upgrade rather than only after a restart. Fall back to the last-known
+    // (persisted) version if the fresh fetch fails.
+    await syncAppInfo({ priority: syncStartPriority.low + 1 })
+      .then(() => logger.crumb(`finished syncing app info`))
+      .catch((err) => {
+        logger.trackError(
+          'Failed to sync app info; falling back to persisted version for reaction capability',
+          { error: err instanceof Error ? err.message : String(err) }
+        );
+        return syncReactionSupport().catch(() => {});
+      });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
@@ -2041,9 +2272,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
       }).then(() =>
         logger.crumb(`finished syncing push notifications setting`)
       ),
-      syncAppInfo({ priority: syncStartPriority.low + 1 }).then(() => {
-        logger.crumb(`finished syncing app info`);
-      }),
       syncSystemContacts({ priority: syncStartPriority.low + 1 }).then(() => {
         logger.crumb(`finished syncing system contacts`);
       }),

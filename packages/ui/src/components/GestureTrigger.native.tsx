@@ -2,7 +2,7 @@ import * as React from 'react';
 import { GestureTrigger as NativeGestureTrigger } from 'react-native-gesture-image-viewer';
 
 type GestureTriggerProps = {
-  children: React.ReactElement;
+  children: React.ReactElement<{ onPress?: (...args: unknown[]) => void }>;
   id: string;
 };
 

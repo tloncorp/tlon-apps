@@ -18,6 +18,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   assetBundlePatterns: ['**/*'],
   userInterfaceStyle: 'automatic',
   scheme: appScheme,
+  buildCacheProvider:
+    process.env.TLON_EAS_CACHE_DISABLED === '1' ? undefined : 'eas',
   extra: {
     eas: {
       projectId,
@@ -98,6 +100,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
     '@react-native-firebase/perf',
+    '@sentry/react-native',
+    'expo-background-task',
+    'expo-mail-composer',
     [
       'expo-image-picker',
       {

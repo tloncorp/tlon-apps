@@ -1,3 +1,4 @@
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import NetInfo from '@react-native-community/netinfo';
 import {
   AppStatus,
@@ -25,6 +26,7 @@ import {
   ForwardPostSheetProvider,
   PortalProvider,
   ZStack,
+  useWebAppSplash,
 } from '@tloncorp/app/ui';
 import {
   observeSyncSinceCompletion,
@@ -43,6 +45,7 @@ import { useDeepLinkListener } from '../hooks/useDeepLinkListener';
 import useNotificationListener from '../hooks/useNotificationListener';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
+import { useSyncReactionCapability } from '../hooks/useSyncReactionCapability';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
 import { refreshHostingAuth } from '../lib/hostingAuth';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
@@ -55,6 +58,7 @@ function AuthenticatedApp() {
   const telemetry = useTelemetry();
   const checkNodeStopped = useCheckNodeStopped();
   const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
+  const { splashSheet: webAppSplashSheet } = useWebAppSplash();
   useNotificationListener();
   useUpdatePresentedNotifications();
   useDeepLinkListener();
@@ -63,6 +67,7 @@ function AuthenticatedApp() {
   useCheckAppUpdated();
   useFindSuggestedContacts();
   useSyncAppBadge();
+  useSyncReactionCapability();
   const checkForCachedChanges = useCachedChanges();
   const { poorUxReportModal } = usePoorUxShakeReport();
 
@@ -148,6 +153,7 @@ function AuthenticatedApp() {
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
       {poorUxReportModal}
       {promptSheet}
+      {webAppSplashSheet}
     </ZStack>
   );
 }
@@ -186,17 +192,21 @@ export default function ConnectedAuthenticatedApp() {
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
-      {/* 
-        This portal provider overrides the root portal provider 
-        to ensure that sheets have access to `AppDataContext`
+      {/*
+        These providers override the root providers to ensure that
+        modal sheets have access to `AppDataContext`. PortalProvider
+        covers Tamagui sheets; BottomSheetModalProvider covers
+        @gorhom/bottom-sheet modal sheets.
       */}
-      <PortalProvider>
-        <ForwardPostSheetProvider>
-          <ShareIntentForwardSheetProvider enabled={clientReady}>
-            {clientReady && <AuthenticatedApp />}
-          </ShareIntentForwardSheetProvider>
-        </ForwardPostSheetProvider>
-      </PortalProvider>
+      <BottomSheetModalProvider>
+        <PortalProvider>
+          <ForwardPostSheetProvider>
+            <ShareIntentForwardSheetProvider enabled={clientReady}>
+              {clientReady && <AuthenticatedApp />}
+            </ShareIntentForwardSheetProvider>
+          </ForwardPostSheetProvider>
+        </PortalProvider>
+      </BottomSheetModalProvider>
     </AppDataProvider>
   );
 }

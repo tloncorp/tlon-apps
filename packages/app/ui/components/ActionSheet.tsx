@@ -148,6 +148,8 @@ const ActionSheetComponent = ({
   dialogContentProps,
   closeButton,
   footerComponent,
+  unmountOnClose,
+  stackBehavior,
   ...props
 }: PropsWithChildren<
   ActionSheetProps &
@@ -157,6 +159,8 @@ const ActionSheetComponent = ({
       | 'enableContentPanningGesture'
       | 'hasScrollableContent'
       | 'keyboardBehavior'
+      | 'unmountOnClose'
+      | 'stackBehavior'
     >
 >) => {
   const mode = useAdaptiveMode(forcedMode);
@@ -212,15 +216,16 @@ const ActionSheetComponent = ({
           return;
         }
 
+        const childProps = child.props as any;
         // Check if it has renderScrollComponent prop (FlatList/FlashList pattern)
-        if (child.props?.renderScrollComponent) {
+        if (childProps?.renderScrollComponent) {
           hasScrollable = true;
           return;
         }
 
         // Recursively check children with depth limit
-        if (child.props?.children && !hasScrollable) {
-          Children.forEach(child.props.children, (c) =>
+        if (childProps?.children && !hasScrollable) {
+          Children.forEach(childProps.children, (c) =>
             checkChild(c, depth + 1)
           );
         }
@@ -256,6 +261,8 @@ const ActionSheetComponent = ({
       >
         <Popover.Trigger>{trigger}</Popover.Trigger>
         <Popover.Content
+          elevate
+          zIndex={1000000}
           padding={1}
           borderColor="$border"
           borderWidth={1}
@@ -319,11 +326,7 @@ const ActionSheetComponent = ({
                 </Dialog.Close>
               </XStack>
             )}
-            <ScrollView
-              flex={1}
-              showsVerticalScrollIndicator={true}
-              contentContainerStyle={{ flexGrow: 1 }}
-            >
+            <ScrollView flex={1} showsVerticalScrollIndicator={true}>
               <ActionSheetContext.Provider value={actionSheetContextValue}>
                 {children}
               </ActionSheetContext.Provider>
@@ -331,18 +334,6 @@ const ActionSheetComponent = ({
             {footerComponent && footerComponent({})}
           </Dialog.Content>
         </Dialog.Portal>
-
-        {/* Should not be necessary, but just in case */}
-        <Dialog.Adapt when="sm">
-          <Dialog.Sheet>
-            <Dialog.Sheet.Overlay />
-            <Dialog.Sheet.Frame>
-              <Dialog.Sheet.ScrollView>
-                <Dialog.Adapt.Contents />
-              </Dialog.Sheet.ScrollView>
-            </Dialog.Sheet.Frame>
-          </Dialog.Sheet>
-        </Dialog.Adapt>
       </Dialog>
     );
   }
@@ -355,7 +346,7 @@ const ActionSheetComponent = ({
       open={open}
       onOpenChange={onOpenChange}
       dismissOnSnapToBottom={true}
-      animation="quick"
+      transition="quick"
       handleDisableScroll={true}
       modal={props.modal}
       snapPoints={props.snapPoints}
@@ -367,6 +358,8 @@ const ActionSheetComponent = ({
       keyboardBehavior={props.keyboardBehavior}
       footerComponent={footerComponent}
       hasScrollableContent={hasScrollableContent}
+      unmountOnClose={unmountOnClose}
+      stackBehavior={stackBehavior}
       frameStyle={{}}
     >
       <ActionSheetContext.Provider value={actionSheetContextValue}>
@@ -385,12 +378,12 @@ const ActionSheetComponent = ({
       onOpenChange={onOpenChange}
       dismissOnSnapToBottom
       snapPointsMode="fit"
-      animation="quick"
+      transition="quick"
       handleDisableScroll
       {...props}
       modal={props.modal}
     >
-      <Sheet.Overlay animation="quick" />
+      <Sheet.Overlay transition="quick" />
       <Sheet.Frame pressStyle={{}}>
         <Sheet.Handle />
         <ActionSheetContext.Provider value={actionSheetContextValue}>
@@ -821,17 +814,19 @@ export const SimpleActionSheet = ({
   icon,
   actions,
   accent,
+  modal,
 }: {
   title?: string;
   subtitle?: string;
   icon?: ReactElement;
   actions: Action[];
   accent?: Accent;
+  modal?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) => {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal={modal}>
       {title || subtitle ? (
         <SimpleActionSheetHeader
           title={title}
