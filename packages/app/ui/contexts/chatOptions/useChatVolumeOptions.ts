@@ -20,6 +20,7 @@ export function useChatVolumeOptions() {
   const { data: currentGroupVolume } = store.useGroupVolumeLevel(
     group?.id ?? ''
   );
+  const baseVolume = store.useBaseVolumeLevel();
   const rawLevel = channel?.id ? currentChannelVolume : currentGroupVolume;
 
   const options = useNotificationLevelOptions({
@@ -28,9 +29,12 @@ export function useChatVolumeOptions() {
     context: getNotificationLevelContext(channel),
   });
 
-  // A stored level not offered by this menu (e.g. a legacy/inherited 'soft' on
-  // a DM) would otherwise leave no row checked.
-  const currentLevel = normalizeLevelToOptions(rawLevel, options);
+  // 'default' means "inherit from base" (e.g. after unmuting), so resolve it to
+  // the effective base level before matching. A remaining level not offered by
+  // this menu (e.g. a legacy/inherited 'soft' on a DM) would otherwise leave no
+  // row checked.
+  const effectiveLevel = rawLevel === 'default' ? baseVolume : rawLevel;
+  const currentLevel = normalizeLevelToOptions(effectiveLevel, options);
 
   return { currentLevel, options, updateVolume };
 }

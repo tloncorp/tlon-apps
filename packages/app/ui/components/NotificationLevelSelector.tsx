@@ -134,17 +134,26 @@ export function useNotificationLevelOptions(
   );
 }
 
-// A stored level may not appear in the current menu — e.g. a DM that inherited
-// a base 'soft'/'loud' level or carries a legacy 'soft'/'loud' override, while
-// the DM menu only offers all-or-nothing. Map such a level to a displayed
-// option so the menu always shows a checked row: a notifying level collapses
-// to the most permissive offered option, 'hush' (muted) is always available.
-// Purely presentational — the stored value only changes when the user taps.
+// An explicit stored level may not appear in the current menu — e.g. a DM that
+// carries a legacy 'soft'/'loud' override, while the DM menu only offers
+// all-or-nothing. Map such a level to a displayed option so the menu always
+// shows a checked row: a notifying level collapses to the most permissive
+// offered option, 'hush' (muted) is always available. Purely presentational —
+// the stored value only changes when the user taps.
+//
+// 'default' is the "inherit from parent/base" sentinel, not an explicit level,
+// so it is left unnormalized rather than collapsed (which would misrepresent
+// an inherited setting as a stronger explicit override). Callers should
+// resolve 'default' to the effective inherited level before normalizing.
 export function normalizeLevelToOptions(
   level: ub.NotificationLevel | null | undefined,
   options: RadioInputOption<ub.NotificationLevel>[]
 ): ub.NotificationLevel | null | undefined {
-  if (!level || options.some((option) => option.value === level)) {
+  if (
+    !level ||
+    level === 'default' ||
+    options.some((option) => option.value === level)
+  ) {
     return level;
   }
   const fallback = options.find((option) => option.value !== 'hush');
