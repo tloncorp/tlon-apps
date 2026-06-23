@@ -8,7 +8,8 @@
 ::
 ::
 /-  activity-ver
-/+  default-agent, dbug, verb, neg=negotiate
+/+  default-agent, dbug, verb, neg=negotiate,
+    guard
 /+  *contacts, kol
 ::
 ::  performance, keep warm
@@ -25,7 +26,8 @@
 ::    .sag: foreign subscription state
 ::
 +|  %types
-+$  card  card:agent:gall
++$  card  card:guard
++$  rail  rail:guard
 +$  state-4
   $:  %4
       rof=profile
@@ -50,6 +52,7 @@
         cor   ~(. raw bowl)
     ::
     ++  on-init
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:init:cor
       [cards this]
@@ -58,18 +61,21 @@
     ::
     ++  on-load
       |=  old=vase
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(load:cor old)
       [cards this]
     ::
     ++  on-watch
       |=  =path
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(peer:cor path)
       [cards this]
     ::
     ++  on-poke
       |=  [=mark =vase]
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(poke:cor mark vase)
       [cards this]
@@ -79,12 +85,15 @@
     ::
     ++  on-agent
       |=  [=wire =sign:agent:gall]
+      %-  step:un:guard
       ^-  (quip card _this)
       =^  cards  state  abet:(agent:cor wire sign)
       [cards this]
     ::
     ++  on-arvo
       |=  [=wire sign=sign-arvo]
+      %-  step:un:guard
+      ^-  (quip card _this)
       =^  cards  state  abet:(arvo:cor wire sign)
       [cards this]
     ::
@@ -108,8 +117,8 @@
   ++  cor   .
   ++  emit  |=(c=card cor(out [c out]))
   ++  emil  |=(c=(list card) cor(out (weld (flop c) out)))
-  ++  give  |=(=gift:agent:gall (emit %give gift))
-  ++  pass  |=([=wire =note:agent:gall] (emit %pass wire note))
+  ++  give  |=(=gift:guard (emit %give gift))
+  ++  pass  |=([=wire =note:guard] (emit %pass wire note))
   ::
   +|  %operations
   ::
@@ -117,8 +126,8 @@
     |=  [who=ship field=(pair @tas value)]
     ~>  %spin.['pass-activity']
     ^-  card
-    =/  =cage  activity-action+!>(`action:v8:activity-ver`[%add %contact who field])
-    [%pass /activity %agent [our.bowl %activity] %poke cage]
+    =/  =rail  activity-action+`action:v8:activity-ver`[%add %contact who field]
+    [%pass /activity %agent [our.bowl %activity] %poke rail]
   ::
   ::  +pub: publication management
   ::
@@ -161,8 +170,8 @@
         ++  fact
           |=  [pat=(set path) u=update]
           ~>  %spin.['fact']
-          ^-  gift:agent:gall
-          [%fact ~(tap in pat) %contact-update-1 !>(u)]
+          ^-  gift:guard
+          [%fact ~(tap in pat) contact-update-1+u]
         --
     ::
     |%
@@ -282,13 +291,13 @@
     ++  p-news-0
       |=  n=news-0:c0
       ~>  %spin.['p-news-0']
-      (give %fact ~[/news] %contact-news !>(n))
+      (give %fact ~[/news] contact-news+n)
     ::  +p-response: publish response
     ::
     ++  p-response
       |=  r=response
       ~>  %spin.['p-response']
-      (give %fact ~[/v1/news] %contact-response-0 !>(r))
+      (give %fact ~[/v1/news] contact-response-0+r)
     --
   ::
   ::  +sub: subscription mgmt
@@ -516,7 +525,7 @@
   ::
   ++  init
     =.  wen.rof  now.bowl
-    (emit %pass /migrate %agent [our dap]:bowl %poke noun+!>(%migrate))
+    (emit %pass /migrate %agent [our dap]:bowl %poke unsafe+noun+!>(%migrate))
   ::
   ++  load
     |=  old-vase=vase
@@ -753,7 +762,8 @@
   ++  peek
     |=  pat=(pole knot)
     ~>  %spin.['peek']
-    ^-  (unit (unit cage))
+    %-  peek:un:guard
+    ^-  (unit (unit rail))
     ?+    pat  [~ ~]
       ::
         [%x %all ~]
@@ -769,7 +779,7 @@
       =/  lor-0=rolodex:c0
         ?:  ?=(~ con.rof)  rol-0
         (~(put by rol-0) our.bowl (profile:to-0 rof) ~)
-      ``contact-rolodex+!>(lor-0)
+      ``contact-rolodex+lor-0
       ::
         [%x %contact her=@ ~]
       ?~  who=(slaw %p her.pat)
@@ -781,37 +791,37 @@
         ?:  |(?=(~ far) ?=(~ for.u.far))  ~
         (contact:to-0 con.for.u.far)
       ?~  tac  [~ ~]
-      ``contact+!>(`contact-0:c0`tac)
+      ``contact+`contact-0:c0`tac
       ::
         [%x %v1 %self ~]
-      ``contact-1+!>(`contact`con.rof)
+      ``contact-1+`contact`con.rof
       ::
         [%x %v1 %book ~]
-      ``contact-book-0+!>(book)
+      ``contact-book-0+book
       ::
         [%u %v1 %book her=@p ~]
       ?~  who=(slaw %p her.pat)
         [~ ~]
-      ``loob+!>((~(has by book) u.who))
+      ``loob+(~(has by book) u.who)
       ::
         [%x %v1 %book her=@p ~]
       ?~  who=(slaw %p her.pat)
         [~ ~]
       =/  page=(unit page)
         (~(get by book) u.who)
-      ``contact-page-0+!>(`^page`(fall page *^page))
+      ``contact-page-0+`^page`(fall page *^page)
       ::
         [%u %v1 %book %id =cid ~]
       ?~  id=(slaw %uv cid.pat)
         [~ ~]
-      ``loob+!>((~(has by book) id+u.id))
+      ``loob+(~(has by book) id+u.id)
       ::
         [%x %v1 %book %id =cid ~]
       ?~  id=(slaw %uv cid.pat)
         [~ ~]
       =/  page=(unit page)
         (~(get by book) id+u.id)
-      ``contact-page-0+!>(`^page`(fall page *^page))
+      ``contact-page-0+`^page`(fall page *^page)
       ::
         [%x %v1 %directory ~]
       =|  dir=directory
@@ -834,13 +844,13 @@
         ?~  for.far  dir
         ?:  (~(has by dir) who)  dir
         (~(put by dir) who [| con.for.far ~])
-      ``contact-directory-0+!>(dir)
+      ``contact-directory-0+dir
       ::
         [%x %v1 %changes since=@ ~]
       =+  since=(slav %da since.pat)
       :^  ~  ~
         %contact-changed-contacts
-      !>  ^-  (map ship profile)
+      ^-  (map ship profile)
       %-  ~(rep by peers)
       |=  [[who=ship foreign] out=(map ship profile)]
       ?~  for                  out
@@ -851,7 +861,7 @@
       =+  since=(slav %da since.pat)
       :^  ~  ~
         %contact-changed-pages
-      !>  %-  ~(gas by *(map kip [(unit contact) (unit contact)]))
+      %-  ~(gas by *(map kip [(unit contact) (unit contact)]))
       %+  turn  (~(top ol last-updated) since)
       |=  [=kip @da]
       ^-  [_kip con=(unit contact) mod=(unit contact)]
@@ -866,8 +876,8 @@
       ?~  who=(slaw %p her.pat)
         [~ ~]
       ?:  (~(has by book) u.who)
-        ``loob+!>(&)
-      =-  ``loob+!>(-)
+        ``loob+&
+      =-  ``loob+-
       ?~  far=(~(get by peers) u.who)
         |
       ?~  for.u.far
@@ -878,24 +888,24 @@
       ?~  who=(slaw %p her.pat)
         [~ ~]
       ?^  page=(~(get by book) u.who)
-        ``contact-1+!>((contact-uni u.page))
+        ``contact-1+(contact-uni u.page)
       ?~  far=(~(get by peers) u.who)
         [~ ~]
       ?~  for.u.far
         [~ ~]
-      ``contact-1+!>(con.for.u.far)
+      ``contact-1+con.for.u.far
       ::
         [%u %v1 %peer her=@p ~]
       ?~  who=(slaw %p her.pat)
         [~ ~]
-      ``loob+!>((~(has by peers) u.who))
+      ``loob+(~(has by peers) u.who)
       ::
         [%x %v1 %peer her=@p ~]
       ?~  who=(slaw %p her.pat)
         [~ ~]
       ?~  far=(~(get by peers) u.who)
         [~ ~]
-      ``contact-foreign-0+!>(`foreign`u.far)
+      ``[%unsafe %contact-foreign-0 !>(`foreign`u.far)]
     ==
   ::
   ++  peer
@@ -912,7 +922,7 @@
       [%v1 %contact %at wen=@ ~]  (p-init:pub `(slav %da wen.pat))
       [%v1 %news ~]  ~|(local-news+src.bowl ?>(=(our src):bowl cor))
       ::
-      [%epic ~]  (give %fact ~ epic+!>(okay))
+      [%epic ~]  (give %fact ~ epic+okay)
     ==
   ::
   ++  agent
