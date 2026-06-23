@@ -7,7 +7,7 @@
 ::  the "stock" distribution, the generated file will fail to built on
 ::  other ships. CI *should* catch this, but remain mindful.
 ::
-::  specifies a $rail type, a "typed $cage" containing all the desk\'s marks
+::  specifies a $rail type, a "typed $cage" containing all the desk's marks
 ::  and a +de-rail helper for turning that back into a $cage.
 ::
 /%  activity-action             %activity-action
