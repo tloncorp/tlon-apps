@@ -19,10 +19,12 @@ import { ChatVolumeScreen } from '../../features/top/ChatVolumeScreen';
 import { HomeEmptyState } from '../../features/top/DesktopEmptyStates';
 import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScreen';
 import MediaViewerScreen from '../../features/top/MediaViewerScreen';
+import { NotesDetailScreen } from '../../features/top/NotesDetailScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
+import { NotebookSidebarProvider } from '../../ui/contexts/notebookSidebar';
 import { HomeDrawerParamList } from '../types';
 import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';
@@ -37,32 +39,34 @@ export const HomeNavigator = () => {
 
   useEffect(() => {
     setLastOpenTab('Home');
-  }, []);
+  }, [setLastOpenTab]);
 
   return (
-    <HomeDrawer.Navigator
-      drawerContent={(props) => <DrawerContent {...props} />}
-      initialRouteName="ChatList"
-      screenOptions={() => {
-        return {
-          drawerType: 'permanent',
-          headerShown: false,
-          drawerStyle: {
-            width: DESKTOP_SIDEBAR_WIDTH,
-            backgroundColor,
-            borderRightColor: borderColor,
-          },
-        };
-      }}
-    >
-      <HomeDrawer.Screen name="ChatList" component={MainStack} />
-      <HomeDrawer.Screen name="GroupChannels" component={Empty} />
-      <HomeDrawer.Screen name="Channel" component={ChannelStack} />
-      <HomeDrawer.Screen name="DM" component={ChannelStack} />
-      <HomeDrawer.Screen name="GroupDM" component={ChannelStack} />
-      <HomeDrawer.Screen name="ChatVolume" component={ChatVolumeScreen} />
-      <HomeDrawer.Screen name="ChatDetails" component={ChatDetailsScreen} />
-    </HomeDrawer.Navigator>
+    <NotebookSidebarProvider>
+      <HomeDrawer.Navigator
+        drawerContent={(props) => <DrawerContent {...props} />}
+        initialRouteName="ChatList"
+        screenOptions={() => {
+          return {
+            drawerType: 'permanent',
+            headerShown: false,
+            drawerStyle: {
+              width: DESKTOP_SIDEBAR_WIDTH,
+              backgroundColor,
+              borderRightColor: borderColor,
+            },
+          };
+        }}
+      >
+        <HomeDrawer.Screen name="ChatList" component={MainStack} />
+        <HomeDrawer.Screen name="GroupChannels" component={Empty} />
+        <HomeDrawer.Screen name="Channel" component={ChannelStack} />
+        <HomeDrawer.Screen name="DM" component={ChannelStack} />
+        <HomeDrawer.Screen name="GroupDM" component={ChannelStack} />
+        <HomeDrawer.Screen name="ChatVolume" component={ChatVolumeScreen} />
+        <HomeDrawer.Screen name="ChatDetails" component={ChatDetailsScreen} />
+      </HomeDrawer.Navigator>
+    </NotebookSidebarProvider>
   );
 };
 
@@ -197,6 +201,11 @@ function ChannelStack(
         <ChannelStackNavigator.Screen
           name="Post"
           component={PostScreen}
+          initialParams={props.route.params}
+        />
+        <ChannelStackNavigator.Screen
+          name="NotesDetail"
+          component={NotesDetailScreen}
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen
