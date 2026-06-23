@@ -28,9 +28,7 @@ export const toLensRun = (entry: ub.LensRunEntry): LensRun => {
   };
 };
 
-export const getRecentLensRuns = async (
-  count?: number
-): Promise<LensRun[]> => {
+export const getRecentLensRuns = async (count?: number): Promise<LensRun[]> => {
   const path =
     count && count > 0 ? `/v1/lens/recent/${count}` : '/v1/lens/recent';
   const response = await scry<ub.LensRecentScry>({ app: 'steward', path });

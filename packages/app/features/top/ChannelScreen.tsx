@@ -399,13 +399,6 @@ export default function ChannelScreen(props: Props) {
     [navigationRef]
   );
 
-  const channelRef = useRef<React.ElementRef<typeof Channel>>(null);
-  const handleConfigureChannel = useCallback(() => {
-    if (channelRef.current) {
-      channelRef.current.openChannelConfigurationBar();
-    }
-  }, [channelRef]);
-
   const initialChat = useMemo(
     () =>
       ({
@@ -424,14 +417,12 @@ export default function ChannelScreen(props: Props) {
     <ChatOptionsProvider
       initialChat={initialChat}
       useGroup={store.useGroup}
-      onPressConfigureChannel={handleConfigureChannel}
       {...chatOptionsNavProps}
       onPressInvite={handlePressInvite}
     >
       <AttachmentProvider canUpload={canUpload} uploadAsset={store.uploadAsset}>
         <Channel
           key={currentChannelId}
-          ref={channelRef}
           channel={channel}
           initialChannelUnread={
             clearedCursor ? undefined : initialChannelUnread

@@ -186,14 +186,15 @@ export function ChatMessageActions({
     }
     case 'immediate': {
       return (
-        <Animated.View style={animatedStyles}>
+        <Animated.View style={animatedStyles} pointerEvents="box-none">
           <View
             width={width}
             height={height}
             onLayout={handleLayout}
             paddingHorizontal="$xl"
+            pointerEvents="box-none"
           >
-            <YStack gap="$xs">
+            <YStack gap="$xs" pointerEvents="box-none">
               {canWrite && (
                 <EmojiToolbar
                   post={post}

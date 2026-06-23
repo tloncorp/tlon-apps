@@ -167,6 +167,17 @@ export interface UploadFileParams {
   blob: Blob;
   fileName?: string;
   contentType?: string;
+  /**
+   * How to decide whether this node can use Tlon's hosted (memex) upload
+   * flow.
+   *
+   * - `node-url` (default): the original heuristic — the client URL must
+   *   look like a Tlon-hosted domain. Preserves existing behavior exactly.
+   * - `assume-hosted`: force the hosted (memex) upload path regardless of the
+   *   node URL. For connections that reach their node over localhost/proxy,
+   *   where the URL heuristic wrongly reads the node as self-hosted.
+   */
+  hostedDetection?: 'node-url' | 'assume-hosted';
 }
 
 export interface UploadResult {
@@ -197,7 +208,10 @@ export async function uploadFile(
     size: params.blob.size,
   });
 
-  const isHosted = getCurrentUserIsHosted();
+  // The assume-hosted override (TLON_HOSTING at the CLI layer) forces the
+  // hosted path; otherwise fall back to the original URL-based detection.
+  const isHosted =
+    params.hostedDetection === 'assume-hosted' || getCurrentUserIsHosted();
   const useMemex =
     isHosted &&
     (config.service === 'presigned-url' || !hasCustomS3Creds(credentials));
