@@ -405,14 +405,25 @@ export function NotesNoteDetail({
     }
   }, [openMoveDialog, selectedNote]);
 
-  const openPublishedNote = useCallback(() => {
-    if (!notebookFlag || !selectedNote || Platform.OS !== 'web') return;
-    const url = new URL(
+  const publishedUrl = useMemo(() => {
+    if (
+      !notebookFlag ||
+      !selectedNote ||
+      Platform.OS !== 'web' ||
+      typeof window === 'undefined'
+    ) {
+      return null;
+    }
+    return new URL(
       publishedNotePath(notebookFlag, selectedNote.noteId),
       window.location.origin
     ).toString();
-    window.open(url, '_blank', 'noopener,noreferrer');
   }, [notebookFlag, selectedNote]);
+
+  const openPublishedNote = useCallback(() => {
+    if (!publishedUrl) return;
+    window.open(publishedUrl, '_blank', 'noopener,noreferrer');
+  }, [publishedUrl]);
 
   const handlePublishSelectedNote = useCallback(async () => {
     if (!notebookFlag || !selectedNote || !canEdit || isPublishing) return;
@@ -488,6 +499,7 @@ export function NotesNoteDetail({
           isPublishing={isPublishing}
           isUnpublishing={isUnpublishing}
           canViewPublished={Platform.OS === 'web'}
+          publishedUrl={publishedUrl}
           onDelete={handleDeleteSelectedNote}
           onMove={handleOpenMoveSheet}
           onPublish={handlePublishSelectedNote}
@@ -506,6 +518,7 @@ export function NotesNoteDetail({
       isPublishing,
       isUnpublishing,
       openPublishedNote,
+      publishedUrl,
       selectedNote,
       selectedNoteIsPublished,
     ])
@@ -537,6 +550,7 @@ export function NotesNoteDetail({
         isPublishing={isPublishing}
         isUnpublishing={isUnpublishing}
         canViewPublished={Platform.OS === 'web'}
+        publishedUrl={publishedUrl}
         onDelete={handleDeleteSelectedNote}
         onMove={handleOpenMoveSheet}
         onPublish={handlePublishSelectedNote}
@@ -690,6 +704,7 @@ function NotesDetailHeaderActions({
   onPublish,
   onUnpublish,
   onViewPublished,
+  publishedUrl,
 }: {
   canViewPublished: boolean;
   isMoving: boolean;
@@ -701,6 +716,7 @@ function NotesDetailHeaderActions({
   onPublish: () => void;
   onUnpublish: () => void;
   onViewPublished: () => void;
+  publishedUrl: string | null;
 }) {
   const groups = useMemo(
     () =>
@@ -716,6 +732,7 @@ function NotesDetailHeaderActions({
           },
           {
             title: isPublished ? 'Update published note' : 'Publish to web',
+            description: isPublished ? (publishedUrl ?? undefined) : undefined,
             startIcon: 'EyeOpen',
             action: onPublish,
             disabled: isPublishing,
@@ -758,6 +775,7 @@ function NotesDetailHeaderActions({
       onPublish,
       onUnpublish,
       onViewPublished,
+      publishedUrl,
     ]
   );
 
