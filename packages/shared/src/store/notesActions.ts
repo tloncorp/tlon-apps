@@ -7,6 +7,7 @@ import * as db from '../db';
 import type { WrappedQuery } from '../db/query';
 import { createDevLogger } from '../debug';
 import {
+  collectDescendantFolderIds,
   publishedNotePath,
   renderPublishedNoteHtml,
   withRetry,
@@ -238,8 +239,7 @@ export async function listPublishedNotesForNotebook(notebookFlag: string) {
   const { parsed } = requireNotesNotebookFlag(notebookFlag);
   const published = await api.listPublishedNotes();
   return published.filter(
-    (record) =>
-      record.host === parsed.host && record.flagName === parsed.name
+    (record) => record.host === parsed.host && record.flagName === parsed.name
   );
 }
 
@@ -528,7 +528,9 @@ export async function deleteNotebookFolder({
   folder: db.NotesFolder;
 }) {
   const folders = await db.getNotesFolders({ notebookFlag });
-  const folderIds = collectDescendantFolderIds(folders, folder.folderId);
+  const folderIds = Array.from(
+    collectDescendantFolderIds(folders, folder.folderId)
+  );
 
   await api.deleteNotesFolder({
     flag: notebookFlag,
@@ -549,28 +551,6 @@ export async function markNotesNotebookOpened(notebookFlag: string) {
     notebookFlag,
     openedAt: Date.now(),
   });
-}
-
-function collectDescendantFolderIds(
-  folders: db.NotesFolder[],
-  folderId: number
-) {
-  const ids = new Set([folderId]);
-  let added = true;
-  while (added) {
-    added = false;
-    folders.forEach((folder) => {
-      if (
-        folder.parentFolderId != null &&
-        ids.has(folder.parentFolderId) &&
-        !ids.has(folder.folderId)
-      ) {
-        ids.add(folder.folderId);
-        added = true;
-      }
-    });
-  }
-  return Array.from(ids);
 }
 
 async function notesNotebookIsJoined(flag: api.NotesFlag) {

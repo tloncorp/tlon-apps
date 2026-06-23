@@ -2,12 +2,14 @@ import { makePrettyShortDate } from '@tloncorp/api/lib/utils';
 import * as db from '@tloncorp/shared/db';
 import {
   PlaintextPreviewConfig,
+  collectDescendantFolderIds,
   convertContent,
   markdownToStory,
   plaintextPreviewOf,
 } from '@tloncorp/shared/logic';
 
 export type NotesTreeViewStyle = db.NotesTreeViewPreference;
+export { collectDescendantFolderIds };
 export type FolderRow = { folder: db.NotesFolder; depth: number; path: string };
 export type NotesTreeRow =
   | {
@@ -381,32 +383,6 @@ export function getNoteBodyPreview(bodyMd: string) {
   } catch {
     return compactPreviewText(bodyMd);
   }
-}
-
-export function collectDescendantFolderIds(
-  folders: db.NotesFolder[],
-  folderId: number
-) {
-  const ids = new Set([folderId]);
-  let added = true;
-  while (added) {
-    added = false;
-    folders.forEach((folder) => {
-      const folderId = folder.folderId;
-      const parentFolderId = folder.parentFolderId;
-      if (
-        folderId !== undefined &&
-        parentFolderId !== null &&
-        parentFolderId !== undefined &&
-        ids.has(parentFolderId) &&
-        !ids.has(folderId)
-      ) {
-        ids.add(folderId);
-        added = true;
-      }
-    });
-  }
-  return ids;
 }
 
 function compactPreviewText(text: string) {

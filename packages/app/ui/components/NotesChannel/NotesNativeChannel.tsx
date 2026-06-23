@@ -33,7 +33,11 @@ import {
   MoveFolderSheet,
   RenameFolderDialog,
 } from './NotesDialogs';
-import { NotesHeaderActions } from './NotesHeaderActions';
+import {
+  NotesHeaderActions,
+  createNotesNewFolderAction,
+  createNotesNewNoteAction,
+} from './NotesHeaderActions';
 import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import {
@@ -889,28 +893,22 @@ export function NotesNativeChannel({
 
   const newActions = useMemo<Action[]>(
     () => [
-      {
-        title: 'New note',
-        description: 'Create a note in the selected folder.',
-        startIcon: 'ChannelNote',
+      createNotesNewNoteAction({
         action: () => {
           setNewActionSheetOpen(false);
           void handleCreateNote();
         },
         disabled: isCreatingNote,
         testID: 'NotesNewNoteAction',
-      },
-      {
-        title: 'New folder',
-        description: 'Create a folder under the selected folder.',
-        startIcon: 'Folder',
+      }),
+      createNotesNewFolderAction({
         action: () => {
           setNewActionSheetOpen(false);
           handleOpenCreateFolder();
         },
         disabled: isCreatingFolder,
         testID: 'NotesNewFolderAction',
-      },
+      }),
     ],
     [handleCreateNote, handleOpenCreateFolder, isCreatingFolder, isCreatingNote]
   );

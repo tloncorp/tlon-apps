@@ -2,6 +2,7 @@ import type { IconType } from '@tloncorp/ui';
 import { Fragment, useMemo } from 'react';
 
 import { createActionGroups } from '../ActionSheet';
+import type { Action } from '../ActionSheet';
 import { ScreenHeader } from '../ScreenHeader';
 import { NotesOverflowMenu } from './NotesCommon';
 import type { NotesTreeViewStyle } from './notesTree';
@@ -25,6 +26,38 @@ const NOTES_TREE_VIEW_OPTIONS: {
     icon: 'Folder',
   },
 ];
+
+type NotesCreateActionOptions = Pick<Action, 'action' | 'disabled' | 'testID'>;
+
+export function createNotesNewNoteAction({
+  action,
+  disabled,
+  testID,
+}: NotesCreateActionOptions): Action {
+  return {
+    title: 'New note',
+    description: 'Create a note in the selected folder.',
+    startIcon: 'ChannelNote',
+    action,
+    disabled,
+    testID,
+  };
+}
+
+export function createNotesNewFolderAction({
+  action,
+  disabled,
+  testID,
+}: NotesCreateActionOptions): Action {
+  return {
+    title: 'New folder',
+    description: 'Create a folder under the selected folder.',
+    startIcon: 'Folder',
+    action,
+    disabled,
+    testID,
+  };
+}
 
 export function NotesHeaderActions({
   canEdit,
@@ -60,22 +93,16 @@ export function NotesHeaderActions({
       createActionGroups(
         canEdit && [
           'neutral',
-          {
-            title: 'New note',
-            description: 'Create a note in the selected folder.',
-            startIcon: 'ChannelNote',
+          createNotesNewNoteAction({
             action: () => void onCreateNote(),
             disabled: isCreatingNote,
             testID: 'NotesRootNewNoteAction',
-          },
-          {
-            title: 'New folder',
-            description: 'Create a folder under the selected folder.',
-            startIcon: 'Folder',
+          }),
+          createNotesNewFolderAction({
             action: onCreateFolder,
             disabled: isCreatingFolder,
             testID: 'NotesRootNewFolderAction',
-          },
+          }),
         ],
         (canImportFiles || canImportFolder) && [
           'neutral',

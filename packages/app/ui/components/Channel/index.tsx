@@ -23,14 +23,7 @@ import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import { useIsWindowNarrow } from '@tloncorp/ui';
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 import {
   AnimatePresence,
@@ -308,603 +301,593 @@ interface ChannelProps {
   onPressScrollToBottom?: () => void;
 }
 
-export const Channel = forwardRef<unknown, ChannelProps>(
-  function Channel(
-    {
-      channel,
-      initialChannelUnread,
-      posts,
-      selectedPostId,
-      group,
-      groupIsLoading,
-      // groupError, // Not currently used but available if needed for error handling
-      goBack,
-      goToChatDetails,
-      goToSearch,
-      goToMediaViewer,
-      goToPost,
-      goToDm,
-      goToUserProfile,
-      goToGroupSettings,
-      onScrollEndReached,
-      onScrollStartReached,
-      isLoadingPosts,
-      loadPostsError,
-      markRead,
-      onPressRef,
-      usePost,
-      useGroup,
-      usePostReference,
-      onGroupAction,
-      useChannel,
-      storeDraft,
-      clearDraft,
-      getDraft,
-      editingPost,
-      setEditingPost,
-      onPressRetryLoad,
-      onPressRetrySend,
-      onPressDelete,
-      negotiationMatch,
-      hasNewerPosts,
-      hasOlderPosts,
-      startDraft,
-      onPressScrollToBottom,
-    },
-    _ref
-  ) {
-    const [inputShouldBlur, setInputShouldBlur] = useState(false);
-    const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
-    const [showHeaderLoading, setShowHeaderLoading] = useState(false);
-    const headerLoadingShownAtRef = useRef<number | null>(null);
-    const headerLoadingShowTimeoutRef = useRef<ReturnType<
-      typeof setTimeout
-    > | null>(null);
-    const headerLoadingHideTimeoutRef = useRef<ReturnType<
-      typeof setTimeout
-    > | null>(null);
-    const title = utils.useChannelTitle(channel);
-    const chatTitle = utils.useChatTitle(channel, group);
-    const channelDisplayTitle = chatTitle ?? title;
-    const groups = useMemo(() => (group ? [group] : null), [group]);
-    const currentUserId = useCurrentUserId();
-    const canWrite = utils.useCanWrite(channel, currentUserId);
-    const canRead = utils.useCanRead(channel, currentUserId);
-    const collectionRef = useRef<PostCollectionHandle>(null);
+export function Channel({
+  channel,
+  initialChannelUnread,
+  posts,
+  selectedPostId,
+  group,
+  groupIsLoading,
+  // groupError, // Not currently used but available if needed for error handling
+  goBack,
+  goToChatDetails,
+  goToSearch,
+  goToMediaViewer,
+  goToPost,
+  goToDm,
+  goToUserProfile,
+  goToGroupSettings,
+  onScrollEndReached,
+  onScrollStartReached,
+  isLoadingPosts,
+  loadPostsError,
+  markRead,
+  onPressRef,
+  usePost,
+  useGroup,
+  usePostReference,
+  onGroupAction,
+  useChannel,
+  storeDraft,
+  clearDraft,
+  getDraft,
+  editingPost,
+  setEditingPost,
+  onPressRetryLoad,
+  onPressRetrySend,
+  onPressDelete,
+  negotiationMatch,
+  hasNewerPosts,
+  hasOlderPosts,
+  startDraft,
+  onPressScrollToBottom,
+}: ChannelProps) {
+  const [inputShouldBlur, setInputShouldBlur] = useState(false);
+  const [groupPreview, setGroupPreview] = useState<db.Group | null>(null);
+  const [showHeaderLoading, setShowHeaderLoading] = useState(false);
+  const headerLoadingShownAtRef = useRef<number | null>(null);
+  const headerLoadingShowTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const headerLoadingHideTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const title = utils.useChannelTitle(channel);
+  const chatTitle = utils.useChatTitle(channel, group);
+  const channelDisplayTitle = chatTitle ?? title;
+  const groups = useMemo(() => (group ? [group] : null), [group]);
+  const currentUserId = useCurrentUserId();
+  const canWrite = utils.useCanWrite(channel, currentUserId);
+  const canRead = utils.useCanRead(channel, currentUserId);
+  const collectionRef = useRef<PostCollectionHandle>(null);
 
-    const isChatChannel = channel ? getIsChatChannel(channel) : true;
-    const isDM = isDmChannelId(channel.id);
-    const isGroupDm = isGroupDmChannelId(channel.id);
-    const isNotebookOrGallery =
-      channel.type === 'notebook' || channel.type === 'gallery';
-    const pinnedPostId = logic.getPinnedPostId(channel);
-    // For DMs, get the other participant's ID
-    const dmRecipientId = useMemo(() => {
-      if (isDM && channel.members) {
-        const otherMember = channel.members.find(
-          (member) => member.contactId !== currentUserId
-        );
-        return otherMember?.contactId;
-      }
-      return undefined;
-    }, [isDM, channel.members, currentUserId]);
-
-    const handleGoToProfile = useCallback(() => {
-      if (dmRecipientId) {
-        goToUserProfile(dmRecipientId);
-      }
-    }, [dmRecipientId, goToUserProfile]);
-
-    const onPressGroupRef = useCallback((group: db.Group) => {
-      setGroupPreview(group);
-    }, []);
-
-    const handleGroupAction = useCallback(
-      (action: GroupPreviewAction, group: db.Group) => {
-        onGroupAction(action, group);
-        setGroupPreview(null);
-      },
-      [onGroupAction]
-    );
-
-    const { attachAssets } = useAttachmentContext();
-
-    const inView = useIsFocused();
-    const isUserActive = useIsUserActive();
-    const hasLoaded = !!(posts && channel);
-    const shouldCheckThreadUnreadActivity =
-      channel?.type === 'dm' ||
-      channel?.type === 'groupDm' ||
-      (channel?.unread?.notify === true &&
-        channel.unread.count === 0 &&
-        channel.unread.countWithoutThreads === 0);
-    const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
-      useLiveThreadUnreadsByChannel(
-        shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
+  const isChatChannel = channel ? getIsChatChannel(channel) : true;
+  const isDM = isDmChannelId(channel.id);
+  const isGroupDm = isGroupDmChannelId(channel.id);
+  const isNotebookOrGallery =
+    channel.type === 'notebook' || channel.type === 'gallery';
+  const pinnedPostId = logic.getPinnedPostId(channel);
+  // For DMs, get the other participant's ID
+  const dmRecipientId = useMemo(() => {
+    if (isDM && channel.members) {
+      const otherMember = channel.members.find(
+        (member) => member.contactId !== currentUserId
       );
-    const hasChildThreadUnreadActivity =
-      shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
-    const childThreadUnreadActivityKnown =
-      !shouldCheckThreadUnreadActivity || threadUnreadActivityFetched;
-    const hasUnreadActivity = hasMainChannelUnreadActivity({
-      unread: channel?.unread,
-      childThreadUnreadActivityKnown,
-      hasChildThreadUnreadActivity,
-    });
-    const shouldShowPostLoading =
-      channel.type !== 'notes' && Boolean(isLoadingPosts);
+      return otherMember?.contactId;
+    }
+    return undefined;
+  }, [isDM, channel.members, currentUserId]);
 
-    useEffect(() => {
-      const clearShowTimeout = () => {
-        if (headerLoadingShowTimeoutRef.current) {
-          clearTimeout(headerLoadingShowTimeoutRef.current);
-          headerLoadingShowTimeoutRef.current = null;
-        }
-      };
-      const clearHideTimeout = () => {
-        if (headerLoadingHideTimeoutRef.current) {
-          clearTimeout(headerLoadingHideTimeoutRef.current);
-          headerLoadingHideTimeoutRef.current = null;
-        }
-      };
+  const handleGoToProfile = useCallback(() => {
+    if (dmRecipientId) {
+      goToUserProfile(dmRecipientId);
+    }
+  }, [dmRecipientId, goToUserProfile]);
 
-      if (shouldShowPostLoading) {
-        clearHideTimeout();
-        if (showHeaderLoading || headerLoadingShowTimeoutRef.current) {
-          return;
-        }
+  const onPressGroupRef = useCallback((group: db.Group) => {
+    setGroupPreview(group);
+  }, []);
 
-        headerLoadingShowTimeoutRef.current = setTimeout(() => {
-          headerLoadingShownAtRef.current = Date.now();
-          setShowHeaderLoading(true);
-          headerLoadingShowTimeoutRef.current = null;
-        }, HEADER_LOADING_SHOW_DELAY_MS);
-        return;
+  const handleGroupAction = useCallback(
+    (action: GroupPreviewAction, group: db.Group) => {
+      onGroupAction(action, group);
+      setGroupPreview(null);
+    },
+    [onGroupAction]
+  );
+
+  const { attachAssets } = useAttachmentContext();
+
+  const inView = useIsFocused();
+  const isUserActive = useIsUserActive();
+  const hasLoaded = !!(posts && channel);
+  const shouldCheckThreadUnreadActivity =
+    channel?.type === 'dm' ||
+    channel?.type === 'groupDm' ||
+    (channel?.unread?.notify === true &&
+      channel.unread.count === 0 &&
+      channel.unread.countWithoutThreads === 0);
+  const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
+    useLiveThreadUnreadsByChannel(
+      shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
+    );
+  const hasChildThreadUnreadActivity =
+    shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
+  const childThreadUnreadActivityKnown =
+    !shouldCheckThreadUnreadActivity || threadUnreadActivityFetched;
+  const hasUnreadActivity = hasMainChannelUnreadActivity({
+    unread: channel?.unread,
+    childThreadUnreadActivityKnown,
+    hasChildThreadUnreadActivity,
+  });
+  const shouldShowPostLoading =
+    channel.type !== 'notes' && Boolean(isLoadingPosts);
+
+  useEffect(() => {
+    const clearShowTimeout = () => {
+      if (headerLoadingShowTimeoutRef.current) {
+        clearTimeout(headerLoadingShowTimeoutRef.current);
+        headerLoadingShowTimeoutRef.current = null;
       }
-
-      clearShowTimeout();
-      clearHideTimeout();
-
-      if (!showHeaderLoading) {
-        headerLoadingShownAtRef.current = null;
-        return;
-      }
-
-      const elapsed = headerLoadingShownAtRef.current
-        ? Date.now() - headerLoadingShownAtRef.current
-        : 0;
-      const hideDelay = Math.max(HEADER_LOADING_MIN_VISIBLE_MS - elapsed, 0);
-
-      headerLoadingHideTimeoutRef.current = setTimeout(() => {
-        headerLoadingShownAtRef.current = null;
-        setShowHeaderLoading(false);
+    };
+    const clearHideTimeout = () => {
+      if (headerLoadingHideTimeoutRef.current) {
+        clearTimeout(headerLoadingHideTimeoutRef.current);
         headerLoadingHideTimeoutRef.current = null;
-      }, hideDelay);
-    }, [shouldShowPostLoading, showHeaderLoading]);
-
-    useEffect(() => {
-      return () => {
-        if (headerLoadingShowTimeoutRef.current) {
-          clearTimeout(headerLoadingShowTimeoutRef.current);
-        }
-        if (headerLoadingHideTimeoutRef.current) {
-          clearTimeout(headerLoadingHideTimeoutRef.current);
-        }
-      };
-    }, []);
-
-    useEffect(() => {
-      // Only mark as read when user is actively using the app (not idle)
-      // This prevents auto-marking on desktop when user is AFK
-      if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
-        // add slight delay to allow high priority tasks to hit the sync queue first
-        setTimeout(() => {
-          markRead();
-        }, 150);
       }
-    }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
+    };
 
-    const handleRefPress = useCallback(
-      (refChannel: db.Channel, post: db.Post) => {
-        const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
+    if (shouldShowPostLoading) {
+      clearHideTimeout();
+      if (showHeaderLoading || headerLoadingShowTimeoutRef.current) {
+        return;
+      }
 
-        if (
-          refChannel.id === channel.id &&
-          anchorIndex !== -1 &&
-          collectionRef.current
-        ) {
-          // If the post is already loaded, scroll to it and highlight
-          collectionRef.current?.scrollToPostAtIndex?.(anchorIndex, 0.5);
-          collectionRef.current?.highlightPost?.(post.id);
-          return;
-        }
+      headerLoadingShowTimeoutRef.current = setTimeout(() => {
+        headerLoadingShownAtRef.current = Date.now();
+        setShowHeaderLoading(true);
+        headerLoadingShowTimeoutRef.current = null;
+      }, HEADER_LOADING_SHOW_DELAY_MS);
+      return;
+    }
 
-        onPressRef(refChannel, post);
-      },
-      [onPressRef, posts, channel]
-    );
+    clearShowTimeout();
+    clearHideTimeout();
 
-    const { clearAttachments } = useAttachmentContext();
+    if (!showHeaderLoading) {
+      headerLoadingShownAtRef.current = null;
+      return;
+    }
 
-    const handleImageDrop = useCallback(
-      async (uploadIntents: Attachment.UploadIntent[]) => {
-        if (channel.type !== 'gallery') {
-          attachAssets(uploadIntents);
-          return;
-        }
+    const elapsed = headerLoadingShownAtRef.current
+      ? Date.now() - headerLoadingShownAtRef.current
+      : 0;
+    const hideDelay = Math.max(HEADER_LOADING_MIN_VISIBLE_MS - elapsed, 0);
 
-        try {
-          // Start uploads for gallery channels (uploads are started automatically
-          // via useEffect in AttachmentContext for non-gallery channels)
-          // Gallery posts can't have more than one attachment. Send each dropped attachment separately.
-          for (const uploadIntent of uploadIntents) {
-            await uploadAsset(uploadIntent, true);
-            const draft: domain.PostDataDraft = {
-              channelId: channel.id,
-              content: [],
-              attachments: [Attachment.fromUploadIntent(uploadIntent)],
-              channelType: channel.type,
-              replyToPostId: null,
-              isEdit: false,
-            };
-            await finalizeAndSendPost(draft);
-          }
-        } catch (error) {
-          console.error('Error handling image drop:', error);
-        } finally {
-          clearAttachments();
-          for (const intent of uploadIntents) {
-            if (
-              intent.type === 'image' &&
-              intent.asset.uri.startsWith('blob:')
-            ) {
-              URL.revokeObjectURL(intent.asset.uri);
-            }
-          }
-        }
-      },
-      [channel, attachAssets, clearAttachments]
-    );
+    headerLoadingHideTimeoutRef.current = setTimeout(() => {
+      headerLoadingShownAtRef.current = null;
+      setShowHeaderLoading(false);
+      headerLoadingHideTimeoutRef.current = null;
+    }, hideDelay);
+  }, [shouldShowPostLoading, showHeaderLoading]);
 
-    /** when `null`, input is not shown or presentation is unknown */
-    const [draftInputPresentationMode, setDraftInputPresentationMode] =
-      useState<null | 'fullscreen' | 'inline'>(null);
+  useEffect(() => {
+    return () => {
+      if (headerLoadingShowTimeoutRef.current) {
+        clearTimeout(headerLoadingShowTimeoutRef.current);
+      }
+      if (headerLoadingHideTimeoutRef.current) {
+        clearTimeout(headerLoadingHideTimeoutRef.current);
+      }
+    };
+  }, []);
 
-    const draftInputRef = useRef<DraftInputHandle>(null);
+  useEffect(() => {
+    // Only mark as read when user is actively using the app (not idle)
+    // This prevents auto-marking on desktop when user is AFK
+    if (hasUnreadActivity && hasLoaded && inView && isUserActive) {
+      // add slight delay to allow high priority tasks to hit the sync queue first
+      setTimeout(() => {
+        markRead();
+      }, 150);
+    }
+  }, [hasUnreadActivity, hasLoaded, inView, isUserActive, markRead]);
 
-    const canStartDraft =
-      canRead &&
-      canWrite &&
-      negotiationMatch &&
-      !(channel.groupId && !group && !groupIsLoading) &&
-      !channel.isDmInvite &&
-      !editingPost;
+  const handleRefPress = useCallback(
+    (refChannel: db.Channel, post: db.Post) => {
+      const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
 
-    // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
-    const scrollToNewMessage = useCallback(() => {
-      requestAnimationFrame(() => {
-        collectionRef.current?.scrollToStart?.({ animated: true });
-      });
-    }, []);
-
-    const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
-      draftInputRef.current?.startDraft?.(mode);
-    }, []);
-
-    const draftInputContext = useMemo(
-      (): DraftInputContext => ({
-        canStartDraft,
-        channel,
-        clearDraft,
-        configuration:
-          channel.contentConfiguration == null
-            ? undefined
-            : ChannelContentConfiguration.draftInput(
-                channel.contentConfiguration
-              ).configuration,
-        draftInputRef,
-        editingPost,
-        getDraft,
-        group,
-        onPresentationModeChange: setDraftInputPresentationMode,
-        sendPostFromDraft: async (draft) => {
-          setEditingPost?.(undefined);
-          await finalizeAndSendPost(draft);
-          if (!draft.isEdit) {
-            scrollToNewMessage();
-          }
-        },
-        setEditingPost,
-        setShouldBlur: setInputShouldBlur,
-        shouldBlur: inputShouldBlur,
-        startDraft: handleOpenDraft,
-        storeDraft,
-      }),
-      [
-        canStartDraft,
-        scrollToNewMessage,
-        channel,
-        clearDraft,
-        editingPost,
-        getDraft,
-        group,
-        handleOpenDraft,
-        inputShouldBlur,
-        setEditingPost,
-        storeDraft,
-      ]
-    );
-
-    const handleGoBack = useCallback(() => {
       if (
-        draftInputPresentationMode === 'fullscreen' &&
-        draftInputRef.current != null
+        refChannel.id === channel.id &&
+        anchorIndex !== -1 &&
+        collectionRef.current
       ) {
-        draftInputRef.current.exitFullscreen();
-        setDraftInputPresentationMode('inline');
+        // If the post is already loaded, scroll to it and highlight
+        collectionRef.current?.scrollToPostAtIndex?.(anchorIndex, 0.5);
+        collectionRef.current?.highlightPost?.(post.id);
+        return;
+      }
+
+      onPressRef(refChannel, post);
+    },
+    [onPressRef, posts, channel]
+  );
+
+  const { clearAttachments } = useAttachmentContext();
+
+  const handleImageDrop = useCallback(
+    async (uploadIntents: Attachment.UploadIntent[]) => {
+      if (channel.type !== 'gallery') {
+        attachAssets(uploadIntents);
+        return;
+      }
+
+      try {
+        // Start uploads for gallery channels (uploads are started automatically
+        // via useEffect in AttachmentContext for non-gallery channels)
+        // Gallery posts can't have more than one attachment. Send each dropped attachment separately.
+        for (const uploadIntent of uploadIntents) {
+          await uploadAsset(uploadIntent, true);
+          const draft: domain.PostDataDraft = {
+            channelId: channel.id,
+            content: [],
+            attachments: [Attachment.fromUploadIntent(uploadIntent)],
+            channelType: channel.type,
+            replyToPostId: null,
+            isEdit: false,
+          };
+          await finalizeAndSendPost(draft);
+        }
+      } catch (error) {
+        console.error('Error handling image drop:', error);
+      } finally {
+        clearAttachments();
+        for (const intent of uploadIntents) {
+          if (intent.type === 'image' && intent.asset.uri.startsWith('blob:')) {
+            URL.revokeObjectURL(intent.asset.uri);
+          }
+        }
+      }
+    },
+    [channel, attachAssets, clearAttachments]
+  );
+
+  /** when `null`, input is not shown or presentation is unknown */
+  const [draftInputPresentationMode, setDraftInputPresentationMode] = useState<
+    null | 'fullscreen' | 'inline'
+  >(null);
+
+  const draftInputRef = useRef<DraftInputHandle>(null);
+
+  const canStartDraft =
+    canRead &&
+    canWrite &&
+    negotiationMatch &&
+    !(channel.groupId && !group && !groupIsLoading) &&
+    !channel.isDmInvite &&
+    !editingPost;
+
+  // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
+  const scrollToNewMessage = useCallback(() => {
+    requestAnimationFrame(() => {
+      collectionRef.current?.scrollToStart?.({ animated: true });
+    });
+  }, []);
+
+  const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
+    draftInputRef.current?.startDraft?.(mode);
+  }, []);
+
+  const draftInputContext = useMemo(
+    (): DraftInputContext => ({
+      canStartDraft,
+      channel,
+      clearDraft,
+      configuration:
+        channel.contentConfiguration == null
+          ? undefined
+          : ChannelContentConfiguration.draftInput(channel.contentConfiguration)
+              .configuration,
+      draftInputRef,
+      editingPost,
+      getDraft,
+      group,
+      onPresentationModeChange: setDraftInputPresentationMode,
+      sendPostFromDraft: async (draft) => {
         setEditingPost?.(undefined);
-      } else {
-        goBack();
-      }
-    }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
-
-    useEffect(() => {
-      if (startDraft) {
-        handleOpenDraft();
-      }
-    }, [handleOpenDraft, startDraft]);
-
-    const appendSharedTextToDraft = useCallback(
-      async (text: string, kind: SharedTextDraftKind) => {
-        const draftType =
-          channel.type === 'gallery'
-            ? kind === 'attachment'
-              ? 'caption'
-              : kind
-            : undefined;
-
-        await storeDraft(logic.textAndMentionsToContent(text, []), draftType);
-      },
-      [channel.type, storeDraft]
-    );
-
-    const handleProcessedShareIntent = useCallback(
-      ({
-        draftMode,
-        uploadIntent,
-      }: {
-        draftMode?: 'text' | 'link';
-        uploadIntent: Attachment.UploadIntent | null;
-      }) => {
-        if (!(channel.type === 'gallery' && uploadIntent)) {
-          handleOpenDraft(draftMode);
+        await finalizeAndSendPost(draft);
+        if (!draft.isEdit) {
+          scrollToNewMessage();
         }
       },
-      [channel.type, handleOpenDraft]
-    );
-
-    usePrefillDraftFromShareIntent({
-      channelId: channel.id,
-      disabled: !canWrite || !inView,
-      appendSharedTextToDraft,
-      didProcessShareIntent: handleProcessedShareIntent,
-    });
-
-    const isNarrow = useIsWindowNarrow();
-
-    const backgroundColor = getVariableValue(useTheme().background);
-
-    const channelProviderValue = useMemo(() => ({ channel }), [channel]);
-
-    const includeJoinRequestNotice = useMemo(() => {
-      // we want to avoid duplicating the notice on both the channels list and inline here
-
-      // if group is multi-channel, skip
-      const validGroup = group && (group.channels?.length ?? 0) === 1;
-
-      // skip web since currently all groups show the channel sidebar
-      const validPlatform = Platform.OS !== 'web';
-
-      return validGroup && validPlatform;
-    }, [group]);
-
-    const shouldShowPinnedPostBanner = useMemo(() => {
-      if (!pinnedPostId) return false;
-      if (!isNotebookOrGallery) return true;
-      return editingPost == null && draftInputPresentationMode !== 'fullscreen';
-    }, [
-      pinnedPostId,
-      isNotebookOrGallery,
+      setEditingPost,
+      setShouldBlur: setInputShouldBlur,
+      shouldBlur: inputShouldBlur,
+      startDraft: handleOpenDraft,
+      storeDraft,
+    }),
+    [
+      canStartDraft,
+      scrollToNewMessage,
+      channel,
+      clearDraft,
       editingPost,
-      draftInputPresentationMode,
-    ]);
+      getDraft,
+      group,
+      handleOpenDraft,
+      inputShouldBlur,
+      setEditingPost,
+      storeDraft,
+    ]
+  );
 
-    return (
-      <ScrollContextProvider>
-        <GroupsProvider groups={groups}>
-          <ChannelProvider value={channelProviderValue}>
-            <DraftInputContextProvider value={draftInputContext}>
-              <RequestsProvider
-                usePost={usePost}
-                usePostReference={usePostReference}
-                useChannel={useChannel}
-                useGroup={useGroup}
-                useApp={useApp}
-                // useBlockUser={() => {}}
+  const handleGoBack = useCallback(() => {
+    if (
+      draftInputPresentationMode === 'fullscreen' &&
+      draftInputRef.current != null
+    ) {
+      draftInputRef.current.exitFullscreen();
+      setDraftInputPresentationMode('inline');
+      setEditingPost?.(undefined);
+    } else {
+      goBack();
+    }
+  }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
+
+  useEffect(() => {
+    if (startDraft) {
+      handleOpenDraft();
+    }
+  }, [handleOpenDraft, startDraft]);
+
+  const appendSharedTextToDraft = useCallback(
+    async (text: string, kind: SharedTextDraftKind) => {
+      const draftType =
+        channel.type === 'gallery'
+          ? kind === 'attachment'
+            ? 'caption'
+            : kind
+          : undefined;
+
+      await storeDraft(logic.textAndMentionsToContent(text, []), draftType);
+    },
+    [channel.type, storeDraft]
+  );
+
+  const handleProcessedShareIntent = useCallback(
+    ({
+      draftMode,
+      uploadIntent,
+    }: {
+      draftMode?: 'text' | 'link';
+      uploadIntent: Attachment.UploadIntent | null;
+    }) => {
+      if (!(channel.type === 'gallery' && uploadIntent)) {
+        handleOpenDraft(draftMode);
+      }
+    },
+    [channel.type, handleOpenDraft]
+  );
+
+  usePrefillDraftFromShareIntent({
+    channelId: channel.id,
+    disabled: !canWrite || !inView,
+    appendSharedTextToDraft,
+    didProcessShareIntent: handleProcessedShareIntent,
+  });
+
+  const isNarrow = useIsWindowNarrow();
+
+  const backgroundColor = getVariableValue(useTheme().background);
+
+  const channelProviderValue = useMemo(() => ({ channel }), [channel]);
+
+  const includeJoinRequestNotice = useMemo(() => {
+    // we want to avoid duplicating the notice on both the channels list and inline here
+
+    // if group is multi-channel, skip
+    const validGroup = group && (group.channels?.length ?? 0) === 1;
+
+    // skip web since currently all groups show the channel sidebar
+    const validPlatform = Platform.OS !== 'web';
+
+    return validGroup && validPlatform;
+  }, [group]);
+
+  const shouldShowPinnedPostBanner = useMemo(() => {
+    if (!pinnedPostId) return false;
+    if (!isNotebookOrGallery) return true;
+    return editingPost == null && draftInputPresentationMode !== 'fullscreen';
+  }, [
+    pinnedPostId,
+    isNotebookOrGallery,
+    editingPost,
+    draftInputPresentationMode,
+  ]);
+
+  return (
+    <ScrollContextProvider>
+      <GroupsProvider groups={groups}>
+        <ChannelProvider value={channelProviderValue}>
+          <DraftInputContextProvider value={draftInputContext}>
+            <RequestsProvider
+              usePost={usePost}
+              usePostReference={usePostReference}
+              useChannel={useChannel}
+              useGroup={useGroup}
+              useApp={useApp}
+              // useBlockUser={() => {}}
+            >
+              <NavigationProvider
+                onPressRef={handleRefPress}
+                onPressGroupRef={onPressGroupRef}
+                onPressGoToDm={goToDm}
+                onGoToUserProfile={goToUserProfile}
+                onGoToGroupSettings={goToGroupSettings}
               >
-                <NavigationProvider
-                  onPressRef={handleRefPress}
-                  onPressGroupRef={onPressGroupRef}
-                  onPressGoToDm={goToDm}
-                  onGoToUserProfile={goToUserProfile}
-                  onGoToGroupSettings={goToGroupSettings}
-                >
-                  <View backgroundColor={backgroundColor} flex={1}>
-                    <FileDrop
-                      flexDirection="column"
-                      justifyContent="space-between"
-                      width="100%"
-                      height="100%"
-                      onAssetsDropped={handleImageDrop}
-                    >
-                      <ChannelHeaderItemsProvider>
-                        <>
-                          <ChannelHeader
+                <View backgroundColor={backgroundColor} flex={1}>
+                  <FileDrop
+                    flexDirection="column"
+                    justifyContent="space-between"
+                    width="100%"
+                    height="100%"
+                    onAssetsDropped={handleImageDrop}
+                  >
+                    <ChannelHeaderItemsProvider>
+                      <>
+                        <ChannelHeader
+                          channel={channel}
+                          group={group}
+                          title={title ?? ''}
+                          description={''}
+                          goBack={
+                            isNarrow ||
+                            draftInputPresentationMode === 'fullscreen'
+                              ? handleGoBack
+                              : undefined
+                          }
+                          goToChatDetails={goToChatDetails}
+                          goToProfile={handleGoToProfile}
+                          goToSearch={goToSearch}
+                          hideIdentity={channel.type === 'notes' && !isNarrow}
+                          showSpinner={showHeaderLoading}
+                          showSearchButton={
+                            channel.type === 'chat' ||
+                            channel.type === 'dm' ||
+                            channel.type === 'groupDm'
+                          }
+                        />
+                        {shouldShowPinnedPostBanner && (
+                          <PinnedPostBanner
                             channel={channel}
-                            group={group}
-                            title={title ?? ''}
-                            description={''}
-                            goBack={
-                              isNarrow ||
-                              draftInputPresentationMode === 'fullscreen'
-                                ? handleGoBack
-                                : undefined
-                            }
-                            goToChatDetails={goToChatDetails}
-                            goToProfile={handleGoToProfile}
-                            goToSearch={goToSearch}
-                            hideIdentity={
-                              channel.type === 'notes' && !isNarrow
-                            }
-                            showSpinner={showHeaderLoading}
-                            showSearchButton={
-                              channel.type === 'chat' ||
-                              channel.type === 'dm' ||
-                              channel.type === 'groupDm'
-                            }
+                            onPressPost={goToPost}
                           />
-                          {shouldShowPinnedPostBanner && (
-                            <PinnedPostBanner
-                              channel={channel}
-                              onPressPost={goToPost}
+                        )}
+                        <YStack alignItems="stretch" flex={1}>
+                          {includeJoinRequestNotice && (
+                            <SystemNotices.ConnectedJoinRequestNotice
+                              group={group}
+                              onViewRequests={goToGroupSettings}
                             />
                           )}
-                          <YStack alignItems="stretch" flex={1}>
-                            {includeJoinRequestNotice && (
-                              <SystemNotices.ConnectedJoinRequestNotice
-                                group={group}
-                                onViewRequests={goToGroupSettings}
-                              />
+                          <AnimatePresence>
+                            {draftInputPresentationMode !== 'fullscreen' && (
+                              <View flex={1}>
+                                <PostCollectionContext.Provider
+                                  value={{
+                                    channel,
+                                    channelDisplayTitle,
+                                    collectionConfiguration:
+                                      channel.contentConfiguration == null
+                                        ? undefined
+                                        : ChannelContentConfiguration.defaultPostCollectionRenderer(
+                                            channel.contentConfiguration
+                                          ).configuration,
+                                    editingPost,
+                                    goToMediaViewer,
+                                    goToPost,
+                                    hasNewerPosts,
+                                    hasOlderPosts,
+                                    initialChannelUnread,
+                                    isLoadingPosts: shouldShowPostLoading,
+                                    loadPostsError,
+                                    onPressDelete,
+                                    onPressRetrySend,
+                                    onPressRetryLoad,
+                                    onScrollEndReached,
+                                    onScrollStartReached,
+                                    posts: posts ?? undefined,
+                                    scrollToBottom: onPressScrollToBottom,
+                                    selectedPostId,
+                                    setEditingPost,
+                                    LegacyPostView: PostView,
+                                    PostView: ConnectedPostView,
+                                  }}
+                                >
+                                  <PostCollectionView
+                                    collectionRef={collectionRef}
+                                    channel={channel}
+                                  />
+                                </PostCollectionContext.Provider>
+                              </View>
                             )}
-                            <AnimatePresence>
-                              {draftInputPresentationMode !== 'fullscreen' && (
-                                <View flex={1}>
-                                  <PostCollectionContext.Provider
-                                    value={{
-                                      channel,
-                                      channelDisplayTitle,
-                                      collectionConfiguration:
-                                        channel.contentConfiguration == null
-                                          ? undefined
-                                          : ChannelContentConfiguration.defaultPostCollectionRenderer(
-                                              channel.contentConfiguration
-                                            ).configuration,
-                                      editingPost,
-                                      goToMediaViewer,
-                                      goToPost,
-                                      hasNewerPosts,
-                                      hasOlderPosts,
-                                      initialChannelUnread,
-                                      isLoadingPosts: shouldShowPostLoading,
-                                      loadPostsError,
-                                      onPressDelete,
-                                      onPressRetrySend,
-                                      onPressRetryLoad,
-                                      onScrollEndReached,
-                                      onScrollStartReached,
-                                      posts: posts ?? undefined,
-                                      scrollToBottom: onPressScrollToBottom,
-                                      selectedPostId,
-                                      setEditingPost,
-                                      LegacyPostView: PostView,
-                                      PostView: ConnectedPostView,
-                                    }}
-                                  >
-                                    <PostCollectionView
-                                      collectionRef={collectionRef}
-                                      channel={channel}
-                                    />
-                                  </PostCollectionContext.Provider>
-                                </View>
+                          </AnimatePresence>
+
+                          {!canRead ||
+                          !canWrite ||
+                          !negotiationMatch ||
+                          (channel.groupId && !group && !groupIsLoading) ? (
+                            <ReadOnlyNotice
+                              type={
+                                channel.groupId && !group && !groupIsLoading
+                                  ? 'group-deleted'
+                                  : !canRead
+                                    ? 'no-longer-read'
+                                    : !canWrite
+                                      ? 'read-only'
+                                      : isDM
+                                        ? 'dm-mismatch'
+                                        : isGroupDm
+                                          ? 'group-dm-mismatch'
+                                          : 'channel-mismatch'
+                              }
+                            />
+                          ) : channel.contentConfiguration == null ? (
+                            <>
+                              {isChatChannel && !channel.isDmInvite && (
+                                <DraftInputView
+                                  draftInputContext={draftInputContext}
+                                  type={DraftInputId.chat}
+                                />
                               )}
-                            </AnimatePresence>
 
-                            {!canRead ||
-                            !canWrite ||
-                            !negotiationMatch ||
-                            (channel.groupId && !group && !groupIsLoading) ? (
-                              <ReadOnlyNotice
-                                type={
-                                  channel.groupId && !group && !groupIsLoading
-                                    ? 'group-deleted'
-                                    : !canRead
-                                      ? 'no-longer-read'
-                                      : !canWrite
-                                        ? 'read-only'
-                                        : isDM
-                                          ? 'dm-mismatch'
-                                          : isGroupDm
-                                            ? 'group-dm-mismatch'
-                                            : 'channel-mismatch'
-                                }
-                              />
-                            ) : channel.contentConfiguration == null ? (
-                              <>
-                                {isChatChannel && !channel.isDmInvite && (
-                                  <DraftInputView
-                                    draftInputContext={draftInputContext}
-                                    type={DraftInputId.chat}
-                                  />
-                                )}
+                              {channel.type === 'gallery' && (
+                                <DraftInputView
+                                  draftInputContext={draftInputContext}
+                                  type={DraftInputId.gallery}
+                                />
+                              )}
 
-                                {channel.type === 'gallery' && (
-                                  <DraftInputView
-                                    draftInputContext={draftInputContext}
-                                    type={DraftInputId.gallery}
-                                  />
-                                )}
+                              {channel.type === 'notebook' && (
+                                <DraftInputView
+                                  draftInputContext={draftInputContext}
+                                  type={DraftInputId.notebook}
+                                />
+                              )}
+                            </>
+                          ) : (
+                            <DraftInputView
+                              draftInputContext={draftInputContext}
+                              type={
+                                ChannelContentConfiguration.draftInput(
+                                  channel.contentConfiguration
+                                ).id
+                              }
+                            />
+                          )}
 
-                                {channel.type === 'notebook' && (
-                                  <DraftInputView
-                                    draftInputContext={draftInputContext}
-                                    type={DraftInputId.notebook}
-                                  />
-                                )}
-                              </>
-                            ) : (
-                              <DraftInputView
-                                draftInputContext={draftInputContext}
-                                type={
-                                  ChannelContentConfiguration.draftInput(
-                                    channel.contentConfiguration
-                                  ).id
-                                }
-                              />
-                            )}
-
-                            {channel.isDmInvite && (
-                              <DmInviteOptions
-                                channel={channel}
-                                goBack={goBack}
-                              />
-                            )}
-                          </YStack>
-                          <GroupPreviewSheet
-                            group={groupPreview ?? undefined}
-                            open={!!groupPreview}
-                            onOpenChange={() => setGroupPreview(null)}
-                            onActionComplete={handleGroupAction}
-                          />
-                        </>
-                      </ChannelHeaderItemsProvider>
-                    </FileDrop>
-                  </View>
-                </NavigationProvider>
-              </RequestsProvider>
-            </DraftInputContextProvider>
-          </ChannelProvider>
-        </GroupsProvider>
-      </ScrollContextProvider>
-    );
-  }
-);
+                          {channel.isDmInvite && (
+                            <DmInviteOptions
+                              channel={channel}
+                              goBack={goBack}
+                            />
+                          )}
+                        </YStack>
+                        <GroupPreviewSheet
+                          group={groupPreview ?? undefined}
+                          open={!!groupPreview}
+                          onOpenChange={() => setGroupPreview(null)}
+                          onActionComplete={handleGroupAction}
+                        />
+                      </>
+                    </ChannelHeaderItemsProvider>
+                  </FileDrop>
+                </View>
+              </NavigationProvider>
+            </RequestsProvider>
+          </DraftInputContextProvider>
+        </ChannelProvider>
+      </GroupsProvider>
+    </ScrollContextProvider>
+  );
+}
