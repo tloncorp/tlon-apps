@@ -2,9 +2,10 @@
 ::
 ::    %gateway-status is now a thin proxy that forwards actions to %steward.
 ::    these tests verify the translation layer: each gateway-status action
-::    must emit the correct %steward-action-1 poke(s).
+::    must emit the correct per-module %steward poke(s).
 ::
 /-  gs=gateway-status, s=steward, a=activity
+/-  g=steward-gateway
 /+  *test-agent
 /=  agent  /app/gateway-status
 |%
@@ -37,7 +38,7 @@
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.1)))
   (pure:m ~)
 ::
-::  configure forwards TWO steward pokes: top-level owner + gateway timing
+::  configure forwards TWO pokes: %steward-action-1 owner + gateway timing
 ::
 ++  test-configure-forwards-two-steward-pokes
   %-  eval-mare
@@ -56,12 +57,10 @@
       %-  ex-poke
       :*  /steward/proxy
           [~dev %steward]
-          %steward-action-1
-          !>(`action:v1:s`[%gateway %configure ~m5 ~m5])
+          %steward-gateway-action-1
+          !>(`action:v1:g`[%configure ~m5 ~m5])
       ==
   ==
-::
-::  gateway-start forwards a single wrapped steward poke
 ::
 ++  test-gateway-start-forwards-steward-poke
   %-  eval-mare
@@ -75,12 +74,10 @@
   :~  %-  ex-poke
       :*  /steward/proxy
           [~dev %steward]
-          %steward-action-1
-          !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lut])
+          %steward-gateway-action-1
+          !>(`action:v1:g`[%gateway-start 'boot-1' lut])
       ==
   ==
-::
-::  gateway-heartbeat forwards a single wrapped steward poke
 ::
 ++  test-gateway-heartbeat-forwards-steward-poke
   %-  eval-mare
@@ -94,12 +91,10 @@
   :~  %-  ex-poke
       :*  /steward/proxy
           [~dev %steward]
-          %steward-action-1
-          !>(`action:v1:s`[%gateway %gateway-heartbeat 'boot-1' lut])
+          %steward-gateway-action-1
+          !>(`action:v1:g`[%gateway-heartbeat 'boot-1' lut])
       ==
   ==
-::
-::  gateway-stop forwards a single wrapped steward poke
 ::
 ++  test-gateway-stop-forwards-steward-poke
   %-  eval-mare
@@ -112,8 +107,8 @@
   :~  %-  ex-poke
       :*  /steward/proxy
           [~dev %steward]
-          %steward-action-1
-          !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'shutdown'])
+          %steward-gateway-action-1
+          !>(`action:v1:g`[%gateway-stop 'boot-1' 'shutdown'])
       ==
   ==
 ::
@@ -155,14 +150,14 @@
       %-  ex-poke
       :*  /steward/proxy
           [~dev %steward]
-          %steward-action-1
-          !>(`action:v1:s`[%gateway %configure ~m5 ~m3])
+          %steward-gateway-action-1
+          !>(`action:v1:g`[%configure ~m5 ~m3])
       ==
       %-  ex-poke
       :*  /steward/proxy
           [~dev %steward]
-          %steward-action-1
-          !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lut])
+          %steward-gateway-action-1
+          !>(`action:v1:g`[%gateway-start 'boot-1' lut])
       ==
   ==
 ::  with no live gateway (boot-id ~) only owner + timing are seeded — no
@@ -187,8 +182,8 @@
       %-  ex-poke
       :*  /steward/proxy
           [~dev %steward]
-          %steward-action-1
-          !>(`action:v1:s`[%gateway %configure ~m5 ~m3])
+          %steward-gateway-action-1
+          !>(`action:v1:g`[%configure ~m5 ~m3])
       ==
   ==
 --

@@ -1,6 +1,8 @@
 ::  tests for %steward agent (lens module + gateway module)
 ::
 /-  s=steward, a=activity, av=activity-ver
+/-  l=steward-lens
+/-  g=steward-gateway
 /+  *test-agent
 /=  agent  /app/steward
 |%
@@ -8,15 +10,18 @@
 +$  state-0
   $:  %0
       owner=(unit ship)
-      lens=state:lens:s
-      gateway=state:gateway:s
+      lens=state:v1:l
+      gateway=state:v1:g
   ==
-++  payload  ^-  @t  '{"schemaVersion":1,"summary":"run-record"}'
+::  lens run payloads are opaque $json; a simple value suffices for tests
+::
+++  payload   ^-  json  s+'run-record'
+++  payload2  ^-  json  s+'partial'
 ::
 ::  our ship in tests is ~dev (a galaxy; set via +setup below).  a moon's
 ::  sponsor is its low 32 bits, so any ship >= 2^32 whose low 32 bits equal
 ::  ~dev is a moon ~dev sponsors.  (add ~dev (bex 32)) is the simplest such
-::  moon and passes the ownership gate ((end 5 moon) == ~dev).
+::  moon and passes the ownership gate ((sein ...) == ~dev via the mock).
 ::
 ++  moon  ^-  ship  (add ~dev (bex 32))
 ::
@@ -25,7 +30,7 @@
   ^-  (unit vase)
   ?+  path  ~
     [%gu @ %activity @ %$ ~]  `!>(&)
-  ::  mock jael +sein for the %steward-action-1 ownership gate. a moon's
+  ::  mock jael +sein for the %steward-lens-action-1 ownership gate. a moon's
   ::  sponsor is its low 32 bits; a galaxy (e.g. ~zod) sponsors itself —
   ::  both reproduced by (end 5 who) for the ships these tests use.
   ::
@@ -55,7 +60,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %configure ~m5 ~m5]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%configure ~m5 ~m5]))
   (pure:m ~)
 ::
 ++  make-dm-fact
@@ -83,10 +88,10 @@
   =/  st  !<(state-0 !<(vase q.res))
   (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
-::  a completely foreign ship (not ourselves, not our moon) must crash
-::  the ownership gate on %steward-action-1
+::  a completely foreign ship (not ourselves) must crash the local-only
+::  %steward-action-1 (configure) gate
 ::
-++  test-action-from-foreign-ship-crashes
+++  test-configure-from-foreign-ship-crashes
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -95,8 +100,8 @@
   %-  (do-as ~zod)
   (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~zod]))
 ::
-::  %configure is local-only: a sponsored moon passes the ownership gate
-::  (it may submit %lens runs) but must not be able to repoint the owner.
+::  %configure is local-only: a sponsored moon may submit lens runs but
+::  must not be able to repoint the owner
 ::
 ++  test-configure-from-moon-crashes
   %-  eval-mare
@@ -107,33 +112,41 @@
   %-  (do-as moon)
   (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
 ::
-::  a moon we sponsor must be accepted by the ownership gate
+::  a lens run from a completely foreign ship (not our moon) crashes the
+::  ownership gate on %steward-lens-action-1
 ::
-::  we use ~sampel-dev as the moon (sein of ~sampel-dev is ~dev).
-::  the moon pokes [%lens id payload final] — it should be stored keyed
-::  by src.bowl (the moon itself).
+++  test-lens-from-foreign-ship-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-x' payload &]))
 ::
-++  test-action-from-sponsored-moon-accepted
+::  a moon we sponsor is accepted; its run is stored keyed by src (the moon)
+::
+++  test-lens-from-sponsored-moon-accepted
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-moon' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-moon' payload &]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-fact
         :*  ~[/v1/lens]
-            %steward-update-1
-            !>(`update:v1:s`[%lens moon 'lens-moon' [& ~2024.1.1 payload]])
+            %steward-lens-update-1
+            !>(`update:v1:l`[moon 'lens-moon' [& ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-moon)
-  =+  !<(=update:v1:s q.res)
-  (ex-equal !>(update) !>(`update:v1:s`[%lens moon 'lens-moon' [& ~2024.1.1 payload]]))
+  =+  !<(=update:v1:l q.res)
+  (ex-equal !>(update) !>(`update:v1:l`[moon 'lens-moon' [& ~2024.1.1 payload]]))
 ::
-::  fan-out to a non-self owner emits a %steward-action-1 poke on /lens/fanout/...
+::  fan-out to a non-self owner emits a %steward-lens-action-1 poke
 ::
 ++  test-run-final-fans-out-to-owner
   %-  eval-mare
@@ -142,13 +155,13 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
   ;<  caz=(list card)  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-1' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-1' payload &]))
   %+  ex-cards  caz
   :~  %-  ex-poke
       :*  /lens/fanout/(scot %p ~bus)/(scot %t 'lens-1')
           [~bus %steward]
-          %steward-action-1
-          !>(`action:v1:s`[%lens 'lens-1' payload &])
+          %steward-lens-action-1
+          !>(`action:v1:l`['lens-1' payload &])
       ==
   ==
 ::
@@ -161,18 +174,18 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~dev)
   ;<  caz=(list card)  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-1' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-1' payload &]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-fact
         :*  ~[/v1/lens]
-            %steward-update-1
-            !>(`update:v1:s`[%lens ~dev 'lens-1' [& ~2024.1.1 payload]])
+            %steward-lens-update-1
+            !>(`update:v1:l`[~dev 'lens-1' [& ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p ~dev)/lens-1)
-  =+  !<(=update:v1:s q.res)
-  (ex-equal !>(update) !>(`update:v1:s`[%lens ~dev 'lens-1' [& ~2024.1.1 payload]]))
+  =+  !<(=update:v1:l q.res)
+  (ex-equal !>(update) !>(`update:v1:l`[~dev 'lens-1' [& ~2024.1.1 payload]]))
 ::
 ::  a poke from a sponsored moon is stored keyed by src.bowl (the moon)
 ::
@@ -183,18 +196,18 @@
   ;<  ~  bind:m  setup
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-2' payload |]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-2' payload |]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-fact
         :*  ~[/v1/lens]
-            %steward-update-1
-            !>(`update:v1:s`[%lens moon 'lens-2' [| ~2024.1.1 payload]])
+            %steward-lens-update-1
+            !>(`update:v1:l`[moon 'lens-2' [| ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-2)
-  =+  !<(=update:v1:s q.res)
-  (ex-equal !>(update) !>(`update:v1:s`[%lens moon 'lens-2' [| ~2024.1.1 payload]]))
+  =+  !<(=update:v1:l q.res)
+  (ex-equal !>(update) !>(`update:v1:l`[moon 'lens-2' [| ~2024.1.1 payload]]))
 ::
 ::  final=& marks the run complete
 ::
@@ -205,14 +218,13 @@
   ;<  ~  bind:m  setup
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-3' payload |]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-3' payload |]))
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-3' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-3' payload &]))
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-3)
-  =+  !<(=update:v1:s q.res)
-  ?>  ?=(%lens -.update)
-  (ex-equal !>(complete.run.update.update) !>(&))
+  =+  !<(=update:v1:l q.res)
+  (ex-equal !>(complete.run.update) !>(&))
 ::
 ::  a late partial (final=|) arriving after a final (final=&) is dropped
 ::
@@ -223,16 +235,15 @@
   ;<  ~  bind:m  setup
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-4' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-4' payload &]))
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'lens-4' '{"partial":true}' |]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-4' payload2 |]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-4)
-  =+  !<(=update:v1:s q.res)
-  ?>  ?=(%lens -.update)
-  (ex-equal !>(run.update.update) !>(`run:lens:s`[& ~2024.1.1 payload]))
+  =+  !<(=update:v1:l q.res)
+  (ex-equal !>(run.update) !>(`run:v1:l`[& ~2024.1.1 payload]))
 ::
 ::  runs older than max-run-age (90d) are pruned on the next store
 ::
@@ -243,13 +254,13 @@
   ;<  ~  bind:m  setup
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'old-run' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['old-run' payload &]))
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'new-run' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['new-run' payload &]))
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/recent)
-  =+  !<(entries=(list update:lens:s) q.res)
+  =+  !<(entries=(list update:v1:l) q.res)
   ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(1))
   ?>  ?=(^ entries)
   (ex-equal !>(id.i.entries) !>('new-run'))
@@ -277,7 +288,7 @@
   ;<  ~  bind:m  setup
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'old-run' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['old-run' payload &]))
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
   ;<  caz=(list card)  bind:m  (do-arvo /lens/prune [%behn %wake ~])
   ;<  ~  bind:m
@@ -298,13 +309,14 @@
   ;<  ~  bind:m  setup
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-action-1 !>(`action:v1:s`[%lens 'old-run' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`['old-run' payload &]))
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/recent)
-  =+  !<(entries=(list update:lens:s) q.res)
+  =+  !<(entries=(list update:v1:l) q.res)
   ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(0))
   ;<  run=(unit (unit cage))  bind:m  (get-peek /x/v1/lens/run/(scot %p moon)/old-run)
   (ex-equal !>(?=([~ ~] run)) !>(&))
+::
 ++  test-watch-rejects-foreign-ship
   %-  eval-mare
   =/  m  (mare ,~)
@@ -335,9 +347,8 @@
 ::  GATEWAY MODULE TESTS
 ::  ==========================================================
 ::
-::  After setup+configure+ga-configure the gateway has an owner
-::  (owner set) and timing configured. lifecycle pokes use the
-::  steward-action-1 mark with [%gateway ...] payload.
+::  after setup+configure+ga-configure the gateway has an owner and timing.
+::  lifecycle pokes use %steward-gateway-action-1.
 ::
 ++  setup-gateway
   =/  m  (mare ,~)
@@ -363,7 +374,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  ga-configure
-  (ex-fail (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' (add ~2024.1.1 ~m2)])))
+  (ex-fail (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' (add ~2024.1.1 ~m2)])))
 ::
 ++  test-gw-start-sets-status-up
   %-  eval-mare
@@ -372,7 +383,7 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~s90)
   ;<  caz=(list card)  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-arvo /gateway/lease-check %b %wait lease-time)
@@ -390,12 +401,12 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~s90)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   =/  new-lease  (add ~2024.1.1 ~m5)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-heartbeat 'boot-1' new-lease]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
@@ -409,9 +420,9 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~m2)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'test']))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
@@ -424,9 +435,9 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~m2)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-old' 'stale']))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-old' 'stale']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
@@ -440,12 +451,12 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~m2)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'shutdown']))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'shutdown']))
   =/  new-lease  (add ~2024.1.1 ~m5)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-heartbeat 'boot-1' new-lease]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
@@ -459,7 +470,7 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~s90)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
@@ -487,7 +498,7 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~m2)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  caz=(list card)  bind:m  (do-agent (make-dm-fact ~bus ~2024.1.1))
   %+  ex-cards  caz
   :~  (ex-fact-paths ~[/v1/gateway])
@@ -555,15 +566,15 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~m2)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'test']))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-2' lease-time-2]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
@@ -576,9 +587,9 @@
   ;<  ~  bind:m  setup-gateway
   =/  lease-time  (add ~2024.1.1 ~m2)
   ;<  *  bind:m
-    (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-1' lease-time]))
+    (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-1' lease-time]))
   ;<  res=cage  bind:m  (got-peek /x/v1/gateway/status)
-  =+  !<([=status:gateway:s lut=(unit @da)] q.res)
+  =+  !<([=status:v1:g lut=(unit @da)] q.res)
   ;<  ~  bind:m  (ex-equal !>(status) !>(%up))
   (ex-equal !>(lut) !>(`lease-time))
 --

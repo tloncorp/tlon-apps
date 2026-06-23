@@ -6,15 +6,21 @@
 ::    the bot itself runs steward as well as the bot's owner, so that things
 ::    like lens data can be scried locally by the owner.
 ::
+::    modules keep their own sur (sur/steward/{lens,gateway}.hoon) and marks
+::    (%steward-{lens,gateway}-{action,update}-1); %steward-action-1 carries
+::    only cross-cutting config (the shared owner).
+::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
+/-  l=steward-lens
+/-  g=steward-gateway
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
 +$  state-0
   $:  %0
       owner=(unit ship)
-      lens=state:lens:s
-      gateway=state:gateway:s
+      lens=state:v1:l
+      gateway=state:v1:g
   ==
 ::
 --
@@ -79,29 +85,36 @@
 ++  emit  |=(=card cor(cards [card cards]))
 ++  give  |=(=gift:agent:gall (emit %give gift))
 ::
-::  %steward-action-1 is accepted from ourselves, or from a ship we
-::  sponsor (jael is the authority, via +sein:title). a bot is typically
-::  a moon of the owner planet, so the owner accepts lens runs from itself
-::  and from its own moons; sponsorship rejects comets and unrelated ships.
-::
-::  %configure and %gateway sub-actions additionally require src==our: only
-::  the local gateway sets the owner / drives liveness. %lens is the one
-::  action a sponsored moon may submit (its runs, stored keyed by src).
-::
 ++  poke
   |=  [=mark =vase]
   ^+  cor
   ?+  mark  ~|(bad-poke-mark+mark !!)
+  ::
+  ::  steward-core config: local only.
+  ::
       %steward-action-1
+    ?>  =(src.bowl our.bowl)
+    =+  !<(=action:v1:s vase)
+    ?-  -.action
+      %configure  cor(owner.state `owner.action)
+    ==
+  ::
+  ::  lens runs: accepted from ourselves, or from a ship we sponsor (jael is
+  ::  the authority, via +sein:title). a bot is typically a moon of the owner
+  ::  planet, so the owner accepts runs from itself and its own moons;
+  ::  sponsorship rejects comets and unrelated ships. owner-role stores keyed
+  ::  by src.
+  ::
+      %steward-lens-action-1
     ?>  ?|  =(src.bowl our.bowl)
             =(our.bowl (sein:title our.bowl now.bowl src.bowl))
         ==
-    =+  !<(=action:v1:s vase)
-    ?-  -.action
-      %configure  ?>(=(src.bowl our.bowl) cor(owner.state `owner.action))
-      %lens       (le-poke-action:le-core action.action)
-      %gateway    (ga-poke-action:ga-core action.action)
-    ==
+    (le-poke-action:le-core !<(action:v1:l vase))
+  ::
+  ::  gateway liveness: local only (enforced in ga-poke-action).
+  ::
+      %steward-gateway-action-1
+    (ga-poke-action:ga-core !<(action:v1:g vase))
   ==
 ::
 ++  watch
@@ -187,19 +200,19 @@
     [%pass /lens/prune %arvo %b %wait (add now.bowl prune-interval)]
   ::
   ++  le-expired
-    |=  =run:lens:s
+    |=  =run:v1:l
     ^-  ?
     (lth received.run (sub now.bowl max-run-age))
   ::
-  ::  the same action arrives in two roles (the ownership gate in +poke
-  ::  has already vetted src as ourselves or a moon we sponsor):
+  ::  the same action arrives in two roles (the ownership gate in +poke has
+  ::  already vetted src as ourselves or a moon we sponsor):
   ::    - bot role (src==our): our own gateway poked us; fan the run out
   ::      to our configured owner.
-  ::    - owner role (src is a sponsored moon): one of our bots sent us
-  ::      its run; store it keyed by src.bowl so we can serve it to clients.
+  ::    - owner role (src is a sponsored moon): one of our bots sent us its
+  ::      run; store it keyed by src.bowl so we can serve it to clients.
   ::
   ++  le-poke-action
-    |=  =action:lens:s
+    |=  =action:v1:l
     ^+  cor
     ?:  =(src.bowl our.bowl)
       (le-fan-out id.action payload.action final.action)
@@ -209,7 +222,7 @@
     |=  =path
     ^+  cor
     ?+  path  ~|(bad-lens-watch-path+path !!)
-      ::  no initial fact — clients backfill via /x/lens/recent
+      ::  no initial fact — clients backfill via /x/v1/lens/recent
       [%v1 ~]  cor
     ==
   ::
@@ -222,43 +235,39 @@
     ::
         [%v1 %run @ @ ~]
       =/  bot  (slav %p i.t.t.path)
-      =/  =id:lens:s  i.t.t.t.path
+      =/  =id:v1:l  i.t.t.t.path
       ?~  r=(~(get by lens.state) [bot id])  [~ ~]
       ?:  (le-expired u.r)  [~ ~]
-      ``steward-update-1+!>(`update:v1:s`[%lens bot id u.r])
+      ``steward-lens-update-1+!>(`update:v1:l`[bot id u.r])
     ==
   ::
   ++  le-fan-out
-    |=  [=id:lens:s =payload:lens:s final=?]
+    |=  [=id:v1:l payload=json final=?]
     ^+  cor
     ?~  owner.state  cor
     ?:  =(u.owner.state our.bowl)
       ::  self-owned bot: store directly, no network hop
       (le-store our.bowl id payload final)
-    =/  =action:lens:s  [id payload final]
+    =/  =action:v1:l  [id payload final]
     %-  emit
     :^    %pass
         /lens/fanout/(scot %p u.owner.state)/(scot %t id)
       %agent
-    [[u.owner.state %steward] %poke %steward-action-1 !>(`action:v1:s`[%lens action])]
+    [[u.owner.state %steward] %poke %steward-lens-action-1 !>(`action:v1:l`action)]
   ::
   ++  le-store
-    |=  [bot=ship =id:lens:s =payload:lens:s final=?]
+    |=  [bot=ship =id:v1:l payload=json final=?]
     ^+  cor
-    ::  drop late partials once a run is finalized: overwriting would
-    ::  pair complete=& with a stale partial payload (and fact it out)
+    ::  drop late partials once a run is finalized: overwriting would pair
+    ::  complete=& with a stale partial payload (and fact it out)
     ::
     =/  prev  (~(get by lens.state) [bot id])
     ?:  &(?=(^ prev) complete.u.prev !final)
       cor
-    =/  =run:lens:s  [final now.bowl payload]
+    =/  =run:v1:l  [final now.bowl payload]
     =.  lens.state  (~(put by lens.state) [bot id] run)
     =.  cor  (le-prune bot)
-    %+  give  %fact
-    :*  ~[/v1/lens]
-        %steward-update-1
-        !>(`update:v1:s`[%lens bot id run])
-    ==
+    (give %fact ~[/v1/lens] %steward-lens-update-1 !>(`update:v1:l`[bot id run]))
   ::
   ++  le-prune
     |=  for=ship
@@ -269,19 +278,19 @@
       =(bot for)
     =/  dead
       %+  skim  mine
-      |=  [* =run:lens:s]
+      |=  [* =run:v1:l]
       (le-expired run)
     =/  live
       %+  skip  mine
-      |=  [* =run:lens:s]
+      |=  [* =run:v1:l]
       (le-expired run)
     =?  dead  (gth (lent live) max-runs-per-bot)
       =/  sorted
         %+  sort  live
-        |=  [a=[* =run:lens:s] b=[* =run:lens:s]]
+        |=  [a=[* =run:v1:l] b=[* =run:v1:l]]
         (lth received.run.a received.run.b)
       (weld dead (scag (sub (lent live) max-runs-per-bot) sorted))
-    =/  keys  (turn dead |=([k=[bot=ship =id:lens:s] *] k))
+    =/  keys  (turn dead |=([k=[bot=ship =id:v1:l] *] k))
     |-  ^+  cor
     ?~  keys  cor
     =.  lens.state  (~(del by lens.state) i.keys)
@@ -299,19 +308,22 @@
     $(bots t.bots)
   ::
   ++  le-recent
-    ^-  (list update:lens:s)
+    ^-  (list update:v1:l)
     =/  fresh
       %+  skip  ~(tap by lens.state)
-      |=  [* =run:lens:s]
+      |=  [* =run:v1:l]
       (le-expired run)
     =/  sorted
       %+  sort  fresh
-      |=  [a=[* =run:lens:s] b=[* =run:lens:s]]
+      |=  [a=[* =run:v1:l] b=[* =run:v1:l]]
       (gth received.run.a received.run.b)
     %+  turn  (scag 50 sorted)
-    |=  [[bot=ship =id:lens:s] =run:lens:s]
+    |=  [[bot=ship =id:v1:l] =run:v1:l]
     [bot id run]
   --
+::
+::  gateway module: liveness + offline auto-replies. owner is the shared
+::  top-level (unit ship). single-owner: notices/auto-replies target it.
 ::
 ++  ga-core
   |%
@@ -341,14 +353,14 @@
     ^+  cor
     %+  give  %fact
     :*  ~[/v1/gateway]
-        %steward-update-1
-        !>(`update:v1:s`[%gateway %status status.gateway.state lease-until.gateway.state])
+        %steward-gateway-update-1
+        !>(`update:v1:g`[%status status.gateway.state lease-until.gateway.state])
     ==
   ::
   ++  ga-give-update
-    |=  =update:gateway:s
+    |=  =update:v1:g
     ^+  cor
-    (give %fact ~[/v1/gateway] %steward-update-1 !>(`update:v1:s`[%gateway update]))
+    (give %fact ~[/v1/gateway] %steward-gateway-update-1 !>(update))
   ::
   ++  ga-send-dm
     |=  [target=ship text=@t]
@@ -367,7 +379,7 @@
     owner.state
   ::
   ++  ga-poke-action
-    |=  =action:gateway:s
+    |=  =action:v1:g
     ^+  cor
     ?>  =(src.bowl our.bowl)
     ?-  -.action

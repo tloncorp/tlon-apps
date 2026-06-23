@@ -9,6 +9,7 @@
 ::    discard it into a trivial unit state.
 ::
 /-  gs=gateway-status, s=steward, a=activity
+/-  g=steward-gateway
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
@@ -91,16 +92,20 @@
     ::
     =/  old  p.attempt
     ?~  owner.old  `this
-    =/  spk
+    =/  core-card
       |=  =action:v1:s
       ^-  card
       [%pass /steward/proxy %agent [our.bowl %steward] %poke %steward-action-1 !>(action)]
+    =/  gw-card
+      |=  =action:v1:g
+      ^-  card
+      [%pass /steward/proxy %agent [our.bowl %steward] %poke %steward-gateway-action-1 !>(action)]
     =/  cards=(list card)
-      :~  (spk [%configure u.owner.old])
-          (spk [%gateway %configure active-window.old reply-cooldown.old])
+      :~  (core-card [%configure u.owner.old])
+          (gw-card [%configure active-window.old reply-cooldown.old])
       ==
     =?  cards  ?&(?=(^ boot-id.old) ?=(^ lease-until.old))
-      (snoc cards (spk [%gateway %gateway-start u.boot-id.old u.lease-until.old]))
+      (snoc cards (gw-card [%gateway-start u.boot-id.old u.lease-until.old]))
     [cards this]
   ++  on-poke
     |=  [=mark =vase]
@@ -149,32 +154,37 @@
     %gateway-stop       (forward-stop +.action)
   ==
 ::
-++  steward-poke
+++  core-poke
   |=  =action:v1:s
   ^+  cor
   (emit %pass /steward/proxy %agent [our.bowl %steward] %poke %steward-action-1 !>(action))
+::
+++  gw-poke
+  |=  =action:v1:g
+  ^+  cor
+  (emit %pass /steward/proxy %agent [our.bowl %steward] %poke %steward-gateway-action-1 !>(action))
 ::
 ++  forward-configure
   |=  [who=ship win=@dr orc=@dr]
   ^+  cor
   ::  two steward pokes: top-level owner + gateway timing configure
-  =.  cor  (steward-poke [%configure who])
-  (steward-poke [%gateway %configure win orc])
+  =.  cor  (core-poke [%configure who])
+  (gw-poke [%configure win orc])
 ::
 ++  forward-start
   |=  [bid=@t lut=@da]
   ^+  cor
-  (steward-poke [%gateway %gateway-start bid lut])
+  (gw-poke [%gateway-start bid lut])
 ::
 ++  forward-heartbeat
   |=  [bid=@t lut=@da]
   ^+  cor
-  (steward-poke [%gateway %gateway-heartbeat bid lut])
+  (gw-poke [%gateway-heartbeat bid lut])
 ::
 ++  forward-stop
   |=  [bid=@t reason=@t]
   ^+  cor
-  (steward-poke [%gateway %gateway-stop bid reason])
+  (gw-poke [%gateway-stop bid reason])
 ::
 ++  agent
   |=  [=wire =sign:agent:gall]
