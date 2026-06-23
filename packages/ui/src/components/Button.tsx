@@ -1,11 +1,11 @@
 import { getSpace } from '@tamagui/get-token';
-import { cloneElement, useContext } from 'react';
+import { cloneElement } from 'react';
 import {
   ColorTokens,
   SizeTokens,
-  Stack,
   TextStyle,
   ThemeTokens,
+  View,
   createStyledContext,
   styled,
   withStaticProperties,
@@ -38,7 +38,7 @@ export const ButtonContext = createStyledContext<{
   disabled: false,
 });
 
-export const ButtonFrame = styled(Stack, {
+export const ButtonFrame = styled(View, {
   name: 'Button',
   cursor: 'pointer',
   context: ButtonContext,
@@ -290,8 +290,7 @@ export const ButtonText = styled(Text, {
 });
 
 const ButtonIcon = (props: { color?: ColorTokens; children: any }) => {
-  const context = useContext(ButtonContext.context);
-
+  const context = ButtonContext.useStyledContext();
   const iconColor =
     props.color ??
     (context.hero || context.heroDestructive

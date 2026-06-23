@@ -19,7 +19,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform } from 'react-native';
 
 import { useAppStatusChange } from '../../hooks/useAppStatusChange';
 
@@ -179,8 +178,8 @@ export function NowPlayingProvider({
             sourceUrl: mediaItemRef.current.url,
             isPlaying: false,
             loadState: 'loaded',
-            currentTime: toSeconds(audioPlayer.currentTime),
-            duration: toSeconds(audioPlayer.duration),
+            currentTime: audioPlayer.currentTime,
+            duration: audioPlayer.duration,
           });
         }
 
@@ -188,6 +187,19 @@ export function NowPlayingProvider({
       },
       async seekTo(seconds: number) {
         await audioPlayer.seekTo(seconds);
+
+        // Emit synthetic progress immediately so the UI updates without
+        // waiting for the next native playbackStatusUpdate tick (which may
+        // not come at all while paused)
+        if (mediaItemRef.current) {
+          eventEmitter.emit('progress', {
+            sourceUrl: mediaItemRef.current.url,
+            isPlaying: isPlayingRef.current,
+            loadState: 'loaded',
+            currentTime: seconds,
+            duration: audioPlayer.duration,
+          });
+        }
       },
       get nowPlaying() {
         return mediaItemRef.current;
@@ -220,8 +232,8 @@ export function NowPlayingProvider({
         const playback: PlaybackState = status.isLoaded
           ? {
               loadState: 'loaded',
-              currentTime: toSeconds(status.currentTime),
-              duration: toSeconds(status.duration),
+              currentTime: status.currentTime,
+              duration: status.duration,
             }
           : { loadState: status.isBuffering ? 'loading' : 'empty' };
 
@@ -345,6 +357,36 @@ export function useNowPlayingController({
     }
   }, [playbackIntent, progress, isThisSourceLoaded]);
 
+  // Play and seek share one in-flight load of this source: a second
+  // replace() for the same URL would supersede the first one in the provider
+  // and reject its callbacks (dropping a pending play or seek). Keyed by url
+  // so a sourceUri change mid-load (this hook can be reused for a different
+  // memo) starts a fresh load instead of reusing the stale promise.
+  const inFlightLoadRef = useRef<{
+    url: string;
+    promise: Promise<void>;
+  } | null>(null);
+  const loadSource = useCallback(() => {
+    if (sourceUri == null) {
+      return Promise.reject(new Error('No source to load'));
+    }
+    const existing = inFlightLoadRef.current;
+    if (existing != null && existing.url === sourceUri) {
+      return existing.promise;
+    }
+    const entry: { url: string; promise: Promise<void> } = {
+      url: sourceUri,
+      promise: nowPlaying.replace({ url: sourceUri }).finally(() => {
+        // only clear if a newer load hasn't replaced this entry
+        if (inFlightLoadRef.current === entry) {
+          inFlightLoadRef.current = null;
+        }
+      }),
+    };
+    inFlightLoadRef.current = entry;
+    return entry.promise;
+  }, [nowPlaying, sourceUri]);
+
   const togglePlayback = useCallback(() => {
     if (sourceUri == null) return;
     if (isThisSourceLoaded) {
@@ -363,8 +405,7 @@ export function useNowPlayingController({
       // doesn't cause the effect to immediately clear the new intent
       wasLoadedRef.current = false;
       setPlaybackIntent('will-buffer');
-      nowPlaying
-        .replace({ url: sourceUri })
+      loadSource()
         .then(() => {
           nowPlaying.play();
         })
@@ -373,7 +414,72 @@ export function useNowPlayingController({
           setPlaybackIntent(false);
         });
     }
-  }, [nowPlaying, sourceUri, isThisSourceLoaded]);
+  }, [nowPlaying, sourceUri, isThisSourceLoaded, loadSource]);
+
+  // Seeking an unloaded source loads it (paused) first. The guard and pending
+  // position are keyed by url so that if this hook is reused for a different
+  // memo mid-load, the new seek isn't blocked by the old load and the old
+  // load can't apply its position to the new source.
+  const pendingSeekRef = useRef<{ url: string; seconds: number } | null>(null);
+  const seekLoadUrlRef = useRef<string | null>(null);
+  const seekTo = useCallback(
+    (seconds: number) => {
+      if (sourceUri == null) return;
+      // `nowPlaying.nowPlaying` is set synchronously when a load resolves;
+      // checking it covers the gap before the progress event re-renders
+      // `isThisSourceLoaded`
+      if (isThisSourceLoaded || nowPlaying.nowPlaying?.url === sourceUri) {
+        nowPlaying.seekTo(seconds).catch((e) => {
+          console.error('Failed to seek voice memo', e);
+        });
+        return;
+      }
+      // remember only the latest requested position for this url so scrubbing
+      // doesn't race multiple loads
+      pendingSeekRef.current = { url: sourceUri, seconds };
+      if (seekLoadUrlRef.current === sourceUri) return;
+      const url = sourceUri;
+      seekLoadUrlRef.current = url;
+      loadSource()
+        .then(() => {
+          const pending = pendingSeekRef.current;
+          if (pending != null && pending.url === url) {
+            // hold the guard until the seek itself completes
+            return nowPlaying.seekTo(pending.seconds);
+          }
+        })
+        .catch((e) => {
+          console.error('Failed to load voice memo for seek', e);
+        })
+        .finally(() => {
+          // only clear if a newer seek-load for another url hasn't taken over
+          if (seekLoadUrlRef.current === url) {
+            seekLoadUrlRef.current = null;
+          }
+          if (pendingSeekRef.current?.url === url) {
+            pendingSeekRef.current = null;
+          }
+        });
+    },
+    [nowPlaying, sourceUri, isThisSourceLoaded, loadSource]
+  );
+
+  // Scrubbing pauses a playing source for the duration of the gesture and
+  // resumes it on release.
+  const wasPlayingBeforeScrubRef = useRef(false);
+  const beginScrub = useCallback(() => {
+    wasPlayingBeforeScrubRef.current =
+      isThisSourceLoaded && nowPlaying.isPlaying;
+    if (wasPlayingBeforeScrubRef.current) {
+      nowPlaying.pause();
+    }
+  }, [nowPlaying, isThisSourceLoaded]);
+  const endScrub = useCallback(() => {
+    if (wasPlayingBeforeScrubRef.current) {
+      wasPlayingBeforeScrubRef.current = false;
+      nowPlaying.play();
+    }
+  }, [nowPlaying]);
 
   const status = useMemo<null | 'playing' | 'paused' | 'loading'>(() => {
     // Playback requested but not confirmed by expo-audio yet
@@ -411,17 +517,11 @@ export function useNowPlayingController({
 
   return {
     togglePlayback,
+    seekTo,
+    beginScrub,
+    endScrub,
     progress,
     status,
     isThisSourceLoaded,
   };
-}
-
-function toSeconds(expoAudioUnit: number): number {
-  if (Platform.OS === 'web') {
-    // web is in milliseconds!
-    return expoAudioUnit / 1000;
-  } else {
-    return expoAudioUnit;
-  }
 }

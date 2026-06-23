@@ -1,16 +1,9 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as db from '@tloncorp/shared/db';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getTokenValue } from 'tamagui';
 
-import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
-import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
-  ChatOptionsProvider,
-  ForwardGroupSheetProvider,
-  InviteUsersSheet,
   ListItem,
   ScreenHeader,
   ScrollView,
@@ -32,74 +25,6 @@ import {
   SettingsSection,
 } from './chatDetails';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
-
-type Props = NativeStackScreenProps<RootStackParamList, 'ChatDetails'>;
-
-export function ChannelDetailsScreen(props: Props) {
-  const { chatId } = props.route.params;
-
-  const { navigation } = useRootNavigation();
-  const isWindowNarrow = useIsWindowNarrow();
-  const [inviteSheetGroup, setInviteSheetGroup] = useState<string | null>(null);
-  const chatSettingsNav = useChatSettingsNavigation();
-  const { onPressEditChannelMeta, onPressEditChannelPrivacy } = chatSettingsNav;
-
-  const handleInvitePressed = useCallback(
-    (groupId: string) => {
-      if (isWindowNarrow) {
-        navigation.navigate('InviteUsers', { groupId });
-      } else {
-        setInviteSheetGroup(groupId);
-      }
-    },
-    [isWindowNarrow, navigation]
-  );
-
-  const handleEditChannelMeta = useCallback(
-    (channelId: string, groupId: string) => {
-      onPressEditChannelMeta(channelId, groupId, true);
-    },
-    [onPressEditChannelMeta]
-  );
-
-  const handleEditChannelPrivacy = useCallback(
-    (channelId: string, groupId: string) => {
-      onPressEditChannelPrivacy(channelId, groupId, true);
-    },
-    [onPressEditChannelPrivacy]
-  );
-
-  return (
-    <ForwardGroupSheetProvider>
-      <ChatOptionsProvider
-        key={`channel-${chatId}`}
-        initialChat={{
-          type: 'channel',
-          id: chatId,
-        }}
-        onPressInvite={handleInvitePressed}
-        {...chatSettingsNav}
-      >
-        <ChannelDetailsScreenView
-          onEditChannelMeta={handleEditChannelMeta}
-          onEditChannelPrivacy={handleEditChannelPrivacy}
-        />
-        {!isWindowNarrow && (
-          <InviteUsersSheet
-            open={inviteSheetGroup !== null}
-            onOpenChange={(open) => {
-              if (!open) {
-                setInviteSheetGroup(null);
-              }
-            }}
-            groupId={inviteSheetGroup ?? undefined}
-            onInviteComplete={() => setInviteSheetGroup(null)}
-          />
-        )}
-      </ChatOptionsProvider>
-    </ForwardGroupSheetProvider>
-  );
-}
 
 export function ChannelDetailsScreenView({
   onGoBack,

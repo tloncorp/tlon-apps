@@ -7,7 +7,7 @@ import { DimensionValue, View as RNView } from 'react-native';
 export type ChatMessageActionsProps = {
   post: db.Post;
   postActionIds: ChannelAction.Id[];
-  postRef?: RefObject<RNView>;
+  postRef?: RefObject<RNView | null>;
   onDismiss: () => void;
   onOpenChange?: (open: boolean) => void;
   width?: DimensionValue;

@@ -6,13 +6,17 @@ import {
   DefaultTheme,
   NavigationContainer,
   NavigationContainerRefWithCurrent,
+  NavigationState,
   useNavigationContainerRef,
 } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import ErrorBoundary from '@tloncorp/app/ErrorBoundary';
 import { BranchProvider } from '@tloncorp/app/contexts/branch';
+import { RequiredUpdateScreen } from '@tloncorp/app/features/RequiredUpdateScreen';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
 import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useNavigationLogging } from '@tloncorp/app/hooks/useNavigationLogger';
+import { useRequiredUpdate } from '@tloncorp/app/hooks/useRequiredUpdate';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import { useMigrations } from '@tloncorp/app/lib/nativeDb';
 import { splashScreenProgress } from '@tloncorp/app/lib/splashscreen';
@@ -26,11 +30,12 @@ import {
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
 import { FeatureFlagConnectedInstrumentationProvider } from '@tloncorp/app/utils/perf';
+import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -56,15 +61,15 @@ const useSplashHider = () => {
 
   useEffect(() => {
     const onComplete = () => {
-      try {
-        withRetry(async () => {
-          await SplashScreen.hideAsync();
-          setSplashHidden(true);
-          splashscreenLogger.trackEvent('Splash screen hidden');
-        });
-      } catch (err) {
+      withRetry(async () => {
+        await SplashScreen.hideAsync();
+        setSplashHidden(true);
+        splashscreenLogger.trackEvent('Splash screen hidden');
+      }).catch((err) => {
+        // withRetry returns a promise; a try/catch around the call can't
+        // observe its rejection
         splashscreenLogger.trackError('Failed to hide splash screen', err);
-      }
+      });
     };
 
     // check if progress completed before mounting
@@ -85,6 +90,25 @@ const useSplashHider = () => {
 
 // Android notification tap handler passes initial params here
 const App = () => {
+  const isDarkMode = useIsDarkMode();
+  const updateRequired = useRequiredUpdate();
+
+  if (updateRequired) {
+    return (
+      <View height={'100%'} width={'100%'} backgroundColor="$background">
+        <RequiredUpdateScreen />
+        <StatusBar
+          backgroundColor={isDarkMode ? 'black' : 'white'}
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+        />
+      </View>
+    );
+  }
+
+  return <MainApp />;
+};
+
+const MainApp = () => {
   const isDarkMode = useIsDarkMode();
   const {
     isLoading,
@@ -153,14 +177,41 @@ const App = () => {
 export default function ConnectedApp() {
   const isDarkMode = useIsDarkMode();
   const navigationContainerRef = useNavigationContainerRef();
+  const routeNameRef = useRef<string>(undefined);
   const migrationState = useMigrations();
   const splashIsHidden = useSplashHider();
+  const navigationLogging = useNavigationLogging();
+
+  const onReady = () => {
+    routeNameRef.current =
+      navigationContainerRef.current?.getCurrentRoute()?.name;
+
+    const state = navigationContainerRef.current?.getState();
+    navigationLogging.onReady(state);
+  };
+
+  const onStateChange = (state: NavigationState | undefined) => {
+    const previousRouteName = routeNameRef.current;
+    const currentRouteName =
+      navigationContainerRef.current?.getCurrentRoute()?.name;
+
+    if (currentRouteName != null && previousRouteName !== currentRouteName) {
+      posthog?.screen(currentRouteName);
+    }
+
+    routeNameRef.current = currentRouteName;
+
+    navigationLogging.onStateChange(state);
+  };
 
   return (
     <FeatureFlagConnectedInstrumentationProvider>
       <NavigationContainer
         theme={isDarkMode ? DarkTheme : DefaultTheme}
         ref={navigationContainerRef}
+        onReady={onReady}
+        onStateChange={onStateChange}
+        navigationInChildEnabled
       >
         <BaseProviderStack migrationState={migrationState}>
           <ErrorBoundary>

@@ -7,11 +7,13 @@ export {
   getHostingUser,
   getNodeStatus,
   getShipAccessCode,
+  getTlawnOAuthStatus,
   logInHostingUser,
   markUserTlonbotEnabled,
   requestLoginOtp,
   requestPhoneVerify,
   setShipRevivalStatus,
+  startTlawnOAuth,
   setUserTlonbotEnabled,
   signUpHostingUser,
   checkNodeIsTlonbotReady,
@@ -67,4 +69,6 @@ export {
   type Mention,
   type PostBlobDataEntry,
 } from './client/content-helpers';
+export { getTextContent } from './client/postContent';
+export { preSig } from './lib/urbit';
 export * from './client';

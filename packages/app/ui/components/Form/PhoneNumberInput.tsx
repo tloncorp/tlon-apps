@@ -51,9 +51,9 @@ export function PhoneNumberInput({
                 borderRadius: 8,
                 backgroundColor: theme.background.val,
               }}
+              // @ts-expect-error removes browser outline on web
               textStyle={{
                 color: theme.primaryText.val,
-                // @ts-expect-error removes browser outline on web
                 outlineStyle: 'none',
               }}
               initialCountry="us"

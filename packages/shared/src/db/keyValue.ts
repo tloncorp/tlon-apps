@@ -1,6 +1,10 @@
-import { AppThemeName, StorageConfiguration } from '@tloncorp/api';
-import type { StorageCredentials, StorageService } from '@tloncorp/api/urbit';
+import type { StorageConfiguration } from '@tloncorp/api/client/upload';
 import * as ub from '@tloncorp/api/urbit';
+import type { AppThemeName } from '@tloncorp/api/urbit/settings';
+import type {
+  StorageCredentials,
+  StorageService,
+} from '@tloncorp/api/urbit/storage';
 
 import type { Attachment } from '../domain';
 import {
@@ -193,6 +197,11 @@ export const hasClearedLegacyWebTelemetry = createStorageItem<boolean>({
 export const lastAnonymousAppOpenAt = createStorageItem<number | null>({
   key: 'lastAnonymousAppOpenAt',
   defaultValue: null,
+});
+
+export const webAppSplashOpenCount = createStorageItem<number>({
+  key: 'webAppSplashOpenCount',
+  defaultValue: 0,
 });
 
 export const finishingSelfHostedLogin = createStorageItem<boolean>({

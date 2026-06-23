@@ -6,6 +6,7 @@ import { Alert, DevSettings } from 'react-native';
 import * as DeviceInfo from 'react-native-device-info';
 
 import { getDbPath, purgeDb } from './nativeDb';
+import { discoverContactsAndNotify } from './notifications';
 
 const metroBundlerURL = Constants.expoConfig?.hostUri;
 
@@ -89,6 +90,18 @@ const devMenuItems: Promise<ExpoDevMenuItem[]> = DeviceInfo.isEmulator().then(
     {
       name: 'Delete local database',
       callback: () => purgeDb(),
+    },
+    {
+      name: 'Run contact discovery',
+      callback: async () => {
+        const { newMatchCount } = await discoverContactsAndNotify({
+          context: { source: 'devMenu' },
+        });
+        Alert.alert(
+          'Contact discovery complete',
+          `${newMatchCount} new match${newMatchCount === 1 ? '' : 'es'}.`
+        );
+      },
     },
     ...(isEmulator ? simulatorOnlyMenuItems : []),
   ]

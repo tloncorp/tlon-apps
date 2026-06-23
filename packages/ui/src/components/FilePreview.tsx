@@ -85,8 +85,16 @@ FilePreview.fileExtensionFrom = (opts: {
     case 'video/mp4':
       return 'mp4';
     default:
-      return (
-        opts.filename?.split('.').at(-1) ?? opts.uri?.split('.').at(-1) ?? null
-      );
+      return extensionOf(opts.filename) ?? extensionOf(opts.uri) ?? null;
   }
 };
+
+function extensionOf(name?: string): string | null {
+  if (name == null) {
+    return null;
+  }
+  const segments = name.split('.');
+  // without a dot there is no extension; the old `.at(-1)` fallback returned
+  // the entire string (e.g. a full URL) as the "extension"
+  return segments.length > 1 ? segments.at(-1) ?? null : null;
+}

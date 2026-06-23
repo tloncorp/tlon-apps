@@ -1,0 +1,32 @@
+diff --git a/dist/getFixtures/importUserModules.js b/dist/getFixtures/importUserModules.js
+index f17b04e03011f58c619e5e56b91d08f6b42f6d69..183f0f145ddad942684613fca3ab0e7d33b4020c 100644
+--- a/dist/getFixtures/importUserModules.js
++++ b/dist/getFixtures/importUserModules.js
+@@ -1,9 +1,10 @@
+ import { findUserModulePaths } from '../userModules/findUserModulePaths.js';
+ import { importKeyPath } from '../userModules/shared.js';
+-export async function importUserModules({ rootDir, fixturesDir, fixtureFileSuffix, ignore, }) {
++export async function importUserModules({ rootDir, fixturesDir, fixturesLocation, fixtureFileSuffix, ignore, }) {
+     const { fixturePaths, decoratorPaths } = await findUserModulePaths({
+         rootDir,
+         fixturesDir,
++        fixturesLocation,
+         fixtureFileSuffix,
+         ignore,
+     });
+diff --git a/dist/userModules/findUserModulePaths.js b/dist/userModules/findUserModulePaths.js
+index 9e33e963875e1305d5727d100b5e20a533b083aa..b42598ff73d79f4f9ae6ac00ebcdb96acbf9db7c 100644
+--- a/dist/userModules/findUserModulePaths.js
++++ b/dist/userModules/findUserModulePaths.js
+@@ -1,9 +1,9 @@
+ import { glob } from 'glob';
+ import micromatch from 'micromatch';
+ import { getDecoratorPatterns, getFixturePatterns, } from './shared.js';
+-export async function findUserModulePaths({ rootDir, fixturesDir, fixtureFileSuffix, ignore, }) {
++export async function findUserModulePaths({ rootDir, fixturesDir, fixturesLocation, fixtureFileSuffix, ignore, }) {
+     const paths = await glob('**/*', {
+-        cwd: rootDir,
++        cwd: fixturesLocation ? fixturesLocation : rootDir,
+         absolute: true,
+         ignore,
+     });

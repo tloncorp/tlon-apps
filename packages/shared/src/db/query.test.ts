@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { QueryObserver } from '@tanstack/react-query';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { setupDb } from '../test/helpers';
 import { client } from './client';
-import { QueryCtx, withTransactionCtx } from './query';
+import { QueryCtx, createWriteQuery, withTransactionCtx } from './query';
+import { queryClient } from './reactQuery';
 
 describe('withTransactionCtx', () => {
   let testCtx: QueryCtx;
@@ -64,11 +66,62 @@ describe('withTransactionCtx', () => {
     const result = await withTransactionCtx(testCtx, async (outerTx) => {
       // This should run in the same transaction context
       return await withTransactionCtx(outerTx, async (innerTx) => {
-        expect(innerTx.meta.rootTransaction).toBe('test-transaction');
+        expect(innerTx.rootTransaction).toBe('test-transaction');
         return 'nested transaction successful';
       });
     });
 
     expect(result).toBe('nested transaction successful');
+  });
+});
+
+describe('query invalidation', () => {
+  afterEach(() => {
+    queryClient.clear();
+  });
+
+  it('invalidates table-dependent queries that are already fetching', async () => {
+    const queryKey = ['currentChats', new Set(['posts'])];
+    let calls = 0;
+    let resolveFetch!: () => void;
+    const fetchGate = new Promise<void>((resolve) => {
+      resolveFetch = resolve;
+    });
+
+    queryClient.setQueryData(queryKey, 'cached');
+
+    const observer = new QueryObserver(queryClient, {
+      queryKey,
+      queryFn: async () => {
+        calls++;
+        await fetchGate;
+        return `fresh-${calls}`;
+      },
+    });
+
+    const unsubscribe = observer.subscribe(() => {});
+    const refetch = observer.refetch({ cancelRefetch: false });
+    await Promise.resolve();
+
+    const query = queryClient.getQueryCache().find({ queryKey });
+    expect(query?.state.fetchStatus).toBe('fetching');
+    expect(query?.isStale()).toBe(false);
+
+    const writePosts = createWriteQuery(
+      'testWritePosts',
+      async (_ctx: QueryCtx) => {},
+      ['posts']
+    );
+
+    await writePosts();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(query?.state.isInvalidated).toBe(true);
+    expect(query?.isStale()).toBe(true);
+    expect(calls).toBe(2);
+
+    resolveFetch();
+    await refetch;
+    unsubscribe();
   });
 });

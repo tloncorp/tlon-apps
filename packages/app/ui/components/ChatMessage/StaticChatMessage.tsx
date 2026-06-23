@@ -1,11 +1,15 @@
+import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
+import { A2UI } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
-import { ComponentProps, useCallback } from 'react';
+import { ComponentProps, useCallback, useMemo } from 'react';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
 import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
+import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
+import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import {
@@ -13,6 +17,7 @@ import {
   usePostLastEditContent,
 } from '../PostContent/contentUtils';
 import { SentTimeText } from '../SentTimeText';
+import { useDraftInputContext } from '../draftInputs/shared';
 import { ChatMessageDeliveryStatus } from './ChatMessageDeliveryStatus';
 import { ChatMessageHighlight } from './ChatMessageHighlight';
 import { ChatMessageReplySummary } from './ChatMessageReplySummary';
@@ -55,6 +60,8 @@ export function StaticChatMessage({
   showReplies?: boolean;
 }) {
   const isNotice = post.type === 'notice';
+  const draftInputContext = useDraftInputContext();
+  const navigateToA2UITarget = useA2UINavigation();
 
   if (isNotice) {
     showAuthor = false;
@@ -88,8 +95,71 @@ export function StaticChatMessage({
     }
   }, [onPressRetry, post]);
 
-  const content = usePostContent(post);
-  const lastEditContent = usePostLastEditContent(post);
+  const handleA2UIAction = useCallback(
+    async (action: A2UI.Button['action']) => {
+      if (action.event.name === A2UI.action.navigate) {
+        await navigateToA2UITarget(action.event.context.target);
+        return;
+      }
+
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        return;
+      }
+
+      const text = action.event.context.text.trim();
+      if (!text) {
+        return;
+      }
+
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [text],
+        attachments: [],
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
+    },
+    [draftInputContext, navigateToA2UITarget]
+  );
+
+  const isA2UIActionAvailable = useCallback(
+    (action: A2UI.Button['action']) => {
+      if (action.event.name === A2UI.action.navigate) {
+        return true;
+      }
+
+      if (action.event.name === A2UI.action.sendMessage) {
+        return Boolean(
+          draftInputContext &&
+            draftInputContext.canStartDraft !== false &&
+            action.event.context.text.trim()
+        );
+      }
+
+      return false;
+    },
+    [draftInputContext]
+  );
+
+  const canRenderA2UI = isDmChannelId(post.channelId);
+
+  const postContent = usePostContent(post);
+  const lastEditPostContent = usePostLastEditContent(post);
+  const content = useMemo(
+    () =>
+      canRenderA2UI
+        ? postContent
+        : postContent.filter((block) => block.type !== 'a2ui'),
+    [canRenderA2UI, postContent]
+  );
+  const lastEditContent = useMemo(
+    () =>
+      canRenderA2UI
+        ? lastEditPostContent
+        : lastEditPostContent.filter((block) => block.type !== 'a2ui'),
+    [canRenderA2UI, lastEditPostContent]
+  );
 
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
@@ -162,6 +232,10 @@ export function StaticChatMessage({
             onPressImage={handleImagePressed}
             getImageViewerId={(src) => getPostImageViewerId(post.id, src)}
             onLongPress={handleLongPress}
+            onA2UIAction={canRenderA2UI ? handleA2UIAction : undefined}
+            isA2UIActionAvailable={
+              canRenderA2UI ? isA2UIActionAvailable : undefined
+            }
             searchQuery={searchQuery}
           />
         )}
@@ -206,6 +280,9 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
 };
 
 const ChatContentRenderer = createContentRenderer({
+  blockRenderers: {
+    a2ui: A2UIBlock,
+  },
   blockSettings: {
     blockWrapper: {
       paddingLeft: 0,

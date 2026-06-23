@@ -115,5 +115,9 @@ function isValidImageSource(source: any) {
 }
 
 function isPlaceholderAsset(source: any) {
-  return typeof source === 'object' && source.uri === PLACEHOLDER_ASSET_URI;
+  return (
+    source != null &&
+    typeof source === 'object' &&
+    source.uri === PLACEHOLDER_ASSET_URI
+  );
 }

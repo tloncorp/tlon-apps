@@ -1,10 +1,7 @@
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { expect, test, vi } from 'vitest';
 
-import {
-  isLikelyVideoSource,
-  validateVideoSource,
-} from '../ui/contexts/attachmentRules';
+import { isLikelyVideoSource } from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import {
   imagePickerAssetToUploadIntent,
@@ -21,8 +18,7 @@ vi.mock('../ui/utils/videoPreviewData', () => ({
 
 vi.mock('../ui/contexts/attachmentRules', () => ({
   isLikelyVideoSource: vi.fn(() => false),
-  validateVideoSource: vi.fn(() => true),
-  VIDEO_VALIDATION_ERROR: 'Unsupported video attachment',
+  getVideoValidationError: vi.fn(() => null),
 }));
 
 vi.mock('./images', () => ({
@@ -72,6 +68,64 @@ test('builds a video upload intent from a normalized picker asset', () => {
     name: 'clip.MOV',
     size: 4096,
     mimeType: 'video/quicktime',
+    video: {
+      width: 1920,
+      height: 1080,
+      duration: 2.5,
+    },
+  });
+});
+
+test('treats picker assets with video metadata as videos when type is missing', () => {
+  vi.mocked(isLikelyVideoSource).mockReturnValueOnce(true);
+
+  const uploadIntent = imagePickerAssetToUploadIntent(
+    makeAsset({
+      fileName: 'large-clip.mov',
+      fileSize: 160 * 1024 * 1024,
+      mimeType: 'video/quicktime',
+      type: null,
+      uri: 'file:///tmp/large-clip.mov',
+      width: 1920,
+      height: 1080,
+      duration: 2500,
+    })
+  );
+
+  expect(uploadIntent).toEqual({
+    type: 'fileUri',
+    localUri: 'file:///tmp/large-clip.mov',
+    name: 'large-clip.mov',
+    size: 160 * 1024 * 1024,
+    mimeType: 'video/quicktime',
+    video: {
+      width: 1920,
+      height: 1080,
+      duration: 2.5,
+    },
+  });
+});
+
+test('treats picker assets with duration as videos when type and mime are missing', () => {
+  const uploadIntent = imagePickerAssetToUploadIntent(
+    makeAsset({
+      fileName: null,
+      fileSize: 160 * 1024 * 1024,
+      mimeType: undefined,
+      type: null,
+      uri: 'file:///tmp/asset',
+      width: 1920,
+      height: 1080,
+      duration: 2500,
+    })
+  );
+
+  expect(uploadIntent).toEqual({
+    type: 'fileUri',
+    localUri: 'file:///tmp/asset',
+    name: undefined,
+    size: 160 * 1024 * 1024,
+    mimeType: undefined,
     video: {
       width: 1920,
       height: 1080,
@@ -137,7 +191,6 @@ test('drops non-positive picker video metadata during upload intent conversion',
 
 test('normalizeUploadIntent keeps supported quicktime videos with known size', async () => {
   vi.mocked(isLikelyVideoSource).mockReturnValueOnce(true);
-  vi.mocked(validateVideoSource).mockReturnValueOnce(true);
   vi.mocked(getVideoPreviewData).mockResolvedValueOnce({});
 
   const result = await normalizeUploadIntent({

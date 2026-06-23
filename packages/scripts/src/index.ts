@@ -1,13 +1,16 @@
 import { parseContactUpdateEvent } from '@tloncorp/api/client/activityApi';
-import { getTextContent } from '@tloncorp/api/client/postContent';
 import type * as ub from '@tloncorp/api/urbit';
 import {
   ActivityIncomingEvent,
   getIdParts,
+  getReactAuthorShip,
+  getReactValue,
   getSourceForEvent,
   sourceToString,
 } from '@tloncorp/api/urbit/activity';
 import { da, render } from '@urbit/aura';
+
+import { getPostNotificationText } from './postNotificationText';
 
 type PreviewContentNode =
   | { type: 'channelTitle'; channelId: string }
@@ -115,7 +118,7 @@ export function renderActivityEventPreview({
     info: Pick<ub.PostEvent['post'], 'key' | 'content'>
   ) {
     const { sent, author } = getIdParts(info.key.id);
-    const contentSummary = getTextContent(info.content);
+    const contentSummary = getPostNotificationText(info.content);
     return {
       notification: {
         body: lit(contentSummary),
@@ -176,6 +179,32 @@ export function renderActivityEventPreview({
       return buildDmNotification(ev['dm-post']);
     case is(ev, 'dm-reply'):
       return buildDmNotification(ev['dm-reply']);
+
+    case is(ev, 'react'):
+      return {
+        notification: {
+          title: postSource({
+            groupId: ev.react.group,
+            channelId: ev.react.channel,
+          }),
+          groupingKey: lit(sourceToString(source)),
+          body: concat([
+            userNickname(getReactAuthorShip(ev.react.author)),
+            lit(` reacted with ${getReactValue(ev.react.react)}`),
+          ]),
+        },
+      };
+
+    case is(ev, 'dm-react'):
+      return {
+        notification: {
+          groupingKey: lit(sourceToString(source)),
+          body: concat([
+            userNickname(getReactAuthorShip(ev['dm-react'].author)),
+            lit(` reacted with ${getReactValue(ev['dm-react'].react)}`),
+          ]),
+        },
+      };
 
     case is(ev, 'dm-invite'):
       return {

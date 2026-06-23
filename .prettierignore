@@ -1,8 +1,16 @@
 # From .gitignore
 node_modules
+.pnpm-store/
 .DS_Store
+/packages/hermes-tlon-adapter/.env
+__pycache__/
+*.py[cod]
+/rus/
 ops
 bin
+!packages/tlon-skill/bin/
+!packages/tlon-skill/bin/tlon.js
+packages/tlon-skill/bin/tlon
 /desk-deps/
 /.peru/
 /peru.lock
@@ -20,6 +28,7 @@ gha-creds-*
 tsconfig.tsbuildinfo
 launch.json
 expo-env.d.ts
+.expo
 apps/tlon-web/playwright-dev.log
 apps/tlon-web/.playwright-dev.pid
 dump.sqlite3
@@ -198,6 +207,7 @@ clurd
 /apps/tlon-mobile/**/render.experimental.xml
 /apps/tlon-mobile/**/*.jks
 /apps/tlon-mobile/**/*.keystore
+!/apps/tlon-mobile/android/app/debug.keystore
 /apps/tlon-mobile/**/*.hprof
 /apps/tlon-mobile/.vscode/*
 !/apps/tlon-mobile/.vscode/settings.json
@@ -272,6 +282,18 @@ clurd
 # From packages/editor/.gitignore
 /packages/editor/**/dist
 /packages/editor/**/dist-notebook
+# From packages/openclaw/.gitignore
+/packages/openclaw/**/node_modules/
+/packages/openclaw/**/dist/
+/packages/openclaw/src/version.generated.ts
+/packages/openclaw/**/*.log
+/packages/openclaw/**/.DS_Store
+/packages/openclaw/**/.env
+/packages/openclaw/**/.vscode
+/packages/openclaw/**/WORKLOG.md
+/packages/openclaw/**/.pnpm-store/
+/packages/openclaw/**/.publish/
+/packages/openclaw/**/*.tgz
 # From packages/scripts/.gitignore
 /packages/scripts/**/build
 # From packages/shared/.gitignore
@@ -280,5 +302,18 @@ clurd
 /packages/shared/**/.env.test
 # From packages/shared/.prettierignore
 /packages/shared/src/db/migrations
+# From packages/tlon-skill/.gitignore
+/packages/tlon-skill/**/node_modules/
+/packages/tlon-skill/**/*.log
+/packages/tlon-skill/**/*.bun-build
+/packages/tlon-skill/**/.DS_Store
+/packages/tlon-skill/**/dist
+/packages/tlon-skill/**/coverage/
+/packages/tlon-skill/**/release-tarballs/
+/packages/tlon-skill/**/artifacts/
+/packages/tlon-skill/npm/*/tlon
+/packages/tlon-skill/bin/tlon
+/packages/tlon-skill/.claude/settings.local.json
+/packages/tlon-skill/ships/*
 # From packages/ui/.gitignore
 /packages/ui/**/dist/

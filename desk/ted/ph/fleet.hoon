@@ -77,7 +77,7 @@
 ;<  ~  bind:m  (end-test:ph-io vane-tids)
 ;<  =bowl:spider  bind:m  get-bowl
 =/  snap-id=@t
-  ?~  snap-id  
+  ?~  snap-id
     =+  eny=(end 3^4 (sham eny.bowl))
     (cat 3 'aqua-tests-' (scot %uv eny))
   u.snap-id

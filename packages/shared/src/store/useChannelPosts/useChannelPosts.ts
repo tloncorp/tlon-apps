@@ -51,13 +51,11 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
 
   const queryKey = useMemo(
     () => [
-      [
-        ...queryKeyPrefix,
-        options.channelId,
-        options.cursorPostId,
-        options.filterDeleted,
-        mountTime,
-      ],
+      ...queryKeyPrefix,
+      options.channelId,
+      options.cursorPostId,
+      options.filterDeleted,
+      mountTime,
     ],
     [options.channelId, options.cursorPostId, options.filterDeleted, mountTime]
   );
@@ -232,7 +230,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
       query.isPaused ||
       query.isFetchingNextPage ||
       query.isFetchingPreviousPage ||
-      (query.isError && query.failureCount < maxFailureCount));
+      (query.isError && query.failureCount <= maxFailureCount));
 
   const { loadOlder, loadNewer } = useLoadActionsWithPendingHandlers(query);
 

@@ -27,6 +27,7 @@ import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits';
 import { useRequests } from '../../contexts/requests';
+import { useStore } from '../../contexts/storeContext';
 import { useCanWrite } from '../../utils/channelUtils';
 import { DetailViewAuthorRow } from '../AuthorRow';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -37,6 +38,7 @@ import { Reference } from '../ContentReference/Reference';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
 import { usePostContent } from '../PostContent/contentUtils';
 import { PostModeration } from '../PostModeration';
+import { UnreadDot } from '../UnreadDot';
 import { useBoundHandler } from '../listItems/listItemUtils';
 import { GalleryContentRenderer } from './GalleryContentRenderer';
 
@@ -162,10 +164,11 @@ export function GalleryPost({
               <Pressable
                 onPress={handlePress}
                 onLongPress={handleLongPress}
-                onHoverIn={onHoverIn}
-                onHoverOut={onHoverOut}
+                onMouseEnter={onHoverIn}
+                onMouseLeave={onHoverOut}
                 flex={1}
                 testID="Post"
+                position="relative"
               >
                 <GalleryPostFrame {...rest}>
                   {showHeaderFooter && <GalleryPostHeader post={post} />}
@@ -291,6 +294,7 @@ export function GalleryPostFooter({
   onPressRetry?: () => void;
 } & ComponentProps<typeof XStack>) {
   const isWindowNarrow = useIsWindowNarrow();
+  const store = useStore();
   const retryVerb = useMemo(() => {
     if (isWindowNarrow) {
       return 'Tap';
@@ -298,6 +302,17 @@ export function GalleryPostFooter({
       return 'Click';
     }
   }, [isWindowNarrow]);
+
+  // Ride the ['post', id] per-post invalidation channel instead of the
+  // table-wide one — the gallery grid mounts one footer per post, so a
+  // table-level invalidation would refetch every footer on any thread_unreads
+  // write. See db/changeListener.ts.
+  const { data: postWithUnread } = store.usePostWithThreadUnreads({
+    id: post.id,
+  });
+  const threadUnread = postWithUnread?.threadUnread;
+  const unreadCount = threadUnread?.count ?? 0;
+  const isNotify = threadUnread?.notify ?? false;
 
   return (
     <View width="100%" pointerEvents="box-none">
@@ -324,6 +339,12 @@ export function GalleryPostFooter({
           </Pressable>
         ) : (
           <XStack alignItems="center" gap="$xs" justifyContent="center">
+            {unreadCount > 0 && (
+              <UnreadDot
+                testID="GalleryPostUnreadDot"
+                color={isNotify ? 'primary' : 'neutral'}
+              />
+            )}
             <Text size="$label/m" color="$tertiaryText">
               {post.replyCount}
             </Text>

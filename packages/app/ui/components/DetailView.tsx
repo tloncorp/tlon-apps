@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
@@ -12,7 +12,7 @@ export interface DetailViewProps {
   post: db.Post;
   channel: db.Channel;
   initialPostUnread?: db.ThreadUnreadState | null;
-  children?: JSX.Element;
+  children?: ReactNode;
   editingPost?: db.Post;
   setEditingPost?: (post: db.Post | undefined) => void;
   posts?: db.Post[];
@@ -27,7 +27,7 @@ export interface DetailViewProps {
   scrollerRef?: React.RefObject<{
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
-  }>;
+  } | null>;
 }
 
 export const DetailView = ({
