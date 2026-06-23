@@ -48,9 +48,11 @@ type NotesFileSystemEntry = {
 };
 
 export function canSelectNotesImportSources(mode: NotesImportMode) {
-  return canSelectNotesImportSourcesFromWeb() ||
+  return (
+    canSelectNotesImportSourcesFromWeb() ||
     mode === 'files' ||
-    canSelectNotesImportFolderFromNative();
+    canSelectNotesImportFolderFromNative()
+  );
 }
 
 export async function selectNotesImportSources(
@@ -102,10 +104,12 @@ function selectNotesImportSourcesFromWeb(
 
     input.onchange = () => {
       const files = Array.from(input.files ?? []);
-      readNotesImportSourcesFromFiles(files).then(settle).catch((e) => {
-        cleanup();
-        reject(e);
-      });
+      readNotesImportSourcesFromFiles(files)
+        .then(settle)
+        .catch((e) => {
+          cleanup();
+          reject(e);
+        });
     };
 
     document.body.appendChild(input);
@@ -135,10 +139,15 @@ export async function readNotesImportSourcesFromDataTransfer(
   });
 
   if (entries.length === 0) {
-    return readNotesImportSourcesFromFiles(Array.from(dataTransfer.files ?? []));
+    return readNotesImportSourcesFromFiles(
+      Array.from(dataTransfer.files ?? [])
+    );
   }
 
-  const records = await flatMapAsync(entries, readNotesImportFileRecordsFromEntry);
+  const records = await flatMapAsync(
+    entries,
+    readNotesImportFileRecordsFromEntry
+  );
   return readNotesImportSourcesFromFileRecords(records);
 }
 
@@ -322,8 +331,7 @@ async function readNotesImportFileRecordsFromEntry(
     return [
       {
         relativePath,
-        readText: async () =>
-          (await getFileFromEntry(entry)).text(),
+        readText: async () => (await getFileFromEntry(entry)).text(),
       },
     ];
   }
@@ -404,7 +412,12 @@ function getNameFromUri(uri?: string) {
   try {
     return new URL(uri).pathname.split('/').filter(Boolean).pop() ?? '';
   } catch {
-    return uri.split(/[\\/]+/).filter(Boolean).pop() ?? '';
+    return (
+      uri
+        .split(/[\\/]+/)
+        .filter(Boolean)
+        .pop() ?? ''
+    );
   }
 }
 

@@ -5,10 +5,10 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
   buildNotesImportItems,
-  readNotesImportSourcesFromDataTransfer,
-  selectNotesImportSources,
   makeUniqueNoteTitle,
   normalizeTitleKey,
+  readNotesImportSourcesFromDataTransfer,
+  selectNotesImportSources,
 } from './notesImport';
 
 vi.mock('expo-document-picker', () => ({
