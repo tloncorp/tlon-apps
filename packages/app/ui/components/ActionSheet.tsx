@@ -15,7 +15,6 @@ import {
   PropsWithChildren,
   ReactElement,
   ReactNode,
-  createContext,
   forwardRef,
   useCallback,
   useContext,
@@ -114,13 +113,6 @@ export function createCopyAction({
 
 type AdaptiveMode = 'sheet' | 'dialog' | 'popover';
 
-const ActionSheetPresentationContext = createContext({
-  isDesktopFlyout: false,
-});
-
-const defaultPresentationContextValue = { isDesktopFlyout: false };
-const desktopFlyoutPresentationContextValue = { isDesktopFlyout: true };
-
 type ActionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -169,18 +161,6 @@ export const desktopFlyoutContentProps = {
   overflow: 'hidden',
 } as const;
 
-export function ActionSheetDesktopFlyoutProvider({
-  children,
-}: PropsWithChildren) {
-  return (
-    <ActionSheetPresentationContext.Provider
-      value={desktopFlyoutPresentationContextValue}
-    >
-      {children}
-    </ActionSheetPresentationContext.Provider>
-  );
-}
-
 // Main component
 
 const ActionSheetComponent = ({
@@ -224,17 +204,6 @@ const ActionSheetComponent = ({
   );
 
   const actionSheetContextValue = useMemo(() => ({ isInsideSheet: true }), []);
-  const presentationContextValue =
-    mode === 'popover'
-      ? desktopFlyoutPresentationContextValue
-      : defaultPresentationContextValue;
-  const withActionSheetContexts = (content: ReactNode) => (
-    <ActionSheetPresentationContext.Provider value={presentationContextValue}>
-      <ActionSheetContext.Provider value={actionSheetContextValue}>
-        {content}
-      </ActionSheetContext.Provider>
-    </ActionSheetPresentationContext.Provider>
-  );
 
   // listen for escape key to close the sheet
   // this is helpful for e2e tests
@@ -323,7 +292,9 @@ const ActionSheetComponent = ({
             maxHeight={popoverMaxHeight - 32}
             showsVerticalScrollIndicator={true}
           >
-            {withActionSheetContexts(children)}
+            <ActionSheetContext.Provider value={actionSheetContextValue}>
+              {children}
+            </ActionSheetContext.Provider>
           </ScrollView>
         </Popover.Content>
       </Popover>
@@ -375,7 +346,9 @@ const ActionSheetComponent = ({
               </XStack>
             )}
             <ScrollView flex={1} showsVerticalScrollIndicator={true}>
-              {withActionSheetContexts(children)}
+              <ActionSheetContext.Provider value={actionSheetContextValue}>
+                {children}
+              </ActionSheetContext.Provider>
             </ScrollView>
             {footerComponent && footerComponent({})}
           </Dialog.Content>
@@ -408,15 +381,15 @@ const ActionSheetComponent = ({
       stackBehavior={stackBehavior}
       frameStyle={{}}
     >
-      {withActionSheetContexts(
-        forcedMode === 'popover' ? (
+      <ActionSheetContext.Provider value={actionSheetContextValue}>
+        {forcedMode === 'popover' ? (
           <ActionSheet.ScrollableContent>
             <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
           </ActionSheet.ScrollableContent>
         ) : (
           children
-        )
-      )}
+        )}
+      </ActionSheetContext.Provider>
     </BottomSheetWrapper>
   ) : (
     <Sheet
@@ -432,15 +405,15 @@ const ActionSheetComponent = ({
       <Sheet.Overlay transition="quick" />
       <Sheet.Frame pressStyle={{}}>
         <Sheet.Handle />
-        {withActionSheetContexts(
-          forcedMode === 'popover' ? (
+        <ActionSheetContext.Provider value={actionSheetContextValue}>
+          {forcedMode === 'popover' ? (
             <ActionSheet.ScrollableContent>
               <ActionSheet.ContentBlock>{children}</ActionSheet.ContentBlock>
             </ActionSheet.ScrollableContent>
           ) : (
             children
-          )
-        )}
+          )}
+        </ActionSheetContext.Provider>
       </Sheet.Frame>
     </Sheet>
   );
@@ -524,13 +497,10 @@ ActionSheetScrollableContent.displayName = 'ActionSheetScrollableContent';
 const useContentStyle = () => {
   const insets = useSafeAreaInsets();
   const isWindowNarrow = useIsWindowNarrow();
-  const { isDesktopFlyout } = useContext(ActionSheetPresentationContext);
   return {
-    paddingBottom: isDesktopFlyout
-      ? getTokenValue('$xs', 'space')
-      : isWindowNarrow
-        ? insets.bottom + getTokenValue('$2xl', 'size')
-        : getTokenValue('$xl', 'size'),
+    paddingBottom: isWindowNarrow
+      ? insets.bottom + getTokenValue('$2xl', 'size')
+      : getTokenValue('$xl', 'size'),
   };
 };
 
@@ -600,40 +570,11 @@ const ActionSheetActionGroupFrame = styled(ActionSheetContentBlock, {
  */
 const ActionSheetActionGroup = ActionSheetActionGroupFrame.styleable<{
   contentProps?: ComponentProps<typeof ActionSheetActionGroupContent>;
-  compact?: boolean;
-}>(({ compact, contentProps, ...props }, ref) => {
+}>(({ contentProps, ...props }, ref) => {
   const actions = Children.toArray(props.children);
-  const { isDesktopFlyout } = useContext(ActionSheetPresentationContext);
-  const useCompactLayout = compact ?? isDesktopFlyout;
-  const compactFrameProps:
-    | ComponentProps<typeof ActionSheetActionGroupFrame>
-    | undefined = useCompactLayout
-    ? ({
-        paddingHorizontal: '$m',
-        paddingTop: '$m',
-        paddingBottom: '$xs',
-      } as const)
-    : undefined;
-  const resolvedContentProps:
-    | ComponentProps<typeof ActionSheetActionGroupContent>
-    | undefined = useCompactLayout
-    ? ({
-        borderRadius: '$2xl',
-        ...contentProps,
-      } as const)
-    : contentProps;
-
   return (
-    <ActionSheetActionGroupFrame
-      {...compactFrameProps}
-      {...props}
-      ref={ref}
-      accessible={false}
-    >
-      <ActionSheetActionGroupContent
-        {...resolvedContentProps}
-        accessible={false}
-      >
+    <ActionSheetActionGroupFrame {...props} ref={ref} accessible={false}>
+      <ActionSheetActionGroupContent {...contentProps} accessible={false}>
         {actions.map((c, index) => (
           <Fragment key={index}>
             {c}
@@ -929,22 +870,12 @@ export const SimpleActionSheet = ({
 
 export const SimpleActionGroupList = ({
   actionGroups,
-  compact,
 }: {
   actionGroups: ActionGroup[];
-  compact?: boolean;
 }) => {
-  const { isDesktopFlyout } = useContext(ActionSheetPresentationContext);
-  const useCompactLayout = compact ?? isDesktopFlyout;
-
   return actionGroups.map((group, i) => {
     return (
-      <ActionSheet.ActionGroup
-        key={i}
-        accent={group.accent}
-        compact={useCompactLayout}
-        paddingTop={useCompactLayout && i > 0 ? '$xs' : undefined}
-      >
+      <ActionSheet.ActionGroup key={i} accent={group.accent}>
         {group.actions.map((action, index) => (
           <ActionSheet.Action
             key={index}

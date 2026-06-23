@@ -21,7 +21,6 @@ import {
   Action,
   ActionGroup,
   ActionSheet,
-  ActionSheetDesktopFlyoutProvider,
   DESKTOP_FLYOUT_MIN_WIDTH,
   createActionGroups,
   desktopFlyoutContentProps,
@@ -190,35 +189,33 @@ export function GroupOptionsSheetLoader({
           {trigger}
         </Popover.Trigger>
         <Popover.Content {...desktopFlyoutContentProps}>
-          <ActionSheetDesktopFlyoutProvider>
-            {pane === 'notifications' ? (
-              <NotificationsSheetContent
-                chatTitle={title}
-                onPressBack={resetPane}
-              />
-            ) : pane === 'edit' ? (
-              <EditGroupSheetContent
-                chatTitle={title}
-                onPressBack={resetPane}
-                onOpenChange={onOpenChange}
-              />
-            ) : pane === 'sort' ? (
-              <SortChannelsSheetContent
-                chatTitle={title}
-                onPressBack={resetPane}
-              />
-            ) : (
-              <GroupOptionsSheetContent
-                groupUnread={groupUnread ?? null}
-                currentUserIsAdmin={currentUserIsAdmin}
-                onPressNotifications={handlePressNotifications}
-                onPressSort={handlePressSort}
-                chatTitle={title}
-                group={group || groupData!}
-                onOpenChange={onOpenChange}
-              />
-            )}
-          </ActionSheetDesktopFlyoutProvider>
+          {pane === 'notifications' ? (
+            <NotificationsSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+            />
+          ) : pane === 'edit' ? (
+            <EditGroupSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+              onOpenChange={onOpenChange}
+            />
+          ) : pane === 'sort' ? (
+            <SortChannelsSheetContent
+              chatTitle={title}
+              onPressBack={resetPane}
+            />
+          ) : (
+            <GroupOptionsSheetContent
+              groupUnread={groupUnread ?? null}
+              currentUserIsAdmin={currentUserIsAdmin}
+              onPressNotifications={handlePressNotifications}
+              onPressSort={handlePressSort}
+              chatTitle={title}
+              group={group || groupData!}
+              onOpenChange={onOpenChange}
+            />
+          )}
         </Popover.Content>
       </Popover>
     );
@@ -573,21 +570,19 @@ const ChannelOptionsSheetLoader = memo(
             {trigger}
           </Popover.Trigger>
           <Popover.Content {...desktopFlyoutContentProps}>
-            <ActionSheetDesktopFlyoutProvider>
-              {pane === 'notifications' ? (
-                <NotificationsSheetContent
-                  chatTitle={chatTitle}
-                  onPressBack={resetPane}
-                />
-              ) : (
-                <ChannelOptionsSheetContent
-                  chatTitle={chatTitle}
-                  channel={channel}
-                  onPressNotifications={handlePressNotifications}
-                  onOpenChange={onOpenChange}
-                />
-              )}
-            </ActionSheetDesktopFlyoutProvider>
+            {pane === 'notifications' ? (
+              <NotificationsSheetContent
+                chatTitle={chatTitle}
+                onPressBack={resetPane}
+              />
+            ) : (
+              <ChannelOptionsSheetContent
+                chatTitle={chatTitle}
+                channel={channel}
+                onPressNotifications={handlePressNotifications}
+                onOpenChange={onOpenChange}
+              />
+            )}
           </Popover.Content>
         </Popover>
       );
