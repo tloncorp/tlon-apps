@@ -4,8 +4,8 @@ import * as db from '../db';
 import { setupDatabaseTestSuite } from '../test/helpers';
 import {
   makeNotesFolder,
-  makeNotesNotebook,
   makeNotesNote,
+  makeNotesNotebook,
   testNotebookFlag as notebookFlag,
 } from '../test/notesFixtures';
 
@@ -14,7 +14,10 @@ setupDatabaseTestSuite();
 test('saveNotesNotebookSnapshot replaces stale folders, notes, and members', async () => {
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ title: 'Before' }),
-    folders: [makeNotesFolder(1, '/', null), makeNotesFolder(2, 'Old folder', 1)],
+    folders: [
+      makeNotesFolder(1, '/', null),
+      makeNotesFolder(2, 'Old folder', 1),
+    ],
     notes: [makeNotesNote(1, 2, 'Old note')],
     members: [
       {
@@ -28,7 +31,10 @@ test('saveNotesNotebookSnapshot replaces stale folders, notes, and members', asy
 
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ title: 'After', updatedAt: 200 }),
-    folders: [makeNotesFolder(1, '/', null), makeNotesFolder(3, 'New folder', 1)],
+    folders: [
+      makeNotesFolder(1, '/', null),
+      makeNotesFolder(3, 'New folder', 1),
+    ],
     notes: [makeNotesNote(2, 3, 'New note')],
     members: [
       {
@@ -40,9 +46,7 @@ test('saveNotesNotebookSnapshot replaces stale folders, notes, and members', asy
     ],
   });
 
-  await expect(
-    db.getNotesNotebook({ notebookFlag })
-  ).resolves.toMatchObject({
+  await expect(db.getNotesNotebook({ notebookFlag })).resolves.toMatchObject({
     title: 'After',
     updatedAt: 200,
   });

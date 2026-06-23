@@ -89,7 +89,10 @@ async function ensureNotesNotebookJoined(flagInput: api.NotesFlag | string) {
 export function useEnsureNotesNotebookJoined({
   notebookFlag,
   enabled = true,
-}: { notebookFlag: string | null | undefined; enabled?: boolean }) {
+}: {
+  notebookFlag: string | null | undefined;
+  enabled?: boolean;
+}) {
   return useQuery({
     queryKey: ['notesEnsureJoined', notebookFlag],
     queryFn: () => ensureNotesNotebookJoined(notebookFlag!),
@@ -102,7 +105,10 @@ export function useEnsureNotesNotebookJoined({
 export function useSyncNotesNotebook({
   notebookFlag,
   enabled = true,
-}: { notebookFlag: string | null | undefined; enabled?: boolean }) {
+}: {
+  notebookFlag: string | null | undefined;
+  enabled?: boolean;
+}) {
   const query = useQuery({
     queryKey: ['notesSync', notebookFlag],
     queryFn: () => syncNotesNotebook(notebookFlag!),
@@ -176,9 +182,18 @@ function createNotebookQueryHook<TReturn>(
   };
 }
 
-export const useNotesNotebook = createNotebookQueryHook('notesNotebook', db.getNotesNotebook);
-export const useNotesFolders = createNotebookQueryHook('notesFolders', db.getNotesFolders);
-export const useNotesNotes = createNotebookQueryHook('notesNotes', db.getNotesNotes);
+export const useNotesNotebook = createNotebookQueryHook(
+  'notesNotebook',
+  db.getNotesNotebook
+);
+export const useNotesFolders = createNotebookQueryHook(
+  'notesFolders',
+  db.getNotesFolders
+);
+export const useNotesNotes = createNotebookQueryHook(
+  'notesNotes',
+  db.getNotesNotes
+);
 
 /**
  * Snapshots existing item ids, runs the create action, then syncs until an
@@ -215,7 +230,12 @@ export async function createNotebookNote({
   folderId,
   title,
   body = '',
-}: { notebookFlag: string; folderId: number; title: string; body?: string }) {
+}: {
+  notebookFlag: string;
+  folderId: number;
+  title: string;
+  body?: string;
+}) {
   return createAndFindNewItem({
     notebookFlag,
     list: () => db.getNotesNotes({ notebookFlag }),
@@ -235,7 +255,11 @@ export async function createNotebookFolder({
   notebookFlag,
   parentFolderId,
   name,
-}: { notebookFlag: string; parentFolderId?: number | null; name: string }) {
+}: {
+  notebookFlag: string;
+  parentFolderId?: number | null;
+  name: string;
+}) {
   const parentId = parentFolderId ?? null;
   return createAndFindNewItem({
     notebookFlag,
@@ -260,7 +284,12 @@ export async function saveNotebookNote({
   note,
   title,
   body,
-}: { notebookFlag: string; note: db.NotesNote; title: string; body: string }) {
+}: {
+  notebookFlag: string;
+  note: db.NotesNote;
+  title: string;
+  body: string;
+}) {
   const nextTitle = normalizeNotebookNoteTitle(title);
   const shouldRename = nextTitle !== note.title;
   const shouldUpdateBody = body !== note.bodyMd;
@@ -306,7 +335,11 @@ export async function moveNotebookNote({
   notebookFlag,
   noteId,
   folderId,
-}: { notebookFlag: string; noteId: number; folderId: number }) {
+}: {
+  notebookFlag: string;
+  noteId: number;
+  folderId: number;
+}) {
   await api.notesV1.moveNote({
     flag: notebookFlag,
     noteId,
@@ -322,7 +355,11 @@ export async function renameNotebookFolder({
   notebookFlag,
   folder,
   name,
-}: { notebookFlag: string; folder: db.NotesFolder; name: string }) {
+}: {
+  notebookFlag: string;
+  folder: db.NotesFolder;
+  name: string;
+}) {
   const nextName = name.trim() || 'Untitled';
   if (nextName === folder.name) {
     return folder;
@@ -342,7 +379,11 @@ export async function moveNotebookFolder({
   notebookFlag,
   folder,
   parentFolderId,
-}: { notebookFlag: string; folder: db.NotesFolder; parentFolderId: number }) {
+}: {
+  notebookFlag: string;
+  folder: db.NotesFolder;
+  parentFolderId: number;
+}) {
   if (folder.parentFolderId === parentFolderId) {
     return folder;
   }
@@ -374,7 +415,10 @@ async function folderMatches(
 export async function deleteNotebookNote({
   notebookFlag,
   noteId,
-}: { notebookFlag: string; noteId: number }) {
+}: {
+  notebookFlag: string;
+  noteId: number;
+}) {
   await api.notesV1.deleteNote({ flag: notebookFlag, noteId });
   await db.deleteNotesNote({ notebookFlag, noteId });
   await syncNotesNotebookWithRetry(notebookFlag);
@@ -383,7 +427,10 @@ export async function deleteNotebookNote({
 export async function deleteNotebookFolder({
   notebookFlag,
   folder,
-}: { notebookFlag: string; folder: db.NotesFolder }) {
+}: {
+  notebookFlag: string;
+  folder: db.NotesFolder;
+}) {
   const folders = await db.getNotesFolders({ notebookFlag });
   const folderIds = Array.from(
     collectDescendantFolderIds(folders, folder.folderId)
@@ -431,7 +478,10 @@ const notesRetryOptions = {
  * has landed locally. Gives up quietly if the change never appears (the API
  * call already succeeded); sync failures themselves still propagate.
  */
-async function syncNotesNotebookWithRetry(notebookFlag: string, isReady?: () => Promise<boolean>) {
+async function syncNotesNotebookWithRetry(
+  notebookFlag: string,
+  isReady?: () => Promise<boolean>
+) {
   await waitForNotesCondition(async () => {
     await syncNotesNotebook(notebookFlag);
     return isReady ? isReady() : true;

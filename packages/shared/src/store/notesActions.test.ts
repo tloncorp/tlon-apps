@@ -7,8 +7,8 @@ import {
   makeApiNotesFolder,
   makeApiNotesNote,
   makeNotesFolder,
-  makeNotesNotebook,
   makeNotesNote,
+  makeNotesNotebook,
   testNotebookFlag as notebookFlag,
 } from '../test/notesFixtures';
 import { saveNotebookNote } from './notesActions';
