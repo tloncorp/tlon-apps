@@ -25,7 +25,11 @@ import {
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import { listTlonAccountIds, resolveTlonAccount } from './src/types.js';
-import { PLUGIN_COMMIT, PLUGIN_VERSION } from './src/version.generated.js';
+import {
+  formatTlonVersionIdentity,
+  resolveTlonSkillVersion,
+  setTlonSkillVersionResolver,
+} from './src/version.js';
 
 export { tlonPlugin } from './src/channel.js';
 export { setTlonRuntime } from './src/runtime.js';
@@ -136,7 +140,8 @@ function shellSplit(str: string): string[] {
 function runTlonCommand(
   binary: string,
   args: string[],
-  credentials?: { url: string; ship: string; code: string }
+  credentials?: { url: string; ship: string; code: string },
+  options?: { timeoutMs?: number }
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
@@ -150,6 +155,16 @@ function runTlonCommand(
 
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timeoutMs = options?.timeoutMs;
+
+    const cleanup = () => {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = undefined;
+      }
+    };
 
     child.stdout.on('data', (data) => {
       stdout += data.toString();
@@ -160,17 +175,49 @@ function runTlonCommand(
     });
 
     child.on('error', (err) => {
+      cleanup();
       reject(new Error(`Failed to run tlon: ${err.message}`));
     });
 
+    if (timeoutMs) {
+      timeout = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+      }, timeoutMs);
+    }
+
     child.on('close', (code) => {
-      if (code !== 0) {
+      cleanup();
+      if (timedOut) {
+        reject(new Error(`tlon timed out after ${timeoutMs}ms`));
+      } else if (code !== 0) {
         reject(new Error(stderr || `tlon exited with code ${code}`));
       } else {
         resolve(stdout);
       }
     });
   });
+}
+
+function firstLine(value: string): string {
+  return value.trim().split(/\r?\n/)[0]?.trim() || 'unknown';
+}
+
+function summarizeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return firstLine(message).slice(0, 180);
+}
+
+async function readTlonSkillVersion(binary: string): Promise<string> {
+  try {
+    return firstLine(
+      await runTlonCommand(binary, ['--version'], undefined, {
+        timeoutMs: 5_000,
+      })
+    );
+  } catch (error) {
+    return `unavailable (${summarizeError(error)})`;
+  }
 }
 
 export default defineChannelPluginEntry({
@@ -257,16 +304,9 @@ export default defineChannelPluginEntry({
     }
     // else: zero accounts configured — nothing to do
 
-    // Register /tlon-version command
-    api.registerCommand({
-      name: 'tlon-version',
-      description: 'Show Tlon plugin version.',
-      handler: async () => {
-        return { text: `Tlon plugin v${PLUGIN_VERSION} (${PLUGIN_COMMIT})` };
-      },
-    });
-
-    // Register the tlon tool
+    // Resolve the tlon tool binary once. The tool itself and version
+    // diagnostics share this path so telemetry reports what OpenClaw will
+    // actually execute.
     const tlonBinary = resolveTlonBinary({
       moduleDir: __dirname,
       resolveModule: require.resolve,
@@ -274,6 +314,44 @@ export default defineChannelPluginEntry({
     });
     api.logger.info(`[tlon] Registering tlon tool, binary: ${tlonBinary}`);
 
+    setTlonSkillVersionResolver(() => readTlonSkillVersion(tlonBinary));
+    const renderTlonVersion = async () => ({
+      text: formatTlonVersionIdentity({
+        tlonSkillVersion: await resolveTlonSkillVersion(),
+      }),
+    });
+    void resolveTlonSkillVersion().then((version) => {
+      api.logger.info(`[tlon] Tlon skill version: ${version}`);
+    });
+
+    // Register /tlon-version command
+    api.registerCommand({
+      name: 'tlon-version',
+      description: 'Show Tlon plugin version.',
+      handler: async () => {
+        return renderTlonVersion();
+      },
+    });
+
+    api.registerCommand({
+      name: 'tlon',
+      description: 'Tlon plugin diagnostics. Usage: /tlon version',
+      acceptsArgs: true,
+      handler: async (ctx) => {
+        const args = (ctx.args ?? '').trim().toLowerCase();
+        if (args !== 'version') {
+          return { text: 'Usage: /tlon version' };
+        }
+
+        const result = resolveBridgeForCommand(ctx);
+        if ('error' in result) {
+          return { text: result.error };
+        }
+        return renderTlonVersion();
+      },
+    });
+
+    // Register the tlon tool
     // Capture credentials from config at registration time
     const account = resolveTlonAccount(api.config);
     const credentials =

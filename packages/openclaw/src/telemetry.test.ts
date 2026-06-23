@@ -25,6 +25,15 @@ vi.mock('posthog-node', () => ({
   ),
 }));
 
+const VERSION_IDENTITY_MATCH = {
+  harness: 'openclaw',
+  pluginVersion: expect.any(String),
+  pluginCommit: expect.any(String),
+  pluginFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
+  adapterVersion: expect.any(String),
+  adapterFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
+};
+
 describe('telemetry tool tracking', () => {
   beforeEach(() => {
     _testing.clearToolCalls();
@@ -218,18 +227,27 @@ describe('telemetry tool tracking', () => {
 
     expect(postHogMocks.identify).toHaveBeenCalledWith({
       distinctId: '~zod',
-      properties: {
+      properties: expect.objectContaining({
         logSource: 'openclawPlugin',
         tlonOwnerShip: '~zod',
         tlonBotShip: '~nec',
-      },
+        harness: 'openclaw',
+        pluginVersion: expect.any(String),
+        pluginFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
+      }),
     });
 
     expect(postHogMocks.capture).toHaveBeenCalledWith({
       distinctId: '~zod',
       event: 'TlonBot Reply Handled',
-      properties: {
+      properties: expect.objectContaining({
         logSource: 'openclawPlugin',
+        harness: 'openclaw',
+        pluginVersion: expect.any(String),
+        pluginCommit: expect.any(String),
+        pluginFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
+        adapterVersion: expect.any(String),
+        adapterFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
         botShip: '~nec',
         ownerShip: '~zod',
         outcome: 'responded',
@@ -260,7 +278,7 @@ describe('telemetry tool tracking', () => {
             error: null,
           },
         ],
-      },
+      }),
     });
 
     const capturedEvent = postHogMocks.capture.mock.calls[0]?.[0];
@@ -272,6 +290,43 @@ describe('telemetry tool tracking', () => {
 
     expect(postHogMocks.flush).toHaveBeenCalledTimes(1);
     expect(postHogMocks.shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('captures gateway connected with version identity', () => {
+    const telemetry = createEnabledTelemetry()!;
+    telemetry.captureGatewayConnected({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      tlonSkillVersion: '0.3.2',
+      accountId: 'default',
+      configured: true,
+      watchedChannelCount: 3,
+      dmAllowlistCount: 2,
+      defaultAuthorizedShipsCount: 1,
+      pendingApprovalCount: 4,
+      autoDiscoverChannels: true,
+      ownerListenEnabled: true,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenCalledWith({
+      distinctId: '~zod',
+      event: 'TlonBot Gateway Connected',
+      properties: expect.objectContaining({
+        logSource: 'openclawPlugin',
+        ...VERSION_IDENTITY_MATCH,
+        botShip: '~nec',
+        ownerShip: '~zod',
+        tlonSkillVersion: '0.3.2',
+        accountId: 'default',
+        configured: true,
+        watchedChannelCount: 3,
+        dmAllowlistCount: 2,
+        defaultAuthorizedShipsCount: 1,
+        pendingApprovalCount: 4,
+        autoDiscoverChannels: true,
+        ownerListenEnabled: true,
+      }),
+    });
   });
 
   describe('captureHeartbeatNudge', () => {
@@ -292,7 +347,7 @@ describe('telemetry tool tracking', () => {
       expect(postHogMocks.capture).toHaveBeenCalledWith({
         distinctId: '~zod',
         event: 'TlonBot Heartbeat Nudge Sent',
-        properties: {
+        properties: expect.objectContaining({
           logSource: 'openclawPlugin',
           botShip: '~nec',
           ownerShip: '~zod',
@@ -304,7 +359,7 @@ describe('telemetry tool tracking', () => {
           accountId: 'default',
           messageId: '~nec/170.141.184.506.511.632.882.809.306.892.730.368.000',
           nudgeSentAtMs: 1700000000000,
-        },
+        }),
       });
     });
 
@@ -344,11 +399,11 @@ describe('telemetry tool tracking', () => {
 
       expect(postHogMocks.identify).toHaveBeenCalledWith({
         distinctId: '~zod',
-        properties: {
+        properties: expect.objectContaining({
           logSource: 'openclawPlugin',
           tlonOwnerShip: '~zod',
           tlonBotShip: '~nec',
-        },
+        }),
       });
     });
 
@@ -387,7 +442,7 @@ describe('telemetry tool tracking', () => {
       expect(postHogMocks.capture).toHaveBeenCalledWith({
         distinctId: '~zod',
         event: 'TlonBot Heartbeat Nudge Reengaged',
-        properties: {
+        properties: expect.objectContaining({
           logSource: 'openclawPlugin',
           botShip: '~nec',
           ownerShip: '~zod',
@@ -397,7 +452,7 @@ describe('telemetry tool tracking', () => {
           reengagementDelayMs: 4000,
           channel: 'tlon',
           accountId: 'default',
-        },
+        }),
       });
     });
 
@@ -416,11 +471,11 @@ describe('telemetry tool tracking', () => {
 
       expect(postHogMocks.identify).toHaveBeenCalledWith({
         distinctId: '~zod',
-        properties: {
+        properties: expect.objectContaining({
           logSource: 'openclawPlugin',
           tlonOwnerShip: '~zod',
           tlonBotShip: '~nec',
-        },
+        }),
       });
     });
 

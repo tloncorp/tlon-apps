@@ -53,6 +53,10 @@ import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
+  formatTlonVersionIdentity,
+  resolveTlonSkillVersion,
+} from '../version.js';
+import {
   type DisplayContext,
   type PendingApproval,
   createPendingApproval,
@@ -344,7 +348,14 @@ export async function monitorTlonProvider(
   const accountCode = account.code;
 
   const botShipName = normalizeShip(account.ship);
+  const tlonSkillVersion = await resolveTlonSkillVersion();
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
+  runtime.log?.(
+    `[tlon] version: ${formatTlonVersionIdentity({
+      markdown: false,
+      tlonSkillVersion,
+    }).replace(/\n/g, ' | ')}`
+  );
 
   const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(
     account.allowPrivateNetwork
@@ -3973,6 +3984,22 @@ export async function monitorTlonProvider(
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      telemetry?.captureGatewayConnected({
+        ownerShip: effectiveOwnerShip,
+        botShip: botShipName,
+        tlonSkillVersion: await resolveTlonSkillVersion(),
+        accountId: account.accountId,
+        configured: account.configured,
+        watchedChannelCount: watchedChannels.size,
+        dmAllowlistCount: effectiveDmAllowlist.length,
+        defaultAuthorizedShipsCount: (
+          currentSettings.defaultAuthorizedShips ??
+          account.defaultAuthorizedShips
+        ).length,
+        pendingApprovalCount: pendingApprovals.length,
+        autoDiscoverChannels: effectiveAutoDiscoverChannels,
+        ownerListenEnabled: effectiveOwnerListenEnabled,
+      });
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
