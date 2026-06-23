@@ -316,7 +316,6 @@ export function Channel({
   goToPost,
   goToDm,
   goToUserProfile,
-  goToChannelDetails,
   goToGroupSettings,
   onScrollEndReached,
   onScrollStartReached,
@@ -358,7 +357,6 @@ export function Channel({
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
-  const isGroupAdmin = utils.useIsAdmin(channel.groupId ?? '', currentUserId);
   const collectionRef = useRef<PostCollectionHandle>(null);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
@@ -420,6 +418,8 @@ export function Channel({
     childThreadUnreadActivityKnown,
     hasChildThreadUnreadActivity,
   });
+  const shouldShowPostLoading =
+    channel.type !== 'notes' && Boolean(isLoadingPosts);
 
   useEffect(() => {
     const clearShowTimeout = () => {
@@ -435,7 +435,7 @@ export function Channel({
       }
     };
 
-    if (isLoadingPosts) {
+    if (shouldShowPostLoading) {
       clearHideTimeout();
       if (showHeaderLoading || headerLoadingShowTimeoutRef.current) {
         return;
@@ -467,7 +467,7 @@ export function Channel({
       setShowHeaderLoading(false);
       headerLoadingHideTimeoutRef.current = null;
     }, hideDelay);
-  }, [isLoadingPosts, showHeaderLoading]);
+  }, [shouldShowPostLoading, showHeaderLoading]);
 
   useEffect(() => {
     return () => {
@@ -733,29 +733,28 @@ export function Channel({
                   >
                     <ChannelHeaderItemsProvider>
                       <>
-                        {channel.type !== 'notes' && (
-                          <ChannelHeader
-                            channel={channel}
-                            group={group}
-                            title={title ?? ''}
-                            description={''}
-                            goBack={
-                              isNarrow ||
-                              draftInputPresentationMode === 'fullscreen'
-                                ? handleGoBack
-                                : undefined
-                            }
-                            goToChatDetails={goToChatDetails}
-                            goToProfile={handleGoToProfile}
-                            goToSearch={goToSearch}
-                            showSpinner={showHeaderLoading}
-                            showSearchButton={
-                              channel.type === 'chat' ||
-                              channel.type === 'dm' ||
-                              channel.type === 'groupDm'
-                            }
-                          />
-                        )}
+                        <ChannelHeader
+                          channel={channel}
+                          group={group}
+                          title={title ?? ''}
+                          description={''}
+                          goBack={
+                            isNarrow ||
+                            draftInputPresentationMode === 'fullscreen'
+                              ? handleGoBack
+                              : undefined
+                          }
+                          goToChatDetails={goToChatDetails}
+                          goToProfile={handleGoToProfile}
+                          goToSearch={goToSearch}
+                          hideIdentity={channel.type === 'notes' && !isNarrow}
+                          showSpinner={showHeaderLoading}
+                          showSearchButton={
+                            channel.type === 'chat' ||
+                            channel.type === 'dm' ||
+                            channel.type === 'groupDm'
+                          }
+                        />
                         {shouldShowPinnedPostBanner && (
                           <PinnedPostBanner
                             channel={channel}
@@ -787,7 +786,7 @@ export function Channel({
                                     hasNewerPosts,
                                     hasOlderPosts,
                                     initialChannelUnread,
-                                    isLoadingPosts: isLoadingPosts ?? false,
+                                    isLoadingPosts: shouldShowPostLoading,
                                     loadPostsError,
                                     onPressDelete,
                                     onPressRetrySend,
