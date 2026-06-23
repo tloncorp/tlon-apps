@@ -197,12 +197,10 @@ describe('createContextLensShipSync', () => {
       pokes.slice(1).every((p) => p.mark === 'steward-lens-action-1')
     ).toBe(true);
     const final = pokes[3].json as {
-      id: string;
-      payload: unknown;
-      final: boolean;
+      entry: { id: string; payload: unknown; final: boolean };
     };
-    expect(final.id).toBe(lens.lensId);
-    expect(final.final).toBe(true);
+    expect(final.entry.id).toBe(lens.lensId);
+    expect(final.entry.final).toBe(true);
   });
 
   it('skips repeat events with an unchanged status', async () => {

@@ -213,9 +213,11 @@ export function createContextLensShipSync(opts: {
     if (TERMINAL_STATUSES.has(lens.status)) {
       lastStatusByLensId.delete(lens.lensId);
       enqueuePoke(`run-final ${lens.lensId}`, {
-        id: lens.lensId,
-        payload: buildLensRunPayload(lens),
-        final: true,
+        entry: {
+          id: lens.lensId,
+          payload: buildLensRunPayload(lens),
+          final: true,
+        },
       });
       return;
     }
@@ -232,9 +234,11 @@ export function createContextLensShipSync(opts: {
       lastStatusByLensId.delete(oldest);
     }
     enqueuePoke(`run-event ${lens.lensId}`, {
-      id: lens.lensId,
-      payload: buildLensRunPayload(lens),
-      final: false,
+      entry: {
+        id: lens.lensId,
+        payload: buildLensRunPayload(lens),
+        final: false,
+      },
     });
   };
 
