@@ -27,3 +27,9 @@ export type LensUpdate =
   | { entry: LensRunEntry }
   | { recent: LensRunEntry[] }
   | { 'retry-requested': { id: string; requester: string } };
+
+/**
+ * Scry response for /x/v1/lens/recent[/<count>] and /x/v1/lens/since/<da>:
+ * the %recent update variant, carrying a batch of entries.
+ */
+export type LensRecentScry = { recent: LensRunEntry[] };

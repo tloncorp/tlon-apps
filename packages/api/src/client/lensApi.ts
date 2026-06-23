@@ -28,10 +28,22 @@ export const toLensRun = (entry: ub.LensRunEntry): LensRun => {
   };
 };
 
-export const getRecentLensRuns = async (): Promise<LensRun[]> => {
-  const response = await scry<{ recent: ub.LensRunEntry[] }>({
+export const getRecentLensRuns = async (
+  count?: number
+): Promise<LensRun[]> => {
+  const path =
+    count && count > 0 ? `/v1/lens/recent/${count}` : '/v1/lens/recent';
+  const response = await scry<ub.LensRecentScry>({ app: 'steward', path });
+
+  return response.recent.map(toLensRun);
+};
+
+// Paginate run history backwards: pass the oldest receivedAt (@da string)
+// from the last page to fetch everything at or after that cutoff.
+export const getLensRunsSince = async (cutoff: string): Promise<LensRun[]> => {
+  const response = await scry<ub.LensRecentScry>({
     app: 'steward',
-    path: '/v1/lens/recent',
+    path: `/v1/lens/since/${cutoff}`,
   });
 
   return response.recent.map(toLensRun);
@@ -81,7 +93,7 @@ export const subscribeToLensUpdates = async (
   // Older ships don't have the %steward agent; probe with a scry so a missing
   // agent skips the subscription instead of wedging sync.
   try {
-    await scry<{ recent: ub.LensRunEntry[] }>({
+    await scry<ub.LensRecentScry>({
       app: 'steward',
       path: '/v1/lens/recent',
     });
