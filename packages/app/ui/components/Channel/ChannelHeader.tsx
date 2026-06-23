@@ -130,20 +130,23 @@ export function ChannelHeader({
   const { data: dmContact } = useContact({ id: dmContactId || '' });
   const { data: notesAvailable = false } = useNotesDeskAvailable();
 
-  const getChannelTypeName = useCallback((channelType: db.Channel['type']) => {
-    switch (channelType) {
-      case 'chat':
-        return 'Chat channel';
-      case 'notebook':
-        return notesAvailable ? 'Bulletin channel' : 'Notebook channel';
-      case 'notes':
-        return 'Notebook channel';
-      case 'gallery':
-        return 'Gallery channel';
-      default:
-        return 'Channel';
-    }
-  }, [notesAvailable]);
+  const getChannelTypeName = useCallback(
+    (channelType: db.Channel['type']) => {
+      switch (channelType) {
+        case 'chat':
+          return 'Chat channel';
+        case 'notebook':
+          return notesAvailable ? 'Bulletin channel' : 'Notebook channel';
+        case 'notes':
+          return 'Notebook channel';
+        case 'gallery':
+          return 'Gallery channel';
+        default:
+          return 'Channel';
+      }
+    },
+    [notesAvailable]
+  );
 
   const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
   const isWindowNarrow = useIsWindowNarrow();
