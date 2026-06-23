@@ -21,6 +21,8 @@ const TREE_CHILD_GUIDE_CARET_OFFSET = 8;
 const TREE_CHILD_GUIDE_TOP =
   TREE_ROW_HEIGHT / 2 + TREE_CHILD_GUIDE_CARET_OFFSET;
 
+type PublishingAction = 'publish' | 'unpublish' | null;
+
 export function FolderTreeRow({
   canEdit,
   depth,
@@ -139,19 +141,33 @@ export function FolderTreeRow({
 export function NoteRow({
   canEdit,
   depth,
+  isPublished,
   note,
+  publishDisabled,
+  publishedUrl,
+  publishingAction,
   selected = false,
   onDelete,
   onMove,
   onPress,
+  onPublish,
+  onUnpublish,
+  onViewPublished,
 }: {
   canEdit: boolean;
   depth: number;
+  isPublished: boolean;
   note: db.NotesNote;
+  publishDisabled: boolean;
+  publishedUrl?: string | null;
+  publishingAction: PublishingAction;
   selected?: boolean;
   onDelete: () => void;
   onMove: () => void;
   onPress: () => void;
+  onPublish: () => void;
+  onUnpublish: () => void;
+  onViewPublished?: () => void;
 }) {
   const updatedAt = formatNoteDate(note.updatedAt);
 
@@ -164,9 +180,32 @@ export function NoteRow({
         action: onMove,
         testID: `NotesMoveNoteAction-${note.noteId}`,
       },
+      {
+        title: isPublished ? 'Update published note' : 'Publish to web',
+        description: isPublished ? publishedUrl ?? undefined : undefined,
+        startIcon: 'EyeOpen',
+        action: onPublish,
+        disabled: publishDisabled,
+        testID: `NotesPublishNoteAction-${note.noteId}`,
+      },
+      isPublished && publishedUrl && onViewPublished
+        ? {
+            title: 'View published note',
+            startIcon: 'Link',
+            action: onViewPublished,
+            testID: `NotesViewPublishedNoteAction-${note.noteId}`,
+          }
+        : null,
     ],
     canEdit && [
       'negative',
+      isPublished && {
+        title: 'Unpublish note',
+        startIcon: 'EyeClosed',
+        action: onUnpublish,
+        disabled: publishDisabled || publishingAction === 'unpublish',
+        testID: `NotesUnpublishNoteAction-${note.noteId}`,
+      },
       {
         title: 'Delete note',
         startIcon: 'Close',

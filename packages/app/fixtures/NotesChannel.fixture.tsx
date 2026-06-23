@@ -156,8 +156,11 @@ function NotesTreeFixture() {
         >
           <NotesTreePane
             canEdit
+            isNotePublished={() => false}
             isDeletingFolder={false}
             layout="takeover"
+            publishDisabled={false}
+            publishingAction={null}
             selectedFolderId={null}
             selectedNoteId={1}
             treeRows={treeRows}
@@ -168,6 +171,7 @@ function NotesTreeFixture() {
             onMoveFolder={() => {}}
             onMoveNote={() => {}}
             onOpenNote={() => {}}
+            onPublishNote={() => {}}
             onRenameFolder={() => {}}
             onToggleFolder={(folderId, hasChildren) => {
               if (!hasChildren) return;
@@ -181,6 +185,7 @@ function NotesTreeFixture() {
                 return nextIds;
               });
             }}
+            onUnpublishNote={() => {}}
           />
         </YStack>
         <YStack flex={1} backgroundColor="$background" />
