@@ -36,7 +36,7 @@ export const MessagesNavigator = () => {
 
   useEffect(() => {
     setLastOpenTab('Messages');
-  }, []);
+  }, [setLastOpenTab]);
 
   return (
     <MessagesDrawer.Navigator
