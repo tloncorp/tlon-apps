@@ -73,12 +73,12 @@ export type NotesStreamEvent = {
 
 // Only the poke variants the client produces are modeled; the agent's full
 // action surface is documented with the %notes agent.
-export type NotesFolderAction =
+type NotesFolderAction =
   | { type: 'rename'; name: string }
   | { type: 'move'; newParent: number }
   | { type: 'delete'; recursive: boolean };
 
-export type NotesNoteAction =
+type NotesNoteAction =
   | { type: 'rename'; title: string }
   | { type: 'move'; folder: number }
   | { type: 'delete' }
@@ -86,28 +86,29 @@ export type NotesNoteAction =
   | { type: 'publish'; html: string }
   | { type: 'unpublish' };
 
-export type NotesNotebookAction =
+type NotesNotebookAction =
   | { type: 'delete' }
   | { type: 'create-folder'; parent?: number | null; name: string }
   | { type: 'folder'; id: number; action: NotesFolderAction }
   | { type: 'create-note'; folder: number; title: string; body: string }
   | { type: 'note'; id: number; action: NotesNoteAction };
 
-export type NotesJoinAction = { type: 'join'; ship: string; name: string };
+type NotesJoinAction = { type: 'join'; ship: string; name: string };
 
-export type NotesNotebookScopedAction = {
+type NotesNotebookScopedAction = {
   type: 'notebook';
   flag: string;
   action: NotesNotebookAction;
 };
 
-export type NotesAction = NotesJoinAction | NotesNotebookScopedAction;
+type NotesAction = NotesJoinAction | NotesNotebookScopedAction;
+
+type FlagArg = { flag: NotesFlag | string };
+type FolderIdArg = FlagArg & { folderId: number };
+type NoteIdArg = FlagArg & { noteId: number };
 
 export function formatNotesFlag(flag: NotesFlag | string): string {
-  if (typeof flag === 'string') {
-    return flag;
-  }
-  return `${flag.host}/${flag.name}`;
+  return typeof flag === 'string' ? flag : `${flag.host}/${flag.name}`;
 }
 
 export function parseNotesFlag(
@@ -115,8 +116,7 @@ export function parseNotesFlag(
 ): NotesFlag | null {
   if (!input) return null;
   const [host, name] = input.split('/');
-  if (!host || !name) return null;
-  return { host, name };
+  return host && name ? { host, name } : null;
 }
 
 export function parseNotesChannelId(
@@ -124,13 +124,11 @@ export function parseNotesChannelId(
 ): NotesFlag | null {
   if (!channelId) return null;
   const [app, host, name] = channelId.split('/');
-  if (app !== 'notes' || !host || !name) return null;
-  return { host, name };
+  return app === 'notes' && host && name ? { host, name } : null;
 }
 
 export function notesChannelId(flag: NotesFlag | string): string {
-  const formatted = formatNotesFlag(flag);
-  return `notes/${formatted}`;
+  return `notes/${formatNotesFlag(flag)}`;
 }
 
 async function notesAction(action: NotesAction) {
@@ -160,23 +158,17 @@ export async function getNotesNotebook(
   }
 }
 
-export async function listNotesFolders(
-  flag: NotesFlag | string
-): Promise<NotesFolder[]> {
+export async function listNotesFolders(flag: NotesFlag | string): Promise<NotesFolder[]> {
   const { host, name } = requireNotesFlag(flag);
   return scryNotesList(`/v0/folders/${host}/${name}`);
 }
 
-export async function listNotes(
-  flag: NotesFlag | string
-): Promise<NotesNote[]> {
+export async function listNotes(flag: NotesFlag | string): Promise<NotesNote[]> {
   const { host, name } = requireNotesFlag(flag);
   return scryNotesList(`/v0/notes/${host}/${name}`);
 }
 
-export async function listNotesMembers(
-  flag: NotesFlag | string
-): Promise<NotesMemberRecord[]> {
+export async function listNotesMembers(flag: NotesFlag | string): Promise<NotesMemberRecord[]> {
   const { host, name } = requireNotesFlag(flag);
   return scryNotesList(`/v0/members/${host}/${name}`);
 }
@@ -202,11 +194,7 @@ export async function createNotesFolder({
   flag,
   parent,
   name,
-}: {
-  flag: NotesFlag | string;
-  parent?: number | null;
-  name: string;
-}) {
+}: FlagArg & { parent?: number | null; name: string }) {
   return notebookAction(flag, { type: 'create-folder', parent, name });
 }
 
@@ -214,48 +202,24 @@ export async function renameNotesFolder({
   flag,
   folderId,
   name,
-}: {
-  flag: NotesFlag | string;
-  folderId: number;
-  name: string;
-}) {
-  return notebookAction(flag, {
-    type: 'folder',
-    id: folderId,
-    action: { type: 'rename', name },
-  });
+}: FolderIdArg & { name: string }) {
+  return folderAction(flag, folderId, { type: 'rename', name });
 }
 
 export async function moveNotesFolder({
   flag,
   folderId,
   newParent,
-}: {
-  flag: NotesFlag | string;
-  folderId: number;
-  newParent: number;
-}) {
-  return notebookAction(flag, {
-    type: 'folder',
-    id: folderId,
-    action: { type: 'move', newParent },
-  });
+}: FolderIdArg & { newParent: number }) {
+  return folderAction(flag, folderId, { type: 'move', newParent });
 }
 
 export async function deleteNotesFolder({
   flag,
   folderId,
   recursive = true,
-}: {
-  flag: NotesFlag | string;
-  folderId: number;
-  recursive?: boolean;
-}) {
-  return notebookAction(flag, {
-    type: 'folder',
-    id: folderId,
-    action: { type: 'delete', recursive },
-  });
+}: FolderIdArg & { recursive?: boolean }) {
+  return folderAction(flag, folderId, { type: 'delete', recursive });
 }
 
 export async function createNotesNote({
@@ -263,12 +227,7 @@ export async function createNotesNote({
   folder,
   title,
   body = '',
-}: {
-  flag: NotesFlag | string;
-  folder: number;
-  title: string;
-  body?: string;
-}) {
+}: FlagArg & { folder: number; title: string; body?: string }) {
   return notebookAction(flag, { type: 'create-note', folder, title, body });
 }
 
@@ -276,32 +235,16 @@ export async function renameNotesNote({
   flag,
   noteId,
   title,
-}: {
-  flag: NotesFlag | string;
-  noteId: number;
-  title: string;
-}) {
-  return notebookAction(flag, {
-    type: 'note',
-    id: noteId,
-    action: { type: 'rename', title },
-  });
+}: NoteIdArg & { title: string }) {
+  return noteAction(flag, noteId, { type: 'rename', title });
 }
 
 export async function moveNotesNote({
   flag,
   noteId,
   folder,
-}: {
-  flag: NotesFlag | string;
-  noteId: number;
-  folder: number;
-}) {
-  return notebookAction(flag, {
-    type: 'note',
-    id: noteId,
-    action: { type: 'move', folder },
-  });
+}: NoteIdArg & { folder: number }) {
+  return noteAction(flag, noteId, { type: 'move', folder });
 }
 
 export async function updateNotesNoteBody({
@@ -309,61 +252,24 @@ export async function updateNotesNoteBody({
   noteId,
   body,
   expectedRevision,
-}: {
-  flag: NotesFlag | string;
-  noteId: number;
-  body: string;
-  expectedRevision: number;
-}) {
-  return notebookAction(flag, {
-    type: 'note',
-    id: noteId,
-    action: { type: 'update', body, expectedRevision },
-  });
+}: NoteIdArg & { body: string; expectedRevision: number }) {
+  return noteAction(flag, noteId, { type: 'update', body, expectedRevision });
 }
 
-export async function deleteNotesNote({
-  flag,
-  noteId,
-}: {
-  flag: NotesFlag | string;
-  noteId: number;
-}) {
-  return notebookAction(flag, {
-    type: 'note',
-    id: noteId,
-    action: { type: 'delete' },
-  });
+export async function deleteNotesNote({ flag, noteId }: NoteIdArg) {
+  return noteAction(flag, noteId, { type: 'delete' });
 }
 
 export async function publishNotesNote({
   flag,
   noteId,
   html,
-}: {
-  flag: NotesFlag | string;
-  noteId: number;
-  html: string;
-}) {
-  return notebookAction(flag, {
-    type: 'note',
-    id: noteId,
-    action: { type: 'publish', html },
-  });
+}: NoteIdArg & { html: string }) {
+  return noteAction(flag, noteId, { type: 'publish', html });
 }
 
-export async function unpublishNotesNote({
-  flag,
-  noteId,
-}: {
-  flag: NotesFlag | string;
-  noteId: number;
-}) {
-  return notebookAction(flag, {
-    type: 'note',
-    id: noteId,
-    action: { type: 'unpublish' },
-  });
+export async function unpublishNotesNote({ flag, noteId }: NoteIdArg) {
+  return noteAction(flag, noteId, { type: 'unpublish' });
 }
 
 export async function subscribeToNotesNotebook(
@@ -393,6 +299,22 @@ async function notebookAction(
     flag: formatNotesFlag(flag),
     action,
   });
+}
+
+function folderAction(
+  flag: NotesFlag | string,
+  id: number,
+  action: NotesFolderAction
+) {
+  return notebookAction(flag, { type: 'folder', id, action });
+}
+
+function noteAction(
+  flag: NotesFlag | string,
+  id: number,
+  action: NotesNoteAction
+) {
+  return notebookAction(flag, { type: 'note', id, action });
 }
 
 function requireNotesFlag(flag: NotesFlag | string): NotesFlag {

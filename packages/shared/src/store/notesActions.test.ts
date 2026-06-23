@@ -5,6 +5,14 @@ import * as db from '../db';
 import { publishedNotePath } from '../logic';
 import { setupDatabaseTestSuite } from '../test/helpers';
 import {
+  makeApiNotesFolder,
+  makeApiNotesNote,
+  makeNotesFolder,
+  makeNotesNotebook,
+  makeNotesNote,
+  testNotebookFlag as notebookFlag,
+} from '../test/notesFixtures';
+import {
   noteIsPublished,
   publishNotebookNote,
   saveNotebookNote,
@@ -13,7 +21,6 @@ import {
 
 setupDatabaseTestSuite();
 
-const notebookFlag = '~zod/native-notes';
 const notebookSummary: api.NotesNotebookSummary = {
   host: '~zod',
   flagName: 'native-notes',
@@ -28,85 +35,14 @@ const notebookSummary: api.NotesNotebookSummary = {
   },
 };
 
-const rootFolder: db.NotesFolder = {
-  id: `${notebookFlag}/folder/2`,
-  notebookFlag,
-  folderId: 2,
-  notebookId: 1,
-  name: '/',
-  parentFolderId: null,
-  createdBy: '~zod',
-  createdAt: 100,
-  updatedBy: '~zod',
-  updatedAt: 100,
-  syncedAt: 100,
-};
-
-function makeNotebook(): db.NotesNotebook {
-  return {
-    id: notebookFlag,
-    host: '~zod',
-    flagName: 'native-notes',
-    notebookId: 1,
-    title: 'Native notes',
-    visibility: 'private',
-    rootFolderId: rootFolder.folderId,
-    createdBy: '~zod',
-    createdAt: 100,
-    updatedBy: '~zod',
-    updatedAt: 100,
-    syncedAt: 100,
-    lastOpenedAt: null,
-    currentUserRole: 'owner',
-  };
-}
+const rootFolder = makeNotesFolder(2, '/', null);
 
 function makeNote(title: string): db.NotesNote {
-  return {
-    id: `${notebookFlag}/note/3`,
-    notebookFlag,
-    noteId: 3,
-    notebookId: 1,
-    folderId: rootFolder.folderId,
-    title,
-    slug: null,
+  return makeNotesNote(3, rootFolder.folderId, title, {
     bodyMd: 'body',
-    createdBy: '~zod',
     createdAt: 100,
-    updatedBy: '~zod',
     updatedAt: 100,
-    revision: 1,
-    syncedAt: 100,
-  };
-}
-
-function makeApiFolder(folder: db.NotesFolder): api.NotesFolder {
-  return {
-    id: folder.folderId,
-    notebookId: folder.notebookId,
-    name: folder.name,
-    parentFolderId: folder.parentFolderId ?? null,
-    createdBy: folder.createdBy ?? '~zod',
-    createdAt: folder.createdAt ?? 100,
-    updatedBy: folder.updatedBy ?? '~zod',
-    updatedAt: folder.updatedAt ?? 100,
-  };
-}
-
-function makeApiNote(note: db.NotesNote): api.NotesNote {
-  return {
-    id: note.noteId,
-    notebookId: note.notebookId,
-    folderId: note.folderId,
-    title: note.title,
-    slug: note.slug ?? null,
-    bodyMd: note.bodyMd,
-    createdBy: note.createdBy ?? '~zod',
-    createdAt: note.createdAt ?? 100,
-    updatedBy: note.updatedBy ?? '~zod',
-    updatedAt: note.updatedAt ?? 100,
-    revision: note.revision,
-  };
+  });
 }
 
 afterEach(() => {
@@ -116,16 +52,16 @@ afterEach(() => {
 test('saveNotebookNote preserves an empty title', async () => {
   const note = makeNote('Untitled');
   await db.saveNotesNotebookSnapshot({
-    notebook: makeNotebook(),
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
     folders: [rootFolder],
     notes: [note],
     members: [],
   });
 
-  const renamedNote = makeApiNote(makeNote(''));
+  const renamedNote = makeApiNotesNote(makeNote(''));
   vi.spyOn(api, 'getNotesNotebook').mockResolvedValue(notebookSummary);
   vi.spyOn(api, 'listNotesFolders').mockResolvedValue([
-    makeApiFolder(rootFolder),
+    makeApiNotesFolder(rootFolder),
   ]);
   vi.spyOn(api, 'listNotes').mockResolvedValue([renamedNote]);
   vi.spyOn(api, 'listNotesMembers').mockResolvedValue([]);
@@ -190,10 +126,8 @@ test('unpublishNotebookNote waits for the note to leave published records', asyn
 });
 
 test('noteIsPublished matches published records by note id', () => {
-  expect(
-    noteIsPublished([{ host: '~zod', flagName: 'native-notes', noteId: 3 }], 3)
-  ).toBe(true);
-  expect(
-    noteIsPublished([{ host: '~zod', flagName: 'native-notes', noteId: 3 }], 4)
-  ).toBe(false);
+  const published = [{ host: '~zod', flagName: 'native-notes', noteId: 3 }];
+
+  expect(noteIsPublished(published, 3)).toBe(true);
+  expect(noteIsPublished(published, 4)).toBe(false);
 });

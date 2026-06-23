@@ -353,8 +353,6 @@ export function Channel({
     typeof setTimeout
   > | null>(null);
   const title = utils.useChannelTitle(channel);
-  const chatTitle = utils.useChatTitle(channel, group);
-  const channelDisplayTitle = chatTitle ?? title;
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
   const canWrite = utils.useCanWrite(channel, currentUserId);
@@ -776,7 +774,6 @@ export function Channel({
                                 <PostCollectionContext.Provider
                                   value={{
                                     channel,
-                                    channelDisplayTitle,
                                     collectionConfiguration:
                                       channel.contentConfiguration == null
                                         ? undefined

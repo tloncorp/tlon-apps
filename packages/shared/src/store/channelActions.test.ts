@@ -90,15 +90,8 @@ function makeThreadUnread(
   };
 }
 
-afterEach(() => {
-  vi.restoreAllMocks();
-  vi.mocked(poke).mockClear();
-});
-
-test('createChannel creates a notes channel via the %notes HTTP API, forwarding readers', async () => {
-  await insertGroup();
-
-  const requestJson = vi.spyOn(api, 'requestJson').mockResolvedValue({
+function mockCreateNotesNotebook() {
+  return vi.spyOn(api, 'requestJson').mockResolvedValue({
     requestId: '1',
     body: {
       type: 'notebook',
@@ -109,6 +102,17 @@ test('createChannel creates a notes channel via the %notes HTTP API, forwarding 
       },
     },
   });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.mocked(poke).mockClear();
+});
+
+test('createChannel creates a notes channel via the %notes HTTP API, forwarding readers', async () => {
+  await insertGroup();
+
+  const requestJson = mockCreateNotesNotebook();
   const addChannelListingToGroup = vi
     .spyOn(api, 'addChannelListingToGroup')
     .mockResolvedValue(1);
@@ -166,17 +170,7 @@ test('createChannel does not insert a notes channel when the HTTP create fails',
 test('createChannel rolls back a notes notebook when local channel insert fails', async () => {
   await insertGroup();
 
-  vi.spyOn(api, 'requestJson').mockResolvedValue({
-    requestId: '1',
-    body: {
-      type: 'notebook',
-      notebook: {
-        host: '~solfer-magfed',
-        flagName: 'native-notes',
-        notebook: { id: 1, title: 'Native notes' },
-      },
-    },
-  });
+  mockCreateNotesNotebook();
   const deleteNotesNotebook = vi
     .spyOn(api, 'deleteNotesNotebook')
     .mockResolvedValue(1);
@@ -199,17 +193,7 @@ test('createChannel rolls back a notes notebook when local channel insert fails'
 test('createChannel rolls back a notes notebook when group listing fails', async () => {
   await insertGroup();
 
-  vi.spyOn(api, 'requestJson').mockResolvedValue({
-    requestId: '1',
-    body: {
-      type: 'notebook',
-      notebook: {
-        host: '~solfer-magfed',
-        flagName: 'native-notes',
-        notebook: { id: 1, title: 'Native notes' },
-      },
-    },
-  });
+  mockCreateNotesNotebook();
   vi.spyOn(api, 'addChannelListingToGroup').mockRejectedValue(
     new Error('listing failed')
   );

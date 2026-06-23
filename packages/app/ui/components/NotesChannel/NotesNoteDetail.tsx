@@ -3,18 +3,19 @@ import {
   deleteNotebookNote,
   markdownToStory,
   moveNotebookNote,
-  noteIsPublished,
   normalizeNotebookNoteTitle,
-  publishedNotePath,
+  noteIsPublished,
   publishNotebookNote,
+  publishedNotePath,
   saveNotebookNote,
   unpublishNotebookNote,
+  useMutableCallback,
   usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
 import { createActionGroups } from '../ActionSheet';
@@ -24,9 +25,10 @@ import {
   MetadataPill,
   MoveNoteSheet,
   NotebookGateMessage,
-  NotesErrorMessage,
+  NotesBanner,
   NotesMessage,
   NotesOverflowMenu,
+  confirmNotesDestructiveAction,
   errorMessage,
   useEntityDialog,
   useNotebookData,
@@ -34,6 +36,7 @@ import {
 import { buildFolderRows, formatNoteDate } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+type PublishingAction = 'publish' | 'unpublish' | null;
 
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
@@ -86,8 +89,8 @@ export function NotesNoteDetail({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [isUnpublishing, setIsUnpublishing] = useState(false);
+  const [publishingAction, setPublishingAction] =
+    useState<PublishingAction>(null);
   const {
     entity: movingNote,
     isPending: isMovingNote,
@@ -99,17 +102,15 @@ export function NotesNoteDetail({
 
   const { folders, notes, canEdit, rootFolderId, gate } =
     useNotebookData(notebookFlag);
-  const selectedNote = useMemo(() => {
-    if (noteId === null) return null;
-    return notes.find((note) => note.noteId === noteId) ?? null;
-  }, [noteId, notes]);
-  const {
-    data: publishedNotes,
-    refetch: refetchPublishedNotes,
-  } = usePublishedNotesForNotebook({
-    notebookFlag,
-    enabled: Boolean(notebookFlag && selectedNote),
-  });
+  const selectedNote =
+    noteId === null
+      ? null
+      : notes.find((note) => note.noteId === noteId) ?? null;
+  const { data: publishedNotes, refetch: refetchPublishedNotes } =
+    usePublishedNotesForNotebook({
+      notebookFlag,
+      enabled: Boolean(notebookFlag && selectedNote),
+    });
   const selectedNoteIsPublished = noteIsPublished(
     publishedNotes,
     selectedNote?.noteId
@@ -332,42 +333,25 @@ export function NotesNoteDetail({
     };
   }, [draftBase, isDirty, notebookFlag]);
 
-  const runDeleteSelectedNote = useCallback(async () => {
+  const handleDeleteSelectedNote = useMutableCallback(() => {
     if (!notebookFlag || !selectedNote || !canEdit) return;
-    setError(null);
-    try {
-      await deleteNotebookNote({
-        notebookFlag,
-        noteId: selectedNote.noteId,
-      });
-      onDeleted?.();
-    } catch (e) {
-      setError(errorMessage(e, 'Failed to delete note'));
-    }
-  }, [canEdit, notebookFlag, onDeleted, selectedNote]);
-
-  const handleDeleteSelectedNote = useCallback(() => {
-    if (!selectedNote) return;
-    if (Platform.OS === 'web') {
-      const confirm = (globalThis as { confirm?: (message: string) => boolean })
-        .confirm;
-      if (typeof confirm === 'function' && !confirm('Delete this note?')) {
-        return;
-      }
-      runDeleteSelectedNote();
-      return;
-    }
-    Alert.alert('Delete note', 'This note will be removed from the notebook.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: runDeleteSelectedNote,
+    confirmNotesDestructiveAction({
+      webMessage: 'Delete this note?',
+      nativeTitle: 'Delete note',
+      nativeMessage: 'This note will be removed from the notebook.',
+      action: () => {
+        setError(null);
+        void deleteNotebookNote({
+          notebookFlag,
+          noteId: selectedNote.noteId,
+        })
+          .then(() => onDeleted?.())
+          .catch((e) => setError(errorMessage(e, 'Failed to delete note')));
       },
-    ]);
-  }, [runDeleteSelectedNote, selectedNote]);
+    });
+  });
 
-  const handleMoveSelectedNote = useCallback(
+  const handleMoveSelectedNote = useMutableCallback(
     async (folderId: number) => {
       if (!notebookFlag || !selectedNote || !canEdit || isMovingNote) return;
 
@@ -388,47 +372,33 @@ export function NotesNoteDetail({
       } catch (e) {
         setError(errorMessage(e, 'Failed to move note'));
       }
-    },
-    [
-      canEdit,
-      closeMoveDialog,
-      isMovingNote,
-      notebookFlag,
-      runMove,
-      selectedNote,
-    ]
+    }
   );
 
-  const handleOpenMoveSheet = useCallback(() => {
-    if (selectedNote) {
-      openMoveDialog(selectedNote);
-    }
-  }, [openMoveDialog, selectedNote]);
+  const togglePreview = useCallback(() => {
+    setIsPreviewing((previewing) => !previewing);
+  }, []);
 
-  const publishedUrl = useMemo(() => {
-    if (
-      !notebookFlag ||
-      !selectedNote ||
-      Platform.OS !== 'web' ||
-      typeof window === 'undefined'
-    ) {
-      return null;
-    }
-    return new URL(
-      publishedNotePath(notebookFlag, selectedNote.noteId),
-      window.location.origin
-    ).toString();
-  }, [notebookFlag, selectedNote]);
+  const publishedUrl =
+    notebookFlag &&
+    selectedNote &&
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined'
+      ? new URL(
+          publishedNotePath(notebookFlag, selectedNote.noteId),
+          window.location.origin
+        ).toString()
+      : null;
 
-  const openPublishedNote = useCallback(() => {
+  const openPublishedNote = useMutableCallback(() => {
     if (!publishedUrl) return;
     window.open(publishedUrl, '_blank', 'noopener,noreferrer');
-  }, [publishedUrl]);
+  });
 
-  const handlePublishSelectedNote = useCallback(async () => {
-    if (!notebookFlag || !selectedNote || !canEdit || isPublishing) return;
+  const handlePublishSelectedNote = useMutableCallback(async () => {
+    if (!notebookFlag || !selectedNote || !canEdit || publishingAction) return;
 
-    setIsPublishing(true);
+    setPublishingAction('publish');
     setError(null);
     try {
       const saved = await saveSelectedNote();
@@ -445,24 +415,14 @@ export function NotesNoteDetail({
     } catch (e) {
       setError(errorMessage(e, 'Failed to publish note'));
     } finally {
-      setIsPublishing(false);
+      setPublishingAction(null);
     }
-  }, [
-    bodyDraft,
-    canEdit,
-    isPublishing,
-    notebookFlag,
-    openPublishedNote,
-    refetchPublishedNotes,
-    saveSelectedNote,
-    selectedNote,
-    titleDraft,
-  ]);
+  });
 
-  const handleUnpublishSelectedNote = useCallback(async () => {
-    if (!notebookFlag || !selectedNote || !canEdit || isUnpublishing) return;
+  const handleUnpublishSelectedNote = useMutableCallback(async () => {
+    if (!notebookFlag || !selectedNote || !canEdit || publishingAction) return;
 
-    setIsUnpublishing(true);
+    setPublishingAction('unpublish');
     setError(null);
     try {
       await unpublishNotebookNote({
@@ -473,55 +433,41 @@ export function NotesNoteDetail({
     } catch (e) {
       setError(errorMessage(e, 'Failed to unpublish note'));
     } finally {
-      setIsUnpublishing(false);
+      setPublishingAction(null);
     }
-  }, [
-    canEdit,
-    isUnpublishing,
-    notebookFlag,
-    refetchPublishedNotes,
-    selectedNote,
-  ]);
+  });
 
-  useRegisterChannelHeaderItem(
-    useMemo(() => {
-      if (
-        headerActionsPlacement !== 'channel-header' ||
-        !canEdit ||
-        !selectedNote
-      ) {
-        return null;
-      }
-      return (
+  const headerActions = useMemo(
+    () =>
+      canEdit && selectedNote ? (
         <NotesDetailHeaderActions
           isMoving={isMovingNote}
           isPublished={selectedNoteIsPublished}
-          isPublishing={isPublishing}
-          isUnpublishing={isUnpublishing}
-          canViewPublished={Platform.OS === 'web'}
+          publishingAction={publishingAction}
           publishedUrl={publishedUrl}
           onDelete={handleDeleteSelectedNote}
-          onMove={handleOpenMoveSheet}
+          onMove={() => openMoveDialog(selectedNote)}
           onPublish={handlePublishSelectedNote}
           onUnpublish={handleUnpublishSelectedNote}
           onViewPublished={openPublishedNote}
         />
-      );
-    }, [
+      ) : null,
+    [
       canEdit,
       handleDeleteSelectedNote,
-      handleOpenMoveSheet,
       handlePublishSelectedNote,
       handleUnpublishSelectedNote,
-      headerActionsPlacement,
       isMovingNote,
-      isPublishing,
-      isUnpublishing,
       openPublishedNote,
+      openMoveDialog,
+      publishingAction,
       publishedUrl,
       selectedNote,
       selectedNoteIsPublished,
-    ])
+    ]
+  );
+  useRegisterChannelHeaderItem(
+    headerActionsPlacement === 'channel-header' ? headerActions : null
   );
 
   if (noteId === null) {
@@ -543,25 +489,11 @@ export function NotesNoteDetail({
   }
 
   const inlineActions =
-    headerActionsPlacement === 'inline' && canEdit ? (
-      <NotesDetailHeaderActions
-        isMoving={isMovingNote}
-        isPublished={selectedNoteIsPublished}
-        isPublishing={isPublishing}
-        isUnpublishing={isUnpublishing}
-        canViewPublished={Platform.OS === 'web'}
-        publishedUrl={publishedUrl}
-        onDelete={handleDeleteSelectedNote}
-        onMove={handleOpenMoveSheet}
-        onPublish={handlePublishSelectedNote}
-        onUnpublish={handleUnpublishSelectedNote}
-        onViewPublished={openPublishedNote}
-      />
-    ) : null;
+    headerActionsPlacement === 'inline' ? headerActions : null;
 
   return (
     <YStack flex={1} backgroundColor="$background">
-      {error ? <NotesErrorMessage error={error} /> : null}
+      {error ? <NotesBanner message={error} tone="negative" /> : null}
       <YStack flex={1} width="100%" maxWidth={760} marginHorizontal="auto">
         <YStack
           paddingHorizontal="$xl"
@@ -591,16 +523,9 @@ export function NotesNoteDetail({
               disabled={!canEdit}
             />
             {headerActionsPlacement === 'inline' ? (
-              <Button
-                size="small"
-                fill="outline"
-                type="secondary"
-                backgroundColor="$background"
-                borderColor="$border"
-                leadingIcon={isPreviewing ? 'EditList' : 'EyeOpen'}
-                label={isPreviewing ? 'Edit' : 'Preview'}
-                onPress={() => setIsPreviewing((previewing) => !previewing)}
-                testID="NotesPreviewToggle"
+              <NotesPreviewToggle
+                isPreviewing={isPreviewing}
+                onPress={togglePreview}
               />
             ) : null}
             {inlineActions}
@@ -662,21 +587,10 @@ export function NotesNoteDetail({
             />
           )}
           {headerActionsPlacement === 'inline' ? null : (
-            <Button
-              position="absolute"
-              right="$xl"
-              bottom={64}
-              zIndex={100}
-              size="small"
-              fill="outline"
-              type="secondary"
-              backgroundColor="$background"
-              borderColor="$border"
-              leadingIcon={isPreviewing ? 'EditList' : 'EyeOpen'}
-              label={isPreviewing ? 'Edit' : 'Preview'}
-              shadow
-              onPress={() => setIsPreviewing((previewing) => !previewing)}
-              testID="NotesPreviewToggle"
+            <NotesPreviewToggle
+              floating
+              isPreviewing={isPreviewing}
+              onPress={togglePreview}
             />
           )}
         </YStack>
@@ -693,12 +607,39 @@ export function NotesNoteDetail({
   );
 }
 
+function NotesPreviewToggle({
+  floating = false,
+  isPreviewing,
+  onPress,
+}: {
+  floating?: boolean;
+  isPreviewing: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Button
+      position={floating ? 'absolute' : undefined}
+      right={floating ? '$xl' : undefined}
+      bottom={floating ? 64 : undefined}
+      zIndex={floating ? 100 : undefined}
+      size="small"
+      fill="outline"
+      type="secondary"
+      backgroundColor="$background"
+      borderColor="$border"
+      leadingIcon={isPreviewing ? 'EditList' : 'EyeOpen'}
+      label={isPreviewing ? 'Edit' : 'Preview'}
+      shadow={floating || undefined}
+      onPress={onPress}
+      testID="NotesPreviewToggle"
+    />
+  );
+}
+
 function NotesDetailHeaderActions({
-  canViewPublished,
   isMoving,
   isPublished,
-  isPublishing,
-  isUnpublishing,
+  publishingAction,
   onDelete,
   onMove,
   onPublish,
@@ -706,11 +647,9 @@ function NotesDetailHeaderActions({
   onViewPublished,
   publishedUrl,
 }: {
-  canViewPublished: boolean;
   isMoving: boolean;
   isPublished: boolean;
-  isPublishing: boolean;
-  isUnpublishing: boolean;
+  publishingAction: PublishingAction;
   onDelete: () => void;
   onMove: () => void;
   onPublish: () => void;
@@ -718,64 +657,48 @@ function NotesDetailHeaderActions({
   onViewPublished: () => void;
   publishedUrl: string | null;
 }) {
-  const groups = useMemo(
-    () =>
-      createActionGroups(
-        [
-          'neutral',
-          {
-            title: 'Move to folder',
-            startIcon: 'Folder',
-            action: onMove,
-            disabled: isMoving,
-            testID: 'NotesDetailMoveAction',
-          },
-          {
-            title: isPublished ? 'Update published note' : 'Publish to web',
-            description: isPublished ? (publishedUrl ?? undefined) : undefined,
-            startIcon: 'EyeOpen',
-            action: onPublish,
-            disabled: isPublishing,
-            testID: 'NotesDetailPublishAction',
-          },
-          isPublished &&
-            canViewPublished && {
-              title: 'View published note',
-              startIcon: 'Link',
-              action: onViewPublished,
-              testID: 'NotesDetailViewPublishedAction',
-            },
-        ],
-        [
-          'negative',
-          isPublished && {
-            title: 'Unpublish note',
-            startIcon: 'EyeClosed',
-            action: onUnpublish,
-            disabled: isUnpublishing,
-            testID: 'NotesDetailUnpublishAction',
-          },
-          {
-            title: 'Delete note',
-            startIcon: 'Close',
-            accent: 'negative',
-            action: onDelete,
-            testID: 'NotesDetailDeleteAction',
-          },
-        ]
-      ),
+  const groups = createActionGroups(
     [
-      canViewPublished,
-      isMoving,
-      isPublished,
-      isPublishing,
-      isUnpublishing,
-      onDelete,
-      onMove,
-      onPublish,
-      onUnpublish,
-      onViewPublished,
-      publishedUrl,
+      'neutral',
+      {
+        title: 'Move to folder',
+        startIcon: 'Folder',
+        action: onMove,
+        disabled: isMoving,
+        testID: 'NotesDetailMoveAction',
+      },
+      {
+        title: isPublished ? 'Update published note' : 'Publish to web',
+        description: isPublished ? publishedUrl ?? undefined : undefined,
+        startIcon: 'EyeOpen',
+        action: onPublish,
+        disabled: publishingAction === 'publish',
+        testID: 'NotesDetailPublishAction',
+      },
+      isPublished &&
+        publishedUrl !== null && {
+          title: 'View published note',
+          startIcon: 'Link',
+          action: onViewPublished,
+          testID: 'NotesDetailViewPublishedAction',
+        },
+    ],
+    [
+      'negative',
+      isPublished && {
+        title: 'Unpublish note',
+        startIcon: 'EyeClosed',
+        action: onUnpublish,
+        disabled: publishingAction === 'unpublish',
+        testID: 'NotesDetailUnpublishAction',
+      },
+      {
+        title: 'Delete note',
+        startIcon: 'Close',
+        accent: 'negative',
+        action: onDelete,
+        testID: 'NotesDetailDeleteAction',
+      },
     ]
   );
 
@@ -794,13 +717,16 @@ function SaveStatus({
   saveState: SaveState;
   isDirty: boolean;
 }) {
-  const label = useMemo(() => {
-    if (saveState === 'saving') return 'Saving';
-    if (saveState === 'error') return 'Save failed';
-    if (isDirty || saveState === 'dirty') return 'Unsaved';
-    if (saveState === 'saved') return 'Saved';
-    return '';
-  }, [isDirty, saveState]);
+  const label =
+    saveState === 'saving'
+      ? 'Saving'
+      : saveState === 'error'
+        ? 'Save failed'
+        : isDirty || saveState === 'dirty'
+          ? 'Unsaved'
+          : saveState === 'saved'
+            ? 'Saved'
+            : '';
 
   if (!label) return null;
   return (

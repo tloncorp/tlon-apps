@@ -1,13 +1,13 @@
 import * as db from '@tloncorp/shared/db';
+import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
 import { Button, Text } from '@tloncorp/ui';
-import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
 import { TextInput } from '../Form';
 import { FolderPicker, NotesDialog } from './NotesCommon';
 import type { FolderRow } from './notesTree';
-import { collectDescendantFolderIds, getFolderLabel } from './notesTree';
+import { getFolderLabel } from './notesTree';
 
 function FolderNameField({
   name,
@@ -168,22 +168,17 @@ export function MoveFolderSheet({
   open: boolean;
 }) {
   const label = getFolderLabel(folder);
-  const disabledFolders = useMemo(() => {
-    const labels = new Map<number, string>();
-    if (!folder) {
-      return labels;
-    }
+  const disabledFolders = new Map<number, string>();
 
+  if (folder) {
     collectDescendantFolderIds(folders, folder.folderId).forEach((id) => {
-      labels.set(id, id === folder.folderId ? 'This folder' : 'Nested');
+      disabledFolders.set(id, id === folder.folderId ? 'This folder' : 'Nested');
     });
 
     if (folder.parentFolderId !== null && folder.parentFolderId !== undefined) {
-      labels.set(folder.parentFolderId, 'Current');
+      disabledFolders.set(folder.parentFolderId, 'Current');
     }
-
-    return labels;
-  }, [folder, folders]);
+  }
 
   return (
     <NotesDialog

@@ -23,11 +23,8 @@ import { NotesDetailScreen } from '../../features/top/NotesDetailScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
-import {
-  DESKTOP_SIDEBAR_WIDTH,
-  NotebookSidebarProvider,
-  useGlobalSearch,
-} from '../../ui';
+import { DESKTOP_SIDEBAR_WIDTH, useGlobalSearch } from '../../ui';
+import { NotebookSidebarProvider } from '../../ui/contexts/notebookSidebar';
 import { HomeDrawerParamList } from '../types';
 import { mediaViewerScreenOptions } from '../utils';
 import { HomeSidebar } from './HomeSidebar';

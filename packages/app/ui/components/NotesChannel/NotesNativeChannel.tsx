@@ -7,23 +7,24 @@ import {
   moveNotebookFolder,
   moveNotebookNote,
   renameNotebookFolder,
+  useMutableCallback,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Text, useIsWindowNarrow } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ComponentProps, DragEvent } from 'react';
-import { Alert, Platform } from 'react-native';
+import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
+import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
-import type { Action } from '../ActionSheet';
 import { SimpleActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   MoveNoteSheet,
   NotebookGateMessage,
-  NotesErrorMessage,
+  NotesBanner,
+  confirmNotesDestructiveAction,
   errorMessage,
   useEntityDialog,
   useNotebookData,
@@ -40,27 +41,18 @@ import {
 } from './NotesHeaderActions';
 import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
-import {
-  buildNotesImportItems,
-  canSelectNotesImportSources,
-  makeUniqueNoteTitle,
-  normalizeTitleKey,
-  readNotesImportSourcesFromDataTransfer,
-  selectNotesImportSources,
-} from './notesImport';
-import type { NotesImportMode, NotesImportSource } from './notesImport';
+import { canSelectNotesImportSources } from './notesImport';
 import {
   buildFolderNoteCounts,
   buildFolderRows,
   buildNotesTreeRows,
-  collectDescendantFolderIds,
   filterNotesTreeData,
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
   normalizeSearchText,
 } from './notesTree';
-import type { NotesTreeViewStyle } from './notesTree';
+import { useNotesImportController } from './useNotesImportController';
 
 export function NotesNativeChannel({
   channelId,
@@ -89,9 +81,6 @@ export function NotesNativeChannel({
   const [newActionSheetOpen, setNewActionSheetOpen] = useState(false);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [notesFilterQuery, setNotesFilterQuery] = useState('');
-  const [importNotice, setImportNotice] = useState<string | null>(null);
-  const [isDragImportActive, setIsDragImportActive] = useState(false);
-  const [isImportingNotes, setIsImportingNotes] = useState(false);
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const {
     entity: movingNote,
@@ -117,15 +106,12 @@ export function NotesNativeChannel({
     handleOpenChange: handleMoveFolderOpenChange,
     run: runMoveFolder,
   } = useEntityDialog<db.NotesFolder>();
-  const { value: treeViewStyle, setValue: setTreeViewStyle } =
-    db.notesTreeViewPreference.useStorageItem();
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(
     () => new Set()
   );
-  const dragImportDepthRef = useRef(0);
   const initializedFolderIdsRef = useRef<Set<number>>(new Set());
 
-  const { folders, notes, canEdit, rootFolderId, joinFailed, gate } =
+  const { folders, notes, canEdit, rootFolderId, gate } =
     useNotebookData(notebookFlag);
 
   const canImportFiles = canEdit && canSelectNotesImportSources('files');
@@ -136,10 +122,7 @@ export function NotesNativeChannel({
     [folders, rootFolderId]
   );
 
-  const normalizedNotesFilterQuery = useMemo(
-    () => normalizeSearchText(notesFilterQuery),
-    [notesFilterQuery]
-  );
+  const normalizedNotesFilterQuery = normalizeSearchText(notesFilterQuery);
   const filteredTreeData = useMemo(
     () =>
       filterNotesTreeData({
@@ -180,13 +163,23 @@ export function NotesNativeChannel({
       treeNotes,
     ]
   );
+  const selectNoteInPane = useMutableCallback((noteId: number | null) => {
+    setSelectedNoteId(noteId);
+    const note =
+      noteId !== null
+        ? notes.find((candidate) => candidate.noteId === noteId)
+        : null;
+    if (note) {
+      setSelectedFolderId(note.folderId);
+    }
+  });
+
   useEffect(() => {
     if (!useDesktopSplit || selectedNoteId !== null) return;
     const firstNote = treeRows.find((row) => row.type === 'note')?.note;
     if (!firstNote) return;
-    setSelectedNoteId(firstNote.noteId);
-    setSelectedFolderId(firstNote.folderId);
-  }, [selectedNoteId, treeRows, useDesktopSplit]);
+    selectNoteInPane(firstNote.noteId);
+  }, [selectNoteInPane, selectedNoteId, treeRows, useDesktopSplit]);
 
   useEffect(() => {
     if (
@@ -219,24 +212,20 @@ export function NotesNativeChannel({
     });
   }, [folders, rootFolderId]);
 
-  const openNote = useCallback(
-    (note: db.NotesNote) => {
-      if (useDesktopSplit) {
-        setSelectedNoteId(note.noteId);
-        setSelectedFolderId(note.folderId);
-        return;
-      }
+  const openNote = useMutableCallback((note: db.NotesNote) => {
+    if (useDesktopSplit) {
+      selectNoteInPane(note.noteId);
+      return;
+    }
 
-      navigation.navigate('NotesDetail', {
-        channelId,
-        groupId: groupId ?? undefined,
-        noteId: note.noteId,
-      });
-    },
-    [channelId, groupId, navigation, useDesktopSplit]
-  );
+    navigation.navigate('NotesDetail', {
+      channelId,
+      groupId: groupId ?? undefined,
+      noteId: note.noteId,
+    });
+  });
 
-  const expandFolder = useCallback((folderId: number) => {
+  const expandFolder = useMutableCallback((folderId: number) => {
     setExpandedFolderIds((currentIds) => {
       if (currentIds.has(folderId)) {
         return currentIds;
@@ -245,11 +234,9 @@ export function NotesNativeChannel({
       nextIds.add(folderId);
       return nextIds;
     });
-  }, []);
+  });
 
-  // Clears the error banner, runs the action, and surfaces any failure in the
-  // banner using `fallback` when the error carries no message.
-  const runAction = useCallback(
+  const runAction = useMutableCallback(
     async (fallback: string, action: () => Promise<void>) => {
       setError(null);
       try {
@@ -257,11 +244,10 @@ export function NotesNativeChannel({
       } catch (e) {
         setError(errorMessage(e, fallback));
       }
-    },
-    []
+    }
   );
 
-  const handleCreateNote = useCallback(async () => {
+  const handleCreateNote = useMutableCallback(async () => {
     if (!notebookFlag || !rootFolderId || !canEdit || isCreatingNote) return;
     const targetFolderId = selectedFolderId ?? rootFolderId;
     setIsCreatingNote(true);
@@ -277,18 +263,9 @@ export function NotesNativeChannel({
       }
     });
     setIsCreatingNote(false);
-  }, [
-    canEdit,
-    expandFolder,
-    isCreatingNote,
-    notebookFlag,
-    openNote,
-    rootFolderId,
-    runAction,
-    selectedFolderId,
-  ]);
+  });
 
-  const handleCreateFolder = useCallback(async () => {
+  const handleCreateFolder = useMutableCallback(async () => {
     if (!notebookFlag || !rootFolderId || !newFolderName.trim() || !canEdit) {
       return;
     }
@@ -305,275 +282,37 @@ export function NotesNativeChannel({
       setAddFolderOpen(false);
     });
     setIsCreatingFolder(false);
-  }, [
+  });
+
+  const handleAddFolderOpenChange = useMutableCallback((open: boolean) => {
+    setAddFolderOpen(open);
+    if (open) {
+      setNewFolderName('');
+      setNewFolderParentId(selectedFolderId ?? rootFolderId);
+    }
+  });
+
+  const canDropImportNotes = canImportFolder && gate !== 'unjoinable';
+  const {
+    dropImportProps,
+    importFiles,
+    importFolder,
+    importNotice,
+    isDragImportActive,
+    isImportingNotes,
+  } = useNotesImportController({
+    canDropImportNotes,
     canEdit,
     expandFolder,
-    newFolderName,
-    newFolderParentId,
+    folders,
     notebookFlag,
+    notes,
     rootFolderId,
-    runAction,
-  ]);
+    selectedFolderId,
+    setError,
+  });
 
-  const handleAddFolderOpenChange = useCallback(
-    (open: boolean) => {
-      setAddFolderOpen(open);
-      if (open) {
-        setNewFolderName('');
-        setNewFolderParentId(selectedFolderId ?? rootFolderId);
-      }
-    },
-    [rootFolderId, selectedFolderId]
-  );
-
-  const handleOpenNewSheet = useCallback(() => {
-    setNewActionSheetOpen(true);
-  }, []);
-
-  const handleOpenCreateFolder = useCallback(() => {
-    handleAddFolderOpenChange(true);
-  }, [handleAddFolderOpenChange]);
-
-  const handleTreeViewStyleChange = useCallback(
-    (style: NotesTreeViewStyle) => {
-      void setTreeViewStyle(style);
-    },
-    [setTreeViewStyle]
-  );
-
-  const importNotesFromSources = useCallback(
-    async (
-      sources: NotesImportSource[] | null,
-      targetRootFolderId: number,
-      importNotebookFlag: string
-    ) => {
-      if (!sources) {
-        return;
-      }
-
-      const importItems = buildNotesImportItems(sources);
-      if (importItems.length === 0) {
-        setImportNotice('No markdown or text files found.');
-        return;
-      }
-
-      const foldersByParentAndName = new Map<string, db.NotesFolder>();
-      folders.forEach((folder) => {
-        foldersByParentAndName.set(folderCacheKey(folder), folder);
-      });
-
-      const noteTitlesByFolder = new Map<number, Set<string>>();
-      notes.forEach((note) => {
-        const titles = noteTitlesByFolder.get(note.folderId) ?? new Set();
-        titles.add(normalizeTitleKey(note.title));
-        noteTitlesByFolder.set(note.folderId, titles);
-      });
-
-      const expandedFolderIds = new Set<number>([targetRootFolderId]);
-      const ensureFolderPath = async (segments: string[]) => {
-        let parentFolderId = targetRootFolderId;
-        for (const segment of segments) {
-          const key = folderCacheKey({
-            name: segment,
-            parentFolderId,
-          });
-          const existing = foldersByParentAndName.get(key);
-          if (existing) {
-            parentFolderId = existing.folderId;
-            expandedFolderIds.add(parentFolderId);
-            continue;
-          }
-
-          const folder = await createNotebookFolder({
-            notebookFlag: importNotebookFlag,
-            parentFolderId,
-            name: segment,
-          });
-          if (!folder) {
-            throw new Error(`Failed to create folder ${segment}`);
-          }
-
-          foldersByParentAndName.set(folderCacheKey(folder), folder);
-          parentFolderId = folder.folderId;
-          expandedFolderIds.add(parentFolderId);
-        }
-        return parentFolderId;
-      };
-
-      let importedCount = 0;
-      let failedCount = 0;
-      for (const item of importItems) {
-        try {
-          const folderId = await ensureFolderPath(item.folderSegments);
-          const existingTitles = noteTitlesByFolder.get(folderId) ?? new Set();
-          noteTitlesByFolder.set(folderId, existingTitles);
-          const title = makeUniqueNoteTitle(item.title, existingTitles);
-          await createNotebookNote({
-            notebookFlag: importNotebookFlag,
-            folderId,
-            title,
-            body: item.body,
-          });
-          expandedFolderIds.add(folderId);
-          importedCount += 1;
-        } catch (e) {
-          console.error('Failed to import note', item.source.relativePath, e);
-          failedCount += 1;
-        }
-      }
-
-      expandedFolderIds.forEach(expandFolder);
-      if (importedCount === 0 && failedCount > 0) {
-        throw new Error(
-          `Failed to import ${formatCount(failedCount, 'note')}.`
-        );
-      }
-
-      setImportNotice(formatImportNotice(importedCount, failedCount));
-    },
-    [expandFolder, folders, notes]
-  );
-
-  const runImport = useCallback(
-    async (readSources: () => Promise<NotesImportSource[] | null>) => {
-      const targetRootFolderId = selectedFolderId ?? rootFolderId;
-
-      if (
-        !notebookFlag ||
-        targetRootFolderId == null ||
-        !canEdit ||
-        isImportingNotes
-      ) {
-        return;
-      }
-
-      setError(null);
-      setImportNotice(null);
-      setIsImportingNotes(true);
-      try {
-        await importNotesFromSources(
-          await readSources(),
-          targetRootFolderId,
-          notebookFlag
-        );
-      } catch (e) {
-        setError(errorMessage(e, 'Failed to import notes'));
-      } finally {
-        setIsImportingNotes(false);
-      }
-    },
-    [
-      canEdit,
-      importNotesFromSources,
-      isImportingNotes,
-      notebookFlag,
-      rootFolderId,
-      selectedFolderId,
-    ]
-  );
-
-  const handleImportNotes = useCallback(
-    async (mode: NotesImportMode) => {
-      await runImport(() => selectNotesImportSources(mode));
-    },
-    [runImport]
-  );
-
-  const handleImportDroppedData = useCallback(
-    async (dataTransfer: DataTransfer) => {
-      await runImport(() =>
-        readNotesImportSourcesFromDataTransfer(dataTransfer)
-      );
-    },
-    [runImport]
-  );
-
-  const handleImportFiles = useCallback(() => {
-    void handleImportNotes('files');
-  }, [handleImportNotes]);
-
-  const handleImportFolder = useCallback(() => {
-    void handleImportNotes('folder');
-  }, [handleImportNotes]);
-
-  const canDropImportNotes =
-    canEdit && canSelectNotesImportSources('folder') && !joinFailed;
-
-  const hasFileDrag = useCallback((event: DragEvent) => {
-    return Array.from(event.dataTransfer.types ?? []).includes('Files');
-  }, []);
-
-  const handleImportDragEnter = useCallback(
-    (event: DragEvent) => {
-      if (!canDropImportNotes || !hasFileDrag(event)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      dragImportDepthRef.current += 1;
-      setIsDragImportActive(true);
-    },
-    [canDropImportNotes, hasFileDrag]
-  );
-
-  const handleImportDragOver = useCallback(
-    (event: DragEvent) => {
-      if (!canDropImportNotes || !hasFileDrag(event)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.dataTransfer.dropEffect = isImportingNotes ? 'none' : 'copy';
-    },
-    [canDropImportNotes, hasFileDrag, isImportingNotes]
-  );
-
-  const handleImportDragLeave = useCallback(
-    (event: DragEvent) => {
-      if (!canDropImportNotes || !hasFileDrag(event)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      dragImportDepthRef.current = Math.max(0, dragImportDepthRef.current - 1);
-      if (dragImportDepthRef.current === 0) {
-        setIsDragImportActive(false);
-      }
-    },
-    [canDropImportNotes, hasFileDrag]
-  );
-
-  const handleImportDrop = useCallback(
-    (event: DragEvent) => {
-      if (!canDropImportNotes || !hasFileDrag(event)) return;
-      event.preventDefault();
-      event.stopPropagation();
-      dragImportDepthRef.current = 0;
-      setIsDragImportActive(false);
-      void handleImportDroppedData(event.dataTransfer);
-    },
-    [canDropImportNotes, handleImportDroppedData, hasFileDrag]
-  );
-
-  const dropImportProps = canDropImportNotes
-    ? ({
-        onDragEnter: handleImportDragEnter,
-        onDragLeave: handleImportDragLeave,
-        onDragOver: handleImportDragOver,
-        onDrop: handleImportDrop,
-      } as unknown as ComponentProps<typeof YStack>)
-    : {};
-
-  useEffect(() => {
-    if (!canDropImportNotes) {
-      dragImportDepthRef.current = 0;
-      setIsDragImportActive(false);
-    }
-  }, [canDropImportNotes]);
-
-  const handleOpenMoveNote = useCallback(
-    (note: db.NotesNote) => {
-      if (!canEdit) return;
-      openMoveNoteDialog(note);
-    },
-    [canEdit, openMoveNoteDialog]
-  );
-
-  const handleMoveNoteToFolder = useCallback(
+  const handleMoveNoteToFolder = useMutableCallback(
     async (folderId: number) => {
       if (!notebookFlag || !movingNote || !canEdit || isMovingNote) return;
 
@@ -593,117 +332,44 @@ export function NotesNativeChannel({
           setSelectedFolderId(folderId);
         })
       );
-    },
-    [
-      canEdit,
-      closeMoveNoteDialog,
-      expandFolder,
-      isMovingNote,
-      movingNote,
-      notebookFlag,
-      runAction,
-      runMoveNote,
-    ]
+    }
   );
 
-  const handleNoteDeleted = useCallback(
-    (deletedNoteId: number) => {
-      if (selectedNoteId !== deletedNoteId) return;
+  const handleNoteDeleted = useMutableCallback((deletedNoteId: number) => {
+    if (selectedNoteId !== deletedNoteId) return;
 
-      const nextNoteId = getNextNoteIdAfterDelete(treeRows, deletedNoteId);
-      setSelectedNoteId(nextNoteId);
-      if (nextNoteId !== null) {
-        const nextNote = notes.find((note) => note.noteId === nextNoteId);
-        if (nextNote) {
-          setSelectedFolderId(nextNote.folderId);
-        }
-      }
-    },
-    [notes, selectedNoteId, treeRows]
-  );
+    const nextNoteId = getNextNoteIdAfterDelete(treeRows, deletedNoteId);
+    selectNoteInPane(nextNoteId);
+  });
 
-  const runDeleteNote = useCallback(
-    async (note: db.NotesNote) => {
-      if (!notebookFlag || !canEdit) return;
+  const handleDeleteNote = useMutableCallback((note: db.NotesNote) => {
+    if (!notebookFlag || !canEdit) return;
 
-      await runAction('Failed to delete note', async () => {
-        await deleteNotebookNote({
-          notebookFlag,
-          noteId: note.noteId,
+    const title = note.title || 'Untitled';
+    confirmNotesDestructiveAction({
+      webMessage: `Delete "${title}"?\n\nThis note will be removed from the notebook.`,
+      nativeTitle: 'Delete note',
+      nativeMessage: `Delete "${title}"? This note will be removed from the notebook.`,
+      action: () => {
+        void runAction('Failed to delete note', async () => {
+          await deleteNotebookNote({
+            notebookFlag,
+            noteId: note.noteId,
+          });
+          handleNoteDeleted(note.noteId);
         });
-        handleNoteDeleted(note.noteId);
-      });
-    },
-    [canEdit, handleNoteDeleted, notebookFlag, runAction]
-  );
+      },
+    });
+  });
 
-  const handleDeleteNote = useCallback(
-    (note: db.NotesNote) => {
-      if (!canEdit) return;
-
-      const title = note.title || 'Untitled';
-      if (Platform.OS === 'web') {
-        const confirm = (
-          globalThis as { confirm?: (message: string) => boolean }
-        ).confirm;
-        if (
-          typeof confirm === 'function' &&
-          !confirm(
-            `Delete "${title}"?\n\nThis note will be removed from the notebook.`
-          )
-        ) {
-          return;
-        }
-        void runDeleteNote(note);
-        return;
-      }
-
-      Alert.alert(
-        'Delete note',
-        `Delete "${title}"? This note will be removed from the notebook.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => {
-              void runDeleteNote(note);
-            },
-          },
-        ]
-      );
-    },
-    [canEdit, runDeleteNote]
-  );
-
-  const handleOpenRenameFolder = useCallback(
+  const handleOpenRenameFolder = useMutableCallback(
     (folder: db.NotesFolder) => {
       openRenameFolderDialog(folder);
       setRenameFolderName(getFolderLabel(folder));
-    },
-    [openRenameFolderDialog]
+    }
   );
 
-  const handleOpenMoveFolder = useCallback(
-    (folder: db.NotesFolder) => {
-      openMoveFolderDialog(folder);
-    },
-    [openMoveFolderDialog]
-  );
-
-  const getFolderDeleteSummary = useCallback(
-    (folder: db.NotesFolder) => {
-      const folderIds = collectDescendantFolderIds(folders, folder.folderId);
-      return {
-        folderIds,
-        nestedFolderCount: Math.max(0, folderIds.size - 1),
-        noteCount: notes.filter((note) => folderIds.has(note.folderId)).length,
-      };
-    },
-    [folders, notes]
-  );
-
-  const updateSelectionAfterFolderDelete = useCallback(
+  const updateSelectionAfterFolderDelete = useMutableCallback(
     (deletedFolderIds: Set<number>) => {
       if (selectedFolderId !== null && deletedFolderIds.has(selectedFolderId)) {
         setSelectedFolderId(null);
@@ -723,106 +389,66 @@ export function NotesNativeChannel({
         deletedFolderIds,
         selectedNoteId,
       });
-      setSelectedNoteId(nextNoteId);
-      if (nextNoteId !== null) {
-        const nextNote = notes.find((note) => note.noteId === nextNoteId);
-        if (nextNote) {
-          setSelectedFolderId(nextNote.folderId);
-        }
-      }
-    },
-    [notes, selectedFolderId, selectedNoteId, treeRows]
+      selectNoteInPane(nextNoteId);
+    }
   );
 
-  const runDeleteFolder = useCallback(
-    async (folder: db.NotesFolder, deletedFolderIds: Set<number>) => {
-      if (
-        !notebookFlag ||
-        !canEdit ||
-        isDeletingFolder ||
-        folder.folderId === rootFolderId
-      ) {
-        return;
-      }
+  const handleDeleteFolder = useMutableCallback((folder: db.NotesFolder) => {
+    if (
+      !notebookFlag ||
+      !canEdit ||
+      isDeletingFolder ||
+      folder.folderId === rootFolderId
+    ) {
+      return;
+    }
 
-      setIsDeletingFolder(true);
-      await runAction('Failed to delete folder', async () => {
-        await deleteNotebookFolder({
-          notebookFlag,
-          folder,
-        });
-        updateSelectionAfterFolderDelete(deletedFolderIds);
-        setExpandedFolderIds((currentIds) => {
-          if (![...deletedFolderIds].some((id) => currentIds.has(id))) {
-            return currentIds;
-          }
+    const folderIds = collectDescendantFolderIds(folders, folder.folderId);
+    const nestedFolderCount = Math.max(0, folderIds.size - 1);
+    const noteCount = notes.filter((note) =>
+      folderIds.has(note.folderId)
+    ).length;
+    const contents = [
+      noteCount > 0 ? formatCount(noteCount, 'note') : null,
+      nestedFolderCount > 0 ? formatCount(nestedFolderCount, 'folder') : null,
+    ].filter(Boolean);
+    const hasContents = contents.length > 0;
+    const label = getFolderLabel(folder);
+    const message = hasContents
+      ? `Delete "${label}"?\n\nThis will permanently delete ${contents.join(
+          ' and '
+        )} inside this folder.`
+      : `Delete "${label}"?\n\nThis folder will be permanently deleted.`;
 
-          const nextIds = new Set(currentIds);
-          deletedFolderIds.forEach((folderId) => nextIds.delete(folderId));
-          return nextIds;
-        });
-      });
-      setIsDeletingFolder(false);
-    },
-    [
-      canEdit,
-      isDeletingFolder,
-      notebookFlag,
-      rootFolderId,
-      runAction,
-      updateSelectionAfterFolderDelete,
-    ]
-  );
+    confirmNotesDestructiveAction({
+      webMessage: message,
+      nativeTitle: hasContents
+        ? 'Delete folder and contents?'
+        : 'Delete folder?',
+      nativeMessage: message.replace(/\n\n/g, ' '),
+      action: () => {
+        setIsDeletingFolder(true);
+        void runAction('Failed to delete folder', async () => {
+          await deleteNotebookFolder({
+            notebookFlag,
+            folder,
+          });
+          updateSelectionAfterFolderDelete(folderIds);
+          setExpandedFolderIds((currentIds) => {
+            if (![...folderIds].some((id) => currentIds.has(id))) {
+              return currentIds;
+            }
 
-  const handleDeleteFolder = useCallback(
-    (folder: db.NotesFolder) => {
-      if (!canEdit || folder.folderId === rootFolderId) return;
+            const nextIds = new Set(currentIds);
+            folderIds.forEach((folderId) => nextIds.delete(folderId));
+            return nextIds;
+          });
+        }).finally(() => setIsDeletingFolder(false));
+      },
+    });
+  });
 
-      const summary = getFolderDeleteSummary(folder);
-      const contents = [
-        summary.noteCount > 0 ? formatCount(summary.noteCount, 'note') : null,
-        summary.nestedFolderCount > 0
-          ? formatCount(summary.nestedFolderCount, 'folder')
-          : null,
-      ].filter(Boolean);
-      const hasContents = contents.length > 0;
-      const label = getFolderLabel(folder);
-      const message = hasContents
-        ? `Delete "${label}"?\n\nThis will permanently delete ${contents.join(
-            ' and '
-          )} inside this folder.`
-        : `Delete "${label}"?\n\nThis folder will be permanently deleted.`;
-
-      if (Platform.OS === 'web') {
-        const confirm = (
-          globalThis as { confirm?: (message: string) => boolean }
-        ).confirm;
-        if (typeof confirm === 'function' && !confirm(message)) {
-          return;
-        }
-        void runDeleteFolder(folder, summary.folderIds);
-        return;
-      }
-
-      Alert.alert(
-        hasContents ? 'Delete folder and contents?' : 'Delete folder?',
-        message.replace(/\n\n/g, ' '),
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => {
-              void runDeleteFolder(folder, summary.folderIds);
-            },
-          },
-        ]
-      );
-    },
-    [canEdit, getFolderDeleteSummary, rootFolderId, runDeleteFolder]
-  );
-
-  const handleRenameFolder = useCallback(async () => {
+  const handleRenameFolder = useMutableCallback(async () => {
     if (!notebookFlag || !renamingFolder || !canEdit || isRenamingFolder) {
       return;
     }
@@ -844,18 +470,9 @@ export function NotesNativeChannel({
         });
       })
     );
-  }, [
-    canEdit,
-    closeRenameFolderDialog,
-    isRenamingFolder,
-    notebookFlag,
-    renameFolderName,
-    renamingFolder,
-    runAction,
-    runRenameFolder,
-  ]);
+  });
 
-  const handleMoveFolderToParent = useCallback(
+  const handleMoveFolderToParent = useMutableCallback(
     async (parentFolderId: number) => {
       if (!notebookFlag || !movingFolder || !canEdit || isMovingFolder) {
         return;
@@ -878,42 +495,29 @@ export function NotesNativeChannel({
           setSelectedFolderId(movingFolder.folderId);
         })
       );
-    },
-    [
-      canEdit,
-      closeMoveFolderDialog,
-      expandFolder,
-      isMovingFolder,
-      movingFolder,
-      notebookFlag,
-      runAction,
-      runMoveFolder,
-    ]
+    }
   );
 
-  const newActions = useMemo<Action[]>(
-    () => [
-      createNotesNewNoteAction({
-        action: () => {
-          setNewActionSheetOpen(false);
-          void handleCreateNote();
-        },
-        disabled: isCreatingNote,
-        testID: 'NotesNewNoteAction',
-      }),
-      createNotesNewFolderAction({
-        action: () => {
-          setNewActionSheetOpen(false);
-          handleOpenCreateFolder();
-        },
-        disabled: isCreatingFolder,
-        testID: 'NotesNewFolderAction',
-      }),
-    ],
-    [handleCreateNote, handleOpenCreateFolder, isCreatingFolder, isCreatingNote]
-  );
+  const newActions = [
+    createNotesNewNoteAction({
+      action: () => {
+        setNewActionSheetOpen(false);
+        void handleCreateNote();
+      },
+      disabled: isCreatingNote,
+      testID: 'NotesNewNoteAction',
+    }),
+    createNotesNewFolderAction({
+      action: () => {
+        setNewActionSheetOpen(false);
+        handleAddFolderOpenChange(true);
+      },
+      disabled: isCreatingFolder,
+      testID: 'NotesNewFolderAction',
+    }),
+  ];
 
-  const toggleFolder = useCallback(
+  const toggleFolder = useMutableCallback(
     (folderId: number, hasChildren: boolean) => {
       if (!hasChildren) {
         setSelectedFolderId((currentFolderId) =>
@@ -939,17 +543,11 @@ export function NotesNativeChannel({
         }
         return nextIds;
       });
-    },
-    [expandedFolderIds]
+    }
   );
 
-  const handleDesktopNoteDeleted = useCallback(() => {
-    if (selectedNoteId === null) return;
-    handleNoteDeleted(selectedNoteId);
-  }, [handleNoteDeleted, selectedNoteId]);
-
   const headerActions = useMemo(() => {
-    if (!notebookFlag || joinFailed) return null;
+    if (!notebookFlag || gate === 'unjoinable') return null;
     return (
       <NotesHeaderActions
         canEdit={canEdit}
@@ -958,30 +556,26 @@ export function NotesNativeChannel({
         isCreatingFolder={isCreatingFolder}
         isCreatingNote={isCreatingNote}
         isImporting={isImportingNotes}
-        onCreateFolder={handleOpenCreateFolder}
+        onCreateFolder={() => handleAddFolderOpenChange(true)}
         onCreateNote={handleCreateNote}
-        onImportFiles={handleImportFiles}
-        onImportFolder={handleImportFolder}
+        onImportFiles={importFiles}
+        onImportFolder={importFolder}
         primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
-        treeViewStyle={treeViewStyle}
-        onTreeViewStyleChange={handleTreeViewStyleChange}
       />
     );
   }, [
     canEdit,
     canImportFiles,
     canImportFolder,
+    handleAddFolderOpenChange,
     handleCreateNote,
-    handleImportFiles,
-    handleImportFolder,
-    handleOpenCreateFolder,
-    handleTreeViewStyleChange,
+    importFiles,
+    importFolder,
     isCreatingFolder,
     isCreatingNote,
     isImportingNotes,
-    joinFailed,
+    gate,
     notebookFlag,
-    treeViewStyle,
     useDesktopSplit,
   ]);
 
@@ -999,15 +593,14 @@ export function NotesNativeChannel({
       selectedFolderId={selectedFolderId}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
-      treeViewStyle={treeViewStyle}
-      onCreate={handleOpenNewSheet}
       onDeleteFolder={handleDeleteFolder}
       onDeleteNote={handleDeleteNote}
-      onMoveFolder={handleOpenMoveFolder}
-      onMoveNote={handleOpenMoveNote}
+      onMoveFolder={openMoveFolderDialog}
+      onMoveNote={openMoveNoteDialog}
       onOpenNote={openNote}
-      onQueryChange={setNotesFilterQuery}
+      onCreate={() => setNewActionSheetOpen(true)}
       onRenameFolder={handleOpenRenameFolder}
+      onQueryChange={setNotesFilterQuery}
       onToggleFolder={toggleFolder}
     />
   );
@@ -1048,7 +641,11 @@ export function NotesNativeChannel({
           headerActionsPlacement="inline"
           noteId={selectedNoteId}
           notebookFlag={notebookFlag}
-          onDeleted={handleDesktopNoteDeleted}
+          onDeleted={() => {
+            if (selectedNoteId !== null) {
+              handleNoteDeleted(selectedNoteId);
+            }
+          }}
         />
       )}
     </YStack>
@@ -1061,8 +658,8 @@ export function NotesNativeChannel({
       position="relative"
       {...dropImportProps}
     >
-      {error ? <NotesErrorMessage error={error} /> : null}
-      {importNotice ? <NotesImportNotice message={importNotice} /> : null}
+      {error ? <NotesBanner message={error} tone="negative" /> : null}
+      {importNotice ? <NotesBanner message={importNotice} /> : null}
 
       {useDesktopSplit ? noteDetailPane : notesTreePane}
       {isDragImportActive ? (
@@ -1125,42 +722,6 @@ export function NotesNativeChannel({
       />
     </YStack>
   );
-}
-
-function NotesImportNotice({ message }: { message: string }) {
-  return (
-    <YStack
-      paddingHorizontal="$l"
-      paddingVertical="$s"
-      backgroundColor="$secondaryBackground"
-      borderBottomColor="$border"
-      borderBottomWidth={1}
-    >
-      <Text size="$label/s" color="$secondaryText">
-        {message}
-      </Text>
-    </YStack>
-  );
-}
-
-function folderCacheKey({
-  name,
-  parentFolderId,
-}: {
-  name: string;
-  parentFolderId?: number | null;
-}) {
-  return `${parentFolderId ?? 'root'}:${normalizeTitleKey(name)}`;
-}
-
-function formatImportNotice(importedCount: number, failedCount: number) {
-  if (failedCount === 0) {
-    return `Imported ${formatCount(importedCount, 'note')}.`;
-  }
-  return `Imported ${formatCount(importedCount, 'note')}; ${formatCount(
-    failedCount,
-    'note'
-  )} failed.`;
 }
 
 function formatCount(count: number, label: string) {

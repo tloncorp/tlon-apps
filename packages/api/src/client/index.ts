@@ -18,7 +18,6 @@ export * from './storageApi';
 export * from './vitalsApi';
 export * from './lanyardApi';
 export * from './inviteApi';
-export * from './notesApi';
 // Temporary: keep these as explicit re-exports to reduce cycle-related
 // initialization issues. Revert to barrel-style export after API/storage
 // boundaries are further decoupled.

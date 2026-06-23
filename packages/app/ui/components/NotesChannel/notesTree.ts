@@ -1,15 +1,6 @@
 import { makePrettyShortDate } from '@tloncorp/api/lib/utils';
 import * as db from '@tloncorp/shared/db';
-import {
-  PlaintextPreviewConfig,
-  collectDescendantFolderIds,
-  convertContent,
-  markdownToStory,
-  plaintextPreviewOf,
-} from '@tloncorp/shared/logic';
 
-export type NotesTreeViewStyle = db.NotesTreeViewPreference;
-export { collectDescendantFolderIds };
 export type FolderRow = { folder: db.NotesFolder; depth: number; path: string };
 export type NotesTreeRow =
   | {
@@ -60,10 +51,6 @@ function findRootFolder(
   );
 }
 
-/**
- * Visits any folders the root traversal missed: first those whose parent is
- * absent from the set, then anything still unvisited (cycles).
- */
 function visitOrphans(
   folders: db.NotesFolder[],
   byId: Map<number, db.NotesFolder>,
@@ -281,10 +268,9 @@ export function getNextNoteIdAfterDelete(
     row.type === 'note' ? [row.note.noteId] : []
   );
   const deletedIndex = noteIds.indexOf(deletedNoteId);
-  if (deletedIndex === -1) {
-    return null;
-  }
-  return noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null;
+  return deletedIndex === -1
+    ? null
+    : noteIds[deletedIndex + 1] ?? noteIds[deletedIndex - 1] ?? null;
 }
 
 export function getNextNoteIdAfterFolderDelete({
@@ -310,25 +296,14 @@ export function getNextNoteIdAfterFolderDelete({
     return selectedNoteId;
   }
 
-  const after = noteRows
-    .slice(selectedIndex + 1)
-    .find((row) => !isDeleted(row));
-  if (after) {
-    return after.note.noteId;
-  }
-
-  const before = noteRows
-    .slice(0, selectedIndex)
-    .reverse()
-    .find((row) => !isDeleted(row));
-  return before?.note.noteId ?? null;
+  return (
+    [
+      ...noteRows.slice(selectedIndex + 1),
+      ...noteRows.slice(0, selectedIndex).reverse(),
+    ].find((row) => !isDeleted(row))?.note.noteId ?? null
+  );
 }
 
-/**
- * Counts the notes in each folder and all of its descendants by crediting
- * every note to its folder's ancestor chain — one pass over the notes instead
- * of a descendant scan per folder.
- */
 export function buildFolderNoteCounts(
   folders: db.NotesFolder[],
   notes: db.NotesNote[]
@@ -370,21 +345,4 @@ export function formatNoteDate(timestamp: number | null | undefined) {
   if (!timestamp) return null;
   const unixMs = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
   return makePrettyShortDate(new Date(unixMs));
-}
-
-export function getNoteBodyPreview(bodyMd: string) {
-  try {
-    return compactPreviewText(
-      plaintextPreviewOf(
-        convertContent(markdownToStory(bodyMd), null),
-        PlaintextPreviewConfig.inlineConfig
-      )
-    );
-  } catch {
-    return compactPreviewText(bodyMd);
-  }
-}
-
-function compactPreviewText(text: string) {
-  return text.replace(/\s+/g, ' ').trim().slice(0, 180);
 }

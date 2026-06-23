@@ -3,95 +3,69 @@ import { Directory as ExpoDirectory } from 'expo-file-system';
 import * as FileSystem from 'expo-file-system/legacy';
 
 export type NotesImportSource = {
-  name: string;
   relativePath: string;
   contents: string;
 };
 
-export type NotesImportItem = {
+type NotesImportItem = {
   body: string;
   folderSegments: string[];
-  source: NotesImportSource;
+  relativePath: string;
   title: string;
 };
 
-export type NotesImportMode = 'files' | 'folder';
+type NotesImportMode = 'files' | 'folder';
 
 const SUPPORTED_IMPORT_EXTENSIONS = ['.markdown', '.md', '.txt'];
 
-type NotesDocumentPickerAsset = {
-  name: string;
-  uri: string;
-};
-
 type NotesImportFileRecord = {
-  name: string;
   relativePath: string;
   readText: () => Promise<string>;
 };
 
-type NotesNativeFileEntry = {
+type NotesNativeEntry = {
   name?: string;
-  text: () => Promise<string>;
+  list?: () => NotesNativeEntry[];
+  text?: () => Promise<string>;
   uri?: string;
 };
-
-type NotesNativeDirectoryEntry = {
-  list: () => NotesNativeEntry[];
-  name?: string;
-  uri?: string;
-};
-
-type NotesNativeEntry = NotesNativeDirectoryEntry | NotesNativeFileEntry;
 
 type NotesFileSystemEntry = {
   fullPath?: string;
-  isDirectory: boolean;
-  isFile: boolean;
-  name: string;
-};
-
-type NotesFileSystemFileEntry = NotesFileSystemEntry & {
-  isFile: true;
-  file: (
+  file?: (
     success: (file: File) => void,
     failure?: (error: unknown) => void
   ) => void;
-};
-
-type NotesFileSystemDirectoryEntry = NotesFileSystemEntry & {
-  isDirectory: true;
-  createReader: () => {
+  createReader?: () => {
     readEntries: (
       success: (entries: NotesFileSystemEntry[]) => void,
       failure?: (error: unknown) => void
     ) => void;
   };
+  isDirectory: boolean;
+  isFile: boolean;
+  name: string;
 };
 
 export function canSelectNotesImportSources(mode: NotesImportMode) {
-  if (canSelectNotesImportSourcesFromWeb()) {
-    return true;
-  }
-
-  return mode === 'files' || canSelectNotesImportFolderFromNative();
+  return canSelectNotesImportSourcesFromWeb() ||
+    mode === 'files' ||
+    canSelectNotesImportFolderFromNative();
 }
 
 export async function selectNotesImportSources(
   mode: NotesImportMode
 ): Promise<NotesImportSource[] | null> {
-  if (canSelectNotesImportSourcesFromWeb()) {
-    return selectNotesImportSourcesFromWeb(mode);
-  }
-
-  return selectNotesImportSourcesFromNative(mode);
+  return canSelectNotesImportSourcesFromWeb()
+    ? selectNotesImportSourcesFromWeb(mode)
+    : selectNotesImportSourcesFromNative(mode);
 }
 
-export function canSelectNotesImportSourcesFromWeb() {
+function canSelectNotesImportSourcesFromWeb() {
   return typeof document !== 'undefined';
 }
 
-export function selectNotesImportSourcesFromWeb(
+function selectNotesImportSourcesFromWeb(
   mode: NotesImportMode
 ): Promise<NotesImportSource[] | null> {
   if (!canSelectNotesImportSourcesFromWeb()) {
@@ -140,10 +114,9 @@ export function selectNotesImportSourcesFromWeb(
   });
 }
 
-export async function readNotesImportSourcesFromFiles(files: File[]) {
+async function readNotesImportSourcesFromFiles(files: File[]) {
   return readNotesImportSourcesFromFileRecords(
     files.map((file) => ({
-      name: file.name,
       relativePath: getFileRelativePath(file),
       readText: () => file.text(),
     }))
@@ -165,48 +138,42 @@ export async function readNotesImportSourcesFromDataTransfer(
     return readNotesImportSourcesFromFiles(Array.from(dataTransfer.files ?? []));
   }
 
-  const records = (
-    await Promise.all(entries.map(readNotesImportFileRecordsFromEntry))
-  ).flat();
+  const records = await flatMapAsync(entries, readNotesImportFileRecordsFromEntry);
   return readNotesImportSourcesFromFileRecords(records);
 }
 
 async function readNotesImportSourcesFromFileRecords(
   records: NotesImportFileRecord[]
 ) {
-  const importableRecords = records.filter((record) =>
-    isImportableRelativePath(record.relativePath || record.name)
+  return Promise.all(
+    records
+      .filter((record) => isImportableRelativePath(record.relativePath))
+      .map(async ({ relativePath, readText }) => ({
+        relativePath,
+        contents: await readText(),
+      }))
   );
-  const sources = await Promise.all(
-    importableRecords.map(async (record) => ({
-      name: record.name,
-      relativePath: record.relativePath || record.name,
-      contents: await record.readText(),
-    }))
-  );
-  return sources;
 }
 
-export async function readNotesImportSourcesFromDocumentPickerAssets(
-  assets: NotesDocumentPickerAsset[],
+async function readNotesImportSourcesFromDocumentPickerAssets(
+  assets: { name: string; uri: string }[],
   readFileContents: (uri: string) => Promise<string>
 ) {
-  const importableAssets = assets.filter((asset) => {
-    return isImportableRelativePath(asset.name);
-  });
-  const sources = await Promise.all(
-    importableAssets.map(async (asset) => ({
-      name: asset.name,
+  return readNotesImportSourcesFromFileRecords(
+    assets.map((asset) => ({
       relativePath: asset.name,
-      contents: await readFileContents(asset.uri),
+      readText: () => readFileContents(asset.uri),
     }))
   );
-  return sources;
 }
 
-export async function readNotesImportSourcesFromNativeDirectory(
-  directory: NotesNativeDirectoryEntry
+async function readNotesImportSourcesFromNativeDirectory(
+  directory: NotesNativeEntry
 ) {
+  if (!isNotesNativeDirectory(directory)) {
+    return [];
+  }
+
   const rootName = getNativeEntryName(directory);
   const records = await readNotesImportFileRecordsFromNativeDirectory(
     directory,
@@ -219,20 +186,18 @@ export function buildNotesImportItems(
   sources: NotesImportSource[]
 ): NotesImportItem[] {
   return sources.flatMap((source) => {
-    const pathSegments = splitImportPath(source.relativePath || source.name);
-    const fileName = pathSegments[pathSegments.length - 1] ?? source.name;
-    if (pathSegments.some(isHiddenPathSegment)) {
-      return [];
-    }
-    if (!isSupportedNotesImportName(fileName)) {
+    const relativePath = source.relativePath;
+    if (!isImportableRelativePath(relativePath)) {
       return [];
     }
 
+    const pathSegments = splitImportPath(relativePath);
+    const fileName = pathSegments[pathSegments.length - 1] ?? relativePath;
     return [
       {
         body: source.contents,
         folderSegments: pathSegments.slice(0, -1),
-        source,
+        relativePath,
         title: titleFromImportFileName(fileName),
       },
     ];
@@ -311,17 +276,12 @@ function isHiddenPathSegment(segment: string) {
 }
 
 async function readNotesImportFileRecordsFromNativeDirectory(
-  directory: NotesNativeDirectoryEntry,
+  directory: NotesNativeEntry & { list: () => NotesNativeEntry[] },
   parentSegments: string[]
 ): Promise<NotesImportFileRecord[]> {
-  const entries = directory.list();
-  return (
-    await Promise.all(
-      entries.map((entry) =>
-        readNotesImportFileRecordsFromNativeEntry(entry, parentSegments)
-      )
-    )
-  ).flat();
+  return flatMapAsync(directory.list(), (entry) =>
+    readNotesImportFileRecordsFromNativeEntry(entry, parentSegments)
+  );
 }
 
 async function readNotesImportFileRecordsFromNativeEntry(
@@ -345,13 +305,8 @@ async function readNotesImportFileRecordsFromNativeEntry(
   }
 
   const relativePath = [...parentSegments, name].join('/');
-  if (!isImportableRelativePath(relativePath)) {
-    return [];
-  }
-
   return [
     {
-      name,
       relativePath,
       readText: () => entry.text(),
     },
@@ -362,40 +317,43 @@ async function readNotesImportFileRecordsFromEntry(
   entry: NotesFileSystemEntry
 ): Promise<NotesImportFileRecord[]> {
   if (entry.isFile) {
+    if (!entry.file) return [];
     const relativePath = normalizeDroppedPath(entry.fullPath || entry.name);
-    if (!isImportableRelativePath(relativePath)) {
-      return [];
-    }
-    const file = await getFileFromEntry(entry as NotesFileSystemFileEntry);
     return [
       {
-        name: file.name || entry.name,
         relativePath,
-        readText: () => file.text(),
+        readText: async () =>
+          (await getFileFromEntry(entry)).text(),
       },
     ];
   }
 
-  if (!entry.isDirectory) {
+  if (!entry.isDirectory || !entry.createReader) {
     return [];
   }
 
-  const childEntries = await readDirectoryEntries(
-    entry as NotesFileSystemDirectoryEntry
-  );
-  return (
-    await Promise.all(childEntries.map(readNotesImportFileRecordsFromEntry))
-  ).flat();
+  const childEntries = await readDirectoryEntries(entry);
+  return flatMapAsync(childEntries, readNotesImportFileRecordsFromEntry);
 }
 
-function getFileFromEntry(entry: NotesFileSystemFileEntry) {
+async function flatMapAsync<T, U>(items: T[], map: (item: T) => Promise<U[]>) {
+  return (await Promise.all(items.map(map))).flat();
+}
+
+function getFileFromEntry(entry: NotesFileSystemEntry) {
   return new Promise<File>((resolve, reject) => {
+    if (!entry.file) {
+      reject(new Error('File entry is missing a file reader'));
+      return;
+    }
     entry.file(resolve, reject);
   });
 }
 
-function readDirectoryEntries(entry: NotesFileSystemDirectoryEntry) {
-  const reader = entry.createReader();
+function readDirectoryEntries(entry: NotesFileSystemEntry) {
+  const reader = entry.createReader?.();
+  if (!reader) return [];
+
   const entries: NotesFileSystemEntry[] = [];
 
   return new Promise<NotesFileSystemEntry[]>((resolve, reject) => {
@@ -420,12 +378,14 @@ function normalizeDroppedPath(path: string) {
 
 function isNotesNativeDirectory(
   entry: NotesNativeEntry
-): entry is NotesNativeDirectoryEntry {
-  return typeof (entry as NotesNativeDirectoryEntry).list === 'function';
+): entry is NotesNativeEntry & { list: () => NotesNativeEntry[] } {
+  return typeof entry.list === 'function';
 }
 
-function isNotesNativeFile(entry: NotesNativeEntry): entry is NotesNativeFileEntry {
-  return typeof (entry as NotesNativeFileEntry).text === 'function';
+function isNotesNativeFile(
+  entry: NotesNativeEntry
+): entry is NotesNativeEntry & { text: () => Promise<string> } {
+  return typeof entry.text === 'function';
 }
 
 function getNativeEntryName(entry: NotesNativeEntry) {
@@ -471,9 +431,7 @@ async function selectNotesImportSourcesFromNative(mode: NotesImportMode) {
     type: '*/*',
   });
 
-  if (result.assets == null || result.assets.length === 0) {
-    return null;
-  }
+  if (result.assets == null || result.assets.length === 0) return null;
 
   return readNotesImportSourcesFromDocumentPickerAssets(
     result.assets,
@@ -482,9 +440,7 @@ async function selectNotesImportSourcesFromNative(mode: NotesImportMode) {
 }
 
 async function selectNotesImportFolderFromNative() {
-  if (!canSelectNotesImportFolderFromNative()) {
-    return null;
-  }
+  if (!canSelectNotesImportFolderFromNative()) return null;
 
   try {
     const directory = await ExpoDirectory.pickDirectoryAsync();
@@ -498,8 +454,8 @@ async function selectNotesImportFolderFromNative() {
 }
 
 function isPickerCancelError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-  return /pick(?:er|ing).+cancel(?:ed|led)/i.test(error.message);
+  return (
+    error instanceof Error &&
+    /pick(?:er|ing).+cancel(?:ed|led)/i.test(error.message)
+  );
 }

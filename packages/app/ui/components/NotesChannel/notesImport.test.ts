@@ -6,8 +6,6 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   buildNotesImportItems,
   readNotesImportSourcesFromDataTransfer,
-  readNotesImportSourcesFromDocumentPickerAssets,
-  readNotesImportSourcesFromNativeDirectory,
   selectNotesImportSources,
   makeUniqueNoteTitle,
   normalizeTitleKey,
@@ -79,6 +77,10 @@ function makeNativeDirectory(name: string, entries: unknown[], uri?: string) {
   };
 }
 
+function source(relativePath: string, contents: string) {
+  return { relativePath, contents };
+}
+
 afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -87,16 +89,8 @@ afterEach(() => {
 describe('notes import helpers', () => {
   test('builds import items for single markdown and text files', () => {
     const items = buildNotesImportItems([
-      {
-        name: 'Plan.md',
-        relativePath: 'Plan.md',
-        contents: '# Plan',
-      },
-      {
-        name: 'Memo.txt',
-        relativePath: 'Memo.txt',
-        contents: 'Memo body',
-      },
+      source('Plan.md', '# Plan'),
+      source('Memo.txt', 'Memo body'),
     ]);
 
     expect(items).toMatchObject([
@@ -115,21 +109,9 @@ describe('notes import helpers', () => {
 
   test('preserves nested folder paths and ignores unsupported files', () => {
     const items = buildNotesImportItems([
-      {
-        name: 'Index.markdown',
-        relativePath: 'Research/Trips/Index.markdown',
-        contents: 'Trip notes',
-      },
-      {
-        name: 'image.png',
-        relativePath: 'Research/image.png',
-        contents: 'not text',
-      },
-      {
-        name: 'Secret.md',
-        relativePath: 'Research/.drafts/Secret.md',
-        contents: 'hidden',
-      },
+      source('Research/Trips/Index.markdown', 'Trip notes'),
+      source('Research/image.png', 'not text'),
+      source('Research/.drafts/Secret.md', 'hidden'),
     ]);
 
     expect(items).toHaveLength(1);
@@ -146,30 +128,6 @@ describe('notes import helpers', () => {
     expect(makeUniqueNoteTitle('Plan', existingTitles)).toBe('Plan (2)');
     expect(makeUniqueNoteTitle('Plan', existingTitles)).toBe('Plan (3)');
     expect(makeUniqueNoteTitle('', existingTitles)).toBe('Untitled');
-  });
-
-  test('reads native document picker assets', async () => {
-    const readFileContents = vi.fn(async (uri: string) =>
-      uri.endsWith('plan.md') ? '# Plan' : 'hidden'
-    );
-    const sources = await readNotesImportSourcesFromDocumentPickerAssets(
-      [
-        { name: 'Plan.md', uri: 'file:///plan.md' },
-        { name: '.Secret.md', uri: 'file:///secret.md' },
-        { name: 'Photo.png', uri: 'file:///photo.png' },
-      ],
-      readFileContents
-    );
-
-    expect(readFileContents).toHaveBeenCalledTimes(1);
-    expect(readFileContents).toHaveBeenCalledWith('file:///plan.md');
-    expect(sources).toEqual([
-      {
-        name: 'Plan.md',
-        relativePath: 'Plan.md',
-        contents: '# Plan',
-      },
-    ]);
   });
 
   test('reads dropped files and folders from desktop browsers', async () => {
@@ -200,44 +158,7 @@ describe('notes import helpers', () => {
       ] as unknown as DataTransferItemList,
     });
 
-    expect(sources).toEqual([
-      {
-        name: 'Plan.md',
-        relativePath: 'Research/Plan.md',
-        contents: '# Plan',
-      },
-    ]);
-  });
-
-  test('reads selected native folders with full folder structure', async () => {
-    const planFile = makeNativeFile('Plan.md', '# Plan');
-    const indexFile = makeNativeFile('Index.markdown', 'Trip notes');
-    const hiddenFile = makeNativeFile('Secret.md', 'hidden');
-    const unsupportedFile = makeNativeFile('Photo.png', 'png');
-    const directory = makeNativeDirectory('Research', [
-      planFile,
-      makeNativeDirectory('Trips', [indexFile, unsupportedFile]),
-      makeNativeDirectory('.drafts', [hiddenFile]),
-    ]);
-
-    const sources = await readNotesImportSourcesFromNativeDirectory(
-      directory as never
-    );
-
-    expect(sources).toEqual([
-      {
-        name: 'Plan.md',
-        relativePath: 'Research/Plan.md',
-        contents: '# Plan',
-      },
-      {
-        name: 'Index.markdown',
-        relativePath: 'Research/Trips/Index.markdown',
-        contents: 'Trip notes',
-      },
-    ]);
-    expect(hiddenFile.text).not.toHaveBeenCalled();
-    expect(unsupportedFile.text).not.toHaveBeenCalled();
+    expect(sources).toEqual([source('Research/Plan.md', '# Plan')]);
   });
 
   test('selects native markdown and text files', async () => {
@@ -257,6 +178,18 @@ describe('notes import helpers', () => {
           mimeType: 'text/plain',
           lastModified: 0,
         },
+        {
+          name: '.Secret.md',
+          uri: 'file:///secret.md',
+          mimeType: 'text/markdown',
+          lastModified: 0,
+        },
+        {
+          name: 'Photo.png',
+          uri: 'file:///photo.png',
+          mimeType: 'image/png',
+          lastModified: 0,
+        },
       ],
     });
     vi.mocked(FileSystem.readAsStringAsync).mockImplementation(async (uri) =>
@@ -270,24 +203,26 @@ describe('notes import helpers', () => {
       multiple: true,
       type: '*/*',
     });
+    expect(FileSystem.readAsStringAsync).toHaveBeenCalledTimes(2);
     expect(sources).toEqual([
-      {
-        name: 'Plan.md',
-        relativePath: 'Plan.md',
-        contents: '# Plan',
-      },
-      {
-        name: 'Memo.txt',
-        relativePath: 'Memo.txt',
-        contents: 'Memo body',
-      },
+      source('Plan.md', '# Plan'),
+      source('Memo.txt', 'Memo body'),
     ]);
   });
 
   test('selects native folders', async () => {
     vi.stubGlobal('document', undefined);
+    const hiddenFile = makeNativeFile('Secret.md', 'hidden');
+    const unsupportedFile = makeNativeFile('Photo.png', 'png');
     vi.mocked(ExpoDirectory.pickDirectoryAsync).mockResolvedValue(
-      makeNativeDirectory('Research', [makeNativeFile('Plan.md', '# Plan')]) as never
+      makeNativeDirectory('Research', [
+        makeNativeFile('Plan.md', '# Plan'),
+        makeNativeDirectory('Trips', [
+          makeNativeFile('Index.markdown', 'Trip notes'),
+          unsupportedFile,
+        ]),
+        makeNativeDirectory('.drafts', [hiddenFile]),
+      ]) as never
     );
 
     const sources = await selectNotesImportSources('folder');
@@ -295,12 +230,11 @@ describe('notes import helpers', () => {
     expect(ExpoDirectory.pickDirectoryAsync).toHaveBeenCalled();
     expect(DocumentPicker.getDocumentAsync).not.toHaveBeenCalled();
     expect(sources).toEqual([
-      {
-        name: 'Plan.md',
-        relativePath: 'Research/Plan.md',
-        contents: '# Plan',
-      },
+      source('Research/Plan.md', '# Plan'),
+      source('Research/Trips/Index.markdown', 'Trip notes'),
     ]);
+    expect(hiddenFile.text).not.toHaveBeenCalled();
+    expect(unsupportedFile.text).not.toHaveBeenCalled();
   });
 
   test('returns null when native folder selection is canceled', async () => {

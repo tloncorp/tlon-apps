@@ -272,9 +272,7 @@ export const GroupChannelsScreenView = React.memo(
       ]
     );
 
-    const keyExtractor = useCallback((item: ChannelListData) => {
-      return isSectionHeader(item) ? item.id : item.id;
-    }, []);
+    const keyExtractor = useCallback((item: ChannelListData) => item.id, []);
 
     const getItemType = useCallback((item: ChannelListData) => {
       return isSectionHeader(item) ? 'sectionHeader' : 'channel';
@@ -335,23 +333,21 @@ export const GroupChannelsScreenView = React.memo(
           </YStack>
         ) : group && group.channels && group.channels.length > 0 ? (
           <YStack flex={1} minHeight={0}>
-            <YStack flex={1}>
-              <SystemNotices.ConnectedJoinRequestNotice
-                group={group}
-                onViewRequests={onGoToGroupMembers}
-              />
-              <FlashList
-                data={listItems}
-                renderItem={renderItem}
-                keyExtractor={keyExtractor}
-                getItemType={getItemType}
-                contentContainerStyle={{
-                  paddingTop: getTokenValue('$l'),
-                  paddingHorizontal: getTokenValue('$l'),
-                  paddingBottom: insets.bottom,
-                }}
-              />
-            </YStack>
+            <SystemNotices.ConnectedJoinRequestNotice
+              group={group}
+              onViewRequests={onGoToGroupMembers}
+            />
+            <FlashList
+              data={listItems}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              getItemType={getItemType}
+              contentContainerStyle={{
+                paddingTop: getTokenValue('$l'),
+                paddingHorizontal: getTokenValue('$l'),
+                paddingBottom: insets.bottom,
+              }}
+            />
           </YStack>
         ) : group && group.channels && group.channels.length === 0 ? (
           // Only show "no channels" message when we're certain the group has fully synced

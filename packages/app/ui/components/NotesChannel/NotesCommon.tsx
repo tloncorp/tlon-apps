@@ -8,9 +8,9 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { ScrollView, XStack, YStack } from 'tamagui';
 
 import type { ActionGroup } from '../ActionSheet';
@@ -19,11 +19,6 @@ import { OverflowTriggerButton } from '../OverflowMenuButton';
 import type { FolderRow } from './notesTree';
 import { getFolderLabel } from './notesTree';
 
-/**
- * Overflow ("...") menu: popover on web, sheet on native. Owns its open
- * state and closes before running each action, so callers just declare
- * action groups (see createActionGroups).
- */
 export function NotesOverflowMenu({
   groups,
   triggerTestID,
@@ -33,12 +28,10 @@ export function NotesOverflowMenu({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <ActionSheet
+    <NotesActionMenu
+      groups={groups}
       open={open}
       onOpenChange={setOpen}
-      mode={Platform.OS === 'web' ? 'popover' : 'sheet'}
-      modal
-      snapPointsMode="fit"
       trigger={
         <OverflowTriggerButton
           testID={triggerTestID}
@@ -50,28 +43,64 @@ export function NotesOverflowMenu({
           }}
         />
       }
+    />
+  );
+}
+
+export function NotesActionMenu({
+  groups,
+  open,
+  onOpenChange,
+  trigger,
+}: {
+  groups: ActionGroup[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  trigger: ReactNode;
+}) {
+  return (
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      mode={Platform.OS === 'web' ? 'popover' : 'sheet'}
+      modal
+      snapPointsMode="fit"
+      trigger={trigger}
     >
       <ActionSheet.Content>
-        {groups.map((group, index) => (
-          <ActionSheet.ActionGroup key={index} accent={group.accent}>
-            {group.actions.map((action) => (
-              <ActionSheet.Action
-                key={action.title}
-                action={{
-                  ...action,
-                  action: () => {
-                    setOpen(false);
-                    action.action?.();
-                  },
-                }}
-                testID={action.testID}
-              />
-            ))}
-          </ActionSheet.ActionGroup>
-        ))}
+        <NotesActionGroupList
+          groups={groups}
+          onClose={() => onOpenChange(false)}
+        />
       </ActionSheet.Content>
     </ActionSheet>
   );
+}
+
+export function NotesActionGroupList({
+  groups,
+  onClose,
+}: {
+  groups: ActionGroup[];
+  onClose: () => void;
+}) {
+  return groups.map((group, index) => (
+    <ActionSheet.ActionGroup key={index} accent={group.accent}>
+      {group.actions.map((action) => (
+        <ActionSheet.Action
+          key={action.title}
+          action={{
+            ...action,
+            action: () => {
+              onClose();
+              action.action?.();
+            },
+          }}
+          testID={action.testID}
+        />
+      ))}
+    </ActionSheet.ActionGroup>
+  ));
 }
 
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
@@ -81,13 +110,33 @@ export function errorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
 }
 
+export function confirmNotesDestructiveAction({
+  action,
+  nativeMessage,
+  nativeTitle,
+  webMessage,
+}: {
+  action: () => void;
+  nativeMessage: string;
+  nativeTitle: string;
+  webMessage: string;
+}) {
+  if (Platform.OS === 'web') {
+    const confirm = (globalThis as { confirm?: (message: string) => boolean })
+      .confirm;
+    if (typeof confirm === 'function' && !confirm(webMessage)) return;
+    action();
+    return;
+  }
+
+  Alert.alert(nativeTitle, nativeMessage, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: action },
+  ]);
+}
+
 export type NotebookGate = 'unavailable' | 'loading' | 'unjoinable' | null;
 
-/**
- * Joins (if needed) and syncs the notebook, exposes its local data, and
- * reports which gate state (if any) should block rendering. Also marks the
- * notebook opened.
- */
 export function useNotebookData(notebookFlag: string | null | undefined) {
   const joinQuery = useEnsureNotesNotebookJoined({ notebookFlag });
   const joined = joinQuery.data !== false;
@@ -103,30 +152,26 @@ export function useNotebookData(notebookFlag: string | null | undefined) {
   const folders = foldersQuery.data ?? EMPTY_FOLDERS;
   const notes = notesQuery.data ?? EMPTY_NOTES;
   const canEdit = notebook ? notebook.currentUserRole !== 'viewer' : false;
-  const rootFolderId = useMemo(() => {
-    return (
-      notebook?.rootFolderId ??
-      folders.find((folder) => folder.parentFolderId === null)?.folderId ??
-      folders[0]?.folderId ??
-      null
-    );
-  }, [folders, notebook?.rootFolderId]);
+  const rootFolderId =
+    notebook?.rootFolderId ??
+    folders.find((folder) => folder.parentFolderId === null)?.folderId ??
+    folders[0]?.folderId ??
+    null;
 
   useEffect(() => {
     if (!notebookFlag) return;
     markNotesNotebookOpened(notebookFlag);
   }, [notebookFlag]);
 
-  const joinFailed = joinQuery.data === false;
   const gate: NotebookGate = !notebookFlag
     ? 'unavailable'
     : joinQuery.isLoading || (syncQuery.isLoading && !notebook)
       ? 'loading'
-      : joinFailed
+      : joinQuery.data === false
         ? 'unjoinable'
         : null;
 
-  return { notebook, folders, notes, canEdit, rootFolderId, joinFailed, gate };
+  return { notebook, folders, notes, canEdit, rootFolderId, gate };
 }
 
 export function NotebookGateMessage({
@@ -156,11 +201,6 @@ export function NotebookGateMessage({
   );
 }
 
-/**
- * Shared shell for notes dialogs: web dialog / native sheet, fixed width,
- * simple header, and a footer with a Cancel button plus an optional
- * dialog-specific confirm button.
- */
 export function NotesDialog({
   cancelDisabled = false,
   children,
@@ -213,12 +253,6 @@ export function NotesDialog({
   );
 }
 
-/**
- * State for a dialog that targets a single entity (move note, rename folder,
- * ...) and runs an async action on it. `handleOpenChange` refuses to close
- * while the action is pending; `run` closes on success and leaves the dialog
- * open on failure so the user can retry.
- */
 export function useEntityDialog<T>() {
   const [entity, setEntity] = useState<T | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -246,17 +280,29 @@ export function useEntityDialog<T>() {
   return { entity, isPending, open, close, handleOpenChange, run };
 }
 
-export function NotesErrorMessage({ error }: { error: string }) {
+export function NotesBanner({
+  message,
+  tone = 'neutral',
+}: {
+  message: string;
+  tone?: 'neutral' | 'negative';
+}) {
+  const isNegative = tone === 'negative';
   return (
     <XStack
       paddingHorizontal="$l"
       paddingVertical="$s"
-      backgroundColor="$negativeBackground"
-      borderBottomColor="$negativeBorder"
+      backgroundColor={
+        isNegative ? '$negativeBackground' : '$secondaryBackground'
+      }
+      borderBottomColor={isNegative ? '$negativeBorder' : '$border'}
       borderBottomWidth={1}
     >
-      <Text size="$label/s" color="$negativeActionText">
-        {error}
+      <Text
+        size="$label/s"
+        color={isNegative ? '$negativeActionText' : '$secondaryText'}
+      >
+        {message}
       </Text>
     </XStack>
   );
@@ -277,9 +323,8 @@ export function MoveNoteSheet({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
-  const disabledFolders = useMemo(
-    () => new Map<number, string>(note ? [[note.folderId, 'Current']] : []),
-    [note]
+  const disabledFolders = new Map<number, string>(
+    note ? [[note.folderId, 'Current']] : []
   );
   const title = note?.title?.trim() || 'Untitled';
 
@@ -313,7 +358,6 @@ export function FolderPicker({
   selectedFolderId,
   testID,
 }: {
-  /** Folders that can't be chosen, mapped to the label explaining why. */
   disabledFolders?: Map<number, string>;
   folderRows: FolderRow[];
   isLoading?: boolean;

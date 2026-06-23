@@ -3,7 +3,6 @@ export * from './embed';
 export * from './semver';
 export * from './reactionSupport';
 export * from './notesPublish';
-export * from './notesTree';
 export * from '@tloncorp/api/lib/types';
 export * from '@tloncorp/api/lib/utils';
 export * as featureFlags from '@tloncorp/api/lib/featureFlags';

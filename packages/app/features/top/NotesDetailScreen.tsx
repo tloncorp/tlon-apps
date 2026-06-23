@@ -1,32 +1,25 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { notesNotebookFlagFromChannelId } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
-import { useCallback, useMemo } from 'react';
 import { YStack } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
-import {
-  ChannelHeader,
-  ChannelHeaderItemsProvider,
-  NotesNoteDetail,
-} from '../../ui';
+import { NotesNoteDetail } from '../../ui/components/NotesChannel/NotesNoteDetail';
+import { ChannelHeader, ChannelHeaderItemsProvider } from '../../ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NotesDetail'>;
 
 export function NotesDetailScreen(props: Props) {
   const { channelId, noteId } = props.route.params;
-  const notebookFlag = useMemo(
-    () => notesNotebookFlagFromChannelId(channelId),
-    [channelId]
-  );
+  const notebookFlag = notesNotebookFlagFromChannelId(channelId);
   const { channel, group } = store.useChannelContext({
     channelId,
     draftKey: channelId,
   });
 
-  const handleGoBack = useCallback(() => {
+  const handleGoBack = () => {
     props.navigation.goBack();
-  }, [props.navigation]);
+  };
 
   if (!channel) {
     return null;

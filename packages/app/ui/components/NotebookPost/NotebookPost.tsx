@@ -270,11 +270,6 @@ export function NotebookPostDetailView({
 const NotebookLineBreak = () => `\n\n`;
 
 export const NotebookContentRenderer = createContentRenderer({
-  blockSettings: {
-    lineText: {
-      lineHeight: 28,
-    },
-  },
   inlineRenderers: {
     lineBreak: NotebookLineBreak,
   },

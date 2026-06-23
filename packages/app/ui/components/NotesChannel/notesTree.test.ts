@@ -7,59 +7,43 @@ import {
   filterNotesTreeData,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
-  normalizeSearchText,
 } from './notesTree';
 
-const notebookFlag = '~zod/native-notes';
-
-function makeFolder(
-  folderId: number,
-  name: string,
-  parentFolderId: number | null
-): db.NotesFolder {
-  return {
-    id: `${notebookFlag}/folder/${folderId}`,
-    notebookFlag,
+const makeFolder = (folderId: number, name: string, parentId: number | null) =>
+  ({
+    id: `folder/${folderId}`,
     folderId,
-    notebookId: 1,
     name,
-    parentFolderId,
-    createdBy: '~zod',
-    createdAt: folderId,
-    updatedBy: '~zod',
-    updatedAt: folderId,
-    syncedAt: 100,
-  };
-}
+    parentFolderId: parentId,
+  }) as db.NotesFolder;
 
-function makeNote(
-  noteId: number,
-  folderId: number,
-  title: string,
-  bodyMd = ''
-): db.NotesNote {
-  return {
-    id: `${notebookFlag}/note/${noteId}`,
-    notebookFlag,
+const makeNote = (noteId: number, folderId: number, title: string, body = '') =>
+  ({
+    id: `note/${noteId}`,
     noteId,
-    notebookId: 1,
     folderId,
     title,
-    slug: null,
-    bodyMd,
-    createdBy: '~zod',
-    createdAt: noteId,
-    updatedBy: '~zod',
+    bodyMd: body,
     updatedAt: noteId,
-    revision: 1,
-    syncedAt: 100,
-  };
-}
+  }) as db.NotesNote;
 
 const root = makeFolder(1, '/', null);
 const projects = makeFolder(2, 'Projects', 1);
 const archive = makeFolder(3, 'Archive', 1);
 const backlog = makeFolder(4, 'Backlog', 2);
+
+const rowsFor = (
+  folders: db.NotesFolder[],
+  notes: db.NotesNote[],
+  expandedIds: number[] = []
+) =>
+  buildNotesTreeRows({
+    expandedFolderIds: new Set(expandedIds),
+    folderNoteCounts: buildFolderNoteCounts(folders, notes),
+    folders,
+    notes,
+    rootFolderId: 1,
+  });
 
 describe('notes tree helpers', () => {
   test('omits the root folder and preserves nested folder/note ordering', () => {
@@ -70,13 +54,7 @@ describe('notes tree helpers', () => {
       makeNote(3, 4, 'Gamma'),
     ];
 
-    const rows = buildNotesTreeRows({
-      expandedFolderIds: new Set([2, 3, 4]),
-      folderNoteCounts: buildFolderNoteCounts(folders, notes),
-      folders,
-      notes,
-      rootFolderId: 1,
-    });
+    const rows = rowsFor(folders, notes, [2, 3, 4]);
 
     expect(
       rows.map((row) =>
@@ -108,7 +86,7 @@ describe('notes tree helpers', () => {
     const filtered = filterNotesTreeData({
       folders,
       notes,
-      query: normalizeSearchText('project'),
+      query: 'project',
       rootFolderId: 1,
     });
 
@@ -131,7 +109,7 @@ describe('notes tree helpers', () => {
     const filtered = filterNotesTreeData({
       folders,
       notes,
-      query: normalizeSearchText('milestone'),
+      query: 'milestone',
       rootFolderId: 1,
     });
 
@@ -151,13 +129,7 @@ describe('notes tree helpers', () => {
       makeNote(2, 12, 'Orphan note'),
     ];
 
-    const rows = buildNotesTreeRows({
-      expandedFolderIds: new Set([10, 11, 12]),
-      folderNoteCounts: buildFolderNoteCounts(folders, notes),
-      folders,
-      notes,
-      rootFolderId: 1,
-    });
+    const rows = rowsFor(folders, notes, [10, 11, 12]);
     const renderedFolders = rows.flatMap((row) =>
       row.type === 'folder' ? [row.folder.folderId] : []
     );
@@ -172,13 +144,7 @@ describe('notes tree helpers', () => {
     const alpha = makeNote(1, 1, 'Alpha');
     const beta = makeNote(2, 1, 'Beta');
     const gamma = makeNote(3, 1, 'Gamma');
-    const rows = buildNotesTreeRows({
-      expandedFolderIds: new Set(),
-      folderNoteCounts: buildFolderNoteCounts(folders, [alpha, beta, gamma]),
-      folders,
-      notes: [alpha, beta, gamma],
-      rootFolderId: 1,
-    });
+    const rows = rowsFor(folders, [alpha, beta, gamma]);
 
     expect(getNextNoteIdAfterDelete(rows, 1)).toBe(2);
     expect(getNextNoteIdAfterDelete(rows, 2)).toBe(3);
@@ -187,13 +153,7 @@ describe('notes tree helpers', () => {
 
   test('clears selection after deleting the only visible note', () => {
     const folders = [root];
-    const rows = buildNotesTreeRows({
-      expandedFolderIds: new Set(),
-      folderNoteCounts: buildFolderNoteCounts(folders, []),
-      folders,
-      notes: [makeNote(1, 1, 'Alpha')],
-      rootFolderId: 1,
-    });
+    const rows = rowsFor(folders, [makeNote(1, 1, 'Alpha')]);
 
     expect(getNextNoteIdAfterDelete(rows, 1)).toBeNull();
     expect(getNextNoteIdAfterDelete(rows, 2)).toBeNull();
@@ -205,18 +165,7 @@ describe('notes tree helpers', () => {
     const beta = makeNote(2, 2, 'Beta');
     const gamma = makeNote(3, 4, 'Gamma');
     const omega = makeNote(4, 3, 'Omega');
-    const rows = buildNotesTreeRows({
-      expandedFolderIds: new Set([2, 3, 4]),
-      folderNoteCounts: buildFolderNoteCounts(folders, [
-        alpha,
-        beta,
-        gamma,
-        omega,
-      ]),
-      folders,
-      notes: [alpha, beta, gamma, omega],
-      rootFolderId: 1,
-    });
+    const rows = rowsFor(folders, [alpha, beta, gamma, omega], [2, 3, 4]);
 
     expect(
       getNextNoteIdAfterFolderDelete({

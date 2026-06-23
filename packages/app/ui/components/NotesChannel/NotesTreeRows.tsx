@@ -1,16 +1,16 @@
 import * as db from '@tloncorp/shared/db';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
-import { TamaguiWebElement, XStack, YStack, styled } from 'tamagui';
+import { TamaguiWebElement, XStack, YStack } from 'tamagui';
 
 import type { ActionGroup } from '../ActionSheet';
-import { ActionSheet, createActionGroups } from '../ActionSheet';
+import { createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
-import { formatNoteDate, getNoteBodyPreview } from './notesTree';
-import type { NotesTreeViewStyle } from './notesTree';
+import { NotesActionMenu } from './NotesCommon';
+import { formatNoteDate } from './notesTree';
 
 const TREE_ROW_HEIGHT = 44;
 const TREE_LEVEL_WIDTH = 24;
@@ -20,29 +20,6 @@ const TREE_GUIDE_LEFT = TREE_ROW_LEFT_PADDING + TREE_ROW_GAP;
 const TREE_CHILD_GUIDE_CARET_OFFSET = 8;
 const TREE_CHILD_GUIDE_TOP =
   TREE_ROW_HEIGHT / 2 + TREE_CHILD_GUIDE_CARET_OFFSET;
-const NOTES_VIEW_LEFT_PADDING = 12;
-
-// Row frame for the comfortable ('notes') view; the outline view uses
-// TreeRowFrame below.
-const NotesViewRow = styled(XStack, {
-  alignItems: 'center',
-  gap: '$s',
-  paddingVertical: 0,
-  paddingRight: '$s',
-  backgroundColor: '$background',
-  borderBottomColor: '$border',
-  borderBottomWidth: 1,
-  variants: {
-    selected: {
-      true: {
-        backgroundColor: '$secondaryBackground',
-      },
-    },
-    depth: (depth: number) => ({
-      paddingLeft: NOTES_VIEW_LEFT_PADDING + depth * TREE_LEVEL_WIDTH,
-    }),
-  } as const,
-});
 
 export function FolderTreeRow({
   canEdit,
@@ -54,7 +31,6 @@ export function FolderTreeRow({
   label,
   noteCount,
   selected,
-  viewStyle,
   onDelete,
   onMove,
   onPress,
@@ -69,141 +45,49 @@ export function FolderTreeRow({
   label: string;
   noteCount: number;
   selected: boolean;
-  viewStyle: NotesTreeViewStyle;
   onDelete: (folder: db.NotesFolder) => void;
   onMove: (folder: db.NotesFolder) => void;
   onPress: () => void;
   onRename: (folder: db.NotesFolder) => void;
 }) {
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
-  const openActions = useCallback(() => {
-    if (canEdit) {
-      setActionsOpen(true);
-    }
-  }, [canEdit]);
-
-  const handleHoverIn = useCallback(() => {
-    if (Platform.OS === 'web') {
-      setIsHovered(true);
-    }
-  }, []);
-
-  const handleHoverOut = useCallback(() => {
-    if (Platform.OS === 'web') {
-      setIsHovered(false);
-    }
-  }, []);
-
-  const actionGroups = useMemo(
-    () =>
-      createActionGroups(
-        [
-          'neutral',
-          {
-            title: 'Rename folder',
-            startIcon: 'EditList',
-            action: () => {
-              setActionsOpen(false);
-              onRename(folder);
-            },
-            testID: 'NotesRenameFolderAction',
-          },
-          {
-            title: 'Move folder',
-            startIcon: 'Folder',
-            action: () => {
-              setActionsOpen(false);
-              onMove(folder);
-            },
-            testID: 'NotesMoveFolderAction',
-          },
-        ],
-        [
-          'negative',
-          {
-            title: 'Delete folder',
-            startIcon: 'Close',
-            action: () => {
-              setActionsOpen(false);
-              onDelete(folder);
-            },
-            disabled: isDeleting,
-            testID: 'NotesDeleteFolderAction',
-          },
-        ]
-      ),
-    [folder, isDeleting, onDelete, onMove, onRename]
+  const actionGroups = createActionGroups(
+    [
+      'neutral',
+      {
+        title: 'Rename folder',
+        startIcon: 'EditList',
+        action: () => onRename(folder),
+        testID: 'NotesRenameFolderAction',
+      },
+      {
+        title: 'Move folder',
+        startIcon: 'Folder',
+        action: () => onMove(folder),
+        testID: 'NotesMoveFolderAction',
+      },
+    ],
+    [
+      'negative',
+      {
+        title: 'Delete folder',
+        startIcon: 'Close',
+        action: () => onDelete(folder),
+        disabled: isDeleting,
+        testID: 'NotesDeleteFolderAction',
+      },
+    ]
   );
-
-  const shouldShowActionsTrigger =
-    canEdit && Platform.OS === 'web' && (actionsOpen || isHovered);
-  const actionsTrigger = shouldShowActionsTrigger ? (
-    <OverflowTriggerButton
-      paddingHorizontal="$xs"
-      paddingVertical="$xs"
-      marginRight="$-xs"
-      onPress={(event) => {
-        event.stopPropagation();
-        setActionsOpen((open) => !open);
-      }}
-    />
-  ) : null;
-  const actionsMenu =
-    canEdit && (actionsOpen || actionsTrigger) ? (
-      <RowActionsMenu
-        actionGroups={actionGroups}
-        open={actionsOpen}
-        onOpenChange={setActionsOpen}
-        trigger={actionsTrigger}
-      />
-    ) : null;
-
-  if (viewStyle === 'notes') {
-    return (
-      <TreeRowPressable
-        onMouseEnter={handleHoverIn}
-        onMouseLeave={handleHoverOut}
-        onOpenMenu={canEdit ? openActions : undefined}
-        onPress={onPress}
-        testID={`NotesFolderRow-${label}`}
-      >
-        <NotesViewRow minHeight="$5xl" depth={depth} selected={selected}>
-          <TreeChevron expanded={expanded} hasChildren={hasChildren} />
-          <Icon
-            type="Folder"
-            size="$m"
-            color={selected ? '$primaryText' : '$tertiaryText'}
-          />
-          <Text
-            flex={1}
-            minWidth={0}
-            size="$label/l"
-            color={selected ? '$primaryText' : '$secondaryText'}
-            fontWeight={selected ? '600' : '400'}
-            numberOfLines={1}
-            letterSpacing={0}
-          >
-            {label}
-          </Text>
-          {actionsMenu}
-          {noteCount > 0 ? (
-            <CountFrame count={noteCount} size="$label/m" />
-          ) : null}
-        </NotesViewRow>
-      </TreeRowPressable>
-    );
-  }
+  const { actionsMenu, rowActionProps } = useRowActions({
+    actionGroups,
+    canEdit,
+  });
 
   return (
     <TreeRowFrame
       depth={depth}
       showChildGuide={expanded && hasChildren}
       selected={selected}
-      onMouseEnter={handleHoverIn}
-      onMouseLeave={handleHoverOut}
-      onOpenMenu={canEdit ? openActions : undefined}
+      {...rowActionProps}
       onPress={onPress}
       testID={`NotesFolderRow-${label}`}
     >
@@ -228,9 +112,7 @@ export function FolderTreeRow({
         <ListItem.EndContent paddingTop={0}>
           <XStack alignItems="center" gap="$xs">
             {actionsMenu}
-            {noteCount > 0 ? (
-              <CountFrame count={noteCount} size="$label/s" />
-            ) : null}
+            {noteCount > 0 ? <CountFrame count={noteCount} /> : null}
           </XStack>
         </ListItem.EndContent>
       ) : null}
@@ -243,7 +125,6 @@ export function NoteRow({
   depth,
   note,
   selected = false,
-  viewStyle,
   onDelete,
   onMove,
   onPress,
@@ -252,152 +133,42 @@ export function NoteRow({
   depth: number;
   note: db.NotesNote;
   selected?: boolean;
-  viewStyle: NotesTreeViewStyle;
   onDelete: () => void;
   onMove: () => void;
   onPress: () => void;
 }) {
   const updatedAt = formatNoteDate(note.updatedAt);
-  const bodyPreview = useMemo(
-    () => getNoteBodyPreview(note.bodyMd),
-    [note.bodyMd]
+
+  const actionGroups = createActionGroups(
+    [
+      'neutral',
+      {
+        title: 'Move to folder',
+        startIcon: 'Folder',
+        action: onMove,
+        testID: `NotesMoveNoteAction-${note.noteId}`,
+      },
+    ],
+    canEdit && [
+      'negative',
+      {
+        title: 'Delete note',
+        startIcon: 'Close',
+        action: onDelete,
+        testID: `NotesDeleteNoteAction-${note.noteId}`,
+      },
+    ]
   );
-  const [actionsOpen, setActionsOpen] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-
-  const openActions = useCallback(() => {
-    if (canEdit) {
-      setActionsOpen(true);
-    }
-  }, [canEdit]);
-
-  const handleHoverIn = useCallback(() => {
-    if (Platform.OS === 'web') {
-      setIsHovered(true);
-    }
-  }, []);
-
-  const handleHoverOut = useCallback(() => {
-    if (Platform.OS === 'web') {
-      setIsHovered(false);
-    }
-  }, []);
-
-  const actionGroups = useMemo(
-    () =>
-      createActionGroups(
-        [
-          'neutral',
-          {
-            title: 'Open note',
-            startIcon: 'ChannelNote',
-            action: () => {
-              setActionsOpen(false);
-              onPress();
-            },
-            testID: `NotesOpenNoteAction-${note.noteId}`,
-          },
-          {
-            title: 'Move to folder',
-            startIcon: 'Folder',
-            action: () => {
-              setActionsOpen(false);
-              onMove();
-            },
-            disabled: !canEdit,
-            testID: `NotesMoveNoteAction-${note.noteId}`,
-          },
-        ],
-        canEdit && [
-          'negative',
-          {
-            title: 'Delete note',
-            startIcon: 'Close',
-            action: () => {
-              setActionsOpen(false);
-              onDelete();
-            },
-            testID: `NotesDeleteNoteAction-${note.noteId}`,
-          },
-        ]
-      ),
-    [canEdit, note.noteId, onDelete, onMove, onPress]
-  );
-
-  const shouldShowActionsTrigger =
-    canEdit && Platform.OS === 'web' && (actionsOpen || isHovered);
-  const actionsTrigger = shouldShowActionsTrigger ? (
-    <OverflowTriggerButton
-      paddingHorizontal="$xs"
-      paddingVertical="$xs"
-      marginRight="$-xs"
-      onPress={(event) => {
-        event.stopPropagation();
-        setActionsOpen((open) => !open);
-      }}
-    />
-  ) : null;
-  const actionsMenu =
-    canEdit && (actionsOpen || actionsTrigger) ? (
-      <RowActionsMenu
-        actionGroups={actionGroups}
-        open={actionsOpen}
-        onOpenChange={setActionsOpen}
-        trigger={actionsTrigger}
-      />
-    ) : null;
-
-  if (viewStyle === 'notes') {
-    return (
-      <TreeRowPressable
-        onMouseEnter={handleHoverIn}
-        onMouseLeave={handleHoverOut}
-        onOpenMenu={canEdit ? openActions : undefined}
-        onPress={onPress}
-        testID={`NotesNoteRow-${note.noteId}`}
-      >
-        <NotesViewRow minHeight="$5xl" depth={depth} selected={selected}>
-          <TreeLeadingSpacer />
-          <Icon
-            type="ChannelNote"
-            size="$m"
-            color={selected ? '$primaryText' : '$tertiaryText'}
-          />
-          <YStack flex={1} minWidth={0} gap="$s">
-            <Text
-              size="$label/l"
-              color={selected ? '$primaryText' : '$secondaryText'}
-              fontWeight="400"
-              numberOfLines={1}
-              letterSpacing={0}
-            >
-              {note.title || 'Untitled'}
-            </Text>
-            {bodyPreview ? (
-              <Text
-                size="$label/s"
-                color="$tertiaryText"
-                numberOfLines={1}
-                letterSpacing={0}
-              >
-                {bodyPreview}
-              </Text>
-            ) : null}
-          </YStack>
-          {actionsMenu}
-          <Icon type="ChevronRight" size="$m" color="$tertiaryText" />
-        </NotesViewRow>
-      </TreeRowPressable>
-    );
-  }
+  const { actionsMenu, rowActionProps } = useRowActions({
+    actionGroups,
+    canEdit,
+  });
 
   return (
     <TreeRowFrame
       depth={depth}
       selected={selected}
-      onMouseEnter={handleHoverIn}
-      onMouseLeave={handleHoverOut}
-      onOpenMenu={canEdit ? openActions : undefined}
+      {...rowActionProps}
       onPress={onPress}
       testID={`NotesNoteRow-${note.noteId}`}
     >
@@ -438,45 +209,61 @@ export function NoteRow({
   );
 }
 
-function RowActionsMenu({
+function useRowActions({
   actionGroups,
-  open,
-  onOpenChange,
-  trigger,
+  canEdit,
 }: {
   actionGroups: ActionGroup[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  trigger: ReactNode;
+  canEdit: boolean;
 }) {
-  const isWeb = Platform.OS === 'web';
+  const [open, setOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const openActions = () => {
+    if (canEdit) {
+      setOpen(true);
+    }
+  };
+  const hoverProps =
+    Platform.OS === 'web'
+      ? {
+          onMouseEnter: () => setIsHovered(true),
+          onMouseLeave: () => setIsHovered(false),
+        }
+      : {};
+  const actionsTrigger =
+    canEdit && Platform.OS === 'web' && (open || isHovered) ? (
+      <OverflowTriggerButton
+        paddingHorizontal="$xs"
+        paddingVertical="$xs"
+        marginRight="$-xs"
+        onPress={(event) => {
+          event.stopPropagation();
+          setOpen((currentOpen) => !currentOpen);
+        }}
+      />
+    ) : null;
 
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      mode={isWeb ? 'popover' : 'sheet'}
-      trigger={trigger}
-      modal
-      snapPointsMode="fit"
-    >
-      <ActionSheet.Content>
-        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
-      </ActionSheet.Content>
-    </ActionSheet>
-  );
+  return {
+    actionsMenu:
+      canEdit && (open || actionsTrigger) ? (
+        <NotesActionMenu
+          groups={actionGroups}
+          open={open}
+          onOpenChange={setOpen}
+          trigger={actionsTrigger}
+        />
+      ) : null,
+    rowActionProps: {
+      ...hoverProps,
+      onOpenMenu: canEdit ? openActions : undefined,
+    },
+  };
 }
 
-function CountFrame({
-  count,
-  size,
-}: {
-  count: number;
-  size: '$label/m' | '$label/s';
-}) {
+function CountFrame({ count }: { count: number }) {
   return (
     <XStack width="$2xl" alignItems="center" justifyContent="center">
-      <Text size={size} color="$tertiaryText" letterSpacing={0}>
+      <Text size="$label/s" color="$tertiaryText" letterSpacing={0}>
         {count}
       </Text>
     </XStack>
