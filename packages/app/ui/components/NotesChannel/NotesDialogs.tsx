@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
-import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { FolderPicker, NotesDialog } from './NotesCommon';
 import type { FolderRow } from './notesTree';
@@ -204,89 +203,5 @@ export function MoveFolderSheet({
         testID="NotesMoveFolderParentPicker"
       />
     </NotesDialog>
-  );
-}
-
-export function FolderActionsSheet({
-  folder,
-  isDeleting,
-  onDelete,
-  onMove,
-  onOpenChange,
-  onRename,
-  open,
-}: {
-  folder: db.NotesFolder | null;
-  isDeleting: boolean;
-  onDelete: (folder: db.NotesFolder) => void;
-  onMove: (folder: db.NotesFolder) => void;
-  onOpenChange: (open: boolean) => void;
-  onRename: (folder: db.NotesFolder) => void;
-  open: boolean;
-}) {
-  const isWeb = Platform.OS === 'web';
-  const label = getFolderLabel(folder);
-  const actionGroups = useMemo(
-    () =>
-      createActionGroups(
-        [
-          'neutral',
-          {
-            title: 'Rename folder',
-            description: 'Update the folder name.',
-            startIcon: 'EditList',
-            action: () => {
-              if (folder) {
-                onRename(folder);
-              }
-            },
-            testID: 'NotesRenameFolderAction',
-          },
-          {
-            title: 'Move folder',
-            description: 'Choose a new parent folder.',
-            startIcon: 'Folder',
-            action: () => {
-              if (folder) {
-                onMove(folder);
-              }
-            },
-            testID: 'NotesMoveFolderAction',
-          },
-        ],
-        [
-          'negative',
-          {
-            title: 'Delete folder',
-            description: 'Delete this folder and its contents.',
-            startIcon: 'Close',
-            action: () => {
-              if (folder) {
-                onDelete(folder);
-              }
-            },
-            disabled: isDeleting,
-            testID: 'NotesDeleteFolderAction',
-          },
-        ]
-      ),
-    [folder, isDeleting, onDelete, onMove, onRename]
-  );
-
-  return (
-    <ActionSheet
-      open={open}
-      onOpenChange={onOpenChange}
-      mode={isWeb ? 'dialog' : 'sheet'}
-      closeButton={isWeb}
-      modal
-      snapPointsMode="fit"
-      dialogContentProps={{ width: 420, maxWidth: '90%' }}
-    >
-      <ActionSheet.SimpleHeader title={label} subtitle="Folder actions" />
-      <ActionSheet.Content>
-        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
-      </ActionSheet.Content>
-    </ActionSheet>
   );
 }

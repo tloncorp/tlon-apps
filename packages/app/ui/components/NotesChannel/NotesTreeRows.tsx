@@ -3,14 +3,9 @@ import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
-import {
-  TamaguiWebElement,
-  XStack,
-  YStack,
-  getTokenValue,
-  styled,
-} from 'tamagui';
+import { TamaguiWebElement, XStack, YStack, styled } from 'tamagui';
 
+import type { ActionGroup } from '../ActionSheet';
 import { ActionSheet, createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
@@ -25,7 +20,7 @@ const TREE_GUIDE_LEFT = TREE_ROW_LEFT_PADDING + TREE_ROW_GAP;
 const TREE_CHILD_GUIDE_CARET_OFFSET = 8;
 const TREE_CHILD_GUIDE_TOP =
   TREE_ROW_HEIGHT / 2 + TREE_CHILD_GUIDE_CARET_OFFSET;
-const NOTES_VIEW_LEFT_PADDING = getTokenValue('$s', 'space');
+const NOTES_VIEW_LEFT_PADDING = 12;
 
 // Row frame for the comfortable ('notes') view; the outline view uses
 // TreeRowFrame below.
@@ -50,39 +45,44 @@ const NotesViewRow = styled(XStack, {
 });
 
 export function FolderTreeRow({
+  canEdit,
   depth,
   expanded,
+  folder,
   hasChildren,
+  isDeleting,
   label,
   noteCount,
   selected,
   viewStyle,
-  onOpenMenu,
+  onDelete,
+  onMove,
   onPress,
+  onRename,
 }: {
+  canEdit: boolean;
   depth: number;
   expanded: boolean;
+  folder: db.NotesFolder;
   hasChildren: boolean;
+  isDeleting: boolean;
   label: string;
   noteCount: number;
   selected: boolean;
   viewStyle: NotesTreeViewStyle;
-  onOpenMenu?: () => void;
+  onDelete: (folder: db.NotesFolder) => void;
+  onMove: (folder: db.NotesFolder) => void;
   onPress: () => void;
+  onRename: (folder: db.NotesFolder) => void;
 }) {
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const actionsTrigger =
-    onOpenMenu && Platform.OS === 'web' && isHovered ? (
-      <OverflowTriggerButton
-        paddingHorizontal="$xs"
-        paddingVertical="$xs"
-        marginRight="$-xs"
-        onPress={(event) => {
-          event.stopPropagation();
-          onOpenMenu?.();
-        }}
-      />
-    ) : null;
+
+  const openActions = useCallback(() => {
+    if (canEdit) {
+      setActionsOpen(true);
+    }
+  }, [canEdit]);
 
   const handleHoverIn = useCallback(() => {
     if (Platform.OS === 'web') {
@@ -96,12 +96,76 @@ export function FolderTreeRow({
     }
   }, []);
 
+  const actionGroups = useMemo(
+    () =>
+      createActionGroups(
+        [
+          'neutral',
+          {
+            title: 'Rename folder',
+            startIcon: 'EditList',
+            action: () => {
+              setActionsOpen(false);
+              onRename(folder);
+            },
+            testID: 'NotesRenameFolderAction',
+          },
+          {
+            title: 'Move folder',
+            startIcon: 'Folder',
+            action: () => {
+              setActionsOpen(false);
+              onMove(folder);
+            },
+            testID: 'NotesMoveFolderAction',
+          },
+        ],
+        [
+          'negative',
+          {
+            title: 'Delete folder',
+            startIcon: 'Close',
+            action: () => {
+              setActionsOpen(false);
+              onDelete(folder);
+            },
+            disabled: isDeleting,
+            testID: 'NotesDeleteFolderAction',
+          },
+        ]
+      ),
+    [folder, isDeleting, onDelete, onMove, onRename]
+  );
+
+  const shouldShowActionsTrigger =
+    canEdit && Platform.OS === 'web' && (actionsOpen || isHovered);
+  const actionsTrigger = shouldShowActionsTrigger ? (
+    <OverflowTriggerButton
+      paddingHorizontal="$xs"
+      paddingVertical="$xs"
+      marginRight="$-xs"
+      onPress={(event) => {
+        event.stopPropagation();
+        setActionsOpen((open) => !open);
+      }}
+    />
+  ) : null;
+  const actionsMenu =
+    canEdit && (actionsOpen || actionsTrigger) ? (
+      <RowActionsMenu
+        actionGroups={actionGroups}
+        open={actionsOpen}
+        onOpenChange={setActionsOpen}
+        trigger={actionsTrigger}
+      />
+    ) : null;
+
   if (viewStyle === 'notes') {
     return (
       <TreeRowPressable
         onMouseEnter={handleHoverIn}
         onMouseLeave={handleHoverOut}
-        onOpenMenu={onOpenMenu}
+        onOpenMenu={canEdit ? openActions : undefined}
         onPress={onPress}
         testID={`NotesFolderRow-${label}`}
       >
@@ -123,7 +187,7 @@ export function FolderTreeRow({
           >
             {label}
           </Text>
-          {actionsTrigger}
+          {actionsMenu}
           {noteCount > 0 ? (
             <CountFrame count={noteCount} size="$label/m" />
           ) : null}
@@ -139,7 +203,7 @@ export function FolderTreeRow({
       selected={selected}
       onMouseEnter={handleHoverIn}
       onMouseLeave={handleHoverOut}
-      onOpenMenu={onOpenMenu}
+      onOpenMenu={canEdit ? openActions : undefined}
       onPress={onPress}
       testID={`NotesFolderRow-${label}`}
     >
@@ -160,10 +224,10 @@ export function FolderTreeRow({
           {label}
         </ListItem.Title>
       </ListItem.MainContent>
-      {noteCount > 0 || actionsTrigger ? (
+      {noteCount > 0 || actionsMenu ? (
         <ListItem.EndContent paddingTop={0}>
           <XStack alignItems="center" gap="$xs">
-            {actionsTrigger}
+            {actionsMenu}
             {noteCount > 0 ? (
               <CountFrame count={noteCount} size="$label/s" />
             ) : null}
@@ -269,24 +333,18 @@ export function NoteRow({
       marginRight="$-xs"
       onPress={(event) => {
         event.stopPropagation();
-        setActionsOpen(true);
+        setActionsOpen((open) => !open);
       }}
     />
   ) : null;
   const actionsMenu =
     canEdit && (actionsOpen || actionsTrigger) ? (
-      <ActionSheet
+      <RowActionsMenu
+        actionGroups={actionGroups}
         open={actionsOpen}
         onOpenChange={setActionsOpen}
-        mode={Platform.OS === 'web' ? 'popover' : 'sheet'}
         trigger={actionsTrigger}
-        modal
-        snapPointsMode="fit"
-      >
-        <ActionSheet.Content>
-          <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
-        </ActionSheet.Content>
-      </ActionSheet>
+      />
     ) : null;
 
   if (viewStyle === 'notes') {
@@ -360,7 +418,7 @@ export function NoteRow({
           {note.title || 'Untitled'}
         </ListItem.Title>
       </ListItem.MainContent>
-      {updatedAt || actionsTrigger ? (
+      {updatedAt || actionsMenu ? (
         <ListItem.EndContent paddingTop={0}>
           <XStack alignItems="center" gap="$xs">
             {updatedAt ? (
@@ -377,6 +435,35 @@ export function NoteRow({
         </ListItem.EndContent>
       ) : null}
     </TreeRowFrame>
+  );
+}
+
+function RowActionsMenu({
+  actionGroups,
+  open,
+  onOpenChange,
+  trigger,
+}: {
+  actionGroups: ActionGroup[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  trigger: ReactNode;
+}) {
+  const isWeb = Platform.OS === 'web';
+
+  return (
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      mode={isWeb ? 'popover' : 'sheet'}
+      trigger={trigger}
+      modal
+      snapPointsMode="fit"
+    >
+      <ActionSheet.Content>
+        <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
+      </ActionSheet.Content>
+    </ActionSheet>
   );
 }
 

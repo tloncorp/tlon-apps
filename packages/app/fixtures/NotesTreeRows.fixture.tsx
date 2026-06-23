@@ -119,15 +119,20 @@ function RowsPreview({
             return (
               <FolderTreeRow
                 key={`folder-${row.folder.folderId}`}
+                canEdit={canEdit}
                 depth={row.depth}
                 expanded={row.expanded}
+                folder={row.folder}
                 hasChildren={row.hasChildren}
+                isDeleting={false}
                 label={label}
                 noteCount={row.noteCount}
                 selected={selectedRow === 'folder' && row.folder.folderId === 3}
                 viewStyle={viewStyle}
-                onOpenMenu={() => {}}
+                onDelete={() => {}}
+                onMove={() => {}}
                 onPress={() => {}}
+                onRename={() => {}}
               />
             );
           }

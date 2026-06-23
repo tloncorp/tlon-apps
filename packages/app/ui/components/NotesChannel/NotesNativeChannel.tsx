@@ -30,7 +30,6 @@ import {
 } from './NotesCommon';
 import {
   AddFolderDialog,
-  FolderActionsSheet,
   MoveFolderSheet,
   RenameFolderDialog,
 } from './NotesDialogs';
@@ -84,8 +83,6 @@ export function NotesNativeChannel({
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newActionSheetOpen, setNewActionSheetOpen] = useState(false);
-  const [folderActionsFolder, setFolderActionsFolder] =
-    useState<db.NotesFolder | null>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
   const [notesFilterQuery, setNotesFilterQuery] = useState('');
   const [importNotice, setImportNotice] = useState<string | null>(null);
@@ -675,17 +672,8 @@ export function NotesNativeChannel({
     [canEdit, runDeleteNote]
   );
 
-  const handleOpenFolderActions = useCallback(
-    (folder: db.NotesFolder) => {
-      if (!canEdit || folder.folderId === rootFolderId) return;
-      setFolderActionsFolder(folder);
-    },
-    [canEdit, rootFolderId]
-  );
-
   const handleOpenRenameFolder = useCallback(
     (folder: db.NotesFolder) => {
-      setFolderActionsFolder(null);
       openRenameFolderDialog(folder);
       setRenameFolderName(getFolderLabel(folder));
     },
@@ -694,7 +682,6 @@ export function NotesNativeChannel({
 
   const handleOpenMoveFolder = useCallback(
     (folder: db.NotesFolder) => {
-      setFolderActionsFolder(null);
       openMoveFolderDialog(folder);
     },
     [openMoveFolderDialog]
@@ -754,7 +741,6 @@ export function NotesNativeChannel({
         return;
       }
 
-      setFolderActionsFolder(null);
       setIsDeletingFolder(true);
       await runAction('Failed to delete folder', async () => {
         await deleteNotebookFolder({
@@ -788,7 +774,6 @@ export function NotesNativeChannel({
     (folder: db.NotesFolder) => {
       if (!canEdit || folder.folderId === rootFolderId) return;
 
-      setFolderActionsFolder(null);
       const summary = getFolderDeleteSummary(folder);
       const contents = [
         summary.noteCount > 0 ? formatCount(summary.noteCount, 'note') : null,
@@ -1007,6 +992,7 @@ export function NotesNativeChannel({
   const notesTreePane = (
     <NotesTreePane
       canEdit={canEdit}
+      isDeletingFolder={isDeletingFolder}
       isCreatingFolder={isCreatingFolder}
       isCreatingNote={isCreatingNote}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
@@ -1017,11 +1003,13 @@ export function NotesNativeChannel({
       treeRows={treeRows}
       treeViewStyle={treeViewStyle}
       onCreate={handleOpenNewSheet}
+      onDeleteFolder={handleDeleteFolder}
       onDeleteNote={handleDeleteNote}
-      onFolderActions={handleOpenFolderActions}
+      onMoveFolder={handleOpenMoveFolder}
       onMoveNote={handleOpenMoveNote}
       onOpenNote={openNote}
       onQueryChange={setNotesFilterQuery}
+      onRenameFolder={handleOpenRenameFolder}
       onToggleFolder={toggleFolder}
     />
   );
@@ -1118,17 +1106,6 @@ export function NotesNativeChannel({
         onMove={handleMoveNoteToFolder}
         onOpenChange={handleMoveNoteOpenChange}
         open={movingNote !== null}
-      />
-      <FolderActionsSheet
-        folder={folderActionsFolder}
-        isDeleting={isDeletingFolder}
-        onDelete={handleDeleteFolder}
-        onMove={handleOpenMoveFolder}
-        onOpenChange={(open) => {
-          if (!open) setFolderActionsFolder(null);
-        }}
-        onRename={handleOpenRenameFolder}
-        open={folderActionsFolder !== null}
       />
       <RenameFolderDialog
         folder={renamingFolder}
