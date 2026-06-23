@@ -474,6 +474,7 @@ export function PostScreenView({
                           onClearSelectedMessage={
                             clearSelectedContextLensMessage
                           }
+                          channelId={channel.id}
                         />
                       )}
                   </XStack>

@@ -1,3 +1,7 @@
+import {
+  conversationMatchesChannel,
+  lensRunMatchesChannel,
+} from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable } from '@tloncorp/ui';
 import { useEffect, useMemo, useState } from 'react';
@@ -21,6 +25,42 @@ import {
   useContextLensGatewayConfig,
   useContextLensRuns,
 } from './useContextLensStore';
+
+// Channel filtering happens in JS against synced payloads, so widen the fetch
+// when scoped to a channel; the default-50 page can otherwise crop out older
+// channel runs when there are more recent runs elsewhere. Mirrors the narrow
+// ContextLensRuns screen.
+const CHANNEL_FILTER_RUN_LIMIT = 500;
+
+// When a run appears in both the live gateway stream and the synced ship
+// table, keep the more authoritative record: a finalized run beats an
+// in-flight one (SSE can miss the terminal event), otherwise the newest.
+function prefersEvent(candidate: ContextLensEvent, existing: ContextLensEvent) {
+  const candidateFinal = FINAL_STATUSES.has(candidate.lens.status);
+  const existingFinal = FINAL_STATUSES.has(existing.lens.status);
+  if (candidateFinal !== existingFinal) {
+    return candidateFinal;
+  }
+  return candidate.at >= existing.at;
+}
+
+// Live gateway events don't carry the bot ship, so resolve it from the synced
+// rows for DM matching; group-channel matching keys off the conversation nest
+// and doesn't need it.
+function eventMatchesChannel(
+  event: ContextLensEvent,
+  channelId: string,
+  botShipByLensId: Map<string, string>
+) {
+  return conversationMatchesChannel(
+    {
+      chatType: event.lens.chatType,
+      conversationId: event.lens.triggerDetails?.conversationId ?? null,
+    },
+    botShipByLensId.get(event.lens.lensId) ?? null,
+    channelId
+  );
+}
 
 function findEventForLensId(events: ContextLensEvent[], lensId: string) {
   return [...events].reverse().find((event) => event.lens.lensId === lensId);
@@ -126,11 +166,13 @@ export function ContextLensPanel({
   streamStatus,
   selectedMessage,
   onClearSelectedMessage,
+  channelId,
 }: {
   events: ContextLensEvent[];
   streamStatus: LensStreamState['status'];
   selectedMessage?: ContextLensSelectedMessage | null;
   onClearSelectedMessage?: () => void;
+  channelId?: string;
 }) {
   const gatewayConfig = useContextLensGatewayConfig();
   const [selectedRun, setSelectedRun] = useState<ContextLensEvent | null>(null);
@@ -141,25 +183,14 @@ export function ContextLensPanel({
     lens: ContextLens;
   } | null>(null);
   const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
-  const liveRuns = useContextLensRuns(events);
+  const allLiveRuns = useContextLensRuns(events);
   // synced %context-lens records back the list when the gateway stream is absent
-  // (mobile, remote) and keep history across gateway restarts
-  const recentRunsQuery = store.useRecentContextLensRuns();
-  const runs = useMemo(() => {
-    const synced: ContextLensEvent[] = (recentRunsQuery.data ?? []).flatMap(
-      (row) => {
-        const lens = lensFromRunPayload(row.payload);
-        return lens
-          ? [{ seq: 0, at: lens.updatedAt, phase: 'sync', lens }]
-          : [];
-      }
-    );
-    const live = new Set(liveRuns.map((event) => event.lens.lensId));
-    return [
-      ...liveRuns,
-      ...synced.filter((event) => !live.has(event.lens.lensId)),
-    ].sort((left, right) => right.at - left.at);
-  }, [liveRuns, recentRunsQuery.data]);
+  // (mobile, remote) and keep history across gateway restarts. widen the fetch
+  // when scoped so channel filtering (JS, against payloads) has enough to work
+  // with.
+  const recentRunsQuery = store.useRecentContextLensRuns(
+    channelId ? CHANNEL_FILTER_RUN_LIMIT : undefined
+  );
   const botShipByLensId = useMemo(() => {
     const map = new Map<string, string>();
     for (const row of recentRunsQuery.data ?? []) {
@@ -167,6 +198,41 @@ export function ContextLensPanel({
     }
     return map;
   }, [recentRunsQuery.data]);
+  // both sources are global; when the panel is scoped to a channel, filter to
+  // runs belonging to it so an unrelated DM/group run can't take over the view
+  const liveRuns = useMemo(
+    () =>
+      channelId
+        ? allLiveRuns.filter((event) =>
+            eventMatchesChannel(event, channelId, botShipByLensId)
+          )
+        : allLiveRuns,
+    [allLiveRuns, channelId, botShipByLensId]
+  );
+  const runs = useMemo(() => {
+    const synced: ContextLensEvent[] = (recentRunsQuery.data ?? []).flatMap(
+      (row) => {
+        if (channelId && !lensRunMatchesChannel(row, channelId)) {
+          return [];
+        }
+        const lens = lensFromRunPayload(row.payload);
+        return lens
+          ? [{ seq: 0, at: lens.updatedAt, phase: 'sync', lens }]
+          : [];
+      }
+    );
+    // merge both sources by lensId, keeping the more authoritative record
+    const byLensId = new Map<string, ContextLensEvent>();
+    const consider = (event: ContextLensEvent) => {
+      const existing = byLensId.get(event.lens.lensId);
+      if (!existing || prefersEvent(event, existing)) {
+        byLensId.set(event.lens.lensId, event);
+      }
+    };
+    liveRuns.forEach(consider);
+    synced.forEach(consider);
+    return [...byLensId.values()].sort((left, right) => right.at - left.at);
+  }, [liveRuns, recentRunsQuery.data, channelId]);
   const selectedMessageKey = selectedMessage
     ? `${selectedMessage.lensId ?? ''}/${selectedMessage.authorId ?? ''}/${selectedMessage.id}`
     : null;

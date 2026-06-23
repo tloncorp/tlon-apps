@@ -42,26 +42,44 @@ function isDmChannelId(channelId: string) {
 }
 
 /**
- * Whether a synced lens run belongs to the given channel. DM channel ids are
- * the counterpart ship, so a bot's dm-triggered runs match its DM channel;
- * group-channel runs match on the trigger's channel nest.
+ * Whether a lens conversation belongs to the given channel. DM channel ids
+ * are the counterpart ship, so a bot's dm-triggered runs match its DM channel
+ * (by bot ship); group-channel runs match on the trigger's channel nest.
+ *
+ * Shared by both the synced-run path (payload → conversation) and the live
+ * gateway-event path (parsed lens → conversation), so the two stay in sync.
  */
-export function lensRunMatchesChannel(
-  run: { botShip: string; payload: unknown },
+export function conversationMatchesChannel(
+  conversation: LensConversation | null,
+  botShip: string | null | undefined,
   channelId: string
 ): boolean {
-  const conversation = extractLensConversation(run.payload);
   if (!conversation || conversation.chatType === 'internal') {
     return false;
   }
   if (isDmChannelId(channelId)) {
     return (
       conversation.chatType === 'dm' &&
-      preSig(run.botShip) === preSig(channelId)
+      !!botShip &&
+      preSig(botShip) === preSig(channelId)
     );
   }
   return (
     conversation.chatType === 'channel' &&
     conversation.conversationId === channelId
+  );
+}
+
+/**
+ * Whether a synced lens run belongs to the given channel.
+ */
+export function lensRunMatchesChannel(
+  run: { botShip: string; payload: unknown },
+  channelId: string
+): boolean {
+  return conversationMatchesChannel(
+    extractLensConversation(run.payload),
+    run.botShip,
+    channelId
   );
 }

@@ -921,6 +921,7 @@ export function Channel({
                                 onClearSelectedMessage={
                                   clearSelectedContextLensMessage
                                 }
+                                channelId={channel.id}
                               />
                             )}
                         </XStack>
