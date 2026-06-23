@@ -71,6 +71,7 @@ from .history import (
     fetch_channel_history,
     fetch_thread_context,
 )
+from .media import PreparedMedia, prepare_inbound_media, render_content_with_blob
 from .mention import (
     BotMentionMatcher,
     build_bot_mention_terms,
@@ -465,6 +466,10 @@ def _is_patp(ship: str) -> bool:
     return bool(_PATP_RE.match(normalize_ship(ship)))
 
 
+def _message_type_member(name: str) -> Any:
+    return getattr(MessageType, str(name or "text").upper(), MessageType.TEXT)
+
+
 def _processing_outcome_value(outcome: Any) -> Optional[str]:
     """Normalize Hermes' ProcessingOutcome enum (success/failure/cancelled)."""
     value = getattr(outcome, "value", outcome)
@@ -837,10 +842,19 @@ class TlonAdapter(BasePlatformAdapter):
             "messageText": message.text,
             "timestamp": int(message.sent_at.timestamp() * 1000),
         }
+        if message.content is not None:
+            payload["messageContent"] = message.content
+        if message.blob:
+            payload["blob"] = message.blob
         if message.reply_to_message_id:
             payload["parentId"] = message.reply_to_message_id
             payload["isThreadReply"] = True
         return payload
+
+    @staticmethod
+    def _message_preview_text(message: TlonIncomingMessage, text: str) -> str:
+        preview = render_content_with_blob(text, message.blob, compact=False).strip()
+        return preview or "[attachment]"
 
     async def _queue_dm_approval(self, message: TlonIncomingMessage) -> None:
         if not self.tlon_config.owner_ship:
@@ -849,7 +863,7 @@ class TlonAdapter(BasePlatformAdapter):
         await self._queue_approval(
             approval_kind="dm",
             requesting_ship=message.user_id,
-            message_preview=message.text,
+            message_preview=self._message_preview_text(message, message.text),
             original_message=self._original_message_payload(message),
         )
 
@@ -865,7 +879,7 @@ class TlonAdapter(BasePlatformAdapter):
             approval_kind="channel",
             requesting_ship=message.user_id,
             channel_nest=message.chat_id,
-            message_preview=clean_text,
+            message_preview=self._message_preview_text(message, clean_text),
             original_message=original,
         )
 
@@ -1144,7 +1158,8 @@ class TlonAdapter(BasePlatformAdapter):
         if not isinstance(original, dict):
             return
         text = str(original.get("messageText") or "")
-        if not text.strip():
+        blob = str(original.get("blob") or "").strip() or None
+        if not text.strip() and not blob:
             return
         ship = approval_ship(approval)
         is_dm = approval_type(approval) == "dm"
@@ -1168,16 +1183,25 @@ class TlonAdapter(BasePlatformAdapter):
             message_id=str(original.get("messageId") or approval_id(approval)),
             reply_to_message_id=parent_id,
             sent_at=sent_at,
-            raw={"approvalReplay": approval_id(approval)},
+            raw={"approvalReplay": approval_id(approval), "originalMessage": original},
+            content=original.get("messageContent"),
+            blob=blob,
         )
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(message, text)
         if is_dm:
-            await self._dispatch_message(message, is_dm=True, dispatch_reason="approved")
+            await self._dispatch_message(
+                replace(message, text=dispatch_text),
+                is_dm=True,
+                dispatch_reason="approved",
+                prepared_media=prepared_media,
+            )
             return
-        dispatch_text = await self._with_group_context(message, text, "approved")
+        dispatch_text = await self._with_group_context(message, dispatch_text, "approved")
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=False,
             dispatch_reason="approved",
+            prepared_media=prepared_media,
         )
 
     async def _execute_ban_ship(self, ship: str) -> str:
@@ -1639,7 +1663,7 @@ class TlonAdapter(BasePlatformAdapter):
             AttentionFacts(
                 is_dm=False,
                 is_authorized=is_authorized,
-                has_text=bool(clean_text),
+                has_text=bool(clean_text or message.blob),
                 is_mentioned=is_mentioned,
                 is_owner_listen=is_owner_listen,
                 is_free_response=is_free_response,
@@ -1657,12 +1681,18 @@ class TlonAdapter(BasePlatformAdapter):
             return
         if not self._passes_group_loop_safety(message):
             return
-        dispatch_text = await self._with_group_context(message, clean_text, decision.reason)
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(
+            message, clean_text
+        )
+        dispatch_text = await self._with_group_context(
+            message, dispatch_text, decision.reason
+        )
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=False,
             mark_seen=False,
             dispatch_reason=decision.reason,
+            prepared_media=prepared_media,
         )
 
     async def _handle_dm_event(self, raw: Any) -> None:
@@ -1684,7 +1714,14 @@ class TlonAdapter(BasePlatformAdapter):
                     "[tlon] ignoring unauthorized message in %s", message.chat_id
                 )
             return
-        await self._dispatch_message(message, is_dm=True)
+        dispatch_text, prepared_media = await self._prepare_dispatch_payload(
+            message, message.text
+        )
+        await self._dispatch_message(
+            replace(message, text=dispatch_text),
+            is_dm=True,
+            prepared_media=prepared_media,
+        )
 
     async def _handle_dm_invites(self, ships: list) -> None:
         for raw_ship in ships:
@@ -1824,6 +1861,29 @@ class TlonAdapter(BasePlatformAdapter):
         if foreigns is not None:
             await self._handle_foreigns(foreigns)
 
+    async def _prepare_dispatch_payload(
+        self,
+        message: TlonIncomingMessage,
+        text: str,
+    ) -> tuple[str, PreparedMedia]:
+        try:
+            prepared = await prepare_inbound_media(message.content, message.blob)
+        except Exception as exc:
+            logger.debug(
+                "[tlon] media preparation failed for %s: %s",
+                message.message_id,
+                exc,
+            )
+            self._telemetry.error("media_prepare", exc)
+            return text, PreparedMedia()
+        if not prepared.text_prefix:
+            return text, prepared
+        body = str(text or "").strip()
+        dispatch_text = (
+            f"{prepared.text_prefix}\n{body}" if body else prepared.text_prefix
+        )
+        return dispatch_text, prepared
+
     async def _with_group_context(
         self,
         message: TlonIncomingMessage,
@@ -1898,6 +1958,7 @@ class TlonAdapter(BasePlatformAdapter):
         is_dm: bool,
         mark_seen: bool = True,
         dispatch_reason: str = "dm",
+        prepared_media: PreparedMedia | None = None,
     ) -> None:
         if not self._user_authorized(
             message.user_id,
@@ -1928,15 +1989,28 @@ class TlonAdapter(BasePlatformAdapter):
             thread_id=reply_context,
             message_id=message.message_id,
         )
-        event = MessageEvent(
-            text=message.text,
-            message_type=MessageType.TEXT,
-            source=source,
-            raw_message=message.raw,
-            message_id=message.message_id,
-            reply_to_message_id=reply_context,
-            timestamp=message.sent_at,
-        )
+        prepared = prepared_media or PreparedMedia()
+        event_kwargs = {
+            "text": message.text,
+            "message_type": _message_type_member(prepared.message_type),
+            "source": source,
+            "raw_message": message.raw,
+            "message_id": message.message_id,
+            "reply_to_message_id": reply_context,
+            "timestamp": message.sent_at,
+            "media_urls": list(prepared.media_urls),
+            "media_types": list(prepared.media_types),
+        }
+        try:
+            event = MessageEvent(**event_kwargs)
+        except TypeError:
+            # Keeps older Hermes test doubles and runtimes from failing before
+            # they pick up the native media fields.
+            media_urls = event_kwargs.pop("media_urls")
+            media_types = event_kwargs.pop("media_types")
+            event = MessageEvent(**event_kwargs)
+            setattr(event, "media_urls", media_urls)
+            setattr(event, "media_types", media_types)
         await self.handle_message(event)
 
     async def on_processing_start(self, event: MessageEvent) -> None:
