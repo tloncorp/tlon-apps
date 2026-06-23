@@ -509,6 +509,7 @@
     ::
     ::  allows third-party agents (e.g. %notes) to report channel join/leave
     ::  for active-channels bookkeeping.
+    ::
         %group-channel-active
       ?>  =(our src):bowl
       =+  !<([=flag:g =nest:g joined=?] vase)
@@ -661,10 +662,12 @@
   ^-  path
   /(scot %p our.bowl)/channels/(scot %da now.bowl)/[p.nest]/(scot %p p.q.nest)/[q.q.nest]
 ::
-::  +is-joined: are we subscribed to (or host of) this channel? Built-in
-::  channels kinds scry %channels; any other kind uses the generic
+::  +is-joined: are we subscribed to (or host of) this channel?
+::
+::  built-in channels kinds scry %channels; any other kind uses the generic
 ::  channel-host convention — the nest kind names the backing agent and we
 ::  %gu its /joined/<host>/<name> path. An unsupported kind reads as |.
+::
 ++  is-joined
   |=  =nest:g
   ^-  ?
@@ -1139,8 +1142,6 @@
   ::
     [%v1 %groups ~]  ?>(from-self cor)
   ::
-    ::  v2 firehose: full v10 r-group, incl. the %active-channel membership
-    ::  delta. v1 stays group-response-1 for agents that blind-cast to v9.
     [%v2 %groups ~]  ?>(from-self cor)
   ::
       [ver=%v1 %channels app=@ ship=@ name=@ %preview ~]
@@ -3515,9 +3516,8 @@
         =/  =dock  [our.bowl %channels]
         =/  action=a-channels:v9:dv  [%channel nes %leave ~]
         `[%pass wire %agent dock %poke channel-action-1+!>(action)]
-      ::  generic channel-host: the nest kind names the backing agent on our
-      ::  ship; poke it %group-channel-leave with the nest. an unsupported
-      ::  kind just nacks (logged in +go-agent, otherwise harmless).
+      ::  generic channel-host: the nest kind names the backing agent on our ship.
+      ::
       =/  =dock  [our.bowl p.nes]
       `[%pass wire %agent dock %poke group-channel-leave+!>(`channel-leave:g`[nes])]
     ::
@@ -3534,6 +3534,8 @@
         =/  action=a-channels:v9:dv  [%channel nes %join flag]
         =/  =cage  channel-action-1+!>(action)
         `[%pass wire %agent [our.bowl %channels] %poke cage]
+      ::  generic channel-host: the nest kind names the backing agent on our ship.
+      ::
       =/  =cage  group-channel-join+!>(`channel-join:g`[nes flag])
       `[%pass wire %agent [our.bowl p.nes] %poke cage]
     ::
@@ -4660,8 +4662,9 @@
     =*  log  ~(. l `'group-join')
     ::=.  cor  (tell:log %dbug leaf+"+go-response /v1/groups fact {<r-groups-9>}" ~)
     =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
-    ::  v2 response: same r-group as v1, carried by the v10 mark so v2
-    ::  subscribers also receive the %active-channel deltas from elsewhere.
+    ::  v2 response: same $r-group payload as v1, carried by the v10 mark so v2
+    ::  subscribers can also receive the %active-channel deltas sent out by
+    ::  +update-active-channel.
     ::
     =/  r-groups-10=r-groups:v10:gv  [flag r-group]
     =/  v2-paths  ~[/v2/groups [%v2 go-area]]

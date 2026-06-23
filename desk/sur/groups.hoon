@@ -282,7 +282,7 @@
 ::  by the nest kind) to join or leave .nest. join carries the group flag so
 ::  the host can record affiliation. see +join-channels / +leave-channels in groups.
 ::
-+$  channel-join   [=nest group=flag]
++$  channel-join   [=nest =flag]
 +$  channel-leave  nest
 ::  %groups acur interface
 ::
