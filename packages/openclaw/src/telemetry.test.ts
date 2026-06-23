@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { _testing, createTlonTelemetry, recordToolCall } from './telemetry.js';
+import {
+  _testing,
+  createTlonTelemetry,
+  recordToolCall,
+  reportOutboundRoute,
+  setOutboundRouteReporter,
+} from './telemetry.js';
 
 const postHogMocks = vi.hoisted(() => ({
   identify: vi.fn(),
@@ -18,6 +24,15 @@ vi.mock('posthog-node', () => ({
     }
   ),
 }));
+
+const VERSION_IDENTITY_MATCH = {
+  harness: 'openclaw',
+  pluginVersion: expect.any(String),
+  pluginCommit: expect.any(String),
+  pluginFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
+  adapterVersion: expect.any(String),
+  adapterFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
+};
 
 describe('telemetry tool tracking', () => {
   beforeEach(() => {
@@ -212,18 +227,27 @@ describe('telemetry tool tracking', () => {
 
     expect(postHogMocks.identify).toHaveBeenCalledWith({
       distinctId: '~zod',
-      properties: {
+      properties: expect.objectContaining({
         logSource: 'openclawPlugin',
         tlonOwnerShip: '~zod',
         tlonBotShip: '~nec',
-      },
+        harness: 'openclaw',
+        pluginVersion: expect.any(String),
+        pluginFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
+      }),
     });
 
     expect(postHogMocks.capture).toHaveBeenCalledWith({
       distinctId: '~zod',
       event: 'TlonBot Reply Handled',
-      properties: {
+      properties: expect.objectContaining({
         logSource: 'openclawPlugin',
+        harness: 'openclaw',
+        pluginVersion: expect.any(String),
+        pluginCommit: expect.any(String),
+        pluginFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
+        adapterVersion: expect.any(String),
+        adapterFingerprint: expect.stringMatching(/^fp1:[a-f0-9]{12}$/),
         botShip: '~nec',
         ownerShip: '~zod',
         outcome: 'responded',
@@ -254,7 +278,7 @@ describe('telemetry tool tracking', () => {
             error: null,
           },
         ],
-      },
+      }),
     });
 
     const capturedEvent = postHogMocks.capture.mock.calls[0]?.[0];
@@ -266,6 +290,43 @@ describe('telemetry tool tracking', () => {
 
     expect(postHogMocks.flush).toHaveBeenCalledTimes(1);
     expect(postHogMocks.shutdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('captures gateway connected with version identity', () => {
+    const telemetry = createEnabledTelemetry()!;
+    telemetry.captureGatewayConnected({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      tlonSkillVersion: '0.3.2',
+      accountId: 'default',
+      configured: true,
+      watchedChannelCount: 3,
+      dmAllowlistCount: 2,
+      defaultAuthorizedShipsCount: 1,
+      pendingApprovalCount: 4,
+      autoDiscoverChannels: true,
+      ownerListenEnabled: true,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenCalledWith({
+      distinctId: '~zod',
+      event: 'TlonBot Gateway Connected',
+      properties: expect.objectContaining({
+        logSource: 'openclawPlugin',
+        ...VERSION_IDENTITY_MATCH,
+        botShip: '~nec',
+        ownerShip: '~zod',
+        tlonSkillVersion: '0.3.2',
+        accountId: 'default',
+        configured: true,
+        watchedChannelCount: 3,
+        dmAllowlistCount: 2,
+        defaultAuthorizedShipsCount: 1,
+        pendingApprovalCount: 4,
+        autoDiscoverChannels: true,
+        ownerListenEnabled: true,
+      }),
+    });
   });
 
   describe('captureHeartbeatNudge', () => {
@@ -286,7 +347,7 @@ describe('telemetry tool tracking', () => {
       expect(postHogMocks.capture).toHaveBeenCalledWith({
         distinctId: '~zod',
         event: 'TlonBot Heartbeat Nudge Sent',
-        properties: {
+        properties: expect.objectContaining({
           logSource: 'openclawPlugin',
           botShip: '~nec',
           ownerShip: '~zod',
@@ -298,7 +359,7 @@ describe('telemetry tool tracking', () => {
           accountId: 'default',
           messageId: '~nec/170.141.184.506.511.632.882.809.306.892.730.368.000',
           nudgeSentAtMs: 1700000000000,
-        },
+        }),
       });
     });
 
@@ -338,11 +399,11 @@ describe('telemetry tool tracking', () => {
 
       expect(postHogMocks.identify).toHaveBeenCalledWith({
         distinctId: '~zod',
-        properties: {
+        properties: expect.objectContaining({
           logSource: 'openclawPlugin',
           tlonOwnerShip: '~zod',
           tlonBotShip: '~nec',
-        },
+        }),
       });
     });
 
@@ -381,7 +442,7 @@ describe('telemetry tool tracking', () => {
       expect(postHogMocks.capture).toHaveBeenCalledWith({
         distinctId: '~zod',
         event: 'TlonBot Heartbeat Nudge Reengaged',
-        properties: {
+        properties: expect.objectContaining({
           logSource: 'openclawPlugin',
           botShip: '~nec',
           ownerShip: '~zod',
@@ -391,7 +452,7 @@ describe('telemetry tool tracking', () => {
           reengagementDelayMs: 4000,
           channel: 'tlon',
           accountId: 'default',
-        },
+        }),
       });
     });
 
@@ -410,11 +471,11 @@ describe('telemetry tool tracking', () => {
 
       expect(postHogMocks.identify).toHaveBeenCalledWith({
         distinctId: '~zod',
-        properties: {
+        properties: expect.objectContaining({
           logSource: 'openclawPlugin',
           tlonOwnerShip: '~zod',
           tlonBotShip: '~nec',
-        },
+        }),
       });
     });
 
@@ -439,5 +500,83 @@ describe('telemetry tool tracking', () => {
     const capturedEvent = await captureReply();
     expect(capturedEvent?.event).toBe('TlonBot Reply Handled');
     expect(capturedEvent?.properties.outcome).toBe('responded');
+  });
+});
+
+describe('outbound route telemetry', () => {
+  beforeEach(() => {
+    postHogMocks.identify.mockClear();
+    postHogMocks.capture.mockClear();
+    setOutboundRouteReporter(null);
+  });
+
+  function createEnabledTelemetry() {
+    return createTlonTelemetry({
+      config: { enabled: true, apiKey: 'phc_test', host: null },
+    });
+  }
+
+  it('captures a webchat (off-Tlon) send as the tracked leak', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureOutboundRoute({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      resolvedChannel: 'webchat',
+      routedToTlon: false,
+      targetKind: 'unknown',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Outbound Routed');
+    expect(call.distinctId).toBe('~zod');
+    expect(call.properties.resolvedChannel).toBe('webchat');
+    expect(call.properties.routedToTlon).toBe(false);
+  });
+
+  it('captures a healthy Tlon send', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureOutboundRoute({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      resolvedChannel: 'tlon',
+      routedToTlon: true,
+      targetKind: 'dm',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.routedToTlon).toBe(true);
+    expect(call.properties.targetKind).toBe('dm');
+  });
+
+  it('skips capture when ownerShip is not configured', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureOutboundRoute({
+      ownerShip: null,
+      botShip: '~nec',
+      resolvedChannel: 'webchat',
+      routedToTlon: false,
+      targetKind: 'unknown',
+    });
+    expect(postHogMocks.capture).not.toHaveBeenCalled();
+  });
+
+  it('reportOutboundRoute forwards to the registered reporter, and null clears it', () => {
+    const reporter = vi.fn();
+    setOutboundRouteReporter(reporter);
+    reportOutboundRoute({
+      resolvedChannel: 'webchat',
+      routedToTlon: false,
+      targetKind: 'unknown',
+    });
+    expect(reporter).toHaveBeenCalledTimes(1);
+    expect(reporter.mock.calls[0][0].routedToTlon).toBe(false);
+
+    setOutboundRouteReporter(null);
+    reportOutboundRoute({
+      resolvedChannel: 'tlon',
+      routedToTlon: true,
+      targetKind: 'dm',
+    });
+    expect(reporter).toHaveBeenCalledTimes(1);
   });
 });

@@ -42,7 +42,7 @@ import {
   normalizeShip,
   parseChannelNest,
 } from '../targets.js';
-import { createTlonTelemetry } from '../telemetry.js';
+import { createTlonTelemetry, setOutboundRouteReporter } from '../telemetry.js';
 import { resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
 import { authenticate } from '../urbit/auth.js';
@@ -52,6 +52,10 @@ import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
 import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
+import {
+  formatTlonVersionIdentity,
+  resolveTlonSkillVersion,
+} from '../version.js';
 import {
   type DisplayContext,
   type PendingApproval,
@@ -101,6 +105,13 @@ import {
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
+import {
+  type TlonInboundRouteRecord,
+  isRouteDebugEnabled,
+  recordTlonRouteAndDispatch,
+  routeUpdateWillSkipByPin,
+  tlonDeliveryContext,
+} from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
 import {
   type ParsedCite,
@@ -337,7 +348,14 @@ export async function monitorTlonProvider(
   const accountCode = account.code;
 
   const botShipName = normalizeShip(account.ship);
+  const tlonSkillVersion = await resolveTlonSkillVersion();
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
+  runtime.log?.(
+    `[tlon] version: ${formatTlonVersionIdentity({
+      markdown: false,
+      tlonSkillVersion,
+    }).replace(/\n/g, ' | ')}`
+  );
 
   const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(
     account.allowPrivateNetwork
@@ -464,11 +482,11 @@ export async function monitorTlonProvider(
   });
 
   // Outer try/finally wraps everything from slot publication onward.
-  // The reviewer's P2: a synchronous throw between slot publication and
-  // the inner try at ~line 2719 (constructor, queue setup, bridge
-  // setup, channel discovery, future edits in this large pre-try
-  // region) would leave the shared slot orphaned. This outer finally
-  // catches all of those and runs cleanup unconditionally.
+  // A synchronous throw between slot publication and the inner try
+  // (constructor, queue setup, bridge setup, channel discovery, future
+  // edits in this large pre-try region) would leave the shared slot
+  // orphaned. This outer finally catches all of those and runs cleanup
+  // unconditionally.
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
 
@@ -543,6 +561,18 @@ export async function monitorTlonProvider(
       config: account.telemetry,
       runtime,
     });
+
+    // Bridge route-resolution telemetry from the global `message_sending` hook
+    // to this account's telemetry client. Reports every route-dependent send so
+    // we can measure how often a reply lands on webchat instead of Tlon.
+    setOutboundRouteReporter((event) =>
+      telemetry?.captureOutboundRoute({
+        ...event,
+        ownerShip:
+          getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
+        botShip: botShipName,
+      })
+    );
 
     // Track threads we've participated in (by parentId) - respond without mention requirement
     const participatedThreads = new Set<string>();
@@ -2255,6 +2285,45 @@ export async function monitorTlonProvider(
         }),
       });
 
+      // ── Durable session-route persistence ───────────────────────
+      // The streamed reply below goes out through our own `deliver` callback
+      // and does not consult session metadata. But later route-dependent sends
+      // (the shared `message` tool, subagents, system-event turns) resolve
+      // their destination from the session store; without a persisted Tlon
+      // route they fall back to webchat. recordTlonRouteAndDispatch (below)
+      // records the route before dispatch and fails open — never blocks the
+      // reply.
+      const routeDebug: ((rec: TlonInboundRouteRecord) => void) | undefined =
+        isRouteDebugEnabled()
+          ? (rec) =>
+              runtime.log?.(
+                `[tlon][route-debug] inbound ${JSON.stringify({
+                  messageId,
+                  agentId: route.agentId,
+                  sessionKey: route.sessionKey,
+                  mainSessionKey: route.mainSessionKey,
+                  lastRoutePolicy: route.lastRoutePolicy,
+                  matchedBy: route.matchedBy,
+                  provider: ctxPayload.Provider,
+                  surface: ctxPayload.Surface,
+                  originatingChannel: ctxPayload.OriginatingChannel,
+                  originatingTo: ctxPayload.OriginatingTo,
+                  ctxSessionKey: ctxPayload.SessionKey,
+                  isGroup,
+                  groupChannel: groupChannel ?? null,
+                  senderShip,
+                  parentId: parentId ?? null,
+                  deliverParentId: deliverParentId ?? null,
+                  recordSessionKey: rec.recordSessionKey,
+                  lastRouteSessionKey: rec.lastRouteSessionKey,
+                  target: rec.target,
+                  hadUpdateLastRoute: Boolean(rec.updateLastRoute),
+                  pinWillSkip: routeUpdateWillSkipByPin(rec.updateLastRoute),
+                  skippedReason: rec.skippedReason ?? null,
+                })}`
+              )
+          : undefined;
+
       const dispatchStartTime = Date.now();
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
@@ -2364,106 +2433,149 @@ export async function monitorTlonProvider(
       let dispatchError: unknown;
 
       try {
-        dispatchResult =
-          await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-            ctx: ctxPayload,
-            cfg,
-            replyOptions,
-            dispatcherOptions: {
-              responsePrefix,
-              humanDelay,
-              typingCallbacks,
-              deliver: async (payload: ReplyPayload) => {
-                let replyText = payload.text;
-                if (!replyText) {
-                  return;
-                }
-
-                // Process any block directives in the response (strips them from text)
-                replyText = await processBlockDirectives(replyText, senderShip);
-                if (!replyText) {
-                  return;
-                } // Response was only a directive
-
-                // Use settings store value if set, otherwise fall back to file config
-                const showSignature = effectiveShowModelSig;
-                if (showSignature) {
-                  const modelCfg = cfg.agents?.defaults?.model;
-                  const modelInfo =
-                    selectedModel ||
-                    (payload as { metadata?: { model?: string } }).metadata
-                      ?.model ||
-                    (payload as { model?: string }).model ||
-                    (route as { model?: string }).model ||
-                    (typeof modelCfg === 'string'
-                      ? modelCfg
-                      : modelCfg?.primary);
-                  replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
-                }
-
-                // Add addendum if this is the last response before bot rate limit
-                if (isGroup && groupChannel && knownBotShips.has(senderShip)) {
-                  const count = consecutiveBotMessages.get(groupChannel) ?? 0;
-                  if (maxBotResponses > 0 && count === maxBotResponses) {
-                    const otherBot = formatShipWithNickname(senderShip);
-                    replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
+        dispatchResult = await recordTlonRouteAndDispatch({
+          session: core.channel.session,
+          cfg,
+          route,
+          ctxPayload,
+          ctxSessionKey: ctxPayload.SessionKey,
+          isGroup,
+          groupChannel,
+          senderShip,
+          parentId,
+          deliverParentId,
+          effectiveOwnerShip,
+          effectiveDmAllowlist,
+          messageId,
+          sessionStore: cfg.session?.store,
+          logError: (msg) => runtime.error?.(msg),
+          // Routine skip / pin-skip diagnostics are debug-gated to avoid
+          // high-volume logs for expected policy cases.
+          logDebug: isRouteDebugEnabled()
+            ? (msg) => runtime.log?.(msg)
+            : undefined,
+          onRecord: routeDebug,
+          dispatch: () =>
+            core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+              ctx: ctxPayload,
+              cfg,
+              replyOptions,
+              dispatcherOptions: {
+                responsePrefix,
+                humanDelay,
+                typingCallbacks,
+                deliver: async (payload: ReplyPayload) => {
+                  let replyText = payload.text;
+                  if (!replyText) {
+                    return;
                   }
-                }
 
-                if (isGroup && groupChannel) {
-                  // Send to any channel type (chat, heap, diary) using the nest directly
-                  await sendChannelPost({
-                    botProfile: getBotProfile(),
-                    fromShip: botShipName,
-                    nest: groupChannel,
-                    story: markdownToStory(replyText),
-                    replyToId: deliverParentId ?? undefined,
-                  });
-                  // Track thread participation for future replies without mention
-                  if (deliverParentId) {
-                    participatedThreads.add(String(deliverParentId));
+                  // Process any block directives in the response (strips them from text)
+                  replyText = await processBlockDirectives(
+                    replyText,
+                    senderShip
+                  );
+                  if (!replyText) {
+                    return;
+                  } // Response was only a directive
+
+                  // Use settings store value if set, otherwise fall back to file config
+                  const showSignature = effectiveShowModelSig;
+                  if (showSignature) {
+                    const modelCfg = cfg.agents?.defaults?.model;
+                    const modelInfo =
+                      selectedModel ||
+                      (payload as { metadata?: { model?: string } }).metadata
+                        ?.model ||
+                      (payload as { model?: string }).model ||
+                      (route as { model?: string }).model ||
+                      (typeof modelCfg === 'string'
+                        ? modelCfg
+                        : modelCfg?.primary);
+                    replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
+                  }
+
+                  // Add addendum if this is the last response before bot rate limit
+                  if (
+                    isGroup &&
+                    groupChannel &&
+                    knownBotShips.has(senderShip)
+                  ) {
+                    const count = consecutiveBotMessages.get(groupChannel) ?? 0;
+                    if (maxBotResponses > 0 && count === maxBotResponses) {
+                      const otherBot = formatShipWithNickname(senderShip);
+                      replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
+                    }
+                  }
+
+                  if (isRouteDebugEnabled()) {
                     runtime.log?.(
-                      `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                      `[tlon][route-debug] deliver ${JSON.stringify({
+                        messageId,
+                        isGroup,
+                        destination: isGroup
+                          ? groupChannel ?? null
+                          : senderShip,
+                        deliverParentId: deliverParentId ?? null,
+                      })}`
                     );
                   }
-                } else {
-                  await sendDm({
-                    botProfile: getBotProfile(),
-                    fromShip: botShipName,
-                    toShip: senderShip,
-                    text: replyText,
-                    replyToId: deliverParentId
-                      ? String(deliverParentId)
-                      : undefined,
-                  });
-                }
 
-                if (presenceConversationId) {
-                  await computingPresence.stopRun({
-                    conversationId: presenceConversationId,
-                    runId: presenceRunId,
-                  });
-                }
+                  if (isGroup && groupChannel) {
+                    // Send to any channel type (chat, heap, diary) using the nest directly
+                    await sendChannelPost({
+                      botProfile: getBotProfile(),
+                      fromShip: botShipName,
+                      nest: groupChannel,
+                      story: markdownToStory(replyText),
+                      replyToId: deliverParentId ?? undefined,
+                    });
+                    // Track thread participation for future replies without mention
+                    if (deliverParentId) {
+                      participatedThreads.add(String(deliverParentId));
+                      runtime.log?.(
+                        `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                      );
+                    }
+                  } else {
+                    await sendDm({
+                      botProfile: getBotProfile(),
+                      fromShip: botShipName,
+                      toShip: senderShip,
+                      text: replyText,
+                      replyToId: deliverParentId
+                        ? String(deliverParentId)
+                        : undefined,
+                    });
+                  }
 
-                deliveredMessageCount += 1;
-                replyCharCount += replyText.length;
-                replyWordCount += replyText.trim()
-                  ? replyText.trim().split(/\s+/).length
-                  : 0;
-                replyMediaCount += Array.isArray(payload.mediaUrls)
-                  ? payload.mediaUrls.length
-                  : payload.mediaUrl
-                    ? 1
+                  if (presenceConversationId) {
+                    await computingPresence.stopRun({
+                      conversationId: presenceConversationId,
+                      runId: presenceRunId,
+                    });
+                  }
+
+                  deliveredMessageCount += 1;
+                  replyCharCount += replyText.length;
+                  replyWordCount += replyText.trim()
+                    ? replyText.trim().split(/\s+/).length
                     : 0;
+                  replyMediaCount += Array.isArray(payload.mediaUrls)
+                    ? payload.mediaUrls.length
+                    : payload.mediaUrl
+                      ? 1
+                      : 0;
+                },
+                onError: (err, info) => {
+                  const dispatchDuration = Date.now() - dispatchStartTime;
+                  runtime.error?.(
+                    `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
+                  );
+                },
               },
-              onError: (err, info) => {
-                const dispatchDuration = Date.now() - dispatchStartTime;
-                runtime.error?.(
-                  `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
-                );
-              },
-            },
-          });
+            }),
+        });
       } catch (error) {
         dispatchError = error;
         throw error;
@@ -2590,6 +2702,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${nest}`,
+                    route.accountId
+                  ),
                 });
               }
             } catch (err: any) {
@@ -3010,6 +3127,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${reactAuthor}:${action}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${partnerShip || reactAuthor}`,
+                    route.accountId
+                  ),
                 });
                 runtime.log?.(`[tlon] DM_REACTION: ${eventText}`);
               }
@@ -3514,7 +3636,14 @@ export async function monitorTlonProvider(
                             const memberDisplay = formatShipWithNickname(ship);
                             core.system.enqueueSystemEvent(
                               `[${memberDisplay} joined group ${groupFlag}]`,
-                              { sessionKey: route.sessionKey }
+                              {
+                                sessionKey: route.sessionKey,
+                                // Route any resulting system turn back to Tlon.
+                                deliveryContext: tlonDeliveryContext(
+                                  `tlon:${nest}`,
+                                  route.accountId
+                                ),
+                              }
                             );
                             runtime.log?.(
                               `[tlon] Member joined: ${ship} → ${groupFlag}`
@@ -3855,6 +3984,22 @@ export async function monitorTlonProvider(
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      telemetry?.captureGatewayConnected({
+        ownerShip: effectiveOwnerShip,
+        botShip: botShipName,
+        tlonSkillVersion: await resolveTlonSkillVersion(),
+        accountId: account.accountId,
+        configured: account.configured,
+        watchedChannelCount: watchedChannels.size,
+        dmAllowlistCount: effectiveDmAllowlist.length,
+        defaultAuthorizedShipsCount: (
+          currentSettings.defaultAuthorizedShips ??
+          account.defaultAuthorizedShips
+        ).length,
+        pendingApprovalCount: pendingApprovals.length,
+        autoDiscoverChannels: effectiveAutoDiscoverChannels,
+        ownerListenEnabled: effectiveOwnerListenEnabled,
+      });
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
@@ -3988,6 +4133,7 @@ export async function monitorTlonProvider(
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
       clearShadowsForAccount(account.accountId);
+      setOutboundRouteReporter(null);
       await telemetry?.close();
       try {
         await api?.close();

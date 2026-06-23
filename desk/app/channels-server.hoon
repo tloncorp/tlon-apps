@@ -6,34 +6,14 @@
     h=hooks, m=meta
 /+  ccv=channel-conv, utils=channel-utils, imp=import-aid, em=emojimart
 /+  default-agent, verb, dbug,
+    guard,
     neg=negotiate, discipline, logs
 /+  hj=hooks-json
 ::
-/%  m-channel-checkpoint    %channel-checkpoint
-/%  m-channel-denied        %channel-denied
-/%  m-channel-logs          %channel-logs
-/%  m-channel-said-1        %channel-said-1
-/%  m-channel-said-2        %channel-said-2
-/%  m-channel-update        %channel-update
-/%  m-hook-channel-preview  %hook-channel-preview
-/%  m-hook-full             %hook-full
-/%  m-hook-response-0       %hook-response-0
-/%  m-hook-template         %hook-template
-::
 %-  %-  discipline
-    :+  ::  marks
+    :+  ::  unchanging marks
         ::
-        :~  :+  %channel-checkpoint    |  -:!>(*vale:m-channel-checkpoint)
-            :+  %channel-denied        |  -:!>(*vale:m-channel-denied)
-            :+  %channel-logs          |  -:!>(*vale:m-channel-logs)
-            :+  %channel-said-1        |  -:!>(*vale:m-channel-said-1)
-            :+  %channel-said-2        |  -:!>(*vale:m-channel-said-2)
-            :+  %channel-update        |  -:!>(*vale:m-channel-update)
-            :+  %hook-channel-preview  |  -:!>(*vale:m-hook-channel-preview)
-            :+  %hook-full             |  -:!>(*vale:m-hook-full)
-            :+  %hook-response-0       |  -:!>(*vale:m-hook-response-0)
-            :+  %hook-template         |  -:!>(*vale:m-hook-template)
-        ==
+        ~
       ::  facts
       ::
       :~  [/$/$/checkpoint %channel-checkpoint ~]
@@ -61,7 +41,8 @@
 ^-  agent:gall
 =>
   |%
-  +$  card  card:agent:gall
+  +$  card  card:guard
+  +$  rail  rail:guard
   +$  current-state
     $:  %15
         =v-channels:v10:cv
@@ -78,6 +59,7 @@
       log   ~(. logs [our.bowl /logs])
       cor   ~(. +> [bowl ~ ~])
   ++  on-init
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:init:cor
@@ -86,6 +68,7 @@
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(load:cor vase)
@@ -93,6 +76,7 @@
   ::
   ++  on-poke
     |=  [=mark =vase]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(poke:cor mark vase)
@@ -100,6 +84,7 @@
   ::
   ++  on-watch
     |=  =path
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(watch:cor path)
@@ -109,13 +94,16 @@
   ++  on-leave   on-leave:def
   ++  on-fail
     |=  [=term =tang]
+    %-  step:un:guard
     ^-  (quip card _this)
     %-  (slog term tang)
     :_  this
-    [(fail:log term tang ~)]~
+    [(unsafe:guard (fail:log term tang ~))]~
   ::
   ++  on-agent
-    |=  [=wire =sign:agent:gall]
+    %-  on-agent:guard
+    |=  [=wire =sign:guard]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(agent:cor wire sign)
@@ -123,6 +111,7 @@
   ::
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
+    %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
       abet:(arvo:cor wire sign)
@@ -136,7 +125,7 @@
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  emit-late  |=(=card cor(cards-late [card cards-late]))
 ++  emil-late  |=(caz=(list card) cor(cards-late (welp (flop caz) cards-late)))
-++  give  |=(=gift:agent:gall (emit %give gift))
+++  give  |=(=gift:guard (emit %give gift))
 ++  log   ~(. logs [our.bowl /logs])
 ++  safe-watch
   |=  [=wire =dock =path]
@@ -151,7 +140,7 @@
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  (state-0-to-1 old)
   =?  old  ?=(%1 -.old)  (state-1-to-2 old)
-  =?  cor  ?=(%2 -.old)  (emit %pass /trim %agent [our.bowl %chat] %poke %chat-trim !>(~))
+  =?  cor  ?=(%2 -.old)  (emit %pass /trim %agent [our.bowl %chat] %poke %unsafe %chat-trim !>(~))
   =?  old  ?=(%2 -.old)  (state-2-to-3 old)
   =?  old  ?=(%3 -.old)  (state-3-to-4 old)
   =?  old  ?=(%4 -.old)  (state-4-to-5 old)
@@ -532,11 +521,11 @@
   ^+  cor
   =.  cor
     %-  emil
-    :~  [%pass /migrate %agent [our.bowl %chat] %poke %chat-migrate-server !>(~)]
+    :~  [%pass /migrate %agent [our.bowl %chat] %poke %unsafe %chat-migrate-server !>(~)]
         ::NOTE  we do these here and not in /app/channels, because it's
         ::      important that the server migration happens first, so that
         ::      the client migration may successfully establish subscriptions.
-        [%pass /migrate/final %agent [our.bowl %chat] %poke %chat-migrate !>(~)]
+        [%pass /migrate/final %agent [our.bowl %chat] %poke %unsafe %chat-migrate !>(~)]
     ==
   inflate-io
 ::
@@ -561,15 +550,15 @@
         [%send-sequence-numbers *]
       =+  ;;([%send-sequence-numbers =nest:c] q.vase)
       =.  cor
-        (emit (tell:log %dbug ~[>[%got-poke %send-sequence-numbers nest]<] ~))
+        (emit (unsafe:guard (tell:log %dbug ~[>[%got-poke %send-sequence-numbers nest]<] ~)))
       ?~  can=(~(get by v-channels) nest)  cor
-      =;  =cage
+      =;  =rail
         %-  emil
-        :~  (tell:log %dbug ~[>[%sending-sequence-numbers src.bowl]<] ~)
-            [%pass /numbers %agent [src.bowl %channels] %poke cage]
+        :~  (unsafe:guard (tell:log %dbug ~[>[%sending-sequence-numbers src.bowl]<] ~))
+            [%pass /numbers %agent [src.bowl %channels] %poke rail]
         ==
       :-  %noun
-      !>  :^  %sequence-numbers  nest
+      :^  %sequence-numbers  nest
         count.u.can
       ^-  (list [id-post:c (unit @ud)])
       %+  turn  (tap:on-v-posts:c posts.u.can)
@@ -578,15 +567,15 @@
     ::
         [%send-tombstones *]
       =+  ;;([%send-tombstones =nest:c] q.vase)
-      =.  cor  (emit (tell:log %dbug ~[>[%got-poke %send-tombstones nest]<] ~))
+      =.  cor  (emit (unsafe:guard (tell:log %dbug ~[>[%got-poke %send-tombstones nest]<] ~)))
       ?~  can=(~(get by v-channels) nest)  cor
-      =;  =cage
+      =;  =rail
         %-  emil
-        :~  (tell:log %dbug ~[>[%sending-tombstones src.bowl]<] ~)
-            [%pass /tombstones %agent [src.bowl %channels] %poke cage]
+        :~  (unsafe:guard (tell:log %dbug ~[>[%sending-tombstones src.bowl]<] ~))
+            [%pass /tombstones %agent [src.bowl %channels] %poke rail]
         ==
       :-  %noun
-      !>  :+  %tombstones  nest
+      :+  %tombstones  nest
       ^-  (list [id-post:v9:cv tombstone:v9:cv])
       %+  murn  (tap:on-v-posts:c posts.u.can)
       |=  [i=id-post:c p=(may:c v-post:c)]
@@ -649,7 +638,7 @@
         ~(has by hooks.hooks)
       =.  order.hooks  (~(put by order.hooks) nest.action seq)
       =/  =response:h  [%order nest.action seq]
-      (give %fact ~[/v0/hooks] hook-response-0+!>(response))
+      (give %fact ~[/v0/hooks] hook-response-0+response)
     ::
         %config
       ho-abet:(ho-configure:(ho-abed:ho-core id.action) +>.action)
@@ -685,11 +674,11 @@
     =/  =nest:c  [i.path.i.ded our.bowl i.t.path.i.ded]
     ?.  &((~(has by v-channels:bak) nest) !(~(has by v-channels) nest))
       $(ded t.ded)
-    =/  =cage  noun+!>([%channel-wake [i i.t]:path.i.ded])
+    =/  =rail  unsafe+noun+!>([%channel-wake [i i.t]:path.i.ded])
     ::NOTE  this assumes it was their %channels agent subscribing to us,
     ::      which we actually cannot know. but a false positive here should
     ::      be harmless.
-    =.  cor  (emit %pass /wake %agent [ship.i.ded %channels] %poke cage)
+    =.  cor  (emit %pass /wake %agent [ship.i.ded %channels] %poke rail)
     $(ded t.ded)
   ::  if both the backup and our latest have a channel, keep only our
   ::  version. we could do a "deep merge" but presently unclear how that
@@ -697,7 +686,7 @@
   ::  wrt them.
   ::
   =.  v-channels  (~(uni by v-channels:bak) v-channels)
-  (emil (prod-next:imp [our dap]:bowl))
+  (emil (turn (prod-next:imp [our dap]:bowl) unsafe:guard))
 ::
 ++  watch
   |=  =(pole knot)
@@ -708,19 +697,19 @@
       [%v0 %hooks ~]  cor
   ::
       [%v0 %hooks %full ~]
-    =.  cor  (give %fact ~ hook-full+!>(hooks))
+    =.  cor  (give %fact ~ hook-full+hooks)
     (give %kick ~ ~)
   ::
       [%v0 %hooks %preview =kind:c name=@ ~]
     =/  cp=channel-preview:h
       (get-channel-hooks-preview kind.pole our.bowl name.pole)
-    =.  cor  (give %fact ~ hook-channel-preview+!>(cp))
+    =.  cor  (give %fact ~ hook-channel-preview+cp)
     (give %kick ~ ~)
   ::
       [%v0 %hooks %template =kind:c name=@ ~]
     =/  =template:h
       (get-hook-template kind.pole our.bowl name.pole)
-    =.  cor  (give %fact ~ hook-template+!>(template))
+    =.  cor  (give %fact ~ hook-template+template)
     (give %kick ~ ~)
   ::
       [=kind:c name=@ %create ~]
@@ -766,7 +755,7 @@
   ==
 ::
 ++  agent
-  |=  [=(pole knot) =sign:agent:gall]
+  |=  [=(pole knot) =sign:guard]
   ~>  %spin.['agent']
   ^+  cor
   ?+    pole  ~|(bad-agent-wire+pole !!)
@@ -803,7 +792,8 @@
       ((slog tank u.p.sign) cor)
     ::
         %fact
-      (take-groups !<(r-groups:v9:gv q.cage.sign))
+      ?>  ?=(%group-response-1 -.rail.sign)
+      (take-groups p.rail.sign)
     ==
   ::
       [%migrate ~]
@@ -817,7 +807,7 @@
     ?+  -.sign  !!
         %poke-ack
       ?~  p.sign
-      (emit %pass /trim %agent [our.bowl %chat] %poke %chat-trim !>(~))
+      (emit %pass /trim %agent [our.bowl %chat] %poke %unsafe %chat-trim !>(~))
       %-  (slog 'channels-server: migration poke failure' >wire< u.p.sign)
       cor
     ==
@@ -831,14 +821,15 @@
 ++  peek
   |=  =(pole knot)
   ~>  %spin.['peek']
-  ^-  (unit (unit cage))
+  %-  peek:un:guard
+  ^-  (unit (unit rail))
   =?  +.pole  !?=([%v0 *] +.pole)
     [%v0 +.pole]
   ?+  pole  [~ ~]
       [%x %v0 %v-channels ~]
-    ``noun+!>(v-channels)
+    ``unsafe+noun+!>(v-channels)
       [%x %v0 %hooks ~]
-    ``hook-full+!>(hooks)
+    ``hook-full+hooks
   ==
 ::
 ++  arvo
@@ -918,8 +909,8 @@
   %+  turn  ~(tap in ships)
   |=  =ship
   =/  request=[nest:c flag:g]  [nest flag]
-  =/  =cage  [%channel-request-join !>(request)]
-  [%pass /request-join %agent [ship %channels] %poke cage]
+  =/  =rail  [%channel-request-join request]
+  [%pass /request-join %agent [ship %channels] %poke rail]
 ::
 ++  size-limit  256.000  :: 256KB
 ++  ca-core
@@ -928,7 +919,7 @@
   ++  ca-core  .
   ++  emit  |=(=card ca-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ca-core(cor (^emil caz)))
-  ++  give  |=(=gift:agent:gall ca-core(cor (^give gift)))
+  ++  give  |=(=gift:guard ca-core(cor (^give gift)))
   ++  ca-perms  ~(. perms:utils our.bowl now.bowl nest group.perm.channel)
   ++  ca-abet
     %_  cor
@@ -947,8 +938,8 @@
   ++  ca-watch-create
     =/  =update:c  [now.bowl %create +.perm.channel +.meta.channel]
     =/  =path  /[kind.nest]/[name.nest]/create
-    =/  =cage  [%channel-update !>(update)]
-    (give %fact ~[path] cage)
+    =/  =rail  [%channel-update update]
+    (give %fact ~[path] rail)
   ::
   ++  ca-watch-updates
     |=  =@da
@@ -957,7 +948,7 @@
     ?.  (can-read:ca-perms src.bowl)
       ~|(%permission-denied !!)
     =/  =log:c  (lot:log-on:c log.channel `da ~)
-    =.  ca-core  (give %fact ~ %channel-logs !>(log))
+    =.  ca-core  (give %fact ~ %channel-logs log)
     ca-core
   ::
   ++  ca-watch-checkpoint
@@ -968,7 +959,7 @@
       ~|(%permission-denied !!)
     =/  posts=v-posts:c  (lot:on-v-posts:c posts.channel `from to)
     =/  chk=u-checkpoint:c  -.channel(posts posts)
-    =.  ca-core  (give %fact ~ %channel-checkpoint !>(chk))
+    =.  ca-core  (give %fact ~ %channel-checkpoint chk)
     (give %kick ~ ~)
   ::
   ++  ca-watch-checkpoint-page
@@ -979,7 +970,7 @@
       ~|(%permission-denied !!)
     =/  posts=v-posts:c  (gas:on-v-posts:c *v-posts:c (bat:mo-v-posts:c posts.channel ~ n))
     =/  chk=u-checkpoint:c  -.channel(posts posts)
-    =.  ca-core  (give %fact ~ %channel-checkpoint !>(chk))
+    =.  ca-core  (give %fact ~ %channel-checkpoint chk)
     (give %kick ~ ~)
   ::
   ++  ca-create
@@ -1001,9 +992,9 @@
       ==
     =.  ca-core
       =/  =update:c  [now.bowl %create +.perm.channel +.meta.channel]
-      =/  =cage  [%channel-update !>(update)]
+      =/  =rail  [%channel-update update]
       =/  =path  /[kind.nest]/[name.nest]/create
-      =.  ca-core  (give %fact ~[path] cage)
+      =.  ca-core  (give %fact ~[path] rail)
       (give %kick ~[path] ~)
     =/  =channel:v2:gv
       :-  [title description '' '']:new
@@ -1012,7 +1003,7 @@
       [group.new now.bowl %channel nest %add channel]
     =/  =dock    [our.bowl %groups]
     =/  =wire    (snoc ca-area %create)
-    (emit %pass wire %agent dock %poke group-action-3+!>(action))
+    (emit %pass wire %agent dock %poke group-action-3+action)
     ::
     ::  +can-nest: does the group exist, are we an admin
     ::
@@ -1346,7 +1337,7 @@
     =/  paths  ca-subscription-paths
     ?:  =(~ paths)
       ca-core
-    (give %fact paths %channel-update !>(update))
+    (give %fact paths %channel-update update)
   ::
   ++  ca-subscriptions
     ~>  %spin.['ca-subscriptions']
@@ -1368,7 +1359,7 @@
       =/  after  (slaw %da i.t.t.t.path)
       ?~  after  log.channel
       (lot:log-on:c log.channel after ~)
-    [%give %fact ~[path] %channel-logs !>(log)]
+    [%give %fact ~[path] %channel-logs log]
   ::
   ++  ca-revoke
     |=  her=ship
@@ -1385,8 +1376,8 @@
     ::  if we have sects, we need to delete them from writers
     =?  ca-core  !=(sects ~)
       =/  =c-channels:c  [%channel nest %del-writers sects]
-      =/  =cage  [%channel-command !>(c-channels)]
-      (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
+      =/  =rail  [%channel-command c-channels]
+      (emit %pass ca-area %agent [our.bowl dap.bowl] %poke rail)
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
@@ -1414,8 +1405,8 @@
       (~(dif in writers.perm.channel) sects)
     =?  ca-core  !=(missing ~)
       =/  =c-channels:c  [%channel nest %del-writers missing]
-      =/  =cage  [%channel-command !>(c-channels)]
-      (emit %pass ca-area %agent [our.bowl dap.bowl] %poke cage)
+      =/  =rail  [%channel-command c-channels]
+      (emit %pass ca-area %agent [our.bowl dap.bowl] %poke rail)
     ::  if subs read permissions removed, kick
     %+  roll  ~(tap in ca-subscriptions)
     |=  [[=ship =path] ca=_ca-core]
@@ -1429,8 +1420,8 @@
     =.  ca-core
       %^  give  %fact  ~
       ?.  (can-read:ca-perms src.bowl)
-        channel-denied+!>(~)
-      (said-3:utils nest plan posts.channel)
+        channel-denied+~
+      unsafe+(said-3:utils nest plan posts.channel)
     (give %kick ~ ~)
   --
 ++  scry-path
@@ -1464,7 +1455,7 @@
   ++  ho-core  .
   ++  emit  |=(=card ho-core(cor (^emit card)))
   ++  emil  |=(caz=(list card) ho-core(cor (^emil caz)))
-  ++  give  |=(=gift:agent:gall ho-core(cor (^give gift)))
+  ++  give  |=(=gift:guard ho-core(cor (^give gift)))
   ++  ho-abet
     %_  cor
         hooks.hooks
@@ -1579,7 +1570,7 @@
   ++  ho-give-response
     |=  =response:h
     ~>  %spin.['ho-give-response']
-    (give %fact ~[/v0/hooks] hook-response-0+!>(response))
+    (give %fact ~[/v0/hooks] hook-response-0+response)
   --
 ++  run-hooks
   |=  [=event:h =nest:c default=cord]
@@ -1692,28 +1683,28 @@
       %channels
     ::  Run channel effects after normal cards in the same event so the
     ::  originating post update has time to commit/propagate first.
-    =/  =cage  channel-action-2+!>(`a-channels:v10:cv`a-channels.effect)
-    (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke cage])
+    =/  =rail  channel-action-2+`a-channels:v10:cv`a-channels.effect
+    (emit-late [%pass /hooks/effect %agent [our.bowl %channels] %poke rail])
   ::
       %groups
-    =/  =cage  group-action-4+!>(`a-groups:v7:gv`a-groups.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke cage])
+    =/  =rail  !! ::group-action-4+`a-groups:v7:gv`a-groups.effect
+    (emit [%pass /hooks/effect %agent [our.bowl %groups] %poke rail])
   ::
       %activity
-    =/  =cage  activity-action+!>(`action:v8:av`action.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke cage])
+    =/  =rail  activity-action+`action:v8:av`action.effect
+    (emit [%pass /hooks/effect %agent [our.bowl %activity] %poke rail])
   ::
       %dm
-    =/  =cage  chat-dm-action+!>(`action:dm:v3:chv`action.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
+    =/  =rail  chat-dm-action+`action:dm:v3:chv`action.effect
+    (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke rail])
   ::
       %club
-    =/  =cage  chat-club-action+!>(`action:club:v3:chv`action.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke cage])
+    =/  =rail  chat-club-action+`action:club:v3:chv`action.effect
+    (emit [%pass /hooks/effect %agent [our.bowl %chat] %poke rail])
   ::
       %contacts
-    =/  =cage  contacts-action-1+!>(action.effect)
-    (emit [%pass /hooks/effect %agent [our.bowl %contacts] %poke cage])
+    =/  =rail  !! ::contacts-action-1+action.effect
+    (emit [%pass /hooks/effect %agent [our.bowl %contacts] %poke rail])
   ::
       %wait
     =/  =wire  /hooks/waiting/(scot %uv id.effect)

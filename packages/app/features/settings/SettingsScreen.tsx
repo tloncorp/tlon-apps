@@ -12,6 +12,10 @@ import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { useResetDb } from '../../hooks/useResetDb';
 import { RootStackParamList } from '../../navigation/types';
 import { SettingsScreenView, View, openTlonWebApp } from '../../ui';
+import {
+  openExternalBotSettings,
+  useHasExpectedBotDm,
+} from '../../utils/botSettings';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 
@@ -23,7 +27,14 @@ export default function SettingsScreen(props: Props) {
   const hasHostedAuth = useHasHostedAuth();
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
-  const botEnabled = Platform.OS !== 'web' && isHostedUser && hostingBotEnabled;
+  const hasExpectedBotDm = useHasExpectedBotDm(
+    currentUserId,
+    Platform.OS === 'web' && isHostedUser
+  );
+  const botEnabled =
+    Platform.OS === 'web'
+      ? isHostedUser && hasExpectedBotDm
+      : isHostedUser && hostingBotEnabled;
   const navigationRef = useMutableRef(props.navigation);
 
   const onAppInfoPressed = useCallback(() => {
@@ -43,6 +54,10 @@ export default function SettingsScreen(props: Props) {
   }, [navigationRef]);
 
   const onBotSettingsPressed = useCallback(() => {
+    if (Platform.OS === 'web') {
+      openExternalBotSettings();
+      return;
+    }
     navigationRef.current.navigate('BotSettings');
   }, [navigationRef]);
 

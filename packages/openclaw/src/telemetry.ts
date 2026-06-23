@@ -1,8 +1,9 @@
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
-import { sharedMap } from './shared-state.js';
+import { sharedMap, sharedSlot } from './shared-state.js';
 import type { TlonTelemetryConfig } from './types.js';
+import { getTlonVersionIdentity } from './version.js';
 
 type ToolCallRecord = {
   toolName: string;
@@ -97,6 +98,20 @@ export type TlonReplyTelemetryStart = {
   attachmentCount: number;
 };
 
+export type TlonGatewayConnectedEvent = {
+  ownerShip: string | null;
+  botShip: string;
+  tlonSkillVersion: string;
+  accountId: string | null;
+  configured: boolean;
+  watchedChannelCount: number;
+  dmAllowlistCount: number;
+  defaultAuthorizedShipsCount: number;
+  pendingApprovalCount: number;
+  autoDiscoverChannels: boolean;
+  ownerListenEnabled: boolean;
+};
+
 export type TlonReplyTelemetryResult = {
   deliveredMessageCount: number;
   replyCharCount: number;
@@ -116,14 +131,38 @@ export interface TlonReplyTelemetrySession {
   capture(result: TlonReplyTelemetryResult): Promise<void>;
 }
 
+/**
+ * One outbound send seen by OpenClaw's `message_sending` hook, tagged with which
+ * channel it resolved to. This fires for both the primary streamed reply (which
+ * resolves to `tlon`, so `routedToTlon: true`) and route-dependent sends (the
+ * shared `message` tool, subagents — which can resolve elsewhere). So
+ * `routedToTlon: false` is the meaningful signal: a send that went somewhere
+ * users can't see (e.g. webchat) — the bug this tracks. The `true` events
+ * include healthy primary replies, so prefer the off-Tlon count over a raw rate.
+ */
+export type TlonOutboundRouteEvent = {
+  resolvedChannel: string;
+  routedToTlon: boolean;
+  targetKind: 'dm' | 'group' | 'unknown';
+};
+
 export interface TlonTelemetryClient {
+  captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
   captureHeartbeatReengagement(event: TlonHeartbeatReengagementEvent): void;
+  captureOutboundRoute(
+    event: TlonOutboundRouteEvent & {
+      ownerShip?: string | null;
+      botShip: string;
+    }
+  ): void;
   close(): Promise<void>;
 }
 
 const TLON_TELEMETRY_EVENT_NAME = 'TlonBot Reply Handled';
+const TLON_GATEWAY_CONNECTED_EVENT = 'TlonBot Gateway Connected';
+const TLON_OUTBOUND_ROUTED_EVENT = 'TlonBot Outbound Routed';
 const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
 const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
@@ -223,6 +262,7 @@ function resolveReplyOutcome(params: {
 class PostHogTlonTelemetry implements TlonTelemetryClient {
   private readonly client: PostHog;
   private readonly runtime?: RuntimeEnv;
+  private readonly versionIdentity = getTlonVersionIdentity();
   private readonly identifiedOwners = new Set<string>();
   private missingOwnerWarningLogged = false;
 
@@ -239,6 +279,39 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
       disableGeoip: true,
       preloadFeatureFlags: false,
       disableRemoteConfig: true,
+    });
+  }
+
+  private properties<T extends Record<string, unknown>>(props: T): T {
+    return {
+      logSource: TLON_TELEMETRY_LOG_SOURCE,
+      ...this.versionIdentity,
+      ...props,
+    };
+  }
+
+  captureGatewayConnected(event: TlonGatewayConnectedEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_GATEWAY_CONNECTED_EVENT,
+      properties: this.properties({
+        botShip: event.botShip,
+        ownerShip: event.ownerShip,
+        tlonSkillVersion: event.tlonSkillVersion,
+        accountId: event.accountId,
+        configured: event.configured,
+        watchedChannelCount: event.watchedChannelCount,
+        dmAllowlistCount: event.dmAllowlistCount,
+        defaultAuthorizedShipsCount: event.defaultAuthorizedShipsCount,
+        pendingApprovalCount: event.pendingApprovalCount,
+        autoDiscoverChannels: event.autoDiscoverChannels,
+        ownerListenEnabled: event.ownerListenEnabled,
+      }),
     });
   }
 
@@ -287,8 +360,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: ownerShip,
       event: TLON_TELEMETRY_EVENT_NAME,
-      properties: {
-        logSource: TLON_TELEMETRY_LOG_SOURCE,
+      properties: this.properties({
         botShip: event.botShip,
         ownerShip: event.ownerShip,
         outcome: event.outcome,
@@ -317,7 +389,31 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           durationMs: call.durationMs,
           error: call.error,
         })),
-      },
+      }),
+    });
+  }
+
+  captureOutboundRoute(
+    event: TlonOutboundRouteEvent & {
+      ownerShip?: string | null;
+      botShip: string;
+    }
+  ): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_OUTBOUND_ROUTED_EVENT,
+      properties: this.properties({
+        botShip: event.botShip,
+        ownerShip: event.ownerShip,
+        resolvedChannel: event.resolvedChannel,
+        routedToTlon: event.routedToTlon,
+        targetKind: event.targetKind,
+      }),
     });
   }
 
@@ -338,6 +434,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         distinctId: ownerShip,
         properties: {
           logSource: TLON_TELEMETRY_LOG_SOURCE,
+          ...this.versionIdentity,
           tlonOwnerShip: ownerShip,
           tlonBotShip: botShip,
         },
@@ -354,8 +451,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: event.ownerShip,
       event: TLON_HEARTBEAT_NUDGE_EVENT,
-      properties: {
-        logSource: TLON_TELEMETRY_LOG_SOURCE,
+      properties: this.properties({
         botShip: event.botShip,
         ownerShip: event.ownerShip,
         trigger: 'heartbeat',
@@ -366,7 +462,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         accountId: event.accountId,
         messageId: event.messageId,
         nudgeSentAtMs: event.nudgeSentAtMs,
-      },
+      }),
     });
   }
 
@@ -378,8 +474,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: event.ownerShip,
       event: TLON_HEARTBEAT_REENGAGED_EVENT,
-      properties: {
-        logSource: TLON_TELEMETRY_LOG_SOURCE,
+      properties: this.properties({
         botShip: event.botShip,
         ownerShip: event.ownerShip,
         nudgeStage: event.nudgeStage,
@@ -388,7 +483,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         reengagementDelayMs: event.reengagementDelayMs,
         channel: event.channel,
         accountId: event.accountId,
-      },
+      }),
     });
   }
 
@@ -433,6 +528,30 @@ export function createTlonTelemetry(params: {
     host: params.config.host,
     runtime: params.runtime,
   });
+}
+
+/**
+ * Bridge so the global `message_sending` hook (registered in the extension
+ * entry) can report route resolutions to the per-account telemetry client
+ * (created in the monitor's runtime context). The two run in separate plugin
+ * module contexts, so this must go through the shared-state slot, not a plain
+ * module singleton. The monitor publishes a reporter bound to its telemetry
+ * client + owner/bot ships; the hook calls `reportOutboundRoute`.
+ */
+export type OutboundRouteReporter = (event: TlonOutboundRouteEvent) => void;
+
+const outboundRouteReporterSlot = sharedSlot<OutboundRouteReporter>(
+  'telemetry.outboundRouteReporter'
+);
+
+export function setOutboundRouteReporter(
+  reporter: OutboundRouteReporter | null
+): void {
+  outboundRouteReporterSlot.set(reporter);
+}
+
+export function reportOutboundRoute(event: TlonOutboundRouteEvent): void {
+  outboundRouteReporterSlot.get()?.(event);
 }
 
 export const _testing = {

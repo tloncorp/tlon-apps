@@ -183,6 +183,7 @@ class TalkMessagingService : FirebaseMessagingService() {
         val body = bundle.getString("body") ?: "You have a new message"
 
         val extras = Bundle()
+        extras.putString("uid", uid)
         if (exception.activityEvent != null) {
             extras.putString("activityEventJsonString", exception.activityEvent)
         }
