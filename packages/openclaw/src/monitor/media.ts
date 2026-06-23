@@ -377,8 +377,15 @@ export async function downloadBlobAttachments(
   const notices: string[] = [];
 
   for (const entry of blobData) {
-    // a2ui entries carry UI messages, not downloadable media
-    if (entry.type === 'unknown' || entry.type === 'a2ui') continue;
+    // a2ui entries carry UI messages and tlon-context-lens entries carry a
+    // bot-run reference — neither is downloadable media
+    if (
+      entry.type === 'unknown' ||
+      entry.type === 'a2ui' ||
+      entry.type === 'tlon-context-lens'
+    ) {
+      continue;
+    }
 
     const uri = 'fileUri' in entry ? entry.fileUri : undefined;
     if (!uri) continue;
@@ -421,7 +428,7 @@ export async function downloadBlobAttachments(
 function formatBlobTooLargeNotice(
   entry: Exclude<
     ClientPostBlobData[number],
-    { type: 'unknown' } | { type: 'a2ui' }
+    { type: 'unknown' } | { type: 'a2ui' } | { type: 'tlon-context-lens' }
   >,
   sizeBytes?: number
 ): string {
