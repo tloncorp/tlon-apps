@@ -58,18 +58,18 @@ export async function clearHostingNativeCookie() {
   console.log(`clearing hosting native cookie`);
   try {
     if (Platform.OS === 'android') {
-      // Android's CookieManager has no remove-by-name (`clearByName` throws
-      // "Cannot remove a single cookie by name on Android"), so overwrite the
-      // cookie with an already-expired one to drop it. Cover http+https to
-      // match the iOS path.
-      const expired = {
-        name: 'SolarisSession',
-        value: '',
-        path: '/',
-        expires: new Date(0).toISOString(),
-      };
-      await CookieManager.set('http://tlon.network', expired);
-      await CookieManager.set('https://tlon.network', expired);
+      // `clearByName` throws on Android, and `CookieManager.set()` can't delete
+      // it either: for an already-expired cookie the native module's
+      // toRFC6265string drops the `expires` attribute (HttpCookie.hasExpired()),
+      // so it stores an empty `SolarisSession=` *session* cookie that keeps
+      // getting sent on hosting requests and masks the real token. Go through
+      // `setFromResponse`, which passes the raw Set-Cookie straight to WebView's
+      // CookieManager, where a past Expires / Max-Age=0 actually removes it.
+      // Cover http+https to match the iOS path.
+      const expired =
+        'SolarisSession=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0';
+      await CookieManager.setFromResponse('http://tlon.network', expired);
+      await CookieManager.setFromResponse('https://tlon.network', expired);
     } else {
       await CookieManager.clearByName('http://tlon.network', 'SolarisSession');
       await CookieManager.clearByName('https://tlon.network', 'SolarisSession');
