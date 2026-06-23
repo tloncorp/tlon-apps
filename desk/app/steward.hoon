@@ -231,7 +231,7 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
         [%v1 %recent ~]
-      ``noun+!>(le-recent)
+      ``steward-lens-update-list-1+!>(le-recent)
     ::
         [%v1 %run @ @ ~]
       =/  bot  (slav %p i.t.t.path)

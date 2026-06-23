@@ -121,7 +121,7 @@ Only the local gateway drives liveness, so this requires `src == our`.
 
 ## scry surface
 
-- `/x/v1/lens/recent` → `%noun` `(list update:v1:lens)` — newest 50 non-expired runs across all bots, for backfill.
+- `/x/v1/lens/recent` → `%steward-lens-update-list-1` `(list update:v1:lens)` — newest 50 non-expired runs across all bots, for backfill. Grows to a JSON array of entry objects so the HTTP client can consume it directly.
 - `/x/v1/lens/run/[ship]/[id]` → `%steward-lens-update-1` `update:v1:lens` (an `entry`), or empty (`[~ ~]`) when absent or expired.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
