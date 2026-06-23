@@ -44,7 +44,10 @@ import {
   parseChannelNest,
 } from '../targets.js';
 import {
+  type TlonPluginErrorSource,
   createTlonTelemetry,
+  formatTlonTelemetryErrorText,
+  setErrorTelemetryReporter,
   setOutboundRouteReporter,
   setSessionTelemetryReporter,
 } from '../telemetry.js';
@@ -225,6 +228,13 @@ const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS = 15_000;
 const GATEWAY_STATUS_ACTIVATION_RETRY_MS = 30_000;
 
+function classifyPluginError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.name || 'Error';
+  }
+  return typeof error;
+}
+
 // Bound an activation poke so a silently-hung promise surfaces as a
 // retryable error instead of leaving gateway-status dead for the process
 // lifetime. The underlying poke may still settle after the timeout; the
@@ -354,6 +364,35 @@ export async function monitorTlonProvider(
 
   const botShipName = normalizeShip(account.ship);
   const tlonSkillVersion = await resolveTlonSkillVersion();
+  let effectiveOwnerShip: string | null = account.ownerShip
+    ? normalizeShip(account.ownerShip)
+    : null;
+  setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
+  const telemetry = createTlonTelemetry({
+    config: account.telemetry,
+    runtime,
+  });
+  const currentTelemetryOwnerShip = () =>
+    getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip;
+  const capturePluginError = (
+    pluginErrorSource: TlonPluginErrorSource,
+    error: unknown,
+    extra?: {
+      errorKind?: string | null;
+      attempt?: number | null;
+    }
+  ) => {
+    telemetry?.capturePluginError({
+      harness: 'openclaw',
+      pluginErrorSource,
+      accountId: account.accountId,
+      ownerShip: currentTelemetryOwnerShip(),
+      botShip: botShipName,
+      errorKind: extra?.errorKind ?? classifyPluginError(error),
+      errorText: formatTlonTelemetryErrorText(error),
+      attempt: extra?.attempt ?? null,
+    });
+  };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
   runtime.log?.(
     `[tlon] version: ${formatTlonVersionIdentity({
@@ -367,7 +406,10 @@ export async function monitorTlonProvider(
   );
 
   // Helper to authenticate with retry logic
-  async function authenticateWithRetry(maxAttempts = 10): Promise<string> {
+  async function authenticateWithRetry(
+    maxAttempts = 10,
+    source: 'auth' | 're_auth' = 'auth'
+  ): Promise<string> {
     for (let attempt = 1; ; attempt++) {
       if (opts.abortSignal?.aborted) {
         throw new Error('Aborted while waiting to authenticate');
@@ -376,6 +418,7 @@ export async function monitorTlonProvider(
         runtime.log?.(`[tlon] Attempting authentication to ${accountUrl}...`);
         return await authenticate(accountUrl, accountCode, { ssrfPolicy });
       } catch (error: any) {
+        capturePluginError(source, error, { attempt });
         runtime.error?.(
           `[tlon] Failed to authenticate (attempt ${attempt}): ${error?.message ?? String(error)}`
         );
@@ -399,22 +442,28 @@ export async function monitorTlonProvider(
   }
 
   let api: UrbitSSEClient | null = null;
-  const cookie = await authenticateWithRetry();
-  api = new UrbitSSEClient(account.url, cookie, {
-    ship: botShipName,
-    ssrfPolicy,
-    logger: {
-      log: (message) => runtime.log?.(message),
-      error: (message) => runtime.error?.(message),
-    },
-    // Re-authenticate on reconnect in case the session expired
-    onReconnect: async (client) => {
-      runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
-      const newCookie = await authenticateWithRetry(5);
-      client.updateCookie(newCookie);
-      runtime.log?.('[tlon] Re-authentication successful');
-    },
-  });
+  let cookie: string;
+  try {
+    cookie = await authenticateWithRetry();
+    api = new UrbitSSEClient(account.url, cookie, {
+      ship: botShipName,
+      ssrfPolicy,
+      logger: {
+        log: (message) => runtime.log?.(message),
+        error: (message) => runtime.error?.(message),
+      },
+      // Re-authenticate on reconnect in case the session expired
+      onReconnect: async (client) => {
+        runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
+        const newCookie = await authenticateWithRetry(5, 're_auth');
+        client.updateCookie(newCookie);
+        runtime.log?.('[tlon] Re-authentication successful');
+      },
+    });
+  } catch (error) {
+    await telemetry?.close();
+    throw error;
+  }
 
   // Configure @tloncorp/api's global client to use the SSE client's poke for all send operations
   configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
@@ -523,10 +572,6 @@ export async function monitorTlonProvider(
     let effectiveGroupInviteAllowlist: string[] = account.groupInviteAllowlist;
     let effectiveAutoDiscoverChannels: boolean =
       account.autoDiscoverChannels ?? false;
-    let effectiveOwnerShip: string | null = account.ownerShip
-      ? normalizeShip(account.ownerShip)
-      : null;
-    setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
     let effectiveOwnerListenEnabled: boolean =
       account.ownerListenEnabled ?? true;
     // Canonicalize on every read so an entry stored from a slightly-off user
@@ -562,11 +607,6 @@ export async function monitorTlonProvider(
       pendingNudgeRehydrated = true;
     };
 
-    const telemetry = createTlonTelemetry({
-      config: account.telemetry,
-      runtime,
-    });
-
     // Bridge route-resolution telemetry from the global `message_sending` hook
     // to this account's telemetry client. Reports every route-dependent send so
     // we can measure how often a reply lands on webchat instead of Tlon.
@@ -588,6 +628,41 @@ export async function monitorTlonProvider(
           break;
         case 'recovery':
           telemetry?.captureSessionRecovery(report.event);
+          break;
+      }
+    });
+    setErrorTelemetryReporter((report) => {
+      switch (report.kind) {
+        case 'harness':
+          telemetry?.captureHarnessError(report.event);
+          break;
+        case 'plugin':
+          telemetry?.capturePluginError({
+            harness: 'openclaw',
+            pluginErrorSource: report.event.pluginErrorSource,
+            accountId: report.event.accountId ?? account.accountId,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip ?? botShipName,
+            errorKind: report.event.errorKind ?? null,
+            errorText: report.event.errorText,
+            attempt: report.event.attempt ?? null,
+          });
+          break;
+        case 'telemetry':
+          telemetry?.captureTelemetryError({
+            harness: 'openclaw',
+            telemetrySource: report.event.telemetrySource,
+            sourceEventName: report.event.sourceEventName ?? null,
+            sessionKey: report.event.sessionKey ?? null,
+            sessionId: report.event.sessionId ?? null,
+            runId: report.event.runId ?? null,
+            accountId: report.event.accountId ?? account.accountId,
+            agentId: report.event.agentId ?? null,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip ?? botShipName,
+            errorKind: report.event.errorKind ?? null,
+            errorText: report.event.errorText,
+          });
           break;
       }
     });
@@ -1071,6 +1146,9 @@ export async function monitorTlonProvider(
               );
               return;
             } catch (err) {
+              capturePluginError('gateway_status_activation', err, {
+                attempt,
+              });
               runtime.error?.(
                 `[gateway-status] activation attempt ${attempt} failed: ${String(err)} — retrying in ${GATEWAY_STATUS_ACTIVATION_RETRY_MS / 1000}s`
               );
@@ -1078,6 +1156,7 @@ export async function monitorTlonProvider(
             await abortableDelay(GATEWAY_STATUS_ACTIVATION_RETRY_MS, signal);
           }
         } catch (err) {
+          capturePluginError('gateway_status_activation', err);
           runtime.error?.(`[gateway-status] start failed: ${String(err)}`);
         }
       })();
@@ -3328,6 +3407,7 @@ export async function monitorTlonProvider(
         path: '/v4',
         event: (data) => handleChannelsFirehose(data as ChannelFirehoseEvent),
         err: (error) => {
+          capturePluginError('channels_firehose', error);
           runtime.error?.(`[tlon] Channels firehose error: ${String(error)}`);
         },
         quit: () => {
@@ -3344,6 +3424,7 @@ export async function monitorTlonProvider(
         path: '/v4',
         event: (data) => handleChatFirehose(data as ChatFirehoseEvent),
         err: (error) => {
+          capturePluginError('chat_firehose', error);
           runtime.error?.(`[tlon] Chat firehose error: ${String(error)}`);
         },
         quit: () => {
@@ -3412,6 +3493,7 @@ export async function monitorTlonProvider(
           }
         },
         err: (error) => {
+          capturePluginError('contacts_subscription', error);
           runtime.error?.(
             `[tlon] Contacts subscription error: ${String(error)}`
           );
@@ -3824,6 +3906,7 @@ export async function monitorTlonProvider(
             }
           },
           err: (error) => {
+            capturePluginError('groups_ui_subscription', error);
             runtime.error?.(
               `[tlon] Groups-ui subscription error: ${String(error)}`
             );
@@ -3839,6 +3922,7 @@ export async function monitorTlonProvider(
         );
       } catch (err) {
         // Groups-ui subscription is optional - channel discovery will still work via polling
+        capturePluginError('groups_ui_subscription', err);
         runtime.log?.(
           `[tlon] Groups-ui subscription failed (will rely on polling): ${String(err)}`
         );
@@ -3987,6 +4071,7 @@ export async function monitorTlonProvider(
               })();
             },
             err: (error) => {
+              capturePluginError('foreigns_subscription', error);
               runtime.error?.(
                 `[tlon] Foreigns subscription error: ${String(error)}`
               );
@@ -4001,6 +4086,7 @@ export async function monitorTlonProvider(
             '[tlon] Subscribed to foreigns (/v1/foreigns) for auto-accepting group invites'
           );
         } catch (err) {
+          capturePluginError('foreigns_subscription', err);
           runtime.log?.(`[tlon] Foreigns subscription failed: ${String(err)}`);
         }
       }
@@ -4080,6 +4166,7 @@ export async function monitorTlonProvider(
             fresh: refreshResult.fresh,
           });
         } catch (err) {
+          capturePluginError('settings_refresh', err);
           runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
         }
       }, SETTINGS_REFRESH_INTERVAL_MS);
@@ -4175,6 +4262,7 @@ export async function monitorTlonProvider(
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);
       setSessionTelemetryReporter(null);
+      setErrorTelemetryReporter(null);
       await telemetry?.close();
       try {
         await api?.close();

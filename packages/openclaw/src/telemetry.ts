@@ -17,6 +17,7 @@ type ToolSessionTrace = {
   calls: ToolCallRecord[];
 };
 
+export type TlonHarnessName = 'openclaw' | 'hermes';
 type ReplyDispatchKind = 'tool' | 'block' | 'final';
 type ReplyDispatchCounts = Partial<Record<ReplyDispatchKind, number>>;
 type TlonDestinationKind = 'dm' | 'groupChannel';
@@ -24,6 +25,7 @@ type TlonDestinationKind = 'dm' | 'groupChannel';
 type TlonSessionTelemetryContext = {
   sessionKey: string;
   sessionId: string | null;
+  runId: string | null;
   ownerShip: string | null;
   botShip: string;
   accountId: string | null;
@@ -257,6 +259,76 @@ export type TlonSessionTelemetryReport =
   | { kind: 'watchdog'; event: TlonSessionWatchdogEvent }
   | { kind: 'recovery'; event: TlonSessionRecoveryEvent };
 
+export type TlonHarnessErrorScope =
+  | 'harness'
+  | 'model'
+  | 'tool'
+  | 'run'
+  | 'message_delivery'
+  | 'message_dispatch'
+  | 'message_processing';
+
+export type TlonHarnessErrorEvent = {
+  harness: TlonHarnessName;
+  harnessEventType: string;
+  errorScope: TlonHarnessErrorScope;
+  sessionKey: string;
+  sessionId: string | null;
+  runId: string | null;
+  accountId: string | null;
+  agentId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  destinationKind: TlonDestinationKind;
+  provider: string | null;
+  model: string | null;
+  toolName: string | null;
+  phase: string | null;
+  outcome: string | null;
+  errorCategory: string | null;
+  failureKind: string | null;
+  durationMs: number | null;
+  errorText: string | null;
+};
+
+export type TlonPluginErrorSource =
+  | 'auth'
+  | 're_auth'
+  | 'gateway_status_activation'
+  | 'gateway_status_heartbeat'
+  | 'channels_firehose'
+  | 'chat_firehose'
+  | 'contacts_subscription'
+  | 'groups_ui_subscription'
+  | 'foreigns_subscription'
+  | 'settings_refresh';
+
+export type TlonPluginErrorEvent = {
+  harness: TlonHarnessName;
+  pluginErrorSource: TlonPluginErrorSource;
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  errorKind: string | null;
+  errorText: string;
+  attempt: number | null;
+};
+
+export type TlonTelemetryErrorEvent = {
+  harness: TlonHarnessName;
+  telemetrySource: string;
+  sourceEventName: string | null;
+  sessionKey: string | null;
+  sessionId: string | null;
+  runId: string | null;
+  accountId: string | null;
+  agentId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  errorKind: string | null;
+  errorText: string;
+};
+
 export interface TlonTelemetryClient {
   captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
@@ -265,6 +337,9 @@ export interface TlonTelemetryClient {
   captureSessionLifecycle(event: TlonSessionLifecycleEvent): void;
   captureSessionWatchdog(event: TlonSessionWatchdogEvent): void;
   captureSessionRecovery(event: TlonSessionRecoveryEvent): void;
+  captureHarnessError(event: TlonHarnessErrorEvent): void;
+  capturePluginError(event: TlonPluginErrorEvent): void;
+  captureTelemetryError(event: TlonTelemetryErrorEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -280,6 +355,9 @@ const TLON_OUTBOUND_ROUTED_EVENT = 'TlonBot Outbound Routed';
 const TLON_SESSION_LIFECYCLE_EVENT = 'TlonBot Session Lifecycle';
 const TLON_SESSION_WATCHDOG_EVENT = 'TlonBot Session Watchdog';
 const TLON_SESSION_RECOVERY_EVENT = 'TlonBot Session Recovery';
+const TLON_HARNESS_ERROR_EVENT = 'TlonBot Harness Error';
+const TLON_PLUGIN_ERROR_EVENT = 'TlonBot Plugin Error';
+const TLON_TELEMETRY_ERROR_EVENT = 'TlonBot Telemetry Error';
 const TLON_HEARTBEAT_NUDGE_EVENT = 'TlonBot Heartbeat Nudge Sent';
 const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
@@ -394,6 +472,7 @@ function cleanupSessionContexts(now = Date.now()): void {
 function rememberTlonSessionContext(params: {
   sessionKey: string;
   sessionId?: string | null;
+  runId?: string | null;
   ownerShip: string | null;
   botShip: string;
   accountId?: string | null;
@@ -411,6 +490,7 @@ function rememberTlonSessionContext(params: {
   sessionContextsBySessionKey.set(sessionKey, {
     sessionKey,
     sessionId: optionalString(params.sessionId) ?? existing?.sessionId ?? null,
+    runId: optionalString(params.runId) ?? existing?.runId ?? null,
     ownerShip: params.ownerShip,
     botShip: params.botShip,
     accountId: params.accountId ?? null,
@@ -451,6 +531,36 @@ function updateTlonSessionContextSessionId(
   const updated = {
     ...context,
     sessionId: normalizedSessionId,
+    updatedAt: Date.now(),
+  };
+  sessionContextsBySessionKey.set(updated.sessionKey, updated);
+  return updated;
+}
+
+function updateTlonSessionContextRuntime(
+  context: TlonSessionTelemetryContext,
+  params: {
+    sessionId?: string | null;
+    runId?: string | null;
+    agentId?: string | null;
+  }
+): TlonSessionTelemetryContext {
+  const normalizedSessionId = optionalString(params.sessionId);
+  const normalizedRunId = optionalString(params.runId);
+  const normalizedAgentId = optionalString(params.agentId);
+  if (
+    (!normalizedSessionId || context.sessionId === normalizedSessionId) &&
+    (!normalizedRunId || context.runId === normalizedRunId) &&
+    (!normalizedAgentId || context.agentId === normalizedAgentId)
+  ) {
+    return context;
+  }
+
+  const updated = {
+    ...context,
+    sessionId: normalizedSessionId ?? context.sessionId,
+    runId: normalizedRunId ?? context.runId,
+    agentId: normalizedAgentId ?? context.agentId,
     updatedAt: Date.now(),
   };
   sessionContextsBySessionKey.set(updated.sessionKey, updated);
@@ -591,6 +701,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     rememberTlonSessionContext({
       sessionKey: normalizedParams.sessionKey,
       sessionId: normalizedParams.sessionId,
+      runId: normalizedParams.runId,
       ownerShip: normalizedParams.ownerShip,
       botShip: normalizedParams.botShip,
       accountId: normalizedParams.accountId,
@@ -945,6 +1056,88 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureHarnessError(event: TlonHarnessErrorEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_HARNESS_ERROR_EVENT,
+      properties: this.properties({
+        harness: event.harness,
+        harnessEventType: event.harnessEventType,
+        errorScope: event.errorScope,
+        sessionKey: event.sessionKey,
+        sessionId: event.sessionId,
+        runId: event.runId,
+        accountId: event.accountId,
+        agentId: event.agentId,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        destinationKind: event.destinationKind,
+        provider: event.provider,
+        model: event.model,
+        toolName: event.toolName,
+        phase: event.phase,
+        outcome: event.outcome,
+        errorCategory: event.errorCategory,
+        failureKind: event.failureKind,
+        durationMs: event.durationMs,
+        errorText: event.errorText,
+      }),
+    });
+  }
+
+  capturePluginError(event: TlonPluginErrorEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_PLUGIN_ERROR_EVENT,
+      properties: this.properties({
+        harness: event.harness,
+        pluginErrorSource: event.pluginErrorSource,
+        accountId: event.accountId,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        errorKind: event.errorKind,
+        errorText: event.errorText,
+        attempt: event.attempt,
+      }),
+    });
+  }
+
+  captureTelemetryError(event: TlonTelemetryErrorEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_TELEMETRY_ERROR_EVENT,
+      properties: this.properties({
+        harness: event.harness,
+        telemetrySource: event.telemetrySource,
+        sourceEventName: event.sourceEventName,
+        sessionKey: event.sessionKey,
+        sessionId: event.sessionId,
+        runId: event.runId,
+        accountId: event.accountId,
+        agentId: event.agentId,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        errorKind: event.errorKind,
+        errorText: event.errorText,
+      }),
+    });
+  }
+
   private ensureIdentified(ownerShip: string, botShip: string): boolean {
     if (!ownerShip) {
       if (!this.missingOwnerWarningLogged) {
@@ -1074,6 +1267,12 @@ export type OutboundRouteReporter = (event: TlonOutboundRouteEvent) => void;
 export type SessionTelemetryReporter = (
   report: TlonSessionTelemetryReport
 ) => void;
+export type ErrorTelemetryReporter = (
+  report:
+    | { kind: 'harness'; event: TlonHarnessErrorEvent }
+    | { kind: 'plugin'; event: TlonPluginErrorReportInput }
+    | { kind: 'telemetry'; event: TlonTelemetryErrorReportInput }
+) => void;
 
 export type TlonSessionLifecycleReportInput = {
   lifecycleEvent: 'session_start' | 'session_end';
@@ -1122,11 +1321,64 @@ export type TlonSessionDiagnosticReportInput =
       stale?: boolean;
     };
 
+export type TlonSessionTurnCreatedReportInput = {
+  type: 'session.turn.created';
+  sessionKey?: string | null;
+  sessionId?: string | null;
+  runId?: string | null;
+  agentId?: string | null;
+};
+
+export type TlonHarnessErrorReportInput = {
+  harnessEventType: string;
+  errorScope: TlonHarnessErrorScope;
+  sessionKey?: string | null;
+  sessionId?: string | null;
+  runId?: string | null;
+  agentId?: string | null;
+  provider?: string | null;
+  model?: string | null;
+  toolName?: string | null;
+  phase?: string | null;
+  outcome?: string | null;
+  errorCategory?: string | null;
+  failureKind?: string | null;
+  durationMs?: number | null;
+  errorText?: string | null;
+};
+
+export type TlonPluginErrorReportInput = {
+  pluginErrorSource: TlonPluginErrorSource;
+  accountId?: string | null;
+  ownerShip?: string | null;
+  botShip?: string | null;
+  errorKind?: string | null;
+  errorText: string;
+  attempt?: number | null;
+};
+
+export type TlonTelemetryErrorReportInput = {
+  telemetrySource: string;
+  sourceEventName?: string | null;
+  sessionKey?: string | null;
+  sessionId?: string | null;
+  runId?: string | null;
+  agentId?: string | null;
+  accountId?: string | null;
+  ownerShip?: string | null;
+  botShip?: string | null;
+  errorKind?: string | null;
+  errorText: string;
+};
+
 const outboundRouteReporterSlot = sharedSlot<OutboundRouteReporter>(
   'telemetry.outboundRouteReporter'
 );
 const sessionTelemetryReporterSlot = sharedSlot<SessionTelemetryReporter>(
   'telemetry.sessionTelemetryReporter'
+);
+const errorTelemetryReporterSlot = sharedSlot<ErrorTelemetryReporter>(
+  'telemetry.errorTelemetryReporter'
 );
 
 export function setOutboundRouteReporter(
@@ -1145,13 +1397,143 @@ export function setSessionTelemetryReporter(
   sessionTelemetryReporterSlot.set(reporter);
 }
 
+export function setErrorTelemetryReporter(
+  reporter: ErrorTelemetryReporter | null
+): void {
+  errorTelemetryReporterSlot.set(reporter);
+}
+
 function optionalString(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
 }
 
+function optionalErrorText(value: string | null | undefined): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
 function optionalNumber(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+export function formatTlonTelemetryErrorText(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack || error.message || String(error);
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error === null) {
+    return 'null';
+  }
+
+  if (error === undefined) {
+    return 'undefined';
+  }
+
+  try {
+    const json = JSON.stringify(error);
+    if (json) {
+      return json;
+    }
+  } catch {
+    // Fall through to String(error).
+  }
+
+  return String(error);
+}
+
+export function reportSessionTurnCreated(
+  event: TlonSessionTurnCreatedReportInput
+): void {
+  const context = lookupTlonSessionContext(event.sessionKey);
+  if (!context) {
+    return;
+  }
+
+  updateTlonSessionContextRuntime(context, {
+    sessionId: event.sessionId,
+    runId: event.runId,
+    agentId: event.agentId,
+  });
+}
+
+export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
+  const rememberedContext = lookupTlonSessionContext(event.sessionKey);
+  const context = rememberedContext
+    ? updateTlonSessionContextRuntime(rememberedContext, {
+        sessionId: event.sessionId,
+        runId: event.runId,
+        agentId: event.agentId,
+      })
+    : null;
+  if (!context) {
+    return;
+  }
+
+  errorTelemetryReporterSlot.get()?.({
+    kind: 'harness',
+    event: {
+      harness: 'openclaw',
+      harnessEventType: event.harnessEventType,
+      errorScope: event.errorScope,
+      sessionKey: context.sessionKey,
+      sessionId: context.sessionId,
+      runId: optionalString(event.runId) ?? context.runId,
+      accountId: context.accountId,
+      agentId: optionalString(event.agentId) ?? context.agentId,
+      ownerShip: context.ownerShip,
+      botShip: context.botShip,
+      destinationKind: context.destinationKind,
+      provider: optionalString(event.provider),
+      model: optionalString(event.model),
+      toolName: optionalString(event.toolName),
+      phase: optionalString(event.phase),
+      outcome: optionalString(event.outcome),
+      errorCategory: optionalString(event.errorCategory),
+      failureKind: optionalString(event.failureKind),
+      durationMs: optionalNumber(event.durationMs),
+      errorText: optionalErrorText(event.errorText),
+    },
+  });
+}
+
+export function reportPluginError(event: TlonPluginErrorReportInput): void {
+  errorTelemetryReporterSlot.get()?.({
+    kind: 'plugin',
+    event,
+  });
+}
+
+export function reportTelemetryError(
+  event: TlonTelemetryErrorReportInput
+): void {
+  const rememberedContext = lookupTlonSessionContext(event.sessionKey);
+  const context = rememberedContext
+    ? updateTlonSessionContextRuntime(rememberedContext, {
+        sessionId: event.sessionId,
+        runId: event.runId,
+        agentId: event.agentId,
+      })
+    : null;
+
+  errorTelemetryReporterSlot.get()?.({
+    kind: 'telemetry',
+    event: {
+      ...event,
+      sessionKey: context?.sessionKey ?? optionalString(event.sessionKey),
+      sessionId: context?.sessionId ?? optionalString(event.sessionId),
+      runId: optionalString(event.runId) ?? context?.runId ?? null,
+      agentId: optionalString(event.agentId) ?? context?.agentId ?? null,
+      accountId: event.accountId ?? context?.accountId ?? null,
+      ownerShip: event.ownerShip ?? context?.ownerShip ?? null,
+      botShip: event.botShip ?? context?.botShip ?? null,
+      sourceEventName: optionalString(event.sourceEventName),
+      errorKind: optionalString(event.errorKind),
+    },
+  });
 }
 
 export function reportSessionLifecycle(

@@ -3,7 +3,10 @@ import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineChannelPluginEntry } from 'openclaw/plugin-sdk/core';
-import { onDiagnosticEvent } from 'openclaw/plugin-sdk/diagnostic-runtime';
+import {
+  onDiagnosticEvent,
+  onInternalDiagnosticEvent,
+} from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
 import { sendGatewayStop } from './src/gateway-status.js';
@@ -19,10 +22,15 @@ import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
   type TlonSessionDiagnosticReportInput,
+  formatTlonTelemetryErrorText,
   recordToolCall,
+  reportHarnessError,
   reportOutboundRoute,
+  reportPluginError,
   reportSessionDiagnostic,
   reportSessionLifecycle,
+  reportSessionTurnCreated,
+  reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { checkBlockedSendOperation } from './src/tlon-tool-guard.js';
@@ -238,6 +246,158 @@ function isTlonSessionDiagnosticEvent(event: {
   );
 }
 
+type DiagnosticCandidate = Record<string, unknown> & { type?: unknown };
+
+function stringField(event: DiagnosticCandidate, key: string): string | null {
+  const value = event[key];
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function numberField(event: DiagnosticCandidate, key: string): number | null {
+  const value = event[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function diagnosticErrorText(event: DiagnosticCandidate): string | null {
+  return stringField(event, 'error') ?? stringField(event, 'message');
+}
+
+function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
+  const type = stringField(event, 'type');
+  if (!type) {
+    return;
+  }
+
+  if (type === 'session.turn.created') {
+    reportSessionTurnCreated({
+      type,
+      sessionKey: stringField(event, 'sessionKey'),
+      sessionId: stringField(event, 'sessionId'),
+      runId: stringField(event, 'runId'),
+      agentId: stringField(event, 'agentId'),
+    });
+    return;
+  }
+
+  const common = {
+    harnessEventType: type,
+    sessionKey: stringField(event, 'sessionKey'),
+    sessionId: stringField(event, 'sessionId'),
+    runId: stringField(event, 'runId'),
+    agentId: stringField(event, 'agentId'),
+    provider: stringField(event, 'provider'),
+    model: stringField(event, 'model'),
+    phase: stringField(event, 'phase'),
+    outcome: stringField(event, 'outcome'),
+    errorCategory: stringField(event, 'errorCategory'),
+    failureKind: stringField(event, 'failureKind'),
+    durationMs: numberField(event, 'durationMs'),
+    errorText: diagnosticErrorText(event),
+  };
+
+  switch (type) {
+    case 'harness.run.error':
+      reportHarnessError({
+        ...common,
+        errorScope: 'harness',
+      });
+      return;
+    case 'harness.run.completed':
+      if (common.outcome === 'completed') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'harness',
+      });
+      return;
+    case 'model.call.error':
+      reportHarnessError({
+        ...common,
+        errorScope: 'model',
+      });
+      return;
+    case 'tool.execution.error':
+      reportHarnessError({
+        ...common,
+        errorScope: 'tool',
+        toolName: stringField(event, 'toolName'),
+      });
+      return;
+    case 'run.completed':
+      if (common.outcome === 'completed') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'run',
+      });
+      return;
+    case 'message.delivery.error':
+      reportHarnessError({
+        ...common,
+        errorScope: 'message_delivery',
+        phase: stringField(event, 'deliveryKind'),
+      });
+      return;
+    case 'message.dispatch.completed':
+      if (common.outcome !== 'error') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'message_dispatch',
+        phase: stringField(event, 'source'),
+      });
+      return;
+    case 'message.processed':
+      if (common.outcome !== 'error') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'message_processing',
+        phase: stringField(event, 'channel'),
+      });
+      return;
+  }
+}
+
+function safeTelemetryObserver(params: {
+  logger: { warn: (message: string) => void };
+  telemetrySource: string;
+  sourceEventName?: string | null;
+  sessionKey?: string | null;
+  sessionId?: string | null;
+  runId?: string | null;
+  agentId?: string | null;
+  run: () => void;
+}): void {
+  try {
+    params.run();
+  } catch (error) {
+    params.logger.warn(
+      `[tlon] Telemetry observer failed (${params.telemetrySource}${params.sourceEventName ? `:${params.sourceEventName}` : ''}): ${String(error)}`
+    );
+    try {
+      reportTelemetryError({
+        telemetrySource: params.telemetrySource,
+        sourceEventName: params.sourceEventName,
+        sessionKey: params.sessionKey,
+        sessionId: params.sessionId,
+        runId: params.runId,
+        agentId: params.agentId,
+        errorKind: error instanceof Error ? error.name : typeof error,
+        errorText: formatTlonTelemetryErrorText(error),
+      });
+    } catch (reportError) {
+      params.logger.warn(
+        `[tlon] Telemetry error reporting failed: ${String(reportError)}`
+      );
+    }
+  }
+}
+
 export default defineChannelPluginEntry({
   id: 'tlon',
   name: 'Tlon',
@@ -273,7 +433,14 @@ export default defineChannelPluginEntry({
       const gsManager = createGatewayStatusManager({
         logger: {
           log: (m) => api.logger.info(m),
-          error: (m) => api.logger.warn(m),
+          error: (m) => {
+            reportPluginError({
+              pluginErrorSource: 'gateway_status_heartbeat',
+              errorKind: 'heartbeat',
+              errorText: m,
+            });
+            api.logger.warn(m);
+          },
         },
       });
       setGatewayStatusManager(gsManager);
@@ -515,11 +682,19 @@ export default defineChannelPluginEntry({
         );
       }
 
-      recordToolCall({
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'after_tool_call',
+        sourceEventName: event.toolName,
         sessionKey: ctx.sessionKey,
-        toolName: event.toolName,
-        durationMs: event.durationMs,
-        error: event.error,
+        run: () => {
+          recordToolCall({
+            sessionKey: ctx.sessionKey,
+            toolName: event.toolName,
+            durationMs: event.durationMs,
+            error: event.error,
+          });
+        },
       });
     });
 
@@ -527,42 +702,92 @@ export default defineChannelPluginEntry({
     // These hooks are global to OpenClaw, so telemetry.ts filters them through
     // session keys remembered from Tlon inbound replies before emitting.
     api.on('session_start', (event, ctx) => {
-      reportSessionLifecycle({
-        lifecycleEvent: 'session_start',
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'session_start',
+        sourceEventName: 'session_start',
         sessionKey: event.sessionKey ?? ctx.sessionKey,
         sessionId: event.sessionId ?? ctx.sessionId,
         agentId: ctx.agentId,
-        hasNextSession: false,
+        run: () => {
+          reportSessionLifecycle({
+            lifecycleEvent: 'session_start',
+            sessionKey: event.sessionKey ?? ctx.sessionKey,
+            sessionId: event.sessionId ?? ctx.sessionId,
+            agentId: ctx.agentId,
+            hasNextSession: false,
+          });
+        },
       });
     });
 
     api.on('session_end', (event, ctx) => {
-      reportSessionLifecycle({
-        lifecycleEvent: 'session_end',
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'session_end',
+        sourceEventName: 'session_end',
         sessionKey: event.sessionKey ?? ctx.sessionKey,
         sessionId: event.sessionId ?? ctx.sessionId,
         agentId: ctx.agentId,
-        reason: event.reason ?? null,
-        messageCount: event.messageCount,
-        durationMs: event.durationMs ?? null,
-        transcriptArchived: event.transcriptArchived ?? null,
-        hasNextSession: Boolean(event.nextSessionId ?? event.nextSessionKey),
+        run: () => {
+          reportSessionLifecycle({
+            lifecycleEvent: 'session_end',
+            sessionKey: event.sessionKey ?? ctx.sessionKey,
+            sessionId: event.sessionId ?? ctx.sessionId,
+            agentId: ctx.agentId,
+            reason: event.reason ?? null,
+            messageCount: event.messageCount,
+            durationMs: event.durationMs ?? null,
+            transcriptArchived: event.transcriptArchived ?? null,
+            hasNextSession: Boolean(
+              event.nextSessionId ?? event.nextSessionKey
+            ),
+          });
+        },
       });
     });
 
     let diagnosticEventsUnsubscribed = false;
     const unsubscribeDiagnosticEvents = onDiagnosticEvent((event) => {
       const candidate = event as unknown as { type: string };
-      if (isTlonSessionDiagnosticEvent(candidate)) {
-        reportSessionDiagnostic(candidate);
-      }
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'diagnostic_session',
+        sourceEventName: candidate.type,
+        sessionKey: (candidate as { sessionKey?: string }).sessionKey,
+        sessionId: (candidate as { sessionId?: string }).sessionId,
+        run: () => {
+          if (isTlonSessionDiagnosticEvent(candidate)) {
+            reportSessionDiagnostic(candidate);
+          }
+        },
+      });
     });
+    const unsubscribeInternalDiagnosticEvents = onInternalDiagnosticEvent(
+      (event) => {
+        const candidate = event as DiagnosticCandidate;
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'diagnostic_internal',
+          sourceEventName: stringField(candidate, 'type'),
+          sessionKey: stringField(candidate, 'sessionKey'),
+          sessionId: stringField(candidate, 'sessionId'),
+          runId: stringField(candidate, 'runId'),
+          agentId: stringField(candidate, 'agentId'),
+          run: () => reportHarnessDiagnostic(candidate),
+        });
+      }
+    );
+    const unsubscribeAllDiagnosticEvents = () => {
+      unsubscribeDiagnosticEvents();
+      unsubscribeInternalDiagnosticEvents();
+    };
     const unsubscribeDiagnosticEventsOnce = () => {
       if (diagnosticEventsUnsubscribed) {
         return;
       }
       diagnosticEventsUnsubscribed = true;
-      unsubscribeDiagnosticEvents();
+      unsubscribeAllDiagnosticEvents();
     };
     api.on('gateway_stop', unsubscribeDiagnosticEventsOnce);
 
@@ -578,34 +803,66 @@ export default defineChannelPluginEntry({
     // sends land off-Tlon; and a debug-gated local log for single-gateway
     // triage.
     api.on('message_sending', (event, ctx) => {
-      const resolvedChannel = ctx.channelId;
-      const routedToTlon = resolvedChannel === 'tlon';
-      // Only infer target kind for Tlon targets; a webchat target id is not a
-      // Tlon target and must not be misclassified.
-      const parsedTarget = routedToTlon ? parseTlonTarget(event.to) : null;
-      const targetKind =
-        parsedTarget?.kind === 'dm'
-          ? 'dm'
-          : parsedTarget?.kind === 'channel'
-            ? 'group'
-            : 'unknown';
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'message_sending',
+        sourceEventName: 'message_sending',
+        sessionKey: ctx.sessionKey,
+        runId: ctx.runId,
+        run: () => {
+          const resolvedChannel = ctx.channelId;
+          const routedToTlon = resolvedChannel === 'tlon';
+          // Only infer target kind for Tlon targets; a webchat target id is not
+          // a Tlon target and must not be misclassified.
+          const parsedTarget = routedToTlon ? parseTlonTarget(event.to) : null;
+          const targetKind =
+            parsedTarget?.kind === 'dm'
+              ? 'dm'
+              : parsedTarget?.kind === 'channel'
+                ? 'group'
+                : 'unknown';
 
-      reportOutboundRoute({ resolvedChannel, routedToTlon, targetKind });
+          reportOutboundRoute({ resolvedChannel, routedToTlon, targetKind });
 
-      if (isRouteDebugEnabled()) {
-        api.logger.info(
-          `[tlon][route-debug] message_sending ${JSON.stringify({
-            channelId: ctx.channelId,
-            to: event.to,
-            routedToTlon,
-            targetKind,
-            sessionKey: ctx.sessionKey ?? null,
-            conversationId: ctx.conversationId ?? null,
-            messageId: ctx.messageId ?? null,
-            threadId: event.threadId ?? null,
-          })}`
-        );
-      }
+          if (isRouteDebugEnabled()) {
+            api.logger.info(
+              `[tlon][route-debug] message_sending ${JSON.stringify({
+                channelId: ctx.channelId,
+                to: event.to,
+                routedToTlon,
+                targetKind,
+                sessionKey: ctx.sessionKey ?? null,
+                conversationId: ctx.conversationId ?? null,
+                messageId: ctx.messageId ?? null,
+                threadId: event.threadId ?? null,
+              })}`
+            );
+          }
+        },
+      });
+    });
+
+    api.on('message_sent', (event, ctx) => {
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'message_sent',
+        sourceEventName: 'message_sent',
+        sessionKey: event.sessionKey ?? ctx.sessionKey,
+        runId: event.runId ?? ctx.runId,
+        run: () => {
+          if (event.success !== false) {
+            return;
+          }
+          reportHarnessError({
+            harnessEventType: 'message_sent',
+            errorScope: 'message_delivery',
+            sessionKey: event.sessionKey ?? ctx.sessionKey,
+            runId: event.runId ?? ctx.runId,
+            errorText: event.error ?? null,
+            outcome: 'error',
+          });
+        },
+      });
     });
 
     // ── Slash commands for approval & admin ────────────────────────────
