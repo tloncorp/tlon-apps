@@ -127,7 +127,7 @@ jobs:
             echo "=== Restarting ships in context: $ctx ==="
             kubectl --context "$ctx" get ships -n tlon -ojson \
               | jq -r "$JQ_FILTER" \
-              | xargs -P 8 -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon'
+              | xargs -P 8 -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon || true'
             wait
           done
  
