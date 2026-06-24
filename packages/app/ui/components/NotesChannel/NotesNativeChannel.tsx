@@ -242,12 +242,13 @@ export function NotesNativeChannel({
     }
   );
 
-  const handleCreateNote = useMutableCallback(async () => {
+  const handleCreateNote = useMutableCallback(async (folderId?: number) => {
     if (!notebookFlag || !rootFolderId || !canEdit || isCreatingNote) return;
-    const targetFolderId = selectedFolderId ?? rootFolderId;
+    const targetFolderId = folderId ?? selectedFolderId ?? rootFolderId;
     setIsCreatingNote(true);
     await runAction('Failed to create note', async () => {
       expandFolder(targetFolderId);
+      setSelectedFolderId(targetFolderId);
       const note = await createNotebookNote({
         notebookFlag,
         folderId: targetFolderId,
@@ -258,6 +259,12 @@ export function NotesNativeChannel({
       }
     });
     setIsCreatingNote(false);
+  });
+
+  const openAddFolderDialog = useMutableCallback((parentFolderId?: number) => {
+    setNewFolderName('');
+    setNewFolderParentId(parentFolderId ?? selectedFolderId ?? rootFolderId);
+    setAddFolderOpen(true);
   });
 
   const handleCreateFolder = useMutableCallback(async () => {
@@ -274,6 +281,7 @@ export function NotesNativeChannel({
       });
       expandFolder(parentFolderId);
       setNewFolderName('');
+      setNewFolderParentId(null);
       setAddFolderOpen(false);
     });
     setIsCreatingFolder(false);
@@ -281,9 +289,16 @@ export function NotesNativeChannel({
 
   const handleAddFolderOpenChange = useMutableCallback((open: boolean) => {
     setAddFolderOpen(open);
+    if (!open) {
+      setNewFolderParentId(null);
+      return;
+    }
+
     if (open) {
       setNewFolderName('');
-      setNewFolderParentId(selectedFolderId ?? rootFolderId);
+      setNewFolderParentId(
+        (currentParentId) => currentParentId ?? selectedFolderId ?? rootFolderId
+      );
     }
   });
 
@@ -485,7 +500,7 @@ export function NotesNativeChannel({
     createNotesNewFolderAction({
       action: () => {
         setNewActionSheetOpen(false);
-        handleAddFolderOpenChange(true);
+        openAddFolderDialog();
       },
       disabled: isCreatingFolder,
       testID: 'NotesNewFolderAction',
@@ -528,19 +543,19 @@ export function NotesNativeChannel({
         canEdit={canEdit}
         isCreatingFolder={isCreatingFolder}
         isCreatingNote={isCreatingNote}
-        onCreateFolder={() => handleAddFolderOpenChange(true)}
+        onCreateFolder={() => openAddFolderDialog()}
         onCreateNote={handleCreateNote}
         primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
       />
     );
   }, [
     canEdit,
-    handleAddFolderOpenChange,
     handleCreateNote,
     isCreatingFolder,
     isCreatingNote,
     gate,
     notebookFlag,
+    openAddFolderDialog,
     useDesktopSplit,
   ]);
 
@@ -564,6 +579,8 @@ export function NotesNativeChannel({
       onMoveNote={openMoveNoteDialog}
       onOpenNote={openNote}
       onCreate={() => setNewActionSheetOpen(true)}
+      onCreateFolderInFolder={(folder) => openAddFolderDialog(folder.folderId)}
+      onCreateNoteInFolder={(folder) => void handleCreateNote(folder.folderId)}
       onRenameFolder={handleOpenRenameFolder}
       onQueryChange={setNotesFilterQuery}
       onToggleFolder={toggleFolder}

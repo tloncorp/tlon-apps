@@ -32,6 +32,8 @@ export function FolderTreeRow({
   noteCount,
   selected,
   onDelete,
+  onCreateFolder,
+  onCreateNote,
   onMove,
   onPress,
   onRename,
@@ -46,11 +48,28 @@ export function FolderTreeRow({
   noteCount: number;
   selected: boolean;
   onDelete: (folder: db.NotesFolder) => void;
+  onCreateFolder: (folder: db.NotesFolder) => void;
+  onCreateNote: (folder: db.NotesFolder) => void;
   onMove: (folder: db.NotesFolder) => void;
   onPress: () => void;
   onRename: (folder: db.NotesFolder) => void;
 }) {
   const actionGroups = createActionGroups(
+    [
+      'neutral',
+      {
+        title: 'New note inside',
+        startIcon: 'ChannelNote',
+        action: () => onCreateNote(folder),
+        testID: 'NotesCreateNoteInFolderAction',
+      },
+      {
+        title: 'New folder inside',
+        startIcon: 'Folder',
+        action: () => onCreateFolder(folder),
+        testID: 'NotesCreateFolderInFolderAction',
+      },
+    ],
     [
       'neutral',
       {
