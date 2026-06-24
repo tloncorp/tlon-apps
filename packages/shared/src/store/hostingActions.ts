@@ -371,6 +371,14 @@ export async function syncHostingBotAgent(opts?: {
       currentShip = null;
     }
     if (currentShip !== ship) {
+      // Discarding a stale response. If the throttle entry is still ours — i.e.
+      // no newer ship's sync replaced it (logout mid-flight, not an account
+      // switch) — clear it so an imminent re-login to this same ship refetches
+      // instead of being suppressed for the rest of the window. If a different
+      // ship now owns the entry, leave it: that ship's throttle is legitimate.
+      if (lastBotAgentSync?.ship === ship) {
+        lastBotAgentSync = null;
+      }
       return;
     }
     // The network response is untrusted: only persist known enum values so a
