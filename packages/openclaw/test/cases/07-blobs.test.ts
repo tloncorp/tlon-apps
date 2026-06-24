@@ -102,7 +102,8 @@ describe('blobs', () => {
     viewer: TestFixtures['userState'],
     channelId: string,
     authorId: string,
-    bodySubstring: string
+    bodySubstring: string,
+    timeoutMs = 10_000
   ): Promise<{ id: string }> {
     return waitFor(async () => {
       const posts = await viewer.channelPosts(channelId, 10);
@@ -118,7 +119,7 @@ describe('blobs', () => {
         );
       }) as { id?: string } | undefined;
       return found?.id ? { id: found.id } : undefined;
-    }, 10_000);
+    }, timeoutMs);
   }
 
   // ── DM tests ─────────────────────────────────────────────────────────
@@ -185,12 +186,15 @@ describe('blobs', () => {
     );
     // Wait for the parent RUN to fully settle (bot delivered its reply) before
     // sending the thread reply, so this stays a harness-correctness test rather
-    // than an I2 concurrency test.
+    // than an I2 concurrency test. Use a 30s budget (not findParentPost's 10s
+    // default) — this is a full model round-trip delivery, matching the DM-thread
+    // test's parent-settle wait, and 10s can be too tight under CI load.
     await findParentPost(
       fixtures.userState,
       fixtures.botShip,
       fixtures.botShip,
-      parentAck
+      parentAck,
+      30_000
     );
 
     await fixtures.userState.sendReply({
