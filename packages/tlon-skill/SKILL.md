@@ -460,6 +460,17 @@ tlon notes create "My Notebook"                          # Create a solo noteboo
 tlon notes note-create notes/~host/name root "Title" --markdown post.md   # New note at the notebook root
 tlon notes note-create notes/~host/name 7 "Title" --stdin                 # New note in folder 7 from stdin
 tlon notes note-update notes/~host/name 12 --body new.md --expected-revision 3
+tlon notes note-rename notes/~host/name 12 "New Title"   # Rename a note
+tlon notes note-move notes/~host/name 12 3               # Move a note into folder 3
+tlon notes note-delete notes/~host/name 12               # Delete a note
+tlon notes history notes/~host/name 12                   # Show a note's revision history
+tlon notes folders notes/~host/name                      # List folders
+tlon notes folder notes/~host/name 3                     # Show a folder
+tlon notes folder-create notes/~host/name "Drafts" --parent 3   # Create a folder (root if no --parent)
+tlon notes folder-rename notes/~host/name 4 "Archive"    # Rename a folder
+tlon notes folder-move notes/~host/name 4 3              # Move a folder under parent 3
+tlon notes folder-delete notes/~host/name 4 --recursive  # Delete a folder (--recursive for non-empty)
+tlon notes members notes/~host/name                      # List notebook members
 tlon notes join notes/~host/name                         # Join a notebook
 tlon notes leave notes/~host/name                        # Leave a notebook
 ```

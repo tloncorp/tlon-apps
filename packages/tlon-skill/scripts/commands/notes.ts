@@ -23,6 +23,17 @@ Commands:
   create <title>                          Create a solo notebook
   note-create <nest> <folder-id|root> <title> (--body <f> | --stdin | --markdown <f>)
   note-update <nest> <id> (--body <f> | --stdin) [--expected-revision <n>]
+  note-rename <nest> <id> <title>         Rename a note
+  note-move <nest> <id> <folder-id>       Move a note into a folder
+  note-delete <nest> <id>                 Delete a note
+  history <nest> <id>                     Show a note's revision history
+  folders <nest>                          List folders in a notebook
+  folder <nest> <id>                      Show a folder
+  folder-create <nest> <name> [--parent <id>]   Create a folder (root if no --parent)
+  folder-rename <nest> <id> <name>        Rename a folder
+  folder-move <nest> <id> <parent-id>     Move a folder under a parent
+  folder-delete <nest> <id> [--recursive] Delete a folder (--recursive for non-empty)
+  members <nest>                          List notebook members
   join <nest>                             Join a notes notebook
   leave <nest>                            Leave a notes notebook
 
@@ -50,6 +61,28 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
     'Usage: tlon notes note-create <nest> <folder-id|root> <title> (--body <file> | --stdin | --markdown <file>)',
   'note-update':
     'Usage: tlon notes note-update <nest> <id> (--body <file> | --stdin) [--expected-revision <n>]',
+  'note-rename':
+    'Usage: tlon notes note-rename <nest> <id> <title>\nExample: tlon notes note-rename notes/~zod/blog 12 "New Title"',
+  'note-move':
+    'Usage: tlon notes note-move <nest> <id> <folder-id>\nExample: tlon notes note-move notes/~zod/blog 12 3',
+  'note-delete':
+    'Usage: tlon notes note-delete <nest> <id>\nExample: tlon notes note-delete notes/~zod/blog 12',
+  history:
+    'Usage: tlon notes history <nest> <id>\nExample: tlon notes history notes/~zod/blog 12',
+  folders:
+    'Usage: tlon notes folders <nest>\nExample: tlon notes folders notes/~zod/blog',
+  folder:
+    'Usage: tlon notes folder <nest> <id>\nExample: tlon notes folder notes/~zod/blog 3',
+  'folder-create':
+    'Usage: tlon notes folder-create <nest> <name> [--parent <id>]\nExample: tlon notes folder-create notes/~zod/blog "Drafts" --parent 3',
+  'folder-rename':
+    'Usage: tlon notes folder-rename <nest> <id> <name>\nExample: tlon notes folder-rename notes/~zod/blog 4 "Archive"',
+  'folder-move':
+    'Usage: tlon notes folder-move <nest> <id> <parent-id>\nExample: tlon notes folder-move notes/~zod/blog 4 3',
+  'folder-delete':
+    'Usage: tlon notes folder-delete <nest> <id> [--recursive]\nExample: tlon notes folder-delete notes/~zod/blog 4 --recursive',
+  members:
+    'Usage: tlon notes members <nest>\nExample: tlon notes members notes/~zod/blog',
   join: 'Usage: tlon notes join <nest>\nExample: tlon notes join notes/~zod/blog',
   leave:
     'Usage: tlon notes leave <nest>\nExample: tlon notes leave notes/~zod/blog',
@@ -87,6 +120,24 @@ export interface NoteSummary {
 export interface NoteDetail extends NoteSummary {
   // %notes content is plain Markdown.
   bodyMd?: string;
+}
+
+// The OpenAPI field is `folderName` (the README's `name` is wrong).
+export interface Folder {
+  id: number;
+  folderName?: string;
+  parent?: number;
+}
+
+export interface NoteRevision {
+  revision?: number;
+  editedAt?: number;
+  author?: string;
+}
+
+export interface MemberRecord {
+  ship?: string;
+  roles?: string[];
 }
 
 // Action writes (POST/PUT/DELETE) return this envelope; GET reads return bare
@@ -145,6 +196,17 @@ type ParsedNotesArgs =
       source: ContentSource;
       expectedRevision?: number;
     }
+  | { kind: 'note-rename'; target: Nest; id: string; title: string }
+  | { kind: 'note-move'; target: Nest; id: string; folder: number }
+  | { kind: 'note-delete'; target: Nest; id: string }
+  | { kind: 'history'; target: Nest; id: string }
+  | { kind: 'folders'; target: Nest }
+  | { kind: 'folder'; target: Nest; id: string }
+  | { kind: 'folder-create'; target: Nest; folderName: string; parent?: number }
+  | { kind: 'folder-rename'; target: Nest; id: string; folderName: string }
+  | { kind: 'folder-move'; target: Nest; id: string; parent: number }
+  | { kind: 'folder-delete'; target: Nest; id: string; recursive: boolean }
+  | { kind: 'members'; target: Nest }
   | { kind: 'join'; target: Nest }
   | { kind: 'leave'; target: Nest };
 
@@ -186,6 +248,22 @@ function notesPath(target: Nest): string {
 
 function notePath(target: Nest, id: string): string {
   return `${notesPath(target)}/${id}`;
+}
+
+function noteHistoryPath(target: Nest, id: string): string {
+  return `${notePath(target, id)}/history`;
+}
+
+function foldersPath(target: Nest): string {
+  return `${notebookPath(target)}/folders`;
+}
+
+function folderPath(target: Nest, id: string): string {
+  return `${foldersPath(target)}/${id}`;
+}
+
+function membersPath(target: Nest): string {
+  return `${notebookPath(target)}/members`;
 }
 
 function notebookNest(summary: NotebookSummary): string {
@@ -340,6 +418,158 @@ function parseArgs(args: string[]): ParsedNotesArgs {
       }
       return { kind: 'note-update', target, id, source, expectedRevision };
     }
+    case 'note-rename': {
+      const nest = args[1];
+      const id = args[2];
+      const title = args.slice(3, firstFlagIndex(args, 3)).join(' ').trim();
+      if (!nest || !id || !title) {
+        throw usageError(help);
+      }
+      requireNumericId(id, 'note id', help);
+      return {
+        kind: 'note-rename',
+        target: parseNotesNest(nest, help),
+        id,
+        title,
+      };
+    }
+    case 'note-move': {
+      const nest = args[1];
+      const id = args[2];
+      const folderArg = args[3];
+      if (!nest || !id || !folderArg) {
+        throw usageError(help);
+      }
+      requireNumericId(id, 'note id', help);
+      if (!/^\d+$/.test(folderArg)) {
+        throw usageError(
+          `Invalid folder id: ${folderArg}. Expected a number.`,
+          help
+        );
+      }
+      return {
+        kind: 'note-move',
+        target: parseNotesNest(nest, help),
+        id,
+        folder: Number(folderArg),
+      };
+    }
+    case 'note-delete': {
+      const nest = args[1];
+      const id = args[2];
+      if (!nest || !id) {
+        throw usageError(help);
+      }
+      requireNumericId(id, 'note id', help);
+      return { kind: 'note-delete', target: parseNotesNest(nest, help), id };
+    }
+    case 'history': {
+      const nest = args[1];
+      const id = args[2];
+      if (!nest || !id) {
+        throw usageError(help);
+      }
+      requireNumericId(id, 'note id', help);
+      return { kind: 'history', target: parseNotesNest(nest, help), id };
+    }
+    case 'folders': {
+      if (!args[1]) {
+        throw usageError(help);
+      }
+      return { kind: 'folders', target: parseNotesNest(args[1], help) };
+    }
+    case 'folder': {
+      const nest = args[1];
+      const id = args[2];
+      if (!nest || !id) {
+        throw usageError(help);
+      }
+      requireNumericId(id, 'folder id', help);
+      return { kind: 'folder', target: parseNotesNest(nest, help), id };
+    }
+    case 'folder-create': {
+      const nest = args[1];
+      if (!nest) {
+        throw usageError(help);
+      }
+      const target = parseNotesNest(nest, help);
+      const folderName = args
+        .slice(2, firstFlagIndex(args, 2))
+        .join(' ')
+        .trim();
+      if (!folderName) {
+        throw usageError(help);
+      }
+      const parentIdx = args.indexOf('--parent');
+      let parent: number | undefined;
+      if (parentIdx !== -1) {
+        const value = args[parentIdx + 1];
+        if (!value || !/^\d+$/.test(value)) {
+          throw usageError('--parent requires a numeric value', help);
+        }
+        parent = Number(value);
+      }
+      return { kind: 'folder-create', target, folderName, parent };
+    }
+    case 'folder-rename': {
+      const nest = args[1];
+      const id = args[2];
+      const folderName = args
+        .slice(3, firstFlagIndex(args, 3))
+        .join(' ')
+        .trim();
+      if (!nest || !id || !folderName) {
+        throw usageError(help);
+      }
+      requireNumericId(id, 'folder id', help);
+      return {
+        kind: 'folder-rename',
+        target: parseNotesNest(nest, help),
+        id,
+        folderName,
+      };
+    }
+    case 'folder-move': {
+      const nest = args[1];
+      const id = args[2];
+      const parentArg = args[3];
+      if (!nest || !id || !parentArg) {
+        throw usageError(help);
+      }
+      requireNumericId(id, 'folder id', help);
+      if (!/^\d+$/.test(parentArg)) {
+        throw usageError(
+          `Invalid parent id: ${parentArg}. Expected a number.`,
+          help
+        );
+      }
+      return {
+        kind: 'folder-move',
+        target: parseNotesNest(nest, help),
+        id,
+        parent: Number(parentArg),
+      };
+    }
+    case 'folder-delete': {
+      const nest = args[1];
+      const id = args[2];
+      if (!nest || !id) {
+        throw usageError(help);
+      }
+      requireNumericId(id, 'folder id', help);
+      return {
+        kind: 'folder-delete',
+        target: parseNotesNest(nest, help),
+        id,
+        recursive: args.includes('--recursive'),
+      };
+    }
+    case 'members': {
+      if (!args[1]) {
+        throw usageError(help);
+      }
+      return { kind: 'members', target: parseNotesNest(args[1], help) };
+    }
     case 'join': {
       if (!args[1]) {
         throw usageError(help);
@@ -358,14 +588,26 @@ function parseArgs(args: string[]): ParsedNotesArgs {
   throw usageError(NOTES_HELP);
 }
 
-// Unwrap the v1 `{requestId, body}` envelope for action writes. Returns the
-// ok/no-change/notebook body and converts error/pending (and any unexpected
-// type) into a commandError — so a `✓` is never printed for a failed write.
+// Interpret an action-write response. A *present* envelope body always uses the
+// strict whitelist — only ok/no-change/notebook pass; error/pending (and any
+// other body.type, e.g. api-key) are surfaced as a commandError so a `✓` is
+// never printed for a failed write.
+//
+// `allowBareSuccess` relaxes only the *missing-body* case: the v1 convenience
+// routes (Phase C: folder/note rename/move/delete) may answer with a bare or
+// empty success, and `requestJson` already throws on HTTP failures, so those
+// callers treat an absent envelope as success. The enveloped Phase B endpoints
+// (create/note-create/note-update) leave it strict, where a missing body is an
+// error.
 export function expectNotesResponse(
-  res: NotesResponseEnvelope
+  res: NotesResponseEnvelope,
+  options: { allowBareSuccess?: boolean } = {}
 ): NotesResponseBody {
   const body = res?.body;
   if (!body || typeof body.type !== 'string') {
+    if (options.allowBareSuccess) {
+      return { type: 'ok' };
+    }
     throw commandError('Unexpected %notes response (missing body).');
   }
   switch (body.type) {
@@ -439,6 +681,27 @@ function formatNoteLine(note: NoteSummary): string {
   const title = note.title ?? '(untitled)';
   const revision = note.revision ?? '?';
   return `#${note.id}  ${title}  (rev ${revision})`;
+}
+
+function formatFolderLine(folder: Folder): string {
+  const name = folder.folderName ?? '(unnamed)';
+  const parent =
+    typeof folder.parent === 'number' ? `  parent ${folder.parent}` : '';
+  return `#${folder.id}  ${name}${parent}`;
+}
+
+function formatRevisionLine(rev: NoteRevision): string {
+  const author = rev.author ? `  ${rev.author}` : '';
+  const at = typeof rev.editedAt === 'number' ? `  @ ${rev.editedAt}` : '';
+  return `rev ${rev.revision ?? '?'}${author}${at}`;
+}
+
+function formatMemberLine(member: MemberRecord): string {
+  const roles =
+    member.roles && member.roles.length > 0
+      ? `  [${member.roles.join(', ')}]`
+      : '';
+  return `${member.ship ?? '(unknown)'}${roles}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -583,6 +846,181 @@ async function runNoteUpdate(
   return 0;
 }
 
+// PUT …/notes/<id> is single-mode: a `body` payload wins over title/folder. So
+// note-rename / note-move send metadata-only bodies and never carry `body`.
+async function runNoteRename(
+  target: Nest,
+  id: string,
+  title: string,
+  deps: NotesDeps
+): Promise<number> {
+  const res = await deps.requestJson<NotesResponseEnvelope>(
+    notePath(target, id),
+    'PUT',
+    { title }
+  );
+  expectNotesResponse(res, { allowBareSuccess: true });
+  writeLine(deps.stdout, '✓ Note renamed');
+  return 0;
+}
+
+async function runNoteMove(
+  target: Nest,
+  id: string,
+  folder: number,
+  deps: NotesDeps
+): Promise<number> {
+  const res = await deps.requestJson<NotesResponseEnvelope>(
+    notePath(target, id),
+    'PUT',
+    { folder }
+  );
+  expectNotesResponse(res, { allowBareSuccess: true });
+  writeLine(deps.stdout, '✓ Note moved');
+  return 0;
+}
+
+async function runNoteDelete(
+  target: Nest,
+  id: string,
+  deps: NotesDeps
+): Promise<number> {
+  const res = await deps.requestJson<NotesResponseEnvelope>(
+    notePath(target, id),
+    'DELETE'
+  );
+  expectNotesResponse(res, { allowBareSuccess: true });
+  writeLine(deps.stdout, '✓ Note deleted');
+  return 0;
+}
+
+async function runHistory(
+  target: Nest,
+  id: string,
+  deps: NotesDeps
+): Promise<number> {
+  const revisions = await deps.requestJson<NoteRevision[]>(
+    noteHistoryPath(target, id),
+    'GET'
+  );
+  if (!revisions || revisions.length === 0) {
+    writeLine(deps.stdout, 'No revisions.');
+    return 0;
+  }
+  for (const rev of revisions) {
+    writeLine(deps.stdout, formatRevisionLine(rev));
+  }
+  return 0;
+}
+
+async function runFolders(target: Nest, deps: NotesDeps): Promise<number> {
+  const folders = await deps.requestJson<Folder[]>(foldersPath(target), 'GET');
+  if (!folders || folders.length === 0) {
+    writeLine(deps.stdout, 'No folders.');
+    return 0;
+  }
+  for (const folder of folders) {
+    writeLine(deps.stdout, formatFolderLine(folder));
+  }
+  return 0;
+}
+
+async function runFolder(
+  target: Nest,
+  id: string,
+  deps: NotesDeps
+): Promise<number> {
+  const folder = await deps.requestJson<Folder>(folderPath(target, id), 'GET');
+  writeLine(deps.stdout, `#${folder.id}  ${folder.folderName ?? '(unnamed)'}`);
+  if (typeof folder.parent === 'number') {
+    writeLine(deps.stdout, `Parent: ${folder.parent}`);
+  }
+  return 0;
+}
+
+async function runFolderCreate(
+  parsed: { target: Nest; folderName: string; parent?: number },
+  deps: NotesDeps
+): Promise<number> {
+  const payload: { folderName: string; parent?: number } = {
+    folderName: parsed.folderName,
+  };
+  // parent omitted → folder is created at the notebook root.
+  if (parsed.parent !== undefined) {
+    payload.parent = parsed.parent;
+  }
+  const res = await deps.requestJson<NotesResponseEnvelope>(
+    foldersPath(parsed.target),
+    'POST',
+    payload
+  );
+  expectNotesResponse(res, { allowBareSuccess: true });
+  writeLine(deps.stdout, '✓ Folder created');
+  return 0;
+}
+
+async function runFolderRename(
+  target: Nest,
+  id: string,
+  folderName: string,
+  deps: NotesDeps
+): Promise<number> {
+  const res = await deps.requestJson<NotesResponseEnvelope>(
+    folderPath(target, id),
+    'PUT',
+    { folderName }
+  );
+  expectNotesResponse(res, { allowBareSuccess: true });
+  writeLine(deps.stdout, '✓ Folder renamed');
+  return 0;
+}
+
+async function runFolderMove(
+  target: Nest,
+  id: string,
+  parent: number,
+  deps: NotesDeps
+): Promise<number> {
+  const res = await deps.requestJson<NotesResponseEnvelope>(
+    folderPath(target, id),
+    'PUT',
+    { parent }
+  );
+  expectNotesResponse(res, { allowBareSuccess: true });
+  writeLine(deps.stdout, '✓ Folder moved');
+  return 0;
+}
+
+async function runFolderDelete(
+  target: Nest,
+  id: string,
+  recursive: boolean,
+  deps: NotesDeps
+): Promise<number> {
+  const res = await deps.requestJson<NotesResponseEnvelope>(
+    `${folderPath(target, id)}?recursive=${recursive ? 'true' : 'false'}`,
+    'DELETE'
+  );
+  expectNotesResponse(res, { allowBareSuccess: true });
+  writeLine(deps.stdout, '✓ Folder deleted');
+  return 0;
+}
+
+async function runMembers(target: Nest, deps: NotesDeps): Promise<number> {
+  const members = await deps.requestJson<MemberRecord[]>(
+    membersPath(target),
+    'GET'
+  );
+  if (!members || members.length === 0) {
+    writeLine(deps.stdout, 'No members.');
+    return 0;
+  }
+  for (const member of members) {
+    writeLine(deps.stdout, formatMemberLine(member));
+  }
+  return 0;
+}
+
 async function runJoin(target: Nest, deps: NotesDeps): Promise<number> {
   await deps.joinNotesNotebook(target.nest);
   writeLine(deps.stdout, '✓ Joined');
@@ -622,6 +1060,48 @@ export async function run(args: string[], deps: NotesDeps): Promise<number> {
         return await runNoteCreate(parsed, deps);
       case 'note-update':
         return await runNoteUpdate(parsed, deps);
+      case 'note-rename':
+        return await runNoteRename(
+          parsed.target,
+          parsed.id,
+          parsed.title,
+          deps
+        );
+      case 'note-move':
+        return await runNoteMove(parsed.target, parsed.id, parsed.folder, deps);
+      case 'note-delete':
+        return await runNoteDelete(parsed.target, parsed.id, deps);
+      case 'history':
+        return await runHistory(parsed.target, parsed.id, deps);
+      case 'folders':
+        return await runFolders(parsed.target, deps);
+      case 'folder':
+        return await runFolder(parsed.target, parsed.id, deps);
+      case 'folder-create':
+        return await runFolderCreate(parsed, deps);
+      case 'folder-rename':
+        return await runFolderRename(
+          parsed.target,
+          parsed.id,
+          parsed.folderName,
+          deps
+        );
+      case 'folder-move':
+        return await runFolderMove(
+          parsed.target,
+          parsed.id,
+          parsed.parent,
+          deps
+        );
+      case 'folder-delete':
+        return await runFolderDelete(
+          parsed.target,
+          parsed.id,
+          parsed.recursive,
+          deps
+        );
+      case 'members':
+        return await runMembers(parsed.target, deps);
       case 'join':
         return await runJoin(parsed.target, deps);
       case 'leave':

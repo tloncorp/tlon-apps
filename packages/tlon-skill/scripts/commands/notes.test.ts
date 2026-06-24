@@ -502,6 +502,238 @@ describe('notes join and leave', () => {
   });
 });
 
+describe('notes folders', () => {
+  it('lists folders via GET and formats each line', async () => {
+    const context = makeDeps({
+      requestJson: async () => [
+        { id: 3, folderName: 'Root' },
+        { id: 4, folderName: 'Drafts', parent: 3 },
+      ],
+    });
+
+    const exitCode = await run(['folders', 'notes/~zod/blog'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].path).toBe(
+      '/notes/~/v1/notebooks/~zod/blog/folders'
+    );
+    expect(context.stdout()).toBe('#3  Root\n#4  Drafts  parent 3\n');
+  });
+
+  it('shows a single folder', async () => {
+    const context = makeDeps({
+      requestJson: async () => ({ id: 4, folderName: 'Drafts', parent: 3 }),
+    });
+
+    const exitCode = await run(
+      ['folder', 'notes/~zod/blog', '4'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].path).toBe(
+      '/notes/~/v1/notebooks/~zod/blog/folders/4'
+    );
+    expect(context.stdout()).toContain('#4  Drafts');
+    expect(context.stdout()).toContain('Parent: 3');
+  });
+
+  // The convenience-route writes below model a bare/empty success response (no
+  // `{requestId, body}` envelope) — requestJson throwing is the failure signal.
+  it('creates a folder at root (no parent) via POST {folderName}', async () => {
+    const context = makeDeps({
+      requestJson: async () => ({ id: 5, folderName: 'Drafts' }),
+    });
+
+    const exitCode = await run(
+      ['folder-create', 'notes/~zod/blog', 'Drafts'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0]).toEqual({
+      path: '/notes/~/v1/notebooks/~zod/blog/folders',
+      method: 'POST',
+      body: { folderName: 'Drafts' },
+    });
+    expect(context.stdout()).toBe('✓ Folder created\n');
+  });
+
+  it('creates a folder under a parent via POST {folderName, parent}', async () => {
+    const context = makeDeps({
+      requestJson: async () => ({ id: 6, folderName: 'Drafts', parent: 3 }),
+    });
+
+    await run(
+      ['folder-create', 'notes/~zod/blog', 'Drafts', '--parent', '3'],
+      context.deps
+    );
+
+    expect(context.calls.requestJson[0].body).toEqual({
+      folderName: 'Drafts',
+      parent: 3,
+    });
+  });
+
+  it('renames a folder via PUT {folderName} (bare success)', async () => {
+    // No responder: the dep returns undefined, modeling an empty success body.
+    const context = makeDeps();
+
+    const exitCode = await run(
+      ['folder-rename', 'notes/~zod/blog', '4', 'Archive'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0]).toEqual({
+      path: '/notes/~/v1/notebooks/~zod/blog/folders/4',
+      method: 'PUT',
+      body: { folderName: 'Archive' },
+    });
+    expect(context.stdout()).toBe('✓ Folder renamed\n');
+  });
+
+  it('moves a folder via PUT {parent} (bare success)', async () => {
+    const context = makeDeps();
+
+    await run(['folder-move', 'notes/~zod/blog', '4', '3'], context.deps);
+
+    expect(context.calls.requestJson[0]).toEqual({
+      path: '/notes/~/v1/notebooks/~zod/blog/folders/4',
+      method: 'PUT',
+      body: { parent: 3 },
+    });
+  });
+
+  it('deletes a folder via DELETE with an explicit recursive query', async () => {
+    const nonRecursive = makeDeps();
+    const exitCode = await run(
+      ['folder-delete', 'notes/~zod/blog', '4'],
+      nonRecursive.deps
+    );
+    expect(exitCode).toBe(0);
+    expect(nonRecursive.calls.requestJson[0]).toEqual({
+      path: '/notes/~/v1/notebooks/~zod/blog/folders/4?recursive=false',
+      method: 'DELETE',
+      body: undefined,
+    });
+    expect(nonRecursive.stdout()).toBe('✓ Folder deleted\n');
+
+    const recursive = makeDeps();
+    await run(
+      ['folder-delete', 'notes/~zod/blog', '4', '--recursive'],
+      recursive.deps
+    );
+    expect(recursive.calls.requestJson[0].path).toBe(
+      '/notes/~/v1/notebooks/~zod/blog/folders/4?recursive=true'
+    );
+  });
+});
+
+describe('notes remaining note ops', () => {
+  // These convenience-route writes model a bare/empty success response.
+  it('renames a note via metadata-only PUT {title}', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      ['note-rename', 'notes/~zod/blog', '12', 'New Title'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0]).toEqual({
+      path: '/notes/~/v1/notebooks/~zod/blog/notes/12',
+      method: 'PUT',
+      body: { title: 'New Title' },
+    });
+    expect(context.stdout()).toBe('✓ Note renamed\n');
+  });
+
+  it('moves a note via metadata-only PUT {folder}', async () => {
+    const context = makeDeps();
+
+    await run(['note-move', 'notes/~zod/blog', '12', '3'], context.deps);
+
+    expect(context.calls.requestJson[0]).toEqual({
+      path: '/notes/~/v1/notebooks/~zod/blog/notes/12',
+      method: 'PUT',
+      body: { folder: 3 },
+    });
+  });
+
+  it('deletes a note via DELETE', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      ['note-delete', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0]).toEqual({
+      path: '/notes/~/v1/notebooks/~zod/blog/notes/12',
+      method: 'DELETE',
+      body: undefined,
+    });
+    expect(context.stdout()).toBe('✓ Note deleted\n');
+  });
+
+  it('shows note revision history via GET', async () => {
+    const context = makeDeps({
+      requestJson: async () => [
+        { revision: 2, author: '~zod' },
+        { revision: 1, author: '~zod' },
+      ],
+    });
+
+    const exitCode = await run(
+      ['history', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].path).toBe(
+      '/notes/~/v1/notebooks/~zod/blog/notes/12/history'
+    );
+    expect(context.stdout()).toContain('rev 2  ~zod');
+  });
+
+  it('lists members via GET', async () => {
+    const context = makeDeps({
+      requestJson: async () => [
+        { ship: '~zod', roles: ['admin'] },
+        { ship: '~bus' },
+      ],
+    });
+
+    const exitCode = await run(['members', 'notes/~zod/blog'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].path).toBe(
+      '/notes/~/v1/notebooks/~zod/blog/members'
+    );
+    expect(context.stdout()).toBe('~zod  [admin]\n~bus\n');
+  });
+
+  it('surfaces a write error body as a nonzero exit with no ✓', async () => {
+    const context = makeDeps({
+      requestJson: async () => ({
+        requestId: 'r1',
+        body: { type: 'error', message: 'folder not empty' },
+      }),
+    });
+
+    const exitCode = await run(
+      ['folder-delete', 'notes/~zod/blog', '4'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('%notes error: folder not empty');
+  });
+});
+
 describe('expectNotesResponse envelope handling', () => {
   it('returns ok/no-change/notebook bodies', () => {
     expect(expectNotesResponse({ body: { type: 'ok' } }).type).toBe('ok');
@@ -513,17 +745,39 @@ describe('expectNotesResponse envelope handling', () => {
     );
   });
 
-  it('converts error/pending and unexpected types into a commandError', () => {
+  it('converts error and pending bodies into a commandError (both modes)', () => {
     expect(() =>
       expectNotesResponse({ body: { type: 'error', message: 'nope' } })
     ).toThrow('%notes error: nope');
     expect(() => expectNotesResponse({ body: { type: 'pending' } })).toThrow(
       'still pending'
     );
+    // error/pending still fail even when bare success is allowed.
+    expect(() =>
+      expectNotesResponse(
+        { body: { type: 'error', message: 'x' } },
+        { allowBareSuccess: true }
+      )
+    ).toThrow('%notes error: x');
+  });
+
+  it('rejects an unexpected present body.type in both modes', () => {
+    // A present envelope body always uses the strict whitelist; api-key is not a
+    // success even for convenience routes.
     expect(() => expectNotesResponse({ body: { type: 'api-key' } })).toThrow(
       'Unexpected %notes response type: api-key'
     );
+    expect(() =>
+      expectNotesResponse(
+        { body: { type: 'api-key' } },
+        { allowBareSuccess: true }
+      )
+    ).toThrow('Unexpected %notes response type: api-key');
+  });
+
+  it('rejects a missing body unless allowBareSuccess is set', () => {
     expect(() => expectNotesResponse({})).toThrow('missing body');
+    expect(expectNotesResponse({}, { allowBareSuccess: true }).type).toBe('ok');
   });
 
   it('surfaces an error-body write as a nonzero exit with no ✓', async () => {

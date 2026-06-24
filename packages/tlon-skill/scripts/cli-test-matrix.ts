@@ -506,6 +506,61 @@ export const NESTED_HELP_CASES: CliCase[] = [
     'Usage: tlon notes note-update'
   ),
   helpCase(
+    'notes note-rename --help',
+    ['notes', 'note-rename', '--help'],
+    'Usage: tlon notes note-rename'
+  ),
+  helpCase(
+    'notes note-move --help',
+    ['notes', 'note-move', '--help'],
+    'Usage: tlon notes note-move'
+  ),
+  helpCase(
+    'notes note-delete --help',
+    ['notes', 'note-delete', '--help'],
+    'Usage: tlon notes note-delete'
+  ),
+  helpCase(
+    'notes history --help',
+    ['notes', 'history', '--help'],
+    'Usage: tlon notes history'
+  ),
+  helpCase(
+    'notes folders --help',
+    ['notes', 'folders', '--help'],
+    'Usage: tlon notes folders'
+  ),
+  helpCase(
+    'notes folder --help',
+    ['notes', 'folder', '--help'],
+    'Usage: tlon notes folder'
+  ),
+  helpCase(
+    'notes folder-create --help',
+    ['notes', 'folder-create', '--help'],
+    'Usage: tlon notes folder-create'
+  ),
+  helpCase(
+    'notes folder-rename --help',
+    ['notes', 'folder-rename', '--help'],
+    'Usage: tlon notes folder-rename'
+  ),
+  helpCase(
+    'notes folder-move --help',
+    ['notes', 'folder-move', '--help'],
+    'Usage: tlon notes folder-move'
+  ),
+  helpCase(
+    'notes folder-delete --help',
+    ['notes', 'folder-delete', '--help'],
+    'Usage: tlon notes folder-delete'
+  ),
+  helpCase(
+    'notes members --help',
+    ['notes', 'members', '--help'],
+    'Usage: tlon notes members'
+  ),
+  helpCase(
     'notes join --help',
     ['notes', 'join', '--help'],
     'Usage: tlon notes join'
@@ -894,6 +949,115 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
     'leave',
     'notes/~zod/blog',
   ]),
+  // Phase C — folders and remaining note ops.
+  usageErrorCase(
+    'notes folder missing id',
+    ['notes', 'folder', 'notes/~zod/blog'],
+    'Usage: tlon notes folder'
+  ),
+  usageErrorCase(
+    'notes folder rejects non-numeric id',
+    ['notes', 'folder', 'notes/~zod/blog', 'abc'],
+    'Invalid folder id: abc'
+  ),
+  usageErrorCase(
+    'notes folder-create missing name',
+    ['notes', 'folder-create', 'notes/~zod/blog'],
+    'Usage: tlon notes folder-create'
+  ),
+  usageErrorCase(
+    'notes folder-create rejects non-numeric parent',
+    ['notes', 'folder-create', 'notes/~zod/blog', 'Drafts', '--parent', 'x'],
+    '--parent requires a numeric value'
+  ),
+  usageErrorCase(
+    'notes folder-rename missing name',
+    ['notes', 'folder-rename', 'notes/~zod/blog', '4'],
+    'Usage: tlon notes folder-rename'
+  ),
+  usageErrorCase(
+    'notes folder-move missing parent',
+    ['notes', 'folder-move', 'notes/~zod/blog', '4'],
+    'Usage: tlon notes folder-move'
+  ),
+  usageErrorCase(
+    'notes note-rename missing title',
+    ['notes', 'note-rename', 'notes/~zod/blog', '12'],
+    'Usage: tlon notes note-rename'
+  ),
+  usageErrorCase(
+    'notes note-move rejects non-numeric folder',
+    ['notes', 'note-move', 'notes/~zod/blog', '12', 'abc'],
+    'Invalid folder id: abc'
+  ),
+  authRequiredCase('notes folders reaches auth', [
+    'notes',
+    'folders',
+    'notes/~zod/blog',
+  ]),
+  authRequiredCase('notes folder reaches auth', [
+    'notes',
+    'folder',
+    'notes/~zod/blog',
+    '3',
+  ]),
+  authRequiredCase('notes folder-create reaches auth', [
+    'notes',
+    'folder-create',
+    'notes/~zod/blog',
+    'Drafts',
+  ]),
+  authRequiredCase('notes folder-rename reaches auth', [
+    'notes',
+    'folder-rename',
+    'notes/~zod/blog',
+    '4',
+    'Archive',
+  ]),
+  authRequiredCase('notes folder-move reaches auth', [
+    'notes',
+    'folder-move',
+    'notes/~zod/blog',
+    '4',
+    '3',
+  ]),
+  authRequiredCase('notes folder-delete reaches auth', [
+    'notes',
+    'folder-delete',
+    'notes/~zod/blog',
+    '4',
+  ]),
+  authRequiredCase('notes note-rename reaches auth', [
+    'notes',
+    'note-rename',
+    'notes/~zod/blog',
+    '12',
+    'New Title',
+  ]),
+  authRequiredCase('notes note-move reaches auth', [
+    'notes',
+    'note-move',
+    'notes/~zod/blog',
+    '12',
+    '3',
+  ]),
+  authRequiredCase('notes note-delete reaches auth', [
+    'notes',
+    'note-delete',
+    'notes/~zod/blog',
+    '12',
+  ]),
+  authRequiredCase('notes history reaches auth', [
+    'notes',
+    'history',
+    'notes/~zod/blog',
+    '12',
+  ]),
+  authRequiredCase('notes members reaches auth', [
+    'notes',
+    'members',
+    'notes/~zod/blog',
+  ]),
 ];
 
 // Every removed diary/notebook entry point refuses locally with DIARY_REMOVED,
@@ -1034,6 +1198,17 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
   { name: 'notes create', args: ['notes', 'create', '--help'] },
   { name: 'notes note-create', args: ['notes', 'note-create', '--help'] },
   { name: 'notes note-update', args: ['notes', 'note-update', '--help'] },
+  { name: 'notes note-rename', args: ['notes', 'note-rename', '--help'] },
+  { name: 'notes note-move', args: ['notes', 'note-move', '--help'] },
+  { name: 'notes note-delete', args: ['notes', 'note-delete', '--help'] },
+  { name: 'notes history', args: ['notes', 'history', '--help'] },
+  { name: 'notes folders', args: ['notes', 'folders', '--help'] },
+  { name: 'notes folder', args: ['notes', 'folder', '--help'] },
+  { name: 'notes folder-create', args: ['notes', 'folder-create', '--help'] },
+  { name: 'notes folder-rename', args: ['notes', 'folder-rename', '--help'] },
+  { name: 'notes folder-move', args: ['notes', 'folder-move', '--help'] },
+  { name: 'notes folder-delete', args: ['notes', 'folder-delete', '--help'] },
+  { name: 'notes members', args: ['notes', 'members', '--help'] },
   { name: 'notes join', args: ['notes', 'join', '--help'] },
   { name: 'notes leave', args: ['notes', 'leave', '--help'] },
 ];
