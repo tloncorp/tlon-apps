@@ -35,6 +35,8 @@ export function NotesTreePane({
   selectedNoteId,
   treeRows,
   onCreate,
+  onCreateFolderInFolder,
+  onCreateNoteInFolder,
   onDeleteFolder,
   onDeleteNote,
   onMoveFolder,
@@ -55,6 +57,8 @@ export function NotesTreePane({
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
   onCreate: () => void;
+  onCreateFolderInFolder: (folder: db.NotesFolder) => void;
+  onCreateNoteInFolder: (folder: db.NotesFolder) => void;
   onDeleteFolder: (folder: db.NotesFolder) => void;
   onDeleteNote: (note: db.NotesNote) => void;
   onMoveFolder: (folder: db.NotesFolder) => void;
@@ -78,6 +82,8 @@ export function NotesTreePane({
       selectedFolderId={selectedFolderId}
       selectedNoteId={selectedNoteId}
       treeRows={treeRows}
+      onCreateFolderInFolder={onCreateFolderInFolder}
+      onCreateNoteInFolder={onCreateNoteInFolder}
       onDeleteFolder={onDeleteFolder}
       onDeleteNote={onDeleteNote}
       onMoveFolder={onMoveFolder}
@@ -161,6 +167,8 @@ function NotesTreeRowsList({
   selectedFolderId,
   selectedNoteId,
   treeRows,
+  onCreateFolderInFolder,
+  onCreateNoteInFolder,
   onDeleteFolder,
   onDeleteNote,
   onMoveFolder,
@@ -176,6 +184,8 @@ function NotesTreeRowsList({
   selectedFolderId: number | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
+  onCreateFolderInFolder: (folder: db.NotesFolder) => void;
+  onCreateNoteInFolder: (folder: db.NotesFolder) => void;
   onDeleteFolder: (folder: db.NotesFolder) => void;
   onDeleteNote: (note: db.NotesNote) => void;
   onMoveFolder: (folder: db.NotesFolder) => void;
@@ -206,6 +216,8 @@ function NotesTreeRowsList({
               noteCount={row.noteCount}
               selected={selectedFolderId === row.folder.folderId}
               onDelete={onDeleteFolder}
+              onCreateFolder={onCreateFolderInFolder}
+              onCreateNote={onCreateNoteInFolder}
               onMove={onMoveFolder}
               onPress={() =>
                 onToggleFolder(row.folder.folderId, row.hasChildren)
