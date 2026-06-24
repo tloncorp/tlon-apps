@@ -53,6 +53,7 @@ import {
   MessageInputProps,
 } from '../MessageInput/MessageInputBase';
 import { hydrateEditPost } from '../MessageInput/helpers';
+import { type SlashCommandController } from '../SlashCommandPopup';
 import type { DraftInputHandle } from '../draftInputs/shared';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import {
@@ -60,6 +61,11 @@ import {
   createMentionRoleOptions,
   useMentions,
 } from './useMentions';
+import {
+  type SlashCommandOption,
+  getActiveCommandLength,
+  useSlashCommands,
+} from './useSlashCommands';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
@@ -171,49 +177,95 @@ function usePasteHandler(addAttachment: (attachment: Attachment) => void) {
   }, [addAttachment]);
 }
 
-interface TextWithMentionsProps {
+interface Decoration {
+  start: number;
+  end: number;
+  kind: 'mention' | 'command';
+  display: string;
+  id: string;
+}
+
+interface TextWithDecorationsProps {
   text: string;
   mentions: Array<{ start: number; end: number; display: string; id: string }>;
+  commandLength?: number | null;
   textColor: string;
 }
 
-function TextWithMentions({
+// Renders the input text with mentions and an optional leading command token
+// highlighted. The command span (when present) always starts at index 0 and a
+// mention can never overlap it — mentions begin at or after the first
+// whitespace, and the command token contains none — so a single sorted walk
+// over both span kinds is unambiguous.
+function TextWithDecorations({
   text,
   mentions,
+  commandLength,
   textColor,
-}: TextWithMentionsProps) {
-  if (!text || mentions.length === 0) {
+}: TextWithDecorationsProps) {
+  const decorations: Decoration[] = mentions.map((mention) => ({
+    start: mention.start,
+    end: mention.end,
+    kind: 'mention',
+    display: mention.display,
+    id: mention.id,
+  }));
+
+  if (commandLength != null && commandLength > 0) {
+    decorations.push({
+      start: 0,
+      end: commandLength,
+      kind: 'command',
+      display: text.slice(0, commandLength),
+      id: 'command',
+    });
+  }
+
+  if (!text || decorations.length === 0) {
     return <RawText color={textColor}>{text}</RawText>;
   }
 
-  const sortedMentions = [...mentions].sort((a, b) => a.start - b.start);
+  const sorted = [...decorations].sort((a, b) => a.start - b.start);
   const textParts: ReactElement[] = [];
 
-  if (sortedMentions[0].start > 0) {
+  if (sorted[0].start > 0) {
     textParts.push(
       <RawText key="text-start" color={textColor}>
-        {text.slice(0, sortedMentions[0].start)}
+        {text.slice(0, sorted[0].start)}
       </RawText>
     );
   }
 
-  sortedMentions.forEach((mention, index) => {
-    textParts.push(
-      <Text
-        key={`mention-${mention.id}-${index}`}
-        testID={`SelectedMention-${mention.id}`}
-        color="$positiveActionText"
-        backgroundColor="$positiveBackground"
-      >
-        {mention.display}
-      </Text>
-    );
+  sorted.forEach((decoration, index) => {
+    if (decoration.kind === 'command') {
+      textParts.push(
+        <Text
+          key={`command-${index}`}
+          testID="SlashCommandToken"
+          color="$primaryText"
+          backgroundColor="$secondaryBackground"
+        >
+          {decoration.display}
+        </Text>
+      );
+    } else {
+      textParts.push(
+        <Text
+          key={`mention-${decoration.id}-${index}`}
+          testID={`SelectedMention-${decoration.id}`}
+          color="$positiveActionText"
+          backgroundColor="$positiveBackground"
+        >
+          {decoration.display}
+        </Text>
+      );
+    }
 
-    const nextStart = sortedMentions[index + 1]?.start ?? text.length;
-    if (mention.end < nextStart) {
+    const nextStart = sorted[index + 1]?.start ?? text.length;
+    if (decoration.end < nextStart) {
       textParts.push(
         <RawText key={`text-${index}`} color={textColor}>
-          {text.slice(mention.end, nextStart)}
+          {text.slice(decoration.end, nextStart)}
         </RawText>
       );
     }
@@ -265,6 +317,7 @@ function BareChatInput(
     shouldAutoFocus,
     showWayfindingTooltip,
     showBotMentionTooltip,
+    slashCommandManifest,
     sendPostFromDraft,
   }: MessageInputProps,
   ref: ForwardedRef<DraftInputHandle>
@@ -308,6 +361,15 @@ function BareChatInput(
     handleMentionEscape,
     resetMentionMode,
   } = useMentions({ chatId: groupId ?? channelId, roleOptions });
+  const {
+    isSlashCommandModeActive,
+    rankedSlashCommands,
+    hasSlashCommandCandidates,
+    handleSlashCommandInput,
+    handleSelectSlashCommand,
+    handleSlashCommandEscape,
+    resetSlashCommandMode,
+  } = useSlashCommands({ manifest: slashCommandManifest });
   const maxInputHeight = useKeyboardHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
 
@@ -358,6 +420,17 @@ function BareChatInput(
 
   const lastProcessedRef = useRef('');
   const mentionRef = useRef<MentionController>(null);
+  const slashCommandRef = useRef<SlashCommandController>(null);
+
+  const getWebSelectionStart = useCallback(() => {
+    if (!isWeb) {
+      return undefined;
+    }
+    const selectionStart = (
+      inputRef.current as (TextInput & { selectionStart?: number }) | null
+    )?.selectionStart;
+    return typeof selectionStart === 'number' ? selectionStart : undefined;
+  }, []);
 
   const handleTextChange = useCallback(
     (newText: string) => {
@@ -373,15 +446,14 @@ function BareChatInput(
       if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
         lastProcessedRef.current = newText;
         const textWithoutRefs = processReferences(newText);
-        const cursorPos = isWeb
-          ? (inputRef.current as any)?.selectionStart
-          : undefined;
+        const cursorPos = getWebSelectionStart();
         const adjustedCursorPos =
           cursorPos != null
             ? Math.max(0, cursorPos - (newText.length - textWithoutRefs.length))
             : undefined;
         setControlledText(textWithoutRefs);
         handleMention(oldText, textWithoutRefs, adjustedCursorPos);
+        handleSlashCommandInput(textWithoutRefs, adjustedCursorPos);
 
         const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
@@ -398,18 +470,25 @@ function BareChatInput(
         }
       } else if (!REF_REGEX.test(newText)) {
         // if there's no reference to process, just update normally
-        const cursorPos = isWeb
-          ? (inputRef.current as any)?.selectionStart
-          : undefined;
+        const cursorPos = getWebSelectionStart();
         setControlledText(newText);
         handleMention(oldText, newText, cursorPos);
+        handleSlashCommandInput(newText, cursorPos);
 
         const jsonContent = textAndMentionsToContent(newText, mentions);
         bareChatInputLogger.log('setting draft', jsonContent);
         storeDraft(jsonContent);
       }
     },
-    [controlledText, processReferences, handleMention, mentions, storeDraft]
+    [
+      controlledText,
+      processReferences,
+      getWebSelectionStart,
+      handleMention,
+      handleSlashCommandInput,
+      mentions,
+      storeDraft,
+    ]
   );
 
   const onMentionSelect = useCallback(
@@ -426,6 +505,49 @@ function BareChatInput(
       inputRef.current?.focus();
     },
     [handleSelectMention, controlledText]
+  );
+
+  const onSlashCommandSelect = useCallback(
+    (option: SlashCommandOption) => {
+      const selection = handleSelectSlashCommand(option, controlledText);
+      const newText = selection.text;
+
+      // The command token sits at index 0 and contains no whitespace, so every
+      // mention starts after it — shift them all by the length delta. The
+      // slice-validity filter is a safety net against any drift.
+      const updatedMentions =
+        selection.delta === 0
+          ? mentions
+          : mentions
+              .map((mention) => ({
+                ...mention,
+                start: mention.start + selection.delta,
+                end: mention.end + selection.delta,
+              }))
+              .filter(
+                (mention) =>
+                  mention.start >= 0 &&
+                  mention.end <= newText.length &&
+                  newText.slice(mention.start, mention.end) === mention.display
+              );
+
+      setControlledText(newText);
+      setMentions(updatedMentions);
+
+      const jsonContent = textAndMentionsToContent(newText, updatedMentions);
+      bareChatInputLogger.log('setting draft', jsonContent);
+      storeDraft(jsonContent);
+
+      // Force focus back to input after slash command selection
+      inputRef.current?.focus();
+    },
+    [
+      handleSelectSlashCommand,
+      controlledText,
+      mentions,
+      setMentions,
+      storeDraft,
+    ]
   );
 
   const sendMessage = useCallback(
@@ -464,6 +586,7 @@ function BareChatInput(
       setInputHeight(initialHeight);
       setEditingPost?.(undefined);
       resetMentionMode();
+      resetSlashCommandMode();
 
       try {
         bareChatInputLogger.log('sending message');
@@ -498,6 +621,7 @@ function BareChatInput(
       setMentions,
       initialHeight,
       resetMentionMode,
+      resetSlashCommandMode,
     ]
   );
 
@@ -809,6 +933,7 @@ function BareChatInput(
     clearAttachments();
     setInputHeight(initialHeight);
     resetMentionMode();
+    resetSlashCommandMode();
     setMentions([]);
   }, [
     setEditingPost,
@@ -816,6 +941,7 @@ function BareChatInput(
     clearAttachments,
     initialHeight,
     resetMentionMode,
+    resetSlashCommandMode,
     setMentions,
   ]);
 
@@ -824,6 +950,15 @@ function BareChatInput(
     placeholderTextColor: getVariableValue(theme.secondaryText),
   };
   const inputTextColor = getVariableValue(theme.primaryText);
+
+  // Highlighting is fully derived from text — no stored spans, no offset
+  // bookkeeping. It lights up immediately on hydrated draft/edit text, even
+  // though that text never re-opens the popup (intentional asymmetry).
+  const commandLength = useMemo(
+    () =>
+      getActiveCommandLength(controlledText, slashCommandManifest?.commands),
+    [controlledText, slashCommandManifest]
+  );
 
   const adjustTextInputSize = (e: any) => {
     if (!isWeb) {
@@ -876,24 +1011,37 @@ function BareChatInput(
         return;
       }
 
-      if (
-        (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') &&
-        isMentionModeActive
-      ) {
-        e.preventDefault();
-        mentionRef.current?.handleMentionKey(keyEvent.key);
+      if (keyEvent.key === 'ArrowUp' || keyEvent.key === 'ArrowDown') {
+        if (isSlashCommandModeActive && hasSlashCommandCandidates) {
+          e.preventDefault();
+          slashCommandRef.current?.handleSlashCommandKey(keyEvent.key);
+          return;
+        }
+        if (isMentionModeActive) {
+          e.preventDefault();
+          mentionRef.current?.handleMentionKey(keyEvent.key);
+          return;
+        }
       }
 
       if (keyEvent.key === 'Escape') {
+        if (isSlashCommandModeActive && hasSlashCommandCandidates) {
+          e.preventDefault();
+          handleSlashCommandEscape();
+          return;
+        }
         if (isMentionModeActive) {
           e.preventDefault();
           handleMentionEscape();
+          return;
         }
       }
 
       if (keyEvent.key === 'Enter' && !keyEvent.shiftKey) {
         e.preventDefault();
-        if (isMentionModeActive && hasMentionCandidates) {
+        if (isSlashCommandModeActive && hasSlashCommandCandidates) {
+          slashCommandRef.current?.handleSlashCommandKey('Enter');
+        } else if (isMentionModeActive && hasMentionCandidates) {
           mentionRef.current?.handleMentionKey('Enter');
         } else if (editingPost) {
           handleEdit();
@@ -904,9 +1052,12 @@ function BareChatInput(
     },
     [
       isMentionModeActive,
+      isSlashCommandModeActive,
       setIsOpen,
       handleMentionEscape,
+      handleSlashCommandEscape,
       hasMentionCandidates,
+      hasSlashCommandCandidates,
       editingPost,
       disableSend,
       handleEdit,
@@ -924,10 +1075,14 @@ function BareChatInput(
       showWayfindingTooltip={showWayfindingTooltip}
       showBotMentionTooltip={showBotMentionTooltip}
       isMentionModeActive={isMentionModeActive}
+      isSlashCommandModeActive={isSlashCommandModeActive}
       mentionText={mentionSearchText}
       mentionOptions={validOptions}
+      slashCommandOptions={rankedSlashCommands}
       mentionRef={mentionRef}
+      slashCommandRef={slashCommandRef}
       onSelectMention={onMentionSelect}
+      onSelectSlashCommand={onSlashCommandSelect}
       showAttachmentButton={showAttachmentButton}
       isEditing={!!editingPost}
       cancelEditing={handleCancelEditing}
@@ -975,42 +1130,46 @@ function BareChatInput(
               ...(isWeb ? placeholderTextColor : {}),
               ...(isWeb ? ({ outlineStyle: 'none' } as any) : {}),
             }}
-            // Hack to prevent @p's getting squiggled on web
-            spellCheck={!mentions.length}
+            // Hack to prevent @p's and command tokens getting squiggled on web
+            spellCheck={!mentions.length && commandLength == null}
           >
             {isWeb ? undefined : (
-              <TextWithMentions
+              <TextWithDecorations
                 text={controlledText}
                 mentions={mentions}
+                commandLength={commandLength}
                 textColor="$primaryText"
               />
             )}
           </TextInput>
-          {isWeb && !!controlledText && mentions.length > 0 && (
-            <View
-              height={inputHeight}
-              position="absolute"
-              top={0}
-              left={0}
-              right={0}
-              pointerEvents="none"
-            >
-              <RawText
-                paddingHorizontal="$l"
-                paddingTop={getTokenValue('$m', 'space') + 3}
-                fontSize="$m"
-                lineHeight={getFontSize('$m') * 1.2}
-                letterSpacing={-0.032}
-                color="$primaryText"
+          {isWeb &&
+            !!controlledText &&
+            (mentions.length > 0 || commandLength != null) && (
+              <View
+                height={inputHeight}
+                position="absolute"
+                top={0}
+                left={0}
+                right={0}
+                pointerEvents="none"
               >
-                <TextWithMentions
-                  text={controlledText}
-                  mentions={mentions}
-                  textColor="transparent"
-                />
-              </RawText>
-            </View>
-          )}
+                <RawText
+                  paddingHorizontal="$l"
+                  paddingTop={getTokenValue('$m', 'space') + 3}
+                  fontSize="$m"
+                  lineHeight={getFontSize('$m') * 1.2}
+                  letterSpacing={-0.032}
+                  color="$primaryText"
+                >
+                  <TextWithDecorations
+                    text={controlledText}
+                    mentions={mentions}
+                    commandLength={commandLength}
+                    textColor="transparent"
+                  />
+                </RawText>
+              </View>
+            )}
         </View>
       </YStack>
     </MessageInputContainer>

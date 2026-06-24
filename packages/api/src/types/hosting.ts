@@ -90,11 +90,17 @@ export interface TlawnProviderModel {
   [key: string]: unknown;
 }
 
+export type BotAgentType = 'openclaw' | 'hermes';
+
 export interface TlawnBotInfo {
   enabled: boolean;
   provider?: string;
   model?: string;
   moon?: string;
+  // Optimistic: the hosting backend will add this field as part of the
+  // OpenClaw/Hermes agent-switch work (TLON-5926). Absent → treated as
+  // 'openclaw' by consumers.
+  agent?: BotAgentType;
 }
 
 export interface TlawnConfig {

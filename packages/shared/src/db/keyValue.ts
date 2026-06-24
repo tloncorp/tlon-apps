@@ -6,7 +6,7 @@ import type {
   StorageService,
 } from '@tloncorp/api/urbit/storage';
 
-import type { Attachment } from '../domain';
+import type { Attachment, BotAgentType } from '../domain';
 import {
   NodeBootPhase,
   OnboardingFlow,
@@ -342,6 +342,19 @@ export const hostingUserId = createStorageItem<string>({
 export const hostingBotEnabled = createStorageItem<boolean>({
   key: 'hostingBotEnabled',
   defaultValue: false,
+});
+
+// Ship-scoped cache of the hosted bot's agent type. Ship scoping is
+// defense-in-depth: clearSessionStorageItems() already resets this on logout,
+// but logout has known race-iness and the sync throttle is in-process memory
+// that survives logout→login. A null or ship-mismatched value is treated as
+// unknown (→ 'openclaw').
+export const hostingBotAgent = createStorageItem<{
+  ship: string;
+  agent: BotAgentType;
+} | null>({
+  key: 'hostingBotAgent',
+  defaultValue: null,
 });
 
 export const nodeAccessCode = createStorageItem<string | null>({

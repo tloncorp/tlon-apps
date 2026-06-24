@@ -25,6 +25,7 @@ import type {
 } from '../types/hosting';
 
 export type {
+  BotAgentType,
   HostingHeartBeatCode,
   TlawnBotInfo,
   TlawnConfig,
