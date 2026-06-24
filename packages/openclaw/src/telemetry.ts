@@ -82,6 +82,14 @@ export type TlonHeartbeatReengagementEvent = {
 };
 
 export type TlonReplyOutcome = 'responded' | 'no_reply' | 'error' | 'abandoned';
+export type TlonDeliverySkipReason =
+  | 'empty'
+  | 'silent'
+  | 'heartbeat'
+  | 'empty_payload_text'
+  | 'block_directive_only'
+  | 'media_only_payload_not_sent'
+  | 'source_reply_delivery_mode_message_tool_only';
 
 export type TlonReplyOutcomeEvent = {
   sessionKey: string;
@@ -113,6 +121,7 @@ export type TlonReplyOutcomeEvent = {
   failedBlockCount: number;
   failedFinalCount: number;
   failedReplyCount: number;
+  deliverySkipReason: TlonDeliverySkipReason | null;
   sourceReplyDeliveryMode: string | null;
   beforeAgentRunBlocked: boolean;
   dispatchError: boolean;
@@ -166,6 +175,7 @@ export type TlonReplyTelemetryResult = {
   queuedFinalCount: number;
   queuedBlockCount: number;
   failedCounts?: ReplyDispatchCounts;
+  deliverySkipReason?: TlonDeliverySkipReason | null;
   sourceReplyDeliveryMode?: string | null;
   beforeAgentRunBlocked?: boolean;
   provider: string | null;
@@ -618,6 +628,23 @@ function resolveReplyOutcome(params: {
     : 'no_reply';
 }
 
+function resolveDeliverySkipReason(params: {
+  outcome: TlonReplyOutcome;
+  deliverySkipReason?: TlonDeliverySkipReason | null;
+  sourceReplyDeliveryMode?: string | null;
+}): TlonDeliverySkipReason | null {
+  if (params.outcome !== 'no_reply') {
+    return null;
+  }
+  if (params.deliverySkipReason) {
+    return params.deliverySkipReason;
+  }
+  if (params.sourceReplyDeliveryMode === 'message_tool_only') {
+    return 'source_reply_delivery_mode_message_tool_only';
+  }
+  return null;
+}
+
 type ActiveReplyTrace = {
   params: TlonReplyTelemetryStart & {
     sessionId: string | null;
@@ -752,6 +779,14 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           activeTrace.params.sessionKey
         );
 
+        const outcome = resolveReplyOutcome({
+          deliveredMessageCount: result.deliveredMessageCount,
+          sendError: sendErrorCount > 0,
+          failedCounts: result.failedCounts,
+          dispatchError: result.dispatchError,
+        });
+        const sourceReplyDeliveryMode = result.sourceReplyDeliveryMode ?? null;
+
         this.captureReplyOutcome({
           sessionKey: activeTrace.params.sessionKey,
           sessionId: sessionContext?.sessionId ?? activeTrace.params.sessionId,
@@ -760,12 +795,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           agentId: activeTrace.params.agentId,
           ownerShip: activeTrace.params.ownerShip,
           botShip: activeTrace.params.botShip,
-          outcome: resolveReplyOutcome({
-            deliveredMessageCount: result.deliveredMessageCount,
-            sendError: sendErrorCount > 0,
-            failedCounts: result.failedCounts,
-            dispatchError: result.dispatchError,
-          }),
+          outcome,
           chatType: activeTrace.params.chatType,
           destinationKind: activeTrace.params.destinationKind,
           isThreadReply: activeTrace.params.isThreadReply,
@@ -788,7 +818,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           failedFinalCount,
           failedReplyCount:
             failedToolCount + failedBlockCount + failedFinalCount,
-          sourceReplyDeliveryMode: result.sourceReplyDeliveryMode ?? null,
+          deliverySkipReason: resolveDeliverySkipReason({
+            outcome,
+            deliverySkipReason: result.deliverySkipReason,
+            sourceReplyDeliveryMode,
+          }),
+          sourceReplyDeliveryMode,
           beforeAgentRunBlocked: result.beforeAgentRunBlocked === true,
           dispatchError: Boolean(result.dispatchError),
           dispatchErrorKind: classifyError(result.dispatchError),
@@ -844,6 +879,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
       failedBlockCount: 0,
       failedFinalCount: 0,
       failedReplyCount: 0,
+      deliverySkipReason: null,
       sourceReplyDeliveryMode: null,
       beforeAgentRunBlocked: false,
       dispatchError: false,
@@ -917,6 +953,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         failedBlockCount: event.failedBlockCount,
         failedFinalCount: event.failedFinalCount,
         failedReplyCount: event.failedReplyCount,
+        deliverySkipReason: event.deliverySkipReason,
         sourceReplyDeliveryMode: event.sourceReplyDeliveryMode,
         beforeAgentRunBlocked: event.beforeAgentRunBlocked,
         dispatchError: event.dispatchError,

@@ -44,6 +44,7 @@ import {
   parseChannelNest,
 } from '../targets.js';
 import {
+  type TlonDeliverySkipReason,
   type TlonPluginErrorSource,
   createTlonTelemetry,
   formatTlonTelemetryErrorText,
@@ -2446,6 +2447,10 @@ export async function monitorTlonProvider(
       let replyCharCount = 0;
       let replyWordCount = 0;
       let replyMediaCount = 0;
+      let deliverySkipReason: TlonDeliverySkipReason | null = null;
+      const recordDeliverySkip = (reason: TlonDeliverySkipReason) => {
+        deliverySkipReason ??= reason;
+      };
 
       const responsePrefix = core.channel.reply.resolveEffectiveMessagesConfig(
         cfg,
@@ -2573,9 +2578,20 @@ export async function monitorTlonProvider(
                 responsePrefix,
                 humanDelay,
                 typingCallbacks,
+                onSkip: (_payload, info) => {
+                  recordDeliverySkip(info.reason);
+                },
                 deliver: async (payload: ReplyPayload) => {
                   let replyText = payload.text;
                   if (!replyText) {
+                    const hasMedia = Array.isArray(payload.mediaUrls)
+                      ? payload.mediaUrls.length > 0
+                      : Boolean(payload.mediaUrl);
+                    recordDeliverySkip(
+                      hasMedia
+                        ? 'media_only_payload_not_sent'
+                        : 'empty_payload_text'
+                    );
                     return;
                   }
 
@@ -2585,6 +2601,7 @@ export async function monitorTlonProvider(
                     senderShip
                   );
                   if (!replyText) {
+                    recordDeliverySkip('block_directive_only');
                     return;
                   } // Response was only a directive
 
@@ -2705,6 +2722,7 @@ export async function monitorTlonProvider(
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
           failedCounts: dispatchResult?.failedCounts,
+          deliverySkipReason,
           sourceReplyDeliveryMode:
             dispatchResult?.sourceReplyDeliveryMode ?? null,
           beforeAgentRunBlocked: dispatchResult?.beforeAgentRunBlocked === true,

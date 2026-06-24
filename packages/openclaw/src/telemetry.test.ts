@@ -68,6 +68,8 @@ describe('telemetry tool tracking', () => {
     sessionKey?: string;
     deliveredMessageCount?: number;
     dispatchError?: unknown;
+    deliverySkipReason?: 'empty' | 'silent' | 'heartbeat';
+    sourceReplyDeliveryMode?: string | null;
   }) {
     const telemetry = createEnabledTelemetry();
     const replyTelemetry = telemetry?.startReply({
@@ -93,7 +95,8 @@ describe('telemetry tool tracking', () => {
       queuedFinalCount: 1,
       queuedBlockCount: 0,
       failedCounts: { tool: 0, block: 0, final: 0 },
-      sourceReplyDeliveryMode: 'automatic',
+      deliverySkipReason: params?.deliverySkipReason ?? null,
+      sourceReplyDeliveryMode: params?.sourceReplyDeliveryMode ?? 'automatic',
       beforeAgentRunBlocked: false,
       provider: 'anthropic',
       model: 'claude-test',
@@ -214,6 +217,32 @@ describe('telemetry tool tracking', () => {
     expect(
       postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.outcome
     ).toBe('error');
+  });
+
+  it('captures delivery skip reason only for no-reply outcomes', async () => {
+    await captureReply({
+      deliveredMessageCount: 0,
+      deliverySkipReason: 'silent',
+    });
+    expect(
+      postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.deliverySkipReason
+    ).toBe('silent');
+
+    await captureReply({
+      deliveredMessageCount: 1,
+      deliverySkipReason: 'silent',
+    });
+    expect(
+      postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.deliverySkipReason
+    ).toBeNull();
+
+    await captureReply({
+      deliveredMessageCount: 0,
+      sourceReplyDeliveryMode: 'message_tool_only',
+    });
+    expect(
+      postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.deliverySkipReason
+    ).toBe('source_reply_delivery_mode_message_tool_only');
   });
 
   it('classifies direct send and dispatcher failures as errors', async () => {
@@ -388,6 +417,7 @@ describe('telemetry tool tracking', () => {
         failedBlockCount: 0,
         failedFinalCount: 0,
         failedReplyCount: 0,
+        deliverySkipReason: null,
         sourceReplyDeliveryMode: 'automatic',
         beforeAgentRunBlocked: false,
         dispatchError: false,
