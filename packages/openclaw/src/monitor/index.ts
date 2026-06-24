@@ -635,7 +635,12 @@ export async function monitorTlonProvider(
     setErrorTelemetryReporter((report) => {
       switch (report.kind) {
         case 'harness':
-          telemetry?.captureHarnessError(report.event);
+          telemetry?.captureHarnessError({
+            ...report.event,
+            accountId: report.event.accountId ?? account.accountId,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip || botShipName,
+          });
           break;
         case 'plugin':
           telemetry?.capturePluginError({

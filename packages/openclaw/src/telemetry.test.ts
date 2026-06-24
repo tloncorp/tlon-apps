@@ -764,7 +764,12 @@ describe('telemetry tool tracking', () => {
     setErrorTelemetryReporter((report) => {
       switch (report.kind) {
         case 'harness':
-          telemetry.captureHarnessError(report.event);
+          telemetry.captureHarnessError({
+            ...report.event,
+            accountId: report.event.accountId ?? 'default',
+            ownerShip: report.event.ownerShip ?? '~zod',
+            botShip: report.event.botShip || '~nec',
+          });
           break;
         case 'plugin':
           telemetry.capturePluginError({
@@ -962,6 +967,42 @@ describe('telemetry tool tracking', () => {
       failureKind: 'connection_reset',
       durationMs: 1234,
       errorText: 'full\nmodel\nerror',
+    });
+  });
+
+  it('reports process-level harness diagnostics without a session key', () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    reportHarnessError({
+      harnessEventType: 'diagnostic.liveness.warning',
+      errorScope: 'runtime',
+      outcome: 'warning',
+      errorCategory: 'liveness_warning',
+      failureKind: 'event_loop_delay',
+      durationMs: 30_000,
+      errorText: 'reasons=event_loop_delay eventLoopDelayP99Ms=250',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties).toMatchObject({
+      harness: 'openclaw',
+      harnessEventType: 'diagnostic.liveness.warning',
+      errorScope: 'runtime',
+      sessionKey: null,
+      sessionId: null,
+      runId: null,
+      accountId: 'default',
+      agentId: null,
+      ownerShip: '~zod',
+      botShip: '~nec',
+      destinationKind: null,
+      outcome: 'warning',
+      errorCategory: 'liveness_warning',
+      failureKind: 'event_loop_delay',
+      durationMs: 30_000,
+      errorText: 'reasons=event_loop_delay eventLoopDelayP99Ms=250',
     });
   });
 

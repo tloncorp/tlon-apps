@@ -274,6 +274,9 @@ export type TlonHarnessErrorScope =
   | 'model'
   | 'tool'
   | 'run'
+  | 'runtime'
+  | 'diagnostics'
+  | 'payload'
   | 'message_delivery'
   | 'message_dispatch'
   | 'message_processing';
@@ -282,14 +285,14 @@ export type TlonHarnessErrorEvent = {
   harness: TlonHarnessName;
   harnessEventType: string;
   errorScope: TlonHarnessErrorScope;
-  sessionKey: string;
+  sessionKey: string | null;
   sessionId: string | null;
   runId: string | null;
   accountId: string | null;
   agentId: string | null;
   ownerShip: string | null;
   botShip: string;
-  destinationKind: TlonDestinationKind;
+  destinationKind: TlonDestinationKind | null;
   provider: string | null;
   model: string | null;
   toolName: string | null;
@@ -1372,7 +1375,11 @@ export type TlonHarnessErrorReportInput = {
   sessionKey?: string | null;
   sessionId?: string | null;
   runId?: string | null;
+  accountId?: string | null;
   agentId?: string | null;
+  ownerShip?: string | null;
+  botShip?: string | null;
+  destinationKind?: TlonDestinationKind | null;
   provider?: string | null;
   model?: string | null;
   toolName?: string | null;
@@ -1506,7 +1513,7 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
         agentId: event.agentId,
       })
     : null;
-  if (!context) {
+  if (!context && event.sessionKey) {
     return;
   }
 
@@ -1516,14 +1523,15 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       harness: 'openclaw',
       harnessEventType: event.harnessEventType,
       errorScope: event.errorScope,
-      sessionKey: context.sessionKey,
-      sessionId: context.sessionId,
-      runId: optionalString(event.runId) ?? context.runId,
-      accountId: context.accountId,
-      agentId: optionalString(event.agentId) ?? context.agentId,
-      ownerShip: context.ownerShip,
-      botShip: context.botShip,
-      destinationKind: context.destinationKind,
+      sessionKey: context?.sessionKey ?? null,
+      sessionId: context?.sessionId ?? optionalString(event.sessionId),
+      runId: optionalString(event.runId) ?? context?.runId ?? null,
+      accountId: context?.accountId ?? optionalString(event.accountId),
+      agentId: optionalString(event.agentId) ?? context?.agentId ?? null,
+      ownerShip: context?.ownerShip ?? optionalString(event.ownerShip),
+      botShip: context?.botShip ?? optionalString(event.botShip) ?? '',
+      destinationKind:
+        context?.destinationKind ?? event.destinationKind ?? null,
       provider: optionalString(event.provider),
       model: optionalString(event.model),
       toolName: optionalString(event.toolName),

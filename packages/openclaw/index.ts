@@ -2,13 +2,20 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineChannelPluginEntry } from 'openclaw/plugin-sdk/core';
+import {
+  type OpenClawPluginApi,
+  defineChannelPluginEntry,
+} from 'openclaw/plugin-sdk/core';
 import {
   onDiagnosticEvent,
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
+import {
+  installTlonDiagnosticSubscriptions,
+  shouldInstallTlonDiagnosticSubscriptions,
+} from './src/diagnostic-subscriptions.js';
 import { sendGatewayStop } from './src/gateway-status.js';
 import {
   createGatewayStatusManager,
@@ -262,6 +269,27 @@ function diagnosticErrorText(event: DiagnosticCandidate): string | null {
   return stringField(event, 'error') ?? stringField(event, 'message');
 }
 
+function stringListField(event: DiagnosticCandidate, key: string): string[] {
+  const value = event[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+    .filter(Boolean);
+}
+
+function diagnosticSummary(
+  parts: Array<[string, string | number | boolean | null | undefined]>
+): string {
+  return parts
+    .filter(
+      ([, value]) => value !== null && value !== undefined && value !== ''
+    )
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(' ');
+}
+
 function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
   const type = stringField(event, 'type');
   if (!type) {
@@ -317,6 +345,32 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
         errorScope: 'model',
       });
       return;
+    case 'model.failover': {
+      const reason = stringField(event, 'reason');
+      const fromProvider = stringField(event, 'fromProvider');
+      const fromModel = stringField(event, 'fromModel');
+      const toProvider = stringField(event, 'toProvider');
+      const toModel = stringField(event, 'toModel');
+      reportHarnessError({
+        ...common,
+        errorScope: 'model',
+        provider: fromProvider,
+        model: fromModel,
+        phase: stringField(event, 'lane'),
+        outcome: 'failover',
+        errorCategory: 'model_failover',
+        failureKind: reason,
+        errorText: diagnosticSummary([
+          ['fromProvider', fromProvider],
+          ['fromModel', fromModel],
+          ['toProvider', toProvider],
+          ['toModel', toModel],
+          ['reason', reason],
+          ['cascadeDepth', numberField(event, 'cascadeDepth')],
+        ]),
+      });
+      return;
+    }
     case 'tool.execution.error':
       reportHarnessError({
         ...common,
@@ -324,6 +378,46 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
         toolName: stringField(event, 'toolName'),
       });
       return;
+    case 'tool.execution.blocked': {
+      const deniedReason = stringField(event, 'deniedReason');
+      const reason = stringField(event, 'reason');
+      reportHarnessError({
+        ...common,
+        errorScope: 'tool',
+        toolName: stringField(event, 'toolName'),
+        phase: stringField(event, 'toolSource'),
+        outcome: 'blocked',
+        errorCategory: 'tool_blocked',
+        failureKind: deniedReason,
+        errorText: reason ?? deniedReason,
+      });
+      return;
+    }
+    case 'tool.loop': {
+      const level = stringField(event, 'level');
+      const action = stringField(event, 'action');
+      if (level !== 'critical' && action !== 'block') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'tool',
+        toolName: stringField(event, 'toolName'),
+        phase: level,
+        outcome: action,
+        errorCategory: 'tool_loop',
+        failureKind: stringField(event, 'detector'),
+        errorText:
+          stringField(event, 'message') ??
+          diagnosticSummary([
+            ['level', level],
+            ['action', action],
+            ['detector', stringField(event, 'detector')],
+            ['count', numberField(event, 'count')],
+          ]),
+      });
+      return;
+    }
     case 'run.completed':
       if (common.outcome === 'completed') {
         return;
@@ -358,6 +452,95 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
         ...common,
         errorScope: 'message_processing',
         phase: stringField(event, 'channel'),
+      });
+      return;
+    case 'diagnostic.async_queue.dropped':
+      reportHarnessError({
+        ...common,
+        errorScope: 'diagnostics',
+        outcome: 'dropped',
+        errorCategory: 'diagnostic_async_queue_dropped',
+        failureKind: 'queue_full',
+        errorText: diagnosticSummary([
+          ['droppedEvents', numberField(event, 'droppedEvents')],
+          ['droppedTrustedEvents', numberField(event, 'droppedTrustedEvents')],
+          [
+            'droppedUntrustedEvents',
+            numberField(event, 'droppedUntrustedEvents'),
+          ],
+          ['queueLength', numberField(event, 'queueLength')],
+          ['maxQueueLength', numberField(event, 'maxQueueLength')],
+        ]),
+      });
+      return;
+    case 'diagnostic.liveness.warning': {
+      const reasons = stringListField(event, 'reasons');
+      reportHarnessError({
+        ...common,
+        errorScope: 'runtime',
+        phase: stringField(event, 'phase'),
+        outcome: 'warning',
+        errorCategory: 'liveness_warning',
+        failureKind: reasons.join(',') || null,
+        durationMs: numberField(event, 'intervalMs'),
+        errorText: diagnosticSummary([
+          ['reasons', reasons.join(',')],
+          ['eventLoopDelayP99Ms', numberField(event, 'eventLoopDelayP99Ms')],
+          ['eventLoopDelayMaxMs', numberField(event, 'eventLoopDelayMaxMs')],
+          ['cpuCoreRatio', numberField(event, 'cpuCoreRatio')],
+          ['active', numberField(event, 'active')],
+          ['waiting', numberField(event, 'waiting')],
+          ['queued', numberField(event, 'queued')],
+        ]),
+      });
+      return;
+    }
+    case 'diagnostic.memory.pressure': {
+      const memory = event.memory as Record<string, unknown> | undefined;
+      const memoryNumber = (key: string) => {
+        const value = memory?.[key];
+        return typeof value === 'number' && Number.isFinite(value)
+          ? value
+          : null;
+      };
+      reportHarnessError({
+        ...common,
+        errorScope: 'runtime',
+        outcome: stringField(event, 'level'),
+        errorCategory: 'memory_pressure',
+        failureKind: stringField(event, 'reason'),
+        durationMs: numberField(event, 'windowMs'),
+        errorText: diagnosticSummary([
+          ['level', stringField(event, 'level')],
+          ['reason', stringField(event, 'reason')],
+          ['rssBytes', memoryNumber('rssBytes')],
+          ['heapUsedBytes', memoryNumber('heapUsedBytes')],
+          ['thresholdBytes', numberField(event, 'thresholdBytes')],
+          ['rssGrowthBytes', numberField(event, 'rssGrowthBytes')],
+        ]),
+      });
+      return;
+    }
+    case 'payload.large':
+      if (stringField(event, 'action') !== 'rejected') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'payload',
+        phase: stringField(event, 'surface'),
+        outcome: 'rejected',
+        errorCategory: 'payload_large',
+        failureKind: stringField(event, 'reason'),
+        errorText: diagnosticSummary([
+          ['surface', stringField(event, 'surface')],
+          ['channel', stringField(event, 'channel')],
+          ['pluginId', stringField(event, 'pluginId')],
+          ['bytes', numberField(event, 'bytes')],
+          ['limitBytes', numberField(event, 'limitBytes')],
+          ['count', numberField(event, 'count')],
+          ['reason', stringField(event, 'reason')],
+        ]),
       });
       return;
   }
@@ -396,6 +579,48 @@ function safeTelemetryObserver(params: {
       );
     }
   }
+}
+
+function installTelemetryDiagnosticObservers(
+  api: OpenClawPluginApi
+): () => void {
+  return installTlonDiagnosticSubscriptions(() => {
+    const unsubscribeDiagnosticEvents = onDiagnosticEvent((event) => {
+      const candidate = event as unknown as { type: string };
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'diagnostic_session',
+        sourceEventName: candidate.type,
+        sessionKey: (candidate as { sessionKey?: string }).sessionKey,
+        sessionId: (candidate as { sessionId?: string }).sessionId,
+        run: () => {
+          if (isTlonSessionDiagnosticEvent(candidate)) {
+            reportSessionDiagnostic(candidate);
+          }
+        },
+      });
+    });
+    const unsubscribeInternalDiagnosticEvents = onInternalDiagnosticEvent(
+      (event) => {
+        const candidate = event as DiagnosticCandidate;
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'diagnostic_internal',
+          sourceEventName: stringField(candidate, 'type'),
+          sessionKey: stringField(candidate, 'sessionKey'),
+          sessionId: stringField(candidate, 'sessionId'),
+          runId: stringField(candidate, 'runId'),
+          agentId: stringField(candidate, 'agentId'),
+          run: () => reportHarnessDiagnostic(candidate),
+        });
+      }
+    );
+
+    return () => {
+      unsubscribeDiagnosticEvents();
+      unsubscribeInternalDiagnosticEvents();
+    };
+  });
 }
 
 export default defineChannelPluginEntry({
@@ -747,49 +972,11 @@ export default defineChannelPluginEntry({
       });
     });
 
-    let diagnosticEventsUnsubscribed = false;
-    const unsubscribeDiagnosticEvents = onDiagnosticEvent((event) => {
-      const candidate = event as unknown as { type: string };
-      safeTelemetryObserver({
-        logger: api.logger,
-        telemetrySource: 'diagnostic_session',
-        sourceEventName: candidate.type,
-        sessionKey: (candidate as { sessionKey?: string }).sessionKey,
-        sessionId: (candidate as { sessionId?: string }).sessionId,
-        run: () => {
-          if (isTlonSessionDiagnosticEvent(candidate)) {
-            reportSessionDiagnostic(candidate);
-          }
-        },
-      });
-    });
-    const unsubscribeInternalDiagnosticEvents = onInternalDiagnosticEvent(
-      (event) => {
-        const candidate = event as DiagnosticCandidate;
-        safeTelemetryObserver({
-          logger: api.logger,
-          telemetrySource: 'diagnostic_internal',
-          sourceEventName: stringField(candidate, 'type'),
-          sessionKey: stringField(candidate, 'sessionKey'),
-          sessionId: stringField(candidate, 'sessionId'),
-          runId: stringField(candidate, 'runId'),
-          agentId: stringField(candidate, 'agentId'),
-          run: () => reportHarnessDiagnostic(candidate),
-        });
-      }
-    );
-    const unsubscribeAllDiagnosticEvents = () => {
-      unsubscribeDiagnosticEvents();
-      unsubscribeInternalDiagnosticEvents();
-    };
-    const unsubscribeDiagnosticEventsOnce = () => {
-      if (diagnosticEventsUnsubscribed) {
-        return;
-      }
-      diagnosticEventsUnsubscribed = true;
-      unsubscribeAllDiagnosticEvents();
-    };
-    api.on('gateway_stop', unsubscribeDiagnosticEventsOnce);
+    if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
+      const unsubscribeDiagnosticEvents =
+        installTelemetryDiagnosticObservers(api);
+      api.on('gateway_stop', unsubscribeDiagnosticEvents);
+    }
 
     // ── Route diagnostics ───────────────────────────────────────────────
     // Fires for every outbound send OpenClaw routes — the primary streamed
