@@ -118,6 +118,24 @@ export const syncInitData = async (
   }
 };
 
+async function joinReadableAutoJoinChannel(
+  channelId: string,
+  groupId: string,
+  ctx?: QueryCtx
+) {
+  const readableUnjoinedChannels = await db.getUnjoinedGroupChannels(
+    groupId,
+    ctx
+  );
+  const canReadChannel = readableUnjoinedChannels.some(
+    (channel) => channel.id === channelId
+  );
+
+  if (canReadChannel) {
+    await db.addJoinedGroupChannel({ channelId }, ctx);
+  }
+}
+
 function initializeJoinedSet({
   channelUnreads,
   groupUnreads,
@@ -1190,7 +1208,25 @@ export async function handleGroupUpdate(
     case 'addChannel': {
       await db.insertChannels([update.channel], ctx);
       if (update.channel.groupId) {
-        await syncGroup(update.channel.groupId, undefined, { force: true });
+        if (update.autoJoinIfReadable) {
+          await joinReadableAutoJoinChannel(
+            update.channel.id,
+            update.channel.groupId,
+            ctx
+          );
+        }
+        try {
+          await syncGroup(update.channel.groupId, undefined, { force: true });
+        } catch (e) {
+          logger.trackError('group sync after channel add failed', e);
+        }
+        if (update.autoJoinIfReadable) {
+          await joinReadableAutoJoinChannel(
+            update.channel.id,
+            update.channel.groupId,
+            ctx
+          );
+        }
         await syncUnreads();
       }
       break;

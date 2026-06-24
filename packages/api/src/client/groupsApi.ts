@@ -1002,6 +1002,7 @@ export type GroupEdit = {
 export type GroupChannelAdd = {
   type: 'addChannel';
   channel: db.Channel;
+  autoJoinIfReadable?: boolean;
 };
 
 export type GroupChannelUpdate = {
@@ -1247,22 +1248,41 @@ export type GroupUpdate =
 export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
-  // Subscribe to v2/groups for all group updates. v2 carries the same
-  // r-group payloads as v1 plus the %active-channel membership deltas for
-  // third-party (e.g. notes) channels; v1 still serves group-response-1 to
-  // agents that blind-cast the canonical r-group stream to v9.
-  subscribe<ub.V1GroupResponse>(
-    { app: 'groups', path: '/v2/groups' },
+  const handleRawGroupsEvent = (
+    rawEvent: ub.V1GroupResponse,
+    shouldHandleUpdate = (_update: GroupUpdate) => true
+  ) => {
+    const update = toV1GroupsUpdate(rawEvent);
+    if (update && shouldHandleUpdate(update)) {
+      eventHandler(update);
+    }
+  };
+
+  // v1/groups is the baseline stream for group updates. Older backends do not
+  // expose /v2/groups, so keep normal r-group updates on v1.
+  void subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v1/groups' },
     (rawEvent) => {
-      const update = toV1GroupsUpdate(rawEvent);
-      if (update) {
-        eventHandler(update);
-      }
+      handleRawGroupsEvent(rawEvent);
     }
   );
 
+  // v2/groups adds active-channel membership deltas for third-party channel
+  // hosts like %notes. It can bad-watch-path on older backends; in that case
+  // v1 still carries normal group updates and init/group sync cover membership.
+  void subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v2/groups' },
+    (rawEvent) => {
+      if ('r-group' in rawEvent && 'active-channel' in rawEvent['r-group']) {
+        handleRawGroupsEvent(rawEvent);
+      }
+    }
+  ).catch((err) => {
+    logger.log('v2 groups subscription unavailable', err);
+  });
+
   // Subscribe to v1/foreigns for foreign group updates
-  subscribe(
+  void subscribe(
     { app: 'groups', path: '/v1/foreigns' },
     (rawEvent: ub.Foreigns) => {
       logger.log('foreignsUpdateEvent', rawEvent);
@@ -1494,6 +1514,7 @@ export const toV1GroupsUpdate = (
           channel: rChannel.add,
           groupId,
         }),
+        autoJoinIfReadable: channelId.startsWith('notes/') && rChannel.add.join,
       };
     }
 
