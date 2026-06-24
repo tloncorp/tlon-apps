@@ -34,6 +34,7 @@ export function NotesDetailScreen(props: Props) {
           title={channel.title ?? ''}
           description={channel.description ?? ''}
           goBack={handleGoBack}
+          hideIdentity
         />
         <NotesNoteDetail
           noteId={noteId}

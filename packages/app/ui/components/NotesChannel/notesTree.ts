@@ -57,6 +57,23 @@ function visitOrphans(
   visited: Set<number>,
   visit: (folder: db.NotesFolder, depth: number) => void
 ) {
+  const hasVisitedAncestor = (folder: db.NotesFolder) => {
+    const seen = new Set<number>();
+    let parentFolderId = folder.parentFolderId ?? null;
+
+    while (parentFolderId !== null) {
+      if (visited.has(parentFolderId)) return true;
+      if (seen.has(parentFolderId)) return false;
+      seen.add(parentFolderId);
+
+      const parent = byId.get(parentFolderId);
+      if (!parent) return false;
+      parentFolderId = parent.parentFolderId ?? null;
+    }
+
+    return false;
+  };
+
   folders
     .filter((folder) => {
       if (visited.has(folder.folderId)) return false;
@@ -65,7 +82,10 @@ function visitOrphans(
     .forEach((folder) => visit(folder, 0));
 
   folders
-    .filter((folder) => !visited.has(folder.folderId))
+    .filter((folder) => {
+      if (visited.has(folder.folderId)) return false;
+      return !hasVisitedAncestor(folder);
+    })
     .forEach((folder) => visit(folder, 0));
 }
 
@@ -253,7 +273,7 @@ export function buildNotesTreeRows({
   visitOrphans(folders, byId, visitedFolderIds, visit);
 
   notes
-    .filter((note) => !renderedNoteIds.has(note.id))
+    .filter((note) => !renderedNoteIds.has(note.id) && !byId.has(note.folderId))
     .sort(compareNotes)
     .forEach((note) => rows.push({ type: 'note', note, depth: 0 }));
 
