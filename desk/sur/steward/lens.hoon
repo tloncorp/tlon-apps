@@ -18,7 +18,7 @@
   ==
 ::  $entry: a run plus its identity, as exposed to observers
 ::
-+$  entry  [bot=ship =id =run]
++$  entry  [[bot=ship =id] =run]
 ::  $state: stored runs keyed by bot ship and run id (owner role)
 ::
 +$  state  (map [bot=ship =id] run)
