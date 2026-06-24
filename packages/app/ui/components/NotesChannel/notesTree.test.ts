@@ -75,6 +75,25 @@ describe('notes tree helpers', () => {
     ).toBe(false);
   });
 
+  test('hides descendants of collapsed folders', () => {
+    const folders = [projects, root, backlog, archive];
+    const notes = [
+      makeNote(1, 1, 'Alpha'),
+      makeNote(2, 2, 'Beta'),
+      makeNote(3, 4, 'Gamma'),
+    ];
+
+    const rows = rowsFor(folders, notes);
+
+    expect(
+      rows.map((row) =>
+        row.type === 'folder'
+          ? `folder:${row.folder.name}:${row.depth}`
+          : `note:${row.note.title}:${row.depth}`
+      )
+    ).toEqual(['folder:Archive:0', 'folder:Projects:0', 'note:Alpha:0']);
+  });
+
   test('searching a folder includes ancestors, descendants, and descendant notes', () => {
     const folders = [root, projects, archive, backlog];
     const notes = [

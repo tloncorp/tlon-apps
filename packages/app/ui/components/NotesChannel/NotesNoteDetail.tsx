@@ -8,14 +8,21 @@ import {
   useMutableCallback,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Text } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import type { ReactNode } from 'react';
+import {
+  AppState,
+  Keyboard,
+  Platform,
+  TouchableWithoutFeedback,
+} from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
 import { createActionGroups } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
+import { ScreenHeader } from '../ScreenHeader';
 import {
   MetadataPill,
   MoveNoteSheet,
@@ -362,25 +369,38 @@ export function NotesNoteDetail({
     setIsPreviewing((previewing) => !previewing);
   }, []);
 
-  const headerActions = useMemo(
+  const headerSaveLabel = getHeaderSaveLabel(saveState);
+  const headerControls = useMemo(
     () =>
-      canEdit && selectedNote ? (
-        <NotesDetailHeaderActions
-          isMoving={isMovingNote}
-          onDelete={handleDeleteSelectedNote}
-          onMove={() => openMoveDialog(selectedNote)}
-        />
+      selectedNote ? (
+        <>
+          <HeaderSaveStatus label={headerSaveLabel} />
+          <NotesPreviewToggle
+            isPreviewing={isPreviewing}
+            onPress={togglePreview}
+          />
+          {canEdit ? (
+            <NotesDetailHeaderActions
+              isMoving={isMovingNote}
+              onDelete={handleDeleteSelectedNote}
+              onMove={() => openMoveDialog(selectedNote)}
+            />
+          ) : null}
+        </>
       ) : null,
     [
       canEdit,
       handleDeleteSelectedNote,
+      headerSaveLabel,
+      isPreviewing,
       isMovingNote,
       openMoveDialog,
       selectedNote,
+      togglePreview,
     ]
   );
   useRegisterChannelHeaderItem(
-    headerActionsPlacement === 'channel-header' ? headerActions : null
+    headerActionsPlacement === 'channel-header' ? headerControls : null
   );
 
   if (noteId === null) {
@@ -402,112 +422,100 @@ export function NotesNoteDetail({
   }
 
   const inlineActions =
-    headerActionsPlacement === 'inline' ? headerActions : null;
+    headerActionsPlacement === 'inline' ? headerControls : null;
 
   return (
     <YStack flex={1} backgroundColor="$background">
       {error ? <NotesBanner message={error} tone="negative" /> : null}
-      <YStack flex={1} width="100%" maxWidth={760} marginHorizontal="auto">
-        <YStack
-          paddingHorizontal="$xl"
-          paddingTop="$l"
-          paddingBottom="$m"
-          gap="$m"
-          borderBottomColor="$border"
-          borderBottomWidth={1}
-        >
-          <XStack alignItems="center" gap="$s">
-            <Input
-              flex={1}
-              width="100%"
-              value={titleDraft}
-              onChangeText={setTitleDraft}
-              placeholder="Untitled"
-              placeholderTextColor="$tertiaryText"
-              fontSize={20}
-              height={34}
-              minHeight={34}
-              fontWeight="600"
-              borderColor="transparent"
-              borderWidth={0}
-              backgroundColor="transparent"
-              paddingHorizontal={0}
-              paddingVertical={0}
-              disabled={!canEdit}
-            />
-            {headerActionsPlacement === 'inline' ? (
-              <NotesPreviewToggle
-                isPreviewing={isPreviewing}
-                onPress={togglePreview}
+      <KeyboardDismissFrame>
+        <YStack flex={1} width="100%" maxWidth={760} marginHorizontal="auto">
+          <YStack
+            paddingHorizontal="$xl"
+            paddingTop="$l"
+            paddingBottom="$m"
+            gap="$m"
+            borderBottomColor="$border"
+            borderBottomWidth={1}
+          >
+            <XStack alignItems="center" gap="$s">
+              <Input
+                flex={1}
+                width="100%"
+                value={titleDraft}
+                onChangeText={setTitleDraft}
+                placeholder="Untitled"
+                placeholderTextColor="$tertiaryText"
+                fontSize={20}
+                height={34}
+                minHeight={34}
+                fontWeight="600"
+                borderColor="transparent"
+                borderWidth={0}
+                backgroundColor="transparent"
+                paddingHorizontal={0}
+                paddingVertical={0}
+                disabled={!canEdit}
               />
-            ) : null}
-            {inlineActions}
-          </XStack>
-          <XStack gap="$s" alignItems="center" flexWrap="wrap">
-            <MetadataPill
-              label={formatNoteDate(selectedNote.updatedAt) ?? 'Unsynced'}
-            />
-            <MetadataPill label={`Rev ${selectedNote.revision}`} />
-            <MetadataPill label="Markdown" icon="Markdown" />
-            <SaveStatus saveState={saveState} isDirty={isDirty} />
-          </XStack>
-        </YStack>
-        <YStack flex={1} minHeight={360} position="relative">
-          {isPreviewing ? (
-            <ScrollView flex={1} testID="NotesPreviewPane">
-              <YStack
+              {inlineActions}
+            </XStack>
+            <XStack gap="$s" alignItems="center" flexWrap="wrap">
+              <MetadataPill
+                label={formatNoteDate(selectedNote.updatedAt) ?? 'Unsynced'}
+              />
+              <MetadataPill label={`Rev ${selectedNote.revision}`} />
+              <MetadataPill label="Markdown" icon="Markdown" />
+            </XStack>
+          </YStack>
+          <YStack flex={1} minHeight={360} position="relative">
+            {isPreviewing ? (
+              <ScrollView flex={1} testID="NotesPreviewPane">
+                <YStack
+                  paddingHorizontal="$xl"
+                  paddingTop="$l"
+                  paddingBottom={128}
+                  gap="$l"
+                >
+                  {previewState.error ? (
+                    <NotesMessage
+                      title="Preview unavailable"
+                      subtitle={previewState.error}
+                    />
+                  ) : previewState.content.length > 0 ? (
+                    <NotebookContentRenderer
+                      content={previewState.content}
+                      testID="NotesPreviewContent"
+                    />
+                  ) : (
+                    <Text size="$body" color="$tertiaryText">
+                      Nothing to preview yet.
+                    </Text>
+                  )}
+                </YStack>
+              </ScrollView>
+            ) : (
+              <TextArea
+                flex={1}
+                minHeight={360}
+                value={bodyDraft}
+                onChangeText={setBodyDraft}
+                placeholder="Note body"
+                placeholderTextColor="$tertiaryText"
+                fontFamily="$mono"
+                fontSize={14}
+                color="$primaryText"
+                backgroundColor="$background"
+                borderWidth={0}
                 paddingHorizontal="$xl"
                 paddingTop="$l"
                 paddingBottom={128}
-                gap="$l"
-              >
-                {previewState.error ? (
-                  <NotesMessage
-                    title="Preview unavailable"
-                    subtitle={previewState.error}
-                  />
-                ) : previewState.content.length > 0 ? (
-                  <NotebookContentRenderer
-                    content={previewState.content}
-                    testID="NotesPreviewContent"
-                  />
-                ) : (
-                  <Text size="$body" color="$tertiaryText">
-                    Nothing to preview yet.
-                  </Text>
-                )}
-              </YStack>
-            </ScrollView>
-          ) : (
-            <TextArea
-              flex={1}
-              minHeight={360}
-              value={bodyDraft}
-              onChangeText={setBodyDraft}
-              placeholder="Note body"
-              placeholderTextColor="$tertiaryText"
-              fontFamily="$mono"
-              fontSize={14}
-              color="$primaryText"
-              backgroundColor="$background"
-              borderWidth={0}
-              paddingHorizontal="$xl"
-              paddingTop="$l"
-              paddingBottom={128}
-              disabled={!canEdit}
-              style={{ lineHeight: 22 }}
-              testID="NotesBodyInput"
-            />
-          )}
-          {headerActionsPlacement === 'inline' ? null : (
-            <NotesPreviewToggle
-              floating
-              isPreviewing={isPreviewing}
-              onPress={togglePreview}
-            />
-          )}
+                disabled={!canEdit}
+                style={{ lineHeight: 22 }}
+                testID="NotesBodyInput"
+              />
+            )}
+          </YStack>
         </YStack>
-      </YStack>
+      </KeyboardDismissFrame>
       <MoveNoteSheet
         folderRows={folderRows}
         isMoving={isMovingNote}
@@ -520,32 +528,54 @@ export function NotesNoteDetail({
   );
 }
 
+function KeyboardDismissFrame({ children }: { children: ReactNode }) {
+  if (Platform.OS === 'web') {
+    return <>{children}</>;
+  }
+
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      {children}
+    </TouchableWithoutFeedback>
+  );
+}
+
 function NotesPreviewToggle({
-  floating = false,
   isPreviewing,
   onPress,
 }: {
-  floating?: boolean;
   isPreviewing: boolean;
   onPress: () => void;
 }) {
+  const label = isPreviewing ? 'Edit note' : 'Preview note';
   return (
-    <Button
-      position={floating ? 'absolute' : undefined}
-      right={floating ? '$xl' : undefined}
-      bottom={floating ? 64 : undefined}
-      zIndex={floating ? 100 : undefined}
-      size="small"
-      fill="outline"
-      type="secondary"
-      backgroundColor="$background"
-      borderColor="$border"
-      leadingIcon={isPreviewing ? 'EditList' : 'EyeOpen'}
-      label={isPreviewing ? 'Edit' : 'Preview'}
-      shadow={floating || undefined}
+    <ScreenHeader.IconButton
+      aria-label={label}
+      color="$primaryText"
       onPress={onPress}
       testID="NotesPreviewToggle"
+      type={isPreviewing ? 'EditList' : 'EyeOpen'}
     />
+  );
+}
+
+function getHeaderSaveLabel(saveState: SaveState) {
+  if (saveState === 'saving') return 'Saving...';
+  if (saveState === 'error') return 'Save failed';
+  return null;
+}
+
+function HeaderSaveStatus({ label }: { label: string | null }) {
+  if (!label) return null;
+  return (
+    <Text
+      size="$label/s"
+      color={label === 'Save failed' ? '$negativeText' : '$secondaryText'}
+      letterSpacing={0}
+      numberOfLines={1}
+    >
+      {label}
+    </Text>
   );
 }
 
@@ -585,33 +615,6 @@ function NotesDetailHeaderActions({
     <NotesOverflowMenu
       groups={groups}
       triggerTestID="NotesDetailActionsTrigger"
-    />
-  );
-}
-
-function SaveStatus({
-  saveState,
-  isDirty,
-}: {
-  saveState: SaveState;
-  isDirty: boolean;
-}) {
-  const label =
-    saveState === 'saving'
-      ? 'Saving'
-      : saveState === 'error'
-        ? 'Save failed'
-        : isDirty || saveState === 'dirty'
-          ? 'Unsaved'
-          : saveState === 'saved'
-            ? 'Saved'
-            : '';
-
-  if (!label) return null;
-  return (
-    <MetadataPill
-      label={label}
-      tone={saveState === 'error' ? 'negative' : isDirty ? 'notice' : 'neutral'}
     />
   );
 }
