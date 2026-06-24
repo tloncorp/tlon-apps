@@ -16,9 +16,11 @@
       received=@da
       payload=json
   ==
+::  $run-key: run record identity
++$  run-key  [bot=ship =id]
 ::  $entry: a run plus its identity, as exposed to observers
 ::
-+$  entry  [bot=ship =id =run]
++$  entry  [run-key =run]
 ::  $state: stored runs keyed by bot ship and run id (owner role)
 ::
 +$  state  (map [bot=ship =id] run)
