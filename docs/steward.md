@@ -29,12 +29,12 @@ State is `state-0`, defined in the app file. Cross-cutting config is top level; 
 
 ```
 state-0
-  owner    (unit ship)                  shared config: bot fans runs out to it / its DMs are watched; ~ = inert
+  owner    (unit ship)                  shared config: bot sends runs to it / its DMs are watched; ~ = inert
   lens     state:v1:lens                 stored lens run records (owner role)
   gateway  state:v1:gateway              harness liveness + auto-reply bookkeeping
 ```
 
-`owner` is shared: the lens module fans runs out to it, and the gateway module treats its DMs as owner activity worth auto-replying to.
+`owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -52,10 +52,10 @@ Makes a bot's run records — trigger, tool calls, timings, output — durable o
 
 One agent, two roles; the same code runs on every ship, and the role is determined by **who poked it** (the `%steward-lens-action-1` ownership gate has already vetted the source — see below):
 
-- **bot ship role** (`src == our`): the local gateway pokes `%steward-lens-action-1` with a run record. `le-poke-action` fans it out to the configured `owner` as a `%steward-lens-action-1` poke. Ames retries until ack, so owner-ship downtime or gateway restarts don't drop finalized runs once poked.
+- **bot ship role** (`src == our`): the local gateway pokes `%steward-lens-action-1` with a run record. `le-poke-action` sends it to the configured `owner` as a `%steward-lens-action-1` poke. Ames retries until ack, so owner-ship downtime or gateway restarts don't drop finalized runs once poked.
 - **owner ship role** (`src` is a moon we sponsor): a bot sent us its run. `le-poke-action` stores it keyed `[bot=src id]`, gives a fact on `/v1/lens`, and answers scries for clients.
 
-A self-owned bot (`owner` equal to `our`) is stored directly during fan-out with no network hop.
+A self-owned bot (`owner` equal to `our`) is stored directly during send with no network hop.
 
 The lens action is a tagged union of three shapes:
 
@@ -148,7 +148,7 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 
 - `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
 - `on-load` tries state `%1` first, then migrates the legacy `%0` (bare-map lens, no cap) by adding the default cap, then resets to bunt on an unreadable state (re-seeding the cap and re-subscribing to `%activity`).
-- Wires: lens fan-out on `/lens/fanout/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
 - `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
 
 ## integration notes
@@ -156,4 +156,4 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 - The gateway (openclaw-tlon / hermes) pokes core `%configure` on monitor activation and `%steward-lens-action-1` run milestones from its run event stream. Lens recording is config-gated on the gateway side (`channels.tlon.contextLens`).
 - Clients store runs locally, subscribe to `/v1/lens` for live updates, and scry on cache miss. The channel post pointer blob carries `botShip` so the client knows which `[bot id]` key to look up.
 - The gateway's HTTP/SSE routes remain an optional desktop enhancement for fine-grained live streaming; `%steward`'s lens module is the durable source of truth.
-- The `%steward-lens-*` marks replace the former `%context-lens-*` marks. There is no separate cross-ship `signal` mark — fan-out reuses `%steward-lens-action-1`, gated by ownership.
+- The `%steward-lens-*` marks replace the former `%context-lens-*` marks. There is no separate cross-ship `signal` mark — sending reuses `%steward-lens-action-1`, gated by ownership.

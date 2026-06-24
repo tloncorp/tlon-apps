@@ -18,7 +18,7 @@
   ==
 ::  $entry: a run plus its identity, as exposed to observers
 ::
-+$  entry  [bot=ship =id =run]
++$  entry  [[bot=ship =id] =run]
 ::  $state-0: legacy lens state (agent state-0) — a bare map of runs, no
 ::  retention config. on-load migrates it into $state with a default cap.
 ::

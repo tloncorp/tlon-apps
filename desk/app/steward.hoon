@@ -11,8 +11,7 @@
 ::    only cross-cutting config (the shared owner).
 ::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
-/-  l=steward-lens
-/-  g=steward-gateway
+/-  sl=steward-lens, sg=steward-gateway
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
@@ -22,20 +21,20 @@
 +$  state-0
   $:  %0
       owner=(unit ship)
-      lens=state-0:v1:l
-      gateway=state:v1:g
+      lens=state-0:v1:sl
+      gateway=state:v1:sg
   ==
 +$  state-1
   $:  %1
       owner=(unit ship)
-      lens=state:v1:l
-      gateway=state:v1:g
+      lens=state:v1:sl
+      gateway=state:v1:sg
   ==
 ::  default cap on first install or state-0 → state-1 migration. generous:
 ::  at ~20KB/run that's ~200MB per bot, within loom budgets. ships wanting
 ::  more or less can poke %steward-lens-action-1 %configure.
 ::
-++  default-max-runs-per-bot  ^-  @ud  10.000
+++  default-max-runs-per-bot  10.000
 --
 =|  state-1
 =*  state  -
@@ -129,12 +128,12 @@
   ::  different src), so it's enforced inside le-poke-action rather than here.
   ::
       %steward-lens-action-1
-    (le-poke-action:le-core !<(action:v1:l vase))
+    (le-poke-action:le-core !<(action:v1:sl vase))
   ::
   ::  gateway liveness: local only (enforced in ga-poke-action).
   ::
       %steward-gateway-action-1
-    (ga-poke-action:ga-core !<(action:v1:g vase))
+    (ga-poke-action:ga-core !<(action:v1:sg vase))
   ==
 ::
 ++  watch
@@ -157,7 +156,7 @@
   |=  [=wire =sign:agent:gall]
   ^+  cor
   ?+  wire  cor
-      [%lens %fanout *]
+      [%lens %send *]
     ?+  -.sign  cor
         %poke-ack
       ?~  p.sign  cor
@@ -181,6 +180,7 @@
       (ga-handle-activity-add:ga-core source.update event.update)
     ::
         %kick
+      ::TODO resubscription loop
       (emit watch-activity)
     ::
         %watch-ack
@@ -208,9 +208,11 @@
 ++  watch-activity
   ^-  card
   [%pass /activity %agent [our.bowl %activity] %watch /v5]
+::  |le-core: lens module
 ::
 ++  le-core
   |%
+  ++  recent-count  50
   ::  retention is count-bounded only; the cap lives in state and is set by
   ::  %configure (default in default-max-runs-per-bot on init / migration).
   ::  No time-based expiry — lens runs are durable memory, not transient logs.
@@ -220,7 +222,7 @@
   ::  misbehaving or compromised gateway can't blow up loom with one poke;
   ::  the gateway-side truncates to ~50KB, this is a hard ceiling.
   ::
-  ++  max-payload-bytes  ^-  @ud  524.288
+  ++  max-payload-bytes  524.288
   ::
   ::  lens-action auth is per-variant, since each shape expects a different
   ::  src:
@@ -233,7 +235,7 @@
   ::    %configure: src=our only.
   ::
   ++  le-poke-action
-    |=  =action:v1:l
+    |=  =action:v1:sl
     ^+  cor
     ?-  -.action
         %entry
@@ -269,14 +271,14 @@
   ::      run; store it keyed by src.bowl so we can serve it to clients.
   ::
   ++  le-handle-entry
-    |=  [=id:v1:l payload=json final=?]
+    |=  [=id:v1:sl payload=json final=?]
     ^+  cor
     ::  drop oversized payloads to keep loom usage bounded
     ?:  (gth (met 3 (jam payload)) max-payload-bytes)
       %-  (slog leaf+"steward: lens payload oversized, dropping" ~)
       cor
     ?:  =(src.bowl our.bowl)
-      (le-fan-out id payload final)
+      (le-send id payload final)
     (le-store src.bowl id payload final)
   ::
   ::  retry: route based on whether we are the targeted bot or the owner-side
@@ -291,19 +293,19 @@
   ::  fresh id and pokes us back via %entry.
   ::
   ++  le-handle-retry
-    |=  [bot=ship =id:v1:l requester=ship]
+    |=  [bot=ship =id:v1:sl requester=ship]
     ^+  cor
     ?:  =(bot our.bowl)
       %+  give  %fact
       :*  ~[/v1/lens]
           %steward-lens-update-1
-          !>(`update:v1:l`[%retry-requested id requester])
+          !>(`update:v1:sl`[%retry-requested id requester])
       ==
     %-  emit
     :^    %pass
         /lens/retry/(scot %p bot)/(scot %t id)
       %agent
-    [[bot %steward] %poke %steward-lens-action-1 !>(`action:v1:l`[%retry bot id])]
+    [[bot %steward] %poke %steward-lens-action-1 !>(`action:v1:sl`[%retry bot id])]
   ::
   ++  le-watch
     |=  =path
@@ -318,28 +320,28 @@
     ^-  (unit (unit cage))
     ?+  path  [~ ~]
         [%v1 %recent ~]
-      ``steward-lens-update-1+!>(`update:v1:l`[%recent (le-recent 50)])
+      ``steward-lens-update-1+!>(`update:v1:sl`[%recent (le-recent recent-count)])
     ::
         [%v1 %recent @ ~]
       =/  parsed  (slaw %ud i.t.t.path)
       ?~  parsed  [~ ~]
-      ``steward-lens-update-1+!>(`update:v1:l`[%recent (le-recent u.parsed)])
+      ``steward-lens-update-1+!>(`update:v1:sl`[%recent (le-recent u.parsed)])
     ::
         [%v1 %since @ ~]
       =/  parsed  (slaw %da i.t.t.path)
       ?~  parsed  [~ ~]
-      ``steward-lens-update-1+!>(`update:v1:l`[%recent (le-since u.parsed)])
+      ``steward-lens-update-1+!>(`update:v1:sl`[%recent (le-since u.parsed)])
     ::
         [%v1 %run @ @ ~]
       =/  parsed-bot  (slaw %p i.t.t.path)
       ?~  parsed-bot  [~ ~]
-      =/  =id:v1:l  i.t.t.t.path
+      =/  =id:v1:sl  i.t.t.t.path
       ?~  r=(~(get by runs.lens.state) [u.parsed-bot id])  [~ ~]
-      ``steward-lens-update-1+!>(`update:v1:l`[%entry u.parsed-bot id u.r])
+      ``steward-lens-update-1+!>(`update:v1:sl`[%entry [u.parsed-bot id] u.r])
     ==
   ::
-  ++  le-fan-out
-    |=  [=id:v1:l payload=json final=?]
+  ++  le-send
+    |=  [=id:v1:sl payload=json final=?]
     ^+  cor
     ?~  owner.state  cor
     ?:  =(u.owner.state our.bowl)
@@ -347,14 +349,14 @@
       (le-store our.bowl id payload final)
     %-  emit
     :^    %pass
-        /lens/fanout/(scot %p u.owner.state)/(scot %t id)
+        /lens/send/(scot %p u.owner.state)/(scot %t id)
       %agent
     :+  [u.owner.state %steward]
       %poke
-    [%steward-lens-action-1 !>(`action:v1:l`[%entry id payload final])]
+    [%steward-lens-action-1 !>(`action:v1:sl`[%entry id payload final])]
   ::
   ++  le-store
-    |=  [bot=ship =id:v1:l payload=json final=?]
+    |=  [bot=ship =id:v1:sl payload=json final=?]
     ^+  cor
     ::  drop late partials once a run is finalized: overwriting would pair
     ::  complete=& with a stale partial payload (and fact it out)
@@ -362,13 +364,13 @@
     =/  prev  (~(get by runs.lens.state) [bot id])
     ?:  &(?=(^ prev) complete.u.prev !final)
       cor
-    =/  =run:v1:l  [final now.bowl payload]
+    =/  =run:v1:sl  [final now.bowl payload]
     =.  runs.lens.state  (~(put by runs.lens.state) [bot id] run)
     =.  cor  (le-prune bot)
     %+  give  %fact
     :*  ~[/v1/lens]
         %steward-lens-update-1
-        !>(`update:v1:l`[%entry bot id run])
+        !>(`update:v1:sl`[%entry [bot id] run])
     ==
   ::
   ::  trim a single bot's records to .max-runs-per-bot, dropping the oldest
@@ -385,11 +387,11 @@
       cor
     =/  sorted
       %+  sort  mine
-      |=  [a=[* =run:v1:l] b=[* =run:v1:l]]
+      |=  [a=[* =run:v1:sl] b=[* =run:v1:sl]]
       (lth received.run.a received.run.b)
     =/  to-drop
       (scag (sub (lent mine) max-runs-per-bot.lens.state) sorted)
-    =/  keys  (turn to-drop |=([k=[bot=ship =id:v1:l] *] k))
+    =/  keys  (turn to-drop |=([k=[bot=ship =id:v1:sl] *] k))
     |-  ^+  cor
     ?~  keys  cor
     =.  runs.lens.state  (~(del by runs.lens.state) i.keys)
@@ -410,36 +412,37 @@
   ::
   ++  le-recent
     |=  count=@ud
-    ^-  (list entry:v1:l)
+    ^-  (list entry:v1:sl)
     =/  sorted
       %+  sort  ~(tap by runs.lens.state)
-      |=  [a=[* =run:v1:l] b=[* =run:v1:l]]
+      |=  [a=[* =run:v1:sl] b=[* =run:v1:sl]]
       (gth received.run.a received.run.b)
     %+  turn  (scag count sorted)
-    |=  [[bot=ship =id:v1:l] =run:v1:l]
-    `entry:v1:l`[bot id run]
+    |=  [[bot=ship =id:v1:sl] =run:v1:sl]
+    `entry:v1:sl`[[bot id] run]
   ::
   ::  every entry with .received >= cutoff, newest first; paginate history by
   ::  passing the oldest .received from the last page
   ::
   ++  le-since
     |=  cutoff=@da
-    ^-  (list entry:v1:l)
+    ^-  (list entry:v1:sl)
     =/  fresh
       %+  skim  ~(tap by runs.lens.state)
-      |=  [* =run:v1:l]
+      |=  [* =run:v1:sl]
       (gte received.run cutoff)
     =/  sorted
       %+  sort  fresh
-      |=  [a=[* =run:v1:l] b=[* =run:v1:l]]
+      |=  [a=[* =run:v1:sl] b=[* =run:v1:sl]]
       (gth received.run.a received.run.b)
     %+  turn  sorted
-    |=  [[bot=ship =id:v1:l] =run:v1:l]
-    `entry:v1:l`[bot id run]
+    |=  [[bot=ship =id:v1:sl] =run:v1:sl]
+    `entry:v1:sl`[[bot id] run]
   --
+::  |ga-core: gateway module
 ::
-::  gateway module: liveness + offline auto-replies. owner is the shared
-::  top-level (unit ship). single-owner: notices/auto-replies target it.
+::  liveness + offline auto-replies. owner is the shared top-level
+::  (unit ship). single-owner: notices/auto-replies target it.
 ::
 ++  ga-core
   |%
@@ -470,11 +473,11 @@
     %+  give  %fact
     :*  ~[/v1/gateway]
         %steward-gateway-update-1
-        !>(`update:v1:g`[%status status.gateway.state lease-until.gateway.state])
+        !>(`update:v1:sg`[%status status.gateway.state lease-until.gateway.state])
     ==
   ::
   ++  ga-give-update
-    |=  =update:v1:g
+    |=  =update:v1:sg
     ^+  cor
     (give %fact ~[/v1/gateway] %steward-gateway-update-1 !>(update))
   ::
@@ -495,7 +498,7 @@
     owner.state
   ::
   ++  ga-poke-action
-    |=  =action:v1:g
+    |=  =action:v1:sg
     ^+  cor
     ?>  =(src.bowl our.bowl)
     ?-  -.action

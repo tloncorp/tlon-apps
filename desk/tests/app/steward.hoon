@@ -148,16 +148,16 @@
     :~  %-  ex-fact
         :*  ~[/v1/lens]
             %steward-lens-update-1
-            !>(`update:v1:l`[%entry moon 'lens-moon' [& ~2024.1.1 payload]])
+            !>(`update:v1:l`[%entry [moon 'lens-moon'] [& ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-moon)
   =+  !<(=update:v1:l q.res)
-  (ex-equal !>(update) !>(`update:v1:l`[%entry moon 'lens-moon' [& ~2024.1.1 payload]]))
+  (ex-equal !>(update) !>(`update:v1:l`[%entry [moon 'lens-moon'] [& ~2024.1.1 payload]]))
 ::
-::  fan-out to a non-self owner emits a %steward-lens-action-1 poke
+::  sending to a non-self owner emits a %steward-lens-action-1 poke
 ::
-++  test-run-final-fans-out-to-owner
+++  test-run-final-sends-to-owner
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -167,7 +167,7 @@
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-1' payload &]))
   %+  ex-cards  caz
   :~  %-  ex-poke
-      :*  /lens/fanout/(scot %p ~bus)/(scot %t 'lens-1')
+      :*  /lens/send/(scot %p ~bus)/(scot %t 'lens-1')
           [~bus %steward]
           %steward-lens-action-1
           !>(`action:v1:l`[%entry 'lens-1' payload &])
@@ -189,12 +189,12 @@
     :~  %-  ex-fact
         :*  ~[/v1/lens]
             %steward-lens-update-1
-            !>(`update:v1:l`[%entry ~dev 'lens-1' [& ~2024.1.1 payload]])
+            !>(`update:v1:l`[%entry [~dev 'lens-1'] [& ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p ~dev)/lens-1)
   =+  !<(=update:v1:l q.res)
-  (ex-equal !>(update) !>(`update:v1:l`[%entry ~dev 'lens-1' [& ~2024.1.1 payload]]))
+  (ex-equal !>(update) !>(`update:v1:l`[%entry [~dev 'lens-1'] [& ~2024.1.1 payload]]))
 ::
 ::  a poke from a sponsored moon is stored keyed by src.bowl (the moon)
 ::
@@ -211,12 +211,12 @@
     :~  %-  ex-fact
         :*  ~[/v1/lens]
             %steward-lens-update-1
-            !>(`update:v1:l`[%entry moon 'lens-2' [| ~2024.1.1 payload]])
+            !>(`update:v1:l`[%entry [moon 'lens-2'] [| ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-2)
   =+  !<(=update:v1:l q.res)
-  (ex-equal !>(update) !>(`update:v1:l`[%entry moon 'lens-2' [| ~2024.1.1 payload]]))
+  (ex-equal !>(update) !>(`update:v1:l`[%entry [moon 'lens-2'] [| ~2024.1.1 payload]]))
 ::
 ::  final=& marks the run complete
 ::
