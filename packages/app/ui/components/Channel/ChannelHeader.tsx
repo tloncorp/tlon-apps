@@ -22,7 +22,9 @@ import { ScreenHeader } from '../ScreenHeader';
 
 export interface ChannelHeaderItemsContextValue {
   registerItem: (options: { item: ReactElement }) => { remove: () => void };
+  setLoadingSubtitle: (subtitle: string | null) => void;
   items: readonly ReactElement[];
+  loadingSubtitle: string | null;
 }
 
 const ChannelHeaderItemsContext =
@@ -44,6 +46,7 @@ export function ChannelHeaderItemsProvider({
   children: ReactElement;
 }) {
   const [items, setItems] = useState<ReactElement[]>([]);
+  const [loadingSubtitle, setLoadingSubtitle] = useState<string | null>(null);
   const registerItem = useCallback(
     ({ item }: { item: ReactElement }) => {
       setItems((prev) => [...prev, item]);
@@ -56,7 +59,9 @@ export function ChannelHeaderItemsProvider({
     [setItems]
   );
   return (
-    <ChannelHeaderItemsContext.Provider value={{ registerItem, items }}>
+    <ChannelHeaderItemsContext.Provider
+      value={{ registerItem, setLoadingSubtitle, items, loadingSubtitle }}
+    >
       {children}
     </ChannelHeaderItemsContext.Provider>
   );
@@ -77,6 +82,20 @@ export function useRegisterChannelHeaderItem(item: ReactElement | null) {
     const { remove } = registerItem({ item });
     return remove;
   }, [registerItem, item]);
+}
+
+export function useRegisterChannelHeaderLoadingSubtitle(
+  loadingSubtitle: string | null
+) {
+  const setLoadingSubtitle = useContext(
+    ChannelHeaderItemsContext
+  )?.setLoadingSubtitle;
+
+  useEffect(() => {
+    if (!setLoadingSubtitle) return;
+    setLoadingSubtitle(loadingSubtitle);
+    return () => setLoadingSubtitle(null);
+  }, [loadingSubtitle, setLoadingSubtitle]);
 }
 
 export function ChannelHeader({
@@ -108,7 +127,7 @@ export function ChannelHeader({
   goToChatDetails?: () => void;
   goToProfile?: () => void;
   showSpinner?: boolean;
-  loadingSubtitle?: string;
+  loadingSubtitle?: string | null;
   hideIdentity?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
@@ -142,7 +161,9 @@ export function ChannelHeader({
     [notesAvailable]
   );
 
-  const contextItems = useContext(ChannelHeaderItemsContext)?.items ?? [];
+  const context = useContext(ChannelHeaderItemsContext);
+  const contextItems = context?.items ?? [];
+  const registeredLoadingSubtitle = context?.loadingSubtitle ?? null;
   const isWindowNarrow = useIsWindowNarrow();
 
   const channelHost = useMemo(() => {
@@ -250,11 +271,19 @@ export function ChannelHeader({
 
   const displayTitle = useDebouncedValue(titleText, 300);
   const displaySubtitle = useDebouncedValue(subtitleText, 300);
-  const headerLoadingSubtitle = showSpinner
-    ? loadingSubtitle
-    : connectionStatus !== 'Connected'
-      ? subtitleText
-      : null;
+  const headerLoadingSubtitle = registeredLoadingSubtitle
+    ? registeredLoadingSubtitle
+    : showSpinner
+      ? loadingSubtitle
+      : connectionStatus !== 'Connected'
+        ? subtitleText
+        : null;
+  const headerTitle =
+    hideIdentity && registeredLoadingSubtitle
+      ? ''
+      : hideIdentity
+        ? null
+        : displayTitle;
 
   const avatarElement = useMemo(() => {
     // For DMs, show the other user's avatar
@@ -326,7 +355,7 @@ export function ChannelHeader({
 
   return (
     <ScreenHeader
-      title={hideIdentity ? null : displayTitle}
+      title={headerTitle}
       titleIcon={
         hideIdentity ? null : (
           <>
@@ -341,7 +370,11 @@ export function ChannelHeader({
       testID="ChannelHeaderTitle"
       showSubtitle={!hideIdentity}
       borderBottom
-      loadingSubtitle={hideIdentity ? null : headerLoadingSubtitle}
+      loadingSubtitle={
+        hideIdentity && !registeredLoadingSubtitle
+          ? null
+          : headerLoadingSubtitle
+      }
       onTitlePress={hideIdentity ? undefined : handleTitlePress}
       useHorizontalTitleLayout={!isWindowNarrow}
       leftControls={goBack && <ScreenHeader.BackButton onPress={goBack} />}
