@@ -22,6 +22,7 @@ import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import {
   type TestFixtures,
   getFixtures,
+  registerEngagingTurn,
   requireFixtureGroup,
   waitFor,
 } from '../lib/index.js';
@@ -160,21 +161,36 @@ describe('blobs', () => {
     const parentMarker = `parent-${transcriptionToken}`;
     await fakeModel.script(key, [{ kind: 'text', content: 'got the reply' }]);
 
-    // Parent post is a thread anchor only — UNTAGGED and NO blob. The
-    // bot will still process it (owner DMs always engage) but that call
-    // hits the fake-model without a [tlon-test:KEY] tag and is recorded
-    // under key=null, so it can't satisfy fakeModel.received(key) below.
-    // This guarantees the assertion is about the REPLY path, not the
-    // parent path.
+    // Parent post is a thread anchor only (NO blob). Owner DMs always engage
+    // the model, so the parent gets its OWN key — otherwise it would inherit
+    // the last [tlon-test:KEY] still in the shared ~ten DM session history and
+    // misroute. A distinct key keeps the assertion about the REPLY path
+    // (`fakeModel.received(key)` below) while not bleeding a foreign key.
+    const parentKey = 'blob-dm-reply-parent';
+    // Unique reply text so we can wait for the bot to actually DELIVER the
+    // parent reply (run completed), not merely start it.
+    const parentAck = `blob-parent-ack-${Date.now().toString(36)}`;
+    const parentTag = await registerEngagingTurn(parentKey, [
+      { kind: 'text', content: parentAck },
+    ]);
     await fixtures.userState.sendPost({
       channelId: fixtures.botShip,
-      content: storyText(parentMarker),
+      content: storyText(`${parentTag} ${parentMarker}`),
     });
     const parent = await findParentPost(
       fixtures.userState,
       fixtures.botShip,
       fixtures.userShip,
       parentMarker
+    );
+    // Wait for the parent RUN to fully settle (bot delivered its reply) before
+    // sending the thread reply, so this stays a harness-correctness test rather
+    // than an I2 concurrency test.
+    await findParentPost(
+      fixtures.userState,
+      fixtures.botShip,
+      fixtures.botShip,
+      parentAck
     );
 
     await fixtures.userState.sendReply({
