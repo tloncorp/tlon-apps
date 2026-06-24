@@ -113,6 +113,7 @@ import {
   tlonDeliveryContext,
 } from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
+import { installTlonStalledSessionPresence } from './stalled-session.js';
 import {
   type ParsedCite,
   extractCites,
@@ -481,6 +482,8 @@ export async function monitorTlonProvider(
     once: true,
   });
 
+  let uninstallStalledSessionPresence: () => void = () => {};
+
   // Outer try/finally wraps everything from slot publication onward.
   // A synchronous throw between slot publication and the inner try
   // (constructor, queue setup, bridge setup, channel discovery, future
@@ -501,6 +504,14 @@ export async function monitorTlonProvider(
       botNickname || botAvatar
         ? { nickname: botNickname || '', avatar: botAvatar || '' }
         : undefined;
+
+    uninstallStalledSessionPresence = installTlonStalledSessionPresence({
+      accountId: account.accountId,
+      abortSignal: opts.abortSignal,
+      botShipName,
+      getBotProfile,
+      runtime,
+    });
 
     // Settings store manager for hot-reloading config
     const settingsManager = createSettingsManager(api, {
@@ -4124,6 +4135,7 @@ export async function monitorTlonProvider(
       // this finally call the helper; whichever runs first wins.
       cleanupGatewayStatus();
       removeBridge(accountKey, commandBridge);
+      uninstallStalledSessionPresence();
       // Await the scheduler drain before flushing persistence queues.
       // `stop()` waits for any in-flight tick to finish so its final
       // `setLocalPendingNudge` / `enqueueStageClear` / etc. writes land
@@ -4148,6 +4160,7 @@ export async function monitorTlonProvider(
     // between slot publication (above) and the inner try (which begins
     // after the helper definitions). Anything that throws before the
     // inner finally can run hits this one. Idempotent via the helper.
+    uninstallStalledSessionPresence();
     cleanupGatewayStatus();
     // Remove the early abort listener so the host's signal does not
     // retain `cleanupGatewayStatus` (which transitively pins
