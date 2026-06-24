@@ -1,5 +1,5 @@
 /-  spider
-/-  g=groups, gv=groups-ver, r=reel
+/-  c=chat, g=groups, gv=groups-ver, r=reel, t=contacts
 /+  *ph-io, *ph-test
 =,  strand=strand:spider
 ::
@@ -81,40 +81,43 @@
       [%'inviterNickname' 'Aqua Zod']
       [%'inviterAvatarImage' 'https://zod.arvo.network/avatar.png']
       [%'inviteType' 'user']
-      [%'invitedGroupId' '']
+      [%'invitedGroupId' '~zod/personal-invite-link']
       [%'bite-type' '2']
   ==
+++  nickname-profile
+  |=  nickname=@t
+  ^-  contact:t
+  %-  ~(gas by *(map @tas value:t))
+  :~  [%nickname text+nickname]
+  ==
+::
+++  poke-app-event
+  |=  [=dock =page]
+  ^-  aqua-event
+  =/  =task:gall
+    [%deal [p.dock p.dock /aqua] q.dock %raw-poke page]
+  [%event p.dock /g/aqua/deal task]
 ::
 ++  scry-reel-bait
-  |=  =ship
-  =/  m  (strand ,[@t @p])
+  |=  her=ship
+  =/  m  (strand ,[vic=cord civ=ship])
   ^-  form:m
-  ;<  =bowl:strand  bind:m  get-bowl
-  =/  aqua-pax
-    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/bait/noun/noun
-  ;<  [bait=(unit [vic=@t civ=@p])]  bind:m
-    (scry-aqua (unit ,[vic=@t civ=@p]) ship aqua-pax)
+  ;<  now=@da  bind:m  get-time
+  ;<  bait=(unit [vic=cord civ=ship])  bind:m
+    %^  scry-aqua  (unit ,[vic=cord civ=ship])
+      her
+    /gx/(scot %p her)/reel/(scot %da now)/v1/bait/noun
   (pure:m (need bait))
-::
-++  scry-reel-service
-  |=  =ship
-  =/  m  (strand @t)
-  ^-  form:m
-  ;<  =bowl:strand  bind:m  get-bowl
-  =/  aqua-pax
-    /gx/(scot %p ship)/reel/(scot %da now.bowl)/v1/service/noun/noun
-  ;<  vic=(unit @t)  bind:m
-    (scry-aqua (unit @t) ship aqua-pax)
-  (pure:m (need vic))
 ::
 ++  generate-lure-invite
   |=  =metadata:v1:r
   =/  m  (strand @t)
   ^-  form:m
-  =+  lure-path=(stab (cat 3 '/v1/id-link/' my-test-group-id))
+  =+  group-id=(~(got by fields.metadata) %'invitedGroupId')
+  =+  lure-path=(stab (cat 3 '/v1/id-link/' group-id))
   ;<  ~  bind:m  (poke-app [~zod %reel] verb+[%volume %info])
   ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] lure-path)
-  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[my-test-group-id metadata])
+  ;<  ~  bind:m  (poke-app [~zod %reel] reel-describe+[group-id metadata])
   ;<  kag=cage  bind:m  (wait-for-app-fact /~zod/reel/v1/id-link [~zod %reel])
   ;<  ~  bind:m  (leave-app /~zod/reel/v1/id-link [~zod %reel])
   ;<  ~  bind:m  (ex-equal !>(p.kag) !>(%json))
@@ -218,18 +221,16 @@
   ;<  ~  bind:m  (redeem-lure-invite ~bud u.cookie lure-invite)
   ::  ~bud receives group invites: one current and one backwards compatible
   ::
-  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
-  ?>  =(%foreigns-1 p.kag)
-  =+  !<(=foreigns:v8:gv q.kag)
-  =+  far=(~(got by foreigns) my-test-flag)
   ;<  ~  bind:m
-    (ex-equal !>((lent invites.far)) !>(1))
-  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/groups/v1/foreigns [~bud %groups])
-  ?>  =(%foreigns-1 p.kag)
-  =+  !<(=foreigns:v8:gv q.kag)
-  =+  far=(~(got by foreigns) my-test-flag)
-  ;<  ~  bind:m
-    (ex-equal !>((lent invites.far)) !>(2))
+    %^  (ex-app-fact-match foreigns:v8:gv)  /~bud/groups/v1/foreigns
+      [~bud %groups]
+    :-  %foreigns-1
+    |=  =foreigns:v8:gv
+    =+  far=(~(got by foreigns) my-test-flag)
+    ?>  ?=(^ invites.far)
+    ;<  ~  bind:m
+      (ex-equal !>((lent invites.far)) !>(1))
+    (ex-equal !>(from.i.invites.far) !>(~zod))
   ::  ~bud receives dm invite
   ::
   ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
@@ -239,7 +240,6 @@
 ++  ph-test-lure-personal
   =/  m  (strand ,~)
   ^-  form:m
-  ::
   ;<  ~  bind:m  (poke-app [~loshut-lonreg %bait] verb+[%volume %info])
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-personal-metadata)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
@@ -248,10 +248,86 @@
   ::  ~bud onboards from hosting through the lure invite.
   ::
   ;<  ~  bind:m  (redeem-lure-invite ~bud u.cookie lure-invite)
-  ::  ~bud receives dm invite
+  ::  ~bud receives dm invite from ~zod
   ::
-  ;<  kag=cage  bind:m  (wait-for-app-fact /~bud/chat/v4 [~bud %chat])
-  ?>  =(%writ-response-4 p.kag)
+  ;<  ~  bind:m
+    %^  (ex-app-fact-match ,[=whom:c resp=response:writs:c])  /~bud/chat/v4
+      [~bud %chat]
+    :-  %writ-response-4
+    |=  [=whom:c resp=response:writs:c]
+    ;<  ~  bind:m
+      (ex-equal !>(whom) !>(`whom:c`[%ship ~zod]))
+    (ex-equal !>(-.response.resp) !>(%add))
+  (pure:m ~)
+::  +ph-test-lure-race-group: check group metadata update race condition
+::
+::  scenario
+::
+::  ~zod hosts a group and starts creating a lure invite. before the bait
+::  provider confirms the lure token, ~zod updates the group title. this
+::  triggers an update to be sent out to the provider, causing the invite
+::  metadata to be updated.
+::
+++  ph-test-lure-race-group
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  create-test-group
+  ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] /v1/id-link/~zod/test-group)
+  =/  describe-event=aqua-event
+    (poke-app-event [~zod %reel] reel-describe+[my-test-group-id lure-group-metadata])
+  =/  =c-groups:g
+    [%group my-test-flag [%meta ['Racing Group' 'Fast racing' '' '']]]
+  =/  group-meta-event=aqua-event
+    (poke-app-event [~zod %groups] group-command+c-groups)
+  ;<  ~  bind:m  (send-events ~[describe-event group-meta-event])
+  ;<  [vic=cord civ=ship]  bind:m  (scry-reel-bait ~zod)
+  ;<  =json  bind:m  (wait-for-app-fact-value json /~zod/reel/v1/id-link [~zod %reel])
+  ?>  ?=(%s -.json)
+  =/  token=token:r  (rsh [3 (met 3 vic)] p.json)
+  ;<  ~  bind:m  (sleep ~s3)
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /gx/~loshut-lonreg/bait/(scot %da now.bowl)/[token]/metadata/noun
+  ;<  metadata=(unit metadata:v1:r)  bind:m
+    (scry-aqua (unit metadata:v1:r) ~loshut-lonreg aqua-pax)
+  =/  metadata=metadata:v1:r  (need metadata)
+  ;<  ~  bind:m
+    (ex-equal !>((~(get by fields.metadata) %'invitedGroupTitle')) !>(`'Racing Group'))
+  ;<  ~  bind:m
+    (ex-equal !>((~(get by fields.metadata) %'invitedGroupDescription')) !>(`'Fast racing'))
+  (pure:m ~)
+::  +ph-test-lure-race-profile: check profile update race condition
+::
+::  scenario
+::
+::  ~zod hosts a group and starts creating a lure invite. before the bait
+::  provider confirms the lure token, ~zod updates his profile nickname,
+::  marking the outstanding lure invite as modified. when confirmation
+::  arrives, ~zod sends out an update to the bait provider.
+::
+++  ph-test-lure-race-profile
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  create-test-group
+  ;<  ~  bind:m  (watch-app /~zod/reel/v1/id-link [~zod %reel] /v1/id-link/~zod/test-group)
+  =/  describe-event=aqua-event
+    (poke-app-event [~zod %reel] reel-describe+[my-test-group-id lure-group-metadata])
+  =/  profile-event=aqua-event
+    (poke-app-event [~zod %contacts] contact-action-1+[%self (nickname-profile 'Racing Driver')])
+  ;<  ~  bind:m  (send-events ~[describe-event profile-event])
+  ;<  [vic=cord civ=ship]  bind:m  (scry-reel-bait ~zod)
+  ;<  =json  bind:m  (wait-for-app-fact-value json /~zod/reel/v1/id-link [~zod %reel])
+  ?>  ?=(%s -.json)
+  =/  token=token:r  (rsh [3 (met 3 vic)] p.json)
+  ;<  ~  bind:m  (sleep ~s3)
+  ;<  =bowl:strand  bind:m  get-bowl
+  =/  aqua-pax
+    /gx/~loshut-lonreg/bait/(scot %da now.bowl)/[token]/metadata/noun
+  ;<  metadata=(unit metadata:v1:r)  bind:m
+    (scry-aqua (unit metadata:v1:r) ~loshut-lonreg aqua-pax)
+  =/  metadata=metadata:v1:r  (need metadata)
+  ;<  ~  bind:m
+    (ex-equal !>((~(get by fields.metadata) %'inviterNickname')) !>(`'Racing Driver'))
   (pure:m ~)
 --
 

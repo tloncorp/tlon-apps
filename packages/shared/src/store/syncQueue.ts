@@ -81,7 +81,7 @@ class SyncQueue {
     this.queue.push(...pendingOperations);
     this.queue.sort((a, b) => {
       if (a.ctx.priority === b.ctx.priority) {
-        return b.addedAt - a.addedAt;
+        return a.addedAt - b.addedAt;
       }
       return b.ctx.priority - a.ctx.priority;
     });
@@ -157,7 +157,7 @@ function logEnqueuedPendingOperations(
   pendingOperations
     .sort((a, b) => {
       if (a.ctx.priority === b.ctx.priority) {
-        return b.addedAt - a.addedAt;
+        return a.addedAt - b.addedAt;
       }
       return b.ctx.priority - a.ctx.priority;
     })

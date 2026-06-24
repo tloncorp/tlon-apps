@@ -61,15 +61,15 @@ const useSplashHider = () => {
 
   useEffect(() => {
     const onComplete = () => {
-      try {
-        withRetry(async () => {
-          await SplashScreen.hideAsync();
-          setSplashHidden(true);
-          splashscreenLogger.trackEvent('Splash screen hidden');
-        });
-      } catch (err) {
+      withRetry(async () => {
+        await SplashScreen.hideAsync();
+        setSplashHidden(true);
+        splashscreenLogger.trackEvent('Splash screen hidden');
+      }).catch((err) => {
+        // withRetry returns a promise; a try/catch around the call can't
+        // observe its rejection
         splashscreenLogger.trackError('Failed to hide splash screen', err);
-      }
+      });
     };
 
     // check if progress completed before mounting

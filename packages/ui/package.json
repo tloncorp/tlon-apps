@@ -54,7 +54,6 @@
   "peerDependencies": {
     "@10play/tentap-editor": "~0.5.21",
     "@urbit/sigil-js": "^2.2.0",
-    "expo-av": "*",
     "expo-blur": "*",
     "expo-haptics": "*",
     "expo-image": "*",

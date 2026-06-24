@@ -31,6 +31,7 @@ interface Config
   pendingAuth: Promise<string | void> | null;
   loggingOut: boolean;
   lastStatus: string;
+  activitySupportsReactions: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -111,6 +112,21 @@ const config: Config = {
   onQuitOrReset: undefined,
   getCode: undefined,
   handleAuthFailure: undefined,
+  // Off until the app confirms the backend's groups version ships reactions.
+  // Drives which %activity endpoint versions the client uses (feed/sub/marks).
+  activitySupportsReactions: false,
+};
+
+// Whether the connected backend supports reaction activity (v9 %activity
+// endpoints). Set by the app from the backend's groups version; read by the
+// activity client to pick endpoint versions. Defaults false so an old backend
+// gets the pre-reaction (v5 feed / v4 subscription / v8 mark) endpoints.
+export const setActivitySupportsReactions = (value: boolean) => {
+  config.activitySupportsReactions = value;
+};
+
+export const getActivitySupportsReactions = (): boolean => {
+  return config.activitySupportsReactions;
 };
 
 export const client = new Proxy(
@@ -313,11 +329,13 @@ export async function subscribe<T>(
     }
 
     config.pendingAuth = reauth();
-    return doSub();
+    // keep the err handler wired so the re-established subscription can
+    // recover from a later auth death the same way the initial one does
+    return doSub(retry);
   };
 
   try {
-    return doSub(retry);
+    return await doSub(retry);
   } catch (err) {
     return retry(err);
   }
@@ -422,9 +440,9 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
   };
 
   try {
-    return doPoke({ onError: retry });
+    return await doPoke({ onError: retry });
   } catch (err) {
-    retry(err);
+    return retry(err);
   }
 }
 
@@ -651,6 +669,30 @@ export async function scry<T>({
       responseStatus: res.status,
     });
     throw new BadResponseError(res.status, res.toString());
+  }
+}
+
+// Authenticated JSON request to an arbitrary ship path (first-class agent
+// HTTP APIs, e.g. the %notes /notes/~/v1 REST surface). Reauths once on 403.
+export async function requestJson<T = any>(
+  path: string,
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
+  body?: unknown
+): Promise<T> {
+  if (!config.client) {
+    throw new Error('Client not initialized');
+  }
+  if (config.pendingAuth) {
+    await config.pendingAuth;
+  }
+  try {
+    return await config.client.requestJson<T>(path, method, body);
+  } catch (res) {
+    if (res?.status === 403) {
+      await reauth();
+      return await config.client.requestJson<T>(path, method, body);
+    }
+    throw new BadResponseError(res?.status ?? 0, String(res));
   }
 }
 

@@ -173,8 +173,8 @@ const _Carousel = React.forwardRef<
               onScroll={handleScroll}
               ref={scrollRef}
               scrollEventThrottle={33}
-              showsVerticalScrollIndicator={scrollDirection !== 'vertical'}
-              showsHorizontalScrollIndicator={scrollDirection !== 'horizontal'}
+              showsVerticalScrollIndicator={scrollDirection === 'vertical'}
+              showsHorizontalScrollIndicator={scrollDirection === 'horizontal'}
               snapToInterval={snapToInterval}
               renderItem={({ item, index }) => (
                 <CarouselItemContext.Provider value={{ index }}>

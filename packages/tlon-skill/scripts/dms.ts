@@ -34,12 +34,17 @@ import {
   printUsageAndExit,
   wantsHelp,
 } from './cli-utils';
-import { type Story, markdownToStory } from './story';
+import {
+  fetchImageVerse,
+  imageFlagIndex,
+  validatedImageFlag,
+} from './image-attach';
+import { type Story, type StoryVerse, markdownToStory } from './story';
 
 const DMS_HELP = `Usage: tlon dms <command>
 
 Commands:
-  send <club-id> <message>        Send a message to a group DM
+  send <club-id> [message]        Send a message to a group DM [--image <url>]
   reply <club-id> <post-id> <msg> Reply in a group DM (post-id must include author)
   react <ship> <post-id> <emoji>  React to a DM (post-id must include author)
   unreact <ship> <post-id>        Remove reaction from a DM (post-id must include author)
@@ -48,7 +53,7 @@ Commands:
   decline <ship>                  Decline a DM invite`;
 
 const DMS_COMMAND_HELP: Record<string, string> = {
-  send: 'Usage: tlon dms send <club-id> <message>',
+  send: 'Usage: tlon dms send <club-id> [message] [--image <url>] (message optional with --image)',
   reply: 'Usage: tlon dms reply <club-id> <post-id> <message>',
   react: 'Usage: tlon dms react <ship> <post-id> <emoji>',
   unreact: 'Usage: tlon dms unreact <ship> <post-id>',
@@ -61,10 +66,19 @@ function getDmsHelp(command?: string): string {
   return command ? DMS_COMMAND_HELP[command] ?? DMS_HELP : DMS_HELP;
 }
 
+function firstDmSendFlagIndex(args: string[]): number {
+  const idx = imageFlagIndex(args);
+  return idx !== -1 ? idx : args.length;
+}
+
+function getDmSendMessage(args: string[]): string {
+  return args.slice(2, firstDmSendFlagIndex(args)).join(' ');
+}
+
 function isDmsMessageHelpLiteral(args: string[]): boolean {
   const command = args[0];
   if (command === 'send') {
-    return !!args[1] && wantsHelp(args.slice(2));
+    return !!args[1] && wantsHelp(args.slice(2, firstDmSendFlagIndex(args)));
   }
   if (command === 'reply') {
     return !!args[1] && !!args[2] && wantsHelp(args.slice(3));
@@ -81,8 +95,11 @@ function validateDmsArgs(args: string[]): void {
   switch (command) {
     case 'send': {
       const clubId = args[1];
-      const message = args.slice(2).join(' ');
-      if (!clubId || !message) printUsageAndExit(DMS_COMMAND_HELP.send);
+      const message = getDmSendMessage(args);
+      const image = validatedImageFlag(args, DMS_COMMAND_HELP.send);
+      if (!clubId || (!message && !image)) {
+        printUsageAndExit(DMS_COMMAND_HELP.send);
+      }
       if (!isClub(clubId)) {
         printErrorAndExit(
           'send only supports group DMs (club IDs starting with 0v)'
@@ -142,11 +159,16 @@ function parsePostId(postId: string): { id: string; authorId?: string } {
 // Send a message to a group DM (club)
 async function sendClubMessage(
   clubId: string,
-  message: string
+  message: string,
+  imageVerse?: StoryVerse
 ): Promise<{ success: boolean; postId?: string; error?: string }> {
   const authorId = getCurrentUserId();
   const sentAt = Date.now();
-  const content = parseContent(message);
+  // Image block first, caption after — matches app attachment posts.
+  const content: Story = [
+    ...(imageVerse ? [imageVerse] : []),
+    ...(message ? parseContent(message) : []),
+  ];
 
   try {
     await sendPost({
@@ -337,8 +359,9 @@ async function main() {
   switch (command) {
     case 'send': {
       const clubId = args[1];
-      const message = args.slice(2).join(' ');
-      if (!clubId || !message) {
+      const message = getDmSendMessage(args);
+      const imageUrl = validatedImageFlag(args, DMS_COMMAND_HELP.send);
+      if (!clubId || (!message && !imageUrl)) {
         printUsageAndExit(DMS_COMMAND_HELP.send);
       }
       if (!isClub(clubId)) {
@@ -346,7 +369,15 @@ async function main() {
           'send only supports group DMs (club IDs starting with 0v)'
         );
       }
-      const result = await sendClubMessage(clubId, message);
+      let imageVerse: StoryVerse | undefined;
+      if (imageUrl) {
+        try {
+          imageVerse = await fetchImageVerse(imageUrl);
+        } catch (error: any) {
+          printErrorAndExit(error.message);
+        }
+      }
+      const result = await sendClubMessage(clubId, message, imageVerse);
       if (result.success) {
         console.log('✓ Message sent!');
       } else {

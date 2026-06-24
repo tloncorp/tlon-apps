@@ -28,7 +28,6 @@ import {
   inArray,
   isNotNull,
   isNull,
-  like,
   lt,
   lte,
   max,
@@ -2686,74 +2685,6 @@ export const getChannelNavSection = createReadQuery(
   ['groupNavSectionChannels']
 );
 
-/* This sets which channels the current user is a member of, which is what we key off of
-when determining channels to show in the UI. There's no direct setting for this on
-the backend. Instead we look at two things:
-   1) do you have an unreads entry for the channel?
-   2) if you do, do you have read permissions for it?
-    Read permissions are stored as an array of roles. If the array is empty, anyone
-    can read the channel. If it's not empty, we check to make sure the user has one of the
-    reader roles.
-*/
-export const setJoinedGroupChannels = createWriteQuery(
-  'setJoinedGroupChannels',
-  async ({ channelIds }: { channelIds: string[] }, ctx: QueryCtx) => {
-    const currentUserId = getCurrentUserId();
-    if (channelIds.length === 0) return;
-
-    const channels = await ctx.db.query.channels.findMany({
-      with: {
-        readerRoles: true,
-        group: {
-          with: {
-            roles: {
-              with: {
-                members: true,
-              },
-            },
-          },
-        },
-      },
-    });
-    const channelsIndex = new Map<string, Channel>();
-    for (const channel of channels) {
-      channelsIndex.set(channel.id, channel);
-    }
-
-    const channelsWhereMember = channelIds.filter((id) => {
-      const channel = channelsIndex.get(id);
-      const isOpenChannel = channel?.readerRoles?.length === 0;
-
-      const userRolesForGroup =
-        channel?.group?.roles
-          ?.filter((role) =>
-            role.members?.map((m) => m.contactId).includes(currentUserId)
-          )
-          .map((role) => role.id) ?? [];
-
-      const isClosedButCanRead = channel?.readerRoles
-        ?.map((r) => r.roleId)
-        .some((r) => userRolesForGroup.includes(r));
-      return isOpenChannel || isClosedButCanRead;
-    });
-    if (channelsWhereMember.length) {
-      logger.log('setJoinedGroupChannels', channelIds);
-      return await ctx.db
-        .update($channels)
-        .set({
-          currentUserIsMember: true,
-        })
-        .where(
-          and(
-            inArray($channels.id, channelsWhereMember),
-            isNotNull($channels.groupId)
-          )
-        );
-    }
-  },
-  ['channels']
-);
-
 export const addJoinedGroupChannel = createWriteQuery(
   'addJoinedGroupChannel',
   async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
@@ -2799,46 +2730,34 @@ export const removeJoinedGroupChannel = createWriteQuery(
   ['channels']
 );
 
-export const setLeftGroupChannels = createWriteQuery(
-  'setLeftGroupChannels',
+// Single source of truth for group-channel membership. %groups tracks our
+// membership in every group's active-channels set, across all channel kinds —
+// first-party chat/diary/heap and third-party (e.g. notes) alike.
+// joinedChannelIds is the union of those sets. We mark those channels joined
+// and every other group channel left, so this two-way reconcile handles join,
+// leave, revoke, and re-gain in one pass.
+export const reconcileJoinedGroupChannels = createWriteQuery(
+  'reconcileJoinedGroupChannels',
   async (
     { joinedChannelIds }: { joinedChannelIds: string[] },
     ctx: QueryCtx
   ) => {
-    // notes channels aren't tracked by %channels, so they never appear
-    // in joinedChannelIds. Force them joined here (idempotent) so they aren't
-    // flipped to currentUserIsMember=false, and so previously-broken rows get
-    // repaired on next init.
-    const notesChannel = like($channels.id, 'notes/%');
-    await ctx.db
-      .update($channels)
-      .set({ currentUserIsMember: true })
-      .where(and(isNotNull($channels.groupId), notesChannel));
-
-    const notNotesChannel = not(notesChannel);
-    if (joinedChannelIds.length === 0) {
-      return await ctx.db
+    if (joinedChannelIds.length) {
+      await ctx.db
         .update($channels)
-        .set({ currentUserIsMember: false })
-        .where(
-          and(
-            isNotNull($channels.groupId),
-            eq($channels.currentUserIsMember, true),
-            notNotesChannel
-          )
-        );
+        .set({ currentUserIsMember: true })
+        .where(inArray($channels.id, joinedChannelIds));
     }
     return await ctx.db
       .update($channels)
-      .set({
-        currentUserIsMember: false,
-      })
+      .set({ currentUserIsMember: false })
       .where(
         and(
-          notInArray($channels.id, joinedChannelIds),
           isNotNull($channels.groupId),
           eq($channels.currentUserIsMember, true),
-          notNotesChannel
+          joinedChannelIds.length
+            ? notInArray($channels.id, joinedChannelIds)
+            : undefined
         )
       );
   },
@@ -3333,11 +3252,14 @@ export const getChannelPostsAround = createReadQuery(
       throw new Error('Reference post not found');
     }
 
-    const sentAt = referencePost.sentAt;
+    const receivedAt = referencePost.receivedAt;
 
     // Get before posts
     const beforePosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), lt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [desc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -3352,7 +3274,10 @@ export const getChannelPostsAround = createReadQuery(
 
     // Get after posts
     const afterPosts = await ctx.db.query.posts.findMany({
-      where: and(eq($posts.channelId, channelId), gt($posts.sentAt, sentAt!)),
+      where: and(
+        eq($posts.channelId, channelId),
+        gt($posts.receivedAt, receivedAt!)
+      ),
       orderBy: [asc($posts.receivedAt)],
       limit: 25,
       with: {
@@ -5331,6 +5256,18 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                 and(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
+                ),
+                // reacts don't bump an unread count (unreads=|), so gate on the
+                // source's notify flag instead: a notified react lights the bell
+                // and clears once the source is read (notify -> false), mirroring
+                // how posts clear via channelUnreads.count. reply reacts carry the
+                // notify bit on the thread, top-level reacts on the channel/dm.
+                and(
+                  eq($activityEvents.type, 'react'),
+                  or(
+                    eq($channelUnreads.notify, true),
+                    eq($threadUnreads.notify, true)
+                  )
                 ),
                 and(
                   gt($groupUnreads.notifyCount, 0),

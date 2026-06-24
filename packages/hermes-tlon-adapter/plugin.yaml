@@ -1,0 +1,203 @@
+name: tlon-platform
+label: Tlon
+kind: platform
+version: 0.13.0
+description: >
+  Tlon Messenger platform adapter for Hermes Agent. Reads inbound messages from
+  an authenticated Eyre SSE channel and sends replies through the
+  @tloncorp/tlon-skill CLI.
+author: tloncorp
+provides_tools:
+  - tlon
+  - image_search
+provides_hooks:
+  - pre_tool_call
+  - post_tool_call
+  - post_api_request
+requires_env:
+  - name: TLON_NODE_URL
+    description: 'Node URL, for example https://sampel-palnet.tlon.network'
+    prompt: 'Tlon node URL'
+    password: false
+  - name: TLON_NODE_ID
+    description: 'Node ID, for example ~sampel-palnet'
+    prompt: 'Tlon node ID'
+    password: false
+  - name: TLON_ACCESS_CODE
+    description: 'Access code for Eyre authentication'
+    prompt: 'Tlon access code'
+    password: true
+  - name: TLON_OWNER_SHIP
+    description:
+      'Explicit owner ship; required for access control, owner-only tools,
+      home-channel defaults, and gateway status'
+    prompt: 'Owner ship'
+    password: false
+optional_env:
+  - name: TLON_CHANNELS
+    description:
+      'Comma-separated channel nests to monitor, for example chat/~host/general'
+    prompt: 'Tlon channels'
+    password: false
+  - name: TLON_AUTO_DISCOVER
+    description:
+      'Auto-watch chat/heap channels seen on the firehose (true/false)'
+    prompt: 'Auto-discover channels?'
+    password: false
+  - name: TLON_ALLOWED_USERS
+    description:
+      'Comma-separated ships allowed to interact (access is deny-by-default;
+      unknown ships queue for owner approval)'
+    prompt: 'Allowed ships'
+    password: false
+  - name: TLON_ALLOW_ALL_USERS
+    description: 'Allow any ship to interact (dev only)'
+    prompt: 'Allow all ships?'
+    password: false
+  - name: TLON_DM_ALLOWLIST
+    description: 'Comma-separated ships allowed to DM'
+    prompt: 'Allowed DM ships'
+    password: false
+  - name: TLON_GROUP_INVITE_ALLOWLIST
+    description:
+      'Comma-separated ships whose group invites auto-accept (others queue for
+      owner approval); %settings groupInviteAllowlist overrides'
+    prompt: 'Auto-accept group inviters'
+    password: false
+  - name: TLON_HOME_CHANNEL
+    description:
+      'Optional home channel/DM for cron and standalone delivery; defaults to
+      TLON_OWNER_SHIP'
+    prompt: 'Home channel'
+    password: false
+  - name: TLON_BOT_MENTIONS
+    description:
+      'Extra comma-separated aliases that trigger group-channel replies'
+    prompt: 'Bot mention aliases'
+    password: false
+  - name: TLON_FREE_RESPONSE_CHANNELS
+    description:
+      'Comma-separated channel nests where allowed users can trigger replies
+      without mentioning the bot'
+    prompt: 'Free-response channels'
+    password: false
+  - name: TLON_REPLY_IN_THREAD
+    description:
+      'Group replies start a thread on the triggering message instead of posting
+      top-level (true/false, default false); existing threads are always
+      continued in-thread'
+    prompt: 'Thread group replies?'
+    password: false
+  - name: TLON_REQUIRE_MENTION
+    description:
+      'Require bot mention/name wake in monitored group channels unless
+      free-response is configured (true/false)'
+    prompt: 'Require group mentions?'
+    password: false
+  - name: TLON_KNOWN_BOT_USERS
+    description:
+      'Comma-separated bot ships subject to group-channel loop protection'
+    prompt: 'Known bot ships'
+    password: false
+  - name: TLON_MAX_CONSECUTIVE_BOT_RESPONSES
+    description:
+      'Maximum consecutive group dispatch attempts from known bot ships before
+      dropping (default: 2)'
+    prompt: 'Known-bot response cap'
+    password: false
+  - name: TLON_OWNER_LISTEN
+    description:
+      'Hear the owner without a mention in owner/bot-hosted channels
+      (true/false, default true); %settings store overrides this'
+    prompt: 'Owner-listen?'
+    password: false
+  - name: TLON_OWNER_LISTEN_DEFAULT
+    description:
+      'Owner-listen default scope: owned (owner/bot-hosted channels) or all
+      monitored channels; %settings ownerListenDefault overrides'
+    prompt: 'Owner-listen default (owned|all)'
+    password: false
+  - name: TLON_OWNER_LISTEN_DISABLED_CHANNELS
+    description:
+      'Comma-separated owned channel nests muted for owner-listen (default seed;
+      %settings store overrides)'
+    prompt: 'Owner-listen muted channels'
+    password: false
+  - name: TLON_OWNER_LISTEN_ENABLED_CHANNELS
+    description:
+      'Comma-separated non-owned channel nests opted into owner-listen (default
+      seed; %settings store overrides)'
+    prompt: 'Owner-listen opt-in channels'
+    password: false
+  - name: TLON_CONTEXT_MESSAGES
+    description:
+      'Recent channel/thread messages prepended as context on group dispatch
+      (default: 20, 0 disables)'
+    prompt: 'Group context messages'
+    password: false
+  - name: TLON_TELEMETRY
+    description:
+      'Enable opt-in PostHog telemetry (true/false, default false); requires
+      TLON_TELEMETRY_API_KEY'
+    prompt: 'Enable telemetry?'
+    password: false
+  - name: TLON_TELEMETRY_API_KEY
+    description: 'PostHog project API key for telemetry'
+    prompt: 'PostHog API key'
+    password: true
+  - name: TLON_TELEMETRY_HOST
+    description: 'PostHog host override (defaults to PostHog US cloud)'
+    prompt: 'PostHog host'
+    password: false
+  - name: TLON_TELEMETRY_DEBUG
+    description:
+      'Verbose telemetry logging: per-event capture logs plus PostHog SDK
+      internals (true/false)'
+    prompt: 'Telemetry debug logs?'
+    password: false
+  - name: TLON_CLI
+    description: 'Path/name for the tlon CLI (default: tlon)'
+    prompt: 'tlon CLI'
+    password: false
+  - name: TLON_SSE_READ_TIMEOUT_SECONDS
+    description:
+      'Seconds without SSE bytes before reconnecting the Eyre channel (default:
+      60)'
+    prompt: 'SSE read timeout'
+    password: false
+  - name: TLON_HOSTING
+    description:
+      'Force the hosted (memex) image-upload path (true/false). Needed for
+      connections that reach their node over localhost/proxy, where URL-based
+      hosting detection fails. Leave unset for normal node-URL detection.'
+    prompt: 'Force hosted uploads?'
+    password: false
+  - name: TLON_SKILL_PATH
+    description:
+      'Optional path to @tloncorp/tlon-skill/SKILL.md for explicit plugin-skill
+      registration'
+    prompt: 'Tlon skill path'
+    password: false
+  - name: TLON_GATEWAY_STATUS
+    description:
+      'Enable %gateway-status start/heartbeat/stop pokes (true/false)'
+    prompt: 'Gateway status heartbeat?'
+    password: false
+  - name: TLON_GATEWAY_STATUS_OWNER
+    description:
+      'Optional owner ship override for %gateway-status offline replies;
+      defaults to TLON_OWNER_SHIP'
+    prompt: 'Gateway status owner'
+    password: false
+  - name: BRAVE_SEARCH_API_KEY
+    description:
+      'Brave Search API key; enables Hermes web_search in dev and the
+      plugin-owned image_search tool'
+    prompt: 'Brave Search API key'
+    password: true
+  - name: BRAVE_API_KEY
+    description:
+      'Older OpenClaw-style Brave API key alias accepted by the dev flow and
+      image_search tool'
+    prompt: 'Brave API key'
+    password: true

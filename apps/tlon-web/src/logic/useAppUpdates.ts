@@ -65,7 +65,8 @@ export default function useAppUpdates() {
       } else if (initialHash !== pike.hash && !needsUpdate) {
         // wait 5 minutes before showing the update prompt in case there
         // are multiple updates in quick succession
-        setTimeout(() => setNeedsUpdate(true), 5 * 60 * 1000);
+        const timeout = setTimeout(() => setNeedsUpdate(true), 5 * 60 * 1000);
+        return () => clearTimeout(timeout);
       }
     }
   }, [pike, initialHash, needsUpdate]);

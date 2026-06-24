@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
 import { isValidUrl, jsonFetch } from '@tloncorp/api/lib/utils';
-import { useCallback } from 'react';
 
 const OEMBED_PROVIDER = 'https://noembed.com/embed';
 
@@ -82,14 +80,4 @@ export async function fetchEmbed(inputUrl: string, isMobile?: boolean) {
 
   // For other providers (none at the moment), we fall back to noembed
   return jsonFetch(`${OEMBED_PROVIDER}?${search.toString()}`);
-}
-
-export function useEmbed(url: string, isMobile?: boolean) {
-  const queryFn = useCallback(() => fetchEmbed(url, isMobile), [url, isMobile]);
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['embed', url],
-    queryFn,
-  });
-
-  return { embed: (data as any) || null, isLoading, isError, error };
 }

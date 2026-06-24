@@ -34,8 +34,12 @@ jobs:
         run: echo "gitHash=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Build packages
         run: pnpm build:all
+        env:
+          VITE_GIT_HASH: ${{ steps.gitHash.outputs.gitHash }}
       - working-directory: ./apps/tlon-web
         run: pnpm build
+        env:
+          VITE_GIT_HASH: ${{ steps.gitHash.outputs.gitHash }}
       - uses: actions/upload-artifact@v4
         with:
           name: "ui-dist"
@@ -49,7 +53,6 @@ jobs:
       VITE_INVITE_SERVICE_ENDPOINT: ${{ secrets.VITE_INVITE_SERVICE_ENDPOINT}}
       VITE_POST_HOG_API_KEY: ${{ secrets.VITE_POST_HOG_API_KEY}}
       VITE_OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY}}
-      VITE_GIT_HASH: ${{ steps.gitHash.outputs.gitHash }}
       NODE_OPTIONS: --max-old-space-size=6144
   glob:
     runs-on: ubuntu-latest
@@ -71,6 +74,7 @@ jobs:
       - name: "Set up Cloud SDK"
         uses: "google-github-actions/setup-gcloud@v1"
       - name: "glob"
+        id: "glob"
         uses: ./.github/actions/glob
         with:
           folder: "apps/tlon-web/dist/*"
