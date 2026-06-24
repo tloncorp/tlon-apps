@@ -278,12 +278,7 @@ export function ChannelHeader({
       : connectionStatus !== 'Connected'
         ? subtitleText
         : null;
-  const headerTitle =
-    hideIdentity && registeredLoadingSubtitle
-      ? ''
-      : hideIdentity
-        ? null
-        : displayTitle;
+  const headerTitle = displayTitle;
 
   const avatarElement = useMemo(() => {
     // For DMs, show the other user's avatar
