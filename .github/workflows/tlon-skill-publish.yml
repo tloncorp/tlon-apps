@@ -207,9 +207,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Trusted publishing requires npm >= 11.5.1. Use Node 24 for the publish
+      # job so npm provenance/OIDC support is present even if .nvmrc changes.
       - uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
       - uses: oven-sh/setup-bun@v2
