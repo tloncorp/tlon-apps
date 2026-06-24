@@ -4,6 +4,7 @@ import {
   isDmChannelId,
   isGroupDmChannelId,
 } from '@tloncorp/api/client/apiUtils';
+import { getCurrentUserId } from '@tloncorp/api/client/urbit';
 import {
   connectNotifications,
   presentContactMatchNotification,
@@ -34,8 +35,13 @@ import {
   useLastNotificationResponse,
 } from 'expo-notifications';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
 
+import {
+  extractDmTapTelemetry,
+  pickPlatformPayload,
+  readRawPayload,
+  safeParseActivityEvent,
+} from '../lib/dmTapTelemetry';
 import {
   type PostInfo,
   type ProcessableNotificationData,
@@ -75,19 +81,10 @@ function payloadFromNotification(
   // When a notification is received directly (i.e. is not mutated via
   // notification service extension), the payload is delivered in the
   // `content`. When "triggered" through the NSE, the payload is in the
-  // `trigger`.
-  // Detect and use whatever payload is available.
-  const payload = (() => {
-    // Not sure why the payload is in different places per platform,
-    // but it is what it is
-    if (Platform.OS === 'android') {
-      return notification.request.content.data;
-    } else {
-      const { content, trigger } = notification.request;
-      const isPush = trigger && 'type' in trigger && trigger.type === 'push';
-      return isPush ? trigger.payload : content.data;
-    }
-  })();
+  // `trigger`. `pickPlatformPayload` is the single source of truth for this
+  // platform branching, shared with the DM-tap telemetry read so the two
+  // cannot drift.
+  const payload = pickPlatformPayload(notification);
 
   return parseNotificationPayload(payload);
 }
@@ -220,6 +217,34 @@ export default function useNotificationListener() {
           });
         });
       }
+    }
+  }, [notificationResponse]);
+
+  // Emit DM-tap telemetry (TLON-5728) in its own effect, decoupled from the
+  // routing effect above so it cannot cause routing/navigation to re-run.
+  // Keyed only on `notificationResponse` so it runs exactly once per tap. The
+  // owner ship is read synchronously via `getCurrentUserId()` (the same
+  // already-initialized client identity the rest of the API layer uses) rather
+  // than a reactive hook, so there is no `null -> ship` hydration that could
+  // race the response-clearing in the routing effect and drop a cold-start
+  // tap. Best-effort: a throw here (incl. an uninitialized client) is swallowed.
+  useEffect(() => {
+    if (notificationResponse == null) {
+      return;
+    }
+    try {
+      const ownerShip = getCurrentUserId();
+      const rawPayload = readRawPayload(notificationResponse.notification);
+      const activityEvent = safeParseActivityEvent(rawPayload);
+      const dmTap = extractDmTapTelemetry(activityEvent, rawPayload, ownerShip);
+      if (dmTap != null) {
+        logger.trackEvent(AnalyticsEvent.ActionTappedDmPushNotif, dmTap);
+      }
+    } catch (telemetryErr) {
+      console.warn(
+        'Failed to emit DM tap telemetry (best-effort)',
+        telemetryErr
+      );
     }
   }, [notificationResponse]);
 
