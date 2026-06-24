@@ -27,7 +27,6 @@ import {
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import { ScreenHeader } from '../ScreenHeader';
 import {
-  MetadataPill,
   MoveNoteSheet,
   NotebookGateMessage,
   NotesBanner,
@@ -38,7 +37,7 @@ import {
   useEntityDialog,
   useNotebookData,
 } from './NotesCommon';
-import { buildFolderRows, formatNoteDate } from './notesTree';
+import { buildFolderRows } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
@@ -102,7 +101,7 @@ export function NotesNoteDetail({
     run: runMove,
   } = useEntityDialog<db.NotesNote>();
 
-  const { folders, notes, canEdit, rootFolderId, gate } =
+  const { notebook, folders, notes, canEdit, rootFolderId, gate } =
     useNotebookData(notebookFlag);
   const selectedNote =
     noteId === null
@@ -373,28 +372,31 @@ export function NotesNoteDetail({
   }, []);
 
   const headerSaveLabel = getHeaderSaveLabel(saveState);
+  const showDetailActions = !notebook || canEdit;
   const headerControls = useMemo(
     () =>
       selectedNote ? (
-        <>
+        <XStack alignItems="center" gap="$l">
           <NotesPreviewToggle
             isPreviewing={isPreviewing}
             onPress={togglePreview}
           />
-          {canEdit ? (
+          {showDetailActions ? (
             <NotesDetailHeaderActions
+              disabled={!canEdit}
               isMoving={isMovingNote}
               onDelete={handleDeleteSelectedNote}
               onMove={() => openMoveDialog(selectedNote)}
             />
           ) : null}
-        </>
+        </XStack>
       ) : null,
     [
       canEdit,
       handleDeleteSelectedNote,
       isPreviewing,
       isMovingNote,
+      showDetailActions,
       openMoveDialog,
       selectedNote,
       togglePreview,
@@ -425,6 +427,7 @@ export function NotesNoteDetail({
     return <NotesMessage title="Note not found" />;
   }
 
+  const editorDateLabel = formatEditorDate(selectedNote.updatedAt);
   const inlineActions =
     headerActionsPlacement === 'inline' ? (
       <>
@@ -442,10 +445,21 @@ export function NotesNoteDetail({
             paddingHorizontal="$xl"
             paddingTop="$l"
             paddingBottom="$m"
-            gap="$m"
+            gap={0}
             borderBottomColor="$border"
             borderBottomWidth={1}
           >
+            {editorDateLabel ? (
+              <Text
+                size="$label/s"
+                color="$tertiaryText"
+                marginTop="$s"
+                textAlign="left"
+                letterSpacing={0}
+              >
+                {editorDateLabel}
+              </Text>
+            ) : null}
             <XStack alignItems="center" gap="$s">
               <Input
                 flex={1}
@@ -466,13 +480,6 @@ export function NotesNoteDetail({
                 disabled={!canEdit}
               />
               {inlineActions}
-            </XStack>
-            <XStack gap="$s" alignItems="center" flexWrap="wrap">
-              <MetadataPill
-                label={formatNoteDate(selectedNote.updatedAt) ?? 'Unsynced'}
-              />
-              <MetadataPill label={`Rev ${selectedNote.revision}`} />
-              <MetadataPill label="Markdown" icon="Markdown" />
             </XStack>
           </YStack>
           <YStack flex={1} minHeight={360} position="relative">
@@ -556,21 +563,30 @@ function NotesPreviewToggle({
   isPreviewing: boolean;
   onPress: () => void;
 }) {
-  const label = isPreviewing ? 'Edit note' : 'Preview note';
+  const label = isPreviewing ? 'Edit' : 'Preview';
   return (
-    <ScreenHeader.IconButton
-      aria-label={label}
+    <ScreenHeader.TextButton
       color="$primaryText"
       onPress={onPress}
       testID="NotesPreviewToggle"
-      type={isPreviewing ? 'EditList' : 'EyeOpen'}
-    />
+    >
+      {label}
+    </ScreenHeader.TextButton>
   );
 }
 
 function getHeaderSaveLabel(saveState: SaveState) {
   if (saveState === 'saving') return 'Saving...';
   return null;
+}
+
+function formatEditorDate(timestamp: number | null | undefined) {
+  if (!timestamp) return null;
+  const unixMs = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
+  return new Intl.DateTimeFormat('en-US', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(new Date(unixMs));
 }
 
 function HeaderSaveStatus({ label }: { label: string | null }) {
@@ -588,10 +604,12 @@ function HeaderSaveStatus({ label }: { label: string | null }) {
 }
 
 function NotesDetailHeaderActions({
+  disabled,
   isMoving,
   onDelete,
   onMove,
 }: {
+  disabled: boolean;
   isMoving: boolean;
   onDelete: () => void;
   onMove: () => void;
@@ -603,7 +621,7 @@ function NotesDetailHeaderActions({
         title: 'Move to folder',
         startIcon: 'Folder',
         action: onMove,
-        disabled: isMoving,
+        disabled: disabled || isMoving,
         testID: 'NotesDetailMoveAction',
       },
     ],
@@ -614,6 +632,7 @@ function NotesDetailHeaderActions({
         startIcon: 'Close',
         accent: 'negative',
         action: onDelete,
+        disabled,
         testID: 'NotesDetailDeleteAction',
       },
     ]
