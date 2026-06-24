@@ -10,7 +10,7 @@ import {
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { scry } from './urbit';
+import { getCurrentUserId, scry } from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -50,6 +50,36 @@ function extractChannelReadersFromV7Groups(
     }
   });
   return readers;
+}
+
+function extractJoinedGroupChannelsFromV7Groups(
+  groups: Record<string, ub.GroupV7>
+): string[] {
+  const joinedChannelIds = new Set<string>();
+  const currentUserId = getCurrentUserId();
+
+  Object.values(groups ?? {}).forEach((group) => {
+    const currentUserRoles = group.seats?.[currentUserId]?.roles ?? [];
+
+    (group['active-channels'] ?? []).forEach((channelId) => {
+      joinedChannelIds.add(channelId);
+    });
+
+    // Older %notes backends create a group listing with join=true, but do not
+    // report the matching %groups active-channel event. Treat only notes
+    // listings as joined so initial sync does not hide newly-created notebooks.
+    Object.entries(group.channels ?? {}).forEach(([channelId, channel]) => {
+      const readers = channel.readers ?? [];
+      const canRead =
+        readers.length === 0 ||
+        readers.some((roleId) => currentUserRoles.includes(roleId));
+      if (channelId.startsWith('notes/') && channel.join && canRead) {
+        joinedChannelIds.add(channelId);
+      }
+    });
+  });
+
+  return [...joinedChannelIds];
 }
 
 export const toInitData = (response: ub.GroupsInit7): InitData => {
@@ -108,11 +138,8 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
 
   logger.crumb('extracting joined channels');
 
-  // %groups is the single source of truth for group-channel membership: it
-  // tracks our membership in every group's active-channels set, across all
-  // channel kinds (first-party chat/diary/heap and third-party e.g. notes).
-  const joinedGroupChannels = Object.values(response.groups ?? {}).flatMap(
-    (group) => group['active-channels'] ?? []
+  const joinedGroupChannels = extractJoinedGroupChannelsFromV7Groups(
+    response.groups
   );
 
   logger.crumb('returning init data');
