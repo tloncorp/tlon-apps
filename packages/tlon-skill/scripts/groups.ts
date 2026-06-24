@@ -32,7 +32,7 @@
  *   npx ts-node scripts/groups.ts reject-join <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts promote <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts demote <group-id> <ship> [<ship2> ...]
- *   npx ts-node scripts/groups.ts add-channel <group-id> "Channel Name" [--kind chat|heap] [--description "..."]
+ *   npx ts-node scripts/groups.ts add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
  */
 import {
   acceptGroupJoin,
@@ -80,6 +80,7 @@ import {
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
+  refuseNotesChannelDescription,
   refuseRemovedChannelKind,
 } from './cli-utils';
 import {
@@ -91,6 +92,8 @@ import {
   shipIsBanned,
   shipIsSeated,
 } from './commands/groups-verification';
+import { createNotesChannelInGroup } from './notes-channel';
+import { createNotesChannelDeps } from './notes-channel-runtime';
 
 const ADMIN_ROLE_ID = 'admin';
 const GROUP_UPDATE_FLAGS = ['title', 'description', 'image', 'cover'] as const;
@@ -138,7 +141,7 @@ Commands:
   reject-join <group-id> <ship> [<ship2> ...]
   promote <group-id> <ship> [<ship2> ...]
   demote <group-id> <ship> [<ship2> ...]
-  add-channel <group-id> "Channel Name" [--kind chat|heap] [--description "..."]
+  add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
 
 Examples:
   tlon groups info ~host/group-slug
@@ -173,7 +176,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   'reject-join': `Usage: tlon groups reject-join <group-id> <ship> [<ship2> ...]\nExample: tlon groups reject-join ~host/group-slug ~nec`,
   promote: `Usage: tlon groups promote <group-id> <ship> [<ship2> ...]\nExample: tlon groups promote ~host/group-slug ~nec`,
   demote: `Usage: tlon groups demote <group-id> <ship> [<ship2> ...]\nExample: tlon groups demote ~host/group-slug ~nec`,
-  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|heap] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
+  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
 };
 
 function getGroupsHelp(command?: string) {
@@ -273,6 +276,11 @@ function validateGroupsArgs(args: string[]): void {
       }
       refuseRemovedChannelKind(args, 2);
       assertKnownChannelKind(args, 2, GROUPS_COMMAND_HELP['add-channel']);
+      refuseNotesChannelDescription(
+        args,
+        2,
+        GROUPS_COMMAND_HELP['add-channel']
+      );
       if (looksLikePositionalChannelKind(args, 2)) {
         printUsageAndExit(
           `Error: channel kind must be passed with --kind, not as a positional argument.\n${GROUPS_COMMAND_HELP['add-channel']}`
@@ -1342,6 +1350,22 @@ async function addChannel(
   return nest;
 }
 
+// Add a %notes group channel. %notes assigns the flag and registers the %groups
+// listing itself; the skill only POSTs to the v1 API and verifies the listing
+// appeared (see notes-channel.ts).
+async function addNotesChannel(groupId: string, title: string) {
+  const nest = await createNotesChannelInGroup(
+    { groupId, title },
+    createNotesChannelDeps()
+  );
+
+  console.log(`✅ Notes channel created!`);
+  console.log(`   Nest: ${nest}`);
+  console.log(`   Title: ${title}`);
+  console.log(`   Group: ${groupId}`);
+  return nest;
+}
+
 // Promote a member to admin by assigning them an admin role
 async function promoteMemberToAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
@@ -1726,6 +1750,11 @@ async function main() {
       }
       refuseRemovedChannelKind(args, 2);
       assertKnownChannelKind(args, 2, GROUPS_COMMAND_HELP['add-channel']);
+      refuseNotesChannelDescription(
+        args,
+        2,
+        GROUPS_COMMAND_HELP['add-channel']
+      );
       if (looksLikePositionalChannelKind(args, 2)) {
         console.error(
           'Error: channel kind must be passed with --kind, not as a positional argument.'
@@ -1733,7 +1762,14 @@ async function main() {
         console.error(GROUPS_COMMAND_HELP['add-channel']);
         process.exit(1);
       }
-      const kind = (getOption(args, 'kind', 3) as 'chat' | 'heap') || 'chat';
+      const kind =
+        (getOption(args, 'kind', 3) as 'chat' | 'heap' | 'notes') || 'chat';
+      // %notes group channels are created by %notes itself (it registers the
+      // %groups listing) — never via createChannel/%channels.
+      if (kind === 'notes') {
+        await addNotesChannel(groupId, title);
+        break;
+      }
       const description = getOption(args, 'description', 3) || '';
       await addChannel(groupId, title, kind, description);
       break;

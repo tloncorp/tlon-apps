@@ -1155,6 +1155,85 @@ export const DIARY_REMOVED_CASES: CliCase[] = [
   ]),
 ];
 
+// Phase D — `%notes` as a channel kind on `channels create` / `groups
+// add-channel`. The real create/registration is live-only; hermetically we can
+// prove `--kind notes` is a valid kind that reaches auth, that `--description`
+// is refused, and that writer roles are refused on a notes nest.
+export const NOTES_CHANNEL_KIND_CASES: CliCase[] = [
+  authRequiredCase('channels create --kind notes reaches auth', [
+    'channels',
+    'create',
+    '~host/group',
+    'Notes',
+    '--kind',
+    'notes',
+  ]),
+  authRequiredCase('groups add-channel --kind notes reaches auth', [
+    'groups',
+    'add-channel',
+    '~host/group',
+    'Notes',
+    '--kind',
+    'notes',
+  ]),
+  usageErrorCase(
+    'channels create --kind notes rejects --description',
+    [
+      'channels',
+      'create',
+      '~host/group',
+      'Notes',
+      '--kind',
+      'notes',
+      '--description',
+      'x',
+    ],
+    '--description is not supported for --kind notes'
+  ),
+  usageErrorCase(
+    'groups add-channel --kind notes rejects --description',
+    [
+      'groups',
+      'add-channel',
+      '~host/group',
+      'Notes',
+      '--kind',
+      'notes',
+      '--description',
+      'x',
+    ],
+    '--description is not supported for --kind notes'
+  ),
+  usageErrorCase(
+    'channels create rejects positional notes kind',
+    ['channels', 'create', '~host/group', 'notes', 'Title'],
+    'channel kind must be passed with --kind'
+  ),
+  // An option-like title literal in the title slot is NOT a --description option;
+  // --kind notes should still reach auth rather than be wrongly refused.
+  authRequiredCase(
+    'channels create --kind notes with option-like title reaches auth',
+    [
+      'channels',
+      'create',
+      '~host/group',
+      '--description=Title',
+      '--kind',
+      'notes',
+    ]
+  ),
+  refusalCase(
+    'channels add-writers on a notes nest refuses',
+    ['channels', 'add-writers', 'notes/~host/blog', 'admin'],
+    'Writer roles are not supported for %notes channels'
+  ),
+  refusalCase(
+    'channels del-writers on a notes nest refuses',
+    ['channels', 'del-writers', 'notes/~host/blog', 'admin'],
+    'Writer roles are not supported for %notes channels'
+  ),
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
@@ -1167,6 +1246,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
   ...POSTS_FAMILY_CASES,
   ...NOTES_FAMILY_CASES,
+  ...NOTES_CHANNEL_KIND_CASES,
   ...DIARY_REMOVED_CASES,
 ];
 

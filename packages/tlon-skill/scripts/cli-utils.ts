@@ -98,12 +98,17 @@ export function printErrorAndExit(error: unknown): never {
   process.exit(1);
 }
 
-export const CHANNEL_KINDS = ['chat', 'heap'] as const;
+export const CHANNEL_KINDS = ['chat', 'heap', 'notes'] as const;
 
 // Channel kinds the skill used to support but no longer does. The %diary backend
 // is being removed, so diary/notebook channels are refused everywhere with an
 // explanatory message pointing at %notes.
 export const REMOVED_CHANNEL_KINDS = ['diary'] as const;
+
+// True for a nest addressing a %notes channel (e.g. `notes/~host/blog`).
+export function isNotesNest(nest: string | undefined): boolean {
+  return !!nest && nest.startsWith('notes/');
+}
 
 // Single, consistent refusal message for every removed diary/notebook entry
 // point (the `tlon notebook` command, `--kind diary`, and any `diary/...` nest).
@@ -246,6 +251,41 @@ export function assertKnownChannelKind(
   if (!CHANNEL_KINDS.includes(value as (typeof CHANNEL_KINDS)[number])) {
     printUsageAndExit(
       `Error: invalid --kind: ${value}. ${expected}\n${usageHelp}`
+    );
+  }
+}
+
+// %notes owns its channel listing's metadata, so the skill can't persist a
+// description for a notes channel. Reject `--description` for `--kind notes`
+// rather than accept it and silently drop it. Local, pre-auth. Run after
+// assertKnownChannelKind (which already rejects the `--kind=` equals form).
+export function refuseNotesChannelDescription(
+  args: string[],
+  titleIndex: number,
+  usageHelp: string,
+  kindOptionName = 'kind'
+): void {
+  const kind = getOption(args, kindOptionName, titleIndex + 1);
+  // Scan only the option region after the title (matching how `kind` is read),
+  // so an option-like title literal like `--description=Foo` in the title slot
+  // is not mistaken for a real `--description` option.
+  const hasDescription = args
+    .slice(titleIndex + 1)
+    .some((arg) => arg === '--description' || arg.startsWith('--description='));
+  if (kind === 'notes' && hasDescription) {
+    printUsageAndExit(
+      `Error: --description is not supported for --kind notes — %notes owns the channel listing metadata.\n${usageHelp}`
+    );
+  }
+}
+
+// Writer roles aren't defined for %notes channels yet; refuse add/del-writers on
+// a notes nest with a clear message instead of poking %channels with a nest it
+// would mishandle. Local, pre-auth.
+export function refuseNotesWriters(nest: string | undefined): void {
+  if (isNotesNest(nest)) {
+    printErrorAndExit(
+      'Writer roles are not supported for %notes channels yet — %notes manages its own permissions.'
     );
   }
 }

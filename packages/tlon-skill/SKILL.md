@@ -198,6 +198,7 @@ tlon channels groups                                       # List subscribed gro
 tlon channels all                                          # List everything
 tlon channels info chat/~host/slug                         # Get channel details
 tlon channels create ~host/slug "Projects" --kind chat     # Create a group channel
+tlon channels create ~host/slug "Notes" --kind notes       # Create a %notes group channel
 tlon channels rename chat/~host/slug "New Title"           # Rename a channel
 tlon channels update chat/~host/slug --title "New Title"   # Update metadata
 tlon channels delete chat/~host/slug                       # Delete a channel
@@ -292,7 +293,7 @@ Roles vs Admin:
   via the backend directly (not yet exposed in the Tlon app UI).
 
 # Channels
-tlon groups add-channel ~host/slug "Name" [--kind chat|heap]
+tlon groups add-channel ~host/slug "Name" [--kind chat|heap|notes]
 ```
 
 `tlon groups add-channel` remains supported, but for agent/tool use prefer the more discoverable channel-centric form:
@@ -480,6 +481,11 @@ or `--stdin`. `note-create` places the note in a folder id, or `root` (resolved 
 the notebook's root folder). `--expected-revision` on `note-update` is optional
 (last-write-wins by default).
 
+`notes create` makes a **solo** notebook. To create a **group-backed** notes
+channel (so members can read it as a group channel), use `tlon channels create
+~host/slug "Title" --kind notes` — %notes owns the listing, so `--description`
+and writer roles aren't accepted there.
+
 ### Upload
 
 Upload files to Tlon storage from a URL, local path, or stdin.
@@ -527,7 +533,7 @@ tlon settings deauthorize-ship ~ship                     # Remove from auth
 - Ship names should include `~` prefix
 - Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
 - DM post IDs include author prefix (`~ship/170.141...`)
-- Channel nests: `<kind>/~<host>/<name>` (chat or heap)
+- Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
 
 ## Limits
 
