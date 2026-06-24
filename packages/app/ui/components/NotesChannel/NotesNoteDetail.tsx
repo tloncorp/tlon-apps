@@ -20,7 +20,10 @@ import {
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
 import { createActionGroups } from '../ActionSheet';
-import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
+import {
+  useRegisterChannelHeaderItem,
+  useRegisterChannelHeaderLoadingSubtitle,
+} from '../Channel/ChannelHeader';
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import { ScreenHeader } from '../ScreenHeader';
 import {
@@ -374,7 +377,6 @@ export function NotesNoteDetail({
     () =>
       selectedNote ? (
         <>
-          <HeaderSaveStatus label={headerSaveLabel} />
           <NotesPreviewToggle
             isPreviewing={isPreviewing}
             onPress={togglePreview}
@@ -391,7 +393,6 @@ export function NotesNoteDetail({
     [
       canEdit,
       handleDeleteSelectedNote,
-      headerSaveLabel,
       isPreviewing,
       isMovingNote,
       openMoveDialog,
@@ -401,6 +402,9 @@ export function NotesNoteDetail({
   );
   useRegisterChannelHeaderItem(
     headerActionsPlacement === 'channel-header' ? headerControls : null
+  );
+  useRegisterChannelHeaderLoadingSubtitle(
+    headerActionsPlacement === 'channel-header' ? headerSaveLabel : null
   );
 
   if (noteId === null) {
@@ -422,7 +426,12 @@ export function NotesNoteDetail({
   }
 
   const inlineActions =
-    headerActionsPlacement === 'inline' ? headerControls : null;
+    headerActionsPlacement === 'inline' ? (
+      <>
+        <HeaderSaveStatus label={headerSaveLabel} />
+        {headerControls}
+      </>
+    ) : null;
 
   return (
     <YStack flex={1} backgroundColor="$background">
@@ -561,7 +570,6 @@ function NotesPreviewToggle({
 
 function getHeaderSaveLabel(saveState: SaveState) {
   if (saveState === 'saving') return 'Saving...';
-  if (saveState === 'error') return 'Save failed';
   return null;
 }
 
@@ -570,7 +578,7 @@ function HeaderSaveStatus({ label }: { label: string | null }) {
   return (
     <Text
       size="$label/s"
-      color={label === 'Save failed' ? '$negativeText' : '$secondaryText'}
+      color="$secondaryText"
       letterSpacing={0}
       numberOfLines={1}
     >
