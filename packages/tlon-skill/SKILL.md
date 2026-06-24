@@ -445,6 +445,30 @@ Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL ret
 `--title`/`--image`/`--content` edit flags are removed (they refuse with an
 explanatory error) along with diary/notebook channels.
 
+### Notes
+
+Manage %notes notebooks (Markdown-first). Notebooks are nests of the form
+`notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
+
+```bash
+tlon notes status                                        # Check %notes reachability
+tlon notes list                                          # List your notebooks
+tlon notes show notes/~host/name                         # Show a notebook
+tlon notes notes notes/~host/name                        # List notes in a notebook
+tlon notes note notes/~host/name 12                      # Show a note (with Markdown body)
+tlon notes create "My Notebook"                          # Create a solo notebook
+tlon notes note-create notes/~host/name root "Title" --markdown post.md   # New note at the notebook root
+tlon notes note-create notes/~host/name 7 "Title" --stdin                 # New note in folder 7 from stdin
+tlon notes note-update notes/~host/name 12 --body new.md --expected-revision 3
+tlon notes join notes/~host/name                         # Join a notebook
+tlon notes leave notes/~host/name                        # Leave a notebook
+```
+
+Note bodies come from exactly one of `--body <file>`, `--markdown <file>` (alias),
+or `--stdin`. `note-create` places the note in a folder id, or `root` (resolved to
+the notebook's root folder). `--expected-revision` on `note-update` is optional
+(last-write-wins by default).
+
 ### Upload
 
 Upload files to Tlon storage from a URL, local path, or stdin.

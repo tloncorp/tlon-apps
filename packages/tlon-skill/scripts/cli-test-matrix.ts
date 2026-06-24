@@ -9,6 +9,7 @@ export const COMMAND_FAMILIES = [
   'groups',
   'hooks',
   'messages',
+  'notes',
   'posts',
   'settings',
   'upload',
@@ -464,6 +465,56 @@ export const NESTED_HELP_CASES: CliCase[] = [
     ['posts', 'edit', '--help'],
     'Usage: tlon posts edit'
   ),
+  helpCase(
+    'notes status --help',
+    ['notes', 'status', '--help'],
+    'Usage: tlon notes status'
+  ),
+  helpCase(
+    'notes list --help',
+    ['notes', 'list', '--help'],
+    'Usage: tlon notes list'
+  ),
+  helpCase(
+    'notes show --help',
+    ['notes', 'show', '--help'],
+    'Usage: tlon notes show'
+  ),
+  helpCase(
+    'notes notes --help',
+    ['notes', 'notes', '--help'],
+    'Usage: tlon notes notes'
+  ),
+  helpCase(
+    'notes note --help',
+    ['notes', 'note', '--help'],
+    'Usage: tlon notes note'
+  ),
+  helpCase(
+    'notes create --help',
+    ['notes', 'create', '--help'],
+    'Usage: tlon notes create'
+  ),
+  helpCase(
+    'notes note-create --help',
+    ['notes', 'note-create', '--help'],
+    'Usage: tlon notes note-create'
+  ),
+  helpCase(
+    'notes note-update --help',
+    ['notes', 'note-update', '--help'],
+    'Usage: tlon notes note-update'
+  ),
+  helpCase(
+    'notes join --help',
+    ['notes', 'join', '--help'],
+    'Usage: tlon notes join'
+  ),
+  helpCase(
+    'notes leave --help',
+    ['notes', 'leave', '--help'],
+    'Usage: tlon notes leave'
+  ),
 ];
 
 export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
@@ -739,6 +790,112 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
   ]),
 ];
 
+// The `notes` family: required-arg matrices (no credential lookup) and
+// valid-looking invocations that reach auth with `Missing Urbit config`.
+export const NOTES_FAMILY_CASES: CliCase[] = [
+  usageErrorCase(
+    'notes show missing nest',
+    ['notes', 'show'],
+    'Usage: tlon notes show'
+  ),
+  usageErrorCase(
+    'notes note missing id',
+    ['notes', 'note', 'notes/~zod/blog'],
+    'Usage: tlon notes note'
+  ),
+  usageErrorCase(
+    'notes note rejects non-numeric id',
+    ['notes', 'note', 'notes/~zod/blog', 'abc'],
+    'Invalid note id: abc'
+  ),
+  usageErrorCase(
+    'notes create missing title',
+    ['notes', 'create'],
+    'Usage: tlon notes create'
+  ),
+  usageErrorCase(
+    'notes note-create missing content source',
+    ['notes', 'note-create', 'notes/~zod/blog', 'root', 'Title'],
+    'A content source is required'
+  ),
+  usageErrorCase(
+    'notes note-create rejects two content sources',
+    [
+      'notes',
+      'note-create',
+      'notes/~zod/blog',
+      'root',
+      'Title',
+      '--stdin',
+      '--body',
+      'a.md',
+    ],
+    'Only one content source may be provided'
+  ),
+  usageErrorCase(
+    'notes note-create rejects bad folder',
+    ['notes', 'note-create', 'notes/~zod/blog', 'nope', 'Title', '--stdin'],
+    'Invalid folder: nope'
+  ),
+  usageErrorCase(
+    'notes note-update missing content source',
+    ['notes', 'note-update', 'notes/~zod/blog', '12'],
+    'A content source is required'
+  ),
+  usageErrorCase(
+    'notes note-update rejects non-numeric expected-revision',
+    [
+      'notes',
+      'note-update',
+      'notes/~zod/blog',
+      '12',
+      '--stdin',
+      '--expected-revision',
+      'x',
+    ],
+    '--expected-revision requires a numeric value'
+  ),
+  authRequiredCase('notes list reaches auth', ['notes', 'list']),
+  authRequiredCase('notes status reaches auth', ['notes', 'status']),
+  authRequiredCase('notes show reaches auth', [
+    'notes',
+    'show',
+    'notes/~zod/blog',
+  ]),
+  authRequiredCase('notes note reaches auth', [
+    'notes',
+    'note',
+    'notes/~zod/blog',
+    '12',
+  ]),
+  authRequiredCase('notes create reaches auth', ['notes', 'create', 'Title']),
+  authRequiredCase('notes note-create reaches auth', [
+    'notes',
+    'note-create',
+    'notes/~zod/blog',
+    'root',
+    'Title',
+    '--stdin',
+  ]),
+  authRequiredCase('notes note-update reaches auth', [
+    'notes',
+    'note-update',
+    'notes/~zod/blog',
+    '12',
+    '--stdin',
+  ]),
+  authRequiredCase('notes join reaches auth', [
+    'notes',
+    'join',
+    'notes/~zod/blog',
+  ]),
+  authRequiredCase('notes leave reaches auth', [
+    'notes',
+    'leave',
+    'notes/~zod/blog',
+  ]),
+];
+
 // Every removed diary/notebook entry point refuses locally with DIARY_REMOVED,
 // before any credential lookup: the `tlon notebook` command (incl. --help),
 // `--kind diary` and positional `diary` on channels/groups create, a `diary/...`
@@ -845,6 +1002,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NESTED_HELP_CASES,
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
   ...POSTS_FAMILY_CASES,
+  ...NOTES_FAMILY_CASES,
   ...DIARY_REMOVED_CASES,
 ];
 
@@ -868,6 +1026,16 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
   { name: 'posts unreact', args: ['posts', 'unreact', '--help'] },
   { name: 'posts delete', args: ['posts', 'delete', '--help'] },
   { name: 'posts edit', args: ['posts', 'edit', '--help'] },
+  { name: 'notes status', args: ['notes', 'status', '--help'] },
+  { name: 'notes list', args: ['notes', 'list', '--help'] },
+  { name: 'notes show', args: ['notes', 'show', '--help'] },
+  { name: 'notes notes', args: ['notes', 'notes', '--help'] },
+  { name: 'notes note', args: ['notes', 'note', '--help'] },
+  { name: 'notes create', args: ['notes', 'create', '--help'] },
+  { name: 'notes note-create', args: ['notes', 'note-create', '--help'] },
+  { name: 'notes note-update', args: ['notes', 'note-update', '--help'] },
+  { name: 'notes join', args: ['notes', 'join', '--help'] },
+  { name: 'notes leave', args: ['notes', 'leave', '--help'] },
 ];
 
 export function normalizeCliOutput(text: string): string {
