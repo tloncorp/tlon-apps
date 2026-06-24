@@ -91,6 +91,35 @@ class ComputingStatusTests(unittest.TestCase):
         )
         self.assertEqual(presence.get_computing_status_text(status), "Using tools...")
 
+    def test_tool_labels_match_openclaw_style_and_hermes_tools(self):
+        self.assertEqual(presence.format_computing_tool_call_label("exec"), "Running a command")
+        self.assertEqual(presence.format_computing_tool_call_label("read"), "Reading files")
+        self.assertEqual(presence.format_computing_tool_call_label("web_fetch"), "Checking the web")
+        self.assertEqual(presence.format_computing_tool_call_label("web_extract"), "Checking the web")
+        self.assertEqual(presence.format_computing_tool_call_label("web_search"), "Searching the web")
+        self.assertEqual(presence.format_computing_tool_call_label("image_search"), "Searching images")
+        self.assertEqual(presence.format_computing_tool_call_label("tlon"), "Using Tlon")
+        self.assertEqual(presence.format_computing_tool_call_label("custom_tool"), "Using custom tool")
+        self.assertEqual(presence.format_computing_tool_call_label(), "Using a tool")
+
+    def test_computing_status_preserves_explicit_tool_labels(self):
+        status = presence.create_computing_status(
+            thinking=True,
+            tool_names=[
+                {"toolName": "exec", "label": "Shelling out"},
+                {"tool_name": "image_search", "label": ""},
+                {"toolName": "exec", "label": "ignored duplicate"},
+            ],
+        )
+
+        self.assertEqual(
+            status["toolCalls"],
+            [
+                {"toolName": "exec", "label": "Shelling out"},
+                {"toolName": "image_search", "label": "Searching images"},
+            ],
+        )
+
     def test_context_conversion_supports_dm_and_channel(self):
         self.assertEqual(
             presence.conversation_id_to_presence_context("~mug"),

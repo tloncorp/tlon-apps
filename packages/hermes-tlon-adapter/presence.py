@@ -29,8 +29,10 @@ STOPPED_RUN_MEMORY = 8
 
 TOOL_LABELS = {
     "exec": "Running a command",
+    "image_search": "Searching images",
     "read": "Reading files",
-    "web_extract": "Reading the web",
+    "tlon": "Using Tlon",
+    "web_extract": "Checking the web",
     "web_fetch": "Checking the web",
     "web_search": "Searching the web",
 }
@@ -61,11 +63,18 @@ def format_computing_tool_call_label(tool_name: str | None = None) -> str:
 def create_computing_status(
     *,
     thinking: bool,
-    tool_names: Sequence[str] = (),
+    tool_names: Sequence[str | Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     seen: set[str] = set()
     tool_calls: list[dict[str, str]] = []
-    for raw_name in tool_names:
+    for raw_tool_call in tool_names:
+        if isinstance(raw_tool_call, Mapping):
+            raw_name = raw_tool_call.get("toolName", raw_tool_call.get("tool_name"))
+            label = str(raw_tool_call.get("label") or "").strip()
+        else:
+            raw_name = raw_tool_call
+            label = ""
+
         tool_name = str(raw_name or "").strip()
         if not tool_name or tool_name in seen:
             continue
@@ -73,7 +82,7 @@ def create_computing_status(
         tool_calls.append(
             {
                 "toolName": tool_name,
-                "label": format_computing_tool_call_label(tool_name),
+                "label": label or format_computing_tool_call_label(tool_name),
             }
         )
 
