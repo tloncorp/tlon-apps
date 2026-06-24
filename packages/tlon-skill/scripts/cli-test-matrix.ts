@@ -1,3 +1,5 @@
+import { DIARY_REMOVED } from './cli-utils';
+
 export const COMMAND_FAMILIES = [
   'activity',
   'channels',
@@ -7,14 +9,13 @@ export const COMMAND_FAMILIES = [
   'groups',
   'hooks',
   'messages',
-  'notebook',
   'posts',
   'settings',
   'upload',
 ] as const;
 
 export const SUBCOMMAND_FAMILIES = COMMAND_FAMILIES.filter(
-  (family) => family !== 'notebook' && family !== 'upload'
+  (family) => family !== 'upload'
 );
 
 export type CliCase = {
@@ -39,7 +40,6 @@ const SCRIPT_ERA_PATTERNS = [
   'Usage: groups.ts',
   'Usage: hooks.ts',
   'Usage: messages.ts',
-  'Usage: notebook-post.ts',
   'Usage: posts.ts',
   'Usage: settings.ts',
   'Usage: upload.ts',
@@ -51,7 +51,6 @@ const SCRIPT_ERA_PATTERNS = [
   'Example: groups.ts',
   'Example: hooks.ts',
   'Example: messages.ts',
-  'Example: notebook-post.ts',
   'Example: posts.ts',
   'Example: settings.ts',
   'Example: upload.ts',
@@ -62,7 +61,6 @@ const SCRIPT_ERA_PATTERNS = [
   'scripts/groups.ts',
   'scripts/hooks.ts',
   'scripts/messages.ts',
-  'scripts/notebook-post.ts',
   'scripts/posts.ts',
   'scripts/settings.ts',
 ];
@@ -71,7 +69,6 @@ const STACK_PATTERNS = [
   '\n    at ',
   '\n  at ',
   'api-client.ts:',
-  'notebook-post.ts:',
   'dist/tlon-run:',
   'error: Uncaught',
 ];
@@ -128,6 +125,29 @@ function authRequiredCase(name: string, args: string[]): CliCase {
     stderrIncludes: ['Missing Urbit config'],
     stderrExcludes: ['Usage:'],
   };
+}
+
+// A local, pre-auth refusal: empty stdout, `stderrSubstring` on stderr, and no
+// Usage/auth/stack noise (it's a flat command error, not a usage or auth error).
+function refusalCase(
+  name: string,
+  args: string[],
+  stderrSubstring: string
+): CliCase {
+  return {
+    name,
+    args,
+    expectedExitCode: 1,
+    stdout: '',
+    stderrIncludes: [stderrSubstring],
+    stderrExcludes: ['Usage:', ...STACK_PATTERNS, ...AUTH_CONFIG_PATTERNS],
+  };
+}
+
+// Every removed diary/notebook entry point must refuse with the shared
+// DIARY_REMOVED message — locally, before any credential lookup.
+function diaryRefusedCase(name: string, args: string[]): CliCase {
+  return refusalCase(name, args, DIARY_REMOVED);
 }
 
 export const TOP_LEVEL_HELP_CASE = helpCase(
@@ -203,7 +223,6 @@ export const MISSING_REQUIRED_CASES: CliCase[] = [
     ['messages', 'dm'],
     'Usage: tlon messages dm'
   ),
-  usageErrorCase('notebook missing args', ['notebook'], 'Usage: tlon notebook'),
   usageErrorCase(
     'posts react missing args',
     ['posts', 'react'],
@@ -359,23 +378,36 @@ export const SPECIAL_INPUT_CASES: CliCase[] = [
     ['upload', 'photo.jpg', '--type'],
     '--type requires a value'
   ),
-  {
-    name: 'notebook unknown option',
-    args: [
-      'notebook',
-      'diary/~host/notes',
-      'Title',
-      '--definitely-not-an-option',
-    ],
-    expectedExitCode: 1,
-    stdout: '',
-    stderrIncludes: ['Error: Unknown option: --definitely-not-an-option'],
-    stderrExcludes: [
-      ...SCRIPT_ERA_PATTERNS,
-      ...STACK_PATTERNS,
-      ...AUTH_CONFIG_PATTERNS,
-    ],
-  },
+  usageErrorCase(
+    'channels create unknown kind',
+    ['channels', 'create', '~host/group', 'Title', '--kind', 'foo'],
+    'invalid --kind: foo'
+  ),
+  usageErrorCase(
+    'groups add-channel unknown kind',
+    ['groups', 'add-channel', '~host/group', 'Title', '--kind', 'foo'],
+    'invalid --kind: foo'
+  ),
+  usageErrorCase(
+    'channels create --kind without value',
+    ['channels', 'create', '~host/group', 'Title', '--kind'],
+    '--kind requires a value'
+  ),
+  usageErrorCase(
+    'groups add-channel --kind without value',
+    ['groups', 'add-channel', '~host/group', 'Title', '--kind'],
+    '--kind requires a value'
+  ),
+  usageErrorCase(
+    'channels create rejects --kind= equals form',
+    ['channels', 'create', '~host/group', 'Title', '--kind=heap'],
+    '--kind does not accept "=" form'
+  ),
+  usageErrorCase(
+    'groups add-channel rejects --kind= equals form',
+    ['groups', 'add-channel', '~host/group', 'Title', '--kind=heap'],
+    '--kind does not accept "=" form'
+  ),
 ];
 
 export const NESTED_HELP_CASES: CliCase[] = [
@@ -600,11 +632,6 @@ export const LITERAL_OPTION_LIKE_VALUE_CASES: CliCase[] = [
     '--name',
     '--help',
   ]),
-  authRequiredCase('notebook title option-like value reaches auth', [
-    'notebook',
-    'diary/~host/notes',
-    '--help',
-  ]),
   authRequiredCase('contacts update-profile empty value reaches auth', [
     'contacts',
     'update-profile',
@@ -676,22 +703,24 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
     '170.141',
     '--help',
   ]),
-  // Auth runs before any filesystem read: a nonexistent --content file must
-  // surface a config error in the hermetic env, never a filesystem error.
-  authRequiredCase('posts edit content file lookup runs after auth', [
-    'posts',
-    'edit',
-    'chat/~host/channel',
-    '170.141',
-    '--content',
-    '/nonexistent/story.json',
-  ]),
-  // Adjacent to the minimal literal but opposite outcome: a help token in an
-  // option slot ends the message slice early, so edit help prints (exit 0).
-  helpCase(
-    'posts edit help token in option slot prints help',
+  // The notebook-only edit flags are removed: `--content`/`--title`/`--image`
+  // on `posts edit` refuse locally, before any auth/filesystem work.
+  refusalCase(
+    'posts edit --content refuses before auth',
+    [
+      'posts',
+      'edit',
+      'chat/~host/channel',
+      '170.141',
+      '--content',
+      '/nonexistent/story.json',
+    ],
+    'no longer supports --title/--image/--content'
+  ),
+  refusalCase(
+    'posts edit --title refuses even with a help token',
     ['posts', 'edit', 'chat/~host/channel', '170.141', '--title', '--help'],
-    'Usage: tlon posts edit'
+    'no longer supports --title/--image/--content'
   ),
   // send/reply help-literal quirk: a help token in the message slot is treated
   // as literal message content, so these reach auth instead of printing help.
@@ -710,6 +739,101 @@ export const POSTS_FAMILY_CASES: CliCase[] = [
   ]),
 ];
 
+// Every removed diary/notebook entry point refuses locally with DIARY_REMOVED,
+// before any credential lookup: the `tlon notebook` command (incl. --help),
+// `--kind diary` and positional `diary` on channels/groups create, a `diary/...`
+// nest on posts/messages/channels, and both expose cite-path forms.
+export const DIARY_REMOVED_CASES: CliCase[] = [
+  diaryRefusedCase('notebook command refuses', ['notebook']),
+  diaryRefusedCase('notebook --help refuses', ['notebook', '--help']),
+  diaryRefusedCase('notebook with post args refuses', [
+    'notebook',
+    'diary/~host/slug',
+    'Title',
+  ]),
+  diaryRefusedCase('channels create --kind diary refuses', [
+    'channels',
+    'create',
+    '~host/group',
+    'Notes',
+    '--kind',
+    'diary',
+  ]),
+  diaryRefusedCase('channels create positional diary refuses', [
+    'channels',
+    'create',
+    '~host/group',
+    'diary',
+    'Notes',
+  ]),
+  diaryRefusedCase('channels create --kind=diary equals form refuses', [
+    'channels',
+    'create',
+    '~host/group',
+    'Notes',
+    '--kind=diary',
+  ]),
+  diaryRefusedCase('groups add-channel --kind diary refuses', [
+    'groups',
+    'add-channel',
+    '~host/group',
+    'Notes',
+    '--kind',
+    'diary',
+  ]),
+  diaryRefusedCase('groups add-channel positional diary refuses', [
+    'groups',
+    'add-channel',
+    '~host/group',
+    'diary',
+    'Notes',
+  ]),
+  diaryRefusedCase('posts react diary nest refuses', [
+    'posts',
+    'react',
+    'diary/~host/blog',
+    '170.141',
+    '👍',
+  ]),
+  diaryRefusedCase('posts edit diary nest refuses', [
+    'posts',
+    'edit',
+    'diary/~host/blog',
+    '170.141',
+    'Updated',
+  ]),
+  diaryRefusedCase('messages channel diary nest refuses', [
+    'messages',
+    'channel',
+    'diary/~host/blog',
+  ]),
+  diaryRefusedCase('channels info diary nest refuses', [
+    'channels',
+    'info',
+    'diary/~host/blog',
+  ]),
+  diaryRefusedCase('expose show simplified diary path refuses', [
+    'expose',
+    'show',
+    'diary/~host/blog/170.141',
+  ]),
+  diaryRefusedCase('expose check full diary cite path refuses', [
+    'expose',
+    'check',
+    '/1/chan/diary/~host/blog/note/170.141',
+  ]),
+  diaryRefusedCase('expose url simplified diary path refuses', [
+    'expose',
+    'url',
+    'diary/~host/blog/170.141',
+  ]),
+  diaryRefusedCase('expose hide full diary cite path refuses', [
+    'expose',
+    'hide',
+    '/1/chan/diary/~host/blog/note/170.141',
+  ]),
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
@@ -721,6 +845,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...NESTED_HELP_CASES,
   ...LITERAL_OPTION_LIKE_VALUE_CASES,
   ...POSTS_FAMILY_CASES,
+  ...DIARY_REMOVED_CASES,
 ];
 
 export type HostileHelpCommand = {

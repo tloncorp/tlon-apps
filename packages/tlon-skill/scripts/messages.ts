@@ -30,6 +30,7 @@ import {
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
+  refuseDiaryNest,
   wantsHelp,
 } from './cli-utils';
 
@@ -93,18 +94,23 @@ function validateMessagesArgs(args: string[]): void {
     case 'channel':
     case 'history': {
       if (!args[1]) printUsageAndExit(MESSAGES_COMMAND_HELP[command]);
+      // `dm` targets a ~ship, not a nest, so only channel/history can be diary.
+      if (command !== 'dm') refuseDiaryNest(args[1]);
       return;
     }
     case 'search': {
       if (!args[1] || !getSearchChannel(args)) {
         printUsageAndExit(MESSAGES_COMMAND_HELP.search);
       }
+      refuseDiaryNest(getSearchChannel(args));
       return;
     }
     case 'context':
     case 'post': {
       if (!args[1] || !args[2])
         printUsageAndExit(MESSAGES_COMMAND_HELP[command]);
+      // The target may be a ~ship DM or a channel nest; refuse diary nests only.
+      refuseDiaryNest(args[1]);
       return;
     }
   }

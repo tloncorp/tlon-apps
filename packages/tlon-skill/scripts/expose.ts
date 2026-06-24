@@ -15,12 +15,13 @@
  *
  * You can also use a simplified format that will be expanded:
  *   chat/~host/channel/170.141...  ->  /1/chan/chat/~host/channel/msg/170.141...
- *   diary/~host/channel/170.141... ->  /1/chan/diary/~host/channel/note/170.141...
+ *   heap/~host/channel/170.141...  ->  /1/chan/heap/~host/channel/curio/170.141...
  */
 import { poke, scry } from '@tloncorp/api';
 
 import { ensureClient } from './api-client';
 import {
+  DIARY_REMOVED,
   isHelpArg,
   printErrorAndExit,
   printHelpAndExit,
@@ -41,19 +42,17 @@ Commands:
 
 Cite path formats:
   Simplified:  chat/~host/channel/170.141...
-               diary/~host/channel/170.141...
                heap/~host/channel/170.141...
 
   Full:        /1/chan/chat/~host/channel/msg/170.141...
-               /1/chan/diary/~host/channel/note/170.141...
                /1/chan/heap/~host/channel/curio/170.141...
 
 Examples:
   tlon expose list
   tlon expose show chat/~nocsyx-lassul/my-channel/170.141.184.507...
   tlon expose hide chat/~nocsyx-lassul/my-channel/170.141.184.507...
-  tlon expose check diary/~nocsyx-lassul/blog/170.141.184.507...
-  tlon expose url diary/~nocsyx-lassul/blog/170.141.184.507...`;
+  tlon expose check heap/~nocsyx-lassul/gallery/170.141.184.507...
+  tlon expose url heap/~nocsyx-lassul/gallery/170.141.184.507...`;
 
 const EXPOSE_COMMAND_HELP: Record<string, string> = {
   list: 'Usage: tlon expose list',
@@ -75,6 +74,18 @@ function validateExposeArgs(args: string[]): void {
   if (command !== 'list' && !args[1]) {
     printUsageAndExit(EXPOSE_COMMAND_HELP[command]);
   }
+  refuseDiaryCitePath(args[1]);
+}
+
+// Refuse a diary cite path in *either* accepted form — the simplified
+// `diary/~host/blog/170…` and the full `/1/chan/diary/~host/blog/note/170…`.
+// The plain nest guard only catches the simplified form, so expose needs its own
+// cite-path-aware check. Local and pre-auth.
+function refuseDiaryCitePath(citePath: string | undefined): void {
+  if (!citePath) return;
+  if (citePath.startsWith('diary/') || citePath.startsWith('/1/chan/diary/')) {
+    printErrorAndExit(DIARY_REMOVED);
+  }
 }
 
 // Expand a simplified cite path to full format
@@ -93,7 +104,7 @@ function expandCitePath(input: string): string {
     );
   }
 
-  const kind = parts[0]; // chat, diary, heap
+  const kind = parts[0]; // chat, heap
   const host = parts[1]; // ~ship
   const channel = parts[2]; // channel-name
   const postId = parts.slice(3).join('/'); // post-id (may have dots)
@@ -104,16 +115,11 @@ function expandCitePath(input: string): string {
     case 'chat':
       contentType = 'msg';
       break;
-    case 'diary':
-      contentType = 'note';
-      break;
     case 'heap':
       contentType = 'curio';
       break;
     default:
-      throw new Error(
-        `Unknown channel kind: ${kind}. Expected chat, diary, or heap.`
-      );
+      throw new Error(`Unknown channel kind: ${kind}. Expected chat or heap.`);
   }
 
   return `/1/chan/${kind}/${host}/${channel}/${contentType}/${postId}`;

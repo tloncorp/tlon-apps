@@ -165,7 +165,6 @@ tlon groups reject-invite ~host/group-slug
 - **Messages**: History, search (author nicknames shown)
 - **DMs**: Group DM send/reply, react, accept/decline
 - **Posts**: React, edit, delete
-- **Notebook**: Post to diary channels
 - **Settings**: Hot-reload plugin config via settings-store
 
 ## Development

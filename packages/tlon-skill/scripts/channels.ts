@@ -9,7 +9,7 @@
  *   npx ts-node channels.ts groups     # List subscribed groups
  *   npx ts-node channels.ts all        # List all channels
  *   npx ts-node channels.ts info <nest>   # Get channel info
- *   npx ts-node channels.ts create <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]
+ *   npx ts-node channels.ts create <group-id> "Channel Name" [--kind chat|heap] [--description "..."]
  *   npx ts-node channels.ts rename <nest> "New Title"
  *   npx ts-node channels.ts update <nest> --title "..." [--description "..."]
  *   npx ts-node channels.ts delete <nest> # Delete a channel (must be group admin)
@@ -32,6 +32,7 @@ import type { Channel as ApiChannel, Group as ApiGroup } from '@tloncorp/api';
 
 import { ensureClient, getCurrentShip } from './api-client';
 import {
+  assertKnownChannelKind,
   getOption,
   hasOptionValue,
   isHelpArg,
@@ -40,6 +41,8 @@ import {
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
+  refuseDiaryNest,
+  refuseRemovedChannelKind,
 } from './cli-utils';
 
 function generateChannelSlug(): string {
@@ -60,7 +63,7 @@ Commands:
   groups
   all
   info <nest>
-  create <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]
+  create <group-id> "Channel Name" [--kind chat|heap] [--description "..."]
   update <nest> (--title "..." | --description "...")
   rename <nest> "New Title"
   delete <nest>
@@ -79,7 +82,7 @@ const CHANNELS_COMMAND_HELP: Record<string, string> = {
   groups: `Usage: tlon channels groups`,
   all: `Usage: tlon channels all`,
   info: `Usage: tlon channels info <nest>\nExample: tlon channels info chat/~host/slug`,
-  create: `Usage: tlon channels create <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]\nExample: tlon channels create ~host/group-slug "Projects" --kind chat`,
+  create: `Usage: tlon channels create <group-id> "Channel Name" [--kind chat|heap] [--description "..."]\nExample: tlon channels create ~host/group-slug "Projects" --kind chat`,
   update: `Usage: tlon channels update <nest> (--title "..." | --description "...")\nExample: tlon channels update chat/~host/slug --title "New Title"`,
   rename: `Usage: tlon channels rename <nest> "New Title"\nExample: tlon channels rename chat/~host/slug "Project Updates"`,
   delete: `Usage: tlon channels delete <nest>\nExample: tlon channels delete chat/~host/slug`,
@@ -112,12 +115,15 @@ function validateChannelsArgs(args: string[]): void {
     case 'info':
     case 'delete': {
       if (!args[1]) printUsageAndExit(CHANNELS_COMMAND_HELP[command]);
+      refuseDiaryNest(args[1]);
       return;
     }
     case 'create': {
       if (!args[1] || args[2] === undefined) {
         printUsageAndExit(CHANNELS_COMMAND_HELP.create);
       }
+      refuseRemovedChannelKind(args, 2);
+      assertKnownChannelKind(args, 2, CHANNELS_COMMAND_HELP.create);
       if (looksLikePositionalChannelKind(args, 2)) {
         printUsageAndExit(
           `Error: channel kind must be passed with --kind, not as a positional argument.\n${CHANNELS_COMMAND_HELP.create}`
@@ -127,6 +133,7 @@ function validateChannelsArgs(args: string[]): void {
     }
     case 'update': {
       if (!args[1]) printUsageAndExit(CHANNELS_COMMAND_HELP.update);
+      refuseDiaryNest(args[1]);
       if (
         !CHANNEL_UPDATE_FLAGS.some((flag) =>
           hasOptionValue(args, flag, CHANNEL_UPDATE_FLAGS)
@@ -142,6 +149,7 @@ function validateChannelsArgs(args: string[]): void {
       if (!args[1] || !args[2]) {
         printUsageAndExit(CHANNELS_COMMAND_HELP.rename);
       }
+      refuseDiaryNest(args[1]);
       return;
     }
     case 'add-writers':
@@ -149,6 +157,7 @@ function validateChannelsArgs(args: string[]): void {
       if (!args[1] || args.slice(2).length === 0) {
         printUsageAndExit(CHANNELS_COMMAND_HELP[command]);
       }
+      refuseDiaryNest(args[1]);
       return;
     }
     case 'add-readers':
@@ -156,6 +165,7 @@ function validateChannelsArgs(args: string[]): void {
       if (!args[1] || !args[2] || args.slice(3).length === 0) {
         printUsageAndExit(CHANNELS_COMMAND_HELP[command]);
       }
+      refuseDiaryNest(args[2]);
       return;
     }
   }
@@ -305,7 +315,7 @@ async function getChannelInfo(nest: string) {
 async function createChannelInGroup(
   groupId: string,
   title: string,
-  kind: 'chat' | 'diary' | 'heap' = 'chat',
+  kind: 'chat' | 'heap' = 'chat',
   description = ''
 ) {
   const ship = await getCurrentShip();
@@ -535,6 +545,8 @@ async function main() {
           console.error(CHANNELS_COMMAND_HELP.create);
           process.exit(1);
         }
+        refuseRemovedChannelKind(args, 2);
+        assertKnownChannelKind(args, 2, CHANNELS_COMMAND_HELP.create);
         if (looksLikePositionalChannelKind(args, 2)) {
           console.error(
             'Error: channel kind must be passed with --kind, not as a positional argument.'
@@ -542,8 +554,7 @@ async function main() {
           console.error(CHANNELS_COMMAND_HELP.create);
           process.exit(1);
         }
-        const kind =
-          (getOption(args, 'kind', 3) as 'chat' | 'diary' | 'heap') || 'chat';
+        const kind = (getOption(args, 'kind', 3) as 'chat' | 'heap') || 'chat';
         const description = getOption(args, 'description', 3) || '';
         await createChannelInGroup(groupId, title, kind, description);
         break;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
+import { DIARY_REMOVED } from '../cli-utils';
 import type { StoryVerse } from '../story';
 import { commandError } from './command';
 import {
@@ -35,7 +36,6 @@ interface MakeDepsOptions {
   sendPost?: (input: PostSendInput) => Promise<void>;
   sendReply?: (input: PostReplyInput) => Promise<void>;
   getChannelPosts?: (query: PostLookupQuery) => Promise<PostLookupResult>;
-  readFile?: (path: string) => string;
   buildImageVerse?: (url: string) => Promise<StoryVerse>;
 }
 
@@ -47,7 +47,6 @@ function makeDeps(options: MakeDepsOptions = {}) {
     authenticateApps: [] as PostAuthApp[][],
     getCurrentUserId: 0,
     now: 0,
-    readFile: [] as string[],
     buildImageVerse: [] as string[],
     addReaction: [] as PostReactionInput[],
     removeReaction: [] as PostReactionRemoveInput[],
@@ -77,12 +76,6 @@ function makeDeps(options: MakeDepsOptions = {}) {
       calls.now += 1;
       calls.order.push('now');
       return options.now ?? 1700000000000;
-    },
-    readFile: (path) => {
-      calls.readFile.push(path);
-      calls.order.push('readFile');
-      if (options.readFile) return options.readFile(path);
-      throw new Error(`ENOENT: no such file, open '${path}'`);
     },
     buildImageVerse: async (url) => {
       calls.buildImageVerse.push(url);
@@ -147,7 +140,6 @@ function expectNoAuthOrApi(context: ReturnType<typeof makeDeps>) {
   expect(context.calls.sendPost).toEqual([]);
   expect(context.calls.sendReply).toEqual([]);
   expect(context.calls.getChannelPosts).toEqual([]);
-  expect(context.calls.readFile).toEqual([]);
   expect(context.calls.buildImageVerse).toEqual([]);
 }
 
@@ -684,11 +676,33 @@ describe('posts edit', () => {
     }
   });
 
-  it('requires a message or a --content value before auth', async () => {
-    const cases = [
+  it('requires a message before auth or API work', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
       ['edit', 'chat/~host/channel', '170.141'],
-      ['edit', 'chat/~host/channel', '170.141', '--content'],
-      ['edit', 'chat/~host/channel', '170.141', '--content', '--title'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.edit}\n`);
+    expectNoAuthOrApi(context);
+  });
+
+  it('refuses the removed --title/--image/--content flags before auth', async () => {
+    const cases = [
+      ['edit', 'chat/~host/channel', '170.141', 'Body', '--title', 'T'],
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141',
+        'Body',
+        '--image',
+        'https://x/y.png',
+      ],
+      ['edit', 'chat/~host/channel', '170.141', '--content', 'article.json'],
+      // A help token does not rescue a removed flag — it still refuses.
+      ['edit', 'chat/~host/channel', '170.141', '--title', '--help'],
     ];
 
     for (const args of cases) {
@@ -697,7 +711,10 @@ describe('posts edit', () => {
 
       expect(exitCode).toBe(1);
       expect(context.stdout()).toBe('');
-      expect(context.stderr()).toBe(`${POSTS_COMMAND_HELP.edit}\n`);
+      expect(context.stderr()).toContain(
+        'no longer supports --title/--image/--content'
+      );
+      expect(context.stderr()).not.toContain('Usage:');
       expectNoAuthOrApi(context);
     }
   });
@@ -741,29 +758,20 @@ describe('posts edit', () => {
     expect(payload.content).toEqual([{ inline: ['Updated message'] }]);
   });
 
-  it('lets explicit --title and --image override existing metadata', async () => {
+  it('preserves existing metadata as-is without flag overrides', async () => {
     const context = makeDeps({
       getChannelPosts: withExistingPost(existing),
     });
 
     const exitCode = await run(
-      [
-        'edit',
-        'chat/~host/channel',
-        '170.141.184',
-        'Body',
-        '--title',
-        'New Title',
-        '--image',
-        'https://example.com/new.jpg',
-      ],
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
       context.deps
     );
 
     expect(exitCode).toBe(0);
     expect(context.calls.editPost[0].metadata).toEqual({
-      title: 'New Title',
-      image: 'https://example.com/new.jpg',
+      title: 'Old Title',
+      image: 'https://example.com/old.jpg',
       description: 'old description',
       cover: 'https://example.com/old-cover.jpg',
     });
@@ -796,115 +804,31 @@ describe('posts edit', () => {
     });
 
     const exitCode = await run(
-      ['edit', 'chat/~host/channel', '170.141.184', 'Body', '--title', 'T'],
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
       context.deps
     );
 
     expect(exitCode).toBe(0);
     expect(context.calls.editPost[0].metadata).toEqual({
-      title: 'T',
+      title: undefined,
       image: undefined,
       description: undefined,
       cover: undefined,
     });
   });
 
-  it('reads rich content from a --content JSON file', async () => {
-    const story = [{ inline: ['from file'] }];
-    const context = makeDeps({
-      getChannelPosts: withExistingPost(existing),
-      readFile: () => JSON.stringify(story),
-    });
-
-    const exitCode = await run(
-      [
-        'edit',
-        'chat/~host/channel',
-        '170.141.184',
-        '--content',
-        'article.json',
-      ],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('✓ Post edited\n');
-    expect(context.calls.readFile).toEqual(['article.json']);
-    expect(context.calls.editPost[0].content).toEqual(story);
-  });
-
-  it('excludes tokens after the first edit flag from the message', async () => {
+  it('treats every token after the post id as the message', async () => {
     const context = makeDeps({ getChannelPosts: withExistingPost(null) });
 
     const exitCode = await run(
-      [
-        'edit',
-        'chat/~host/channel',
-        '170.141.184',
-        'keep',
-        'this',
-        '--title',
-        'T',
-        'dropped',
-      ],
+      ['edit', 'chat/~host/channel', '170.141.184', 'keep', 'this', 'message'],
       context.deps
     );
 
     expect(exitCode).toBe(0);
     expect(context.calls.editPost[0].content).toEqual([
-      { inline: ['keep this'] },
+      { inline: ['keep this message'] },
     ]);
-  });
-
-  it('authenticates and looks up the post before reading the content file', async () => {
-    const context = makeDeps({
-      getChannelPosts: withExistingPost(null),
-      readFile: () => {
-        throw new Error("ENOENT: no such file, open 'missing.json'");
-      },
-    });
-
-    const exitCode = await run(
-      [
-        'edit',
-        'chat/~host/channel',
-        '170.141.184',
-        '--content',
-        'missing.json',
-      ],
-      context.deps
-    );
-
-    expect(exitCode).toBe(1);
-    expect(context.calls.order).toEqual([
-      'authenticate',
-      'getChannelPosts',
-      'readFile',
-    ]);
-    expect(context.stdout()).toBe('');
-    expect(context.stderr()).toBe(
-      "Error: ENOENT: no such file, open 'missing.json'\n"
-    );
-    expect(context.stderr()).not.toContain('    at ');
-    expect(context.calls.editPost).toEqual([]);
-  });
-
-  it('reports invalid --content JSON as a stable error without a stack', async () => {
-    const context = makeDeps({
-      getChannelPosts: withExistingPost(null),
-      readFile: () => 'not json{',
-    });
-
-    const exitCode = await run(
-      ['edit', 'chat/~host/channel', '170.141.184', '--content', 'bad.json'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(1);
-    expect(context.stdout()).toBe('');
-    expect(context.stderr()).toMatch(/^Error: /);
-    expect(context.stderr()).not.toContain('    at ');
-    expect(context.calls.editPost).toEqual([]);
   });
 
   it('treats --help in the message slot as edit content reaching the API', async () => {
@@ -919,26 +843,6 @@ describe('posts edit', () => {
     expect(context.stdout()).toBe('✓ Post edited\n');
     expect(context.calls.authenticate).toBe(1);
     expect(context.calls.editPost[0].content).toEqual([{ inline: ['--help'] }]);
-  });
-
-  it('takes the next flag as the title value when a value is omitted', async () => {
-    const context = makeDeps({ getChannelPosts: withExistingPost(null) });
-
-    const exitCode = await run(
-      [
-        'edit',
-        'chat/~host/channel',
-        '170.141.184',
-        'Body',
-        '--title',
-        '--image',
-        'https://example.com/x.jpg',
-      ],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.editPost[0].metadata.title).toBe('--image');
   });
 
   it('passes the injected clock through to the editPost payload', async () => {
@@ -971,6 +875,36 @@ describe('posts edit', () => {
     expect(exitCode).toBe(1);
     expect(context.stderr()).toBe('Error: edit failed\n');
   });
+});
+
+describe('posts diary nest refusal', () => {
+  const cases: Array<[string, string[]]> = [
+    ['send', ['send', 'diary/~host/blog', 'hi']],
+    ['reply', ['reply', 'diary/~host/blog', '170.141', 'hi']],
+    ['react', ['react', 'diary/~host/blog', '170.141', '👍']],
+    ['unreact', ['unreact', 'diary/~host/blog', '170.141']],
+    ['delete', ['delete', 'diary/~host/blog', '170.141']],
+    ['edit', ['edit', 'diary/~host/blog', '170.141', 'Body']],
+    // A diary nest with an *incidental* arg problem still refuses with
+    // DIARY_REMOVED — the diary check precedes per-subcommand validation.
+    ['react missing emoji', ['react', 'diary/~host/blog', '170.141']],
+    [
+      'edit removed flag',
+      ['edit', 'diary/~host/blog', '170.141', '--title', 'T'],
+    ],
+  ];
+
+  for (const [name, args] of cases) {
+    it(`refuses a diary nest on ${name} before auth or API work`, async () => {
+      const context = makeDeps();
+      const exitCode = await run(args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`Error: ${DIARY_REMOVED}\n`);
+      expectNoAuthOrApi(context);
+    });
+  }
 });
 
 describe('posts unexpected errors', () => {

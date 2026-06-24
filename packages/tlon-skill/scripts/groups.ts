@@ -32,7 +32,7 @@
  *   npx ts-node scripts/groups.ts reject-join <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts promote <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts demote <group-id> <ship> [<ship2> ...]
- *   npx ts-node scripts/groups.ts add-channel <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]
+ *   npx ts-node scripts/groups.ts add-channel <group-id> "Channel Name" [--kind chat|heap] [--description "..."]
  */
 import {
   acceptGroupJoin,
@@ -71,6 +71,7 @@ import type { Group } from '@tloncorp/api';
 
 import { ensureClient, getCurrentShip, normalizeShip } from './api-client';
 import {
+  assertKnownChannelKind,
   getOption,
   hasOptionValue,
   isHelpArg,
@@ -79,6 +80,7 @@ import {
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
+  refuseRemovedChannelKind,
 } from './cli-utils';
 import {
   type RawGroupForAdminVerification,
@@ -136,7 +138,7 @@ Commands:
   reject-join <group-id> <ship> [<ship2> ...]
   promote <group-id> <ship> [<ship2> ...]
   demote <group-id> <ship> [<ship2> ...]
-  add-channel <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]
+  add-channel <group-id> "Channel Name" [--kind chat|heap] [--description "..."]
 
 Examples:
   tlon groups info ~host/group-slug
@@ -171,7 +173,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   'reject-join': `Usage: tlon groups reject-join <group-id> <ship> [<ship2> ...]\nExample: tlon groups reject-join ~host/group-slug ~nec`,
   promote: `Usage: tlon groups promote <group-id> <ship> [<ship2> ...]\nExample: tlon groups promote ~host/group-slug ~nec`,
   demote: `Usage: tlon groups demote <group-id> <ship> [<ship2> ...]\nExample: tlon groups demote ~host/group-slug ~nec`,
-  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
+  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|heap] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
 };
 
 function getGroupsHelp(command?: string) {
@@ -269,6 +271,8 @@ function validateGroupsArgs(args: string[]): void {
       if (!args[1] || args[2] === undefined) {
         printUsageAndExit(GROUPS_COMMAND_HELP['add-channel']);
       }
+      refuseRemovedChannelKind(args, 2);
+      assertKnownChannelKind(args, 2, GROUPS_COMMAND_HELP['add-channel']);
       if (looksLikePositionalChannelKind(args, 2)) {
         printUsageAndExit(
           `Error: channel kind must be passed with --kind, not as a positional argument.\n${GROUPS_COMMAND_HELP['add-channel']}`
@@ -1309,7 +1313,7 @@ async function rejectJoin(groupId: string, ships: string[]) {
 async function addChannel(
   groupId: string,
   title: string,
-  kind: 'chat' | 'diary' | 'heap' = 'chat',
+  kind: 'chat' | 'heap' = 'chat',
   description: string = ''
 ) {
   const ship = await getCurrentShip();
@@ -1720,6 +1724,8 @@ async function main() {
         console.error(GROUPS_COMMAND_HELP['add-channel']);
         process.exit(1);
       }
+      refuseRemovedChannelKind(args, 2);
+      assertKnownChannelKind(args, 2, GROUPS_COMMAND_HELP['add-channel']);
       if (looksLikePositionalChannelKind(args, 2)) {
         console.error(
           'Error: channel kind must be passed with --kind, not as a positional argument.'
@@ -1727,8 +1733,7 @@ async function main() {
         console.error(GROUPS_COMMAND_HELP['add-channel']);
         process.exit(1);
       }
-      const kind =
-        (getOption(args, 'kind', 3) as 'chat' | 'diary' | 'heap') || 'chat';
+      const kind = (getOption(args, 'kind', 3) as 'chat' | 'heap') || 'chat';
       const description = getOption(args, 'description', 3) || '';
       await addChannel(groupId, title, kind, description);
       break;
