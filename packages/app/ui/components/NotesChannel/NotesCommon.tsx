@@ -16,6 +16,7 @@ import { ScrollView, XStack, YStack } from 'tamagui';
 import type { ActionGroup } from '../ActionSheet';
 import { ActionSheet } from '../ActionSheet';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
+import { ScreenHeader } from '../ScreenHeader';
 import type { FolderRow } from './notesTree';
 import { getFolderLabel } from './notesTree';
 
@@ -33,15 +34,24 @@ export function NotesOverflowMenu({
       open={open}
       onOpenChange={setOpen}
       trigger={
-        <OverflowTriggerButton
-          testID={triggerTestID}
-          paddingHorizontal="$xs"
-          paddingVertical="$xs"
-          onPress={(event) => {
-            event.stopPropagation();
-            setOpen(true);
-          }}
-        />
+        Platform.OS === 'web' ? (
+          <ScreenHeader.IconButton
+            testID={triggerTestID}
+            color="$primaryText"
+            onPress={() => setOpen(true)}
+            type="Overflow"
+          />
+        ) : (
+          <OverflowTriggerButton
+            testID={triggerTestID}
+            paddingHorizontal="$xs"
+            paddingVertical="$xs"
+            onPress={(event) => {
+              event.stopPropagation();
+              setOpen(true);
+            }}
+          />
+        )
       }
     />
   );
