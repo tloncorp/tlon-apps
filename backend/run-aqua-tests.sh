@@ -6,8 +6,8 @@ ship="~bud"
 pier_dir=${ship#\~}
 pier=$pier_dir
 
-urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.4"
-vere_ver="vere-v4.4"
+urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.5"
+vere_ver="vere-v4.5"
 arch=`uname -m`
 
 case $OSTYPE in
