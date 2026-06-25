@@ -155,7 +155,7 @@
   =?  old  ?=(%13 -.old)  (state-13-to-14 old)
   =?  old  ?=(%14 -.old)  (state-14-to-15 old)
   ?>  ?=(%15 -.old)
-  =.  state  (recompile-hooks old)
+  =.  state  old
   inflate-io
   ::
   +$  versioned-state
