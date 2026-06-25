@@ -4,8 +4,13 @@ import {
   markdownToStory,
   moveNotebookNote,
   normalizeNotebookNoteTitle,
+  noteIsPublished,
+  publishNotebookNote,
+  publishedNotePath,
   saveNotebookNote,
+  unpublishNotebookNote,
   useMutableCallback,
+  usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
@@ -40,6 +45,7 @@ import {
 import { buildFolderRows } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+type PublishingAction = 'publish' | 'unpublish' | null;
 
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
@@ -92,6 +98,8 @@ export function NotesNoteDetail({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [publishingAction, setPublishingAction] =
+    useState<PublishingAction>(null);
   const {
     entity: movingNote,
     isPending: isMovingNote,
@@ -107,6 +115,15 @@ export function NotesNoteDetail({
     noteId === null
       ? null
       : notes.find((note) => note.noteId === noteId) ?? null;
+  const { data: publishedNotes, refetch: refetchPublishedNotes } =
+    usePublishedNotesForNotebook({
+      notebookFlag,
+      enabled: Boolean(notebookFlag && selectedNote),
+    });
+  const selectedNoteIsPublished = noteIsPublished(
+    publishedNotes,
+    selectedNote?.noteId
+  );
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
@@ -371,6 +388,64 @@ export function NotesNoteDetail({
     setIsPreviewing((previewing) => !previewing);
   }, []);
 
+  const publishedUrl =
+    notebookFlag &&
+    selectedNote &&
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined'
+      ? new URL(
+          publishedNotePath(notebookFlag, selectedNote.noteId),
+          window.location.origin
+        ).toString()
+      : null;
+
+  const openPublishedNote = useMutableCallback(() => {
+    if (!publishedUrl) return;
+    window.open(publishedUrl, '_blank', 'noopener,noreferrer');
+  });
+
+  const handlePublishSelectedNote = useMutableCallback(async () => {
+    if (!notebookFlag || !selectedNote || !canEdit || publishingAction) return;
+
+    setPublishingAction('publish');
+    setError(null);
+    try {
+      const saved = await saveSelectedNote();
+      if (!saved) return;
+
+      await publishNotebookNote({
+        notebookFlag,
+        noteId: selectedNote.noteId,
+        title: titleDraft,
+        body: bodyDraft,
+      });
+      await refetchPublishedNotes();
+      openPublishedNote();
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to publish note'));
+    } finally {
+      setPublishingAction(null);
+    }
+  });
+
+  const handleUnpublishSelectedNote = useMutableCallback(async () => {
+    if (!notebookFlag || !selectedNote || !canEdit || publishingAction) return;
+
+    setPublishingAction('unpublish');
+    setError(null);
+    try {
+      await unpublishNotebookNote({
+        notebookFlag,
+        noteId: selectedNote.noteId,
+      });
+      await refetchPublishedNotes();
+    } catch (e) {
+      setError(errorMessage(e, 'Failed to unpublish note'));
+    } finally {
+      setPublishingAction(null);
+    }
+  });
+
   const headerSaveLabel = getHeaderSaveLabel(saveState);
   const showDetailActions = !notebook || canEdit;
   const headerControls = useMemo(
@@ -385,8 +460,14 @@ export function NotesNoteDetail({
             <NotesDetailHeaderActions
               disabled={!canEdit}
               isMoving={isMovingNote}
+              isPublished={selectedNoteIsPublished}
+              publishingAction={publishingAction}
+              publishedUrl={publishedUrl}
               onDelete={handleDeleteSelectedNote}
               onMove={() => openMoveDialog(selectedNote)}
+              onPublish={handlePublishSelectedNote}
+              onUnpublish={handleUnpublishSelectedNote}
+              onViewPublished={openPublishedNote}
             />
           ) : null}
         </XStack>
@@ -394,11 +475,17 @@ export function NotesNoteDetail({
     [
       canEdit,
       handleDeleteSelectedNote,
+      handlePublishSelectedNote,
+      handleUnpublishSelectedNote,
       isPreviewing,
       isMovingNote,
-      showDetailActions,
+      openPublishedNote,
       openMoveDialog,
+      publishingAction,
+      publishedUrl,
       selectedNote,
+      showDetailActions,
+      selectedNoteIsPublished,
       togglePreview,
     ]
   );
@@ -584,13 +671,25 @@ function HeaderSaveStatus({ label }: { label: string | null }) {
 function NotesDetailHeaderActions({
   disabled,
   isMoving,
+  isPublished,
+  publishingAction,
   onDelete,
   onMove,
+  onPublish,
+  onUnpublish,
+  onViewPublished,
+  publishedUrl,
 }: {
   disabled: boolean;
   isMoving: boolean;
+  isPublished: boolean;
+  publishingAction: PublishingAction;
   onDelete: () => void;
   onMove: () => void;
+  onPublish: () => void;
+  onUnpublish: () => void;
+  onViewPublished: () => void;
+  publishedUrl: string | null;
 }) {
   const groups = createActionGroups(
     [
@@ -602,9 +701,31 @@ function NotesDetailHeaderActions({
         disabled: disabled || isMoving,
         testID: 'NotesDetailMoveAction',
       },
+      {
+        title: isPublished ? 'Update published note' : 'Publish to web',
+        description: isPublished ? publishedUrl ?? undefined : undefined,
+        startIcon: 'EyeOpen',
+        action: onPublish,
+        disabled: publishingAction === 'publish',
+        testID: 'NotesDetailPublishAction',
+      },
+      isPublished &&
+        publishedUrl !== null && {
+          title: 'View published note',
+          startIcon: 'Link',
+          action: onViewPublished,
+          testID: 'NotesDetailViewPublishedAction',
+        },
     ],
     [
       'negative',
+      isPublished && {
+        title: 'Unpublish note',
+        startIcon: 'EyeClosed',
+        action: onUnpublish,
+        disabled: publishingAction === 'unpublish',
+        testID: 'NotesDetailUnpublishAction',
+      },
       {
         title: 'Delete note',
         startIcon: 'Close',
