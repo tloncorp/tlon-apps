@@ -85,29 +85,29 @@ then
   exit 1
 fi
 
-http_port=9090
-if [ ! -d $pier_dir ]
-then
-  echo "Generating test ship $ship"
-  $vere -F $pier_dir -c $pier_dir -B $pill --http-port $http_port -t -x
-
-  if [ "$?" -ne 0 ]
-  then
-    echo "Failed to generate test ship $ship"
-    exit 1
-  fi
-fi
-
-echo "Booting ship"
-($vere --loom 33 --http-port $http_port -t $pier) &
-vere_pid=$!
-
-function await_ship
-{
-    while ! curl -s "http://localhost:$http_port/~/login" > /dev/null
-    do
-        sleep 1
-    done
+# http_port=9090
+# if [ ! -d $pier_dir ]
+# then
+#   echo "Generating test ship $ship"
+#   $vere -F $pier_dir -c $pier_dir -B $pill --http-port $http_port -t -x
+#
+#   if [ "$?" -ne 0 ]
+#   then
+#     echo "Failed to generate test ship $ship"
+#     exit 1
+#   fi
+# fi
+#
+# echo "Booting ship"
+# ($vere --loom 33 --http-port $http_port -t $pier) &
+# vere_pid=$!
+#
+# function await_ship
+# {
+#     while ! curl -s "http://localhost:$http_port/~/login" > /dev/null
+#     do
+#         sleep 1
+#     done
 }
 
 await_ship
