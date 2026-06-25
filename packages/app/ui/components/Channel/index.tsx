@@ -774,7 +774,6 @@ export function Channel({
                             contextLensAvailable && contextLensOpen
                           }
                           contextLensActive={contextLensActive}
-                          hideIdentity={channel.type === 'notes' && !isNarrow}
                           showSpinner={showHeaderLoading}
                           showSearchButton={
                             channel.type === 'chat' ||
