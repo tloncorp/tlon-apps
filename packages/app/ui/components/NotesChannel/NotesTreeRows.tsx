@@ -58,20 +58,17 @@ export function FolderTreeRow({
     [
       'neutral',
       {
-        title: 'New note inside',
+        title: 'New note',
         startIcon: 'ChannelNote',
         action: () => onCreateNote(folder),
         testID: 'NotesCreateNoteInFolderAction',
       },
       {
-        title: 'New folder inside',
+        title: 'New folder',
         startIcon: 'Folder',
         action: () => onCreateFolder(folder),
         testID: 'NotesCreateFolderInFolderAction',
       },
-    ],
-    [
-      'neutral',
       {
         title: 'Rename folder',
         startIcon: 'EditList',

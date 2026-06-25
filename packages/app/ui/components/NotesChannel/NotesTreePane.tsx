@@ -1,9 +1,7 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
-import type { ComponentProps } from 'react';
 import { ScrollView, YStack } from 'tamagui';
 
-import { TextInput } from '../Form';
 import { FolderTreeRow, NoteRow } from './NotesTreeRows';
 import { getFolderLabel } from './notesTree';
 import type { NotesTreeRow } from './notesTree';
@@ -14,23 +12,12 @@ type CreateAction = {
   onCreate: () => void;
 };
 
-const sidebarSearchFrameStyle: ComponentProps<typeof TextInput>['frameStyle'] =
-  {
-    height: '$5xl',
-    borderRadius: 0,
-    borderWidth: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: '$border',
-  };
-
 export function NotesTreePane({
   canEdit,
   isDeletingFolder,
   isCreatingFolder,
   isCreatingNote,
   layout,
-  normalizedQuery,
-  notesFilterQuery,
   selectedFolderId,
   selectedNoteId,
   treeRows,
@@ -42,7 +29,6 @@ export function NotesTreePane({
   onMoveFolder,
   onMoveNote,
   onOpenNote,
-  onQueryChange,
   onRenameFolder,
   onToggleFolder,
 }: {
@@ -51,8 +37,6 @@ export function NotesTreePane({
   isCreatingFolder: boolean;
   isCreatingNote: boolean;
   layout: 'stack' | 'takeover';
-  normalizedQuery: string;
-  notesFilterQuery: string;
   selectedFolderId: number | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
@@ -64,7 +48,6 @@ export function NotesTreePane({
   onMoveFolder: (folder: db.NotesFolder) => void;
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
-  onQueryChange: (query: string) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onToggleFolder: (folderId: number, hasChildren: boolean) => void;
 }) {
@@ -78,7 +61,6 @@ export function NotesTreePane({
       canEdit={canEdit}
       isDeletingFolder={isDeletingFolder}
       createAction={createAction}
-      normalizedQuery={normalizedQuery}
       selectedFolderId={selectedFolderId}
       selectedNoteId={selectedNoteId}
       treeRows={treeRows}
@@ -97,11 +79,6 @@ export function NotesTreePane({
   if (layout === 'takeover') {
     return (
       <YStack flex={1} minHeight={0} backgroundColor="$background">
-        <NotesTreeSearchInput
-          query={notesFilterQuery}
-          onQueryChange={onQueryChange}
-          presentation="sidebar"
-        />
         {treeRows.length === 0 ? (
           <YStack
             flex={1}
@@ -109,15 +86,13 @@ export function NotesTreePane({
             alignItems="center"
             justifyContent="center"
           >
-            <SidebarEmptyState
-              createAction={createAction}
-              normalizedQuery={normalizedQuery}
-              centered
-            />
+            <SidebarEmptyState createAction={createAction} centered />
           </YStack>
         ) : (
           <ScrollView flex={1}>
-            <YStack paddingBottom="$m">{treeList}</YStack>
+            <YStack paddingTop="$s" paddingBottom="$m">
+              {treeList}
+            </YStack>
           </ScrollView>
         )}
       </YStack>
@@ -125,7 +100,7 @@ export function NotesTreePane({
   }
 
   return (
-    <>
+    <ScrollView flex={1}>
       <YStack
         width="100%"
         maxWidth={760}
@@ -133,29 +108,11 @@ export function NotesTreePane({
         paddingLeft="$s"
         paddingRight="$s"
         paddingTop="$m"
-        paddingBottom="$s"
-        backgroundColor="$background"
+        paddingBottom="$m"
       >
-        <NotesTreeSearchInput
-          query={notesFilterQuery}
-          onQueryChange={onQueryChange}
-        />
+        {treeList}
       </YStack>
-
-      <ScrollView flex={1}>
-        <YStack
-          width="100%"
-          maxWidth={760}
-          marginHorizontal="auto"
-          paddingLeft="$s"
-          paddingRight="$s"
-          paddingTop="$s"
-          paddingBottom="$m"
-        >
-          {treeList}
-        </YStack>
-      </ScrollView>
-    </>
+    </ScrollView>
   );
 }
 
@@ -163,7 +120,6 @@ function NotesTreeRowsList({
   canEdit,
   createAction,
   isDeletingFolder,
-  normalizedQuery,
   selectedFolderId,
   selectedNoteId,
   treeRows,
@@ -180,7 +136,6 @@ function NotesTreeRowsList({
   canEdit: boolean;
   createAction: CreateAction;
   isDeletingFolder: boolean;
-  normalizedQuery: string;
   selectedFolderId: number | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
@@ -197,10 +152,7 @@ function NotesTreeRowsList({
   return (
     <YStack gap={2}>
       {treeRows.length === 0 ? (
-        <SidebarEmptyState
-          createAction={createAction}
-          normalizedQuery={normalizedQuery}
-        />
+        <SidebarEmptyState createAction={createAction} />
       ) : (
         treeRows.map((row) =>
           row.type === 'folder' ? (
@@ -276,27 +228,21 @@ export function NotesEmptyDetailPane({
 function SidebarEmptyState({
   centered = false,
   createAction,
-  normalizedQuery,
 }: {
   centered?: boolean;
   createAction: CreateAction;
-  normalizedQuery: string;
 }) {
-  const title = normalizedQuery
-    ? 'No matching notes or folders'
-    : 'No notes or folders';
-  const action =
-    !normalizedQuery && createAction.canEdit ? (
-      <Button
-        size="small"
-        fill="ghost"
-        type="primary"
-        leadingIcon="Add"
-        label="New"
-        loading={createAction.isCreating}
-        onPress={createAction.onCreate}
-      />
-    ) : null;
+  const action = createAction.canEdit ? (
+    <Button
+      size="small"
+      fill="ghost"
+      type="primary"
+      leadingIcon="Add"
+      label="New"
+      loading={createAction.isCreating}
+      onPress={createAction.onCreate}
+    />
+  ) : null;
 
   return (
     <YStack
@@ -310,43 +256,9 @@ function SidebarEmptyState({
         letterSpacing={0}
         textAlign={centered ? 'center' : undefined}
       >
-        {title}
+        No notes or folders
       </Text>
       {action}
     </YStack>
-  );
-}
-
-function NotesTreeSearchInput({
-  query,
-  onQueryChange,
-  presentation = 'card',
-}: {
-  query: string;
-  onQueryChange: (query: string) => void;
-  presentation?: 'card' | 'sidebar';
-}) {
-  return (
-    <TextInput
-      icon="Search"
-      placeholder="Search notes"
-      value={query}
-      onChangeText={onQueryChange}
-      spellCheck={false}
-      autoCorrect={false}
-      autoCapitalize="none"
-      testID="NotesTreeSearchInput"
-      frameStyle={
-        presentation === 'sidebar' ? sidebarSearchFrameStyle : undefined
-      }
-      rightControls={
-        query !== '' ? (
-          <TextInput.InnerButton
-            label="Clear"
-            onPress={() => onQueryChange('')}
-          />
-        ) : null
-      }
-    />
   );
 }
