@@ -48,10 +48,11 @@ export type ContextLensTriggerDetails = {
 
 /**
  * Snapshot of the original dispatch inputs, captured at lens creation so an
- * owner-requested retry can re-dispatch the message faithfully. Gateway-only:
- * stripped from ship-sync payloads (chat content the owner can already read,
- * and pokes must stay small) but persisted in the JSONL store so retries
- * survive gateway restarts.
+ * owner-requested retry can re-dispatch the message faithfully. The seed is
+ * capped at capture, persisted in the JSONL store, and included in ship-sync
+ * payloads so the owner ship can retry runs even if gateway-local cache state
+ * is gone. Message text and blob JSON already originate from the DM/channel
+ * visible to the owner.
  */
 export type ContextLensRetrySeed = {
   messageText: string;

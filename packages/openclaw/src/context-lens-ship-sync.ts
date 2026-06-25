@@ -97,11 +97,14 @@ function truncateSummary(value: string | undefined): string | undefined {
  * stay small. Full untruncated runs remain on gateway disk (Phase 2 store).
  */
 export function buildLensRunPayload(lens: ContextLens): string {
-  // retrySeed is gateway-only (raw chat text + blob JSON): keep pokes lean
-  // and avoid mirroring message bodies onto the ship a second time.
-  const { retrySeed: _retrySeed, ...rest } = lens;
+  // retrySeed (raw chat text + blob field) is included so the agent is the
+  // durable source of truth for retry: any gateway, current or future, can
+  // replay a run by scrying %steward for the payload regardless of local cache
+  // state. Message text is already on the ship in the original DM/channel, so
+  // mirroring it here does not introduce new exposure; it does grow per-poke
+  // Ames traffic by roughly 1-10KB.
   const slim: ContextLens = {
-    ...rest,
+    ...lens,
     context: {
       ...lens.context,
       sources: lens.context.sources.map((source) => ({
@@ -126,8 +129,9 @@ export function buildLensRunPayload(lens: ContextLens): string {
   if (payload.length <= MAX_PAYLOAD_CHARS) {
     return payload;
   }
-  // Still oversized (e.g. hundreds of tool runs): drop the bulky arrays but
-  // keep the run's identity, status, and timings inspectable.
+  // Still oversized (e.g. hundreds of tool runs or a giant message): drop
+  // the bulky arrays but keep run identity, retrySeed, and status; retry
+  // remains possible because retrySeed survives the skeletonization.
   const skeleton: ContextLens = {
     ...slim,
     context: { ...slim.context, sources: [] },
