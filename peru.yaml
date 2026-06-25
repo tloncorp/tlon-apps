@@ -19,11 +19,10 @@ imports:
   base: desk-deps/
   landscape: desk-deps/
 
-# %base (urbit/urbit) dev dependencies. Pinned to the 408 kelvin tag, matching
-# desk/sys.kelvin ([%zuse 408]).
+# %base (urbit/urbit) dev dependencies. 
 git module base:
   url: https://github.com/urbit/urbit.git
-  rev: 408k-rc2
+  rev: 409k-2
   pick:
     # libraries the desk imports (transitive closure):
     #   default-agent -> skeleton; azimuth -> ethereum; ethereum/dbug standalone
@@ -54,11 +53,10 @@ git module base:
     - pkg/base-dev/mar/html.hoon
   export: pkg/base-dev
 
-# %landscape (tloncorp/landscape) docket + settings types. No 408 tag exists
-# yet; pinned to the 408 branch commit. Bump to a tag when landscape releases.
+# %landscape (tloncorp/landscape) docket + settings types.
 git module landscape:
   url: https://github.com/tloncorp/landscape.git
-  rev: 5193635
+  rev: v1.31.1
   pick:
     - desk/lib/docket.hoon
     - desk/mar/docket-0.hoon
