@@ -71,8 +71,8 @@
 +$  version   *
 +$  config    (map dude:gall (map protocol version))
 +$  status    ?(%match %clash %await %unmet)
-+$  state-2
-  $:  %2
++$  state-1
+  $:  %1
       ours=(map protocol version)
       know=config
       heed=(map [gill:gall protocol] (unit version))
@@ -103,7 +103,7 @@
   +$  card  card:agent:gall
   ::
   ++  helper
-    |_  [=bowl:gall state-2]
+    |_  [=bowl:gall state-1]
     +*  state  +<+
     ++  log  ~(. logs our.bowl /~/negotiate/logs)
     ++  match
@@ -520,7 +520,7 @@
   ::
   ++  agent
     |=  inner=agent:gall
-    =|  state-2
+    =|  state-1
     =*  state  -
     ^-  agent:gall
     !.  ::  we hide all the "straight into the inner agent" paths from traces
@@ -537,7 +537,8 @@
       =^  cards  state  (play-cards:up cards)
       [cards this]
     ::
-    ++  on-save  (slop !>([%negotiate state]) on-save:og)
+    ::TODO  this should've been doing +slop instead
+    ++  on-save  !>([[%negotiate state] on-save:og])
     ++  on-load
       |=  ole=vase
       ^-  (quip card _this)
@@ -571,7 +572,7 @@
         =^  caz  state  (play-cards:up caz)
         $(cards (weld cards caz), suz t.suz)
       ::
-      |^  =+  !<([%negotiate old=state-any] (slot 2 ole))
+      |^  =+  !<([[%negotiate old=state-any] ile=vase] ole)
           ?:  ?=(%0 -.old)
             ::  version 0 didn't wrap all subscriptions, so we must simulate
             ::  kicks for those that weren't wrapped.
@@ -583,13 +584,11 @@
             ::TODO  that means we should probably obliterate the %0 type &
             ::      code branch once this has been deployed to the known ships.
             ::
-            =.  state  old(- %2)
+            =.  state  old(- %1)
             !:
             ?>  =(ours our-versions)
             ?>  =(know our-config)
-            =^  cards  inner
-              %-  on-load:og
-              (next-vase:h136 !<(vase:h136 (slot 3 ole)))
+            =^  cards  inner  (on-load:og ile)
             =^  cards  state  (play-cards:up cards)
             =/  suz=(list [[=wire =gill:gall] [ack=? =path]])
               ~(tap by wex.bowl)
@@ -604,17 +603,8 @@
             =^  caz  inner  (on-agent:og wire.sub %kick ~)
             =^  caz  state  (play-cards:up caz)
             $(cards (weld cards caz), suz t.suz)
-          ::  versions 1 and onward are handled largely identically
-          ::
-          =^  ile=vase  state
-            ::  before version 2, we stored the inner +on-save vase inside
-            ::  our own +on-save vase. undoing this coincided with the h135
-            ::  type-of-type upgrade.
-            ::
-            ?-  -.old
-              %1  [(next-vase:h136 !<(vase:h136 (slot 3 ole))) old(- %2)]
-              %2  [(slot 3 ole) old]
-            ==
+          ?>  ?=(%1 -.old)
+          =.  state  old
           =/  caz1
             ?:  =(ours our-versions)  ~
             (ours-changed:up ours our-versions)
@@ -631,14 +621,14 @@
           =.  inner  nin
           [:(weld caz1 caz.a caz2 caz3) this]
       ::
-      +$  state-any  $%(state-0 state-1 state-2)
-      ::  state-0 didn't wrap all subscriptions
-      ::  and had double-vased inner +on-save
-      ::
-      +$  state-0  _%*(. *state-2 - %0)
-      ::  state-1 had double-vased inner +on-save
-      ::
-      +$  state-1  _%*(. *state-2 - %1)
+      +$  state-any  $%(state-0 state-1)
+      +$  state-0
+        $:  %0
+            ours=(map protocol version)
+            know=config
+            heed=(map [gill:gall protocol] (unit version))
+            want=(map gill:gall (map wire path))  ::  unpacked wires
+        ==
       --
     ::
     ++  on-watch
