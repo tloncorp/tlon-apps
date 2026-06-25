@@ -28,6 +28,11 @@ class PlatformConfig:
 
 class MessageType:
     TEXT = "text"
+    PHOTO = "photo"
+    VIDEO = "video"
+    AUDIO = "audio"
+    VOICE = "voice"
+    DOCUMENT = "document"
 
 
 class MessageEvent:
@@ -41,6 +46,8 @@ class MessageEvent:
         message_id,
         reply_to_message_id,
         timestamp,
+        media_urls=None,
+        media_types=None,
     ):
         self.text = text
         self.message_type = message_type
@@ -49,6 +56,8 @@ class MessageEvent:
         self.message_id = message_id
         self.reply_to_message_id = reply_to_message_id
         self.timestamp = timestamp
+        self.media_urls = media_urls or []
+        self.media_types = media_types or []
 
 
 class SendResult:
@@ -116,7 +125,23 @@ tlon_api = load_module("tlon_api")
 adapter_mod = load_module("adapter")
 
 
-def channel_event(text, *, author="~ten", nest="chat/~pen/general", post_id="170.141"):
+def channel_event(
+    text,
+    *,
+    author="~ten",
+    nest="chat/~pen/general",
+    post_id="170.141",
+    blob=None,
+    content=None,
+):
+    story_content = [{"inline": [text]}] if content is None else content
+    essay = {
+        "author": author,
+        "sent": 1000,
+        "content": story_content,
+    }
+    if blob is not None:
+        essay["blob"] = blob
     return {
         "nest": nest,
         "response": {
@@ -124,11 +149,7 @@ def channel_event(text, *, author="~ten", nest="chat/~pen/general", post_id="170
                 "id": post_id,
                 "r-post": {
                     "set": {
-                        "essay": {
-                            "author": author,
-                            "sent": 1000,
-                            "content": [{"inline": [text]}],
-                        }
+                        "essay": essay
                     }
                 },
             }
@@ -136,12 +157,23 @@ def channel_event(text, *, author="~ten", nest="chat/~pen/general", post_id="170
     }
 
 
-def dm_event(text, *, author="~ten", whom="~ten", msg_id="dm-1", parent_id=None):
+def dm_event(
+    text,
+    *,
+    author="~ten",
+    whom="~ten",
+    msg_id="dm-1",
+    parent_id=None,
+    blob=None,
+    content=None,
+):
     essay = {
         "author": author,
         "sent": 1000,
-        "content": [{"inline": [text]}],
+        "content": [{"inline": [text]}] if content is None else content,
     }
+    if blob is not None:
+        essay["blob"] = blob
     if parent_id:
         return {
             "whom": whom,
@@ -280,6 +312,53 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(len(writes), 1)
         self.assertEqual(writes[0][0]["requestingShip"], "~ten")
 
+    def test_unknown_dm_blob_only_queues_and_replays_with_media(self):
+        adapter = self.make_adapter()
+        blob = json.dumps(
+            [
+                {
+                    "type": "voicememo",
+                    "version": 1,
+                    "fileUri": "https://storage.example.com/memo.m4a",
+                }
+            ]
+        )
+
+        events = self.dispatches(adapter, dm_event("", blob=blob, content=[]), dm=True)
+
+        self.assertEqual(events, [])
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["messageText"], "")
+        self.assertEqual(pending["originalMessage"]["blob"], blob)
+        self.assertIn("voice memo", pending["messagePreview"])
+
+        async def fake_prepare(content, raw_blob):
+            self.assertEqual(content, [])
+            self.assertEqual(raw_blob, blob)
+            return adapter_mod.PreparedMedia(
+                text_prefix="🎙️ [voice memo] (?)",
+                media_urls=("/cache/memo.m4a",),
+                media_types=("audio/mp4",),
+                message_type="voice",
+            )
+
+        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
+            replayed = self.dispatches(
+                adapter,
+                dm_event(
+                    f"/allow {pending['id']}",
+                    author="~mug",
+                    whom="~mug",
+                    msg_id="allow-1",
+                ),
+                dm=True,
+            )
+
+        self.assertEqual(len(replayed), 1)
+        self.assertEqual(replayed[0].text, "🎙️ [voice memo] (?)")
+        self.assertEqual(replayed[0].message_type, MessageType.VOICE)
+        self.assertEqual(replayed[0].media_urls, ["/cache/memo.m4a"])
+
     def test_unknown_club_message_drops_without_queue(self):
         adapter = self.make_adapter()
         events = self.dispatches(
@@ -307,6 +386,27 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(pending["type"], "channel")
         self.assertEqual(pending["channelNest"], "chat/~pen/general")
         self.assertEqual(pending["originalMessage"]["messageText"], "are you there?")
+
+    def test_unauthorized_channel_mention_preserves_blob_in_approval(self):
+        adapter = self.make_adapter()
+        blob = json.dumps(
+            [
+                {
+                    "type": "video",
+                    "version": 1,
+                    "fileUri": "https://storage.example.com/clip.mp4",
+                    "name": "clip.mp4",
+                }
+            ]
+        )
+
+        events = self.dispatches(adapter, channel_event("~pen watch", blob=blob))
+
+        self.assertEqual(events, [])
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["messageText"], "watch")
+        self.assertEqual(pending["originalMessage"]["blob"], blob)
+        self.assertIn("clip.mp4", pending["messagePreview"])
 
     def test_unmentioned_unauthorized_channel_chatter_does_not_queue(self):
         adapter = self.make_adapter()

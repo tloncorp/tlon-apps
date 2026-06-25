@@ -63,6 +63,10 @@ import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
 import {
+  formatTlonVersionIdentity,
+  resolveTlonSkillVersion,
+} from '../version.js';
+import {
   type DisplayContext,
   type PendingApproval,
   createPendingApproval,
@@ -111,6 +115,13 @@ import {
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
+import {
+  type TlonInboundRouteRecord,
+  isRouteDebugEnabled,
+  recordTlonRouteAndDispatch,
+  routeUpdateWillSkipByPin,
+  tlonDeliveryContext,
+} from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
 import {
   type ParsedCite,
@@ -385,6 +396,12 @@ export async function monitorTlonProvider(
     });
   };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
+  runtime.log?.(
+    `[tlon] version: ${formatTlonVersionIdentity({
+      markdown: false,
+      tlonSkillVersion,
+    }).replace(/\n/g, ' | ')}`
+  );
 
   const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(
     account.allowPrivateNetwork
@@ -521,11 +538,11 @@ export async function monitorTlonProvider(
   });
 
   // Outer try/finally wraps everything from slot publication onward.
-  // The reviewer's P2: a synchronous throw between slot publication and
-  // the inner try at ~line 2719 (constructor, queue setup, bridge
-  // setup, channel discovery, future edits in this large pre-try
-  // region) would leave the shared slot orphaned. This outer finally
-  // catches all of those and runs cleanup unconditionally.
+  // A synchronous throw between slot publication and the inner try
+  // (constructor, queue setup, bridge setup, channel discovery, future
+  // edits in this large pre-try region) would leave the shared slot
+  // orphaned. This outer finally catches all of those and runs cleanup
+  // unconditionally.
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
 
@@ -2380,6 +2397,45 @@ export async function monitorTlonProvider(
         }),
       });
 
+      // ── Durable session-route persistence ───────────────────────
+      // The streamed reply below goes out through our own `deliver` callback
+      // and does not consult session metadata. But later route-dependent sends
+      // (the shared `message` tool, subagents, system-event turns) resolve
+      // their destination from the session store; without a persisted Tlon
+      // route they fall back to webchat. recordTlonRouteAndDispatch (below)
+      // records the route before dispatch and fails open — never blocks the
+      // reply.
+      const routeDebug: ((rec: TlonInboundRouteRecord) => void) | undefined =
+        isRouteDebugEnabled()
+          ? (rec) =>
+              runtime.log?.(
+                `[tlon][route-debug] inbound ${JSON.stringify({
+                  messageId,
+                  agentId: route.agentId,
+                  sessionKey: route.sessionKey,
+                  mainSessionKey: route.mainSessionKey,
+                  lastRoutePolicy: route.lastRoutePolicy,
+                  matchedBy: route.matchedBy,
+                  provider: ctxPayload.Provider,
+                  surface: ctxPayload.Surface,
+                  originatingChannel: ctxPayload.OriginatingChannel,
+                  originatingTo: ctxPayload.OriginatingTo,
+                  ctxSessionKey: ctxPayload.SessionKey,
+                  isGroup,
+                  groupChannel: groupChannel ?? null,
+                  senderShip,
+                  parentId: parentId ?? null,
+                  deliverParentId: deliverParentId ?? null,
+                  recordSessionKey: rec.recordSessionKey,
+                  lastRouteSessionKey: rec.lastRouteSessionKey,
+                  target: rec.target,
+                  hadUpdateLastRoute: Boolean(rec.updateLastRoute),
+                  pinWillSkip: routeUpdateWillSkipByPin(rec.updateLastRoute),
+                  skippedReason: rec.skippedReason ?? null,
+                })}`
+              )
+          : undefined;
+
       const dispatchStartTime = Date.now();
       const runId = randomUUID();
       const replyTelemetry = telemetry?.startReply({
@@ -2552,7 +2608,6 @@ export async function monitorTlonProvider(
                     );
                     return;
                   }
-                }
 
                   // Process any block directives in the response (strips them from text)
                   replyText = await processBlockDirectives(
@@ -2595,20 +2650,16 @@ export async function monitorTlonProvider(
 
                   if (isRouteDebugEnabled()) {
                     runtime.log?.(
-                      `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                      `[tlon][route-debug] deliver ${JSON.stringify({
+                        messageId,
+                        isGroup,
+                        destination: isGroup
+                          ? groupChannel ?? null
+                          : senderShip,
+                        deliverParentId: deliverParentId ?? null,
+                      })}`
                     );
                   }
-                } else {
-                  await sendDm({
-                    botProfile: getBotProfile(),
-                    fromShip: botShipName,
-                    toShip: senderShip,
-                    text: replyText,
-                    replyToId: deliverParentId
-                      ? String(deliverParentId)
-                      : undefined,
-                  });
-                }
 
                   sendAttemptCount += 1;
                   if (isGroup && groupChannel) {
@@ -2666,14 +2717,8 @@ export async function monitorTlonProvider(
                   );
                 },
               },
-              onError: (err, info) => {
-                const dispatchDuration = Date.now() - dispatchStartTime;
-                runtime.error?.(
-                  `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
-                );
-              },
-            },
-          });
+            }),
+        });
       } catch (error) {
         dispatchError = error;
         throw error;
@@ -2808,6 +2853,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${nest}`,
+                    route.accountId
+                  ),
                 });
               }
             } catch (err: any) {
@@ -3228,6 +3278,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${reactAuthor}:${action}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${partnerShip || reactAuthor}`,
+                    route.accountId
+                  ),
                 });
                 runtime.log?.(`[tlon] DM_REACTION: ${eventText}`);
               }
@@ -3735,7 +3790,14 @@ export async function monitorTlonProvider(
                             const memberDisplay = formatShipWithNickname(ship);
                             core.system.enqueueSystemEvent(
                               `[${memberDisplay} joined group ${groupFlag}]`,
-                              { sessionKey: route.sessionKey }
+                              {
+                                sessionKey: route.sessionKey,
+                                // Route any resulting system turn back to Tlon.
+                                deliveryContext: tlonDeliveryContext(
+                                  `tlon:${nest}`,
+                                  route.accountId
+                                ),
+                              }
                             );
                             runtime.log?.(
                               `[tlon] Member joined: ${ship} → ${groupFlag}`
@@ -4080,6 +4142,22 @@ export async function monitorTlonProvider(
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      telemetry?.captureGatewayConnected({
+        ownerShip: effectiveOwnerShip,
+        botShip: botShipName,
+        tlonSkillVersion: await resolveTlonSkillVersion(),
+        accountId: account.accountId,
+        configured: account.configured,
+        watchedChannelCount: watchedChannels.size,
+        dmAllowlistCount: effectiveDmAllowlist.length,
+        defaultAuthorizedShipsCount: (
+          currentSettings.defaultAuthorizedShips ??
+          account.defaultAuthorizedShips
+        ).length,
+        pendingApprovalCount: pendingApprovals.length,
+        autoDiscoverChannels: effectiveAutoDiscoverChannels,
+        ownerListenEnabled: effectiveOwnerListenEnabled,
+      });
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
