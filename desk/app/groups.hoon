@@ -1758,7 +1758,7 @@
     (~(del in active-channels.group) nest)
   =.  groups  (~(put by groups) flag net group)
   =/  =r-groups:v10:gv  [flag [%active-channel nest joined]]
-  (give %fact ~[/v2/groups] group-response-2+r-groups)
+  (give %fact ~[/v2/groups] group-response-2+!>(r-groups))
 ::
 ++  take-channels
   |=  =sign:agent:gall
