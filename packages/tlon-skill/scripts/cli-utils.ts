@@ -289,3 +289,16 @@ export function refuseNotesWriters(nest: string | undefined): void {
     );
   }
 }
+
+// %notes owns channel listing metadata. Until the %notes command family exposes
+// explicit metadata operations, refuse channel-level updates that would write
+// directly to %groups and leave the two sources of truth desynced.
+export function refuseNotesChannelMetadataUpdate(
+  nest: string | undefined
+): void {
+  if (isNotesNest(nest)) {
+    printErrorAndExit(
+      'Channel metadata updates are not supported for %notes channels yet — %notes owns the channel listing metadata.'
+    );
+  }
+}

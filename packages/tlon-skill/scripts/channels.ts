@@ -45,6 +45,7 @@ import {
   printUsageAndExit,
   refuseDiaryNest,
   refuseNotesChannelDescription,
+  refuseNotesChannelMetadataUpdate,
   refuseNotesWriters,
   refuseRemovedChannelKind,
 } from './cli-utils';
@@ -141,6 +142,7 @@ function validateChannelsArgs(args: string[]): void {
     case 'update': {
       if (!args[1]) printUsageAndExit(CHANNELS_COMMAND_HELP.update);
       refuseDiaryNest(args[1]);
+      refuseNotesChannelMetadataUpdate(args[1]);
       if (
         !CHANNEL_UPDATE_FLAGS.some((flag) =>
           hasOptionValue(args, flag, CHANNEL_UPDATE_FLAGS)
@@ -157,6 +159,7 @@ function validateChannelsArgs(args: string[]): void {
         printUsageAndExit(CHANNELS_COMMAND_HELP.rename);
       }
       refuseDiaryNest(args[1]);
+      refuseNotesChannelMetadataUpdate(args[1]);
       return;
     }
     case 'add-writers':

@@ -1232,6 +1232,21 @@ export const NOTES_CHANNEL_KIND_CASES: CliCase[] = [
     ['channels', 'del-writers', 'notes/~host/blog', 'admin'],
     'Writer roles are not supported for %notes channels'
   ),
+  refusalCase(
+    'channels update --description on a notes nest refuses',
+    ['channels', 'update', 'notes/~host/blog', '--description', 'x'],
+    'Channel metadata updates are not supported for %notes channels'
+  ),
+  refusalCase(
+    'channels update --title on a notes nest refuses',
+    ['channels', 'update', 'notes/~host/blog', '--title', 'New Title'],
+    'Channel metadata updates are not supported for %notes channels'
+  ),
+  refusalCase(
+    'channels rename on a notes nest refuses',
+    ['channels', 'rename', 'notes/~host/blog', 'New Title'],
+    'Channel metadata updates are not supported for %notes channels'
+  ),
 ];
 
 export const CLI_MATRIX_CASES: CliCase[] = [
