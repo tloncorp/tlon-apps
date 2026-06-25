@@ -40,7 +40,11 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
-import { checkBlockedSendOperation } from './src/tlon-tool-guard.js';
+import {
+  checkBlockedSendOperation,
+  formatAllowedTlonSubcommands,
+  isAllowedTlonSubcommand,
+} from './src/tlon-tool-guard.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
@@ -58,24 +62,6 @@ export { setTlonRuntime } from './src/runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
-
-// Whitelist of allowed tlon subcommands
-const ALLOWED_TLON_COMMANDS = new Set([
-  'activity',
-  'channels',
-  'contacts',
-  'dms',
-  'expose',
-  'groups',
-  'hooks',
-  'messages',
-  'notebook',
-  'posts',
-  'settings',
-  'upload',
-  'help',
-  'version',
-]);
 
 /** Credential flags that the tlon skill binary accepts before the subcommand. */
 const CREDENTIAL_FLAGS_WITH_VALUE = new Set([
@@ -781,9 +767,9 @@ export default defineChannelPluginEntry({
       name: 'tlon',
       label: 'Tlon CLI',
       description:
-        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, posts, settings, upload, expose, hooks. ' +
+        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list'",
+        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
       parameters: {
         type: 'object',
         properties: {
@@ -792,7 +778,7 @@ export default defineChannelPluginEntry({
             description:
               'The tlon command and arguments (read/admin operations). ' +
               'To send messages, use the `message` tool, not this tool. ' +
-              "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20'",
+              "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
           },
         },
         required: ['command'],
@@ -803,12 +789,12 @@ export default defineChannelPluginEntry({
 
           const subIdx = findSubcommandIndex(args);
           const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
-          if (!subcommand || !ALLOWED_TLON_COMMANDS.has(subcommand)) {
+          if (!isAllowedTlonSubcommand(subcommand)) {
             return {
               content: [
                 {
                   type: 'text' as const,
-                  text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${[...ALLOWED_TLON_COMMANDS].join(', ')}`,
+                  text: `Error: Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`,
                 },
               ],
               details: { error: true },
