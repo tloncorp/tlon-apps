@@ -372,10 +372,17 @@ export type TlonHarnessDebugEvent = TlonHarnessDebugSnapshotFields & {
   outcome: string | null;
   durationMs: number | null;
   toolName: string | null;
+  toolCallId: string | null;
+  toolSource: string | null;
+  toolOwner: string | null;
   pluginId: string | null;
   harnessId: string | null;
+  modelCallId: string | null;
   modelApi: string | null;
   modelTransport: string | null;
+  requestPayloadBytes: number | null;
+  responseStreamBytes: number | null;
+  timeToFirstByteMs: number | null;
   logLevel: string | null;
   message: string | null;
   loggerName: string | null;
@@ -397,6 +404,8 @@ export type TlonHarnessDebugEvent = TlonHarnessDebugSnapshotFields & {
   promptImages: number | null;
   contextTokenBudget: number | null;
   reserveTokens: number | null;
+  contextChannel: string | null;
+  contextTrigger: string | null;
 };
 
 export type TlonPluginErrorSource =
@@ -1482,10 +1491,17 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           outcome: event.outcome,
           durationMs: event.durationMs,
           toolName: event.toolName,
+          toolCallId: event.toolCallId,
+          toolSource: event.toolSource,
+          toolOwner: event.toolOwner,
           pluginId: event.pluginId,
           harnessId: event.harnessId,
+          modelCallId: event.modelCallId,
           modelApi: event.modelApi,
           modelTransport: event.modelTransport,
+          requestPayloadBytes: event.requestPayloadBytes,
+          responseStreamBytes: event.responseStreamBytes,
+          timeToFirstByteMs: event.timeToFirstByteMs,
           logLevel: event.logLevel,
           message: event.message,
           loggerName: event.loggerName,
@@ -1507,6 +1523,8 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           promptImages: event.promptImages,
           contextTokenBudget: event.contextTokenBudget,
           reserveTokens: event.reserveTokens,
+          contextChannel: event.contextChannel,
+          contextTrigger: event.contextTrigger,
           harnessDebugSequence: event.harnessDebugSequence,
           lastHarnessEventType: event.lastHarnessEventType,
           lastHarnessEventAgeMs: event.lastHarnessEventAgeMs,
@@ -1817,10 +1835,17 @@ export type TlonHarnessDebugReportInput = {
   outcome?: string | null;
   durationMs?: number | null;
   toolName?: string | null;
+  toolCallId?: string | null;
+  toolSource?: string | null;
+  toolOwner?: string | null;
   pluginId?: string | null;
   harnessId?: string | null;
+  modelCallId?: string | null;
   modelApi?: string | null;
   modelTransport?: string | null;
+  requestPayloadBytes?: number | null;
+  responseStreamBytes?: number | null;
+  timeToFirstByteMs?: number | null;
   logLevel?: string | null;
   message?: string | null;
   loggerName?: string | null;
@@ -1842,6 +1867,8 @@ export type TlonHarnessDebugReportInput = {
   promptImages?: number | null;
   contextTokenBudget?: number | null;
   reserveTokens?: number | null;
+  contextChannel?: string | null;
+  contextTrigger?: string | null;
 };
 
 export type TlonPluginErrorReportInput = {
@@ -2078,10 +2105,17 @@ export function reportHarnessDebug(event: TlonHarnessDebugReportInput): void {
     outcome: optionalString(event.outcome),
     durationMs: optionalNumber(event.durationMs),
     toolName: optionalString(event.toolName),
+    toolCallId: optionalString(event.toolCallId),
+    toolSource: optionalString(event.toolSource),
+    toolOwner: optionalString(event.toolOwner),
     pluginId: optionalString(event.pluginId),
     harnessId: optionalString(event.harnessId),
+    modelCallId: optionalString(event.modelCallId),
     modelApi: optionalString(event.modelApi),
     modelTransport: optionalString(event.modelTransport),
+    requestPayloadBytes: optionalNumber(event.requestPayloadBytes),
+    responseStreamBytes: optionalNumber(event.responseStreamBytes),
+    timeToFirstByteMs: optionalNumber(event.timeToFirstByteMs),
     logLevel: optionalString(event.logLevel),
     message: optionalString(event.message),
     loggerName: optionalString(event.loggerName),
@@ -2103,6 +2137,8 @@ export function reportHarnessDebug(event: TlonHarnessDebugReportInput): void {
     promptImages: optionalNumber(event.promptImages),
     contextTokenBudget: optionalNumber(event.contextTokenBudget),
     reserveTokens: optionalNumber(event.reserveTokens),
+    contextChannel: optionalString(event.contextChannel),
+    contextTrigger: optionalString(event.contextTrigger),
     ...snapshot,
   });
 }

@@ -945,6 +945,8 @@ describe('telemetry tool tracking', () => {
       promptChars: 7890,
       contextTokenBudget: 200000,
       reserveTokens: 20000,
+      contextChannel: 'tlon',
+      contextTrigger: 'message',
     });
 
     const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
@@ -967,6 +969,8 @@ describe('telemetry tool tracking', () => {
       promptChars: 7890,
       contextTokenBudget: 200000,
       reserveTokens: 20000,
+      contextChannel: 'tlon',
+      contextTrigger: 'message',
       harnessDebugSequence: 1,
       contextAssembledSeen: true,
       runStartedSeen: false,
@@ -1015,6 +1019,63 @@ describe('telemetry tool tracking', () => {
       modelCallStartedSeen: false,
       harnessRunStartedSeen: false,
       toolExecutionStartedSeen: false,
+    });
+  });
+
+  it('captures tool and model call identifiers on harness debug events', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindDebugReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    reportHarnessDebug({
+      harnessEventType: 'tool.execution.completed',
+      debugEventKind: 'tool',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      toolName: 'read',
+      toolCallId: 'call-read-1',
+      toolSource: 'core',
+      toolOwner: 'openclaw',
+      durationMs: 42,
+    });
+
+    let call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Debug');
+    expect(call.properties).toMatchObject({
+      harnessEventType: 'tool.execution.completed',
+      debugEventKind: 'tool',
+      toolName: 'read',
+      toolCallId: 'call-read-1',
+      toolSource: 'core',
+      toolOwner: 'openclaw',
+      durationMs: 42,
+    });
+
+    reportHarnessDebug({
+      harnessEventType: 'model.call.completed',
+      debugEventKind: 'model',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      provider: 'openrouter',
+      model: 'anthropic/claude-haiku-4.5',
+      modelCallId: 'model-call-1',
+      durationMs: 2997,
+      requestPayloadBytes: 12345,
+      responseStreamBytes: 6789,
+      timeToFirstByteMs: 321,
+    });
+
+    call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties).toMatchObject({
+      harnessEventType: 'model.call.completed',
+      debugEventKind: 'model',
+      modelCallId: 'model-call-1',
+      durationMs: 2997,
+      requestPayloadBytes: 12345,
+      responseStreamBytes: 6789,
+      timeToFirstByteMs: 321,
     });
   });
 

@@ -506,16 +506,39 @@ function reportHarnessDebugDiagnostic(
       numberAttribute(attributes, 'durationMs'),
     toolName:
       stringField(event, 'toolName') ?? stringAttribute(attributes, 'toolName'),
+    toolCallId:
+      stringField(event, 'toolCallId') ??
+      stringAttribute(attributes, 'toolCallId'),
+    toolSource:
+      stringField(event, 'toolSource') ??
+      stringAttribute(attributes, 'toolSource'),
+    toolOwner:
+      stringField(event, 'toolOwner') ??
+      stringAttribute(attributes, 'toolOwner'),
     pluginId:
       stringField(event, 'pluginId') ?? stringAttribute(attributes, 'pluginId'),
     harnessId:
       stringField(event, 'harnessId') ??
       stringAttribute(attributes, 'harnessId'),
+    modelCallId:
+      stringField(event, 'modelCallId') ??
+      stringField(event, 'callId') ??
+      stringAttribute(attributes, 'modelCallId') ??
+      stringAttribute(attributes, 'callId'),
     modelApi:
       stringField(event, 'modelApi') ?? stringAttribute(attributes, 'modelApi'),
     modelTransport:
       stringField(event, 'modelTransport') ??
       stringAttribute(attributes, 'modelTransport'),
+    requestPayloadBytes:
+      numberField(event, 'requestPayloadBytes') ??
+      numberAttribute(attributes, 'requestPayloadBytes'),
+    responseStreamBytes:
+      numberField(event, 'responseStreamBytes') ??
+      numberAttribute(attributes, 'responseStreamBytes'),
+    timeToFirstByteMs:
+      numberField(event, 'timeToFirstByteMs') ??
+      numberAttribute(attributes, 'timeToFirstByteMs'),
     logLevel: stringField(event, 'level'),
     loggerName: stringField(event, 'loggerName'),
     codeFunctionName,
@@ -559,6 +582,16 @@ function reportHarnessDebugDiagnostic(
     reserveTokens:
       numberField(event, 'reserveTokens') ??
       numberAttribute(attributes, 'reserveTokens'),
+    contextChannel:
+      stringField(event, 'contextChannel') ??
+      stringField(event, 'channel') ??
+      stringAttribute(attributes, 'contextChannel') ??
+      stringAttribute(attributes, 'channel'),
+    contextTrigger:
+      stringField(event, 'contextTrigger') ??
+      stringField(event, 'trigger') ??
+      stringAttribute(attributes, 'contextTrigger') ??
+      stringAttribute(attributes, 'trigger'),
   });
 }
 
