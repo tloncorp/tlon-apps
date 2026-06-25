@@ -21,26 +21,33 @@ services:
         apt-get update && apt-get install -y curl xz-utils
         cd /data
 
+        # Pin both halves of the runtime/snapshot pair so the version skew that
+        # crashed serf replay (stale snapshot -> downgrade runtime to replay ->
+        # serf unexpectedly shut down) cannot silently return when `latest`
+        # advances past the snapshot kelvin. rube-27 is the archive generation
+        # the tlon-web e2e suite runs; vere-v4.5 is the matching runtime.
+        echo "==> vere pin: vere-v4.5  pier gen: 27"
+
         echo "==> Downloading zod..."
-        curl -fSL https://bootstrap.urbit.org/rube-zod27.tgz -o rube-zod27.tgz || { echo "Failed to download zod"; exit 1; }
+        curl -fSL --retry 3 --retry-delay 2 --retry-all-errors https://bootstrap.urbit.org/rube-zod27.tgz -o rube-zod27.tgz || { echo "Failed to download zod"; exit 1; }
         ls -la rube-zod27.tgz
         echo "==> Extracting zod..."
         tar xzf rube-zod27.tgz || { echo "Failed to extract zod"; exit 1; }
 
         echo "==> Downloading ten..."
-        curl -fSL https://bootstrap.urbit.org/rube-ten27.tgz -o rube-ten27.tgz || { echo "Failed to download ten"; exit 1; }
+        curl -fSL --retry 3 --retry-delay 2 --retry-all-errors https://bootstrap.urbit.org/rube-ten27.tgz -o rube-ten27.tgz || { echo "Failed to download ten"; exit 1; }
         ls -la rube-ten27.tgz
         echo "==> Extracting ten..."
         tar xzf rube-ten27.tgz || { echo "Failed to extract ten"; exit 1; }
 
         echo "==> Downloading mug..."
-        curl -fSL https://bootstrap.urbit.org/rube-mug27.tgz -o rube-mug27.tgz || { echo "Failed to download mug"; exit 1; }
+        curl -fSL --retry 3 --retry-delay 2 --retry-all-errors https://bootstrap.urbit.org/rube-mug27.tgz -o rube-mug27.tgz || { echo "Failed to download mug"; exit 1; }
         ls -la rube-mug27.tgz
         echo "==> Extracting mug..."
         tar xzf rube-mug27.tgz || { echo "Failed to extract mug"; exit 1; }
 
         echo "==> Downloading vere..."
-        curl -fSL https://urbit.org/install/linux-x86_64/latest | tar xz || { echo "Failed to download vere"; exit 1; }
+        curl -fSL --retry 3 --retry-delay 2 --retry-all-errors https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz | tar xz || { echo "Failed to download vere"; exit 1; }
         VERE=$$(ls -1 vere-*-linux-x86_64 | head -1)
         chmod +x $$VERE
         echo "==> Using vere: $$VERE"

@@ -77,7 +77,6 @@ export const syncInitData = async (
     await persistUnreads({
       unreads: initData.unreads,
       ctx: queryCtx,
-      includesAllUnreads: true,
     }).then(() => logger.crumb('persisted unreads'));
 
     await db
@@ -103,11 +102,11 @@ export const syncInitData = async (
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
     await db
-      .setLeftGroupChannels(
-        { joinedChannelIds: initData.joinedChannels },
+      .reconcileJoinedGroupChannels(
+        { joinedChannelIds: initData.joinedGroupChannels },
         queryCtx
       )
-      .then(() => logger.crumb('set left channels'));
+      .then(() => logger.crumb('reconciled group channel membership'));
     updateLastActivityTime();
   };
 
@@ -791,10 +790,8 @@ export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
   );
   checkForNewlyJoined(unreads);
   return queryCtx
-    ? persistUnreads({ unreads, ctx: queryCtx, includesAllUnreads: true })
-    : batchEffects('initialUnreads', (ctx) =>
-        persistUnreads({ unreads, ctx, includesAllUnreads: true })
-      );
+    ? persistUnreads({ unreads, ctx: queryCtx })
+    : batchEffects('initialUnreads', (ctx) => persistUnreads({ unreads, ctx }));
 };
 
 export const syncChannelThreadUnreads = async (
@@ -1199,7 +1196,17 @@ export async function handleGroupUpdate(
       break;
     }
     case 'updateChannel': {
-      await db.updateChannel(update.channel, ctx);
+      // A channel edit (metadata / readers) must not redefine the current
+      // user's membership. The r-group reducer builds this channel with no
+      // role context, so currentUserIsMember is computed from readers ∩ {} —
+      // which wrongly marks a now-restricted channel as "left". Membership is
+      // owned by the full group sync (which has the user's roles) and the
+      // active-channels join/leave path, so strip it from this update.
+      const channelUpdate: Partial<db.Channel> & { id: string } = {
+        ...update.channel,
+      };
+      delete channelUpdate.currentUserIsMember;
+      await db.updateChannel(channelUpdate, ctx);
       if (update.channel.groupId) {
         await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
@@ -1618,12 +1625,6 @@ export const handleChannelsUpdate = async (
     }
     case 'markPostSent':
       await db.updatePost({ id: update.cacheId, deliveryStatus: 'sent' }, ctx);
-      break;
-    case 'joinChannelSuccess':
-      await db.addJoinedGroupChannel({ channelId: update.channelId }, ctx);
-      break;
-    case 'leaveChannelSuccess':
-      await db.removeJoinedGroupChannel({ channelId: update.channelId }, ctx);
       break;
     case 'initialPostsOnChannelJoin':
       await db.insertChannelPosts(

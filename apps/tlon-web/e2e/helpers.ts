@@ -1089,14 +1089,18 @@ export async function setGroupPrivacy(
  */
 export async function setGroupNotifications(
   page: Page,
-  level: 'All activity' | 'Posts, mentions, and replies' | 'Nothing'
+  level:
+    | 'All group activity'
+    | 'Group posts, mentions, and replies'
+    | 'Mentions and replies'
+    | 'Nothing'
 ) {
   // Ensure session is stable before changing notifications
   await waitForSessionStability(page);
 
   await page.getByTestId('GroupNotifications').click();
   await expect(
-    page.getByText('Posts, mentions, and replies', { exact: true })
+    page.getByText('Group posts, mentions, and replies', { exact: true })
   ).toBeVisible();
   await page.getByText(level).click();
 }

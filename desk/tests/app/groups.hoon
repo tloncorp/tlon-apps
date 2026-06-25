@@ -150,10 +150,14 @@
     [flag.r-groups now.bowl diff]
   %+  ex-cards  caz
   %+  welp
+    %-  zing
     %+  turn  rs-groups
     |=  =r-groups:v9:gv
-    %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-    group-response-1+!>(r-groups)
+    :~  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+        group-response-1+!>(r-groups)
+        %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
+        group-response-2+!>(`r-groups:v10:gv`r-groups)
+    ==
   %+  turn  actions-2
   |=  =action:v2:gv
   (ex-fact ~[/groups/ui] group-action-3+!>(action))
@@ -191,6 +195,8 @@
     %+  turn  actions-2
     |=  =action:v2:gv
     (ex-fact ~[/groups/ui] group-action-3+!>(action))
+  :-  %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
+      group-response-2+!>(`r-groups:v10:gv`r-groups)
   :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
       group-response-1+!>(r-groups)
   out
@@ -683,6 +689,7 @@
     %+  ex-cards  caz
     :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
         (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/v2/groups /v2/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/groups/ui])
         (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
     ==
