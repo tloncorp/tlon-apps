@@ -115,6 +115,7 @@ export interface NoteSummary {
   title?: string;
   revision?: number;
   folder?: number;
+  folderId?: number;
 }
 
 export interface NoteDetail extends NoteSummary {
@@ -122,16 +123,19 @@ export interface NoteDetail extends NoteSummary {
   bodyMd?: string;
 }
 
-// The OpenAPI field is `folderName` (the README's `name` is wrong).
 export interface Folder {
   id: number;
+  name?: string;
   folderName?: string;
   parent?: number;
+  parentFolderId?: number;
 }
 
 export interface NoteRevision {
   revision?: number;
+  rev?: number;
   editedAt?: number;
+  at?: number;
   author?: string;
 }
 
@@ -717,16 +721,18 @@ function formatNoteLine(note: NoteSummary): string {
 }
 
 function formatFolderLine(folder: Folder): string {
-  const name = folder.folderName ?? '(unnamed)';
-  const parent =
-    typeof folder.parent === 'number' ? `  parent ${folder.parent}` : '';
+  const name = folder.folderName ?? folder.name ?? '(unnamed)';
+  const parentId =
+    typeof folder.parent === 'number' ? folder.parent : folder.parentFolderId;
+  const parent = typeof parentId === 'number' ? `  parent ${parentId}` : '';
   return `#${folder.id}  ${name}${parent}`;
 }
 
 function formatRevisionLine(rev: NoteRevision): string {
   const author = rev.author ? `  ${rev.author}` : '';
-  const at = typeof rev.editedAt === 'number' ? `  @ ${rev.editedAt}` : '';
-  return `rev ${rev.revision ?? '?'}${author}${at}`;
+  const editedAt = typeof rev.editedAt === 'number' ? rev.editedAt : rev.at;
+  const at = typeof editedAt === 'number' ? `  @ ${editedAt}` : '';
+  return `rev ${rev.revision ?? rev.rev ?? '?'}${author}${at}`;
 }
 
 function formatMemberLine(member: MemberRecord): string {
@@ -811,8 +817,10 @@ async function runNote(
   const note = await deps.requestJson<NoteDetail>(notePath(target, id), 'GET');
   writeLine(deps.stdout, `#${note.id}  ${note.title ?? '(untitled)'}`);
   writeLine(deps.stdout, `Revision: ${note.revision ?? '?'}`);
-  if (typeof note.folder === 'number') {
-    writeLine(deps.stdout, `Folder: ${note.folder}`);
+  const folderId =
+    typeof note.folder === 'number' ? note.folder : note.folderId;
+  if (typeof folderId === 'number') {
+    writeLine(deps.stdout, `Folder: ${folderId}`);
   }
   writeLine(deps.stdout, '');
   writeLine(deps.stdout, note.bodyMd ?? '(empty)');
@@ -964,9 +972,14 @@ async function runFolder(
   deps: NotesDeps
 ): Promise<number> {
   const folder = await deps.requestJson<Folder>(folderPath(target, id), 'GET');
-  writeLine(deps.stdout, `#${folder.id}  ${folder.folderName ?? '(unnamed)'}`);
-  if (typeof folder.parent === 'number') {
-    writeLine(deps.stdout, `Parent: ${folder.parent}`);
+  writeLine(
+    deps.stdout,
+    `#${folder.id}  ${folder.folderName ?? folder.name ?? '(unnamed)'}`
+  );
+  const parentId =
+    typeof folder.parent === 'number' ? folder.parent : folder.parentFolderId;
+  if (typeof parentId === 'number') {
+    writeLine(deps.stdout, `Parent: ${parentId}`);
   }
   return 0;
 }

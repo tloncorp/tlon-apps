@@ -258,6 +258,23 @@ describe('notes reads', () => {
     expect(context.stdout()).toContain('#12  First');
     expect(context.stdout()).toContain('# Hello\n\nWorld');
   });
+
+  it('shows a note folder from the live folderId response field', async () => {
+    const context = makeDeps({
+      requestJson: async () => ({
+        id: 12,
+        title: 'First',
+        revision: 1,
+        folderId: 3,
+        bodyMd: '# Hello',
+      }),
+    });
+
+    const exitCode = await run(['note', 'notes/~zod/blog', '12'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toContain('Folder: 3');
+  });
 });
 
 describe('notes status', () => {
@@ -591,6 +608,20 @@ describe('notes folders', () => {
     expect(context.stdout()).toBe('#3  Root\n#4  Drafts  parent 3\n');
   });
 
+  it('lists folders from the live name and parentFolderId response fields', async () => {
+    const context = makeDeps({
+      requestJson: async () => [
+        { id: 3, name: 'Root' },
+        { id: 4, name: 'Drafts', parentFolderId: 3 },
+      ],
+    });
+
+    const exitCode = await run(['folders', 'notes/~zod/blog'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('#3  Root\n#4  Drafts  parent 3\n');
+  });
+
   it('shows a single folder', async () => {
     const context = makeDeps({
       requestJson: async () => ({ id: 4, folderName: 'Drafts', parent: 3 }),
@@ -605,6 +636,21 @@ describe('notes folders', () => {
     expect(context.calls.requestJson[0].path).toBe(
       '/notes/~/v1/notebooks/~zod/blog/folders/4'
     );
+    expect(context.stdout()).toContain('#4  Drafts');
+    expect(context.stdout()).toContain('Parent: 3');
+  });
+
+  it('shows a single folder from the live name and parentFolderId response fields', async () => {
+    const context = makeDeps({
+      requestJson: async () => ({ id: 4, name: 'Drafts', parentFolderId: 3 }),
+    });
+
+    const exitCode = await run(
+      ['folder', 'notes/~zod/blog', '4'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
     expect(context.stdout()).toContain('#4  Drafts');
     expect(context.stdout()).toContain('Parent: 3');
   });
@@ -819,6 +865,20 @@ describe('notes remaining note ops', () => {
       '/notes/~/v1/notebooks/~zod/blog/notes/12/history'
     );
     expect(context.stdout()).toContain('rev 2  ~zod');
+  });
+
+  it('shows note revision history from the live rev and at response fields', async () => {
+    const context = makeDeps({
+      requestJson: async () => [{ rev: 2, at: 1.23, author: '~zod' }],
+    });
+
+    const exitCode = await run(
+      ['history', 'notes/~zod/blog', '12'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toContain('rev 2  ~zod  @ 1.23');
   });
 
   it('lists members via GET', async () => {
