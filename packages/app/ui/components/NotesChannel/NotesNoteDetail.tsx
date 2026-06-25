@@ -5,15 +5,9 @@ import {
   saveNotebookNote,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Text } from '@tloncorp/ui';
+import { ParentAgnosticKeyboardAvoidingView, Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import {
-  AppState,
-  Keyboard,
-  Platform,
-  TouchableWithoutFeedback,
-} from 'react-native';
+import { AppState, Keyboard } from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
 import {
@@ -35,6 +29,7 @@ type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
 const AUTOSAVE_DEBOUNCE_MS = 10_000;
+const MIN_BODY_INPUT_HEIGHT = 360;
 
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
@@ -78,6 +73,9 @@ export function NotesNoteDetail({
   const [draftBase, setDraftBase] = useState<db.NotesNote | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
   const [bodyDraft, setBodyDraft] = useState('');
+  const [bodyInputHeight, setBodyInputHeight] = useState(
+    MIN_BODY_INPUT_HEIGHT
+  );
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -247,6 +245,10 @@ export function NotesNoteDetail({
   // outlives the component.
   const selectedNoteRowId = selectedNote?.id ?? null;
   useEffect(() => {
+    setBodyInputHeight(MIN_BODY_INPUT_HEIGHT);
+  }, [selectedNoteRowId]);
+
+  useEffect(() => {
     return () => flushPendingSave();
   }, [flushPendingSave, selectedNoteRowId]);
 
@@ -305,6 +307,17 @@ export function NotesNoteDetail({
     setIsPreviewing((previewing) => !previewing);
   }, []);
 
+  const handleBodyContentSizeChange = useCallback(
+    (event: { nativeEvent: { contentSize: { height: number } } }) => {
+      const nextHeight = event.nativeEvent.contentSize.height;
+      if (!Number.isFinite(nextHeight)) return;
+      setBodyInputHeight(
+        Math.max(MIN_BODY_INPUT_HEIGHT, Math.ceil(nextHeight))
+      );
+    },
+    []
+  );
+
   const headerSaveLabel = getHeaderSaveLabel(saveState);
   const headerControls = useMemo(
     () =>
@@ -354,7 +367,7 @@ export function NotesNoteDetail({
   return (
     <YStack flex={1} backgroundColor="$background">
       {error ? <NotesBanner message={error} tone="negative" /> : null}
-      <KeyboardDismissFrame>
+      <ParentAgnosticKeyboardAvoidingView contentContainerStyle={{ flex: 1 }}>
         <YStack flex={1} width="100%" maxWidth={760} marginHorizontal="auto">
           <YStack
             paddingHorizontal="$xl"
@@ -384,9 +397,14 @@ export function NotesNoteDetail({
               {inlineActions}
             </XStack>
           </YStack>
-          <YStack flex={1} minHeight={360} position="relative">
+          <YStack flex={1} minHeight={MIN_BODY_INPUT_HEIGHT} position="relative">
             {isPreviewing ? (
-              <ScrollView flex={1} testID="NotesPreviewPane">
+              <ScrollView
+                flex={1}
+                keyboardDismissMode="on-drag"
+                onScrollBeginDrag={Keyboard.dismiss}
+                testID="NotesPreviewPane"
+              >
                 <YStack
                   paddingHorizontal="$xl"
                   paddingTop="$l"
@@ -412,42 +430,43 @@ export function NotesNoteDetail({
                 </YStack>
               </ScrollView>
             ) : (
-              <TextArea
+              <ScrollView
                 flex={1}
-                minHeight={360}
-                value={bodyDraft}
-                onChangeText={setBodyDraft}
-                placeholder="Note body"
-                placeholderTextColor="$tertiaryText"
-                fontFamily="$mono"
-                fontSize={14}
-                color="$primaryText"
-                backgroundColor="$background"
-                borderWidth={0}
-                paddingHorizontal="$xl"
-                paddingTop="$l"
-                paddingBottom={128}
-                disabled={!canEdit}
-                style={{ lineHeight: 22 }}
-                testID="NotesBodyInput"
-              />
+                keyboardDismissMode="on-drag"
+                keyboardShouldPersistTaps="handled"
+                onScrollBeginDrag={Keyboard.dismiss}
+                contentContainerStyle={{ flexGrow: 1 }}
+                testID="NotesBodyScrollView"
+              >
+                <TextArea
+                  width="100%"
+                  minHeight={MIN_BODY_INPUT_HEIGHT}
+                  height={bodyInputHeight}
+                  value={bodyDraft}
+                  onChangeText={setBodyDraft}
+                  onContentSizeChange={handleBodyContentSizeChange}
+                  placeholder="Note body"
+                  placeholderTextColor="$tertiaryText"
+                  fontFamily="$mono"
+                  fontSize={14}
+                  color="$primaryText"
+                  backgroundColor="$background"
+                  borderWidth={0}
+                  paddingHorizontal="$xl"
+                  paddingTop="$l"
+                  paddingBottom={128}
+                  disabled={!canEdit}
+                  scrollEnabled={false}
+                  textAlignVertical="top"
+                  style={{ lineHeight: 22 }}
+                  testID="NotesBodyInput"
+                />
+              </ScrollView>
             )}
           </YStack>
         </YStack>
-      </KeyboardDismissFrame>
+      </ParentAgnosticKeyboardAvoidingView>
     </YStack>
-  );
-}
-
-function KeyboardDismissFrame({ children }: { children: ReactNode }) {
-  if (Platform.OS === 'web') {
-    return <>{children}</>;
-  }
-
-  return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      {children}
-    </TouchableWithoutFeedback>
   );
 }
 
