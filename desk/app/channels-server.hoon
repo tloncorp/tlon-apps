@@ -157,57 +157,6 @@
   ?>  ?=(%15 -.old)
   =.  state  (recompile-hooks old)
   inflate-io
-  ::  we drop hooks cores and state to avoid vase migration shenanigans
-  ::
-  ++  recompile-hooks
-    |=  s=state-15
-    ^-  current-state
-    %=  s
-        hooks.hooks
-      %-  ~(run by hooks.hooks.s)
-      |=  hb=hook-blind
-      =/  =hook:h  hb(compiled `(unit vase)`~, state !>(~))
-      =/  result=(each vase tang)
-        (compile:utils src.hook)
-      ?:  ?=(%| -.result)
-        hook  ::TODO  give response?
-        :: %-  ho-give-response
-        :: [%set id name.hook src.hook meta.hook `p.result]
-      =.  compiled.hook  `p.result
-      hook
-      ::TODO  give response if ?=(~ compiled.hb) ?
-      :: %-  ho-give-response
-      :: [%set id name.hook src.hook meta.hook ~]
-    ::
-        waiting.hooks
-      %-  ~(run by waiting.hooks.s)
-      |=  [=origin:h wb=waiting-hook-blind]
-      ::TODO  how sane is it to drop this? should we drop .waiting wholesale?
-      [origin wb(data !>(~))]
-    ==
-  ::
-  +$  hooks-blind
-    $:  hooks=(map id-hook:h hook-blind)
-        order=(map nest:c (list id-hook:h))
-        crons=(map id-hook:h cron:h)
-        waiting=(map id-wait:h [=origin:h waiting-hook-blind])
-    ==
-  +$  hook-blind
-    $:  id=id-hook:h
-        version=%0
-        name=@t
-        meta=data:m
-        src=@t
-        compiled=(unit *)
-        state=*
-        config=(map nest:c config:h)
-    ==
-  +$  waiting-hook-blind
-    $:  id=id-wait:h
-        hook=id-hook:h
-        data=*
-        fires-at=time
-    ==
   ::
   +$  versioned-state
     $%  state-15
@@ -230,14 +179,19 @@
   +$  state-15
     $:  %15
         =v-channels:v10:cv
-        hooks=hooks-blind
+        =hooks:h
         =pimp:imp
     ==
-  +$  state-14  _%*(. *state-15 - %14)
+  +$  state-14
+    $:  %14
+        =v-channels:v10:cv
+        =hooks:h
+        =pimp:imp
+    ==
   +$  state-13
     $:  %13
         =v-channels:v9:cv
-        hooks=hooks-blind
+        =hooks:h
         =pimp:imp
     ==
   +$  state-12  _%*(. *state-13 - %12)
@@ -245,25 +199,25 @@
   +$  state-10
     $:  %10
         =v-channels:v9:cv
-        hooks=hooks-blind
+        =hooks:h
         =pimp:imp
     ==
   +$  state-9
     $:  %9
         =v-channels:v8:cv
-        hooks=hooks-blind
+        =hooks:h
         =pimp:imp
     ==
   +$  state-8
     $:  %8
         =v-channels:v8:cv
-        hooks=hooks-blind
+        =hooks:h
         =pimp:imp
     ==
   +$  state-7
     $:  %7
         =v-channels:v7:cv
-        hooks=hooks-blind
+        =hooks:h
         =pimp:imp
     ==
   +$  state-6
