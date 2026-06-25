@@ -210,12 +210,15 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
-const DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS = 120_000;
-
-function normalizeRunTimeoutMs(value: number | null | undefined): number {
+// Returns the configured run timeout, or null when unset. A null result means
+// "don't override the agent's own turn timeout" — we must not impose a default
+// here, or every reply would be capped regardless of the agent's config.
+function normalizeRunTimeoutMs(
+  value: number | null | undefined
+): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
     ? Math.floor(value)
-    : DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS;
+    : null;
 }
 
 // Holds the data needed for any module-loader context to (re)configure its
@@ -2912,7 +2915,9 @@ export async function monitorTlonProvider(
         runId,
         abortSignal: dispatchAbortController.signal,
         ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
-        timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000),
+        ...(dispatchTimeoutMs !== null
+          ? { timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000) }
+          : {}),
         onModelSelected: ({ provider, model, thinkLevel }) => {
           selectedProvider = provider;
           selectedModel = model;
@@ -2991,16 +2996,18 @@ export async function monitorTlonProvider(
                 lens.lensId
               );
               logContextLens(lens.lensId, 'dispatching');
-              timeoutId = setTimeout(() => {
-                dispatchTimedOut = true;
-                if (!dispatchAbortController.signal.aborted) {
-                  dispatchAbortController.abort(
-                    new Error(
-                      `Tlon dispatch timed out after ${dispatchTimeoutMs}ms`
-                    )
-                  );
-                }
-              }, dispatchTimeoutMs);
+              if (dispatchTimeoutMs !== null) {
+                timeoutId = setTimeout(() => {
+                  dispatchTimedOut = true;
+                  if (!dispatchAbortController.signal.aborted) {
+                    dispatchAbortController.abort(
+                      new Error(
+                        `Tlon dispatch timed out after ${dispatchTimeoutMs}ms`
+                      )
+                    );
+                  }
+                }, dispatchTimeoutMs);
+              }
               return await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher(
                 {
                   ctx: ctxPayload,
