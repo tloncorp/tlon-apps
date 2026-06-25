@@ -21,7 +21,10 @@ import {
   Action,
   ActionGroup,
   ActionSheet,
+  DESKTOP_FLYOUT_MIN_WIDTH,
   createActionGroups,
+  desktopFlyoutContentProps,
+  desktopFlyoutPopoverProps,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
 import { useNotificationLevelOptions } from './NotificationLevelSelector';
@@ -176,9 +179,7 @@ export function GroupOptionsSheetLoader({
       <Popover
         open={open}
         onOpenChange={(open) => onOpenChange(open, false)}
-        placement="top-end"
-        allowFlip
-        offset={-12}
+        {...desktopFlyoutPopoverProps}
       >
         <Popover.Trigger
           asChild
@@ -187,15 +188,7 @@ export function GroupOptionsSheetLoader({
         >
           {trigger}
         </Popover.Trigger>
-        <Popover.Content
-          elevate
-          zIndex={1000000}
-          position="relative"
-          borderColor="$border"
-          borderWidth={1}
-          padding={1}
-          backgroundColor="$background"
-        >
+        <Popover.Content {...desktopFlyoutContentProps}>
           {pane === 'notifications' ? (
             <NotificationsSheetContent
               chatTitle={title}
@@ -567,9 +560,7 @@ const ChannelOptionsSheetLoader = memo(
         <Popover
           open={open}
           onOpenChange={(open) => onOpenChange(open, false)}
-          placement="top-end"
-          allowFlip
-          offset={-12}
+          {...desktopFlyoutPopoverProps}
         >
           <Popover.Trigger
             asChild
@@ -578,14 +569,7 @@ const ChannelOptionsSheetLoader = memo(
           >
             {trigger}
           </Popover.Trigger>
-          <Popover.Content
-            elevate
-            zIndex={1000000}
-            position="relative"
-            borderColor="$border"
-            borderWidth={1}
-            padding={1}
-          >
+          <Popover.Content {...desktopFlyoutContentProps}>
             {pane === 'notifications' ? (
               <NotificationsSheetContent
                 chatTitle={chatTitle}
@@ -652,7 +636,10 @@ export function ChannelOptionsSheetContent({
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  const canMarkRead = !(channel.unread?.count === 0);
+  // third-party channels (e.g. notes) have no %channels/%activity unreads, so
+  // mark-read doesn't apply
+  const canMarkRead =
+    !(channel.unread?.count === 0) && !ub.isThirdPartyChannel(channel.id);
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
@@ -823,6 +810,8 @@ export function ChatOptionsSheetContent({
   icon?: ReactElement;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
+  const isDesktopFlyout = isWeb && !isWindowNarrow;
+
   return (
     <>
       {isWindowNarrow && (
@@ -836,7 +825,15 @@ export function ChatOptionsSheetContent({
           </ActionSheet.ActionContent>
         </ActionSheet.Header>
       )}
-      <ActionSheet.Content width={isWindowNarrow ? '100%' : 240}>
+      <ActionSheet.Content
+        width={
+          isDesktopFlyout
+            ? DESKTOP_FLYOUT_MIN_WIDTH
+            : isWindowNarrow
+              ? '100%'
+              : 240
+        }
+      >
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.Content>
     </>

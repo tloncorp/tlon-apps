@@ -10,7 +10,7 @@ import {
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { scry } from './urbit';
+import { getCurrentUserId, scry } from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -21,7 +21,7 @@ export interface InitData {
   channels: db.Channel[];
   channelPerms: ChannelInit[];
   joinedGroups: string[];
-  joinedChannels: string[];
+  joinedGroupChannels: string[];
   hiddenPostIds: string[];
   blockedUsers: string[];
   unreads: db.ActivityInit;
@@ -50,6 +50,36 @@ function extractChannelReadersFromV7Groups(
     }
   });
   return readers;
+}
+
+function extractJoinedGroupChannelsFromV7Groups(
+  groups: Record<string, ub.GroupV7>
+): string[] {
+  const joinedChannelIds = new Set<string>();
+  const currentUserId = getCurrentUserId();
+
+  Object.values(groups ?? {}).forEach((group) => {
+    const currentUserRoles = group.seats?.[currentUserId]?.roles ?? [];
+
+    (group['active-channels'] ?? []).forEach((channelId) => {
+      joinedChannelIds.add(channelId);
+    });
+
+    // Older %notes backends create a group listing with join=true, but do not
+    // report the matching %groups active-channel event. Treat only notes
+    // listings as joined so initial sync does not hide newly-created notebooks.
+    Object.entries(group.channels ?? {}).forEach(([channelId, channel]) => {
+      const readers = channel.readers ?? [];
+      const canRead =
+        readers.length === 0 ||
+        readers.some((roleId) => currentUserRoles.includes(roleId));
+      if (channelId.startsWith('notes/') && channel.join && canRead) {
+        joinedChannelIds.add(channelId);
+      }
+    });
+  });
+
+  return [...joinedChannelIds];
 }
 
 export const toInitData = (response: ub.GroupsInit7): InitData => {
@@ -105,11 +135,12 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
   logger.crumb('extracting joined groups');
 
   const joinedGroups = groups.map((group) => group.id);
-  // Not fully reflective of which channels you're a member of, but if a channel is _not_
-  // in here, you're definitely not a member of it
+
   logger.crumb('extracting joined channels');
 
-  const joinedChannels = channelsInit.map((channel) => channel.channelId);
+  const joinedGroupChannels = extractJoinedGroupChannelsFromV7Groups(
+    response.groups
+  );
 
   logger.crumb('returning init data');
 
@@ -121,7 +152,7 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
     joinedGroups,
-    joinedChannels,
+    joinedGroupChannels,
     hiddenPostIds,
     blockedUsers,
   };

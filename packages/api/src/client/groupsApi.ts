@@ -484,7 +484,7 @@ export const updateGroupMeta = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -507,7 +507,7 @@ export const deleteGroup = async (groupId: string) => {
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -546,7 +546,7 @@ export const addNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -637,7 +637,7 @@ export const addChannelToNavSection = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -718,7 +718,7 @@ export const addChannelToGroup = async ({
         },
       },
     }),
-    { app: 'groups', path: '/v1/groups' },
+    { app: 'groups', path: '/v2/groups' },
     (event) => {
       if (!('r-group' in event)) {
         return false;
@@ -1002,6 +1002,7 @@ export type GroupEdit = {
 export type GroupChannelAdd = {
   type: 'addChannel';
   channel: db.Channel;
+  autoJoinIfReadable?: boolean;
 };
 
 export type GroupChannelUpdate = {
@@ -1247,19 +1248,41 @@ export type GroupUpdate =
 export const subscribeGroups = async (
   eventHandler: (update: GroupUpdate) => void
 ) => {
-  // Subscribe to v1/groups for all group updates (v9 response format)
-  subscribe<ub.V1GroupResponse>(
+  const handleRawGroupsEvent = (
+    rawEvent: ub.V1GroupResponse,
+    shouldHandleUpdate = (_update: GroupUpdate) => true
+  ) => {
+    const update = toV1GroupsUpdate(rawEvent);
+    if (update && shouldHandleUpdate(update)) {
+      eventHandler(update);
+    }
+  };
+
+  // v1/groups is the baseline stream for group updates. Older backends do not
+  // expose /v2/groups, so keep normal r-group updates on v1.
+  void subscribe<ub.V1GroupResponse>(
     { app: 'groups', path: '/v1/groups' },
     (rawEvent) => {
-      const update = toV1GroupsUpdate(rawEvent);
-      if (update) {
-        eventHandler(update);
-      }
+      handleRawGroupsEvent(rawEvent);
     }
   );
 
+  // v2/groups adds active-channel membership deltas for third-party channel
+  // hosts like %notes. It can bad-watch-path on older backends; in that case
+  // v1 still carries normal group updates and init/group sync cover membership.
+  void subscribe<ub.V1GroupResponse>(
+    { app: 'groups', path: '/v2/groups' },
+    (rawEvent) => {
+      if ('r-group' in rawEvent && 'active-channel' in rawEvent['r-group']) {
+        handleRawGroupsEvent(rawEvent);
+      }
+    }
+  ).catch((err) => {
+    logger.log('v2 groups subscription unavailable', err);
+  });
+
   // Subscribe to v1/foreigns for foreign group updates
-  subscribe(
+  void subscribe(
     { app: 'groups', path: '/v1/foreigns' },
     (rawEvent: ub.Foreigns) => {
       logger.log('foreignsUpdateEvent', rawEvent);
@@ -1491,6 +1514,7 @@ export const toV1GroupsUpdate = (
           channel: rChannel.add,
           groupId,
         }),
+        autoJoinIfReadable: channelId.startsWith('notes/') && rChannel.add.join,
       };
     }
 
@@ -1529,6 +1553,17 @@ export const toV1GroupsUpdate = (
         sectionId: zoneId,
       };
     }
+  }
+
+  // Per-nest active-channels (membership) delta, delivered on the /v2/groups
+  // stream when a third-party agent (e.g. %notes) reports a join/leave.
+  // Reconciles membership the same way as a real channel join/leave; lets a
+  // second same-ship client learn it without a full sync.
+  if ('active-channel' in event) {
+    const { nest, joined } = event['active-channel'];
+    return joined
+      ? { type: 'joinChannel', channelId: nest, groupId }
+      : { type: 'leaveChannel', channelId: nest };
   }
 
   // Handle section/zone operations
