@@ -16,6 +16,8 @@ import { useAttachmentContext } from '../../../contexts/attachment';
 import { useChannelContext } from '../../../contexts/channel';
 import { triggerHaptic, useIsAdmin } from '../../../utils';
 import ActionList from '../../ActionList';
+import { getContextLensStamp } from '../../Channel/ContextLens/lensPost';
+import { useContextLensAvailable } from '../../Channel/ContextLens/useContextLensStore';
 import { useForwardPostSheet } from '../../ForwardPostSheet';
 import {
   DraftInputContext,
@@ -36,14 +38,25 @@ export default function MessageActions({
   postActionIds,
   onEdit,
   onViewReactions,
+  onViewBotRun,
 }: {
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
+  onViewBotRun?: (post: db.Post) => void;
   post: db.Post;
   postActionIds: ChannelAction.Id[];
 }) {
+  const contextLensAvailable = useContextLensAvailable();
+  const showViewBotRun = useMemo(
+    () =>
+      Boolean(
+        contextLensAvailable && onViewBotRun && getContextLensStamp(post)
+      ),
+    [contextLensAvailable, onViewBotRun, post]
+  );
+
   // arbitrary width that looks reasonable given labels
   const width = isWeb ? 'auto' : 220;
   return (
@@ -51,7 +64,7 @@ export default function MessageActions({
       {postActionIds.map((actionId, index, list) => (
         <ConnectedAction
           key={actionId}
-          last={index === list.length - 1 && !__DEV__}
+          last={index === list.length - 1 && !__DEV__ && !showViewBotRun}
           {...{
             dismiss,
             onReply,
@@ -62,6 +75,14 @@ export default function MessageActions({
           }}
         />
       ))}
+      {showViewBotRun && onViewBotRun ? (
+        <ViewBotRunAction
+          post={post}
+          dismiss={dismiss}
+          onViewBotRun={onViewBotRun}
+          last={!__DEV__}
+        />
+      ) : null}
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
     </ActionList>
   );
@@ -219,6 +240,38 @@ const ConnectedAction = memo(function ConnectedAction({
     </ActionList.Action>
   );
 });
+
+function ViewBotRunAction({
+  post,
+  dismiss,
+  onViewBotRun,
+  last,
+}: {
+  post: db.Post;
+  dismiss: () => void;
+  onViewBotRun: (post: db.Post) => void;
+  last?: boolean;
+}) {
+  return (
+    <ActionList.Action
+      height="auto"
+      last={last}
+      onPress={() => {
+        // On iOS, dismiss the actions modal first to avoid a race between
+        // two modals (see the 'forward' action above)
+        if (Platform.OS === 'ios') {
+          dismiss();
+          setTimeout(() => onViewBotRun(post), 300);
+        } else {
+          onViewBotRun(post);
+          dismiss();
+        }
+      }}
+    >
+      View bot run
+    </ActionList.Action>
+  );
+}
 
 function CopyJsonAction({ post }: { post: db.Post }) {
   const jsonString = useMemo(() => {

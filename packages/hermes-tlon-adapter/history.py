@@ -16,6 +16,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable, Optional, Sequence
 
+from .media import render_content_with_blob
 from .tlon_api import extract_message_text, normalize_ship
 
 logger = logging.getLogger(__name__)
@@ -51,13 +52,16 @@ class HistoryEntry:
     content: str
     timestamp: float
     post_id: str = ""
+    blob: Optional[str] = None
 
 
 def _entry_from_content(content: Any, seal: Any, fallback_id: Any = None) -> Optional[HistoryEntry]:
     if not isinstance(content, dict):
         return None
     text = extract_message_text(content.get("content"))
-    if not text.strip():
+    raw_blob = content.get("blob")
+    blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
+    if not text.strip() and not blob:
         return None
     post_id = ""
     if isinstance(seal, dict):
@@ -73,6 +77,7 @@ def _entry_from_content(content: Any, seal: Any, fallback_id: Any = None) -> Opt
         content=text,
         timestamp=timestamp,
         post_id=post_id,
+        blob=blob,
     )
 
 
@@ -174,7 +179,10 @@ async def fetch_thread_context(
     seen: set[str] = set()
     deduped: list[HistoryEntry] = []
     for entry in ordered:
-        key = _normalize_id(entry.post_id) or f"{entry.author}:{entry.timestamp}:{entry.content}"
+        key = (
+            _normalize_id(entry.post_id)
+            or f"{entry.author}:{entry.timestamp}:{entry.content}:{entry.blob or ''}"
+        )
         if key in seen:
             continue
         seen.add(key)
@@ -182,9 +190,22 @@ async def fetch_thread_context(
     return deduped
 
 
+def render_history_content(entry: HistoryEntry) -> str:
+    return render_content_with_blob(entry.content, entry.blob, compact=True)
+
+
+def _context_line_items(entries: Sequence[HistoryEntry]) -> list[tuple[HistoryEntry, str]]:
+    items: list[tuple[HistoryEntry, str]] = []
+    for entry in entries:
+        rendered = sanitize_context_text(render_history_content(entry))
+        if rendered.strip():
+            items.append((entry, rendered))
+    return items
+
+
 def _context_lines(entries: Sequence[HistoryEntry]) -> str:
     return "\n".join(
-        f"{entry.author}: {sanitize_context_text(entry.content)}" for entry in entries
+        f"{entry.author}: {rendered}" for entry, rendered in _context_line_items(entries)
     )
 
 
@@ -200,11 +221,12 @@ def build_channel_context(
     if limit <= 0:
         return None
     current_key = _normalize_id(current_id)
-    context = [
+    context_entries = [
         entry
         for entry in entries
         if not current_key or _normalize_id(entry.post_id) != current_key
-    ][-limit:]
+    ]
+    context = _context_line_items(context_entries)[-limit:]
     if not context:
         return None
 
@@ -213,7 +235,8 @@ def build_channel_context(
         "Use this context to understand what's being discussed.]"
     )
     current_label = "[Current message (mentioned you)]" if is_mention else "[Current message]"
-    return f"{note}\n\n{_context_lines(context)}\n\n{current_label}\n{current_text}"
+    lines = "\n".join(f"{entry.author}: {rendered}" for entry, rendered in context)
+    return f"{note}\n\n{lines}\n\n{current_label}\n{current_text}"
 
 
 def build_thread_context(
@@ -227,11 +250,12 @@ def build_thread_context(
     if limit <= 0:
         return None
     current_key = _normalize_id(current_id)
-    context = [
+    context_entries = [
         entry
         for entry in entries
         if not current_key or _normalize_id(entry.post_id) != current_key
     ]
+    context = _context_line_items(context_entries)
     if not context:
         return None
     if len(context) > limit:
@@ -244,7 +268,8 @@ def build_thread_context(
         "You are participating in this thread. Only respond if relevant or helpful - "
         "you don't need to reply to every message.]"
     )
+    lines = "\n".join(f"{entry.author}: {rendered}" for entry, rendered in context)
     return (
-        f"{note}\n\n[Previous messages]\n{_context_lines(context)}\n\n"
+        f"{note}\n\n[Previous messages]\n{lines}\n\n"
         f"[Current message]\n{current_text}"
     )

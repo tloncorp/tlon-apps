@@ -940,6 +940,28 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
   await db.pushNotificationSettings.setValue(setting);
 };
 
+export async function handleLensUpdate(runs: api.LensRun[]) {
+  logger.log('received lens update', runs.length);
+  await db.insertContextLensRuns(runs);
+}
+
+export const syncLensRuns = async (ctx?: SyncCtx) => {
+  const runs = await syncQueue.add('lensRuns', ctx, async () => {
+    try {
+      return await api.getRecentLensRuns();
+    } catch (e) {
+      // older ships don't have the %steward agent
+      if (e instanceof api.BadResponseError && e.status === 404) {
+        return null;
+      }
+      throw e;
+    }
+  });
+  if (runs) {
+    await db.insertContextLensRuns(runs);
+  }
+};
+
 async function handleLanyardUpdate(update: api.LanyardUpdate) {
   logger.log('received lanyard update', update.type);
   updateLastActivityTime();
@@ -2320,6 +2342,13 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToStorageUpdates(createHandler(handleStorageUpdate)),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
       api.subscribeToSettings(createHandler(handleSettingsUpdate)),
+      // returns null (and skips backfill) when the ship lacks the %steward agent
+      api.subscribeToLensUpdates(handleLensUpdate).then((subscribed) => {
+        if (subscribed === null) {
+          return;
+        }
+        return syncLensRuns();
+      }),
     ]);
   });
 };

@@ -90,6 +90,9 @@ export function ChannelHeader({
   goToEdit,
   goToChatDetails,
   goToProfile,
+  onToggleContextLens,
+  contextLensOpen = false,
+  contextLensActive = false,
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   showSearchButton = false,
@@ -106,6 +109,9 @@ export function ChannelHeader({
   goToEdit?: () => void;
   goToChatDetails?: () => void;
   goToProfile?: () => void;
+  onToggleContextLens?: () => void;
+  contextLensOpen?: boolean;
+  contextLensActive?: boolean;
   showSpinner?: boolean;
   loadingSubtitle?: string;
   showSearchButton?: boolean;
@@ -353,6 +359,17 @@ export function ChannelHeader({
             >
               Edit
             </ScreenHeader.TextButton>
+          )}
+          {onToggleContextLens && (
+            <ScreenHeader.IconButton
+              type="RightSidebar"
+              onPress={onToggleContextLens}
+              testID="ContextLensHeaderButton"
+              color={contextLensActive ? '$positiveActionText' : '$primaryText'}
+              backgroundColor={
+                contextLensOpen ? '$secondaryBackground' : 'transparent'
+              }
+            />
           )}
         </>
       }

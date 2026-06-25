@@ -14,9 +14,6 @@ import {
 } from '@tloncorp/ui';
 import { PermissionStatus } from 'expo-modules-core';
 import * as FileSystem from 'expo-file-system/legacy';
-// Platform-split: native re-exports the expo-media-library Next API; web is a
-// no-op stub (only ever called on native — see the isWeb guard below).
-import { Asset, requestPermissionsAsync } from './mediaLibrary';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
@@ -42,6 +39,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner, View, XStack, YStack, isWeb } from 'tamagui';
 
 import type { RootStackParamList } from '../../navigation/types';
+import { Asset, requestPermissionsAsync } from './mediaLibrary';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MediaViewer'>;
 
@@ -81,6 +79,211 @@ function ImageViewerContainer({
   dismiss?: () => void;
 }>) {
   return <MediaViewerModal dismiss={dismiss}>{children}</MediaViewerModal>;
+}
+
+async function downloadMedia({
+  uri,
+  mediaType,
+}: {
+  uri: string;
+  mediaType: 'image' | 'video';
+}) {
+  const noun = mediaType === 'video' ? 'video' : 'image';
+  const plural = mediaType === 'video' ? 'videos' : 'images';
+  const Noun = mediaType === 'video' ? 'Video' : 'Image';
+
+  if (isWeb) {
+    try {
+      await downloadImageForWeb(uri);
+    } catch (error) {
+      logger.trackError('Download error:', error);
+      console.error('Download error:', error);
+    }
+    return;
+  }
+
+  try {
+    const { status, canAskAgain } = await requestPermissionsAsync();
+    let permissionStatus;
+
+    switch (status) {
+      case PermissionStatus.GRANTED:
+        break;
+      case PermissionStatus.DENIED:
+        if (canAskAgain) {
+          logger.trackError('Photo library permission denied (temporary)', {
+            canAskAgain: true,
+          });
+          Alert.alert(
+            'Permission needed',
+            `Tlon needs permission to save ${plural} to your photo library. Would you like to grant permission now?`,
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+              {
+                text: 'Grant Permission',
+                onPress: async () => {
+                  const { status: retryStatus } =
+                    await requestPermissionsAsync();
+                  if (retryStatus !== PermissionStatus.GRANTED) {
+                    logger.trackError(
+                      'Photo library permission denied after retry',
+                      { canAskAgain: true }
+                    );
+                    Alert.alert(
+                      'Permission denied',
+                      `To save ${plural}, please enable photo library access in your device settings.`
+                    );
+                  }
+                },
+              },
+            ]
+          );
+          return;
+        } else {
+          logger.trackError('Photo library permission denied (permanent)', {
+            canAskAgain: false,
+          });
+          Alert.alert(
+            'Permission required',
+            `To save ${plural}, please enable photo library access in your device settings.`,
+            [
+              {
+                text: 'Cancel',
+                style: 'cancel',
+              },
+              {
+                text: 'Open Settings',
+                onPress: () => {
+                  if (Platform.OS === 'ios') {
+                    Linking.openURL('app-settings:');
+                  } else {
+                    Linking.openSettings();
+                  }
+                },
+              },
+            ]
+          );
+          return;
+        }
+      case PermissionStatus.UNDETERMINED: {
+        const result = await requestPermissionsAsync();
+        permissionStatus = result.status;
+        if (permissionStatus !== PermissionStatus.GRANTED) {
+          logger.trackError(
+            'Photo library permission denied on first request',
+            { canAskAgain: true }
+          );
+          Alert.alert(
+            'Permission needed',
+            `Tlon needs permission to save ${plural} to your photo library. Please grant permission in the next prompt.`
+          );
+          return;
+        }
+        break;
+      }
+    }
+
+    const baseFilename =
+      uri.split('/').pop()?.split('?')[0] || `downloaded-${noun}`;
+    const fallbackExtension = mediaType === 'video' ? '.mp4' : '.jpg';
+    // The URL may be extensionless, so download to a temp path first and
+    // derive the real extension from the response's content-type before
+    // saving. Without this, an extensionless video lands in a .jpg-named file
+    // and fails (or imports incorrectly) in MediaLibrary.
+    const tempUri = `${FileSystem.documentDirectory}tmp-${baseFilename}`;
+    let localUri = tempUri;
+
+    try {
+      const downloadResult = await FileSystem.downloadAsync(uri, tempUri);
+
+      if (downloadResult.status !== 200) {
+        logger.trackError(`Failed to download ${noun}`, {
+          status: downloadResult.status,
+          uri,
+        });
+        throw new Error(`Download failed with status ${downloadResult.status}`);
+      }
+
+      const contentType =
+        downloadResult.headers['Content-Type'] ??
+        downloadResult.headers['content-type'];
+      const filename = ensureFileExtension(
+        baseFilename,
+        contentType,
+        fallbackExtension
+      );
+      localUri = `${FileSystem.documentDirectory}${filename}`;
+      if (localUri !== tempUri) {
+        await FileSystem.moveAsync({ from: tempUri, to: localUri });
+      }
+
+      const fileInfo = await FileSystem.getInfoAsync(localUri);
+      if (!fileInfo.exists) {
+        logger.trackError('Downloaded file does not exist', {
+          uri,
+          localUri,
+        });
+        throw new Error('Downloaded file does not exist');
+      }
+
+      try {
+        const fileUri = localUri.startsWith('file://')
+          ? localUri
+          : `file://${localUri}`;
+        await Asset.create(fileUri);
+        Alert.alert('Success', `${Noun} saved to your photos!`);
+      } catch (saveError) {
+        logger.trackError(`Failed to save ${noun} to library`, {
+          error: saveError.message,
+          uri,
+          localUri,
+        });
+
+        Alert.alert(
+          'Error',
+          `Failed to save ${noun} to photos. Please check your device storage and try again.`
+        );
+        console.error('Save error:', saveError);
+      } finally {
+        try {
+          // Check if file still exists before attempting to delete
+          const fileStillExists = await FileSystem.getInfoAsync(localUri);
+          if (fileStillExists.exists) {
+            await FileSystem.deleteAsync(localUri);
+          }
+        } catch (deleteError) {
+          // Silently ignore deletion errors - file may have been moved by MediaLibrary
+          logger.trackError(`Failed to delete temporary ${noun} file`, {
+            error: deleteError.message,
+            uri: localUri,
+          });
+        }
+      }
+    } catch (downloadError) {
+      logger.trackError(`Failed to download ${noun}`, {
+        error: downloadError.message,
+        uri,
+      });
+      Alert.alert(
+        'Error',
+        `Failed to download ${noun}. Please check your internet connection and try again.`
+      );
+      console.error('Download error:', downloadError);
+    }
+  } catch (error) {
+    logger.trackError(`Unexpected error saving ${noun}`, {
+      error: error.message,
+      uri,
+    });
+    Alert.alert(
+      'Error',
+      `An unexpected error occurred while saving the ${noun}. Please try again.`
+    );
+    console.error('Unexpected error:', error);
+  }
 }
 
 function VideoLoadingOverlay({ visible }: { visible: boolean }) {
@@ -252,6 +455,10 @@ function VideoViewer({
     setIsBuffering(false);
     setIsTransitioning(true);
   }, []);
+  const handleDownloadVideo = useCallback(
+    () => downloadMedia({ uri, mediaType: 'video' }),
+    [uri]
+  );
 
   if (isWeb) {
     return (
@@ -320,15 +527,23 @@ function VideoViewer({
           />
 
           {showOverlay ? (
-            <Pressable
-              onPress={goBack}
+            <XStack
               position="absolute"
               top={16}
               right="$xl"
-              testID="MediaViewerCloseButton"
+              gap="$m"
+              alignItems="center"
             >
-              <OverlayIconButton icon="Close" />
-            </Pressable>
+              <TouchableOpacity
+                onPress={handleDownloadVideo}
+                activeOpacity={0.8}
+              >
+                <OverlayIconButton icon="ArrowDown" />
+              </TouchableOpacity>
+              <Pressable onPress={goBack} testID="MediaViewerCloseButton">
+                <OverlayIconButton icon="Close" />
+              </Pressable>
+            </XStack>
           ) : null}
         </View>
       </MediaViewerModal>
@@ -392,14 +607,23 @@ function VideoViewer({
             />
 
             {showOverlay ? (
-              <Pressable
-                onPress={dismiss}
+              <XStack
                 position="absolute"
                 top={top}
                 right="$xl"
+                gap="$m"
+                alignItems="center"
               >
-                <OverlayIconButton icon="Close" />
-              </Pressable>
+                <TouchableOpacity
+                  onPress={handleDownloadVideo}
+                  activeOpacity={0.8}
+                >
+                  <OverlayIconButton icon="ArrowDown" />
+                </TouchableOpacity>
+                <Pressable onPress={dismiss}>
+                  <OverlayIconButton icon="Close" />
+                </Pressable>
+              </XStack>
             ) : null}
           </ZStack>
         );
@@ -427,189 +651,10 @@ function ImageViewer(props: {
     setShowOverlay(true);
   }, [props.uri]);
 
-  const handleDownloadImage = async () => {
-    if (isWeb) {
-      try {
-        await downloadImageForWeb(props.uri);
-      } catch (error) {
-        logger.trackError('Download error:', error);
-        console.error('Download error:', error);
-      }
-    } else {
-      try {
-        const { status, canAskAgain } =
-          await requestPermissionsAsync();
-        let permissionStatus;
-
-        switch (status) {
-          case PermissionStatus.GRANTED:
-            break;
-          case PermissionStatus.DENIED:
-            if (canAskAgain) {
-              logger.trackError('Photo library permission denied (temporary)', {
-                canAskAgain: true,
-              });
-              Alert.alert(
-                'Permission needed',
-                'Tlon needs permission to save images to your photo library. Would you like to grant permission now?',
-                [
-                  {
-                    text: 'Cancel',
-                    style: 'cancel',
-                  },
-                  {
-                    text: 'Grant Permission',
-                    onPress: async () => {
-                      const { status: retryStatus } =
-                        await requestPermissionsAsync();
-                      if (
-                        retryStatus !== PermissionStatus.GRANTED
-                      ) {
-                        logger.trackError(
-                          'Photo library permission denied after retry',
-                          { canAskAgain: true }
-                        );
-                        Alert.alert(
-                          'Permission denied',
-                          'To save images, please enable photo library access in your device settings.'
-                        );
-                      }
-                    },
-                  },
-                ]
-              );
-              return;
-            } else {
-              logger.trackError('Photo library permission denied (permanent)', {
-                canAskAgain: false,
-              });
-              Alert.alert(
-                'Permission required',
-                'To save images, please enable photo library access in your device settings.',
-                [
-                  {
-                    text: 'Cancel',
-                    style: 'cancel',
-                  },
-                  {
-                    text: 'Open Settings',
-                    onPress: () => {
-                      if (Platform.OS === 'ios') {
-                        Linking.openURL('app-settings:');
-                      } else {
-                        Linking.openSettings();
-                      }
-                    },
-                  },
-                ]
-              );
-              return;
-            }
-          case PermissionStatus.UNDETERMINED: {
-            const result = await requestPermissionsAsync();
-            permissionStatus = result.status;
-            if (permissionStatus !== PermissionStatus.GRANTED) {
-              logger.trackError(
-                'Photo library permission denied on first request',
-                { canAskAgain: true }
-              );
-              Alert.alert(
-                'Permission needed',
-                'Tlon needs permission to save images to your photo library. Please grant permission in the next prompt.'
-              );
-              return;
-            }
-            break;
-          }
-        }
-
-        const baseFilename =
-          props.uri.split('/').pop()?.split('?')[0] || 'downloaded-image';
-        const filename = ensureFileExtension(baseFilename);
-        const localUri = `${FileSystem.documentDirectory}${filename}`;
-
-        try {
-          const downloadResult = await FileSystem.downloadAsync(
-            props.uri,
-            localUri
-          );
-
-          if (downloadResult.status !== 200) {
-            logger.trackError('Failed to download image', {
-              status: downloadResult.status,
-              uri: props.uri,
-            });
-            throw new Error(
-              `Download failed with status ${downloadResult.status}`
-            );
-          }
-
-          const fileInfo = await FileSystem.getInfoAsync(localUri);
-          if (!fileInfo.exists) {
-            logger.trackError('Downloaded file does not exist', {
-              uri: props.uri,
-              localUri,
-            });
-            throw new Error('Downloaded file does not exist');
-          }
-
-          try {
-            const fileUri = localUri.startsWith('file://')
-              ? localUri
-              : `file://${localUri}`;
-            await Asset.create(fileUri);
-            Alert.alert('Success', 'Image saved to your photos!');
-          } catch (saveError) {
-            logger.trackError('Failed to save image to library', {
-              error: saveError.message,
-              uri: props.uri,
-              localUri,
-            });
-
-            Alert.alert(
-              'Error',
-              'Failed to save image to photos. Please check your device storage and try again.'
-            );
-            console.error('Save error:', saveError);
-          } finally {
-            try {
-              // Check if file still exists before attempting to delete
-              const fileStillExists = await FileSystem.getInfoAsync(localUri);
-              if (fileStillExists.exists) {
-                await FileSystem.deleteAsync(localUri);
-              }
-            } catch (deleteError) {
-              // Silently ignore deletion errors - file may have been moved by MediaLibrary
-              logger.trackError('Failed to delete temporary image file', {
-                error: deleteError.message,
-                uri: localUri,
-              });
-            }
-          }
-        } catch (downloadError) {
-          logger.trackError('Failed to download image', {
-            error: downloadError.message,
-            uri: props.uri,
-          });
-          Alert.alert(
-            'Error',
-            'Failed to download image. Please check your internet connection and try again.'
-          );
-          console.error('Download error:', downloadError);
-        }
-      } catch (error) {
-        logger.trackError('Unexpected error saving image', {
-          error: error.message,
-          uri: props.uri,
-        });
-        Alert.alert(
-          'Error',
-          'An unexpected error occurred while saving the image. Please try again.'
-        );
-        console.error('Unexpected error:', error);
-      }
-    }
-  };
+  const handleDownloadImage = useCallback(
+    () => downloadMedia({ uri: props.uri, mediaType: 'image' }),
+    [props.uri]
+  );
 
   return (
     <GestureMediaViewer

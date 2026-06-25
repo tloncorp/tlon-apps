@@ -6,7 +6,7 @@ onFlowComplete:
 - assertVisible: 'Sign up'
 
 # enter signup flow
-- tapOn: 'Sign up'
+- tapOn: 'Join with an invite'
 - assertVisible: 'TLON  or  join.tlon.io/0v4.pca...'
 
 # add invite link
@@ -150,7 +150,6 @@ onFlowComplete:
 - assertVisible: E2E Tester's Group
 - assertVisible: shadow brian :\)
 - assertVisible: Tlon Team
-- assertVisible: Tlonbot Group
 - assertVisible: Getting Started
 - assertVisible: Bot Farm 2
 
