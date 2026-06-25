@@ -355,11 +355,14 @@
     (serve:do !<(order:hutils:do vase))
   ::
       %egg-any
-    =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
-    ?.  ?=(%live -.egg)
-      ~&  [dap.bowl %egg-not-live]
-      [~ this]
-    (on-load -:!>(*state-1) +>.old-state.egg)
+    =+  !<(=egg-any:gall vase)
+    ?-  -.egg-any
+        ?(%15 %16)
+      ?.  ?=(%live +<.egg-any)
+        ~&  [dap.bowl %egg-any-not-live]
+        [~ this]
+      (on-load -:!>(*state-1) +>.old-state.egg-any)
+    ==
   ==
 ::
 ++  on-watch
