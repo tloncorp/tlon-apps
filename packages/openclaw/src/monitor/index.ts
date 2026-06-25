@@ -48,6 +48,7 @@ import {
   type TlonPluginErrorSource,
   createTlonTelemetry,
   formatTlonTelemetryErrorText,
+  setDebugTelemetryReporter,
   setErrorTelemetryReporter,
   setOutboundRouteReporter,
   setSessionTelemetryReporter,
@@ -631,6 +632,14 @@ export async function monitorTlonProvider(
           telemetry?.captureSessionRecovery(report.event);
           break;
       }
+    });
+    setDebugTelemetryReporter((event) => {
+      telemetry?.captureHarnessDebug({
+        ...event,
+        accountId: event.accountId ?? account.accountId,
+        ownerShip: event.ownerShip ?? currentTelemetryOwnerShip(),
+        botShip: event.botShip || botShipName,
+      });
     });
     setErrorTelemetryReporter((report) => {
       switch (report.kind) {
@@ -4285,6 +4294,7 @@ export async function monitorTlonProvider(
       clearShadowsForAccount(account.accountId);
       setOutboundRouteReporter(null);
       setSessionTelemetryReporter(null);
+      setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);
       await telemetry?.close();
       try {
