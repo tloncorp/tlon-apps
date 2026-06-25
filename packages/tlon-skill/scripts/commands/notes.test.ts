@@ -1,29 +1,49 @@
+import type { NotesV1Api } from '@tloncorp/api';
 import { describe, expect, it } from 'bun:test';
 
 import { commandError } from './command';
 import {
-  type HttpMethod,
   NOTES_COMMAND_HELP,
   NOTES_HELP,
   type NotesDeps,
-  expectNotesResponse,
   parseNotesNest,
   run,
 } from './notes';
 
-interface RequestCall {
-  path: string;
-  method: HttpMethod;
-  body?: unknown;
+type AnyFn = (...args: unknown[]) => Promise<unknown>;
+
+const NOTES_V1_OPS = [
+  'listNotebooks',
+  'getNotebook',
+  'createNotebook',
+  'createGroupNotebook',
+  'listNotes',
+  'getNote',
+  'createNote',
+  'updateNoteBody',
+  'renameNote',
+  'moveNote',
+  'deleteNote',
+  'listNoteHistory',
+  'listFolders',
+  'getFolder',
+  'createFolder',
+  'renameFolder',
+  'moveFolder',
+  'deleteFolder',
+  'listMembers',
+] as const;
+
+type NotesV1Op = (typeof NOTES_V1_OPS)[number];
+
+interface NotesV1Call {
+  op: NotesV1Op;
+  args: unknown[];
 }
 
 interface MakeDepsOptions {
   authenticate?: () => Promise<void>;
-  requestJson?: (
-    path: string,
-    method: HttpMethod,
-    body?: unknown
-  ) => Promise<unknown>;
+  notesV1?: Partial<Record<NotesV1Op, AnyFn>>;
   joinNotesNotebook?: (nest: string) => Promise<void>;
   leaveNotesNotebook?: (nest: string) => Promise<void>;
   readFile?: (path: string) => string;
@@ -35,13 +55,23 @@ function makeDeps(options: MakeDepsOptions = {}) {
   const stderr: string[] = [];
   const calls = {
     authenticate: 0,
-    requestJson: [] as RequestCall[],
+    notesV1: [] as NotesV1Call[],
     joinNotesNotebook: [] as string[],
     leaveNotesNotebook: [] as string[],
     readFile: [] as string[],
     readStdin: 0,
     order: [] as string[],
   };
+
+  const notesV1 = {} as Record<NotesV1Op, AnyFn>;
+  for (const op of NOTES_V1_OPS) {
+    notesV1[op] = async (...args: unknown[]) => {
+      calls.notesV1.push({ op, args });
+      calls.order.push(`notesV1:${op}`);
+      const responder = options.notesV1?.[op];
+      return responder ? await responder(...args) : undefined;
+    };
+  }
 
   const deps: NotesDeps = {
     stdout: (text) => stdout.push(text),
@@ -51,13 +81,7 @@ function makeDeps(options: MakeDepsOptions = {}) {
       calls.order.push('authenticate');
       await options.authenticate?.();
     },
-    // The generic `<T>(...) => Promise<T>` shape can't be satisfied by a
-    // concrete fake; cast the stub to the dep signature.
-    requestJson: (async (path: string, method: HttpMethod, body?: unknown) => {
-      calls.requestJson.push({ path, method, body });
-      calls.order.push(`requestJson:${method}`);
-      return (await options.requestJson?.(path, method, body)) ?? undefined;
-    }) as NotesDeps['requestJson'],
+    notesV1: notesV1 as unknown as NotesV1Api,
     joinNotesNotebook: async (nest) => {
       calls.joinNotesNotebook.push(nest);
       calls.order.push('joinNotesNotebook');
@@ -84,6 +108,7 @@ function makeDeps(options: MakeDepsOptions = {}) {
   return {
     deps,
     calls,
+    ops: () => calls.notesV1.map((c) => c.op),
     stdout: () => stdout.join(''),
     stderr: () => stderr.join(''),
   };
@@ -91,12 +116,26 @@ function makeDeps(options: MakeDepsOptions = {}) {
 
 function expectNoAuthOrIo(context: ReturnType<typeof makeDeps>) {
   expect(context.calls.authenticate).toBe(0);
-  expect(context.calls.requestJson).toEqual([]);
+  expect(context.calls.notesV1).toEqual([]);
   expect(context.calls.joinNotesNotebook).toEqual([]);
   expect(context.calls.leaveNotesNotebook).toEqual([]);
   expect(context.calls.readFile).toEqual([]);
   expect(context.calls.readStdin).toBe(0);
 }
+
+// Canonical v1 fixtures (already normalized — variant normalization is the
+// API's job and is covered in packages/api).
+const NOTEBOOK_SUMMARY = {
+  host: '~zod',
+  flagName: 'blog',
+  notebook: { id: 2, title: 'Blog' },
+};
+const NOTEBOOK_DETAIL = {
+  host: '~zod',
+  flagName: 'blog',
+  notebook: { id: 2, title: 'Blog', rootFolderId: 3 },
+  visibility: 'public',
+};
 
 describe('notes help and shell', () => {
   it('prints family help for --help and -h without auth/IO', async () => {
@@ -167,133 +206,170 @@ describe('notes nest parsing', () => {
   });
 });
 
-describe('notes reads', () => {
-  it('lists notebooks via GET and formats each line', async () => {
+describe('notes reads call operations and format output', () => {
+  it('lists notebooks', async () => {
     const context = makeDeps({
-      requestJson: async () => [
-        { host: '~zod', flagName: 'blog', notebook: { id: 2, title: 'Blog' } },
-        { host: '~bus', flagName: 'log', notebook: { id: 8, title: 'Log' } },
-      ],
+      notesV1: {
+        listNotebooks: async () => [
+          NOTEBOOK_SUMMARY,
+          { host: '~bus', flagName: 'log', notebook: { id: 8, title: 'Log' } },
+        ],
+      },
     });
 
     const exitCode = await run(['list'], context.deps);
 
     expect(exitCode).toBe(0);
-    expect(context.calls.requestJson).toEqual([
-      { path: '/notes/~/v1/notebooks', method: 'GET', body: undefined },
-    ]);
+    expect(context.calls.notesV1).toEqual([{ op: 'listNotebooks', args: [] }]);
     expect(context.stdout()).toBe(
       'notes/~zod/blog  Blog  (id 2)\nnotes/~bus/log  Log  (id 8)\n'
     );
   });
 
   it('reports an empty notebook list', async () => {
-    const context = makeDeps({ requestJson: async () => [] });
+    const context = makeDeps({ notesV1: { listNotebooks: async () => [] } });
     const exitCode = await run(['list'], context.deps);
     expect(exitCode).toBe(0);
     expect(context.stdout()).toBe('No notebooks.\n');
   });
 
-  it('shows a notebook from its detail path', async () => {
+  it('shows a notebook via getNotebook(target.nest)', async () => {
     const context = makeDeps({
-      requestJson: async () => ({
-        host: '~zod',
-        flagName: 'blog',
-        notebook: { id: 2, title: 'Blog', rootFolderId: 3 },
-        visibility: 'public',
-      }),
+      notesV1: { getNotebook: async () => NOTEBOOK_DETAIL },
     });
 
     const exitCode = await run(['show', 'notes/~zod/blog'], context.deps);
 
     expect(exitCode).toBe(0);
-    expect(context.calls.requestJson).toEqual([
-      {
-        path: '/notes/~/v1/notebooks/~zod/blog',
-        method: 'GET',
-        body: undefined,
-      },
+    expect(context.calls.notesV1).toEqual([
+      { op: 'getNotebook', args: ['notes/~zod/blog'] },
     ]);
     expect(context.stdout()).toContain('Nest: notes/~zod/blog');
     expect(context.stdout()).toContain('Root folder: 3');
     expect(context.stdout()).toContain('Visibility: public');
   });
 
-  it('lists notes in a notebook', async () => {
+  it('lists notes', async () => {
     const context = makeDeps({
-      requestJson: async () => [
-        { id: 12, title: 'First', revision: 1 },
-        { id: 13, title: 'Second', revision: 4 },
-      ],
+      notesV1: {
+        listNotes: async () => [
+          { id: 12, title: 'First', revision: 1 },
+          { id: 13, title: 'Second', revision: 4 },
+        ],
+      },
     });
 
     const exitCode = await run(['notes', 'notes/~zod/blog'], context.deps);
 
     expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].path).toBe(
-      '/notes/~/v1/notebooks/~zod/blog/notes'
-    );
+    expect(context.calls.notesV1).toEqual([
+      { op: 'listNotes', args: ['notes/~zod/blog'] },
+    ]);
     expect(context.stdout()).toBe(
       '#12  First  (rev 1)\n#13  Second  (rev 4)\n'
     );
   });
 
-  it('shows a single note with its Markdown body', async () => {
+  it('shows a single note via getNote({ flag, noteId })', async () => {
     const context = makeDeps({
-      requestJson: async () => ({
-        id: 12,
-        title: 'First',
-        revision: 1,
-        folder: 3,
-        bodyMd: '# Hello\n\nWorld',
-      }),
+      notesV1: {
+        getNote: async () => ({
+          id: 12,
+          title: 'First',
+          revision: 1,
+          folderId: 3,
+          bodyMd: '# Hello\n\nWorld',
+        }),
+      },
     });
 
     const exitCode = await run(['note', 'notes/~zod/blog', '12'], context.deps);
 
     expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].path).toBe(
-      '/notes/~/v1/notebooks/~zod/blog/notes/12'
-    );
+    expect(context.calls.notesV1).toEqual([
+      { op: 'getNote', args: [{ flag: 'notes/~zod/blog', noteId: 12 }] },
+    ]);
     expect(context.stdout()).toContain('#12  First');
+    expect(context.stdout()).toContain('Folder: 3');
     expect(context.stdout()).toContain('# Hello\n\nWorld');
   });
 
-  it('shows a note folder from the live folderId response field', async () => {
-    const context = makeDeps({
-      requestJson: async () => ({
-        id: 12,
-        title: 'First',
-        revision: 1,
-        folderId: 3,
-        bodyMd: '# Hello',
-      }),
+  it('lists folders / members', async () => {
+    const folders = makeDeps({
+      notesV1: {
+        listFolders: async () => [
+          { id: 3, name: 'Root', parentFolderId: null },
+          { id: 4, name: 'Drafts', parentFolderId: 3 },
+        ],
+      },
     });
+    await run(['folders', 'notes/~zod/blog'], folders.deps);
+    expect(folders.calls.notesV1).toEqual([
+      { op: 'listFolders', args: ['notes/~zod/blog'] },
+    ]);
+    expect(folders.stdout()).toBe('#3  Root\n#4  Drafts  parent 3\n');
 
-    const exitCode = await run(['note', 'notes/~zod/blog', '12'], context.deps);
+    const members = makeDeps({
+      notesV1: {
+        listMembers: async () => [
+          { ship: '~zod', roles: ['owner'] },
+          { ship: '~bus', roles: [] },
+        ],
+      },
+    });
+    await run(['members', 'notes/~zod/blog'], members.deps);
+    expect(members.stdout()).toBe('~zod  [owner]\n~bus\n');
+  });
 
-    expect(exitCode).toBe(0);
-    expect(context.stdout()).toContain('Folder: 3');
+  it('shows folder detail and note history', async () => {
+    const folder = makeDeps({
+      notesV1: {
+        getFolder: async () => ({ id: 4, name: 'Drafts', parentFolderId: 3 }),
+      },
+    });
+    await run(['folder', 'notes/~zod/blog', '4'], folder.deps);
+    expect(folder.calls.notesV1).toEqual([
+      { op: 'getFolder', args: [{ flag: 'notes/~zod/blog', folderId: 4 }] },
+    ]);
+    expect(folder.stdout()).toContain('#4  Drafts');
+    expect(folder.stdout()).toContain('Parent: 3');
+
+    const history = makeDeps({
+      notesV1: {
+        listNoteHistory: async () => [
+          { revision: 2, author: '~zod', editedAt: 100 },
+          { revision: 1, author: '~zod' },
+        ],
+      },
+    });
+    await run(['history', 'notes/~zod/blog', '12'], history.deps);
+    expect(history.calls.notesV1).toEqual([
+      {
+        op: 'listNoteHistory',
+        args: [{ flag: 'notes/~zod/blog', noteId: 12 }],
+      },
+    ]);
+    expect(history.stdout()).toContain('rev 2  ~zod  @ 100');
   });
 });
 
 describe('notes status', () => {
-  it('reports reachable and exits 0 when the v1 API responds', async () => {
-    const context = makeDeps({ requestJson: async () => [] });
+  it('reports reachable when listNotebooks resolves', async () => {
+    const context = makeDeps({ notesV1: { listNotebooks: async () => [] } });
     const exitCode = await run(['status'], context.deps);
 
     expect(exitCode).toBe(0);
-    expect(context.calls.requestJson).toEqual([
-      { path: '/notes/~/v1/notebooks', method: 'GET', body: undefined },
-    ]);
+    expect(context.ops()).toEqual(['listNotebooks']);
     expect(context.stdout()).toContain('%notes v1 API: reachable');
     expect(context.stdout()).toContain('group-channel mode: unknown');
   });
 
-  it('reports unreachable and exits 1 when the v1 API errors', async () => {
+  it('reports unreachable when listNotebooks rejects', async () => {
     const context = makeDeps({
-      requestJson: async () => {
-        throw new Error('boom');
+      notesV1: {
+        listNotebooks: async () => {
+          throw commandError('boom');
+        },
       },
     });
     const exitCode = await run(['status'], context.deps);
@@ -303,31 +379,23 @@ describe('notes status', () => {
   });
 });
 
-describe('notes create', () => {
+describe('notes writes call operations with typed args', () => {
   it('creates a solo notebook and prints the derived nest', async () => {
     const context = makeDeps({
-      requestJson: async () => ({
-        requestId: 'r1',
-        body: {
-          type: 'notebook',
-          notebook: {
-            host: '~zod',
-            flagName: 'new-book',
-            notebook: { id: 5, title: 'New' },
-          },
-        },
-      }),
+      notesV1: {
+        createNotebook: async () => ({
+          host: '~zod',
+          flagName: 'new-book',
+          notebook: { id: 5, title: 'New' },
+        }),
+      },
     });
 
     const exitCode = await run(['create', 'New Notebook'], context.deps);
 
     expect(exitCode).toBe(0);
-    expect(context.calls.requestJson).toEqual([
-      {
-        path: '/notes/~/v1/notebooks',
-        method: 'POST',
-        body: { title: 'New Notebook' },
-      },
+    expect(context.calls.notesV1).toEqual([
+      { op: 'createNotebook', args: [{ title: 'New Notebook' }] },
     ]);
     expect(context.stdout()).toContain('✓ Notebook created');
     expect(context.stdout()).toContain('Nest: notes/~zod/new-book');
@@ -335,42 +403,25 @@ describe('notes create', () => {
 
   it('preserves option-like words in notebook titles', async () => {
     const context = makeDeps({
-      requestJson: async () => ({
-        requestId: 'r1',
-        body: {
-          type: 'notebook',
-          notebook: {
-            host: '~zod',
-            flagName: 'draft-roadmap',
-            notebook: { id: 5, title: '--draft Roadmap' },
-          },
-        },
-      }),
+      notesV1: {
+        createNotebook: async () => ({
+          host: '~zod',
+          flagName: 'b',
+          notebook: { id: 5, title: '--draft Roadmap' },
+        }),
+      },
     });
 
-    const exitCode = await run(['create', '--draft', 'Roadmap'], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].body).toEqual({
-      title: '--draft Roadmap',
-    });
+    await run(['create', '--draft', 'Roadmap'], context.deps);
+    expect(context.calls.notesV1[0].args).toEqual([
+      { title: '--draft Roadmap' },
+    ]);
   });
-});
 
-describe('notes note-create', () => {
-  it('resolves root to rootFolderId via a detail read before the POST', async () => {
+  it('note-create resolves root via getNotebook before createNote', async () => {
     const context = makeDeps({
       readFile: () => '# Body',
-      requestJson: async (path, method) => {
-        if (method === 'GET') {
-          return {
-            host: '~zod',
-            flagName: 'blog',
-            notebook: { id: 2, title: 'Blog', rootFolderId: 3 },
-          };
-        }
-        return { requestId: 'r1', body: { type: 'ok' } };
-      },
+      notesV1: { getNotebook: async () => NOTEBOOK_DETAIL },
     });
 
     const exitCode = await run(
@@ -379,51 +430,41 @@ describe('notes note-create', () => {
     );
 
     expect(exitCode).toBe(0);
-    // GET detail read happens before the POST, and never sends folder 0.
-    expect(context.calls.requestJson.map((c) => c.method)).toEqual([
-      'GET',
-      'POST',
-    ]);
-    expect(context.calls.requestJson[0].path).toBe(
-      '/notes/~/v1/notebooks/~zod/blog'
-    );
-    expect(context.calls.requestJson[1]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/notes',
-      method: 'POST',
-      body: { folder: 3, title: 'Title', body: '# Body' },
+    expect(context.ops()).toEqual(['getNotebook', 'createNote']);
+    expect(context.calls.notesV1[1]).toEqual({
+      op: 'createNote',
+      args: [
+        { flag: 'notes/~zod/blog', folder: 3, title: 'Title', body: '# Body' },
+      ],
     });
     expect(context.calls.readFile).toEqual(['note.md']);
     expect(context.stdout()).toBe('✓ Note created\n');
   });
 
-  it('passes an explicit numeric folder through without a detail read', async () => {
-    const context = makeDeps({
-      readStdin: async () => 'stdin body',
-      requestJson: async () => ({ requestId: 'r1', body: { type: 'ok' } }),
-    });
+  it('note-create passes an explicit numeric folder without a detail read', async () => {
+    const context = makeDeps({ readStdin: async () => 'stdin body' });
 
-    const exitCode = await run(
+    await run(
       ['note-create', 'notes/~zod/blog', '7', 'Title', '--stdin'],
       context.deps
     );
 
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson).toHaveLength(1);
-    expect(context.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/notes',
-      method: 'POST',
-      body: { folder: 7, title: 'Title', body: 'stdin body' },
-    });
+    expect(context.ops()).toEqual(['createNote']);
+    expect(context.calls.notesV1[0].args).toEqual([
+      {
+        flag: 'notes/~zod/blog',
+        folder: 7,
+        title: 'Title',
+        body: 'stdin body',
+      },
+    ]);
     expect(context.calls.readStdin).toBe(1);
   });
 
-  it('preserves option-like title words and dashed body paths', async () => {
-    const context = makeDeps({
-      readFile: () => '# Body',
-      requestJson: async () => ({ requestId: 'r1', body: { type: 'ok' } }),
-    });
+  it('note-create preserves option-like titles and dashed body paths', async () => {
+    const context = makeDeps({ readFile: () => '# Body' });
 
-    const exitCode = await run(
+    await run(
       [
         'note-create',
         'notes/~zod/blog',
@@ -436,22 +477,25 @@ describe('notes note-create', () => {
       context.deps
     );
 
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].body).toEqual({
-      folder: 7,
-      title: 'Roadmap --draft',
-      body: '# Body',
-    });
+    expect(context.calls.notesV1[0].args).toEqual([
+      {
+        flag: 'notes/~zod/blog',
+        folder: 7,
+        title: 'Roadmap --draft',
+        body: '# Body',
+      },
+    ]);
     expect(context.calls.readFile).toEqual(['--draft.md']);
   });
 
-  it('fails when root cannot be resolved (no rootFolderId)', async () => {
+  it('note-create surfaces a getNotebook (root resolution) failure and never creates', async () => {
     const context = makeDeps({
       readStdin: async () => 'body',
-      requestJson: async (_path, method) =>
-        method === 'GET'
-          ? { host: '~zod', flagName: 'blog', notebook: { id: 2, title: 'B' } }
-          : { requestId: 'r1', body: { type: 'ok' } },
+      notesV1: {
+        getNotebook: async () => {
+          throw commandError('%notes notebook detail is missing rootFolderId');
+        },
+      },
     });
 
     const exitCode = await run(
@@ -460,12 +504,11 @@ describe('notes note-create', () => {
     );
 
     expect(exitCode).toBe(1);
-    expect(context.stderr()).toContain('Could not resolve the root folder');
-    // Never reached the POST.
-    expect(context.calls.requestJson.map((c) => c.method)).toEqual(['GET']);
+    expect(context.stderr()).toContain('rootFolderId');
+    expect(context.ops()).toEqual(['getNotebook']);
   });
 
-  it('rejects missing, mixed, and duplicate content sources before auth', async () => {
+  it('note-create rejects missing, mixed, and duplicate content sources before auth', async () => {
     const base = ['note-create', 'notes/~zod/blog', 'root', 'Title'];
     const cases: Array<{ args: string[]; message: string }> = [
       { args: [...base], message: 'A content source is required' },
@@ -491,16 +534,10 @@ describe('notes note-create', () => {
       expectNoAuthOrIo(context);
     }
   });
-});
 
-describe('notes note-update', () => {
-  it('replaces the body and forwards expectedRevision', async () => {
-    const context = makeDeps({
-      readStdin: async () => 'updated',
-      requestJson: async () => ({ requestId: 'r1', body: { type: 'ok' } }),
-    });
-
-    const exitCode = await run(
+  it('note-update forwards body and expectedRevision (omitted when absent)', async () => {
+    const withRev = makeDeps({ readStdin: async () => 'updated' });
+    await run(
       [
         'note-update',
         'notes/~zod/blog',
@@ -509,39 +546,37 @@ describe('notes note-update', () => {
         '--expected-revision',
         '4',
       ],
-      context.deps
+      withRev.deps
     );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/notes/12',
-      method: 'PUT',
-      body: { body: 'updated', expectedRevision: 4 },
-    });
-    expect(context.stdout()).toBe('✓ Note updated\n');
-  });
-
-  it('omits expectedRevision when not provided', async () => {
-    const context = makeDeps({
-      readFile: () => 'from file',
-      requestJson: async () => ({
-        requestId: 'r1',
-        body: { type: 'no-change' },
-      }),
+    expect(withRev.calls.notesV1[0]).toEqual({
+      op: 'updateNoteBody',
+      args: [
+        {
+          flag: 'notes/~zod/blog',
+          noteId: 12,
+          body: 'updated',
+          expectedRevision: 4,
+        },
+      ],
     });
 
-    const exitCode = await run(
+    const noRev = makeDeps({ readFile: () => 'from file' });
+    await run(
       ['note-update', 'notes/~zod/blog', '12', '--body', 'x.md'],
-      context.deps
+      noRev.deps
     );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].body).toEqual({ body: 'from file' });
+    expect(noRev.calls.notesV1[0].args).toEqual([
+      {
+        flag: 'notes/~zod/blog',
+        noteId: 12,
+        body: 'from file',
+        expectedRevision: undefined,
+      },
+    ]);
   });
 
-  it('rejects a known option token as a file value', async () => {
+  it('note-update rejects a known option token as a file value', async () => {
     const context = makeDeps();
-
     const exitCode = await run(
       [
         'note-update',
@@ -553,357 +588,97 @@ describe('notes note-update', () => {
       ],
       context.deps
     );
-
     expect(exitCode).toBe(1);
     expect(context.stderr()).toContain('--body requires a value');
     expectNoAuthOrIo(context);
   });
-});
 
-describe('notes join and leave', () => {
-  it('joins via the membership wrapper with the full nest', async () => {
-    const context = makeDeps();
-    const exitCode = await run(['join', 'notes/~zod/blog'], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.joinNotesNotebook).toEqual(['notes/~zod/blog']);
-    expect(context.stdout()).toBe('✓ Joined\n');
-  });
-
-  it('leaves via the membership wrapper with the full nest', async () => {
-    const context = makeDeps();
-    const exitCode = await run(['leave', 'notes/~zod/blog'], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.leaveNotesNotebook).toEqual(['notes/~zod/blog']);
-    expect(context.stdout()).toBe('✓ Left\n');
-  });
-
-  it('normalizes a missing ~ host before poking the membership wrapper', async () => {
-    const joinCtx = makeDeps();
-    await run(['join', 'notes/zod/blog'], joinCtx.deps);
-    expect(joinCtx.calls.joinNotesNotebook).toEqual(['notes/~zod/blog']);
-
-    const leaveCtx = makeDeps();
-    await run(['leave', 'notes/zod/blog'], leaveCtx.deps);
-    expect(leaveCtx.calls.leaveNotesNotebook).toEqual(['notes/~zod/blog']);
-  });
-});
-
-describe('notes folders', () => {
-  it('lists folders via GET and formats each line', async () => {
-    const context = makeDeps({
-      requestJson: async () => [
-        { id: 3, folderName: 'Root' },
-        { id: 4, folderName: 'Drafts', parent: 3 },
-      ],
-    });
-
-    const exitCode = await run(['folders', 'notes/~zod/blog'], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].path).toBe(
-      '/notes/~/v1/notebooks/~zod/blog/folders'
+  it('note-rename / note-move / note-delete call metadata-only operations', async () => {
+    const rename = makeDeps();
+    await run(
+      ['note-rename', 'notes/~zod/blog', '12', 'New Title'],
+      rename.deps
     );
-    expect(context.stdout()).toBe('#3  Root\n#4  Drafts  parent 3\n');
+    expect(rename.calls.notesV1[0]).toEqual({
+      op: 'renameNote',
+      args: [{ flag: 'notes/~zod/blog', noteId: 12, title: 'New Title' }],
+    });
+    expect(rename.stdout()).toBe('✓ Note renamed\n');
+
+    const move = makeDeps();
+    await run(['note-move', 'notes/~zod/blog', '12', '3'], move.deps);
+    expect(move.calls.notesV1[0]).toEqual({
+      op: 'moveNote',
+      args: [{ flag: 'notes/~zod/blog', noteId: 12, folder: 3 }],
+    });
+
+    const del = makeDeps();
+    await run(['note-delete', 'notes/~zod/blog', '12'], del.deps);
+    expect(del.calls.notesV1[0]).toEqual({
+      op: 'deleteNote',
+      args: [{ flag: 'notes/~zod/blog', noteId: 12 }],
+    });
+    expect(del.stdout()).toBe('✓ Note deleted\n');
   });
 
-  it('lists folders from the live name and parentFolderId response fields', async () => {
-    const context = makeDeps({
-      requestJson: async () => [
-        { id: 3, name: 'Root' },
-        { id: 4, name: 'Drafts', parentFolderId: 3 },
-      ],
-    });
-
-    const exitCode = await run(['folders', 'notes/~zod/blog'], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.stdout()).toBe('#3  Root\n#4  Drafts  parent 3\n');
-  });
-
-  it('shows a single folder', async () => {
-    const context = makeDeps({
-      requestJson: async () => ({ id: 4, folderName: 'Drafts', parent: 3 }),
-    });
-
-    const exitCode = await run(
-      ['folder', 'notes/~zod/blog', '4'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].path).toBe(
-      '/notes/~/v1/notebooks/~zod/blog/folders/4'
-    );
-    expect(context.stdout()).toContain('#4  Drafts');
-    expect(context.stdout()).toContain('Parent: 3');
-  });
-
-  it('shows a single folder from the live name and parentFolderId response fields', async () => {
-    const context = makeDeps({
-      requestJson: async () => ({ id: 4, name: 'Drafts', parentFolderId: 3 }),
-    });
-
-    const exitCode = await run(
-      ['folder', 'notes/~zod/blog', '4'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.stdout()).toContain('#4  Drafts');
-    expect(context.stdout()).toContain('Parent: 3');
-  });
-
-  // The convenience-route writes below model a bare/empty success response (no
-  // `{requestId, body}` envelope) — requestJson throwing is the failure signal.
-  it('creates a folder at root (no parent) via POST {folderName}', async () => {
-    const context = makeDeps({
-      requestJson: async () => ({ id: 5, folderName: 'Drafts' }),
-    });
-
-    const exitCode = await run(
-      ['folder-create', 'notes/~zod/blog', 'Drafts'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/folders',
-      method: 'POST',
-      body: { folderName: 'Drafts' },
-    });
-    expect(context.stdout()).toBe('✓ Folder created\n');
-  });
-
-  it('creates a folder under a parent via POST {folderName, parent}', async () => {
-    const context = makeDeps({
-      requestJson: async () => ({ id: 6, folderName: 'Drafts', parent: 3 }),
-    });
-
+  it('folder writes call typed operations', async () => {
+    const create = makeDeps();
     await run(
       ['folder-create', 'notes/~zod/blog', 'Drafts', '--parent', '3'],
-      context.deps
+      create.deps
     );
-
-    expect(context.calls.requestJson[0].body).toEqual({
-      folderName: 'Drafts',
-      parent: 3,
+    expect(create.calls.notesV1[0]).toEqual({
+      op: 'createFolder',
+      args: [{ flag: 'notes/~zod/blog', name: 'Drafts', parent: 3 }],
     });
-  });
+    expect(create.stdout()).toBe('✓ Folder created\n');
 
-  it('preserves option-like folder name words before --parent', async () => {
-    const context = makeDeps({
-      requestJson: async () => ({ id: 6, folderName: 'Drafts --local' }),
-    });
+    const createRoot = makeDeps();
+    await run(['folder-create', 'notes/~zod/blog', 'Drafts'], createRoot.deps);
+    expect(createRoot.calls.notesV1[0].args).toEqual([
+      { flag: 'notes/~zod/blog', name: 'Drafts', parent: undefined },
+    ]);
 
-    const exitCode = await run(
-      [
-        'folder-create',
-        'notes/~zod/blog',
-        'Drafts',
-        '--local',
-        '--parent',
-        '3',
-      ],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].body).toEqual({
-      folderName: 'Drafts --local',
-      parent: 3,
-    });
-  });
-
-  it('renames a folder via PUT {folderName} (bare success)', async () => {
-    // No responder: the dep returns undefined, modeling an empty success body.
-    const context = makeDeps();
-
-    const exitCode = await run(
+    const rename = makeDeps();
+    await run(
       ['folder-rename', 'notes/~zod/blog', '4', 'Archive'],
-      context.deps
+      rename.deps
     );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/folders/4',
-      method: 'PUT',
-      body: { folderName: 'Archive' },
+    expect(rename.calls.notesV1[0]).toEqual({
+      op: 'renameFolder',
+      args: [{ flag: 'notes/~zod/blog', folderId: 4, name: 'Archive' }],
     });
-    expect(context.stdout()).toBe('✓ Folder renamed\n');
-  });
 
-  it('preserves option-like folder rename words', async () => {
-    const context = makeDeps();
-
-    const exitCode = await run(
-      ['folder-rename', 'notes/~zod/blog', '4', '--local', 'Archive'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].body).toEqual({
-      folderName: '--local Archive',
+    const move = makeDeps();
+    await run(['folder-move', 'notes/~zod/blog', '4', '3'], move.deps);
+    expect(move.calls.notesV1[0]).toEqual({
+      op: 'moveFolder',
+      args: [{ flag: 'notes/~zod/blog', folderId: 4, parent: 3 }],
     });
-  });
 
-  it('moves a folder via PUT {parent} (bare success)', async () => {
-    const context = makeDeps();
-
-    await run(['folder-move', 'notes/~zod/blog', '4', '3'], context.deps);
-
-    expect(context.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/folders/4',
-      method: 'PUT',
-      body: { parent: 3 },
+    const del = makeDeps();
+    await run(['folder-delete', 'notes/~zod/blog', '4'], del.deps);
+    expect(del.calls.notesV1[0]).toEqual({
+      op: 'deleteFolder',
+      args: [{ flag: 'notes/~zod/blog', folderId: 4, recursive: false }],
     });
-  });
-
-  it('deletes a folder via DELETE with an explicit recursive query', async () => {
-    const nonRecursive = makeDeps();
-    const exitCode = await run(
-      ['folder-delete', 'notes/~zod/blog', '4'],
-      nonRecursive.deps
-    );
-    expect(exitCode).toBe(0);
-    expect(nonRecursive.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/folders/4?recursive=false',
-      method: 'DELETE',
-      body: undefined,
-    });
-    expect(nonRecursive.stdout()).toBe('✓ Folder deleted\n');
-
-    const recursive = makeDeps();
+    const delRecursive = makeDeps();
     await run(
       ['folder-delete', 'notes/~zod/blog', '4', '--recursive'],
-      recursive.deps
+      delRecursive.deps
     );
-    expect(recursive.calls.requestJson[0].path).toBe(
-      '/notes/~/v1/notebooks/~zod/blog/folders/4?recursive=true'
-    );
-  });
-});
-
-describe('notes remaining note ops', () => {
-  // These convenience-route writes model a bare/empty success response.
-  it('renames a note via metadata-only PUT {title}', async () => {
-    const context = makeDeps();
-
-    const exitCode = await run(
-      ['note-rename', 'notes/~zod/blog', '12', 'New Title'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/notes/12',
-      method: 'PUT',
-      body: { title: 'New Title' },
-    });
-    expect(context.stdout()).toBe('✓ Note renamed\n');
+    expect(delRecursive.calls.notesV1[0].args).toEqual([
+      { flag: 'notes/~zod/blog', folderId: 4, recursive: true },
+    ]);
   });
 
-  it('preserves option-like note rename words', async () => {
-    const context = makeDeps();
-
-    const exitCode = await run(
-      ['note-rename', 'notes/~zod/blog', '12', '--draft', 'Title'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].body).toEqual({
-      title: '--draft Title',
-    });
-  });
-
-  it('moves a note via metadata-only PUT {folder}', async () => {
-    const context = makeDeps();
-
-    await run(['note-move', 'notes/~zod/blog', '12', '3'], context.deps);
-
-    expect(context.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/notes/12',
-      method: 'PUT',
-      body: { folder: 3 },
-    });
-  });
-
-  it('deletes a note via DELETE', async () => {
-    const context = makeDeps();
-
-    const exitCode = await run(
-      ['note-delete', 'notes/~zod/blog', '12'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0]).toEqual({
-      path: '/notes/~/v1/notebooks/~zod/blog/notes/12',
-      method: 'DELETE',
-      body: undefined,
-    });
-    expect(context.stdout()).toBe('✓ Note deleted\n');
-  });
-
-  it('shows note revision history via GET', async () => {
+  it('surfaces a write failure as a nonzero exit with no ✓', async () => {
     const context = makeDeps({
-      requestJson: async () => [
-        { revision: 2, author: '~zod' },
-        { revision: 1, author: '~zod' },
-      ],
-    });
-
-    const exitCode = await run(
-      ['history', 'notes/~zod/blog', '12'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].path).toBe(
-      '/notes/~/v1/notebooks/~zod/blog/notes/12/history'
-    );
-    expect(context.stdout()).toContain('rev 2  ~zod');
-  });
-
-  it('shows note revision history from the live rev and at response fields', async () => {
-    const context = makeDeps({
-      requestJson: async () => [{ rev: 2, at: 1.23, author: '~zod' }],
-    });
-
-    const exitCode = await run(
-      ['history', 'notes/~zod/blog', '12'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(0);
-    expect(context.stdout()).toContain('rev 2  ~zod  @ 1.23');
-  });
-
-  it('lists members via GET', async () => {
-    const context = makeDeps({
-      requestJson: async () => [
-        { ship: '~zod', roles: ['admin'] },
-        { ship: '~bus' },
-      ],
-    });
-
-    const exitCode = await run(['members', 'notes/~zod/blog'], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.requestJson[0].path).toBe(
-      '/notes/~/v1/notebooks/~zod/blog/members'
-    );
-    expect(context.stdout()).toBe('~zod  [admin]\n~bus\n');
-  });
-
-  it('surfaces a write error body as a nonzero exit with no ✓', async () => {
-    const context = makeDeps({
-      requestJson: async () => ({
-        requestId: 'r1',
-        body: { type: 'error', message: 'folder not empty' },
-      }),
+      notesV1: {
+        deleteFolder: async () => {
+          throw commandError('%notes error: folder not empty');
+        },
+      },
     });
 
     const exitCode = await run(
@@ -917,81 +692,39 @@ describe('notes remaining note ops', () => {
   });
 });
 
-describe('expectNotesResponse envelope handling', () => {
-  it('returns ok/no-change/notebook bodies', () => {
-    expect(expectNotesResponse({ body: { type: 'ok' } }).type).toBe('ok');
-    expect(expectNotesResponse({ body: { type: 'no-change' } }).type).toBe(
-      'no-change'
-    );
-    expect(expectNotesResponse({ body: { type: 'notebook' } }).type).toBe(
-      'notebook'
-    );
+describe('notes join and leave', () => {
+  it('joins/leaves via the membership wrapper with the full nest', async () => {
+    const join = makeDeps();
+    await run(['join', 'notes/~zod/blog'], join.deps);
+    expect(join.calls.joinNotesNotebook).toEqual(['notes/~zod/blog']);
+    expect(join.stdout()).toBe('✓ Joined\n');
+
+    const leave = makeDeps();
+    await run(['leave', 'notes/~zod/blog'], leave.deps);
+    expect(leave.calls.leaveNotesNotebook).toEqual(['notes/~zod/blog']);
+    expect(leave.stdout()).toBe('✓ Left\n');
   });
 
-  it('converts error and pending bodies into a commandError (both modes)', () => {
-    expect(() =>
-      expectNotesResponse({ body: { type: 'error', message: 'nope' } })
-    ).toThrow('%notes error: nope');
-    expect(() => expectNotesResponse({ body: { type: 'pending' } })).toThrow(
-      'still pending'
-    );
-    // error/pending still fail even when bare success is allowed.
-    expect(() =>
-      expectNotesResponse(
-        { body: { type: 'error', message: 'x' } },
-        { allowBareSuccess: true }
-      )
-    ).toThrow('%notes error: x');
-  });
-
-  it('rejects an unexpected present body.type in both modes', () => {
-    // A present envelope body always uses the strict whitelist; api-key is not a
-    // success even for convenience routes.
-    expect(() => expectNotesResponse({ body: { type: 'api-key' } })).toThrow(
-      'Unexpected %notes response type: api-key'
-    );
-    expect(() =>
-      expectNotesResponse(
-        { body: { type: 'api-key' } },
-        { allowBareSuccess: true }
-      )
-    ).toThrow('Unexpected %notes response type: api-key');
-  });
-
-  it('rejects a missing body unless allowBareSuccess is set', () => {
-    expect(() => expectNotesResponse({})).toThrow('missing body');
-    expect(expectNotesResponse({}, { allowBareSuccess: true }).type).toBe('ok');
-  });
-
-  it('surfaces an error-body write as a nonzero exit with no ✓', async () => {
-    const context = makeDeps({
-      requestJson: async () => ({
-        requestId: 'r1',
-        body: { type: 'error', message: 'denied' },
-      }),
-    });
-
-    const exitCode = await run(['create', 'Title'], context.deps);
-
-    expect(exitCode).toBe(1);
-    expect(context.stdout()).toBe('');
-    expect(context.stderr()).toContain('%notes error: denied');
+  it('normalizes a missing ~ host before poking the membership wrapper', async () => {
+    const join = makeDeps();
+    await run(['join', 'notes/zod/blog'], join.deps);
+    expect(join.calls.joinNotesNotebook).toEqual(['notes/~zod/blog']);
   });
 });
 
 describe('notes ordering and error propagation', () => {
   it('authenticates before any API work', async () => {
-    const context = makeDeps({ requestJson: async () => [] });
+    const context = makeDeps({ notesV1: { listNotebooks: async () => [] } });
     await run(['list'], context.deps);
     expect(context.calls.order[0]).toBe('authenticate');
   });
 
-  it('routes a facade commandError through the shared error path', async () => {
-    // The runtime facade wraps requestJson failures in a commandError; model
-    // that here so the shared error path renders `Error: <message>`.
+  it('routes an adapter commandError through the shared error path', async () => {
     const context = makeDeps({
-      requestJson: async () => {
-        throw commandError('network down');
+      notesV1: {
+        listNotebooks: async () => {
+          throw commandError('network down');
+        },
       },
     });
 
@@ -1015,6 +748,6 @@ describe('notes ordering and error propagation', () => {
     ).rejects.toThrow('Missing Urbit config');
 
     expect(context.calls.readFile).toEqual([]);
-    expect(context.calls.requestJson).toEqual([]);
+    expect(context.calls.notesV1).toEqual([]);
   });
 });

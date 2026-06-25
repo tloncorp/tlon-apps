@@ -1,13 +1,14 @@
 import {
-  requestJson as apiRequestJson,
+  type NotesV1Api,
   joinNotesChannel,
   leaveNotesChannel,
+  notesV1,
 } from '@tloncorp/api';
 import * as fs from 'fs';
 
 import { ensureClient } from './api-client';
 import { commandError, errorMessage } from './commands/command';
-import type { HttpMethod, NotesDeps } from './commands/notes';
+import type { NotesDeps } from './commands/notes';
 
 const STDIN_TIMEOUT_MS = 30_000;
 
@@ -44,6 +45,28 @@ async function readStdin(): Promise<string> {
   });
 }
 
+// Wrap every `notesV1` operation so an expected API/transport failure surfaces
+// as a commandError (rendered as `Error: <message>`), keeping the command module
+// free of transport-error handling.
+function notesRuntimeErrorMessage(error: unknown): string {
+  return errorMessage(error).trim() || '%notes request failed without details';
+}
+
+function wrapNotesV1(): NotesV1Api {
+  const wrapped: Record<string, unknown> = {};
+  for (const [key, fn] of Object.entries(notesV1)) {
+    const call = fn as unknown as (...args: unknown[]) => Promise<unknown>;
+    wrapped[key] = async (...args: unknown[]) => {
+      try {
+        return await call(...args);
+      } catch (error) {
+        throw commandError(notesRuntimeErrorMessage(error));
+      }
+    };
+  }
+  return wrapped as NotesV1Api;
+}
+
 export function createNotesDeps(): NotesDeps {
   return {
     ...createProcessCommandDeps(),
@@ -51,29 +74,20 @@ export function createNotesDeps(): NotesDeps {
     authenticate: async () => {
       await ensureClient();
     },
-    requestJson: async <T = unknown>(
-      path: string,
-      method: HttpMethod,
-      body?: unknown
-    ): Promise<T> => {
-      try {
-        return await apiRequestJson<T>(path, method, body);
-      } catch (error) {
-        throw commandError(errorMessage(error));
-      }
-    },
+    notesV1: wrapNotesV1(),
+    // Membership uses the %notes action wrappers (not the v0 app-sync helpers).
     joinNotesNotebook: async (nest: string) => {
       try {
         await joinNotesChannel(nest);
       } catch (error) {
-        throw commandError(errorMessage(error));
+        throw commandError(notesRuntimeErrorMessage(error));
       }
     },
     leaveNotesNotebook: async (nest: string) => {
       try {
         await leaveNotesChannel(nest);
       } catch (error) {
-        throw commandError(errorMessage(error));
+        throw commandError(notesRuntimeErrorMessage(error));
       }
     },
     readFile: (path: string) => fs.readFileSync(path, 'utf-8'),

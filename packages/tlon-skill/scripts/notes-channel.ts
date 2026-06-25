@@ -1,33 +1,30 @@
+import type { NotesV1NotebookSummary } from '@tloncorp/api';
+
 import { commandError } from './commands/command';
-import {
-  type HttpMethod,
-  type NotesResponseEnvelope,
-  expectNotesResponse,
-} from './commands/notes';
 
 // Shared, dependency-injected logic for creating a `%notes` group channel.
 //
 // Phase D assumes `arthyn/notes` PR 7 (group-channel mode): a notebook bound to
-// a group is registered as a `%groups` channel by `%notes` itself. The skill must
-// NOT call `@tloncorp/api.createChannel` for `--kind notes` (that pokes
-// `%channels`, which rejects the unknown nest) and must NOT add the group listing
-// itself.
+// a group is registered as a `%groups` channel by `%notes` itself. The skill
+// only calls the `notesV1.createGroupNotebook` API helper and verifies the
+// listing — it never pokes `%channels` and never adds the group listing itself.
 
 const VERIFY_ATTEMPTS = 5;
 const VERIFY_DELAY_MS = 500;
 
 export interface NotesChannelDeps {
-  requestJson: <T = unknown>(
-    path: string,
-    method: HttpMethod,
-    body?: unknown
-  ) => Promise<T>;
+  // POST the group-bound notebook via `@tloncorp/api` notesV1 and return its
+  // summary (the API unwraps the envelope / rejects errors).
+  createGroupNotesNotebook: (input: {
+    title: string;
+    group: { host: string; flagName: string };
+    readers: string[];
+  }) => Promise<NotesV1NotebookSummary>;
   // Channel ids currently listed in the target group (used to confirm `%notes`
   // registered the group listing).
   getGroupChannelIds: (groupId: string) => Promise<string[]>;
-  // Best-effort notebook removal (the `notesApi` swallow-and-log helper) used to
-  // clean up a stray solo notebook when group-mode is unavailable.
-  deleteNotesNotebook: (nest: string) => Promise<void>;
+  // Strict notebook removal (propagates failures) for the failed-create rollback.
+  deleteNotesNotebookStrict: (nest: string) => Promise<void>;
   sleep: (ms: number) => Promise<void>;
   log: (message: string) => void;
 }
@@ -89,25 +86,14 @@ export async function createNotesChannelInGroup(
 
   deps.log(`Creating %notes channel "${input.title}" in ${input.groupId}...`);
 
-  // The `{group, readers}` payload is the PR-7 group-mode contract (undocumented
-  // in the branch OpenAPI) — pin it against a deployed %notes. Empty readers
-  // means group-wide readable; `%notes` registers the %groups listing itself.
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    '/notes/~/v1/notebooks',
-    'POST',
-    {
-      title: input.title,
-      group: { host: groupHost, flagName: groupName },
-      readers: [],
-    }
-  );
-  const body = expectNotesResponse(res);
-  if (body.type !== 'notebook' || !body.notebook) {
-    throw commandError(
-      '%notes did not return a notebook for the group-channel create.'
-    );
-  }
-  const nest = `notes/${body.notebook.host}/${body.notebook.flagName}`;
+  // The `{group, readers}` payload is the PR-7 group-mode contract — empty
+  // readers means group-wide readable; `%notes` registers the %groups listing.
+  const summary = await deps.createGroupNotesNotebook({
+    title: input.title,
+    group: { host: groupHost, flagName: groupName },
+    readers: [],
+  });
+  const nest = `notes/${summary.host}/${summary.flagName}`;
 
   // Pre-PR-7 degradation guard. A create against an un-upgraded %notes silently
   // makes a *solo* notebook, and the response can't tell the difference — the
@@ -120,8 +106,17 @@ export async function createNotesChannelInGroup(
   }
   if (verdict === 'absent') {
     // A successful read confirmed the listing is missing: the host didn't
-    // register it (likely pre-PR-7), so remove the stray solo notebook.
-    await deps.deleteNotesNotebook(nest);
+    // register it (likely pre-PR-7). Roll back the stray solo notebook with the
+    // strict delete so we can report whether cleanup actually succeeded.
+    try {
+      await deps.deleteNotesNotebookStrict(nest);
+    } catch {
+      throw commandError(
+        `%notes created ${nest} but it did not register as a channel in ${input.groupId} — ` +
+          `the host may not support group-mode notes (PR 7), and removing the stray notebook also failed. ` +
+          `Manual cleanup of ${nest} may be required.`
+      );
+    }
     throw commandError(
       `%notes created ${nest} but it did not register as a channel in ${input.groupId} — ` +
         `the host may not support group-mode notes (PR 7). Removed the stray notebook.`

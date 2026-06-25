@@ -1,22 +1,13 @@
-import {
-  requestJson as apiRequestJson,
-  deleteNotesNotebook,
-  getGroup,
-} from '@tloncorp/api';
+import { deleteNotesNotebookStrict, getGroup, notesV1 } from '@tloncorp/api';
 
 import { commandError, errorMessage } from './commands/command';
-import type { HttpMethod } from './commands/notes';
 import type { NotesChannelDeps } from './notes-channel';
 
 export function createNotesChannelDeps(): NotesChannelDeps {
   return {
-    requestJson: async <T = unknown>(
-      path: string,
-      method: HttpMethod,
-      body?: unknown
-    ): Promise<T> => {
+    createGroupNotesNotebook: async (input) => {
       try {
-        return await apiRequestJson<T>(path, method, body);
+        return await notesV1.createGroupNotebook(input);
       } catch (error) {
         throw commandError(errorMessage(error));
       }
@@ -25,9 +16,11 @@ export function createNotesChannelDeps(): NotesChannelDeps {
       const group = await getGroup(groupId);
       return (group.channels ?? []).map((channel) => channel.id);
     },
-    // Already best-effort: the notesApi wrapper swallows and logs, which is
-    // exactly what the post-create cleanup wants.
-    deleteNotesNotebook: (nest: string) => deleteNotesNotebook(nest),
+    // Strict: propagate failures so the create flow can report whether the
+    // rollback actually removed the stray notebook.
+    deleteNotesNotebookStrict: async (nest: string) => {
+      await deleteNotesNotebookStrict(nest);
+    },
     sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
     log: (message: string) => console.log(message),
   };

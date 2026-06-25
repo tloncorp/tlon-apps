@@ -1,3 +1,12 @@
+import type {
+  NotesV1Api,
+  NotesV1Folder,
+  NotesV1MemberRecord,
+  NotesV1Note,
+  NotesV1NoteRevision,
+  NotesV1NotebookSummary,
+} from '@tloncorp/api';
+
 import {
   type CommandDeps,
   commandError,
@@ -88,91 +97,20 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
     'Usage: tlon notes leave <nest>\nExample: tlon notes leave notes/~zod/blog',
 };
 
-// ---------------------------------------------------------------------------
-// v1 %notes response shapes. The exact GET read shapes come from the unmerged
-// `notes-groups-integration` branch OpenAPI and must be re-pinned against a live
-// ship; the formatters below stay defensive about optional fields so a contract
-// drift degrades to "(unknown)" rather than crashing.
-// ---------------------------------------------------------------------------
-
-export interface NotebookDetail {
-  id: number;
-  title: string;
-  // Top-level placement uses rootFolderId (the OpenAPI notes it "equals id + 1",
-  // but we resolve it explicitly rather than computing it).
-  rootFolderId?: number;
-}
-
-export interface NotebookSummary {
-  host: string;
-  flagName: string;
-  notebook: NotebookDetail;
-  visibility?: string;
-}
-
-export interface NoteSummary {
-  id: number;
-  title?: string;
-  revision?: number;
-  folder?: number;
-  folderId?: number;
-}
-
-export interface NoteDetail extends NoteSummary {
-  // %notes content is plain Markdown.
-  bodyMd?: string;
-}
-
-export interface Folder {
-  id: number;
-  name?: string;
-  folderName?: string;
-  parent?: number;
-  parentFolderId?: number;
-}
-
-export interface NoteRevision {
-  revision?: number;
-  rev?: number;
-  editedAt?: number;
-  at?: number;
-  author?: string;
-}
-
-export interface MemberRecord {
-  ship?: string;
-  roles?: string[];
-}
-
-// Action writes (POST/PUT/DELETE) return this envelope; GET reads return bare
-// typed bodies, not the envelope.
-export interface NotesResponseBody {
-  type: string;
-  notebook?: NotebookSummary;
-  message?: string;
-}
-
-export interface NotesResponseEnvelope {
-  requestId?: string;
-  body?: NotesResponseBody;
-}
-
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
-
+// The %notes v1 protocol (path construction, request payloads, canonical
+// response shapes, and envelope handling) lives in `@tloncorp/api`'s `notesV1`.
+// This module owns CLI parsing, pre-auth validation, content-source handling,
+// `root` resolution, and human-readable output — it passes typed operations,
+// never string-built paths. (Type-only API import keeps the command-source
+// contract green.)
 export interface NotesDeps extends CommandDeps {
   authenticate: () => Promise<void>;
-  requestJson: <T = unknown>(
-    path: string,
-    method: HttpMethod,
-    body?: unknown
-  ) => Promise<T>;
+  notesV1: NotesV1Api;
   joinNotesNotebook: (nest: string) => Promise<void>;
   leaveNotesNotebook: (nest: string) => Promise<void>;
   readFile: (path: string) => string;
   readStdin: () => Promise<string>;
 }
-
-const NOTEBOOKS_PATH = '/notes/~/v1/notebooks';
 
 type ContentSource = { kind: 'file'; path: string } | { kind: 'stdin' };
 
@@ -222,10 +160,10 @@ function wantsHelp(args: string[]): boolean {
   return args.some(isHelpArg);
 }
 
-// Parse a notes nest `notes/~host/name` into the `~host` / `name` parts the v1
-// HTTP paths expect. Normalizes a missing `~` on the host. Validated up front
-// (pre-auth) so a malformed nest fails locally — and so join/leave never silently
-// no-op on a bad nest.
+// Validate and normalize a notes nest `notes/~host/name` up front (pre-auth) so
+// a malformed nest fails locally with a usage error. Returns the normalized nest
+// (with a `~` host) that handlers pass as the `NotesTarget` to `@tloncorp/api`
+// notesV1 operations and to the join/leave wrappers.
 export function parseNotesNest(nest: string, usage: string): Nest {
   const parts = nest.split('/');
   if (parts.length !== 3 || parts[0] !== 'notes' || !parts[1] || !parts[2]) {
@@ -242,35 +180,7 @@ export function parseNotesNest(nest: string, usage: string): Nest {
   return { nest: `notes/${host}/${name}`, host, name };
 }
 
-function notebookPath(target: Nest): string {
-  return `${NOTEBOOKS_PATH}/${target.host}/${target.name}`;
-}
-
-function notesPath(target: Nest): string {
-  return `${notebookPath(target)}/notes`;
-}
-
-function notePath(target: Nest, id: string): string {
-  return `${notesPath(target)}/${id}`;
-}
-
-function noteHistoryPath(target: Nest, id: string): string {
-  return `${notePath(target, id)}/history`;
-}
-
-function foldersPath(target: Nest): string {
-  return `${notebookPath(target)}/folders`;
-}
-
-function folderPath(target: Nest, id: string): string {
-  return `${foldersPath(target)}/${id}`;
-}
-
-function membersPath(target: Nest): string {
-  return `${notebookPath(target)}/members`;
-}
-
-function notebookNest(summary: NotebookSummary): string {
+function notebookNest(summary: NotesV1NotebookSummary): string {
   return `notes/${summary.host}/${summary.flagName}`;
 }
 
@@ -625,44 +535,6 @@ function parseArgs(args: string[]): ParsedNotesArgs {
   throw usageError(NOTES_HELP);
 }
 
-// Interpret an action-write response. A *present* envelope body always uses the
-// strict whitelist — only ok/no-change/notebook pass; error/pending (and any
-// other body.type, e.g. api-key) are surfaced as a commandError so a `✓` is
-// never printed for a failed write.
-//
-// `allowBareSuccess` relaxes only the *missing-body* case: the v1 convenience
-// routes (Phase C: folder/note rename/move/delete) may answer with a bare or
-// empty success, and `requestJson` already throws on HTTP failures, so those
-// callers treat an absent envelope as success. The enveloped Phase B endpoints
-// (create/note-create/note-update) leave it strict, where a missing body is an
-// error.
-export function expectNotesResponse(
-  res: NotesResponseEnvelope,
-  options: { allowBareSuccess?: boolean } = {}
-): NotesResponseBody {
-  const body = res?.body;
-  if (!body || typeof body.type !== 'string') {
-    if (options.allowBareSuccess) {
-      return { type: 'ok' };
-    }
-    throw commandError('Unexpected %notes response (missing body).');
-  }
-  switch (body.type) {
-    case 'ok':
-    case 'no-change':
-    case 'notebook':
-      return body;
-    case 'error':
-      throw commandError(`%notes error: ${body.message ?? '(no message)'}`);
-    case 'pending':
-      throw commandError(
-        '%notes request is still pending — try again in a moment.'
-      );
-    default:
-      throw commandError(`Unexpected %notes response type: ${body.type}`);
-  }
-}
-
 function readFileContent(path: string, deps: NotesDeps): string {
   try {
     return deps.readFile(path);
@@ -682,7 +554,8 @@ async function resolveBody(
 
 // Resolve the numeric folder id for a note-create placement. `root` triggers a
 // notebook-detail read to look up rootFolderId (never `0`); an explicit numeric
-// id passes through.
+// id passes through. `getNotebook` returns a detail with `rootFolderId`
+// guaranteed (the API rejects a detail that lacks it).
 async function resolveFolder(
   folder: string,
   target: Nest,
@@ -691,56 +564,39 @@ async function resolveFolder(
   if (folder !== 'root') {
     return Number(folder);
   }
-  const detail = await deps.requestJson<NotebookSummary>(
-    notebookPath(target),
-    'GET'
-  );
-  const rootFolderId = detail?.notebook?.rootFolderId;
-  if (typeof rootFolderId !== 'number') {
-    throw commandError(
-      `Could not resolve the root folder for ${target.nest} (no rootFolderId in the notebook detail).`
-    );
-  }
-  return rootFolderId;
+  const detail = await deps.notesV1.getNotebook(target.nest);
+  return detail.notebook.rootFolderId;
 }
 
 // ---------------------------------------------------------------------------
 // Read formatters
 // ---------------------------------------------------------------------------
 
-function formatNotebookLine(summary: NotebookSummary): string {
-  const title = summary.notebook?.title ?? '(untitled)';
-  const id = summary.notebook?.id ?? '?';
-  return `notes/${summary.host}/${summary.flagName}  ${title}  (id ${id})`;
+function formatNotebookLine(summary: NotesV1NotebookSummary): string {
+  return `notes/${summary.host}/${summary.flagName}  ${summary.notebook.title}  (id ${summary.notebook.id})`;
 }
 
-function formatNoteLine(note: NoteSummary): string {
-  const title = note.title ?? '(untitled)';
-  const revision = note.revision ?? '?';
-  return `#${note.id}  ${title}  (rev ${revision})`;
+function formatNoteLine(note: NotesV1Note): string {
+  return `#${note.id}  ${note.title}  (rev ${note.revision ?? '?'})`;
 }
 
-function formatFolderLine(folder: Folder): string {
-  const name = folder.folderName ?? folder.name ?? '(unnamed)';
-  const parentId =
-    typeof folder.parent === 'number' ? folder.parent : folder.parentFolderId;
-  const parent = typeof parentId === 'number' ? `  parent ${parentId}` : '';
-  return `#${folder.id}  ${name}${parent}`;
-}
-
-function formatRevisionLine(rev: NoteRevision): string {
-  const author = rev.author ? `  ${rev.author}` : '';
-  const editedAt = typeof rev.editedAt === 'number' ? rev.editedAt : rev.at;
-  const at = typeof editedAt === 'number' ? `  @ ${editedAt}` : '';
-  return `rev ${rev.revision ?? rev.rev ?? '?'}${author}${at}`;
-}
-
-function formatMemberLine(member: MemberRecord): string {
-  const roles =
-    member.roles && member.roles.length > 0
-      ? `  [${member.roles.join(', ')}]`
+function formatFolderLine(folder: NotesV1Folder): string {
+  const parent =
+    typeof folder.parentFolderId === 'number'
+      ? `  parent ${folder.parentFolderId}`
       : '';
-  return `${member.ship ?? '(unknown)'}${roles}`;
+  return `#${folder.id}  ${folder.name}${parent}`;
+}
+
+function formatRevisionLine(rev: NotesV1NoteRevision): string {
+  const author = rev.author ? `  ${rev.author}` : '';
+  const at = typeof rev.editedAt === 'number' ? `  @ ${rev.editedAt}` : '';
+  return `rev ${rev.revision ?? '?'}${author}${at}`;
+}
+
+function formatMemberLine(member: NotesV1MemberRecord): string {
+  const roles = member.roles.length > 0 ? `  [${member.roles.join(', ')}]` : '';
+  return `${member.ship}${roles}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -750,7 +606,7 @@ function formatMemberLine(member: MemberRecord): string {
 async function runStatus(deps: NotesDeps): Promise<number> {
   let reachable = true;
   try {
-    await deps.requestJson(NOTEBOOKS_PATH, 'GET');
+    await deps.notesV1.listNotebooks();
   } catch {
     reachable = false;
   }
@@ -765,11 +621,8 @@ async function runStatus(deps: NotesDeps): Promise<number> {
 }
 
 async function runList(deps: NotesDeps): Promise<number> {
-  const notebooks = await deps.requestJson<NotebookSummary[]>(
-    NOTEBOOKS_PATH,
-    'GET'
-  );
-  if (!notebooks || notebooks.length === 0) {
+  const notebooks = await deps.notesV1.listNotebooks();
+  if (notebooks.length === 0) {
     writeLine(deps.stdout, 'No notebooks.');
     return 0;
   }
@@ -780,17 +633,11 @@ async function runList(deps: NotesDeps): Promise<number> {
 }
 
 async function runShow(target: Nest, deps: NotesDeps): Promise<number> {
-  const summary = await deps.requestJson<NotebookSummary>(
-    notebookPath(target),
-    'GET'
-  );
+  const summary = await deps.notesV1.getNotebook(target.nest);
   writeLine(deps.stdout, `Nest: ${notebookNest(summary)}`);
-  writeLine(deps.stdout, `Title: ${summary.notebook?.title ?? '(untitled)'}`);
-  writeLine(deps.stdout, `ID: ${summary.notebook?.id ?? '?'}`);
-  writeLine(
-    deps.stdout,
-    `Root folder: ${summary.notebook?.rootFolderId ?? '(unknown)'}`
-  );
+  writeLine(deps.stdout, `Title: ${summary.notebook.title}`);
+  writeLine(deps.stdout, `ID: ${summary.notebook.id}`);
+  writeLine(deps.stdout, `Root folder: ${summary.notebook.rootFolderId}`);
   if (summary.visibility) {
     writeLine(deps.stdout, `Visibility: ${summary.visibility}`);
   }
@@ -798,8 +645,8 @@ async function runShow(target: Nest, deps: NotesDeps): Promise<number> {
 }
 
 async function runListNotes(target: Nest, deps: NotesDeps): Promise<number> {
-  const notes = await deps.requestJson<NoteSummary[]>(notesPath(target), 'GET');
-  if (!notes || notes.length === 0) {
+  const notes = await deps.notesV1.listNotes(target.nest);
+  if (notes.length === 0) {
     writeLine(deps.stdout, 'No notes.');
     return 0;
   }
@@ -814,13 +661,14 @@ async function runNote(
   id: string,
   deps: NotesDeps
 ): Promise<number> {
-  const note = await deps.requestJson<NoteDetail>(notePath(target, id), 'GET');
-  writeLine(deps.stdout, `#${note.id}  ${note.title ?? '(untitled)'}`);
+  const note = await deps.notesV1.getNote({
+    flag: target.nest,
+    noteId: Number(id),
+  });
+  writeLine(deps.stdout, `#${note.id}  ${note.title}`);
   writeLine(deps.stdout, `Revision: ${note.revision ?? '?'}`);
-  const folderId =
-    typeof note.folder === 'number' ? note.folder : note.folderId;
-  if (typeof folderId === 'number') {
-    writeLine(deps.stdout, `Folder: ${folderId}`);
+  if (typeof note.folderId === 'number') {
+    writeLine(deps.stdout, `Folder: ${note.folderId}`);
   }
   writeLine(deps.stdout, '');
   writeLine(deps.stdout, note.bodyMd ?? '(empty)');
@@ -828,17 +676,10 @@ async function runNote(
 }
 
 async function runCreate(title: string, deps: NotesDeps): Promise<number> {
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    NOTEBOOKS_PATH,
-    'POST',
-    { title }
-  );
-  const body = expectNotesResponse(res);
+  const summary = await deps.notesV1.createNotebook({ title });
   writeLine(deps.stdout, '✓ Notebook created');
-  if (body.notebook) {
-    writeLine(deps.stdout, `  Nest: ${notebookNest(body.notebook)}`);
-    writeLine(deps.stdout, `  ID: ${body.notebook.notebook?.id ?? '?'}`);
-  }
+  writeLine(deps.stdout, `  Nest: ${notebookNest(summary)}`);
+  writeLine(deps.stdout, `  ID: ${summary.notebook.id}`);
   return 0;
 }
 
@@ -853,12 +694,12 @@ async function runNoteCreate(
 ): Promise<number> {
   const folder = await resolveFolder(parsed.folder, parsed.target, deps);
   const body = await resolveBody(parsed.source, deps);
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    notesPath(parsed.target),
-    'POST',
-    { folder, title: parsed.title, body }
-  );
-  expectNotesResponse(res);
+  await deps.notesV1.createNote({
+    flag: parsed.target.nest,
+    folder,
+    title: parsed.title,
+    body,
+  });
   writeLine(deps.stdout, '✓ Note created');
   return 0;
 }
@@ -873,34 +714,27 @@ async function runNoteUpdate(
   deps: NotesDeps
 ): Promise<number> {
   const body = await resolveBody(parsed.source, deps);
-  const payload: { body: string; expectedRevision?: number } = { body };
-  if (parsed.expectedRevision !== undefined) {
-    payload.expectedRevision = parsed.expectedRevision;
-  }
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    notePath(parsed.target, parsed.id),
-    'PUT',
-    payload
-  );
-  expectNotesResponse(res);
+  await deps.notesV1.updateNoteBody({
+    flag: parsed.target.nest,
+    noteId: Number(parsed.id),
+    body,
+    expectedRevision: parsed.expectedRevision,
+  });
   writeLine(deps.stdout, '✓ Note updated');
   return 0;
 }
 
-// PUT …/notes/<id> is single-mode: a `body` payload wins over title/folder. So
-// note-rename / note-move send metadata-only bodies and never carry `body`.
 async function runNoteRename(
   target: Nest,
   id: string,
   title: string,
   deps: NotesDeps
 ): Promise<number> {
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    notePath(target, id),
-    'PUT',
-    { title }
-  );
-  expectNotesResponse(res, { allowBareSuccess: true });
+  await deps.notesV1.renameNote({
+    flag: target.nest,
+    noteId: Number(id),
+    title,
+  });
   writeLine(deps.stdout, '✓ Note renamed');
   return 0;
 }
@@ -911,12 +745,11 @@ async function runNoteMove(
   folder: number,
   deps: NotesDeps
 ): Promise<number> {
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    notePath(target, id),
-    'PUT',
-    { folder }
-  );
-  expectNotesResponse(res, { allowBareSuccess: true });
+  await deps.notesV1.moveNote({
+    flag: target.nest,
+    noteId: Number(id),
+    folder,
+  });
   writeLine(deps.stdout, '✓ Note moved');
   return 0;
 }
@@ -926,11 +759,7 @@ async function runNoteDelete(
   id: string,
   deps: NotesDeps
 ): Promise<number> {
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    notePath(target, id),
-    'DELETE'
-  );
-  expectNotesResponse(res, { allowBareSuccess: true });
+  await deps.notesV1.deleteNote({ flag: target.nest, noteId: Number(id) });
   writeLine(deps.stdout, '✓ Note deleted');
   return 0;
 }
@@ -940,11 +769,11 @@ async function runHistory(
   id: string,
   deps: NotesDeps
 ): Promise<number> {
-  const revisions = await deps.requestJson<NoteRevision[]>(
-    noteHistoryPath(target, id),
-    'GET'
-  );
-  if (!revisions || revisions.length === 0) {
+  const revisions = await deps.notesV1.listNoteHistory({
+    flag: target.nest,
+    noteId: Number(id),
+  });
+  if (revisions.length === 0) {
     writeLine(deps.stdout, 'No revisions.');
     return 0;
   }
@@ -955,8 +784,8 @@ async function runHistory(
 }
 
 async function runFolders(target: Nest, deps: NotesDeps): Promise<number> {
-  const folders = await deps.requestJson<Folder[]>(foldersPath(target), 'GET');
-  if (!folders || folders.length === 0) {
+  const folders = await deps.notesV1.listFolders(target.nest);
+  if (folders.length === 0) {
     writeLine(deps.stdout, 'No folders.');
     return 0;
   }
@@ -971,15 +800,13 @@ async function runFolder(
   id: string,
   deps: NotesDeps
 ): Promise<number> {
-  const folder = await deps.requestJson<Folder>(folderPath(target, id), 'GET');
-  writeLine(
-    deps.stdout,
-    `#${folder.id}  ${folder.folderName ?? folder.name ?? '(unnamed)'}`
-  );
-  const parentId =
-    typeof folder.parent === 'number' ? folder.parent : folder.parentFolderId;
-  if (typeof parentId === 'number') {
-    writeLine(deps.stdout, `Parent: ${parentId}`);
+  const folder = await deps.notesV1.getFolder({
+    flag: target.nest,
+    folderId: Number(id),
+  });
+  writeLine(deps.stdout, `#${folder.id}  ${folder.name}`);
+  if (typeof folder.parentFolderId === 'number') {
+    writeLine(deps.stdout, `Parent: ${folder.parentFolderId}`);
   }
   return 0;
 }
@@ -988,19 +815,11 @@ async function runFolderCreate(
   parsed: { target: Nest; folderName: string; parent?: number },
   deps: NotesDeps
 ): Promise<number> {
-  const payload: { folderName: string; parent?: number } = {
-    folderName: parsed.folderName,
-  };
-  // parent omitted → folder is created at the notebook root.
-  if (parsed.parent !== undefined) {
-    payload.parent = parsed.parent;
-  }
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    foldersPath(parsed.target),
-    'POST',
-    payload
-  );
-  expectNotesResponse(res, { allowBareSuccess: true });
+  await deps.notesV1.createFolder({
+    flag: parsed.target.nest,
+    name: parsed.folderName,
+    parent: parsed.parent,
+  });
   writeLine(deps.stdout, '✓ Folder created');
   return 0;
 }
@@ -1011,12 +830,11 @@ async function runFolderRename(
   folderName: string,
   deps: NotesDeps
 ): Promise<number> {
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    folderPath(target, id),
-    'PUT',
-    { folderName }
-  );
-  expectNotesResponse(res, { allowBareSuccess: true });
+  await deps.notesV1.renameFolder({
+    flag: target.nest,
+    folderId: Number(id),
+    name: folderName,
+  });
   writeLine(deps.stdout, '✓ Folder renamed');
   return 0;
 }
@@ -1027,12 +845,11 @@ async function runFolderMove(
   parent: number,
   deps: NotesDeps
 ): Promise<number> {
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    folderPath(target, id),
-    'PUT',
-    { parent }
-  );
-  expectNotesResponse(res, { allowBareSuccess: true });
+  await deps.notesV1.moveFolder({
+    flag: target.nest,
+    folderId: Number(id),
+    parent,
+  });
   writeLine(deps.stdout, '✓ Folder moved');
   return 0;
 }
@@ -1043,21 +860,18 @@ async function runFolderDelete(
   recursive: boolean,
   deps: NotesDeps
 ): Promise<number> {
-  const res = await deps.requestJson<NotesResponseEnvelope>(
-    `${folderPath(target, id)}?recursive=${recursive ? 'true' : 'false'}`,
-    'DELETE'
-  );
-  expectNotesResponse(res, { allowBareSuccess: true });
+  await deps.notesV1.deleteFolder({
+    flag: target.nest,
+    folderId: Number(id),
+    recursive,
+  });
   writeLine(deps.stdout, '✓ Folder deleted');
   return 0;
 }
 
 async function runMembers(target: Nest, deps: NotesDeps): Promise<number> {
-  const members = await deps.requestJson<MemberRecord[]>(
-    membersPath(target),
-    'GET'
-  );
-  if (!members || members.length === 0) {
+  const members = await deps.notesV1.listMembers(target.nest);
+  if (members.length === 0) {
     writeLine(deps.stdout, 'No members.');
     return 0;
   }

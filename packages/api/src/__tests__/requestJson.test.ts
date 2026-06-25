@@ -1,5 +1,11 @@
 import { describe, expect, test, vi } from 'vitest';
 
+import {
+  BadResponseError,
+  internalConfigureClient,
+  internalRemoveClient,
+  requestJson,
+} from '../client/urbit';
 import { Urbit } from '../http-api/Urbit';
 
 describe('Urbit.requestJson', () => {
@@ -27,5 +33,36 @@ describe('Urbit.requestJson', () => {
     const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
 
     await expect(urbit.requestJson('/missing', 'GET')).rejects.toBe(response);
+  });
+});
+
+describe('client requestJson wrapper', () => {
+  test('turns blank HTTP failures into a nonblank BadResponseError message', async () => {
+    const client = {
+      requestJson: vi.fn(async () => {
+        throw new Response('', { status: 404 });
+      }),
+      delete: vi.fn(),
+      on: vi.fn(),
+    };
+
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      client: client as any,
+    });
+
+    try {
+      await expect(requestJson('/missing', 'GET')).rejects.toMatchObject({
+        status: 404,
+        body: '',
+        message: 'HTTP 404',
+      });
+      await expect(requestJson('/missing', 'GET')).rejects.toBeInstanceOf(
+        BadResponseError
+      );
+    } finally {
+      internalRemoveClient();
+    }
   });
 });

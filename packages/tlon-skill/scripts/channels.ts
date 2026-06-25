@@ -23,7 +23,7 @@ import {
   removeChannelWriters as apiRemoveWriters,
   createChannel,
   deleteChannel,
-  deleteNotesNotebook,
+  deleteNotesNotebookBestEffort,
   getGroups,
   getInitData,
   poke,
@@ -433,7 +433,7 @@ async function deleteChannelByNest(nest: string) {
   // gone. Best-effort: the helper swallows errors (e.g. when we are not the
   // host), which is harmless — the listing is already removed from the group.
   if (isNotesNest(nest)) {
-    await deleteNotesNotebook(nest);
+    await deleteNotesNotebookBestEffort(nest);
   }
 
   console.log(`✅ Channel deleted.`);
