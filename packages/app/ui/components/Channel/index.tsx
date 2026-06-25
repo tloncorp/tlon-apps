@@ -747,7 +747,6 @@ export function Channel({
                           goToChatDetails={goToChatDetails}
                           goToProfile={handleGoToProfile}
                           goToSearch={goToSearch}
-                          hideIdentity={channel.type === 'notes' && !isNarrow}
                           showSpinner={showHeaderLoading}
                           showSearchButton={
                             channel.type === 'chat' ||

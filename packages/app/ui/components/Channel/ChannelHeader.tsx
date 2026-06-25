@@ -334,11 +334,12 @@ export function ChannelHeader({
       return goToProfile;
     }
 
-    // For group DMs, group chats, notebooks, and galleries, navigate to chat details/group info
+    // For group DMs, group chats, notebooks, notes, and galleries, navigate to chat details/group info
     if (
       (channel.type === 'groupDm' ||
         channel.type === 'chat' ||
         channel.type === 'notebook' ||
+        channel.type === 'notes' ||
         channel.type === 'gallery') &&
       goToChatDetails
     ) {

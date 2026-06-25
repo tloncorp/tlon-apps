@@ -427,7 +427,6 @@ export function NotesNoteDetail({
     return <NotesMessage title="Note not found" />;
   }
 
-  const editorDateLabel = formatEditorDate(selectedNote.updatedAt);
   const inlineActions =
     headerActionsPlacement === 'inline' ? (
       <>
@@ -446,20 +445,7 @@ export function NotesNoteDetail({
             paddingTop="$l"
             paddingBottom="$m"
             gap={0}
-            borderBottomColor="$border"
-            borderBottomWidth={1}
           >
-            {editorDateLabel ? (
-              <Text
-                size="$label/s"
-                color="$tertiaryText"
-                marginTop="$s"
-                textAlign="left"
-                letterSpacing={0}
-              >
-                {editorDateLabel}
-              </Text>
-            ) : null}
             <XStack alignItems="center" gap="$s">
               <Input
                 flex={1}
@@ -468,10 +454,10 @@ export function NotesNoteDetail({
                 onChangeText={setTitleDraft}
                 placeholder="Untitled"
                 placeholderTextColor="$tertiaryText"
-                fontSize={20}
-                height={34}
-                minHeight={34}
-                fontWeight="600"
+                fontSize={34}
+                height={46}
+                minHeight={46}
+                fontWeight="400"
                 borderColor="transparent"
                 borderWidth={0}
                 backgroundColor="transparent"
@@ -499,6 +485,7 @@ export function NotesNoteDetail({
                   ) : previewState.content.length > 0 ? (
                     <NotebookContentRenderer
                       content={previewState.content}
+                      marginHorizontal="$-l"
                       testID="NotesPreviewContent"
                     />
                   ) : (
@@ -578,15 +565,6 @@ function NotesPreviewToggle({
 function getHeaderSaveLabel(saveState: SaveState) {
   if (saveState === 'saving') return 'Saving...';
   return null;
-}
-
-function formatEditorDate(timestamp: number | null | undefined) {
-  if (!timestamp) return null;
-  const unixMs = timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'long',
-    timeStyle: 'short',
-  }).format(new Date(unixMs));
 }
 
 function HeaderSaveStatus({ label }: { label: string | null }) {
