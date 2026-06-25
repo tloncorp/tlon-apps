@@ -22,29 +22,44 @@ export const toLensRun = (entry: ub.LensRunEntry): LensRun => {
     lensId: entry.id,
     complete: entry.complete,
     receivedAt: parseReceived(entry.received),
-    // %steward relays the run record as structured JSON, not a cord — pass
-    // it through unchanged.
-    payload: entry.payload,
+    payload: parsePayload(entry.payload),
   };
 };
 
-export const getRecentLensRuns = async (count?: number): Promise<LensRun[]> => {
+// The agent relays payloads as opaque serialized-JSON cords; parse once at
+// the API edge so the rest of the client sees structured data.
+function parsePayload(payload: string): unknown {
+  try {
+    return JSON.parse(payload);
+  } catch {
+    logger.log('failed to parse lens payload', payload.slice(0, 100));
+    return null;
+  }
+}
+
+// %steward emits three lens-update variants on the wire. %entry / %recent
+// carry data; %retry-requested is a signal for the gateway, not the client.
+function isLensEntryUpdate(
+  update: ub.LensModuleUpdate
+): update is { entry: ub.LensRunEntry } {
+  return 'entry' in update;
+}
+
+export const getRecentLensRuns = async (
+  count?: number
+): Promise<LensRun[]> => {
   const path =
     count && count > 0 ? `/v1/lens/recent/${count}` : '/v1/lens/recent';
   const response = await scry<ub.LensRecentScry>({ app: 'steward', path });
-
-  return response.recent.map(toLensRun);
+  return response.lens.recent.map(toLensRun);
 };
 
-// Paginate run history backwards: pass the oldest receivedAt (@da string)
-// from the last page to fetch everything at or after that cutoff.
 export const getLensRunsSince = async (cutoff: string): Promise<LensRun[]> => {
   const response = await scry<ub.LensRecentScry>({
     app: 'steward',
     path: `/v1/lens/since/${cutoff}`,
   });
-
-  return response.recent.map(toLensRun);
+  return response.lens.recent.map(toLensRun);
 };
 
 export const getLensRun = async (
@@ -52,12 +67,14 @@ export const getLensRun = async (
   lensId: string
 ): Promise<LensRun | null> => {
   try {
-    const response = await scry<{ entry: ub.LensRunEntry }>({
+    const response = await scry<{ lens: ub.LensModuleUpdate }>({
       app: 'steward',
       path: `/v1/lens/run/${botShip}/${lensId}`,
     });
-
-    return toLensRun(response.entry);
+    if (!isLensEntryUpdate(response.lens)) {
+      return null;
+    }
+    return toLensRun(response.lens.entry);
   } catch (error) {
     if (error instanceof BadResponseError && error.status === 404) {
       return null;
@@ -68,9 +85,11 @@ export const getLensRun = async (
 };
 
 /**
- * Ask the bot to re-run a failed lens run. Pokes our own %steward agent,
- * which relays the request to the bot ship; the bot's gateway re-dispatches
- * and the retry shows up as a new run.
+ * Ask the bot to re-run a failed lens run. Pokes our own (local) %steward
+ * with the bot ship and lensId; %steward routes it to the bot — if the bot
+ * is us, it emits a %retry-requested fact for the local gateway; if the
+ * bot is a different ship, %steward cross-ship pokes that ship's %steward,
+ * which then emits the fact for its own local gateway.
  */
 export const retryLensRun = ({
   botShip,
@@ -81,15 +100,15 @@ export const retryLensRun = ({
 }) =>
   poke({
     app: 'steward',
-    mark: 'steward-lens-action-1',
-    json: { retry: { bot: botShip, id: lensId } },
+    mark: 'steward-action-1',
+    json: { lens: { retry: { bot: botShip, id: lensId } } },
   });
 
 export const subscribeToLensUpdates = async (
   handler: (runs: LensRun[]) => void
 ) => {
-  // Older ships don't have the %steward agent; probe with a scry so a missing
-  // agent skips the subscription instead of wedging sync.
+  // Older ships don't have %steward; probe with a scry so a missing agent
+  // skips the subscription instead of wedging sync.
   try {
     await scry<ub.LensRecentScry>({
       app: 'steward',
@@ -98,25 +117,25 @@ export const subscribeToLensUpdates = async (
   } catch (error) {
     if (error instanceof BadResponseError && error.status === 404) {
       logger.trackEvent('%steward agent missing');
-      logger.warn('lens agent unavailable, skipping lens subscription');
+      logger.warn('steward agent unavailable, skipping lens subscription');
       return null;
     }
 
     throw error;
   }
 
-  return subscribe<ub.LensUpdate>(
+  return subscribe<{ lens: ub.LensModuleUpdate }>(
     {
       app: 'steward',
       path: '/v1/lens',
     },
     (event) => {
-      logger.log('raw lens event', event);
-      // /v1/lens carries %entry (a stored run, for us) and %retry-requested
-      // (for the bot's own gateway); only the former concerns the client.
-      if ('entry' in event) {
-        handler([toLensRun(event.entry)]);
+      logger.log('raw steward lens event', event);
+      if (!isLensEntryUpdate(event.lens)) {
+        // %retry-requested signals are for the gateway, not run data.
+        return;
       }
+      handler([toLensRun(event.lens.entry)]);
     }
   );
 };
