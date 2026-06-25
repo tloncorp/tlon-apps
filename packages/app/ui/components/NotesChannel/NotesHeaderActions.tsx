@@ -19,17 +19,27 @@ export function createNotesNewFolderAction(
 
 export function NotesHeaderActions({
   canEdit,
+  canImportFiles,
+  canImportFolder,
   isCreatingFolder,
   isCreatingNote,
+  isImporting,
   onCreateFolder,
   onCreateNote,
+  onImportFiles,
+  onImportFolder,
   primaryActionVariant = 'text',
 }: {
   canEdit: boolean;
+  canImportFiles: boolean;
+  canImportFolder: boolean;
   isCreatingFolder: boolean;
   isCreatingNote: boolean;
+  isImporting: boolean;
   onCreateFolder: () => void;
   onCreateNote: () => Promise<void> | void;
+  onImportFiles: () => void;
+  onImportFolder: () => void;
   primaryActionVariant?: 'icon' | 'text';
 }) {
   const groups = createActionGroups(
@@ -45,6 +55,23 @@ export function NotesHeaderActions({
         disabled: isCreatingFolder,
         testID: 'NotesRootNewFolderAction',
       }),
+    ],
+    (canImportFiles || canImportFolder) && [
+      'neutral',
+      canImportFiles && {
+        title: 'Import',
+        startIcon: 'ArrowDown',
+        action: onImportFiles,
+        disabled: isImporting,
+        testID: 'NotesImportFilesAction',
+      },
+      canImportFolder && {
+        title: 'Import folder',
+        startIcon: 'Folder',
+        action: onImportFolder,
+        disabled: isImporting,
+        testID: 'NotesImportFolderAction',
+      },
     ]
   );
 
