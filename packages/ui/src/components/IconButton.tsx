@@ -21,7 +21,7 @@ export function IconButton({
   radius = '$radius.l',
   style,
   pressStyle,
-  borderWidth = 'unset',
+  borderWidth = 0,
   width,
   ...rest
 }: IconButtonProps) {
