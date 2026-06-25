@@ -45,11 +45,9 @@ import {
   buildFolderNoteCounts,
   buildFolderRows,
   buildNotesTreeRows,
-  filterNotesTreeData,
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
-  normalizeSearchText,
 } from './notesTree';
 
 export function NotesNativeChannel({
@@ -78,7 +76,6 @@ export function NotesNativeChannel({
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newActionSheetOpen, setNewActionSheetOpen] = useState(false);
   const [renameFolderName, setRenameFolderName] = useState('');
-  const [notesFilterQuery, setNotesFilterQuery] = useState('');
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
   const {
     entity: movingNote,
@@ -117,46 +114,20 @@ export function NotesNativeChannel({
     [folders, rootFolderId]
   );
 
-  const normalizedNotesFilterQuery = normalizeSearchText(notesFilterQuery);
-  const filteredTreeData = useMemo(
-    () =>
-      filterNotesTreeData({
-        folders,
-        notes,
-        query: normalizedNotesFilterQuery,
-        rootFolderId,
-      }),
-    [folders, normalizedNotesFilterQuery, notes, rootFolderId]
-  );
-  const treeFolders = filteredTreeData.folders;
-  const treeNotes = filteredTreeData.notes;
-  const treeExpandedFolderIds = useMemo(() => {
-    if (!normalizedNotesFilterQuery) {
-      return expandedFolderIds;
-    }
-
-    return new Set(treeFolders.map((folder) => folder.folderId));
-  }, [expandedFolderIds, normalizedNotesFilterQuery, treeFolders]);
   const folderNoteCounts = useMemo(
-    () => buildFolderNoteCounts(treeFolders, treeNotes),
-    [treeFolders, treeNotes]
+    () => buildFolderNoteCounts(folders, notes),
+    [folders, notes]
   );
   const treeRows = useMemo(
     () =>
       buildNotesTreeRows({
-        expandedFolderIds: treeExpandedFolderIds,
+        expandedFolderIds,
         folderNoteCounts,
-        folders: treeFolders,
-        notes: treeNotes,
+        folders,
+        notes,
         rootFolderId,
       }),
-    [
-      folderNoteCounts,
-      rootFolderId,
-      treeExpandedFolderIds,
-      treeFolders,
-      treeNotes,
-    ]
+    [expandedFolderIds, folderNoteCounts, folders, notes, rootFolderId]
   );
   const selectNoteInPane = useMutableCallback((noteId: number | null) => {
     setSelectedNoteId(noteId);
@@ -568,8 +539,6 @@ export function NotesNativeChannel({
       isCreatingFolder={isCreatingFolder}
       isCreatingNote={isCreatingNote}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
-      normalizedQuery={normalizedNotesFilterQuery}
-      notesFilterQuery={notesFilterQuery}
       selectedFolderId={selectedFolderId}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
@@ -582,7 +551,6 @@ export function NotesNativeChannel({
       onCreateFolderInFolder={(folder) => openAddFolderDialog(folder.folderId)}
       onCreateNoteInFolder={(folder) => void handleCreateNote(folder.folderId)}
       onRenameFolder={handleOpenRenameFolder}
-      onQueryChange={setNotesFilterQuery}
       onToggleFolder={toggleFolder}
     />
   );

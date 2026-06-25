@@ -160,8 +160,6 @@ function NotesTreeFixture() {
             isCreatingFolder={false}
             isCreatingNote={false}
             layout="takeover"
-            normalizedQuery=""
-            notesFilterQuery=""
             selectedFolderId={null}
             selectedNoteId={1}
             treeRows={treeRows}
@@ -173,7 +171,6 @@ function NotesTreeFixture() {
             onMoveFolder={() => {}}
             onMoveNote={() => {}}
             onOpenNote={() => {}}
-            onQueryChange={() => {}}
             onRenameFolder={() => {}}
             onToggleFolder={(folderId, hasChildren) => {
               if (!hasChildren) return;

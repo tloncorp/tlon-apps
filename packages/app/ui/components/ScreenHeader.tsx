@@ -1,11 +1,12 @@
 import { useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Text, View } from '@tloncorp/ui';
+import { Icon, Pressable as TlonPressable, Text, View } from '@tloncorp/ui';
 import {
   Children,
   PropsWithChildren,
   ReactNode,
   useEffect,
   useRef,
+  useState,
 } from 'react';
 import {
   ActivityIndicator,
@@ -24,6 +25,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  ColorTokens,
   XStack,
   getVariableValue,
   styled,
@@ -64,6 +66,9 @@ export const ScreenHeaderComponent = ({
   testID?: string;
 }>) => {
   const { top } = useSafeAreaInsets();
+  const [headerWidth, setHeaderWidth] = useState(0);
+  const [leftControlsWidth, setLeftControlsWidth] = useState(0);
+  const [rightControlsWidth, setRightControlsWidth] = useState(0);
 
   const shouldUseAnimatedTitleLayout = typeof title === 'string';
   const activeLoadingText = loadingSubtitle ?? undefined;
@@ -99,7 +104,30 @@ export const ScreenHeaderComponent = ({
 
   const leftControlsCount = leftControls ? Children.count(leftControls) : 0;
   const backButtonCount = backAction ? 1 : 0;
-  const titleMaxWidth = useHorizontalTitleLayout ? 'unset' : 185;
+  const horizontalTitleLeftOffset = Math.max(
+    18 + leftControlsCount * 28 + backButtonCount * 28,
+    leftControlsWidth ? leftControlsWidth + 18 : 0
+  );
+  const horizontalTitleRightOffset = rightControlsWidth
+    ? rightControlsWidth + 18
+    : 0;
+  const horizontalTitleMaxWidth =
+    useHorizontalTitleLayout && headerWidth
+      ? Math.max(
+          80,
+          headerWidth - horizontalTitleLeftOffset - horizontalTitleRightOffset
+        )
+      : undefined;
+  const centeredTitleSideOffset = Math.max(
+    horizontalTitleLeftOffset,
+    horizontalTitleRightOffset
+  );
+  const centeredTitleMaxWidth = headerWidth
+    ? Math.max(80, Math.min(185, headerWidth - centeredTitleSideOffset * 2))
+    : 185;
+  const titleMaxWidth = useHorizontalTitleLayout
+    ? horizontalTitleMaxWidth
+    : centeredTitleMaxWidth;
   const loadingTextMaxWidth = useHorizontalTitleLayout ? 360 : 240;
 
   // Fallback for non-string titles: swap to loading subtitle while loading.
@@ -113,7 +141,8 @@ export const ScreenHeaderComponent = ({
   const horizontalTitleStack: ViewStyle = {
     flexDirection: 'row-reverse',
     justifyContent: 'flex-end',
-    paddingLeft: 18 + leftControlsCount * 28 + backButtonCount * 28,
+    paddingLeft: horizontalTitleLeftOffset,
+    paddingRight: horizontalTitleRightOffset,
     alignItems: 'center',
   };
 
@@ -204,6 +233,12 @@ export const ScreenHeaderComponent = ({
       borderColor="$border"
       borderBottomWidth={borderBottom ? 1 : 0}
       testID={testID}
+      onLayout={(event) => {
+        const width = Math.round(event.nativeEvent.layout.width);
+        setHeaderWidth((currentWidth) =>
+          currentWidth === width ? currentWidth : width
+        );
+      }}
     >
       <View style={useHorizontalTitleLayout ? horizontalTitleStack : undefined}>
         {/* Only show subtitle on desktop/large screens */}
@@ -225,11 +260,27 @@ export const ScreenHeaderComponent = ({
         )}
         {interactiveTitleContent}
       </View>
-      <HeaderControls side="left">
+      <HeaderControls
+        side="left"
+        onLayout={(event) => {
+          const width = Math.round(event.nativeEvent.layout.width);
+          setLeftControlsWidth((currentWidth) =>
+            currentWidth === width ? currentWidth : width
+          );
+        }}
+      >
         {backAction ? <HeaderBackButton onPress={backAction} /> : null}
         {leftControls}
       </HeaderControls>
-      <HeaderControls flex={1} side="right">
+      <HeaderControls
+        side="right"
+        onLayout={(event) => {
+          const width = Math.round(event.nativeEvent.layout.width);
+          setRightControlsWidth((currentWidth) =>
+            currentWidth === width ? currentWidth : width
+          );
+        }}
+      >
         {rightControls}
       </HeaderControls>
       {children}
@@ -473,26 +524,37 @@ const HeaderIconButton = styled(Icon, {
   },
 });
 
-const HeaderTextButton = styled(Text, {
-  size: '$label/2xl',
-  paddingHorizontal: '$s',
-  paddingVertical: '$m',
-  cursor: 'pointer',
-  pressStyle: {
-    opacity: 0.5,
-  },
-  variants: {
-    disabled: {
-      true: {
-        color: '$tertiaryText',
-        cursor: 'default',
-        pressStyle: {
-          opacity: 1,
-        },
-      },
-    },
-  },
-});
+function HeaderTextButton({
+  children,
+  color = '$primaryText',
+  disabled,
+  onPress,
+  testID,
+}: PropsWithChildren<{
+  color?: ColorTokens;
+  disabled?: boolean;
+  onPress?: () => void;
+  testID?: string;
+}>) {
+  return (
+    <TlonPressable
+      accessibilityRole="button"
+      alignItems="center"
+      cursor={disabled ? 'default' : 'pointer'}
+      disabled={disabled}
+      height="$4xl"
+      justifyContent="center"
+      onPress={disabled ? undefined : onPress}
+      paddingHorizontal="$s"
+      paddingTop="$xs"
+      testID={testID}
+    >
+      <Text size="$label/2xl" color={disabled ? '$tertiaryText' : color}>
+        {children}
+      </Text>
+    </TlonPressable>
+  );
+}
 
 const HeaderBackButton = ({ onPress }: { onPress?: () => void }) => {
   return (
