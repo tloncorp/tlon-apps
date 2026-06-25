@@ -10,8 +10,9 @@
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  legacy steward state (lens was a bare map, no time-cap-free retention
-::  config). on-load migrates this into state-1 with a default cap.
+::  legacy steward state (lens was a bare map, no retention config).
+::  on-load migrates this into state-2 with a default cap and an empty
+::  trusted-bots set.
 ::
 +$  state-0
   $:  %0
@@ -19,19 +20,41 @@
       lens=state-0:lens:s
       gateway=state:gateway:s
   ==
+::  state-1: post-cap, pre-trust-bots. accepted lens %entry pokes either
+::  from self or from moons sponsored by this ship. on-load migrates
+::  this into state-2 by initializing an empty trusted-bots set —
+::  operators must explicitly re-grant trust post-upgrade for cross-
+::  ship fan-out to resume (the prior moon-sponsor auto-trust path is
+::  removed; trust is now ship-class-agnostic and explicit).
+::
 +$  state-1
   $:  %1
       owner=(unit ship)
       lens=state:lens:s
       gateway=state:gateway:s
   ==
-::  default cap on first install or on state-0 → state-1 migration. set
+::  state-2: ships we (as the owner) accept lens %entry fan-outs from
+::  live in `.bots`. populated by [%trust-bot ship]; checked in the
+::  lens %entry gate. empty set means "no remote bot trusted" — only
+::  local pokes accepted. trust is explicit and ship-class-agnostic:
+::  a bot may be a planet, moon, comet, star, or galaxy. moon
+::  sponsorship is NOT an auto-trust — even a moon we sponsor must
+::  be trusted with %trust-bot to fan-out runs to us.
+::
++$  state-2
+  $:  %2
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:lens:s
+      gateway=state:gateway:s
+  ==
+::  default cap on first install or on state-0 → state-2 migration. set
 ::  generously: at ~20KB/run that's ~200MB per bot, well within modern
 ::  loom budgets. ships that want more (or less) can poke %lens %configure.
 ::
 ++  default-max-runs-per-bot  ^-  @ud  10.000
 --
-=|  state-1
+=|  state-2
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -49,16 +72,29 @@
   ++  on-load
     |=  ole=vase
     ^-  (quip card _this)
-    ::  try current state-1 first, then state-0 with migration, then bunt.
+    ::  try current state-2 first, then state-1 with migration (add
+    ::  empty bots set), then state-0 with migration (add default cap
+    ::  and empty bots set), then bunt.
     ::
+    =/  two  (mule |.(!<(state-2 ole)))
+    ?:  ?=(%& -.two)
+      [~ this(state p.two)]
     =/  one  (mule |.(!<(state-1 ole)))
     ?:  ?=(%& -.one)
-      [~ this(state p.one)]
+      =/  upgraded=state-2
+        :*  %2
+            owner.p.one
+            ~
+            lens.p.one
+            gateway.p.one
+        ==
+      [~ this(state upgraded)]
     =/  zero  (mule |.(!<(state-0 ole)))
     ?:  ?=(%& -.zero)
-      =/  upgraded=state-1
-        :*  %1
+      =/  upgraded=state-2
+        :*  %2
             owner.p.zero
+            ~
             [lens.p.zero default-max-runs-per-bot]
             gateway.p.zero
         ==
@@ -108,11 +144,12 @@
 ::  %steward-action-1 auth is per-variant rather than blanket-gated, since
 ::  the lens module accepts two distinct inbound shapes:
 ::    %entry: data flowing in from the bot's gateway (src=our) or fanning
-::            in from a moon we sponsor (src is a bot we own).
-::    %retry: an owner-initiated retry request, which cross-ship from the
-::            owner planet to the bot moon — owner is not a moon we sponsor,
-::            so the entry gate would reject it.
-::  gateway and top-level %configure remain self-only.
+::            in from a remote bot we have explicitly trusted via
+::            [%trust-bot ship].
+::    %retry: an owner-initiated retry request, which cross-ships from
+::            the owner planet to the bot — owner is not in our trusted
+::            bots set, so the entry gate would reject it.
+::  gateway, %configure, %trust-bot and %untrust-bot remain self-only.
 ::
 ++  poke
   |=  [=mark =vase]
@@ -124,6 +161,14 @@
         %configure
       ?>  =(src.bowl our.bowl)
       cor(owner.state `owner.action)
+    ::
+        %trust-bot
+      ?>  =(src.bowl our.bowl)
+      cor(bots.state (~(put in bots.state) ship.action))
+    ::
+        %untrust-bot
+      ?>  =(src.bowl our.bowl)
+      cor(bots.state (~(del in bots.state) ship.action))
     ::
         %lens
       (le-poke-action:le-core action.action)
@@ -210,10 +255,10 @@
   |%
   ::  retention is count-bounded only; the cap lives in state and is set
   ::  by %lens %configure (default in default-max-runs-per-bot on init /
-  ::  state-0 migration). No time-based expiry — lens runs are durable
-  ::  memory of agent activity, not transient logs.
+  ::  state-0 → state-2 migration). No time-based expiry — lens runs are
+  ::  durable memory of agent activity, not transient logs.
   ::
-  ::  payloads are opaque to %steward, but a sponsored moon could send
+  ::  payloads are opaque to %steward, but a trusted bot could send
   ::  arbitrarily large cords. cap incoming bytes so a misbehaving (or
   ::  compromised) gateway can't blow up loom usage with a single poke.
   ::  the gateway-side truncates to ~50KB; this is a hard ceiling.
@@ -230,14 +275,16 @@
   ::
   ::  lens-action auth: per-variant, since each shape has a different src
   ::  expectation.
-  ::    %entry: src=our (bot's own gateway pokes locally) or src is a moon we
-  ::            sponsor (a bot we own fanning a run to us as its owner).
-  ::            data flow: bot → owner.
+  ::    %entry: src=our (bot's own gateway pokes locally) or src is a bot
+  ::            we explicitly trust via [%trust-bot ship] (a remote bot
+  ::            fanning a run to us as its owner). data flow: bot → owner.
+  ::            ship class is irrelevant — bots may be planets, moons,
+  ::            comets, stars, or galaxies. trust is the only gate.
   ::    %retry: src=our (local client OR an owner-side relay forwarding to
   ::            its own bot when bot == our) or src is the configured owner
-  ::            (an owner planet relaying a retry to its bot moon).
-  ::            data flow: owner → bot, with the owner's steward acting as
-  ::            the cross-ship relay if bot != our.
+  ::            (an owner ship relaying a retry to its bot). data flow:
+  ::            owner → bot, with the owner's steward acting as the cross-
+  ::            ship relay if bot != our.
   ::    %configure: src=our only.
   ::
   ++  le-poke-action
@@ -246,9 +293,7 @@
     ?-  -.action
         %entry
       ?>  ?|  =(src.bowl our.bowl)
-              ?&  !=(src.bowl (end 5 src.bowl))
-                  =(our.bowl (end 5 src.bowl))
-              ==
+              (~(has in bots.state) src.bowl)
           ==
       (le-handle-entry id.action payload.action final.action)
     ::
@@ -268,14 +313,14 @@
   ::  the same %entry action arrives in two roles:
   ::    - bot role (src==our): our own gateway poked us; fan the run out
   ::      to our configured owner.
-  ::    - owner role (src is a sponsored moon): one of our bots sent us
-  ::      its run; store it keyed by src.bowl so we can serve it to clients.
+  ::    - owner role (src is a trusted bot): one of our bots sent us its
+  ::      run; store it keyed by src.bowl so we can serve it to clients.
   ::
   ++  le-handle-entry
     |=  [=id:lens:s =payload:lens:s final=?]
     ^+  cor
-    ::  drop oversized payloads to keep loom usage bounded; a sponsored
-    ::  moon misbehaving (or compromised) can't force unbounded growth.
+    ::  drop oversized payloads to keep loom usage bounded; a trusted
+    ::  bot misbehaving (or compromised) can't force unbounded growth.
     ::
     ?:  (gth (met 3 payload) max-payload-bytes)
       %-  (slog leaf+"steward: lens payload oversized, dropping" ~)
@@ -290,8 +335,8 @@
   ::                on /v1/lens for the gateway to pick up. .requester is
   ::                whoever first poked (the local client, or the cross-
   ::                ship owner if we received this via fan-out).
-  ::    bot != our: we are the owner forwarding a retry to a bot moon we
-  ::                own. cross-ship poke that bot's steward with the same
+  ::    bot != our: we are the owner forwarding a retry to a bot we own.
+  ::                cross-ship poke that bot's steward with the same
   ::                action; the bot will recognize bot == our.bowl there
   ::                and emit the fact for its local gateway.
   ::  retry never mutates stored state — the gateway will create a new

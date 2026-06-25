@@ -5,15 +5,22 @@
 /=  agent  /app/steward
 |%
 ++  dap  %steward
++$  state-2
+  $:  %2
+      owner=(unit ship)
+      bots=(set ship)
+      lens=state:lens:s
+      gateway=state:gateway:s
+  ==
+::  state-1 / state-0 are legacy shapes; the agent migrates them
+::  forward on-load. kept here only for the migration tests.
+::
 +$  state-1
   $:  %1
       owner=(unit ship)
       lens=state:lens:s
       gateway=state:gateway:s
   ==
-::  state-0 is the legacy shape; the agent migrates it forward on-load.
-::  kept here only for the migration test.
-::
 +$  state-0
   $:  %0
       owner=(unit ship)
@@ -22,10 +29,11 @@
   ==
 ++  payload  ^-  @t  '{"schemaVersion":1,"summary":"run-record"}'
 ::
-::  our ship in tests is ~dev (a galaxy; set via +setup below).  a moon's
-::  sponsor is its low 32 bits, so any ship >= 2^32 whose low 32 bits equal
-::  ~dev is a moon ~dev sponsors.  (add ~dev (bex 32)) is the simplest such
-::  moon and passes the ownership gate ((end 5 moon) == ~dev).
+::  our ship in tests is ~dev (a galaxy; set via +setup below). +moon is
+::  a convenient stand-in for any foreign bot ship — its sponsor relation
+::  to ~dev is incidental, since the lens %entry gate no longer treats
+::  sponsored moons as auto-trusted. tests that want to fan-in from this
+::  ship must call +trust-moon first.
 ::
 ++  moon  ^-  ship  (add ~dev (bex 32))
 ::
@@ -61,6 +69,17 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %configure ~m5 ~m5]))
   (pure:m ~)
 ::
+::  most lens tests fan-in from a remote bot ship (we use +moon as the
+::  representative remote bot, but the gate is ship-class-agnostic). add
+::  it to our trusted-bots set before pretending to receive a fan-out.
+::
+++  trust-moon
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
+  (pure:m ~)
+::
 ++  make-dm-fact
   |=  [sender=ship t=@da]
   ^-  [wire gill:gall sign:agent:gall]
@@ -83,11 +102,11 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
-::  a completely foreign ship (not ourselves, not our moon) must crash
-::  the ownership gate on %steward-action-1
+::  top-level %configure is self-only; a foreign ship must crash the
+::  src.bowl check.
 ::
 ++  test-action-from-foreign-ship-crashes
   %-  eval-mare
@@ -98,17 +117,17 @@
   %-  (do-as ~zod)
   (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~zod]))
 ::
-::  a moon we sponsor must be accepted by the ownership gate
+::  a remote bot we've explicitly trusted via %trust-bot must be accepted
+::  by the lens %entry gate, and its run stored keyed by src.bowl.
+::  the gate is ship-class-agnostic — moon, planet, comet, star, galaxy,
+::  whatever; trust is the only criterion.
 ::
-::  we use ~sampel-dev as the moon (sein of ~sampel-dev is ~dev).
-::  the moon pokes [%lens id payload final] — it should be stored keyed
-::  by src.bowl (the moon itself).
-::
-++  test-action-from-sponsored-moon-accepted
+++  test-action-from-trusted-bot-accepted
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'lens-moon' payload &]))
@@ -123,6 +142,84 @@
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-moon)
   =+  !<(=update:v1:s q.res)
   (ex-equal !>(update) !>(`update:v1:s`[%lens %entry moon 'lens-moon' [& ~2024.1.1 payload]]))
+::
+::  the moon-sponsor relationship is NOT an auto-trust. a moon we sponsor
+::  but have not explicitly trusted must be rejected by the %entry gate.
+::
+++  test-action-from-untrusted-moon-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'lens-no-trust' payload &]))
+::
+::  %trust-bot adds a ship to the trusted set; the same ship's lens
+::  %entry poke must then be accepted (round-trip).
+::
+++  test-trust-bot-adds-to-set-and-accepts-entry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~bus]))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-2 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>((~(has in bots.st) ~bus)) !>(&))
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'trusted-id' payload &]))
+  %+  ex-cards  caz
+  :~  %-  ex-fact
+      :*  ~[/v1/lens]
+          %steward-update-1
+          !>(`update:v1:s`[%lens %entry ~bus 'trusted-id' [& ~2024.1.1 payload]])
+      ==
+  ==
+::
+::  %untrust-bot removes a ship; subsequent %entry from that ship is rejected.
+::
+++  test-untrust-bot-removes-from-set
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~bus]))
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot ~bus]))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-2 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>((~(has in bots.st) ~bus)) !>(|))
+  %-  ex-fail
+  %-  (do-as ~bus)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'after-untrust' payload &]))
+::
+::  %trust-bot is self-only; a foreign ship cannot grant itself trust.
+::
+++  test-trust-bot-rejects-foreign-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~zod]))
+::
+::  %untrust-bot is also self-only; a foreign ship cannot revoke trust.
+::
+++  test-untrust-bot-rejects-foreign-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~bus]))
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot ~bus]))
 ::
 ::  fan-out to a non-self owner emits a %steward-action-1 poke on /lens/fanout/...
 ::
@@ -165,13 +262,14 @@
   =+  !<(=update:v1:s q.res)
   (ex-equal !>(update) !>(`update:v1:s`[%lens %entry ~dev 'lens-1' [& ~2024.1.1 payload]]))
 ::
-::  a poke from a sponsored moon is stored keyed by src.bowl (the moon)
+::  a poke from a trusted bot is stored keyed by src.bowl (the bot)
 ::
 ++  test-action-stores-keyed-by-source
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'lens-2' payload |]))
@@ -194,6 +292,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'lens-3' payload |]))
@@ -213,6 +312,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'lens-4' payload &]))
@@ -243,13 +343,14 @@
     :~  (ex-task /activity [~dev %activity] %watch /v5)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`10.000))
 ::
 ::  on-load migrates a legacy state-0 (lens as bare map, no cap) into
-::  state-1 with the default cap, preserving the stored runs.
+::  state-2 with the default cap, preserving the stored runs and
+::  initializing an empty trusted-bots set.
 ::
-++  test-state-0-migrates-to-state-1
+++  test-state-0-migrates-to-state-2
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -260,13 +361,45 @@
   =/  ole=state-0  [%0 `~bus legacy-lens *state:gateway:s]
   ;<  *  bind:m  (do-load agent `!>(ole))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
   ;<  ~  bind:m  (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`10.000))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
-  ?~  got=(~(get by runs.lens.st) [moon 'old-id'])
-    |+~['expected migrated run to be present']
-  (ex-equal !>(u.got) !>(legacy-run))
+  ::  the bots set starts empty after migration; trust is explicit and
+  ::  must be re-granted by the operator post-upgrade.
+  ::
+  ;<  ~  bind:m  (ex-equal !>(~(wyt in bots.st)) !>(0))
+  %+  ex-equal
+    !>((~(get by runs.lens.st) [moon 'old-id']))
+  !>(`(unit run:lens:s)``legacy-run)
+::
+::  on-load migrates a deployed state-1 (post-cap, pre-trust-bots) into
+::  state-2 by initializing an empty trusted-bots set. owner, runs, cap,
+::  and gateway state must survive intact — a silent bunt-reset on this
+::  path would drop production data, so the test guards that.
+::
+++  test-state-1-migrates-to-state-2
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  legacy-run=run:lens:s  [& ~2024.1.1 payload]
+  =/  legacy-runs=(map [bot=ship =id:lens:s] run:lens:s)
+    (malt ~[[[moon 'old-id'] legacy-run]])
+  =/  legacy-lens=state:lens:s  [legacy-runs 42]
+  =/  ole=state-1  [%1 `~bus legacy-lens *state:gateway:s]
+  ;<  *  bind:m  (do-load agent `!>(ole))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-2 !<(vase q.res))
+  ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
+  ::  cap is preserved from state-1 (not reset to the default).
+  ::
+  ;<  ~  bind:m  (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`42))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
+  ;<  ~  bind:m  (ex-equal !>(~(wyt in bots.st)) !>(0))
+  %+  ex-equal
+    !>((~(get by runs.lens.st) [moon 'old-id']))
+  !>(`(unit run:lens:s)``legacy-run)
 ::
 ::  count-based prune: the oldest entries beyond max-runs-per-bot get
 ::  dropped on the next insert. configure the cap to 2, store 3 runs from
@@ -277,6 +410,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %configure 2]))
   ;<  *  bind:m
@@ -291,7 +425,7 @@
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'r3' payload &]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by runs.lens.st)) !>(2))
   ;<  ~  bind:m
     (ex-equal !>((~(has by runs.lens.st) [moon 'r1'])) !>(|))
@@ -307,6 +441,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'a1' payload &]))
@@ -317,7 +452,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %configure 1]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
   ::  the newer entry survives, the older was dropped.
   ::
@@ -332,6 +467,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'w1' payload &]))
@@ -356,6 +492,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 's1' payload &]))
@@ -380,13 +517,14 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %configure 0]))
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'z1' payload &]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(0))
 ::
 ::  malformed scry args return [~ ~] (not found) rather than crashing
@@ -534,7 +672,7 @@
     %-  (do-as ~bus)
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %retry ~dev 'lens-r5']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(0))
 ::
 ::  payloads larger than the agent cap (512KB) are dropped without store
@@ -547,6 +685,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~dev)
+  ;<  ~  bind:m  trust-moon
   ::  build a payload one byte over the cap.
   ::
   =/  big-payload=@t
@@ -556,7 +695,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%lens %entry 'big' big-payload &]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(0))
 ::
 ::  retry against an existing finalized entry must not touch the stored
@@ -568,7 +707,8 @@
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
-  ::  store a finalized entry as a sponsored moon first.
+  ;<  ~  bind:m  trust-moon
+  ::  store a finalized entry as a trusted bot first.
   ::
   ;<  *  bind:m
     %-  (do-as moon)
@@ -616,7 +756,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup-gateway
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(active-window.gateway.st) !>(~m5))
   (ex-equal !>(reply-cooldown.gateway.st) !>(~m5))
 ::
@@ -642,7 +782,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(lease-until.gateway.st) !>(`lease-time))
 ::
@@ -660,7 +800,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(|))
   (ex-equal !>(lease-until.gateway.st) !>(`new-lease))
@@ -676,7 +816,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -691,7 +831,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-old' 'stale']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(`'boot-1'))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
@@ -710,7 +850,7 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(~))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
@@ -726,7 +866,7 @@
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -822,13 +962,13 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%gateway %gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-1 !<(vase q.res))
+  =/  st  !<(state-2 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::

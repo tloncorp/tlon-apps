@@ -1,8 +1,11 @@
 ::  steward-action-1: mark for steward inbound actions.
 ::
-::    dispatched by module key: {"configure": {...}}, {"lens": {...}}, or
+::    dispatched by module key: {"configure": {...}}, {"trust-bot":
+::    {...}}, {"untrust-bot": {...}}, {"lens": {...}}, or
 ::    {"gateway": {...}}.
 ::    %configure sets the owner (top-level, not module-scoped).
+::    %trust-bot/%untrust-bot add/remove a ship from the set of bots
+::    whose lens %entry fan-out we accept (owner-side trust list).
 ::    %lens wraps a lens-module action — see lens variants below.
 ::    %gateway wraps a gateway lifecycle action (configure/start/heartbeat/stop).
 ::    adding a future module means adding a variant to $action in sur/steward,
@@ -10,7 +13,8 @@
 ::
 ::    lens variants:
 ::      {"entry": {"id":..., "payload":..., "final":...}}
-::          gateway pushes a run record. local-only path (src=our or moon).
+::          gateway pushes a run record. local-only path (src=our) or
+::          fan-out from a trusted remote bot (src in bots).
 ::      {"retry": {"bot":"~ship", "id":...}}
 ::          owner-initiated retry of a finalized run. routed via the
 ::          owner's steward to the bot's steward (cross-ship).
@@ -34,6 +38,16 @@
       %-  frond  :-  'configure'
       %-  frond  :-  'owner'
       s+(scot %p owner.action)
+    ::
+        %trust-bot
+      %-  frond  :-  'trust-bot'
+      %-  frond  :-  'ship'
+      s+(scot %p ship.action)
+    ::
+        %untrust-bot
+      %-  frond  :-  'untrust-bot'
+      %-  frond  :-  'ship'
+      s+(scot %p ship.action)
     ::
         %lens
       %-  frond  :-  'lens'
@@ -114,6 +128,12 @@
     ?+  key  ~|(unknown-steward-action-key+key !!)
         'configure'
       [%configure ((ot ~[owner+(se %p)]) val)]
+    ::
+        'trust-bot'
+      [%trust-bot ((ot ~[ship+(se %p)]) val)]
+    ::
+        'untrust-bot'
+      [%untrust-bot ((ot ~[ship+(se %p)]) val)]
     ::
         'lens'
       [%lens (lens-grab val)]

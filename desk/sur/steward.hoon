@@ -2,8 +2,20 @@
 ::  steward: shared protocol types for the umbrella harness agent
 ::
 |%
+::  $action: top-level inbound actions for the steward umbrella agent.
+::
+::    %configure: set the bot's owner (self-only).
+::    %trust-bot / %untrust-bot: add/remove a ship from the owner-side
+::            trusted-bots set. only ships in this set may fan in lens
+::            %entry pokes cross-ship; trust is explicit and ship-class-
+::            agnostic (planet/moon/star/comet/galaxy all eligible).
+::            self-only.
+::    %lens / %gateway: forwarded to the named module's action handler.
+::
 +$  action
   $%  [%configure owner=ship]
+      [%trust-bot ship=ship]
+      [%untrust-bot ship=ship]
       [%lens =action:lens]
       [%gateway =action:gateway]
   ==
@@ -59,7 +71,9 @@
   ::
   ::    %entry: gateway pushes a run record (partial or final). authoritative
   ::            data flow into the store; src is self (gateway local poke) or
-  ::            a moon we sponsor (cross-ship fan-out from a bot to its owner).
+  ::            a remote bot we've explicitly trusted via [%trust-bot ship]
+  ::            (cross-ship fan-out from a bot to its owner). trust is
+  ::            ship-class-agnostic — bots may be planets, moons, comets, etc.
   ::    %retry: owner-initiated request to re-dispatch a finalized run that
   ::            failed or aborted. carries .bot so the agent can route it:
   ::            received locally (src=our) and bot == our, emit a fact for
