@@ -7,7 +7,7 @@ pier=${ship#\~}
 
 urbit_bin_url="https://urbit.org/install"
 
-arch=`arch`
+arch=`uname -m`
 
 case $OSTYPE in
   linux* )  
