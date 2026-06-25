@@ -1,7 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import * as ub from '@tloncorp/api/urbit';
-import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
@@ -16,6 +14,7 @@ import {
   ScreenHeader,
   View,
   useChatOptions,
+  useChatVolumeOptions,
   useIsWindowNarrow,
 } from '../../ui';
 
@@ -48,28 +47,6 @@ export function ChatVolumeScreen(props: Props) {
   );
 }
 
-export const volumeOptions: {
-  title: string;
-  value: ub.NotificationLevel;
-}[] = [
-  {
-    title: 'All activity',
-    value: 'loud',
-  },
-  {
-    title: 'Posts, mentions, and replies',
-    value: 'medium',
-  },
-  {
-    title: 'Mentions and replies',
-    value: 'soft',
-  },
-  {
-    title: 'Nothing',
-    value: 'hush',
-  },
-];
-
 function ChatVolumeScreenView({
   chatType,
   chatId,
@@ -81,18 +58,9 @@ function ChatVolumeScreenView({
 }) {
   const navigation = useNavigation();
   const { navigateToChatDetails } = useRootNavigation();
-  const { updateVolume, group, channel } = useChatOptions();
+  const { group, channel } = useChatOptions();
+  const { currentLevel, options, updateVolume } = useChatVolumeOptions();
   const isWindowNarrow = useIsWindowNarrow();
-
-  const { data: currentChannelVolume } = store.useChannelVolumeLevel(
-    channel?.id ?? ''
-  );
-  const { data: currentGroupVolume } = store.useGroupVolumeLevel(
-    group?.id ?? ''
-  );
-
-  const currentVolumeLevel =
-    chatType === 'channel' ? currentChannelVolume : currentGroupVolume;
 
   const handleGoBack = useCallback(() => {
     // On mobile, just go back. On desktop, navigate explicitly since
@@ -130,8 +98,8 @@ function ChatVolumeScreenView({
       />
       <Form.FormFrame backgroundType="secondary">
         <Form.RadioInput
-          options={volumeOptions}
-          value={currentVolumeLevel}
+          options={options}
+          value={currentLevel}
           onChange={updateVolume}
         />
       </Form.FormFrame>
