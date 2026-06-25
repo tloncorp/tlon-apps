@@ -423,6 +423,48 @@ describe('initContextLensStore', () => {
     expect(staleContents).not.toContain(finalized.lensId);
   });
 
+  it('tears down the store and writer when persistence is disabled on re-init', () => {
+    const store = initContextLensStore(
+      makeApi({
+        enabled: true,
+        authToken: 'a-token-of-sufficient-length',
+        store: { path: filePath },
+      })
+    );
+    expect(store).not.toBeNull();
+    expect(getContextLensStore()).toBe(store);
+
+    // Leave a run in flight so a checkpoint sidecar exists at teardown.
+    const inFlight = makeInflightLens({ messageId: 'still-running' });
+    publishContextLensEvent('created', { ...inFlight, status: 'dispatching' });
+    const checkpointPath = inflightCheckpointPath(filePath);
+    expect(fs.readFileSync(checkpointPath, 'utf8')).toContain(inFlight.lensId);
+
+    // Re-init with the store disabled (lens itself still enabled).
+    expect(
+      initContextLensStore(
+        makeApi({
+          enabled: true,
+          authToken: 'a-token-of-sufficient-length',
+          store: { enabled: false },
+        })
+      )
+    ).toBeNull();
+    expect(getContextLensStore()).toBeNull();
+
+    // The checkpoint sidecar must be cleared so a later re-enable/restart
+    // doesn't recover a run that may have finished while persistence was off.
+    expect(fs.readFileSync(checkpointPath, 'utf8')).toBe('');
+
+    // A terminal event after disabling must not reach the old JSONL file.
+    const finalized = makeLens({ messageId: 'after-disable' });
+    publishContextLensEvent('final', finalized);
+    const contents = fs.existsSync(filePath)
+      ? fs.readFileSync(filePath, 'utf8')
+      : '';
+    expect(contents).not.toContain(finalized.lensId);
+  });
+
   it('checkpoints in-flight events and clears them on terminal', () => {
     initContextLensStore(
       makeApi({

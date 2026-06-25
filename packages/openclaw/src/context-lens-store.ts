@@ -406,6 +406,29 @@ export function initContextLensStore(api: {
 }): ContextLensStore | null {
   const lensConfig = resolveTlonAccount(api.config).contextLens;
   if (!lensConfig.enabled || !lensConfig.store.enabled) {
+    // A re-init that disables the store (or the whole lens) must tear down any
+    // store + writer left over from a prior init, or terminal events would keep
+    // landing in the old JSONL despite persistence being off.
+    const previousStore = getContextLensStore();
+    storeUnsubscribeSlot.get()?.();
+    storeUnsubscribeSlot.set(null);
+    setContextLensStore(null);
+    // Clearing the writer can't run the terminal `checkpoint.remove` for any
+    // run still in flight, so a leftover sidecar would make a later re-enable
+    // (or restart on the same path) recover a run that actually finished while
+    // persistence was off. Drop the checkpoint along with the store.
+    if (previousStore) {
+      try {
+        createInflightCheckpoint({
+          filePath: inflightCheckpointPath(previousStore.filePath),
+          logger: api.logger,
+        }).clear();
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Context lens checkpoint teardown failed: ${String(error)}`
+        );
+      }
+    }
     return null;
   }
   let store: ContextLensStore;
