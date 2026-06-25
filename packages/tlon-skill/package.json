@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/tlon-skill",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Tlon/Urbit skill for OpenClaw agents",
   "type": "module",
   "bin": {
