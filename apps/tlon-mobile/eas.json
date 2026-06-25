@@ -16,8 +16,7 @@
       "env": {
         "APP_VARIANT": "preview",
         "NOTIFY_PROVIDER": "wannec-dozzod-marnus",
-        "NOTIFY_SERVICE": "tlon-preview-release",
-        "EXPO_USE_PRECOMPILED_MODULES": "0"
+        "NOTIFY_SERVICE": "tlon-preview-release"
       },
       "android": {
         "resourceClass": "large",
