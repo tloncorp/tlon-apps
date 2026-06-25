@@ -110,6 +110,31 @@ export function isNotesNest(nest: string | undefined): boolean {
   return !!nest && nest.startsWith('notes/');
 }
 
+// %notes channels are registered in group/channel listings, but their content is
+// served by the %notes v1 routes. Post/timeline affordances must refuse them
+// locally instead of poking %channels with an unsupported nest.
+export const NOTES_CHANNEL_CONTENT_UNSUPPORTED =
+  'Post/timeline operations are not supported for %notes channels — use `tlon notes` for notes content.';
+
+export function isNotesCitePath(citePath: string | undefined): boolean {
+  return (
+    !!citePath &&
+    (citePath.startsWith('notes/') || citePath.startsWith('/1/chan/notes/'))
+  );
+}
+
+export function refuseNotesContentTarget(nest: string | undefined): void {
+  if (isNotesNest(nest)) {
+    printErrorAndExit(NOTES_CHANNEL_CONTENT_UNSUPPORTED);
+  }
+}
+
+export function refuseNotesCitePath(citePath: string | undefined): void {
+  if (isNotesCitePath(citePath)) {
+    printErrorAndExit(NOTES_CHANNEL_CONTENT_UNSUPPORTED);
+  }
+}
+
 // Single, consistent refusal message for every removed diary/notebook entry
 // point (the `tlon notebook` command, `--kind diary`, and any `diary/...` nest).
 // It says *why* — for agents (e.g. OpenClaw) and humans with stale habits — not a

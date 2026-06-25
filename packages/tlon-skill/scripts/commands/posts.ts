@@ -1,4 +1,9 @@
-import { DIARY_REMOVED, isDiaryNest } from '../cli-utils';
+import {
+  DIARY_REMOVED,
+  NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  isDiaryNest,
+  isNotesNest,
+} from '../cli-utils';
 import { defaultReplyParentAuthor } from '../post-targets';
 import { type Story, type StoryVerse, markdownToStory } from '../story';
 import {
@@ -376,6 +381,10 @@ function parseArgs(args: string[]): ParsedPostsArgs {
   // over an incidental missing-arg or removed-flag error on the same command.
   if (isDiaryNest(args[1])) {
     throw commandError(DIARY_REMOVED);
+  }
+
+  if (isNotesNest(args[1])) {
+    throw commandError(NOTES_CHANNEL_CONTENT_UNSUPPORTED);
   }
 
   switch (command) {

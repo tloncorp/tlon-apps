@@ -1,4 +1,4 @@
-import { DIARY_REMOVED } from './cli-utils';
+import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from './cli-utils';
 
 export const COMMAND_FAMILIES = [
   'activity',
@@ -149,6 +149,10 @@ function refusalCase(
 // DIARY_REMOVED message — locally, before any credential lookup.
 function diaryRefusedCase(name: string, args: string[]): CliCase {
   return refusalCase(name, args, DIARY_REMOVED);
+}
+
+function notesContentRefusedCase(name: string, args: string[]): CliCase {
+  return refusalCase(name, args, NOTES_CHANNEL_CONTENT_UNSUPPORTED);
 }
 
 export const TOP_LEVEL_HELP_CASE = helpCase(
@@ -924,12 +928,27 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
     '12',
   ]),
   authRequiredCase('notes create reaches auth', ['notes', 'create', 'Title']),
+  authRequiredCase('notes create option-like title reaches auth', [
+    'notes',
+    'create',
+    '--draft',
+    'Roadmap',
+  ]),
   authRequiredCase('notes note-create reaches auth', [
     'notes',
     'note-create',
     'notes/~zod/blog',
     'root',
     'Title',
+    '--stdin',
+  ]),
+  authRequiredCase('notes note-create option-like title reaches auth', [
+    'notes',
+    'note-create',
+    'notes/~zod/blog',
+    'root',
+    'Roadmap',
+    '--draft',
     '--stdin',
   ]),
   authRequiredCase('notes note-update reaches auth', [
@@ -1007,11 +1026,28 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
     'notes/~zod/blog',
     'Drafts',
   ]),
+  authRequiredCase('notes folder-create option-like name reaches auth', [
+    'notes',
+    'folder-create',
+    'notes/~zod/blog',
+    'Drafts',
+    '--local',
+    '--parent',
+    '3',
+  ]),
   authRequiredCase('notes folder-rename reaches auth', [
     'notes',
     'folder-rename',
     'notes/~zod/blog',
     '4',
+    'Archive',
+  ]),
+  authRequiredCase('notes folder-rename option-like name reaches auth', [
+    'notes',
+    'folder-rename',
+    'notes/~zod/blog',
+    '4',
+    '--local',
     'Archive',
   ]),
   authRequiredCase('notes folder-move reaches auth', [
@@ -1033,6 +1069,14 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
     'notes/~zod/blog',
     '12',
     'New Title',
+  ]),
+  authRequiredCase('notes note-rename option-like title reaches auth', [
+    'notes',
+    'note-rename',
+    'notes/~zod/blog',
+    '12',
+    '--draft',
+    'Title',
   ]),
   authRequiredCase('notes note-move reaches auth', [
     'notes',
@@ -1249,6 +1293,97 @@ export const NOTES_CHANNEL_KIND_CASES: CliCase[] = [
   ),
 ];
 
+export const NOTES_CONTENT_UNSUPPORTED_CASES: CliCase[] = [
+  notesContentRefusedCase('posts send notes nest refuses', [
+    'posts',
+    'send',
+    'notes/~host/blog',
+    'hi',
+  ]),
+  notesContentRefusedCase('posts reply notes nest refuses', [
+    'posts',
+    'reply',
+    'notes/~host/blog',
+    '170.141',
+    'hi',
+  ]),
+  notesContentRefusedCase('posts react notes nest refuses', [
+    'posts',
+    'react',
+    'notes/~host/blog',
+    '170.141',
+    '👍',
+  ]),
+  notesContentRefusedCase('posts unreact notes nest refuses', [
+    'posts',
+    'unreact',
+    'notes/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase('posts delete notes nest refuses', [
+    'posts',
+    'delete',
+    'notes/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase('posts edit notes nest refuses', [
+    'posts',
+    'edit',
+    'notes/~host/blog',
+    '170.141',
+    'Updated',
+  ]),
+  notesContentRefusedCase('messages channel notes nest refuses', [
+    'messages',
+    'channel',
+    'notes/~host/blog',
+  ]),
+  notesContentRefusedCase('messages history notes nest refuses', [
+    'messages',
+    'history',
+    'notes/~host/blog',
+  ]),
+  notesContentRefusedCase('messages search notes channel refuses', [
+    'messages',
+    'search',
+    'hello',
+    '--channel',
+    'notes/~host/blog',
+  ]),
+  notesContentRefusedCase('messages context notes target refuses', [
+    'messages',
+    'context',
+    'notes/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase('messages post notes target refuses', [
+    'messages',
+    'post',
+    'notes/~host/blog',
+    '170.141',
+  ]),
+  notesContentRefusedCase('expose show simplified notes path refuses', [
+    'expose',
+    'show',
+    'notes/~host/blog/170.141',
+  ]),
+  notesContentRefusedCase('expose check full notes cite path refuses', [
+    'expose',
+    'check',
+    '/1/chan/notes/~host/blog/note/170.141',
+  ]),
+  notesContentRefusedCase('expose url simplified notes path refuses', [
+    'expose',
+    'url',
+    'notes/~host/blog/170.141',
+  ]),
+  notesContentRefusedCase('expose hide full notes cite path refuses', [
+    'expose',
+    'hide',
+    '/1/chan/notes/~host/blog/note/170.141',
+  ]),
+];
+
 export const CLI_MATRIX_CASES: CliCase[] = [
   TOP_LEVEL_HELP_CASE,
   UNKNOWN_TOP_LEVEL_CASE,
@@ -1262,6 +1397,7 @@ export const CLI_MATRIX_CASES: CliCase[] = [
   ...POSTS_FAMILY_CASES,
   ...NOTES_FAMILY_CASES,
   ...NOTES_CHANNEL_KIND_CASES,
+  ...NOTES_CONTENT_UNSUPPORTED_CASES,
   ...DIARY_REMOVED_CASES,
 ];
 

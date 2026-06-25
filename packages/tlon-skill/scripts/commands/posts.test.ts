@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { DIARY_REMOVED } from '../cli-utils';
+import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from '../cli-utils';
 import type { StoryVerse } from '../story';
 import { commandError } from './command';
 import {
@@ -902,6 +902,34 @@ describe('posts diary nest refusal', () => {
       expect(exitCode).toBe(1);
       expect(context.stdout()).toBe('');
       expect(context.stderr()).toBe(`Error: ${DIARY_REMOVED}\n`);
+      expectNoAuthOrApi(context);
+    });
+  }
+});
+
+describe('posts notes nest refusal', () => {
+  const cases: Array<[string, string[]]> = [
+    ['send', ['send', 'notes/~host/blog', 'hi']],
+    ['reply', ['reply', 'notes/~host/blog', '170.141', 'hi']],
+    ['react', ['react', 'notes/~host/blog', '170.141', '👍']],
+    ['unreact', ['unreact', 'notes/~host/blog', '170.141']],
+    ['delete', ['delete', 'notes/~host/blog', '170.141']],
+    ['edit', ['edit', 'notes/~host/blog', '170.141', 'Body']],
+    // Match diary behavior: the notes-target refusal wins over incidental arg
+    // validation errors on the same command.
+    ['react missing emoji', ['react', 'notes/~host/blog', '170.141']],
+  ];
+
+  for (const [name, args] of cases) {
+    it(`refuses a notes nest on ${name} before auth or API work`, async () => {
+      const context = makeDeps();
+      const exitCode = await run(args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(
+        `Error: ${NOTES_CHANNEL_CONTENT_UNSUPPORTED}\n`
+      );
       expectNoAuthOrApi(context);
     });
   }

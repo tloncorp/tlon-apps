@@ -277,10 +277,30 @@ function requireNumericId(id: string, label: string, usage: string): string {
   return id;
 }
 
-// Index of the first `--flag` token at or after `from`.
-function firstFlagIndex(args: string[], from: number): number {
+const NOTE_CREATE_OPTION_FLAGS = ['body', 'markdown', 'stdin'] as const;
+const NOTE_UPDATE_OPTION_FLAGS = [
+  'body',
+  'stdin',
+  'expected-revision',
+] as const;
+const FOLDER_CREATE_OPTION_FLAGS = ['parent'] as const;
+
+function isKnownOptionToken(
+  arg: string | undefined,
+  flags: readonly string[]
+): boolean {
+  return !!arg && flags.some((flag) => arg === `--${flag}`);
+}
+
+// Index of the first exact known option flag at or after `from`. Other
+// dash-prefixed words are valid title/name tokens.
+function firstKnownFlagIndex(
+  args: string[],
+  from: number,
+  flags: readonly string[]
+): number {
   for (let i = from; i < args.length; i += 1) {
-    if (args[i].startsWith('--')) {
+    if (isKnownOptionToken(args[i], flags)) {
       return i;
     }
   }
@@ -292,7 +312,8 @@ function firstFlagIndex(args: string[], from: number): number {
 function parseContentSource(
   args: string[],
   fileFlags: string[],
-  usage: string
+  usage: string,
+  knownOptionFlags: readonly string[] = [...fileFlags, 'stdin']
 ): ContentSource {
   const found: ContentSource[] = [];
   for (const flag of fileFlags) {
@@ -302,7 +323,7 @@ function parseContentSource(
     }
     if (occurrences === 1) {
       const value = args[args.indexOf(`--${flag}`) + 1];
-      if (!value || value.startsWith('--')) {
+      if (!value || isKnownOptionToken(value, knownOptionFlags)) {
         throw usageError(`--${flag} requires a value`, usage);
       }
       found.push({ kind: 'file', path: value });
@@ -372,7 +393,7 @@ function parseArgs(args: string[]): ParsedNotesArgs {
       return { kind: 'note', target: parseNotesNest(nest, help), id };
     }
     case 'create': {
-      const title = args.slice(1, firstFlagIndex(args, 1)).join(' ').trim();
+      const title = args.slice(1).join(' ').trim();
       if (!title) {
         throw usageError(help);
       }
@@ -381,7 +402,10 @@ function parseArgs(args: string[]): ParsedNotesArgs {
     case 'note-create': {
       const nest = args[1];
       const folder = args[2];
-      const title = args.slice(3, firstFlagIndex(args, 3)).join(' ').trim();
+      const title = args
+        .slice(3, firstKnownFlagIndex(args, 3, NOTE_CREATE_OPTION_FLAGS))
+        .join(' ')
+        .trim();
       if (!nest || !folder || !title) {
         throw usageError(help);
       }
@@ -392,7 +416,12 @@ function parseArgs(args: string[]): ParsedNotesArgs {
           help
         );
       }
-      const source = parseContentSource(args, ['body', 'markdown'], help);
+      const source = parseContentSource(
+        args,
+        [...NOTE_CREATE_OPTION_FLAGS].filter((flag) => flag !== 'stdin'),
+        help,
+        NOTE_CREATE_OPTION_FLAGS
+      );
       return { kind: 'note-create', target, folder, title, source };
     }
     case 'note-update': {
@@ -403,7 +432,14 @@ function parseArgs(args: string[]): ParsedNotesArgs {
       }
       requireNumericId(id, 'note id', help);
       const target = parseNotesNest(nest, help);
-      const source = parseContentSource(args, ['body'], help);
+      const source = parseContentSource(
+        args,
+        [...NOTE_UPDATE_OPTION_FLAGS].filter(
+          (flag) => flag !== 'stdin' && flag !== 'expected-revision'
+        ),
+        help,
+        NOTE_UPDATE_OPTION_FLAGS
+      );
       const revisionIdx = args.indexOf('--expected-revision');
       let expectedRevision: number | undefined;
       if (revisionIdx !== -1) {
@@ -421,7 +457,7 @@ function parseArgs(args: string[]): ParsedNotesArgs {
     case 'note-rename': {
       const nest = args[1];
       const id = args[2];
-      const title = args.slice(3, firstFlagIndex(args, 3)).join(' ').trim();
+      const title = args.slice(3).join(' ').trim();
       if (!nest || !id || !title) {
         throw usageError(help);
       }
@@ -494,7 +530,7 @@ function parseArgs(args: string[]): ParsedNotesArgs {
       }
       const target = parseNotesNest(nest, help);
       const folderName = args
-        .slice(2, firstFlagIndex(args, 2))
+        .slice(2, firstKnownFlagIndex(args, 2, FOLDER_CREATE_OPTION_FLAGS))
         .join(' ')
         .trim();
       if (!folderName) {
@@ -514,10 +550,7 @@ function parseArgs(args: string[]): ParsedNotesArgs {
     case 'folder-rename': {
       const nest = args[1];
       const id = args[2];
-      const folderName = args
-        .slice(3, firstFlagIndex(args, 3))
-        .join(' ')
-        .trim();
+      const folderName = args.slice(3).join(' ').trim();
       if (!nest || !id || !folderName) {
         throw usageError(help);
       }

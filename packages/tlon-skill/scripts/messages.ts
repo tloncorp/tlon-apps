@@ -31,6 +31,7 @@ import {
   printHelpAndExit,
   printUsageAndExit,
   refuseDiaryNest,
+  refuseNotesContentTarget,
   wantsHelp,
 } from './cli-utils';
 
@@ -94,8 +95,12 @@ function validateMessagesArgs(args: string[]): void {
     case 'channel':
     case 'history': {
       if (!args[1]) printUsageAndExit(MESSAGES_COMMAND_HELP[command]);
-      // `dm` targets a ~ship, not a nest, so only channel/history can be diary.
-      if (command !== 'dm') refuseDiaryNest(args[1]);
+      // `dm` targets a ~ship, not a nest, so nest-specific refusals apply only
+      // to channel/history.
+      if (command !== 'dm') {
+        refuseDiaryNest(args[1]);
+        refuseNotesContentTarget(args[1]);
+      }
       return;
     }
     case 'search': {
@@ -103,14 +108,17 @@ function validateMessagesArgs(args: string[]): void {
         printUsageAndExit(MESSAGES_COMMAND_HELP.search);
       }
       refuseDiaryNest(getSearchChannel(args));
+      refuseNotesContentTarget(getSearchChannel(args));
       return;
     }
     case 'context':
     case 'post': {
       if (!args[1] || !args[2])
         printUsageAndExit(MESSAGES_COMMAND_HELP[command]);
-      // The target may be a ~ship DM or a channel nest; refuse diary nests only.
+      // The target may be a ~ship DM or a channel nest; nest-specific refusals
+      // are no-ops for DMs.
       refuseDiaryNest(args[1]);
+      refuseNotesContentTarget(args[1]);
       return;
     }
   }

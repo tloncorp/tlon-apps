@@ -26,6 +26,7 @@ import {
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
+  refuseNotesCitePath,
   wantsHelp,
 } from './cli-utils';
 
@@ -75,6 +76,7 @@ function validateExposeArgs(args: string[]): void {
     printUsageAndExit(EXPOSE_COMMAND_HELP[command]);
   }
   refuseDiaryCitePath(args[1]);
+  refuseNotesCitePath(args[1]);
 }
 
 // Refuse a diary cite path in *either* accepted form — the simplified

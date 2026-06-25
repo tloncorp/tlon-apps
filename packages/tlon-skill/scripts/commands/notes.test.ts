@@ -315,6 +315,29 @@ describe('notes create', () => {
     expect(context.stdout()).toContain('✓ Notebook created');
     expect(context.stdout()).toContain('Nest: notes/~zod/new-book');
   });
+
+  it('preserves option-like words in notebook titles', async () => {
+    const context = makeDeps({
+      requestJson: async () => ({
+        requestId: 'r1',
+        body: {
+          type: 'notebook',
+          notebook: {
+            host: '~zod',
+            flagName: 'draft-roadmap',
+            notebook: { id: 5, title: '--draft Roadmap' },
+          },
+        },
+      }),
+    });
+
+    const exitCode = await run(['create', '--draft', 'Roadmap'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].body).toEqual({
+      title: '--draft Roadmap',
+    });
+  });
 });
 
 describe('notes note-create', () => {
@@ -375,6 +398,34 @@ describe('notes note-create', () => {
       body: { folder: 7, title: 'Title', body: 'stdin body' },
     });
     expect(context.calls.readStdin).toBe(1);
+  });
+
+  it('preserves option-like title words and dashed body paths', async () => {
+    const context = makeDeps({
+      readFile: () => '# Body',
+      requestJson: async () => ({ requestId: 'r1', body: { type: 'ok' } }),
+    });
+
+    const exitCode = await run(
+      [
+        'note-create',
+        'notes/~zod/blog',
+        '7',
+        'Roadmap',
+        '--draft',
+        '--body',
+        '--draft.md',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].body).toEqual({
+      folder: 7,
+      title: 'Roadmap --draft',
+      body: '# Body',
+    });
+    expect(context.calls.readFile).toEqual(['--draft.md']);
   });
 
   it('fails when root cannot be resolved (no rootFolderId)', async () => {
@@ -469,6 +520,26 @@ describe('notes note-update', () => {
 
     expect(exitCode).toBe(0);
     expect(context.calls.requestJson[0].body).toEqual({ body: 'from file' });
+  });
+
+  it('rejects a known option token as a file value', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      [
+        'note-update',
+        'notes/~zod/blog',
+        '12',
+        '--body',
+        '--expected-revision',
+        '4',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toContain('--body requires a value');
+    expectNoAuthOrIo(context);
   });
 });
 
@@ -575,6 +646,30 @@ describe('notes folders', () => {
     });
   });
 
+  it('preserves option-like folder name words before --parent', async () => {
+    const context = makeDeps({
+      requestJson: async () => ({ id: 6, folderName: 'Drafts --local' }),
+    });
+
+    const exitCode = await run(
+      [
+        'folder-create',
+        'notes/~zod/blog',
+        'Drafts',
+        '--local',
+        '--parent',
+        '3',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].body).toEqual({
+      folderName: 'Drafts --local',
+      parent: 3,
+    });
+  });
+
   it('renames a folder via PUT {folderName} (bare success)', async () => {
     // No responder: the dep returns undefined, modeling an empty success body.
     const context = makeDeps();
@@ -591,6 +686,20 @@ describe('notes folders', () => {
       body: { folderName: 'Archive' },
     });
     expect(context.stdout()).toBe('✓ Folder renamed\n');
+  });
+
+  it('preserves option-like folder rename words', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      ['folder-rename', 'notes/~zod/blog', '4', '--local', 'Archive'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].body).toEqual({
+      folderName: '--local Archive',
+    });
   });
 
   it('moves a folder via PUT {parent} (bare success)', async () => {
@@ -647,6 +756,20 @@ describe('notes remaining note ops', () => {
       body: { title: 'New Title' },
     });
     expect(context.stdout()).toBe('✓ Note renamed\n');
+  });
+
+  it('preserves option-like note rename words', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(
+      ['note-rename', 'notes/~zod/blog', '12', '--draft', 'Title'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.requestJson[0].body).toEqual({
+      title: '--draft Title',
+    });
   });
 
   it('moves a note via metadata-only PUT {folder}', async () => {
