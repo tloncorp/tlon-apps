@@ -245,10 +245,11 @@
       [cards this]
     =+  !<([%discipline old=state-0] (slot 2 ole))
     =.  state  old
-    ?^  bad=(check-marks:help last-marks mark-map)
+    =/  next-marks  (build-types-map strict-marks)
+    ?^  bad=(check-marks:help last-marks next-marks)
       ~|  [%discipline dap=dap.bowl %mark-types-changed marks=;;((list mark) bad)]
       !!
-    =.  last-marks  mark-types
+    =.  last-marks  next-marks
     =^  cards  inner  (on-load:og (slot 3 ole))  !:
     =.  cards  (check-cards:help ~ cards)
     [cards this]
