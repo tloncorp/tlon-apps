@@ -4599,10 +4599,10 @@
     ::
     =/  r-groups-9=r-groups:v9:gv  [flag r-group]
     =/  v1-paths  ~[/v1/groups [%v1 go-area]]
-    =.  cor  (give %fact v1-paths group-response-1+r-groups-9)
+    =.  cor  (give %fact v1-paths group-response-1+!>(r-groups-9))
     =/  r-groups-10=r-groups:v10:gv  [flag r-group]
     =/  v2-paths  ~[/v2/groups [%v2 go-area]]
-    =.  cor  (give %fact v2-paths group-response-2+r-groups-10)
+    =.  cor  (give %fact v2-paths group-response-2+!>(r-groups-10))
     ::  v0 backcompat
     ::
     =/  diffs-2=(list diff:v2:gv)
@@ -4611,7 +4611,7 @@
       %+  roll  diffs-2
       |=  [=diff:v2:gv =_cor]
       =/  action-2=action:v2:gv  [flag now.bowl diff]
-      (give:cor %fact ~[/groups/ui] group-action-3+action-2)
+      (give:cor %fact ~[/groups/ui] group-action-3+!>(action-2))
     go-core
   ::  +go-peek: handle group scry request
   ::
