@@ -43,7 +43,7 @@ esac
 
 #download_url=`jq -r ".[\"$ship\"][\"downloadUrl\"]" < $ship_manifest`
 #download_url="https://bootstrap.urbit.org/zod-aqua-408k.xst"
-pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2-408k.pill"
+pill_download_url="https://bootstrap.urbit.org/groups-v11-2-2.pill"
 
 #archive=`basename $download_url`
 pill=`basename $pill_download_url`
