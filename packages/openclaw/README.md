@@ -143,6 +143,7 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 -   Channel listing and history
 -   Group administration
 -   Message posting and reactions
+-   Notes channel management and note CRUD
 -   Settings management
 
 The skill is automatically available to your agent. For standalone usage, see the [tlon-skill repo](https://github.com/tloncorp/tlon-skill).
