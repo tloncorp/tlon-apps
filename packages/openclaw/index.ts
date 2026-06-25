@@ -1197,12 +1197,9 @@ export default defineChannelPluginEntry({
             };
           }
 
-          const output = await runTlonCommand(
-            tlonBinary,
-            args,
-            credentials,
-            { timeoutMs: toolTimeoutMs }
-          );
+          const output = await runTlonCommand(tlonBinary, args, credentials, {
+            timeoutMs: toolTimeoutMs,
+          });
           return {
             content: [{ type: 'text' as const, text: output }],
             details: undefined,

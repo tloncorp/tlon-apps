@@ -254,7 +254,10 @@ describe('buildLensRunPayload', () => {
 });
 
 const labelPoke = (poke: RecordedPoke): string => {
-  const json = poke.json as { configure?: unknown; lens?: { entry?: { final?: boolean } } };
+  const json = poke.json as {
+    configure?: unknown;
+    lens?: { entry?: { final?: boolean } };
+  };
   if (json.configure) return 'configure';
   const entry = json.lens?.entry;
   if (!entry) return 'unknown';
@@ -284,9 +287,7 @@ describe('createContextLensShipSync', () => {
       'entry-final',
     ]);
     expect(
-      pokes.every(
-        (p) => p.app === 'steward' && p.mark === 'steward-action-1'
-      )
+      pokes.every((p) => p.app === 'steward' && p.mark === 'steward-action-1')
     ).toBe(true);
     expect(pokes[0].json).toEqual({ configure: { owner: '~bus' } });
     // partial entry assertions: same lensId, non-empty payload, final=false.
@@ -359,10 +360,7 @@ describe('createContextLensShipSync', () => {
     connected = true;
     sync.handleEvent(makeEvent(makeLens({ status: 'completed' })));
     await sync.flush();
-    expect(pokes.map(labelPoke)).toEqual([
-      'configure',
-      'entry-final',
-    ]);
+    expect(pokes.map(labelPoke)).toEqual(['configure', 'entry-final']);
   });
 
   it('re-configures after a poke failure and on params instance change', async () => {
@@ -397,10 +395,7 @@ describe('createContextLensShipSync', () => {
     // Second final: configure retried (now succeeding), then the run poke.
     sync.handleEvent(makeEvent(makeLens({ status: 'completed' })));
     await sync.flush();
-    expect(pokes.map(labelPoke)).toEqual([
-      'configure',
-      'entry-final',
-    ]);
+    expect(pokes.map(labelPoke)).toEqual(['configure', 'entry-final']);
 
     // New params instance (monitor restart): configure re-asserted.
     current = makeParams(pokes);
@@ -548,10 +543,7 @@ describe('initContextLensShipSync', () => {
       publishContextLensEvent('final', makeLens({ status: 'completed' }));
       await new Promise((resolve) => setTimeout(resolve, 20));
 
-      expect(pokes.map(labelPoke)).toEqual([
-        'configure',
-        'entry-final',
-      ]);
+      expect(pokes.map(labelPoke)).toEqual(['configure', 'entry-final']);
     } finally {
       slot.set(previousParams);
     }
