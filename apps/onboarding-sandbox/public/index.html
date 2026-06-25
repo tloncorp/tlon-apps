@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Onboarding Sandbox</title>
+    <style>
+      :root {
+        --bd: #ddd;
+        --bg: #fafafa;
+        --ink: #1a1a1a;
+      }
+      body {
+        font:
+          14px/1.5 -apple-system,
+          system-ui,
+          sans-serif;
+        margin: 0;
+        color: var(--ink);
+      }
+      header {
+        padding: 0.8rem 1.2rem;
+        border-bottom: 1px solid var(--bd);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      header h1 {
+        font-size: 1.05rem;
+        margin: 0;
+      }
+      #status {
+        flex: 1;
+        min-width: 240px;
+      }
+      .dot {
+        display: inline-block;
+        width: 0.6rem;
+        height: 0.6rem;
+        border-radius: 50%;
+        margin-right: 0.35rem;
+        vertical-align: middle;
+      }
+      .up {
+        background: #2e9e44;
+      }
+      .down {
+        background: #bbb;
+      }
+      .mod {
+        background: #e0991b;
+      }
+      button {
+        font: inherit;
+        padding: 0.35rem 0.8rem;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #1a1a1a;
+        color: #fff;
+        border-color: #1a1a1a;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 0;
+        height: calc(100vh - 58px);
+      }
+      #items {
+        border-right: 1px solid var(--bd);
+        overflow: auto;
+        padding: 0.5rem;
+        margin: 0;
+        list-style: none;
+      }
+      #items li {
+        padding: 0.4rem 0.6rem;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      #items li:hover {
+        background: var(--bg);
+      }
+      #items li.sel {
+        background: #eef;
+      }
+      .pane {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .editbar {
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid var(--bd);
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .editbar b {
+        flex: 1;
+      }
+      textarea {
+        flex: 1;
+        width: 100%;
+        box-sizing: border-box;
+        border: 0;
+        padding: 1rem;
+        font:
+          13px/1.5 ui-monospace,
+          Menlo,
+          monospace;
+        resize: none;
+        outline: none;
+      }
+      .runbar {
+        padding: 0.6rem 1rem;
+        border-top: 1px solid var(--bd);
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+      }
+      .runbar small {
+        color: #888;
+      }
+      .feedhead {
+        display: flex;
+        align-items: center;
+        padding: 0.35rem 1rem;
+        font-size: 12px;
+        color: #888;
+        background: #f3f3f3;
+        border-top: 1px solid var(--bd);
+      }
+      .feedhead button {
+        font-size: 11px;
+        padding: 0.1rem 0.5rem;
+      }
+      pre#feed {
+        margin: 0;
+        background: #111;
+        color: #d8d8d8;
+        padding: 0.8rem 1rem;
+        height: 140px;
+        overflow: auto;
+        white-space: pre-wrap;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Onboarding Sandbox</h1>
+      <span id="status">loading…</span>
+      <label
+        >Model
+        <input
+          id="model"
+          list="modellist"
+          size="34"
+          placeholder="type to search any OpenRouter model…"
+          title="any OpenRouter model — type to search" /><datalist
+          id="modellist"
+        ></datalist
+      ></label>
+      <button
+        id="b-setmodel"
+        onclick="setModel(document.getElementById('model').value)"
+      >
+        Set
+      </button>
+      <button id="b-start" onclick="run('start')">Start</button>
+      <button id="b-down" onclick="run('down')">Stop</button>
+    </header>
+
+    <div
+      id="setup"
+      style="
+        display: none;
+        padding: 0.7rem 1.2rem;
+        background: #fff7e6;
+        border-bottom: 1px solid #e0c989;
+        font-size: 13px;
+      "
+    ></div>
+
+    <main>
+      <ul id="items"></ul>
+      <div class="pane">
+        <div class="editbar">
+          <b id="editTitle">Select an item</b>
+          <button id="b-diff" onclick="toggleDiff()" disabled>Diff</button>
+          <button id="b-save" onclick="saveItem()" disabled>Save</button>
+          <button
+            id="b-reset-item"
+            onclick="resetItem()"
+            disabled
+            title="restore this item to the shipped original"
+          >
+            Discard changes
+          </button>
+        </div>
+        <textarea
+          id="editor"
+          disabled
+          placeholder="Select a prompt or the intro DM on the left…"
+        ></textarea>
+        <pre
+          id="diff"
+          style="
+            display: none;
+            flex: 1;
+            margin: 0;
+            overflow: auto;
+            padding: 1rem;
+            background: #0d1117;
+            color: #c9d1d9;
+            font:
+              13px/1.5 ui-monospace,
+              Menlo,
+              monospace;
+            white-space: pre-wrap;
+          "
+        ></pre>
+        <div class="runbar">
+          <button
+            class="primary"
+            id="b-savereset"
+            onclick="saveAndReset()"
+            title="Save your edits, then replay the bot's first-run (clear → render → intro)"
+          >
+            Save &amp; reset onboarding
+          </button>
+          <button
+            id="b-export"
+            onclick="exportPatch()"
+            title="Download your edits as a .patch file to share with a developer"
+          >
+            Export patch
+          </button>
+          <button
+            onclick="resetAll()"
+            title="Discard your edits to every prompt and the intro, restoring the shipped originals"
+          >
+            Discard all changes
+          </button>
+        </div>
+        <div id="activity" style="display: none">
+          <div class="feedhead">
+            <span>Activity log</span
+            ><button onclick="clearFeed()" style="margin-left: auto">
+              clear
+            </button>
+          </div>
+          <pre id="feed"></pre>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let current = null,
+        dirty = false,
+        busy = false,
+        diffOpen = false;
+
+      // Per-run token (injected by the server) sent on every /api/* call so a
+      // cross-origin page can't drive the sandbox. EventSource and the export
+      // link append it to their URLs themselves (below).
+      const TOKEN = window.__TOKEN__ || '';
+      const _fetch = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        if (typeof input === 'string' && input.startsWith('/api/')) {
+          input +=
+            (input.includes('?') ? '&' : '?') +
+            'token=' +
+            encodeURIComponent(TOKEN);
+        }
+        return _fetch(input, init);
+      };
+
+      async function refreshStatus() {
+        try {
+          const s = await (await fetch('/api/status')).json();
+          $('status').innerHTML = s.up
+            ? `<span class="dot up"></span>Running · gateway ${s.gateway}${s.model ? ` · <code>${s.model}</code>` : ''}` +
+              ` · <a href="${s.owner.url}" target="_blank" title="Opens on a fresh port after each reset — click again post-reset to get a clean conversation">Open chat as ${s.owner.ship}</a> <small>(${s.owner.code})</small>`
+            : `<span class="dot down"></span>Down — click Start`;
+          if (s.model && document.activeElement !== $('model'))
+            $('model').value = s.model;
+          // reset + model-switch need a running stack; disable them when down
+          const live = !!s.up;
+          $('b-savereset').disabled = !live;
+          $('b-setmodel').disabled = !live;
+          $('b-savereset').title = live
+            ? "Save your edits, then replay the bot's first-run (clear → render → intro)"
+            : 'Start the sandbox first, then you can reset onboarding';
+          $('b-setmodel').title = live
+            ? 'switch the bot model (reloads the gateway)'
+            : 'Start the sandbox first to switch models';
+        } catch (e) {
+          $('status').textContent = 'status error';
+        }
+      }
+
+      async function checkPreflight() {
+        let p;
+        try {
+          p = await (await fetch('/api/preflight')).json();
+        } catch {
+          return;
+        }
+        const box = $('setup');
+        if (p.docker && p.key && p.tlonbot) {
+          box.style.display = 'none';
+          return;
+        }
+        let html = '';
+        if (!p.tlonbot)
+          html += `⚠️ <b>tlonbot checkout not found.</b> Check out the private tlonbot repo next to tlon-apps (or set TLONBOT_DIR), then <a href="#" onclick="checkPreflight();return false">re-check</a>.<br>`;
+        if (!p.docker)
+          html += `⚠️ <b>Docker isn't running.</b> Start Docker Desktop, then <a href="#" onclick="checkPreflight();return false">re-check</a>.<br>`;
+        if (!p.key)
+          html +=
+            `🔑 <b>No provider key set.</b> OpenRouter API key: ` +
+            `<input id="keyin" type="password" size="36" placeholder="sk-or-..."> ` +
+            `<button onclick="saveKey()">Validate &amp; save</button> <span id="keymsg"></span>`;
+        box.innerHTML = html;
+        box.style.display = 'block';
+      }
+      async function saveKey() {
+        const key = $('keyin').value.trim();
+        const msg = $('keymsg');
+        if (!key) {
+          msg.textContent = 'enter a key';
+          return;
+        }
+        msg.textContent = 'validating…';
+        try {
+          const r = await fetch('/api/provider-key', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ key }),
+          });
+          const j = await r.json();
+          if (j.ok) {
+            msg.textContent = 'saved ✓';
+            checkPreflight();
+          } else msg.textContent = j.error || 'failed';
+        } catch (e) {
+          msg.textContent = 'error: ' + e;
+        }
+      }
+
+      async function loadItems() {
+        const { items } = await (await fetch('/api/prompts')).json();
+        const ul = $('items');
+        ul.innerHTML = '';
+        for (const it of items) {
+          const li = document.createElement('li');
+          if (it.name === current) li.className = 'sel';
+          li.innerHTML =
+            (it.modified
+              ? '<span class="dot mod" title="modified"></span>'
+              : '<span class="dot" style="background:transparent"></span>') +
+            (it.label || it.name);
+          li.onclick = () => selectItem(it.name);
+          ul.appendChild(li);
+        }
+      }
+
+      async function selectItem(name) {
+        if (busy) return; // don't re-enable the editor while a command is streaming
+        if (dirty && !confirm('Discard unsaved changes?')) return;
+        const it = await (
+          await fetch('/api/prompts/' + encodeURIComponent(name))
+        ).json();
+        current = name;
+        dirty = false;
+        diffOpen = false;
+        $('editTitle').textContent = name === 'intro' ? 'Intro DM' : name;
+        const ed = $('editor');
+        ed.value = it.content;
+        ed.disabled = false;
+        ed.style.display = '';
+        $('diff').style.display = 'none';
+        $('b-save').disabled = true;
+        $('b-reset-item').disabled = !it.modified;
+        $('b-diff').disabled = false;
+        $('b-diff').textContent = 'Diff';
+        loadItems();
+      }
+
+      $('editor').addEventListener('input', () => {
+        dirty = true;
+        $('b-save').disabled = false;
+      });
+      $('model').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !$('b-setmodel').disabled)
+          setModel($('model').value);
+      });
+
+      async function saveItem() {
+        if (!current) return false;
+        const res = await fetch('/api/prompts/' + encodeURIComponent(current), {
+          method: 'PUT',
+          body: $('editor').value,
+        });
+        if (!res.ok) {
+          alert(
+            'Save failed (' + res.status + '). Your edit is kept — try again.'
+          );
+          return false;
+        }
+        dirty = false;
+        $('b-save').disabled = true;
+        await loadItems();
+        await selectItemQuiet();
+        return true;
+      }
+      async function selectItemQuiet() {
+        if (current) {
+          const it = await (
+            await fetch('/api/prompts/' + encodeURIComponent(current))
+          ).json();
+          $('b-reset-item').disabled = !it.modified;
+        }
+      }
+
+      async function resetItem() {
+        if (!current || busy) return;
+        const res = await fetch(
+          '/api/prompts/' + encodeURIComponent(current) + '/reset',
+          { method: 'POST' }
+        );
+        if (!res.ok) {
+          alert('Discard failed (' + res.status + ').');
+          return;
+        }
+        dirty = false;
+        await selectItem(current);
+      }
+
+      async function resetAll() {
+        if (busy) return;
+        if (
+          !confirm(
+            'Discard all your edits to every prompt and the intro, restoring the shipped originals?'
+          )
+        )
+          return;
+        const res = await fetch('/api/reset-prompts', { method: 'POST' });
+        if (!res.ok) {
+          alert('Discard all failed (' + res.status + ').');
+          return;
+        }
+        dirty = false;
+        await loadItems();
+        if (current) await selectItem(current);
+      }
+
+      function renderDiff(text) {
+        return text
+          .split('\n')
+          .map((l) => {
+            const e = l.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+            if (l.startsWith('+') && !l.startsWith('+++'))
+              return `<span style="color:#7ee787">${e}</span>`;
+            if (l.startsWith('-') && !l.startsWith('---'))
+              return `<span style="color:#ff7b72">${e}</span>`;
+            if (l.startsWith('@@'))
+              return `<span style="color:#79c0ff">${e}</span>`;
+            return e;
+          })
+          .join('\n');
+      }
+      async function toggleDiff() {
+        if (!current) return;
+        diffOpen = !diffOpen;
+        if (diffOpen) {
+          const t = await (
+            await fetch('/api/prompts/' + encodeURIComponent(current) + '/diff')
+          ).text();
+          $('diff').innerHTML = t.trim()
+            ? renderDiff(t)
+            : '(no changes vs source)';
+          $('editor').style.display = 'none';
+          $('diff').style.display = 'block';
+          $('b-diff').textContent = 'Edit';
+        } else {
+          $('editor').style.display = '';
+          $('diff').style.display = 'none';
+          $('b-diff').textContent = 'Diff';
+        }
+      }
+
+      function setBusy(b) {
+        busy = b;
+        [
+          'b-start',
+          'b-down',
+          'b-savereset',
+          'model',
+          'b-setmodel',
+          'b-save',
+          'b-reset-item',
+          'b-export',
+          'editor',
+        ].forEach((id) => ($(id).disabled = b));
+      }
+
+      function stream(label, qs) {
+        return new Promise((resolve) => {
+          const feed = $('feed');
+          $('activity').style.display = '';
+          feed.textContent += `\n=== ${label} ===\n`;
+          const es = new EventSource(
+            '/api/stream?' + qs + '&token=' + encodeURIComponent(TOKEN)
+          );
+          es.addEventListener('line', (e) => {
+            feed.textContent += e.data + '\n';
+            feed.scrollTop = feed.scrollHeight;
+          });
+          es.addEventListener('done', (e) => {
+            feed.textContent += `(exit ${e.data})\n`;
+            es.close();
+            resolve();
+          });
+          es.onerror = () => {
+            es.close();
+            resolve();
+          };
+        });
+      }
+
+      function clearFeed() {
+        $('feed').textContent = '';
+        $('activity').style.display = 'none';
+      }
+
+      async function run(cmd) {
+        if (busy) return;
+        setBusy(true);
+        // start renders the on-disk sandbox prompts (via reset), so flush the
+        // dirty item first or the first run uses the pre-edit text.
+        if (cmd === 'start' && dirty && current && !(await saveItem())) {
+          setBusy(false);
+          return;
+        }
+        await stream(cmd, 'cmd=' + cmd);
+        setBusy(false);
+        refreshStatus();
+      }
+
+      async function loadModels() {
+        try {
+          const { models } = await (await fetch('/api/models')).json();
+          $('modellist').innerHTML = models
+            .map((m) => `<option value="${m}"></option>`)
+            .join('');
+        } catch {}
+      }
+      async function setModel(m) {
+        if (busy || !m) return;
+        setBusy(true);
+        await stream(
+          'set-model ' + m,
+          'cmd=set-model&model=' + encodeURIComponent(m)
+        );
+        setBusy(false);
+        refreshStatus();
+      }
+
+      async function saveAndReset() {
+        if (busy) return;
+        setBusy(true);
+        if (dirty && current && !(await saveItem())) {
+          setBusy(false);
+          return;
+        }
+        await stream('reset', 'cmd=reset');
+        setBusy(false);
+        refreshStatus();
+      }
+
+      // Flush the unsaved textarea first so the exported patch includes the
+      // edits the tester can see (the server builds it from on-disk files).
+      async function exportPatch() {
+        if (busy) return;
+        if (dirty && current && !(await saveItem())) return;
+        location.href = '/api/export?token=' + encodeURIComponent(TOKEN);
+      }
+
+      loadModels().then(refreshStatus);
+      loadItems();
+      checkPreflight();
+    </script>
+  </body>
+</html>

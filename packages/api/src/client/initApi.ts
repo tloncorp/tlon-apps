@@ -21,7 +21,7 @@ export interface InitData {
   channels: db.Channel[];
   channelPerms: ChannelInit[];
   joinedGroups: string[];
-  joinedChannels: string[];
+  joinedGroupChannels: string[];
   hiddenPostIds: string[];
   blockedUsers: string[];
   unreads: db.ActivityInit;
@@ -105,11 +105,15 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
   logger.crumb('extracting joined groups');
 
   const joinedGroups = groups.map((group) => group.id);
-  // Not fully reflective of which channels you're a member of, but if a channel is _not_
-  // in here, you're definitely not a member of it
+
   logger.crumb('extracting joined channels');
 
-  const joinedChannels = channelsInit.map((channel) => channel.channelId);
+  // %groups is the single source of truth for group-channel membership: it
+  // tracks our membership in every group's active-channels set, across all
+  // channel kinds (first-party chat/diary/heap and third-party e.g. notes).
+  const joinedGroupChannels = Object.values(response.groups ?? {}).flatMap(
+    (group) => group['active-channels'] ?? []
+  );
 
   logger.crumb('returning init data');
 
@@ -121,7 +125,7 @@ export const toInitData = (response: ub.GroupsInit7): InitData => {
     channels: [...dmChannels, ...groupDmChannels, ...invitedDms],
     channelPerms: channelsInit,
     joinedGroups,
-    joinedChannels,
+    joinedGroupChannels,
     hiddenPostIds,
     blockedUsers,
   };

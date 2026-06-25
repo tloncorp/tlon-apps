@@ -261,7 +261,7 @@ test('should handle channel management operations', async ({ zodPage }) => {
   await expect(page.getByText('Group info')).toBeVisible({ timeout: 5000 });
 
   // Test notification settings
-  await helpers.setGroupNotifications(page, 'All activity');
+  await helpers.setGroupNotifications(page, 'All group activity');
 
   // Close the notification sheet by clicking the first back button (in the sheet header)
   await helpers.navigateBack(page);
