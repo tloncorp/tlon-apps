@@ -4,6 +4,7 @@ import {
   _testing,
   createTlonTelemetry,
   recordToolCall,
+  reportHarnessDebug,
   reportHarnessError,
   reportOutboundRoute,
   reportPluginError,
@@ -11,6 +12,7 @@ import {
   reportSessionLifecycle,
   reportSessionTurnCreated,
   reportTelemetryError,
+  setDebugTelemetryReporter,
   setErrorTelemetryReporter,
   setOutboundRouteReporter,
   setSessionTelemetryReporter,
@@ -42,7 +44,9 @@ describe('telemetry tool tracking', () => {
   beforeEach(() => {
     _testing.clearToolCalls();
     _testing.clearSessionContexts();
+    _testing.clearHarnessDebugSnapshots();
     setSessionTelemetryReporter(null);
+    setDebugTelemetryReporter(null);
     setErrorTelemetryReporter(null);
     postHogMocks.identify.mockClear();
     postHogMocks.capture.mockClear();
@@ -803,6 +807,19 @@ describe('telemetry tool tracking', () => {
     });
   }
 
+  function bindDebugReporter(
+    telemetry: NonNullable<ReturnType<typeof createEnabledTelemetry>>
+  ) {
+    setDebugTelemetryReporter((event) =>
+      telemetry.captureHarnessDebug({
+        ...event,
+        accountId: event.accountId ?? 'default',
+        ownerShip: event.ownerShip ?? '~zod',
+        botShip: event.botShip || '~nec',
+      })
+    );
+  }
+
   it('reports lifecycle hooks only for remembered Tlon sessions', async () => {
     const telemetry = createEnabledTelemetry()!;
     bindSessionReporter(telemetry);
@@ -909,6 +926,300 @@ describe('telemetry tool tracking', () => {
     });
   });
 
+  it('captures harness debug breadcrumbs for remembered Tlon sessions', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindDebugReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    reportHarnessDebug({
+      harnessEventType: 'context.assembled',
+      debugEventKind: 'context',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      agentId: 'agent-main',
+      provider: 'anthropic',
+      model: 'claude-test',
+      messageCount: 12,
+      historyTextChars: 3456,
+      promptChars: 7890,
+      contextTokenBudget: 200000,
+      reserveTokens: 20000,
+      contextChannel: 'tlon',
+      contextTrigger: 'message',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Debug');
+    expect(call.properties).toMatchObject({
+      harness: 'openclaw',
+      harnessEventType: 'context.assembled',
+      debugEventKind: 'context',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      accountId: 'default',
+      agentId: 'agent-main',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      provider: 'anthropic',
+      model: 'claude-test',
+      messageCount: 12,
+      historyTextChars: 3456,
+      promptChars: 7890,
+      contextTokenBudget: 200000,
+      reserveTokens: 20000,
+      contextChannel: 'tlon',
+      contextTrigger: 'message',
+      harnessDebugSequence: 1,
+      contextAssembledSeen: true,
+      runStartedSeen: false,
+      modelCallStartedSeen: false,
+    });
+    expect(Object.hasOwn(call.properties, 'message')).toBe(false);
+    expect(Object.hasOwn(call.properties, 'logAttributes')).toBe(false);
+    expect(Object.hasOwn(call.properties, 'contextEngineTaskId')).toBe(false);
+  });
+
+  it('resets harness debug breadcrumbs when a reused session starts a new run', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindDebugReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    reportHarnessDebug({
+      harnessEventType: 'harness.run.started',
+      debugEventKind: 'harness',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-1',
+    });
+    reportHarnessDebug({
+      harnessEventType: 'context.assembled',
+      debugEventKind: 'context',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-1',
+    });
+    reportHarnessDebug({
+      harnessEventType: 'run.started',
+      debugEventKind: 'run',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Debug');
+    expect(call.properties).toMatchObject({
+      harnessEventType: 'run.started',
+      runId: 'run-2',
+      harnessDebugSequence: 1,
+      runStartedSeen: true,
+      contextAssembledSeen: false,
+      modelCallStartedSeen: false,
+      harnessRunStartedSeen: false,
+      toolExecutionStartedSeen: false,
+    });
+  });
+
+  it('captures tool and model call identifiers on harness debug events', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindDebugReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    reportHarnessDebug({
+      harnessEventType: 'tool.execution.completed',
+      debugEventKind: 'tool',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      toolName: 'read',
+      toolCallId: 'call-read-1',
+      toolSource: 'core',
+      toolOwner: 'openclaw',
+      durationMs: 42,
+    });
+
+    let call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Debug');
+    expect(call.properties).toMatchObject({
+      harnessEventType: 'tool.execution.completed',
+      debugEventKind: 'tool',
+      toolName: 'read',
+      toolCallId: 'call-read-1',
+      toolSource: 'core',
+      toolOwner: 'openclaw',
+      durationMs: 42,
+    });
+
+    reportHarnessDebug({
+      harnessEventType: 'model.call.completed',
+      debugEventKind: 'model',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      provider: 'openrouter',
+      model: 'anthropic/claude-haiku-4.5',
+      modelCallId: 'model-call-1',
+      durationMs: 2997,
+      requestPayloadBytes: 12345,
+      responseStreamBytes: 6789,
+      timeToFirstByteMs: 321,
+    });
+
+    call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties).toMatchObject({
+      harnessEventType: 'model.call.completed',
+      debugEventKind: 'model',
+      modelCallId: 'model-call-1',
+      durationMs: 2997,
+      requestPayloadBytes: 12345,
+      responseStreamBytes: 6789,
+      timeToFirstByteMs: 321,
+    });
+  });
+
+  it('captures selected log attributes on harness debug events', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindDebugReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    reportHarnessDebug({
+      harnessEventType: 'log.record',
+      debugEventKind: 'log',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      logLevel: 'WARN',
+      loggerName: 'context-engine',
+      codeFunctionName: 'runContextTask',
+      codeLine: 42,
+      message:
+        '[context-engine] deferred turn maintenance queued taskId=abc123 lane=context-engine-turn-maintenance:session-1 operation=assemble',
+      logAttributes: {
+        taskId: 'abc123',
+        lane: 'context-engine-turn-maintenance:session-1',
+        operation: 'assemble',
+        pluginId: 'lossless-claw',
+        durationMs: 123,
+        retryable: true,
+        'bad key': 'dropped',
+      },
+      contextEngineEvent: 'log.record',
+      contextEngineTaskId: 'abc123',
+      contextEngineOperation: 'assemble',
+      contextEngineLane: 'context-engine-turn-maintenance:session-1',
+      pluginId: 'lossless-claw',
+      durationMs: 123,
+      errorName: 'TimeoutError',
+      errorCode: 'ETIMEDOUT',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Debug');
+    expect(call.properties).toMatchObject({
+      harnessEventType: 'log.record',
+      debugEventKind: 'log',
+      logLevel: 'WARN',
+      loggerName: 'context-engine',
+      codeFunctionName: 'runContextTask',
+      codeLine: 42,
+      pluginId: 'lossless-claw',
+      durationMs: 123,
+      contextEngineTaskId: 'abc123',
+      contextEngineOperation: 'assemble',
+      contextEngineLane: 'context-engine-turn-maintenance:session-1',
+      errorName: 'TimeoutError',
+      errorCode: 'ETIMEDOUT',
+      lastContextEngineTaskId: 'abc123',
+      lastContextEngineOperation: 'assemble',
+      lastContextEngineLane: 'context-engine-turn-maintenance:session-1',
+    });
+    expect(call.properties.logAttributes).toMatchObject({
+      taskId: 'abc123',
+      lane: 'context-engine-turn-maintenance:session-1',
+      operation: 'assemble',
+      pluginId: 'lossless-claw',
+      durationMs: 123,
+      retryable: true,
+    });
+    expect(call.properties.logAttributes['bad key']).toBeUndefined();
+  });
+
+  it('enriches watchdog diagnostics with the last harness debug snapshot', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindSessionReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+    const longContextEngineMessage =
+      '[context-engine] deferred turn maintenance queued taskId=abc123 sessionKey=session-1 lane=context-engine-turn-maintenance:session-1 ' +
+      `detail=${'x'.repeat(320)}`;
+
+    reportHarnessDebug({
+      harnessEventType: 'run.started',
+      debugEventKind: 'run',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      agentId: 'agent-main',
+      provider: 'anthropic',
+      model: 'claude-test',
+    });
+    reportHarnessDebug({
+      harnessEventType: 'log.record',
+      debugEventKind: 'log',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      runId: 'run-2',
+      logLevel: 'INFO',
+      message: longContextEngineMessage,
+      contextEngineEvent: 'log.record',
+      contextEngineTaskId: 'abc123',
+      contextEngineOperation: 'maintenance',
+      contextEngineLane: 'context-engine-turn-maintenance:session-1',
+    });
+    postHogMocks.capture.mockClear();
+
+    reportSessionDiagnostic({
+      type: 'session.stalled',
+      sessionKey: 'session-1',
+      sessionId: 'openclaw-session-1',
+      state: 'processing',
+      ageMs: 360_000,
+      queueDepth: 2,
+      reason: 'active_work_without_progress',
+      classification: 'stalled_agent_run',
+      activeWorkKind: 'embedded_run',
+      lastProgressAgeMs: 300_000,
+      lastProgressReason: 'embedded_run:started',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Session Watchdog');
+    expect(call.properties).toMatchObject({
+      reason: 'active_work_without_progress',
+      classification: 'stalled_agent_run',
+      activeWorkKind: 'embedded_run',
+      lastProgressReason: 'embedded_run:started',
+      harnessDebugSequence: 2,
+      lastHarnessEventType: 'log.record',
+      lastHarnessEventRunId: 'run-2',
+      lastHarnessProvider: 'anthropic',
+      lastHarnessModel: 'claude-test',
+      runStartedSeen: true,
+      contextAssembledSeen: false,
+      modelCallStartedSeen: false,
+      lastContextEngineEvent: 'log.record',
+      lastContextEngineTaskId: 'abc123',
+      lastContextEngineOperation: 'maintenance',
+      lastContextEngineLane: 'context-engine-turn-maintenance:session-1',
+      lastContextEngineMessage: longContextEngineMessage,
+    });
+    expect(call.properties.lastHarnessEventAgeMs).toEqual(expect.any(Number));
+    expect(call.properties.lastContextEngineEventAgeMs).toEqual(
+      expect.any(Number)
+    );
+  });
+
   it('reports harness errors only for remembered Tlon sessions', async () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);
@@ -990,20 +1301,20 @@ describe('telemetry tool tracking', () => {
       harness: 'openclaw',
       harnessEventType: 'diagnostic.liveness.warning',
       errorScope: 'runtime',
-      sessionKey: null,
-      sessionId: null,
-      runId: null,
       accountId: 'default',
-      agentId: null,
       ownerShip: '~zod',
       botShip: '~nec',
-      destinationKind: null,
       outcome: 'warning',
       errorCategory: 'liveness_warning',
       failureKind: 'event_loop_delay',
       durationMs: 30_000,
       errorText: 'reasons=event_loop_delay eventLoopDelayP99Ms=250',
     });
+    expect(Object.hasOwn(call.properties, 'sessionKey')).toBe(false);
+    expect(Object.hasOwn(call.properties, 'sessionId')).toBe(false);
+    expect(Object.hasOwn(call.properties, 'runId')).toBe(false);
+    expect(Object.hasOwn(call.properties, 'agentId')).toBe(false);
+    expect(Object.hasOwn(call.properties, 'destinationKind')).toBe(false);
   });
 
   it('captures plugin errors without throttling or truncating error text', () => {
@@ -1034,8 +1345,8 @@ describe('telemetry tool tracking', () => {
       botShip: '~nec',
       errorKind: 'Error',
       errorText: 'first full error\nwith details',
-      attempt: null,
     });
+    expect(Object.hasOwn(calls[0].properties, 'attempt')).toBe(false);
     expect(calls[1].properties.errorText).toBe(
       'second full error\nwith details'
     );
@@ -1072,10 +1383,12 @@ describe('telemetry tool tracking', () => {
 describe('outbound route telemetry', () => {
   beforeEach(() => {
     _testing.clearSessionContexts();
+    _testing.clearHarnessDebugSnapshots();
     postHogMocks.identify.mockClear();
     postHogMocks.capture.mockClear();
     setOutboundRouteReporter(null);
     setSessionTelemetryReporter(null);
+    setDebugTelemetryReporter(null);
     setErrorTelemetryReporter(null);
   });
 

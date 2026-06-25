@@ -28,9 +28,11 @@ import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
+  type TlonDiagnosticLogAttributes,
   type TlonSessionDiagnosticReportInput,
   formatTlonTelemetryErrorText,
   recordToolCall,
+  reportHarnessDebug,
   reportHarnessError,
   reportOutboundRoute,
   reportPluginError,
@@ -265,6 +267,59 @@ function numberField(event: DiagnosticCandidate, key: string): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function objectField(
+  event: DiagnosticCandidate,
+  key: string
+): Record<string, unknown> | null {
+  const value = event[key];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function diagnosticLogAttributes(
+  event: DiagnosticCandidate
+): TlonDiagnosticLogAttributes | null {
+  const attributes = objectField(event, 'attributes');
+  if (!attributes) {
+    return null;
+  }
+
+  const normalized = Object.create(null) as TlonDiagnosticLogAttributes;
+  for (const [key, value] of Object.entries(attributes)) {
+    if (typeof value === 'string') {
+      normalized[key] = value;
+      continue;
+    }
+    if (typeof value === 'boolean') {
+      normalized[key] = value;
+      continue;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      normalized[key] = value;
+    }
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
+function stringAttribute(
+  attributes: TlonDiagnosticLogAttributes | null,
+  key: string
+): string | null {
+  const value = attributes?.[key];
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function numberAttribute(
+  attributes: TlonDiagnosticLogAttributes | null,
+  key: string
+): number | null {
+  const value = attributes?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function diagnosticErrorText(event: DiagnosticCandidate): string | null {
   return stringField(event, 'error') ?? stringField(event, 'message');
 }
@@ -290,6 +345,256 @@ function diagnosticSummary(
     .join(' ');
 }
 
+const HARNESS_DEBUG_EVENT_TYPES = new Set([
+  'session.turn.created',
+  'run.started',
+  'run.completed',
+  'context.assembled',
+  'model.call.started',
+  'model.call.completed',
+  'model.call.error',
+  'harness.run.started',
+  'harness.run.completed',
+  'harness.run.error',
+  'tool.execution.started',
+  'tool.execution.completed',
+  'tool.execution.error',
+  'tool.execution.blocked',
+]);
+
+const HARNESS_DEBUG_LOG_PATTERNS = [
+  '[context-engine]',
+  '[lcm]',
+  '[trace:embedded-run]',
+  'context engine',
+  'lossless-claw',
+];
+
+function debugEventKind(type: string): string {
+  if (type === 'session.turn.created') {
+    return 'turn';
+  }
+  if (type === 'context.assembled') {
+    return 'context';
+  }
+  if (type.startsWith('model.call.')) {
+    return 'model';
+  }
+  if (type.startsWith('harness.run.')) {
+    return 'harness';
+  }
+  if (type.startsWith('tool.execution.')) {
+    return 'tool';
+  }
+  if (type.startsWith('run.')) {
+    return 'run';
+  }
+  if (type === 'log.record') {
+    return 'log';
+  }
+  return 'diagnostic';
+}
+
+function isContextEngineDebugMessage(message: string | null): boolean {
+  const normalized = message?.toLowerCase() ?? '';
+  return HARNESS_DEBUG_LOG_PATTERNS.some((pattern) =>
+    normalized.includes(pattern)
+  );
+}
+
+function extractContextEngineTaskId(message: string | null): string | null {
+  return extractDiagnosticKeyValue(message, 'taskId');
+}
+
+function extractDiagnosticKeyValue(
+  message: string | null,
+  key: string
+): string | null {
+  if (!message) {
+    return null;
+  }
+  return new RegExp(`\\b${key}=([^\\s]+)`).exec(message)?.[1] ?? null;
+}
+
+function extractDiagnosticSessionKey(message: string | null): string | null {
+  if (!message) {
+    return null;
+  }
+  return /\bsessionKey=([^\s]+)/.exec(message)?.[1] ?? null;
+}
+
+function shouldReportHarnessDebug(event: DiagnosticCandidate, type: string) {
+  if (HARNESS_DEBUG_EVENT_TYPES.has(type)) {
+    return true;
+  }
+  if (type !== 'log.record') {
+    return false;
+  }
+
+  const message = stringField(event, 'message');
+  if (isContextEngineDebugMessage(message)) {
+    return true;
+  }
+
+  const level = stringField(event, 'level')?.toLowerCase();
+  const attributes = diagnosticLogAttributes(event);
+  return (
+    Boolean(
+      stringField(event, 'sessionKey') ??
+        stringAttribute(attributes, 'sessionKey')
+    ) &&
+    (level === 'warn' || level === 'warning' || level === 'error')
+  );
+}
+
+function reportHarnessDebugDiagnostic(
+  event: DiagnosticCandidate,
+  type: string
+) {
+  if (!shouldReportHarnessDebug(event, type)) {
+    return;
+  }
+
+  const message = stringField(event, 'message');
+  const attributes = diagnosticLogAttributes(event);
+  const code = objectField(event, 'code');
+  const codeFunctionName =
+    typeof code?.functionName === 'string' && code.functionName.trim()
+      ? code.functionName
+      : null;
+  const codeLine =
+    typeof code?.line === 'number' && Number.isFinite(code.line)
+      ? code.line
+      : null;
+  const isContextEngineEvent = isContextEngineDebugMessage(message);
+  const contextEngineTaskId =
+    stringField(event, 'contextEngineTaskId') ??
+    stringAttribute(attributes, 'contextEngineTaskId') ??
+    stringAttribute(attributes, 'taskId') ??
+    extractContextEngineTaskId(message);
+  const contextEngineOperation =
+    stringField(event, 'contextEngineOperation') ??
+    stringAttribute(attributes, 'contextEngineOperation') ??
+    stringAttribute(attributes, 'operation') ??
+    extractDiagnosticKeyValue(message, 'operation');
+  const contextEngineLane =
+    stringField(event, 'contextEngineLane') ??
+    stringAttribute(attributes, 'contextEngineLane') ??
+    stringAttribute(attributes, 'lane') ??
+    extractDiagnosticKeyValue(message, 'lane');
+  reportHarnessDebug({
+    harnessEventType: type,
+    debugEventKind: debugEventKind(type),
+    sessionKey:
+      stringField(event, 'sessionKey') ??
+      stringAttribute(attributes, 'sessionKey') ??
+      extractDiagnosticSessionKey(message),
+    sessionId:
+      stringField(event, 'sessionId') ??
+      stringAttribute(attributes, 'sessionId'),
+    runId: stringField(event, 'runId') ?? stringAttribute(attributes, 'runId'),
+    agentId:
+      stringField(event, 'agentId') ?? stringAttribute(attributes, 'agentId'),
+    provider:
+      stringField(event, 'provider') ?? stringAttribute(attributes, 'provider'),
+    model: stringField(event, 'model') ?? stringAttribute(attributes, 'model'),
+    phase: stringField(event, 'phase') ?? stringAttribute(attributes, 'phase'),
+    outcome:
+      stringField(event, 'outcome') ?? stringAttribute(attributes, 'outcome'),
+    durationMs:
+      numberField(event, 'durationMs') ??
+      numberAttribute(attributes, 'durationMs'),
+    toolName:
+      stringField(event, 'toolName') ?? stringAttribute(attributes, 'toolName'),
+    toolCallId:
+      stringField(event, 'toolCallId') ??
+      stringAttribute(attributes, 'toolCallId'),
+    toolSource:
+      stringField(event, 'toolSource') ??
+      stringAttribute(attributes, 'toolSource'),
+    toolOwner:
+      stringField(event, 'toolOwner') ??
+      stringAttribute(attributes, 'toolOwner'),
+    pluginId:
+      stringField(event, 'pluginId') ?? stringAttribute(attributes, 'pluginId'),
+    harnessId:
+      stringField(event, 'harnessId') ??
+      stringAttribute(attributes, 'harnessId'),
+    modelCallId:
+      stringField(event, 'modelCallId') ??
+      stringField(event, 'callId') ??
+      stringAttribute(attributes, 'modelCallId') ??
+      stringAttribute(attributes, 'callId'),
+    modelApi:
+      stringField(event, 'modelApi') ?? stringAttribute(attributes, 'modelApi'),
+    modelTransport:
+      stringField(event, 'modelTransport') ??
+      stringAttribute(attributes, 'modelTransport'),
+    requestPayloadBytes:
+      numberField(event, 'requestPayloadBytes') ??
+      numberAttribute(attributes, 'requestPayloadBytes'),
+    responseStreamBytes:
+      numberField(event, 'responseStreamBytes') ??
+      numberAttribute(attributes, 'responseStreamBytes'),
+    timeToFirstByteMs:
+      numberField(event, 'timeToFirstByteMs') ??
+      numberAttribute(attributes, 'timeToFirstByteMs'),
+    logLevel: stringField(event, 'level'),
+    loggerName: stringField(event, 'loggerName'),
+    codeFunctionName,
+    codeLine,
+    logAttributes: attributes,
+    message,
+    contextEngineEvent: isContextEngineEvent ? type : null,
+    contextEngineTaskId,
+    contextEngineOperation,
+    contextEngineLane,
+    errorName:
+      stringField(event, 'errorName') ??
+      stringAttribute(attributes, 'errorName'),
+    errorCode:
+      stringField(event, 'errorCode') ??
+      stringAttribute(attributes, 'errorCode'),
+    messageCount:
+      numberField(event, 'messageCount') ??
+      numberAttribute(attributes, 'messageCount'),
+    historyTextChars:
+      numberField(event, 'historyTextChars') ??
+      numberAttribute(attributes, 'historyTextChars'),
+    historyImageBlocks:
+      numberField(event, 'historyImageBlocks') ??
+      numberAttribute(attributes, 'historyImageBlocks'),
+    maxMessageTextChars:
+      numberField(event, 'maxMessageTextChars') ??
+      numberAttribute(attributes, 'maxMessageTextChars'),
+    systemPromptChars:
+      numberField(event, 'systemPromptChars') ??
+      numberAttribute(attributes, 'systemPromptChars'),
+    promptChars:
+      numberField(event, 'promptChars') ??
+      numberAttribute(attributes, 'promptChars'),
+    promptImages:
+      numberField(event, 'promptImages') ??
+      numberAttribute(attributes, 'promptImages'),
+    contextTokenBudget:
+      numberField(event, 'contextTokenBudget') ??
+      numberAttribute(attributes, 'contextTokenBudget'),
+    reserveTokens:
+      numberField(event, 'reserveTokens') ??
+      numberAttribute(attributes, 'reserveTokens'),
+    contextChannel:
+      stringField(event, 'contextChannel') ??
+      stringField(event, 'channel') ??
+      stringAttribute(attributes, 'contextChannel') ??
+      stringAttribute(attributes, 'channel'),
+    contextTrigger:
+      stringField(event, 'contextTrigger') ??
+      stringField(event, 'trigger') ??
+      stringAttribute(attributes, 'contextTrigger') ??
+      stringAttribute(attributes, 'trigger'),
+  });
+}
+
 function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
   const type = stringField(event, 'type');
   if (!type) {
@@ -304,8 +609,11 @@ function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
       runId: stringField(event, 'runId'),
       agentId: stringField(event, 'agentId'),
     });
+    reportHarnessDebugDiagnostic(event, type);
     return;
   }
+
+  reportHarnessDebugDiagnostic(event, type);
 
   const common = {
     harnessEventType: type,
