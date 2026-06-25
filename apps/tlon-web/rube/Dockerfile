@@ -76,7 +76,7 @@ RUN mkdir -p /opt/ships && cd /opt/ships && \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
         "https://bootstrap.urbit.org/rube-ten25.tgz ten.tgz" \
         "https://bootstrap.urbit.org/rube-mug25.tgz mug.tgz" \
-        "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
+        "https://github.com/urbit/vere/releases/download/vere-v4.3/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \
     ls -lh *.tgz && \
