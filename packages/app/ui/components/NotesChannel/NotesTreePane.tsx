@@ -6,22 +6,17 @@ import { FolderTreeRow, NoteRow } from './NotesTreeRows';
 import { getFolderLabel } from './notesTree';
 import type { NotesTreeRow } from './notesTree';
 
-type CreateAction = {
-  canEdit: boolean;
-  isCreating: boolean;
-  onCreate: () => void;
-};
-
 export function NotesTreePane({
   canEdit,
   isDeletingFolder,
-  isCreatingFolder,
-  isCreatingNote,
+  isNotePublished,
+  getPublishedNoteUrl,
   layout,
+  publishDisabled,
+  publishingAction,
   selectedFolderId,
   selectedNoteId,
   treeRows,
-  onCreate,
   onCreateFolderInFolder,
   onCreateNoteInFolder,
   onDeleteFolder,
@@ -29,18 +24,22 @@ export function NotesTreePane({
   onMoveFolder,
   onMoveNote,
   onOpenNote,
+  onPublishNote,
   onRenameFolder,
   onToggleFolder,
+  onUnpublishNote,
+  onViewPublishedNote,
 }: {
   canEdit: boolean;
   isDeletingFolder: boolean;
-  isCreatingFolder: boolean;
-  isCreatingNote: boolean;
+  isNotePublished: (noteId: number) => boolean;
+  getPublishedNoteUrl?: (note: db.NotesNote) => string | null;
   layout: 'stack' | 'takeover';
+  publishDisabled: boolean;
+  publishingAction: 'publish' | 'unpublish' | null;
   selectedFolderId: number | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
-  onCreate: () => void;
   onCreateFolderInFolder: (folder: db.NotesFolder) => void;
   onCreateNoteInFolder: (folder: db.NotesFolder) => void;
   onDeleteFolder: (folder: db.NotesFolder) => void;
@@ -48,21 +47,36 @@ export function NotesTreePane({
   onMoveFolder: (folder: db.NotesFolder) => void;
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
+  onPublishNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onToggleFolder: (folderId: number, hasChildren: boolean) => void;
+  onUnpublishNote: (note: db.NotesNote) => void;
+  onViewPublishedNote?: (note: db.NotesNote) => void;
 }) {
-  const createAction = {
-    canEdit,
-    isCreating: isCreatingFolder || isCreatingNote,
-    onCreate,
-  };
+  if (treeRows.length === 0) {
+    return (
+      <YStack
+        flex={1}
+        minHeight={0}
+        alignItems="center"
+        justifyContent="center"
+        backgroundColor="$background"
+      >
+        <SidebarEmptyState />
+      </YStack>
+    );
+  }
+
   const treeList = (
     <NotesTreeRowsList
       canEdit={canEdit}
       isDeletingFolder={isDeletingFolder}
-      createAction={createAction}
+      getPublishedNoteUrl={getPublishedNoteUrl}
+      isNotePublished={isNotePublished}
       selectedFolderId={selectedFolderId}
       selectedNoteId={selectedNoteId}
+      publishDisabled={publishDisabled}
+      publishingAction={publishingAction}
       treeRows={treeRows}
       onCreateFolderInFolder={onCreateFolderInFolder}
       onCreateNoteInFolder={onCreateNoteInFolder}
@@ -71,30 +85,22 @@ export function NotesTreePane({
       onMoveFolder={onMoveFolder}
       onMoveNote={onMoveNote}
       onOpenNote={onOpenNote}
+      onPublishNote={onPublishNote}
       onRenameFolder={onRenameFolder}
       onToggleFolder={onToggleFolder}
+      onUnpublishNote={onUnpublishNote}
+      onViewPublishedNote={onViewPublishedNote}
     />
   );
 
   if (layout === 'takeover') {
     return (
       <YStack flex={1} minHeight={0} backgroundColor="$background">
-        {treeRows.length === 0 ? (
-          <YStack
-            flex={1}
-            minHeight={0}
-            alignItems="center"
-            justifyContent="center"
-          >
-            <SidebarEmptyState createAction={createAction} centered />
+        <ScrollView flex={1}>
+          <YStack paddingTop="$s" paddingBottom="$m">
+            {treeList}
           </YStack>
-        ) : (
-          <ScrollView flex={1}>
-            <YStack paddingTop="$s" paddingBottom="$m">
-              {treeList}
-            </YStack>
-          </ScrollView>
-        )}
+        </ScrollView>
       </YStack>
     );
   }
@@ -118,8 +124,11 @@ export function NotesTreePane({
 
 function NotesTreeRowsList({
   canEdit,
-  createAction,
+  getPublishedNoteUrl,
   isDeletingFolder,
+  isNotePublished,
+  publishDisabled,
+  publishingAction,
   selectedFolderId,
   selectedNoteId,
   treeRows,
@@ -130,12 +139,18 @@ function NotesTreeRowsList({
   onMoveFolder,
   onMoveNote,
   onOpenNote,
+  onPublishNote,
   onRenameFolder,
   onToggleFolder,
+  onUnpublishNote,
+  onViewPublishedNote,
 }: {
   canEdit: boolean;
-  createAction: CreateAction;
+  getPublishedNoteUrl?: (note: db.NotesNote) => string | null;
   isDeletingFolder: boolean;
+  isNotePublished: (noteId: number) => boolean;
+  publishDisabled: boolean;
+  publishingAction: 'publish' | 'unpublish' | null;
   selectedFolderId: number | null;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
@@ -146,48 +161,60 @@ function NotesTreeRowsList({
   onMoveFolder: (folder: db.NotesFolder) => void;
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
+  onPublishNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onToggleFolder: (folderId: number, hasChildren: boolean) => void;
+  onUnpublishNote: (note: db.NotesNote) => void;
+  onViewPublishedNote?: (note: db.NotesNote) => void;
 }) {
   return (
     <YStack gap={2}>
-      {treeRows.length === 0 ? (
-        <SidebarEmptyState createAction={createAction} />
-      ) : (
-        treeRows.map((row) =>
-          row.type === 'folder' ? (
-            <FolderTreeRow
-              key={row.folder.id}
-              canEdit={canEdit}
-              depth={row.depth}
-              expanded={row.expanded}
-              folder={row.folder}
-              hasChildren={row.hasChildren}
-              isDeleting={isDeletingFolder}
-              label={getFolderLabel(row.folder)}
-              noteCount={row.noteCount}
-              selected={selectedFolderId === row.folder.folderId}
-              onDelete={onDeleteFolder}
-              onCreateFolder={onCreateFolderInFolder}
-              onCreateNote={onCreateNoteInFolder}
-              onMove={onMoveFolder}
-              onPress={() =>
-                onToggleFolder(row.folder.folderId, row.hasChildren)
-              }
-              onRename={onRenameFolder}
-            />
-          ) : (
-            <NoteRow
-              key={row.note.id}
-              canEdit={canEdit}
-              depth={row.depth}
-              note={row.note}
-              selected={selectedNoteId === row.note.noteId}
-              onDelete={() => onDeleteNote(row.note)}
-              onMove={() => onMoveNote(row.note)}
-              onPress={() => onOpenNote(row.note)}
-            />
-          )
+      {treeRows.map((row) =>
+        row.type === 'folder' ? (
+          <FolderTreeRow
+            key={row.folder.id}
+            canEdit={canEdit}
+            depth={row.depth}
+            expanded={row.expanded}
+            folder={row.folder}
+            hasChildren={row.hasChildren}
+            isDeleting={isDeletingFolder}
+            label={getFolderLabel(row.folder)}
+            noteCount={row.noteCount}
+            selected={selectedFolderId === row.folder.folderId}
+            onDelete={onDeleteFolder}
+            onCreateFolder={onCreateFolderInFolder}
+            onCreateNote={onCreateNoteInFolder}
+            onMove={onMoveFolder}
+            onPress={() => onToggleFolder(row.folder.folderId, row.hasChildren)}
+            onRename={onRenameFolder}
+          />
+        ) : (
+          <NoteRow
+            key={row.note.id}
+            canEdit={canEdit}
+            depth={row.depth}
+            isPublished={isNotePublished(row.note.noteId)}
+            note={row.note}
+            publishDisabled={publishDisabled}
+            publishedUrl={
+              isNotePublished(row.note.noteId)
+                ? getPublishedNoteUrl?.(row.note) ?? null
+                : null
+            }
+            publishingAction={publishingAction}
+            selected={selectedNoteId === row.note.noteId}
+            onDelete={() => onDeleteNote(row.note)}
+            onMove={() => onMoveNote(row.note)}
+            onPress={() => onOpenNote(row.note)}
+            onPublish={() => onPublishNote(row.note)}
+            onUnpublish={() => onUnpublishNote(row.note)}
+            onViewPublished={
+              onViewPublishedNote
+                ? () => onViewPublishedNote(row.note)
+                : undefined
+            }
+          />
         )
       )}
     </YStack>
@@ -225,40 +252,17 @@ export function NotesEmptyDetailPane({
   );
 }
 
-function SidebarEmptyState({
-  centered = false,
-  createAction,
-}: {
-  centered?: boolean;
-  createAction: CreateAction;
-}) {
-  const action = createAction.canEdit ? (
-    <Button
-      size="small"
-      fill="ghost"
-      type="primary"
-      leadingIcon="Add"
-      label="New"
-      loading={createAction.isCreating}
-      onPress={createAction.onCreate}
-    />
-  ) : null;
-
+function SidebarEmptyState() {
   return (
-    <YStack
-      padding="$l"
-      gap="$m"
-      alignItems={centered ? 'center' : 'flex-start'}
-    >
+    <YStack alignItems="center" padding="$l">
       <Text
         size="$label/m"
         color="$tertiaryText"
         letterSpacing={0}
-        textAlign={centered ? 'center' : undefined}
+        textAlign="center"
       >
         No notes or folders
       </Text>
-      {action}
     </YStack>
   );
 }
