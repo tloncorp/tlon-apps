@@ -1,6 +1,5 @@
 import asyncio
 import importlib.util
-import json
 import sys
 import types
 import unittest
@@ -27,11 +26,8 @@ load_module("tlon_api")
 history = load_module("history")
 
 
-def essay(author, text, sent, *, blob=None):
-    payload = {"author": author, "sent": sent, "content": [{"inline": [text]}]}
-    if blob is not None:
-        payload["blob"] = blob
-    return payload
+def essay(author, text, sent):
+    return {"author": author, "sent": sent, "content": [{"inline": [text]}]}
 
 
 def outline_payload(*posts):
@@ -111,29 +107,6 @@ class ParseChannelHistoryTests(unittest.TestCase):
         entries = history.parse_channel_history(payload)
         self.assertEqual([entry.content for entry in entries], ["kept"])
 
-    def test_keeps_blob_only_posts(self):
-        blob = json.dumps(
-            [
-                {
-                    "type": "file",
-                    "version": 1,
-                    "fileUri": "https://storage.example.com/notes.pdf",
-                    "name": "notes.pdf",
-                }
-            ]
-        )
-        payload = {
-            "posts": {
-                "1": {"essay": essay("~mug", "", 1000, blob=blob), "seal": {"id": "1"}},
-            }
-        }
-
-        entries = history.parse_channel_history(payload)
-
-        self.assertEqual(len(entries), 1)
-        self.assertEqual(entries[0].content, "")
-        self.assertEqual(entries[0].blob, blob)
-
     def test_non_dict_payload(self):
         self.assertEqual(history.parse_channel_history(None), [])
         self.assertEqual(history.parse_channel_history("nope"), [])
@@ -149,32 +122,6 @@ class ParseThreadTests(unittest.TestCase):
         }
         entries = history.parse_thread_replies(payload)
         self.assertEqual([entry.content for entry in entries], ["first", "second"])
-
-    def test_reply_blob_renders_compactly(self):
-        blob = json.dumps(
-            [
-                {
-                    "type": "voicememo",
-                    "version": 1,
-                    "fileUri": "https://storage.example.com/memo.m4a",
-                    "duration": 12.5,
-                    "transcription": "Deploy is blocked",
-                }
-            ]
-        )
-        payload = {
-            "replies": [
-                {"memo": essay("~ten", "", 2000, blob=blob), "seal": {"id": "2"}},
-            ]
-        }
-
-        entries = history.parse_thread_replies(payload)
-
-        self.assertEqual(len(entries), 1)
-        self.assertEqual(
-            history.render_history_content(entries[0]),
-            '[🎙️ voice memo: "Deploy is blocked"]',
-        )
 
     def test_parent_post_shapes(self):
         wrapped = {"post": {"essay": essay("~mug", "root", 500), "seal": {"id": "7"}}}
@@ -237,58 +184,6 @@ class BuildContextTests(unittest.TestCase):
         self.assertIn("~mug: what's up", text)
         self.assertNotIn("~ten: current", text)
         self.assertTrue(text.endswith("[Current message (mentioned you)]\ncurrent"))
-
-    def test_channel_context_renders_compact_blob_before_text(self):
-        blob = json.dumps(
-            [
-                {
-                    "type": "file",
-                    "version": 1,
-                    "fileUri": "https://storage.example.com/notes.pdf",
-                    "name": "notes.pdf",
-                }
-            ]
-        )
-        entries = [
-            history.HistoryEntry(
-                author="~mug",
-                content="please review",
-                timestamp=1000,
-                post_id="1",
-                blob=blob,
-            )
-        ]
-
-        text = history.build_channel_context(
-            entries,
-            current_text="current",
-            current_id="2",
-            is_mention=False,
-            limit=20,
-        )
-
-        self.assertIn("~mug: [📎 notes.pdf]\nplease review", text)
-
-    def test_unknown_blob_only_history_is_hidden_from_context(self):
-        entries = [
-            history.HistoryEntry(
-                author="~mug",
-                content="",
-                timestamp=1000,
-                post_id="1",
-                blob=json.dumps([{"type": "a2ui", "version": 1}]),
-            )
-        ]
-
-        self.assertIsNone(
-            history.build_channel_context(
-                entries,
-                current_text="current",
-                current_id="2",
-                is_mention=False,
-                limit=20,
-            )
-        )
 
     def test_channel_context_plain_label_without_mention(self):
         text = history.build_channel_context(

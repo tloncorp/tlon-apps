@@ -1,9 +1,8 @@
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
-import { sharedMap, sharedSlot } from './shared-state.js';
+import { sharedMap } from './shared-state.js';
 import type { TlonTelemetryConfig } from './types.js';
-import { getTlonVersionIdentity } from './version.js';
 
 type ToolCallRecord = {
   toolName: string;
@@ -146,20 +145,6 @@ export type TlonReplyTelemetryStart = {
   isThreadReply: boolean;
   senderRole: 'owner' | 'user';
   attachmentCount: number;
-};
-
-export type TlonGatewayConnectedEvent = {
-  ownerShip: string | null;
-  botShip: string;
-  tlonSkillVersion: string;
-  accountId: string | null;
-  configured: boolean;
-  watchedChannelCount: number;
-  dmAllowlistCount: number;
-  defaultAuthorizedShipsCount: number;
-  pendingApprovalCount: number;
-  autoDiscoverChannels: boolean;
-  ownerListenEnabled: boolean;
 };
 
 export type TlonReplyTelemetryResult = {
@@ -343,7 +328,6 @@ export type TlonTelemetryErrorEvent = {
 };
 
 export interface TlonTelemetryClient {
-  captureGatewayConnected(event: TlonGatewayConnectedEvent): void;
   startReply(params: TlonReplyTelemetryStart): TlonReplyTelemetrySession;
   captureHeartbeatNudge(event: TlonHeartbeatNudgeEvent): void;
   captureHeartbeatReengagement(event: TlonHeartbeatReengagementEvent): void;
@@ -664,7 +648,6 @@ type ActiveReplyTrace = {
 class PostHogTlonTelemetry implements TlonTelemetryClient {
   private readonly client: PostHog;
   private readonly runtime?: RuntimeEnv;
-  private readonly versionIdentity = getTlonVersionIdentity();
   private readonly identifiedOwners = new Set<string>();
   private readonly activeReplyTraces = new Map<symbol, ActiveReplyTrace>();
   private missingOwnerWarningLogged = false;
@@ -682,39 +665,6 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
       disableGeoip: true,
       preloadFeatureFlags: false,
       disableRemoteConfig: true,
-    });
-  }
-
-  private properties<T extends Record<string, unknown>>(props: T): T {
-    return {
-      logSource: TLON_TELEMETRY_LOG_SOURCE,
-      ...this.versionIdentity,
-      ...props,
-    };
-  }
-
-  captureGatewayConnected(event: TlonGatewayConnectedEvent): void {
-    const ownerShip = event.ownerShip ?? '';
-    if (!this.ensureIdentified(ownerShip, event.botShip)) {
-      return;
-    }
-
-    this.client.capture({
-      distinctId: ownerShip,
-      event: TLON_GATEWAY_CONNECTED_EVENT,
-      properties: this.properties({
-        botShip: event.botShip,
-        ownerShip: event.ownerShip,
-        tlonSkillVersion: event.tlonSkillVersion,
-        accountId: event.accountId,
-        configured: event.configured,
-        watchedChannelCount: event.watchedChannelCount,
-        dmAllowlistCount: event.dmAllowlistCount,
-        defaultAuthorizedShipsCount: event.defaultAuthorizedShipsCount,
-        pendingApprovalCount: event.pendingApprovalCount,
-        autoDiscoverChannels: event.autoDiscoverChannels,
-        ownerListenEnabled: event.ownerListenEnabled,
-      }),
     });
   }
 
@@ -1195,7 +1145,6 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         distinctId: ownerShip,
         properties: {
           logSource: TLON_TELEMETRY_LOG_SOURCE,
-          ...this.versionIdentity,
           tlonOwnerShip: ownerShip,
           tlonBotShip: botShip,
         },
@@ -1212,7 +1161,8 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: event.ownerShip,
       event: TLON_HEARTBEAT_NUDGE_EVENT,
-      properties: this.properties({
+      properties: {
+        logSource: TLON_TELEMETRY_LOG_SOURCE,
         botShip: event.botShip,
         ownerShip: event.ownerShip,
         trigger: 'heartbeat',
@@ -1223,7 +1173,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         accountId: event.accountId,
         messageId: event.messageId,
         nudgeSentAtMs: event.nudgeSentAtMs,
-      }),
+      },
     });
   }
 
@@ -1235,7 +1185,8 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     this.client.capture({
       distinctId: event.ownerShip,
       event: TLON_HEARTBEAT_REENGAGED_EVENT,
-      properties: this.properties({
+      properties: {
+        logSource: TLON_TELEMETRY_LOG_SOURCE,
         botShip: event.botShip,
         ownerShip: event.ownerShip,
         nudgeStage: event.nudgeStage,
@@ -1244,7 +1195,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         reengagementDelayMs: event.reengagementDelayMs,
         channel: event.channel,
         accountId: event.accountId,
-      }),
+      },
     });
   }
 

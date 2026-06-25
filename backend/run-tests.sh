@@ -148,7 +148,7 @@ rm -f $pier/groups/tests/lib/diary-graph.hoon
 # Update the groups desk
 rsync -r desk/ $pier/groups
 
-result=$( $run_click $pier <<EOF
+result=$( $run_click -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
 (pure:m !>(hash))  
@@ -171,7 +171,7 @@ do
   sleep 3
 done
 
-result=$( $run_click $pier <<EOF
+result=$( $run_click -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
 (pure:m !>(hash))  
@@ -188,7 +188,7 @@ fi
 
 # Run the unit tests
 echo "Running tests..."
-result=$( $run_click $pier <<EOF
+result=$( $run_click -t 420 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  

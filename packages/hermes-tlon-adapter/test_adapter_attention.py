@@ -1,6 +1,5 @@
 import asyncio
 import importlib.util
-import json
 import os
 import sys
 import types
@@ -28,11 +27,6 @@ class PlatformConfig:
 
 class MessageType:
     TEXT = "text"
-    PHOTO = "photo"
-    VIDEO = "video"
-    AUDIO = "audio"
-    VOICE = "voice"
-    DOCUMENT = "document"
 
 
 class MessageEvent:
@@ -46,8 +40,6 @@ class MessageEvent:
         message_id,
         reply_to_message_id,
         timestamp,
-        media_urls=None,
-        media_types=None,
     ):
         self.text = text
         self.message_type = message_type
@@ -56,8 +48,6 @@ class MessageEvent:
         self.message_id = message_id
         self.reply_to_message_id = reply_to_message_id
         self.timestamp = timestamp
-        self.media_urls = media_urls or []
-        self.media_types = media_types or []
 
 
 class SendResult:
@@ -136,19 +126,14 @@ def channel_event(
     nest="chat/~pen/general",
     post_id="170.141",
     parent_id=None,
-    blob=None,
-    content=None,
 ):
-    story_content = [{"inline": [text]}] if content is None else content
     set_payload = {
         "essay": {
             "author": author,
             "sent": 1000,
-            "content": story_content,
+            "content": [{"inline": [text]}],
         }
     }
-    if blob is not None:
-        set_payload["essay"]["blob"] = blob
     if parent_id:
         set_payload["seal"] = {"parent-id": parent_id}
     return {
@@ -401,132 +386,6 @@ class AdapterAttentionTests(unittest.TestCase):
 
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0].text, "hello")
-
-    def test_attachment_media_is_prepared_for_dispatch(self):
-        adapter = self.make_adapter(
-            {
-                "allowed_users": ["~mug"],
-                "require_mention": False,
-            }
-        )
-        blob = json.dumps(
-            [
-                {
-                    "type": "file",
-                    "version": 1,
-                    "fileUri": "https://storage.example.com/report.pdf",
-                    "name": "report.pdf",
-                }
-            ]
-        )
-
-        async def fake_prepare(content, raw_blob):
-            self.assertEqual(raw_blob, blob)
-            return adapter_mod.PreparedMedia(
-                text_prefix="📎 [report.pdf] (application/pdf, 1KB)",
-                media_urls=("/cache/report.pdf",),
-                media_types=("application/pdf",),
-                message_type="document",
-            )
-
-        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
-            events = asyncio.run(
-                self.dispatches(adapter, channel_event("hello", blob=blob))
-            )
-
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].text, "📎 [report.pdf] (application/pdf, 1KB)\nhello")
-        self.assertEqual(events[0].media_urls, ["/cache/report.pdf"])
-        self.assertEqual(events[0].media_types, ["application/pdf"])
-        self.assertEqual(events[0].message_type, MessageType.DOCUMENT)
-
-    def test_mention_stripping_runs_before_blob_annotations(self):
-        adapter = self.make_adapter({"allowed_users": ["~mug"]})
-        blob = json.dumps(
-            [
-                {
-                    "type": "file",
-                    "version": 1,
-                    "fileUri": "https://storage.example.com/report.pdf",
-                    "name": "report.pdf",
-                }
-            ]
-        )
-
-        async def fake_prepare(content, raw_blob):
-            return adapter_mod.PreparedMedia(text_prefix="📎 [report.pdf]")
-
-        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
-            events = asyncio.run(
-                self.dispatches(adapter, channel_event("~pen hello", blob=blob))
-            )
-
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].text, "📎 [report.pdf]\nhello")
-
-    def test_story_image_media_uses_photo_message_type(self):
-        adapter = self.make_adapter(
-            {
-                "allowed_users": ["~mug"],
-                "require_mention": False,
-            }
-        )
-        content = [
-            {
-                "block": {
-                    "image": {
-                        "src": "https://storage.example.com/diagram.png",
-                        "alt": "diagram",
-                    }
-                }
-            }
-        ]
-
-        async def fake_prepare(story_content, raw_blob):
-            self.assertEqual(story_content, content)
-            return adapter_mod.PreparedMedia(
-                media_urls=("/cache/diagram.png",),
-                media_types=("image/png",),
-                message_type="photo",
-            )
-
-        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
-            events = asyncio.run(
-                self.dispatches(adapter, channel_event("", content=content))
-            )
-
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].message_type, MessageType.PHOTO)
-        self.assertEqual(events[0].media_urls, ["/cache/diagram.png"])
-
-    def test_blob_only_owner_listen_dispatches(self):
-        adapter = self.make_adapter({"owner_ship": "~mug"})
-        blob = json.dumps(
-            [
-                {
-                    "type": "voicememo",
-                    "version": 1,
-                    "fileUri": "https://storage.example.com/memo.m4a",
-                }
-            ]
-        )
-
-        async def fake_prepare(content, raw_blob):
-            return adapter_mod.PreparedMedia(
-                text_prefix="🎙️ [voice memo] (?)",
-                media_urls=("/cache/memo.m4a",),
-                media_types=("audio/mp4",),
-                message_type="voice",
-            )
-
-        with patch.object(adapter_mod, "prepare_inbound_media", fake_prepare):
-            events = asyncio.run(
-                self.dispatches(adapter, channel_event("", blob=blob))
-            )
-
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0].text, "🎙️ [voice memo] (?)")
-        self.assertEqual(events[0].message_type, MessageType.VOICE)
 
     def test_unmentioned_group_drops_until_free_response_is_configured(self):
         default_open = self.make_adapter(

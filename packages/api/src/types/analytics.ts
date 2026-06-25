@@ -139,7 +139,6 @@ export enum AnalyticsEvent {
   ActionConfirmPhoneAttest = 'Confirmed Phone Attestation',
   ActionGroupChannelSelected = 'Tapped group channel',
   ActionTappedPushNotif = 'Tapped Push Notification',
-  ActionTappedDmPushNotif = 'Tapped DM Push Notification',
   ActionDeferredDeepLink = 'Installed with Deferred Deeplink Invite',
   ActionContactBookSkipped = 'Skipped Syncing Contact Book',
   ActionContactBookPermRequested = 'Contact Book Requesting Permission',

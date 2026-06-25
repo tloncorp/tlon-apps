@@ -21,23 +21,11 @@ import {
   UserProfileScreenView,
   useIsWindowNarrow,
 } from '../../ui';
-import {
-  openExternalBotSettings,
-  useHasExpectedBotDm,
-} from '../../utils/botSettings';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
 const logger = createDevLogger('UserProfileScreen', false);
-
-function getCurrentUserIsHostedSafely() {
-  try {
-    return api.getCurrentUserIsHosted();
-  } catch {
-    return false;
-  }
-}
 
 export function UserProfileScreen({ route, navigation }: Props) {
   const theme = useTheme();
@@ -103,20 +91,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
     return api.isBotUserIdForUser(userId, currentUserId);
   }, [currentUserId, userId]);
 
-  const isHostedUser = isWeb ? getCurrentUserIsHostedSafely() : false;
-  const hasExpectedBotDm = useHasExpectedBotDm(
-    currentUserId,
-    isWeb && isHostedUser
-  );
-  const shouldShowBotSettingsProfileAction = isWeb
-    ? isHostedUser && hasExpectedBotDm && isOwnBotProfile
-    : isOwnBotProfile;
-
   const handlePressBotSettings = useCallback(() => {
-    if (isWeb) {
-      openExternalBotSettings();
-      return;
-    }
     navigateToBotSettings();
   }, [navigateToBotSettings]);
 
@@ -173,9 +148,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
               userId={userId}
               connectionStatus={connectionStatus}
               onPressBotSettings={
-                shouldShowBotSettingsProfileAction
-                  ? handlePressBotSettings
-                  : undefined
+                !isWeb && isOwnBotProfile ? handlePressBotSettings : undefined
               }
               onPressGroup={handlePressGroup}
             />

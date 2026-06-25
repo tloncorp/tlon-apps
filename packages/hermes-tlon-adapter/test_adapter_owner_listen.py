@@ -27,11 +27,6 @@ class PlatformConfig:
 
 class MessageType:
     TEXT = "text"
-    PHOTO = "photo"
-    VIDEO = "video"
-    AUDIO = "audio"
-    VOICE = "voice"
-    DOCUMENT = "document"
 
 
 class MessageEvent:
@@ -45,8 +40,6 @@ class MessageEvent:
         message_id,
         reply_to_message_id,
         timestamp,
-        media_urls=None,
-        media_types=None,
     ):
         self.text = text
         self.message_type = message_type
@@ -55,8 +48,6 @@ class MessageEvent:
         self.message_id = message_id
         self.reply_to_message_id = reply_to_message_id
         self.timestamp = timestamp
-        self.media_urls = media_urls or []
-        self.media_types = media_types or []
 
 
 class SendResult:

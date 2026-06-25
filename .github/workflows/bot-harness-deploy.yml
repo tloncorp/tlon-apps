@@ -87,7 +87,7 @@ jobs:
       - name: Set up kubeconfig for OVH cluster
         if: steps.creds.outputs.present == 'true'
         run: |
-          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > "$HOME/.kube/ovh.config"
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d >> "$HOME/.kube/config"
 
       - name: Install tools
         if: steps.creds.outputs.present == 'true'
@@ -112,7 +112,7 @@ jobs:
         if: steps.creds.outputs.present == 'true'
         run: |
           MODE="${{ steps.mode.outputs.mode }}"
- 
+
           if [ "$MODE" = "internal" ]; then
             JQ_FILTER='.items[] | select(.spec.internal == true) | .metadata.name'
             echo "Restarting internal ships"
@@ -120,14 +120,11 @@ jobs:
             JQ_FILTER='.items[] | select(.spec.tlawn.enabled == true and .spec.internal != true) | .metadata.name'
             echo "Restarting tlawn (non-internal) ships"
           fi
- 
-          export KUBECONFIG="$HOME/.kube/config:$HOME/.kube/ovh.config"
- 
-          for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 ovh-oregon-1 ovh-oregon-2 ovh-oregon-3; do
+
+          for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 solaris-ship-manager@ovh-oregon-1 solaris-ship-manager@ovh-oregon-2 solaris-ship-manager@ovh-oregon-3; do
             echo "=== Restarting ships in context: $ctx ==="
             kubectl --context "$ctx" get ships -n tlon -ojson \
               | jq -r "$JQ_FILTER" \
-              | xargs -P 8 -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon || true'
+              | xargs -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon &'
             wait
           done
- 

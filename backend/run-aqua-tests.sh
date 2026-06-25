@@ -112,10 +112,7 @@ function await_ship
 
 await_ship
 
-# Allow 10m for longest running operations
-TIMEOUT=600
-
-run_click="$click -t $TIMEOUT -b $vere -i - -kp"
+run_click="$click -b $vere -i - -kp"
 
 # Mount %base
 echo "Mounting base..."
@@ -143,6 +140,7 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
+sleep 5
 # Insert the jammed pill
 
 if [ ! -f "${pier}/groups/${pill_name}.jam" ]
@@ -174,7 +172,7 @@ rsync -r desk/ $pier/groups
 
 rsync -r --delete desk/tests/ $pier/groups/tests
 
-result=$( $run_click $pier <<EOF
+result=$( $run_click -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
 (pure:m !>(hash))  
@@ -183,18 +181,17 @@ EOF
 desk_hash_a=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
 
 echo "Updating groups desk"
-${run_click} $pier <<EOF
+${run_click} -t 10 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%groups |]))  
 (pure:m !>(%ok))  
 EOF
 
-sleep 3
 echo "Awaiting desk update..."
 await_ship
 
-result=$( $run_click $pier <<EOF
+result=$( $run_click -t 3 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
 (pure:m !>(hash))  
@@ -210,7 +207,7 @@ then
 fi
 
 echo "Starting %aqua..."
-${run_click} $pier "/lib/pill/hoon"<<EOF
+${run_click} -t 10 $pier "/lib/pill/hoon"<<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl    
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%aqua |]))  
@@ -227,7 +224,7 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 EOF
 
 echo "Preparing aqua snapshot..."
-result=$( $run_click $pier <<EOF
+result=$( $run_click -t 900 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =+  tid=~.ci-ph-fleet  
@@ -262,7 +259,7 @@ fi
 # Run aqua tests
 #
 echo "Running tests..."
-result=$( $run_click $pier <<EOF
+result=$( $run_click -t 1200 $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
