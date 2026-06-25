@@ -5,6 +5,8 @@ node_modules
 /packages/hermes-tlon-adapter/.env
 __pycache__/
 *.py[cod]
+/scripts/onboarding-sandbox/.sandbox-prompts
+/scripts/onboarding-sandbox/.sandbox-intro.md
 /rus/
 ops
 bin

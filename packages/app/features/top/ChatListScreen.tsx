@@ -46,6 +46,10 @@ import { ChatList } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
+import {
+  getGroupInviteSheetState,
+  isGroupInviteReady,
+} from './groupInvitePreview';
 
 const logger = createDevLogger('ChatListScreen', false);
 
@@ -53,14 +57,23 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ChatList'>;
 
 export default function ChatListScreen(props: Props) {
   const previewGroupId = props.route.params?.previewGroupId;
-  return <ChatListScreenView previewGroupId={previewGroupId} />;
+  const previewGroupFromInviteNotification =
+    props.route.params?.previewGroupFromInviteNotification;
+  return (
+    <ChatListScreenView
+      previewGroupId={previewGroupId}
+      previewGroupFromInviteNotification={previewGroupFromInviteNotification}
+    />
+  );
 }
 
 export function ChatListScreenView({
   previewGroupId,
+  previewGroupFromInviteNotification,
   focusedChannelId,
 }: {
   previewGroupId?: string;
+  previewGroupFromInviteNotification?: boolean;
   focusedChannelId?: string;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -72,6 +85,11 @@ export function ChatListScreenView({
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(
     previewGroupId ?? null
   );
+  // Tracks a selection opened from a group-invite push notification (distinct from normal pending
+  // taps / deep links). Only this case gets the loading/gating/bounded-fallback treatment.
+  const [inviteNotificationGroupId, setInviteNotificationGroupId] = useState<
+    string | null
+  >(previewGroupFromInviteNotification ? previewGroupId ?? null : null);
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
 
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -100,6 +118,69 @@ export function ChatListScreenView({
   );
 
   const connStatus = store.useConnectionStatus();
+  const session = store.useCurrentSession();
+
+  // React to a later `previewGroupId` param (e.g. a notification tap while ChatList is already
+  // mounted), mirroring desktop HomeSidebar. Also (re)marks whether the selection came from a
+  // group-invite notification.
+  useEffect(() => {
+    if (previewGroupId) {
+      setSelectedGroupId(previewGroupId);
+      setInviteNotificationGroupId(
+        previewGroupFromInviteNotification ? previewGroupId : null
+      );
+    }
+  }, [previewGroupId, previewGroupFromInviteNotification]);
+
+  // Bounded fallback timer for a notification-opened invite whose local row hasn't landed yet.
+  // Group-keyed (a second invite gets a fresh full window) and sync-readiness-gated: the window
+  // only counts once the channel is connected AND high-priority init/foreigns has had its chance
+  // (phase advanced past 'high'), so cold-start/first-sync latency never burns it.
+  const [waitElapsedForGroupId, setWaitElapsedForGroupId] = useState<
+    string | null
+  >(null);
+  const initSyncSettled =
+    session?.phase === 'low' || session?.phase === 'ready';
+  const syncReadyForInvite = connStatus === 'Connected' && initSyncSettled;
+  const awaitingInviteGroupId =
+    syncReadyForInvite &&
+    selectedGroupId != null &&
+    selectedGroupId === inviteNotificationGroupId &&
+    !isGroupInviteReady(selectedGroup)
+      ? selectedGroupId
+      : null;
+  useEffect(() => {
+    if (awaitingInviteGroupId == null) {
+      return;
+    }
+    const groupId = awaitingInviteGroupId;
+    const timeout = setTimeout(() => setWaitElapsedForGroupId(groupId), 15_000);
+    return () => clearTimeout(timeout);
+  }, [awaitingInviteGroupId]);
+
+  const {
+    sheetOpen: groupPreviewSheetOpen,
+    sheetGroup: groupPreviewSheetGroup,
+    shouldCloseUnresolved: groupInviteUnresolved,
+  } = getGroupInviteSheetState({
+    selectedGroupId,
+    selectedGroup,
+    inviteNotificationGroupId,
+    waitElapsedForGroupId,
+  });
+
+  // Terminal: the bounded window elapsed for a notification invite and it never resolved to a real
+  // invite. Close + log rather than degrade into generic group-preview actions.
+  useEffect(() => {
+    if (groupInviteUnresolved) {
+      logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate, {
+        context: 'group invite preview never resolved',
+      });
+      setSelectedGroupId(null);
+      setInviteNotificationGroupId(null);
+      setWaitElapsedForGroupId(null);
+    }
+  }, [groupInviteUnresolved]);
 
   const { subtitle: syncSubtitle, loadingSubtitle: syncLoadingSubtitle } =
     useSyncStatus();
@@ -192,6 +273,8 @@ export function ChatListScreenView({
   const handleGroupPreviewSheetOpenChange = useCallback((open: boolean) => {
     if (!open) {
       setSelectedGroupId(null);
+      setInviteNotificationGroupId(null);
+      setWaitElapsedForGroupId(null);
     }
   }, []);
 
@@ -245,6 +328,8 @@ export function ChatListScreenView({
     (action: GroupPreviewAction, group: db.Group) => {
       performGroupAction(action, group);
       setSelectedGroupId(null);
+      setInviteNotificationGroupId(null);
+      setWaitElapsedForGroupId(null);
     },
     [performGroupAction]
   );
@@ -370,9 +455,9 @@ export function ChatListScreenView({
               </>
             ) : null}
             <GroupPreviewSheet
-              open={!!selectedGroup}
+              open={groupPreviewSheetOpen}
               onOpenChange={handleGroupPreviewSheetOpenChange}
-              group={selectedGroup ?? undefined}
+              group={groupPreviewSheetGroup}
               onActionComplete={handleGroupAction}
             />
           </View>

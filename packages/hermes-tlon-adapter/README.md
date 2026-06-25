@@ -76,13 +76,13 @@ Required:
 TLON_NODE_URL=https://your-node.tlon.network
 TLON_NODE_ID=~your-node
 TLON_ACCESS_CODE=your-access-code
+TLON_OWNER_SHIP=~friend
 ```
 
 Optional:
 
 ```bash
 TLON_CHANNELS=chat/~host/channel
-TLON_OWNER_SHIP=~friend
 TLON_HOME_CHANNEL=~friend # optional override; defaults to TLON_OWNER_SHIP DM
 TLON_ALLOWED_USERS=~other-friend # optional additional users; owner is automatic
 TLON_ALLOW_ALL_USERS=false
@@ -104,11 +104,13 @@ TLON_GATEWAY_STATUS=true
 TLON_GATEWAY_STATUS_OWNER=~friend # optional override; defaults to TLON_OWNER_SHIP
 ```
 
+`TLON_OWNER_SHIP` is required: it defines the owner identity for approvals, owner-only tools such as `tlon`/`cronjob`/MCP/file tools, owner-listen, telemetry identity, and home-channel defaults. Without it, Tlon chat-session tool calls fail closed.
+
 The adapter also accepts the older `TLON_SHIP_*`, `TLON_URL/TLON_SHIP/TLON_CODE`, and `URBIT_*` aliases and passes them through to the CLI, so it works with the credential resolver in `@tloncorp/tlon-skill`.
 
 Group attention is deterministic and happens before the model runs. Messages from allowed users dispatch when they mention the node id, bare node id, an alias in `TLON_BOT_MENTIONS`, or the node profile nickname fetched at startup. Nickname lookup failures are non-fatal; the adapter falls back to node id, bare node id, and configured aliases.
 
-`TLON_FREE_RESPONSE_CHANNELS` and `TLON_REQUIRE_MENTION=false` allow unmentioned group messages to dispatch, but only when `TLON_OWNER_SHIP`, `TLON_ALLOWED_USERS`, or `TLON_ALLOW_ALL_USERS` is set. `TLON_DM_ALLOWLIST` is additive for DMs and does not grant group-channel access.
+`TLON_FREE_RESPONSE_CHANNELS` and `TLON_REQUIRE_MENTION=false` allow unmentioned group messages to dispatch for the owner, explicitly allowed users, or all users when `TLON_ALLOW_ALL_USERS=true`. `TLON_DM_ALLOWLIST` is additive for DMs and does not grant group-channel access.
 
 ## Access Control & Approvals
 
@@ -116,7 +118,7 @@ Authorization is **deny-by-default**: a ship may interact only if it is the owne
 
 The adapter is the single gate. It declares `enforces_own_access_policy` to Hermes core, and the platform registration deliberately does not export auth env names to core — otherwise core's own env-allowlist/pairing gate would re-check senders and block settings-store grants it cannot see (approved DMs, open channels). Hermes' generic pairing-code flow therefore does not apply to Tlon; the Tlon-native approval flow below replaces it. One caveat: a globally configured `GATEWAY_ALLOWED_USERS` re-engages core's gate for all platforms, Tlon included.
 
-When `TLON_OWNER_SHIP` is configured, unknown ships are not silently dropped — they queue for owner approval:
+Unknown ships are not silently dropped — they queue for owner approval:
 
 -   a **DM invite** from an unknown ship queues with a `(DM invite - no message yet)` preview (pending invites are also picked up by scry at connect, so invites that arrived while the gateway was down are not lost)
 -   a **DM message** from an unapproved ship in an accepted conversation queues with the message preview and is replayed after approval
@@ -210,7 +212,7 @@ Every event carries `harness: "hermes"` (segment from OpenClaw-emitted events), 
 | `TlonBot Reply Handled`      | per handled turn — OpenClaw-compatible properties (outcome, chatType, senderRole, counts, durations, model/provider, `toolUsage`) plus `dispatchReason`, a `cliUsage` rollup of CLI calls made in the turn, and `processingOutcome` from Hermes (so `outcome` distinguishes `responded`/`no_reply`/`error`/`cancelled`; turns that never complete surface as `abandoned`) |
 | `TlonBot CLI Call`           | per deliberate `tlon` CLI invocation — segmented as `commandRoot`/`commandAction`/`commandFlags` (flag names only, never values) plus the combined `command` label, with origin (`model_tool`/`invite_rsvp`/`version`/`adapter`), duration, returncode, error kind, and on failure a scrubbed `errorDetail` (the CLI's **full** stderr — all lines, ship-masked, capped only against pathological size — e.g. why an `upload` failed). Message-send plumbing (`delivery`/`control_plane`/`owner_notification`) is suppressed when successful — replies are already counted in Reply Handled — but still emits on failure |
 | `TlonBot Error`              | failures at component level: `settings`, `approval`, `moderation`, `context_fetch`, `gateway_status` (incl. heartbeats), `presence`, `event_handler` (adapter bugs, kept distinct from stream errors), `connect` |
-| `TlonBot Gateway Connected`  | per connect, with version identity, CLI version, settings-state counts, and a content-free Hermes permission snapshot for cronjob/toolset startup gates                                                        |
+| `TlonBot Gateway Connected`  | per connect, with version identity, CLI version, settings-state counts, and a content-free Hermes permission snapshot for cronjob/toolset/MCP startup gates                                                   |
 | `TlonBot Gateway Disconnected` / `TlonBot SSE Reconnect` | shutdowns (uptime) and stream reconnects (attempt, backoff, error type)                                                                                                           |
 | `TlonBot Approval Event`     | `queued`/`renotified`/`allowed`/`rejected`/`banned`/`unbanned` with request type                                                                                                                              |
 | `TlonBot Control Command`    | which owner command ran (name only)                                                                                                                                                                           |

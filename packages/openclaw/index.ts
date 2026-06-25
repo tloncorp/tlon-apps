@@ -2,19 +2,45 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defineChannelPluginEntry } from 'openclaw/plugin-sdk/core';
+import {
+  type OpenClawPluginApi,
+  defineChannelPluginEntry,
+} from 'openclaw/plugin-sdk/core';
+import {
+  onDiagnosticEvent,
+  onInternalDiagnosticEvent,
+} from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
+import {
+  installTlonDiagnosticSubscriptions,
+  shouldInstallTlonDiagnosticSubscriptions,
+} from './src/diagnostic-subscriptions.js';
 import { sendGatewayStop } from './src/gateway-status.js';
 import {
   createGatewayStatusManager,
   setGatewayStatusManager,
 } from './src/gateway-status.js';
 import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
+import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
-import { recordToolCall } from './src/telemetry.js';
+import { parseTlonTarget } from './src/targets.js';
+import {
+  type TlonDiagnosticLogAttributes,
+  type TlonSessionDiagnosticReportInput,
+  formatTlonTelemetryErrorText,
+  recordToolCall,
+  reportHarnessDebug,
+  reportHarnessError,
+  reportOutboundRoute,
+  reportPluginError,
+  reportSessionDiagnostic,
+  reportSessionLifecycle,
+  reportSessionTurnCreated,
+  reportTelemetryError,
+} from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import { checkBlockedSendOperation } from './src/tlon-tool-guard.js';
 import {
@@ -23,7 +49,11 @@ import {
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
 import { listTlonAccountIds, resolveTlonAccount } from './src/types.js';
-import { PLUGIN_COMMIT, PLUGIN_VERSION } from './src/version.generated.js';
+import {
+  formatTlonVersionIdentity,
+  resolveTlonSkillVersion,
+  setTlonSkillVersionResolver,
+} from './src/version.js';
 
 export { tlonPlugin } from './src/channel.js';
 export { setTlonRuntime } from './src/runtime.js';
@@ -134,7 +164,8 @@ function shellSplit(str: string): string[] {
 function runTlonCommand(
   binary: string,
   args: string[],
-  credentials?: { url: string; ship: string; code: string }
+  credentials?: { url: string; ship: string; code: string },
+  options?: { timeoutMs?: number }
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
@@ -148,6 +179,16 @@ function runTlonCommand(
 
     let stdout = '';
     let stderr = '';
+    let timedOut = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timeoutMs = options?.timeoutMs;
+
+    const cleanup = () => {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = undefined;
+      }
+    };
 
     child.stdout.on('data', (data) => {
       stdout += data.toString();
@@ -158,16 +199,735 @@ function runTlonCommand(
     });
 
     child.on('error', (err) => {
+      cleanup();
       reject(new Error(`Failed to run tlon: ${err.message}`));
     });
 
+    if (timeoutMs) {
+      timeout = setTimeout(() => {
+        timedOut = true;
+        child.kill('SIGTERM');
+      }, timeoutMs);
+    }
+
     child.on('close', (code) => {
-      if (code !== 0) {
+      cleanup();
+      if (timedOut) {
+        reject(new Error(`tlon timed out after ${timeoutMs}ms`));
+      } else if (code !== 0) {
         reject(new Error(stderr || `tlon exited with code ${code}`));
       } else {
         resolve(stdout);
       }
     });
+  });
+}
+
+function firstLine(value: string): string {
+  return value.trim().split(/\r?\n/)[0]?.trim() || 'unknown';
+}
+
+function summarizeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return firstLine(message).slice(0, 180);
+}
+
+async function readTlonSkillVersion(binary: string): Promise<string> {
+  try {
+    return firstLine(
+      await runTlonCommand(binary, ['--version'], undefined, {
+        timeoutMs: 5_000,
+      })
+    );
+  } catch (error) {
+    return `unavailable (${summarizeError(error)})`;
+  }
+}
+
+function isTlonSessionDiagnosticEvent(event: {
+  type: string;
+}): event is TlonSessionDiagnosticReportInput {
+  return (
+    event.type === 'session.stalled' ||
+    event.type === 'session.stuck' ||
+    event.type === 'session.recovery.requested' ||
+    event.type === 'session.recovery.completed'
+  );
+}
+
+type DiagnosticCandidate = Record<string, unknown> & { type?: unknown };
+
+function stringField(event: DiagnosticCandidate, key: string): string | null {
+  const value = event[key];
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function numberField(event: DiagnosticCandidate, key: string): number | null {
+  const value = event[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function objectField(
+  event: DiagnosticCandidate,
+  key: string
+): Record<string, unknown> | null {
+  const value = event[key];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function diagnosticLogAttributes(
+  event: DiagnosticCandidate
+): TlonDiagnosticLogAttributes | null {
+  const attributes = objectField(event, 'attributes');
+  if (!attributes) {
+    return null;
+  }
+
+  const normalized = Object.create(null) as TlonDiagnosticLogAttributes;
+  for (const [key, value] of Object.entries(attributes)) {
+    if (typeof value === 'string') {
+      normalized[key] = value;
+      continue;
+    }
+    if (typeof value === 'boolean') {
+      normalized[key] = value;
+      continue;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      normalized[key] = value;
+    }
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
+function stringAttribute(
+  attributes: TlonDiagnosticLogAttributes | null,
+  key: string
+): string | null {
+  const value = attributes?.[key];
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function numberAttribute(
+  attributes: TlonDiagnosticLogAttributes | null,
+  key: string
+): number | null {
+  const value = attributes?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function diagnosticErrorText(event: DiagnosticCandidate): string | null {
+  return stringField(event, 'error') ?? stringField(event, 'message');
+}
+
+function stringListField(event: DiagnosticCandidate, key: string): string[] {
+  const value = event[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+    .filter(Boolean);
+}
+
+function diagnosticSummary(
+  parts: Array<[string, string | number | boolean | null | undefined]>
+): string {
+  return parts
+    .filter(
+      ([, value]) => value !== null && value !== undefined && value !== ''
+    )
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(' ');
+}
+
+const HARNESS_DEBUG_EVENT_TYPES = new Set([
+  'session.turn.created',
+  'run.started',
+  'run.completed',
+  'context.assembled',
+  'model.call.started',
+  'model.call.completed',
+  'model.call.error',
+  'harness.run.started',
+  'harness.run.completed',
+  'harness.run.error',
+  'tool.execution.started',
+  'tool.execution.completed',
+  'tool.execution.error',
+  'tool.execution.blocked',
+]);
+
+const HARNESS_DEBUG_LOG_PATTERNS = [
+  '[context-engine]',
+  '[lcm]',
+  '[trace:embedded-run]',
+  'context engine',
+  'lossless-claw',
+];
+
+function debugEventKind(type: string): string {
+  if (type === 'session.turn.created') {
+    return 'turn';
+  }
+  if (type === 'context.assembled') {
+    return 'context';
+  }
+  if (type.startsWith('model.call.')) {
+    return 'model';
+  }
+  if (type.startsWith('harness.run.')) {
+    return 'harness';
+  }
+  if (type.startsWith('tool.execution.')) {
+    return 'tool';
+  }
+  if (type.startsWith('run.')) {
+    return 'run';
+  }
+  if (type === 'log.record') {
+    return 'log';
+  }
+  return 'diagnostic';
+}
+
+function isContextEngineDebugMessage(message: string | null): boolean {
+  const normalized = message?.toLowerCase() ?? '';
+  return HARNESS_DEBUG_LOG_PATTERNS.some((pattern) =>
+    normalized.includes(pattern)
+  );
+}
+
+function extractContextEngineTaskId(message: string | null): string | null {
+  return extractDiagnosticKeyValue(message, 'taskId');
+}
+
+function extractDiagnosticKeyValue(
+  message: string | null,
+  key: string
+): string | null {
+  if (!message) {
+    return null;
+  }
+  return new RegExp(`\\b${key}=([^\\s]+)`).exec(message)?.[1] ?? null;
+}
+
+function extractDiagnosticSessionKey(message: string | null): string | null {
+  if (!message) {
+    return null;
+  }
+  return /\bsessionKey=([^\s]+)/.exec(message)?.[1] ?? null;
+}
+
+function shouldReportHarnessDebug(event: DiagnosticCandidate, type: string) {
+  if (HARNESS_DEBUG_EVENT_TYPES.has(type)) {
+    return true;
+  }
+  if (type !== 'log.record') {
+    return false;
+  }
+
+  const message = stringField(event, 'message');
+  if (isContextEngineDebugMessage(message)) {
+    return true;
+  }
+
+  const level = stringField(event, 'level')?.toLowerCase();
+  const attributes = diagnosticLogAttributes(event);
+  return (
+    Boolean(
+      stringField(event, 'sessionKey') ??
+        stringAttribute(attributes, 'sessionKey')
+    ) &&
+    (level === 'warn' || level === 'warning' || level === 'error')
+  );
+}
+
+function reportHarnessDebugDiagnostic(
+  event: DiagnosticCandidate,
+  type: string
+) {
+  if (!shouldReportHarnessDebug(event, type)) {
+    return;
+  }
+
+  const message = stringField(event, 'message');
+  const attributes = diagnosticLogAttributes(event);
+  const code = objectField(event, 'code');
+  const codeFunctionName =
+    typeof code?.functionName === 'string' && code.functionName.trim()
+      ? code.functionName
+      : null;
+  const codeLine =
+    typeof code?.line === 'number' && Number.isFinite(code.line)
+      ? code.line
+      : null;
+  const isContextEngineEvent = isContextEngineDebugMessage(message);
+  const contextEngineTaskId =
+    stringField(event, 'contextEngineTaskId') ??
+    stringAttribute(attributes, 'contextEngineTaskId') ??
+    stringAttribute(attributes, 'taskId') ??
+    extractContextEngineTaskId(message);
+  const contextEngineOperation =
+    stringField(event, 'contextEngineOperation') ??
+    stringAttribute(attributes, 'contextEngineOperation') ??
+    stringAttribute(attributes, 'operation') ??
+    extractDiagnosticKeyValue(message, 'operation');
+  const contextEngineLane =
+    stringField(event, 'contextEngineLane') ??
+    stringAttribute(attributes, 'contextEngineLane') ??
+    stringAttribute(attributes, 'lane') ??
+    extractDiagnosticKeyValue(message, 'lane');
+  reportHarnessDebug({
+    harnessEventType: type,
+    debugEventKind: debugEventKind(type),
+    sessionKey:
+      stringField(event, 'sessionKey') ??
+      stringAttribute(attributes, 'sessionKey') ??
+      extractDiagnosticSessionKey(message),
+    sessionId:
+      stringField(event, 'sessionId') ??
+      stringAttribute(attributes, 'sessionId'),
+    runId: stringField(event, 'runId') ?? stringAttribute(attributes, 'runId'),
+    agentId:
+      stringField(event, 'agentId') ?? stringAttribute(attributes, 'agentId'),
+    provider:
+      stringField(event, 'provider') ?? stringAttribute(attributes, 'provider'),
+    model: stringField(event, 'model') ?? stringAttribute(attributes, 'model'),
+    phase: stringField(event, 'phase') ?? stringAttribute(attributes, 'phase'),
+    outcome:
+      stringField(event, 'outcome') ?? stringAttribute(attributes, 'outcome'),
+    durationMs:
+      numberField(event, 'durationMs') ??
+      numberAttribute(attributes, 'durationMs'),
+    toolName:
+      stringField(event, 'toolName') ?? stringAttribute(attributes, 'toolName'),
+    toolCallId:
+      stringField(event, 'toolCallId') ??
+      stringAttribute(attributes, 'toolCallId'),
+    toolSource:
+      stringField(event, 'toolSource') ??
+      stringAttribute(attributes, 'toolSource'),
+    toolOwner:
+      stringField(event, 'toolOwner') ??
+      stringAttribute(attributes, 'toolOwner'),
+    pluginId:
+      stringField(event, 'pluginId') ?? stringAttribute(attributes, 'pluginId'),
+    harnessId:
+      stringField(event, 'harnessId') ??
+      stringAttribute(attributes, 'harnessId'),
+    modelCallId:
+      stringField(event, 'modelCallId') ??
+      stringField(event, 'callId') ??
+      stringAttribute(attributes, 'modelCallId') ??
+      stringAttribute(attributes, 'callId'),
+    modelApi:
+      stringField(event, 'modelApi') ?? stringAttribute(attributes, 'modelApi'),
+    modelTransport:
+      stringField(event, 'modelTransport') ??
+      stringAttribute(attributes, 'modelTransport'),
+    requestPayloadBytes:
+      numberField(event, 'requestPayloadBytes') ??
+      numberAttribute(attributes, 'requestPayloadBytes'),
+    responseStreamBytes:
+      numberField(event, 'responseStreamBytes') ??
+      numberAttribute(attributes, 'responseStreamBytes'),
+    timeToFirstByteMs:
+      numberField(event, 'timeToFirstByteMs') ??
+      numberAttribute(attributes, 'timeToFirstByteMs'),
+    logLevel: stringField(event, 'level'),
+    loggerName: stringField(event, 'loggerName'),
+    codeFunctionName,
+    codeLine,
+    logAttributes: attributes,
+    message,
+    contextEngineEvent: isContextEngineEvent ? type : null,
+    contextEngineTaskId,
+    contextEngineOperation,
+    contextEngineLane,
+    errorName:
+      stringField(event, 'errorName') ??
+      stringAttribute(attributes, 'errorName'),
+    errorCode:
+      stringField(event, 'errorCode') ??
+      stringAttribute(attributes, 'errorCode'),
+    messageCount:
+      numberField(event, 'messageCount') ??
+      numberAttribute(attributes, 'messageCount'),
+    historyTextChars:
+      numberField(event, 'historyTextChars') ??
+      numberAttribute(attributes, 'historyTextChars'),
+    historyImageBlocks:
+      numberField(event, 'historyImageBlocks') ??
+      numberAttribute(attributes, 'historyImageBlocks'),
+    maxMessageTextChars:
+      numberField(event, 'maxMessageTextChars') ??
+      numberAttribute(attributes, 'maxMessageTextChars'),
+    systemPromptChars:
+      numberField(event, 'systemPromptChars') ??
+      numberAttribute(attributes, 'systemPromptChars'),
+    promptChars:
+      numberField(event, 'promptChars') ??
+      numberAttribute(attributes, 'promptChars'),
+    promptImages:
+      numberField(event, 'promptImages') ??
+      numberAttribute(attributes, 'promptImages'),
+    contextTokenBudget:
+      numberField(event, 'contextTokenBudget') ??
+      numberAttribute(attributes, 'contextTokenBudget'),
+    reserveTokens:
+      numberField(event, 'reserveTokens') ??
+      numberAttribute(attributes, 'reserveTokens'),
+    contextChannel:
+      stringField(event, 'contextChannel') ??
+      stringField(event, 'channel') ??
+      stringAttribute(attributes, 'contextChannel') ??
+      stringAttribute(attributes, 'channel'),
+    contextTrigger:
+      stringField(event, 'contextTrigger') ??
+      stringField(event, 'trigger') ??
+      stringAttribute(attributes, 'contextTrigger') ??
+      stringAttribute(attributes, 'trigger'),
+  });
+}
+
+function reportHarnessDiagnostic(event: DiagnosticCandidate): void {
+  const type = stringField(event, 'type');
+  if (!type) {
+    return;
+  }
+
+  if (type === 'session.turn.created') {
+    reportSessionTurnCreated({
+      type,
+      sessionKey: stringField(event, 'sessionKey'),
+      sessionId: stringField(event, 'sessionId'),
+      runId: stringField(event, 'runId'),
+      agentId: stringField(event, 'agentId'),
+    });
+    reportHarnessDebugDiagnostic(event, type);
+    return;
+  }
+
+  reportHarnessDebugDiagnostic(event, type);
+
+  const common = {
+    harnessEventType: type,
+    sessionKey: stringField(event, 'sessionKey'),
+    sessionId: stringField(event, 'sessionId'),
+    runId: stringField(event, 'runId'),
+    agentId: stringField(event, 'agentId'),
+    provider: stringField(event, 'provider'),
+    model: stringField(event, 'model'),
+    phase: stringField(event, 'phase'),
+    outcome: stringField(event, 'outcome'),
+    errorCategory: stringField(event, 'errorCategory'),
+    failureKind: stringField(event, 'failureKind'),
+    durationMs: numberField(event, 'durationMs'),
+    errorText: diagnosticErrorText(event),
+  };
+
+  switch (type) {
+    case 'harness.run.error':
+      reportHarnessError({
+        ...common,
+        errorScope: 'harness',
+      });
+      return;
+    case 'harness.run.completed':
+      if (common.outcome === 'completed') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'harness',
+      });
+      return;
+    case 'model.call.error':
+      reportHarnessError({
+        ...common,
+        errorScope: 'model',
+      });
+      return;
+    case 'model.failover': {
+      const reason = stringField(event, 'reason');
+      const fromProvider = stringField(event, 'fromProvider');
+      const fromModel = stringField(event, 'fromModel');
+      const toProvider = stringField(event, 'toProvider');
+      const toModel = stringField(event, 'toModel');
+      reportHarnessError({
+        ...common,
+        errorScope: 'model',
+        provider: fromProvider,
+        model: fromModel,
+        phase: stringField(event, 'lane'),
+        outcome: 'failover',
+        errorCategory: 'model_failover',
+        failureKind: reason,
+        errorText: diagnosticSummary([
+          ['fromProvider', fromProvider],
+          ['fromModel', fromModel],
+          ['toProvider', toProvider],
+          ['toModel', toModel],
+          ['reason', reason],
+          ['cascadeDepth', numberField(event, 'cascadeDepth')],
+        ]),
+      });
+      return;
+    }
+    case 'tool.execution.error':
+      reportHarnessError({
+        ...common,
+        errorScope: 'tool',
+        toolName: stringField(event, 'toolName'),
+      });
+      return;
+    case 'tool.execution.blocked': {
+      const deniedReason = stringField(event, 'deniedReason');
+      const reason = stringField(event, 'reason');
+      reportHarnessError({
+        ...common,
+        errorScope: 'tool',
+        toolName: stringField(event, 'toolName'),
+        phase: stringField(event, 'toolSource'),
+        outcome: 'blocked',
+        errorCategory: 'tool_blocked',
+        failureKind: deniedReason,
+        errorText: reason ?? deniedReason,
+      });
+      return;
+    }
+    case 'tool.loop': {
+      const level = stringField(event, 'level');
+      const action = stringField(event, 'action');
+      if (level !== 'critical' && action !== 'block') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'tool',
+        toolName: stringField(event, 'toolName'),
+        phase: level,
+        outcome: action,
+        errorCategory: 'tool_loop',
+        failureKind: stringField(event, 'detector'),
+        errorText:
+          stringField(event, 'message') ??
+          diagnosticSummary([
+            ['level', level],
+            ['action', action],
+            ['detector', stringField(event, 'detector')],
+            ['count', numberField(event, 'count')],
+          ]),
+      });
+      return;
+    }
+    case 'run.completed':
+      if (common.outcome === 'completed') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'run',
+      });
+      return;
+    case 'message.delivery.error':
+      reportHarnessError({
+        ...common,
+        errorScope: 'message_delivery',
+        phase: stringField(event, 'deliveryKind'),
+      });
+      return;
+    case 'message.dispatch.completed':
+      if (common.outcome !== 'error') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'message_dispatch',
+        phase: stringField(event, 'source'),
+      });
+      return;
+    case 'message.processed':
+      if (common.outcome !== 'error') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'message_processing',
+        phase: stringField(event, 'channel'),
+      });
+      return;
+    case 'diagnostic.async_queue.dropped':
+      reportHarnessError({
+        ...common,
+        errorScope: 'diagnostics',
+        outcome: 'dropped',
+        errorCategory: 'diagnostic_async_queue_dropped',
+        failureKind: 'queue_full',
+        errorText: diagnosticSummary([
+          ['droppedEvents', numberField(event, 'droppedEvents')],
+          ['droppedTrustedEvents', numberField(event, 'droppedTrustedEvents')],
+          [
+            'droppedUntrustedEvents',
+            numberField(event, 'droppedUntrustedEvents'),
+          ],
+          ['queueLength', numberField(event, 'queueLength')],
+          ['maxQueueLength', numberField(event, 'maxQueueLength')],
+        ]),
+      });
+      return;
+    case 'diagnostic.liveness.warning': {
+      const reasons = stringListField(event, 'reasons');
+      reportHarnessError({
+        ...common,
+        errorScope: 'runtime',
+        phase: stringField(event, 'phase'),
+        outcome: 'warning',
+        errorCategory: 'liveness_warning',
+        failureKind: reasons.join(',') || null,
+        durationMs: numberField(event, 'intervalMs'),
+        errorText: diagnosticSummary([
+          ['reasons', reasons.join(',')],
+          ['eventLoopDelayP99Ms', numberField(event, 'eventLoopDelayP99Ms')],
+          ['eventLoopDelayMaxMs', numberField(event, 'eventLoopDelayMaxMs')],
+          ['cpuCoreRatio', numberField(event, 'cpuCoreRatio')],
+          ['active', numberField(event, 'active')],
+          ['waiting', numberField(event, 'waiting')],
+          ['queued', numberField(event, 'queued')],
+        ]),
+      });
+      return;
+    }
+    case 'diagnostic.memory.pressure': {
+      const memory = event.memory as Record<string, unknown> | undefined;
+      const memoryNumber = (key: string) => {
+        const value = memory?.[key];
+        return typeof value === 'number' && Number.isFinite(value)
+          ? value
+          : null;
+      };
+      reportHarnessError({
+        ...common,
+        errorScope: 'runtime',
+        outcome: stringField(event, 'level'),
+        errorCategory: 'memory_pressure',
+        failureKind: stringField(event, 'reason'),
+        durationMs: numberField(event, 'windowMs'),
+        errorText: diagnosticSummary([
+          ['level', stringField(event, 'level')],
+          ['reason', stringField(event, 'reason')],
+          ['rssBytes', memoryNumber('rssBytes')],
+          ['heapUsedBytes', memoryNumber('heapUsedBytes')],
+          ['thresholdBytes', numberField(event, 'thresholdBytes')],
+          ['rssGrowthBytes', numberField(event, 'rssGrowthBytes')],
+        ]),
+      });
+      return;
+    }
+    case 'payload.large':
+      if (stringField(event, 'action') !== 'rejected') {
+        return;
+      }
+      reportHarnessError({
+        ...common,
+        errorScope: 'payload',
+        phase: stringField(event, 'surface'),
+        outcome: 'rejected',
+        errorCategory: 'payload_large',
+        failureKind: stringField(event, 'reason'),
+        errorText: diagnosticSummary([
+          ['surface', stringField(event, 'surface')],
+          ['channel', stringField(event, 'channel')],
+          ['pluginId', stringField(event, 'pluginId')],
+          ['bytes', numberField(event, 'bytes')],
+          ['limitBytes', numberField(event, 'limitBytes')],
+          ['count', numberField(event, 'count')],
+          ['reason', stringField(event, 'reason')],
+        ]),
+      });
+      return;
+  }
+}
+
+function safeTelemetryObserver(params: {
+  logger: { warn: (message: string) => void };
+  telemetrySource: string;
+  sourceEventName?: string | null;
+  sessionKey?: string | null;
+  sessionId?: string | null;
+  runId?: string | null;
+  agentId?: string | null;
+  run: () => void;
+}): void {
+  try {
+    params.run();
+  } catch (error) {
+    params.logger.warn(
+      `[tlon] Telemetry observer failed (${params.telemetrySource}${params.sourceEventName ? `:${params.sourceEventName}` : ''}): ${String(error)}`
+    );
+    try {
+      reportTelemetryError({
+        telemetrySource: params.telemetrySource,
+        sourceEventName: params.sourceEventName,
+        sessionKey: params.sessionKey,
+        sessionId: params.sessionId,
+        runId: params.runId,
+        agentId: params.agentId,
+        errorKind: error instanceof Error ? error.name : typeof error,
+        errorText: formatTlonTelemetryErrorText(error),
+      });
+    } catch (reportError) {
+      params.logger.warn(
+        `[tlon] Telemetry error reporting failed: ${String(reportError)}`
+      );
+    }
+  }
+}
+
+function installTelemetryDiagnosticObservers(
+  api: OpenClawPluginApi
+): () => void {
+  return installTlonDiagnosticSubscriptions(() => {
+    const unsubscribeDiagnosticEvents = onDiagnosticEvent((event) => {
+      const candidate = event as unknown as { type: string };
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'diagnostic_session',
+        sourceEventName: candidate.type,
+        sessionKey: (candidate as { sessionKey?: string }).sessionKey,
+        sessionId: (candidate as { sessionId?: string }).sessionId,
+        run: () => {
+          if (isTlonSessionDiagnosticEvent(candidate)) {
+            reportSessionDiagnostic(candidate);
+          }
+        },
+      });
+    });
+    const unsubscribeInternalDiagnosticEvents = onInternalDiagnosticEvent(
+      (event) => {
+        const candidate = event as DiagnosticCandidate;
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'diagnostic_internal',
+          sourceEventName: stringField(candidate, 'type'),
+          sessionKey: stringField(candidate, 'sessionKey'),
+          sessionId: stringField(candidate, 'sessionId'),
+          runId: stringField(candidate, 'runId'),
+          agentId: stringField(candidate, 'agentId'),
+          run: () => reportHarnessDiagnostic(candidate),
+        });
+      }
+    );
+
+    return () => {
+      unsubscribeDiagnosticEvents();
+      unsubscribeInternalDiagnosticEvents();
+    };
   });
 }
 
@@ -206,7 +966,14 @@ export default defineChannelPluginEntry({
       const gsManager = createGatewayStatusManager({
         logger: {
           log: (m) => api.logger.info(m),
-          error: (m) => api.logger.warn(m),
+          error: (m) => {
+            reportPluginError({
+              pluginErrorSource: 'gateway_status_heartbeat',
+              errorKind: 'heartbeat',
+              errorText: m,
+            });
+            api.logger.warn(m);
+          },
         },
       });
       setGatewayStatusManager(gsManager);
@@ -255,16 +1022,9 @@ export default defineChannelPluginEntry({
     }
     // else: zero accounts configured — nothing to do
 
-    // Register /tlon-version command
-    api.registerCommand({
-      name: 'tlon-version',
-      description: 'Show Tlon plugin version.',
-      handler: async () => {
-        return { text: `Tlon plugin v${PLUGIN_VERSION} (${PLUGIN_COMMIT})` };
-      },
-    });
-
-    // Register the tlon tool
+    // Resolve the tlon tool binary once. The tool itself and version
+    // diagnostics share this path so telemetry reports what OpenClaw will
+    // actually execute.
     const tlonBinary = resolveTlonBinary({
       moduleDir: __dirname,
       resolveModule: require.resolve,
@@ -272,6 +1032,44 @@ export default defineChannelPluginEntry({
     });
     api.logger.info(`[tlon] Registering tlon tool, binary: ${tlonBinary}`);
 
+    setTlonSkillVersionResolver(() => readTlonSkillVersion(tlonBinary));
+    const renderTlonVersion = async () => ({
+      text: formatTlonVersionIdentity({
+        tlonSkillVersion: await resolveTlonSkillVersion(),
+      }),
+    });
+    void resolveTlonSkillVersion().then((version) => {
+      api.logger.info(`[tlon] Tlon skill version: ${version}`);
+    });
+
+    // Register /tlon-version command
+    api.registerCommand({
+      name: 'tlon-version',
+      description: 'Show Tlon plugin version.',
+      handler: async () => {
+        return renderTlonVersion();
+      },
+    });
+
+    api.registerCommand({
+      name: 'tlon',
+      description: 'Tlon plugin diagnostics. Usage: /tlon version',
+      acceptsArgs: true,
+      handler: async (ctx) => {
+        const args = (ctx.args ?? '').trim().toLowerCase();
+        if (args !== 'version') {
+          return { text: 'Usage: /tlon version' };
+        }
+
+        const result = resolveBridgeForCommand(ctx);
+        if ('error' in result) {
+          return { text: result.error };
+        }
+        return renderTlonVersion();
+      },
+    });
+
+    // Register the tlon tool
     // Capture credentials from config at registration time
     const account = resolveTlonAccount(api.config);
     const credentials =
@@ -417,11 +1215,148 @@ export default defineChannelPluginEntry({
         );
       }
 
-      recordToolCall({
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'after_tool_call',
+        sourceEventName: event.toolName,
         sessionKey: ctx.sessionKey,
-        toolName: event.toolName,
-        durationMs: event.durationMs,
-        error: event.error,
+        run: () => {
+          recordToolCall({
+            sessionKey: ctx.sessionKey,
+            toolName: event.toolName,
+            durationMs: event.durationMs,
+            error: event.error,
+          });
+        },
+      });
+    });
+
+    // ── Session lifecycle / watchdog telemetry ─────────────────────────
+    // These hooks are global to OpenClaw, so telemetry.ts filters them through
+    // session keys remembered from Tlon inbound replies before emitting.
+    api.on('session_start', (event, ctx) => {
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'session_start',
+        sourceEventName: 'session_start',
+        sessionKey: event.sessionKey ?? ctx.sessionKey,
+        sessionId: event.sessionId ?? ctx.sessionId,
+        agentId: ctx.agentId,
+        run: () => {
+          reportSessionLifecycle({
+            lifecycleEvent: 'session_start',
+            sessionKey: event.sessionKey ?? ctx.sessionKey,
+            sessionId: event.sessionId ?? ctx.sessionId,
+            agentId: ctx.agentId,
+            hasNextSession: false,
+          });
+        },
+      });
+    });
+
+    api.on('session_end', (event, ctx) => {
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'session_end',
+        sourceEventName: 'session_end',
+        sessionKey: event.sessionKey ?? ctx.sessionKey,
+        sessionId: event.sessionId ?? ctx.sessionId,
+        agentId: ctx.agentId,
+        run: () => {
+          reportSessionLifecycle({
+            lifecycleEvent: 'session_end',
+            sessionKey: event.sessionKey ?? ctx.sessionKey,
+            sessionId: event.sessionId ?? ctx.sessionId,
+            agentId: ctx.agentId,
+            reason: event.reason ?? null,
+            messageCount: event.messageCount,
+            durationMs: event.durationMs ?? null,
+            transcriptArchived: event.transcriptArchived ?? null,
+            hasNextSession: Boolean(
+              event.nextSessionId ?? event.nextSessionKey
+            ),
+          });
+        },
+      });
+    });
+
+    if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
+      const unsubscribeDiagnosticEvents =
+        installTelemetryDiagnosticObservers(api);
+      api.on('gateway_stop', unsubscribeDiagnosticEvents);
+    }
+
+    // ── Route diagnostics ───────────────────────────────────────────────
+    // Fires for every outbound send OpenClaw routes — the primary streamed
+    // reply (resolves to `tlon`) and route-dependent sends (the shared
+    // `message` tool, subagents, which can resolve elsewhere). `ctx.channelId`
+    // is where the send resolved; `routedToTlon: false` (e.g. `webchat`) is the
+    // leak this work targets. Read-only; never alters delivery.
+    //
+    // Two sinks: a PostHog event (the primary, fleet-wide signal — gated by the
+    // existing telemetry config, on in hosted prod) so we can count how often
+    // sends land off-Tlon; and a debug-gated local log for single-gateway
+    // triage.
+    api.on('message_sending', (event, ctx) => {
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'message_sending',
+        sourceEventName: 'message_sending',
+        sessionKey: ctx.sessionKey,
+        runId: ctx.runId,
+        run: () => {
+          const resolvedChannel = ctx.channelId;
+          const routedToTlon = resolvedChannel === 'tlon';
+          // Only infer target kind for Tlon targets; a webchat target id is not
+          // a Tlon target and must not be misclassified.
+          const parsedTarget = routedToTlon ? parseTlonTarget(event.to) : null;
+          const targetKind =
+            parsedTarget?.kind === 'dm'
+              ? 'dm'
+              : parsedTarget?.kind === 'channel'
+                ? 'group'
+                : 'unknown';
+
+          reportOutboundRoute({ resolvedChannel, routedToTlon, targetKind });
+
+          if (isRouteDebugEnabled()) {
+            api.logger.info(
+              `[tlon][route-debug] message_sending ${JSON.stringify({
+                channelId: ctx.channelId,
+                to: event.to,
+                routedToTlon,
+                targetKind,
+                sessionKey: ctx.sessionKey ?? null,
+                conversationId: ctx.conversationId ?? null,
+                messageId: ctx.messageId ?? null,
+                threadId: event.threadId ?? null,
+              })}`
+            );
+          }
+        },
+      });
+    });
+
+    api.on('message_sent', (event, ctx) => {
+      safeTelemetryObserver({
+        logger: api.logger,
+        telemetrySource: 'message_sent',
+        sourceEventName: 'message_sent',
+        sessionKey: event.sessionKey ?? ctx.sessionKey,
+        runId: event.runId ?? ctx.runId,
+        run: () => {
+          if (event.success !== false) {
+            return;
+          }
+          reportHarnessError({
+            harnessEventType: 'message_sent',
+            errorScope: 'message_delivery',
+            sessionKey: event.sessionKey ?? ctx.sessionKey,
+            runId: event.runId ?? ctx.runId,
+            errorText: event.error ?? null,
+            outcome: 'error',
+          });
+        },
       });
     });
 

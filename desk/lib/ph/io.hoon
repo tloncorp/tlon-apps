@@ -427,7 +427,7 @@
 ::
 ++  scry-aqua
   |*  [=mold =ship pax=path]
-  =/  m  (strand ,mold)
+  =/  m  (strand mold)
   ^-  form:m
   ;<  =bowl:spider  bind:m  get-bowl
   =/  aqua-pax=path

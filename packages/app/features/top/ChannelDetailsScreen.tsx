@@ -19,6 +19,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import {
+  ChannelHost,
   ChannelQuickActions,
   LeaveActionsSection,
   MembersList,
@@ -162,6 +163,8 @@ export function ChannelDetailsScreenView({
             />
           </>
         )}
+
+        <ChannelHost channel={channel} />
 
         {members?.length ? (
           <MembersList

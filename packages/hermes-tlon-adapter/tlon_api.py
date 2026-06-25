@@ -1220,6 +1220,8 @@ class TlonIncomingMessage:
     reply_to_message_id: Optional[str]
     sent_at: datetime
     raw: Any
+    content: Any = None
+    blob: Optional[str] = None
 
 
 def extract_message_text(content: Any) -> str:
@@ -1334,8 +1336,11 @@ def parse_channel_message(
     if not sender or sender == normalize_ship(self_ship):
         return None
 
-    text = extract_message_text(content.get("content"))
-    if not text.strip():
+    story_content = content.get("content")
+    text = extract_message_text(story_content)
+    raw_blob = content.get("blob")
+    blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
+    if not text.strip() and not blob:
         return None
 
     seal = reply_set.get("seal") if reply_set else post_set.get("seal")
@@ -1357,6 +1362,8 @@ def parse_channel_message(
         reply_to_message_id=str(parent_id) if parent_id else None,
         sent_at=sent,
         raw=event,
+        content=story_content,
+        blob=blob,
     )
 
 
@@ -1400,8 +1407,11 @@ def parse_dm_message(
 
     partner = normalize_ship(str(whom)) if isinstance(whom, str) else ""
     effective_sender = partner or sender
-    text = extract_message_text(content.get("content"))
-    if not text.strip():
+    story_content = content.get("content")
+    text = extract_message_text(story_content)
+    raw_blob = content.get("blob")
+    blob = raw_blob if isinstance(raw_blob, str) and raw_blob.strip() else None
+    if not text.strip() and not blob:
         return None
 
     effective_id = str(reply_id or msg_id or uuid.uuid4().hex)
@@ -1416,6 +1426,8 @@ def parse_dm_message(
         reply_to_message_id=str(msg_id) if reply_content and msg_id else None,
         sent_at=_datetime_from_ms(content.get("sent")),
         raw=event,
+        content=story_content,
+        blob=blob,
     )
 
 

@@ -16,6 +16,7 @@ import {
   type StateClient,
   createStateClient,
   getTestConfig,
+  registerEngagingTurn,
   waitFor,
 } from '../lib/index.js';
 import {
@@ -187,7 +188,11 @@ describe('re-engagement nudges', () => {
     // Phase 2: owner replies. The plugin's owner-reply handler should clear
     // `lastNudgeStage` so the next inactivity cycle can re-send stage 1.
     const { markdownToStory } = await import('../../src/urbit/story.js');
-    const replyText = `heartbeat-reply-${Date.now()}`;
+    // Owner DMs always engage the model; tag this reply with its own key so it
+    // can't inherit a stale [tlon-test:KEY] from the shared owner DM session
+    // history. The assertion below is on lastNudgeStage state, not this reply.
+    const replyTag = await registerEngagingTurn('heartbeat-owner-reply');
+    const replyText = `${replyTag} heartbeat-reply-${Date.now()}`;
     await ownerState.sendPost({
       channelId: botShip,
       content: markdownToStory(replyText),
