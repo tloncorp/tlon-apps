@@ -7,7 +7,7 @@ pier=${ship#\~}
 
 urbit_bin_url="https://urbit.org/install"
 
-arch=`arch`
+arch=`uname -m`
 
 case $OSTYPE in
   linux* )  
@@ -102,7 +102,10 @@ done
 
 sleep 5
 
-run_click="$click -b $vere -i - -kp"
+# Allow 10m for longest running operations
+TIMEOUT=600
+
+run_click="$click -t $TIMEOUT -b $vere -i - -kp"
 
 # Mount %base
 echo "Mounting base..."
