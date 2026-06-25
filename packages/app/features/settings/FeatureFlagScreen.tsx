@@ -23,6 +23,32 @@ export function FeatureFlagScreen({ navigation }: Props) {
     [setEnabled]
   );
 
+  const contextLensGatewayUrl = db.contextLensGatewayUrl.useValue();
+  const contextLensGatewayToken = db.contextLensGatewayToken.useValue();
+  const textSettings = useMemo(() => {
+    if (!flags.contextLens) {
+      return undefined;
+    }
+    return [
+      {
+        key: 'contextLensGatewayUrl',
+        label: 'Context lens gateway URL',
+        value: contextLensGatewayUrl ?? '',
+        placeholder: 'http://localhost:18789',
+        onChange: (value: string) =>
+          db.contextLensGatewayUrl.setValue(value.trim() || null),
+      },
+      {
+        key: 'contextLensGatewayToken',
+        label: 'Context lens gateway token',
+        value: contextLensGatewayToken ?? '',
+        secure: true,
+        onChange: (value: string) =>
+          db.contextLensGatewayToken.setValue(value.trim() || null),
+      },
+    ];
+  }, [flags.contextLens, contextLensGatewayUrl, contextLensGatewayToken]);
+
   const isTlonEmployee = db.isTlonEmployee.useValue();
   const features = useMemo(
     () =>
@@ -44,6 +70,7 @@ export function FeatureFlagScreen({ navigation }: Props) {
   return (
     <FeatureFlagScreenView
       features={features}
+      textSettings={textSettings}
       onBackPressed={handleGoBackPressed}
       onFlagToggled={handleFeatureFlagToggled}
     />
