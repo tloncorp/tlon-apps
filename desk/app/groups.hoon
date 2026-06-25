@@ -48,6 +48,7 @@
 /%  m-group-channel-active  %group-channel-active
 /%  m-group-channel-join    %group-channel-join
 /%  m-group-channel-leave   %group-channel-leave
+/%  m-group-action-3     %group-action-3
 /%  m-gangs              %gangs
 /%  m-foreign-1          %foreign-1
 /%  m-foreigns-1         %foreigns-1
@@ -94,6 +95,7 @@
           :+  %group-channel-active  &  -:!>(*vale:m-group-channel-active)
           :+  %group-channel-join    &  -:!>(*vale:m-group-channel-join)
           :+  %group-channel-leave   &  -:!>(*vale:m-group-channel-leave)
+          :+  %group-action-3     &  -:!>(*vale:m-group-action-3)
         ::
           :+  %gangs              &  -:!>(*vale:m-gangs)
         ::
