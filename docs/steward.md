@@ -25,16 +25,17 @@ The app helper core keeps each module's logic in its own sub-core: `le-core` for
 
 ## state model
 
-State is `state-0`, defined in the app file. Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
+State is a single `state-0`, defined in the app file (the agent is greenfield, so there is no migration — an unreadable state just resets to bunt). Cross-cutting config is top level; each module owns its own slice, typed from its own sur file:
 
 ```
 state-0
   owner    (unit ship)                  shared config: bot sends runs to it / its DMs are watched; ~ = inert
+  bots     (set ship)                   owner-side trusted bots: who may send lens %entry pokes cross-ship
   lens     state:v1:lens                 stored lens run records (owner role)
   gateway  state:v1:gateway              harness liveness + auto-reply bookkeeping
 ```
 
-`owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to.
+`owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -53,19 +54,19 @@ Makes a bot's run records — trigger, tool calls, timings, output — durable o
 One agent, two roles; the same code runs on every ship, and the role is determined by **who poked it** (the `%steward-lens-action-1` ownership gate has already vetted the source — see below):
 
 - **bot ship role** (`src == our`): the local gateway pokes `%steward-lens-action-1` with a run record. `le-poke-action` sends it to the configured `owner` as a `%steward-lens-action-1` poke. Ames retries until ack, so owner-ship downtime or gateway restarts don't drop finalized runs once poked.
-- **owner ship role** (`src` is a moon we sponsor): a bot sent us its run. `le-poke-action` stores it keyed `[bot=src id]`, gives a fact on `/v1/lens`, and answers scries for clients.
+- **owner ship role** (`src` is a trusted bot — in our `bots` set): a bot sent us its run. `le-poke-action` stores it keyed `[bot=src id]`, gives a fact on `/v1/lens`, and answers scries for clients.
 
 A self-owned bot (`owner` equal to `our`) is stored directly during send with no network hop.
 
-A lens action is a single shape — `[id=@t payload=json final=?]`. `final=&` marks the run complete; `final=|` is an in-progress milestone that upserts a partial record. A finalized run is never demoted back to partial by a late `final=|` (the late partial is dropped).
+The lens action is a tagged union of three shapes:
+
+- **`%entry`** `[%entry id=@t payload=json final=?]` — a run record from the gateway. `final=&` marks the run complete; `final=|` is an in-progress milestone that upserts a partial record. A finalized run is never demoted back to partial by a late `final=|` (the late partial is dropped). Oversized payloads (jammed size over 512KB) are dropped to bound loom usage.
+- **`%retry`** `[%retry bot=ship id=@t]` — an owner-initiated request to re-dispatch a failed/aborted run. The symmetric case to `%entry` (bot → owner): retry flows owner → bot. If `bot == our`, the agent emits a `%retry-requested` fact on `/v1/lens` for the local gateway to act on; if `bot != our`, the owner's steward relays a cross-ship `%retry` poke to that bot's steward, which then emits the fact for its own gateway. Retry never mutates stored state — the gateway creates a fresh run and pokes it back via `%entry`.
+- **`%configure`** `[%configure max-runs-per-bot=@ud]` — set the per-ship retention cap (local only); applied to every bot immediately.
 
 ### retention
 
-Bounds, per bot: runs older than 90 days are dropped; at most 1000 live runs per bot (oldest beyond the cap dropped). Enforced in three places:
-
-- **on store**: every incoming run prunes that bot's records.
-- **on a daily timer**: a recurring behn wake on the `/lens/prune` wire prunes all bots and re-arms itself, so storage is reclaimed even when a bot goes quiet.
-- **on read**: `/x/v1/lens/recent` and `/x/v1/lens/run` filter expired runs, so the age bound holds observably regardless of timer cadence (gall scries cannot mutate state, so this is a filter, not a prune).
+Count-bounded only — lens runs are durable memory, not transient logs, so there is **no time-based expiry**. Each bot keeps at most `max-runs-per-bot` records (default 3,000, seeded at install; changed via `%configure`). When a bot exceeds the cap, the oldest by `received` are dropped. Enforced on every insert (bounds that bot's tail) and on `%configure` (re-applies a new cap to every bot). No prune timer.
 
 ## module: gateway
 
@@ -89,18 +90,30 @@ Three inbound marks, each ownership-gated to admit exactly the right source.
 
 ```
 [%configure owner=ship]               top-level: set the shared owner
+[%trust-bot ship=ship]                add a ship to the trusted-bots set
+[%untrust-bot ship=ship]              remove a ship from the trusted-bots set
 ```
+
+`%trust-bot`/`%untrust-bot` manage the owner-side `bots` allowlist that gates lens `%entry` fan-in. Trust is explicit and ship-class-agnostic — a bot may be a planet, moon, comet, star, or galaxy, and moon sponsorship is **not** an auto-trust.
 
 ### `%steward-lens-action-1` (lens)
 
-Gated on **ownership**, not strict locality: accepted iff `src` is `our`, or `src` is a ship `our` sponsors (per jael, via `+sein:title`). A bot is typically a moon of the owner planet, so the owner accepts lens runs from itself and from its own moons; sponsorship rejects comets and unrelated ships. This is the one action a sponsored moon may submit (its own runs, stored keyed by `src`).
+Auth is **per-variant**, since each shape expects a different `src`:
+
+- `%entry` — accepted iff `src` is `our`, or `src` is in the owner-side trusted-bots set (`bots`, granted via the core `%trust-bot` poke). Ship-class-agnostic: a trusted bot may be a planet, moon, comet, etc. Moon sponsorship is **not** an auto-trust — even a moon the owner sponsors must be explicitly `%trust-bot`'d. This is the one shape a trusted remote ship may submit (its own runs, stored keyed by `src`).
+- `%retry` — accepted iff `src` is `our` (a local client, or an owner-side relay forwarding to its own bot when `bot == our`) or the configured `owner` (relaying a retry to its bot moon).
+- `%configure` — `src == our` only.
 
 ```json
-{ "id": "<lensId>", "payload": { ... run record ... }, "final": true }
+{ "entry": { "id": "<lensId>", "payload": { ... run record ... }, "final": true } }
+{ "retry": { "bot": "~sampel-palnet", "id": "<lensId>" } }
+{ "configure": { "max-runs-per-bot": 10000 } }
 ```
 
 ```
-[id=@t payload=json final=?]          a lens run milestone (final=& finalizes)
+[%entry id=@t payload=json final=?]   a lens run milestone (final=& finalizes)
+[%retry bot=ship id=@t]               owner-initiated re-dispatch request
+[%configure max-runs-per-bot=@ud]     set the per-bot retention cap
 ```
 
 ### `%steward-gateway-action-1` (gateway) — `src == our`
@@ -116,27 +129,31 @@ Only the local gateway drives liveness, so this requires `src == our`.
 
 ## subscription surface
 
-- `/v1/lens` (local only, `?> =(src our)`): `%steward-lens-update-1` facts (`update:v1:lens`, i.e. a bare `entry`), one per stored run. No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
+- `/v1/lens` (local only, `?> =(src our)`): `%steward-lens-update-1` facts (`update:v1:lens`, a tagged union) — `%entry` (a stored run, one per insert; the owner-side client reads these) and `%retry-requested` (emitted on the bot ship for its local gateway to re-dispatch). No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
 - `/v1/gateway` (local only): `%steward-gateway-update-1` facts (`update:v1:gateway`) — `%status` (on lifecycle transitions, plus an initial fact on subscribe), `%owner-activity`, and `%auto-reply`.
 
 ## scry surface
 
-- `/x/v1/lens/recent` → `%steward-lens-update-list-1` `(list update:v1:lens)` — newest 50 non-expired runs across all bots, for backfill. Grows to a JSON array of entry objects so the HTTP client can consume it directly.
-- `/x/v1/lens/run/[ship]/[id]` → `%steward-lens-update-1` `update:v1:lens` (an `entry`), or empty (`[~ ~]`) when absent or expired.
+All lens scries return the `%steward-lens-update-1` mark so the HTTP client reads them as JSON.
+
+- `/x/v1/lens/recent` → `[%recent entries]` — newest 50 runs across all bots, for backfill. Grows to `{ "recent": [ entry, … ] }` (a JSON array of entry objects).
+- `/x/v1/lens/recent/[count]` → `[%recent entries]` — newest `count` runs.
+- `/x/v1/lens/since/[da]` → `[%recent entries]` — every run with `received >= da`, newest first; paginate history by passing the oldest `received` from the last page.
+- `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
 
-`entry` is `[[bot=ship id=@t] run]`. The lens update mark grows to JSON for Eyre, embedding the stored payload directly:
+`entry` is `[bot=ship id=@t run]`. The `%entry` update grows to JSON for Eyre, embedding the stored payload directly:
 
 ```json
-{ "bot": "~zod", "id": "...", "complete": true, "received": "~2026.6.10..12.00.00..0000", "payload": { ... run record ... } }
+{ "entry": { "bot": "~zod", "id": "...", "complete": true, "received": "~2026.6.10..12.00.00..0000", "payload": { ... run record ... } } }
 ```
 
 ## lifecycle and invariants
 
-- `on-init` arms the daily lens prune timer (`/lens/prune` behn wire) and subscribes to `%activity /v5` for the gateway module. The prune timer is armed once; reloading at `%0` does not stack a second one.
-- `on-load` accepts state `%0` only — `%steward` is greenfield with no prior versions; an unreadable state resets to bunt and re-arms the timers/subscriptions.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens prune on `/lens/prune`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
+- `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` accepts the single `state-0`, else resets to bunt (re-seeding the cap and re-subscribing to `%activity`). The agent is greenfield/unreleased, so there are no migration arms — versioned state + migrations get added back when something actually ships.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
 - `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
 
 ## integration notes

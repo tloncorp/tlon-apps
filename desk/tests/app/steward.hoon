@@ -7,9 +7,13 @@
 /=  agent  /app/steward
 |%
 ++  dap  %steward
+::  agent state — single version (greenfield, no migration). `bots` is the
+::  owner-side trusted set.
+::
 +$  state-0
   $:  %0
       owner=(unit ship)
+      bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
   ==
@@ -18,10 +22,9 @@
 ++  payload   ^-  json  s+'run-record'
 ++  payload2  ^-  json  s+'partial'
 ::
-::  our ship in tests is ~dev (a galaxy; set via +setup below).  a moon's
-::  sponsor is its low 32 bits, so any ship >= 2^32 whose low 32 bits equal
-::  ~dev is a moon ~dev sponsors.  (add ~dev (bex 32)) is the simplest such
-::  moon and passes the ownership gate ((sein ...) == ~dev via the mock).
+::  our ship in tests is ~dev (set via +setup below). +moon stands in for a
+::  remote bot ship; the %entry gate is now an explicit trusted-bots set
+::  (not sponsorship), so tests that fan in from it call +trust-moon first.
 ::
 ++  moon  ^-  ship  (add ~dev (bex 32))
 ::
@@ -30,12 +33,6 @@
   ^-  (unit vase)
   ?+  path  ~
     [%gu @ %activity @ %$ ~]  `!>(&)
-  ::  mock jael +sein for the %steward-lens-action-1 ownership gate. a moon's
-  ::  sponsor is its low 32 bits; a galaxy (e.g. ~zod) sponsors itself —
-  ::  both reproduced by (end 5 who) for the ships these tests use.
-  ::
-      [%j @ %sein @ @ ~]
-    `!>(`@p`(end 5 (slav %p i.t.t.t.t.path)))
   ==
 ::
 ++  setup
@@ -54,6 +51,20 @@
   ^-  form:m
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure owner]))
+  (pure:m ~)
+::
+++  trust
+  |=  bot=ship
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot bot]))
+  (pure:m ~)
+::
+++  trust-moon
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (trust moon)
   (pure:m ~)
 ::
 ++  ga-configure
@@ -100,8 +111,8 @@
   %-  (do-as ~zod)
   (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~zod]))
 ::
-::  %configure is local-only: a sponsored moon may submit lens runs but
-::  must not be able to repoint the owner
+::  %configure is local-only: a foreign ship must not be able to repoint
+::  the owner
 ::
 ++  test-configure-from-moon-crashes
   %-  eval-mare
@@ -112,8 +123,7 @@
   %-  (do-as moon)
   (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
 ::
-::  a lens run from a completely foreign ship (not our moon) crashes the
-::  ownership gate on %steward-lens-action-1
+::  a lens run from an untrusted ship crashes the %entry gate
 ::
 ++  test-lens-from-foreign-ship-crashes
   %-  eval-mare
@@ -122,29 +132,80 @@
   ;<  ~  bind:m  setup
   %-  ex-fail
   %-  (do-as ~zod)
-  (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-x' payload &]))
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-x' payload &]))
 ::
-::  a moon we sponsor is accepted; its run is stored keyed by src (the moon)
+::  a trusted bot's run is accepted; stored keyed by src (the bot)
 ::
-++  test-lens-from-sponsored-moon-accepted
+++  test-lens-from-trusted-bot-accepted
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-moon' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-moon' payload &]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-fact
         :*  ~[/v1/lens]
             %steward-lens-update-1
-            !>(`update:v1:l`[[moon 'lens-moon'] [& ~2024.1.1 payload]])
+            !>(`update:v1:l`[%entry [moon 'lens-moon'] [& ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-moon)
   =+  !<(=update:v1:l q.res)
-  (ex-equal !>(update) !>(`update:v1:l`[[moon 'lens-moon'] [& ~2024.1.1 payload]]))
+  (ex-equal !>(update) !>(`update:v1:l`[%entry [moon 'lens-moon'] [& ~2024.1.1 payload]]))
+::
+::  an untrusted ship's %entry is rejected — sponsorship is not auto-trust
+::
+++  test-entry-from-untrusted-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'no-trust' payload &]))
+::
+::  %untrust-bot revokes trust; a later %entry from that ship is rejected
+::
+++  test-untrust-bot-removes-trust
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'while-trusted' payload &]))
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'after-untrust' payload &]))
+::
+::  %trust-bot is self-only — a foreign ship cannot grant itself trust
+::
+++  test-trust-bot-rejects-foreign-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~zod]))
+::
+::  %untrust-bot is also self-only
+::
+++  test-untrust-bot-rejects-foreign-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot ~zod]))
 ::
 ::  sending to a non-self owner emits a %steward-lens-action-1 poke
 ::
@@ -155,13 +216,13 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
   ;<  caz=(list card)  bind:m
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-1' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-1' payload &]))
   %+  ex-cards  caz
   :~  %-  ex-poke
       :*  /lens/send/(scot %p ~bus)/(scot %t 'lens-1')
           [~bus %steward]
           %steward-lens-action-1
-          !>(`action:v1:l`['lens-1' payload &])
+          !>(`action:v1:l`[%entry 'lens-1' payload &])
       ==
   ==
 ::
@@ -174,40 +235,41 @@
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~dev)
   ;<  caz=(list card)  bind:m
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-1' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-1' payload &]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-fact
         :*  ~[/v1/lens]
             %steward-lens-update-1
-            !>(`update:v1:l`[[~dev 'lens-1'] [& ~2024.1.1 payload]])
+            !>(`update:v1:l`[%entry [~dev 'lens-1'] [& ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p ~dev)/lens-1)
   =+  !<(=update:v1:l q.res)
-  (ex-equal !>(update) !>(`update:v1:l`[[~dev 'lens-1'] [& ~2024.1.1 payload]]))
+  (ex-equal !>(update) !>(`update:v1:l`[%entry [~dev 'lens-1'] [& ~2024.1.1 payload]]))
 ::
-::  a poke from a sponsored moon is stored keyed by src.bowl (the moon)
+::  a poke from a trusted bot is stored keyed by src.bowl (the bot)
 ::
 ++  test-action-stores-keyed-by-source
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-2' payload |]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-2' payload |]))
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-fact
         :*  ~[/v1/lens]
             %steward-lens-update-1
-            !>(`update:v1:l`[[moon 'lens-2'] [| ~2024.1.1 payload]])
+            !>(`update:v1:l`[%entry [moon 'lens-2'] [| ~2024.1.1 payload]])
         ==
     ==
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-2)
   =+  !<(=update:v1:l q.res)
-  (ex-equal !>(update) !>(`update:v1:l`[[moon 'lens-2'] [| ~2024.1.1 payload]]))
+  (ex-equal !>(update) !>(`update:v1:l`[%entry [moon 'lens-2'] [| ~2024.1.1 payload]]))
 ::
 ::  final=& marks the run complete
 ::
@@ -216,15 +278,17 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-3' payload |]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-3' payload |]))
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-3' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-3' payload &]))
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-3)
   =+  !<(=update:v1:l q.res)
-  (ex-equal !>(complete.run.update) !>(&))
+  ?>  ?=(%entry -.update)
+  (ex-equal !>(complete.run.entry.update) !>(&))
 ::
 ::  a late partial (final=|) arriving after a final (final=&) is dropped
 ::
@@ -233,89 +297,210 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-4' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-4' payload &]))
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['lens-4' payload2 |]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-4' payload2 |]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-4)
   =+  !<(=update:v1:l q.res)
-  (ex-equal !>(run.update) !>(`run:v1:l`[& ~2024.1.1 payload]))
+  ?>  ?=(%entry -.update)
+  (ex-equal !>(run.entry.update) !>(`run:v1:l`[& ~2024.1.1 payload]))
 ::
-::  runs older than max-run-age (90d) are pruned on the next store
+::  retention is count-only: with the cap at 2, a third run for the same bot
+::  drops the oldest, regardless of age
 ::
-++  test-old-runs-pruned-by-age
+++  test-runs-pruned-by-count
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 2]))
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['old-run' payload &]))
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-a' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~m1))))
   ;<  *  bind:m
     %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['new-run' payload &]))
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-b' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~m2))))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-c' payload &]))
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/recent)
-  =+  !<(entries=(list update:v1:l) q.res)
-  ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(1))
-  ?>  ?=(^ entries)
-  (ex-equal !>(id.i.entries) !>('new-run'))
+  =+  !<(=update:v1:l q.res)
+  ?>  ?=(%recent -.update)
+  ;<  ~  bind:m  (ex-equal !>((lent entries.update)) !>(2))
+  ::  oldest (run-a) dropped; newest first
+  =/  ids  (turn entries.update |=(=entry:v1:l id.entry))
+  (ex-equal !>(ids) !>(`(list @t)`~['run-c' 'run-b']))
 ::
-::  on-init arms the prune timer AND the activity subscription
+::  %configure sets the per-bot cap and prunes every bot immediately
 ::
-++  test-init-arms-prune-timer-and-activity
+++  test-configure-cap-prunes-existing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-a' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~m1))))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-b' payload &]))
+  ;<  *  bind:m
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 1]))
+  ;<  res=cage  bind:m  (got-peek /x/dbug/state)
+  =/  st  !<(state-0 !<(vase q.res))
+  (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
+::
+::  /x/v1/lens/since/[da] returns entries with received >= cutoff, newest
+::  first
+::
+++  test-since-scry-filters-by-cutoff
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-a' payload &]))
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~m1))))
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-b' payload &]))
+  ;<  res=cage  bind:m
+    (got-peek /x/v1/lens/since/(scot %da (add ~2024.1.1 ~m1)))
+  =+  !<(=update:v1:l q.res)
+  ?>  ?=(%recent -.update)
+  ;<  ~  bind:m  (ex-equal !>((lent entries.update)) !>(1))
+  ?>  ?=(^ entries.update)
+  (ex-equal !>(id.i.entries.update) !>('run-b'))
+::
+::  an oversized payload (jam > 512KB) is dropped, not stored or facted
+::
+++  test-oversized-payload-dropped
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  =/  big=json  [%s `@t`(rap 3 (reap 530.000 'x'))]
+  ;<  caz=(list card)  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'big' big &]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  run=(unit (unit cage))  bind:m
+    (get-peek /x/v1/lens/run/(scot %p moon)/big)
+  (ex-equal !>(?=([~ ~] run)) !>(&))
+::
+::  a retry for a run we host locally (bot == our) emits a %retry-requested
+::  fact on /v1/lens for the local gateway to pick up
+::
+++  test-retry-local-emits-fact
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~dev 'lens-r']))
+  %+  ex-cards  caz
+  :~  %-  ex-fact
+      :*  ~[/v1/lens]
+          %steward-lens-update-1
+          !>(`update:v1:l`[%retry-requested 'lens-r' ~dev])
+      ==
+  ==
+::
+::  a retry for a bot we own (bot != our) relays cross-ship to that bot's
+::  steward
+::
+++  test-retry-relays-cross-ship
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry moon 'lens-r']))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /lens/retry/(scot %p moon)/(scot %t 'lens-r')
+          [moon %steward]
+          %steward-lens-action-1
+          !>(`action:v1:l`[%retry moon 'lens-r'])
+      ==
+  ==
+::
+::  a retry from the configured owner (cross-ship) for one of our bots is
+::  accepted and emits the local fact
+::
+++  test-retry-from-owner-accepted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~dev 'lens-r']))
+  %+  ex-cards  caz
+  :~  %-  ex-fact
+      :*  ~[/v1/lens]
+          %steward-lens-update-1
+          !>(`update:v1:l`[%retry-requested 'lens-r' ~bus])
+      ==
+  ==
+::
+::  a cross-ship retry (from the owner) must target us — it is never proxied
+::  on to a third ship
+::
+++  test-retry-cross-ship-no-proxy
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~bus)
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~zod 'lens-r']))
+::
+::  a retry from a foreign ship (neither us nor the configured owner) crashes
+::
+++  test-retry-from-foreign-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~dev 'lens-r']))
+::
+::  on-init subscribes to %activity and seeds the default retention cap
+::
+++  test-init-arms-activity-and-cap
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  *  bind:m  (set-scry-gate scries)
   ;<  ~  bind:m  (jab-bowl |=(b=bowl b(our ~dev, src ~dev)))
   ;<  caz=(list card)  bind:m  (do-init dap agent)
-  %+  ex-cards  caz
-  :~  (ex-arvo /lens/prune %b %wait (add *@da ~d1))
-      (ex-task /activity [~dev %activity] %watch /v5)
-  ==
-::
-::  a prune wake runs prune-all and re-arms the timer
-::
-++  test-prune-wake-reclaims-and-rearms
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  setup
-  ;<  *  bind:m
-    %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['old-run' payload &]))
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
-  ;<  caz=(list card)  bind:m  (do-arvo /lens/prune [%behn %wake ~])
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  (ex-arvo /lens/prune %b %wait (add (add ~2024.1.1 ~d91) ~d1))
+    :~  (ex-task /activity [~dev %activity] %watch /v5)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
-  (ex-equal !>(~(wyt by lens.st)) !>(0))
-::
-::  even with no timer fire or new store, expired runs must not be
-::  served by /x/v1/lens/recent or /x/v1/lens/run
-::
-++  test-expired-runs-hidden-from-reads
-  %-  eval-mare
-  =/  m  (mare ,~)
-  ^-  form:m
-  ;<  ~  bind:m  setup
-  ;<  *  bind:m
-    %-  (do-as moon)
-    (do-poke %steward-lens-action-1 !>(`action:v1:l`['old-run' payload &]))
-  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now (add ~2024.1.1 ~d91))))
-  ;<  res=cage  bind:m  (got-peek /x/v1/lens/recent)
-  =+  !<(entries=(list update:v1:l) q.res)
-  ;<  ~  bind:m  (ex-equal !>((lent entries)) !>(0))
-  ;<  run=(unit (unit cage))  bind:m  (get-peek /x/v1/lens/run/(scot %p moon)/old-run)
-  (ex-equal !>(?=([~ ~] run)) !>(&))
+  (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
 ::
 ++  test-watch-rejects-foreign-ship
   %-  eval-mare
