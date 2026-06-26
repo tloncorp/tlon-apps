@@ -52,6 +52,13 @@ rm -rf "$(npm root -g)/openclaw/dist/extensions/tlon"
 CONFIG_DIR=/root/.openclaw
 mkdir -p "$CONFIG_DIR"
 
+TLON_CONFIG_URL="${TLON_URL:-http://ships:8080}"
+TLON_CONFIG_SHIP="${TLON_SHIP:-~zod}"
+TLON_CONFIG_CODE="${TLON_CODE:-lidlut-tabwed-pillex-ridrup}"
+TLON_CONFIG_OWNER="${TLON_OWNER_SHIP:-~ten}"
+TLON_CONFIG_DM_ALLOWLIST="${TLON_DM_ALLOWLIST:-~ten}"
+TLON_CONFIG_DM_ALLOWLIST_JSON="$(printf '%s' "$TLON_CONFIG_DM_ALLOWLIST" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0))')"
+
 cat > "$CONFIG_DIR/openclaw.json" << EOF
 {
   "models": {
@@ -143,9 +150,9 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
       "tlon": {
         "enabled": true,
         "env": {
-          "URBIT_URL": "http://ships:8080",
-          "URBIT_SHIP": "~zod",
-          "URBIT_CODE": "lidlut-tabwed-pillex-ridrup"
+          "URBIT_URL": "$TLON_CONFIG_URL",
+          "URBIT_SHIP": "$TLON_CONFIG_SHIP",
+          "URBIT_CODE": "$TLON_CONFIG_CODE"
         }
       }
     }
@@ -153,11 +160,11 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
   "channels": {
     "tlon": {
       "enabled": true,
-      "url": "http://ships:8080",
-      "ship": "~zod",
-      "code": "lidlut-tabwed-pillex-ridrup",
-      "ownerShip": "~ten",
-      "dmAllowlist": ["~ten"],
+      "url": "$TLON_CONFIG_URL",
+      "ship": "$TLON_CONFIG_SHIP",
+      "code": "$TLON_CONFIG_CODE",
+      "ownerShip": "$TLON_CONFIG_OWNER",
+      "dmAllowlist": $TLON_CONFIG_DM_ALLOWLIST_JSON,
       "allowPrivateNetwork": true,
       "reengagement": {
         "enabled": true

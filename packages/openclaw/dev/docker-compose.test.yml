@@ -69,10 +69,12 @@ services:
       context: .
       dockerfile: Dockerfile.test
     environment:
-      - TLON_URL=http://ships:8080
-      - TLON_SHIP=~zod
-      - TLON_CODE=lidlut-tabwed-pillex-ridrup
-      - TLON_DM_ALLOWLIST=~ten
+      - TLON_URL=${TLON_URL:-http://ships:8080}
+      - TLON_SHIP=${TLON_SHIP:-~zod}
+      - TLON_CODE=${TLON_CODE:-lidlut-tabwed-pillex-ridrup}
+      - TLON_OWNER_SHIP=${TLON_OWNER_SHIP:-~ten}
+      - TLON_DM_ALLOWLIST=${TLON_DM_ALLOWLIST:-~ten}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - BRAVE_API_KEY=${BRAVE_API_KEY}
       - MODEL=${MODEL:-custom-proxy/tlon-test-scripted}
       - TLONBOT_TOKEN=${TLONBOT_TOKEN}

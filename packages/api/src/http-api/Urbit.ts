@@ -995,7 +995,11 @@ export class Urbit {
     if (!response.ok) {
       return Promise.reject(response);
     }
-    return response.json();
+    const text = await response.text();
+    if (text.length === 0) {
+      return undefined as T;
+    }
+    return JSON.parse(text) as T;
   }
 
   async scryNounWithInfo(params: Scry): Promise<{

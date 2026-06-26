@@ -2,7 +2,7 @@ name: Restart Bot Ships
 
 # Restarts the hosted bot ship pods so they pick up plugin changes.
 # Pushes to develop touching bot plugin source restart the internal ships;
-# tlawn (prod) restarts are workflow_dispatch-only, a deliberate human
+# tag-based / external restarts are workflow_dispatch-only, a deliberate human
 # action decoupled from the develop -> master release sync cadence.
 
 on:
@@ -47,13 +47,25 @@ on:
       - "packages/hermes-tlon-adapter/package.json"
   workflow_dispatch:
     inputs:
-      mode:
-        description: "Which ships to restart"
+      selector:
+        description: "How to choose ships to restart"
         required: true
         type: choice
         options:
-          - internal
-          - tlawn
+          - prespecified-tag
+          - free-tag
+          - external
+      tag:
+        description: "Prespecified tag (used when selector = prespecified-tag)"
+        required: false
+        type: choice
+        options:
+          - tlon-internal
+          - hermes
+      free_tag:
+        description: "Free-entry tag (used when selector = free-tag)"
+        required: false
+        type: string
 
 jobs:
   restart-ships:
@@ -98,36 +110,94 @@ jobs:
           sudo apt-get install -y -qq jq
           gcloud components install gke-gcloud-auth-plugin --quiet
 
-      - name: Determine mode
-        id: mode
+      - name: Determine selection
+        id: filter
         if: steps.creds.outputs.present == 'true'
+        # Dispatch inputs are passed via env, never interpolated into the
+        # script body, so a malicious free_tag value can't be evaluated by the
+        # shell. This step emits only plain data (mode + raw tag); the jq
+        # expression is built downstream with --arg so the tag stays data.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SELECTOR: ${{ inputs.selector }}
+          TAG_INPUT: ${{ inputs.tag }}
+          FREE_TAG_INPUT: ${{ inputs.free_tag }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" != "workflow_dispatch" ]; then
+            # Push to develop: restart internal ships by tag.
+            MODE="by-tag"
+            TAG="tlon-internal"
+            echo "Restarting ships tagged tlon-internal (push trigger)"
           else
-            echo "mode=internal" >> "$GITHUB_OUTPUT"
+            case "$SELECTOR" in
+              prespecified-tag)
+                MODE="by-tag"
+                TAG="$TAG_INPUT"
+                if [ -z "$TAG" ]; then
+                  echo "::error::selector=prespecified-tag requires the 'tag' input"
+                  exit 1
+                fi
+                echo "Restarting ships tagged $TAG"
+                ;;
+              free-tag)
+                MODE="by-tag"
+                TAG="$FREE_TAG_INPUT"
+                if [ -z "$TAG" ]; then
+                  echo "::error::selector=free-tag requires the 'free_tag' input"
+                  exit 1
+                fi
+                # Defense in depth: keep the tag to a sane charset. The jq
+                # --arg downstream already neutralizes it as data; this just
+                # rejects obviously bogus values early.
+                case "$TAG" in
+                  *[!A-Za-z0-9._-]*)
+                    echo "::error::free_tag may only contain A-Z a-z 0-9 . _ -"
+                    exit 1
+                    ;;
+                esac
+                echo "Restarting ships tagged $TAG"
+                ;;
+              external)
+                MODE="external"
+                TAG=""
+                echo "Restarting external ships (internal: false)"
+                ;;
+              *)
+                echo "::error::unknown selector: $SELECTOR"
+                exit 1
+                ;;
+            esac
           fi
+
+          # Emit plain data only — no shell/jq code crosses the step boundary.
+          {
+            echo "mode=$MODE"
+            echo "tag<<EOF"
+            echo "$TAG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Restart ships
         if: steps.creds.outputs.present == 'true'
+        # Outputs from the previous step arrive via env, not interpolation.
+        # The tag is fed to jq with --arg, so it is treated as a string value
+        # and never parsed as part of the filter program.
+        env:
+          MODE: ${{ steps.filter.outputs.mode }}
+          TAG: ${{ steps.filter.outputs.tag }}
         run: |
-          MODE="${{ steps.mode.outputs.mode }}"
- 
-          if [ "$MODE" = "internal" ]; then
-            JQ_FILTER='.items[] | select(.spec.internal == true) | .metadata.name'
-            echo "Restarting internal ships"
+          if [ "$MODE" = "external" ]; then
+            JQ_FILTER='.items[] | select(.spec.internal != true) | .metadata.name'
           else
-            JQ_FILTER='.items[] | select(.spec.tlawn.enabled == true and .spec.internal != true) | .metadata.name'
-            echo "Restarting tlawn (non-internal) ships"
+            JQ_FILTER='.items[] | select((.spec.tags // []) | index($tag)) | .metadata.name'
           fi
- 
+
           export KUBECONFIG="$HOME/.kube/config:$HOME/.kube/ovh.config"
- 
+
           for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 ovh-oregon-1 ovh-oregon-2 ovh-oregon-3; do
             echo "=== Restarting ships in context: $ctx ==="
             kubectl --context "$ctx" get ships -n tlon -ojson \
-              | jq -r "$JQ_FILTER" \
+              | jq -r --arg tag "$TAG" "$JQ_FILTER" \
               | xargs -P 8 -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon || true'
             wait
           done
- 

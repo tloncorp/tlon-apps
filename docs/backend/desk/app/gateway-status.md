@@ -1,23 +1,42 @@
 # %gateway-status
 
-Ship-native agent for offline DM auto-replies and gateway liveness tracking. Runs on a bot ship and works with an external gateway process (e.g., the `openclaw-tlon` plugin) that reports its lifecycle via pokes.
+> **Status: thin compatibility proxy.** `%gateway-status` no longer implements any liveness or auto-reply logic. That behavior now lives in the **`gateway` module of `%steward`** (see `docs/steward.md`). This agent remains only as the external-facing entry point: it accepts the unchanged `%gateway-status-action-1` poke contract (so deployed `openclaw-tlon` gateways and the `packages/api` TS client keep working) and forwards every action to `%steward` as a local poke. It will be removed once all callers poke `%steward` directly.
 
-This document describes the agent's behavior as implemented. It is not a replacement for reading the source, but it covers the protocol, state model, and lifecycle semantics needed to integrate with or modify the agent.
+## proxy behavior
+
+`%gateway-status` keeps no real state (a trivial `[%2 ~]`). On `on-load` from the previously-shipped `state-1`, it seeds `%steward` with the carried-over owner + timing (see "upgrade migration" below), then settles into the trivial state. On each `%gateway-status-action-1` poke (still gated `?> =(src our)`), it forwards to `[our %steward]` using the per-module marks — the core `%steward-action-1` for the shared owner, and `%steward-gateway-action-1` for everything the gateway module owns:
+
+| `%gateway-status-action-1`                | forwarded `%steward` poke(s)                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `%configure owner active-window cooldown` | `%steward-action-1 [%configure owner]` **and** `%steward-gateway-action-1 [%configure win orc]` |
+| `%gateway-start boot-id lease-until`      | `%steward-gateway-action-1 [%gateway-start boot-id lease-until]`                             |
+| `%gateway-heartbeat boot-id lease-until`  | `%steward-gateway-action-1 [%gateway-heartbeat boot-id lease-until]`                         |
+| `%gateway-stop boot-id reason`            | `%steward-gateway-action-1 [%gateway-stop boot-id reason]`                                   |
+
+`%configure` splits into two pokes because `owner` is now the shared top-level `%steward` owner (core `%steward-action-1`), separate from the gateway module's timing config (`%steward-gateway-action-1`). There are no subscriptions or scries — nothing consumed them.
+
+### upgrade migration
+
+A production ship upgrading from the pre-proxy agent (`state-1`) would otherwise lose its owner, so `on-load` forwards `%steward-action-1 [%configure owner]` + `%steward-gateway-action-1 [%configure active-window reply-cooldown]` to `%steward` to carry that config across. If the persisted state shows a live gateway instance (`boot-id` **and** `lease-until` both set), it additionally forwards `%steward-gateway-action-1 [%gateway-start boot-id lease-until]` so `%steward` comes up `%up` with the matching `boot-id` — otherwise the still-running gateway's heartbeats (old `boot-id`) would never match steward's empty `boot-id`, leaving it `%down` and triggering false offline auto-replies until the gateway restarted. With no live instance recorded, only owner + timing are seeded and the gateway re-establishes liveness on its next `%gateway-start`/heartbeat cycle.
+
+---
+
+The remainder of this document describes the liveness/auto-reply protocol as **now implemented in `%steward`'s gateway module**, retained here as the integration reference for the gateway process. The poke shapes below are the `%gateway-status-action-1` forms the harness still sends.
 
 ## overview
 
-`%gateway-status` solves a problem that the gateway process itself cannot: responding to the owner's DMs while the gateway is down. Because no plugin code runs during downtime, the fallback responder must live on the ship.
+The gateway module solves a problem that the gateway process itself cannot: responding to the owner's DMs while the gateway is down. Because no gateway code runs during downtime, the fallback responder must live on the ship.
 
-The agent:
+It:
 
--   subscribes to `%activity /v4` for inbound owner DM events
+-   subscribes to `%activity /v5` for inbound owner DM events
 -   tracks gateway liveness using a lease/heartbeat model
 -   sends canned offline auto-reply DMs when the owner messages during downtime
 -   sends optional restart and recovery notices around shutdown/startup transitions
 
 The gateway process is responsible for:
 
--   configuring the agent on startup (`%configure`)
+-   configuring on startup (`%configure`)
 -   signaling start (`%gateway-start`) and stop (`%gateway-stop`)
 -   sending periodic heartbeats (`%gateway-heartbeat`) to extend its lease
 

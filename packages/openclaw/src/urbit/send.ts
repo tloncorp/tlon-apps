@@ -68,6 +68,7 @@ type SendTextParams = {
   fromShip: string;
   toShip: string;
   text: string;
+  blob?: string;
   replyToId?: string | null;
   parentAuthor?: string;
   botProfile?: BotProfile;
@@ -77,6 +78,7 @@ type SendStoryParams = {
   fromShip: string;
   toShip: string;
   story: Story;
+  blob?: string;
   replyToId?: string | null;
   parentAuthor?: string;
   botProfile?: BotProfile;
@@ -91,6 +93,7 @@ export async function sendDmWithStory({
   fromShip,
   toShip,
   story,
+  blob,
   replyToId,
   parentAuthor,
   botProfile,
@@ -110,6 +113,7 @@ export async function sendDmWithStory({
       content: story,
       sentAt,
       authorId: fromShip,
+      blob,
       botProfile,
     });
     return { channel: 'tlon' as const, messageId, sentAt };
@@ -120,6 +124,7 @@ export async function sendDmWithStory({
     authorId: fromShip,
     sentAt,
     content: story,
+    blob,
     botProfile,
   });
   return { channel: 'tlon' as const, messageId, sentAt };
@@ -132,6 +137,7 @@ type SendChannelPostParams = {
   /** Full nest like "chat/~host/channel", "heap/~host/channel", or "diary/~host/channel" */
   nest: string;
   story: Story;
+  blob?: string;
   replyToId?: string | null;
   /** Optional title for heap/diary posts */
   title?: string;
@@ -147,6 +153,7 @@ export async function sendChannelPost({
   fromShip,
   nest,
   story,
+  blob,
   replyToId,
   title,
   botProfile,
@@ -162,9 +169,13 @@ export async function sendChannelPost({
       content: story,
       sentAt,
       authorId: fromShip,
+      blob,
       botProfile,
     });
-    return { channel: 'tlon', messageId: `${fromShip}/${sentAt}` };
+    return {
+      channel: 'tlon',
+      messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+    };
   }
 
   await apiSendPost({
@@ -173,9 +184,13 @@ export async function sendChannelPost({
     sentAt,
     content: story,
     metadata: title ? { title } : undefined,
+    blob,
     botProfile,
   });
-  return { channel: 'tlon', messageId: `${fromShip}/${sentAt}` };
+  return {
+    channel: 'tlon',
+    messageId: `${fromShip}/${formatSentAt(sentAt)}`,
+  };
 }
 
 // --- Utilities ---
