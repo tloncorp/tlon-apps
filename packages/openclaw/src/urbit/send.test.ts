@@ -10,6 +10,7 @@ vi.mock('@urbit/aura', () => ({
 describe('sendDm', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.resetModules();
   });
 
   it('uses aura v3 helpers for the DM id', async () => {
@@ -55,5 +56,39 @@ describe('sendDm', () => {
     // telemetry event's `nudgeSentAtMs`) agree on a single timestamp.
     expect(result.sentAt).toBe(sentAt);
     expect(result.channel).toBe('tlon');
+  });
+
+  it('uses aura v3 helpers for channel post ids', async () => {
+    const poke = vi.fn(async () => ({}));
+
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost: poke,
+      sendReply: vi.fn(),
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+    const sentAt = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(sentAt);
+
+    const result = await sendChannelPost({
+      fromShip: '~zod',
+      nest: 'chat/~zod/general',
+      story: [{ inline: ['hi'] }],
+      blob: '[{"type":"tlon-context-lens","version":1,"lensId":"lens-123"}]',
+    });
+
+    expect(poke).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'chat/~zod/general',
+        authorId: '~zod',
+        sentAt,
+        blob: '[{"type":"tlon-context-lens","version":1,"lensId":"lens-123"}]',
+      })
+    );
+    expect(result.messageId).toBe('~zod/mocked-ud');
   });
 });

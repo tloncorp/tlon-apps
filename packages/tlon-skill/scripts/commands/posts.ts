@@ -1,3 +1,9 @@
+import {
+  DIARY_REMOVED,
+  NOTES_CHANNEL_CONTENT_UNSUPPORTED,
+  isDiaryNest,
+  isNotesNest,
+} from '../cli-utils';
 import { defaultReplyParentAuthor } from '../post-targets';
 import { type Story, type StoryVerse, markdownToStory } from '../story';
 import {
@@ -18,7 +24,7 @@ Commands:
   reply <channel> <post-id> <message>      Reply to a channel post [--author ~ship]
   react <channel> <post-id> <emoji>     React to a post with an emoji
   unreact <channel> <post-id>           Remove your reaction from a post
-  edit <channel> <post-id> <message>    Edit a post [--title <t>] [--image <url>] [--content <json>]
+  edit <channel> <post-id> <message>    Edit a post's message text
   delete <channel> <post-id>            Delete a post
 
 Send options:
@@ -26,19 +32,13 @@ Send options:
   --image <url>        Attach an image (direct png/jpeg/gif/webp URL, e.g. from
                        'tlon upload'); message becomes an optional caption
 
-Edit options:
-  --title <title>      Set/update notebook post title
-  --image <url>        Set/update cover image (notebooks)
-  --content <file>     Use Story JSON file for rich content (notebooks)
-
 Examples:
   tlon posts send chat/~host/channel "Hello from tlon"
   tlon posts send chat/~host/channel "Look at this" --image https://storage.../tree.png
   tlon posts reply chat/~host/channel 170.141... "Thread reply"
   tlon posts edit chat/~host/channel 170.141... "Updated message"
-  tlon posts edit diary/~host/notes 170.141... --title "New Title" --image https://example.com/cover.jpg --content article.json
 
-Channel format: chat/~host/channel-name, diary/~host/name, heap/~host/name
+Channel format: chat/~host/channel-name, heap/~host/name
 Use 'tlon messages channel <nest> --limit N' to see post IDs.`;
 
 export const POSTS_COMMAND_HELP: Record<string, string> = {
@@ -47,7 +47,7 @@ export const POSTS_COMMAND_HELP: Record<string, string> = {
     'Usage: tlon posts reply <channel> <post-id> <message> [--author ~ship]',
   react: 'Usage: tlon posts react <channel> <post-id> <emoji>',
   unreact: 'Usage: tlon posts unreact <channel> <post-id>',
-  edit: 'Usage: tlon posts edit <channel> <post-id> <message> [--title <title>] [--image <url>] [--content <json-file>]',
+  edit: 'Usage: tlon posts edit <channel> <post-id> <message>',
   delete: 'Usage: tlon posts delete <channel> <post-id>',
 };
 
@@ -55,7 +55,14 @@ export const POSTS_COMMAND_HELP: Record<string, string> = {
 // command help map above. The react usage line must stay byte-identical.
 export const POSTS_REACT_HELP = POSTS_COMMAND_HELP.react;
 
-const POST_EDIT_OPTION_FLAGS = ['title', 'content', 'image'] as const;
+// `--title`/`--image`/`--content` were notebook-only edit affordances (diary
+// cover/title/Story-file). Diary/notebook is removed, so edit becomes plain
+// message-content editing and these flags are refused (not silently swallowed —
+// they used to act as message-slice boundaries, so a stale invocation must fail
+// loudly rather than absorb the flag into the message).
+const POSTS_EDIT_REMOVED_FLAGS_MESSAGE =
+  'tlon posts edit no longer supports --title/--image/--content (notebook-only affordances). Edit the message text directly; use `tlon notes` for %notes content.';
+
 const POST_REPLY_OPTION_FLAGS = ['author'] as const;
 const POST_SEND_OPTION_FLAGS = ['blob', 'image'] as const;
 
@@ -150,7 +157,6 @@ export interface PostsDeps extends CommandDeps {
   authenticate: (apps: PostAuthApp[]) => Promise<void>;
   getCurrentUserId: () => string;
   now: () => number;
-  readFile: (path: string) => string;
   // Fetch an image URL and build its story image verse (network IO).
   buildImageVerse: (url: string) => Promise<StoryVerse>;
   postsApi: PostsApi;
@@ -175,7 +181,7 @@ type ParsedPostsArgs =
   | { kind: 'react'; channelId: string; postId: string; emoji: string }
   | { kind: 'unreact'; channelId: string; postId: string }
   | { kind: 'delete'; channelId: string; postId: string }
-  | { kind: 'edit'; channelId: string; postId: string; args: string[] };
+  | { kind: 'edit'; channelId: string; postId: string; message: string };
 
 function extractNumericId(id: string): string {
   const slash = id.indexOf('/');
@@ -281,8 +287,22 @@ function firstPostSendFlagIndex(args: string[]): number {
   return indexes.length > 0 ? Math.min(...indexes) : args.length;
 }
 
+// Edit has no option flags any more (the notebook-only ones are removed), so the
+// message is everything after the post id.
 function getPostEditMessage(args: string[]): string {
-  return args.slice(3, firstFlagIndex(args, POST_EDIT_OPTION_FLAGS)).join(' ');
+  return args.slice(3).join(' ');
+}
+
+// True when `posts edit` carries a removed notebook-only flag. Detected as a
+// plain token (`--title`/`--content`) or in either `--image` form.
+function editHasRemovedFlag(args: string[]): boolean {
+  return args.some(
+    (arg) =>
+      arg === '--title' ||
+      arg === '--content' ||
+      arg === '--image' ||
+      arg.startsWith('--image=')
+  );
 }
 
 function getPostSendMessage(args: string[]): string {
@@ -293,25 +313,11 @@ function getPostReplyMessage(args: string[]): string {
   return args.slice(3, firstFlagIndex(args, POST_REPLY_OPTION_FLAGS)).join(' ');
 }
 
-// `hasOptionValue(args, 'content', POST_EDIT_OPTION_FLAGS)`: true only when
-// `--content` is followed by a value that is not itself an edit flag.
-function hasContentOptionValue(args: string[]): boolean {
-  const idx = args.indexOf('--content');
-  const value = idx !== -1 ? args[idx + 1] : undefined;
-  if (value === undefined) {
-    return false;
-  }
-  return !POST_EDIT_OPTION_FLAGS.some((flag) => value === `--${flag}`);
-}
-
 // When the message slice for a write subcommand contains a `--help`/`-h` token,
 // help is suppressed and the token is treated as literal message content.
 function isPostEditMessageHelpLiteral(args: string[]): boolean {
   return (
-    args[0] === 'edit' &&
-    !!args[1] &&
-    !!args[2] &&
-    wantsHelp(args.slice(3, firstFlagIndex(args, POST_EDIT_OPTION_FLAGS)))
+    args[0] === 'edit' && !!args[1] && !!args[2] && wantsHelp(args.slice(3))
   );
 }
 
@@ -370,6 +376,17 @@ function parseArgs(args: string[]): ParsedPostsArgs {
     throw usageError(POSTS_HELP);
   }
 
+  // Diary/notebook channels are removed; refuse a `diary/...` nest with the
+  // explanatory message before per-subcommand validation, so the refusal wins
+  // over an incidental missing-arg or removed-flag error on the same command.
+  if (isDiaryNest(args[1])) {
+    throw commandError(DIARY_REMOVED);
+  }
+
+  if (isNotesNest(args[1])) {
+    throw commandError(NOTES_CHANNEL_CONTENT_UNSUPPORTED);
+  }
+
   switch (command) {
     case 'send': {
       const imageUrl = validatedImageFlag(args, POSTS_COMMAND_HELP.send);
@@ -421,11 +438,14 @@ function parseArgs(args: string[]): ParsedPostsArgs {
       if (!channelId || !postId) {
         throw usageError(POSTS_COMMAND_HELP.edit);
       }
+      if (editHasRemovedFlag(args)) {
+        throw commandError(POSTS_EDIT_REMOVED_FLAGS_MESSAGE);
+      }
       const message = getPostEditMessage(args);
-      if (!message && !hasContentOptionValue(args)) {
+      if (!message) {
         throw usageError(POSTS_COMMAND_HELP.edit);
       }
-      return { kind: 'edit', channelId, postId, args };
+      return { kind: 'edit', channelId, postId, message };
     }
   }
 
@@ -559,28 +579,13 @@ async function fetchExistingPost(
   }
 }
 
-function readContentFile(path: string, deps: PostsDeps): Story {
-  try {
-    return JSON.parse(deps.readFile(path)) as Story;
-  } catch (error) {
-    throw commandError(errorMessage(error));
-  }
-}
-
 async function editPost(
-  parsed: { channelId: string; postId: string; args: string[] },
+  parsed: { channelId: string; postId: string; message: string },
   deps: PostsDeps
 ): Promise<void> {
-  const { args } = parsed;
-  const titleIdx = args.indexOf('--title');
-  const contentIdx = args.indexOf('--content');
-  const newTitle = titleIdx !== -1 ? args[titleIdx + 1] : undefined;
-  const contentFile = contentIdx !== -1 ? args[contentIdx + 1] : undefined;
-  const newImage =
-    imageFlagIndex(args) !== -1
-      ? imageFlagValue(args, POSTS_COMMAND_HELP.edit)
-      : undefined;
-
+  // Edit only the message text. Existing metadata (e.g. a heap curio's title) is
+  // preserved by reading it back from the existing post — the CLI no longer
+  // overrides it, but must not wipe it either.
   const existing = await fetchExistingPost(
     parsed.channelId,
     parsed.postId,
@@ -588,22 +593,18 @@ async function editPost(
   );
 
   const metadata: PostEditMetadata = {
-    title: newTitle ?? existing?.title ?? undefined,
-    image: newImage ?? existing?.image ?? undefined,
+    title: existing?.title ?? undefined,
+    image: existing?.image ?? undefined,
     description: existing?.description ?? undefined,
     cover: existing?.cover ?? undefined,
   };
-
-  const content = contentFile
-    ? readContentFile(contentFile, deps)
-    : markdownToStory(getPostEditMessage(args));
 
   await deps.postsApi.editPost({
     channelId: parsed.channelId,
     postId: formatPostId(parsed.postId),
     authorId: deps.getCurrentUserId(),
     sentAt: deps.now(),
-    content,
+    content: markdownToStory(parsed.message),
     metadata,
   });
 }
