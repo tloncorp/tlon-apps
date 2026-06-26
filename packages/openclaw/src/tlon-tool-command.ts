@@ -59,6 +59,161 @@ export type TlonToolCallContext = {
   contentTypeProvided?: boolean;
 };
 
+const UNKNOWN_SUBCOMMAND = 'unknown';
+const INVALID_OPERATION = 'invalid';
+
+const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
+  ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
+  [
+    'channels',
+    new Set([
+      'dms',
+      'group-dms',
+      'groups',
+      'all',
+      'info',
+      'create',
+      'update',
+      'rename',
+      'delete',
+      'add-writers',
+      'del-writers',
+      'add-readers',
+      'del-readers',
+    ]),
+  ],
+  [
+    'contacts',
+    new Set([
+      'list',
+      'self',
+      'get',
+      'sync',
+      'add',
+      'remove',
+      'del',
+      'update',
+      'update-profile',
+    ]),
+  ],
+  [
+    'dms',
+    new Set([
+      'send',
+      'reply',
+      'react',
+      'unreact',
+      'delete',
+      'accept',
+      'decline',
+    ]),
+  ],
+  ['expose', new Set(['list', 'show', 'hide', 'check', 'url'])],
+  [
+    'groups',
+    new Set([
+      'list',
+      'create',
+      'create-owned',
+      'invite',
+      'info',
+      'leave',
+      'join',
+      'request-invite',
+      'accept-invite',
+      'reject-invite',
+      'cancel-join',
+      'rescind-request',
+      'revoke-invite',
+      'delete',
+      'update',
+      'kick',
+      'ban',
+      'unban',
+      'add-role',
+      'delete-role',
+      'update-role',
+      'assign-role',
+      'remove-role',
+      'set-privacy',
+      'accept-join',
+      'reject-join',
+      'promote',
+      'demote',
+      'add-channel',
+    ]),
+  ],
+  [
+    'hooks',
+    new Set([
+      'init',
+      'list',
+      'get',
+      'add',
+      'edit',
+      'delete',
+      'del',
+      'order',
+      'config',
+      'cron',
+      'rest',
+    ]),
+  ],
+  [
+    'messages',
+    new Set(['dm', 'channel', 'history', 'search', 'context', 'post']),
+  ],
+  [
+    'notes',
+    new Set([
+      'status',
+      'list',
+      'show',
+      'notes',
+      'note',
+      'create',
+      'note-create',
+      'note-update',
+      'note-rename',
+      'note-move',
+      'note-delete',
+      'history',
+      'folders',
+      'folder',
+      'folder-create',
+      'folder-rename',
+      'folder-move',
+      'folder-delete',
+      'members',
+      'join',
+      'leave',
+    ]),
+  ],
+  ['posts', new Set(['send', 'reply', 'react', 'unreact', 'edit', 'delete'])],
+  [
+    'settings',
+    new Set([
+      'get',
+      'set',
+      'delete',
+      'del',
+      'allow-dm',
+      'add-dm',
+      'remove-dm',
+      'allow-channel',
+      'add-channel',
+      'remove-channel',
+      'open-channel',
+      'restrict-channel',
+      'set-rule',
+      'authorize-ship',
+      'add-auth',
+      'deauthorize-ship',
+      'remove-auth',
+    ]),
+  ],
+]);
+
 /**
  * Shell-like argument splitter that respects quotes.
  */
@@ -129,7 +284,7 @@ export function findTlonSubcommandIndex(args: string[]): number {
 export function summarizeTlonCommand(command: string): TlonToolCallContext {
   const args = shellSplitCommand(command);
   const subIdx = findTlonSubcommandIndex(args);
-  const subcommand = args[subIdx]?.toLowerCase() ?? 'unknown';
+  const subcommand = args[subIdx]?.toLowerCase() ?? UNKNOWN_SUBCOMMAND;
   const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
   const blockedSendOperation =
     commandArgs.length > 0 && checkBlockedSendOperation(commandArgs) !== null;
@@ -137,9 +292,9 @@ export function summarizeTlonCommand(command: string): TlonToolCallContext {
   if (!ALLOWED_TLON_COMMANDS.has(subcommand)) {
     return {
       kind: 'tlonCommand',
-      summaryKey: `${subcommand}.invalid`,
-      subcommand,
-      operation: 'invalid',
+      summaryKey: `${UNKNOWN_SUBCOMMAND}.${INVALID_OPERATION}`,
+      subcommand: UNKNOWN_SUBCOMMAND,
+      operation: INVALID_OPERATION,
       intent: 'utility',
       isKnownSubcommand: false,
       blockedSendOperation,
@@ -153,23 +308,11 @@ function summarizeKnownTlonCommand(
   commandArgs: string[],
   blockedSendOperation: boolean
 ): TlonToolCallContext {
-  const subcommand = commandArgs[0]?.toLowerCase() ?? 'unknown';
-  const actionSubcommands = new Set([
-    'activity',
-    'channels',
-    'contacts',
-    'groups',
-    'hooks',
-    'messages',
-    'notes',
-    'dms',
-    'expose',
-    'posts',
-    'settings',
-  ]);
-  const hasAction = actionSubcommands.has(subcommand);
+  const subcommand = commandArgs[0]?.toLowerCase() ?? UNKNOWN_SUBCOMMAND;
+  const validOperations = ACTION_OPERATIONS_BY_SUBCOMMAND.get(subcommand);
+  const hasAction = validOperations != null;
   const operation = hasAction
-    ? commandArgs[1]?.toLowerCase() ?? defaultOperationForSubcommand(subcommand)
+    ? normalizeActionOperation(commandArgs[1], validOperations)
     : defaultOperationForSubcommand(subcommand);
   const remainder = commandArgs.slice(hasAction ? 2 : 1);
 
@@ -195,6 +338,10 @@ function summarizeKnownTlonCommand(
     blockedSendOperation,
     ...extra,
   });
+
+  if (operation === INVALID_OPERATION) {
+    return build('utility');
+  }
 
   switch (subcommand) {
     case 'activity':
@@ -236,6 +383,17 @@ function summarizeKnownTlonCommand(
     default:
       return build('utility');
   }
+}
+
+function normalizeActionOperation(
+  rawOperation: string | undefined,
+  validOperations: ReadonlySet<string>
+): string {
+  const operation = rawOperation?.toLowerCase();
+  if (!operation) {
+    return INVALID_OPERATION;
+  }
+  return validOperations.has(operation) ? operation : INVALID_OPERATION;
 }
 
 function summarizeChannelsOperation(

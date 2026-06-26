@@ -39,6 +39,50 @@ describe('tlon tool telemetry summarizer', () => {
     expect(serialized).not.toContain('~marzod-marnec');
   });
 
+  it('normalizes unknown operations without leaking the attempted argument', () => {
+    const summary = summarizeTlonCommand('groups "Launch Planning"');
+
+    expect(summary).toMatchObject({
+      summaryKey: 'groups.invalid',
+      subcommand: 'groups',
+      operation: 'invalid',
+      intent: 'utility',
+      isKnownSubcommand: true,
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('Launch Planning');
+  });
+
+  it('normalizes missing operations on action command families', () => {
+    const summary = summarizeTlonCommand('groups');
+
+    expect(summary).toMatchObject({
+      summaryKey: 'groups.invalid',
+      subcommand: 'groups',
+      operation: 'invalid',
+      intent: 'utility',
+      isKnownSubcommand: true,
+    });
+  });
+
+  it('normalizes unknown subcommands without leaking the attempted command', () => {
+    const summary = summarizeTlonCommand(
+      'run-private-export "Launch Planning"'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'unknown.invalid',
+      subcommand: 'unknown',
+      operation: 'invalid',
+      intent: 'utility',
+      isKnownSubcommand: false,
+    });
+
+    const serialized = JSON.stringify(summary);
+    expect(serialized).not.toContain('run-private-export');
+    expect(serialized).not.toContain('Launch Planning');
+  });
+
   it('tracks profile fields updated without leaking field values or asset URLs', () => {
     const summary = summarizeTlonCommand(
       'contacts update-profile --nickname "PM Bot" --avatar https://assets.example.com/private.png --bio "hello"'
