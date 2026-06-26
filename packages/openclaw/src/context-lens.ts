@@ -12,6 +12,7 @@ export type ContextLensTrigger =
   | 'owner-blob'
   | 'summarization'
   | 'tool'
+  | 'retry'
   | 'unknown';
 
 export type ContextLensRunKind =
@@ -32,6 +33,7 @@ export type ContextLensStatus =
   | 'completed'
   | 'no_reply'
   | 'timed_out'
+  | 'aborted'
   | 'error';
 
 export type ContextLensTriggerDetails = {
@@ -42,6 +44,27 @@ export type ContextLensTriggerDetails = {
   conversationKind: 'dm' | 'channel' | 'internal';
   receivedAt?: number;
   preview?: string;
+};
+
+/**
+ * Snapshot of the original dispatch inputs, captured at lens creation so an
+ * owner-requested retry can re-dispatch the message faithfully. The seed is
+ * capped at capture, persisted in the JSONL store, and included in ship-sync
+ * payloads so the owner ship can retry runs even if gateway-local cache state
+ * is gone. Message text and blob JSON already originate from the DM/channel
+ * visible to the owner.
+ */
+export type ContextLensRetrySeed = {
+  messageText: string;
+  blobField?: string | null;
+  // Raw Tlon Story content, persisted so a retry can re-attach media that
+  // lives in image blocks (not blobField) — downloadMessageImages rebuilds
+  // MediaPaths from the durable image URLs it carries.
+  messageContent?: unknown;
+  parentId?: string | null;
+  isThreadReply?: boolean;
+  replyParentId?: string | null;
+  cachesHistory?: boolean;
 };
 
 export type ContextLensSourceKind =
@@ -106,6 +129,9 @@ export type ContextLens = {
   visibility: ContextLensVisibility;
   trigger: ContextLensTrigger;
   triggerDetails: ContextLensTriggerDetails;
+  /** lensId of the run this one retries, when trigger is "retry". */
+  retryOf?: string;
+  retrySeed?: ContextLensRetrySeed;
   model: string | null;
   provider: string | null;
   context: {
@@ -165,6 +191,8 @@ export type CreateContextLensInput = {
   conversationId?: string;
   receivedAt?: number;
   preview?: string;
+  retryOf?: string;
+  retrySeed?: ContextLensRetrySeed;
   now?: number;
   ttlMs?: number;
 };
@@ -198,6 +226,8 @@ type ActiveContextLensBinding = {
 
 const DEFAULT_TTL_MS = 30 * 60 * 1000;
 const MAX_LENSES = 200;
+const MAX_RETRY_SEED_TEXT_CHARS = 16_384;
+export const MAX_RETRY_SEED_BLOB_CHARS = 8_192;
 // Long enough for the gateway to deliver the run's reply (cron DMs etc.)
 // after the last tool result, so the outbound stamp/output land on the lens
 // before it finalizes.
@@ -253,6 +283,105 @@ function cloneLens(lens: ContextLens): ContextLens {
     outputs: lens.outputs.map((output) => ({ ...output })),
     lifecycle: { ...lens.lifecycle },
     triggerDetails: { ...lens.triggerDetails },
+    ...(lens.retrySeed ? { retrySeed: { ...lens.retrySeed } } : {}),
+  };
+}
+
+function capRetrySeed(seed: ContextLensRetrySeed): ContextLensRetrySeed {
+  const capped: ContextLensRetrySeed = {
+    ...seed,
+    messageText: seed.messageText.slice(0, MAX_RETRY_SEED_TEXT_CHARS),
+  };
+  // A truncated blob would be unparseable JSON — drop it instead.
+  if (
+    typeof seed.blobField === 'string' &&
+    seed.blobField.length > MAX_RETRY_SEED_BLOB_CHARS
+  ) {
+    delete capped.blobField;
+  }
+  return capped;
+}
+
+export const RETRYABLE_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
+  'no_reply',
+  'timed_out',
+  'aborted',
+  'error',
+]);
+
+export type RetryDispatch = {
+  messageId: string;
+  senderShip: string;
+  messageText: string;
+  blobField?: string | null;
+  messageContent?: unknown;
+  isGroup: boolean;
+  channelNest?: string;
+  parentId?: string | null;
+  isThreadReply?: boolean;
+  replyParentId?: string | null;
+  cachesHistory?: boolean;
+  /** True when dispatching from the truncated preview because the run predates retrySeed. */
+  degraded: boolean;
+};
+
+export type RetryDispatchResult =
+  | { ok: true; dispatch: RetryDispatch }
+  | { ok: false; reason: string };
+
+/**
+ * Reconstruct processMessage params from a finalized lens so an owner can
+ * re-run it. Pure eligibility + mapping; the caller owns dedup and dispatch.
+ */
+export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
+  if (!RETRYABLE_STATUSES.has(lens.status)) {
+    return { ok: false, reason: `status ${lens.status} is not retryable` };
+  }
+  if (
+    lens.triggerDetails.conversationKind === 'internal' ||
+    lens.runKind === 'internal'
+  ) {
+    return { ok: false, reason: 'internal runs cannot be retried' };
+  }
+  const senderShip = lens.triggerDetails.authorShip;
+  if (!senderShip) {
+    return { ok: false, reason: 'original run has no author ship' };
+  }
+  const isGroup = lens.triggerDetails.conversationKind === 'channel';
+  const conversationId = lens.triggerDetails.conversationId;
+  if (isGroup && !conversationId) {
+    return { ok: false, reason: 'channel run has no conversation id' };
+  }
+  const seed = lens.retrySeed;
+  const messageText = seed?.messageText ?? lens.triggerDetails.preview ?? '';
+  const blobField = seed?.blobField ?? null;
+  const messageContent = seed?.messageContent ?? null;
+  // A run with no text is still dispatchable when it carries media: a blob
+  // attachment (voice memo/file via blobField) or image blocks in the Story
+  // content (downloadMessageImages re-attaches them). Only reject when there's
+  // nothing — no text, blob, or content — to replay.
+  if (!messageText.trim() && !blobField && !messageContent) {
+    return {
+      ok: false,
+      reason: 'no message text, blob, or content available to retry',
+    };
+  }
+  return {
+    ok: true,
+    dispatch: {
+      messageId: lens.messageId,
+      senderShip,
+      messageText,
+      blobField,
+      messageContent,
+      isGroup,
+      ...(isGroup && conversationId ? { channelNest: conversationId } : {}),
+      parentId: seed?.parentId ?? null,
+      isThreadReply: seed?.isThreadReply ?? false,
+      replyParentId: seed?.replyParentId ?? null,
+      cachesHistory: seed?.cachesHistory ?? true,
+      degraded: !seed,
+    },
   };
 }
 
@@ -318,6 +447,8 @@ export function createContextLensRegistry(
         ...(input.receivedAt ? { receivedAt: input.receivedAt } : {}),
         ...(input.preview ? { preview: input.preview } : {}),
       },
+      ...(input.retryOf ? { retryOf: input.retryOf } : {}),
+      ...(input.retrySeed ? { retrySeed: capRetrySeed(input.retrySeed) } : {}),
       model: null,
       provider: null,
       context: {

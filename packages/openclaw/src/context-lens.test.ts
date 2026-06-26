@@ -8,6 +8,7 @@ import {
 } from './context-lens-events.js';
 import {
   bindContextLensToSession,
+  buildRetryDispatch,
   createContextLensRegistry,
   ensureBackgroundContextLensForSession,
   finalizeBackgroundContextLensForSession,
@@ -732,5 +733,226 @@ describe('context lens event bus', () => {
       lensId: lens.lensId,
       messageId: 'message-global-bus',
     });
+  });
+});
+
+describe('retry seed and dispatch', () => {
+  it('captures retryOf and retrySeed on create and preserves them through clones', () => {
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'message-retry-1',
+      chatType: 'channel',
+      trigger: 'retry',
+      sessionKey: 'session-retry-1',
+      senderShip: '~ten',
+      conversationId: 'chat/~ten/test',
+      retryOf: 'lens-original',
+      retrySeed: {
+        messageText: 'hello again',
+        blobField: '{"k":"v"}',
+        parentId: '170.1',
+        isThreadReply: true,
+        replyParentId: '170.2',
+        cachesHistory: true,
+      },
+    });
+
+    expect(lens.retryOf).toBe('lens-original');
+    expect(lens.retrySeed).toEqual({
+      messageText: 'hello again',
+      blobField: '{"k":"v"}',
+      parentId: '170.1',
+      isThreadReply: true,
+      replyParentId: '170.2',
+      cachesHistory: true,
+    });
+
+    const fetched = registry.get(lens.lensId);
+    expect(fetched?.retrySeed).toEqual(lens.retrySeed);
+    // Clones are independent copies, not shared references.
+    expect(fetched?.retrySeed).not.toBe(lens.retrySeed);
+  });
+
+  it('caps oversized retry seed text and drops oversized blobs', () => {
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'message-retry-2',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-2',
+      senderShip: '~ten',
+      retrySeed: {
+        messageText: 'x'.repeat(20_000),
+        blobField: 'y'.repeat(10_000),
+      },
+    });
+
+    expect(lens.retrySeed?.messageText.length).toBe(16_384);
+    expect(lens.retrySeed?.blobField).toBeUndefined();
+  });
+
+  it("builds a retry dispatch from a failed run's seed", () => {
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'message-retry-3',
+      chatType: 'channel',
+      trigger: 'mention',
+      sessionKey: 'session-retry-3',
+      senderShip: '~ten',
+      conversationId: 'chat/~ten/test',
+      preview: 'preview text',
+      retrySeed: {
+        messageText: 'full original text',
+        blobField: null,
+        parentId: '170.5',
+        isThreadReply: true,
+        replyParentId: null,
+        cachesHistory: true,
+      },
+    });
+    const aborted = registry.setStatus(lens.lensId, 'aborted');
+    expect(aborted).not.toBeNull();
+
+    const result = buildRetryDispatch(aborted!);
+    expect(result).toEqual({
+      ok: true,
+      dispatch: {
+        messageId: 'message-retry-3',
+        senderShip: '~ten',
+        messageText: 'full original text',
+        blobField: null,
+        messageContent: null,
+        isGroup: true,
+        channelNest: 'chat/~ten/test',
+        parentId: '170.5',
+        isThreadReply: true,
+        replyParentId: null,
+        cachesHistory: true,
+        degraded: false,
+      },
+    });
+  });
+
+  it('falls back to the preview as degraded when the run predates retrySeed', () => {
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'message-retry-4',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-4',
+      senderShip: '~ten',
+      preview: 'truncated preview',
+    });
+    const failed = registry.setStatus(lens.lensId, 'error', new Error('boom'));
+
+    const result = buildRetryDispatch(failed!);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.dispatch.messageText).toBe('truncated preview');
+      expect(result.dispatch.degraded).toBe(true);
+      expect(result.dispatch.isGroup).toBe(false);
+    }
+  });
+
+  it('refuses non-retryable, internal, and incomplete runs', () => {
+    const registry = createContextLensRegistry();
+
+    const completed = registry.create({
+      messageId: 'message-retry-5',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-5',
+      senderShip: '~ten',
+      preview: 'done',
+    });
+    const completedLens = registry.setStatus(completed.lensId, 'completed');
+    expect(buildRetryDispatch(completedLens!)).toEqual({
+      ok: false,
+      reason: 'status completed is not retryable',
+    });
+
+    const internal = registry.create({
+      messageId: 'message-retry-6',
+      chatType: 'internal',
+      trigger: 'cron',
+      sessionKey: 'session-retry-6',
+      preview: 'cron run',
+    });
+    const internalLens = registry.setStatus(internal.lensId, 'error');
+    expect(buildRetryDispatch(internalLens!).ok).toBe(false);
+
+    const noAuthor = registry.create({
+      messageId: 'message-retry-7',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-7',
+      preview: 'anonymous',
+    });
+    const noAuthorLens = registry.setStatus(noAuthor.lensId, 'timed_out');
+    expect(buildRetryDispatch(noAuthorLens!)).toEqual({
+      ok: false,
+      reason: 'original run has no author ship',
+    });
+
+    const noText = registry.create({
+      messageId: 'message-retry-8',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-8',
+      senderShip: '~ten',
+    });
+    const noTextLens = registry.setStatus(noText.lensId, 'no_reply');
+    expect(buildRetryDispatch(noTextLens!)).toEqual({
+      ok: false,
+      reason: 'no message text, blob, or content available to retry',
+    });
+  });
+
+  it('retries a blob-only run with no text', () => {
+    const registry = createContextLensRegistry({ ttlMs: 60_000 });
+    const blobOnly = registry.create({
+      messageId: 'message-retry-blob',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-blob',
+      senderShip: '~ten',
+      retrySeed: {
+        messageText: '',
+        blobField: '{"voice":"memo"}',
+      },
+    });
+    const blobOnlyLens = registry.setStatus(blobOnly.lensId, 'no_reply');
+    const result = buildRetryDispatch(blobOnlyLens!);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.dispatch.messageText).toBe('');
+      expect(result.dispatch.blobField).toBe('{"voice":"memo"}');
+    }
+  });
+
+  it('preserves messageContent so image-block media can be re-attached', () => {
+    const registry = createContextLensRegistry({ ttlMs: 60_000 });
+    const messageContent = [
+      { block: { image: { src: 'https://example.com/cat.png' } } },
+    ];
+    // an image-only message: no text, no blobField, media lives in the Story
+    const imageRun = registry.create({
+      messageId: 'message-retry-image',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-image',
+      senderShip: '~ten',
+      retrySeed: {
+        messageText: '',
+        messageContent,
+      },
+    });
+    const imageLens = registry.setStatus(imageRun.lensId, 'error');
+    const result = buildRetryDispatch(imageLens!);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.dispatch.messageText).toBe('');
+      expect(result.dispatch.messageContent).toEqual(messageContent);
+    }
   });
 });

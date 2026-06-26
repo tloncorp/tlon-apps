@@ -937,6 +937,28 @@ export const syncPushNotificationsSetting = async (ctx?: SyncCtx) => {
   await db.pushNotificationSettings.setValue(setting);
 };
 
+export async function handleLensUpdate(runs: api.LensRun[]) {
+  logger.log('received lens update', runs.length);
+  await db.insertContextLensRuns(runs);
+}
+
+export const syncLensRuns = async (ctx?: SyncCtx) => {
+  const runs = await syncQueue.add('lensRuns', ctx, async () => {
+    try {
+      return await api.getRecentLensRuns();
+    } catch (e) {
+      // older ships don't have the %steward agent
+      if (e instanceof api.BadResponseError && e.status === 404) {
+        return null;
+      }
+      throw e;
+    }
+  });
+  if (runs) {
+    await db.insertContextLensRuns(runs);
+  }
+};
+
 async function handleLanyardUpdate(update: api.LanyardUpdate) {
   logger.log('received lanyard update', update.type);
   updateLastActivityTime();
@@ -2249,6 +2271,16 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         : setupLowPrioritySubscriptions({
             priority: syncStartPriority.low,
           }).then(() => logger.crumb('subscribed low priority')),
+      // On recovery the live subscription persists across the discontinuity,
+      // so setupLowPrioritySubscriptions (and its post-subscribe lens
+      // backfill) is skipped. Rescry /v1/lens directly to recover any events
+      // missed while the SSE connection was down. No-ops on ships without
+      // %steward (syncLensRuns swallows the 404).
+      alreadySubscribed
+        ? syncLensRuns({ priority: syncStartPriority.low + 1 }).then(() =>
+            logger.crumb('finished recovery lens backfill')
+          )
+        : Promise.resolve(),
       resetActivity({ priority: syncStartPriority.low + 1, retry: true }).then(
         () => logger.crumb(`finished resetting activity`)
       ),
@@ -2321,6 +2353,13 @@ export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
       api.subscribeToStorageUpdates(createHandler(handleStorageUpdate)),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
       api.subscribeToSettings(createHandler(handleSettingsUpdate)),
+      // returns null (and skips backfill) when the ship lacks the %steward agent
+      api.subscribeToLensUpdates(handleLensUpdate).then((subscribed) => {
+        if (subscribed === null) {
+          return;
+        }
+        return syncLensRuns();
+      }),
     ]);
   });
 };

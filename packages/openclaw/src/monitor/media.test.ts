@@ -133,7 +133,7 @@ describe('parseBlobData', () => {
     expect(result![1]).toMatchObject({ type: 'file' });
   });
 
-  it('degrades metadata-only context lens blobs without treating them as media', () => {
+  it('parses context lens blobs without treating them as media', () => {
     const blob = JSON.stringify([
       { type: 'tlon-context-lens', version: 1, lensId: 'lens-123' },
       {
@@ -145,7 +145,9 @@ describe('parseBlobData', () => {
     ]);
     const result = parseBlobData(blob);
     expect(result).toHaveLength(2);
-    expect(result![0]).toMatchObject({ type: 'unknown' });
+    // recognized as its own entry type (not a media type), so the downloader's
+    // allowlist skips it — see isDownloadableBlobEntry
+    expect(result![0]).toMatchObject({ type: 'tlon-context-lens' });
     expect(result![1]).toMatchObject({ type: 'file' });
   });
 });

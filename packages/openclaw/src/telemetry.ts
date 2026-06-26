@@ -2,6 +2,11 @@ import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 import { PostHog } from 'posthog-node';
 
 import { sharedMap, sharedSlot } from './shared-state.js';
+import type {
+  TlonChannelKind,
+  TlonProfileUpdateField,
+  TlonToolCallContext,
+} from './tlon-tool-command.js';
 import type { TlonTelemetryConfig } from './types.js';
 import { getTlonVersionIdentity } from './version.js';
 
@@ -9,6 +14,7 @@ type ToolCallRecord = {
   toolName: string;
   durationMs: number | null;
   error: string | null;
+  context: ToolCallContext | null;
   recordedAt: number;
 };
 
@@ -57,15 +63,22 @@ type TlonSessionTelemetryContext = {
   updatedAt: number;
 };
 
+export type ToolCallContext = TlonToolCallContext;
+
 export type ToolUsageSummary = {
   calls: Array<{
     toolName: string;
     durationMs: number | null;
     error: string | null;
+    summaryKey: string | null;
   }>;
   names: string[];
   totalDurationMs: number;
   errorCount: number;
+  tlonToolCallCount: number;
+  tlonSummaryKeys: string[];
+  tlonChannelKinds: TlonChannelKind[];
+  tlonUpdateFields: TlonProfileUpdateField[];
 };
 
 export type TlonHeartbeatNudgeEvent = {
@@ -513,6 +526,7 @@ export function recordToolCall(params: {
   toolName: string;
   durationMs?: number;
   error?: string;
+  context?: ToolCallContext;
 }): void {
   const sessionKey = params.sessionKey?.trim();
   if (!sessionKey) {
@@ -534,6 +548,7 @@ export function recordToolCall(params: {
     durationMs:
       typeof params.durationMs === 'number' ? params.durationMs : null,
     error: params.error ?? null,
+    context: params.context ?? null,
     recordedAt: now,
   });
 
@@ -563,7 +578,20 @@ function collectToolUsageSince(
         toolName: call.toolName,
         durationMs: call.durationMs,
         error: call.error,
+        summaryKey:
+          call.context?.kind === 'tlonCommand' ? call.context.summaryKey : null,
       })) ?? [];
+  const tlonContexts =
+    toolCallsBySession
+      .get(sessionKey)
+      ?.calls.slice(Math.max(0, cursor))
+      .flatMap((call) => {
+        if (call.context?.kind !== 'tlonCommand') {
+          return [];
+        }
+
+        return [call.context];
+      }) ?? [];
 
   return {
     calls,
@@ -573,7 +601,32 @@ function collectToolUsageSince(
       0
     ),
     errorCount: calls.filter((call) => call.error).length,
+    tlonToolCallCount: tlonContexts.length,
+    tlonSummaryKeys: uniqueInOrder(tlonContexts.map((call) => call.summaryKey)),
+    tlonChannelKinds: uniqueInOrder(
+      tlonContexts.flatMap((call) =>
+        call.channelKind ? [call.channelKind] : []
+      )
+    ),
+    tlonUpdateFields: uniqueInOrder(
+      tlonContexts.flatMap((call) => call.updateFields ?? [])
+    ),
   };
+}
+
+function uniqueInOrder<T>(values: T[]): T[] {
+  const seen = new Set<T>();
+  const unique: T[] = [];
+
+  for (const value of values) {
+    if (seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    unique.push(value);
+  }
+
+  return unique;
 }
 
 function cleanupSessionContexts(now = Date.now()): void {
@@ -1259,7 +1312,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           toolName: call.toolName,
           durationMs: call.durationMs,
           error: call.error,
+          summaryKey: call.summaryKey,
         })),
+        tlonToolCallCount: event.toolUsage.tlonToolCallCount,
+        tlonToolSummaryKeys: event.toolUsage.tlonSummaryKeys,
+        tlonToolChannelKinds: event.toolUsage.tlonChannelKinds,
+        tlonToolUpdateFields: event.toolUsage.tlonUpdateFields,
       }),
     });
   }

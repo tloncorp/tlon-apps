@@ -53,6 +53,11 @@ import {
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
+  findTlonSubcommandIndex,
+  shellSplitCommand,
+  summarizeTlonCommand,
+} from './src/tlon-tool-command.js';
+import {
   checkBlockedSendOperation,
   formatAllowedTlonSubcommands,
   isAllowedTlonSubcommand,
@@ -92,42 +97,7 @@ function readToolCallId(event: unknown): string | undefined {
 }
 const require = createRequire(import.meta.url);
 
-/** Credential flags that the tlon skill binary accepts before the subcommand. */
-const CREDENTIAL_FLAGS_WITH_VALUE = new Set([
-  '--config',
-  '--url',
-  '--ship',
-  '--code',
-  '--cookie',
-]);
 const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
-
-/**
- * Find the first positional argument (subcommand) by skipping credential flags
- * and their values. Returns the index into `args`, or -1 if none found.
- */
-function findSubcommandIndex(args: string[]): number {
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-    // --flag=value form: skip one token
-    if (arg.startsWith('--') && arg.includes('=')) {
-      const flag = arg.slice(0, arg.indexOf('='));
-      if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) {
-        i += 1;
-        continue;
-      }
-    }
-    // --flag value form: skip two tokens
-    if (CREDENTIAL_FLAGS_WITH_VALUE.has(arg)) {
-      i += 2;
-      continue;
-    }
-    // Not a credential flag — this is the subcommand
-    return i;
-  }
-  return -1;
-}
 
 function summarizeToolParams(params: unknown): string | undefined {
   if (params === null || params === undefined) {
@@ -167,49 +137,6 @@ function detailToolParams(params: unknown): string | undefined {
     return `${serialized.slice(0, MAX_TOOL_PARAM_DETAIL_CHARS)}… [truncated]`;
   }
   return serialized;
-}
-
-/**
- * Shell-like argument splitter that respects quotes
- */
-function shellSplit(str: string): string[] {
-  const args: string[] = [];
-  let cur = '';
-  let inDouble = false;
-  let inSingle = false;
-  let escape = false;
-
-  for (const ch of str) {
-    if (escape) {
-      cur += ch;
-      escape = false;
-      continue;
-    }
-    if (ch === '\\' && !inSingle) {
-      escape = true;
-      continue;
-    }
-    if (ch === '"' && !inSingle) {
-      inDouble = !inDouble;
-      continue;
-    }
-    if (ch === "'" && !inDouble) {
-      inSingle = !inSingle;
-      continue;
-    }
-    if (/\s/.test(ch) && !inDouble && !inSingle) {
-      if (cur) {
-        args.push(cur);
-        cur = '';
-      }
-      continue;
-    }
-    cur += ch;
-  }
-  if (cur) {
-    args.push(cur);
-  }
-  return args;
 }
 
 /**
@@ -1188,9 +1115,9 @@ export default defineChannelPluginEntry({
       },
       async execute(_id: string, params: { command: string }) {
         try {
-          const args = shellSplit(params.command);
+          const args = shellSplitCommand(params.command);
 
-          const subIdx = findSubcommandIndex(args);
+          const subIdx = findTlonSubcommandIndex(args);
           const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
           if (!isAllowedTlonSubcommand(subcommand)) {
             return {
@@ -1373,6 +1300,11 @@ export default defineChannelPluginEntry({
             toolName: event.toolName,
             durationMs: event.durationMs,
             error: event.error,
+            context:
+              event.toolName === 'tlon' &&
+              typeof event.params.command === 'string'
+                ? summarizeTlonCommand(event.params.command)
+                : undefined,
           });
         },
       });

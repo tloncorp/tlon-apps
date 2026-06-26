@@ -22,6 +22,7 @@ const TERMINAL_STATUSES: ReadonlySet<ContextLensStatus> = new Set([
   'completed',
   'no_reply',
   'timed_out',
+  'aborted',
   'error',
 ]);
 
@@ -65,6 +66,12 @@ export type LensRunPayload = {
  * untruncated runs remain on gateway disk (Phase 2 store).
  */
 export function buildLensRunPayload(lens: ContextLens): LensRunPayload {
+  // retrySeed (raw chat text + blob field) rides along on the lens snapshot
+  // so the agent is the durable source of truth for retry: any gateway,
+  // current or future, can replay a run by scrying %steward for the payload
+  // regardless of local cache state. Message text is already on the ship in
+  // the original DM/channel, so mirroring it here does not introduce new
+  // exposure; it does grow per-poke Ames traffic by roughly 1-10KB.
   const slim: ContextLens = {
     ...lens,
     context: {
@@ -91,8 +98,9 @@ export function buildLensRunPayload(lens: ContextLens): LensRunPayload {
   if (JSON.stringify(payload).length <= MAX_PAYLOAD_CHARS) {
     return payload;
   }
-  // Still oversized (e.g. hundreds of tool runs): drop the bulky arrays but
-  // keep the run's identity, status, and timings inspectable.
+  // Still oversized (e.g. hundreds of tool runs or a giant message): drop
+  // the bulky arrays but keep run identity, retrySeed, and status; retry
+  // remains possible because retrySeed survives the skeletonization.
   const skeleton: ContextLens = {
     ...slim,
     context: { ...slim.context, sources: [] },
