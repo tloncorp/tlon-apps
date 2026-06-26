@@ -124,7 +124,7 @@ describe('isContextLensEffectivelyEnabled', () => {
 });
 
 describe('buildLensRunPayload', () => {
-  it('builds a run payload object with a schemaVersion', () => {
+  it('serializes the lens with a schemaVersion', () => {
     const lens = makeLens();
     const payload = buildLensRunPayload(lens);
     expect(payload.schemaVersion).toBe(1);
@@ -169,6 +169,64 @@ describe('buildLensRunPayload', () => {
     expect(payload.truncated).toBe(true);
     expect(payload.lens.tools.runs).toEqual([]);
     expect(payload.lens.status).toBe(lens.status);
+    expect(JSON.stringify(payload).length).toBeLessThan(50 * 1_024);
+  });
+
+  it('includes retrySeed in the run payload and keeps retryOf', () => {
+    const lens = makeLens();
+    lens.retryOf = 'lens-original';
+    lens.retrySeed = {
+      messageText: 'secret original message body',
+      blobField: '{"k":"v"}',
+    };
+    const payload = buildLensRunPayload(lens);
+    expect(payload.lens.retrySeed).toEqual({
+      messageText: 'secret original message body',
+      blobField: '{"k":"v"}',
+    });
+    expect(payload.lens.retryOf).toBe('lens-original');
+    expect(JSON.stringify(payload)).toContain('secret original message body');
+  });
+
+  it('keeps retrySeed when oversized payloads are skeletonized', () => {
+    const registry = createContextLensRegistry({ ttlMs: 60_000 });
+    const blobField = JSON.stringify({ body: 'b'.repeat(7_500) });
+    const lens = registry.create({
+      messageId: 'msg-oversized-retry',
+      chatType: 'channel',
+      trigger: 'mention',
+      senderShip: '~ten',
+      conversationId: 'chat/~ten/test',
+      retrySeed: {
+        messageText: 'm'.repeat(20_000),
+        blobField,
+        parentId: '170.1',
+        isThreadReply: true,
+        replyParentId: '170.2',
+        cachesHistory: true,
+      },
+    });
+    lens.tools.runs = Array.from({ length: 100 }, (_, i) => ({
+      id: `t-${i}`,
+      callIndex: i + 1,
+      name: 'browser',
+      startedAt: Date.now(),
+      completedAt: Date.now(),
+      durationMs: 5,
+      status: 'completed' as const,
+      argumentSummary: 'y'.repeat(4_000),
+      resultSummary: 'z'.repeat(4_000),
+    }));
+
+    const payload = buildLensRunPayload(lens);
+
+    expect(payload.truncated).toBe(true);
+    expect(payload.lens.tools.runs).toEqual([]);
+    expect(payload.lens.context.sources).toEqual([]);
+    expect(payload.lens.outputs).toEqual([]);
+    expect(payload.lens.retrySeed).toEqual(lens.retrySeed);
+    expect(payload.lens.retrySeed?.messageText).toHaveLength(16_384);
+    expect(payload.lens.retrySeed?.blobField).toBe(blobField);
     expect(JSON.stringify(payload).length).toBeLessThan(50 * 1_024);
   });
 });
