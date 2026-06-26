@@ -10,7 +10,7 @@ import { NotesNoteDetail } from '../../ui/components/NotesChannel/NotesNoteDetai
 type Props = NativeStackScreenProps<RootStackParamList, 'NotesDetail'>;
 
 export function NotesDetailScreen(props: Props) {
-  const { channelId, noteId } = props.route.params;
+  const { channelId, focusTitle, noteId } = props.route.params;
   const notebookFlag = notesNotebookFlagFromChannelId(channelId);
   const { channel, group } = store.useChannelContext({
     channelId,
@@ -36,7 +36,11 @@ export function NotesDetailScreen(props: Props) {
           goBack={handleGoBack}
           hideIdentity
         />
-        <NotesNoteDetail noteId={noteId} notebookFlag={notebookFlag} />
+        <NotesNoteDetail
+          autoFocusTitle={focusTitle}
+          noteId={noteId}
+          notebookFlag={notebookFlag}
+        />
       </YStack>
     </ChannelHeaderItemsProvider>
   );
