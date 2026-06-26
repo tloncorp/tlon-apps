@@ -43,13 +43,14 @@
         [kind=/chat meta=~ blob=~]
     ==
   ::  edit carefully to work around lib negotiate state.
+  ::  yes, the inner state is double-vased!
   ::
   ;<  save=vase  bind:m  get-save
   =.  save
     ;:  slop
       (slot 2 save)  ::  lib discipline
       (slot 6 save)  ::  lib negotiate
-      !>(state)
+      !>(!>(state))  ::  negotiate's double-vasing
     ==
   ;<  *  bind:m  (do-load agent `save)
   ;<  caz=(list card)  bind:m
@@ -272,13 +273,14 @@
       (~(put by *v-channels:c) *nest:c chan)
     ;<  *  bind:m  (do-init dap agent)
     ::  edit carefully to work around lib negotiate state.
+    ::  yes, the inner state is double-vased!
     ::
     ;<  save=vase  bind:m  get-save
     =.  save
       ;:  slop
         (slot 2 save)      ::  lib discipline
         (slot 6 save)      ::  lib negotiate
-        !>(bad-state)
+        !>(!>(bad-state))  :: negotiate's double-vasing
       ==
     ;<  caz=(list card:agent:gall)  bind:m  (do-load agent `save)
     ::
@@ -292,8 +294,8 @@
       (~(put by *v-channels:c) *nest:c chan)
     ::  again, carefully work around lib negotiate state.
     ::
-    =.  save  (slot 3 save)  ::  lib discipline
-    =.  save  (slot 3 save)  ::  lib negotiate
+    =.  save  (slot 3 save)           ::  lib discipline
+    =.  save  !<(vase (slot 3 save))  ::  lib negotiate
     (ex-equal save !>(fixed-state))
   --
 --
