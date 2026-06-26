@@ -24,11 +24,12 @@
       lens=state:v1:sl
       gateway=state:v1:sg
   ==
-::  default cap on first install. generous: at ~20KB/run that's ~200MB per
-::  bot, within loom budgets. ships wanting more or less can poke
-::  %steward-lens-action-1 %configure.
+::  default cap on first install. conservative against the per-run ceiling:
+::  3.000 runs * 512KB worst-case = ~1.5GB per bot, while typical runs are far
+::  smaller. ships wanting more or less can poke %steward-lens-action-1
+::  %configure.
 ::
-++  default-max-runs-per-bot  10.000
+++  default-max-runs-per-bot  3.000
 --
 =|  state-0
 =*  state  -
