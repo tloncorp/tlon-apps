@@ -2271,6 +2271,16 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         : setupLowPrioritySubscriptions({
             priority: syncStartPriority.low,
           }).then(() => logger.crumb('subscribed low priority')),
+      // On recovery the live subscription persists across the discontinuity,
+      // so setupLowPrioritySubscriptions (and its post-subscribe lens
+      // backfill) is skipped. Rescry /v1/lens directly to recover any events
+      // missed while the SSE connection was down. No-ops on ships without
+      // %steward (syncLensRuns swallows the 404).
+      alreadySubscribed
+        ? syncLensRuns({ priority: syncStartPriority.low + 1 }).then(() =>
+            logger.crumb('finished recovery lens backfill')
+          )
+        : Promise.resolve(),
       resetActivity({ priority: syncStartPriority.low + 1, retry: true }).then(
         () => logger.crumb(`finished resetting activity`)
       ),
