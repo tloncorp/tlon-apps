@@ -963,7 +963,7 @@
     action(diff.q.q (v3:diff-writs:v2:cc diff.q.q.action))
   ::
       %egg-any
-    =+  !<(=egg-any:gall vase)
+    =/  =egg-any:gall  p.rail
     ?-  -.egg-any
         ?(%15 %16)
       ?.  ?=(%live +<.egg-any)
