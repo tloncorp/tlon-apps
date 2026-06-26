@@ -15,28 +15,22 @@
 /+  default-agent, verb, dbug
 |%
 +$  card  card:agent:gall
-::  legacy state: lens was a bare map with no retention config. on-load
-::  migrates it into state-1 with a default cap.
+::  %steward is greenfield (unreleased), so it has a single state version and
+::  no migration — an unreadable state just resets to bunt.
 ::
 +$  state-0
   $:  %0
       owner=(unit ship)
-      lens=state-0:v1:sl
-      gateway=state:v1:sg
-  ==
-+$  state-1
-  $:  %1
-      owner=(unit ship)
       lens=state:v1:sl
       gateway=state:v1:sg
   ==
-::  default cap on first install or state-0 → state-1 migration. generous:
-::  at ~20KB/run that's ~200MB per bot, within loom budgets. ships wanting
-::  more or less can poke %steward-lens-action-1 %configure.
+::  default cap on first install. generous: at ~20KB/run that's ~200MB per
+::  bot, within loom budgets. ships wanting more or less can poke
+::  %steward-lens-action-1 %configure.
 ::
 ++  default-max-runs-per-bot  10.000
 --
-=|  state-1
+=|  state-0
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
@@ -54,20 +48,11 @@
   ++  on-load
     |=  ole=vase
     ^-  (quip card _this)
-    ::  try current state-1, then legacy state-0 with migration, then bunt
+    ::  greenfield: accept the current state, else reset to bunt
     ::
-    =/  one  (mule |.(!<(state-1 ole)))
-    ?:  ?=(%& -.one)
-      [~ this(state p.one)]
-    =/  zero  (mule |.(!<(state-0 ole)))
-    ?:  ?=(%& -.zero)
-      =/  upgraded=state-1
-        :*  %1
-            owner.p.zero
-            [lens.p.zero default-max-runs-per-bot]
-            gateway.p.zero
-        ==
-      [~ this(state upgraded)]
+    =/  att  (mule |.(!<(state-0 ole)))
+    ?:  ?=(%& -.att)
+      [~ this(state p.att)]
     %-  (slog 'steward: on-load state mismatch, resetting to bunt' ~)
     =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
     [~[watch-activity:cor] this]
