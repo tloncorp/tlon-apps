@@ -5,9 +5,9 @@ import {
   saveNotebookNote,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { ParentAgnosticKeyboardAvoidingView, Text } from '@tloncorp/ui';
+import { Text } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Keyboard } from 'react-native';
+import { AppState } from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
 import {
@@ -30,10 +30,29 @@ type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 // covered by the flush paths and the draft stash either way.
 const AUTOSAVE_DEBOUNCE_MS = 10_000;
 const MIN_BODY_INPUT_HEIGHT = 360;
-const BODY_BOTTOM_SPACER = 128;
+const BODY_FONT_SIZE = 14;
+const BODY_LINE_HEIGHT = 22;
+const BODY_MONO_CHAR_WIDTH = BODY_FONT_SIZE * 0.62;
 
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
+
+function estimateBodyInputHeight(body: string, inputWidth: number) {
+  if (!inputWidth) return MIN_BODY_INPUT_HEIGHT;
+
+  const charsPerLine = Math.max(1, Math.floor(inputWidth / BODY_MONO_CHAR_WIDTH));
+  const visualLineCount = body
+    .split('\n')
+    .reduce(
+      (count, line) => count + Math.max(1, Math.ceil(line.length / charsPerLine)),
+      0
+    );
+
+  return Math.max(
+    MIN_BODY_INPUT_HEIGHT,
+    Math.ceil(visualLineCount * BODY_LINE_HEIGHT)
+  );
+}
 
 // Drop a note's stash, optionally only when it still holds exactly the
 // content that was just saved — keystrokes stashed after the save started
@@ -74,9 +93,7 @@ export function NotesNoteDetail({
   const [draftBase, setDraftBase] = useState<db.NotesNote | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
   const [bodyDraft, setBodyDraft] = useState('');
-  const [bodyInputHeight, setBodyInputHeight] = useState(
-    MIN_BODY_INPUT_HEIGHT
-  );
+  const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -108,6 +125,10 @@ export function NotesNoteDetail({
       };
     }
   }, [bodyDraft]);
+  const bodyInputHeight = useMemo(
+    () => estimateBodyInputHeight(bodyDraft, bodyInputWidth),
+    [bodyDraft, bodyInputWidth]
+  );
 
   // Load drafts when the selection changes. While the same note stays
   // selected, adopt row updates only when the editor is clean: the synced
@@ -246,10 +267,6 @@ export function NotesNoteDetail({
   // outlives the component.
   const selectedNoteRowId = selectedNote?.id ?? null;
   useEffect(() => {
-    setBodyInputHeight(MIN_BODY_INPUT_HEIGHT);
-  }, [selectedNoteRowId]);
-
-  useEffect(() => {
     return () => flushPendingSave();
   }, [flushPendingSave, selectedNoteRowId]);
 
@@ -308,12 +325,12 @@ export function NotesNoteDetail({
     setIsPreviewing((previewing) => !previewing);
   }, []);
 
-  const handleBodyContentSizeChange = useCallback(
-    (event: { nativeEvent: { contentSize: { height: number } } }) => {
-      const nextHeight = event.nativeEvent.contentSize.height;
-      if (!Number.isFinite(nextHeight)) return;
-      setBodyInputHeight(
-        Math.max(MIN_BODY_INPUT_HEIGHT, Math.ceil(nextHeight))
+  const handleBodyInputLayout = useCallback(
+    (event: { nativeEvent: { layout: { width: number } } }) => {
+      const nextWidth = event.nativeEvent.layout.width;
+      if (!Number.isFinite(nextWidth) || nextWidth <= 0) return;
+      setBodyInputWidth((currentWidth) =>
+        currentWidth === nextWidth ? currentWidth : nextWidth
       );
     },
     []
@@ -368,8 +385,19 @@ export function NotesNoteDetail({
   return (
     <YStack flex={1} backgroundColor="$background">
       {error ? <NotesBanner message={error} tone="negative" /> : null}
-      <ParentAgnosticKeyboardAvoidingView contentContainerStyle={{ flex: 1 }}>
-        <YStack flex={1} width="100%" maxWidth={760} marginHorizontal="auto">
+      <ScrollView
+        flex={1}
+        automaticallyAdjustKeyboardInsets
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ flexGrow: 1 }}
+      >
+        <YStack
+          flexGrow={1}
+          width="100%"
+          maxWidth={760}
+          marginHorizontal="auto"
+        >
           <YStack
             paddingHorizontal="$xl"
             paddingTop="$l"
@@ -398,81 +426,73 @@ export function NotesNoteDetail({
               {inlineActions}
             </XStack>
           </YStack>
-          <YStack flex={1} minHeight={MIN_BODY_INPUT_HEIGHT} position="relative">
+          <YStack
+            flexGrow={1}
+            minHeight={MIN_BODY_INPUT_HEIGHT}
+            position="relative"
+          >
             {isPreviewing ? (
-              <ScrollView
-                flex={1}
-                keyboardDismissMode="on-drag"
-                onScrollBeginDrag={Keyboard.dismiss}
+              <YStack
+                paddingHorizontal="$xl"
+                paddingTop="$l"
+                paddingBottom={128}
+                gap="$l"
                 testID="NotesPreviewPane"
               >
-                <YStack
-                  paddingHorizontal="$xl"
-                  paddingTop="$l"
-                  paddingBottom={128}
-                  gap="$l"
-                >
-                  {previewState.error ? (
-                    <NotesMessage
-                      title="Preview unavailable"
-                      subtitle={previewState.error}
-                    />
-                  ) : previewState.content.length > 0 ? (
-                    <NotebookContentRenderer
-                      content={previewState.content}
-                      marginHorizontal="$-l"
-                      testID="NotesPreviewContent"
-                    />
-                  ) : (
-                    <Text size="$body" color="$tertiaryText">
-                      Nothing to preview yet.
-                    </Text>
-                  )}
-                </YStack>
-              </ScrollView>
+                {previewState.error ? (
+                  <NotesMessage
+                    title="Preview unavailable"
+                    subtitle={previewState.error}
+                  />
+                ) : previewState.content.length > 0 ? (
+                  <NotebookContentRenderer
+                    content={previewState.content}
+                    marginHorizontal="$-l"
+                    testID="NotesPreviewContent"
+                  />
+                ) : (
+                  <Text size="$body" color="$tertiaryText">
+                    Nothing to preview yet.
+                  </Text>
+                )}
+              </YStack>
             ) : (
-              <ScrollView
-                flex={1}
-                keyboardDismissMode="on-drag"
-                keyboardShouldPersistTaps="handled"
-                onScrollBeginDrag={Keyboard.dismiss}
-                contentContainerStyle={{ flexGrow: 1 }}
+              <YStack
+                flexGrow={1}
+                minHeight={MIN_BODY_INPUT_HEIGHT}
+                paddingHorizontal="$xl"
+                paddingTop="$l"
+                paddingBottom="$xl"
                 testID="NotesBodyScrollView"
               >
-                <YStack
-                  flexGrow={1}
-                  paddingHorizontal="$xl"
-                  paddingTop="$l"
-                  paddingBottom={BODY_BOTTOM_SPACER}
-                >
-                  <TextArea
-                    width="100%"
-                    minHeight={MIN_BODY_INPUT_HEIGHT}
-                    height={bodyInputHeight}
-                    value={bodyDraft}
-                    onChangeText={setBodyDraft}
-                    onContentSizeChange={handleBodyContentSizeChange}
-                    placeholder="Note body"
-                    placeholderTextColor="$tertiaryText"
-                    fontFamily="$mono"
-                    fontSize={14}
-                    color="$primaryText"
-                    backgroundColor="$background"
-                    borderWidth={0}
-                    paddingHorizontal={0}
-                    paddingVertical={0}
-                    disabled={!canEdit}
-                    scrollEnabled={false}
-                    textAlignVertical="top"
-                    style={{ lineHeight: 22 }}
-                    testID="NotesBodyInput"
-                  />
-                </YStack>
-              </ScrollView>
+                <TextArea
+                  width="100%"
+                  minHeight={MIN_BODY_INPUT_HEIGHT}
+                  height={bodyInputHeight}
+                  value={bodyDraft}
+                  onChangeText={setBodyDraft}
+                  onLayout={handleBodyInputLayout}
+                  placeholder="Note body"
+                  placeholderTextColor="$tertiaryText"
+                  fontFamily="$mono"
+                  fontSize={BODY_FONT_SIZE}
+                  color="$primaryText"
+                  backgroundColor="$background"
+                  borderWidth={0}
+                  paddingHorizontal={0}
+                  paddingVertical={0}
+                  disabled={!canEdit}
+                  rejectResponderTermination={false}
+                  scrollEnabled={false}
+                  textAlignVertical="top"
+                  style={{ lineHeight: BODY_LINE_HEIGHT }}
+                  testID="NotesBodyInput"
+                />
+              </YStack>
             )}
           </YStack>
         </YStack>
-      </ParentAgnosticKeyboardAvoidingView>
+      </ScrollView>
     </YStack>
   );
 }
