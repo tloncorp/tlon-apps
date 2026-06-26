@@ -635,13 +635,14 @@
       ::      be harmless.
       =.  cor  (emit %pass /wake %agent [ship.i.ded %channels] %poke rail)
       $(ded t.ded)
-  ::  if both the backup and our latest have a channel, keep only our
-  ::  version. we could do a "deep merge" but presently unclear how that
-  ::  would affect existing subscribers/what would be the correct behavior
-  ::  wrt them.
-  ::
-  =.  v-channels  (~(uni by v-channels:bak) v-channels)
-  (emil (turn (prod-next:imp [our dap]:bowl) unsafe:guard))
+    ::  if both the backup and our latest have a channel, keep only our
+    ::  version. we could do a "deep merge" but presently unclear how that
+    ::  would affect existing subscribers/what would be the correct behavior
+    ::  wrt them.
+    ::
+    =.  v-channels  (~(uni by v-channels:bak) v-channels)
+    (emil (turn (prod-next:imp [our dap]:bowl) unsafe:guard))
+  ==
 ::
 ++  watch
   |=  =(pole knot)
