@@ -120,26 +120,13 @@
     |=  jon=^json
     ^-  action:v1:s
     =,  dejs:format
-    ?.  ?=([%o *] jon)  ~|(bad-steward-action-json+jon !!)
-    =/  kv  ~(tap by p.jon)
-    ?~  kv  ~|(empty-steward-action-json+jon !!)
-    =/  key=@t  p.i.kv
-    =/  val=^json  q.i.kv
-    ?+  key  ~|(unknown-steward-action-key+key !!)
-        'configure'
-      [%configure ((ot ~[owner+(se %p)]) val)]
-    ::
-        'trust-bot'
-      [%trust-bot ((ot ~[ship+(se %p)]) val)]
-    ::
-        'untrust-bot'
-      [%untrust-bot ((ot ~[ship+(se %p)]) val)]
-    ::
-        'lens'
-      [%lens (lens-grab val)]
-    ::
-        'gateway'
-      [%gateway (gateway-grab val)]
+    %.  jon
+    %-  of
+    :~  [%configure (ot ~[owner+(se %p)])]
+        [%trust-bot (ot ~[ship+(se %p)])]
+        [%untrust-bot (ot ~[ship+(se %p)])]
+        [%lens lens-grab]
+        [%gateway gateway-grab]
     ==
   ++  lens-grab
     |=  jon=^json
