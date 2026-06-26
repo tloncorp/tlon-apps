@@ -287,6 +287,17 @@ export const featureFlags = createStorageItem<any>({
   defaultValue: null,
 });
 
+export const contextLensGatewayUrl = createStorageItem<string | null>({
+  key: 'contextLensGatewayUrl',
+  defaultValue: null,
+});
+
+export const contextLensGatewayToken = createStorageItem<string | null>({
+  key: 'contextLensGatewayToken',
+  defaultValue: null,
+  isSecure: true,
+});
+
 export const eulaAgreed = createStorageItem<boolean>({
   key: 'eula',
   defaultValue: false,

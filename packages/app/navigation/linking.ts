@@ -28,6 +28,11 @@ export const getMobileLinkingConfig = (
           },
           ChatList: 'ChatList',
           ChannelSearch: { path: 'channel/:channelId/search' },
+          ContextLensRuns: { path: 'lens/runs' },
+          ContextLensRun: {
+            path: 'lens/run/:botShip/:lensId',
+            parse: parsePathParams('botShip', 'lensId'),
+          },
           Post: postScreenConfig(mode),
           MediaViewer: 'media-viewer/:mediaType',
           ChatDetails: {

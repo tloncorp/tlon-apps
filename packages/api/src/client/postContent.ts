@@ -439,6 +439,10 @@ export function convertContent(
           break;
         }
 
+        case 'tlon-context-lens': {
+          break;
+        }
+
         case 'unknown': {
           out.push({
             type: 'blockquote',
