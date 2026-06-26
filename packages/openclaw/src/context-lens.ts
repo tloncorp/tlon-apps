@@ -349,8 +349,12 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
   }
   const seed = lens.retrySeed;
   const messageText = seed?.messageText ?? lens.triggerDetails.preview ?? '';
-  if (!messageText.trim()) {
-    return { ok: false, reason: 'no message text available to retry' };
+  const blobField = seed?.blobField ?? null;
+  // A blob-only run (e.g. a voice memo or file with no text) is dispatchable:
+  // the inbound path accepts hasBlob and processMessage rebuilds the prompt
+  // from blobField. Only reject when there's neither text nor a blob to replay.
+  if (!messageText.trim() && !blobField) {
+    return { ok: false, reason: 'no message text or blob available to retry' };
   }
   return {
     ok: true,
@@ -358,7 +362,7 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
       messageId: lens.messageId,
       senderShip,
       messageText,
-      blobField: seed?.blobField ?? null,
+      blobField,
       isGroup,
       ...(isGroup && conversationId ? { channelNest: conversationId } : {}),
       parentId: seed?.parentId ?? null,

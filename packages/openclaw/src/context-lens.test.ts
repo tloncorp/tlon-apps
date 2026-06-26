@@ -903,7 +903,29 @@ describe('retry seed and dispatch', () => {
     const noTextLens = registry.setStatus(noText.lensId, 'no_reply');
     expect(buildRetryDispatch(noTextLens!)).toEqual({
       ok: false,
-      reason: 'no message text available to retry',
+      reason: 'no message text or blob available to retry',
     });
+  });
+
+  it('retries a blob-only run with no text', () => {
+    const registry = createContextLensRegistry({ ttlMs: 60_000 });
+    const blobOnly = registry.create({
+      messageId: 'message-retry-blob',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-blob',
+      senderShip: '~ten',
+      retrySeed: {
+        messageText: '',
+        blobField: '{"voice":"memo"}',
+      },
+    });
+    const blobOnlyLens = registry.setStatus(blobOnly.lensId, 'no_reply');
+    const result = buildRetryDispatch(blobOnlyLens!);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.dispatch.messageText).toBe('');
+      expect(result.dispatch.blobField).toBe('{"voice":"memo"}');
+    }
   });
 });
