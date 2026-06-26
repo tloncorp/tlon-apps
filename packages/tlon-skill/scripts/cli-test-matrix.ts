@@ -475,6 +475,11 @@ export const NESTED_HELP_CASES: CliCase[] = [
     'Usage: tlon notes status'
   ),
   helpCase(
+    'notes request --help',
+    ['notes', 'request', '--help'],
+    'Usage: tlon notes request'
+  ),
+  helpCase(
     'notes list --help',
     ['notes', 'list', '--help'],
     'Usage: tlon notes list'
@@ -916,6 +921,17 @@ export const NOTES_FAMILY_CASES: CliCase[] = [
   ),
   authRequiredCase('notes list reaches auth', ['notes', 'list']),
   authRequiredCase('notes status reaches auth', ['notes', 'status']),
+  usageErrorCase(
+    'notes request missing id',
+    ['notes', 'request'],
+    'Usage: tlon notes request'
+  ),
+  usageErrorCase(
+    'notes request rejects path-like id',
+    ['notes', 'request', 'notes/~zod/blog'],
+    'Invalid request id'
+  ),
+  authRequiredCase('notes request reaches auth', ['notes', 'request', '0vabc']),
   authRequiredCase('notes show reaches auth', [
     'notes',
     'show',
@@ -1422,6 +1438,7 @@ export const HOSTILE_HELP_COMMANDS: HostileHelpCommand[] = [
   { name: 'posts delete', args: ['posts', 'delete', '--help'] },
   { name: 'posts edit', args: ['posts', 'edit', '--help'] },
   { name: 'notes status', args: ['notes', 'status', '--help'] },
+  { name: 'notes request', args: ['notes', 'request', '--help'] },
   { name: 'notes list', args: ['notes', 'list', '--help'] },
   { name: 'notes show', args: ['notes', 'show', '--help'] },
   { name: 'notes notes', args: ['notes', 'notes', '--help'] },

@@ -5,6 +5,7 @@ import type {
   NotesV1Note,
   NotesV1NoteRevision,
   NotesV1NotebookSummary,
+  NotesV1RequestStatus,
 } from '@tloncorp/api';
 
 import {
@@ -23,13 +24,20 @@ export const NOTES_HELP = `Usage: tlon notes <command>
 Manage %notes notebooks (Markdown-first notebooks). Notebooks are addressed as
 nests of the form notes/~host/name. Note bodies are plain Markdown.
 
+For Tlon app/group notebooks, create a notes channel with:
+  tlon channels create ~host/group-slug "Title" --kind notes
+
+The notes create command is for standalone %notes notebooks only; it does not
+create a Tlon app group channel.
+
 Commands:
   status                                  Report %notes reachability
+  request <request-id>                    Check a pending %notes write request
   list                                    List your notebooks
   show <nest>                             Show a notebook
   notes <nest>                            List notes in a notebook
   note <nest> <id>                        Show a note (with its Markdown body)
-  create <title>                          Create a solo notebook
+  create <title>                          Create a standalone %notes notebook (not an app channel)
   note-create <nest> <folder-id|root> <title> (--body <f> | --stdin | --markdown <f>)
   note-update <nest> <id> (--body <f> | --stdin) [--expected-revision <n>]
   note-rename <nest> <id> <title>         Rename a note
@@ -53,19 +61,22 @@ Content sources (Markdown):
 
 Examples:
   tlon notes list
-  tlon notes create "My Notebook"
+  tlon notes request 0vabc
+  tlon channels create ~zod/group "Notes" --kind notes
   tlon notes note-create notes/~zod/blog root "First Note" --markdown post.md
   tlon notes note-update notes/~zod/blog 12 --stdin --expected-revision 3`;
 
 export const NOTES_COMMAND_HELP: Record<string, string> = {
   status: 'Usage: tlon notes status',
+  request:
+    'Usage: tlon notes request <request-id>\nExample: tlon notes request 0vabc',
   list: 'Usage: tlon notes list',
   show: 'Usage: tlon notes show <nest>\nExample: tlon notes show notes/~zod/blog',
   notes:
     'Usage: tlon notes notes <nest>\nExample: tlon notes notes notes/~zod/blog',
   note: 'Usage: tlon notes note <nest> <id>\nExample: tlon notes note notes/~zod/blog 12',
   create:
-    'Usage: tlon notes create <title>\nExample: tlon notes create "My Notebook"',
+    'Usage: tlon notes create <title>\nCreates a standalone %notes notebook only. For Tlon app/group notebooks, use:\n  tlon channels create ~host/group-slug "Title" --kind notes',
   'note-create':
     'Usage: tlon notes note-create <nest> <folder-id|root> <title> (--body <file> | --stdin | --markdown <file>)',
   'note-update':
@@ -119,6 +130,7 @@ type Nest = { nest: string; host: string; name: string };
 type ParsedNotesArgs =
   | { kind: 'help'; help: string }
   | { kind: 'status' }
+  | { kind: 'request'; requestId: string }
   | { kind: 'list' }
   | { kind: 'show'; target: Nest }
   | { kind: 'list-notes'; target: Nest }
@@ -189,6 +201,17 @@ function requireNumericId(id: string, label: string, usage: string): string {
     throw usageError(`Invalid ${label}: ${id}. Expected a number.`, usage);
   }
   return id;
+}
+
+function parseRequestId(requestId: string, usage: string): string {
+  const trimmed = requestId.trim();
+  if (!trimmed || trimmed.includes('/')) {
+    throw usageError(
+      `Invalid request id: ${requestId}. Expected a %notes request id.`,
+      usage
+    );
+  }
+  return trimmed;
 }
 
 const NOTE_CREATE_OPTION_FLAGS = ['body', 'markdown', 'stdin'] as const;
@@ -283,6 +306,13 @@ function parseArgs(args: string[]): ParsedNotesArgs {
   switch (command) {
     case 'status':
       return { kind: 'status' };
+    case 'request': {
+      const requestId = args[1];
+      if (!requestId) {
+        throw usageError(help);
+      }
+      return { kind: 'request', requestId: parseRequestId(requestId, help) };
+    }
     case 'list':
       return { kind: 'list' };
     case 'show': {
@@ -599,6 +629,40 @@ function formatMemberLine(member: NotesV1MemberRecord): string {
   return `${member.ship}${roles}`;
 }
 
+function formatRequestStatus(status: NotesV1RequestStatus): string[] {
+  const lines = [`Request: ${status.requestId}`];
+  switch (status.body.type) {
+    case 'ok':
+      lines.push('Status: ok');
+      break;
+    case 'no-change':
+      lines.push('Status: no-change');
+      break;
+    case 'notebook':
+      lines.push('Status: notebook');
+      lines.push(`Nest: ${notebookNest(status.body.notebook)}`);
+      lines.push(`Title: ${status.body.notebook.notebook.title}`);
+      lines.push(`ID: ${status.body.notebook.notebook.id}`);
+      break;
+    case 'error':
+      lines.push('Status: error');
+      lines.push(
+        `Message: ${status.body.message?.trim() || 'backend returned an error without details'}`
+      );
+      break;
+    case 'pending':
+      lines.push(
+        `Status: pending${status.body.status ? ` (${status.body.status})` : ''}`
+      );
+      lines.push('Do not issue the write again while this request is pending.');
+      break;
+    case 'api-key':
+      lines.push('Status: api-key');
+      break;
+  }
+  return lines;
+}
+
 // ---------------------------------------------------------------------------
 // Subcommand handlers
 // ---------------------------------------------------------------------------
@@ -618,6 +682,14 @@ async function runStatus(deps: NotesDeps): Promise<number> {
   // as unknown rather than guessing.
   writeLine(deps.stdout, 'group-channel mode: unknown (no runtime signal yet)');
   return reachable ? 0 : 1;
+}
+
+async function runRequest(requestId: string, deps: NotesDeps): Promise<number> {
+  const status = await deps.notesV1.getRequest(requestId);
+  for (const line of formatRequestStatus(status)) {
+    writeLine(deps.stdout, line);
+  }
+  return ['ok', 'no-change', 'notebook'].includes(status.body.type) ? 0 : 1;
 }
 
 async function runList(deps: NotesDeps): Promise<number> {
@@ -906,6 +978,8 @@ export async function run(args: string[], deps: NotesDeps): Promise<number> {
     switch (parsed.kind) {
       case 'status':
         return await runStatus(deps);
+      case 'request':
+        return await runRequest(parsed.requestId, deps);
       case 'list':
         return await runList(deps);
       case 'show':

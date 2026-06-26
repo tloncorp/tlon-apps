@@ -453,11 +453,11 @@ Manage %notes notebooks (Markdown-first). Notebooks are nests of the form
 
 ```bash
 tlon notes status                                        # Check %notes reachability
+tlon notes request 0vabc                                 # Check a pending write request
 tlon notes list                                          # List your notebooks
 tlon notes show notes/~host/name                         # Show a notebook
 tlon notes notes notes/~host/name                        # List notes in a notebook
 tlon notes note notes/~host/name 12                      # Show a note (with Markdown body)
-tlon notes create "My Notebook"                          # Create a solo notebook
 tlon notes note-create notes/~host/name root "Title" --markdown post.md   # New note at the notebook root
 tlon notes note-create notes/~host/name 7 "Title" --stdin                 # New note in folder 7 from stdin
 tlon notes note-update notes/~host/name 12 --body new.md --expected-revision 3
@@ -481,10 +481,11 @@ or `--stdin`. `note-create` places the note in a folder id, or `root` (resolved 
 the notebook's root folder). `--expected-revision` on `note-update` is optional
 (last-write-wins by default).
 
-`notes create` makes a **solo** notebook. To create a **group-backed** notes
-channel (so members can read it as a group channel), use `tlon channels create
-~host/slug "Title" --kind notes` — %notes owns the listing, so `--description`
-and writer roles aren't accepted there.
+To create a **group-backed** notes channel for the Tlon app, use `tlon channels
+create ~host/slug "Title" --kind notes` — %notes owns the listing, so
+`--description` and writer roles aren't accepted there. Do not use
+`tlon notes create` for app/group channels; it creates a standalone %notes
+notebook only.
 
 ### Upload
 

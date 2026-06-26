@@ -12,6 +12,16 @@ import {
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
+import { publishContextLensEvent } from './src/context-lens-events.js';
+import { registerContextLensRoutes } from './src/context-lens-routes.js';
+import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
+import { initContextLensStore } from './src/context-lens-store.js';
+import {
+  ensureBackgroundContextLensForSession,
+  recordContextLensToolResultForSession,
+  recordContextLensToolStartForSession,
+  scheduleBackgroundContextLensFinalization,
+} from './src/context-lens.js';
 import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
@@ -43,6 +53,11 @@ import {
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
+  findTlonSubcommandIndex,
+  shellSplitCommand,
+  summarizeTlonCommand,
+} from './src/tlon-tool-command.js';
+import {
   checkBlockedSendOperation,
   formatAllowedTlonSubcommands,
   isAllowedTlonSubcommand,
@@ -63,85 +78,65 @@ export { tlonPlugin } from './src/channel.js';
 export { setTlonRuntime } from './src/runtime.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function readToolCallId(event: unknown): string | undefined {
+  if (!event || typeof event !== 'object') {
+    return undefined;
+  }
+  const value =
+    (
+      event as {
+        toolCallId?: unknown;
+        callId?: unknown;
+        id?: unknown;
+      }
+    ).toolCallId ??
+    (event as { callId?: unknown }).callId ??
+    (event as { id?: unknown }).id;
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
 const require = createRequire(import.meta.url);
 
-/** Credential flags that the tlon skill binary accepts before the subcommand. */
-const CREDENTIAL_FLAGS_WITH_VALUE = new Set([
-  '--config',
-  '--url',
-  '--ship',
-  '--code',
-  '--cookie',
-]);
+const DEFAULT_TLON_CLI_TIMEOUT_MS = 45_000;
 
-/**
- * Find the first positional argument (subcommand) by skipping credential flags
- * and their values. Returns the index into `args`, or -1 if none found.
- */
-function findSubcommandIndex(args: string[]): number {
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-    // --flag=value form: skip one token
-    if (arg.startsWith('--') && arg.includes('=')) {
-      const flag = arg.slice(0, arg.indexOf('='));
-      if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) {
-        i += 1;
-        continue;
-      }
-    }
-    // --flag value form: skip two tokens
-    if (CREDENTIAL_FLAGS_WITH_VALUE.has(arg)) {
-      i += 2;
-      continue;
-    }
-    // Not a credential flag — this is the subcommand
-    return i;
+function summarizeToolParams(params: unknown): string | undefined {
+  if (params === null || params === undefined) {
+    return undefined;
   }
-  return -1;
+  if (Array.isArray(params)) {
+    return `${params.length} array item${params.length === 1 ? '' : 's'}`;
+  }
+  if (typeof params === 'object') {
+    const keys = Object.keys(params);
+    if (!keys.length) {
+      return 'empty object';
+    }
+    const shown = keys.slice(0, 4).join(', ');
+    const suffix = keys.length > 4 ? ` +${keys.length - 4}` : '';
+    return `${keys.length} key${keys.length === 1 ? '' : 's'}: ${shown}${suffix}`;
+  }
+  return typeof params;
 }
 
-/**
- * Shell-like argument splitter that respects quotes
- */
-function shellSplit(str: string): string[] {
-  const args: string[] = [];
-  let cur = '';
-  let inDouble = false;
-  let inSingle = false;
-  let escape = false;
+const MAX_TOOL_PARAM_DETAIL_CHARS = 2000;
 
-  for (const ch of str) {
-    if (escape) {
-      cur += ch;
-      escape = false;
-      continue;
-    }
-    if (ch === '\\' && !inSingle) {
-      escape = true;
-      continue;
-    }
-    if (ch === '"' && !inSingle) {
-      inDouble = !inDouble;
-      continue;
-    }
-    if (ch === "'" && !inDouble) {
-      inSingle = !inSingle;
-      continue;
-    }
-    if (/\s/.test(ch) && !inDouble && !inSingle) {
-      if (cur) {
-        args.push(cur);
-        cur = '';
-      }
-      continue;
-    }
-    cur += ch;
+function detailToolParams(params: unknown): string | undefined {
+  if (params === null || params === undefined) {
+    return undefined;
   }
-  if (cur) {
-    args.push(cur);
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(params, null, 1);
+  } catch {
+    return undefined;
   }
-  return args;
+  if (!serialized) {
+    return undefined;
+  }
+  if (serialized.length > MAX_TOOL_PARAM_DETAIL_CHARS) {
+    return `${serialized.slice(0, MAX_TOOL_PARAM_DETAIL_CHARS)}… [truncated]`;
+  }
+  return serialized;
 }
 
 /**
@@ -162,17 +157,21 @@ function runTlonCommand(
     }
 
     const child = spawn(binary, args, { env });
-
     let stdout = '';
     let stderr = '';
-    let timedOut = false;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const timeoutMs = options?.timeoutMs;
+    let settled = false;
+    let killTimer: ReturnType<typeof setTimeout> | null = null;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const timeoutMs = options?.timeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
 
     const cleanup = () => {
       if (timeout) {
         clearTimeout(timeout);
-        timeout = undefined;
+        timeout = null;
+      }
+      if (killTimer) {
+        clearTimeout(killTimer);
+        killTimer = null;
       }
     };
 
@@ -185,22 +184,33 @@ function runTlonCommand(
     });
 
     child.on('error', (err) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       cleanup();
       reject(new Error(`Failed to run tlon: ${err.message}`));
     });
 
-    if (timeoutMs) {
+    if (timeoutMs > 0) {
       timeout = setTimeout(() => {
-        timedOut = true;
+        if (settled) {
+          return;
+        }
+        settled = true;
         child.kill('SIGTERM');
+        killTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
+        reject(new Error(`tlon command timed out after ${timeoutMs}ms`));
       }, timeoutMs);
     }
 
     child.on('close', (code) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       cleanup();
-      if (timedOut) {
-        reject(new Error(`tlon timed out after ${timeoutMs}ms`));
-      } else if (code !== 0) {
+      if (code !== 0) {
         reject(new Error(stderr || `tlon exited with code ${code}`));
       } else {
         resolve(stdout);
@@ -1055,6 +1065,16 @@ export default defineChannelPluginEntry({
       },
     });
 
+    const contextLensRoutesEnabled = registerContextLensRoutes(api);
+    const contextLensShipSyncEnabled = initContextLensShipSync(api);
+    // Recording and the disk store run when at least one reader path is
+    // live: authed gateway routes or %context-lens ship sync.
+    const contextLensEnabled =
+      contextLensRoutesEnabled || contextLensShipSyncEnabled;
+    if (contextLensEnabled) {
+      initContextLensStore(api);
+    }
+
     // Register the tlon tool
     // Capture credentials from config at registration time
     const account = resolveTlonAccount(api.config);
@@ -1062,6 +1082,8 @@ export default defineChannelPluginEntry({
       account.configured && account.url && account.ship && account.code
         ? { url: account.url, ship: account.ship, code: account.code }
         : undefined;
+    const toolTimeoutMs =
+      account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
 
     if (credentials) {
       api.logger.info(`[tlon] Credentials available for ${account.ship}`);
@@ -1093,9 +1115,9 @@ export default defineChannelPluginEntry({
       },
       async execute(_id: string, params: { command: string }) {
         try {
-          const args = shellSplit(params.command);
+          const args = shellSplitCommand(params.command);
 
-          const subIdx = findSubcommandIndex(args);
+          const subIdx = findTlonSubcommandIndex(args);
           const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
           if (!isAllowedTlonSubcommand(subcommand)) {
             return {
@@ -1118,7 +1140,9 @@ export default defineChannelPluginEntry({
             };
           }
 
-          const output = await runTlonCommand(tlonBinary, args, credentials);
+          const output = await runTlonCommand(tlonBinary, args, credentials, {
+            timeoutMs: toolTimeoutMs,
+          });
           return {
             content: [{ type: 'text' as const, text: output }],
             details: undefined,
@@ -1139,12 +1163,49 @@ export default defineChannelPluginEntry({
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
     api.on('before_tool_call', (event, ctx) => {
+      const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
       const isBlocked = isOwnerOnlyTool && role === 'user';
       const blockReason = isBlocked
         ? `The ${event.toolName} tool is not available.`
         : undefined;
+      if (contextLensEnabled) {
+        // Capture tool activity even when no conversation run owns this
+        // session (cron wakes — including jobs that reuse the main session
+        // and so inherit a sender-role entry — heartbeats, subagents).
+        // No-ops when a conversation lens is already bound.
+        const isCronSession = (ctx.sessionKey ?? '').includes(':cron:');
+        const background = ensureBackgroundContextLensForSession(
+          ctx.sessionKey,
+          {
+            runKind: isCronSession ? 'cron' : 'internal',
+            trigger: isCronSession ? 'cron' : 'tool',
+            preview: `${event.toolName} tool activity`,
+          }
+        );
+        if (background?.created) {
+          publishContextLensEvent('created', background.lens);
+        }
+        const lens = recordContextLensToolStartForSession(
+          ctx.sessionKey,
+          event.toolName,
+          {
+            phase: 'before',
+            argumentSummary: summarizeToolParams(event.params),
+            argumentDetail: detailToolParams(event.params),
+            toolCallId,
+          }
+        );
+        if (lens) {
+          publishContextLensEvent('tool_start', lens, {
+            toolName: event.toolName,
+            ...(toolCallId ? { toolCallId } : {}),
+            toolPhase: 'before',
+            toolCallCount: lens.tools.callCount,
+          });
+        }
+      }
 
       if (logToolTraceContents) {
         api.logger.info(
@@ -1163,7 +1224,7 @@ export default defineChannelPluginEntry({
       }
 
       if (!isOwnerOnlyTool) {
-        return;
+        return undefined;
       }
 
       // Allow owner sessions and internal sessions (heartbeat, cron, etc.).
@@ -1173,6 +1234,31 @@ export default defineChannelPluginEntry({
         api.logger.warn(
           `[tlon] Blocked ${event.toolName} tool for non-owner. Session: ${ctx.sessionKey}, Role: ${role}`
         );
+        if (contextLensEnabled) {
+          const blockedLens = recordContextLensToolResultForSession(
+            ctx.sessionKey,
+            event.toolName,
+            {
+              error: blockReason,
+              status: 'blocked',
+              toolCallId,
+            }
+          );
+          if (blockedLens) {
+            publishContextLensEvent('tool_result', blockedLens, {
+              toolName: event.toolName,
+              ...(toolCallId ? { toolCallId } : {}),
+              toolPhase: 'blocked',
+              toolCallCount: blockedLens.tools.callCount,
+            });
+            scheduleBackgroundContextLensFinalization(
+              ctx.sessionKey,
+              (finalLens) => {
+                publishContextLensEvent('final', finalLens);
+              }
+            );
+          }
+        }
         return {
           block: true,
           blockReason,
@@ -1182,9 +1268,11 @@ export default defineChannelPluginEntry({
       api.logger.info(
         `[tlon] Allowed ${event.toolName} tool for ${role ?? 'internal'} session. Session: ${ctx.sessionKey}`
       );
+      return undefined;
     });
 
     api.on('after_tool_call', (event, ctx) => {
+      const toolCallId = readToolCallId(event);
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({
@@ -1212,9 +1300,39 @@ export default defineChannelPluginEntry({
             toolName: event.toolName,
             durationMs: event.durationMs,
             error: event.error,
+            context:
+              event.toolName === 'tlon' &&
+              typeof event.params.command === 'string'
+                ? summarizeTlonCommand(event.params.command)
+                : undefined,
           });
         },
       });
+      if (contextLensEnabled) {
+        const lens = recordContextLensToolResultForSession(
+          ctx.sessionKey,
+          event.toolName,
+          {
+            durationMs: event.durationMs,
+            error: event.error,
+            toolCallId,
+          }
+        );
+        if (lens) {
+          publishContextLensEvent('tool_result', lens, {
+            toolName: event.toolName,
+            ...(toolCallId ? { toolCallId } : {}),
+            toolPhase: 'after',
+            toolCallCount: lens.tools.callCount,
+          });
+          scheduleBackgroundContextLensFinalization(
+            ctx.sessionKey,
+            (finalLens) => {
+              publishContextLensEvent('final', finalLens);
+            }
+          );
+        }
+      }
     });
 
     // ── Session lifecycle / watchdog telemetry ─────────────────────────
@@ -1343,6 +1461,43 @@ export default defineChannelPluginEntry({
             outcome: 'error',
           });
         },
+      });
+    });
+
+    // Cron jobs can run inside the main session, where the session key has
+    // no `:cron:` marker — the agent-level hook context is the only place
+    // the gateway exposes the cron trigger, so tag the run's lens here
+    // before any tool fires. Idempotent across both hooks.
+    const ensureCronContextLens = (ctx: {
+      sessionKey?: string;
+      trigger?: string;
+      jobId?: string;
+    }) => {
+      if (!contextLensEnabled || ctx.trigger !== 'cron') {
+        return;
+      }
+      const background = ensureBackgroundContextLensForSession(ctx.sessionKey, {
+        runKind: 'cron',
+        trigger: 'cron',
+        preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
+      });
+      if (background?.created) {
+        publishContextLensEvent('created', background.lens);
+      }
+    };
+    api.on('agent_turn_prepare', (_event, ctx) => ensureCronContextLens(ctx));
+    api.on('model_call_started', (_event, ctx) => ensureCronContextLens(ctx));
+
+    // Background lenses normally finalize on tool-result idle; agent_end
+    // re-arms the window so runs that end with model output (no trailing
+    // tool call) still finalize, while leaving time for the gateway to
+    // deliver the reply (stamped + recorded via the outbound send path).
+    api.on('agent_end', (_event, ctx) => {
+      if (!contextLensEnabled) {
+        return;
+      }
+      scheduleBackgroundContextLensFinalization(ctx.sessionKey, (finalLens) => {
+        publishContextLensEvent('final', finalLens);
       });
     });
 
