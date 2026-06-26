@@ -1,18 +1,25 @@
 import type { Story } from '@tloncorp/api';
 import { configureGatewayStatus, gatewayStart } from '@tloncorp/api';
+import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import {
+  findRecentContextLensById,
   publishContextLensEvent,
   setContextLensEventCapacity,
 } from '../context-lens-events.js';
-import { isContextLensEffectivelyEnabled } from '../context-lens-ship-sync.js';
+import {
+  isContextLensEffectivelyEnabled,
+  resolveLensOwner,
+} from '../context-lens-ship-sync.js';
+import { getContextLensStore } from '../context-lens-store.js';
 import {
   type ContextLensTrigger,
   bindContextLensToSession,
+  buildRetryDispatch,
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
@@ -53,7 +60,16 @@ import {
   normalizeShip,
   parseChannelNest,
 } from '../targets.js';
-import { createTlonTelemetry } from '../telemetry.js';
+import {
+  type TlonDeliverySkipReason,
+  type TlonPluginErrorSource,
+  createTlonTelemetry,
+  formatTlonTelemetryErrorText,
+  setDebugTelemetryReporter,
+  setErrorTelemetryReporter,
+  setOutboundRouteReporter,
+  setSessionTelemetryReporter,
+} from '../telemetry.js';
 import { resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
 import { authenticate } from '../urbit/auth.js';
@@ -64,6 +80,10 @@ import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
 import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
+import {
+  formatTlonVersionIdentity,
+  resolveTlonSkillVersion,
+} from '../version.js';
 import {
   type DisplayContext,
   type PendingApproval,
@@ -113,6 +133,13 @@ import {
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
+import {
+  type TlonInboundRouteRecord,
+  isRouteDebugEnabled,
+  recordTlonRouteAndDispatch,
+  routeUpdateWillSkipByPin,
+  tlonDeliveryContext,
+} from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
 import {
   type ParsedCite,
@@ -183,12 +210,15 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
-const DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS = 120_000;
-
-function normalizeRunTimeoutMs(value: number | null | undefined): number {
+// Returns the configured run timeout, or null when unset. A null result means
+// "don't override the agent's own turn timeout" — we must not impose a default
+// here, or every reply would be capped regardless of the agent's config.
+function normalizeRunTimeoutMs(
+  value: number | null | undefined
+): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
     ? Math.floor(value)
-    : DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS;
+    : null;
 }
 
 // Holds the data needed for any module-loader context to (re)configure its
@@ -227,6 +257,13 @@ const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS = 15_000;
 const GATEWAY_STATUS_ACTIVATION_RETRY_MS = 30_000;
+
+function classifyPluginError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.name || 'Error';
+  }
+  return typeof error;
+}
 
 // Bound an activation poke so a silently-hung promise surfaces as a
 // retryable error instead of leaving gateway-status dead for the process
@@ -356,14 +393,53 @@ export async function monitorTlonProvider(
   const accountCode = account.code;
 
   const botShipName = normalizeShip(account.ship);
+  const tlonSkillVersion = await resolveTlonSkillVersion();
+  let effectiveOwnerShip: string | null = account.ownerShip
+    ? normalizeShip(account.ownerShip)
+    : null;
+  setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
+  const telemetry = createTlonTelemetry({
+    config: account.telemetry,
+    runtime,
+  });
+  const currentTelemetryOwnerShip = () =>
+    getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip;
+  const capturePluginError = (
+    pluginErrorSource: TlonPluginErrorSource,
+    error: unknown,
+    extra?: {
+      errorKind?: string | null;
+      attempt?: number | null;
+    }
+  ) => {
+    telemetry?.capturePluginError({
+      harness: 'openclaw',
+      pluginErrorSource,
+      accountId: account.accountId,
+      ownerShip: currentTelemetryOwnerShip(),
+      botShip: botShipName,
+      errorKind: extra?.errorKind ?? classifyPluginError(error),
+      errorText: formatTlonTelemetryErrorText(error),
+      attempt: extra?.attempt ?? null,
+    });
+  };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
+  runtime.log?.(
+    `[tlon] version: ${formatTlonVersionIdentity({
+      markdown: false,
+      tlonSkillVersion,
+    }).replace(/\n/g, ' | ')}`
+  );
 
   const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(
     account.allowPrivateNetwork
   );
 
   // Helper to authenticate with retry logic
-  async function authenticateWithRetry(maxAttempts = 10): Promise<string> {
+  async function authenticateWithRetry(
+    maxAttempts = 10,
+    source: 'auth' | 're_auth' = 'auth'
+  ): Promise<string> {
     for (let attempt = 1; ; attempt++) {
       if (opts.abortSignal?.aborted) {
         throw new Error('Aborted while waiting to authenticate');
@@ -372,6 +448,7 @@ export async function monitorTlonProvider(
         runtime.log?.(`[tlon] Attempting authentication to ${accountUrl}...`);
         return await authenticate(accountUrl, accountCode, { ssrfPolicy });
       } catch (error: any) {
+        capturePluginError(source, error, { attempt });
         runtime.error?.(
           `[tlon] Failed to authenticate (attempt ${attempt}): ${error?.message ?? String(error)}`
         );
@@ -395,22 +472,28 @@ export async function monitorTlonProvider(
   }
 
   let api: UrbitSSEClient | null = null;
-  const cookie = await authenticateWithRetry();
-  api = new UrbitSSEClient(account.url, cookie, {
-    ship: botShipName,
-    ssrfPolicy,
-    logger: {
-      log: (message) => runtime.log?.(message),
-      error: (message) => runtime.error?.(message),
-    },
-    // Re-authenticate on reconnect in case the session expired
-    onReconnect: async (client) => {
-      runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
-      const newCookie = await authenticateWithRetry(5);
-      client.updateCookie(newCookie);
-      runtime.log?.('[tlon] Re-authentication successful');
-    },
-  });
+  let cookie: string;
+  try {
+    cookie = await authenticateWithRetry();
+    api = new UrbitSSEClient(account.url, cookie, {
+      ship: botShipName,
+      ssrfPolicy,
+      logger: {
+        log: (message) => runtime.log?.(message),
+        error: (message) => runtime.error?.(message),
+      },
+      // Re-authenticate on reconnect in case the session expired
+      onReconnect: async (client) => {
+        runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
+        const newCookie = await authenticateWithRetry(5, 're_auth');
+        client.updateCookie(newCookie);
+        runtime.log?.('[tlon] Re-authentication successful');
+      },
+    });
+  } catch (error) {
+    await telemetry?.close();
+    throw error;
+  }
 
   // Configure @tloncorp/api's global client to use the SSE client's poke for all send operations
   configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
@@ -485,11 +568,11 @@ export async function monitorTlonProvider(
   });
 
   // Outer try/finally wraps everything from slot publication onward.
-  // The reviewer's P2: a synchronous throw between slot publication and
-  // the inner try at ~line 2719 (constructor, queue setup, bridge
-  // setup, channel discovery, future edits in this large pre-try
-  // region) would leave the shared slot orphaned. This outer finally
-  // catches all of those and runs cleanup unconditionally.
+  // A synchronous throw between slot publication and the inner try
+  // (constructor, queue setup, bridge setup, channel discovery, future
+  // edits in this large pre-try region) would leave the shared slot
+  // orphaned. This outer finally catches all of those and runs cleanup
+  // unconditionally.
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
     const contextLensConfig = account.contextLens;
@@ -546,10 +629,6 @@ export async function monitorTlonProvider(
     let effectiveGroupInviteAllowlist: string[] = account.groupInviteAllowlist;
     let effectiveAutoDiscoverChannels: boolean =
       account.autoDiscoverChannels ?? false;
-    let effectiveOwnerShip: string | null = account.ownerShip
-      ? normalizeShip(account.ownerShip)
-      : null;
-    setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
     let effectiveOwnerListenEnabled: boolean =
       account.ownerListenEnabled ?? true;
     // Canonicalize on every read so an entry stored from a slightly-off user
@@ -587,9 +666,77 @@ export async function monitorTlonProvider(
       pendingNudgeRehydrated = true;
     };
 
-    const telemetry = createTlonTelemetry({
-      config: account.telemetry,
-      runtime,
+    // Bridge route-resolution telemetry from the global `message_sending` hook
+    // to this account's telemetry client. Reports every route-dependent send so
+    // we can measure how often a reply lands on webchat instead of Tlon.
+    setOutboundRouteReporter((event) =>
+      telemetry?.captureOutboundRoute({
+        ...event,
+        ownerShip:
+          getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
+        botShip: botShipName,
+      })
+    );
+    setSessionTelemetryReporter((report) => {
+      switch (report.kind) {
+        case 'lifecycle':
+          telemetry?.captureSessionLifecycle(report.event);
+          break;
+        case 'watchdog':
+          telemetry?.captureSessionWatchdog(report.event);
+          break;
+        case 'recovery':
+          telemetry?.captureSessionRecovery(report.event);
+          break;
+      }
+    });
+    setDebugTelemetryReporter((event) => {
+      telemetry?.captureHarnessDebug({
+        ...event,
+        accountId: event.accountId ?? account.accountId,
+        ownerShip: event.ownerShip ?? currentTelemetryOwnerShip(),
+        botShip: event.botShip || botShipName,
+      });
+    });
+    setErrorTelemetryReporter((report) => {
+      switch (report.kind) {
+        case 'harness':
+          telemetry?.captureHarnessError({
+            ...report.event,
+            accountId: report.event.accountId ?? account.accountId,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip || botShipName,
+          });
+          break;
+        case 'plugin':
+          telemetry?.capturePluginError({
+            harness: 'openclaw',
+            pluginErrorSource: report.event.pluginErrorSource,
+            accountId: report.event.accountId ?? account.accountId,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip ?? botShipName,
+            errorKind: report.event.errorKind ?? null,
+            errorText: report.event.errorText,
+            attempt: report.event.attempt ?? null,
+          });
+          break;
+        case 'telemetry':
+          telemetry?.captureTelemetryError({
+            harness: 'openclaw',
+            telemetrySource: report.event.telemetrySource,
+            sourceEventName: report.event.sourceEventName ?? null,
+            sessionKey: report.event.sessionKey ?? null,
+            sessionId: report.event.sessionId ?? null,
+            runId: report.event.runId ?? null,
+            accountId: report.event.accountId ?? account.accountId,
+            agentId: report.event.agentId ?? null,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip ?? botShipName,
+            errorKind: report.event.errorKind ?? null,
+            errorText: report.event.errorText,
+          });
+          break;
+      }
     });
 
     // Track threads we've participated in (by parentId) - respond without mention requirement
@@ -1087,6 +1234,9 @@ export async function monitorTlonProvider(
               );
               return;
             } catch (err) {
+              capturePluginError('gateway_status_activation', err, {
+                attempt,
+              });
               runtime.error?.(
                 `[gateway-status] activation attempt ${attempt} failed: ${String(err)} — retrying in ${GATEWAY_STATUS_ACTIVATION_RETRY_MS / 1000}s`
               );
@@ -1094,6 +1244,7 @@ export async function monitorTlonProvider(
             await abortableDelay(GATEWAY_STATUS_ACTIVATION_RETRY_MS, signal);
           }
         } catch (err) {
+          capturePluginError('gateway_status_activation', err);
           runtime.error?.(`[gateway-status] start failed: ${String(err)}`);
         }
       })();
@@ -1869,6 +2020,7 @@ export async function monitorTlonProvider(
       parentId?: string | null;
       isThreadReply?: boolean;
       replyParentId?: string | null; // Override parentId for delivery only (not in ctx payload)
+      retryOf?: string; // lensId of the failed run this dispatch retries
     }) => {
       const {
         messageId,
@@ -1950,6 +2102,15 @@ export async function monitorTlonProvider(
         conversationId: isGroup ? groupChannel ?? '' : senderShip,
         receivedAt: timestamp,
         preview: previewText(messageText),
+        ...(params.retryOf ? { retryOf: params.retryOf } : {}),
+        retrySeed: {
+          messageText: rawMessageText,
+          blobField: params.blobField ?? null,
+          parentId: parentId ?? null,
+          isThreadReply: Boolean(isThreadReply),
+          replyParentId: params.replyParentId ?? null,
+          cachesHistory: Boolean(params.cachesHistory),
+        },
       });
       contextLenses.recordPersistence(lens.lensId, {
         cachesHistory: Boolean(params.cachesHistory),
@@ -2581,7 +2742,17 @@ export async function monitorTlonProvider(
         CommandSource: 'text' as const,
         Provider: 'tlon',
         Surface: 'tlon',
-        MessageSid: messageId,
+        // The SDK's inbound dedupe keys off {sessionScope, routeKey, MessageSid}
+        // with a 20m TTL, and a failed run commits that entry — so a manual retry
+        // reusing the original message id would be silently dropped. Suffix the
+        // dedupe-facing MessageSid per retry to bust that, but keep MessageSidFull
+        // pointing at the real provider id (the field exists exactly for "MessageSid
+        // is a shortened alias") so downstream consumers that resolve the canonical
+        // message id don't see the synthetic token.
+        MessageSid: params.retryOf
+          ? `${messageId}#retry:${lens.lensId}`
+          : messageId,
+        MessageSidFull: messageId,
         // Include downloaded media attachments (MediaPaths/MediaUrls/MediaTypes for OpenClaw media pipeline)
         ...(attachments.length > 0 && {
           MediaPaths: attachments.map((a) => a.path),
@@ -2597,15 +2768,59 @@ export async function monitorTlonProvider(
         }),
       });
 
+      // ── Durable session-route persistence ───────────────────────
+      // The streamed reply below goes out through our own `deliver` callback
+      // and does not consult session metadata. But later route-dependent sends
+      // (the shared `message` tool, subagents, system-event turns) resolve
+      // their destination from the session store; without a persisted Tlon
+      // route they fall back to webchat. recordTlonRouteAndDispatch (below)
+      // records the route before dispatch and fails open — never blocks the
+      // reply.
+      const routeDebug: ((rec: TlonInboundRouteRecord) => void) | undefined =
+        isRouteDebugEnabled()
+          ? (rec) =>
+              runtime.log?.(
+                `[tlon][route-debug] inbound ${JSON.stringify({
+                  messageId,
+                  agentId: route.agentId,
+                  sessionKey: route.sessionKey,
+                  mainSessionKey: route.mainSessionKey,
+                  lastRoutePolicy: route.lastRoutePolicy,
+                  matchedBy: route.matchedBy,
+                  provider: ctxPayload.Provider,
+                  surface: ctxPayload.Surface,
+                  originatingChannel: ctxPayload.OriginatingChannel,
+                  originatingTo: ctxPayload.OriginatingTo,
+                  ctxSessionKey: ctxPayload.SessionKey,
+                  isGroup,
+                  groupChannel: groupChannel ?? null,
+                  senderShip,
+                  parentId: parentId ?? null,
+                  deliverParentId: deliverParentId ?? null,
+                  recordSessionKey: rec.recordSessionKey,
+                  lastRouteSessionKey: rec.lastRouteSessionKey,
+                  target: rec.target,
+                  hadUpdateLastRoute: Boolean(rec.updateLastRoute),
+                  pinWillSkip: routeUpdateWillSkipByPin(rec.updateLastRoute),
+                  skippedReason: rec.skippedReason ?? null,
+                })}`
+              )
+          : undefined;
+
       const dispatchStartTime = Date.now();
+      const runId = randomUUID();
       const dispatchTimeoutMs = normalizeRunTimeoutMs(
         account.lifecycle.runTimeoutMs
       );
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
+        runId,
+        accountId: account.accountId,
+        agentId: route.agentId,
         ownerShip: effectiveOwnerShip,
         botShip: botShipName,
         chatType: isGroup ? 'groupChannel' : 'dm',
+        destinationKind: isGroup ? 'groupChannel' : 'dm',
         isThreadReply: Boolean(isThreadReply),
         senderRole,
         attachmentCount,
@@ -2614,9 +2829,16 @@ export async function monitorTlonProvider(
       let selectedModel: string | null = null;
       let selectedThinkLevel: string | null = null;
       let deliveredMessageCount = 0;
+      let sendAttemptCount = 0;
+      let sendErrorCount = 0;
+      let sendErrorKind: string | null = null;
       let replyCharCount = 0;
       let replyWordCount = 0;
       let replyMediaCount = 0;
+      let deliverySkipReason: TlonDeliverySkipReason | null = null;
+      const recordDeliverySkip = (reason: TlonDeliverySkipReason) => {
+        deliverySkipReason ??= reason;
+      };
       let dispatchTimedOut = false;
       const dispatchAbortController = new AbortController();
       const abortFromMonitor = () => {
@@ -2694,9 +2916,12 @@ export async function monitorTlonProvider(
           typeof core.channel.reply.dispatchReplyWithBufferedBlockDispatcher
         >[0]['replyOptions']
       > = {
+        runId,
         abortSignal: dispatchAbortController.signal,
         ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
-        timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000),
+        ...(dispatchTimeoutMs !== null
+          ? { timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000) }
+          : {}),
         onModelSelected: ({ provider, model, thinkLevel }) => {
           selectedProvider = provider;
           selectedModel = model;
@@ -2731,170 +2956,235 @@ export async function monitorTlonProvider(
         | {
             queuedFinal: boolean;
             counts: Record<string, number>;
+            failedCounts?: Partial<Record<string, number>>;
+            sourceReplyDeliveryMode?: string;
+            beforeAgentRunBlocked?: boolean;
           }
         | undefined;
       let dispatchError: unknown;
 
       try {
-        let timeoutId: NodeJS.Timeout | null = null;
-        try {
-          contextLenses.setStatus(lens.lensId, 'dispatching');
-          contextLenses.recordLifecycle(lens.lensId, {
-            dispatchStartedAt: Date.now(),
-            timeoutMs: dispatchTimeoutMs,
-          });
-          bindContextLensToSession(lensSessionKeys, contextLenses, lens.lensId);
-          logContextLens(lens.lensId, 'dispatching');
-          timeoutId = setTimeout(() => {
-            dispatchTimedOut = true;
-            if (!dispatchAbortController.signal.aborted) {
-              dispatchAbortController.abort(
-                new Error(
-                  `Tlon dispatch timed out after ${dispatchTimeoutMs}ms`
-                )
+        dispatchResult = await recordTlonRouteAndDispatch({
+          session: core.channel.session,
+          cfg,
+          route,
+          ctxPayload,
+          ctxSessionKey: ctxPayload.SessionKey,
+          isGroup,
+          groupChannel,
+          senderShip,
+          parentId,
+          deliverParentId,
+          effectiveOwnerShip,
+          effectiveDmAllowlist,
+          messageId,
+          sessionStore: cfg.session?.store,
+          logError: (msg) => runtime.error?.(msg),
+          // Routine skip / pin-skip diagnostics are debug-gated to avoid
+          // high-volume logs for expected policy cases.
+          logDebug: isRouteDebugEnabled()
+            ? (msg) => runtime.log?.(msg)
+            : undefined,
+          onRecord: routeDebug,
+          dispatch: async () => {
+            let timeoutId: NodeJS.Timeout | null = null;
+            try {
+              contextLenses.setStatus(lens.lensId, 'dispatching');
+              contextLenses.recordLifecycle(lens.lensId, {
+                dispatchStartedAt: Date.now(),
+                timeoutMs: dispatchTimeoutMs,
+              });
+              bindContextLensToSession(
+                lensSessionKeys,
+                contextLenses,
+                lens.lensId
               );
-            }
-          }, dispatchTimeoutMs);
-          dispatchResult =
-            await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-              ctx: ctxPayload,
-              cfg,
-              replyOptions,
-              dispatcherOptions: {
-                responsePrefix,
-                humanDelay,
-                typingCallbacks,
-                deliver: async (payload: ReplyPayload) => {
-                  contextLenses.setStatus(lens.lensId, 'delivering');
-                  let replyText = payload.text;
-                  if (!replyText) {
-                    return;
+              logContextLens(lens.lensId, 'dispatching');
+              if (dispatchTimeoutMs !== null) {
+                timeoutId = setTimeout(() => {
+                  dispatchTimedOut = true;
+                  if (!dispatchAbortController.signal.aborted) {
+                    dispatchAbortController.abort(
+                      new Error(
+                        `Tlon dispatch timed out after ${dispatchTimeoutMs}ms`
+                      )
+                    );
                   }
+                }, dispatchTimeoutMs);
+              }
+              return await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher(
+                {
+                  ctx: ctxPayload,
+                  cfg,
+                  replyOptions,
+                  dispatcherOptions: {
+                    responsePrefix,
+                    humanDelay,
+                    typingCallbacks,
+                    onSkip: (_payload, info) => {
+                      recordDeliverySkip(info.reason);
+                    },
+                    deliver: async (payload: ReplyPayload) => {
+                      contextLenses.setStatus(lens.lensId, 'delivering');
+                      let replyText = payload.text;
+                      if (!replyText) {
+                        const hasMedia = Array.isArray(payload.mediaUrls)
+                          ? payload.mediaUrls.length > 0
+                          : Boolean(payload.mediaUrl);
+                        recordDeliverySkip(
+                          hasMedia
+                            ? 'media_only_payload_not_sent'
+                            : 'empty_payload_text'
+                        );
+                        return;
+                      }
 
-                  // Process any block directives in the response (strips them from text)
-                  replyText = await processBlockDirectives(
-                    replyText,
-                    senderShip
-                  );
-                  if (!replyText) {
-                    return;
-                  } // Response was only a directive
-
-                  // Use settings store value if set, otherwise fall back to file config
-                  const showSignature = effectiveShowModelSig;
-                  if (showSignature) {
-                    const modelCfg = cfg.agents?.defaults?.model;
-                    const modelInfo =
-                      selectedModel ||
-                      (payload as { metadata?: { model?: string } }).metadata
-                        ?.model ||
-                      (payload as { model?: string }).model ||
-                      (route as { model?: string }).model ||
-                      (typeof modelCfg === 'string'
-                        ? modelCfg
-                        : modelCfg?.primary);
-                    replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
-                  }
-
-                  // Add addendum if this is the last response before bot rate limit
-                  if (
-                    isGroup &&
-                    groupChannel &&
-                    knownBotShips.has(senderShip)
-                  ) {
-                    const count = consecutiveBotMessages.get(groupChannel) ?? 0;
-                    if (maxBotResponses > 0 && count === maxBotResponses) {
-                      const otherBot = formatShipWithNickname(senderShip);
-                      replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
-                    }
-                  }
-
-                  let outputMessageId: string | null = null;
-                  const contextLensBlob = buildContextLensReferenceBlobField(
-                    lens.lensId
-                  );
-                  if (isGroup && groupChannel) {
-                    // Send to any channel type (chat, heap, diary) using the nest directly
-                    const result = await sendChannelPost({
-                      botProfile: getBotProfile(),
-                      fromShip: botShipName,
-                      nest: groupChannel,
-                      story: markdownToStory(replyText),
-                      replyToId: deliverParentId ?? undefined,
-                      blob: contextLensBlob,
-                    });
-                    outputMessageId = result.messageId;
-                    // Track thread participation for future replies without mention
-                    if (deliverParentId) {
-                      participatedThreads.add(deliverParentId);
-                      runtime.log?.(
-                        `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                      // Process any block directives in the response (strips them from text)
+                      replyText = await processBlockDirectives(
+                        replyText,
+                        senderShip
                       );
-                    }
-                  } else {
-                    const result = await sendDm({
-                      botProfile: getBotProfile(),
-                      fromShip: botShipName,
-                      toShip: senderShip,
-                      text: replyText,
-                      replyToId: deliverParentId ?? undefined,
-                      blob: contextLensBlob,
-                    });
-                    outputMessageId = result.messageId;
-                  }
+                      if (!replyText) {
+                        recordDeliverySkip('block_directive_only');
+                        return;
+                      } // Response was only a directive
 
-                  if (presenceConversationId) {
-                    await computingPresence.stopRun({
-                      conversationId: presenceConversationId,
-                      runId: presenceRunId,
-                    });
-                  }
+                      // Use settings store value if set, otherwise fall back to file config
+                      const showSignature = effectiveShowModelSig;
+                      if (showSignature) {
+                        const modelCfg = cfg.agents?.defaults?.model;
+                        const modelInfo =
+                          selectedModel ||
+                          (payload as { metadata?: { model?: string } })
+                            .metadata?.model ||
+                          (payload as { model?: string }).model ||
+                          (route as { model?: string }).model ||
+                          (typeof modelCfg === 'string'
+                            ? modelCfg
+                            : modelCfg?.primary);
+                        replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
+                      }
 
-                  deliveredMessageCount += 1;
-                  contextLenses.recordPersistence(lens.lensId, {
-                    postsReply: true,
-                  });
-                  if (outputMessageId) {
-                    contextLenses.recordOutput(lens.lensId, {
-                      messageId: outputMessageId,
-                      conversationId: isGroup ? groupChannel ?? '' : senderShip,
-                      kind: isGroup ? 'channel' : 'dm',
-                      sentAt: Date.now(),
-                      preview: previewText(replyText),
-                      chunkIndex: deliveredMessageCount - 1,
-                    });
-                  }
-                  contextLenses.recordPersistenceEvent(lens.lensId, {
-                    kind: 'conversation_state',
-                    action: 'created',
-                    location: 'urbit',
-                    status: 'ok',
-                    key: 'reply',
-                    reason: 'posted bot response',
-                  });
-                  replyCharCount += replyText.length;
-                  replyWordCount += replyText.trim()
-                    ? replyText.trim().split(/\s+/).length
-                    : 0;
-                  replyMediaCount += Array.isArray(payload.mediaUrls)
-                    ? payload.mediaUrls.length
-                    : payload.mediaUrl
-                      ? 1
-                      : 0;
-                },
-                onError: (err, info) => {
-                  const dispatchDuration = Date.now() - dispatchStartTime;
-                  runtime.error?.(
-                    `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
-                  );
-                },
-              },
-            });
-        } finally {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-        }
+                      // Add addendum if this is the last response before bot rate limit
+                      if (
+                        isGroup &&
+                        groupChannel &&
+                        knownBotShips.has(senderShip)
+                      ) {
+                        const count =
+                          consecutiveBotMessages.get(groupChannel) ?? 0;
+                        if (maxBotResponses > 0 && count === maxBotResponses) {
+                          const otherBot = formatShipWithNickname(senderShip);
+                          replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
+                        }
+                      }
+
+                      if (isRouteDebugEnabled()) {
+                        runtime.log?.(
+                          `[tlon][route-debug] deliver ${JSON.stringify({
+                            messageId,
+                            isGroup,
+                            destination: isGroup
+                              ? groupChannel ?? null
+                              : senderShip,
+                            deliverParentId: deliverParentId ?? null,
+                          })}`
+                        );
+                      }
+
+                      sendAttemptCount += 1;
+                      let outputMessageId: string | null = null;
+                      const contextLensBlob =
+                        buildContextLensReferenceBlobField(lens.lensId);
+                      if (isGroup && groupChannel) {
+                        // Send to any channel type (chat, heap, diary) using the nest directly
+                        const result = await sendChannelPost({
+                          botProfile: getBotProfile(),
+                          fromShip: botShipName,
+                          nest: groupChannel,
+                          story: markdownToStory(replyText),
+                          replyToId: deliverParentId ?? undefined,
+                          blob: contextLensBlob,
+                        });
+                        outputMessageId = result.messageId;
+                        // Track thread participation for future replies without mention
+                        if (deliverParentId) {
+                          participatedThreads.add(String(deliverParentId));
+                          runtime.log?.(
+                            `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                          );
+                        }
+                      } else {
+                        const result = await sendDm({
+                          botProfile: getBotProfile(),
+                          fromShip: botShipName,
+                          toShip: senderShip,
+                          text: replyText,
+                          replyToId: deliverParentId ?? undefined,
+                          blob: contextLensBlob,
+                        });
+                        outputMessageId = result.messageId;
+                      }
+
+                      if (presenceConversationId) {
+                        await computingPresence.stopRun({
+                          conversationId: presenceConversationId,
+                          runId: presenceRunId,
+                        });
+                      }
+
+                      deliveredMessageCount += 1;
+                      contextLenses.recordPersistence(lens.lensId, {
+                        postsReply: true,
+                      });
+                      if (outputMessageId) {
+                        contextLenses.recordOutput(lens.lensId, {
+                          messageId: outputMessageId,
+                          conversationId: isGroup
+                            ? groupChannel ?? ''
+                            : senderShip,
+                          kind: isGroup ? 'channel' : 'dm',
+                          sentAt: Date.now(),
+                          preview: previewText(replyText),
+                          chunkIndex: deliveredMessageCount - 1,
+                        });
+                      }
+                      contextLenses.recordPersistenceEvent(lens.lensId, {
+                        kind: 'conversation_state',
+                        action: 'created',
+                        location: 'urbit',
+                        status: 'ok',
+                        key: 'reply',
+                        reason: 'posted bot response',
+                      });
+                      replyCharCount += replyText.length;
+                      replyWordCount += replyText.trim()
+                        ? replyText.trim().split(/\s+/).length
+                        : 0;
+                      replyMediaCount += Array.isArray(payload.mediaUrls)
+                        ? payload.mediaUrls.length
+                        : payload.mediaUrl
+                          ? 1
+                          : 0;
+                    },
+                    onError: (err, info) => {
+                      const dispatchDuration = Date.now() - dispatchStartTime;
+                      sendErrorCount += 1;
+                      sendErrorKind = info.kind;
+                      runtime.error?.(
+                        `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
+                      );
+                    },
+                  },
+                }
+              );
+            } finally {
+              if (timeoutId) {
+                clearTimeout(timeoutId);
+              }
+            }
+          },
+        });
       } catch (error) {
         dispatchError = error;
         if (dispatchTimedOut) {
@@ -2922,6 +3212,9 @@ export async function monitorTlonProvider(
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
         });
         await replyTelemetry?.capture({
+          sendAttemptCount,
+          sendErrorCount,
+          sendErrorKind,
           deliveredMessageCount,
           replyCharCount,
           replyWordCount,
@@ -2930,6 +3223,11 @@ export async function monitorTlonProvider(
           queuedFinal: dispatchResult?.queuedFinal ?? false,
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
+          failedCounts: dispatchResult?.failedCounts,
+          deliverySkipReason,
+          sourceReplyDeliveryMode:
+            dispatchResult?.sourceReplyDeliveryMode ?? null,
+          beforeAgentRunBlocked: dispatchResult?.beforeAgentRunBlocked === true,
           provider: selectedProvider,
           model: selectedModel,
           thinkLevel: selectedThinkLevel,
@@ -3055,6 +3353,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${nest}`,
+                    route.accountId
+                  ),
                 });
               }
             } catch (err: any) {
@@ -3489,6 +3792,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${reactAuthor}:${action}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${partnerShip || reactAuthor}`,
+                    route.accountId
+                  ),
                 });
                 runtime.log?.(`[tlon] DM_REACTION: ${eventText}`);
               }
@@ -3649,6 +3957,7 @@ export async function monitorTlonProvider(
         path: '/v4',
         event: (data) => handleChannelsFirehose(data as ChannelFirehoseEvent),
         err: (error) => {
+          capturePluginError('channels_firehose', error);
           runtime.error?.(`[tlon] Channels firehose error: ${String(error)}`);
         },
         quit: () => {
@@ -3665,6 +3974,7 @@ export async function monitorTlonProvider(
         path: '/v4',
         event: (data) => handleChatFirehose(data as ChatFirehoseEvent),
         err: (error) => {
+          capturePluginError('chat_firehose', error);
           runtime.error?.(`[tlon] Chat firehose error: ${String(error)}`);
         },
         quit: () => {
@@ -3733,6 +4043,7 @@ export async function monitorTlonProvider(
           }
         },
         err: (error) => {
+          capturePluginError('contacts_subscription', error);
           runtime.error?.(
             `[tlon] Contacts subscription error: ${String(error)}`
           );
@@ -3744,6 +4055,146 @@ export async function monitorTlonProvider(
         },
       });
       runtime.log?.('[tlon] Subscribed to contacts updates (/v1/news)');
+
+      // Subscribe to the bot ship's %steward lens module for owner-initiated
+      // retries. The agent verifies the requester before emitting the fact;
+      // the checks here are defense-in-depth. /v1/lens carries both %entry
+      // and %retry-requested updates — we ignore entries (they're echoes of
+      // our own pokes) and act only on the retry signal.
+      if (contextLensEnabled) {
+        const recentRetryDispatches = new Map<string, number>();
+        const RETRY_DEDUP_MS = 60_000;
+        const handleLensRetryFact = async (data: unknown) => {
+          const update = (
+            data as {
+              lens?: {
+                'retry-requested'?: { id?: unknown; requester?: unknown };
+              };
+            } | null
+          )?.lens?.['retry-requested'];
+          if (!update) {
+            // %entry updates (our own pokes echoing back) — ignore.
+            return;
+          }
+          const lensId = typeof update.id === 'string' ? update.id : '';
+          const requester =
+            typeof update.requester === 'string'
+              ? normalizeShip(update.requester)
+              : '';
+          if (!lensId || !requester) {
+            return;
+          }
+          // Align with the singular owner the agent actually stores; any
+          // "extra" configured owners are ignored at sync-configure time too,
+          // so accepting their retries here would be inconsistent.
+          const owner = resolveLensOwner(cfg, opts.accountId ?? undefined);
+          if (!owner || owner !== requester) {
+            runtime.log?.(
+              `[tlon] Context lens retry refused for ${lensId}: requester ${requester} is not the configured owner`
+            );
+            return;
+          }
+          const now = Date.now();
+          for (const [id, ts] of recentRetryDispatches) {
+            if (now - ts > RETRY_DEDUP_MS) {
+              recentRetryDispatches.delete(id);
+            }
+          }
+          if (recentRetryDispatches.has(lensId)) {
+            runtime.log?.(
+              `[tlon] Context lens retry ignored for ${lensId}: recently dispatched`
+            );
+            return;
+          }
+          // Reserve the dedup slot before the first await so two concurrent
+          // retry facts for the same lensId can't both pass the check above.
+          recentRetryDispatches.set(lensId, now);
+          const lens =
+            contextLenses.get(lensId) ??
+            findRecentContextLensById(lensId) ??
+            getContextLensStore()?.get(lensId);
+          if (!lens) {
+            recentRetryDispatches.delete(lensId);
+            runtime.log?.(
+              `[tlon] Context lens retry refused: run ${lensId} not found`
+            );
+            return;
+          }
+          const result = buildRetryDispatch(lens);
+          if (!result.ok) {
+            recentRetryDispatches.delete(lensId);
+            runtime.log?.(
+              `[tlon] Context lens retry refused for ${lensId}: ${result.reason}`
+            );
+            return;
+          }
+          const dispatch = result.dispatch;
+          if (await isShipBlocked(dispatch.senderShip)) {
+            recentRetryDispatches.delete(lensId);
+            runtime.log?.(
+              `[tlon] Context lens retry refused for ${lensId}: original sender ${dispatch.senderShip} is blocked`
+            );
+            return;
+          }
+          runtime.log?.(
+            `[tlon] Context lens retry dispatching for ${lensId} (requested by ${requester})${
+              dispatch.degraded
+                ? ' [degraded: no retry seed, using preview]'
+                : ''
+            }`
+          );
+          await processMessage({
+            messageId: lens.messageId,
+            senderShip: dispatch.senderShip,
+            messageText: dispatch.messageText,
+            blobField: dispatch.blobField,
+            isGroup: dispatch.isGroup,
+            ...(dispatch.channelNest
+              ? { channelNest: dispatch.channelNest }
+              : {}),
+            timestamp: Date.now(),
+            parentId: dispatch.parentId,
+            isThreadReply: dispatch.isThreadReply,
+            replyParentId: dispatch.replyParentId,
+            cachesHistory: dispatch.cachesHistory,
+            trigger: 'retry',
+            retryOf: lensId,
+          });
+        };
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: '/v1/lens',
+            event: (data) => {
+              handleLensRetryFact(data).catch((error: any) => {
+                runtime.error?.(
+                  `[tlon] Steward lens retry handler error: ${error?.message ?? String(error)}`
+                );
+              });
+            },
+            err: (error) => {
+              runtime.error?.(
+                `[tlon] Steward lens subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Steward lens quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.(
+            '[tlon] Subscribed to steward lens facts (/v1/lens) for retry signals'
+          );
+        } catch (error: any) {
+          // Ships without %steward (or older context-lens-only ships) nack
+          // the subscribe; retries are unavailable but everything else keeps
+          // working.
+          runtime.log?.(
+            `[tlon] Steward lens subscription unavailable: ${error?.message ?? String(error)}`
+          );
+        }
+      }
 
       // Subscribe to settings store for hot-reloading config
       const applySettingsSnapshot = (
@@ -3997,7 +4448,14 @@ export async function monitorTlonProvider(
                             const memberDisplay = formatShipWithNickname(ship);
                             core.system.enqueueSystemEvent(
                               `[${memberDisplay} joined group ${groupFlag}]`,
-                              { sessionKey: route.sessionKey }
+                              {
+                                sessionKey: route.sessionKey,
+                                // Route any resulting system turn back to Tlon.
+                                deliveryContext: tlonDeliveryContext(
+                                  `tlon:${nest}`,
+                                  route.accountId
+                                ),
+                              }
                             );
                             runtime.log?.(
                               `[tlon] Member joined: ${ship} → ${groupFlag}`
@@ -4138,6 +4596,7 @@ export async function monitorTlonProvider(
             }
           },
           err: (error) => {
+            capturePluginError('groups_ui_subscription', error);
             runtime.error?.(
               `[tlon] Groups-ui subscription error: ${String(error)}`
             );
@@ -4153,6 +4612,7 @@ export async function monitorTlonProvider(
         );
       } catch (err) {
         // Groups-ui subscription is optional - channel discovery will still work via polling
+        capturePluginError('groups_ui_subscription', err);
         runtime.log?.(
           `[tlon] Groups-ui subscription failed (will rely on polling): ${String(err)}`
         );
@@ -4301,6 +4761,7 @@ export async function monitorTlonProvider(
               })();
             },
             err: (error) => {
+              capturePluginError('foreigns_subscription', error);
               runtime.error?.(
                 `[tlon] Foreigns subscription error: ${String(error)}`
               );
@@ -4315,6 +4776,7 @@ export async function monitorTlonProvider(
             '[tlon] Subscribed to foreigns (/v1/foreigns) for auto-accepting group invites'
           );
         } catch (err) {
+          capturePluginError('foreigns_subscription', err);
           runtime.log?.(`[tlon] Foreigns subscription failed: ${String(err)}`);
         }
       }
@@ -4338,6 +4800,22 @@ export async function monitorTlonProvider(
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      telemetry?.captureGatewayConnected({
+        ownerShip: effectiveOwnerShip,
+        botShip: botShipName,
+        tlonSkillVersion: await resolveTlonSkillVersion(),
+        accountId: account.accountId,
+        configured: account.configured,
+        watchedChannelCount: watchedChannels.size,
+        dmAllowlistCount: effectiveDmAllowlist.length,
+        defaultAuthorizedShipsCount: (
+          currentSettings.defaultAuthorizedShips ??
+          account.defaultAuthorizedShips
+        ).length,
+        pendingApprovalCount: pendingApprovals.length,
+        autoDiscoverChannels: effectiveAutoDiscoverChannels,
+        ownerListenEnabled: effectiveOwnerListenEnabled,
+      });
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
@@ -4378,6 +4856,7 @@ export async function monitorTlonProvider(
             fresh: refreshResult.fresh,
           });
         } catch (err) {
+          capturePluginError('settings_refresh', err);
           runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
         }
       }, SETTINGS_REFRESH_INTERVAL_MS);
@@ -4471,6 +4950,10 @@ export async function monitorTlonProvider(
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
       clearShadowsForAccount(account.accountId);
+      setOutboundRouteReporter(null);
+      setSessionTelemetryReporter(null);
+      setDebugTelemetryReporter(null);
+      setErrorTelemetryReporter(null);
       await telemetry?.close();
       try {
         await api?.close();

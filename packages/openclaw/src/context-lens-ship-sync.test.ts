@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it } from 'vitest';
 
@@ -10,8 +13,13 @@ import {
   createContextLensShipSync,
   initContextLensShipSync,
   isContextLensEffectivelyEnabled,
+  loadSyncedLensIds,
+  recordSyncedLensId,
+  replayUnsyncedFinalRuns,
   resolveLensOwners,
+  syncedLensIdsPath,
 } from './context-lens-ship-sync.js';
+import { createContextLensStore } from './context-lens-store.js';
 import { type ContextLens, createContextLensRegistry } from './context-lens.js';
 import {
   API_CLIENT_PARAMS_SLOT,
@@ -178,14 +186,90 @@ describe('buildLensRunPayload', () => {
     expect(payload.lens.status).toBe(lens.status);
     expect(raw.length).toBeLessThan(50 * 1_024);
   });
+
+  it('includes retrySeed in the run payload and keeps retryOf', () => {
+    const lens = makeLens();
+    lens.retryOf = 'lens-original';
+    lens.retrySeed = {
+      messageText: 'secret original message body',
+      blobField: '{"k":"v"}',
+    };
+    const payload = JSON.parse(buildLensRunPayload(lens)) as {
+      lens: ContextLens;
+    };
+    expect(payload.lens.retrySeed).toEqual({
+      messageText: 'secret original message body',
+      blobField: '{"k":"v"}',
+    });
+    expect(payload.lens.retryOf).toBe('lens-original');
+    expect(JSON.stringify(payload)).toContain('secret original message body');
+  });
+
+  it('keeps retrySeed when oversized payloads are skeletonized', () => {
+    const registry = createContextLensRegistry({ ttlMs: 60_000 });
+    const blobField = JSON.stringify({ body: 'b'.repeat(7_500) });
+    const lens = registry.create({
+      messageId: 'msg-oversized-retry',
+      chatType: 'channel',
+      trigger: 'mention',
+      senderShip: '~ten',
+      conversationId: 'chat/~ten/test',
+      retrySeed: {
+        messageText: 'm'.repeat(20_000),
+        blobField,
+        parentId: '170.1',
+        isThreadReply: true,
+        replyParentId: '170.2',
+        cachesHistory: true,
+      },
+    });
+    lens.tools.runs = Array.from({ length: 100 }, (_, i) => ({
+      id: `t-${i}`,
+      callIndex: i + 1,
+      name: 'browser',
+      startedAt: Date.now(),
+      completedAt: Date.now(),
+      durationMs: 5,
+      status: 'completed' as const,
+      argumentSummary: 'y'.repeat(4_000),
+      resultSummary: 'z'.repeat(4_000),
+    }));
+
+    const raw = buildLensRunPayload(lens);
+    const payload = JSON.parse(raw) as {
+      truncated?: boolean;
+      lens: ContextLens;
+    };
+
+    expect(payload.truncated).toBe(true);
+    expect(payload.lens.tools.runs).toEqual([]);
+    expect(payload.lens.context.sources).toEqual([]);
+    expect(payload.lens.outputs).toEqual([]);
+    expect(payload.lens.retrySeed).toEqual(lens.retrySeed);
+    expect(payload.lens.retrySeed?.messageText).toHaveLength(16_384);
+    expect(payload.lens.retrySeed?.blobField).toBe(blobField);
+    expect(raw.length).toBeLessThan(50 * 1_024);
+    expect(raw.length).toBeLessThan(512 * 1_024);
+  });
 });
+
+const labelPoke = (poke: RecordedPoke): string => {
+  const json = poke.json as {
+    configure?: unknown;
+    lens?: { entry?: { final?: boolean } };
+  };
+  if (json.configure) return 'configure';
+  const entry = json.lens?.entry;
+  if (!entry) return 'unknown';
+  return entry.final ? 'entry-final' : 'entry-partial';
+};
 
 describe('createContextLensShipSync', () => {
   it('configures owners once, then pokes run milestones and finals', async () => {
     const pokes: RecordedPoke[] = [];
     const params = makeParams(pokes);
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: silentLogger,
       getParams: () => params,
     });
@@ -196,29 +280,39 @@ describe('createContextLensShipSync', () => {
     sync.handleEvent(makeEvent({ ...lens, status: 'completed' }));
     await sync.flush();
 
-    expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
+    expect(pokes.map(labelPoke)).toEqual([
       'configure',
-      'run-event',
-      'run-event',
-      'run-final',
+      'entry-partial',
+      'entry-partial',
+      'entry-final',
     ]);
     expect(
-      pokes.every(
-        (p) => p.app === 'context-lens' && p.mark === 'context-lens-action-1'
-      )
+      pokes.every((p) => p.app === 'steward' && p.mark === 'steward-action-1')
     ).toBe(true);
-    expect(pokes[0].json).toEqual({ configure: { owners: ['~bus'] } });
-    const final = pokes[3].json as {
-      'run-final': { id: string; payload: unknown };
+    expect(pokes[0].json).toEqual({ configure: { owner: '~bus' } });
+    // partial entry assertions: same lensId, non-empty payload, final=false.
+    const partialPoke = pokes[1].json as {
+      lens: { entry: { id: string; payload: unknown; final: boolean } };
     };
-    expect(final['run-final'].id).toBe(lens.lensId);
+    expect(partialPoke.lens.entry.id).toBe(lens.lensId);
+    expect(typeof partialPoke.lens.entry.payload).toBe('string');
+    expect((partialPoke.lens.entry.payload as string).length).toBeGreaterThan(
+      0
+    );
+    expect(partialPoke.lens.entry.final).toBe(false);
+    // final entry assertions: same lensId, final=true.
+    const finalPoke = pokes[3].json as {
+      lens: { entry: { id: string; payload: unknown; final: boolean } };
+    };
+    expect(finalPoke.lens.entry.id).toBe(lens.lensId);
+    expect(finalPoke.lens.entry.final).toBe(true);
   });
 
   it('skips repeat events with an unchanged status', async () => {
     const pokes: RecordedPoke[] = [];
     const params = makeParams(pokes);
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: silentLogger,
       getParams: () => params,
     });
@@ -229,14 +323,14 @@ describe('createContextLensShipSync', () => {
     sync.handleEvent(makeEvent(lens));
     await sync.flush();
 
-    expect(pokes).toHaveLength(2); // configure + one run-event
+    expect(pokes).toHaveLength(2); // configure + one entry-partial
   });
 
   it('ignores internal-visibility runs', async () => {
     const pokes: RecordedPoke[] = [];
     const params = makeParams(pokes);
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: silentLogger,
       getParams: () => params,
     });
@@ -254,7 +348,7 @@ describe('createContextLensShipSync', () => {
     const params = makeParams(pokes);
     let connected = false;
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: silentLogger,
       getParams: () => (connected ? params : null),
     });
@@ -266,10 +360,7 @@ describe('createContextLensShipSync', () => {
     connected = true;
     sync.handleEvent(makeEvent(makeLens({ status: 'completed' })));
     await sync.flush();
-    expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
-      'configure',
-      'run-final',
-    ]);
+    expect(pokes.map(labelPoke)).toEqual(['configure', 'entry-final']);
   });
 
   it('re-configures after a poke failure and on params instance change', async () => {
@@ -290,7 +381,7 @@ describe('createContextLensShipSync', () => {
     let current = flaky;
     const warnings: string[] = [];
     const sync = createContextLensShipSync({
-      owners: ['~bus'],
+      owner: '~bus',
       logger: { info: () => {}, warn: (m) => warnings.push(m) },
       getParams: () => current,
     });
@@ -304,21 +395,120 @@ describe('createContextLensShipSync', () => {
     // Second final: configure retried (now succeeding), then the run poke.
     sync.handleEvent(makeEvent(makeLens({ status: 'completed' })));
     await sync.flush();
-    expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
-      'configure',
-      'run-final',
-    ]);
+    expect(pokes.map(labelPoke)).toEqual(['configure', 'entry-final']);
 
     // New params instance (monitor restart): configure re-asserted.
     current = makeParams(pokes);
     sync.handleEvent(makeEvent(makeLens({ status: 'completed' })));
     await sync.flush();
-    expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
+    expect(pokes.map(labelPoke)).toEqual([
       'configure',
-      'run-final',
+      'entry-final',
       'configure',
-      'run-final',
+      'entry-final',
     ]);
+  });
+});
+
+describe('synced lens id bookkeeping', () => {
+  it('round-trips ids and survives a missing or garbage file', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lens-synced-'));
+    const file = syncedLensIdsPath(path.join(dir, 'runs.jsonl'));
+    try {
+      expect(loadSyncedLensIds(file).size).toBe(0);
+
+      recordSyncedLensId(file, 'a');
+      recordSyncedLensId(file, 'b');
+      recordSyncedLensId(file, 'a');
+      expect([...loadSyncedLensIds(file)]).toEqual(['b', 'a']);
+
+      fs.writeFileSync(file, 'not json');
+      expect(loadSyncedLensIds(file).size).toBe(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('reports run finals via onRunFinal only after a successful poke', async () => {
+    const pokes: RecordedPoke[] = [];
+    const params = makeParams(pokes);
+    let connected = false;
+    const finals: string[] = [];
+    const sync = createContextLensShipSync({
+      owner: '~bus',
+      logger: silentLogger,
+      getParams: () => (connected ? params : null),
+      onRunFinal: (lens) => finals.push(lens.lensId),
+    });
+
+    // Dropped (no params): poke never sent, so no bookkeeping.
+    sync.handleEvent(makeEvent(makeLens({ status: 'completed' })));
+    await sync.flush();
+    expect(finals).toHaveLength(0);
+
+    connected = true;
+    // Milestone events are not tracked, only finals.
+    const lens = makeLens({ status: 'tool_running' });
+    sync.handleEvent(makeEvent(lens));
+    sync.handleEvent(makeEvent({ ...lens, status: 'aborted' }));
+    await sync.flush();
+    expect(finals).toEqual([lens.lensId]);
+  });
+});
+
+describe('replayUnsyncedFinalRuns', () => {
+  function makeFinalLens(
+    overrides: Partial<ContextLens> & { completedAt?: number }
+  ): ContextLens {
+    const { completedAt, ...rest } = overrides;
+    const lens = makeLens({ status: 'completed', ...rest });
+    return {
+      ...lens,
+      lifecycle: { ...lens.lifecycle, completedAt: completedAt ?? Date.now() },
+    };
+  }
+
+  it('re-pokes only unsynced, recent, non-internal terminal runs', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lens-replay-'));
+    const filePath = path.join(dir, 'runs.jsonl');
+    try {
+      const store = createContextLensStore({ filePath });
+      const missed = makeFinalLens({ status: 'aborted' });
+      const alreadySynced = makeFinalLens({});
+      const internal = makeFinalLens({ visibility: 'internal' });
+      const stale = makeFinalLens({
+        completedAt: Date.now() - 25 * 60 * 60 * 1_000,
+      });
+      for (const lens of [missed, alreadySynced, internal]) {
+        store.save(lens);
+      }
+      // Bypass save()'s own retention so the stale lens is present in memory.
+      fs.appendFileSync(filePath, `${JSON.stringify(stale)}\n`);
+      const reloaded = createContextLensStore({ filePath });
+      recordSyncedLensId(syncedLensIdsPath(filePath), alreadySynced.lensId);
+
+      const pokes: RecordedPoke[] = [];
+      const params = makeParams(pokes);
+      const finals: string[] = [];
+      const sync = createContextLensShipSync({
+        owner: '~bus',
+        logger: silentLogger,
+        getParams: () => params,
+        onRunFinal: (lens) => {
+          finals.push(lens.lensId);
+          recordSyncedLensId(syncedLensIdsPath(filePath), lens.lensId);
+        },
+      });
+
+      expect(replayUnsyncedFinalRuns(reloaded, sync, silentLogger)).toBe(1);
+      await sync.flush();
+      expect(finals).toEqual([missed.lensId]);
+
+      // Second boot: the replayed run is now recorded as synced.
+      expect(replayUnsyncedFinalRuns(reloaded, sync, silentLogger)).toBe(0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -353,10 +543,7 @@ describe('initContextLensShipSync', () => {
       publishContextLensEvent('final', makeLens({ status: 'completed' }));
       await new Promise((resolve) => setTimeout(resolve, 20));
 
-      expect(pokes.map((p) => Object.keys(p.json as object)[0])).toEqual([
-        'configure',
-        'run-final',
-      ]);
+      expect(pokes.map(labelPoke)).toEqual(['configure', 'entry-final']);
     } finally {
       slot.set(previousParams);
     }

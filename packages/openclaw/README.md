@@ -82,9 +82,11 @@ channels:
 
 ## Telemetry
 
-Telemetry is disabled by default. The plugin only sends tlemetry events when `channels.tlon.telemetry.enabled` is set to `true` and an API key is configured.
+Telemetry is disabled by default. The plugin only sends telemetry events when `channels.tlon.telemetry.enabled` is set to `true` and an API key is configured.
 
-When enabled, the plugin captures a single `TlonBot Reply Handled` event each time it enters the OpenClaw reply flow. The event summarizes OpenClaw usage (tools used, character count, etc.), but does not log message content.
+Every event carries content-free version identity: `harness: "openclaw"`, `pluginVersion`, `pluginCommit`, `pluginFingerprint`, plus Hermes-compatible `adapterVersion` and `adapterFingerprint` fields for shared PostHog charts.
+
+When enabled, the plugin captures `TlonBot Gateway Connected` after subscriptions are active, `TlonBot Reply Handled` after each OpenClaw reply flow, `TlonBot Outbound Routed` for route-dependent sends, and heartbeat nudge events. `TlonBot Gateway Connected` also includes the resolved `tlon` CLI version as `tlonSkillVersion`. These summarize counts, routing, model/tool usage, and delivery status, but do not log message content.
 
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
 
@@ -115,11 +117,23 @@ Reply "approve", "deny", or "block" (ID: dm-1234567890-abc)
 
 The owner can send these commands via DM:
 
-| Command         | Description                    |
-| --------------- | ------------------------------ |
-| `blocked`       | List all blocked ships         |
-| `pending`       | List pending approval requests |
-| `unblock ~ship` | Unblock a ship                 |
+| Command        | Description                                |
+| -------------- | ------------------------------------------ |
+| `tlon version` | Show OpenClaw Tlon plugin version identity |
+| `tlon-version` | Legacy alias for `tlon version`            |
+| `banned`       | List all blocked ships                     |
+| `pending`      | List pending approval requests             |
+| `unban ~ship`  | Unblock a ship                             |
+
+`/tlon version` and the legacy `/tlon-version` alias report the same field-per-line summary as Hermes:
+
+```
+Harness: OpenClaw
+Adapter Version: 0.4.3
+Tlon Skill: 0.3.2
+Fingerprint: fp1:8aa23ca2bc8d
+Source: no git checkout
+```
 
 ## Bundled Skill
 
@@ -129,6 +143,7 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 -   Channel listing and history
 -   Group administration
 -   Message posting and reactions
+-   Notes channel management and note CRUD
 -   Settings management
 
 The skill is automatically available to your agent. For standalone usage, see the [tlon-skill repo](https://github.com/tloncorp/tlon-skill).
