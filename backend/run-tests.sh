@@ -17,7 +17,7 @@ case $OSTYPE in
         urbit_bin_url="$urbit_bin_url/linux-x86_64/latest"
         arch=x86_64
         ;;
-      arm64  ) 
+      arm64 | aarch64 )
         urbit_bin_url="$urbit_bin_url/linux-aarch64/latest"
         arch=aarch64
         ;;
