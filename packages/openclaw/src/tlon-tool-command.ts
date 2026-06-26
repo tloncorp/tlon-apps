@@ -24,7 +24,7 @@ const PROFILE_UPDATE_FIELDS = [
 export type TlonProfileUpdateField =
   (typeof PROFILE_UPDATE_FIELDS)[number]['field'];
 export type TlonToolIntent = 'read' | 'write' | 'admin' | 'config' | 'utility';
-export type TlonChannelKind = 'chat' | 'diary' | 'heap';
+export type TlonChannelKind = 'chat' | 'heap' | 'notes';
 export type TlonDmTargetKind = 'ship' | 'club' | 'unknown';
 export type TlonUploadSource = 'url' | 'local' | 'stdin' | 'unknown';
 
@@ -366,7 +366,6 @@ function summarizeKnownTlonCommand(
       return summarizePostsOperation(operation, remainder, build);
     case 'notebook':
       return build('write', {
-        channelKind: 'diary',
         hasContent: hasFlag(remainder, '--content'),
         hasImage: hasFlag(remainder, '--image'),
       });
@@ -885,7 +884,7 @@ function parseChannelKind(
     return undefined;
   }
   const kind = value.split('/', 1)[0];
-  return kind === 'chat' || kind === 'diary' || kind === 'heap'
+  return kind === 'chat' || kind === 'heap' || kind === 'notes'
     ? kind
     : undefined;
 }

@@ -153,4 +153,39 @@ describe('tlon tool telemetry summarizer', () => {
     expect(serialized).not.toContain('Launch Plan');
     expect(serialized).not.toContain('./launch.md');
   });
+
+  it('captures notes channel kinds from group channel creation', () => {
+    const summary = summarizeTlonCommand(
+      'groups add-channel ~zod/quiet-launch "Project Notes" --kind notes'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'groups.add-channel',
+      channelKind: 'notes',
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('Project Notes');
+  });
+
+  it('captures notes channel kinds from notes nests', () => {
+    const summary = summarizeTlonCommand(
+      'channels info notes/~zod/quiet-launch'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'channels.info',
+      channelKind: 'notes',
+    });
+  });
+
+  it('does not report removed diary channels as a live channel kind', () => {
+    const summary = summarizeTlonCommand(
+      'channels info diary/~zod/quiet-launch'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'channels.info',
+    });
+    expect(summary.channelKind).toBeUndefined();
+  });
 });
