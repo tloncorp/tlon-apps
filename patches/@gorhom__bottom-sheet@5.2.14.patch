@@ -1,3 +1,79 @@
+diff --git a/src/components/bottomSheet/BottomSheet.tsx b/src/components/bottomSheet/BottomSheet.tsx
+index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..63964ae7fedd5963af00a5160af7783754756417 100644
+--- a/src/components/bottomSheet/BottomSheet.tsx
++++ b/src/components/bottomSheet/BottomSheet.tsx
+@@ -1126,15 +1126,12 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+        * exit method if :
+        * - layout is not calculated.
+        * - already animating to next position.
+-       * - sheet is forced closing.
+        */
+-      const { nextPosition, nextIndex, isForcedClosing } =
+-        animatedAnimationState.get();
++      const { nextPosition, nextIndex } = animatedAnimationState.get();
+       if (
+         !isLayoutCalculated.value ||
+         index === nextIndex ||
+-        targetPosition === nextPosition ||
+-        isForcedClosing
++        targetPosition === nextPosition
+       ) {
+         return;
+       }
+@@ -1177,14 +1174,9 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+          * exit method if :
+          * - layout is not calculated.
+          * - already animating to next position.
+-         * - sheet is forced closing.
+          */
+-        const { nextPosition, isForcedClosing } = animatedAnimationState.get();
+-        if (
+-          !isLayoutCalculated ||
+-          targetPosition === nextPosition ||
+-          isForcedClosing
+-        ) {
++        const { nextPosition } = animatedAnimationState.get();
++        if (!isLayoutCalculated.value || targetPosition === nextPosition) {
+           return;
+         }
+ 
+@@ -1344,15 +1336,12 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+          * exit method if :
+          * - layout is not calculated.
+          * - already animating to next position.
+-         * - sheet is forced closing.
+          */
+-        const { nextPosition, nextIndex, isForcedClosing } =
+-          animatedAnimationState.get();
++        const { nextPosition, nextIndex } = animatedAnimationState.get();
+         if (
+           !isLayoutCalculated.value ||
+           targetIndex === nextIndex ||
+-          targetPosition === nextPosition ||
+-          isForcedClosing
++          targetPosition === nextPosition
+         ) {
+           return;
+         }
+@@ -1399,15 +1388,12 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+          * exit method if :
+          * - layout is not calculated.
+          * - already animating to next position.
+-         * - sheet is forced closing.
+          */
+-        const { nextPosition, nextIndex, isForcedClosing } =
+-          animatedAnimationState.get();
++        const { nextPosition, nextIndex } = animatedAnimationState.get();
+         if (
+-          !isLayoutCalculated ||
++          !isLayoutCalculated.value ||
+           nextIndex === 0 ||
+-          targetPosition === nextPosition ||
+-          isForcedClosing
++          targetPosition === nextPosition
+         ) {
+           return;
+         }
 diff --git a/src/components/bottomSheet/BottomSheetContent.tsx b/src/components/bottomSheet/BottomSheetContent.tsx
 index 4a69a6892ff553836b72216b598451c56f6284cc..7cdacc259c532844f5ec378e111f2f1656327f18 100644
 --- a/src/components/bottomSheet/BottomSheetContent.tsx
@@ -53,3 +129,28 @@ index 4a69a6892ff553836b72216b598451c56f6284cc..7cdacc259c532844f5ec378e111f2f16
      return {
        paddingBottom: animate({
          point: paddingBottom,
+diff --git a/src/components/bottomSheetModal/BottomSheetModal.tsx b/src/components/bottomSheetModal/BottomSheetModal.tsx
+index 2954b3f4282e28c1973ab88f479eb2d7889913c5..102c1c2ff818adccd20b601e27ba4ff7b0f59cc4 100644
+--- a/src/components/bottomSheetModal/BottomSheetModal.tsx
++++ b/src/components/bottomSheetModal/BottomSheetModal.tsx
+@@ -273,13 +273,15 @@ function BottomSheetModalComponent<T = never>(
+       }
+ 
+       /**
+-       * if the modal position is already in a closed position,
+-       * then we unmount the node and early exit.
++       * if the modal position is already in a closed position OR has
++       * never been presented, then we unmount the node and early exit.
+        */
+       if (
+-        [MODAL_STATUS.CLOSED, MODAL_STATUS.MINIMIZED].includes(
+-          statusRef.current
+-        ) ||
++        [
++          MODAL_STATUS.INITIAL,
++          MODAL_STATUS.CLOSED,
++          MODAL_STATUS.MINIMIZED,
++        ].includes(statusRef.current) ||
+         (statusRef.current === MODAL_STATUS.DISMISSING &&
+           currentIndexRef.current === -1)
+       ) {
