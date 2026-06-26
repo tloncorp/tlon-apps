@@ -18,6 +18,7 @@ import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import {
   type TestFixtures,
   getFixtures,
+  registerEngagingTurn,
   requireFixtureGroup,
   waitFor,
 } from '../lib/index.js';
@@ -161,10 +162,26 @@ describe('messages', () => {
     test('processes a DM thread reply', async () => {
       // Owner sends a parent DM, then replies to it. The plugin should
       // hand the reply to the agent loop — verify via _received.
+      //
+      // The parent gets its OWN script key (not the reply's). Owner DMs always
+      // engage the model, so an *untagged* parent would inherit the last
+      // [tlon-test:KEY] still sitting in the shared ~ten DM session history
+      // (e.g. the previous test's `post-channel-basic`) and misroute. Tagging
+      // the parent with a distinct key keeps the *reply* assertion clean
+      // (still keyed on `dm-thread-reply`) while removing that bleed.
+      // registerEngagingTurn defaults to allowExtraCalls: 1 because these
+      // engaging DM flows make one trailing model turn beyond their text reply.
+      const parentKey = 'dm-thread-parent';
       const parentToken = `it-dm-parent-${Date.now().toString(36)}`;
+      // Give the parent a UNIQUE reply text so we can wait for the bot to
+      // actually deliver it (i.e. the parent run completed), not merely started.
+      const parentAck = `parent-ack-${parentToken}`;
+      const parentTag = await registerEngagingTurn(parentKey, [
+        { kind: 'text', content: parentAck },
+      ]);
       await fixtures.userState.sendPost({
         channelId: fixtures.botShip,
-        content: story(`parent ${parentToken}`),
+        content: story(`${parentTag} parent ${parentToken}`),
       });
 
       // Poll for the parent post to land on the BOT'S view of the DM channel.
@@ -187,8 +204,28 @@ describe('messages', () => {
         return found?.id ? found : undefined;
       }, 30_000);
 
+      // Wait for the parent RUN to fully settle — the bot has DELIVERED its
+      // reply — before sending the thread reply. Waiting only on the first
+      // recorded model call proves the run started, not that it finished, so
+      // the reply could still race a mid-flight parent run. Serializing on
+      // delivery keeps this a harness-correctness test, not an I2 concurrency
+      // test.
+      await waitFor(async () => {
+        const posts = await fixtures.botState.channelPosts(
+          fixtures.userShip,
+          10
+        );
+        const delivered = (posts ?? []).some((p) => {
+          const pp = p as PostLike;
+          return (
+            pp.authorId === fixtures.botShip && postText(pp).includes(parentAck)
+          );
+        });
+        return delivered ? true : undefined;
+      }, 30_000);
+
       const key = 'dm-thread-reply';
-      await fakeModel.script(key, [
+      const replyTag = await registerEngagingTurn(key, [
         { kind: 'text', content: 'Got your thread reply' },
       ]);
 
@@ -196,7 +233,7 @@ describe('messages', () => {
         channelId: fixtures.botShip,
         parentId: String(parent.id),
         parentAuthor: fixtures.userShip,
-        content: story(`[tlon-test:${key}] reply body`),
+        content: story(`${replyTag} reply body`),
       });
 
       const calls = await waitFor(async () => {

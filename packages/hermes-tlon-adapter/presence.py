@@ -22,11 +22,17 @@ logger = logging.getLogger(__name__)
 
 COMPUTING_STATUS_PROTOCOL = "tlon.computing-status.v1"
 DEFAULT_MIN_UPDATE_INTERVAL_MS = 1_000
+ACTIVE_PRESENCE_TIMEOUT = "~m1.s30"
+DEFAULT_MAX_PUBLISH_AGE_MS = 30_000
+DEFAULT_KEEPALIVE_INTERVAL_MS = 20_000
+STOPPED_RUN_MEMORY = 8
 
 TOOL_LABELS = {
     "exec": "Running a command",
+    "image_search": "Searching images",
     "read": "Reading files",
-    "web_extract": "Reading the web",
+    "tlon": "Using Tlon",
+    "web_extract": "Checking the web",
     "web_fetch": "Checking the web",
     "web_search": "Searching the web",
 }
@@ -57,11 +63,18 @@ def format_computing_tool_call_label(tool_name: str | None = None) -> str:
 def create_computing_status(
     *,
     thinking: bool,
-    tool_names: Sequence[str] = (),
+    tool_names: Sequence[str | Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     seen: set[str] = set()
     tool_calls: list[dict[str, str]] = []
-    for raw_name in tool_names:
+    for raw_tool_call in tool_names:
+        if isinstance(raw_tool_call, Mapping):
+            raw_name = raw_tool_call.get("toolName", raw_tool_call.get("tool_name"))
+            label = str(raw_tool_call.get("label") or "").strip()
+        else:
+            raw_name = raw_tool_call
+            label = ""
+
         tool_name = str(raw_name or "").strip()
         if not tool_name or tool_name in seen:
             continue
@@ -69,7 +82,7 @@ def create_computing_status(
         tool_calls.append(
             {
                 "toolName": tool_name,
-                "label": format_computing_tool_call_label(tool_name),
+                "label": label or format_computing_tool_call_label(tool_name),
             }
         )
 
@@ -123,16 +136,25 @@ class TlonComputingPresenceReporter:
         tool_names: Sequence[str],
     ) -> None:
         context = conversation_id_to_presence_context(conversation_id)
+        key = {
+            "context": context,
+            "ship": normalize_ship(self.config.ship_name),
+            "topic": "computing",
+        }
+
+        if not thinking:
+            payload = {"clear": key}
+            async with self._lock:
+                client = await self._ensure_client()
+                await client.poke("presence", "presence-action-1", payload)
+            return
+
         status = create_computing_status(thinking=thinking, tool_names=tool_names)
         payload = {
             "set": {
                 "disclose": [],
-                "key": {
-                    "context": context,
-                    "ship": normalize_ship(self.config.ship_name),
-                    "topic": "computing",
-                },
-                "timeout": None,
+                "key": key,
+                "timeout": ACTIVE_PRESENCE_TIMEOUT,
                 "display": {
                     "icon": None,
                     "text": get_computing_status_text(status),
@@ -182,16 +204,25 @@ class TlonComputingPresenceTracker:
         *,
         reporter: TlonComputingPresenceReporter,
         min_update_interval_ms: int = DEFAULT_MIN_UPDATE_INTERVAL_MS,
+        max_publish_age_ms: int = DEFAULT_MAX_PUBLISH_AGE_MS,
+        keepalive_interval_ms: int = DEFAULT_KEEPALIVE_INTERVAL_MS,
         on_error: Optional[Callable[[str, BaseException], None]] = None,
     ) -> None:
         self._reporter = reporter
         self._min_update_interval_ms = max(0, int(min_update_interval_ms))
+        self._max_publish_age_ms = max(
+            self._min_update_interval_ms,
+            int(max_publish_age_ms),
+        )
+        self._keepalive_interval_ms = max(0, int(keepalive_interval_ms))
         self._on_error = on_error
         self._conversations: dict[str, dict[str, _RunState]] = {}
         self._last_published_state: dict[str, _PublishedState] = {}
         self._last_published_at: dict[str, float] = {}
         self._pending_state: dict[str, _PublishedState] = {}
         self._pending_tasks: dict[str, asyncio.Task] = {}
+        self._keepalive_tasks: dict[str, asyncio.Task] = {}
+        self._stopped_runs: dict[str, list[str]] = {}
         self._lock = asyncio.Lock()
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
@@ -225,7 +256,11 @@ class TlonComputingPresenceTracker:
             return False
 
     async def refresh_run(self, *, conversation_id: str, run_id: str) -> None:
-        await self._safely_sync(conversation_id, "refresh", lambda: self._refresh_run(conversation_id, run_id))
+        await self._safely_sync(
+            conversation_id,
+            "refresh",
+            lambda: self._refresh_run(conversation_id, run_id),
+        )
 
     async def add_tool_call(
         self,
@@ -251,16 +286,24 @@ class TlonComputingPresenceTracker:
         )
 
     async def stop_run(self, *, conversation_id: str, run_id: str) -> None:
-        await self._safely_sync(conversation_id, "clear", lambda: self._stop_run(conversation_id, run_id))
+        await self._safely_sync(
+            conversation_id,
+            "clear",
+            lambda: self._stop_run(conversation_id, run_id),
+        )
 
     async def close(self) -> None:
         async with self._lock:
             for task in self._pending_tasks.values():
                 task.cancel()
+            for task in self._keepalive_tasks.values():
+                task.cancel()
             self._pending_tasks.clear()
             self._pending_state.clear()
+            self._keepalive_tasks.clear()
             conversations = list(self._conversations)
             self._conversations.clear()
+            self._stopped_runs.clear()
 
         for conversation_id in conversations:
             state = self._last_published_state.get(conversation_id)
@@ -281,12 +324,20 @@ class TlonComputingPresenceTracker:
 
     async def _refresh_run(self, conversation_id: str, run_id: str) -> None:
         async with self._lock:
+            if self._is_run_stopped_unlocked(conversation_id, run_id):
+                return
             self._ensure_run(conversation_id, run_id)
             state = self._current_state_unlocked(conversation_id)
         await self._sync_conversation(conversation_id, state)
 
-    async def _add_tool_call(self, conversation_id: str, run_id: str, tool_name: str) -> None:
+    async def _add_tool_call(
+        self,
+        conversation_id: str,
+        run_id: str,
+        tool_name: str,
+    ) -> None:
         async with self._lock:
+            self._clear_run_stopped_unlocked(conversation_id, run_id)
             run = self._ensure_run(conversation_id, run_id)
             if tool_name not in run.tool_names:
                 run.tool_names.append(tool_name)
@@ -304,10 +355,15 @@ class TlonComputingPresenceTracker:
 
     async def _stop_run(self, conversation_id: str, run_id: str) -> None:
         async with self._lock:
+            self._mark_run_stopped_unlocked(conversation_id, run_id)
             runs = self._conversations.get(conversation_id)
             if not runs:
                 previous = self._last_published_state.get(conversation_id)
-                state = _PublishedState(thinking=False, tool_names=()) if previous and previous.thinking else None
+                state = (
+                    _PublishedState(thinking=False, tool_names=())
+                    if previous and previous.thinking
+                    else None
+                )
             else:
                 runs.pop(run_id, None)
                 if runs:
@@ -315,7 +371,11 @@ class TlonComputingPresenceTracker:
                 else:
                     self._conversations.pop(conversation_id, None)
                     previous = self._last_published_state.get(conversation_id)
-                    state = _PublishedState(thinking=False, tool_names=()) if previous and previous.thinking else None
+                    state = (
+                        _PublishedState(thinking=False, tool_names=())
+                        if previous and previous.thinking
+                        else None
+                    )
 
         if state is not None:
             await self._sync_conversation(conversation_id, state)
@@ -323,8 +383,11 @@ class TlonComputingPresenceTracker:
     async def _sync_conversation(self, conversation_id: str, state: _PublishedState) -> None:
         previous = self._last_published_state.get(conversation_id)
         if previous == state:
-            self._clear_pending(conversation_id)
-            return
+            published_at = self._last_published_at.get(conversation_id, 0.0)
+            publish_age_ms = time.monotonic() * 1000.0 - published_at
+            if not state.thinking or publish_age_ms < self._max_publish_age_ms:
+                self._clear_pending(conversation_id)
+                return
 
         if (
             not state.thinking
@@ -336,7 +399,10 @@ class TlonComputingPresenceTracker:
             return
 
         now = time.monotonic() * 1000.0
-        next_allowed_at = self._last_published_at.get(conversation_id, 0.0) + self._min_update_interval_ms
+        next_allowed_at = (
+            self._last_published_at.get(conversation_id, 0.0)
+            + self._min_update_interval_ms
+        )
         if now >= next_allowed_at:
             await self._publish_now(conversation_id, state)
             return
@@ -377,6 +443,12 @@ class TlonComputingPresenceTracker:
         )
         self._last_published_state[conversation_id] = state
         self._last_published_at[conversation_id] = time.monotonic() * 1000.0
+        if state.thinking:
+            self._ensure_keepalive(conversation_id)
+        else:
+            self._last_published_state.pop(conversation_id, None)
+            self._last_published_at.pop(conversation_id, None)
+            self._cancel_keepalive(conversation_id)
 
     def _clear_pending(self, conversation_id: str) -> None:
         task = self._pending_tasks.pop(conversation_id, None)
@@ -384,9 +456,61 @@ class TlonComputingPresenceTracker:
             task.cancel()
         self._pending_state.pop(conversation_id, None)
 
+    def _ensure_keepalive(self, conversation_id: str) -> None:
+        if self._keepalive_interval_ms <= 0:
+            return
+        task = self._keepalive_tasks.get(conversation_id)
+        if task is not None and not task.done():
+            return
+        self._keepalive_tasks[conversation_id] = asyncio.create_task(
+            self._keepalive_loop(conversation_id)
+        )
+
+    def _cancel_keepalive(self, conversation_id: str) -> None:
+        task = self._keepalive_tasks.pop(conversation_id, None)
+        if task is not None:
+            task.cancel()
+
+    async def _keepalive_loop(self, conversation_id: str) -> None:
+        try:
+            while True:
+                await asyncio.sleep(self._keepalive_interval_ms / 1000.0)
+                async with self._lock:
+                    runs = list(self._conversations.get(conversation_id, {}).keys())
+                if not runs:
+                    return
+                for run_id in runs:
+                    await self.refresh_run(
+                        conversation_id=conversation_id,
+                        run_id=run_id,
+                    )
+        except asyncio.CancelledError:
+            raise
+        finally:
+            if self._keepalive_tasks.get(conversation_id) is asyncio.current_task():
+                self._keepalive_tasks.pop(conversation_id, None)
+
     def _ensure_run(self, conversation_id: str, run_id: str) -> _RunState:
         runs = self._conversations.setdefault(conversation_id, {})
         return runs.setdefault(run_id, _RunState())
+
+    def _mark_run_stopped_unlocked(self, conversation_id: str, run_id: str) -> None:
+        stopped = self._stopped_runs.setdefault(conversation_id, [])
+        if run_id in stopped:
+            stopped.remove(run_id)
+        stopped.append(run_id)
+        del stopped[:-STOPPED_RUN_MEMORY]
+
+    def _is_run_stopped_unlocked(self, conversation_id: str, run_id: str) -> bool:
+        return run_id in self._stopped_runs.get(conversation_id, [])
+
+    def _clear_run_stopped_unlocked(self, conversation_id: str, run_id: str) -> None:
+        stopped = self._stopped_runs.get(conversation_id)
+        if not stopped or run_id not in stopped:
+            return
+        stopped.remove(run_id)
+        if not stopped:
+            self._stopped_runs.pop(conversation_id, None)
 
     def _get_run(self, conversation_id: str, run_id: str) -> Optional[_RunState]:
         return self._conversations.get(conversation_id, {}).get(run_id)
