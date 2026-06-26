@@ -394,6 +394,19 @@
       ==
   ==
 ::
+::  a cross-ship retry (from the owner) must target us — it is never proxied
+::  on to a third ship
+::
+++  test-retry-cross-ship-no-proxy
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~bus)
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`[%retry ~zod 'lens-r']))
+::
 ::  a retry from a foreign ship (neither us nor the configured owner) crashes
 ::
 ++  test-retry-from-foreign-crashes

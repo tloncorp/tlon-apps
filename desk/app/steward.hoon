@@ -48,14 +48,11 @@
   ++  on-load
     |=  ole=vase
     ^-  (quip card _this)
-    ::  greenfield: accept the current state, else reset to bunt
+    ::  greenfield single state — load it directly. an incompatible state is
+    ::  only reachable pre-release; let it crash so we nuke rather than
+    ::  silently wipe.
     ::
-    =/  att  (mule |.(!<(state-0 ole)))
-    ?:  ?=(%& -.att)
-      [~ this(state p.att)]
-    %-  (slog 'steward: on-load state mismatch, resetting to bunt' ~)
-    =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
-    [~[watch-activity:cor] this]
+    `this(state !<(state-0 ole))
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -280,12 +277,19 @@
   ++  le-handle-retry
     |=  [bot=ship =id:v1:sl requester=ship]
     ^+  cor
+    ::  only a local poke (requester==our) triggers cross-ship relay. a
+    ::  retry that arrived from elsewhere (the owner) must target us — assert
+    ::  bot==our so we never proxy a non-local retry on to a third ship.
+    ::
+    ?>  ?|(=(requester our.bowl) =(bot our.bowl))
     ?:  =(bot our.bowl)
+      ::  we host the bot: hand the retry to the local gateway
       %+  give  %fact
       :*  ~[/v1/lens]
           %steward-lens-update-1
           !>(`update:v1:sl`[%retry-requested id requester])
       ==
+    ::  local request for one of our remote bots: relay to its steward
     %-  emit
     :^    %pass
         /lens/retry/(scot %p bot)/(scot %t id)
@@ -308,21 +312,18 @@
       ``steward-lens-update-1+!>(`update:v1:sl`[%recent (le-recent recent-count)])
     ::
         [%v1 %recent @ ~]
-      =/  parsed  (slaw %ud i.t.t.path)
-      ?~  parsed  [~ ~]
-      ``steward-lens-update-1+!>(`update:v1:sl`[%recent (le-recent u.parsed)])
+      =/  count  (slav %ud i.t.t.path)
+      ``steward-lens-update-1+!>(`update:v1:sl`[%recent (le-recent count)])
     ::
         [%v1 %since @ ~]
-      =/  parsed  (slaw %da i.t.t.path)
-      ?~  parsed  [~ ~]
-      ``steward-lens-update-1+!>(`update:v1:sl`[%recent (le-since u.parsed)])
+      =/  cutoff  (slav %da i.t.t.path)
+      ``steward-lens-update-1+!>(`update:v1:sl`[%recent (le-since cutoff)])
     ::
         [%v1 %run @ @ ~]
-      =/  parsed-bot  (slaw %p i.t.t.path)
-      ?~  parsed-bot  [~ ~]
+      =/  bot  (slav %p i.t.t.path)
       =/  =id:v1:sl  i.t.t.t.path
-      ?~  r=(~(get by runs.lens.state) [u.parsed-bot id])  [~ ~]
-      ``steward-lens-update-1+!>(`update:v1:sl`[%entry [u.parsed-bot id] u.r])
+      ?~  r=(~(get by runs.lens.state) [bot id])  [~ ~]
+      ``steward-lens-update-1+!>(`update:v1:sl`[%entry [bot id] u.r])
     ==
   ::
   ++  le-send
@@ -362,12 +363,12 @@
   ::  by .received first. invoked on every insert and on %configure.
   ::
   ++  le-prune
-    |=  for=ship
+    |=  who=ship
     ^+  cor
     =/  mine
       %+  skim  ~(tap by runs.lens.state)
       |=  [[bot=ship *] *]
-      =(bot for)
+      =(bot who)
     ?:  (lte (lent mine) max-runs-per-bot.lens.state)
       cor
     =/  sorted
@@ -406,8 +407,9 @@
     |=  [[bot=ship =id:v1:sl] =run:v1:sl]
     `entry:v1:sl`[[bot id] run]
   ::
-  ::  every entry with .received >= cutoff, newest first; paginate history by
-  ::  passing the oldest .received from the last page
+  ::  every entry with .received >= cutoff, newest first. the cutoff is what
+  ::  lets a client page backward through history (it re-scries with the
+  ::  oldest .received from the previous page); the agent itself just filters.
   ::
   ++  le-since
     |=  cutoff=@da
