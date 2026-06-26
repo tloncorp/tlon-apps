@@ -30,6 +30,7 @@ type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 // covered by the flush paths and the draft stash either way.
 const AUTOSAVE_DEBOUNCE_MS = 10_000;
 const MIN_BODY_INPUT_HEIGHT = 360;
+const BODY_BOTTOM_SPACER = 128;
 
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
@@ -438,29 +439,35 @@ export function NotesNoteDetail({
                 contentContainerStyle={{ flexGrow: 1 }}
                 testID="NotesBodyScrollView"
               >
-                <TextArea
-                  width="100%"
-                  minHeight={MIN_BODY_INPUT_HEIGHT}
-                  height={bodyInputHeight}
-                  value={bodyDraft}
-                  onChangeText={setBodyDraft}
-                  onContentSizeChange={handleBodyContentSizeChange}
-                  placeholder="Note body"
-                  placeholderTextColor="$tertiaryText"
-                  fontFamily="$mono"
-                  fontSize={14}
-                  color="$primaryText"
-                  backgroundColor="$background"
-                  borderWidth={0}
+                <YStack
+                  flexGrow={1}
                   paddingHorizontal="$xl"
                   paddingTop="$l"
-                  paddingBottom={128}
-                  disabled={!canEdit}
-                  scrollEnabled={false}
-                  textAlignVertical="top"
-                  style={{ lineHeight: 22 }}
-                  testID="NotesBodyInput"
-                />
+                  paddingBottom={BODY_BOTTOM_SPACER}
+                >
+                  <TextArea
+                    width="100%"
+                    minHeight={MIN_BODY_INPUT_HEIGHT}
+                    height={bodyInputHeight}
+                    value={bodyDraft}
+                    onChangeText={setBodyDraft}
+                    onContentSizeChange={handleBodyContentSizeChange}
+                    placeholder="Note body"
+                    placeholderTextColor="$tertiaryText"
+                    fontFamily="$mono"
+                    fontSize={14}
+                    color="$primaryText"
+                    backgroundColor="$background"
+                    borderWidth={0}
+                    paddingHorizontal={0}
+                    paddingVertical={0}
+                    disabled={!canEdit}
+                    scrollEnabled={false}
+                    textAlignVertical="top"
+                    style={{ lineHeight: 22 }}
+                    testID="NotesBodyInput"
+                  />
+                </YStack>
               </ScrollView>
             )}
           </YStack>
