@@ -226,6 +226,7 @@ then
   echo "Unit tests passed ✅"
 else
   echo "Unit tests failed ❌"
+  kill -TERM $vere_pid
   exit 1
 fi
 
@@ -309,15 +310,16 @@ EOF
 )
 
 result_code=`echo $result | sed 's/\[0 %avow 0 %noun \(.*\)\]/\1/'`
-kill -TERM $vere_pid
 
 if [[ $result_code == "0" ]]
 then
   echo "Aqua tests passed ✅"
 else
   echo "Aqua tests failed ❌"
+  kill -TERM $vere_pid
   exit 1
 fi
 
+kill -TERM $vere_pid
 exit 0
 
