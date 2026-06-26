@@ -166,3 +166,117 @@ describe('resolveTlonAccount allowPrivateNetwork', () => {
     expect(account.allowPrivateNetwork).toBe(false);
   });
 });
+
+describe('resolveTlonAccount lifecycle', () => {
+  it('defaults lifecycle timeouts to null', () => {
+    const account = resolveTlonAccount({
+      channels: {
+        tlon: {
+          ship: '~zod',
+          url: 'https://example.com',
+          code: 'code-123',
+        },
+      },
+    } as OpenClawConfig);
+
+    expect(account.lifecycle).toEqual({
+      runTimeoutMs: null,
+      toolTimeoutMs: null,
+    });
+  });
+
+  it('merges base and account lifecycle settings', () => {
+    const account = resolveTlonAccount(
+      {
+        channels: {
+          tlon: {
+            lifecycle: {
+              runTimeoutMs: 120_000,
+              toolTimeoutMs: 45_000,
+            },
+            accounts: {
+              hosted: {
+                ship: '~zod',
+                url: 'https://example.com',
+                code: 'code-123',
+                lifecycle: {
+                  runTimeoutMs: 90_000,
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig,
+      'hosted'
+    );
+
+    expect(account.lifecycle).toEqual({
+      runTimeoutMs: 90_000,
+      toolTimeoutMs: 45_000,
+    });
+  });
+});
+
+describe('resolveTlonAccount contextLens', () => {
+  it('defaults to disabled with owner visibility', () => {
+    const account = resolveTlonAccount({
+      channels: {
+        tlon: {
+          ship: '~zod',
+          url: 'https://example.com',
+          code: 'code-123',
+        },
+      },
+    } as OpenClawConfig);
+
+    expect(account.contextLens).toEqual({
+      enabled: false,
+      ttlMs: null,
+      maxEntries: null,
+      visibilityDefault: 'owner',
+      authToken: null,
+      allowedOrigins: [],
+      owner: null,
+      store: { enabled: true, path: null, retainDays: null, maxStored: null },
+    });
+  });
+
+  it('merges base and account context lens settings', () => {
+    const account = resolveTlonAccount(
+      {
+        channels: {
+          tlon: {
+            contextLens: {
+              enabled: true,
+              ttlMs: 600_000,
+              authToken: 'a-token-of-sufficient-length',
+            },
+            accounts: {
+              hosted: {
+                ship: '~zod',
+                url: 'https://example.com',
+                code: 'code-123',
+                contextLens: {
+                  maxEntries: 500,
+                  visibilityDefault: 'internal',
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig,
+      'hosted'
+    );
+
+    expect(account.contextLens).toEqual({
+      enabled: true,
+      ttlMs: 600_000,
+      maxEntries: 500,
+      visibilityDefault: 'internal',
+      authToken: 'a-token-of-sufficient-length',
+      allowedOrigins: [],
+      owner: null,
+      store: { enabled: true, path: null, retainDays: null, maxStored: null },
+    });
+  });
+});
