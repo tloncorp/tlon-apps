@@ -50,7 +50,7 @@ Commands:
   groups       Group management (list, create, info, join, request/accept invites, leave, delete, ...)
   hooks        Channel hooks management (list, add, edit, delete, order, config, cron, rest)
   messages     Message history and search (dm, channel, history, search, context, post)
-  notes        %notes notebooks (list, show, create, note-create, note-update, join, leave)
+  notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
   posts        Post reactions, edits, deletes (react, unreact, edit, delete)
   settings     OpenClaw settings management (get, set, delete, allow-dm, ...)
   upload       Upload a file from URL, local path, or stdin

@@ -53,6 +53,15 @@ const requestJsonMock = requestJson as unknown as Mock;
 const subscribeMock = subscribe as unknown as Mock;
 const unsubscribeMock = unsubscribe as unknown as Mock;
 
+async function rejectionMessage(promise: Promise<unknown>): Promise<string> {
+  try {
+    await promise;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  throw new Error('Expected promise to reject');
+}
+
 beforeEach(() => {
   requestJsonMock.mockResolvedValue(undefined);
   pokeMock.mockResolvedValue(undefined);
@@ -244,6 +253,52 @@ describe('notesV1 reads', () => {
       '/notes/~/v1/notebooks/~zod/blog/notes/12/history',
     ]);
   });
+
+  test('getRequest reads a pending request status by id', async () => {
+    requestJsonMock.mockResolvedValue({
+      requestId: '0vabc',
+      body: { type: 'pending', status: 'acked' },
+    });
+
+    await expect(notesV1.getRequest('0vabc')).resolves.toEqual({
+      requestId: '0vabc',
+      body: { type: 'pending', status: 'acked' },
+    });
+    expect(requestJsonMock).toHaveBeenCalledWith(
+      '/notes/~/v1/request/0vabc',
+      'GET'
+    );
+  });
+
+  test('getRequest returns terminal error and notebook bodies', async () => {
+    requestJsonMock.mockResolvedValueOnce({
+      requestId: '0verr',
+      body: { type: 'error', message: 'target ship is unavailable' },
+    });
+    await expect(notesV1.getRequest('0verr')).resolves.toEqual({
+      requestId: '0verr',
+      body: { type: 'error', message: 'target ship is unavailable' },
+    });
+
+    requestJsonMock.mockResolvedValueOnce({
+      requestId: '0vbook',
+      body: {
+        type: 'notebook',
+        notebook: {
+          host: '~zod',
+          flagName: 'blog',
+          notebook: { id: 1, title: 'Blog' },
+        },
+      },
+    });
+    await expect(notesV1.getRequest('0vbook')).resolves.toMatchObject({
+      requestId: '0vbook',
+      body: {
+        type: 'notebook',
+        notebook: { host: '~zod', flagName: 'blog' },
+      },
+    });
+  });
 });
 
 describe('notesV1 normalization variants', () => {
@@ -378,15 +433,32 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     );
   });
 
-  test('createNotebook rejects error/pending/unexpected envelopes', async () => {
+  test('createNotebook rejects error/unexpected envelopes', async () => {
     for (const body of [
       { type: 'error', message: 'no' },
-      { type: 'pending' },
       { type: 'api-key' },
     ]) {
       requestJsonMock.mockResolvedValue({ body });
       await expect(notesV1.createNotebook({ title: 'B' })).rejects.toThrow();
     }
+  });
+
+  test('createNotebook pending includes request status and notebook checks', async () => {
+    requestJsonMock.mockResolvedValue({
+      requestId: '0vabc',
+      body: { type: 'pending' },
+    });
+
+    const message = await rejectionMessage(
+      notesV1.createNotebook({ title: 'B' })
+    );
+
+    expect(message).toContain('%notes write request is still pending');
+    expect(message).toContain('Do not retry automatically');
+    expect(message).toContain('tlon notes request 0vabc');
+    expect(message).toContain('tlon notes list');
+    expect(message).toContain('tlon notes show <notes-nest-from-list>');
+    expect(message).not.toContain('try again');
   });
 
   test('createNotebook reports empty error envelopes with fallback detail', async () => {
@@ -409,6 +481,29 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
       'POST',
       { folder: 3, title: 'T', body: 'B' }
     );
+  });
+
+  test('createNote pending includes request status and note checks', async () => {
+    requestJsonMock.mockResolvedValue({
+      requestId: '0vnote',
+      body: { type: 'pending' },
+    });
+
+    const message = await rejectionMessage(
+      notesV1.createNote({
+        flag: 'notes/~zod/blog',
+        folder: 3,
+        title: 'T',
+        body: 'B',
+      })
+    );
+
+    expect(message).toContain('%notes write request is still pending');
+    expect(message).toContain('Do not retry automatically');
+    expect(message).toContain('tlon notes request 0vnote');
+    expect(message).toContain('tlon notes notes notes/~zod/blog');
+    expect(message).toContain('tlon notes note notes/~zod/blog <id-from-list>');
+    expect(message).not.toContain('try again');
   });
 
   test('updateNoteBody includes expectedRevision only when provided', async () => {
@@ -534,6 +629,26 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
         notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 1, title: 'x' })
       ).rejects.toThrow();
     }
+  });
+
+  test('pending note and folder writes point at affected objects', async () => {
+    requestJsonMock.mockResolvedValue({
+      requestId: '0vobj',
+      body: { type: 'pending' },
+    });
+
+    const noteMessage = await rejectionMessage(
+      notesV1.renameNote({ flag: 'notes/~zod/blog', noteId: 12, title: 'x' })
+    );
+    expect(noteMessage).toContain('tlon notes request 0vobj');
+    expect(noteMessage).toContain('tlon notes note notes/~zod/blog 12');
+    expect(noteMessage).not.toContain('try again');
+
+    const folderMessage = await rejectionMessage(
+      notesV1.renameFolder({ flag: 'notes/~zod/blog', folderId: 4, name: 'x' })
+    );
+    expect(folderMessage).toContain('tlon notes folder notes/~zod/blog 4');
+    expect(folderMessage).not.toContain('try again');
   });
 
   test('void writes report empty error envelopes with fallback detail', async () => {

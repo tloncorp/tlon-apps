@@ -578,7 +578,21 @@ export interface NotesV1GroupRef {
   flagName: string;
 }
 
+export type NotesV1RequestBody =
+  | { type: 'ok' }
+  | { type: 'no-change' }
+  | { type: 'notebook'; notebook: NotesV1NotebookSummary }
+  | { type: 'error'; message?: string }
+  | { type: 'pending'; status?: string }
+  | { type: 'api-key' };
+
+export interface NotesV1RequestStatus {
+  requestId: string;
+  body: NotesV1RequestBody;
+}
+
 const NOTEBOOKS_V1_PATH = '/notes/~/v1/notebooks';
+const REQUESTS_V1_PATH = '/notes/~/v1/request';
 
 function notebookV1Path(flag: NotesFlag): string {
   return `${NOTEBOOKS_V1_PATH}/${flag.host}/${flag.name}`;
@@ -623,6 +637,13 @@ function requireObject(raw: unknown): any {
 // requires (so the CLI never renders `notes/undefined/undefined`).
 function req<T>(value: T | null | undefined, field: string): T {
   if (value === undefined || value === null) {
+    throw new Error(`%notes response missing required field: ${field}`);
+  }
+  return value;
+}
+
+function reqString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !value.trim()) {
     throw new Error(`%notes response missing required field: ${field}`);
   }
   return value;
@@ -711,6 +732,45 @@ function normalizeMemberV1(raw: any): NotesV1MemberRecord {
   return { ship: req(raw.ship, 'member.ship'), roles };
 }
 
+function normalizeRequestBodyV1(raw: any): NotesV1RequestBody {
+  const body = requireObject(raw);
+  switch (body.type) {
+    case 'ok':
+      return { type: 'ok' };
+    case 'no-change':
+      return { type: 'no-change' };
+    case 'notebook':
+      return {
+        type: 'notebook',
+        notebook: normalizeNotebookSummaryV1(requireObject(body.notebook)),
+      };
+    case 'error': {
+      const message =
+        body.message === undefined || body.message === null
+          ? undefined
+          : String(body.message);
+      return { type: 'error', message };
+    }
+    case 'pending':
+      return {
+        type: 'pending',
+        status: typeof body.status === 'string' ? body.status : undefined,
+      };
+    case 'api-key':
+      return { type: 'api-key' };
+    default:
+      throw new Error(`Unexpected %notes response type: ${body.type}`);
+  }
+}
+
+function normalizeRequestStatusV1(raw: unknown): NotesV1RequestStatus {
+  const res = requireObject(raw);
+  return {
+    requestId: reqString(res.requestId, 'requestId'),
+    body: normalizeRequestBodyV1(req(res.body, 'body')),
+  };
+}
+
 // --- envelope handling -----------------------------------------------------
 
 function notesEnvelopeErrorMessage(body: any): string {
@@ -724,10 +784,64 @@ function notesEnvelopeErrorMessage(body: any): string {
   return `%notes error: ${detail || 'backend returned an error without details'}`;
 }
 
+function envelopeRequestId(res: any): string | undefined {
+  const requestId = res?.requestId;
+  return typeof requestId === 'string' && requestId.trim()
+    ? requestId.trim()
+    : undefined;
+}
+
+function pendingWriteMessage(res: any, checkCommands: string[]): string {
+  const requestId = envelopeRequestId(res);
+  const lines = requestId
+    ? [
+        `%notes write request is still pending (request ${requestId}); the outcome is unknown and it may still complete.`,
+        'Do not retry automatically. Check the request before retrying:',
+        `  tlon notes request ${requestId}`,
+        'If the request is still pending, do not issue the write again.',
+        'If the request has completed, inspect whether the write landed:',
+      ]
+    : [
+        '%notes write request is still pending; the outcome is unknown and it may still complete.',
+        'Do not retry automatically. No request id was returned, so inspect whether the write landed:',
+      ];
+  lines.push(
+    ...checkCommands.map((command) => `  ${command}`),
+    'Only retry if the request failed or the requested change is not present.'
+  );
+  return lines.join('\n');
+}
+
+function notebookWriteChecks(): string[] {
+  return ['tlon notes list', 'tlon notes show <notes-nest-from-list>'];
+}
+
+function noteCreateChecks(nest: string): string[] {
+  return [`tlon notes notes ${nest}`, `tlon notes note ${nest} <id-from-list>`];
+}
+
+function noteChecks(nest: string, noteId: number): string[] {
+  return [`tlon notes note ${nest} ${noteId}`];
+}
+
+function folderCreateChecks(nest: string): string[] {
+  return [
+    `tlon notes folders ${nest}`,
+    `tlon notes folder ${nest} <id-from-list>`,
+  ];
+}
+
+function folderChecks(nest: string, folderId: number): string[] {
+  return [`tlon notes folder ${nest} ${folderId}`];
+}
+
 // A *present* envelope body uses the strict whitelist; error/pending/unexpected
 // always throw. `createNotebook`/`createGroupNotebook` require a `notebook`
 // body and return its normalized summary.
-function unwrapNotebookEnvelope(res: any): NotesV1NotebookSummary {
+function unwrapNotebookEnvelope(
+  res: any,
+  checkCommands: string[]
+): NotesV1NotebookSummary {
   const body = res?.body;
   if (!body || typeof body.type !== 'string') {
     throw new Error('Unexpected %notes response (missing body).');
@@ -738,9 +852,7 @@ function unwrapNotebookEnvelope(res: any): NotesV1NotebookSummary {
     case 'error':
       throw new Error(notesEnvelopeErrorMessage(body));
     case 'pending':
-      throw new Error(
-        '%notes request is still pending — try again in a moment.'
-      );
+      throw new Error(pendingWriteMessage(res, checkCommands));
     default:
       throw new Error(`Unexpected %notes response type: ${body.type}`);
   }
@@ -750,7 +862,7 @@ function unwrapNotebookEnvelope(res: any): NotesV1NotebookSummary {
 // error/pending/unexpected throw). A bare/empty non-envelope JSON body (e.g. a
 // folder object from a convenience route) is accepted and ignored —
 // `requestJson` already throws on HTTP failure.
-function assertWriteOk(res: any): void {
+function assertWriteOk(res: any, checkCommands: string[]): void {
   const body = res?.body;
   if (!body || typeof body.type !== 'string') {
     return;
@@ -763,14 +875,18 @@ function assertWriteOk(res: any): void {
     case 'error':
       throw new Error(notesEnvelopeErrorMessage(body));
     case 'pending':
-      throw new Error(
-        '%notes request is still pending — try again in a moment.'
-      );
+      throw new Error(pendingWriteMessage(res, checkCommands));
     default:
       throw new Error(`Unexpected %notes response type: ${body.type}`);
   }
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+async function getRequestV1(requestId: string): Promise<NotesV1RequestStatus> {
+  const encoded = encodeURIComponent(requestId);
+  const res = await requestJson(`${REQUESTS_V1_PATH}/${encoded}`, 'GET');
+  return normalizeRequestStatusV1(res);
+}
 
 // --- notebook helpers ------------------------------------------------------
 
@@ -793,7 +909,7 @@ async function createNotebookV1({
   title: string;
 }): Promise<NotesV1NotebookSummary> {
   const res = await requestJson(NOTEBOOKS_V1_PATH, 'POST', { title });
-  return unwrapNotebookEnvelope(res);
+  return unwrapNotebookEnvelope(res, notebookWriteChecks());
 }
 
 async function createGroupNotebookV1({
@@ -810,7 +926,7 @@ async function createGroupNotebookV1({
     group,
     readers,
   });
-  return unwrapNotebookEnvelope(res);
+  return unwrapNotebookEnvelope(res, notebookWriteChecks());
 }
 
 // --- note helpers ----------------------------------------------------------
@@ -850,7 +966,7 @@ async function createNoteV1({
     title,
     body,
   });
-  assertWriteOk(res);
+  assertWriteOk(res, noteCreateChecks(notesChannelId(normalized)));
 }
 
 async function updateNoteBodyV1({
@@ -870,7 +986,7 @@ async function updateNoteBodyV1({
     payload.expectedRevision = expectedRevision;
   }
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', payload);
-  assertWriteOk(res);
+  assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
 async function renameNoteV1({
@@ -886,7 +1002,7 @@ async function renameNoteV1({
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
     title,
   });
-  assertWriteOk(res);
+  assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
 async function moveNoteV1({
@@ -902,7 +1018,7 @@ async function moveNoteV1({
   const res = await requestJson(noteV1Path(normalized, noteId), 'PUT', {
     folder,
   });
-  assertWriteOk(res);
+  assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
 async function deleteNoteV1({
@@ -914,7 +1030,7 @@ async function deleteNoteV1({
 }): Promise<void> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson(noteV1Path(normalized, noteId), 'DELETE');
-  assertWriteOk(res);
+  assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
 }
 
 async function listNoteHistoryV1({
@@ -964,7 +1080,7 @@ async function createFolderV1({
     payload.parent = parent;
   }
   const res = await requestJson(foldersV1Path(normalized), 'POST', payload);
-  assertWriteOk(res);
+  assertWriteOk(res, folderCreateChecks(notesChannelId(normalized)));
 }
 
 async function renameFolderV1({
@@ -980,7 +1096,7 @@ async function renameFolderV1({
   const res = await requestJson(folderV1Path(normalized, folderId), 'PUT', {
     folderName: name,
   });
-  assertWriteOk(res);
+  assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
 
 async function moveFolderV1({
@@ -996,7 +1112,7 @@ async function moveFolderV1({
   const res = await requestJson(folderV1Path(normalized, folderId), 'PUT', {
     parent,
   });
-  assertWriteOk(res);
+  assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
 
 async function deleteFolderV1({
@@ -1013,7 +1129,7 @@ async function deleteFolderV1({
     `${folderV1Path(normalized, folderId)}?recursive=${recursive ? 'true' : 'false'}`,
     'DELETE'
   );
-  assertWriteOk(res);
+  assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
 }
 
 // --- member helpers --------------------------------------------------------
@@ -1027,6 +1143,7 @@ async function listMembersV1(
 }
 
 export type NotesV1Api = {
+  getRequest: typeof getRequestV1;
   listNotebooks: typeof listNotebooksV1;
   getNotebook: typeof getNotebookV1;
   createNotebook: typeof createNotebookV1;
@@ -1049,6 +1166,7 @@ export type NotesV1Api = {
 };
 
 export const notesV1: NotesV1Api = {
+  getRequest: getRequestV1,
   listNotebooks: listNotebooksV1,
   getNotebook: getNotebookV1,
   createNotebook: createNotebookV1,
