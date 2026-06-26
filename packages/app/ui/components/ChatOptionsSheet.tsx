@@ -1,5 +1,4 @@
 import * as ub from '@tloncorp/api/urbit';
-import { featureFlags } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
@@ -10,7 +9,6 @@ import React, {
   memo,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
 } from 'react';
@@ -18,6 +16,7 @@ import { Popover, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useChatOptions } from '../contexts/chatOptions/useChatOptions';
+import { useChatVolumeOptions } from '../contexts/chatOptions/useChatVolumeOptions';
 import * as utils from '../utils';
 import {
   Action,
@@ -26,7 +25,6 @@ import {
   createActionGroups,
 } from './ActionSheet';
 import { ListItem } from './ListItem';
-import { useNotificationLevelOptions } from './NotificationLevelSelector';
 
 function getNotificationTitle(
   volumeSettings: { level: ub.NotificationLevel } | null | undefined,
@@ -47,7 +45,6 @@ type ChatOptionsSheetProps = {
   // Make open/onOpenChange optional since we can use context
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onPressConfigureChannel?: () => void;
   chat?: {
     type: 'group' | 'channel';
     id: string;
@@ -519,13 +516,11 @@ const ChannelOptionsSheetLoader = memo(
     open,
     onOpenChange,
     trigger,
-    onPressConfigureChannel,
   }: {
     channelId: string;
     open: boolean;
     onOpenChange: (open: boolean, clearChat?: boolean) => void;
     trigger?: React.ReactNode;
-    onPressConfigureChannel?: () => void;
   }) => {
     const [pane, setPane] = useState<ChannelPanes>('initial');
     const channelQuery = store.useChannel({
@@ -622,7 +617,6 @@ const ChannelOptionsSheetLoader = memo(
             channel={channel}
             onPressNotifications={handlePressNotifications}
             onOpenChange={onOpenChange}
-            onPressConfigureChannel={onPressConfigureChannel}
           />
         )}
       </ActionSheet>
@@ -634,13 +628,11 @@ ChannelOptionsSheetLoader.displayName = 'ChannelOptionsSheetLoader';
 export function ChannelOptionsSheetContent({
   chatTitle,
   channel,
-  onPressConfigureChannel,
   onPressNotifications,
   onOpenChange,
 }: {
   chatTitle: string;
   channel: db.Channel;
-  onPressConfigureChannel?: () => void;
   onPressNotifications: () => void;
   onOpenChange: (open: boolean, clearChat?: boolean) => void;
 }) {
@@ -656,17 +648,14 @@ export function ChannelOptionsSheetContent({
   } = useChatOptions();
   const { data: hooksPreview } = store.useChannelHooksPreview(channel.id);
 
-  const currentUserId = useCurrentUserId();
-  const currentUserIsAdmin = utils.useIsAdmin(
-    channel.groupId ?? '',
-    currentUserId
-  );
   const currentUserIsChannelHost = channel.currentUserIsHost ?? false;
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  const canMarkRead = !(channel.unread?.count === 0);
-  const enableCustomChannels = useCustomChannelsEnabled();
+  // third-party channels (e.g. notes) have no %channels/%activity unreads, so
+  // mark-read doesn't apply
+  const canMarkRead =
+    !(channel.unread?.count === 0) && !ub.isThirdPartyChannel(channel.id);
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
@@ -746,12 +735,6 @@ export function ChannelOptionsSheetContent({
             endIcon: 'ChevronRight',
             testID: 'GroupOptionsGroupInfoButton',
           },
-          currentUserIsAdmin &&
-            enableCustomChannels && {
-              title: 'Configure view',
-              action: onPressConfigureChannel,
-              endIcon: 'ChevronRight',
-            },
         ],
 
         hooksPreview && [
@@ -794,9 +777,6 @@ export function ChannelOptionsSheetContent({
       group,
       handlePressChannelDetails,
       handlePressGroupDetails,
-      currentUserIsAdmin,
-      enableCustomChannels,
-      onPressConfigureChannel,
       hooksPreview,
       onPressChannelTemplate,
       currentUserIsChannelHost,
@@ -874,33 +854,18 @@ function NotificationsSheetContent({
   onPressBack: () => void;
 }) {
   const isWindowNarrow = useIsWindowNarrow();
-  const { updateVolume, group, channel } = useChatOptions();
-  const { data: currentChannelVolume } = store.useChannelVolumeLevel(
-    channel?.id ?? ''
-  );
-  const { data: currentGroupVolume } = store.useGroupVolumeLevel(
-    group?.id ?? ''
-  );
-  const currentVolumeLevel = channel?.id
-    ? currentChannelVolume
-    : currentGroupVolume;
-
-  // Use shared hook with 'loud' level for channel/group overrides
-  const notificationOptions = useNotificationLevelOptions({
-    includeLoud: true,
-    shortDescriptions: true,
-  });
+  const { currentLevel, options, updateVolume } = useChatVolumeOptions();
 
   const notificationActions = useMemo(
     () =>
       createActionGroups([
         'neutral',
-        ...notificationOptions.map(
+        ...options.map(
           ({ title, value }): Action => ({
             title,
-            accent: currentVolumeLevel === value ? 'positive' : 'neutral',
+            accent: currentLevel === value ? 'positive' : 'neutral',
             action: () => updateVolume(value),
-            endIcon: currentVolumeLevel === value ? 'Checkmark' : undefined,
+            endIcon: currentLevel === value ? 'Checkmark' : undefined,
           })
         ),
         !isWindowNarrow && {
@@ -909,13 +874,7 @@ function NotificationsSheetContent({
           startIcon: 'ChevronLeft',
         },
       ]),
-    [
-      currentVolumeLevel,
-      updateVolume,
-      isWindowNarrow,
-      onPressBack,
-      notificationOptions,
-    ]
+    [currentLevel, updateVolume, isWindowNarrow, onPressBack, options]
   );
   return (
     <ChatOptionsSheetContent
@@ -933,20 +892,4 @@ function SheetBackButton({ onPress }: { onPress: () => void }) {
       <Icon type="ChevronLeft" />
     </IconButton>
   );
-}
-
-function useCustomChannelsEnabled() {
-  const [enableCustomChannels, setEnableCustomChannels] = useState(false);
-  // why useLayoutEffect?
-  // to try to get the synchronous read to avoid flicker on mount
-  useLayoutEffect(() => {
-    return featureFlags.subscribeToFeatureFlag(
-      'customChannelCreation',
-      (flag) => {
-        setEnableCustomChannels(flag);
-      }
-    );
-  }, []);
-
-  return enableCustomChannels;
 }

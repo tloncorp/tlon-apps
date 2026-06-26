@@ -13,8 +13,17 @@ with it using tmux input and capture commands.
 A typical command to verify connection is working is `%`, which will
 display current identity, desk and time.
 
-## Backend tests
+## Backend documentation
+Comprehensive backend documentation can be found in `/docs/backend`.
+For system components, the directory structure mirrors that of a desk
+and is located under `/docs/backend/desk`.
+The documentation on the groups agent would thus be found at
+`/docs/backend/desk/app/groups.md`.
 
+Always be sure to read documentation before answering any queries
+relevant to the backend or to backend tests.
+
+## Backend tests
 There are two kinds of backend tests in groups. The first kind uses the
 `/lib/test-agent.hoon` library, which provides a monadic framework for
 implementing gall agent tests. It works by simulating rudimentary gall
@@ -31,8 +40,7 @@ ship with little resource cost. While these ships are not
 fully-featured and do not support every urbit runtime event, they
 nonetheless allow testing of gall agents running on virtualized ship.
 
-Aqua tests are located in `/tests/ph` directory.
+Aqua tests are located in `/tests/ph` in the desk directory.
 
-For details on how to work with aqua tests see documentation in `/docs/aqua`
-
-
+For details on how to work with aqua tests see documentation in
+`/docs/backend/aqua`.

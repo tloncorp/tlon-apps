@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/tlon-skill-darwin-arm64",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "Tlon skill binary for macOS ARM64",
   "os": [
     "darwin"
@@ -16,7 +16,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/tloncorp/landscape-apps.git",
+    "url": "https://github.com/tloncorp/tlon-apps",
     "directory": "packages/tlon-skill/npm/darwin-arm64"
   },
   "license": "MIT"

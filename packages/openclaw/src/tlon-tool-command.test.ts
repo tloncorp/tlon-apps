@@ -88,4 +88,25 @@ describe('tlon tool telemetry summarizer', () => {
     expect(JSON.stringify(summary)).not.toContain('~sampel-palnet');
     expect(JSON.stringify(summary)).not.toContain('hello there');
   });
+
+  it('summarizes notes commands that are allowed by the tlon gate', () => {
+    const summary = summarizeTlonCommand(
+      'notes note-create notes/~zod/private root "Launch Plan" --markdown ./launch.md'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'notes.note-create',
+      subcommand: 'notes',
+      operation: 'note-create',
+      intent: 'write',
+      isKnownSubcommand: true,
+      hasTitle: true,
+      hasContent: true,
+    });
+
+    const serialized = JSON.stringify(summary);
+    expect(serialized).not.toContain('notes/~zod/private');
+    expect(serialized).not.toContain('Launch Plan');
+    expect(serialized).not.toContain('./launch.md');
+  });
 });

@@ -1,9 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  ChannelContentConfiguration,
-  CollectionRendererId,
-} from '@tloncorp/api';
-import {
   useChannelPreview,
   useGroupPreview,
   usePostWithRelations,
@@ -11,17 +7,11 @@ import {
 import type * as db from '@tloncorp/shared/db';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Button, SafeAreaView, Switch, View } from 'react-native';
 import { Label, XStack, YStack } from 'tamagui';
 
-import {
-  AppDataContextProvider,
-  Channel,
-  ChatOptionsProvider,
-  Sheet,
-} from '../ui';
-import { UnconnectedChannelConfigurationBar as ChannelConfigurationBar } from '../ui/components/ManageChannels/CreateChannelSheet';
+import { AppDataContextProvider, Channel, ChatOptionsProvider } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
   createFakePost,
@@ -364,71 +354,6 @@ function ChannelWithControlledPostLoading() {
   );
 }
 
-function ConfigurableChannelFixture({
-  initialContentConfiguration,
-}: {
-  initialContentConfiguration?: ChannelContentConfiguration;
-}) {
-  return (
-    <ChannelFixture>
-      {({ channel, setChannel }) => (
-        <DebugChannelConfigurator
-          {...{ channel, setChannel, initialContentConfiguration }}
-        />
-      )}
-    </ChannelFixture>
-  );
-}
-
-function DebugChannelConfigurator({
-  channel,
-  setChannel,
-  initialContentConfiguration,
-}: {
-  channel: db.Channel;
-  setChannel: (update: SetStateAction<db.Channel>) => void;
-  initialContentConfiguration?: ChannelContentConfiguration;
-}) {
-  const [open, setOpen] = useState(false);
-
-  const hasAppliedInitialConfig = useRef(false);
-  useEffect(() => {
-    if (!hasAppliedInitialConfig.current) {
-      setChannel((prev) => ({
-        ...prev,
-        contentConfiguration:
-          initialContentConfiguration ?? prev.contentConfiguration,
-      }));
-    }
-    hasAppliedInitialConfig.current = true;
-  }, [channel, initialContentConfiguration, setChannel]);
-
-  return (
-    <>
-      <Sheet open={open} transition={'simple'} snapPointsMode="fit">
-        <ChannelConfigurationBar
-          channel={channel}
-          onPressDone={() => setOpen(false)}
-          updateChannelConfiguration={(update) => {
-            setChannel((prev) => ({
-              ...prev,
-              contentConfiguration: update(
-                prev.contentConfiguration ?? undefined
-              ),
-            }));
-          }}
-        />
-      </Sheet>
-      <View style={{ position: 'absolute', top: 50, right: 10 }}>
-        <Button
-          title="Toggle configurator"
-          onPress={() => setOpen((x) => !x)}
-        />
-      </View>
-    </>
-  );
-}
-
 function createTestChannelUnread({
   channel,
   post,
@@ -474,17 +399,4 @@ export default {
   gallery: <GalleryChannelFixture />,
   notebook: <NotebookChannelFixture />,
   negotiationMismatch: <ChannelFixture negotiationMatch={false} />,
-  customChannel: (
-    <ConfigurableChannelFixture
-      initialContentConfiguration={{
-        ...ChannelContentConfiguration.defaultConfiguration(),
-        defaultPostCollectionRenderer: {
-          id: CollectionRendererId.boardroom,
-          configuration: {
-            showAuthors: true,
-          },
-        },
-      }}
-    />
-  ),
 };

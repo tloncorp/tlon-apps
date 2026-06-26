@@ -32,7 +32,7 @@
  *   npx ts-node scripts/groups.ts reject-join <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts promote <group-id> <ship> [<ship2> ...]
  *   npx ts-node scripts/groups.ts demote <group-id> <ship> [<ship2> ...]
- *   npx ts-node scripts/groups.ts add-channel <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]
+ *   npx ts-node scripts/groups.ts add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
  */
 import {
   acceptGroupJoin,
@@ -71,6 +71,7 @@ import type { Group } from '@tloncorp/api';
 
 import { ensureClient, getCurrentShip, normalizeShip } from './api-client';
 import {
+  assertKnownChannelKind,
   getOption,
   hasOptionValue,
   isHelpArg,
@@ -79,7 +80,20 @@ import {
   printErrorAndExit,
   printHelpAndExit,
   printUsageAndExit,
+  refuseNotesChannelDescription,
+  refuseRemovedChannelKind,
 } from './cli-utils';
+import {
+  type RawGroupForAdminVerification,
+  actingShipCanAdminister,
+  getShipRecordValue,
+  seatHasAdminRole,
+  seatHasRole,
+  shipIsBanned,
+  shipIsSeated,
+} from './commands/groups-verification';
+import { createNotesChannelInGroup } from './notes-channel';
+import { createNotesChannelDeps } from './notes-channel-runtime';
 
 const ADMIN_ROLE_ID = 'admin';
 const GROUP_UPDATE_FLAGS = ['title', 'description', 'image', 'cover'] as const;
@@ -127,7 +141,7 @@ Commands:
   reject-join <group-id> <ship> [<ship2> ...]
   promote <group-id> <ship> [<ship2> ...]
   demote <group-id> <ship> [<ship2> ...]
-  add-channel <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]
+  add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
 
 Examples:
   tlon groups info ~host/group-slug
@@ -162,7 +176,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
   'reject-join': `Usage: tlon groups reject-join <group-id> <ship> [<ship2> ...]\nExample: tlon groups reject-join ~host/group-slug ~nec`,
   promote: `Usage: tlon groups promote <group-id> <ship> [<ship2> ...]\nExample: tlon groups promote ~host/group-slug ~nec`,
   demote: `Usage: tlon groups demote <group-id> <ship> [<ship2> ...]\nExample: tlon groups demote ~host/group-slug ~nec`,
-  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|diary|heap] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
+  'add-channel': `Usage: tlon groups add-channel <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]\nExample: tlon groups add-channel ~host/group-slug "Projects" --kind chat`,
 };
 
 function getGroupsHelp(command?: string) {
@@ -260,6 +274,13 @@ function validateGroupsArgs(args: string[]): void {
       if (!args[1] || args[2] === undefined) {
         printUsageAndExit(GROUPS_COMMAND_HELP['add-channel']);
       }
+      refuseRemovedChannelKind(args, 2);
+      assertKnownChannelKind(args, 2, GROUPS_COMMAND_HELP['add-channel']);
+      refuseNotesChannelDescription(
+        args,
+        2,
+        GROUPS_COMMAND_HELP['add-channel']
+      );
       if (looksLikePositionalChannelKind(args, 2)) {
         printUsageAndExit(
           `Error: channel kind must be passed with --kind, not as a positional argument.\n${GROUPS_COMMAND_HELP['add-channel']}`
@@ -332,15 +353,6 @@ type OwnerAdminVerification =
   | { status: 'verified' }
   | { status: 'missing'; reason: string };
 
-type RawGroupForAdminVerification = {
-  admins?: string[];
-  seats?: Record<string, { roles?: string[] }>;
-  admissions?: {
-    pending?: Record<string, string[]>;
-    invited?: Record<string, unknown>;
-  };
-};
-
 const VERIFY_ATTEMPTS = 5;
 const VERIFY_DELAY_MS = 500;
 
@@ -350,24 +362,6 @@ function sleep(ms: number): Promise<void> {
 
 function groupHasRole(group: Group, roleId: string): boolean {
   return (group.roles || []).some((role) => role.id === roleId);
-}
-
-function getShipRecordValue<T>(
-  record: Record<string, T> | undefined,
-  ship: string
-): T | undefined {
-  if (!record) {
-    return undefined;
-  }
-
-  const direct = record[ship];
-  if (direct !== undefined) {
-    return direct;
-  }
-
-  return Object.entries(record).find(
-    ([key]) => normalizeShip(key) === ship
-  )?.[1];
 }
 
 async function getRawGroupForAdminVerification(
@@ -383,7 +377,9 @@ function hasOwnerSeat(
   rawGroup: RawGroupForAdminVerification,
   ownerShip: string
 ): boolean {
-  return getShipRecordValue(rawGroup.seats, ownerShip) !== undefined;
+  return (
+    getShipRecordValue(rawGroup.seats, ownerShip, normalizeShip) !== undefined
+  );
 }
 
 async function getRawGroupWithOwnerSeat(
@@ -426,7 +422,11 @@ async function getRawOwnerAdminVerification(
     };
   }
 
-  const ownerSeat = getShipRecordValue(rawGroup.seats, ownerShip);
+  const ownerSeat = getShipRecordValue(
+    rawGroup.seats,
+    ownerShip,
+    normalizeShip
+  );
   if (ownerSeat) {
     if (ownerSeat.roles?.includes(ADMIN_ROLE_ID)) {
       return { status: 'verified' };
@@ -440,7 +440,8 @@ async function getRawOwnerAdminVerification(
 
   const pendingRoles = getShipRecordValue(
     rawGroup.admissions?.pending,
-    ownerShip
+    ownerShip,
+    normalizeShip
   );
   if (pendingRoles) {
     if (pendingRoles.includes(ADMIN_ROLE_ID)) {
@@ -458,7 +459,8 @@ async function getRawOwnerAdminVerification(
 
   const ownerInvite = getShipRecordValue(
     rawGroup.admissions?.invited,
-    ownerShip
+    ownerShip,
+    normalizeShip
   );
   if (ownerInvite) {
     return {
@@ -475,7 +477,11 @@ async function getRawOwnerAdminVerification(
 
 async function assignOwnerAdminRole(groupId: string, ownerShip: string) {
   const rawGroup = await getRawGroupWithOwnerSeat(groupId, ownerShip);
-  const ownerSeat = getShipRecordValue(rawGroup.seats, ownerShip);
+  const ownerSeat = getShipRecordValue(
+    rawGroup.seats,
+    ownerShip,
+    normalizeShip
+  );
 
   if (ownerSeat?.roles?.includes(ADMIN_ROLE_ID)) {
     console.log(`✅ Owner already has "${ADMIN_ROLE_ID}" role.`);
@@ -556,6 +562,21 @@ async function ensureAdminRole(groupId: string, group?: Group) {
     });
 
     await setAdminRole(groupId, ADMIN_ROLE_ID);
+    return;
+  }
+
+  // The role already exists. It must already be an admin role — do NOT silently
+  // mark it, since `setAdminRole` would grant admin to every existing holder of
+  // the role, not just the promote target. A role named `admin` that the group
+  // intentionally does not mark admin is a collision we refuse rather than
+  // repurpose.
+  const rawGroup = await getRawGroupForAdminVerification(groupId);
+  if (!rawGroup.admins?.includes(ADMIN_ROLE_ID)) {
+    throw new Error(
+      `Group ${groupId} has an "${ADMIN_ROLE_ID}" role that is not configured as an admin role. ` +
+        `Refusing to promote — marking it admin would grant admin to all existing holders. ` +
+        `Resolve the role configuration first.`
+    );
   }
 }
 
@@ -594,6 +615,173 @@ async function verifyOwnerAdmin(
 
   throw new Error(
     `Could not verify owner admin assignment for ${ownerShip}: ${lastError}`
+  );
+}
+
+// The host is the ship in the group flag (`~host/slug`). The backend treats it as
+// an admin unconditionally (`se-is-admin`), regardless of seats or roles.
+function getGroupHost(groupId: string): string {
+  return normalizeShip(groupId.split('/')[0]);
+}
+
+/**
+ * Refuse an admin mutation up front when the acting ship can't perform it, instead
+ * of firing a poke that a foreign host silently drops while the CLI reports success.
+ *
+ * A poke ack means "my ship forwarded this," not "the host applied it" — so this
+ * reads the group's actual state and checks the acting ship is the host or an admin
+ * before any mutation runs. `action` is the user-facing verb (e.g. "promote").
+ *
+ * Retries like the post-poke verification paths: on a foreign-hosted group the local
+ * snapshot can lag a just-granted admin role, so a single stale read shouldn't hard
+ * fail an action the host would now accept. The happy path returns on the first
+ * attempt; only a (transient or genuine) rejection waits.
+ */
+async function assertActingShipCanAdminister(
+  groupId: string,
+  action: string
+): Promise<void> {
+  const actingShip = normalizeShip(getCurrentUserId());
+  const hostShip = getGroupHost(groupId);
+
+  let lastReason: string | null = null;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
+    try {
+      const rawGroup = await getRawGroupForAdminVerification(groupId);
+      const result = actingShipCanAdminister(
+        rawGroup,
+        actingShip,
+        hostShip,
+        normalizeShip
+      );
+      if (result.ok) {
+        return;
+      }
+      lastReason = result.reason;
+    } catch (err) {
+      lastError = err;
+    }
+
+    if (attempt < VERIFY_ATTEMPTS) {
+      await sleep(VERIFY_DELAY_MS);
+    }
+  }
+
+  if (lastReason) {
+    throw new Error(`Can't ${action} in ${groupId}: ${lastReason}`);
+  }
+
+  throw new Error(
+    `Can't ${action} in ${groupId}: could not read group state: ${lastError}`
+  );
+}
+
+/**
+ * Scry-poll the group's actual state until every target ship satisfies `isSatisfied`,
+ * or attempts are exhausted. One scry per attempt covers all ships — never poll per
+ * ship. On exhaustion, throws naming the still-unverified ships via `describeFailure`.
+ */
+async function verifyShips(
+  groupId: string,
+  ships: string[],
+  isSatisfied: (
+    rawGroup: RawGroupForAdminVerification,
+    ship: string
+  ) => boolean,
+  describeFailure: (unverified: string[]) => string
+): Promise<void> {
+  let unverified = [...ships];
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
+    try {
+      const rawGroup = await getRawGroupForAdminVerification(groupId);
+      unverified = ships.filter((ship) => !isSatisfied(rawGroup, ship));
+      if (unverified.length === 0) {
+        return;
+      }
+    } catch (err) {
+      lastError = err;
+    }
+
+    if (attempt < VERIFY_ATTEMPTS) {
+      await sleep(VERIFY_DELAY_MS);
+    }
+  }
+
+  const suffix = lastError ? ` (last error: ${lastError})` : '';
+  throw new Error(`${describeFailure(unverified)}${suffix}`);
+}
+
+async function verifyShipsHaveRole(
+  groupId: string,
+  ships: string[],
+  roleId: string,
+  expect: 'present' | 'absent'
+): Promise<void> {
+  await verifyShips(
+    groupId,
+    ships,
+    (rawGroup, ship) =>
+      seatHasRole(rawGroup, ship, roleId, normalizeShip) ===
+      (expect === 'present'),
+    (unverified) =>
+      expect === 'present'
+        ? `Could not verify ${unverified.join(', ')} gained role ${roleId} in ${groupId}`
+        : `Could not verify ${unverified.join(', ')} lost role ${roleId} in ${groupId} (still present)`
+  );
+}
+
+// Verify admin status by the group's actual `admins` markings, not the literal
+// `admin` role id — assigning a role named `admin` that the group doesn't mark as
+// admin grants no privileges, and we must not report that as success.
+async function verifyShipsAreAdmin(
+  groupId: string,
+  ships: string[],
+  expect: 'present' | 'absent'
+): Promise<void> {
+  await verifyShips(
+    groupId,
+    ships,
+    (rawGroup, ship) =>
+      seatHasAdminRole(rawGroup, ship, normalizeShip) ===
+      (expect === 'present'),
+    (unverified) =>
+      expect === 'present'
+        ? `Could not verify ${unverified.join(', ')} gained admin in ${groupId}`
+        : `Could not verify ${unverified.join(', ')} lost admin in ${groupId} (still admin)`
+  );
+}
+
+async function verifyShipsRemoved(
+  groupId: string,
+  ships: string[]
+): Promise<void> {
+  await verifyShips(
+    groupId,
+    ships,
+    (rawGroup, ship) => !shipIsSeated(rawGroup, ship, normalizeShip),
+    (unverified) =>
+      `Could not verify ${unverified.join(', ')} were removed from ${groupId} (still members)`
+  );
+}
+
+async function verifyShipsBanned(
+  groupId: string,
+  ships: string[],
+  expect: 'present' | 'absent'
+): Promise<void> {
+  await verifyShips(
+    groupId,
+    ships,
+    (rawGroup, ship) =>
+      shipIsBanned(rawGroup, ship, normalizeShip) === (expect === 'present'),
+    (unverified) =>
+      expect === 'present'
+        ? `Could not verify ${unverified.join(', ')} were banned from ${groupId}`
+        : `Could not verify ${unverified.join(', ')} were unbanned from ${groupId} (still banned)`
   );
 }
 
@@ -941,6 +1129,7 @@ async function updateGroup(
 // Kick members from a group
 async function kickMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'kick');
 
   console.log(`Kicking ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -949,12 +1138,14 @@ async function kickMembers(groupId: string, ships: string[]) {
     contactIds: normalizedShips,
   });
 
+  await verifyShipsRemoved(groupId, normalizedShips);
   console.log(`✅ Members kicked.`);
 }
 
 // Ban members from a group
 async function banMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'ban');
 
   console.log(`Banning ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -963,12 +1154,14 @@ async function banMembers(groupId: string, ships: string[]) {
     contactIds: normalizedShips,
   });
 
+  await verifyShipsBanned(groupId, normalizedShips, 'present');
   console.log(`✅ Members banned.`);
 }
 
 // Unban members from a group
 async function unbanMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'unban');
 
   console.log(`Unbanning ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -977,6 +1170,7 @@ async function unbanMembers(groupId: string, ships: string[]) {
     contactIds: normalizedShips,
   });
 
+  await verifyShipsBanned(groupId, normalizedShips, 'absent');
   console.log(`✅ Members unbanned.`);
 }
 
@@ -1038,6 +1232,7 @@ async function updateRole(
 // Assign a role to members
 async function assignRole(groupId: string, roleId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'assign roles');
 
   console.log(
     `Assigning role "${roleId}" to ${normalizedShips.join(', ')} in ${groupId}...`
@@ -1049,12 +1244,14 @@ async function assignRole(groupId: string, roleId: string, ships: string[]) {
     ships: normalizedShips,
   });
 
+  await verifyShipsHaveRole(groupId, normalizedShips, roleId, 'present');
   console.log(`✅ Role assigned.`);
 }
 
 // Remove a role from members
 async function removeRole(groupId: string, roleId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'remove roles');
 
   console.log(
     `Removing role "${roleId}" from ${normalizedShips.join(', ')} in ${groupId}...`
@@ -1066,6 +1263,7 @@ async function removeRole(groupId: string, roleId: string, ships: string[]) {
     ships: normalizedShips,
   });
 
+  await verifyShipsHaveRole(groupId, normalizedShips, roleId, 'absent');
   console.log(`✅ Role removed.`);
 }
 
@@ -1123,7 +1321,7 @@ async function rejectJoin(groupId: string, ships: string[]) {
 async function addChannel(
   groupId: string,
   title: string,
-  kind: 'chat' | 'diary' | 'heap' = 'chat',
+  kind: 'chat' | 'heap' = 'chat',
   description: string = ''
 ) {
   const ship = await getCurrentShip();
@@ -1152,9 +1350,26 @@ async function addChannel(
   return nest;
 }
 
+// Add a %notes group channel. %notes assigns the flag and registers the %groups
+// listing itself; the skill only POSTs to the v1 API and verifies the listing
+// appeared (see notes-channel.ts).
+async function addNotesChannel(groupId: string, title: string) {
+  const nest = await createNotesChannelInGroup(
+    { groupId, title },
+    createNotesChannelDeps()
+  );
+
+  console.log(`✅ Notes channel created!`);
+  console.log(`   Nest: ${nest}`);
+  console.log(`   Title: ${title}`);
+  console.log(`   Group: ${groupId}`);
+  return nest;
+}
+
 // Promote a member to admin by assigning them an admin role
 async function promoteMemberToAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
+  await assertActingShipCanAdminister(groupId, 'promote');
   await ensureAdminRole(groupId);
 
   console.log(
@@ -1167,38 +1382,57 @@ async function promoteMemberToAdmin(groupId: string, ships: string[]) {
     ships: normalizedShips,
   });
 
+  await verifyShipsAreAdmin(groupId, normalizedShips, 'present');
   console.log(`✅ Members promoted to admin.`);
 }
 
-// Demote a member from admin by removing them from admin roles
+// Demote a member from admin by removing them from every admin-marked role
 async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
-  const group = await getGroup(groupId);
+  await assertActingShipCanAdminister(groupId, 'demote');
 
-  // Find all admin roles this member might have
-  // For now, check the "admin" role
-  const adminRoles = (group.roles || []).filter((r) => {
-    // We can't easily tell which roles are admin from the group info alone,
-    // so we target the "admin" role specifically
-    return r.id === ADMIN_ROLE_ID;
-  });
+  // The host is an admin unconditionally, so it can't be demoted. Refuse up front
+  // rather than strip its roles and falsely report success on a no-op.
+  const hostShip = getGroupHost(groupId);
+  if (normalizedShips.includes(hostShip)) {
+    throw new Error(
+      `Cannot demote the host (${hostShip}) of ${groupId} — the host is always an admin.`
+    );
+  }
+
+  // Remove every role the group marks as admin (`rawGroup.admins`), not just the
+  // literal `admin` role — otherwise a member with a custom admin role stays an
+  // admin and verification below would fail on a partial mutation.
+  const rawGroup = await getRawGroupForAdminVerification(groupId);
+  const adminRoles = rawGroup.admins ?? [];
 
   if (adminRoles.length === 0) {
-    console.error(`No "${ADMIN_ROLE_ID}" role found in ${groupId}.`);
-    process.exit(1);
+    throw new Error(`No admin roles found in ${groupId}.`);
   }
 
-  for (const role of adminRoles) {
-    console.log(
-      `Removing "${role.id}" role from ${normalizedShips.join(', ')}...`
-    );
-    await removeMembersFromRole({
-      groupId,
-      roleId: role.id,
-      ships: normalizedShips,
-    });
-  }
+  console.log(
+    `Removing admin roles (${adminRoles.join(', ')}) from ${normalizedShips.join(', ')}...`
+  );
+  // Send all role removals as one seat action. The host checks `se-src-is-admin`
+  // once, while the acting ship is still an admin, so a self-demotion can't revoke
+  // our own permission part-way through and get the remaining removals rejected.
+  await poke({
+    app: 'groups',
+    mark: 'group-action-4',
+    json: {
+      group: {
+        flag: groupId,
+        'a-group': {
+          seat: {
+            ships: normalizedShips,
+            'a-seat': { 'del-roles': adminRoles },
+          },
+        },
+      },
+    },
+  });
 
+  await verifyShipsAreAdmin(groupId, normalizedShips, 'absent');
   console.log(`✅ Members demoted from admin.`);
 }
 
@@ -1514,6 +1748,13 @@ async function main() {
         console.error(GROUPS_COMMAND_HELP['add-channel']);
         process.exit(1);
       }
+      refuseRemovedChannelKind(args, 2);
+      assertKnownChannelKind(args, 2, GROUPS_COMMAND_HELP['add-channel']);
+      refuseNotesChannelDescription(
+        args,
+        2,
+        GROUPS_COMMAND_HELP['add-channel']
+      );
       if (looksLikePositionalChannelKind(args, 2)) {
         console.error(
           'Error: channel kind must be passed with --kind, not as a positional argument.'
@@ -1522,7 +1763,13 @@ async function main() {
         process.exit(1);
       }
       const kind =
-        (getOption(args, 'kind', 3) as 'chat' | 'diary' | 'heap') || 'chat';
+        (getOption(args, 'kind', 3) as 'chat' | 'heap' | 'notes') || 'chat';
+      // %notes group channels are created by %notes itself (it registers the
+      // %groups listing) — never via createChannel/%channels.
+      if (kind === 'notes') {
+        await addNotesChannel(groupId, title);
+        break;
+      }
       const description = getOption(args, 'description', 3) || '';
       await addChannel(groupId, title, kind, description);
       break;

@@ -336,11 +336,9 @@ export async function setChannelVolumeLevel(params: {
 export const persistUnreads = async ({
   unreads,
   ctx,
-  includesAllUnreads,
 }: {
   unreads: db.ActivityInit;
   ctx?: QueryCtx;
-  includesAllUnreads?: boolean;
 }) => {
   const { baseUnread, groupUnreads, channelUnreads, threadActivity } = unreads;
   if (baseUnread) {
@@ -349,17 +347,4 @@ export const persistUnreads = async ({
   await db.insertGroupUnreads(groupUnreads, ctx);
   await db.insertChannelUnreads(channelUnreads, ctx);
   await db.insertThreadUnreads(threadActivity, ctx);
-
-  // if we have all channel unreads, we should use that data to update which
-  // channels we're joined to
-  if (includesAllUnreads) {
-    await db.setJoinedGroupChannels(
-      {
-        channelIds: channelUnreads
-          .filter((u) => u.type === 'channel')
-          .map((u) => u.channelId),
-      },
-      ctx
-    );
-  }
 };

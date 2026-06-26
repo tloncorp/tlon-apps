@@ -88,7 +88,7 @@ export function PhoneNumberInput({
             color: theme.primaryText.val,
             borderWidth: 1,
             borderColor: theme.border.val,
-            padding: 16,
+            paddingHorizontal: 16,
           },
           line: {
             backgroundColor: theme.background.val,

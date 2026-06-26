@@ -1,5 +1,6 @@
 import type { Story } from '@tloncorp/api';
 import { configureGatewayStatus, gatewayStart } from '@tloncorp/api';
+import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
 import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
@@ -42,7 +43,16 @@ import {
   normalizeShip,
   parseChannelNest,
 } from '../targets.js';
-import { createTlonTelemetry } from '../telemetry.js';
+import {
+  type TlonDeliverySkipReason,
+  type TlonPluginErrorSource,
+  createTlonTelemetry,
+  formatTlonTelemetryErrorText,
+  setDebugTelemetryReporter,
+  setErrorTelemetryReporter,
+  setOutboundRouteReporter,
+  setSessionTelemetryReporter,
+} from '../telemetry.js';
 import { resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
 import { authenticate } from '../urbit/auth.js';
@@ -52,6 +62,10 @@ import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
 import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
+import {
+  formatTlonVersionIdentity,
+  resolveTlonSkillVersion,
+} from '../version.js';
 import {
   type DisplayContext,
   type PendingApproval,
@@ -101,6 +115,13 @@ import {
 import { createOwnerReplyPersistenceQueue } from './owner-reply-persistence.js';
 import { createPendingNudgePersistenceQueue } from './pending-nudge-persistence.js';
 import { createProcessedMessageTracker } from './processed-messages.js';
+import {
+  type TlonInboundRouteRecord,
+  isRouteDebugEnabled,
+  recordTlonRouteAndDispatch,
+  routeUpdateWillSkipByPin,
+  tlonDeliveryContext,
+} from './session-routing.js';
 import { resolveSettingsMirrorSync } from './settings-sync.js';
 import {
   type ParsedCite,
@@ -206,6 +227,65 @@ type ChatFirehoseEvent = DmInvite[] | WritResponse;
 /** Refresh stale settings subscription state periodically as a fallback for silently-dead SSE subscriptions. */
 const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
+const GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS = 15_000;
+const GATEWAY_STATUS_ACTIVATION_RETRY_MS = 30_000;
+
+function classifyPluginError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.name || 'Error';
+  }
+  return typeof error;
+}
+
+// Bound an activation poke so a silently-hung promise surfaces as a
+// retryable error instead of leaving gateway-status dead for the process
+// lifetime. The underlying poke may still settle after the timeout; the
+// trailing no-op catch keeps a late rejection from becoming an unhandled
+// rejection, and a late duplicate poke is harmless (same bootId/values).
+function withActivationTimeout<T>(
+  promise: Promise<T>,
+  label: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      promise.catch(() => {});
+      reject(
+        new Error(
+          `${label} poke timed out after ${GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS}ms`
+        )
+      );
+    }, GATEWAY_STATUS_ACTIVATION_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 /**
  * Extract ship from author field, handling both string (ship) and object (bot-meta) formats.
  */
@@ -285,14 +365,53 @@ export async function monitorTlonProvider(
   const accountCode = account.code;
 
   const botShipName = normalizeShip(account.ship);
+  const tlonSkillVersion = await resolveTlonSkillVersion();
+  let effectiveOwnerShip: string | null = account.ownerShip
+    ? normalizeShip(account.ownerShip)
+    : null;
+  setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
+  const telemetry = createTlonTelemetry({
+    config: account.telemetry,
+    runtime,
+  });
+  const currentTelemetryOwnerShip = () =>
+    getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip;
+  const capturePluginError = (
+    pluginErrorSource: TlonPluginErrorSource,
+    error: unknown,
+    extra?: {
+      errorKind?: string | null;
+      attempt?: number | null;
+    }
+  ) => {
+    telemetry?.capturePluginError({
+      harness: 'openclaw',
+      pluginErrorSource,
+      accountId: account.accountId,
+      ownerShip: currentTelemetryOwnerShip(),
+      botShip: botShipName,
+      errorKind: extra?.errorKind ?? classifyPluginError(error),
+      errorText: formatTlonTelemetryErrorText(error),
+      attempt: extra?.attempt ?? null,
+    });
+  };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
+  runtime.log?.(
+    `[tlon] version: ${formatTlonVersionIdentity({
+      markdown: false,
+      tlonSkillVersion,
+    }).replace(/\n/g, ' | ')}`
+  );
 
   const ssrfPolicy = ssrfPolicyFromAllowPrivateNetwork(
     account.allowPrivateNetwork
   );
 
   // Helper to authenticate with retry logic
-  async function authenticateWithRetry(maxAttempts = 10): Promise<string> {
+  async function authenticateWithRetry(
+    maxAttempts = 10,
+    source: 'auth' | 're_auth' = 'auth'
+  ): Promise<string> {
     for (let attempt = 1; ; attempt++) {
       if (opts.abortSignal?.aborted) {
         throw new Error('Aborted while waiting to authenticate');
@@ -301,6 +420,7 @@ export async function monitorTlonProvider(
         runtime.log?.(`[tlon] Attempting authentication to ${accountUrl}...`);
         return await authenticate(accountUrl, accountCode, { ssrfPolicy });
       } catch (error: any) {
+        capturePluginError(source, error, { attempt });
         runtime.error?.(
           `[tlon] Failed to authenticate (attempt ${attempt}): ${error?.message ?? String(error)}`
         );
@@ -324,22 +444,28 @@ export async function monitorTlonProvider(
   }
 
   let api: UrbitSSEClient | null = null;
-  const cookie = await authenticateWithRetry();
-  api = new UrbitSSEClient(account.url, cookie, {
-    ship: botShipName,
-    ssrfPolicy,
-    logger: {
-      log: (message) => runtime.log?.(message),
-      error: (message) => runtime.error?.(message),
-    },
-    // Re-authenticate on reconnect in case the session expired
-    onReconnect: async (client) => {
-      runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
-      const newCookie = await authenticateWithRetry(5);
-      client.updateCookie(newCookie);
-      runtime.log?.('[tlon] Re-authentication successful');
-    },
-  });
+  let cookie: string;
+  try {
+    cookie = await authenticateWithRetry();
+    api = new UrbitSSEClient(account.url, cookie, {
+      ship: botShipName,
+      ssrfPolicy,
+      logger: {
+        log: (message) => runtime.log?.(message),
+        error: (message) => runtime.error?.(message),
+      },
+      // Re-authenticate on reconnect in case the session expired
+      onReconnect: async (client) => {
+        runtime.log?.('[tlon] Re-authenticating on SSE reconnect...');
+        const newCookie = await authenticateWithRetry(5, 're_auth');
+        client.updateCookie(newCookie);
+        runtime.log?.('[tlon] Re-authentication successful');
+      },
+    });
+  } catch (error) {
+    await telemetry?.close();
+    throw error;
+  }
 
   // Configure @tloncorp/api's global client to use the SSE client's poke for all send operations
   configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
@@ -412,11 +538,11 @@ export async function monitorTlonProvider(
   });
 
   // Outer try/finally wraps everything from slot publication onward.
-  // The reviewer's P2: a synchronous throw between slot publication and
-  // the inner try at ~line 2719 (constructor, queue setup, bridge
-  // setup, channel discovery, future edits in this large pre-try
-  // region) would leave the shared slot orphaned. This outer finally
-  // catches all of those and runs cleanup unconditionally.
+  // A synchronous throw between slot publication and the inner try
+  // (constructor, queue setup, bridge setup, channel discovery, future
+  // edits in this large pre-try region) would leave the shared slot
+  // orphaned. This outer finally catches all of those and runs cleanup
+  // unconditionally.
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
 
@@ -448,10 +574,6 @@ export async function monitorTlonProvider(
     let effectiveGroupInviteAllowlist: string[] = account.groupInviteAllowlist;
     let effectiveAutoDiscoverChannels: boolean =
       account.autoDiscoverChannels ?? false;
-    let effectiveOwnerShip: string | null = account.ownerShip
-      ? normalizeShip(account.ownerShip)
-      : null;
-    setEffectiveOwnerShip(account.accountId, effectiveOwnerShip);
     let effectiveOwnerListenEnabled: boolean =
       account.ownerListenEnabled ?? true;
     // Canonicalize on every read so an entry stored from a slightly-off user
@@ -487,9 +609,77 @@ export async function monitorTlonProvider(
       pendingNudgeRehydrated = true;
     };
 
-    const telemetry = createTlonTelemetry({
-      config: account.telemetry,
-      runtime,
+    // Bridge route-resolution telemetry from the global `message_sending` hook
+    // to this account's telemetry client. Reports every route-dependent send so
+    // we can measure how often a reply lands on webchat instead of Tlon.
+    setOutboundRouteReporter((event) =>
+      telemetry?.captureOutboundRoute({
+        ...event,
+        ownerShip:
+          getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
+        botShip: botShipName,
+      })
+    );
+    setSessionTelemetryReporter((report) => {
+      switch (report.kind) {
+        case 'lifecycle':
+          telemetry?.captureSessionLifecycle(report.event);
+          break;
+        case 'watchdog':
+          telemetry?.captureSessionWatchdog(report.event);
+          break;
+        case 'recovery':
+          telemetry?.captureSessionRecovery(report.event);
+          break;
+      }
+    });
+    setDebugTelemetryReporter((event) => {
+      telemetry?.captureHarnessDebug({
+        ...event,
+        accountId: event.accountId ?? account.accountId,
+        ownerShip: event.ownerShip ?? currentTelemetryOwnerShip(),
+        botShip: event.botShip || botShipName,
+      });
+    });
+    setErrorTelemetryReporter((report) => {
+      switch (report.kind) {
+        case 'harness':
+          telemetry?.captureHarnessError({
+            ...report.event,
+            accountId: report.event.accountId ?? account.accountId,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip || botShipName,
+          });
+          break;
+        case 'plugin':
+          telemetry?.capturePluginError({
+            harness: 'openclaw',
+            pluginErrorSource: report.event.pluginErrorSource,
+            accountId: report.event.accountId ?? account.accountId,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip ?? botShipName,
+            errorKind: report.event.errorKind ?? null,
+            errorText: report.event.errorText,
+            attempt: report.event.attempt ?? null,
+          });
+          break;
+        case 'telemetry':
+          telemetry?.captureTelemetryError({
+            harness: 'openclaw',
+            telemetrySource: report.event.telemetrySource,
+            sourceEventName: report.event.sourceEventName ?? null,
+            sessionKey: report.event.sessionKey ?? null,
+            sessionId: report.event.sessionId ?? null,
+            runId: report.event.runId ?? null,
+            accountId: report.event.accountId ?? account.accountId,
+            agentId: report.event.agentId ?? null,
+            ownerShip: report.event.ownerShip ?? currentTelemetryOwnerShip(),
+            botShip: report.event.botShip ?? botShipName,
+            errorKind: report.event.errorKind ?? null,
+            errorText: report.event.errorText,
+          });
+          break;
+      }
     });
 
     // Track threads we've participated in (by parentId) - respond without mention requirement
@@ -910,37 +1100,78 @@ export async function monitorTlonProvider(
             return;
           }
 
-          await configureGatewayStatus({
-            owner: capturedOwnerShip,
-            activeWindowSecs: ACTIVE_WINDOW_SECS,
-            offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
-          });
-          // Recheck after each await: this monitor can be torn down
-          // (gatewayStatusCleanupRan), the signal can abort, or the gateway can
-          // stop (gsManager.stopped) while these pokes are in flight. Without
-          // the recheck we would leave a zombie heartbeat interval running.
-          // The cleanup flag is monitor-local on purpose — see
-          // cleanupGatewayStatus for why we don't latch the shared manager.
-          if (signal?.aborted || gatewayStatusCleanupRan || gsManager.stopped) {
-            return;
+          // One-shot activation proved fragile: a single silently-hung poke
+          // (observed when activation raced an SSE reconnect) left
+          // gateway-status dead for the whole process lifetime, so the ship
+          // marked the gateway %down and auto-replied "bot is offline" to
+          // owner DMs. Retry with a per-attempt timeout until activation
+          // sticks or this monitor is torn down.
+          for (let attempt = 1; ; attempt += 1) {
+            if (
+              signal?.aborted ||
+              gatewayStatusCleanupRan ||
+              gsManager.stopped
+            ) {
+              return;
+            }
+            try {
+              await withActivationTimeout(
+                configureGatewayStatus({
+                  owner: capturedOwnerShip,
+                  activeWindowSecs: ACTIVE_WINDOW_SECS,
+                  offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
+                }),
+                '%configure'
+              );
+              // Recheck after each await: this monitor can be torn down
+              // (gatewayStatusCleanupRan), the signal can abort, or the gateway can
+              // stop (gsManager.stopped) while these pokes are in flight. Without
+              // the recheck we would leave a zombie heartbeat interval running.
+              // The cleanup flag is monitor-local on purpose — see
+              // cleanupGatewayStatus for why we don't latch the shared manager.
+              if (
+                signal?.aborted ||
+                gatewayStatusCleanupRan ||
+                gsManager.stopped
+              ) {
+                return;
+              }
+              // Mark starting before the %gateway-start poke so a concurrent
+              // gateway_stop hook knows a start poke is in flight and sends a
+              // matching %gateway-stop even if shutdown lands before markActivated().
+              gsManager.markStarting();
+              await withActivationTimeout(
+                gatewayStart({
+                  bootId: gsManager.bootId,
+                  leaseUntil: computeLeaseUntil(),
+                }),
+                '%gateway-start'
+              );
+              if (
+                signal?.aborted ||
+                gatewayStatusCleanupRan ||
+                gsManager.stopped
+              ) {
+                return;
+              }
+              gsManager.markActivated();
+              gsManager.startHeartbeat();
+              runtime.log?.(
+                `[gateway-status] activated (bootId=${gsManager.bootId}, owner=${capturedOwnerShip}, attempt=${attempt})`
+              );
+              return;
+            } catch (err) {
+              capturePluginError('gateway_status_activation', err, {
+                attempt,
+              });
+              runtime.error?.(
+                `[gateway-status] activation attempt ${attempt} failed: ${String(err)} — retrying in ${GATEWAY_STATUS_ACTIVATION_RETRY_MS / 1000}s`
+              );
+            }
+            await abortableDelay(GATEWAY_STATUS_ACTIVATION_RETRY_MS, signal);
           }
-          // Mark starting before the %gateway-start poke so a concurrent
-          // gateway_stop hook knows a start poke is in flight and sends a
-          // matching %gateway-stop even if shutdown lands before markActivated().
-          gsManager.markStarting();
-          await gatewayStart({
-            bootId: gsManager.bootId,
-            leaseUntil: computeLeaseUntil(),
-          });
-          if (signal?.aborted || gatewayStatusCleanupRan || gsManager.stopped) {
-            return;
-          }
-          gsManager.markActivated();
-          gsManager.startHeartbeat();
-          runtime.log?.(
-            `[gateway-status] activated (bootId=${gsManager.bootId}, owner=${capturedOwnerShip})`
-          );
         } catch (err) {
+          capturePluginError('gateway_status_activation', err);
           runtime.error?.(`[gateway-status] start failed: ${String(err)}`);
         }
       })();
@@ -2166,12 +2397,56 @@ export async function monitorTlonProvider(
         }),
       });
 
+      // ── Durable session-route persistence ───────────────────────
+      // The streamed reply below goes out through our own `deliver` callback
+      // and does not consult session metadata. But later route-dependent sends
+      // (the shared `message` tool, subagents, system-event turns) resolve
+      // their destination from the session store; without a persisted Tlon
+      // route they fall back to webchat. recordTlonRouteAndDispatch (below)
+      // records the route before dispatch and fails open — never blocks the
+      // reply.
+      const routeDebug: ((rec: TlonInboundRouteRecord) => void) | undefined =
+        isRouteDebugEnabled()
+          ? (rec) =>
+              runtime.log?.(
+                `[tlon][route-debug] inbound ${JSON.stringify({
+                  messageId,
+                  agentId: route.agentId,
+                  sessionKey: route.sessionKey,
+                  mainSessionKey: route.mainSessionKey,
+                  lastRoutePolicy: route.lastRoutePolicy,
+                  matchedBy: route.matchedBy,
+                  provider: ctxPayload.Provider,
+                  surface: ctxPayload.Surface,
+                  originatingChannel: ctxPayload.OriginatingChannel,
+                  originatingTo: ctxPayload.OriginatingTo,
+                  ctxSessionKey: ctxPayload.SessionKey,
+                  isGroup,
+                  groupChannel: groupChannel ?? null,
+                  senderShip,
+                  parentId: parentId ?? null,
+                  deliverParentId: deliverParentId ?? null,
+                  recordSessionKey: rec.recordSessionKey,
+                  lastRouteSessionKey: rec.lastRouteSessionKey,
+                  target: rec.target,
+                  hadUpdateLastRoute: Boolean(rec.updateLastRoute),
+                  pinWillSkip: routeUpdateWillSkipByPin(rec.updateLastRoute),
+                  skippedReason: rec.skippedReason ?? null,
+                })}`
+              )
+          : undefined;
+
       const dispatchStartTime = Date.now();
+      const runId = randomUUID();
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
+        runId,
+        accountId: account.accountId,
+        agentId: route.agentId,
         ownerShip: effectiveOwnerShip,
         botShip: botShipName,
         chatType: isGroup ? 'groupChannel' : 'dm',
+        destinationKind: isGroup ? 'groupChannel' : 'dm',
         isThreadReply: Boolean(isThreadReply),
         senderRole,
         attachmentCount,
@@ -2180,9 +2455,16 @@ export async function monitorTlonProvider(
       let selectedModel: string | null = null;
       let selectedThinkLevel: string | null = null;
       let deliveredMessageCount = 0;
+      let sendAttemptCount = 0;
+      let sendErrorCount = 0;
+      let sendErrorKind: string | null = null;
       let replyCharCount = 0;
       let replyWordCount = 0;
       let replyMediaCount = 0;
+      let deliverySkipReason: TlonDeliverySkipReason | null = null;
+      const recordDeliverySkip = (reason: TlonDeliverySkipReason) => {
+        deliverySkipReason ??= reason;
+      };
 
       const responsePrefix = core.channel.reply.resolveEffectiveMessagesConfig(
         cfg,
@@ -2226,6 +2508,14 @@ export async function monitorTlonProvider(
               );
             },
             keepaliveIntervalMs: 20_000,
+            // The SDK default TTL (60s) fires stopRun mid-dispatch and seals the
+            // callbacks, killing the thinking indicator for the rest of long
+            // runs. stopRun is already wired to deliver/idle/cleanup.
+            maxDurationMs: 0,
+            // The SDK default (2) trips the keepalive permanently after two
+            // transient poke failures, which lets the ship-side presence expire
+            // mid-run. Failures are already logged via onStartError.
+            maxConsecutiveFailures: 5,
           })
         : undefined;
 
@@ -2234,6 +2524,7 @@ export async function monitorTlonProvider(
           typeof core.channel.reply.dispatchReplyWithBufferedBlockDispatcher
         >[0]['replyOptions']
       > = {
+        runId,
         onModelSelected: ({ provider, model, thinkLevel }) => {
           selectedProvider = provider;
           selectedModel = model;
@@ -2262,116 +2553,180 @@ export async function monitorTlonProvider(
         | {
             queuedFinal: boolean;
             counts: Record<string, number>;
+            failedCounts?: Partial<Record<string, number>>;
+            sourceReplyDeliveryMode?: string;
+            beforeAgentRunBlocked?: boolean;
           }
         | undefined;
       let dispatchError: unknown;
 
       try {
-        dispatchResult =
-          await core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-            ctx: ctxPayload,
-            cfg,
-            replyOptions,
-            dispatcherOptions: {
-              responsePrefix,
-              humanDelay,
-              typingCallbacks,
-              deliver: async (payload: ReplyPayload) => {
-                let replyText = payload.text;
-                if (!replyText) {
-                  return;
-                }
-
-                // Process any block directives in the response (strips them from text)
-                replyText = await processBlockDirectives(replyText, senderShip);
-                if (!replyText) {
-                  return;
-                } // Response was only a directive
-
-                // Use settings store value if set, otherwise fall back to file config
-                const showSignature = effectiveShowModelSig;
-                if (showSignature) {
-                  const modelCfg = cfg.agents?.defaults?.model;
-                  const modelInfo =
-                    selectedModel ||
-                    (payload as { metadata?: { model?: string } }).metadata
-                      ?.model ||
-                    (payload as { model?: string }).model ||
-                    (route as { model?: string }).model ||
-                    (typeof modelCfg === 'string'
-                      ? modelCfg
-                      : modelCfg?.primary);
-                  replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
-                }
-
-                // Add addendum if this is the last response before bot rate limit
-                if (isGroup && groupChannel && knownBotShips.has(senderShip)) {
-                  const count = consecutiveBotMessages.get(groupChannel) ?? 0;
-                  if (maxBotResponses > 0 && count === maxBotResponses) {
-                    const otherBot = formatShipWithNickname(senderShip);
-                    replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
+        dispatchResult = await recordTlonRouteAndDispatch({
+          session: core.channel.session,
+          cfg,
+          route,
+          ctxPayload,
+          ctxSessionKey: ctxPayload.SessionKey,
+          isGroup,
+          groupChannel,
+          senderShip,
+          parentId,
+          deliverParentId,
+          effectiveOwnerShip,
+          effectiveDmAllowlist,
+          messageId,
+          sessionStore: cfg.session?.store,
+          logError: (msg) => runtime.error?.(msg),
+          // Routine skip / pin-skip diagnostics are debug-gated to avoid
+          // high-volume logs for expected policy cases.
+          logDebug: isRouteDebugEnabled()
+            ? (msg) => runtime.log?.(msg)
+            : undefined,
+          onRecord: routeDebug,
+          dispatch: () =>
+            core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+              ctx: ctxPayload,
+              cfg,
+              replyOptions,
+              dispatcherOptions: {
+                responsePrefix,
+                humanDelay,
+                typingCallbacks,
+                onSkip: (_payload, info) => {
+                  recordDeliverySkip(info.reason);
+                },
+                deliver: async (payload: ReplyPayload) => {
+                  let replyText = payload.text;
+                  if (!replyText) {
+                    const hasMedia = Array.isArray(payload.mediaUrls)
+                      ? payload.mediaUrls.length > 0
+                      : Boolean(payload.mediaUrl);
+                    recordDeliverySkip(
+                      hasMedia
+                        ? 'media_only_payload_not_sent'
+                        : 'empty_payload_text'
+                    );
+                    return;
                   }
-                }
 
-                if (isGroup && groupChannel) {
-                  // Send to any channel type (chat, heap, diary) using the nest directly
-                  await sendChannelPost({
-                    botProfile: getBotProfile(),
-                    fromShip: botShipName,
-                    nest: groupChannel,
-                    story: markdownToStory(replyText),
-                    replyToId: deliverParentId ?? undefined,
-                  });
-                  // Track thread participation for future replies without mention
-                  if (deliverParentId) {
-                    participatedThreads.add(String(deliverParentId));
+                  // Process any block directives in the response (strips them from text)
+                  replyText = await processBlockDirectives(
+                    replyText,
+                    senderShip
+                  );
+                  if (!replyText) {
+                    recordDeliverySkip('block_directive_only');
+                    return;
+                  } // Response was only a directive
+
+                  // Use settings store value if set, otherwise fall back to file config
+                  const showSignature = effectiveShowModelSig;
+                  if (showSignature) {
+                    const modelCfg = cfg.agents?.defaults?.model;
+                    const modelInfo =
+                      selectedModel ||
+                      (payload as { metadata?: { model?: string } }).metadata
+                        ?.model ||
+                      (payload as { model?: string }).model ||
+                      (route as { model?: string }).model ||
+                      (typeof modelCfg === 'string'
+                        ? modelCfg
+                        : modelCfg?.primary);
+                    replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
+                  }
+
+                  // Add addendum if this is the last response before bot rate limit
+                  if (
+                    isGroup &&
+                    groupChannel &&
+                    knownBotShips.has(senderShip)
+                  ) {
+                    const count = consecutiveBotMessages.get(groupChannel) ?? 0;
+                    if (maxBotResponses > 0 && count === maxBotResponses) {
+                      const otherBot = formatShipWithNickname(senderShip);
+                      replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
+                    }
+                  }
+
+                  if (isRouteDebugEnabled()) {
                     runtime.log?.(
-                      `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                      `[tlon][route-debug] deliver ${JSON.stringify({
+                        messageId,
+                        isGroup,
+                        destination: isGroup
+                          ? groupChannel ?? null
+                          : senderShip,
+                        deliverParentId: deliverParentId ?? null,
+                      })}`
                     );
                   }
-                } else {
-                  await sendDm({
-                    botProfile: getBotProfile(),
-                    fromShip: botShipName,
-                    toShip: senderShip,
-                    text: replyText,
-                    replyToId: deliverParentId
-                      ? String(deliverParentId)
-                      : undefined,
-                  });
-                }
 
-                if (presenceConversationId) {
-                  await computingPresence.stopRun({
-                    conversationId: presenceConversationId,
-                    runId: presenceRunId,
-                  });
-                }
+                  sendAttemptCount += 1;
+                  if (isGroup && groupChannel) {
+                    // Send to any channel type (chat, heap, diary) using the nest directly
+                    await sendChannelPost({
+                      botProfile: getBotProfile(),
+                      fromShip: botShipName,
+                      nest: groupChannel,
+                      story: markdownToStory(replyText),
+                      replyToId: deliverParentId ?? undefined,
+                    });
+                    // Track thread participation for future replies without mention
+                    if (deliverParentId) {
+                      participatedThreads.add(String(deliverParentId));
+                      runtime.log?.(
+                        `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                      );
+                    }
+                  } else {
+                    await sendDm({
+                      botProfile: getBotProfile(),
+                      fromShip: botShipName,
+                      toShip: senderShip,
+                      text: replyText,
+                      replyToId: deliverParentId
+                        ? String(deliverParentId)
+                        : undefined,
+                    });
+                  }
 
-                deliveredMessageCount += 1;
-                replyCharCount += replyText.length;
-                replyWordCount += replyText.trim()
-                  ? replyText.trim().split(/\s+/).length
-                  : 0;
-                replyMediaCount += Array.isArray(payload.mediaUrls)
-                  ? payload.mediaUrls.length
-                  : payload.mediaUrl
-                    ? 1
+                  deliveredMessageCount += 1;
+                  replyCharCount += replyText.length;
+                  replyWordCount += replyText.trim()
+                    ? replyText.trim().split(/\s+/).length
                     : 0;
+                  replyMediaCount += Array.isArray(payload.mediaUrls)
+                    ? payload.mediaUrls.length
+                    : payload.mediaUrl
+                      ? 1
+                      : 0;
+
+                  if (presenceConversationId) {
+                    await computingPresence.stopRun({
+                      conversationId: presenceConversationId,
+                      runId: presenceRunId,
+                    });
+                  }
+                },
+                onError: (err, info) => {
+                  const dispatchDuration = Date.now() - dispatchStartTime;
+                  sendErrorCount += 1;
+                  sendErrorKind = info.kind;
+                  runtime.error?.(
+                    `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
+                  );
+                },
               },
-              onError: (err, info) => {
-                const dispatchDuration = Date.now() - dispatchStartTime;
-                runtime.error?.(
-                  `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
-                );
-              },
-            },
-          });
+            }),
+        });
       } catch (error) {
         dispatchError = error;
         throw error;
       } finally {
         await replyTelemetry?.capture({
+          sendAttemptCount,
+          sendErrorCount,
+          sendErrorKind,
           deliveredMessageCount,
           replyCharCount,
           replyWordCount,
@@ -2380,6 +2735,11 @@ export async function monitorTlonProvider(
           queuedFinal: dispatchResult?.queuedFinal ?? false,
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
+          failedCounts: dispatchResult?.failedCounts,
+          deliverySkipReason,
+          sourceReplyDeliveryMode:
+            dispatchResult?.sourceReplyDeliveryMode ?? null,
+          beforeAgentRunBlocked: dispatchResult?.beforeAgentRunBlocked === true,
           provider: selectedProvider,
           model: selectedModel,
           thinkLevel: selectedThinkLevel,
@@ -2493,6 +2853,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:reaction:${nest}:${postId}:${reactEmoji}:${ship}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${nest}`,
+                    route.accountId
+                  ),
                 });
               }
             } catch (err: any) {
@@ -2913,6 +3278,11 @@ export async function monitorTlonProvider(
                 core.system.enqueueSystemEvent(eventText, {
                   sessionKey: route.sessionKey,
                   contextKey: `tlon:dm-reaction:${messageId}:${reactEmoji}:${reactAuthor}:${action}`,
+                  // Route any resulting system/heartbeat turn back to Tlon.
+                  deliveryContext: tlonDeliveryContext(
+                    `tlon:${partnerShip || reactAuthor}`,
+                    route.accountId
+                  ),
                 });
                 runtime.log?.(`[tlon] DM_REACTION: ${eventText}`);
               }
@@ -3069,6 +3439,7 @@ export async function monitorTlonProvider(
         path: '/v4',
         event: (data) => handleChannelsFirehose(data as ChannelFirehoseEvent),
         err: (error) => {
+          capturePluginError('channels_firehose', error);
           runtime.error?.(`[tlon] Channels firehose error: ${String(error)}`);
         },
         quit: () => {
@@ -3085,6 +3456,7 @@ export async function monitorTlonProvider(
         path: '/v4',
         event: (data) => handleChatFirehose(data as ChatFirehoseEvent),
         err: (error) => {
+          capturePluginError('chat_firehose', error);
           runtime.error?.(`[tlon] Chat firehose error: ${String(error)}`);
         },
         quit: () => {
@@ -3153,6 +3525,7 @@ export async function monitorTlonProvider(
           }
         },
         err: (error) => {
+          capturePluginError('contacts_subscription', error);
           runtime.error?.(
             `[tlon] Contacts subscription error: ${String(error)}`
           );
@@ -3417,7 +3790,14 @@ export async function monitorTlonProvider(
                             const memberDisplay = formatShipWithNickname(ship);
                             core.system.enqueueSystemEvent(
                               `[${memberDisplay} joined group ${groupFlag}]`,
-                              { sessionKey: route.sessionKey }
+                              {
+                                sessionKey: route.sessionKey,
+                                // Route any resulting system turn back to Tlon.
+                                deliveryContext: tlonDeliveryContext(
+                                  `tlon:${nest}`,
+                                  route.accountId
+                                ),
+                              }
                             );
                             runtime.log?.(
                               `[tlon] Member joined: ${ship} → ${groupFlag}`
@@ -3558,6 +3938,7 @@ export async function monitorTlonProvider(
             }
           },
           err: (error) => {
+            capturePluginError('groups_ui_subscription', error);
             runtime.error?.(
               `[tlon] Groups-ui subscription error: ${String(error)}`
             );
@@ -3573,6 +3954,7 @@ export async function monitorTlonProvider(
         );
       } catch (err) {
         // Groups-ui subscription is optional - channel discovery will still work via polling
+        capturePluginError('groups_ui_subscription', err);
         runtime.log?.(
           `[tlon] Groups-ui subscription failed (will rely on polling): ${String(err)}`
         );
@@ -3721,6 +4103,7 @@ export async function monitorTlonProvider(
               })();
             },
             err: (error) => {
+              capturePluginError('foreigns_subscription', error);
               runtime.error?.(
                 `[tlon] Foreigns subscription error: ${String(error)}`
               );
@@ -3735,6 +4118,7 @@ export async function monitorTlonProvider(
             '[tlon] Subscribed to foreigns (/v1/foreigns) for auto-accepting group invites'
           );
         } catch (err) {
+          capturePluginError('foreigns_subscription', err);
           runtime.log?.(`[tlon] Foreigns subscription failed: ${String(err)}`);
         }
       }
@@ -3758,6 +4142,22 @@ export async function monitorTlonProvider(
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      telemetry?.captureGatewayConnected({
+        ownerShip: effectiveOwnerShip,
+        botShip: botShipName,
+        tlonSkillVersion: await resolveTlonSkillVersion(),
+        accountId: account.accountId,
+        configured: account.configured,
+        watchedChannelCount: watchedChannels.size,
+        dmAllowlistCount: effectiveDmAllowlist.length,
+        defaultAuthorizedShipsCount: (
+          currentSettings.defaultAuthorizedShips ??
+          account.defaultAuthorizedShips
+        ).length,
+        pendingApprovalCount: pendingApprovals.length,
+        autoDiscoverChannels: effectiveAutoDiscoverChannels,
+        ownerListenEnabled: effectiveOwnerListenEnabled,
+      });
 
       // Periodically refresh channel discovery
       const pollInterval = setInterval(
@@ -3798,6 +4198,7 @@ export async function monitorTlonProvider(
             fresh: refreshResult.fresh,
           });
         } catch (err) {
+          capturePluginError('settings_refresh', err);
           runtime.error?.(`[tlon] Settings refresh failed: ${String(err)}`);
         }
       }, SETTINGS_REFRESH_INTERVAL_MS);
@@ -3891,6 +4292,10 @@ export async function monitorTlonProvider(
       await ownerReplyPersistence.flush();
       await pendingNudgePersistence.flush();
       clearShadowsForAccount(account.accountId);
+      setOutboundRouteReporter(null);
+      setSessionTelemetryReporter(null);
+      setDebugTelemetryReporter(null);
+      setErrorTelemetryReporter(null);
       await telemetry?.close();
       try {
         await api?.close();

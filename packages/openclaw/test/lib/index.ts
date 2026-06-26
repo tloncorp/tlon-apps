@@ -22,6 +22,8 @@ export {
 
 export { getTestConfig, type TestEnvConfig } from './config.js';
 
+export { registerEngagingTurn } from './scripted.js';
+
 export {
   waitFor,
   getFixtures,

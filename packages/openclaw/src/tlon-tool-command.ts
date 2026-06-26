@@ -1,21 +1,9 @@
-import { checkBlockedSendOperation } from './tlon-tool-guard.js';
+import {
+  ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
+  checkBlockedSendOperation,
+} from './tlon-tool-guard.js';
 
-export const ALLOWED_TLON_COMMANDS = new Set([
-  'activity',
-  'channels',
-  'contacts',
-  'dms',
-  'expose',
-  'groups',
-  'hooks',
-  'messages',
-  'notebook',
-  'posts',
-  'settings',
-  'upload',
-  'help',
-  'version',
-]);
+export const ALLOWED_TLON_COMMANDS = new Set<string>(ALLOWED_TLON_SUBCOMMANDS);
 
 const CREDENTIAL_FLAGS_WITH_VALUE = new Set([
   '--config',
@@ -173,6 +161,7 @@ function summarizeKnownTlonCommand(
     'groups',
     'hooks',
     'messages',
+    'notes',
     'dms',
     'expose',
     'posts',
@@ -220,6 +209,8 @@ function summarizeKnownTlonCommand(
       return summarizeHooksOperation(operation, remainder, build);
     case 'messages':
       return summarizeMessagesOperation(operation, remainder, build);
+    case 'notes':
+      return summarizeNotesOperation(operation, remainder, build);
     case 'dms':
       return summarizeDmsOperation(operation, remainder, build);
     case 'expose':
@@ -500,6 +491,63 @@ function summarizeMessagesOperation(
       });
     default:
       return build('read', baseExtra);
+  }
+}
+
+function summarizeNotesOperation(
+  operation: string,
+  args: string[],
+  build: (
+    intent: TlonToolIntent,
+    extra?: Omit<
+      Partial<TlonToolCallContext>,
+      | 'kind'
+      | 'summaryKey'
+      | 'subcommand'
+      | 'operation'
+      | 'intent'
+      | 'isKnownSubcommand'
+      | 'blockedSendOperation'
+    >
+  ) => TlonToolCallContext
+): TlonToolCallContext {
+  const hasBodySource =
+    hasFlag(args, '--body', '--markdown') || hasFlag(args, '--stdin');
+  switch (operation) {
+    case 'status':
+    case 'list':
+    case 'show':
+    case 'notes':
+    case 'note':
+    case 'history':
+    case 'folders':
+    case 'folder':
+    case 'members':
+      return build('read');
+    case 'note-delete':
+    case 'folder-delete':
+      return build('admin');
+    case 'create':
+    case 'note-create':
+    case 'note-update':
+    case 'note-rename':
+    case 'note-move':
+    case 'folder-create':
+    case 'folder-rename':
+    case 'folder-move':
+    case 'join':
+    case 'leave':
+      return build('write', {
+        hasTitle:
+          operation === 'create' ||
+          operation === 'note-create' ||
+          operation === 'note-rename' ||
+          operation === 'folder-create' ||
+          operation === 'folder-rename',
+        hasContent: hasBodySource,
+      });
+    default:
+      return build('utility');
   }
 }
 
