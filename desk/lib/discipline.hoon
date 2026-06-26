@@ -299,9 +299,11 @@
     =/  =cage  !:
       :-  mark
       !>  ^-  egg-any:gall
-      =/  =egg:gall  (latest:egg-aid:gall !<(egg-any:gall vase))
-      ?>  ?=(%live -.egg)
-      [%20 egg(+.old-state (slot 3 +.old-state.egg))]
+      =+  !<(=egg-any:gall vase)
+      ?>  ?=(%live +<.egg-any)
+      %_  egg-any
+        +.old-state  (slot 3 +.old-state.egg-any)
+      ==
     =^  cards  inner  (on-poke:og cage)  !:
     =.  cards  (check-cards:help ~ cards)
     [cards this]

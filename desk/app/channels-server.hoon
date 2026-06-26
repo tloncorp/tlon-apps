@@ -609,31 +609,32 @@
   |=  =egg-any:gall
   ~>  %spin.['run-import']
   =.  pimp  ~
-  =/  =egg:gall  (latest:egg-aid:gall egg-any)
-  ?.  ?=(%live -.egg)
-    ~&  [dap.bowl %egg-not-live]
-    cor
-  =/  bak
-    (load -:!>(*versioned-state:load) +>.old-state.egg)
-  ::  for channels that we're gonna restore, tell previous subscribers to
-  ::  try again
-  ::
-  =.  cor
-    =/  ded=(list [=ship =path])
-      ~(val by bitt.egg)
-    |-  ^+  cor
-    ?~  ded                                   cor
-    ?:  =(our.bowl ship.i.ded)                $(ded t.ded)
-    ?.  ?=([kind:c @ %updates *] path.i.ded)  $(ded t.ded)
-    =/  =nest:c  [i.path.i.ded our.bowl i.t.path.i.ded]
-    ?.  &((~(has by v-channels:bak) nest) !(~(has by v-channels) nest))
+  ?-  -.egg-any
+      ?(%15 %16)
+    ?.  ?=(%live +<.egg-any)
+      ~&  [dap.bowl %egg-any-not-live]
+      cor
+    =/  bak
+      (load -:!>(*versioned-state:load) +>.old-state.egg-any)
+    ::  for channels that we're gonna restore, tell previous subscribers to
+    ::  try again
+    ::
+    =.  cor
+      =/  ded=(list [=ship =path])
+        ~(val by bitt.egg-any)
+      |-  ^+  cor
+      ?~  ded                                   cor
+      ?:  =(our.bowl ship.i.ded)                $(ded t.ded)
+      ?.  ?=([kind:c @ %updates *] path.i.ded)  $(ded t.ded)
+      =/  =nest:c  [i.path.i.ded our.bowl i.t.path.i.ded]
+      ?.  &((~(has by v-channels:bak) nest) !(~(has by v-channels) nest))
+        $(ded t.ded)
+      =/  =rail  unsafe+noun+!>([%channel-wake [i i.t]:path.i.ded])
+      ::NOTE  this assumes it was their %channels agent subscribing to us,
+      ::      which we actually cannot know. but a false positive here should
+      ::      be harmless.
+      =.  cor  (emit %pass /wake %agent [ship.i.ded %channels] %poke rail)
       $(ded t.ded)
-    =/  =rail  unsafe+noun+!>([%channel-wake [i i.t]:path.i.ded])
-    ::NOTE  this assumes it was their %channels agent subscribing to us,
-    ::      which we actually cannot know. but a false positive here should
-    ::      be harmless.
-    =.  cor  (emit %pass /wake %agent [ship.i.ded %channels] %poke rail)
-    $(ded t.ded)
   ::  if both the backup and our latest have a channel, keep only our
   ::  version. we could do a "deep merge" but presently unclear how that
   ::  would affect existing subscribers/what would be the correct behavior
