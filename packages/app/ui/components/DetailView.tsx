@@ -4,6 +4,8 @@ import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
+import { ThinkingState } from './Channel/ThinkingState';
+import { useShouldShowThinkingState } from './Channel/useShouldShowThinkingState';
 import { ChatMessage } from './ChatMessage';
 import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
 import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
@@ -65,6 +67,19 @@ export const DetailView = ({
         };
   }, [isChat]);
 
+  const shouldShowThinkingState = useShouldShowThinkingState(channel);
+  // Computing presence is channel-scoped, so this shows bots thinking
+  // anywhere in the channel, not just in this thread. The ideal end state is
+  // thread-scoped presence contexts (e.g. /channel/chat/~host/name/thread/<id>)
+  // published by the gateway, with the channel view aggregating by prefix.
+  const listBottomComponent = useMemo(
+    () =>
+      shouldShowThinkingState ? (
+        <ThinkingState conversationId={channel.id} channelType={channel.type} />
+      ) : undefined,
+    [shouldShowThinkingState, channel.id, channel.type]
+  );
+
   const listHeaderComponent = useMemo(() => {
     if (isChat) {
       return undefined;
@@ -120,6 +135,7 @@ export const DetailView = ({
         activeMessage={activeMessage}
         setActiveMessage={setActiveMessage}
         listHeaderComponent={listHeaderComponent}
+        listBottomComponent={listBottomComponent}
       />
     </View>
   );
