@@ -7,11 +7,13 @@
 /=  agent  /app/steward
 |%
 ++  dap  %steward
-::  agent state — single version (greenfield, no migration)
+::  agent state — single version (greenfield, no migration). `bots` is the
+::  owner-side trusted set.
 ::
 +$  state-0
   $:  %0
       owner=(unit ship)
+      bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
   ==
@@ -20,10 +22,9 @@
 ++  payload   ^-  json  s+'run-record'
 ++  payload2  ^-  json  s+'partial'
 ::
-::  our ship in tests is ~dev (a galaxy; set via +setup below).  a moon's
-::  sponsor is its low 32 bits, so any ship >= 2^32 whose low 32 bits equal
-::  ~dev is a moon ~dev sponsors.  (add ~dev (bex 32)) is the simplest such
-::  moon and passes the ownership gate ((sein ...) == ~dev via the mock).
+::  our ship in tests is ~dev (set via +setup below). +moon stands in for a
+::  remote bot ship; the %entry gate is now an explicit trusted-bots set
+::  (not sponsorship), so tests that fan in from it call +trust-moon first.
 ::
 ++  moon  ^-  ship  (add ~dev (bex 32))
 ::
@@ -32,12 +33,6 @@
   ^-  (unit vase)
   ?+  path  ~
     [%gu @ %activity @ %$ ~]  `!>(&)
-  ::  mock jael +sein for the %steward-lens-action-1 ownership gate. a moon's
-  ::  sponsor is its low 32 bits; a galaxy (e.g. ~zod) sponsors itself —
-  ::  both reproduced by (end 5 who) for the ships these tests use.
-  ::
-      [%j @ %sein @ @ ~]
-    `!>(`@p`(end 5 (slav %p i.t.t.t.t.path)))
   ==
 ::
 ++  setup
@@ -56,6 +51,20 @@
   ^-  form:m
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure owner]))
+  (pure:m ~)
+::
+++  trust
+  |=  bot=ship
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot bot]))
+  (pure:m ~)
+::
+++  trust-moon
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (trust moon)
   (pure:m ~)
 ::
 ++  ga-configure
@@ -102,8 +111,8 @@
   %-  (do-as ~zod)
   (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~zod]))
 ::
-::  %configure is local-only: a sponsored moon may submit lens runs but
-::  must not be able to repoint the owner
+::  %configure is local-only: a foreign ship must not be able to repoint
+::  the owner
 ::
 ++  test-configure-from-moon-crashes
   %-  eval-mare
@@ -114,8 +123,7 @@
   %-  (do-as moon)
   (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
 ::
-::  a lens run from a completely foreign ship (not our moon) crashes the
-::  ownership gate on %steward-lens-action-1
+::  a lens run from an untrusted ship crashes the %entry gate
 ::
 ++  test-lens-from-foreign-ship-crashes
   %-  eval-mare
@@ -126,13 +134,14 @@
   %-  (do-as ~zod)
   (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-x' payload &]))
 ::
-::  a moon we sponsor is accepted; its run is stored keyed by src (the moon)
+::  a trusted bot's run is accepted; stored keyed by src (the bot)
 ::
-++  test-lens-from-sponsored-moon-accepted
+++  test-lens-from-trusted-bot-accepted
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-moon' payload &]))
@@ -147,6 +156,56 @@
   ;<  res=cage  bind:m  (got-peek /x/v1/lens/run/(scot %p moon)/lens-moon)
   =+  !<(=update:v1:l q.res)
   (ex-equal !>(update) !>(`update:v1:l`[%entry [moon 'lens-moon'] [& ~2024.1.1 payload]]))
+::
+::  an untrusted ship's %entry is rejected — sponsorship is not auto-trust
+::
+++  test-entry-from-untrusted-rejected
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'no-trust' payload &]))
+::
+::  %untrust-bot revokes trust; a later %entry from that ship is rejected
+::
+++  test-untrust-bot-removes-trust
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'while-trusted' payload &]))
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'after-untrust' payload &]))
+::
+::  %trust-bot is self-only — a foreign ship cannot grant itself trust
+::
+++  test-trust-bot-rejects-foreign-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot ~zod]))
+::
+::  %untrust-bot is also self-only
+::
+++  test-untrust-bot-rejects-foreign-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot ~zod]))
 ::
 ::  sending to a non-self owner emits a %steward-lens-action-1 poke
 ::
@@ -189,13 +248,14 @@
   =+  !<(=update:v1:l q.res)
   (ex-equal !>(update) !>(`update:v1:l`[%entry [~dev 'lens-1'] [& ~2024.1.1 payload]]))
 ::
-::  a poke from a sponsored moon is stored keyed by src.bowl (the moon)
+::  a poke from a trusted bot is stored keyed by src.bowl (the bot)
 ::
 ++  test-action-stores-keyed-by-source
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-2' payload |]))
@@ -218,6 +278,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-3' payload |]))
@@ -236,6 +297,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'lens-4' payload &]))
@@ -257,6 +319,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 2]))
   ;<  *  bind:m
@@ -285,6 +348,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-a' payload &]))
@@ -306,6 +370,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   ;<  *  bind:m
     %-  (do-as moon)
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%entry 'run-a' payload &]))
@@ -328,6 +393,7 @@
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
   =/  big=json  [%s `@t`(rap 3 (reap 530.000 'x'))]
   ;<  caz=(list card)  bind:m
     %-  (do-as moon)

@@ -16,6 +16,16 @@
       %-  frond  :-  'configure'
       %-  frond  :-  'owner'
       s+(scot %p owner.action)
+    ::
+        %trust-bot
+      %-  frond  :-  'trust-bot'
+      %-  frond  :-  'ship'
+      s+(scot %p ship.action)
+    ::
+        %untrust-bot
+      %-  frond  :-  'untrust-bot'
+      %-  frond  :-  'ship'
+      s+(scot %p ship.action)
     ==
   --
 ++  grab
@@ -25,6 +35,8 @@
     =,  dejs:format
     %-  of
     :~  [%configure (ot ~[owner+(se %p)])]
+        [%trust-bot (ot ~[ship+(se %p)])]
+        [%untrust-bot (ot ~[ship+(se %p)])]
     ==
   --
 --
