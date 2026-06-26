@@ -1466,12 +1466,15 @@ export const getContextLensRun = createReadQuery(
     { botShip, lensId }: { botShip: string; lensId: string },
     ctx: QueryCtx
   ) => {
-    return ctx.db.query.contextLensRuns.findFirst({
+    const run = await ctx.db.query.contextLensRuns.findFirst({
       where: and(
         eq($contextLensRuns.botShip, botShip),
         eq($contextLensRuns.lensId, lensId)
       ),
     });
+    // findFirst resolves to undefined on a miss; normalize to null so React
+    // Query doesn't treat a not-yet-synced run as a query error.
+    return run ?? null;
   },
   ['contextLensRuns']
 );
