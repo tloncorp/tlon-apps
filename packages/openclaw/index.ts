@@ -43,15 +43,15 @@ import {
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
 import {
-  checkBlockedSendOperation,
-  formatAllowedTlonSubcommands,
-  isAllowedTlonSubcommand,
-} from './src/tlon-tool-guard.js';
-import {
   findTlonSubcommandIndex,
   shellSplitCommand,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
+import {
+  checkBlockedSendOperation,
+  formatAllowedTlonSubcommands,
+  isAllowedTlonSubcommand,
+} from './src/tlon-tool-guard.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
