@@ -434,7 +434,7 @@
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-0 !<(vase q.res))
-  (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`10.000))
+  (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
 ::
 ++  test-watch-rejects-foreign-ship
   %-  eval-mare
