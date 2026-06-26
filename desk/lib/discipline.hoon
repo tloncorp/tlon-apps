@@ -212,13 +212,13 @@
     ==
   --
 ::
-+$  state-1
-  $:  %1
++$  state-0
+  $:  %0
       last-marks=(map mark type)
   ==
 ::
 ++  agent
-  =|  state-1
+  =|  state-0
   =*  state  -
   ^-  agent:gall
   !.  ::  we hide all the "straight into the inner agent" paths from traces
@@ -243,28 +243,16 @@
       =^  cards  inner  (on-load:og ole)  !:
       =.  cards  (check-cards:help ~ cards)
       [cards this]
-    |^  =+  !<([%discipline old=state-any] (slot 2 ole))
-        =?  old  ?=(%0 -.old)  (state-0-to-1 old)
-        ?>  ?=(%1 -.old)
-        =.  state  old
-        =/  next-marks  (build-types-map strict-marks)
-        ?^  bad=(check-marks:help last-marks next-marks)
-          ~|  [%discipline dap=dap.bowl %mark-types-changed marks=;;((list mark) bad)]
-          !!
-        =.  last-marks  next-marks
-        =^  cards  inner  (on-load:og (slot 3 ole))  !:
-        =.  cards  (check-cards:help ~ cards)
-        [cards this]
-    ::
-    +$  state-any  $%(state-0 state-1)
-    ::  state-0 stored the h136 type-of-type, we must upconvert them
-    ::
-    +$  state-0  [%0 last-marks=(map mark type:h136)]
-    ++  state-0-to-1
-      |=  state-0
-      ^-  state-1
-      [%1 (~(run by last-marks) next-type:h136)]
-    --
+    =+  !<([%discipline old=state-0] (slot 2 ole))
+    =.  state  old
+    =/  next-marks  (build-types-map strict-marks)
+    ?^  bad=(check-marks:help last-marks next-marks)
+      ~|  [%discipline dap=dap.bowl %mark-types-changed marks=;;((list mark) bad)]
+      !!
+    =.  last-marks  next-marks
+    =^  cards  inner  (on-load:og (slot 3 ole))  !:
+    =.  cards  (check-cards:help ~ cards)
+    [cards this]
   ::
   ++  on-watch
     |=  =path
