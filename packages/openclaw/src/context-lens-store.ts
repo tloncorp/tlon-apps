@@ -6,7 +6,7 @@ import { resolveStateDir } from 'openclaw/plugin-sdk/state-paths';
 import { subscribeToContextLensEvents } from './context-lens-events.js';
 import type { ContextLens, ContextLensStatus } from './context-lens.js';
 import { sharedSlot } from './shared-state.js';
-import { resolveTlonAccount } from './types.js';
+import { resolveLensAccountId, resolveTlonAccount } from './types.js';
 
 export const DEFAULT_STORE_RETAIN_DAYS = 30;
 export const DEFAULT_STORE_MAX_STORED = 500;
@@ -404,7 +404,10 @@ export function initContextLensStore(api: {
   config: OpenClawConfig;
   logger: StoreLogger;
 }): ContextLensStore | null {
-  const lensConfig = resolveTlonAccount(api.config).contextLens;
+  const lensConfig = resolveTlonAccount(
+    api.config,
+    resolveLensAccountId(api.config)
+  ).contextLens;
   if (!lensConfig.enabled || !lensConfig.store.enabled) {
     // A re-init that disables the store (or the whole lens) must tear down any
     // store + writer left over from a prior init, or terminal events would keep

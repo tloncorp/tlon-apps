@@ -1474,7 +1474,12 @@ export default defineChannelPluginEntry({
                 ? 'group'
                 : 'unknown';
 
-          reportOutboundRoute({ resolvedChannel, routedToTlon, targetKind });
+          reportOutboundRoute({
+            resolvedChannel,
+            routedToTlon,
+            targetKind,
+            accountId: ctx.accountId ?? null,
+          });
 
           if (isRouteDebugEnabled()) {
             api.logger.info(

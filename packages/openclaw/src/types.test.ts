@@ -1,7 +1,7 @@
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import { describe, expect, it } from 'vitest';
 
-import { resolveTlonAccount } from './types.js';
+import { resolveLensAccountId, resolveTlonAccount } from './types.js';
 
 describe('resolveTlonAccount telemetry', () => {
   it('defaults telemetry to disabled', () => {
@@ -278,5 +278,71 @@ describe('resolveTlonAccount contextLens', () => {
       owners: [],
       store: { enabled: true, path: null, retainDays: null, maxStored: null },
     });
+  });
+});
+
+describe('resolveLensAccountId', () => {
+  it('returns null when no account enables the lens', () => {
+    expect(
+      resolveLensAccountId({
+        channels: {
+          tlon: { ship: '~zod', url: 'https://example.com', code: 'code-123' },
+        },
+      } as OpenClawConfig)
+    ).toBeNull();
+  });
+
+  it('prefers the default account when it enables the lens', () => {
+    expect(
+      resolveLensAccountId({
+        channels: {
+          tlon: {
+            ship: '~zod',
+            url: 'https://example.com',
+            code: 'code-123',
+            contextLens: {
+              enabled: true,
+              authToken: 'a-token-of-sufficient-length',
+            },
+            accounts: {
+              hosted: {
+                ship: '~bus',
+                url: 'https://hosted.example.com',
+                code: 'code-456',
+                contextLens: {
+                  enabled: true,
+                  authToken: 'another-token-of-sufficient-length',
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig)
+    ).toBe('default');
+  });
+
+  it('finds a named account when the lens is configured only there', () => {
+    expect(
+      resolveLensAccountId({
+        channels: {
+          tlon: {
+            ship: '~zod',
+            url: 'https://example.com',
+            code: 'code-123',
+            accounts: {
+              hosted: {
+                ship: '~bus',
+                url: 'https://hosted.example.com',
+                code: 'code-456',
+                contextLens: {
+                  enabled: true,
+                  authToken: 'a-token-of-sufficient-length',
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig)
+    ).toBe('hosted');
   });
 });

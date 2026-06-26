@@ -9,7 +9,11 @@ import {
   subscribeToContextLensEvents,
 } from './context-lens-events.js';
 import { getContextLensStore } from './context-lens-store.js';
-import { type TlonContextLensConfig, resolveTlonAccount } from './types.js';
+import {
+  type TlonContextLensConfig,
+  resolveLensAccountId,
+  resolveTlonAccount,
+} from './types.js';
 
 export const CONTEXT_LENS_RECENT_ROUTE = '/tlon/context-lens/recent';
 export const CONTEXT_LENS_EVENTS_ROUTE = '/tlon/context-lens/events';
@@ -145,7 +149,10 @@ function readLastEventId(req: IncomingMessage): number | null {
 }
 
 export function registerContextLensRoutes(api: ContextLensRouteApi): boolean {
-  const lensConfig = resolveTlonAccount(api.config).contextLens;
+  const lensConfig = resolveTlonAccount(
+    api.config,
+    resolveLensAccountId(api.config)
+  ).contextLens;
   if (!lensConfig.enabled) {
     api.logger.debug?.('[tlon] Context lens disabled; routes not registered');
     return false;

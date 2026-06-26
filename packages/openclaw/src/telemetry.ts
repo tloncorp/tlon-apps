@@ -224,6 +224,14 @@ export type TlonOutboundRouteEvent = {
   resolvedChannel: string;
   routedToTlon: boolean;
   targetKind: 'dm' | 'group' | 'unknown';
+  /**
+   * Which Tlon account produced the send, from the `message_sending` hook
+   * context. The reporter slot is process-global (one slot, last registrar
+   * wins), so the owner/bot ship must be resolved from this rather than the
+   * registering monitor's closure, or every account's routes get attributed
+   * to whichever monitor registered last.
+   */
+  accountId?: string | null;
 };
 
 export type TlonSessionLifecycleEvent = {

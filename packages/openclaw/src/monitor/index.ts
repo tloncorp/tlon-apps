@@ -669,14 +669,22 @@ export async function monitorTlonProvider(
     // Bridge route-resolution telemetry from the global `message_sending` hook
     // to this account's telemetry client. Reports every route-dependent send so
     // we can measure how often a reply lands on webchat instead of Tlon.
-    setOutboundRouteReporter((event) =>
+    setOutboundRouteReporter((event) => {
+      // The reporter slot is process-global, so a send from a sibling account
+      // can arrive here; resolve owner/bot from the event's account rather than
+      // this monitor's closure (matching the debug/error reporters below).
+      const routeAccountId = event.accountId ?? account.accountId;
+      const routeShip =
+        routeAccountId === account.accountId
+          ? account.ship
+          : resolveTlonAccount(cfg, routeAccountId).ship;
+      const routeBotShip = routeShip ? normalizeShip(routeShip) : botShipName;
       telemetry?.captureOutboundRoute({
         ...event,
-        ownerShip:
-          getEffectiveOwnerShip(account.accountId) ?? effectiveOwnerShip,
-        botShip: botShipName,
-      })
-    );
+        ownerShip: getEffectiveOwnerShip(routeAccountId) ?? effectiveOwnerShip,
+        botShip: routeBotShip || botShipName,
+      });
+    });
     setSessionTelemetryReporter((report) => {
       switch (report.kind) {
         case 'lifecycle':

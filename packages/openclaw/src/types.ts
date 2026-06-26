@@ -345,6 +345,24 @@ export function isContextLensEnabled(
   );
 }
 
+/**
+ * Context-lens global services (HTTP routes, disk store, %steward ship sync)
+ * are process-global and single-config-shaped: one server, one JSONL, one
+ * owner. They must resolve against the account that actually turns the lens
+ * on, which is not necessarily `default` — a config can enable the lens under
+ * a named account with no top-level block.
+ *
+ * Returns the id of the first effectively-enabled lens account, preferring
+ * `default`, or null when no account enables the lens.
+ */
+export function resolveLensAccountId(cfg: OpenClawConfig): string | null {
+  const ids = listTlonAccountIds(cfg);
+  if (ids.includes('default') && isContextLensEnabled(cfg, 'default')) {
+    return 'default';
+  }
+  return ids.find((id) => isContextLensEnabled(cfg, id)) ?? null;
+}
+
 export function listTlonAccountIds(cfg: OpenClawConfig): string[] {
   const base = cfg.channels?.tlon as
     | { ship?: string; accounts?: Record<string, Record<string, unknown>> }

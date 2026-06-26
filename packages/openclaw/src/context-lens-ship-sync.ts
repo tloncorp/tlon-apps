@@ -17,7 +17,7 @@ import {
 } from './gateway-status.js';
 import { sharedSlot } from './shared-state.js';
 import { normalizeShip } from './targets.js';
-import { resolveTlonAccount } from './types.js';
+import { resolveLensAccountId, resolveTlonAccount } from './types.js';
 
 const PAYLOAD_SCHEMA_VERSION = 1;
 const MAX_SUMMARY_CHARS = 4_096;
@@ -416,11 +416,12 @@ export function initContextLensShipSync(api: {
     replayCancelSlot.get()?.();
     replayCancelSlot.set(null);
   };
-  if (!resolveTlonAccount(api.config).contextLens.enabled) {
+  const lensAccountId = resolveLensAccountId(api.config);
+  if (!resolveTlonAccount(api.config, lensAccountId).contextLens.enabled) {
     teardown();
     return false;
   }
-  const owner = resolveLensOwner(api.config);
+  const owner = resolveLensOwner(api.config, lensAccountId);
   if (!owner) {
     teardown();
     api.logger.info(
@@ -428,7 +429,7 @@ export function initContextLensShipSync(api: {
     );
     return false;
   }
-  const owners = resolveLensOwners(api.config);
+  const owners = resolveLensOwners(api.config, lensAccountId);
   if (owners.length > 1) {
     api.logger.warn(
       `[tlon] Context lens ship sync: %steward stores a single owner; using ${owner}, ignoring ${owners.slice(1).join(', ')}`
