@@ -7,12 +7,17 @@ import type {
   OpenClawConfig,
 } from 'openclaw/plugin-sdk/core';
 
+import {
+  getActiveBackgroundContextLens,
+  recordBackgroundContextLensOutput,
+} from './context-lens.js';
 import { monitorTlonProvider } from './monitor/index.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
 import { resolveTlonAccount } from './types.js';
 import { withAuthenticatedTlonApi } from './urbit/api-client.js';
 import { authenticate } from './urbit/auth.js';
+import { serializeContextLensReferenceBlob } from './urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from './urbit/context.js';
 import { urbitFetch } from './urbit/fetch.js';
 import {
@@ -98,6 +103,50 @@ function resolveReplyId(
   return replyToId ?? threadId ? String(replyToId ?? threadId) : undefined;
 }
 
+/**
+ * Gateway-delivered sends (cron announcements, CLI sends) carry no session
+ * context, so messages produced by background runs would otherwise land
+ * without a lens pointer. Stamp them with the currently active background
+ * lens — best-effort correlation, bounded by the lens's short post-run
+ * finalize window.
+ */
+function resolveBackgroundLensStamp(
+  cfg: OpenClawConfig,
+  botShip: string
+): { lensId: string; blob: string } | null {
+  if (!resolveTlonAccount(cfg).contextLens.enabled) {
+    return null;
+  }
+  const lens = getActiveBackgroundContextLens();
+  if (!lens) {
+    return null;
+  }
+  return {
+    lensId: lens.lensId,
+    blob: serializeContextLensReferenceBlob(lens.lensId, botShip),
+  };
+}
+
+function recordBackgroundLensDelivery(params: {
+  stamp: { lensId: string } | null;
+  messageId: string;
+  conversationId: string;
+  kind: 'dm' | 'channel';
+  sentAt?: number;
+  text?: string;
+}) {
+  if (!params.stamp) {
+    return;
+  }
+  recordBackgroundContextLensOutput(params.stamp.lensId, {
+    messageId: params.messageId,
+    conversationId: params.conversationId,
+    kind: params.kind,
+    sentAt: params.sentAt ?? Date.now(),
+    preview: params.text ? params.text.slice(0, 140) : undefined,
+  });
+}
+
 export const tlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendText' | 'sendMedia'
@@ -115,22 +164,42 @@ export const tlonRuntimeOutbound: Pick<
         const fromShip = normalizeShip(account.ship);
         const replyId = resolveReplyId(replyToId, threadId);
         const botProfile = await getBotProfile(fromShip);
+        const stamp = resolveBackgroundLensStamp(cfg, fromShip);
         if (parsed.kind === 'dm') {
-          return await sendDm({
+          const result = await sendDm({
             fromShip,
             toShip: parsed.ship,
             text,
+            blob: stamp?.blob,
             replyToId: replyId,
             botProfile,
           });
+          recordBackgroundLensDelivery({
+            stamp,
+            messageId: result.messageId,
+            conversationId: parsed.ship,
+            kind: 'dm',
+            sentAt: result.sentAt,
+            text,
+          });
+          return result;
         }
-        return await sendChannelPost({
+        const result = await sendChannelPost({
           fromShip,
           nest: parsed.nest,
           story: markdownToStory(text),
+          blob: stamp?.blob,
           replyToId: replyId,
           botProfile,
         });
+        recordBackgroundLensDelivery({
+          stamp,
+          messageId: result.messageId,
+          conversationId: parsed.nest,
+          kind: 'channel',
+          text,
+        });
+        return result;
       }
     );
   },
@@ -159,22 +228,42 @@ export const tlonRuntimeOutbound: Pick<
         const story = buildMediaStory(text, uploadedUrl);
         const replyId = resolveReplyId(replyToId, threadId);
         const botProfile = await getBotProfile(fromShip);
+        const stamp = resolveBackgroundLensStamp(cfg, fromShip);
         if (parsed.kind === 'dm') {
-          return await sendDmWithStory({
+          const result = await sendDmWithStory({
             fromShip,
             toShip: parsed.ship,
             story,
+            blob: stamp?.blob,
             replyToId: replyId,
             botProfile,
           });
+          recordBackgroundLensDelivery({
+            stamp,
+            messageId: result.messageId,
+            conversationId: parsed.ship,
+            kind: 'dm',
+            sentAt: result.sentAt,
+            text,
+          });
+          return result;
         }
-        return await sendChannelPost({
+        const result = await sendChannelPost({
           fromShip,
           nest: parsed.nest,
           story,
+          blob: stamp?.blob,
           replyToId: replyId,
           botProfile,
         });
+        recordBackgroundLensDelivery({
+          stamp,
+          messageId: result.messageId,
+          conversationId: parsed.nest,
+          kind: 'channel',
+          text,
+        });
+        return result;
       }
     );
   },
