@@ -114,17 +114,17 @@
 ++  faux-seed
   |=  for=@p
   ^-  seed:jael
-  [for faux-life sec:ex:(pit:nu:cric:crypto 8 for %b ~) ~]
+  [for faux-life sec:ex:(pit:nu:crub:crypto 8 for) ~]
 ::
 ++  faux-deed
   |=  for=@p
   ^-  [=life =pass sig=(unit @)]
-  [faux-life pub:ex:(pit:nu:cric:crypto 8 for %b ~) ~]
+  [faux-life pub:ex:(pit:nu:crub:crypto 8 for) ~]
 ::
 ++  faux-sign
   |*  [host=@p dat=*]
   ^-  (signed:v _dat)
-  =/  sig=@ux  (sigh:as:(nol:nu:cric:crypto key:(faux-seed host)) (jam dat))
+  =/  sig=@ux  (sigh:as:(nol:nu:crub:crypto key:(faux-seed host)) (jam dat))
   [host faux-life dat sig]
 ::
 ++  faux-scry
@@ -148,7 +148,8 @@
 ++  get-state
   =/  m  (mare state:v)
   ;<  =vase  bind:m  get-save
-  =+  !<([[%negotiate *] [%1 =state:v]] vase)
+  =+  !<([[%negotiate *] =^vase] vase)
+  =+  !<([%1 =state:v] vase)
   (pure:m state)
 ::
 ++  user-does
