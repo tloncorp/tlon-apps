@@ -30,11 +30,12 @@ State is a single `state-0`, defined in the app file (the agent is greenfield, s
 ```
 state-0
   owner    (unit ship)                  shared config: bot sends runs to it / its DMs are watched; ~ = inert
+  bots     (set ship)                   owner-side trusted bots: who may send lens %entry pokes cross-ship
   lens     state:v1:lens                 stored lens run records (owner role)
   gateway  state:v1:gateway              harness liveness + auto-reply bookkeeping
 ```
 
-`owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to.
+`owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
 `run` (in `sur/steward/lens.hoon`):
 
@@ -53,7 +54,7 @@ Makes a bot's run records — trigger, tool calls, timings, output — durable o
 One agent, two roles; the same code runs on every ship, and the role is determined by **who poked it** (the `%steward-lens-action-1` ownership gate has already vetted the source — see below):
 
 - **bot ship role** (`src == our`): the local gateway pokes `%steward-lens-action-1` with a run record. `le-poke-action` sends it to the configured `owner` as a `%steward-lens-action-1` poke. Ames retries until ack, so owner-ship downtime or gateway restarts don't drop finalized runs once poked.
-- **owner ship role** (`src` is a moon we sponsor): a bot sent us its run. `le-poke-action` stores it keyed `[bot=src id]`, gives a fact on `/v1/lens`, and answers scries for clients.
+- **owner ship role** (`src` is a trusted bot — in our `bots` set): a bot sent us its run. `le-poke-action` stores it keyed `[bot=src id]`, gives a fact on `/v1/lens`, and answers scries for clients.
 
 A self-owned bot (`owner` equal to `our`) is stored directly during send with no network hop.
 
@@ -89,13 +90,17 @@ Three inbound marks, each ownership-gated to admit exactly the right source.
 
 ```
 [%configure owner=ship]               top-level: set the shared owner
+[%trust-bot ship=ship]                add a ship to the trusted-bots set
+[%untrust-bot ship=ship]              remove a ship from the trusted-bots set
 ```
+
+`%trust-bot`/`%untrust-bot` manage the owner-side `bots` allowlist that gates lens `%entry` fan-in. Trust is explicit and ship-class-agnostic — a bot may be a planet, moon, comet, star, or galaxy, and moon sponsorship is **not** an auto-trust.
 
 ### `%steward-lens-action-1` (lens)
 
 Auth is **per-variant**, since each shape expects a different `src`:
 
-- `%entry` — accepted iff `src` is `our`, or `src` is a ship `our` sponsors (per jael, via `+sein:title`). A bot is typically a moon of the owner planet, so the owner accepts lens runs from itself and from its own moons; sponsorship rejects comets and unrelated ships. This is the one shape a sponsored moon may submit (its own runs, stored keyed by `src`).
+- `%entry` — accepted iff `src` is `our`, or `src` is in the owner-side trusted-bots set (`bots`, granted via the core `%trust-bot` poke). Ship-class-agnostic: a trusted bot may be a planet, moon, comet, etc. Moon sponsorship is **not** an auto-trust — even a moon the owner sponsors must be explicitly `%trust-bot`'d. This is the one shape a trusted remote ship may submit (its own runs, stored keyed by `src`).
 - `%retry` — accepted iff `src` is `our` (a local client, or an owner-side relay forwarding to its own bot when `bot == our`) or the configured `owner` (relaying a retry to its bot moon).
 - `%configure` — `src == our` only.
 

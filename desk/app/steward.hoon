@@ -18,9 +18,15 @@
 ::  %steward is greenfield (unreleased), so it has a single state version and
 ::  no migration — an unreadable state just resets to bunt.
 ::
+::    .owner: shared owner ship (lens send target, gateway owner-DM tracking)
+::    .bots:  owner-side trusted bots — ships allowed to send lens %entry
+::            pokes cross-ship. explicit and ship-class-agnostic; an empty
+::            set means only local pokes are accepted.
+::
 +$  state-0
   $:  %0
       owner=(unit ship)
+      bots=(set ship)
       lens=state:v1:sl
       gateway=state:v1:sg
   ==
@@ -98,13 +104,15 @@
   ^+  cor
   ?+  mark  ~|(bad-poke-mark+mark !!)
   ::
-  ::  steward-core config: local only.
+  ::  steward-core config + trusted-bots management: local only.
   ::
       %steward-action-1
     ?>  =(src.bowl our.bowl)
     =+  !<(=action:v1:s vase)
     ?-  -.action
-      %configure  cor(owner.state `owner.action)
+      %configure    cor(owner.state `owner.action)
+      %trust-bot    cor(bots.state (~(put in bots.state) ship.action))
+      %untrust-bot  cor(bots.state (~(del in bots.state) ship.action))
     ==
   ::
   ::  lens module actions. auth is per-variant (each shape expects a
@@ -209,9 +217,10 @@
   ::
   ::  lens-action auth is per-variant, since each shape expects a different
   ::  src:
-  ::    %entry: src=our (the bot's own gateway pokes locally) or a moon we
-  ::            sponsor (a bot we own fanning a run to us as its owner); jael
-  ::            is the authority, via +sein:title.
+  ::    %entry: src=our (the bot's own gateway pokes locally) or a ship in the
+  ::            owner-side trusted-bots set (a bot we've explicitly trusted via
+  ::            %trust-bot, fanning a run to us as its owner). ship-class-
+  ::            agnostic — moon sponsorship is NOT an auto-trust.
   ::    %retry: src=our (a local client, or an owner-side relay forwarding to
   ::            its own bot when bot==our) or the configured owner (relaying a
   ::            retry to its bot moon).
@@ -223,7 +232,7 @@
     ?-  -.action
         %entry
       ?>  ?|  =(src.bowl our.bowl)
-              =(our.bowl (sein:title our.bowl now.bowl src.bowl))
+              (~(has in bots.state) src.bowl)
           ==
       (le-handle-entry id.action payload.action final.action)
     ::
