@@ -79,6 +79,16 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
       () => !getIsChatChannel(ctx.channel),
       [ctx.channel]
     );
+    const handlePressPost = useCallback(
+      (post: db.Post) => {
+        if (canDrillIntoPost) {
+          ctx.goToPost(post);
+          return;
+        }
+        ctx.inspectContextLensPost?.(post);
+      },
+      [canDrillIntoPost, ctx.goToPost, ctx.inspectContextLensPost]
+    );
 
     const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
     const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -158,7 +168,11 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
             : null
         }
         unreadCount={ctx.initialChannelUnread?.countWithoutThreads ?? 0}
-        onPressPost={canDrillIntoPost ? ctx.goToPost : undefined}
+        onPressPost={
+          canDrillIntoPost || ctx.inspectContextLensPost
+            ? handlePressPost
+            : undefined
+        }
         onPressReplies={ctx.goToPost}
         onPressImage={ctx.goToMediaViewer}
         onEndReached={ctx.onScrollEndReached}
@@ -170,6 +184,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         ref={scrollerRef}
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
+        onGoToBotRun={ctx.goToBotRun}
         highlightPostId={highlightPostId}
         listBottomComponent={listBottomComponent}
       />
