@@ -2,7 +2,7 @@ name: Restart Bot Ships
 
 # Restarts the hosted bot ship pods so they pick up plugin changes.
 # Pushes to develop touching bot plugin source restart the internal ships;
-# tlawn (prod) restarts are workflow_dispatch-only, a deliberate human
+# tag-based / external restarts are workflow_dispatch-only, a deliberate human
 # action decoupled from the develop -> master release sync cadence.
 
 on:
@@ -47,13 +47,25 @@ on:
       - "packages/hermes-tlon-adapter/package.json"
   workflow_dispatch:
     inputs:
-      mode:
-        description: "Which ships to restart"
+      selector:
+        description: "How to choose ships to restart"
         required: true
         type: choice
         options:
-          - internal
-          - tlawn
+          - prespecified-tag
+          - free-tag
+          - external
+      tag:
+        description: "Prespecified tag (used when selector = prespecified-tag)"
+        required: false
+        type: choice
+        options:
+          - tlon-internal
+          - hermes
+      free_tag:
+        description: "Free-entry tag (used when selector = free-tag)"
+        required: false
+        type: string
 
 jobs:
   restart-ships:
@@ -98,31 +110,60 @@ jobs:
           sudo apt-get install -y -qq jq
           gcloud components install gke-gcloud-auth-plugin --quiet
 
-      - name: Determine mode
-        id: mode
+      - name: Determine selection filter
+        id: filter
         if: steps.creds.outputs.present == 'true'
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "mode=${{ inputs.mode }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            # Push to develop: restart internal ships by tag.
+            JQ_FILTER='.items[] | select((.spec.tags // []) | index("tlon-internal")) | .metadata.name'
+            echo "Restarting ships tagged tlon-internal (push trigger)"
           else
-            echo "mode=internal" >> "$GITHUB_OUTPUT"
+            SELECTOR="${{ inputs.selector }}"
+            case "$SELECTOR" in
+              prespecified-tag)
+                TAG="${{ inputs.tag }}"
+                if [ -z "$TAG" ]; then
+                  echo "::error::selector=prespecified-tag requires the 'tag' input"
+                  exit 1
+                fi
+                JQ_FILTER=".items[] | select((.spec.tags // []) | index(\"$TAG\")) | .metadata.name"
+                echo "Restarting ships tagged $TAG"
+                ;;
+              free-tag)
+                TAG="${{ inputs.free_tag }}"
+                if [ -z "$TAG" ]; then
+                  echo "::error::selector=free-tag requires the 'free_tag' input"
+                  exit 1
+                fi
+                JQ_FILTER=".items[] | select((.spec.tags // []) | index(\"$TAG\")) | .metadata.name"
+                echo "Restarting ships tagged $TAG"
+                ;;
+              external)
+                JQ_FILTER='.items[] | select(.spec.internal != true) | .metadata.name'
+                echo "Restarting external ships (internal: false)"
+                ;;
+              *)
+                echo "::error::unknown selector: $SELECTOR"
+                exit 1
+                ;;
+            esac
           fi
+
+          # Stash the filter for the next step (multiline-safe via env file).
+          {
+            echo 'jq_filter<<EOF'
+            echo "$JQ_FILTER"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Restart ships
         if: steps.creds.outputs.present == 'true'
         run: |
-          MODE="${{ steps.mode.outputs.mode }}"
- 
-          if [ "$MODE" = "internal" ]; then
-            JQ_FILTER='.items[] | select(.spec.internal == true) | .metadata.name'
-            echo "Restarting internal ships"
-          else
-            JQ_FILTER='.items[] | select(.spec.tlawn.enabled == true and .spec.internal != true) | .metadata.name'
-            echo "Restarting tlawn (non-internal) ships"
-          fi
- 
+          JQ_FILTER='${{ steps.filter.outputs.jq_filter }}'
+
           export KUBECONFIG="$HOME/.kube/config:$HOME/.kube/ovh.config"
- 
+
           for ctx in gke_prod-f0181862_us-east5_us-east5-cluster1 ovh-oregon-1 ovh-oregon-2 ovh-oregon-3; do
             echo "=== Restarting ships in context: $ctx ==="
             kubectl --context "$ctx" get ships -n tlon -ojson \
@@ -130,4 +171,3 @@ jobs:
               | xargs -P 8 -I {} sh -c 'kubectl --context "'"$ctx"'" rollout restart sts {} -n tlon || true'
             wait
           done
- 
