@@ -5,6 +5,7 @@ import {
   buildFolderNoteCounts,
   buildNotesTreeRows,
   filterNotesTreeData,
+  getFolderPath,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
 } from './notesTree';
@@ -92,6 +93,13 @@ describe('notes tree helpers', () => {
           : `note:${row.note.title}:${row.depth}`
       )
     ).toEqual(['folder:Archive:0', 'folder:Projects:0', 'note:Alpha:0']);
+  });
+
+  test('builds a folder path for note metadata', () => {
+    expect(getFolderPath([root, projects, backlog], 4, 1)).toBe(
+      'Root / Projects / Backlog'
+    );
+    expect(getFolderPath([root, projects], 999, 1)).toBeNull();
   });
 
   test('searching a folder includes ancestors, descendants, and descendant notes', () => {

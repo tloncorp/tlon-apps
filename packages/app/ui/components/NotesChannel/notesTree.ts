@@ -197,6 +197,19 @@ export function buildFolderRows(
   return rows;
 }
 
+export function getFolderPath(
+  folders: db.NotesFolder[],
+  folderId: number | null | undefined,
+  rootFolderId: number | null
+) {
+  if (folderId == null) return null;
+  return (
+    buildFolderRows(folders, rootFolderId, { includeRoot: true }).find(
+      (row) => row.folder.folderId === folderId
+    )?.path ?? null
+  );
+}
+
 export function buildNotesTreeRows({
   expandedFolderIds,
   folderNoteCounts,

@@ -104,6 +104,7 @@ export function NotesNativeChannel({
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(
     () => new Set()
   );
+  const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
   const initializedFolderIdsRef = useRef<Set<number>>(new Set());
 
   const { folders, notes, canEdit, rootFolderId, gate } =
@@ -178,17 +179,28 @@ export function NotesNativeChannel({
     });
   }, [folders, rootFolderId]);
 
-  const openNote = useMutableCallback((note: db.NotesNote) => {
-    if (useDesktopSplit) {
-      selectNoteInPane(note.noteId);
-      return;
-    }
+  const openNote = useMutableCallback(
+    (note: db.NotesNote, options?: { focusTitle?: boolean }) => {
+      if (options?.focusTitle) {
+        setFocusTitleNoteId(note.noteId);
+      }
 
-    navigation.navigate('NotesDetail', {
-      channelId,
-      groupId: groupId ?? undefined,
-      noteId: note.noteId,
-    });
+      if (useDesktopSplit) {
+        selectNoteInPane(note.noteId);
+        return;
+      }
+
+      navigation.navigate('NotesDetail', {
+        channelId,
+        groupId: groupId ?? undefined,
+        noteId: note.noteId,
+        focusTitle: options?.focusTitle,
+      });
+    }
+  );
+
+  const handleTitleAutoFocused = useMutableCallback(() => {
+    setFocusTitleNoteId(null);
   });
 
   const expandFolder = useMutableCallback((folderId: number) => {
@@ -226,7 +238,7 @@ export function NotesNativeChannel({
         title: '',
       });
       if (note) {
-        openNote(note);
+        openNote(note, { focusTitle: true });
       }
     });
     setIsCreatingNote(false);
@@ -573,9 +585,11 @@ export function NotesNativeChannel({
         />
       ) : (
         <NotesNoteDetail
+          autoFocusTitle={focusTitleNoteId === selectedNoteId}
           headerActionsPlacement="inline"
           noteId={selectedNoteId}
           notebookFlag={notebookFlag}
+          onTitleAutoFocused={handleTitleAutoFocused}
         />
       )}
     </YStack>
