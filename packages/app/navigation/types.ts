@@ -53,6 +53,7 @@ export type RootStackParamList = {
   };
   NotesDetail: {
     channelId: string;
+    focusTitle?: boolean;
     groupId?: string;
     noteId: number;
   };

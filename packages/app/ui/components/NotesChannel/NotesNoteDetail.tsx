@@ -6,7 +6,14 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ElementRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { AppState } from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
@@ -23,6 +30,7 @@ import {
   errorMessage,
   useNotebookData,
 } from './NotesCommon';
+import { formatNoteDate, getFolderPath } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
@@ -79,13 +87,17 @@ function clearDraftStash(
 }
 
 export function NotesNoteDetail({
+  autoFocusTitle = false,
   headerActionsPlacement = 'channel-header',
   noteId,
   notebookFlag,
+  onTitleAutoFocused,
 }: {
+  autoFocusTitle?: boolean;
   headerActionsPlacement?: 'channel-header' | 'inline' | 'none';
   noteId: number | null;
   notebookFlag: string | null | undefined;
+  onTitleAutoFocused?: () => void;
 }) {
   // The note snapshot the drafts are based on. Dirtiness and the save's
   // expectedRevision are computed against this, not the live row, so a row
@@ -97,8 +109,11 @@ export function NotesNoteDetail({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const titleInputRef = useRef<ElementRef<typeof Input>>(null);
+  const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
 
-  const { notes, canEdit, gate } = useNotebookData(notebookFlag);
+  const { folders, notes, canEdit, rootFolderId, gate } =
+    useNotebookData(notebookFlag);
   const selectedNote =
     noteId === null
       ? null
@@ -129,6 +144,16 @@ export function NotesNoteDetail({
     () => estimateBodyInputHeight(bodyDraft, bodyInputWidth),
     [bodyDraft, bodyInputWidth]
   );
+  const folderPath = useMemo(
+    () =>
+      selectedNote
+        ? getFolderPath(folders, selectedNote.folderId, rootFolderId)
+        : null,
+    [folders, rootFolderId, selectedNote]
+  );
+  const noteDate = selectedNote
+    ? formatNoteDate(selectedNote.updatedAt ?? selectedNote.createdAt)
+    : null;
 
   // Load drafts when the selection changes. While the same note stays
   // selected, adopt row updates only when the editor is clean: the synced
@@ -147,6 +172,15 @@ export function NotesNoteDetail({
       setError(null);
     }
   }, [draftBase, isDirty, selectedNote]);
+
+  useEffect(() => {
+    if (!autoFocusTitle || !selectedNote || !canEdit) return;
+    const timeout = setTimeout(() => {
+      titleInputRef.current?.focus();
+      onTitleAutoFocused?.();
+    });
+    return () => clearTimeout(timeout);
+  }, [autoFocusTitle, canEdit, onTitleAutoFocused, selectedNote?.id]);
 
   // All saves go through one chain so each rebases onto the revision the
   // previous save produced instead of racing the backend revision check.
@@ -325,6 +359,10 @@ export function NotesNoteDetail({
     setIsPreviewing((previewing) => !previewing);
   }, []);
 
+  const focusBodyInput = useCallback(() => {
+    bodyInputRef.current?.focus();
+  }, []);
+
   const handleBodyInputLayout = useCallback(
     (event: { nativeEvent: { layout: { width: number } } }) => {
       const nextWidth = event.nativeEvent.layout.width;
@@ -401,20 +439,52 @@ export function NotesNoteDetail({
           <YStack
             paddingHorizontal="$xl"
             paddingTop="$l"
-            paddingBottom="$m"
-            gap={0}
+            paddingBottom="$l"
+            gap="$l"
           >
+            {folderPath || noteDate ? (
+              <XStack alignItems="center" gap="$m" minHeight={18}>
+                {folderPath ? (
+                  <Text
+                    flex={1}
+                    minWidth={0}
+                    size="$label/s"
+                    color="$tertiaryText"
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {folderPath}
+                  </Text>
+                ) : (
+                  <YStack flex={1} />
+                )}
+                {noteDate ? (
+                  <Text
+                    flexShrink={0}
+                    size="$label/s"
+                    color="$tertiaryText"
+                    numberOfLines={1}
+                  >
+                    {noteDate}
+                  </Text>
+                ) : null}
+              </XStack>
+            ) : null}
             <XStack alignItems="center" gap="$s">
               <Input
+                ref={titleInputRef}
                 flex={1}
                 width="100%"
                 value={titleDraft}
                 onChangeText={setTitleDraft}
+                onSubmitEditing={focusBodyInput}
                 placeholder="Untitled"
                 placeholderTextColor="$tertiaryText"
-                fontSize={34}
-                height={46}
-                minHeight={46}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                fontSize={24}
+                height={34}
+                minHeight={34}
                 fontWeight="400"
                 borderColor="transparent"
                 borderWidth={0}
@@ -461,11 +531,12 @@ export function NotesNoteDetail({
                 flexGrow={1}
                 minHeight={MIN_BODY_INPUT_HEIGHT}
                 paddingHorizontal="$xl"
-                paddingTop="$l"
+                paddingTop={0}
                 paddingBottom="$xl"
                 testID="NotesBodyScrollView"
               >
                 <TextArea
+                  ref={bodyInputRef}
                   width="100%"
                   minHeight={MIN_BODY_INPUT_HEIGHT}
                   height={bodyInputHeight}
