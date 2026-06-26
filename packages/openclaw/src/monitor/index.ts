@@ -7,6 +7,17 @@ import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import {
+  publishContextLensEvent,
+  setContextLensEventCapacity,
+} from '../context-lens-events.js';
+import { isContextLensEffectivelyEnabled } from '../context-lens-ship-sync.js';
+import {
+  type ContextLensTrigger,
+  bindContextLensToSession,
+  createContextLensRegistry,
+  unbindContextLensFromSession,
+} from '../context-lens.js';
+import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
 } from '../effective-owner.js';
@@ -56,6 +67,10 @@ import {
 import { resolveTlonAccount } from '../types.js';
 import { configureTlonApiWithPoke } from '../urbit/api-client.js';
 import { authenticate } from '../urbit/auth.js';
+import {
+  serializeBlobField,
+  serializeContextLensReferenceBlob,
+} from '../urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
 import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
@@ -69,11 +84,12 @@ import {
 import {
   type DisplayContext,
   type PendingApproval,
+  buildApprovalA2UIBlob,
   createPendingApproval,
   emojiToApprovalAction,
   findPendingApproval,
   formatApprovalConfirmation,
-  formatApprovalRequest,
+  formatApprovalRequestNotification,
   formatBlockedList,
   formatPendingList,
   isExpired,
@@ -192,6 +208,13 @@ type WritResponseDelta =
       'add-react'?: never;
     };
 type WritResponse = { whom: string; id: string; response: WritResponseDelta };
+const DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS = 120_000;
+
+function normalizeRunTimeoutMs(value: number | null | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1_000
+    ? Math.floor(value)
+    : DEFAULT_CONTEXT_LENS_RUN_TIMEOUT_MS;
+}
 
 // Holds the data needed for any module-loader context to (re)configure its
 // own @tloncorp/api singleton — see gateway-status.ts for why this is
@@ -503,7 +526,9 @@ export async function monitorTlonProvider(
   // effect.
   let gatewayStatusCleanupRan = false;
   const cleanupGatewayStatus = (): void => {
-    if (gatewayStatusCleanupRan) return;
+    if (gatewayStatusCleanupRan) {
+      return;
+    }
     gatewayStatusCleanupRan = true;
     gsManager?.stopHeartbeat();
     // Deliberately do NOT call gsManager.markStopped() here. The manager is
@@ -545,6 +570,31 @@ export async function monitorTlonProvider(
   // unconditionally.
   try {
     const computingPresence = createComputingPresenceTracker({ runtime });
+    const contextLensConfig = account.contextLens;
+    const contextLensEnabled = isContextLensEffectivelyEnabled(
+      cfg,
+      opts.accountId ?? undefined
+    );
+    const contextLenses = createContextLensRegistry({
+      ttlMs: contextLensConfig.ttlMs ?? undefined,
+      maxEntries: contextLensConfig.maxEntries ?? undefined,
+      visibilityDefault: contextLensConfig.visibilityDefault,
+      disabled: !contextLensEnabled,
+    });
+    setContextLensEventCapacity(contextLensConfig.maxEntries);
+    const logContextLens = (
+      lensId: string,
+      phase: string,
+      detail?: Parameters<typeof publishContextLensEvent>[2]
+    ) => {
+      const snapshot = contextLenses.get(lensId);
+      if (snapshot) {
+        runtime.log?.(
+          `[tlon] ContextLens ${JSON.stringify({ phase, detail, ...snapshot })}`
+        );
+        publishContextLensEvent(phase, snapshot, detail);
+      }
+    };
 
     const processedTracker = createProcessedMessageTracker(2000);
     let groupChannels: string[] = [];
@@ -582,7 +632,9 @@ export async function monitorTlonProvider(
       const out = new Set<string>();
       for (const raw of list) {
         const canonical = canonicalizeNest(raw);
-        if (canonical) out.add(canonical);
+        if (canonical) {
+          out.add(canonical);
+        }
       }
       return [...out];
     };
@@ -765,22 +817,70 @@ export async function monitorTlonProvider(
 
     // Group name cache for human-readable display (flag -> title)
     const groupNameCache = new Map<string, string>();
+    const channelNameCache = new Map<string, string>();
+
+    function extractMetadataTitle(value: unknown): string | undefined {
+      if (!value || typeof value !== 'object') {
+        return undefined;
+      }
+      const metadata = value as { meta?: { title?: unknown }; title?: unknown };
+      const title = metadata.meta?.title ?? metadata.title;
+      return typeof title === 'string' && title.trim()
+        ? title.trim()
+        : undefined;
+    }
 
     // Build display context for approval formatting
     function buildDisplayContext(): DisplayContext {
       const channelNames = new Map<string, string>();
       for (const nest of watchedChannels) {
+        const title = channelNameCache.get(nest);
+        if (title) {
+          channelNames.set(nest, title);
+          continue;
+        }
         const parsed = parseChannelNest(nest);
         if (parsed) {
           channelNames.set(nest, parsed.channelName);
         }
       }
       return {
+        contactNames: nicknameCache,
         channelNames,
+        channelGroups: channelToGroup,
         groupNames: groupNameCache,
       };
     }
 
+    function buildContextLensReferenceBlobField(
+      lensId: string
+    ): string | undefined {
+      if (!contextLensEnabled) {
+        return undefined;
+      }
+      try {
+        return serializeContextLensReferenceBlob(lensId, botShipName);
+      } catch (err) {
+        runtime.error?.(
+          `[tlon] Failed to build Context Lens reference blob: ${String(err)}`
+        );
+        return undefined;
+      }
+    }
+
+    function buildApprovalBlobField(
+      approval: PendingApproval,
+      ctx: DisplayContext
+    ): string | undefined {
+      try {
+        return serializeBlobField(buildApprovalA2UIBlob(approval, ctx));
+      } catch (err) {
+        runtime.error?.(
+          `[tlon] Failed to build approval A2UI blob: ${String(err)}`
+        );
+        return undefined;
+      }
+    }
     // Migrate file config to settings store (seed on first run)
     async function migrateConfigToSettings() {
       const migrations: Array<{
@@ -1177,16 +1277,25 @@ export async function monitorTlonProvider(
       })();
     }
 
-    // Run channel discovery AFTER settings are loaded (so settings store value is used)
-    if (effectiveAutoDiscoverChannels) {
+    // Fetch group metadata AFTER settings are loaded so approval cards can display
+    // friendly group names for both auto-discovered and manually configured channels.
+    const shouldFetchGroupMetadata =
+      effectiveAutoDiscoverChannels ||
+      account.groupChannels.length > 0 ||
+      Boolean(currentSettings.groupChannels?.length) ||
+      effectiveAutoAcceptGroupInvites;
+    if (shouldFetchGroupMetadata) {
       try {
         const initData = await fetchInitData(api, runtime);
-        if (initData.channels.length > 0) {
+        if (effectiveAutoDiscoverChannels && initData.channels.length > 0) {
           groupChannels = initData.channels;
         }
         // Populate channel-to-group mapping for member hint injection
         for (const [nest, groupFlag] of initData.channelToGroup) {
           channelToGroup.set(nest, groupFlag);
+        }
+        for (const [nest, title] of initData.channelNames) {
+          channelNameCache.set(nest, title);
         }
         // Populate group name cache for human-readable display
         for (const [flag, title] of initData.groupNames) {
@@ -1493,7 +1602,8 @@ export async function monitorTlonProvider(
 
     // Helper to send DM notification to owner. Returns the message ID if sent successfully.
     async function sendOwnerNotification(
-      message: string
+      message: string,
+      blob?: string
     ): Promise<string | undefined> {
       if (!effectiveOwnerShip) {
         runtime.log?.(
@@ -1507,6 +1617,7 @@ export async function monitorTlonProvider(
           fromShip: botShipName,
           toShip: effectiveOwnerShip,
           text: message,
+          blob,
         });
         runtime.log?.(
           `[tlon] Sent notification to owner ${effectiveOwnerShip}`
@@ -1621,8 +1732,11 @@ export async function monitorTlonProvider(
         // Saving before sendOwnerNotification causes a race: the settings subscription
         // event replaces pendingApprovals in-memory, so the notificationMessageId
         // set on the old object reference is lost.
-        const existMsg = formatApprovalRequest(existing, buildDisplayContext());
-        const existNotifId = await sendOwnerNotification(existMsg);
+        const displayContext = buildDisplayContext();
+        const existNotifId = await sendOwnerNotification(
+          formatApprovalRequestNotification(existing, displayContext),
+          buildApprovalBlobField(existing, displayContext)
+        );
         if (existNotifId) {
           existing.notificationMessageId =
             normalizeNotificationId(existNotifId);
@@ -1633,8 +1747,11 @@ export async function monitorTlonProvider(
 
       // Send notification before saving so notificationMessageId is included
       // in the single save. See comment above about the settings subscription race.
-      const message = formatApprovalRequest(approval, buildDisplayContext());
-      const notifId = await sendOwnerNotification(message);
+      const displayContext = buildDisplayContext();
+      const notifId = await sendOwnerNotification(
+        formatApprovalRequestNotification(approval, displayContext),
+        buildApprovalBlobField(approval, displayContext)
+      );
       if (notifId) {
         approval.notificationMessageId = normalizeNotificationId(notifId);
       }
@@ -1663,6 +1780,7 @@ export async function monitorTlonProvider(
                 messageId: approval.originalMessage.messageId,
                 senderShip: approval.requestingShip,
                 messageText: approval.originalMessage.messageText,
+                trigger: 'dm',
                 messageContent: approval.originalMessage.messageContent,
                 isGroup: false,
                 timestamp: approval.originalMessage.timestamp,
@@ -1686,6 +1804,10 @@ export async function monitorTlonProvider(
                   messageId: approval.originalMessage.messageId,
                   senderShip: approval.requestingShip,
                   messageText: approval.originalMessage.messageText,
+                  trigger: approval.originalMessage.isThreadReply
+                    ? 'thread'
+                    : 'mention',
+                  cachesHistory: true,
                   messageContent: approval.originalMessage.messageContent,
                   isGroup: true,
                   channelNest: approval.channelNest,
@@ -1930,6 +2052,8 @@ export async function monitorTlonProvider(
       messageId: string;
       senderShip: string;
       messageText: string;
+      trigger?: ContextLensTrigger;
+      cachesHistory?: boolean;
       messageContent?: unknown; // Raw Tlon content for media extraction
       blobField?: string | null; // Raw blob JSON from post/reply
       isGroup: boolean;
@@ -1961,6 +2085,10 @@ export async function monitorTlonProvider(
       const groupChannel = channelNest; // For compatibility
       let messageText = sanitizeMessageText(params.messageText);
       const rawMessageText = messageText; // Preserve original before any modifications
+      const previewText = (text: string, max = 180) => {
+        const compact = sanitizeMessageText(text).replace(/\s+/g, ' ').trim();
+        return compact.length > max ? `${compact.slice(0, max - 1)}…` : compact;
+      };
 
       // Strip bot mention EARLY, before thread context is prepended.
       // This ensures [Current message] in thread context won't contain the bot ship name,
@@ -1968,6 +2096,93 @@ export async function monitorTlonProvider(
       if (isGroup) {
         messageText = stripBotMention(messageText, botShipName);
       }
+      const trigger: ContextLensTrigger =
+        isGroup && groupChannel && isSummarizationRequest(messageText)
+          ? 'summarization'
+          : params.trigger ?? 'unknown';
+
+      const route = core.channel.routing.resolveAgentRoute({
+        cfg,
+        channel: 'tlon',
+        accountId: opts.accountId ?? undefined,
+        peer: {
+          kind: isGroup ? 'group' : 'direct',
+          id: isGroup ? groupChannel ?? senderShip : senderShip,
+        },
+      });
+
+      // Core's tool hooks receive a per-peer session key form regardless of the
+      // configured dmScope, while route.sessionKey follows the config (default
+      // "main"). Register lens bindings and sender roles under every form core
+      // might hand the hooks so tool calls attribute to this run.
+      const lensSessionKeys: string[] = isGroup
+        ? [route.sessionKey]
+        : [
+            route.sessionKey,
+            ...(
+              [
+                'per-account-channel-peer',
+                'per-channel-peer',
+                'per-peer',
+              ] as const
+            ).map((dmScope) =>
+              core.channel.routing.buildAgentSessionKey({
+                agentId: route.agentId,
+                channel: 'tlon',
+                accountId: route.accountId,
+                peer: { kind: 'direct', id: senderShip },
+                dmScope,
+              })
+            ),
+          ];
+
+      const lens = contextLenses.create({
+        messageId,
+        chatType: isGroup ? 'channel' : 'dm',
+        trigger,
+        sessionKey: route.sessionKey,
+        senderShip,
+        conversationId: isGroup ? groupChannel ?? '' : senderShip,
+        receivedAt: timestamp,
+        preview: previewText(messageText),
+      });
+      contextLenses.recordPersistence(lens.lensId, {
+        cachesHistory: Boolean(params.cachesHistory),
+        emitsTelemetry: Boolean(telemetry),
+      });
+      if (params.cachesHistory) {
+        contextLenses.recordPersistenceEvent(lens.lensId, {
+          kind: 'conversation_state',
+          action: 'read',
+          location: 'openclaw',
+          status: 'ok',
+          key: `session:${lens.sessionKeyHash ?? 'unknown'}`,
+          reason: 'history available for routing/session context',
+        });
+      }
+      if (telemetry) {
+        contextLenses.recordPersistenceEvent(lens.lensId, {
+          kind: 'other',
+          action: 'created',
+          location: 'external',
+          status: 'ok',
+          key: 'telemetry',
+        });
+      }
+      if (messageContent) {
+        const citedPosts = extractCites(messageContent as Story).length;
+        contextLenses.recordContext(lens.lensId, { citedPosts });
+        if (citedPosts) {
+          contextLenses.recordContextSource(lens.lensId, {
+            kind: 'message',
+            label: 'Cited posts',
+            sourceId: messageId,
+            included: true,
+            reason: 'explicit citation',
+          });
+        }
+      }
+      logContextLens(lens.lensId, 'created');
 
       // Track owner interaction timestamp for the nudge scheduler.
       // The shadows update synchronously; the durable %settings writes happen
@@ -2007,6 +2222,17 @@ export async function monitorTlonProvider(
           date: isoDate,
           clearStage: willClearStage,
         });
+        contextLenses.recordPersistence(lens.lensId, { updatesSettings: true });
+        contextLenses.recordPersistenceEvent(lens.lensId, {
+          kind: 'conversation_state',
+          action: 'updated',
+          location: 'urbit',
+          status: 'ok',
+          key: 'owner-activity',
+          reason: willClearStage
+            ? 'owner reply cleared pending nudge stage'
+            : 'owner activity',
+        });
 
         if (pending) {
           if (isNudgeEligible(pending, timestamp)) {
@@ -2040,6 +2266,15 @@ export async function monitorTlonProvider(
         // the verbatim nudge `content` — would leak that context into an
         // unrelated public conversation.
         if (pending && isNudgeEligible(pending, timestamp) && !isGroup) {
+          contextLenses.recordContext(lens.lensId, { pendingNudge: true });
+          contextLenses.recordContextSource(lens.lensId, {
+            kind: 'message',
+            label: 'Pending nudge',
+            sourceId: `nudge:${pending.stage}`,
+            included: true,
+            reason: 'owner reply matched recent nudge',
+            preview: pending.content ? previewText(pending.content) : undefined,
+          });
           const sentIso = new Date(pending.sentAt).toISOString();
           const contentBlock = pending.content
             ? `Message content:\n\n${pending.content}\n\n`
@@ -2058,6 +2293,25 @@ export async function monitorTlonProvider(
         try {
           attachments = await downloadMessageImages(messageContent);
           if (attachments.length > 0) {
+            contextLenses.recordContext(lens.lensId, {
+              attachments: attachments.length,
+            });
+            contextLenses.recordPersistence(lens.lensId, { writesMedia: true });
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'message',
+              label: 'Image attachments',
+              sourceId: messageId,
+              included: true,
+              reason: `${attachments.length} downloaded for model input`,
+            });
+            contextLenses.recordPersistenceEvent(lens.lensId, {
+              kind: 'artifact',
+              action: 'created',
+              location: 'openclaw',
+              status: 'ok',
+              key: 'message-images',
+              reason: `${attachments.length} image attachment(s) cached for run`,
+            });
             runtime.log?.(
               `[tlon] Downloaded ${attachments.length} image(s) from message`
             );
@@ -2087,12 +2341,39 @@ export async function monitorTlonProvider(
             await downloadBlobAttachments(blobData);
           if (blobDownloadNotices.length > 0) {
             messageText = blobDownloadNotices.join('\n') + '\n' + messageText;
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'message',
+              label: 'Oversized blob attachments',
+              sourceId: messageId,
+              included: false,
+              reason: 'size limit',
+              preview: previewText(blobDownloadNotices.join(' ')),
+            });
             runtime.log?.(
               `[tlon] Skipped oversized blob attachment(s): ${blobDownloadNotices.join(' | ')}`
             );
           }
           if (blobAttachments.length > 0) {
             attachments = attachments.concat(blobAttachments);
+            contextLenses.recordContext(lens.lensId, {
+              attachments: attachments.length,
+            });
+            contextLenses.recordPersistence(lens.lensId, { writesMedia: true });
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'message',
+              label: 'Blob attachments',
+              sourceId: messageId,
+              included: true,
+              reason: `${blobAttachments.length} downloaded for model input`,
+            });
+            contextLenses.recordPersistenceEvent(lens.lensId, {
+              kind: 'artifact',
+              action: 'created',
+              location: 'openclaw',
+              status: 'ok',
+              key: 'blob-attachments',
+              reason: `${blobAttachments.length} blob attachment(s) cached for run`,
+            });
             runtime.log?.(
               `[tlon] Downloaded blob attachment(s) ${JSON.stringify(blobAttachments)}`
             );
@@ -2115,6 +2396,16 @@ export async function monitorTlonProvider(
             runtime
           );
           if (threadContextHistory.length > 0) {
+            contextLenses.recordContext(lens.lensId, {
+              threadMessages: threadContextHistory.length,
+            });
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'message',
+              label: 'Thread context',
+              sourceId: parentId,
+              included: true,
+              reason: `${threadContextHistory.length} recent thread message(s)`,
+            });
             const threadContextMessage = buildThreadContextMessage(
               threadContextHistory,
               messageText,
@@ -2149,6 +2440,18 @@ export async function monitorTlonProvider(
             runtime
           );
           if (recentHistory.length > 0) {
+            contextLenses.recordContext(lens.lensId, {
+              channelMessages: recentHistory.filter(
+                (msg) => msg.id !== params.messageId
+              ).length,
+            });
+            contextLenses.recordContextSource(lens.lensId, {
+              kind: 'message',
+              label: 'Recent channel activity',
+              sourceId: groupChannel,
+              included: true,
+              reason: `${recentHistory.length} recent channel message(s) fetched`,
+            });
             // Filter out the current message itself (avoid duplication)
             const contextMessages = recentHistory
               .filter((msg) => msg.id !== params.messageId)
@@ -2184,24 +2487,71 @@ export async function monitorTlonProvider(
             50,
             runtime
           );
+          contextLenses.recordContext(lens.lensId, {
+            channelMessages: history.length,
+          });
+          contextLenses.recordContextSource(lens.lensId, {
+            kind: 'message',
+            label: 'Channel summary history',
+            sourceId: groupChannel,
+            included: history.length > 0,
+            reason:
+              history.length > 0
+                ? `${history.length} messages for summarization`
+                : 'empty history',
+          });
           if (history.length === 0) {
             const noHistoryMsg =
               "I couldn't fetch any messages for this channel. It might be empty or there might be a permissions issue.";
+            const contextLensBlob = buildContextLensReferenceBlobField(
+              lens.lensId
+            );
+            let outputMessageId: string | null = null;
             if (isGroup && groupChannel) {
-              await sendChannelPost({
+              const result = await sendChannelPost({
                 botProfile: getBotProfile(),
                 fromShip: botShipName,
                 nest: groupChannel,
                 story: markdownToStory(noHistoryMsg),
+                blob: contextLensBlob,
               });
+              outputMessageId = result.messageId;
             } else {
-              await sendDm({
+              const result = await sendDm({
                 botProfile: getBotProfile(),
                 fromShip: botShipName,
                 toShip: senderShip,
                 text: noHistoryMsg,
+                blob: contextLensBlob,
+              });
+              outputMessageId = result.messageId;
+            }
+            contextLenses.recordPersistence(lens.lensId, { postsReply: true });
+            if (outputMessageId) {
+              contextLenses.recordOutput(lens.lensId, {
+                messageId: outputMessageId,
+                conversationId: isGroup ? groupChannel ?? '' : senderShip,
+                kind: isGroup ? 'channel' : 'dm',
+                sentAt: Date.now(),
+                preview: previewText(noHistoryMsg),
+                chunkIndex: 0,
               });
             }
+            contextLenses.recordPersistenceEvent(lens.lensId, {
+              kind: 'conversation_state',
+              action: 'created',
+              location: 'urbit',
+              status: 'ok',
+              key: 'reply',
+              reason: 'posted no-history summary response',
+            });
+            contextLenses.recordLifecycle(lens.lensId, {
+              completedAt: Date.now(),
+              durationMs: Date.now() - lens.createdAt,
+              deliveredMessageCount: 1,
+            });
+            contextLenses.setStatus(lens.lensId, 'completed');
+            logContextLens(lens.lensId, 'final');
             return;
           }
 
@@ -2221,34 +2571,58 @@ export async function monitorTlonProvider(
             '4. Notable participants';
         } catch (error: any) {
           const errorMsg = `Sorry, I encountered an error while fetching the channel history: ${error?.message ?? String(error)}`;
+          const contextLensBlob = buildContextLensReferenceBlobField(
+            lens.lensId
+          );
+          let outputMessageId: string | null = null;
           if (isGroup && groupChannel) {
-            await sendChannelPost({
+            const result = await sendChannelPost({
               botProfile: getBotProfile(),
               fromShip: botShipName,
               nest: groupChannel,
               story: markdownToStory(errorMsg),
+              blob: contextLensBlob,
             });
+            outputMessageId = result.messageId;
           } else {
-            await sendDm({
+            const result = await sendDm({
               botProfile: getBotProfile(),
               fromShip: botShipName,
               toShip: senderShip,
               text: errorMsg,
+              blob: contextLensBlob,
+            });
+            outputMessageId = result.messageId;
+          }
+          contextLenses.recordPersistence(lens.lensId, { postsReply: true });
+          if (outputMessageId) {
+            contextLenses.recordOutput(lens.lensId, {
+              messageId: outputMessageId,
+              conversationId: isGroup ? groupChannel ?? '' : senderShip,
+              kind: isGroup ? 'channel' : 'dm',
+              sentAt: Date.now(),
+              preview: previewText(errorMsg),
+              chunkIndex: 0,
             });
           }
+          contextLenses.recordPersistenceEvent(lens.lensId, {
+            kind: 'conversation_state',
+            action: 'created',
+            location: 'urbit',
+            status: 'ok',
+            key: 'reply',
+            reason: 'posted summary error response',
+          });
+          contextLenses.recordLifecycle(lens.lensId, {
+            completedAt: Date.now(),
+            durationMs: Date.now() - lens.createdAt,
+            deliveredMessageCount: 1,
+          });
+          contextLenses.setStatus(lens.lensId, 'completed');
+          logContextLens(lens.lensId, 'final');
           return;
         }
       }
-
-      const route = core.channel.routing.resolveAgentRoute({
-        cfg,
-        channel: 'tlon',
-        accountId: opts.accountId ?? undefined,
-        peer: {
-          kind: isGroup ? 'group' : 'direct',
-          id: isGroup ? groupChannel ?? senderShip : senderShip,
-        },
-      });
 
       // Warn if multiple users share a DM session (insecure dmScope configuration)
       if (!isGroup) {
@@ -2291,10 +2665,24 @@ export async function monitorTlonProvider(
       }
 
       const senderRole = isOwner(senderShip) ? 'owner' : 'user';
+      if (senderRole === 'owner') {
+        const currentLens = contextLenses.get(lens.lensId);
+        contextLenses.update(lens.lensId, {
+          tools: {
+            ownerOnlyAvailable: ['tlon', 'cron', 'read'],
+            called: currentLens?.tools.called ?? [],
+            callCount: currentLens?.tools.callCount ?? 0,
+            lastStartedAt: currentLens?.tools.lastStartedAt ?? null,
+            runs: currentLens?.tools.runs ?? [],
+          },
+        });
+      }
       // Store role for before_tool_call hook (tool access control)
-      setSessionRole(route.sessionKey, senderRole);
+      for (const sessionKey of lensSessionKeys) {
+        setSessionRole(sessionKey, senderRole);
+      }
       runtime.log?.(
-        `[tlon] Stored session role: sessionKey=${route.sessionKey}, role=${senderRole}`
+        `[tlon] Stored session role: sessionKeys=${lensSessionKeys.join(', ')}, role=${senderRole}`
       );
 
       const senderDisplay = formatShipWithNickname(senderShip);
@@ -2348,6 +2736,13 @@ export async function monitorTlonProvider(
         const groupFlag = channelToGroup.get(channelNest);
         if (groupFlag) {
           bodyWithAttachments += `\n[Group members available via: tlon groups info ${groupFlag}]`;
+          contextLenses.recordContextSource(lens.lensId, {
+            kind: 'system',
+            label: 'Group member lookup hint',
+            sourceId: groupFlag,
+            included: true,
+            reason: 'member list available through tlon tool, not injected raw',
+          });
         }
       }
 
@@ -2437,6 +2832,9 @@ export async function monitorTlonProvider(
           : undefined;
 
       const dispatchStartTime = Date.now();
+      const dispatchTimeoutMs = normalizeRunTimeoutMs(
+        account.lifecycle.runTimeoutMs
+      );
       const runId = randomUUID();
       const replyTelemetry = telemetry?.startReply({
         sessionKey: route.sessionKey,
@@ -2461,6 +2859,18 @@ export async function monitorTlonProvider(
       let replyCharCount = 0;
       let replyWordCount = 0;
       let replyMediaCount = 0;
+      let dispatchTimedOut = false;
+      const dispatchAbortController = new AbortController();
+      const abortFromMonitor = () => {
+        if (!dispatchAbortController.signal.aborted) {
+          dispatchAbortController.abort(
+            opts.abortSignal?.reason ?? new Error('Tlon monitor aborted')
+          );
+        }
+      };
+      opts.abortSignal?.addEventListener('abort', abortFromMonitor, {
+        once: true,
+      });
       let deliverySkipReason: TlonDeliverySkipReason | null = null;
       const recordDeliverySkip = (reason: TlonDeliverySkipReason) => {
         deliverySkipReason ??= reason;
@@ -2519,34 +2929,49 @@ export async function monitorTlonProvider(
           })
         : undefined;
 
+      const hasExplicitVisibleReplyPolicy =
+        cfg.messages?.visibleReplies !== undefined ||
+        cfg.messages?.groupChat?.visibleReplies !== undefined;
+      const sourceReplyDeliveryMode =
+        isGroup && !hasExplicitVisibleReplyPolicy ? 'automatic' : undefined;
+
       const replyOptions: NonNullable<
         Parameters<
           typeof core.channel.reply.dispatchReplyWithBufferedBlockDispatcher
         >[0]['replyOptions']
       > = {
+        abortSignal: dispatchAbortController.signal,
+        ...(sourceReplyDeliveryMode ? { sourceReplyDeliveryMode } : {}),
+        timeoutOverrideSeconds: Math.ceil(dispatchTimeoutMs / 1000),
         runId,
         onModelSelected: ({ provider, model, thinkLevel }) => {
           selectedProvider = provider;
           selectedModel = model;
           selectedThinkLevel = thinkLevel ?? null;
+          contextLenses.update(lens.lensId, {
+            provider,
+            model,
+          });
+          logContextLens(lens.lensId, 'model_selected');
         },
-        ...(presenceConversationId
-          ? {
-              onAssistantMessageStart: async () => {
-                await computingPresence.clearToolCalls({
-                  conversationId: presenceConversationId,
-                  runId: presenceRunId,
-                });
-              },
-              onToolStart: async (payload) => {
-                await computingPresence.addToolCall({
-                  conversationId: presenceConversationId,
-                  runId: presenceRunId,
-                  toolName: payload.name,
-                });
-              },
-            }
-          : {}),
+        onAssistantMessageStart: async () => {
+          if (presenceConversationId) {
+            await computingPresence.clearToolCalls({
+              conversationId: presenceConversationId,
+              runId: presenceRunId,
+            });
+          }
+        },
+        onToolStart: async (payload) => {
+          const toolName = payload.name ?? 'unknown';
+          if (presenceConversationId) {
+            await computingPresence.addToolCall({
+              conversationId: presenceConversationId,
+              runId: presenceRunId,
+              toolName,
+            });
+          }
+        },
       };
 
       let dispatchResult:
@@ -2561,168 +2986,247 @@ export async function monitorTlonProvider(
       let dispatchError: unknown;
 
       try {
-        dispatchResult = await recordTlonRouteAndDispatch({
-          session: core.channel.session,
-          cfg,
-          route,
-          ctxPayload,
-          ctxSessionKey: ctxPayload.SessionKey,
-          isGroup,
-          groupChannel,
-          senderShip,
-          parentId,
-          deliverParentId,
-          effectiveOwnerShip,
-          effectiveDmAllowlist,
-          messageId,
-          sessionStore: cfg.session?.store,
-          logError: (msg) => runtime.error?.(msg),
-          // Routine skip / pin-skip diagnostics are debug-gated to avoid
-          // high-volume logs for expected policy cases.
-          logDebug: isRouteDebugEnabled()
-            ? (msg) => runtime.log?.(msg)
-            : undefined,
-          onRecord: routeDebug,
-          dispatch: () =>
-            core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
-              ctx: ctxPayload,
-              cfg,
-              replyOptions,
-              dispatcherOptions: {
-                responsePrefix,
-                humanDelay,
-                typingCallbacks,
-                onSkip: (_payload, info) => {
-                  recordDeliverySkip(info.reason);
-                },
-                deliver: async (payload: ReplyPayload) => {
-                  let replyText = payload.text;
-                  if (!replyText) {
-                    const hasMedia = Array.isArray(payload.mediaUrls)
-                      ? payload.mediaUrls.length > 0
-                      : Boolean(payload.mediaUrl);
-                    recordDeliverySkip(
-                      hasMedia
-                        ? 'media_only_payload_not_sent'
-                        : 'empty_payload_text'
-                    );
-                    return;
-                  }
-
-                  // Process any block directives in the response (strips them from text)
-                  replyText = await processBlockDirectives(
-                    replyText,
-                    senderShip
-                  );
-                  if (!replyText) {
-                    recordDeliverySkip('block_directive_only');
-                    return;
-                  } // Response was only a directive
-
-                  // Use settings store value if set, otherwise fall back to file config
-                  const showSignature = effectiveShowModelSig;
-                  if (showSignature) {
-                    const modelCfg = cfg.agents?.defaults?.model;
-                    const modelInfo =
-                      selectedModel ||
-                      (payload as { metadata?: { model?: string } }).metadata
-                        ?.model ||
-                      (payload as { model?: string }).model ||
-                      (route as { model?: string }).model ||
-                      (typeof modelCfg === 'string'
-                        ? modelCfg
-                        : modelCfg?.primary);
-                    replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
-                  }
-
-                  // Add addendum if this is the last response before bot rate limit
-                  if (
-                    isGroup &&
-                    groupChannel &&
-                    knownBotShips.has(senderShip)
-                  ) {
-                    const count = consecutiveBotMessages.get(groupChannel) ?? 0;
-                    if (maxBotResponses > 0 && count === maxBotResponses) {
-                      const otherBot = formatShipWithNickname(senderShip);
-                      replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        try {
+          contextLenses.setStatus(lens.lensId, 'dispatching');
+          contextLenses.recordLifecycle(lens.lensId, {
+            dispatchStartedAt: Date.now(),
+            timeoutMs: dispatchTimeoutMs,
+          });
+          bindContextLensToSession(lensSessionKeys, contextLenses, lens.lensId);
+          logContextLens(lens.lensId, 'dispatching');
+          timeoutId = setTimeout(() => {
+            dispatchTimedOut = true;
+            if (!dispatchAbortController.signal.aborted) {
+              dispatchAbortController.abort(
+                new Error(
+                  `Tlon dispatch timed out after ${dispatchTimeoutMs}ms`
+                )
+              );
+            }
+          }, dispatchTimeoutMs);
+          dispatchResult = await recordTlonRouteAndDispatch({
+            session: core.channel.session,
+            cfg,
+            route,
+            ctxPayload,
+            ctxSessionKey: ctxPayload.SessionKey,
+            isGroup,
+            groupChannel,
+            senderShip,
+            parentId,
+            deliverParentId,
+            effectiveOwnerShip,
+            effectiveDmAllowlist,
+            messageId,
+            sessionStore: cfg.session?.store,
+            logError: (msg) => runtime.error?.(msg),
+            // Routine skip / pin-skip diagnostics are debug-gated to avoid
+            // high-volume logs for expected policy cases.
+            logDebug: isRouteDebugEnabled()
+              ? (msg) => runtime.log?.(msg)
+              : undefined,
+            onRecord: routeDebug,
+            dispatch: () =>
+              core.channel.reply.dispatchReplyWithBufferedBlockDispatcher({
+                ctx: ctxPayload,
+                cfg,
+                replyOptions,
+                dispatcherOptions: {
+                  responsePrefix,
+                  humanDelay,
+                  typingCallbacks,
+                  onSkip: (_payload, info) => {
+                    recordDeliverySkip(info.reason);
+                  },
+                  deliver: async (payload: ReplyPayload) => {
+                    contextLenses.setStatus(lens.lensId, 'delivering');
+                    let replyText = payload.text;
+                    if (!replyText) {
+                      const hasMedia = Array.isArray(payload.mediaUrls)
+                        ? payload.mediaUrls.length > 0
+                        : Boolean(payload.mediaUrl);
+                      recordDeliverySkip(
+                        hasMedia
+                          ? 'media_only_payload_not_sent'
+                          : 'empty_payload_text'
+                      );
+                      return;
                     }
-                  }
 
-                  if (isRouteDebugEnabled()) {
-                    runtime.log?.(
-                      `[tlon][route-debug] deliver ${JSON.stringify({
-                        messageId,
-                        isGroup,
-                        destination: isGroup
-                          ? groupChannel ?? null
-                          : senderShip,
-                        deliverParentId: deliverParentId ?? null,
-                      })}`
+                    // Process any block directives in the response (strips them from text)
+                    replyText = await processBlockDirectives(
+                      replyText,
+                      senderShip
                     );
-                  }
+                    if (!replyText) {
+                      recordDeliverySkip('block_directive_only');
+                      return;
+                    } // Response was only a directive
 
-                  sendAttemptCount += 1;
-                  if (isGroup && groupChannel) {
-                    // Send to any channel type (chat, heap, diary) using the nest directly
-                    await sendChannelPost({
-                      botProfile: getBotProfile(),
-                      fromShip: botShipName,
-                      nest: groupChannel,
-                      story: markdownToStory(replyText),
-                      replyToId: deliverParentId ?? undefined,
-                    });
-                    // Track thread participation for future replies without mention
-                    if (deliverParentId) {
-                      participatedThreads.add(String(deliverParentId));
+                    // Use settings store value if set, otherwise fall back to file config
+                    const showSignature = effectiveShowModelSig;
+                    if (showSignature) {
+                      const modelCfg = cfg.agents?.defaults?.model;
+                      const modelInfo =
+                        selectedModel ||
+                        (payload as { metadata?: { model?: string } }).metadata
+                          ?.model ||
+                        (payload as { model?: string }).model ||
+                        (route as { model?: string }).model ||
+                        (typeof modelCfg === 'string'
+                          ? modelCfg
+                          : modelCfg?.primary);
+                      replyText = `${replyText}\n\n_[Generated by ${formatModelName(modelInfo)}]_`;
+                    }
+
+                    // Add addendum if this is the last response before bot rate limit
+                    if (
+                      isGroup &&
+                      groupChannel &&
+                      knownBotShips.has(senderShip)
+                    ) {
+                      const count =
+                        consecutiveBotMessages.get(groupChannel) ?? 0;
+                      if (maxBotResponses > 0 && count === maxBotResponses) {
+                        const otherBot = formatShipWithNickname(senderShip);
+                        replyText += `\n\n---\n_This is my last response to ${otherBot} for now. To continue our conversation, someone will need to mention me._`;
+                      }
+                    }
+
+                    if (isRouteDebugEnabled()) {
                       runtime.log?.(
-                        `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                        `[tlon][route-debug] deliver ${JSON.stringify({
+                          messageId,
+                          isGroup,
+                          destination: isGroup
+                            ? groupChannel ?? null
+                            : senderShip,
+                          deliverParentId: deliverParentId ?? null,
+                        })}`
                       );
                     }
-                  } else {
-                    await sendDm({
-                      botProfile: getBotProfile(),
-                      fromShip: botShipName,
-                      toShip: senderShip,
-                      text: replyText,
-                      replyToId: deliverParentId
-                        ? String(deliverParentId)
-                        : undefined,
-                    });
-                  }
 
-                  deliveredMessageCount += 1;
-                  replyCharCount += replyText.length;
-                  replyWordCount += replyText.trim()
-                    ? replyText.trim().split(/\s+/).length
-                    : 0;
-                  replyMediaCount += Array.isArray(payload.mediaUrls)
-                    ? payload.mediaUrls.length
-                    : payload.mediaUrl
-                      ? 1
+                    sendAttemptCount += 1;
+                    let outputMessageId: string | null = null;
+                    const contextLensBlob = buildContextLensReferenceBlobField(
+                      lens.lensId
+                    );
+                    if (isGroup && groupChannel) {
+                      // Send to any channel type (chat, heap, diary) using the nest directly
+                      const result = await sendChannelPost({
+                        botProfile: getBotProfile(),
+                        fromShip: botShipName,
+                        nest: groupChannel,
+                        story: markdownToStory(replyText),
+                        replyToId: deliverParentId ?? undefined,
+                        blob: contextLensBlob,
+                      });
+                      outputMessageId = result.messageId;
+                      // Track thread participation for future replies without mention
+                      if (deliverParentId) {
+                        participatedThreads.add(String(deliverParentId));
+                        runtime.log?.(
+                          `[tlon] Now tracking thread for future replies: ${deliverParentId}`
+                        );
+                      }
+                    } else {
+                      const result = await sendDm({
+                        botProfile: getBotProfile(),
+                        fromShip: botShipName,
+                        toShip: senderShip,
+                        text: replyText,
+                        replyToId: deliverParentId
+                          ? String(deliverParentId)
+                          : undefined,
+                        blob: contextLensBlob,
+                      });
+                      outputMessageId = result.messageId;
+                    }
+
+                    deliveredMessageCount += 1;
+                    contextLenses.recordPersistence(lens.lensId, {
+                      postsReply: true,
+                    });
+                    if (outputMessageId) {
+                      contextLenses.recordOutput(lens.lensId, {
+                        messageId: outputMessageId,
+                        conversationId: isGroup
+                          ? groupChannel ?? ''
+                          : senderShip,
+                        kind: isGroup ? 'channel' : 'dm',
+                        sentAt: Date.now(),
+                        preview: previewText(replyText),
+                        chunkIndex: deliveredMessageCount - 1,
+                      });
+                    }
+                    contextLenses.recordPersistenceEvent(lens.lensId, {
+                      kind: 'conversation_state',
+                      action: 'created',
+                      location: 'urbit',
+                      status: 'ok',
+                      key: 'reply',
+                      reason: 'posted bot response',
+                    });
+                    replyCharCount += replyText.length;
+                    replyWordCount += replyText.trim()
+                      ? replyText.trim().split(/\s+/).length
                       : 0;
+                    replyMediaCount += Array.isArray(payload.mediaUrls)
+                      ? payload.mediaUrls.length
+                      : payload.mediaUrl
+                        ? 1
+                        : 0;
 
-                  if (presenceConversationId) {
-                    await computingPresence.stopRun({
-                      conversationId: presenceConversationId,
-                      runId: presenceRunId,
-                    });
-                  }
+                    if (presenceConversationId) {
+                      await computingPresence.stopRun({
+                        conversationId: presenceConversationId,
+                        runId: presenceRunId,
+                      });
+                    }
+                  },
+                  onError: (err, info) => {
+                    const dispatchDuration = Date.now() - dispatchStartTime;
+                    sendErrorCount += 1;
+                    sendErrorKind = info.kind;
+                    runtime.error?.(
+                      `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
+                    );
+                  },
                 },
-                onError: (err, info) => {
-                  const dispatchDuration = Date.now() - dispatchStartTime;
-                  sendErrorCount += 1;
-                  sendErrorKind = info.kind;
-                  runtime.error?.(
-                    `[tlon] ${info.kind} reply failed after ${dispatchDuration}ms: ${String(err)}`
-                  );
-                },
-              },
-            }),
-        });
+              }),
+          });
+        } finally {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+        }
       } catch (error) {
         dispatchError = error;
-        throw error;
+        if (dispatchTimedOut) {
+          contextLenses.setStatus(lens.lensId, 'timed_out', error);
+        } else {
+          contextLenses.setStatus(lens.lensId, 'error', error);
+          throw error;
+        }
       } finally {
+        opts.abortSignal?.removeEventListener('abort', abortFromMonitor);
+        const dispatchDurationMs = Date.now() - dispatchStartTime;
+        contextLenses.completeOpenToolRuns(
+          lens.lensId,
+          dispatchError ? 'error' : 'completed',
+          dispatchError
+        );
+        unbindContextLensFromSession(lensSessionKeys, lens.lensId);
+        contextLenses.recordLifecycle(lens.lensId, {
+          completedAt: Date.now(),
+          durationMs: dispatchDurationMs,
+          timedOut: dispatchTimedOut,
+          deliveredMessageCount,
+          queuedFinal: dispatchResult?.queuedFinal ?? false,
+          queuedFinalCount: dispatchResult?.counts.final ?? 0,
+          queuedBlockCount: dispatchResult?.counts.block ?? 0,
+        });
         await replyTelemetry?.capture({
           sendAttemptCount,
           sendErrorCount,
@@ -2731,7 +3235,7 @@ export async function monitorTlonProvider(
           replyCharCount,
           replyWordCount,
           replyMediaCount,
-          dispatchDurationMs: Date.now() - dispatchStartTime,
+          dispatchDurationMs,
           queuedFinal: dispatchResult?.queuedFinal ?? false,
           queuedFinalCount: dispatchResult?.counts.final ?? 0,
           queuedBlockCount: dispatchResult?.counts.block ?? 0,
@@ -2745,6 +3249,16 @@ export async function monitorTlonProvider(
           thinkLevel: selectedThinkLevel,
           dispatchError,
         });
+        if (!dispatchError) {
+          contextLenses.setStatus(
+            lens.lensId,
+            deliveredMessageCount > 0 ? 'completed' : 'no_reply'
+          );
+        }
+        const finalLens = contextLenses.get(lens.lensId);
+        if (finalLens) {
+          logContextLens(lens.lensId, 'final');
+        }
       }
     };
 
@@ -2841,6 +3355,8 @@ export async function monitorTlonProvider(
                   messageId: `react-${postId}-${ship}-${Date.now()}`,
                   senderShip: ship,
                   messageText: reactText,
+                  trigger: 'reaction',
+                  cachesHistory: true,
                   isGroup: true,
                   channelNest: nest,
                   hostShip: parsed?.hostShip,
@@ -2978,7 +3494,7 @@ export async function monitorTlonProvider(
           botNickname ?? undefined
         );
         const inParticipatedThread = Boolean(
-          isThreadReply && parentId && participatedThreads.has(String(parentId))
+          isThreadReply && parentId && participatedThreads.has(parentId)
         );
         const isOwnerBlob = hasBlob && isOwner(senderShip);
         const engageDecision = shouldEngageInGroup({
@@ -2996,6 +3512,16 @@ export async function monitorTlonProvider(
         if (!engageDecision.engage) {
           return;
         }
+
+        const trigger: ContextLensTrigger = mentioned
+          ? 'mention'
+          : inParticipatedThread
+            ? 'thread'
+            : isOwnerBlob
+              ? 'owner-blob'
+              : engageDecision.reason === 'owner-owned'
+                ? 'owner-listen'
+                : 'unknown';
 
         // Log why we're responding
         if (engageDecision.reason === 'owner-owned') {
@@ -3085,6 +3611,8 @@ export async function monitorTlonProvider(
           messageId: messageId ?? '',
           senderShip,
           messageText,
+          trigger,
+          cachesHistory: true,
           messageContent: content.content, // Pass raw content for media extraction
           blobField: content.blob,
           isGroup: true,
@@ -3262,6 +3790,8 @@ export async function monitorTlonProvider(
                   messageId: `react-${messageId}-${reactAuthor}-${Date.now()}`,
                   senderShip: reactAuthor,
                   messageText: reactText,
+                  trigger: 'reaction',
+                  cachesHistory: true,
                   isGroup: false,
                   timestamp: Date.now(),
                   replyParentId: messageId, // Thread reply for delivery only
@@ -3374,6 +3904,8 @@ export async function monitorTlonProvider(
             messageId: effectiveMessageId ?? '',
             senderShip,
             messageText,
+            trigger: 'dm',
+            cachesHistory: Boolean(rawCacheText.trim()),
             messageContent: dmContent.content,
             blobField: dmContent.blob,
             isGroup: false,
@@ -3416,6 +3948,8 @@ export async function monitorTlonProvider(
           messageId: effectiveMessageId ?? '',
           senderShip,
           messageText,
+          trigger: 'dm',
+          cachesHistory: Boolean(rawCacheText.trim()),
           messageContent: dmContent.content, // Pass raw content for media extraction
           blobField: dmContent.blob,
           isGroup: false,
@@ -3542,7 +4076,7 @@ export async function monitorTlonProvider(
       const applySettingsSnapshot = (
         newSettings: TlonSettingsStore,
         source: 'subscription' | 'refresh',
-        opts: { fresh?: boolean } = {}
+        snapshotOpts: { fresh?: boolean } = {}
       ) => {
         const prevSettings = currentSettings;
 
@@ -3697,7 +4231,7 @@ export async function monitorTlonProvider(
         // unrelated key (e.g. channelRules) cannot reset the shadow via the
         // snapshot's unchanged owner-activity fields.
         const shadowReconcileTrusted =
-          source === 'subscription' || opts.fresh === true;
+          source === 'subscription' || snapshotOpts.fresh === true;
         const ownerActivityChanged =
           prevSettings.lastOwnerMessageAt !== newSettings.lastOwnerMessageAt ||
           prevSettings.lastOwnerMessageDate !==
@@ -3827,6 +4361,11 @@ export async function monitorTlonProvider(
                       !channelNest.startsWith('diary/')
                     ) {
                       continue;
+                    }
+
+                    const channelTitle = extractMetadataTitle(_channelData);
+                    if (channelTitle) {
+                      channelNameCache.set(channelNest, channelTitle);
                     }
 
                     // If this is a new channel we're not watching yet, add it
