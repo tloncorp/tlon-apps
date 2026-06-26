@@ -36,6 +36,14 @@ export type RootStackParamList = {
     channelId: string;
     groupId: string;
   };
+  ContextLensRuns: {
+    channelId?: string;
+  };
+  ContextLensRun: {
+    botShip: string;
+    lensId: string;
+    channelId?: string;
+  };
   Post: {
     postId: string;
     channelId: string;
