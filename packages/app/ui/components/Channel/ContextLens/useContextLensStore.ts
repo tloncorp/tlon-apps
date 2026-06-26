@@ -1,5 +1,6 @@
 import { preSig } from '@tloncorp/api/lib/urbit';
 import * as db from '@tloncorp/shared/db';
+import { conversationMatchesChannel } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
@@ -220,6 +221,26 @@ export function useContextLensEvents(): LensStreamState {
   );
 }
 
+// Match a live gateway event to a channel. Live events don't carry the bot
+// ship, so for DM matching resolve it from the synced rows when available;
+// before a %context-lens row has synced for a new lensId, fall back to the
+// channel id itself (a DM channel id is the bot ship). Ignored for group
+// matching, which keys off the conversation nest.
+export function liveEventMatchesChannel(
+  event: ContextLensEvent,
+  channelId: string,
+  botShipByLensId?: Map<string, string>
+) {
+  return conversationMatchesChannel(
+    {
+      chatType: event.lens.chatType,
+      conversationId: event.lens.triggerDetails?.conversationId ?? null,
+    },
+    botShipByLensId?.get(event.lens.lensId) ?? channelId,
+    channelId
+  );
+}
+
 export function useContextLensRuns(events: ContextLensEvent[]) {
   return useMemo(() => {
     const latestByLens = new Map<string, ContextLensEvent>();
@@ -239,8 +260,20 @@ export function useContextLensController(params?: {
     useState<ContextLensSelectedMessage | null>(null);
   const contextLensStream = useContextLensEvents();
   const contextLensRuns = useContextLensRuns(contextLensStream.events);
+  // Availability can be channel-scoped, so scope the active flag to the same
+  // channel — otherwise an active run in another channel would light up this
+  // channel's UI.
+  const scopedRuns = useMemo(() => {
+    const channelId = params?.channel?.id;
+    if (!channelId) {
+      return contextLensRuns;
+    }
+    return contextLensRuns.filter((event) =>
+      liveEventMatchesChannel(event, channelId)
+    );
+  }, [contextLensRuns, params?.channel?.id]);
   const contextLensActive =
-    contextLensAvailable && contextLensRuns.some(isContextLensEventActive);
+    contextLensAvailable && scopedRuns.some(isContextLensEventActive);
 
   useEffect(() => {
     if (!contextLensAvailable && open) {

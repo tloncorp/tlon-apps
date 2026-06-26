@@ -1,7 +1,4 @@
-import {
-  conversationMatchesChannel,
-  lensRunMatchesChannel,
-} from '@tloncorp/shared/logic';
+import { lensRunMatchesChannel } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable } from '@tloncorp/ui';
 import { useEffect, useMemo, useState } from 'react';
@@ -22,6 +19,7 @@ import {
   lensFromRunPayload,
 } from './types';
 import {
+  liveEventMatchesChannel,
   useContextLensGatewayConfig,
   useContextLensRuns,
 } from './useContextLensStore';
@@ -52,24 +50,6 @@ function preferred(
   fallback: ContextLensEvent
 ): ContextLensEvent {
   return candidate && prefersEvent(candidate, fallback) ? candidate : fallback;
-}
-
-// Live gateway events don't carry the bot ship, so resolve it from the synced
-// rows for DM matching; group-channel matching keys off the conversation nest
-// and doesn't need it.
-function eventMatchesChannel(
-  event: ContextLensEvent,
-  channelId: string,
-  botShipByLensId: Map<string, string>
-) {
-  return conversationMatchesChannel(
-    {
-      chatType: event.lens.chatType,
-      conversationId: event.lens.triggerDetails?.conversationId ?? null,
-    },
-    botShipByLensId.get(event.lens.lensId) ?? null,
-    channelId
-  );
 }
 
 function findEventForLensId(events: ContextLensEvent[], lensId: string) {
@@ -214,7 +194,7 @@ export function ContextLensPanel({
     () =>
       channelId
         ? allLiveRuns.filter((event) =>
-            eventMatchesChannel(event, channelId, botShipByLensId)
+            liveEventMatchesChannel(event, channelId, botShipByLensId)
           )
         : allLiveRuns,
     [allLiveRuns, channelId, botShipByLensId]
@@ -265,11 +245,13 @@ export function ContextLensPanel({
           lens: lookupResult.lens,
         } satisfies ContextLensEvent)
       : undefined;
+  // Read the selected run from the merged history (live + synced, final
+  // preferred) so the inspector tracks a finalized synced row instead of
+  // staying pinned to the stale snapshot captured at selection time. Fall back
+  // to the frozen selection if it has aged out of the list.
   const selectedRunEvent = selectedRun
-    ? preferred(
-        findEventForLensId(events, selectedRun.lens.lensId),
-        selectedRun
-      )
+    ? runs.find((event) => event.lens.lensId === selectedRun.lens.lensId) ??
+      selectedRun
     : undefined;
   // prefer the more authoritative of the live event and the synced lookup so a
   // stale in-flight live snapshot can't mask a finalized synced row
