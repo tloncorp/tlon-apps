@@ -2742,13 +2742,17 @@ export async function monitorTlonProvider(
         CommandSource: 'text' as const,
         Provider: 'tlon',
         Surface: 'tlon',
-        // Suffix retries so the SDK's inbound dedupe (20m TTL on
-        // {sessionScope, routeKey, MessageSid}) doesn't short-circuit a retry
-        // that reuses the original message's id. The lens record keeps the
-        // original messageId; the dedupe-only id is unique per retry attempt.
+        // The SDK's inbound dedupe keys off {sessionScope, routeKey, MessageSid}
+        // with a 20m TTL, and a failed run commits that entry — so a manual retry
+        // reusing the original message id would be silently dropped. Suffix the
+        // dedupe-facing MessageSid per retry to bust that, but keep MessageSidFull
+        // pointing at the real provider id (the field exists exactly for "MessageSid
+        // is a shortened alias") so downstream consumers that resolve the canonical
+        // message id don't see the synthetic token.
         MessageSid: params.retryOf
           ? `${messageId}#retry:${lens.lensId}`
           : messageId,
+        MessageSidFull: messageId,
         // Include downloaded media attachments (MediaPaths/MediaUrls/MediaTypes for OpenClaw media pipeline)
         ...(attachments.length > 0 && {
           MediaPaths: attachments.map((a) => a.path),
