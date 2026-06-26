@@ -6,13 +6,19 @@ import type { OpenClawConfig, ReplyPayload } from 'openclaw/plugin-sdk/core';
 import type { RuntimeEnv } from 'openclaw/plugin-sdk/runtime';
 
 import {
+  findRecentContextLensById,
   publishContextLensEvent,
   setContextLensEventCapacity,
 } from '../context-lens-events.js';
-import { isContextLensEffectivelyEnabled } from '../context-lens-ship-sync.js';
+import {
+  isContextLensEffectivelyEnabled,
+  resolveLensOwner,
+} from '../context-lens-ship-sync.js';
+import { getContextLensStore } from '../context-lens-store.js';
 import {
   type ContextLensTrigger,
   bindContextLensToSession,
+  buildRetryDispatch,
   createContextLensRegistry,
   unbindContextLensFromSession,
 } from '../context-lens.js';
@@ -1922,6 +1928,7 @@ export async function monitorTlonProvider(
       parentId?: string | null;
       isThreadReply?: boolean;
       replyParentId?: string | null; // Override parentId for delivery only (not in ctx payload)
+      retryOf?: string; // lensId of the failed run this dispatch retries
     }) => {
       const {
         messageId,
@@ -2003,6 +2010,15 @@ export async function monitorTlonProvider(
         conversationId: isGroup ? groupChannel ?? '' : senderShip,
         receivedAt: timestamp,
         preview: previewText(messageText),
+        ...(params.retryOf ? { retryOf: params.retryOf } : {}),
+        retrySeed: {
+          messageText: rawMessageText,
+          blobField: params.blobField ?? null,
+          parentId: parentId ?? null,
+          isThreadReply: Boolean(isThreadReply),
+          replyParentId: params.replyParentId ?? null,
+          cachesHistory: Boolean(params.cachesHistory),
+        },
       });
       contextLenses.recordPersistence(lens.lensId, {
         cachesHistory: Boolean(params.cachesHistory),
@@ -3797,6 +3813,146 @@ export async function monitorTlonProvider(
         },
       });
       runtime.log?.('[tlon] Subscribed to contacts updates (/v1/news)');
+
+      // Subscribe to the bot ship's %steward lens module for owner-initiated
+      // retries. The agent verifies the requester before emitting the fact;
+      // the checks here are defense-in-depth. /v1/lens carries both %entry
+      // and %retry-requested updates — we ignore entries (they're echoes of
+      // our own pokes) and act only on the retry signal.
+      if (contextLensEnabled) {
+        const recentRetryDispatches = new Map<string, number>();
+        const RETRY_DEDUP_MS = 60_000;
+        const handleLensRetryFact = async (data: unknown) => {
+          const update = (
+            data as {
+              lens?: {
+                'retry-requested'?: { id?: unknown; requester?: unknown };
+              };
+            } | null
+          )?.lens?.['retry-requested'];
+          if (!update) {
+            // %entry updates (our own pokes echoing back) — ignore.
+            return;
+          }
+          const lensId = typeof update.id === 'string' ? update.id : '';
+          const requester =
+            typeof update.requester === 'string'
+              ? normalizeShip(update.requester)
+              : '';
+          if (!lensId || !requester) {
+            return;
+          }
+          // Align with the singular owner the agent actually stores; any
+          // "extra" configured owners are ignored at sync-configure time too,
+          // so accepting their retries here would be inconsistent.
+          const owner = resolveLensOwner(cfg, opts.accountId ?? undefined);
+          if (!owner || owner !== requester) {
+            runtime.log?.(
+              `[tlon] Context lens retry refused for ${lensId}: requester ${requester} is not the configured owner`
+            );
+            return;
+          }
+          const now = Date.now();
+          for (const [id, ts] of recentRetryDispatches) {
+            if (now - ts > RETRY_DEDUP_MS) {
+              recentRetryDispatches.delete(id);
+            }
+          }
+          if (recentRetryDispatches.has(lensId)) {
+            runtime.log?.(
+              `[tlon] Context lens retry ignored for ${lensId}: recently dispatched`
+            );
+            return;
+          }
+          // Reserve the dedup slot before the first await so two concurrent
+          // retry facts for the same lensId can't both pass the check above.
+          recentRetryDispatches.set(lensId, now);
+          const lens =
+            contextLenses.get(lensId) ??
+            findRecentContextLensById(lensId) ??
+            getContextLensStore()?.get(lensId);
+          if (!lens) {
+            recentRetryDispatches.delete(lensId);
+            runtime.log?.(
+              `[tlon] Context lens retry refused: run ${lensId} not found`
+            );
+            return;
+          }
+          const result = buildRetryDispatch(lens);
+          if (!result.ok) {
+            recentRetryDispatches.delete(lensId);
+            runtime.log?.(
+              `[tlon] Context lens retry refused for ${lensId}: ${result.reason}`
+            );
+            return;
+          }
+          const dispatch = result.dispatch;
+          if (await isShipBlocked(dispatch.senderShip)) {
+            recentRetryDispatches.delete(lensId);
+            runtime.log?.(
+              `[tlon] Context lens retry refused for ${lensId}: original sender ${dispatch.senderShip} is blocked`
+            );
+            return;
+          }
+          runtime.log?.(
+            `[tlon] Context lens retry dispatching for ${lensId} (requested by ${requester})${
+              dispatch.degraded
+                ? ' [degraded: no retry seed, using preview]'
+                : ''
+            }`
+          );
+          await processMessage({
+            messageId: lens.messageId,
+            senderShip: dispatch.senderShip,
+            messageText: dispatch.messageText,
+            blobField: dispatch.blobField,
+            isGroup: dispatch.isGroup,
+            ...(dispatch.channelNest
+              ? { channelNest: dispatch.channelNest }
+              : {}),
+            timestamp: Date.now(),
+            parentId: dispatch.parentId,
+            isThreadReply: dispatch.isThreadReply,
+            replyParentId: dispatch.replyParentId,
+            cachesHistory: dispatch.cachesHistory,
+            trigger: 'retry',
+            retryOf: lensId,
+          });
+        };
+        try {
+          await api.subscribe({
+            app: 'steward',
+            path: '/v1/lens',
+            event: (data) => {
+              handleLensRetryFact(data).catch((error: any) => {
+                runtime.error?.(
+                  `[tlon] Steward lens retry handler error: ${error?.message ?? String(error)}`
+                );
+              });
+            },
+            err: (error) => {
+              runtime.error?.(
+                `[tlon] Steward lens subscription error: ${String(error)}`
+              );
+            },
+            quit: () => {
+              runtime.log?.(
+                '[tlon] Steward lens quit received, SSE client will resubscribe'
+              );
+            },
+          });
+          runtime.log?.(
+            '[tlon] Subscribed to steward lens facts (/v1/lens) for retry signals'
+          );
+        } catch (error: any) {
+          // Ships without %steward (or older context-lens-only ships) nack
+          // the subscribe; retries are unavailable but everything else keeps
+          // working.
+          runtime.log?.(
+            `[tlon] Steward lens subscription unavailable: ${error?.message ?? String(error)}`
+          );
+        }
+      }
 
       // Subscribe to settings store for hot-reloading config
       const applySettingsSnapshot = (
