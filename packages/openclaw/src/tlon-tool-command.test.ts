@@ -167,6 +167,40 @@ describe('tlon tool telemetry summarizer', () => {
     expect(JSON.stringify(summary)).not.toContain('Project Notes');
   });
 
+  it('captures notes channel kinds from channel creation', () => {
+    const summary = summarizeTlonCommand(
+      'channels create ~zod/quiet-launch "Project Notes" --kind notes --description "private notes"'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'channels.create',
+      intent: 'write',
+      channelKind: 'notes',
+      hasTitle: true,
+      hasDescription: true,
+    });
+
+    const serialized = JSON.stringify(summary);
+    expect(serialized).not.toContain('~zod/quiet-launch');
+    expect(serialized).not.toContain('Project Notes');
+    expect(serialized).not.toContain('private notes');
+  });
+
+  it('matches the default chat kind for channel creation', () => {
+    const summary = summarizeTlonCommand(
+      'channels create ~zod/quiet-launch "General"'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'channels.create',
+      intent: 'write',
+      channelKind: 'chat',
+      hasTitle: true,
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('General');
+  });
+
   it('captures notes channel kinds from notes nests', () => {
     const summary = summarizeTlonCommand(
       'channels info notes/~zod/quiet-launch'
@@ -187,5 +221,20 @@ describe('tlon tool telemetry summarizer', () => {
       summaryKey: 'channels.info',
     });
     expect(summary.channelKind).toBeUndefined();
+  });
+
+  it('classifies channel renames as writes without leaking the new title', () => {
+    const summary = summarizeTlonCommand(
+      'channels rename notes/~zod/quiet-launch "Private Roadmap"'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'channels.rename',
+      intent: 'write',
+      channelKind: 'notes',
+      hasTitle: true,
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('Private Roadmap');
   });
 });

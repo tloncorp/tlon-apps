@@ -414,10 +414,27 @@ function summarizeChannelsOperation(
 ): TlonToolCallContext {
   const positionals = collectPositionals(args);
   switch (operation) {
+    case 'create': {
+      const kind = getOptionValue(args, ['--kind']);
+      const createPositionals = collectPositionals(
+        args,
+        new Set(['--kind', '--description'])
+      );
+      return build('write', {
+        channelKind: kind == null ? 'chat' : parseChannelKind(kind),
+        hasTitle: createPositionals.length > 1,
+        hasDescription: hasFlag(args, '--description'),
+      });
+    }
     case 'update':
       return build('write', {
         channelKind: detectChannelKind(positionals[0]),
         hasTitle: hasFlag(args, '--title'),
+      });
+    case 'rename':
+      return build('write', {
+        channelKind: detectChannelKind(positionals[0]),
+        hasTitle: positionals.length > 1,
       });
     case 'delete':
       return build('admin', {
