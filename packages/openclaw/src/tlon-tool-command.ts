@@ -563,10 +563,12 @@ function summarizeGroupsOperation(
       return build('admin', {
         memberCount: Math.max(0, positionals.length - 2),
       });
-    case 'add-channel':
+    case 'add-channel': {
+      const kind = getOptionValue(args, ['--kind']);
       return build('admin', {
-        channelKind: parseChannelKind(getOptionValue(args, ['--kind'])),
+        channelKind: kind == null ? 'chat' : parseChannelKind(kind),
       });
+    }
     default:
       return build(
         operation === 'list' || operation === 'info' ? 'read' : 'admin'

@@ -167,6 +167,19 @@ describe('tlon tool telemetry summarizer', () => {
     expect(JSON.stringify(summary)).not.toContain('Project Notes');
   });
 
+  it('matches the default chat kind for group channel creation', () => {
+    const summary = summarizeTlonCommand(
+      'groups add-channel ~zod/quiet-launch "General"'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'groups.add-channel',
+      channelKind: 'chat',
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('General');
+  });
+
   it('captures notes channel kinds from channel creation', () => {
     const summary = summarizeTlonCommand(
       'channels create ~zod/quiet-launch "Project Notes" --kind notes --description "private notes"'
