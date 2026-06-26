@@ -167,6 +167,7 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
     'notes',
     new Set([
       'status',
+      'request',
       'list',
       'show',
       'notes',
@@ -476,7 +477,10 @@ function summarizeContactsOperation(
     >
   ) => TlonToolCallContext
 ): TlonToolCallContext {
-  const positionals = collectPositionals(args);
+  const positionals = collectPositionals(
+    args,
+    new Set(['--nickname', '--avatar'])
+  );
   switch (operation) {
     case 'update-profile':
       return build('write', {
@@ -486,8 +490,17 @@ function summarizeContactsOperation(
       });
     case 'add':
     case 'remove':
+    case 'del':
       return build('write', {
         contactCount: positionals.length,
+      });
+    case 'update':
+      return build('write', {
+        contactCount: positionals.length > 0 ? 1 : 0,
+        updateFields: PROFILE_UPDATE_FIELDS.filter(
+          ({ field, flag }) =>
+            (field === 'nickname' || field === 'avatar') && hasFlag(args, flag)
+        ).map(({ field }) => field),
       });
     case 'sync':
       return build('read', {
@@ -521,6 +534,7 @@ function summarizeGroupsOperation(
   );
   switch (operation) {
     case 'create':
+    case 'create-owned':
       return build('write', {
         hasDescription: hasFlag(args, '--description'),
       });
@@ -692,6 +706,7 @@ function summarizeNotesOperation(
     hasFlag(args, '--body', '--markdown') || hasFlag(args, '--stdin');
   switch (operation) {
     case 'status':
+    case 'request':
     case 'list':
     case 'show':
     case 'notes':

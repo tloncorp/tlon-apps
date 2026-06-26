@@ -2,7 +2,152 @@ import { describe, expect, it } from 'vitest';
 
 import { summarizeTlonCommand } from './tlon-tool-command.js';
 
+const documentedActionOperations = {
+  activity: ['mentions', 'replies', 'all', 'unreads'],
+  channels: [
+    'dms',
+    'group-dms',
+    'groups',
+    'all',
+    'info',
+    'create',
+    'update',
+    'rename',
+    'delete',
+    'add-writers',
+    'del-writers',
+    'add-readers',
+    'del-readers',
+  ],
+  contacts: [
+    'list',
+    'self',
+    'get',
+    'sync',
+    'add',
+    'remove',
+    'del',
+    'update',
+    'update-profile',
+  ],
+  dms: ['send', 'reply', 'react', 'unreact', 'delete', 'accept', 'decline'],
+  expose: ['list', 'show', 'hide', 'check', 'url'],
+  groups: [
+    'list',
+    'create',
+    'create-owned',
+    'invite',
+    'info',
+    'leave',
+    'join',
+    'request-invite',
+    'accept-invite',
+    'reject-invite',
+    'cancel-join',
+    'rescind-request',
+    'revoke-invite',
+    'delete',
+    'update',
+    'kick',
+    'ban',
+    'unban',
+    'add-role',
+    'delete-role',
+    'update-role',
+    'assign-role',
+    'remove-role',
+    'set-privacy',
+    'accept-join',
+    'reject-join',
+    'promote',
+    'demote',
+    'add-channel',
+  ],
+  hooks: [
+    'init',
+    'list',
+    'get',
+    'add',
+    'edit',
+    'delete',
+    'del',
+    'order',
+    'config',
+    'cron',
+    'rest',
+  ],
+  messages: ['dm', 'channel', 'history', 'search', 'context', 'post'],
+  notes: [
+    'status',
+    'request',
+    'list',
+    'show',
+    'notes',
+    'note',
+    'create',
+    'note-create',
+    'note-update',
+    'note-rename',
+    'note-move',
+    'note-delete',
+    'history',
+    'folders',
+    'folder',
+    'folder-create',
+    'folder-rename',
+    'folder-move',
+    'folder-delete',
+    'members',
+    'join',
+    'leave',
+  ],
+  posts: ['send', 'reply', 'react', 'unreact', 'edit', 'delete'],
+  settings: [
+    'get',
+    'set',
+    'delete',
+    'del',
+    'allow-dm',
+    'add-dm',
+    'remove-dm',
+    'allow-channel',
+    'add-channel',
+    'remove-channel',
+    'open-channel',
+    'restrict-channel',
+    'set-rule',
+    'authorize-ship',
+    'add-auth',
+    'deauthorize-ship',
+    'remove-auth',
+  ],
+} as const;
+
 describe('tlon tool telemetry summarizer', () => {
+  it('accounts for documented tlon action operations', () => {
+    for (const [subcommand, operations] of Object.entries(
+      documentedActionOperations
+    )) {
+      for (const operation of operations) {
+        const summary = summarizeTlonCommand(`${subcommand} ${operation}`);
+        expect(summary).toMatchObject({
+          summaryKey: `${subcommand}.${operation}`,
+          subcommand,
+          operation,
+          isKnownSubcommand: true,
+        });
+        expect(summary.operation).not.toBe('invalid');
+      }
+    }
+
+    expect(summarizeTlonCommand('upload ./avatar.png')).toMatchObject({
+      summaryKey: 'upload.upload',
+      subcommand: 'upload',
+      operation: 'upload',
+      isKnownSubcommand: true,
+    });
+  });
+
   it('classifies group creation without leaking the group name', () => {
     const summary = summarizeTlonCommand(
       'groups create "Launch Planning" --description "Highly confidential"'
@@ -100,6 +245,53 @@ describe('tlon tool telemetry summarizer', () => {
     expect(serialized).not.toContain('hello');
   });
 
+  it('classifies contact metadata updates without leaking ships or values', () => {
+    const summary = summarizeTlonCommand(
+      'contacts update ~sampel-palnet --nickname "Private Label" --avatar https://assets.example.com/contact.png'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'contacts.update',
+      intent: 'write',
+      contactCount: 1,
+      updateFields: ['nickname', 'avatar'],
+    });
+
+    const serialized = JSON.stringify(summary);
+    expect(serialized).not.toContain('~sampel-palnet');
+    expect(serialized).not.toContain('Private Label');
+    expect(serialized).not.toContain('https://assets.example.com/contact.png');
+  });
+
+  it('classifies contact deletion aliases as writes', () => {
+    const summary = summarizeTlonCommand('contacts del ~sampel-palnet');
+
+    expect(summary).toMatchObject({
+      summaryKey: 'contacts.del',
+      intent: 'write',
+      contactCount: 1,
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('~sampel-palnet');
+  });
+
+  it('classifies owned group creation without leaking title or owner', () => {
+    const summary = summarizeTlonCommand(
+      'groups create-owned "Launch Planning" --owner ~sampel-palnet --description "Highly confidential"'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'groups.create-owned',
+      intent: 'write',
+      hasDescription: true,
+    });
+
+    const serialized = JSON.stringify(summary);
+    expect(serialized).not.toContain('Launch Planning');
+    expect(serialized).not.toContain('~sampel-palnet');
+    expect(serialized).not.toContain('Highly confidential');
+  });
+
   it('captures upload source without storing the original path', () => {
     const summary = summarizeTlonCommand(
       'upload https://cdn.example.com/private-assets/avatar.png --type image/png'
@@ -152,6 +344,20 @@ describe('tlon tool telemetry summarizer', () => {
     expect(serialized).not.toContain('notes/~zod/private');
     expect(serialized).not.toContain('Launch Plan');
     expect(serialized).not.toContain('./launch.md');
+  });
+
+  it('summarizes notes request status checks without leaking request ids', () => {
+    const summary = summarizeTlonCommand('notes request 0vprivate-request-id');
+
+    expect(summary).toMatchObject({
+      summaryKey: 'notes.request',
+      subcommand: 'notes',
+      operation: 'request',
+      intent: 'read',
+      isKnownSubcommand: true,
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('0vprivate-request-id');
   });
 
   it('captures notes channel kinds from group channel creation', () => {
