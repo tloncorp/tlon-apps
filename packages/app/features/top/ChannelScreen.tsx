@@ -145,8 +145,14 @@ export default function ChannelScreen(props: Props) {
     }
   }, [currentChannelId, isFocused]);
 
-  const { navigateToImage, navigateToPost, navigateToRef, navigateToSearch } =
-    useChannelNavigation({ channelId: currentChannelId });
+  const {
+    navigateToImage,
+    navigateToPost,
+    navigateToRef,
+    navigateToSearch,
+    navigateToContextLensRuns,
+    navigateToContextLensRun,
+  } = useChannelNavigation({ channelId: currentChannelId });
   const { navigation } = useRootNavigation();
   const navigationRef = useRef(props.navigation);
   const isWindowNarrow = useIsWindowNarrow();
@@ -435,6 +441,8 @@ export default function ChannelScreen(props: Props) {
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
           goToSearch={navigateToSearch}
+          goToContextLensRuns={navigateToContextLensRuns}
+          goToContextLensRun={navigateToContextLensRun}
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
           goToChannelDetails={handleGoToChannelDetails}
