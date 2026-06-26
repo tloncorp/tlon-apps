@@ -653,6 +653,7 @@ function summarizeMessagesOperation(
         dmTargetKind: detectDmTargetKind(positionals[0]),
       });
     case 'channel':
+    case 'history':
     case 'context':
     case 'post':
       return build('read', {
@@ -902,7 +903,11 @@ function parseChannelKind(
   if (!value) {
     return undefined;
   }
-  const kind = value.split('/', 1)[0];
+  const parts = value.split('/');
+  const kind =
+    parts[0] === '' && parts[1] === '1' && parts[2] === 'chan'
+      ? parts[3]
+      : parts[0];
   return kind === 'chat' || kind === 'heap' || kind === 'notes'
     ? kind
     : undefined;

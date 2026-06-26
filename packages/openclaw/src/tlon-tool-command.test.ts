@@ -236,6 +236,51 @@ describe('tlon tool telemetry summarizer', () => {
     expect(summary.channelKind).toBeUndefined();
   });
 
+  it('captures channel kinds from message history aliases', () => {
+    const summary = summarizeTlonCommand(
+      'messages history chat/~zod/quiet-launch --limit 5 --resolve-cites'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'messages.history',
+      intent: 'read',
+      channelKind: 'chat',
+      limit: 5,
+      resolveCites: true,
+    });
+
+    expect(JSON.stringify(summary)).not.toContain('chat/~zod/quiet-launch');
+  });
+
+  it('captures channel kinds from full expose cite paths', () => {
+    const summary = summarizeTlonCommand(
+      'expose show /1/chan/heap/~zod/quiet-launch/curio/170.141'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'expose.show',
+      intent: 'admin',
+      channelKind: 'heap',
+    });
+
+    const serialized = JSON.stringify(summary);
+    expect(serialized).not.toContain('/1/chan/heap');
+    expect(serialized).not.toContain('~zod/quiet-launch');
+    expect(serialized).not.toContain('170.141');
+  });
+
+  it('does not report removed diary full cite paths as a live channel kind', () => {
+    const summary = summarizeTlonCommand(
+      'expose check /1/chan/diary/~zod/quiet-launch/note/170.141'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'expose.check',
+      intent: 'read',
+    });
+    expect(summary.channelKind).toBeUndefined();
+  });
+
   it('classifies channel renames as writes without leaking the new title', () => {
     const summary = summarizeTlonCommand(
       'channels rename notes/~zod/quiet-launch "Private Roadmap"'
