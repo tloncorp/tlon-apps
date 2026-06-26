@@ -97,6 +97,49 @@ export const useSettings = () => {
   });
 };
 
+export const useContextLensRun = ({
+  botShip,
+  lensId,
+}: {
+  botShip: string;
+  lensId: string;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensRun);
+  return useQuery({
+    queryKey: ['contextLensRun', deps, botShip, lensId],
+    queryFn: () => db.getContextLensRun({ botShip, lensId }),
+  });
+};
+
+export const useRecentContextLensRuns = (count?: number) => {
+  const deps = useKeyFromQueryDeps(db.getRecentContextLensRuns);
+  return useQuery({
+    queryKey: ['recentContextLensRuns', deps, count],
+    queryFn: () => db.getRecentContextLensRuns({ count }),
+  });
+};
+
+export const useContextLensBotShips = () => {
+  const deps = useKeyFromQueryDeps(db.getContextLensBotShips);
+  return useQuery({
+    queryKey: ['contextLensBotShips', deps],
+    queryFn: () => db.getContextLensBotShips(),
+  });
+};
+
+export const useContextLensBotsInChat = ({
+  chatId,
+}: {
+  chatId: string | null;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getContextLensBotsInChat);
+  return useQuery({
+    queryKey: ['contextLensBotsInChat', deps, chatId],
+    queryFn: () =>
+      chatId ? db.getContextLensBotsInChat({ chatId }) : Promise.resolve([]),
+  });
+};
+
 export const useCalmSettings = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
@@ -644,6 +687,24 @@ export const usePostWithRelations = (
     gcTime: PER_POST_GC_TIME_MS,
     ...(initialData ? { initialData } : {}),
     queryFn: () => (options == null ? null : db.getPostWithRelations(options)),
+  });
+};
+
+export const usePostBySentAt = (
+  options: { channelId: string; authorId: string; sentAt: number } | null
+) => {
+  const deps = useKeyFromQueryDeps(db.getPostBySentAt);
+  return useQuery({
+    enabled: options != null,
+    queryKey: [
+      'postBySentAt',
+      options?.channelId,
+      options?.authorId,
+      options?.sentAt,
+      deps,
+    ],
+    gcTime: PER_POST_GC_TIME_MS,
+    queryFn: () => (options == null ? null : db.getPostBySentAt(options)),
   });
 };
 

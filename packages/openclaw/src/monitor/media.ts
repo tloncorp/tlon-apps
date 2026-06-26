@@ -394,6 +394,8 @@ export async function downloadBlobAttachments(
       continue;
     }
 
+    // non-media entries (e.g. a tlon-context-lens bot-run reference) aren't in
+    // the downloadable allowlist above, so they're already skipped here.
     const uri = entry.fileUri;
     if (!uri) {
       continue;
@@ -409,8 +411,9 @@ export async function downloadBlobAttachments(
       continue;
     }
 
-    if (entry.size !== undefined && entry.size > MAX_BLOB_DOWNLOAD_BYTES) {
-      notices.push(formatBlobTooLargeNotice(entry, entry.size));
+    const declaredSize = 'size' in entry ? entry.size : undefined;
+    if (declaredSize !== undefined && declaredSize > MAX_BLOB_DOWNLOAD_BYTES) {
+      notices.push(formatBlobTooLargeNotice(entry, declaredSize));
       continue;
     }
 
@@ -440,8 +443,9 @@ function formatBlobTooLargeNotice(
   entry: DownloadableBlobEntry,
   sizeBytes?: number
 ): string {
+  const name = 'name' in entry ? entry.name : undefined;
   const label =
-    entry.type === 'voicememo' ? 'voice memo' : entry.name || 'blob attachment';
+    entry.type === 'voicememo' ? 'voice memo' : name || 'blob attachment';
   const sizeText =
     sizeBytes !== undefined ? formatFileSize(sizeBytes) : 'unknown size';
   return `[blob not downloaded: ${label} is ${sizeText}, over the ${formatFileSize(MAX_BLOB_DOWNLOAD_BYTES)} limit]`;

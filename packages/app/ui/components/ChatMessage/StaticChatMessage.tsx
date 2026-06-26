@@ -9,6 +9,7 @@ import { CHAT_REF_LIKE_MAX_WIDTH } from '../../../constants';
 import { useA2UINavigation } from '../../../hooks/useA2UINavigation';
 import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import AuthorRow from '../AuthorRow';
+import { ContextLensBadge } from '../Channel/ContextLens/ContextLensBadge';
 import { A2UIBlock } from '../PostContent/A2UIBlock';
 import { DefaultRendererProps } from '../PostContent/BlockRenderer';
 import { createContentRenderer } from '../PostContent/ContentRenderer';
@@ -34,6 +35,7 @@ export function StaticChatMessage({
   hideSentAtTimestamp,
   isHighlighted,
   onLongPress,
+  onPressBotRun,
   onPressImage,
   onPressReplies,
   onPressRetry,
@@ -49,6 +51,7 @@ export function StaticChatMessage({
   hideSentAtTimestamp?: boolean;
   isHighlighted?: boolean;
   onLongPress?: (post: db.Post) => void;
+  onPressBotRun?: (post: db.Post) => void;
   onPressDelete?: (post: db.Post) => void;
   onPressImage?: (post: db.Post, imageUri?: string) => void;
   onPressReplies?: (post: db.Post) => void;
@@ -240,6 +243,8 @@ export function StaticChatMessage({
           />
         )}
       </View>
+
+      <ContextLensBadge post={post} onPress={onPressBotRun} />
 
       {post.reactions && post.reactions.length > 0 && (
         <View paddingBottom="$l" paddingLeft="$4xl">
