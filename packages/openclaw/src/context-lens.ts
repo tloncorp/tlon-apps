@@ -57,6 +57,10 @@ export type ContextLensTriggerDetails = {
 export type ContextLensRetrySeed = {
   messageText: string;
   blobField?: string | null;
+  // Raw Tlon Story content, persisted so a retry can re-attach media that
+  // lives in image blocks (not blobField) — downloadMessageImages rebuilds
+  // MediaPaths from the durable image URLs it carries.
+  messageContent?: unknown;
   parentId?: string | null;
   isThreadReply?: boolean;
   replyParentId?: string | null;
@@ -310,6 +314,7 @@ export type RetryDispatch = {
   senderShip: string;
   messageText: string;
   blobField?: string | null;
+  messageContent?: unknown;
   isGroup: boolean;
   channelNest?: string;
   parentId?: string | null;
@@ -350,11 +355,16 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
   const seed = lens.retrySeed;
   const messageText = seed?.messageText ?? lens.triggerDetails.preview ?? '';
   const blobField = seed?.blobField ?? null;
-  // A blob-only run (e.g. a voice memo or file with no text) is dispatchable:
-  // the inbound path accepts hasBlob and processMessage rebuilds the prompt
-  // from blobField. Only reject when there's neither text nor a blob to replay.
-  if (!messageText.trim() && !blobField) {
-    return { ok: false, reason: 'no message text or blob available to retry' };
+  const messageContent = seed?.messageContent ?? null;
+  // A run with no text is still dispatchable when it carries media: a blob
+  // attachment (voice memo/file via blobField) or image blocks in the Story
+  // content (downloadMessageImages re-attaches them). Only reject when there's
+  // nothing — no text, blob, or content — to replay.
+  if (!messageText.trim() && !blobField && !messageContent) {
+    return {
+      ok: false,
+      reason: 'no message text, blob, or content available to retry',
+    };
   }
   return {
     ok: true,
@@ -363,6 +373,7 @@ export function buildRetryDispatch(lens: ContextLens): RetryDispatchResult {
       senderShip,
       messageText,
       blobField,
+      messageContent,
       isGroup,
       ...(isGroup && conversationId ? { channelNest: conversationId } : {}),
       parentId: seed?.parentId ?? null,

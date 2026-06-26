@@ -821,6 +821,7 @@ describe('retry seed and dispatch', () => {
         senderShip: '~ten',
         messageText: 'full original text',
         blobField: null,
+        messageContent: null,
         isGroup: true,
         channelNest: 'chat/~ten/test',
         parentId: '170.5',
@@ -903,7 +904,7 @@ describe('retry seed and dispatch', () => {
     const noTextLens = registry.setStatus(noText.lensId, 'no_reply');
     expect(buildRetryDispatch(noTextLens!)).toEqual({
       ok: false,
-      reason: 'no message text or blob available to retry',
+      reason: 'no message text, blob, or content available to retry',
     });
   });
 
@@ -926,6 +927,32 @@ describe('retry seed and dispatch', () => {
     if (result.ok) {
       expect(result.dispatch.messageText).toBe('');
       expect(result.dispatch.blobField).toBe('{"voice":"memo"}');
+    }
+  });
+
+  it('preserves messageContent so image-block media can be re-attached', () => {
+    const registry = createContextLensRegistry({ ttlMs: 60_000 });
+    const messageContent = [
+      { block: { image: { src: 'https://example.com/cat.png' } } },
+    ];
+    // an image-only message: no text, no blobField, media lives in the Story
+    const imageRun = registry.create({
+      messageId: 'message-retry-image',
+      chatType: 'dm',
+      trigger: 'dm',
+      sessionKey: 'session-retry-image',
+      senderShip: '~ten',
+      retrySeed: {
+        messageText: '',
+        messageContent,
+      },
+    });
+    const imageLens = registry.setStatus(imageRun.lensId, 'error');
+    const result = buildRetryDispatch(imageLens!);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.dispatch.messageText).toBe('');
+      expect(result.dispatch.messageContent).toEqual(messageContent);
     }
   });
 });

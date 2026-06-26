@@ -2014,6 +2014,7 @@ export async function monitorTlonProvider(
         retrySeed: {
           messageText: rawMessageText,
           blobField: params.blobField ?? null,
+          messageContent: messageContent ?? null,
           parentId: parentId ?? null,
           isThreadReply: Boolean(isThreadReply),
           replyParentId: params.replyParentId ?? null,
@@ -3906,6 +3907,9 @@ export async function monitorTlonProvider(
             senderShip: dispatch.senderShip,
             messageText: dispatch.messageText,
             blobField: dispatch.blobField,
+            ...(dispatch.messageContent
+              ? { messageContent: dispatch.messageContent }
+              : {}),
             isGroup: dispatch.isGroup,
             ...(dispatch.channelNest
               ? { channelNest: dispatch.channelNest }
