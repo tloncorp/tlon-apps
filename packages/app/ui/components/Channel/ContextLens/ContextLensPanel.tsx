@@ -44,6 +44,16 @@ function prefersEvent(candidate: ContextLensEvent, existing: ContextLensEvent) {
   return candidate.at >= existing.at;
 }
 
+// Keep `fallback` unless the (optional) live `candidate` is more authoritative
+// (final beats in-flight, newer beats older). Prevents a stale in-flight live
+// gateway event from overriding a finalized synced record.
+function preferred(
+  candidate: ContextLensEvent | undefined,
+  fallback: ContextLensEvent
+): ContextLensEvent {
+  return candidate && prefersEvent(candidate, fallback) ? candidate : fallback;
+}
+
 // Live gateway events don't carry the bot ship, so resolve it from the synced
 // rows for DM matching; group-channel matching keys off the conversation nest
 // and doesn't need it.
@@ -256,14 +266,23 @@ export function ContextLensPanel({
         } satisfies ContextLensEvent)
       : undefined;
   const selectedRunEvent = selectedRun
-    ? findEventForLensId(events, selectedRun.lens.lensId) ?? selectedRun
+    ? preferred(
+        findEventForLensId(events, selectedRun.lens.lensId),
+        selectedRun
+      )
     : undefined;
+  // prefer the more authoritative of the live event and the synced lookup so a
+  // stale in-flight live snapshot can't mask a finalized synced row
+  const selectedDetail =
+    selectedEvent && selectedLookupEvent
+      ? preferred(selectedEvent, selectedLookupEvent)
+      : selectedEvent ?? selectedLookupEvent;
   const panelMode = selectedRun ? 'run' : selectedMessage ? 'selected' : 'live';
   const latest =
     panelMode === 'run'
       ? selectedRunEvent
       : panelMode === 'selected'
-        ? selectedEvent ?? selectedLookupEvent
+        ? selectedDetail
         : runs[0];
   const eventTrail = latest
     ? events.filter((event) => event.lens.lensId === latest.lens.lensId)
@@ -298,7 +317,14 @@ export function ContextLensPanel({
   };
 
   useEffect(() => {
-    if (!selectedMessage || selectedEvent) {
+    // Skip the db-first lookup only when there's no selection, or the live
+    // event is already final (authoritative). A non-final live event must not
+    // suppress the lookup, or a missed terminal SSE event would pin the panel
+    // to a stale in-flight snapshot instead of the finalized synced row.
+    if (
+      !selectedMessage ||
+      (selectedEvent && FINAL_STATUSES.has(selectedEvent.lens.status))
+    ) {
       setLookupResult(null);
       setLookupStatus('idle');
       return;
