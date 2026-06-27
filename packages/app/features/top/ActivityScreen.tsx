@@ -3,10 +3,12 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useMemo } from 'react';
+import { FlatList } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useScrollTabToTop } from '../../hooks/useScrollTabToTop';
 import { useSyncStatus } from '../../hooks/useSyncStatus';
 import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
@@ -19,6 +21,7 @@ export function ActivityScreen(props: Props) {
   const theme = useTheme();
   const isFocused = useIsFocused();
   const currentUserId = useCurrentUserId();
+  const { scrollRef, onPressActiveTab } = useScrollTabToTop<FlatList>();
   const [contactsTabEnabled] = useFeatureFlag('contactsTab');
   const { performGroupAction } = useGroupActions();
   const { navigateToChannel, navigateToPost } = useRootNavigation();
@@ -113,6 +116,7 @@ export function ActivityScreen(props: Props) {
           loadingSubtitle={loadingSubtitle}
           onNavigateToContacts={handleNavigateToContacts}
           onInviteFriends={handleInviteFriends}
+          scrollRef={scrollRef}
         />
         <NavBarView
           navigateToContacts={() =>
@@ -124,6 +128,7 @@ export function ActivityScreen(props: Props) {
           navigateToNotifications={() =>
             props.navigation.navigate('Activity', undefined, { pop: true })
           }
+          onPressActiveTab={onPressActiveTab}
           currentRoute="Activity"
           currentUserId={currentUserId}
           showContactsTab={contactsTabEnabled}
