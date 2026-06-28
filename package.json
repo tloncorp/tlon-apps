@@ -74,7 +74,10 @@
       "@tamagui/sheet@2.0.0-rc.41": "patches/@tamagui__sheet@2.0.0-rc.41.patch",
       "@tamagui/static@2.0.0-rc.41": "patches/@tamagui__static@2.0.0-rc.41.patch",
       "react-native-gesture-handler@2.31.2": "patches/react-native-gesture-handler@2.31.2.patch",
-      "@gorhom/bottom-sheet@5.2.14": "patches/@gorhom__bottom-sheet@5.2.14.patch"
+      "@gorhom/bottom-sheet@5.2.14": "patches/@gorhom__bottom-sheet@5.2.14.patch",
+      "react-native@0.85.3": "patches/react-native@0.85.3.patch",
+      "react-native-reanimated@4.3.1": "patches/react-native-reanimated@4.3.1.patch",
+      "expo-background-task@56.0.15": "patches/expo-background-task@56.0.15.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
