@@ -556,7 +556,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._processed_dm_invites: set[str] = set()
         self._processed_group_invites: set[str] = set()
 
-    async def connect(self) -> bool:
+    async def connect(self, *, is_reconnect: bool = False) -> bool:
         if not AIOHTTP_AVAILABLE:
             logger.warning("[tlon] aiohttp is not installed")
             return False
