@@ -1525,13 +1525,17 @@ describe('telemetry tool tracking', () => {
     expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
   });
 
-  it('does not bleed another cron run\'s job id into a matched run with no job id', () => {
+  it("does not bleed another cron run's job id into a matched run with no job id", () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);
 
     // run-a recorded with a runId but no job id; a later run sets a different one.
     reportCronRun({ sessionKey: 'cron-session', runId: 'run-a' });
-    reportCronRun({ sessionKey: 'cron-session', runId: 'run-b', jobId: 'job-b' });
+    reportCronRun({
+      sessionKey: 'cron-session',
+      runId: 'run-b',
+      jobId: 'job-b',
+    });
     reportHarnessError({
       harnessEventType: 'model.call.error',
       errorScope: 'model',
