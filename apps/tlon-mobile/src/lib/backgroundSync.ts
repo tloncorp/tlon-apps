@@ -131,9 +131,7 @@ export async function removeLegacyTasks() {
   }
 }
 
-// Registers the task executor. Must run on every JS launch, including headless
-// background launches where no React views mount, so call it from the app entry
-// rather than relying on import-time side effects.
+// Define the background task at module scope - this must happen before registration
 export function initializeBackgroundSync() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
