@@ -86,7 +86,8 @@
       "@gorhom/bottom-sheet@5.2.6": "patches/@gorhom__bottom-sheet@5.2.6.patch",
       "react-native-reanimated@4.1.6": "patches/react-native-reanimated@4.1.6.patch",
       "react-native-gesture-handler@2.28.0": "patches/react-native-gesture-handler@2.28.0.patch",
-      "expo-image-manipulator@14.0.8": "patches/expo-image-manipulator@14.0.8.patch"
+      "expo-image-manipulator@14.0.8": "patches/expo-image-manipulator@14.0.8.patch",
+      "@tamagui/web@2.4.0": "patches/@tamagui__web@2.4.0.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {
