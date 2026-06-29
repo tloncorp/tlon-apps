@@ -178,7 +178,10 @@ const ActionSheetComponent = ({
     [maxHeight, height]
   );
 
-  const actionSheetContextValue = useMemo(() => ({ isInsideSheet: true }), []);
+  const actionSheetContextValue = useMemo(
+    () => ({ isInsideSheet: true, mode }),
+    [mode]
+  );
 
   // listen for escape key to close the sheet
   // this is helpful for e2e tests
@@ -437,6 +440,17 @@ const ActionSheetScrollableContent = forwardRef<
 >(({ ...props }, ref) => {
   const contentStyle = useContentStyle();
   const useBottomSheet = Platform.OS !== 'web';
+  const { mode } = useContext(ActionSheetContext);
+
+  // Sheet.ScrollView requires a <Sheet> ancestor, which only exists in 'sheet'
+  // mode. In popover/dialog mode the ActionSheet already wraps content in a
+  // ScrollView, so render a plain padded container instead of an unprovided
+  // (and redundant) sheet scroll view.
+  if (!useBottomSheet && mode !== 'sheet') {
+    return (
+      <View paddingBottom={contentStyle.paddingBottom} {...(props as any)} />
+    );
+  }
 
   // Use BottomSheetScrollView for native platforms
   if (useBottomSheet) {
