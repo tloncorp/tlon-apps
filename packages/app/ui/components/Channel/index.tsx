@@ -829,8 +829,8 @@ export function Channel({
                                         contextLensAvailable &&
                                         contextLensOpen &&
                                         !isNarrow
-                                          ? (selectedContextLensMessage?.id ??
-                                            null)
+                                          ? selectedContextLensMessage?.id ??
+                                            null
                                           : null,
                                       goToBotRun:
                                         contextLensAvailable && isNarrow
