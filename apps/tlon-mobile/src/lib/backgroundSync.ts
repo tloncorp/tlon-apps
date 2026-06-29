@@ -131,31 +131,35 @@ export async function removeLegacyTasks() {
   }
 }
 
-// Define the background task at module scope - this must happen before registration
-TaskManager.defineTask<Record<string, unknown>>(
-  TASK_ID,
-  async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
-    logger.trackEvent('Running background task');
-    if (error) {
-      logger.trackError(`Failed background task`, {
-        error,
-        context: 'called with error',
-      });
-      return BackgroundTask.BackgroundTaskResult.Failed;
-    }
+// Registers the task executor. Must run on every JS launch, including headless
+// background launches where no React views mount, so call it from the app entry
+// rather than relying on import-time side effects.
+export function defineBackgroundSyncTask() {
+  TaskManager.defineTask<Record<string, unknown>>(
+    TASK_ID,
+    async ({ error }): Promise<BackgroundTask.BackgroundTaskResult> => {
+      logger.trackEvent('Running background task');
+      if (error) {
+        logger.trackError(`Failed background task`, {
+          error,
+          context: 'called with error',
+        });
+        return BackgroundTask.BackgroundTaskResult.Failed;
+      }
 
-    try {
-      await performSync();
-      return BackgroundTask.BackgroundTaskResult.Success;
-    } catch (err) {
-      logger.trackError('Failed background task', {
-        error: err instanceof Error ? err : undefined,
-        context: 'catch',
-      });
-      return BackgroundTask.BackgroundTaskResult.Failed;
+      try {
+        await performSync();
+        return BackgroundTask.BackgroundTaskResult.Success;
+      } catch (err) {
+        logger.trackError('Failed background task', {
+          error: err instanceof Error ? err : undefined,
+          context: 'catch',
+        });
+        return BackgroundTask.BackgroundTaskResult.Failed;
+      }
     }
-  }
-);
+  );
+}
 
 export async function registerBackgroundSyncTask() {
   await removeLegacyTasks();

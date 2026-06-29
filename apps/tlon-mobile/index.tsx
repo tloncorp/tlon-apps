@@ -23,6 +23,7 @@ import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
 import { useDbReady } from './src/hooks/useDbReady';
+import { defineBackgroundSyncTask } from './src/lib/backgroundSync';
 import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
@@ -40,6 +41,10 @@ configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
   strict: false,
 });
+
+// Register the background-sync executor at the entry so it exists for headless
+// background launches, which don't mount React.
+defineBackgroundSyncTask();
 
 const UrbitModule =
   Platform.OS !== 'web' ? TurboModuleRegistry.get('UrbitModule') : null;
