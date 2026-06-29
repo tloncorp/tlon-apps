@@ -1,3 +1,4 @@
+import { getLocales } from 'expo-localization';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, UseFormReturn } from 'react-hook-form';
@@ -25,7 +26,13 @@ type Props = {
 
 export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [country, setCountry] = useState('US');
+  // Default to the device region, falling back to US when it's unknown or not
+  // in the transformer's country data.
+  const defaultCountry = useMemo(() => {
+    const region = getLocales()[0]?.regionCode?.toUpperCase();
+    return region && getCallingCode(region) ? region : 'US';
+  }, []);
+  const [country, setCountry] = useState(defaultCountry);
   const inputRef = useRef<TransformerTextInputInstance>(null);
   const theme = useTheme();
 
@@ -78,7 +85,7 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
               <TransformerTextInput
                 ref={inputRef}
                 transformer={transformer}
-                defaultValue={`+${getCallingCode('US')} `}
+                defaultValue={`+${getCallingCode(defaultCountry)} `}
                 keyboardType="phone-pad"
                 onChangeText={(text) => {
                   const { country, e164 } = parsePhoneInput(text);

@@ -34,6 +34,7 @@
     "@shopify/react-native-skia": "*",
     "expo-blur": "*",
     "expo-constants": "*",
+    "expo-localization": "*",
     "expo-notifications": "*",
     "expo-splash-screen": "*",
     "lodash": "^4.17.21",
