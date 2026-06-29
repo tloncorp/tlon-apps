@@ -7,7 +7,7 @@ const { spawn } = require('child_process');
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const { FileStore } = require('metro-cache');
 
-const nonInlinedRequires = require('./metro.non-inlined-requires');
+const nonInlinedRequires = require('./metro-non-inlined-requires');
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, '../..');
