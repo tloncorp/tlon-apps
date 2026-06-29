@@ -7,11 +7,8 @@ import '@tloncorp/app/lib/devMenuItems';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-// Side-effect import of the module that calls createTamagui(), so getConfig()
-// is populated before the UI barrel (loaded below via setStorage) reads design
-// tokens at import time. With inlineRequires a bound import — or the
-// ./tamagui.config re-export, whose source require becomes a lazy getter —
-// would be deferred past that read, leaving getConfig() null.
+// With inlineRequires enabled, this must be imported first so createTamagui()
+// runs before the UI barrel reads design tokens at import time.
 import '@tloncorp/ui/config';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
