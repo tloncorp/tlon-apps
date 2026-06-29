@@ -43,9 +43,7 @@ configureReanimatedLogger({
   strict: false,
 });
 
-// Module initialization. Modules that need boot-time setup outside React (so it
-// also runs on headless background launches, and isn't deferred by inline
-// requires) export an `initialize*` function that is called here at the entry.
+// Eager module init. Runs at the entry so it isn't deferred by inline requires.
 initializeBackgroundSync();
 initializeNotifications();
 
