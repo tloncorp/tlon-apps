@@ -4,6 +4,7 @@ import {
   _testing,
   createTlonTelemetry,
   recordToolCall,
+  reportCronRun,
   reportHarnessDebug,
   reportHarnessError,
   reportOutboundRoute,
@@ -46,6 +47,7 @@ describe('telemetry tool tracking', () => {
     _testing.clearToolCalls();
     _testing.clearSessionContexts();
     _testing.clearHarnessDebugSnapshots();
+    _testing.clearCronRuns();
     setSessionTelemetryReporter(null);
     setDebugTelemetryReporter(null);
     setErrorTelemetryReporter(null);
@@ -1396,6 +1398,152 @@ describe('telemetry tool tracking', () => {
       durationMs: 1234,
       errorText: 'full\nmodel\nerror',
     });
+  });
+
+  it('attributes a cron run failure as isCron, bypassing the remembered-session gate', () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    // No inbound reply ever remembered this session — a scheduled cron run.
+    reportCronRun({
+      sessionKey: 'cron-session',
+      runId: 'cron-run',
+      jobId: 'job-7',
+    });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'cron-session',
+      runId: 'cron-run',
+      provider: 'anthropic',
+      model: 'claude-test',
+      errorCategory: 'network',
+      failureKind: 'connection_reset',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties).toMatchObject({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'cron-session',
+      runId: 'cron-run',
+      isCron: true,
+      cronJobId: 'job-7',
+    });
+  });
+
+  it('attributes a runId-less cron failure best-effort', () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    reportCronRun({ sessionKey: 'cron-session', jobId: 'job-9' });
+    reportHarnessError({
+      harnessEventType: 'harness.run.error',
+      errorScope: 'harness',
+      sessionKey: 'cron-session',
+      errorText: 'run failed',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties).toMatchObject({
+      errorScope: 'harness',
+      isCron: true,
+      cronJobId: 'job-9',
+    });
+  });
+
+  it('does not attribute a different run reusing the cron session key', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    reportCronRun({
+      sessionKey: 'session-1',
+      runId: 'cron-run',
+      jobId: 'job-7',
+    });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'session-1',
+      runId: 'interactive-run',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties.isCron).toBe(false);
+    expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
+  });
+
+  it('does not attribute non-gateway scopes (tool errors) during a cron run', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    reportCronRun({
+      sessionKey: 'session-1',
+      runId: 'cron-run',
+      jobId: 'job-7',
+    });
+    reportHarnessError({
+      harnessEventType: 'tool.execution.error',
+      errorScope: 'tool',
+      sessionKey: 'session-1',
+      runId: 'cron-run',
+      toolName: 'tlon',
+      errorText: 'tool blew up',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.errorScope).toBe('tool');
+    expect(call.properties.isCron).toBe(false);
+  });
+
+  it('does not mis-attribute an interactive run after a runId-less cron hook in the same session', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+    await rememberSessionForDiagnostics(telemetry);
+
+    // Cron hook fired before a runId was assigned (the documented main-session
+    // topology): records sawCronWithoutRunId, no runId. This must NOT poison
+    // later interactive runs that reuse the same session key.
+    reportCronRun({ sessionKey: 'session-1', jobId: 'job-7' });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'session-1',
+      runId: 'interactive-run',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties.isCron).toBe(false);
+    expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
+  });
+
+  it('does not bleed another cron run\'s job id into a matched run with no job id', () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    // run-a recorded with a runId but no job id; a later run sets a different one.
+    reportCronRun({ sessionKey: 'cron-session', runId: 'run-a' });
+    reportCronRun({ sessionKey: 'cron-session', runId: 'run-b', jobId: 'job-b' });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'cron-session',
+      runId: 'run-a',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.isCron).toBe(true);
+    // run-a carried no job id; it must not inherit run-b's 'job-b'.
+    expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
   });
 
   it('reports process-level harness diagnostics without a session key', () => {

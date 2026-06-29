@@ -46,6 +46,21 @@ type HarnessDebugSnapshotRecord = {
   lastContextEngineMessage: string | null;
 };
 
+type CronRunRecord = {
+  // runIds observed to belong to a cron run in this session, mapped to their
+  // cron job id (null when the gateway didn't expose one). A failing run is
+  // matched by runId so a later interactive run that reuses the same (main)
+  // session key is never mis-attributed to cron.
+  runIds: Map<string, string | null>;
+  // A cron hook fired before a runId was assigned. Lets a runId-less failure
+  // in the same session still be attributed best-effort.
+  sawCronWithoutRunId: boolean;
+  lastJobId: string | null;
+  updatedAt: number;
+};
+
+type CronRunAttribution = { cronJobId: string | null };
+
 export type TlonHarnessName = 'openclaw' | 'hermes';
 type ReplyDispatchKind = 'tool' | 'block' | 'final';
 type ReplyDispatchCounts = Partial<Record<ReplyDispatchKind, number>>;
@@ -365,6 +380,11 @@ export type TlonHarnessErrorEvent = {
   failureKind: string | null;
   durationMs: number | null;
   errorText: string | null;
+  // True when this error belongs to a confirmed cron run (gateway-error scopes
+  // only). Cron runs are unattended, so these are the failures worth alerting
+  // on. `cronJobId` is the gateway's cron job id when it exposed one.
+  isCron: boolean;
+  cronJobId: string | null;
 };
 
 export type TlonHarnessDebugEvent = TlonHarnessDebugSnapshotFields & {
@@ -501,6 +521,18 @@ const SESSION_CONTEXT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_SESSION_CONTEXTS = 5_000;
 const HARNESS_DEBUG_SNAPSHOT_TTL_MS = 60 * 60 * 1000;
 const MAX_HARNESS_DEBUG_SNAPSHOTS = 5_000;
+const CRON_RUN_TTL_MS = 60 * 60 * 1000;
+const MAX_CRON_RUN_SESSIONS = 5_000;
+const MAX_CRON_RUN_IDS_PER_SESSION = 50;
+// Harness error scopes that represent the gateway returning an actual error
+// result for a run (a model/provider failure, an unresponsive model, a failed
+// run) — as opposed to plugin/tool/runtime noise. Only these get cron
+// attribution, matching "a cron failed and the gateway told us why".
+const CRON_GATEWAY_ERROR_SCOPES = new Set<TlonHarnessErrorScope>([
+  'model',
+  'harness',
+  'run',
+]);
 const toolCallsBySession = sharedMap<string, ToolSessionTrace>(
   'telemetry.toolCallsBySession'
 );
@@ -512,6 +544,9 @@ const harnessDebugSnapshotsBySessionKey = sharedMap<
   string,
   HarnessDebugSnapshotRecord
 >('telemetry.harnessDebugSnapshotsBySessionKey');
+const cronRunsBySessionKey = sharedMap<string, CronRunRecord>(
+  'telemetry.cronRunsBySessionKey'
+);
 
 function cleanupToolCalls(now = Date.now()): void {
   for (const [sessionKey, trace] of toolCallsBySession) {
@@ -645,6 +680,112 @@ function cleanupSessionContexts(now = Date.now()): void {
     }
     sessionContextsBySessionKey.delete(oldestKey);
   }
+}
+
+function cleanupCronRuns(now = Date.now()): void {
+  for (const [sessionKey, record] of cronRunsBySessionKey) {
+    if (now - record.updatedAt > CRON_RUN_TTL_MS) {
+      cronRunsBySessionKey.delete(sessionKey);
+    }
+  }
+
+  while (cronRunsBySessionKey.size > MAX_CRON_RUN_SESSIONS) {
+    const oldestKey = [...cronRunsBySessionKey.entries()].sort(
+      (a, b) => a[1].updatedAt - b[1].updatedAt
+    )[0]?.[0];
+    if (!oldestKey) {
+      break;
+    }
+    cronRunsBySessionKey.delete(oldestKey);
+  }
+}
+
+/**
+ * Record that a run in `sessionKey` was triggered by cron. Populated from the
+ * agent-level hooks (`agent_turn_prepare` / `model_call_started`) — the only
+ * place the gateway exposes the cron trigger, since cron jobs can run inside
+ * the main session whose key has no `:cron:` marker. Idempotent; safe to call
+ * on every cron hook for the same run.
+ */
+export function reportCronRun(params: {
+  sessionKey?: string | null;
+  runId?: string | null;
+  jobId?: string | null;
+}): void {
+  const sessionKey = optionalString(params.sessionKey);
+  if (!sessionKey) {
+    return;
+  }
+
+  const now = Date.now();
+  cleanupCronRuns(now);
+
+  const record = cronRunsBySessionKey.get(sessionKey) ?? {
+    runIds: new Map<string, string | null>(),
+    sawCronWithoutRunId: false,
+    lastJobId: null,
+    updatedAt: now,
+  };
+  record.updatedAt = now;
+
+  const jobId = optionalString(params.jobId);
+  if (jobId) {
+    record.lastJobId = jobId;
+  }
+
+  const runId = optionalString(params.runId);
+  if (runId) {
+    record.runIds.set(runId, jobId ?? record.runIds.get(runId) ?? null);
+    while (record.runIds.size > MAX_CRON_RUN_IDS_PER_SESSION) {
+      const oldestRunId = record.runIds.keys().next().value;
+      if (oldestRunId === undefined) {
+        break;
+      }
+      record.runIds.delete(oldestRunId);
+    }
+  } else {
+    record.sawCronWithoutRunId = true;
+  }
+
+  cronRunsBySessionKey.set(sessionKey, record);
+}
+
+function lookupCronRun(
+  sessionKey: string | null,
+  runId: string | null
+): CronRunAttribution | null {
+  const normalized = optionalString(sessionKey);
+  if (!normalized) {
+    return null;
+  }
+
+  cleanupCronRuns();
+  const record = cronRunsBySessionKey.get(normalized);
+  if (!record) {
+    return null;
+  }
+  // Deliberately do NOT refresh `updatedAt` on read: the TTL is the window
+  // during which a cron run's failure is expected, measured from the last cron
+  // hook (a write). A busy session that keeps emitting harness errors would
+  // otherwise refresh this record forever and keep mis-matching long after the
+  // cron run ended.
+
+  if (runId) {
+    // A run is cron only if we positively recorded THIS exact runId as cron. A
+    // different runId reusing the same (main) session key is not cron — even
+    // when a runId-less cron signal exists for the session, we can't prove this
+    // run is the cron one, and mislabeling an interactive failure is worse than
+    // missing one (these feed unattended-failure alerts). Use the run's own job
+    // id; never borrow another run's via lastJobId.
+    return record.runIds.has(runId)
+      ? { cronJobId: record.runIds.get(runId) ?? null }
+      : null;
+  }
+
+  // The failing event carries no runId: attribute only when a cron signal in
+  // this session also lacked one (symmetric), so a runId-bearing interactive
+  // failure can never reach this best-effort path.
+  return record.sawCronWithoutRunId ? { cronJobId: record.lastJobId } : null;
 }
 
 function cleanupHarnessDebugSnapshots(now = Date.now()): void {
@@ -1515,6 +1656,8 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           failureKind: event.failureKind,
           durationMs: event.durationMs,
           errorText: event.errorText,
+          isCron: event.isCron,
+          cronJobId: event.cronJobId,
         },
         { omitNullish: true }
       ),
@@ -2098,7 +2241,18 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
         agentId: event.agentId,
       })
     : null;
-  if (!context && event.sessionKey) {
+
+  const sessionKey = context?.sessionKey ?? optionalString(event.sessionKey);
+  const runId = optionalString(event.runId) ?? context?.runId ?? null;
+  const cronAttribution = CRON_GATEWAY_ERROR_SCOPES.has(event.errorScope)
+    ? lookupCronRun(sessionKey, runId)
+    : null;
+
+  // Harness errors are normally filtered to runs we remember from inbound Tlon
+  // replies. Cron runs are scheduled and never have an inbound reply, so no
+  // remembered context exists — but a confirmed cron failure is exactly what we
+  // want to surface, so it bypasses the remembered-context gate.
+  if (!context && event.sessionKey && !cronAttribution) {
     return;
   }
 
@@ -2108,9 +2262,9 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       harness: 'openclaw',
       harnessEventType: event.harnessEventType,
       errorScope: event.errorScope,
-      sessionKey: context?.sessionKey ?? null,
+      sessionKey,
       sessionId: context?.sessionId ?? optionalString(event.sessionId),
-      runId: optionalString(event.runId) ?? context?.runId ?? null,
+      runId,
       accountId: context?.accountId ?? optionalString(event.accountId),
       agentId: optionalString(event.agentId) ?? context?.agentId ?? null,
       ownerShip: context?.ownerShip ?? optionalString(event.ownerShip),
@@ -2126,6 +2280,8 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
       failureKind: optionalString(event.failureKind),
       durationMs: optionalNumber(event.durationMs),
       errorText: optionalErrorText(event.errorText),
+      isCron: cronAttribution != null,
+      cronJobId: cronAttribution?.cronJobId ?? null,
     },
   });
 }
@@ -2353,6 +2509,7 @@ export const _testing = {
   clearToolCalls: () => toolCallsBySession.clear(),
   clearSessionContexts: () => sessionContextsBySessionKey.clear(),
   clearHarnessDebugSnapshots: () => harnessDebugSnapshotsBySessionKey.clear(),
+  clearCronRuns: () => cronRunsBySessionKey.clear(),
   getReplyTraceTtlMs: () => REPLY_TRACE_TTL_MS,
   getToolTraceTtlMs: () => TOOL_TRACE_TTL_MS,
 };

@@ -42,6 +42,7 @@ import {
   type TlonSessionDiagnosticReportInput,
   formatTlonTelemetryErrorText,
   recordToolCall,
+  reportCronRun,
   reportHarnessDebug,
   reportHarnessError,
   reportOutboundRoute,
@@ -1485,8 +1486,35 @@ export default defineChannelPluginEntry({
         publishContextLensEvent('created', background.lens);
       }
     };
-    api.on('agent_turn_prepare', (_event, ctx) => ensureCronContextLens(ctx));
-    api.on('model_call_started', (_event, ctx) => ensureCronContextLens(ctx));
+    // Record the run as cron for telemetry even when the context lens is
+    // disabled, so a harness error during this run can be attributed — and
+    // surfaced — as a cron failure (see reportCronRun / the `isCron` flag on
+    // `TlonBot Harness Error`). The agent-level hook context is the only place
+    // the gateway exposes the cron trigger.
+    const onCronAgentHook = (ctx: {
+      sessionKey?: string;
+      trigger?: string;
+      jobId?: string;
+      runId?: string;
+    }) => {
+      if (ctx.trigger === 'cron') {
+        safeTelemetryObserver({
+          logger: api.logger,
+          telemetrySource: 'cron_run',
+          sessionKey: ctx.sessionKey,
+          runId: ctx.runId,
+          run: () =>
+            reportCronRun({
+              sessionKey: ctx.sessionKey,
+              runId: ctx.runId,
+              jobId: ctx.jobId,
+            }),
+        });
+      }
+      ensureCronContextLens(ctx);
+    };
+    api.on('agent_turn_prepare', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
 
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing
