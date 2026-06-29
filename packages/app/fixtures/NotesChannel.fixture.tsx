@@ -157,13 +157,10 @@ function NotesTreeFixture() {
           <NotesTreePane
             canEdit
             isDeletingFolder={false}
-            isCreatingFolder={false}
-            isCreatingNote={false}
             layout="takeover"
             selectedFolderId={null}
             selectedNoteId={1}
             treeRows={treeRows}
-            onCreate={() => {}}
             onCreateFolderInFolder={() => {}}
             onCreateNoteInFolder={() => {}}
             onDeleteFolder={() => {}}

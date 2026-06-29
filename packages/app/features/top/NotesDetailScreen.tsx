@@ -36,11 +36,7 @@ export function NotesDetailScreen(props: Props) {
           goBack={handleGoBack}
           hideIdentity
         />
-        <NotesNoteDetail
-          noteId={noteId}
-          notebookFlag={notebookFlag}
-          onDeleted={handleGoBack}
-        />
+        <NotesNoteDetail noteId={noteId} notebookFlag={notebookFlag} />
       </YStack>
     </ChannelHeaderItemsProvider>
   );
