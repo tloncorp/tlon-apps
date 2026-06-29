@@ -21,7 +21,7 @@ const logger = createDevLogger('notifications', true);
 
 // Sets the foreground presentation policy. Must run before a push arrives, so
 // call it from the app entry rather than relying on import-time side effects.
-export function configureNotificationHandler() {
+export function initializeNotifications() {
   if (Platform.OS !== 'web') {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({

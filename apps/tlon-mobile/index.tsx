@@ -4,7 +4,7 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
-import { configureNotificationHandler } from '@tloncorp/app/lib/notifications';
+import { initializeNotifications } from '@tloncorp/app/lib/notifications';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -24,7 +24,7 @@ import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
 import { useDbReady } from './src/hooks/useDbReady';
-import { defineBackgroundSyncTask } from './src/lib/backgroundSync';
+import { initializeBackgroundSync } from './src/lib/backgroundSync';
 import utilities from './tailwind.json';
 
 // Extend BigInt so serialization will never crash in JSON.parse
@@ -43,12 +43,11 @@ configureReanimatedLogger({
   strict: false,
 });
 
-// Register the background-sync executor at the entry so it exists for headless
-// background launches, which don't mount React.
-defineBackgroundSyncTask();
-
-// Set the foreground notification presentation policy before any push arrives.
-configureNotificationHandler();
+// Module initialization. Modules that need boot-time setup outside React (so it
+// also runs on headless background launches, and isn't deferred by inline
+// requires) export an `initialize*` function that is called here at the entry.
+initializeBackgroundSync();
+initializeNotifications();
 
 const UrbitModule =
   Platform.OS !== 'web' ? TurboModuleRegistry.get('UrbitModule') : null;
