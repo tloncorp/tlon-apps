@@ -58,14 +58,10 @@ export async function clearHostingNativeCookie() {
   console.log(`clearing hosting native cookie`);
   try {
     if (Platform.OS === 'android') {
-      // `clearByName` throws on Android, and `CookieManager.set()` can't delete
-      // it either: for an already-expired cookie the native module's
-      // toRFC6265string drops the `expires` attribute (HttpCookie.hasExpired()),
-      // so it stores an empty `SolarisSession=` *session* cookie that keeps
-      // getting sent on hosting requests and masks the real token. Go through
-      // `setFromResponse`, which passes the raw Set-Cookie straight to WebView's
-      // CookieManager, where a past Expires / Max-Age=0 actually removes it.
-      // Cover http+https to match the iOS path.
+      // `clearByName` isn't implemented on Android, so remove SolarisSession by
+      // handing WebView's CookieManager a raw expired Set-Cookie via
+      // `setFromResponse` — a past Expires / Max-Age=0 deletes the entry. Cover
+      // http+https to match the iOS path.
       const expired =
         'SolarisSession=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0';
       await CookieManager.setFromResponse('http://tlon.network', expired);
