@@ -60,8 +60,7 @@ export async function clearHostingNativeCookie() {
     if (Platform.OS === 'android') {
       // `clearByName` isn't implemented on Android, so remove SolarisSession by
       // handing WebView's CookieManager a raw expired Set-Cookie via
-      // `setFromResponse` — a past Expires / Max-Age=0 deletes the entry. Cover
-      // http+https to match the iOS path.
+      // `setFromResponse` — a past Expires / Max-Age=0 deletes the entry.
       const expired =
         'SolarisSession=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0';
       await CookieManager.setFromResponse('http://tlon.network', expired);
