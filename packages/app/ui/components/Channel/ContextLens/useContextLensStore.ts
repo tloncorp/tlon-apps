@@ -303,6 +303,14 @@ export function useContextLensController(params?: {
     });
   }, []);
 
+  const openContextLensForPost = useCallback(
+    (post: db.Post) => {
+      inspectContextLensPost(post);
+      setOpen(true);
+    },
+    [inspectContextLensPost]
+  );
+
   return {
     contextLensAvailable,
     contextLensOpen: contextLensAvailable && open,
@@ -312,5 +320,6 @@ export function useContextLensController(params?: {
     toggleContextLens,
     clearSelectedContextLensMessage,
     inspectContextLensPost,
+    openContextLensForPost,
   };
 }
