@@ -9,7 +9,10 @@ export default defineConfig({
     alias: [
       {
         find: /^react-native$/,
-        replacement: path.resolve(__dirname, './test/__mocks__/react-native.ts'),
+        replacement: path.resolve(
+          __dirname,
+          './test/__mocks__/react-native.ts'
+        ),
       },
     ],
   },
