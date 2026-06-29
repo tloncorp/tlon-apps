@@ -284,7 +284,7 @@ Upstream:
 - removed deliberately in `tamagui/tamagui@86d0cfe95`; the configurable `unset`
   feature is not coming back
 - native parity fix proposed upstream ("drop `unset` on native instead of
-  crashing") — PR link TBD
+  crashing"): `tamagui/tamagui#4053`
 
 Validation:
 - Rebuild the mobile app so the patched bundle is picked up
