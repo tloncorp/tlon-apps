@@ -4,6 +4,7 @@ import { RootErrorBoundary } from '@tloncorp/app/RootErrorBoundary';
 import { ENABLED_LOGGERS } from '@tloncorp/app/constants';
 // Setup custom dev menu items
 import '@tloncorp/app/lib/devMenuItems';
+import { configureNotificationHandler } from '@tloncorp/app/lib/notifications';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -45,6 +46,9 @@ configureReanimatedLogger({
 // Register the background-sync executor at the entry so it exists for headless
 // background launches, which don't mount React.
 defineBackgroundSyncTask();
+
+// Set the foreground notification presentation policy before any push arrives.
+configureNotificationHandler();
 
 const UrbitModule =
   Platform.OS !== 'web' ? TurboModuleRegistry.get('UrbitModule') : null;

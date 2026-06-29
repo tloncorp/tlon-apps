@@ -19,15 +19,19 @@ import { connectNotifyProvider } from './notificationsApi';
 
 const logger = createDevLogger('notifications', true);
 
-if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: false,
-      shouldSetBadge: true,
-    }),
-  });
+// Sets the foreground presentation policy. Must run before a push arrives, so
+// call it from the app entry rather than relying on import-time side effects.
+export function configureNotificationHandler() {
+  if (Platform.OS !== 'web') {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: true,
+      }),
+    });
+  }
 }
 
 /** Returns true if notification permission is thought to be granted, false otherwise */
