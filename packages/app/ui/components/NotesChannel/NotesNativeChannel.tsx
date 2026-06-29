@@ -512,23 +512,11 @@ export function NotesNativeChannel({
     return (
       <NotesHeaderActions
         canEdit={canEdit}
-        isCreatingFolder={isCreatingFolder}
-        isCreatingNote={isCreatingNote}
-        onCreateFolder={() => openAddFolderDialog()}
-        onCreateNote={handleCreateNote}
+        onNew={() => setNewActionSheetOpen(true)}
         primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
       />
     );
-  }, [
-    canEdit,
-    handleCreateNote,
-    isCreatingFolder,
-    isCreatingNote,
-    gate,
-    notebookFlag,
-    openAddFolderDialog,
-    useDesktopSplit,
-  ]);
+  }, [canEdit, gate, notebookFlag, useDesktopSplit]);
 
   useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
 
@@ -536,8 +524,6 @@ export function NotesNativeChannel({
     <NotesTreePane
       canEdit={canEdit}
       isDeletingFolder={isDeletingFolder}
-      isCreatingFolder={isCreatingFolder}
-      isCreatingNote={isCreatingNote}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
       selectedFolderId={selectedFolderId}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
@@ -547,7 +533,6 @@ export function NotesNativeChannel({
       onMoveFolder={openMoveFolderDialog}
       onMoveNote={openMoveNoteDialog}
       onOpenNote={openNote}
-      onCreate={() => setNewActionSheetOpen(true)}
       onCreateFolderInFolder={(folder) => openAddFolderDialog(folder.folderId)}
       onCreateNoteInFolder={(folder) => void handleCreateNote(folder.folderId)}
       onRenameFolder={handleOpenRenameFolder}
@@ -591,11 +576,6 @@ export function NotesNativeChannel({
           headerActionsPlacement="inline"
           noteId={selectedNoteId}
           notebookFlag={notebookFlag}
-          onDeleted={() => {
-            if (selectedNoteId !== null) {
-              handleNoteDeleted(selectedNoteId);
-            }
-          }}
         />
       )}
     </YStack>

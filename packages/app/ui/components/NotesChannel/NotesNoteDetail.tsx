@@ -1,11 +1,8 @@
 import {
   convertContent,
-  deleteNotebookNote,
   markdownToStory,
-  moveNotebookNote,
   normalizeNotebookNoteTitle,
   saveNotebookNote,
-  useMutableCallback,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
@@ -19,7 +16,6 @@ import {
 } from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
-import { createActionGroups } from '../ActionSheet';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
@@ -27,17 +23,12 @@ import {
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import { ScreenHeader } from '../ScreenHeader';
 import {
-  MoveNoteSheet,
   NotebookGateMessage,
   NotesBanner,
   NotesMessage,
-  NotesOverflowMenu,
-  confirmNotesDestructiveAction,
   errorMessage,
-  useEntityDialog,
   useNotebookData,
 } from './NotesCommon';
-import { buildFolderRows } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
@@ -76,12 +67,10 @@ export function NotesNoteDetail({
   headerActionsPlacement = 'channel-header',
   noteId,
   notebookFlag,
-  onDeleted,
 }: {
   headerActionsPlacement?: 'channel-header' | 'inline' | 'none';
   noteId: number | null;
   notebookFlag: string | null | undefined;
-  onDeleted?: () => void;
 }) {
   // The note snapshot the drafts are based on. Dirtiness and the save's
   // expectedRevision are computed against this, not the live row, so a row
@@ -92,17 +81,8 @@ export function NotesNoteDetail({
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const {
-    entity: movingNote,
-    isPending: isMovingNote,
-    open: openMoveDialog,
-    close: closeMoveDialog,
-    handleOpenChange: handleMoveOpenChange,
-    run: runMove,
-  } = useEntityDialog<db.NotesNote>();
 
-  const { notebook, folders, notes, canEdit, rootFolderId, gate } =
-    useNotebookData(notebookFlag);
+  const { notes, canEdit, gate } = useNotebookData(notebookFlag);
   const selectedNote =
     noteId === null
       ? null
@@ -115,10 +95,6 @@ export function NotesNoteDetail({
       draftsMatchSelectedNote &&
       (normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
         bodyDraft !== draftBase.bodyMd)
-  );
-  const folderRows = useMemo(
-    () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
-    [folders, rootFolderId]
   );
   const previewState = useMemo(() => {
     try {
@@ -325,54 +301,11 @@ export function NotesNoteDetail({
     };
   }, [draftBase, isDirty, notebookFlag]);
 
-  const handleDeleteSelectedNote = useMutableCallback(() => {
-    if (!notebookFlag || !selectedNote || !canEdit) return;
-    confirmNotesDestructiveAction({
-      webMessage: 'Delete this note?',
-      nativeTitle: 'Delete note',
-      nativeMessage: 'This note will be removed from the notebook.',
-      action: () => {
-        setError(null);
-        void deleteNotebookNote({
-          notebookFlag,
-          noteId: selectedNote.noteId,
-        })
-          .then(() => onDeleted?.())
-          .catch((e) => setError(errorMessage(e, 'Failed to delete note')));
-      },
-    });
-  });
-
-  const handleMoveSelectedNote = useMutableCallback(
-    async (folderId: number) => {
-      if (!notebookFlag || !selectedNote || !canEdit || isMovingNote) return;
-
-      if (folderId === selectedNote.folderId) {
-        closeMoveDialog();
-        return;
-      }
-
-      setError(null);
-      try {
-        await runMove(async () => {
-          await moveNotebookNote({
-            notebookFlag,
-            noteId: selectedNote.noteId,
-            folderId,
-          });
-        });
-      } catch (e) {
-        setError(errorMessage(e, 'Failed to move note'));
-      }
-    }
-  );
-
   const togglePreview = useCallback(() => {
     setIsPreviewing((previewing) => !previewing);
   }, []);
 
   const headerSaveLabel = getHeaderSaveLabel(saveState);
-  const showDetailActions = !notebook || canEdit;
   const headerControls = useMemo(
     () =>
       selectedNote ? (
@@ -381,26 +314,9 @@ export function NotesNoteDetail({
             isPreviewing={isPreviewing}
             onPress={togglePreview}
           />
-          {showDetailActions ? (
-            <NotesDetailHeaderActions
-              disabled={!canEdit}
-              isMoving={isMovingNote}
-              onDelete={handleDeleteSelectedNote}
-              onMove={() => openMoveDialog(selectedNote)}
-            />
-          ) : null}
         </XStack>
       ) : null,
-    [
-      canEdit,
-      handleDeleteSelectedNote,
-      isPreviewing,
-      isMovingNote,
-      showDetailActions,
-      openMoveDialog,
-      selectedNote,
-      togglePreview,
-    ]
+    [isPreviewing, selectedNote, togglePreview]
   );
   useRegisterChannelHeaderItem(
     headerActionsPlacement === 'channel-header' ? headerControls : null
@@ -519,14 +435,6 @@ export function NotesNoteDetail({
           </YStack>
         </YStack>
       </KeyboardDismissFrame>
-      <MoveNoteSheet
-        folderRows={folderRows}
-        isMoving={isMovingNote}
-        note={selectedNote}
-        onMove={handleMoveSelectedNote}
-        onOpenChange={handleMoveOpenChange}
-        open={movingNote !== null}
-      />
     </YStack>
   );
 }
@@ -578,48 +486,5 @@ function HeaderSaveStatus({ label }: { label: string | null }) {
     >
       {label}
     </Text>
-  );
-}
-
-function NotesDetailHeaderActions({
-  disabled,
-  isMoving,
-  onDelete,
-  onMove,
-}: {
-  disabled: boolean;
-  isMoving: boolean;
-  onDelete: () => void;
-  onMove: () => void;
-}) {
-  const groups = createActionGroups(
-    [
-      'neutral',
-      {
-        title: 'Move to folder',
-        startIcon: 'Folder',
-        action: onMove,
-        disabled: disabled || isMoving,
-        testID: 'NotesDetailMoveAction',
-      },
-    ],
-    [
-      'negative',
-      {
-        title: 'Delete note',
-        startIcon: 'Close',
-        accent: 'negative',
-        action: onDelete,
-        disabled,
-        testID: 'NotesDetailDeleteAction',
-      },
-    ]
-  );
-
-  return (
-    <NotesOverflowMenu
-      groups={groups}
-      triggerTestID="NotesDetailActionsTrigger"
-    />
   );
 }
