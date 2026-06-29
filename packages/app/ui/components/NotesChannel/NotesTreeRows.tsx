@@ -1,25 +1,18 @@
 import * as db from '@tloncorp/shared/db';
-import { Icon, Pressable, Text } from '@tloncorp/ui';
+import { Icon, Pressable } from '@tloncorp/ui';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
-import { TamaguiWebElement, XStack, YStack } from 'tamagui';
+import { TamaguiWebElement, XStack } from 'tamagui';
 
 import type { ActionGroup } from '../ActionSheet';
 import { createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { NotesActionMenu } from './NotesCommon';
-import { formatNoteDate } from './notesTree';
 
 const TREE_ROW_HEIGHT = 44;
 const TREE_LEVEL_WIDTH = 24;
-const TREE_ROW_LEFT_PADDING = 2;
-const TREE_ROW_GAP = 6;
-const TREE_GUIDE_LEFT = TREE_ROW_LEFT_PADDING + TREE_ROW_GAP;
-const TREE_CHILD_GUIDE_CARET_OFFSET = 8;
-const TREE_CHILD_GUIDE_TOP =
-  TREE_ROW_HEIGHT / 2 + TREE_CHILD_GUIDE_CARET_OFFSET;
 
 export function FolderTreeRow({
   canEdit,
@@ -29,8 +22,6 @@ export function FolderTreeRow({
   hasChildren,
   isDeleting,
   label,
-  noteCount,
-  selected,
   onDelete,
   onCreateFolder,
   onCreateNote,
@@ -101,34 +92,25 @@ export function FolderTreeRow({
   return (
     <TreeRowFrame
       depth={depth}
-      showChildGuide={expanded && hasChildren}
-      selected={selected}
       {...rowActionProps}
       onPress={onPress}
       testID={`NotesFolderRow-${label}`}
     >
       <TreeChevron expanded={expanded} hasChildren={hasChildren} />
-      <ListItem.SystemIcon
-        icon="Folder"
-        size="$2xl"
-        color={selected ? '$primaryText' : '$tertiaryText'}
-        backgroundColor="transparent"
-      />
       <ListItem.MainContent height="auto" minHeight={0}>
         <ListItem.Title
-          size="$label/m"
-          color={selected ? '$primaryText' : '$secondaryText'}
-          fontWeight={selected ? '600' : '400'}
+          size="$body"
+          color="$primaryText"
+          fontWeight="400"
           letterSpacing={0}
         >
           {label}
         </ListItem.Title>
       </ListItem.MainContent>
-      {noteCount > 0 || actionsMenu ? (
+      {actionsMenu ? (
         <ListItem.EndContent paddingTop={0}>
           <XStack alignItems="center" gap="$xs">
             {actionsMenu}
-            {noteCount > 0 ? <CountFrame count={noteCount} /> : null}
           </XStack>
         </ListItem.EndContent>
       ) : null}
@@ -153,7 +135,8 @@ export function NoteRow({
   onMove: () => void;
   onPress: () => void;
 }) {
-  const updatedAt = formatNoteDate(note.updatedAt);
+  const updatedAt = getNoteTimestampMs(note.updatedAt ?? note.createdAt);
+  const bodyPreview = getNoteBodyPreview(note.bodyMd);
 
   const actionGroups = createActionGroups(
     [
@@ -184,38 +167,30 @@ export function NoteRow({
     <TreeRowFrame
       depth={depth}
       selected={selected}
+      variant="chatList"
       {...rowActionProps}
       onPress={onPress}
       testID={`NotesNoteRow-${note.noteId}`}
     >
-      <TreeLeadingSpacer />
-      <ListItem.SystemIcon
-        icon="ChannelNote"
-        size="$2xl"
-        color={selected ? '$primaryText' : '$tertiaryText'}
-        backgroundColor="transparent"
-      />
-      <ListItem.MainContent height="auto" minHeight={0}>
+      <ListItem.SystemIcon icon="ChannelNote" />
+      <ListItem.MainContent>
         <ListItem.Title
-          size="$label/m"
-          color={selected ? '$primaryText' : '$secondaryText'}
+          size="$body"
+          color="$primaryText"
           fontWeight="400"
           letterSpacing={0}
         >
           {note.title || 'Untitled'}
         </ListItem.Title>
+        {bodyPreview ? (
+          <ListItem.Subtitle>{bodyPreview}</ListItem.Subtitle>
+        ) : null}
       </ListItem.MainContent>
       {updatedAt || actionsMenu ? (
-        <ListItem.EndContent paddingTop={0}>
+        <ListItem.EndContent>
           <XStack alignItems="center" gap="$xs">
             {updatedAt ? (
-              <ListItem.Subtitle
-                size="$label/s"
-                color="$tertiaryText"
-                letterSpacing={0}
-              >
-                {updatedAt}
-              </ListItem.Subtitle>
+              <ListItem.Time time={updatedAt} letterSpacing={0} />
             ) : null}
             {actionsMenu}
           </XStack>
@@ -276,16 +251,6 @@ function useRowActions({
   };
 }
 
-function CountFrame({ count }: { count: number }) {
-  return (
-    <XStack width="$2xl" alignItems="center" justifyContent="center">
-      <Text size="$label/s" color="$tertiaryText" letterSpacing={0}>
-        {count}
-      </Text>
-    </XStack>
-  );
-}
-
 function TreeChevron({
   expanded,
   hasChildren,
@@ -311,10 +276,6 @@ function TreeChevron({
   );
 }
 
-function TreeLeadingSpacer() {
-  return <XStack width="$2xl" height="$2xl" flexShrink={0} />;
-}
-
 function TreeRowFrame({
   children,
   depth,
@@ -323,8 +284,8 @@ function TreeRowFrame({
   onMouseEnter,
   onMouseLeave,
   selected = false,
-  showChildGuide = false,
   testID,
+  variant = 'compact',
 }: {
   children: ReactNode;
   depth: number;
@@ -333,9 +294,11 @@ function TreeRowFrame({
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   selected?: boolean;
-  showChildGuide?: boolean;
   testID?: string;
+  variant?: 'compact' | 'chatList';
 }) {
+  const chatListStyle = variant === 'chatList';
+
   return (
     <TreeRowPressable
       onMouseEnter={onMouseEnter}
@@ -345,18 +308,25 @@ function TreeRowFrame({
       testID={testID}
     >
       <ListItem
-        alignItems="center"
-        minHeight={TREE_ROW_HEIGHT}
+        alignItems={chatListStyle ? 'stretch' : 'center'}
+        minHeight={chatListStyle ? undefined : TREE_ROW_HEIGHT}
         position="relative"
-        borderRadius="$m"
-        backgroundColor={selected ? '$secondaryBackground' : 'transparent'}
-        paddingLeft={TREE_ROW_LEFT_PADDING}
-        paddingRight="$s"
-        paddingVertical="$xs"
-        gap="$s"
+        borderRadius={chatListStyle ? '$xl' : '$m'}
+        backgroundColor={
+          selected
+            ? chatListStyle
+              ? '$shadow'
+              : '$secondaryBackground'
+            : 'transparent'
+        }
+        paddingLeft="$l"
+        paddingRight={chatListStyle ? '$l' : '$s'}
+        paddingVertical={chatListStyle ? '$l' : '$xs'}
+        gap={chatListStyle ? '$l' : '$s'}
       >
-        <TreeIndentGuides depth={depth} showChildGuide={showChildGuide} />
-        <XStack width={depth * TREE_LEVEL_WIDTH} flexShrink={0} />
+        {depth > 0 ? (
+          <XStack width={depth * TREE_LEVEL_WIDTH} flexShrink={0} />
+        ) : null}
         {children}
       </ListItem>
     </TreeRowPressable>
@@ -412,46 +382,24 @@ function TreeRowPressable({
   );
 }
 
-function TreeIndentGuides({
-  depth,
-  showChildGuide = false,
-}: {
-  depth: number;
-  showChildGuide?: boolean;
-}) {
-  if (depth <= 0 && !showChildGuide) return null;
+function getNoteTimestampMs(timestamp: number | null | undefined) {
+  if (!timestamp) return null;
+  return timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
+}
 
-  const guideCount = depth + (showChildGuide ? 1 : 0);
+function getNoteBodyPreview(bodyMd: string | null | undefined) {
+  const preview = (bodyMd ?? '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/^[\s>*+-]*\[[ x]\]\s+/gim, '')
+    .replace(/^[\s>*+-]+/gm, '')
+    .replace(/[*_~#|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  return (
-    <XStack
-      position="absolute"
-      top={-1}
-      bottom={-1}
-      left={TREE_GUIDE_LEFT}
-      width={guideCount * TREE_LEVEL_WIDTH}
-      pointerEvents="none"
-    >
-      {Array.from({ length: guideCount }).map((_, index) => {
-        const isChildGuide = showChildGuide && index === guideCount - 1;
-        return (
-          <YStack
-            key={index}
-            position="relative"
-            width={TREE_LEVEL_WIDTH}
-            alignSelf="stretch"
-          >
-            <YStack
-              position="absolute"
-              top={isChildGuide ? TREE_CHILD_GUIDE_TOP : 0}
-              bottom={0}
-              left={TREE_LEVEL_WIDTH / 2}
-              width={1}
-              backgroundColor="$border"
-            />
-          </YStack>
-        );
-      })}
-    </XStack>
-  );
+  return preview || null;
 }
