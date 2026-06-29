@@ -175,7 +175,7 @@
     ==
   ++  club-eq  2 :: reverb control: max number of forwards for clubs
   +$  current-state
-    $:  %13
+    $:  %14
         dms=(map ship dm:v7:cv)
         clubs=(map id:club:c club:v7:cv)
         pins=(list whom:c)
@@ -186,6 +186,11 @@
         last-updated=(list [=whom:c =time])  ::  newest first, one-per-whom
         old-chats=(map flag:v2:cv chat:v2:cv)  :: for migration
         old-pins=(list whom:v2:cv)
+        ::  vouched DMs: experimental parallel store for "virtual identity"
+        ::  (bot/moon) conversations, keyed by [bot-moon human]. Kept separate
+        ::  from .dms so the normal DM path is untouched. .as is the moon, .who
+        ::  the human; both ships store under the same key.
+        vouched-dms=(map [as=ship who=ship] dm:v7:cv)
     ==
   +$  sent-id
     $@  time             ::  top-level msg
@@ -291,14 +296,16 @@
   =?  old  ?=(%10 -.old)  (state-10-to-11 old)
   =?  old  ?=(%11 -.old)  (state-11-to-12 old)
   =?  old  ?=(%12 -.old)  (state-12-to-13 old)
-  ?>  ?=(%13 -.old)
+  =?  old  ?=(%13 -.old)  (state-13-to-14 old)
+  ?>  ?=(%14 -.old)
   =.  state  old
   =.  cor
     (emit [%pass /load/rectify-activity %arvo %b %wait now.bowl])
   rectify-club-state
   ::
   +$  versioned-state
-    $%  state-13
+    $%  state-14
+        state-13
         state-12
         state-11
         state-10
@@ -449,9 +456,39 @@
         old-pins=(list whom:v2:cv)
     ==
   ::
-  +$  state-13  current-state
+  +$  state-14  current-state
+  +$  state-13
+    $:  %13
+        dms=(map ship dm:v7:cv)
+        clubs=(map id:club:c club:v7:cv)
+        pins=(list whom:c)
+        sends=(map whom:c (qeu sent-id))
+        blocked=(set ship)
+        blocked-by=(set ship)
+        hidden-messages=(set id:c)
+        last-updated=(list [=whom:c =time])
+        old-chats=(map flag:v2:cv chat:v2:cv)
+        old-pins=(list whom:v2:cv)
+    ==
   +$  state-12  _%*(. *state-13 - %12)
   ::
+  ++  state-13-to-14
+    |=  s=state-13
+    ^-  state-14
+    ~>  %spin.['state-13-to-14']
+    :*  %14
+        dms.s
+        clubs.s
+        pins.s
+        sends.s
+        blocked.s
+        blocked-by.s
+        hidden-messages.s
+        last-updated.s
+        old-chats.s
+        old-pins.s
+        vouched-dms=~
+    ==
   ++  state-12-to-13
     |=  =state-12
     ^-  state-13
@@ -895,6 +932,16 @@
     =*  diff=diff:dm:v7:cv  p.rail
     =.  cor  (emit (tell-log %dbug ~['received dm diff' >diff<] ~))
     di-abet:(di-take-counter:(di-abed-soft:di-core src.bowl) diff)
+  ::
+      %chat-dm-vouched-action-2
+    =/  va=vouched-action:dm:c  p.rail
+    ?.  =(src.bowl our.bowl)
+      ~|("%chat-dm-vouched-action-2 only allowed from self" !!)
+    (dv-take-action as.va action.va)
+  ::
+      %chat-dm-vouched-diff-2
+    =/  vd=vouched-diff:dm:c  p.rail
+    (dv-take-diff as.vd diff.vd)
   ::
       %chat-dm-action-1
     =*  old-action=action:dm:v6:cv  p.rail
@@ -1563,14 +1610,16 @@
   ~>  %spin.['check-writ-ownership']
   =*  her    p.p.diff
   =*  delta  q.diff
-  =*  should  =(her src.bowl)
+  ::  .src may own a writ keyed under .her when they are the same ship or
+  ::  when .her is a moon .src sponsors (virtual identity). See +vouches-for.
+  =/  should=?  (vouches-for:utils src.bowl her)
   ?-  -.delta
       %reply  (check-reply-ownership delta should)
       %add  ?.  should  |
-            =(src.bowl (get-ship-dw delta))
+            (vouches-for:utils src.bowl (get-ship-dw delta))
       %del  should
-      %add-react  =(src.bowl (get-ship-dw delta))
-      %del-react  =(src.bowl (get-ship-dw delta))
+      %add-react  (vouches-for:utils src.bowl (get-ship-dw delta))
+      %del-react  (vouches-for:utils src.bowl (get-ship-dw delta))
   ==
 ::
 ++  check-reply-ownership
@@ -1579,10 +1628,10 @@
   ?>  ?=(%reply -.d)
   =*  delta  delta.d
   ?-  -.delta
-      %add  ?.(should | =(src.bowl (get-ship-dr delta)))
+      %add  ?.(should | (vouches-for:utils src.bowl (get-ship-dr delta)))
       %del  should
-      %add-react  =(src.bowl (get-ship-dr delta))
-      %del-react  =(src.bowl (get-ship-dr delta))
+      %add-react  (vouches-for:utils src.bowl (get-ship-dr delta))
+      %del-react  (vouches-for:utils src.bowl (get-ship-dr delta))
   ==
 ::
 ++  diff-to-response
@@ -3054,6 +3103,76 @@
       (poke-them /proxy/diff chat-dm-diff-2+diff)
     --
   --
+::  +dv-core: experimental "vouched" DM core for virtual identities (bots).
+::
+::    Parallels +di-core but operates on .vouched-dms keyed by [as=moon
+::    who=human], leaving the normal DM path untouched. Reuses the message
+::    store (+reduce:pac); skips the invite handshake / activity / unread
+::    bookkeeping for now (experimental).
+::
+::  +dv-core: experimental "vouched" DM core for virtual identities (bots).
+::
+::    Parallels +di-core but operates on .vouched-dms keyed by [as=moon
+::    who=human], leaving the normal DM path untouched. Reuses the message
+::    store (+reduce:pac); skips the invite handshake / activity / unread
+::    bookkeeping for now (experimental).
+::
+++  dv-core
+  |_  [as=ship who=ship =dm:c]
+  +*  dv-pact  ~(. pac pact.dm)
+  ++  dv-core  .
+  ++  dv-abed
+    |=  [a=ship w=ship]
+    ~>  %spin.['dv-abed']
+    =/  d=dm:c  (~(gut by vouched-dms) [a w] [*pact:c *remark:c %done %.n])
+    dv-core(as a, who w, dm d)
+  ++  dv-abet
+    =.  vouched-dms  (~(put by vouched-dms) [as who] dm)
+    cor
+  ++  dv-wire  `wire`/vouched-dm/(scot %p as)/(scot %p who)
+  ++  dv-ingest
+    |=  =diff:dm:c
+    ~>  %spin.['dv-ingest']
+    ^+  dv-core
+    =.  pact.dm  (reduce:dv-pact now.bowl from-self diff)
+    dv-core
+  ++  dv-proxy
+    |=  [dest=ship =diff:dm:c]
+    ~>  %spin.['dv-proxy']
+    ^+  dv-core
+    =.  dv-core  (dv-ingest diff)
+    =.  cor
+      %-  emit
+      :*  %pass  dv-wire  %agent  [dest dap.bowl]
+          %poke  chat-dm-vouched-diff-2+[as diff]
+      ==
+    dv-core
+  --
+::  +dv-take-action: handle a self-poked vouched dm action.
+::
+++  dv-take-action
+  |=  [as=ship =action:dm:c]
+  ~>  %spin.['dv-take-action']
+  ^+  cor
+  ?:  (vouches-for:utils our.bowl as)
+    ::  we host bot .as (or .as is us): speak as it to the human p.action
+    dv-abet:(dv-proxy:(dv-abed:dv-core as p.action) p.action q.action)
+  ::  otherwise we're the human DMing bot .as: route to its owner
+  ?>  ?=(%earl (clan:title as))
+  dv-abet:(dv-proxy:(dv-abed:dv-core as our.bowl) (^sein:title as) q.action)
+::  +dv-take-diff: handle a vouched dm diff received over the network.
+::
+++  dv-take-diff
+  |=  [as=ship =diff:dm:c]
+  ~>  %spin.['dv-take-diff']
+  ^+  cor
+  ?:  (vouches-for:utils our.bowl as)
+    ::  inbound to our bot .as from the human src.bowl
+    dv-abet:(dv-ingest:(dv-abed:dv-core as src.bowl) diff)
+  ?:  (vouches-for:utils src.bowl as)
+    ::  a reply from src's bot .as to us (the human)
+    dv-abet:(dv-ingest:(dv-abed:dv-core as our.bowl) diff)
+  ~|  %vouched-dm-diff-failed-vouch  !!
 ::  a bug caused us to hear one last gossip about a club we left. this
 ::  leaves us in a bad state where we have a club, but we're not in it.
 ::  to fix we simply remove any invalid clubs

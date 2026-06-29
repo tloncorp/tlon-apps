@@ -3,6 +3,50 @@
 /=  agent  /app/chat
 |%
 ++  dap  %chat-test
+::  ~doznec-sampel-palnet is a real moon sponsored by ~sampel-palnet.
+++  moon  ~doznec-sampel-palnet
+++  owner  ~sampel-palnet
+::  a planet posting as its own bot moon routes the diff to the human
+++  test-vouched-dm-owner-reply
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our owner, src owner)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (dm-message moon now.bw [%inline ~['hi from bot']])
+  ;<  caz=(list card)  bind:m
+    (do-poke %chat-dm-vouched-action-2 !>(`vouched-action:dm:c`[moon ~bus diff]))
+  %+  ex-cards  caz
+  :~  %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
+      [[~bus dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+  ==
+::  a human DMing a bot moon routes the diff to the moon's owner (sein)
+++  test-vouched-dm-human-send
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~bus, src ~bus)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (dm-message ~bus now.bw [%inline ~['hi bot']])
+  ;<  caz=(list card)  bind:m
+    (do-poke %chat-dm-vouched-action-2 !>(`vouched-action:dm:c`[moon moon diff]))
+  %+  ex-cards  caz
+  :~  %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
+      [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
+  ==
+::  a vouched diff from a ship that does not sponsor the moon is rejected
+++  test-vouched-dm-rejects-unvouched
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our ~bus, src ~ten)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (dm-message moon now.bw [%inline ~['spoof']])
+  %-  ex-fail
+  (do-poke %chat-dm-vouched-diff-2 !>(`vouched-diff:dm:c`[moon diff]))
 ++  test-dm-notification-clearing
   %-  eval-mare
   =/  m  (mare ,~)

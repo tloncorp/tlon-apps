@@ -1083,7 +1083,7 @@
     =*  no-op  `ca-core
     ?-    -.c-post
         %add
-      ?>  |(=(src.bowl our.bowl) =(src.bowl (get-author-ship:utils author.essay.c-post)))
+      ?>  |(=(src.bowl our.bowl) (can-author:utils src.bowl author.essay.c-post))
       ?>  =(kind.nest -.kind.essay.c-post)
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  id=id-post:c
@@ -1105,12 +1105,12 @@
       ca-core(posts.channel (put:on-v-posts:c posts.channel id &+new))
     ::
         %edit
-      ?>  |(=(src.bowl (get-author-ship:utils author.essay.c-post)) (is-admin:ca-perms src.bowl))
+      ?>  |((can-author:utils src.bowl author.essay.c-post) (is-admin:ca-perms src.bowl))
       ?>  (lte (met 3 (jam essay.c-post)) size-limit)
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
+      ?>  |((can-author:utils src.bowl author.u.post) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %edit +.u.post essay.c-post]
         (run-hooks event nest 'edit blocked')
@@ -1128,7 +1128,7 @@
       =/  post  (get:on-v-posts:c posts.channel id.c-post)
       ?~  post  no-op
       ?:  ?=(%| -.u.post)  no-op
-      ?>  |(=(src.bowl (get-author-ship:utils author.u.post)) (is-admin:ca-perms src.bowl))
+      ?>  |((can-author:utils src.bowl author.u.post) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-post %del +.u.post]
         (run-hooks event nest 'delete blocked')
@@ -1210,7 +1210,7 @@
     =*  replies  replies.parent
     ?-    -.c-reply
         %add
-      ?>  =(src.bowl (get-author-ship:utils author.reply-essay.c-reply))
+      ?>  (can-author:utils src.bowl author.reply-essay.c-reply)
       ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =/  id=id-reply:c
         |-
@@ -1234,7 +1234,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply    `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  =(src.bowl (get-author-ship:utils author.u.reply))
+      ?>  (can-author:utils src.bowl author.u.reply)
       ?>  (lte (met 3 (jam reply-essay.c-reply)) size-limit)
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %edit parent +.u.reply reply-essay.c-reply]
@@ -1253,7 +1253,7 @@
       =/  reply  (get:on-v-replies:c replies id.c-reply)
       ?~  reply  `replies
       ?:  ?=(%| -.u.reply)  `replies
-      ?>  |(=(src.bowl (get-author-ship:utils author.u.reply)) (is-admin:ca-perms src.bowl))
+      ?>  |((can-author:utils src.bowl author.u.reply) (is-admin:ca-perms src.bowl))
       =^  result=(each event:h tang)  cor
         =/  =event:h  [%on-reply %del parent +.u.reply]
         (run-hooks event nest 'delete blocked')
@@ -1297,7 +1297,7 @@
         p.c-react
       p.c-react
     ?>  ?|  =(src.bowl our.bowl)
-            =(src.bowl (get-author-ship:utils author))
+            (can-author:utils src.bowl author)
         ==
     =/  new-react  ?:(?=(%add-react -.c-react) `q.c-react ~)
     =/  [changed=? new-rev=@ud]

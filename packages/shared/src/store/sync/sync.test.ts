@@ -15,7 +15,8 @@ import {
   PostDataResponse,
 } from '@tloncorp/api/urbit';
 import {
-  ContactBookScryResult1,
+  ContactBookProfile,
+  ContactDirectoryScryResult,
   Contact as UrbitContact,
 } from '@tloncorp/api/urbit/contact';
 import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
@@ -52,14 +53,39 @@ import {
 } from './sync';
 import { syncContacts } from './syncContacts';
 
-const rawContactsData2 = {};
 const rawContactSuggestionsData: string[] = [];
 
 const channelPostWithRepliesData =
   rawChannelPostWithRepliesData as unknown as PostDataResponse;
 const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
-const contactBookData = rawContactsData2 as unknown as ContactBookScryResult1;
 const suggestionsData = rawContactSuggestionsData as unknown as string[];
+
+// getContacts now reads the unified /v1/directory scry. Project the legacy v0
+// fixture into that v1 shape so the sync test exercises the real code path.
+const v0ToContactBookProfile = (c: UrbitContact): ContactBookProfile => {
+  const profile: ContactBookProfile = {};
+  if (c.nickname) profile.nickname = { type: 'text', value: c.nickname };
+  if (c.bio) profile.bio = { type: 'text', value: c.bio };
+  if (c.status) profile.status = { type: 'text', value: c.status };
+  if (c.color) profile.color = { type: 'tint', value: c.color };
+  if (c.avatar) profile.avatar = { type: 'look', value: c.avatar };
+  if (c.cover) profile.cover = { type: 'look', value: c.cover };
+  if (c.groups?.length) {
+    profile.groups = {
+      type: 'set',
+      value: c.groups.map((g) => ({ type: 'flag', value: g })),
+    };
+  }
+  return profile;
+};
+const directoryData: ContactDirectoryScryResult = Object.fromEntries(
+  Object.entries(contactsData)
+    .filter(([, c]) => !!c)
+    .map(([ship, c]) => [
+      ship,
+      { isContact: false, contact: v0ToContactBookProfile(c), mod: {} },
+    ])
+);
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
 const groupsInitData = rawGroupsInitData as unknown as GroupsInit6;
 const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit6;
@@ -279,7 +305,7 @@ test('syncChannelWithBackoff keeps polling across the markPostSent catch-up wind
 });
 
 test('syncs contacts', async () => {
-  setScryOutputs([contactsData, contactBookData, suggestionsData]);
+  setScryOutputs([directoryData, suggestionsData]);
   await syncContacts();
   const storedContacts = await db.getContacts();
   expect(storedContacts.length).toEqual(
@@ -290,7 +316,7 @@ test('syncs contacts', async () => {
     expect(original).toBeTruthy();
     expect(original.groups?.length ?? 0).toEqual(c.pinnedGroups.length);
   });
-  setScryOutputs([contactsData, contactBookData, suggestionsData]);
+  setScryOutputs([directoryData, suggestionsData]);
   await syncContacts();
 });
 

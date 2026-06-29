@@ -1,4 +1,4 @@
-import { render } from '@urbit/aura';
+import { p, render } from '@urbit/aura';
 
 import { createDevLogger } from '../lib/logger';
 import { AnalyticsEvent } from '../types/analytics';
@@ -12,17 +12,12 @@ import { normalizeUrbitColor } from './utils';
 const logger = createDevLogger('contactsApi', false);
 
 export const getContacts = async () => {
-  // this is all peers we know about, with merged profile data for
-  // contacts
-  const peersResponse = await scry<ub.ContactRolodex>({
+  // /v1/directory is the unified v1 view of every known peer + contact (and our
+  // own profile), with full profiles incl. custom fields and an isContact flag.
+  // It supersedes the old v0 /all + /v1/book assembly.
+  const directoryResponse = await scry<ub.ContactDirectoryScryResult>({
     app: 'contacts',
-    path: '/all',
-  });
-
-  // this is all of your contacts, with unmerged profile data + user overrides
-  const contactsResponse = await scry<ub.ContactBookScryResult1>({
-    app: 'contacts',
-    path: '/v1/book',
+    path: '/v1/directory',
   });
 
   const suggestionsResponse = await scry<string[]>({
@@ -30,10 +25,94 @@ export const getContacts = async () => {
     path: '/suggested-contacts',
   });
 
-  return toContactsData({
-    peersResponse: peersResponse,
-    contactsResponse: contactsResponse,
-    suggestionsResponse: suggestionsResponse,
+  return directoryToClientProfiles(directoryResponse, {
+    contactSuggestions: new Set(suggestionsResponse),
+  });
+};
+
+// True when `who` is a moon sponsored by `publisher`. A moon's sponsor is fixed
+// and derivable from its @p, so this needs no network state -- it lets us trust
+// a bot profile only when published by the bot-moon's actual parent.
+const isMoonOf = (who: string, publisher: string): boolean => {
+  try {
+    return p.clan(who) === 'earl' && p.sein(who) === publisher;
+  } catch {
+    return false;
+  }
+};
+
+// Expand the `bots` convention field on a peer's published profile into
+// synthetic peer contacts for the bot moons it owns. We only honor a bot
+// profile published by the moon's actual sponsor, so a ship can't spoof
+// profiles for moons it doesn't own. These let a non-running bot moon render by
+// name/avatar without us ever subscribing to it.
+export const parseBotProfiles = (
+  publisherId: string,
+  profile: ub.ContactBookProfile
+): db.Contact[] => {
+  const raw = profile.bots?.value;
+  if (!raw) {
+    return [];
+  }
+  let parsed: ub.BotProfilesField;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    logger.error('malformed bots field in contact profile', { publisherId });
+    return [];
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    return [];
+  }
+  return Object.entries(parsed).flatMap(([rawId, p]): db.Contact[] => {
+    const botId = rawId.startsWith('~') ? rawId : `~${rawId}`;
+    if (!isMoonOf(botId, publisherId)) {
+      return [];
+    }
+    const nickname = p?.nickname ?? null;
+    const avatar = p?.avatar ?? null;
+    if (!nickname && !avatar) {
+      return [];
+    }
+    return [
+      {
+        id: botId,
+        peerNickname: nickname,
+        peerAvatarImage: avatar,
+        bio: null,
+        status: null,
+        color: null,
+        coverImage: null,
+        pinnedGroups: [],
+        attestations: [],
+        isContact: false,
+        isContactSuggestion: false,
+      },
+    ];
+  });
+};
+
+export const directoryToClientProfiles = (
+  directory: ub.ContactDirectoryScryResult,
+  config?: {
+    contactSuggestions?: Set<string>;
+  }
+): db.Contact[] => {
+  const currentUserId = getCurrentUserId();
+  return Object.entries(directory).flatMap(([id, entry]) => {
+    const hasOverlay = !!entry.mod && Object.keys(entry.mod).length > 0;
+    const profile = contactToClientProfile(id, [
+      entry.contact,
+      hasOverlay ? entry.mod : null,
+    ]);
+    // /v1/directory carries an explicit isContact flag; an empty overlay must
+    // not be mistaken for "is a contact" (as contactToClientProfile assumes).
+    profile.isContact = entry.isContact;
+    profile.isContactSuggestion =
+      !!config?.contactSuggestions?.has(id) &&
+      !entry.isContact &&
+      id !== currentUserId;
+    return [profile, ...parseBotProfiles(id, entry.contact)];
   });
 };
 
@@ -253,10 +332,15 @@ export const subscribeToContactUpdates = (
       if (ub.isPageResponse(event) && event.page.kip.startsWith('~')) {
         const { kip, contact, mod } = event.page;
         const contactBookEntry = [contact, mod] as ub.ContactBookEntry;
-        return handler({
+        handler({
           type: 'upsertContact',
           contact: contactToClientProfile(kip, contactBookEntry),
         });
+        // a profile update may also (de)register bot moons in its `bots` field
+        for (const bot of parseBotProfiles(kip, contact)) {
+          handler({ type: 'upsertContact', contact: bot });
+        }
+        return;
       }
 
       if (ub.isWipeResponse(event) && event.wipe.kip.startsWith('~')) {
@@ -267,10 +351,14 @@ export const subscribeToContactUpdates = (
       // a dupe event here if a contact updates their own profile (get a page fact and peer fact)
       if (ub.isPeerResponse(event) && event.peer.who.startsWith('~')) {
         const { who, contact } = event.peer;
-        return handler({
+        handler({
           type: 'upsertContact',
           contact: v1PeerToClientProfile(who, contact),
         });
+        for (const bot of parseBotProfiles(who, contact)) {
+          handler({ type: 'upsertContact', contact: bot });
+        }
+        return;
       }
     }
   );

@@ -255,6 +255,10 @@
   +$  diff      diff:writs
   +$  action    (pair ship diff)
   +$  rsvp      [=ship ok=?]
+  ::  vouched variants for "virtual identity" (bot/moon) dms. .as is the
+  ::  moon being spoken as/to; otherwise these carry a normal dm action/diff.
+  +$  vouched-action  [as=ship =action]
+  +$  vouched-diff    [as=ship =diff]
   --
 ::
 ::  $whom: a polymorphic identifier for chats

@@ -91,11 +91,22 @@ export interface ContactBookProfile {
   color?: ContactFieldColor;
   groups?: ContactFieldGroups;
   status?: ContactFieldText;
+  // Convention field: a ship publishes the display profiles of the bots
+  // ("virtual identities", i.e. moons) it owns here, as JSON. See
+  // `BotProfilesField` / parseBotProfiles in contactsApi.
+  bots?: ContactFieldText;
   ['lanyard-twitter-0-sign']?: AttestationSignature;
   ['lanyard-phone-0-sign']?: AttestationSignature;
   ['lanyard-twitter-0-url']?: AttestationProviderUrl;
   ['lanyard-phone-0-url']?: AttestationProviderUrl;
 }
+
+// Decoded shape of the `bots` convention field: a map from a bot's ship
+// (a moon of the publisher) to its display profile.
+export type BotProfilesField = Record<
+  string,
+  { nickname?: string | null; avatar?: string | null }
+>;
 
 export interface ContactBookProfileEdit {
   nickname?: ContactFieldText | null;
@@ -112,6 +123,16 @@ export type ContactBookEntry = [ContactBookProfile, ContactBookProfile | null];
 
 export type ContactsAllScryResult1 = Record<string, ContactBookProfile>;
 export type ContactBookScryResult1 = Record<string, ContactBookEntry>;
+
+// /v1/directory: unified view of all known peers + contacts (and our own
+// profile). `contact` is the peer's self-published profile, `mod` the user's
+// local overlay, `isContact` whether it's an explicit contact.
+export interface ContactDirectoryEntry {
+  isContact: boolean;
+  contact: ContactBookProfile;
+  mod: ContactBookProfile;
+}
+export type ContactDirectoryScryResult = Record<string, ContactDirectoryEntry>;
 
 export type ContactsSelfResponse1 = {
   self: ContactBookProfile;
