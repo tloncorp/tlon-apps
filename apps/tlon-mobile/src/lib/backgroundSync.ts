@@ -131,7 +131,6 @@ export async function removeLegacyTasks() {
   }
 }
 
-// Define the background task at module scope - this must happen before registration
 export function initializeBackgroundSync() {
   TaskManager.defineTask<Record<string, unknown>>(
     TASK_ID,
