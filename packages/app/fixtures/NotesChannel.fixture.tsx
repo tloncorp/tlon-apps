@@ -1,14 +1,17 @@
 import { queryClient } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSelect } from 'react-cosmos/client';
 
 import {
   ChannelHeader,
   ChannelHeaderItemsProvider,
   XStack,
   YStack,
+  useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
 } from '../ui';
+import { NotesHeaderActions } from '../ui/components/NotesChannel/NotesHeaderActions';
 import { NotesNoteDetail } from '../ui/components/NotesChannel/NotesNoteDetail';
 import { NotesTreePane } from '../ui/components/NotesChannel/NotesTreePane';
 import {
@@ -35,23 +38,30 @@ const notebook = {
 
 const folders = [
   makeFolder(1, '/', null),
-  makeFolder(2, 'Projects', 1),
-  makeFolder(3, 'Backlog', 2),
-  makeFolder(4, 'Archive', 1),
+  makeFolder(2, 'Projects', 1, 90_000),
+  makeFolder(3, 'Backlog', 2, 80_000),
+  makeFolder(4, 'Archive', 1, 70_000),
+  makeFolder(5, 'Research', 2, 60_000),
+  makeFolder(6, 'Personal', 1, 50_000),
 ];
 
 const notes = [
-  makeNote(1, 1, 'Alpha', 'Root-level note that remains visible.'),
+  makeNote(
+    1,
+    1,
+    'Inbox capture',
+    'Root-level note that remains visible in the main notebook list.'
+  ),
   makeNote(
     2,
     2,
-    'Beta',
+    'Roadmap sketch for native notebooks',
     'This nested note should stay hidden while Projects is collapsed.'
   ),
   makeNote(
     3,
     3,
-    'Gamma',
+    'Loose backlog ideas',
     'This grandchild note should also stay hidden while Projects is collapsed.'
   ),
   makeNote(
@@ -60,7 +70,22 @@ const notes = [
     'Release checklist',
     '# Release checklist\n\n- Confirm tree behavior\n- Check editor header\n- Publish when ready'
   ),
+  makeNote(
+    5,
+    5,
+    'Long title: portable markdown tables, import progress, and row overflow behavior',
+    '| Area | Status |\n| --- | --- |\n| Import | Testing |\n| Publish | Ready |'
+  ),
+  makeNote(6, 6, '', 'Untitled note body'),
+  makeNote(
+    7,
+    1,
+    'Meeting notes',
+    'A second root note so the list has mixed root and nested content.'
+  ),
 ];
+const emptyFolders = [folders[0]];
+const emptyNotes: db.NotesNote[] = [];
 
 const fakeChannel = {
   id: `notes/${notebookFlag}`,
@@ -72,7 +97,8 @@ const fakeChannel = {
 function makeFolder(
   folderId: number,
   name: string,
-  parentFolderId: number | null
+  parentFolderId: number | null,
+  updatedAgoMs = 60_000
 ) {
   return {
     id: `${notebookFlag}/folder/${folderId}`,
@@ -82,7 +108,7 @@ function makeFolder(
     name,
     parentFolderId,
     createdAt: now - 120_000,
-    updatedAt: now - 60_000,
+    updatedAt: now - updatedAgoMs,
   } as db.NotesFolder;
 }
 
@@ -127,6 +153,202 @@ function seedNotesQueries() {
     ['notesNotes', new Set(['notesNotes']), notebookFlag],
     notes
   );
+  queryClient.setQueryData(
+    ['notesPublished', notebookFlag],
+    [
+      { host: '~zod', flagName: 'native-notes-fixture', noteId: 4 },
+      { host: '~zod', flagName: 'native-notes-fixture', noteId: 5 },
+    ]
+  );
+}
+
+type ContentsState = 'Populated' | 'Empty' | 'Read only';
+type ContentsViewport = 'Phone channel' | 'Desktop sidebar';
+type ExpandedPreset = 'All folders' | 'Projects collapsed' | 'Root only';
+type SelectedItem =
+  | 'Inbox capture'
+  | 'Projects folder'
+  | 'Release checklist'
+  | 'No selection';
+
+function NotebookContentsListFixture() {
+  const [contentsState] = useSelect<ContentsState>('Contents', {
+    defaultValue: 'Populated',
+    options: ['Populated', 'Empty', 'Read only'],
+  });
+  const [viewport] = useSelect<ContentsViewport>('Viewport', {
+    defaultValue: 'Phone channel',
+    options: ['Phone channel', 'Desktop sidebar'],
+  });
+  const [expandedPreset] = useSelect<ExpandedPreset>('Expanded', {
+    defaultValue: 'All folders',
+    options: ['All folders', 'Projects collapsed', 'Root only'],
+  });
+  const [selectedItem] = useSelect<SelectedItem>('Selected item', {
+    defaultValue: 'Inbox capture',
+    options: [
+      'Inbox capture',
+      'Projects folder',
+      'Release checklist',
+      'No selection',
+    ],
+  });
+
+  const fixtureFolders = contentsState === 'Empty' ? emptyFolders : folders;
+  const fixtureNotes = contentsState === 'Empty' ? emptyNotes : notes;
+  const canEdit = contentsState !== 'Read only';
+  const usePhoneViewport = viewport === 'Phone channel';
+  const initialExpandedFolderIds = useMemo(() => {
+    if (expandedPreset === 'All folders') {
+      return new Set(fixtureFolders.map((folder) => folder.folderId));
+    }
+
+    if (expandedPreset === 'Projects collapsed') {
+      return new Set([1, 4, 6]);
+    }
+
+    return new Set([1]);
+  }, [expandedPreset, fixtureFolders]);
+  const initialSelection = useMemo(() => {
+    if (contentsState === 'Empty' || selectedItem === 'No selection') {
+      return { folderId: null, noteId: null };
+    }
+
+    if (selectedItem === 'Projects folder') {
+      return { folderId: 2, noteId: null };
+    }
+
+    if (selectedItem === 'Release checklist') {
+      return { folderId: 4, noteId: 4 };
+    }
+
+    return { folderId: 1, noteId: 1 };
+  }, [contentsState, selectedItem]);
+  const [expandedFolderIds, setExpandedFolderIds] = useState(
+    () => initialExpandedFolderIds
+  );
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(
+    initialSelection.folderId
+  );
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
+    initialSelection.noteId
+  );
+  const publishedNoteIds = useMemo(() => new Set([4, 5]), []);
+
+  useEffect(() => {
+    setExpandedFolderIds(initialExpandedFolderIds);
+  }, [initialExpandedFolderIds]);
+
+  useEffect(() => {
+    setSelectedFolderId(initialSelection.folderId);
+    setSelectedNoteId(initialSelection.noteId);
+  }, [initialSelection]);
+
+  const treeRows = useMemo(
+    () =>
+      buildNotesTreeRows({
+        expandedFolderIds,
+        folderNoteCounts: buildFolderNoteCounts(fixtureFolders, fixtureNotes),
+        folders: fixtureFolders,
+        notes: fixtureNotes,
+        rootFolderId: 1,
+      }),
+    [expandedFolderIds, fixtureFolders, fixtureNotes]
+  );
+
+  const toggleFolder = (folderId: number, hasChildren: boolean) => {
+    setSelectedNoteId(null);
+    setSelectedFolderId((currentFolderId) =>
+      currentFolderId === folderId ? null : folderId
+    );
+
+    if (!hasChildren) return;
+    setExpandedFolderIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+      if (nextIds.has(folderId)) {
+        nextIds.delete(folderId);
+      } else {
+        nextIds.add(folderId);
+      }
+      return nextIds;
+    });
+  };
+
+  const openNote = (note: db.NotesNote) => {
+    setSelectedFolderId(note.folderId);
+    setSelectedNoteId(note.noteId);
+  };
+
+  return (
+    <FixtureWrapper fillWidth fillHeight backgroundColor="$secondaryBackground">
+      <ChannelHeaderItemsProvider>
+        <YStack
+          flex={1}
+          width={usePhoneViewport ? 390 : 360}
+          maxWidth="100%"
+          height="100%"
+          backgroundColor="$background"
+          borderLeftWidth={usePhoneViewport ? 0 : 1}
+          borderRightWidth={usePhoneViewport ? 0 : 1}
+          borderColor="$border"
+        >
+          {usePhoneViewport ? (
+            <>
+              <FixtureNotesHeaderActions canEdit={canEdit} />
+              <ChannelHeader
+                channel={fakeChannel}
+                description=""
+                goBack={() => {}}
+                hideIdentity
+                title="Field notes"
+              />
+            </>
+          ) : null}
+          <NotesTreePane
+            canEdit={canEdit}
+            getPublishedNoteUrl={(note) =>
+              `https://test.tlon.app/notes/native-notes-fixture/${note.noteId}`
+            }
+            isDeletingFolder={false}
+            isNotePublished={(noteId) => publishedNoteIds.has(noteId)}
+            layout={usePhoneViewport ? 'stack' : 'takeover'}
+            publishDisabled={false}
+            publishingAction={null}
+            selectedFolderId={selectedFolderId}
+            selectedNoteId={selectedNoteId}
+            treeRows={treeRows}
+            onCreateFolderInFolder={() => {}}
+            onCreateNoteInFolder={() => {}}
+            onDeleteFolder={() => {}}
+            onDeleteNote={() => {}}
+            onMoveFolder={() => {}}
+            onMoveNote={() => {}}
+            onOpenNote={openNote}
+            onPublishNote={() => {}}
+            onRenameFolder={() => {}}
+            onToggleFolder={toggleFolder}
+            onUnpublishNote={() => {}}
+            onViewPublishedNote={() => {}}
+          />
+        </YStack>
+      </ChannelHeaderItemsProvider>
+    </FixtureWrapper>
+  );
+}
+
+function FixtureNotesHeaderActions({ canEdit }: { canEdit: boolean }) {
+  const headerActions = useMemo(
+    () => (
+      <NotesHeaderActions
+        canEdit={canEdit}
+        onNew={() => {}}
+        primaryActionVariant="text"
+      />
+    ),
+    [canEdit]
+  );
+  useRegisterChannelHeaderItem(headerActions);
+  return null;
 }
 
 function NotesTreeFixture() {
@@ -217,6 +439,7 @@ function NotesEditorFixture({ saving = false }: { saving?: boolean }) {
 }
 
 export default {
+  'Contents List': <NotebookContentsListFixture />,
   'Collapsed Tree': <NotesTreeFixture />,
   'Editor Header': <NotesEditorFixture />,
   'Saving Header': <NotesEditorFixture saving />,

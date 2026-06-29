@@ -133,7 +133,7 @@ function NotesTreeRowsList({
   onToggleFolder: (folderId: number, hasChildren: boolean) => void;
 }) {
   return (
-    <YStack gap={2}>
+    <YStack>
       {treeRows.map((row) =>
         row.type === 'folder' ? (
           <FolderTreeRow
