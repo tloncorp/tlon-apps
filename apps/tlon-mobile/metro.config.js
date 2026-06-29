@@ -63,6 +63,8 @@ const nonInlinedRequires = [
   '@tanstack/react-query',
   '@gorhom/bottom-sheet',
   'drizzle-orm',
+  'lodash',
+  'zustand',
 ];
 
 /**
