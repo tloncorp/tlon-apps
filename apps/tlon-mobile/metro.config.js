@@ -53,6 +53,16 @@ const nonInlinedRequires = [
   'expo-splash-screen',
   'react-native-reanimated',
   'react-native-gesture-handler',
+  // Ubiquitous modules that render on the cold-start-to-login path anyway
+  // (root providers, navigator, login bottom sheet, DB init). Inlining them
+  // only scatters require() calls without deferring real work.
+  'tamagui',
+  '@react-navigation/native',
+  '@react-navigation/native-stack',
+  'react-native-safe-area-context',
+  '@tanstack/react-query',
+  '@gorhom/bottom-sheet',
+  'drizzle-orm',
 ];
 
 /**
