@@ -81,6 +81,7 @@ export type GroupsSettings = {
   disableTlonInfraEnhancement?: boolean;
   webAppSplashDismissed?: boolean;
   mobileAppPromoDismissed?: boolean;
+  contextLensEnabled?: boolean;
 } & Record<string, unknown>;
 
 export type TalkSettings = {

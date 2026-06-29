@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import create from 'zustand';
 
-import { useFeatureFlag } from '../../../../lib/featureFlags';
 import {
   type ContextLensGatewayConfig,
   fetchRecentContextLensEvents,
@@ -154,7 +153,7 @@ function releaseContextLensConnection() {
 }
 
 export function useContextLensGatewayConfig(): ContextLensGatewayConfig | null {
-  const [flagEnabled] = useFeatureFlag('contextLens');
+  const { data: flagEnabled } = store.useContextLensEnabled();
   const url = db.contextLensGatewayUrl.useValue();
   const token = db.contextLensGatewayToken.useValue();
   return useMemo(() => {
@@ -176,7 +175,7 @@ export function useContextLensGatewayConfig(): ContextLensGatewayConfig | null {
 // channel's group. Without a channel it stays flag-only, for surfaces that
 // already have direct evidence (a lens-stamped post).
 export function useContextLensAvailable(channel?: db.Channel | null) {
-  const [flagEnabled] = useFeatureFlag('contextLens');
+  const { data: flagEnabled } = store.useContextLensEnabled();
   const isDm = channel?.type === 'dm';
   const chatId = !channel
     ? null
