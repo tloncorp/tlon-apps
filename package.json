@@ -38,7 +38,6 @@
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
     "test:ci": "npm rebuild better-sqlite3 && pnpm build:api && pnpm run -r test run",
     "lint:all": "pnpm -r lint",
-    "patch:expo-share-intent": "node scripts/regenerate-expo-share-intent-patch.mjs",
     "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo"
   },
   "dependencies": {
@@ -78,7 +77,6 @@
       "@simform_solutions/react-native-audio-waveform": "patches/@simform_solutions__react-native-audio-waveform@2.1.6.patch",
       "expo-task-manager": "patches/expo-task-manager@14.0.9.patch",
       "react-native": "patches/react-native@0.81.5.patch",
-      "expo-share-intent": "patches/expo-share-intent@5.1.1.patch",
       "expo-image-picker": "patches/expo-image-picker@17.0.10.patch",
       "@gorhom/bottom-sheet": "patches/@gorhom__bottom-sheet@5.2.6.patch",
       "react-native-reanimated": "patches/react-native-reanimated@4.1.6.patch",
