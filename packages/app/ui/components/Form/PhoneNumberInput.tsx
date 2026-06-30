@@ -113,8 +113,11 @@ export function PhoneNumberInput({ form, shouldFocus = true }: Props) {
           setCountry(next);
           const prefilled = `+${getCallingCode(next)} `;
           inputRef.current?.update({ value: prefilled, transform: true });
+          // Revalidate: the prefilled `+<callingCode>` is not a complete number,
+          // so isValid must drop to false rather than carry over from a
+          // previously entered valid number.
           form.setValue('phoneNumber', toE164(prefilled), {
-            shouldValidate: false,
+            shouldValidate: true,
           });
           setShowCountryPicker(false);
         }}
