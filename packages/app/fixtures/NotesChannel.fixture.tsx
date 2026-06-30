@@ -146,6 +146,14 @@ function seedNotesQueries() {
     notebook
   );
   queryClient.setQueryData(
+    [
+      'notesNotebookWithRelations',
+      new Set(['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']),
+      notebookFlag,
+    ],
+    { ...notebook, folders, notes, members: [] }
+  );
+  queryClient.setQueryData(
     ['notesFolders', new Set(['notesFolders']), notebookFlag],
     folders
   );
@@ -153,6 +161,34 @@ function seedNotesQueries() {
     ['notesNotes', new Set(['notesNotes']), notebookFlag],
     notes
   );
+}
+
+function useSeedNotesFixtureData() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    seedNotesQueries();
+    db.saveNotesNotebookSnapshot({
+      notebook,
+      folders,
+      notes,
+      members: [],
+    })
+      .catch(() => undefined)
+      .finally(() => {
+        if (mounted) {
+          seedNotesQueries();
+          setReady(true);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return ready;
 }
 
 type ContentsState = 'Populated' | 'Empty' | 'Read only';
@@ -358,7 +394,7 @@ function ForceSavingHeaderSlot() {
 }
 
 function NotesEditorFixture({ saving = false }: { saving?: boolean }) {
-  seedNotesQueries();
+  const ready = useSeedNotesFixtureData();
 
   return (
     <FixtureWrapper fillWidth fillHeight backgroundColor="$background">
@@ -371,7 +407,13 @@ function NotesEditorFixture({ saving = false }: { saving?: boolean }) {
             hideIdentity
             title="Field notes"
           />
-          <NotesNoteDetail noteId={4} notebookFlag={notebookFlag} />
+          {ready ? (
+            <NotesNoteDetail
+              noteId={4}
+              notebookFlag={notebookFlag}
+              syncEnabled={false}
+            />
+          ) : null}
           {saving ? <ForceSavingHeaderSlot /> : null}
         </YStack>
       </ChannelHeaderItemsProvider>

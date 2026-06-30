@@ -41,6 +41,7 @@ const MIN_BODY_INPUT_HEIGHT = 360;
 const BODY_FONT_SIZE = 14;
 const BODY_LINE_HEIGHT = 22;
 const BODY_MONO_CHAR_WIDTH = BODY_FONT_SIZE * 0.62;
+const SAVE_STATUS_SLOT_WIDTH = 88;
 
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
@@ -96,12 +97,14 @@ export function NotesNoteDetail({
   noteId,
   notebookFlag,
   onTitleAutoFocused,
+  syncEnabled = true,
 }: {
   autoFocusTitle?: boolean;
   headerActionsPlacement?: 'channel-header' | 'inline' | 'none';
   noteId: number | null;
   notebookFlag: string | null | undefined;
   onTitleAutoFocused?: () => void;
+  syncEnabled?: boolean;
 }) {
   // The note snapshot the drafts are based on. Dirtiness and the save's
   // expectedRevision are computed against this, not the live row, so a row
@@ -116,8 +119,10 @@ export function NotesNoteDetail({
   const titleInputRef = useRef<ElementRef<typeof Input>>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
 
-  const { folders, notes, canEdit, rootFolderId, gate } =
-    useNotebookData(notebookFlag);
+  const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
+    notebookFlag,
+    { syncEnabled }
+  );
   const selectedNote =
     noteId === null
       ? null
@@ -379,6 +384,7 @@ export function NotesNoteDetail({
   );
 
   const headerSaveLabel = getHeaderSaveLabel(saveState);
+  const saveStatusLabel = getSaveStatusLabel(saveState);
   const headerControls = useMemo(
     () =>
       selectedNote ? (
@@ -419,7 +425,6 @@ export function NotesNoteDetail({
   const inlineActions =
     headerActionsPlacement === 'inline' ? (
       <>
-        <HeaderSaveStatus label={headerSaveLabel} />
         {headerControls}
       </>
     ) : null;
@@ -446,7 +451,7 @@ export function NotesNoteDetail({
             paddingBottom="$l"
             gap="$l"
           >
-            {folderPath || noteDate ? (
+            {folderPath || noteDate || saveStatusLabel ? (
               <XStack alignItems="center" gap="$m" minHeight={18}>
                 {folderPath ? (
                   <Text
@@ -462,16 +467,28 @@ export function NotesNoteDetail({
                 ) : (
                   <YStack flex={1} />
                 )}
-                {noteDate ? (
-                  <Text
-                    flexShrink={0}
-                    size="$label/s"
-                    color="$tertiaryText"
-                    numberOfLines={1}
-                  >
-                    {noteDate}
-                  </Text>
-                ) : null}
+                <XStack flexShrink={0} alignItems="center" gap="$s">
+                  <HeaderSaveStatus label={saveStatusLabel} />
+                  {saveStatusLabel && noteDate ? (
+                    <YStack
+                      width={3}
+                      height={3}
+                      borderRadius={2}
+                      backgroundColor="$tertiaryText"
+                      flexShrink={0}
+                    />
+                  ) : null}
+                  {noteDate ? (
+                    <Text
+                      flexShrink={0}
+                      size="$label/s"
+                      color="$tertiaryText"
+                      numberOfLines={1}
+                    >
+                      {noteDate}
+                    </Text>
+                  ) : null}
+                </XStack>
               </XStack>
             ) : null}
             <XStack alignItems="center" gap="$s">
@@ -592,20 +609,33 @@ function NotesPreviewToggle({
 }
 
 function getHeaderSaveLabel(saveState: SaveState) {
-  if (saveState === 'saving') return 'Saving...';
+  if (saveState === 'saving') return 'Syncing...';
   return null;
 }
 
+function getSaveStatusLabel(saveState: SaveState) {
+  if (saveState === 'dirty' || saveState === 'error') return 'Not synced';
+  if (saveState === 'saving') return 'Syncing...';
+  return 'Synced';
+}
+
 function HeaderSaveStatus({ label }: { label: string | null }) {
-  if (!label) return null;
   return (
-    <Text
-      size="$label/s"
-      color="$secondaryText"
-      letterSpacing={0}
-      numberOfLines={1}
+    <XStack
+      width={SAVE_STATUS_SLOT_WIDTH}
+      flexShrink={0}
+      justifyContent="flex-end"
     >
-      {label}
-    </Text>
+      {label ? (
+        <Text
+          size="$label/s"
+          color="$tertiaryText"
+          letterSpacing={0}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      ) : null}
+    </XStack>
   );
 }
