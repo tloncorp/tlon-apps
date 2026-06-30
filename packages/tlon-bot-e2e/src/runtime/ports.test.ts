@@ -28,5 +28,21 @@ describe('runtime endpoint allocation', () => {
     });
     expect(endpoints.ships.ten.code).toBe(FAKEZOD_ACCESS_CODES.ten);
     expect(endpoints.ships.mug.code).toBe(FAKEZOD_ACCESS_CODES.mug);
+    expect(endpoints.gateway).toBeUndefined();
+  });
+
+  test('allocates optional driver-owned gateway endpoint when requested', async () => {
+    const endpoints = await allocateRuntimeEndpoints({
+      fakeModel: 4100,
+      zod: 4101,
+      ten: 4102,
+      mug: 4103,
+      gateway: 4104,
+    });
+
+    expect(endpoints.gateway).toEqual({
+      hostBaseUrl: 'http://127.0.0.1:4104',
+      hostPort: 4104,
+    });
   });
 });

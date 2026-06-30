@@ -1,8 +1,12 @@
 import { config } from 'dotenv';
 import { configDefaults, defineConfig } from 'vitest/config';
 
-// Load .env file
-config();
+// The shared E2E runner supplies a scrubbed, explicit environment. Keep the
+// legacy package-local shell runner behavior, but do not let local .env values
+// leak back into shared-runtime OpenClaw runs.
+if (process.env.TLON_BOT_E2E_DRIVER !== 'openclaw') {
+  config();
+}
 
 // Integration suite config: test/cases/* prompt a live bot against ephemeral
 // fakezod ships (see test/run.sh), so timeouts are generous and files run

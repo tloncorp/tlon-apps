@@ -1,0 +1,30 @@
+services:
+  openclaw:
+    build:
+      context: ${OPENCLAW_DEV_DIR:?OPENCLAW_DEV_DIR is required}
+      dockerfile: Dockerfile.test
+    environment:
+      TLON_URL: ${TLON_URL:?TLON_URL is required}
+      TLON_SHIP: ${TLON_SHIP:?TLON_SHIP is required}
+      TLON_CODE: ${TLON_CODE:?TLON_CODE is required}
+      TLON_OWNER_SHIP: ${TLON_OWNER_SHIP:?TLON_OWNER_SHIP is required}
+      TLON_DM_ALLOWLIST: ${TLON_DM_ALLOWLIST:?TLON_DM_ALLOWLIST is required}
+      FAKE_MODEL_BASE_URL: ${FAKE_MODEL_BASE_URL:?FAKE_MODEL_BASE_URL is required}
+      MODEL: ${MODEL:-custom-proxy/tlon-test-scripted}
+      BRAVE_API_KEY: ${BRAVE_API_KEY:-}
+      TLONBOT_TOKEN: ${TLONBOT_TOKEN:-}
+      VERBOSE: ${VERBOSE:-0}
+      TEST_LIVE_TOOL_TRACE: ${TEST_LIVE_TOOL_TRACE:-0}
+      TEST_LIVE_TOOL_TRACE_CONTENTS: ${TEST_LIVE_TOOL_TRACE_CONTENTS:-0}
+      TLON_NUDGE_TICK_INTERVAL_MS: ${TLON_NUDGE_TICK_INTERVAL_MS:-5000}
+    ports:
+      - "${OPENCLAW_GATEWAY_PORT:?OPENCLAW_GATEWAY_PORT is required}:18789"
+    depends_on:
+      - ships
+      - fake-model
+    volumes:
+      - ${OPENCLAW_DIR:?OPENCLAW_DIR is required}:/workspace/openclaw-tlon
+      - openclaw-modules:/workspace/tlon/node_modules
+
+volumes:
+  openclaw-modules:

@@ -1,0 +1,443 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+
+import type {
+  BotDriver,
+  ComposeHandle,
+  DriverRuntimeSpec,
+  RuntimeContext,
+  RuntimeSeed,
+} from './types.js';
+import { waitFor, waitForHttpOk, waitForShipLogin } from '../runtime/waiters.js';
+
+const OPTIONAL_COMPOSE_ENV_KEYS = ['BRAVE_API_KEY', 'TLONBOT_TOKEN'] as const;
+const OPTIONAL_TEST_ENV_KEYS = [
+  'BRAVE_API_KEY',
+  'TLONBOT_TOKEN',
+  'TEST_STORAGE_ENDPOINT',
+  'TEST_STORAGE_BUCKET',
+  'TEST_STORAGE_ACCESS_KEY',
+  'TEST_STORAGE_SECRET_KEY',
+  'TEST_STORAGE_REGION',
+] as const;
+
+const FORBIDDEN_CONTAINER_ENV = [
+  'OPENROUTER_API_KEY',
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'POSTHOG_API_KEY',
+  'TLON_TELEMETRY_API_KEY',
+  'MCP_API_KEY',
+  'MCP_CONFIG',
+];
+
+export const openclawDriver: BotDriver = {
+  name: 'openclaw',
+
+  packageDir(seed) {
+    return path.join(seed.repoRoot, 'packages/openclaw');
+  },
+
+  resolveRuntime(seed): DriverRuntimeSpec {
+    const packageDir = this.packageDir(seed);
+    const sharedPackageDir = path.join(seed.repoRoot, 'packages/tlon-bot-e2e');
+    const gateway = requiredGateway(seed);
+    const liveToolTrace = firstEnv(
+      'TEST_LIVE_TOOL_TRACE',
+      'CI_LIVE_TOOL_TRACE'
+    );
+    const liveToolTraceContents = firstEnv(
+      'TEST_LIVE_TOOL_TRACE_CONTENTS',
+      'CI_LIVE_TOOL_TRACE_CONTENTS'
+    );
+    const localTlonbot = localTlonbotMount(seed.repoRoot, packageDir);
+    const composeFiles = [
+      path.join(sharedPackageDir, 'docker/docker-compose.base.yml'),
+      path.join(sharedPackageDir, 'docker/docker-compose.openclaw.yml'),
+      ...(localTlonbot
+        ? [path.join(packageDir, 'dev/docker-compose.local.yml')]
+        : []),
+    ];
+
+    return {
+      packageDir,
+      composeProjectName: `tlon-bot-e2e-openclaw-${seed.runId}`,
+      composeFiles,
+      services: {
+        bot: 'openclaw',
+        ships: 'ships',
+        fakeModel: 'fake-model',
+        logServices: ['openclaw', 'fake-model', 'ships'],
+      },
+      composeEnv: {
+        REPO_ROOT: seed.repoRoot,
+        TLON_BOT_E2E_DIR: sharedPackageDir,
+        OPENCLAW_DIR: packageDir,
+        OPENCLAW_DEV_DIR: path.join(packageDir, 'dev'),
+        FAKE_MODEL_PORT: String(seed.endpoints.fakeModel.hostPort),
+        ZOD_PORT: String(seed.endpoints.ships.zod.hostPort),
+        TEN_PORT: String(seed.endpoints.ships.ten.hostPort),
+        MUG_PORT: String(seed.endpoints.ships.mug.hostPort),
+        OPENCLAW_GATEWAY_PORT: String(gateway.hostPort),
+        TLON_URL: seed.endpoints.ships.zod.containerUrl,
+        TLON_SHIP: seed.endpoints.ships.zod.ship,
+        TLON_CODE: seed.endpoints.ships.zod.code,
+        TLON_OWNER_SHIP: seed.endpoints.ships.ten.ship,
+        TLON_DM_ALLOWLIST: seed.endpoints.ships.ten.ship,
+        FAKE_MODEL_BASE_URL: seed.endpoints.fakeModel.containerOpenAiBaseUrl,
+        MODEL: 'custom-proxy/tlon-test-scripted',
+        TLON_NUDGE_TICK_INTERVAL_MS: '5000',
+        TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
+        TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
+        VERBOSE: process.env.VERBOSE ?? '0',
+        ...(localTlonbot
+          ? { TLONBOT_DIR: localTlonbot, TEST_TLONBOT_MOUNTED: '1' }
+          : {}),
+        ...(process.env.FAKE_SHIP_CACHE_DIR
+          ? { FAKE_SHIP_CACHE_DIR: process.env.FAKE_SHIP_CACHE_DIR }
+          : {}),
+        ...pickNonEmptyEnv(OPTIONAL_COMPOSE_ENV_KEYS),
+      },
+      testEnv: {
+        TLON_BOT_E2E_DRIVER: 'openclaw',
+        TLON_URL: seed.endpoints.ships.zod.hostUrl,
+        TLON_SHIP: seed.endpoints.ships.zod.ship,
+        TLON_CODE: seed.endpoints.ships.zod.code,
+        TEST_USER_URL: seed.endpoints.ships.ten.hostUrl,
+        TEST_USER_SHIP: seed.endpoints.ships.ten.ship,
+        TEST_USER_CODE: seed.endpoints.ships.ten.code,
+        TEST_THIRD_PARTY_URL: seed.endpoints.ships.mug.hostUrl,
+        TEST_THIRD_PARTY_SHIP: seed.endpoints.ships.mug.ship,
+        TEST_THIRD_PARTY_CODE: seed.endpoints.ships.mug.code,
+        TEST_MODE: 'tlon',
+        TEST_GATEWAY_URL: gateway.hostBaseUrl,
+        FAKE_MODEL_BASE_URL: seed.endpoints.fakeModel.hostBaseUrl,
+        TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
+        TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
+        ...(localTlonbot ? { TEST_TLONBOT_MOUNTED: '1' } : {}),
+        ...pickNonEmptyEnv(OPTIONAL_TEST_ENV_KEYS),
+      },
+    };
+  },
+
+  async beforeComposeUp(ctx, compose) {
+    console.log('==> Starting OpenClaw base services...');
+    await compose.up([ctx.services.ships, ctx.services.fakeModel]);
+    await waitForOpenClawBaseServices(ctx);
+  },
+
+  async waitReady(ctx, compose) {
+    await waitForOpenClawGateway(ctx);
+    await waitForOpenClawSse(ctx, compose);
+  },
+
+  async assertRuntimeConfig(ctx, compose) {
+    await assertOpenClawConfig(ctx, compose);
+    await assertOpenClawContainerEnv(ctx, compose);
+  },
+
+  async collectDiagnostics(ctx, compose) {
+    return compose.logs(ctx.services.logServices, { tail: 240 });
+  },
+
+  model: {
+    replyText(text) {
+      return {
+        steps: [{ kind: 'text', content: text }],
+        expectations: {
+          advertisedTools: { include: ['message'] },
+          expectedCallCount: 1,
+        },
+      };
+    },
+
+    sendMessage(args) {
+      return {
+        steps: [
+          {
+            kind: 'tool_call',
+            name: 'message',
+            args: {
+              action: 'send',
+              target: args.target,
+              message: args.message,
+            },
+          },
+          { kind: 'text', content: 'Done' },
+        ],
+        expectations: {
+          advertisedTools: { include: ['message'] },
+        },
+      };
+    },
+
+    readOrAdmin(command, finalText = 'OpenClaw completed the tlon command.') {
+      return {
+        steps: [
+          { kind: 'tool_call', name: 'tlon', args: { command } },
+          { kind: 'text', content: finalText },
+        ],
+        expectations: {
+          advertisedTools: { include: ['tlon'] },
+        },
+      };
+    },
+
+    imageSearch(query) {
+      return {
+        steps: [{ kind: 'tool_call', name: 'image_search', args: { query } }],
+        expectations: {
+          advertisedTools: { include: ['image_search'] },
+        },
+      };
+    },
+  },
+};
+
+function requiredGateway(seed: RuntimeSeed): NonNullable<
+  RuntimeSeed['endpoints']['gateway']
+> {
+  if (!seed.endpoints.gateway) {
+    throw new Error('OpenClaw driver requires a gateway endpoint');
+  }
+  return seed.endpoints.gateway;
+}
+
+async function waitForOpenClawBaseServices(ctx: RuntimeContext): Promise<void> {
+  await waitForHttpOk(`${ctx.endpoints.fakeModel.hostBaseUrl}/health`, {
+    timeoutMs: 60_000,
+    intervalMs: 1_000,
+    description: 'OpenClaw fake-model /health',
+  });
+  for (const [label, endpoint] of Object.entries(ctx.endpoints.ships)) {
+    await waitForShipLogin(endpoint.hostUrl, endpoint.code, {
+      timeoutMs: 180_000,
+      intervalMs: 3_000,
+      description: `OpenClaw ${label} fake ship login`,
+    });
+  }
+}
+
+async function waitForOpenClawGateway(ctx: RuntimeContext): Promise<void> {
+  const gateway = requiredGateway(ctx);
+  await waitFor(
+    async () => {
+      const response = await fetch(`${gateway.hostBaseUrl}/`);
+      if (!response.ok) {
+        return false;
+      }
+      const text = await response.text();
+      return /openclaw/i.test(text);
+    },
+    {
+      timeoutMs: 300_000,
+      intervalMs: 2_000,
+      description: 'OpenClaw gateway HTTP readiness',
+    }
+  );
+}
+
+async function waitForOpenClawSse(
+  ctx: RuntimeContext,
+  compose: ComposeHandle
+): Promise<void> {
+  await waitFor(
+    async () => {
+      const logs = await compose.logs([ctx.services.bot], { tail: 200 });
+      return logs.includes('[tlon] Connected! Firehose subscriptions active');
+    },
+    {
+      timeoutMs: 120_000,
+      intervalMs: 1_000,
+      description: 'OpenClaw Tlon SSE subscriptions',
+    }
+  );
+}
+
+async function assertOpenClawConfig(
+  ctx: RuntimeContext,
+  compose: ComposeHandle
+): Promise<void> {
+  const result = await compose.exec(ctx.services.bot, [
+    'cat',
+    '/root/.openclaw/openclaw.json',
+  ]);
+  assertExecOk(result, 'OpenClaw config read');
+  const config = JSON.parse(result.stdout) as {
+    models?: { providers?: Record<string, { baseUrl?: string }> };
+    agents?: { defaults?: { model?: { primary?: string } } };
+    channels?: {
+      tlon?: {
+        url?: string;
+        ship?: string;
+        code?: string;
+        ownerShip?: string;
+        dmAllowlist?: string[];
+        reengagement?: { enabled?: boolean };
+      };
+    };
+  };
+
+  const failures: string[] = [];
+  const provider = config.models?.providers?.['custom-proxy'];
+  const model = config.agents?.defaults?.model;
+  const channel = config.channels?.tlon;
+
+  expectConfig(
+    provider?.baseUrl === ctx.endpoints.fakeModel.containerOpenAiBaseUrl,
+    `custom-proxy baseUrl must be ${ctx.endpoints.fakeModel.containerOpenAiBaseUrl}`
+  );
+  expectConfig(
+    model?.primary === 'custom-proxy/tlon-test-scripted',
+    'agent primary model must be custom-proxy/tlon-test-scripted'
+  );
+  expectConfig(
+    channel?.url === ctx.endpoints.ships.zod.containerUrl,
+    `tlon channel URL must be ${ctx.endpoints.ships.zod.containerUrl}`
+  );
+  expectConfig(
+    channel?.ship === ctx.endpoints.ships.zod.ship,
+    `tlon channel ship must be ${ctx.endpoints.ships.zod.ship}`
+  );
+  expectConfig(
+    channel?.code === ctx.endpoints.ships.zod.code,
+    'tlon channel code must be deterministic fakezod code'
+  );
+  expectConfig(
+    channel?.ownerShip === ctx.endpoints.ships.ten.ship,
+    `owner ship must be ${ctx.endpoints.ships.ten.ship}`
+  );
+  expectConfig(
+    JSON.stringify(channel?.dmAllowlist ?? []) ===
+      JSON.stringify([ctx.endpoints.ships.ten.ship]),
+    `dmAllowlist must be exactly ${ctx.endpoints.ships.ten.ship}`
+  );
+  expectConfig(
+    channel?.reengagement?.enabled === true,
+    'reengagement must be enabled for heartbeat coverage'
+  );
+
+  if (failures.length > 0) {
+    throw new Error(
+      `OpenClaw E2E config assertion failed:\n` +
+        failures.map((failure) => `- ${failure}`).join('\n') +
+        `\nRendered config:\n${JSON.stringify(maskConfig(config), null, 2)}`
+    );
+  }
+
+  function expectConfig(condition: boolean, message: string) {
+    if (!condition) {
+      failures.push(message);
+    }
+  }
+}
+
+async function assertOpenClawContainerEnv(
+  ctx: RuntimeContext,
+  compose: ComposeHandle
+): Promise<void> {
+  const result = await compose.exec(ctx.services.bot, [
+    'node',
+    '-e',
+    `const keys = ${JSON.stringify(FORBIDDEN_CONTAINER_ENV)};
+const found = Object.fromEntries(keys.map((key) => [key, process.env[key]]).filter(([, value]) => value));
+console.log(JSON.stringify({ found, model: process.env.MODEL || null, brave: Boolean(process.env.BRAVE_API_KEY), tlonbot: Boolean(process.env.TLONBOT_TOKEN) }));`,
+  ]);
+  assertExecOk(result, 'OpenClaw forbidden env probe');
+  const parsed = JSON.parse(result.stdout.trim()) as {
+    found: Record<string, string>;
+    model: string | null;
+    brave: boolean;
+    tlonbot: boolean;
+  };
+  const failures: string[] = [];
+  if (Object.keys(parsed.found).length > 0) {
+    failures.push(
+      `container inherited forbidden env keys: ${Object.keys(parsed.found)
+        .sort()
+        .join(', ')}`
+    );
+  }
+  if (parsed.model !== 'custom-proxy/tlon-test-scripted') {
+    failures.push(`MODEL must be custom-proxy/tlon-test-scripted, got ${parsed.model}`);
+  }
+  if (parsed.brave !== Boolean(ctx.composeEnv.BRAVE_API_KEY)) {
+    failures.push('BRAVE_API_KEY presence did not match explicit compose input');
+  }
+  if (parsed.tlonbot !== Boolean(ctx.composeEnv.TLONBOT_TOKEN)) {
+    failures.push('TLONBOT_TOKEN presence did not match explicit compose input');
+  }
+  if (failures.length > 0) {
+    throw new Error(
+      `OpenClaw container env assertion failed:\n${failures
+        .map((failure) => `- ${failure}`)
+        .join('\n')}`
+    );
+  }
+}
+
+function assertExecOk(result: { exitCode: number; stderr: string }, label: string) {
+  if (result.exitCode !== 0) {
+    throw new Error(`${label} failed with exit ${result.exitCode}: ${result.stderr}`);
+  }
+}
+
+function maskConfig(value: unknown): unknown {
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(maskConfig);
+  }
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+      key,
+      /code|key|token|secret|password/i.test(key) ? '<redacted>' : maskConfig(child),
+    ])
+  );
+}
+
+function localTlonbotMount(repoRoot: string, packageDir: string): string | null {
+  const configured = process.env.TLONBOT_DIR
+    ? path.resolve(process.env.TLONBOT_DIR)
+    : path.resolve(packageDir, '../../..', 'tlonbot');
+  const composeFile = path.join(packageDir, 'dev/docker-compose.local.yml');
+  if (existsSync(composeFile) && existsSync(configured)) {
+    console.log(`==> Using local tlonbot volume mount (${configured})`);
+    return configured;
+  }
+
+  if (process.env.TLONBOT_DIR && !existsSync(configured)) {
+    console.log(
+      `==> TLONBOT_DIR was set but does not exist; continuing without local mount (${configured})`
+    );
+  }
+
+  const siblingDefault = path.resolve(repoRoot, '..', 'tlonbot');
+  if (!process.env.TLONBOT_DIR && configured !== siblingDefault && existsSync(siblingDefault)) {
+    return siblingDefault;
+  }
+
+  return null;
+}
+
+function firstEnv(...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function pickNonEmptyEnv(keys: readonly string[]): Record<string, string> {
+  const picked: Record<string, string> = {};
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value) {
+      picked[key] = value;
+    }
+  }
+  return picked;
+}

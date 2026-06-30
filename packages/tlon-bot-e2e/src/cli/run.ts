@@ -1,19 +1,32 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { hermesDriver } from '../drivers/hermes.js';
-import type { BotDriver, RuntimeSeed } from '../drivers/types.js';
+import { openclawDriver } from '../drivers/openclaw.js';
+import type { BotDriver, RuntimeContext, RuntimeSeed } from '../drivers/types.js';
 import { runCommand } from '../runtime/compose.js';
 import { createComposeHandle } from '../runtime/compose.js';
 import { createRuntimeContext, runtimeContextForJson } from '../runtime/context.js';
-import { buildComposeProcessEnv } from '../runtime/env.js';
-import { allocateRuntimeEndpoints } from '../runtime/ports.js';
+import {
+  buildComposeProcessEnv,
+  loadTlonBotE2eEnvFile,
+} from '../runtime/env.js';
+import { allocatePort, allocateRuntimeEndpoints } from '../runtime/ports.js';
 import { waitForHttpOk, waitForShipLogin } from '../runtime/waiters.js';
 
+const packageDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../..'
+);
+
 async function main(): Promise<void> {
+  await loadPackageEnv();
   const driver = selectDriver(process.env.TLON_BOT_E2E_DRIVER);
-  const repoRoot = path.resolve(process.env.TLON_BOT_E2E_REPO_ROOT ?? '../..');
+  const repoRoot = path.resolve(
+    process.env.TLON_BOT_E2E_REPO_ROOT ?? path.join(packageDir, '../..')
+  );
   const runId = sanitizeRunId(
     process.env.TLON_BOT_E2E_RUN_ID ?? `${Date.now().toString(36)}-${randomId()}`
   );
@@ -22,6 +35,13 @@ async function main(): Promise<void> {
     zod: parsePort(process.env.ZOD_PORT),
     ten: parsePort(process.env.TEN_PORT),
     mug: parsePort(process.env.MUG_PORT),
+    ...(driver.name === 'openclaw'
+      ? {
+          gateway:
+            parsePort(process.env.OPENCLAW_GATEWAY_PORT) ??
+            (await allocatePort()),
+        }
+      : {}),
   });
 
   const seed: RuntimeSeed = {
@@ -46,7 +66,14 @@ async function main(): Promise<void> {
     await waitForBaseServices(ctx);
     await driver.waitReady(ctx, compose);
     await driver.assertRuntimeConfig?.(ctx, compose);
-    await runVitest(ctx);
+    await runDriverTests(ctx, process.argv.slice(2));
+    if (flag(process.env.DUMP_LOGS)) {
+      const diagnostics = await driver.collectDiagnostics?.(ctx, compose);
+      if (diagnostics) {
+        console.error('\n==> Runtime diagnostics\n');
+        console.error(diagnostics);
+      }
+    }
   } catch (error) {
     failed = true;
     console.error(error instanceof Error ? error.stack ?? error.message : error);
@@ -68,9 +95,27 @@ async function main(): Promise<void> {
       );
     }
     if (!failed) {
-      console.log('Hermes shared E2E smoke completed.');
+      console.log(`${driver.name} shared E2E completed.`);
     }
   }
+}
+
+async function loadPackageEnv(): Promise<void> {
+  const envFilePath = path.resolve(
+    process.env.TLON_BOT_E2E_ENV_FILE ?? path.join(packageDir, '.env')
+  );
+  const result = await loadTlonBotE2eEnvFile({ envFilePath });
+  if (!result) {
+    return;
+  }
+
+  const displayPath = path.relative(process.cwd(), result.envFilePath);
+  const loadedCount = result.loaded.length;
+  const skippedCount = result.skipped.length;
+  console.log(
+    `Loaded tlon-bot-e2e env from ${displayPath || result.envFilePath} ` +
+      `(${loadedCount} loaded, ${skippedCount} shell override).`
+  );
 }
 
 function selectDriver(raw: string | undefined): BotDriver {
@@ -78,10 +123,13 @@ function selectDriver(raw: string | undefined): BotDriver {
   if (name === 'hermes') {
     return hermesDriver;
   }
-  throw new Error(`Unsupported TLON_BOT_E2E_DRIVER for M2: ${name}`);
+  if (name === 'openclaw') {
+    return openclawDriver;
+  }
+  throw new Error(`Unsupported TLON_BOT_E2E_DRIVER: ${name}`);
 }
 
-async function waitForBaseServices(ctx: ReturnType<typeof createRuntimeContext>) {
+async function waitForBaseServices(ctx: RuntimeContext) {
   await waitForHttpOk(`${ctx.endpoints.fakeModel.hostBaseUrl}/health`, {
     timeoutMs: 60_000,
     intervalMs: 1_000,
@@ -96,7 +144,18 @@ async function waitForBaseServices(ctx: ReturnType<typeof createRuntimeContext>)
   }
 }
 
-async function runVitest(ctx: ReturnType<typeof createRuntimeContext>): Promise<void> {
+async function runDriverTests(
+  ctx: RuntimeContext,
+  rawArgs: string[]
+): Promise<void> {
+  if (ctx.driverName === 'openclaw') {
+    await runOpenClawVitestFiles(ctx, rawArgs);
+    return;
+  }
+  await runHermesSmoke(ctx);
+}
+
+async function writeRuntimeContextFile(ctx: RuntimeContext): Promise<string> {
   const contextDir = await mkdir(
     path.join(os.tmpdir(), `tlon-bot-e2e-${ctx.runId}`),
     { recursive: true }
@@ -107,6 +166,11 @@ async function runVitest(ctx: ReturnType<typeof createRuntimeContext>): Promise<
     JSON.stringify(runtimeContextForJson(ctx), null, 2),
     'utf8'
   );
+  return contextFile;
+}
+
+async function runHermesSmoke(ctx: RuntimeContext): Promise<void> {
+  const contextFile = await writeRuntimeContextFile(ctx);
 
   const env = buildComposeProcessEnv({
     projectName: ctx.composeProjectName,
@@ -133,7 +197,98 @@ async function runVitest(ctx: ReturnType<typeof createRuntimeContext>): Promise<
   }
 }
 
-function logEndpointTable(ctx: ReturnType<typeof createRuntimeContext>): void {
+async function runOpenClawVitestFiles(
+  ctx: RuntimeContext,
+  rawArgs: string[]
+): Promise<void> {
+  const contextFile = await writeRuntimeContextFile(ctx);
+  const testFiles = await resolveOpenClawTestFiles(ctx, rawArgs);
+  const env = buildComposeProcessEnv({
+    projectName: ctx.composeProjectName,
+    explicitEnv: {
+      ...ctx.composeEnv,
+      ...ctx.testEnv,
+      TLON_BOT_E2E_RUNTIME_CONTEXT_FILE: contextFile,
+      TEST_COMPOSE_FILE: ctx.composeFiles[0] ?? '',
+      TEST_COMPOSE_FILES: JSON.stringify(ctx.composeFiles),
+      TEST_COMPOSE_PROJECT_NAME: ctx.composeProjectName,
+    },
+  });
+
+  console.log('');
+  console.log('==> Running OpenClaw integration tests...');
+  console.log('');
+  console.log('Env vars:');
+  console.log(`  TLON_URL=${ctx.testEnv.TLON_URL}`);
+  console.log(`  TLON_SHIP=${ctx.testEnv.TLON_SHIP}`);
+  console.log(`  TEST_USER_SHIP=${ctx.testEnv.TEST_USER_SHIP}`);
+  console.log('');
+
+  const timings: string[] = [];
+  const suiteStart = Date.now();
+  let testExit = 0;
+
+  for (const testFile of testFiles) {
+    const start = Date.now();
+    console.log(`Running ${testFile}...`);
+    const result = await runCommand(
+      'pnpm',
+      ['exec', 'vitest', 'run', '--config', 'vitest.integration.config.ts', testFile],
+      { cwd: ctx.packageDir, env }
+    );
+    if (result.exitCode !== 0) {
+      testExit = result.exitCode;
+    }
+    const elapsed = Math.round((Date.now() - start) / 1000);
+    timings.push(`${String(elapsed).padStart(4, ' ')}s  ${testFile}`);
+    console.log(`==> ${testFile} finished in ${elapsed}s`);
+    if (testExit >= 128) {
+      console.log(
+        `==> Test runner killed by signal (exit ${testExit}), stopping suite.`
+      );
+      break;
+    }
+  }
+
+  const suiteTotal = Math.round((Date.now() - suiteStart) / 1000);
+  console.log('');
+  console.log('==> Suite timing');
+  for (const line of timings) {
+    console.log(`    ${line}`);
+  }
+  console.log(`    ----`);
+  console.log(
+    `    ${String(suiteTotal).padStart(4, ' ')}s  total (test execution wall time)`
+  );
+  console.log('');
+
+  if (testExit !== 0) {
+    throw new Error(`OpenClaw integration tests failed with exit ${testExit}`);
+  }
+}
+
+async function resolveOpenClawTestFiles(
+  ctx: RuntimeContext,
+  rawArgs: string[]
+): Promise<string[]> {
+  const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
+  if (args.length > 0) {
+    return args;
+  }
+
+  const casesDir = path.join(ctx.packageDir, 'test/cases');
+  const entries = await readdir(casesDir);
+  const testFiles = entries
+    .filter((entry) => entry.endsWith('.test.ts'))
+    .sort()
+    .map((entry) => path.join('test/cases', entry));
+  if (testFiles.length === 0) {
+    throw new Error(`No OpenClaw integration test files found in ${casesDir}`);
+  }
+  return testFiles;
+}
+
+function logEndpointTable(ctx: RuntimeContext): void {
   console.log('==> Runtime endpoints');
   console.log(`    compose project: ${ctx.composeProjectName}`);
   console.log(
@@ -143,6 +298,9 @@ function logEndpointTable(ctx: ReturnType<typeof createRuntimeContext>): void {
     console.log(
       `    ${label}: ship=${endpoint.ship} host=${endpoint.hostUrl} container=${endpoint.containerUrl}`
     );
+  }
+  if (ctx.endpoints.gateway) {
+    console.log(`    gateway: host=${ctx.endpoints.gateway.hostBaseUrl}`);
   }
 }
 

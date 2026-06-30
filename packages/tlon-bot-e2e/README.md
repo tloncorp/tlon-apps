@@ -5,6 +5,22 @@ Private workspace package for shared Tlon bot E2E infrastructure.
 Milestone 2 adds the minimal shared Docker runtime for the Hermes smoke subset.
 OpenClaw scenario migration and the full shared scenario DSL remain later work.
 
+## Local Env Files
+
+The shared runner loads `packages/tlon-bot-e2e/.env` before selecting a driver
+or resolving runtime paths. Shell environment variables take precedence over the
+file, so CI and one-off command overrides continue to work normally.
+
+Use `packages/tlon-bot-e2e/.env.example` as the template for local values such
+as `TLON_BOT_E2E_DRIVER`, `TLONBOT_DIR`, `TLONBOT_TOKEN`, `BRAVE_API_KEY`, and
+the `TEST_STORAGE_*` settings used by media/blob scenarios.
+
+The loader only accepts the explicit harness allowlist in `src/runtime/env.ts`.
+Unknown keys fail the run instead of being passed through implicitly. Docker
+Compose is still launched with `.env` auto-loading disabled, so package-local
+files such as `packages/openclaw/.env` and `packages/hermes-tlon-adapter/.env`
+do not bleed into shared E2E containers.
+
 ## Fake Model
 
 The fake model exposes an OpenAI-compatible Chat Completions test oracle:

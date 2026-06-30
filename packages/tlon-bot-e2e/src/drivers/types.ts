@@ -1,6 +1,6 @@
 import type { FakeModelClient, Step } from '../fake-model/index.js';
 
-export type DriverName = 'hermes';
+export type DriverName = 'hermes' | 'openclaw';
 
 export interface ShipEndpoint {
   ship: string;

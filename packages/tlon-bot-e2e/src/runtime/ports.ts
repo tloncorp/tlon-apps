@@ -37,14 +37,17 @@ export async function allocateRuntimeEndpoints(
     zod: number;
     ten: number;
     mug: number;
+    gateway: number;
   }> = {}
 ): Promise<RuntimeEndpoints> {
   const fakeModelPort = fixedPorts.fakeModel ?? (await allocatePort());
   const zodPort = fixedPorts.zod ?? (await allocatePort());
   const tenPort = fixedPorts.ten ?? (await allocatePort());
   const mugPort = fixedPorts.mug ?? (await allocatePort());
+  const gatewayPort =
+    fixedPorts.gateway === undefined ? undefined : fixedPorts.gateway;
 
-  return {
+  const endpoints: RuntimeEndpoints = {
     fakeModel: {
       containerBaseUrl: 'http://fake-model:4000',
       containerOpenAiBaseUrl: 'http://fake-model:4000/v1',
@@ -76,4 +79,13 @@ export async function allocateRuntimeEndpoints(
       },
     },
   };
+
+  if (gatewayPort !== undefined) {
+    endpoints.gateway = {
+      hostBaseUrl: `http://127.0.0.1:${gatewayPort}`,
+      hostPort: gatewayPort,
+    };
+  }
+
+  return endpoints;
 }

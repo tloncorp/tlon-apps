@@ -43,8 +43,9 @@
   "scripts": {
     "test": "node scripts/test-unit.mjs",
     "test:unit": "node scripts/test-unit.mjs",
+    "test:e2e:openclaw": "TLON_BOT_E2E_DRIVER=openclaw tsx src/cli/run.ts",
     "test:e2e:hermes": "TLON_BOT_E2E_DRIVER=hermes tsx src/cli/run.ts",
-    "test:e2e": "pnpm test:e2e:hermes",
+    "test:e2e": "pnpm test:e2e:openclaw && pnpm test:e2e:hermes",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
