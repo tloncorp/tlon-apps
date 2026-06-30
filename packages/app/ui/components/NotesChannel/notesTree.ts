@@ -42,8 +42,12 @@ function indexFolders(
 }
 
 function compareNotes(a: db.NotesNote, b: db.NotesNote) {
+  const aUpdatedAt = a.updatedAt ?? a.createdAt ?? 0;
+  const bUpdatedAt = b.updatedAt ?? b.createdAt ?? 0;
   return (
-    a.title.localeCompare(b.title) || (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+    bUpdatedAt - aUpdatedAt ||
+    a.title.localeCompare(b.title) ||
+    a.noteId - b.noteId
   );
 }
 

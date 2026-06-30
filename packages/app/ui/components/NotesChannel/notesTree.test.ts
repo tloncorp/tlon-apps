@@ -21,7 +21,13 @@ const makeFolder = (folderId: number, name: string, parentId: number | null) =>
     parentFolderId: parentId,
   }) as db.NotesFolder;
 
-const makeNote = (noteId: number, folderId: number, title: string, body = '') =>
+const makeNote = (
+  noteId: number,
+  folderId: number,
+  title: string,
+  body = '',
+  overrides: Partial<db.NotesNote> = {}
+) =>
   ({
     id: `note/${noteId}`,
     noteId,
@@ -29,6 +35,7 @@ const makeNote = (noteId: number, folderId: number, title: string, body = '') =>
     title,
     bodyMd: body,
     updatedAt: noteId,
+    ...overrides,
   }) as db.NotesNote;
 
 const root = makeFolder(1, '/', null);
@@ -121,13 +128,13 @@ describe('notes tree helpers', () => {
     ).toEqual(['root:Root', 'folder:Archive', 'folder:Projects / Backlog']);
   });
 
-  test('builds immediate folder contents without descendants', () => {
+  test('builds immediate folder contents with folders first and notes by recency', () => {
     const folders = [projects, root, backlog, archive];
     const notes = [
       makeNote(1, 1, 'Root note'),
-      makeNote(2, 2, 'Beta'),
+      makeNote(2, 2, 'Alpha', '', { updatedAt: 200 }),
       makeNote(3, 4, 'Nested'),
-      makeNote(4, 2, 'Alpha'),
+      makeNote(4, 2, 'Beta', '', { updatedAt: 400 }),
     ];
     const rows = buildFolderContentsRows({
       folderId: 2,
@@ -143,7 +150,7 @@ describe('notes tree helpers', () => {
           ? `folder:${row.folder.name}:${row.depth}:${row.noteCount}`
           : `note:${row.note.title}:${row.depth}`
       )
-    ).toEqual(['folder:Backlog:0:1', 'note:Alpha:0', 'note:Beta:0']);
+    ).toEqual(['folder:Backlog:0:1', 'note:Beta:0', 'note:Alpha:0']);
   });
 
   test('builds root contents without nested descendants', () => {
@@ -246,7 +253,7 @@ describe('notes tree helpers', () => {
     const rows = rowsFor(folders, [alpha, beta, gamma]);
 
     expect(getNextNoteIdAfterDelete(rows, 1)).toBe(2);
-    expect(getNextNoteIdAfterDelete(rows, 2)).toBe(3);
+    expect(getNextNoteIdAfterDelete(rows, 2)).toBe(1);
     expect(getNextNoteIdAfterDelete(rows, 3)).toBe(2);
   });
 
