@@ -39,7 +39,7 @@ function buildChannelTypes(
     title: notesAvailable ? 'Bulletin' : 'Notebook',
     subtitle: 'Longform publishing and discussion',
     value: 'notebook',
-    icon: 'ChannelNotebooks',
+    icon: 'Bulletin',
   };
   const gallery: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Gallery',
