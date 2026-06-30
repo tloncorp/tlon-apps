@@ -46,6 +46,7 @@ import {
 } from './NotesHeaderActions';
 import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
+import { trackNotesActionError } from './notesTelemetry';
 import {
   type FolderRow,
   buildFolderContentsRows,
@@ -248,7 +249,9 @@ export function NotesNativeChannel({
       try {
         await action();
       } catch (e) {
-        setError(errorMessage(e, fallback));
+        const message = errorMessage(e, fallback);
+        trackNotesActionError(fallback, e, message);
+        setError(message);
       }
     }
   );

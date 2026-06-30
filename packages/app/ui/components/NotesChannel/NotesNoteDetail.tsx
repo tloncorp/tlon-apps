@@ -35,6 +35,7 @@ import {
   errorMessage,
   useNotebookData,
 } from './NotesCommon';
+import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
@@ -346,7 +347,11 @@ export function NotesNoteDetail({
       return true;
     } catch (e) {
       setSaveState('error');
-      setError(errorMessage(e, 'Failed to save note'));
+      const message = errorMessage(e, 'Failed to save note');
+      trackNotesActionError('save note', e, message, {
+        noteId: draftBase.noteId,
+      });
+      setError(message);
       return false;
     }
   }, [
