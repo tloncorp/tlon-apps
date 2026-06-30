@@ -10,7 +10,7 @@
   +$  card  card:agent:gall
   +$  current-state
     $:  %2
-          posthog=(unit volume:v1:l)
+          volume=(unit volume:v1:l)
     ==
   ::
   ++  commit  ?~(^commit 'unknown' -.^commit)
@@ -26,7 +26,7 @@
   ::
   ++  on-init
     ^-  (quip card _this)
-    `this(posthog `%info)
+    `this(volume `%info)
   ++  on-save  !>(state)
   ++  on-load
     |=  =vase
@@ -54,8 +54,8 @@
   --
 ::
 |_  [=bowl:gall cards=(list card)]
+++  cor  .
 ++  abet  [(flop cards) state]
-++  cor   .
 ++  emit  |=(=card cor(cards [card cards]))
 ++  emil  |=(caz=(list card) cor(cards (welp (flop caz) cards)))
 ++  give  |=(=gift:agent:gall (emit %give gift))
@@ -66,15 +66,16 @@
   =/  fard=(fyrd:khan cage)
     [q.byk.bowl %posthog noun+!>(`[origin [time log-event] log-data])]
   ::
-  (emit %pass /posthog [%arvo %k %fard fard])
+  (emit %pass /send/posthog [%arvo %k %fard fard])
 ::  +send-otel-event: send open telemetry event
+::
 ++  send-otel-event
   |=  [origin=path =time =log-event:l =log-data:l]
   ^+  cor
   =/  fard=(fyrd:khan cage)
-    [q.byk.bowl %otel noun+!>(`[origin [time log-event] log-data])]
+    [q.byk.bowl %send-otel noun+!>(`[origin [time log-event] log-data])]
   ::
-  (emit %pass /otel [%arvo %k %fard fard])
+  (emit %pass /send/otel [%arvo %k %fard fard])
 ::
 ++  load
   |^  |=  =vase
@@ -98,6 +99,7 @@
   ++  state-1-to-2
     |=  =state-1
     ^-  state-2
+    ::TODO FIXME
     *state-2
   --
 ::
@@ -110,30 +112,29 @@
     =+  !<(=a-log:v1:l vase)
     ?-    -.a-log
         %log
-      ?~  posthog  cor
+      =+  vol=volume  ::TMI
+      ?:  ?=(~ vol)  cor
       =/  level=@ud
         ?-  -.event.a-log
           %fail  (volume-val:l %error)
           %tell  (volume-val:l vol.event.a-log)
         ==
-      ?.  (gte level (volume-val:l u.posthog))
+      ?.  (gte level (volume-val:l u.vol))
         cor
       =.  data.a-log  ['commit'^s+commit data.a-log]
-      :: =.  cor
-      (send-posthog-event sap.bowl now.bowl +.a-log)
-      :: =.  cor
-      ::   (send-otel-event sap.bowl now.bowl +.a-log)
-      :: cor
+      =.  cor  (send-posthog-event sap.bowl now.bowl +.a-log)
+      =.  cor  (send-otel-event sap.bowl now.bowl +.a-log)
+      cor
     ::
-        %set-posthog
-      cor(posthog vol.a-log)
+        %set-volume
+      cor(volume vol.a-log)
     ==
   ==
 ::
 ++  arvo
   |=  [=(pole knot) =sign-arvo]
   ?+    pole  ~|(bad-arvo-wire+pole !!)
-      [%posthog ~]
+      [%send %posthog ~]
     ?>  ?=([%khan %arow *] sign-arvo)
     =/  =(avow:khan cage)  p.sign-arvo
     ?:  ?=(%| -.avow)
@@ -151,7 +152,7 @@
       cor
     cor
   ::
-      [%otel ~]
+      [%send %otel ~]
     ?>  ?=([%khan %arow *] sign-arvo)
     =/  =(avow:khan cage)  p.sign-arvo
     ?:  ?=(%| -.avow)

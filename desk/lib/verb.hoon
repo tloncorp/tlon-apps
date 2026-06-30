@@ -135,7 +135,7 @@
 ++  print-logs
   |=  [=bowl:gall =cage]
   |*  etc=*
-  ?.  ?=(%log-action p.cage)  etc
+  ?.  ?=(%log-action-1 p.cage)  etc
   =+  !<(=a-log:logs q.cage)
   ?.  ?=(%log -.a-log)  etc
   =*  event  event.a-log

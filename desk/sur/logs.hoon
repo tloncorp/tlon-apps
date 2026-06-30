@@ -21,11 +21,11 @@
 ::  +$a-log: logs action
 ::
 ::  %log: log an event with supplemental data
-::  %set-posthog: global for logging to posthog
+::  %set-volume: global logging threshold
 ::
 +$  a-log
   $%  [%log event=log-event data=log-data]
-      [%set-posthog vol=(unit volume)]
+      [%set-volume vol=(unit volume)]
   ==
 ++  v1  .
 ++  v0

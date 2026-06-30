@@ -13,7 +13,8 @@
     ^-  card:agent:gall
     =^  desc=term  trace
       ?^  trace
-        ?:  ?=(@t i.trace)  trace
+        ?:  ?=(%leaf -.i.trace)
+          [(crip p.i.trace) t.trace]
         ['unknown' trace]
       [%empty ~]
     =/  event=$>(%fail log-event)

@@ -229,7 +229,6 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    %-  (slog term tang)
     :_  this
     [(fail:log ~[(cat 3 dap.bowl ' failed')] term tang ~)]~
   ::
@@ -5132,7 +5131,7 @@
       ::  we aren't joining anymore, ignore
       ?.  &(?=(^ progress) =(%join u.progress))  fi-core
       ?^  p.sign
-        =.  cor  (tell:log %warn 'group join with token failed' u.p.sign)
+        =.  cor  (fail-remote:log ~['group join with token failed'] u.p.sign)
         =.  progress  `%error
         fi-core
       =.  progress  `%watch
