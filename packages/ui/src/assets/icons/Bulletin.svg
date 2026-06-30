@@ -1,5 +1,8 @@
 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M12 3.13928H5C3.89543 3.13928 3 4.03471 3 5.13928V7.56964V18.8607C3 19.9653 3.89543 20.8607 5 20.8607H12H19C20.1046 20.8607 21 19.9653 21 18.8607V7.56964V5.13928C21 4.03471 20.1046 3.13928 19 3.13928H12Z" stroke="#1A1818" style="stroke:#1A1818;stroke:color(display-p3 0.1020 0.0941 0.0941);stroke-opacity:1;" stroke-width="1.6"/>
-<rect x="6" y="6" width="12" height="8" rx="1" fill="#1A1818" style="fill:#1A1818;fill:color(display-p3 0.1020 0.0941 0.0941);fill-opacity:1;"/>
+<mask id="path-2-inside-1_9835_54" fill="white">
+<rect x="6" y="6" width="12" height="8" rx="1"/>
+</mask>
+<rect x="6" y="6" width="12" height="8" rx="1" stroke="#1A1818" style="stroke:#1A1818;stroke:color(display-p3 0.1020 0.0941 0.0941);stroke-opacity:1;" stroke-width="3.2" mask="url(#path-2-inside-1_9835_54)"/>
 <line x1="6.8021" y1="16.9651" x2="17.4423" y2="16.993" stroke="#1A1818" style="stroke:#1A1818;stroke:color(display-p3 0.1020 0.0941 0.0941);stroke-opacity:1;" stroke-width="1.6" stroke-linecap="round"/>
 </svg>
