@@ -1549,12 +1549,16 @@ describe('telemetry tool tracking', () => {
     expect(call.properties.cronJobId).toBe('job-7');
   });
 
-  it('does not bleed a previous cron run\'s job id into a later runId-less signal that omits one', () => {
+  it("does not bleed a previous cron run's job id into a later runId-less signal that omits one", () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);
 
     // Earlier cron run in this session recorded a job id...
-    reportCronRun({ sessionKey: 'cron-session', runId: 'cron-1', jobId: 'job-a' });
+    reportCronRun({
+      sessionKey: 'cron-session',
+      runId: 'cron-1',
+      jobId: 'job-a',
+    });
     // ...then a later runId-less cron signal for the same session omits one.
     reportCronRun({ sessionKey: 'cron-session' });
     reportHarnessError({

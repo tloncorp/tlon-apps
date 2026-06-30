@@ -788,9 +788,7 @@ function lookupCronRun(
   // The failing event carries no runId: attribute only when a cron signal in
   // this session also lacked one (symmetric), so a runId-bearing interactive
   // failure can never reach this best-effort path.
-  return record.sawCronWithoutRunId
-    ? { cronJobId: record.runlessJobId }
-    : null;
+  return record.sawCronWithoutRunId ? { cronJobId: record.runlessJobId } : null;
 }
 
 function cleanupHarnessDebugSnapshots(now = Date.now()): void {
