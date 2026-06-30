@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import { waitFor } from '../runtime/waiters.js';
 import type {
   BotDriver,
   ComposeHandle,
@@ -7,7 +8,6 @@ import type {
   RuntimeContext,
   RuntimeSeed,
 } from './types.js';
-import { waitFor } from '../runtime/waiters.js';
 
 const HERMES_AGENT_REF = 'v2026.6.19';
 
@@ -78,8 +78,7 @@ export const hermesDriver: BotDriver = {
         TLON_SSE_READ_TIMEOUT_SECONDS: '15',
         HERMES_MODEL_PROVIDER: 'custom',
         HERMES_MODEL: 'tlon-test-scripted',
-        HERMES_MODEL_BASE_URL:
-          seed.endpoints.fakeModel.containerOpenAiBaseUrl,
+        HERMES_MODEL_BASE_URL: seed.endpoints.fakeModel.containerOpenAiBaseUrl,
         HERMES_MODEL_API_KEY: 'no-key-required',
         HERMES_MODEL_API_MODE: 'chat_completions',
         HERMES_GATEWAY_ARGS: '--replace -v',
@@ -113,10 +112,6 @@ export const hermesDriver: BotDriver = {
   async assertRuntimeConfig(ctx, compose) {
     await assertHermesConfig(ctx, compose);
     await assertForbiddenContainerEnv(ctx, compose);
-  },
-
-  async collectDiagnostics(ctx, compose) {
-    return compose.logs(ctx.services.logServices, { tail: 240 });
   },
 
   model: {
@@ -230,7 +225,8 @@ async function assertHermesConfig(
     'model.api_mode must be chat_completions'
   );
   expectConfig(
-    JSON.stringify(platformToolsets.tlon) === JSON.stringify(['tlon', 'no_mcp']),
+    JSON.stringify(platformToolsets.tlon) ===
+      JSON.stringify(['tlon', 'no_mcp']),
     'platform_toolsets.tlon must be exactly [tlon, no_mcp]'
   );
   expectConfig(
@@ -296,7 +292,11 @@ payload = {
 }
 print(json.dumps(payload))
 `;
-  const result = await compose.exec(ctx.services.bot, ['python3', '-c', script]);
+  const result = await compose.exec(ctx.services.bot, [
+    'python3',
+    '-c',
+    script,
+  ]);
   assertExecOk(result, 'Hermes setup probe');
   const setup = JSON.parse(result.stdout.trim()) as {
     plugin_ok: boolean;
@@ -307,7 +307,9 @@ print(json.dumps(payload))
   };
   const failures: string[] = [];
   if (!setup.plugin_ok) {
-    failures.push('platform plugin symlink does not resolve to workspace adapter');
+    failures.push(
+      'platform plugin symlink does not resolve to workspace adapter'
+    );
   }
   if (!setup.plugin_yaml.includes('name: tlon-platform')) {
     failures.push('plugin.yaml does not identify tlon-platform');
@@ -324,7 +326,9 @@ print(json.dumps(payload))
     '--version',
   ]);
   if (version.exitCode !== 0 || !version.stdout.trim()) {
-    failures.push(`tlon CLI version failed: ${version.stderr || version.stdout}`);
+    failures.push(
+      `tlon CLI version failed: ${version.stderr || version.stdout}`
+    );
   }
 
   if (failures.length > 0) {
@@ -385,7 +389,10 @@ print(json.dumps(data))
   return JSON.parse(result.stdout.trim()) as Record<string, any>;
 }
 
-function objectAt(config: Record<string, any>, key: string): Record<string, any> {
+function objectAt(
+  config: Record<string, any>,
+  key: string
+): Record<string, any> {
   const value = config[key];
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value
@@ -401,9 +408,14 @@ function isEmptyObject(value: unknown): boolean {
   );
 }
 
-function assertExecOk(result: { exitCode: number; stderr: string }, label: string) {
+function assertExecOk(
+  result: { exitCode: number; stderr: string },
+  label: string
+) {
   if (result.exitCode !== 0) {
-    throw new Error(`${label} failed with exit ${result.exitCode}: ${result.stderr}`);
+    throw new Error(
+      `${label} failed with exit ${result.exitCode}: ${result.stderr}`
+    );
   }
 }
 
@@ -417,7 +429,9 @@ function maskConfig(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value).map(([key, child]) => [
       key,
-      /key|token|secret|password|credential/i.test(key) ? '<redacted>' : maskConfig(child),
+      /key|token|secret|password|credential/i.test(key)
+        ? '<redacted>'
+        : maskConfig(child),
     ])
   );
 }

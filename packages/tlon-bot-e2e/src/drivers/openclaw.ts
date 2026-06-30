@@ -1,6 +1,11 @@
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
+import {
+  waitFor,
+  waitForHttpOk,
+  waitForShipLogin,
+} from '../runtime/waiters.js';
 import type {
   BotDriver,
   ComposeHandle,
@@ -9,7 +14,6 @@ import type {
   RuntimeContext,
   RuntimeSeed,
 } from './types.js';
-import { waitFor, waitForHttpOk, waitForShipLogin } from '../runtime/waiters.js';
 
 const OPTIONAL_COMPOSE_ENV_KEYS = ['BRAVE_API_KEY', 'TLONBOT_TOKEN'] as const;
 const OPTIONAL_TEST_ENV_KEYS = [
@@ -150,10 +154,6 @@ export const openclawDriver: BotDriver = {
     await assertOpenClawContainerEnv(ctx, compose);
   },
 
-  async collectDiagnostics(ctx, compose) {
-    return compose.logs(ctx.services.logServices, { tail: 240 });
-  },
-
   model: {
     replyText(text) {
       return {
@@ -213,9 +213,9 @@ export const openclawDriver: BotDriver = {
   },
 };
 
-function requiredGateway(seed: RuntimeSeed): NonNullable<
-  RuntimeSeed['endpoints']['gateway']
-> {
+function requiredGateway(
+  seed: RuntimeSeed
+): NonNullable<RuntimeSeed['endpoints']['gateway']> {
   if (!seed.endpoints.gateway) {
     throw new Error('OpenClaw driver requires a gateway endpoint');
   }
@@ -384,13 +384,19 @@ console.log(JSON.stringify({ found, model: process.env.MODEL || null, brave: Boo
     );
   }
   if (parsed.model !== 'custom-proxy/tlon-test-scripted') {
-    failures.push(`MODEL must be custom-proxy/tlon-test-scripted, got ${parsed.model}`);
+    failures.push(
+      `MODEL must be custom-proxy/tlon-test-scripted, got ${parsed.model}`
+    );
   }
   if (parsed.brave !== Boolean(ctx.composeEnv.BRAVE_API_KEY)) {
-    failures.push('BRAVE_API_KEY presence did not match explicit compose input');
+    failures.push(
+      'BRAVE_API_KEY presence did not match explicit compose input'
+    );
   }
   if (parsed.tlonbot !== Boolean(ctx.composeEnv.TLONBOT_TOKEN)) {
-    failures.push('TLONBOT_TOKEN presence did not match explicit compose input');
+    failures.push(
+      'TLONBOT_TOKEN presence did not match explicit compose input'
+    );
   }
   if (failures.length > 0) {
     throw new Error(
@@ -401,9 +407,14 @@ console.log(JSON.stringify({ found, model: process.env.MODEL || null, brave: Boo
   }
 }
 
-function assertExecOk(result: { exitCode: number; stderr: string }, label: string) {
+function assertExecOk(
+  result: { exitCode: number; stderr: string },
+  label: string
+) {
   if (result.exitCode !== 0) {
-    throw new Error(`${label} failed with exit ${result.exitCode}: ${result.stderr}`);
+    throw new Error(
+      `${label} failed with exit ${result.exitCode}: ${result.stderr}`
+    );
   }
 }
 
@@ -417,12 +428,17 @@ function maskConfig(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([key, child]) => [
       key,
-      /code|key|token|secret|password/i.test(key) ? '<redacted>' : maskConfig(child),
+      /code|key|token|secret|password/i.test(key)
+        ? '<redacted>'
+        : maskConfig(child),
     ])
   );
 }
 
-function localTlonbotMount(repoRoot: string, packageDir: string): string | null {
+function localTlonbotMount(
+  repoRoot: string,
+  packageDir: string
+): string | null {
   const configured = process.env.TLONBOT_DIR
     ? path.resolve(process.env.TLONBOT_DIR)
     : path.resolve(packageDir, '../../..', 'tlonbot');
@@ -439,7 +455,11 @@ function localTlonbotMount(repoRoot: string, packageDir: string): string | null 
   }
 
   const siblingDefault = path.resolve(repoRoot, '..', 'tlonbot');
-  if (!process.env.TLONBOT_DIR && configured !== siblingDefault && existsSync(siblingDefault)) {
+  if (
+    !process.env.TLONBOT_DIR &&
+    configured !== siblingDefault &&
+    existsSync(siblingDefault)
+  ) {
     return siblingDefault;
   }
 

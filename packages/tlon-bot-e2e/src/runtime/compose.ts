@@ -14,6 +14,7 @@ interface RunOptions {
   env?: Record<string, string>;
   cwd?: string;
   stream?: boolean;
+  timeoutMs?: number;
 }
 
 export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
@@ -40,6 +41,7 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
         env: { ...env, ...(opts.env ?? {}) },
         cwd: opts.cwd ?? ctx.packageDir,
         stream: opts.stream,
+        timeoutMs: opts.timeoutMs,
       }
     );
     if (result.exitCode !== 0 && !opts.allowFailure) {
@@ -65,8 +67,10 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
       await runCompose(['up', '-d', ...services]);
     },
 
-    async ps(): Promise<ComposeServiceState[]> {
-      const result = await runCompose(['ps', '--format', 'json']);
+    async ps(opts = {}): Promise<ComposeServiceState[]> {
+      const result = await runCompose(['ps', '--format', 'json'], {
+        timeoutMs: opts.timeoutMs,
+      });
       return result.stdout
         .split('\n')
         .map((line) => line.trim())
@@ -90,10 +94,11 @@ export function createComposeHandle(ctx: RuntimeContext): ComposeHandle {
     async logs(services = [], opts = {}) {
       const tailArgs =
         typeof opts.tail === 'number' ? [`--tail=${opts.tail}`] : [];
-      const result = await runCompose(
-        ['logs', ...tailArgs, ...services],
-        { allowFailure: true, stream: false }
-      );
+      const result = await runCompose(['logs', ...tailArgs, ...services], {
+        allowFailure: true,
+        stream: false,
+        timeoutMs: opts.timeoutMs,
+      });
       return [result.stdout, result.stderr].filter(Boolean).join('\n');
     },
 
@@ -119,7 +124,12 @@ function fileArgs(files: string[]): string[] {
 export function runCommand(
   command: string,
   args: string[],
-  opts: { env: Record<string, string>; cwd: string; stream?: boolean }
+  opts: {
+    env: Record<string, string>;
+    cwd: string;
+    stream?: boolean;
+    timeoutMs?: number;
+  }
 ): Promise<ExecResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -129,6 +139,47 @@ export function runCommand(
     });
     let stdout = '';
     let stderr = '';
+    let settled = false;
+    let timeout: NodeJS.Timeout | undefined;
+    let killTimeout: NodeJS.Timeout | undefined;
+
+    const clearTimers = () => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      if (killTimeout) {
+        clearTimeout(killTimeout);
+      }
+    };
+    const finish = (result: ExecResult) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimers();
+      resolve(result);
+    };
+    const fail = (error: Error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimers();
+      reject(error);
+    };
+
+    if (opts.timeoutMs !== undefined) {
+      timeout = setTimeout(() => {
+        stderr +=
+          `\n${command} ${args.join(' ')} timed out after ` +
+          `${opts.timeoutMs}ms.`;
+        child.kill('SIGTERM');
+        killTimeout = setTimeout(() => {
+          child.kill('SIGKILL');
+        }, 1_000);
+      }, opts.timeoutMs);
+    }
+
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
@@ -143,9 +194,9 @@ export function runCommand(
         process.stderr.write(chunk);
       }
     });
-    child.on('error', reject);
+    child.on('error', fail);
     child.on('close', (exitCode) => {
-      resolve({ stdout, stderr, exitCode: exitCode ?? 1 });
+      finish({ stdout, stderr, exitCode: exitCode ?? 1 });
     });
   });
 }

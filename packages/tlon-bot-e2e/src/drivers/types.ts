@@ -89,8 +89,11 @@ export interface ComposeHandle {
 
   build(services?: string[]): Promise<void>;
   up(services?: string[]): Promise<void>;
-  ps(): Promise<ComposeServiceState[]>;
-  logs(services?: string[], opts?: { tail?: number }): Promise<string>;
+  ps(opts?: { timeoutMs?: number }): Promise<ComposeServiceState[]>;
+  logs(
+    services?: string[],
+    opts?: { tail?: number; timeoutMs?: number }
+  ): Promise<string>;
   exec(
     service: string,
     args: string[],

@@ -4,8 +4,10 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "packages/openclaw/**"
+      - "packages/tlon-bot-e2e/**"
       - "packages/api/**"
       - "packages/tlon-skill/**"
+      - "pnpm-lock.yaml"
       - ".github/workflows/openclaw-ci.yml"
 
 jobs:
@@ -49,12 +51,12 @@ jobs:
         run: npx vitest run src/security.test.ts
 
   integration-test:
-    name: Integration Tests
+    name: Shared E2E
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    timeout-minutes: 25
+    timeout-minutes: 45
     defaults:
       run:
-        working-directory: packages/openclaw
+        working-directory: .
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,12 +73,20 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
-      - name: Build
-        run: pnpm build
+      - name: Build OpenClaw
+        run: pnpm --filter '@tloncorp/openclaw' build
 
-      - name: Run integration tests
+      - name: Cache fake ship archives
+        uses: actions/cache@v4
+        with:
+          path: .cache/tlon-bot-e2e/fake-ships
+          key: tlon-bot-e2e-fake-ships-v1
+
+      - name: Prepare fake ship cache
+        run: mkdir -p .cache/tlon-bot-e2e/fake-ships
+
+      - name: Run OpenClaw shared E2E
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           TLONBOT_TOKEN: ${{ secrets.TLONBOT_TOKEN }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
           # Reuse the S3 test-storage secrets already configured for the
@@ -88,8 +98,10 @@ jobs:
           TEST_STORAGE_REGION: ${{ secrets.E2E_S3_REGION }}
           TEST_LIVE_TOOL_TRACE: "1"
           TEST_LIVE_TOOL_TRACE_CONTENTS: "1"
-        run: pnpm test:integration
-
-      - name: Dump logs on failure
-        if: failure()
-        run: docker compose -f dev/docker-compose.test.yml logs || true
+          FAKE_SHIP_CACHE_DIR:
+            ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
+          TLON_BOT_E2E_RUN_ID:
+            ${{ github.run_id }}-${{ github.run_attempt }}-openclaw
+        run: |
+          pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:openclaw
+          pnpm --filter '@tloncorp/tlon-bot-e2e' test:e2e:openclaw:package

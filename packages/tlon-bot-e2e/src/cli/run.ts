@@ -5,10 +5,18 @@ import { fileURLToPath } from 'node:url';
 
 import { hermesDriver } from '../drivers/hermes.js';
 import { openclawDriver } from '../drivers/openclaw.js';
-import type { BotDriver, RuntimeContext, RuntimeSeed } from '../drivers/types.js';
+import type {
+  BotDriver,
+  RuntimeContext,
+  RuntimeSeed,
+} from '../drivers/types.js';
 import { runCommand } from '../runtime/compose.js';
 import { createComposeHandle } from '../runtime/compose.js';
-import { createRuntimeContext, runtimeContextForJson } from '../runtime/context.js';
+import {
+  createRuntimeContext,
+  runtimeContextForJson,
+} from '../runtime/context.js';
+import { collectRuntimeDiagnostics } from '../runtime/diagnostics.js';
 import {
   buildComposeProcessEnv,
   loadTlonBotE2eEnvFile,
@@ -17,8 +25,8 @@ import { allocatePort, allocateRuntimeEndpoints } from '../runtime/ports.js';
 import { waitForHttpOk, waitForShipLogin } from '../runtime/waiters.js';
 import { commonScenarios } from '../scenarios/shared/common.js';
 import {
-  selectScenarioPartitions,
   type ScenarioPartition,
+  selectScenarioPartitions,
 } from '../scenarios/shared/dsl.js';
 
 const packageDir = path.resolve(
@@ -33,7 +41,8 @@ async function main(): Promise<void> {
     process.env.TLON_BOT_E2E_REPO_ROOT ?? path.join(packageDir, '../..')
   );
   const baseRunId = sanitizeRunId(
-    process.env.TLON_BOT_E2E_RUN_ID ?? `${Date.now().toString(36)}-${randomId()}`
+    process.env.TLON_BOT_E2E_RUN_ID ??
+      `${Date.now().toString(36)}-${randomId()}`
   );
   const suite = parseSuiteRequest(process.argv.slice(2));
   const keepStack = flag(process.env.TLON_BOT_E2E_KEEP_STACK);
@@ -126,16 +135,18 @@ async function runDriverRuntime(args: {
     await args.driver.assertRuntimeConfig?.(ctx, compose);
     await args.runTests(ctx);
     if (flag(process.env.DUMP_LOGS)) {
-      const diagnostics = await args.driver.collectDiagnostics?.(ctx, compose);
+      const diagnostics = await collectDiagnostics(ctx, compose, args.driver);
       if (diagnostics) {
         console.error('\n==> Runtime diagnostics\n');
         console.error(diagnostics);
       }
     }
   } catch (error) {
-    const diagnostics = await args.driver
-      .collectDiagnostics?.(ctx, compose)
-      .catch((diagError) => `diagnostic collection failed: ${diagError}`);
+    const diagnostics = await collectDiagnostics(
+      ctx,
+      compose,
+      args.driver
+    ).catch((diagError) => `diagnostic collection failed: ${diagError}`);
     if (diagnostics) {
       console.error('\n==> Runtime diagnostics\n');
       console.error(diagnostics);
@@ -151,6 +162,21 @@ async function runDriverRuntime(args: {
       );
     }
   }
+}
+
+async function collectDiagnostics(
+  ctx: RuntimeContext,
+  compose: ReturnType<typeof createComposeHandle>,
+  driver: BotDriver
+): Promise<string> {
+  const shared = await collectRuntimeDiagnostics(ctx, compose);
+  const driverDiagnostics = await driver.collectDiagnostics?.(ctx, compose);
+  if (!driverDiagnostics?.trim()) {
+    return shared;
+  }
+  return [shared, `== driver diagnostics ==\n${driverDiagnostics.trim()}`].join(
+    '\n\n'
+  );
 }
 
 async function loadPackageEnv(): Promise<void> {
@@ -328,7 +354,14 @@ async function runOpenClawVitestFiles(
     console.log(`Running ${testFile}...`);
     const result = await runCommand(
       'pnpm',
-      ['exec', 'vitest', 'run', '--config', 'vitest.integration.config.ts', testFile],
+      [
+        'exec',
+        'vitest',
+        'run',
+        '--config',
+        'vitest.integration.config.ts',
+        testFile,
+      ],
       { cwd: ctx.packageDir, env }
     );
     if (result.exitCode !== 0) {

@@ -6,10 +6,10 @@ on:
 jobs:
   # Detect which parts of the monorepo changed so downstream jobs can skip
   # work that the change set can't affect. `app` is an ignore-list: it's true
-  # for ANY change except ones confined to the isolated plugin packages
-  # (openclaw/hermes/tlon-skill — not consumed by the app, covered by their
-  # own workflows) or docs. New packages therefore default to running the app
-  # suite, so we never silently skip needed tests.
+  # for ANY change except ones confined to the isolated bot/plugin packages
+  # (openclaw/hermes/tlon-bot-e2e/tlon-skill — not consumed by the app, covered
+  # by their own workflows) or docs. New packages therefore default to running
+  # the app suite, so we never silently skip needed tests.
   changes:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
@@ -25,6 +25,7 @@ jobs:
               - '**'
               - '!packages/openclaw/**'
               - '!packages/hermes-tlon-adapter/**'
+              - '!packages/tlon-bot-e2e/**'
               - '!packages/tlon-skill/**'
               - '!docs/**'
               - '!**/*.md'
