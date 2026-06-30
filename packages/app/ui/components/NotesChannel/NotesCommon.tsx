@@ -404,11 +404,7 @@ export function NotesBanner({
         ) : null}
       </XStack>
       {showDetails && displayMessage.details ? (
-        <ScrollView
-          maxHeight={160}
-          paddingHorizontal="$l"
-          paddingBottom="$s"
-        >
+        <ScrollView maxHeight={160} paddingHorizontal="$l" paddingBottom="$s">
           <Text
             size="$label/s"
             fontFamily="$mono"
