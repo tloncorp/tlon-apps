@@ -20,12 +20,11 @@ const FOLDER_ROW_LEFT_PADDING = 5.5;
 export function FolderTreeRow({
   canEdit,
   depth,
-  expanded,
   folder,
-  hasChildren,
   isDeleting,
   label,
   noteCount,
+  selected,
   onDelete,
   onCreateFolder,
   onCreateNote,
@@ -35,9 +34,7 @@ export function FolderTreeRow({
 }: {
   canEdit: boolean;
   depth: number;
-  expanded: boolean;
   folder: db.NotesFolder;
-  hasChildren: boolean;
   isDeleting: boolean;
   label: string;
   noteCount: number;
@@ -104,12 +101,14 @@ export function FolderTreeRow({
   return (
     <TreeRowFrame
       depth={depth}
+      selected={selected}
+      variant="chatList"
       {...rowActionProps}
       onPress={onPress}
       testID={`NotesFolderRow-${label}`}
     >
-      <TreeChevron expanded={expanded} hasChildren={hasChildren} />
-      <ListItem.MainContent height="auto" minHeight={0}>
+      <ListItem.SystemIcon icon="Folder" />
+      <ListItem.MainContent>
         <ListItem.Title
           size="$body"
           color="$primaryText"
@@ -118,14 +117,16 @@ export function FolderTreeRow({
         >
           {label}
         </ListItem.Title>
+        <ListItem.Subtitle>
+          {noteCount > 0 ? formatNoteCount(noteCount) : 'Folder'}
+        </ListItem.Subtitle>
       </ListItem.MainContent>
-      {actionsMenu ? (
-        <ListItem.EndContent paddingTop={0}>
-          <XStack alignItems="center" gap="$xs">
-            {actionsMenu}
-          </XStack>
-        </ListItem.EndContent>
-      ) : null}
+      <ListItem.EndContent>
+        <XStack alignItems="center" gap="$xs">
+          {actionsMenu}
+          <Icon type="ChevronRight" color="$tertiaryText" size="$m" />
+        </XStack>
+      </ListItem.EndContent>
     </TreeRowFrame>
   );
 }
@@ -307,31 +308,6 @@ function useRowActions({
       onOpenMenu: canEdit ? openActions : undefined,
     },
   };
-}
-
-function TreeChevron({
-  expanded,
-  hasChildren,
-}: {
-  expanded: boolean;
-  hasChildren: boolean;
-}) {
-  return (
-    <XStack
-      width="$2xl"
-      height="$2xl"
-      alignItems="center"
-      justifyContent="center"
-    >
-      {hasChildren ? (
-        <Icon
-          type={expanded ? 'ChevronDown' : 'ChevronRight'}
-          size="$m"
-          color="$tertiaryText"
-        />
-      ) : null}
-    </XStack>
-  );
 }
 
 function TreeRowFrame({
