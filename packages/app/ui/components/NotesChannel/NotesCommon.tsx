@@ -156,9 +156,23 @@ export function NotesActionGroupList({
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
 const EMPTY_NOTES: db.NotesNote[] = [];
 const MOVE_DESTINATION_SHEET_SNAP_POINTS = [85];
+const NOTES_PENDING_WRITE_MESSAGE = '%notes write request is still pending';
 
 export function errorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
+}
+
+function formatNotesBannerMessage(message: string) {
+  const trimmedMessage = message.trim();
+  if (trimmedMessage.includes(NOTES_PENDING_WRITE_MESSAGE)) {
+    return {
+      message:
+        'Your change may still be syncing. Check the note before trying again.',
+      details: trimmedMessage,
+    };
+  }
+
+  return { message: trimmedMessage };
 }
 
 export function confirmNotesDestructiveAction({
@@ -345,23 +359,66 @@ export function NotesBanner({
   tone?: 'neutral' | 'negative';
 }) {
   const isNegative = tone === 'negative';
+  const [showDetails, setShowDetails] = useState(false);
+  const displayMessage = useMemo(
+    () => formatNotesBannerMessage(message),
+    [message]
+  );
+
+  useEffect(() => {
+    setShowDetails(false);
+  }, [message]);
+
   return (
-    <XStack
-      paddingHorizontal="$l"
-      paddingVertical="$s"
+    <YStack
       backgroundColor={
         isNegative ? '$negativeBackground' : '$secondaryBackground'
       }
       borderBottomColor={isNegative ? '$negativeBorder' : '$border'}
       borderBottomWidth={1}
     >
-      <Text
-        size="$label/s"
-        color={isNegative ? '$negativeActionText' : '$secondaryText'}
+      <XStack
+        alignItems="flex-start"
+        gap="$m"
+        paddingHorizontal="$l"
+        paddingVertical="$s"
       >
-        {message}
-      </Text>
-    </XStack>
+        <Text
+          flex={1}
+          minWidth={0}
+          size="$label/s"
+          color={isNegative ? '$negativeActionText' : '$secondaryText'}
+        >
+          {displayMessage.message}
+        </Text>
+        {displayMessage.details ? (
+          <Pressable onPress={() => setShowDetails((showing) => !showing)}>
+            <Text
+              size="$label/s"
+              fontWeight="600"
+              color={isNegative ? '$negativeActionText' : '$secondaryText'}
+            >
+              {showDetails ? 'Hide' : 'Details'}
+            </Text>
+          </Pressable>
+        ) : null}
+      </XStack>
+      {showDetails && displayMessage.details ? (
+        <ScrollView
+          maxHeight={160}
+          paddingHorizontal="$l"
+          paddingBottom="$s"
+        >
+          <Text
+            size="$label/s"
+            fontFamily="$mono"
+            color={isNegative ? '$negativeActionText' : '$secondaryText'}
+          >
+            {displayMessage.details}
+          </Text>
+        </ScrollView>
+      ) : null}
+    </YStack>
   );
 }
 
