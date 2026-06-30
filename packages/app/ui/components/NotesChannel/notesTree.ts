@@ -320,6 +320,57 @@ export function buildNotesTreeRows({
   return rows;
 }
 
+export function buildFolderContentsRows({
+  folderId,
+  folderNoteCounts,
+  folders,
+  notes,
+  rootFolderId,
+}: {
+  folderId: number | null;
+  folderNoteCounts: Map<number, number>;
+  folders: db.NotesFolder[];
+  notes: db.NotesNote[];
+  rootFolderId: number | null;
+}): NotesTreeRow[] {
+  if (folderId === null) {
+    return [];
+  }
+
+  const { byParent } = indexFolders(folders, { sorted: true });
+  const folderRows = buildFolderRows(folders, rootFolderId, {
+    includeRoot: true,
+  });
+  const pathByFolderId = new Map(
+    folderRows.map((row) => [row.folder.folderId, row.path])
+  );
+  const childFolders = byParent.get(folderId) ?? [];
+  const folderNotes = notes
+    .filter((note) => note.folderId === folderId)
+    .sort(compareNotes);
+
+  return [
+    ...childFolders.map((folder): NotesTreeRow => {
+      const childNotes = notes.filter(
+        (note) => note.folderId === folder.folderId
+      );
+      const childFolders = byParent.get(folder.folderId) ?? [];
+      return {
+        type: 'folder',
+        folder,
+        depth: 0,
+        expanded: false,
+        hasChildren: childFolders.length > 0 || childNotes.length > 0,
+        noteCount: folderNoteCounts.get(folder.folderId) ?? 0,
+        path: pathByFolderId.get(folder.folderId) ?? getFolderLabel(folder),
+      };
+    }),
+    ...folderNotes.map(
+      (note): NotesTreeRow => ({ type: 'note', note, depth: 0 })
+    ),
+  ];
+}
+
 export function getNextNoteIdAfterDelete(
   rows: NotesTreeRow[],
   deletedNoteId: number
