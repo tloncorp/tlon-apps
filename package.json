@@ -3,6 +3,11 @@
   "name": "tlon-apps",
   "type": "module",
   "scripts": {
+    "onboarding": "scripts/onboarding-sandbox/run.sh start",
+    "onboarding:reset": "scripts/onboarding-sandbox/run.sh reset",
+    "onboarding:logs": "scripts/onboarding-sandbox/run.sh logs",
+    "onboarding:down": "scripts/onboarding-sandbox/run.sh down",
+    "onboarding:web": "node apps/onboarding-sandbox/server.mjs",
     "build:api": "pnpm --filter '@tloncorp/api' build",
     "dev:api": "pnpm --filter '@tloncorp/api' watch",
     "build:shared": "pnpm --filter '@tloncorp/shared' build",
@@ -77,7 +82,8 @@
       "@gorhom/bottom-sheet@5.2.14": "patches/@gorhom__bottom-sheet@5.2.14.patch",
       "react-native@0.85.3": "patches/react-native@0.85.3.patch",
       "react-native-reanimated@4.3.1": "patches/react-native-reanimated@4.3.1.patch",
-      "expo-background-task@56.0.15": "patches/expo-background-task@56.0.15.patch"
+      "expo-background-task@56.0.15": "patches/expo-background-task@56.0.15.patch",
+      "expo-image-manipulator@56.0.19": "patches/expo-image-manipulator@56.0.19.patch"
     },
     "allowNonAppliedPatches": true,
     "overrides": {

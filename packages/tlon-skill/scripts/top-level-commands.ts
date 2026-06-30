@@ -7,7 +7,7 @@ export const TOP_LEVEL_COMMANDS = [
   'groups',
   'hooks',
   'messages',
-  'notebook',
+  'notes',
   'posts',
   'settings',
   'upload',

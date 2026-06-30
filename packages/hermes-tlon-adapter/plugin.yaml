@@ -1,7 +1,7 @@
 name: tlon-platform
 label: Tlon
 kind: platform
-version: 0.7.0
+version: 0.14.0
 description: >
   Tlon Messenger platform adapter for Hermes Agent. Reads inbound messages from
   an authenticated Eyre SSE channel and sends replies through the
@@ -27,6 +27,12 @@ requires_env:
     description: 'Access code for Eyre authentication'
     prompt: 'Tlon access code'
     password: true
+  - name: TLON_OWNER_SHIP
+    description:
+      'Explicit owner ship; required for access control, owner-only tools,
+      home-channel defaults, and gateway status'
+    prompt: 'Owner ship'
+    password: false
 optional_env:
   - name: TLON_CHANNELS
     description:
@@ -57,11 +63,6 @@ optional_env:
       'Comma-separated ships whose group invites auto-accept (others queue for
       owner approval); %settings groupInviteAllowlist overrides'
     prompt: 'Auto-accept group inviters'
-    password: false
-  - name: TLON_OWNER_SHIP
-    description:
-      'Explicit owner ship for home-channel defaults and gateway status'
-    prompt: 'Owner ship'
     password: false
   - name: TLON_HOME_CHANNEL
     description:

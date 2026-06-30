@@ -49,9 +49,12 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const listBottomComponent = useMemo(
       () =>
         shouldShowThinkingState ? (
-          <ThinkingState conversationId={ctx.channel.id} />
+          <ThinkingState
+            conversationId={ctx.channel.id}
+            channelType={ctx.channel.type}
+          />
         ) : undefined,
-      [shouldShowThinkingState, ctx.channel.id]
+      [shouldShowThinkingState, ctx.channel.id, ctx.channel.type]
     );
 
     const renderEmptyComponent = useCallback(() => {
@@ -75,6 +78,16 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const canDrillIntoPost = useMemo(
       () => !getIsChatChannel(ctx.channel),
       [ctx.channel]
+    );
+    const handlePressPost = useCallback(
+      (post: db.Post) => {
+        if (canDrillIntoPost) {
+          ctx.goToPost(post);
+          return;
+        }
+        ctx.inspectContextLensPost?.(post);
+      },
+      [canDrillIntoPost, ctx.goToPost, ctx.inspectContextLensPost]
     );
 
     const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
@@ -155,7 +168,11 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
             : null
         }
         unreadCount={ctx.initialChannelUnread?.countWithoutThreads ?? 0}
-        onPressPost={canDrillIntoPost ? ctx.goToPost : undefined}
+        onPressPost={
+          canDrillIntoPost || ctx.inspectContextLensPost
+            ? handlePressPost
+            : undefined
+        }
         onPressReplies={ctx.goToPost}
         onPressImage={ctx.goToMediaViewer}
         onEndReached={ctx.onScrollEndReached}
@@ -167,6 +184,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
         ref={scrollerRef}
         isLoading={ctx.isLoadingPosts}
         onPressScrollToBottom={ctx.scrollToBottom}
+        onGoToBotRun={ctx.goToBotRun}
         highlightPostId={highlightPostId}
         listBottomComponent={listBottomComponent}
       />
