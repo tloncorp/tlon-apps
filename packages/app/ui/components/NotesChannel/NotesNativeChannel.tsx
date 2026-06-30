@@ -16,11 +16,13 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow, useToast } from '@tloncorp/ui';
+import * as Clipboard from 'expo-clipboard';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
+import { useShip } from '../../../contexts/ship';
 import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { SimpleActionSheet } from '../ActionSheet';
@@ -48,6 +50,7 @@ import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
 import {
+  type FolderRow,
   buildFolderNoteCounts,
   buildFolderRows,
   buildNotesTreeRows,
@@ -71,7 +74,9 @@ export function NotesNativeChannel({
   notebookFlag: string | null | undefined;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { shipUrl } = useShip();
   const isWindowNarrow = useIsWindowNarrow();
+  const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
@@ -169,6 +174,17 @@ export function NotesNativeChannel({
       ).toString();
     },
     [notebookFlag]
+  );
+  const getPublishedNoteShareUrl = useMemo(
+    () => (publishedPath: string) => {
+      const origin =
+        Platform.OS === 'web' && typeof window !== 'undefined'
+          ? window.location.origin
+          : shipUrl;
+
+      return origin ? new URL(publishedPath, origin).toString() : null;
+    },
+    [shipUrl]
   );
   const selectNoteInPane = useMutableCallback((noteId: number | null) => {
     setSelectedNoteId(noteId);
@@ -363,6 +379,13 @@ export function NotesNativeChannel({
           });
           expandFolder(folderId);
           setSelectedFolderId(folderId);
+          showToast({
+            message: `Moved note to ${getMoveDestinationLabel(
+              parentFolderRows,
+              folderId
+            )}`,
+            duration: 1500,
+          });
         })
       );
     }
@@ -395,6 +418,11 @@ export function NotesNativeChannel({
     });
   });
 
+  const handleRenameNote = useMutableCallback((note: db.NotesNote) => {
+    if (!canEdit) return;
+    openNote(note, { focusTitle: true });
+  });
+
   const handleViewPublishedNote = useMutableCallback((note: db.NotesNote) => {
     const publishedUrl = getPublishedNoteUrl(note);
     if (!publishedUrl) return;
@@ -406,15 +434,29 @@ export function NotesNativeChannel({
 
     setPublishingAction('publish');
     try {
+      let publishedUrl: string | null = null;
       await runAction('Failed to publish note', async () => {
-        await publishNotebookNote({
+        const publishedPath = await publishNotebookNote({
           notebookFlag,
           noteId: note.noteId,
           title: note.title,
           body: note.bodyMd,
         });
         await refetchPublishedNotes();
+        publishedUrl = getPublishedNoteShareUrl(publishedPath);
       });
+
+      if (publishedUrl) {
+        try {
+          await Clipboard.setStringAsync(publishedUrl);
+          showToast({
+            message: 'Published note. Link copied to clipboard.',
+            duration: 2000,
+          });
+        } catch (e) {
+          setError(errorMessage(e, 'Published note, but failed to copy link'));
+        }
+      }
     } finally {
       setPublishingAction(null);
     }
@@ -568,6 +610,13 @@ export function NotesNativeChannel({
           expandFolder(parentFolderId);
           expandFolder(movingFolder.folderId);
           setSelectedFolderId(movingFolder.folderId);
+          showToast({
+            message: `Moved folder to ${getMoveDestinationLabel(
+              parentFolderRows,
+              parentFolderId
+            )}`,
+            duration: 1500,
+          });
         })
       );
     }
@@ -683,6 +732,7 @@ export function NotesNativeChannel({
       onCreateFolderInFolder={(folder) => openAddFolderDialog(folder.folderId)}
       onCreateNoteInFolder={(folder) => void handleCreateNote(folder.folderId)}
       onRenameFolder={handleOpenRenameFolder}
+      onRenameNote={handleRenameNote}
       onToggleFolder={toggleFolder}
       onUnpublishNote={handleUnpublishNote}
       onViewPublishedNote={handleViewPublishedNote}
@@ -807,4 +857,17 @@ export function NotesNativeChannel({
 
 function formatCount(count: number, label: string) {
   return `${count} ${label}${count === 1 ? '' : 's'}`;
+}
+
+function getMoveDestinationLabel(folderRows: FolderRow[], folderId: number) {
+  const row = folderRows.find(
+    (candidate) => candidate.folder.folderId === folderId
+  );
+  if (!row) {
+    return 'folder';
+  }
+  if (row.folder.name === '/') {
+    return getFolderLabel(row.folder);
+  }
+  return row.path.replace(/^Root \/ /, '');
 }

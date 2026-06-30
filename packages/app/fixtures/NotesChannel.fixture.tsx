@@ -326,6 +326,7 @@ function NotebookContentsListFixture() {
             onOpenNote={openNote}
             onPublishNote={() => {}}
             onRenameFolder={() => {}}
+            onRenameNote={() => {}}
             onToggleFolder={toggleFolder}
             onUnpublishNote={() => {}}
             onViewPublishedNote={() => {}}
@@ -395,6 +396,7 @@ function NotesTreeFixture() {
             onOpenNote={() => {}}
             onPublishNote={() => {}}
             onRenameFolder={() => {}}
+            onRenameNote={() => {}}
             onToggleFolder={(folderId, hasChildren) => {
               if (!hasChildren) return;
               setExpandedFolderIds((currentIds) => {

@@ -1,11 +1,18 @@
 import * as db from '@tloncorp/shared/db';
 import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
 import { Button, Text } from '@tloncorp/ui';
+import { useMemo } from 'react';
 import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
 import { TextInput } from '../Form';
-import { FolderPicker, NotesDialog } from './NotesCommon';
+import {
+  FolderDestinationSearch,
+  FolderPicker,
+  MoveDestinationSheet,
+  NotesDialog,
+  useFolderDestinationSelection,
+} from './NotesCommon';
 import type { FolderRow } from './notesTree';
 import { getFolderLabel } from './notesTree';
 
@@ -168,38 +175,47 @@ export function MoveFolderSheet({
   open: boolean;
 }) {
   const label = getFolderLabel(folder);
-  const disabledFolders = new Map<number, string>();
+  const hiddenFolderIds = useMemo(() => {
+    const ids = new Set<number>();
+    if (!folder) return ids;
 
-  if (folder) {
     collectDescendantFolderIds(folders, folder.folderId).forEach((id) => {
-      disabledFolders.set(
-        id,
-        id === folder.folderId ? 'This folder' : 'Nested'
-      );
+      ids.add(id);
     });
 
     if (folder.parentFolderId !== null && folder.parentFolderId !== undefined) {
-      disabledFolders.set(folder.parentFolderId, 'Current');
+      ids.add(folder.parentFolderId);
     }
-  }
+
+    return ids;
+  }, [folder, folders]);
+  const { selectedDestination, selectedFolderId, setSelectedFolderId } =
+    useFolderDestinationSelection({
+      folderRows,
+      hiddenFolderIds,
+      resetKey: open ? folder?.id : null,
+    });
 
   return (
-    <NotesDialog
+    <MoveDestinationSheet
       open={open}
       onOpenChange={onOpenChange}
       title="Move folder"
       subtitle={`Choose a new parent for ${label}.`}
       testID="NotesMoveFolderSheet"
-      cancelDisabled={isMoving}
+      isMoving={isMoving}
+      selectedDestination={selectedDestination}
+      onConfirm={onMove}
     >
-      <FolderPicker
-        disabledFolders={disabledFolders}
+      <FolderDestinationSearch
         folderRows={folderRows}
+        hiddenFolderIds={hiddenFolderIds}
         isLoading={isMoving}
-        onSelectFolder={onMove}
-        selectedFolderId={folder?.parentFolderId ?? null}
+        onSelectFolder={setSelectedFolderId}
+        resetKey={open ? folder?.id : null}
+        selectedFolderId={selectedFolderId}
         testID="NotesMoveFolderParentPicker"
       />
-    </NotesDialog>
+    </MoveDestinationSheet>
   );
 }
