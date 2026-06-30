@@ -33,6 +33,13 @@ export const getMobileLinkingConfig = (
               noteId: Number,
             },
           },
+          NotesFolder: {
+            path: 'group/:groupId/channel/:channelId/folder/:folderId',
+            parse: {
+              ...parsePathParams('channelId', 'groupId'),
+              folderId: Number,
+            },
+          },
           ChatList: 'ChatList',
           ChannelSearch: { path: 'channel/:channelId/search' },
           ContextLensRuns: { path: 'lens/runs' },
@@ -161,6 +168,10 @@ export const getDesktopLinkingConfig = (
                   NotesDetail: {
                     path: 'note/:noteId',
                     parse: { noteId: Number },
+                  },
+                  NotesFolder: {
+                    path: 'folder/:folderId',
+                    parse: { folderId: Number },
                   },
                   Post: postScreenConfig(mode),
                   MediaViewer: {},
