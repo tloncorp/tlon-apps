@@ -6,7 +6,12 @@ import { afterEach, expect, test, vi } from 'vitest';
 import * as db from '../db';
 import * as schema from '../db/schema';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
-import { createChannel, markChannelRead } from './channelActions';
+import {
+  createChannel,
+  joinGroupChannel,
+  leaveGroupChannel,
+  markChannelRead,
+} from './channelActions';
 
 setupDatabaseTestSuite();
 
@@ -16,9 +21,11 @@ const channelId = 'chat/~zod/stale-notify/general';
 async function insertGroupAndChannel({
   id = channelId,
   group = groupId,
+  type = 'chat',
 }: {
   id?: string;
   group?: string;
+  type?: db.ChannelType;
 } = {}) {
   const client = getClient();
   if (!client) throw new Error('test db not initialized');
@@ -26,7 +33,7 @@ async function insertGroupAndChannel({
   await insertGroup(group);
   await client.insert(schema.channels).values({
     id,
-    type: 'chat',
+    type,
     groupId: group,
   });
 }
@@ -211,6 +218,42 @@ test('createChannel rolls back a notes notebook when group listing fails', async
   expect(deleteNotesNotebookStrict).toHaveBeenCalledWith({
     host: '~solfer-magfed',
     name: 'native-notes',
+  });
+});
+
+test('joinGroupChannel routes notes channels through the notes API', async () => {
+  const notesChannelId = 'notes/~zod/native-notes';
+  await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });
+  const joinNotesChannel = vi
+    .spyOn(api, 'joinNotesChannel')
+    .mockResolvedValue(undefined);
+  const joinChannel = vi.spyOn(api, 'joinChannel').mockResolvedValue(undefined);
+
+  await joinGroupChannel({ channelId: notesChannelId, groupId });
+
+  expect(joinNotesChannel).toHaveBeenCalledWith(notesChannelId);
+  expect(joinChannel).not.toHaveBeenCalled();
+  await expect(db.getChannel({ id: notesChannelId })).resolves.toMatchObject({
+    currentUserIsMember: true,
+  });
+});
+
+test('leaveGroupChannel routes notes channels through the notes API', async () => {
+  const notesChannelId = 'notes/~zod/native-notes';
+  await insertGroupAndChannel({ id: notesChannelId, type: 'notes' });
+  const leaveNotesChannel = vi
+    .spyOn(api, 'leaveNotesChannel')
+    .mockResolvedValue(undefined);
+  const leaveChannel = vi
+    .spyOn(api, 'leaveChannel')
+    .mockResolvedValue(undefined);
+
+  await leaveGroupChannel(notesChannelId);
+
+  expect(leaveNotesChannel).toHaveBeenCalledWith(notesChannelId);
+  expect(leaveChannel).not.toHaveBeenCalled();
+  await expect(db.getChannel({ id: notesChannelId })).resolves.toMatchObject({
+    currentUserIsMember: false,
   });
 });
 

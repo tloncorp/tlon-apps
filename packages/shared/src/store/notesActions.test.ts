@@ -11,7 +11,7 @@ import {
   makeNotesNotebook,
   testNotebookFlag as notebookFlag,
 } from '../test/notesFixtures';
-import { saveNotebookNote } from './notesActions';
+import { saveNotebookNote, syncNotesNotebook } from './notesActions';
 
 setupDatabaseTestSuite();
 
@@ -80,4 +80,41 @@ test('saveNotebookNote preserves an empty title', async () => {
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toMatchObject({ title: '' });
+});
+
+test('syncNotesNotebook preserves cached members when member sync fails', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      currentUserRole: 'editor',
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [
+      {
+        notebookFlag,
+        contactId: '~zod',
+        role: 'editor',
+        syncedAt: 100,
+      },
+    ],
+  });
+
+  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notesV1, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notesV1, 'listMembers').mockRejectedValue(
+    new Error('member sync failed')
+  );
+
+  await syncNotesNotebook(notebookFlag);
+
+  await expect(db.getNotesNotebook({ notebookFlag })).resolves.toMatchObject({
+    currentUserRole: 'editor',
+  });
+  await expect(db.getNotesMembers({ notebookFlag })).resolves.toMatchObject([
+    expect.objectContaining({ contactId: '~zod', role: 'editor' }),
+  ]);
 });

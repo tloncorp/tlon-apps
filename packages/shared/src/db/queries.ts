@@ -487,7 +487,7 @@ export const getNotesMembers = createReadQuery(
   async ({ notebookFlag }: { notebookFlag: string }, ctx: QueryCtx) => {
     return ctx.db.query.notesMembers.findMany({
       where: eq($notesMembers.notebookFlag, notebookFlag),
-      orderBy: [asc($notesMembers.contactId)],
+      orderBy: [asc($notesMembers.contactId), asc($notesMembers.role)],
     });
   },
   ['notesMembers']
@@ -515,7 +515,7 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
         .values(notebook)
         .onConflictDoUpdate({
           target: $notesNotebooks.id,
-          set: conflictUpdateSetAll($notesNotebooks),
+          set: conflictUpdateSetAll($notesNotebooks, ['lastOpenedAt']),
         });
 
       await txCtx.db
@@ -610,9 +610,20 @@ export const setNotesNotebookLastOpened = createWriteQuery(
 export const deleteNotesNotebook = createWriteQuery(
   'deleteNotesNotebook',
   async (notebookFlag: string, ctx: QueryCtx) => {
-    return ctx.db
-      .delete($notesNotebooks)
-      .where(eq($notesNotebooks.id, notebookFlag));
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesNotes)
+        .where(eq($notesNotes.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesFolders)
+        .where(eq($notesFolders.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesMembers)
+        .where(eq($notesMembers.notebookFlag, notebookFlag));
+      await txCtx.db
+        .delete($notesNotebooks)
+        .where(eq($notesNotebooks.id, notebookFlag));
+    });
   },
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
 );

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8546e287-c8cc-45cb-a2e6-63a5380e7881",
+  "id": "e7e28ea4-831e-4c18-aba2-315772c3c581",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -2305,12 +2305,13 @@
         }
       },
       "compositePrimaryKeys": {
-        "notes_members_notebook_flag_contact_id_pk": {
+        "notes_members_notebook_flag_contact_id_role_pk": {
           "columns": [
             "notebook_flag",
-            "contact_id"
+            "contact_id",
+            "role"
           ],
-          "name": "notes_members_notebook_flag_contact_id_pk"
+          "name": "notes_members_notebook_flag_contact_id_role_pk"
         }
       },
       "uniqueConstraints": {},
