@@ -2,6 +2,16 @@
   "name": "tlon-mobile",
   "version": "9.0.0",
   "private": true,
+  "expo": {
+    "autolinking": {
+      "ios": {
+        "buildFromSource": ["expo-background-task"]
+      },
+      "android": {
+        "buildFromSource": ["expo-background-task"]
+      }
+    }
+  },
   "scripts": {
     "dev": "concurrently \"tailwindcss --input input.css --output tailwind.css --no-autoprefixer --watch\" \"tailwind-rn --watch\"",
     "android": "expo run:android --variant=productionDebug",
