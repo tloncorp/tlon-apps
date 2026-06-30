@@ -4,6 +4,7 @@ import {
   removeReaction as apiRemoveReaction,
   sendPost as apiSendPost,
   sendReply as apiSendReply,
+  sendVouchedDm as apiSendVouchedDm,
 } from '@tloncorp/api';
 import { da, scot } from '@urbit/aura';
 
@@ -128,6 +129,52 @@ export async function sendDmWithStory({
     botProfile,
   });
   return { channel: 'tlon' as const, messageId, sentAt };
+}
+
+// --- Vouched DMs (virtual identity / moon) ---
+
+/**
+ * Send a DM authored as a moon (`as`) via the vouched path. The host (the
+ * moon's sponsor) vouches for it, and the message is filed under the
+ * [moon, human] conversation on both ends. Top-level only for now (no
+ * thread replies).
+ */
+export async function sendVouchedDm(params: {
+  as: string;
+  toShip: string;
+  text: string;
+  blob?: string;
+  botProfile?: BotProfile;
+}) {
+  return sendVouchedDmWithStory({
+    ...params,
+    story: markdownToStory(params.text),
+  });
+}
+
+export async function sendVouchedDmWithStory({
+  as,
+  toShip,
+  story,
+  blob,
+  botProfile,
+}: {
+  as: string;
+  toShip: string;
+  story: Story;
+  blob?: string;
+  botProfile?: BotProfile;
+}) {
+  const sentAt = Date.now();
+  const result = await apiSendVouchedDm({
+    as,
+    toShip,
+    content: story,
+    sentAt,
+    blob,
+    botProfile,
+  });
+  return { channel: 'tlon' as const, messageId: result.messageId, sentAt };
 }
 
 // --- Channel posts (chat, heap, diary) ---

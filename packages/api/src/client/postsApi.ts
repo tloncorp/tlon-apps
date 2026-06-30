@@ -218,6 +218,51 @@ export const sendPost = async ({
   logger.log('post sent', { channelId, authorId, sentAt, content });
 };
 
+/**
+ * Send a DM as a "virtual identity" (a moon, `as`) to `toShip`, via the
+ * vouched DM path (`chat-dm-vouched-action-2`). The poking ship must be the
+ * moon's host (sein); the message is filed under the [moon, human]
+ * conversation on both ends. See +dv-core in desk/app/chat.
+ */
+export const sendVouchedDm = async ({
+  as,
+  toShip,
+  content,
+  sentAt,
+  blob,
+  botProfile,
+}: {
+  as: string;
+  toShip: string;
+  content: Story;
+  sentAt: number;
+  blob?: string;
+  botProfile?: AuthorProfile;
+}) => {
+  const author = toAuthor(as, botProfile ?? { nickname: null, avatar: null });
+  const delta: WritDeltaAdd = {
+    add: {
+      essay: {
+        content,
+        sent: sentAt,
+        author,
+        kind: '/chat',
+        meta: null,
+        blob: blob ?? null,
+      },
+      time: null,
+    },
+  };
+  const id = `${as}/${formatUd(da.fromUnix(sentAt).toString())}`;
+  const diff: WritDiff = { id, delta };
+  await poke({
+    app: 'chat',
+    mark: 'chat-dm-vouched-action-2',
+    json: { as, action: { ship: toShip, diff } },
+  });
+  return { channel: 'tlon' as const, messageId: id, sentAt };
+};
+
 export const editPost = async ({
   channelId,
   postId,

@@ -26,6 +26,8 @@ import {
   sendChannelPost,
   sendDm,
   sendDmWithStory,
+  sendVouchedDm,
+  sendVouchedDmWithStory,
 } from './urbit/send.js';
 import { markdownToStory } from './urbit/story.js';
 import { uploadImageFromUrl } from './urbit/upload.js';
@@ -183,14 +185,24 @@ export const tlonRuntimeOutbound: Pick<
         const replyId = resolveReplyId(replyToId, threadId);
         const stamp = resolveBackgroundLensStamp(cfg, normalizeShip(account.ship));
         if (parsed.kind === 'dm') {
-          const result = await sendDm({
-            fromShip,
-            toShip: parsed.ship,
-            text,
-            blob: stamp?.blob,
-            replyToId: replyId,
-            botProfile,
-          });
+          // As a moon, route DMs through the vouched [moon,human] path so they
+          // don't commingle with the host's own DMs.
+          const result = account.moon
+            ? await sendVouchedDm({
+                as: fromShip,
+                toShip: parsed.ship,
+                text,
+                blob: stamp?.blob,
+                botProfile,
+              })
+            : await sendDm({
+                fromShip,
+                toShip: parsed.ship,
+                text,
+                blob: stamp?.blob,
+                replyToId: replyId,
+                botProfile,
+              });
           recordBackgroundLensDelivery({
             stamp,
             messageId: result.messageId,
@@ -246,14 +258,22 @@ export const tlonRuntimeOutbound: Pick<
         const replyId = resolveReplyId(replyToId, threadId);
         const stamp = resolveBackgroundLensStamp(cfg, normalizeShip(account.ship));
         if (parsed.kind === 'dm') {
-          const result = await sendDmWithStory({
-            fromShip,
-            toShip: parsed.ship,
-            story,
-            blob: stamp?.blob,
-            replyToId: replyId,
-            botProfile,
-          });
+          const result = account.moon
+            ? await sendVouchedDmWithStory({
+                as: fromShip,
+                toShip: parsed.ship,
+                story,
+                blob: stamp?.blob,
+                botProfile,
+              })
+            : await sendDmWithStory({
+                fromShip,
+                toShip: parsed.ship,
+                story,
+                blob: stamp?.blob,
+                replyToId: replyId,
+                botProfile,
+              });
           recordBackgroundLensDelivery({
             stamp,
             messageId: result.messageId,
