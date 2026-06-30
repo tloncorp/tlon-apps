@@ -1,0 +1,52 @@
+diff --git a/dist/cjs/index.cjs b/dist/cjs/index.cjs
+index d3f6a49d994c6a8784e7d2e047d1d0bb511693d8..01651eb26a767642539af4abf57d77a32154b1b4 100644
+--- a/dist/cjs/index.cjs
++++ b/dist/cjs/index.cjs
+@@ -450,10 +450,11 @@ class Urbit {
+      * be the empty string.
+      * @param code The access code for the ship at that address
+      */
+-    constructor(url, code, desk, fetchFn) {
++    constructor(url, code, desk, fetchFn, urlTransformer = (url) => url) {
+         this.url = url;
+         this.code = code;
+         this.desk = desk;
++        this.urlTransformer = urlTransformer;
+         if (isBrowser_1) {
+             window.addEventListener('beforeunload', this.delete);
+         }
+@@ -795,7 +796,7 @@ class Urbit {
+         return eventId;
+     }
+     async sendJSONtoChannel(...json) {
+-        const response = await this.fetchFn(this.channelUrl, {
++        const response = await this.fetchFn(this.urlTransformer(this.channelUrl, json), {
+             ...this.fetchOptions,
+             method: 'PUT',
+             body: JSON.stringify(json),
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index cd9baa24e3a60f9b29110569b6a02ed1655cac0a..cbea42f857d4bf8c134cc77d8defb0ccd768dc28 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -446,10 +446,11 @@ class Urbit {
+      * be the empty string.
+      * @param code The access code for the ship at that address
+      */
+-    constructor(url, code, desk, fetchFn) {
++    constructor(url, code, desk, fetchFn, urlTransformer = (url) => url) {
+         this.url = url;
+         this.code = code;
+         this.desk = desk;
++        this.urlTransformer = urlTransformer;
+         if (isBrowser_1) {
+             window.addEventListener('beforeunload', this.delete);
+         }
+@@ -791,7 +792,7 @@ class Urbit {
+         return eventId;
+     }
+     async sendJSONtoChannel(...json) {
+-        const response = await this.fetchFn(this.channelUrl, {
++        const response = await this.fetchFn(this.urlTransformer(this.channelUrl, json), {
+             ...this.fetchOptions,
+             method: 'PUT',
+             body: JSON.stringify(json),
