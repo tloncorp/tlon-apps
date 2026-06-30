@@ -132,6 +132,10 @@ export const SignupScreen = ({ navigation }: Props) => {
         return;
       }
 
+      // handleSubmit resolves whether or not validation passes; the callback
+      // (which requests the OTP) only runs when the form is valid. Track that so
+      // we don't advance to the OTP screen when no code was actually sent.
+      let otpRequested = false;
       if (otpMethod === 'phone') {
         await phoneForm.handleSubmit(async ({ phoneNumber }) => {
           await hostingApi.requestSignupOtp({
@@ -139,6 +143,7 @@ export const SignupScreen = ({ navigation }: Props) => {
             recaptchaToken,
             platform: selectRecaptchaPlatform(),
           });
+          otpRequested = true;
         })();
       } else {
         await emailForm.handleSubmit(async ({ email }) => {
@@ -147,10 +152,13 @@ export const SignupScreen = ({ navigation }: Props) => {
             recaptchaToken,
             platform: selectRecaptchaPlatform(),
           });
+          otpRequested = true;
         })();
       }
 
-      handleSuccess();
+      if (otpRequested) {
+        handleSuccess();
+      }
     } catch (err) {
       setRemoteError(`Something bad happened. Err: ${err.toString()}`);
       if (err instanceof HostingError) {
