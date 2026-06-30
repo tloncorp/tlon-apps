@@ -233,7 +233,7 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
     case 'chat':
       return 'ChannelTalk';
     case 'notebook':
-      return 'ChannelNotebooks';
+      return 'Bulletin';
     case 'notes':
       return 'ChannelNotebooks';
     case 'gallery':
