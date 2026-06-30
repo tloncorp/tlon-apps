@@ -193,10 +193,9 @@
 ++  lo
   |_  [our=@p host=(unit @p) kind=(unit @t)]
   ++  fail
-    ::TODO  maybe always slog the trace?
-    |=  [desc=term trace=tang]
+    |=  [=echo:logs desc=term trace=tang]
     %-  link
-    (~(fail logs our /logs) desc trace deez)
+    (~(fail logs our /logs) echo desc trace deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
@@ -630,7 +629,7 @@
       [%contacts %set ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  [~ this]
-    %-  (tell:lo %crit 'failed to update contacts' u.p.sign)
+    %-  (tell:lo %error 'failed to update contacts' u.p.sign)
     %-  (slog (cat 3 dap.bowl ': failed to update contacts') u.p.sign)
     [~ this]
   ==
@@ -765,7 +764,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:lo term tang)
-  %-  (slog (rap 3 dap.bowl ' +on-fail: %' term ~) tang)
+  %-  (fail:lo ~[(cat 3 dap.bowl ' failed')] term tang)
   [~ this]
 --

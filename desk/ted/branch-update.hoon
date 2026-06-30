@@ -38,7 +38,7 @@
 ?.  =(200 status-code.response-header.client-response)
   =/  =log-event:logs
     :*  %tell
-        %crit
+        %error
         'failed to read lure invite branch metadata'
         token
         leaf+"http {<status-code>}"
@@ -98,7 +98,7 @@
 ?.  =(200 status-code.response-header.client-response)
   =/  =log-event:logs
     :*  %tell
-        %crit
+        %error
         'failed to update lure invite branch metadata'
         token
         leaf+"http {<status-code>}"

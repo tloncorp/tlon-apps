@@ -305,7 +305,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(fail:log term tang ~)]~
+    [(fail:log ~[(cat 3 dap.bowl ' failed')] term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -2156,7 +2156,7 @@
     =/  response=(unit response:writs:c)
       (diff-to-response diff pact.club)
     ?~  response
-      =.  cor  (emit (tell:log %crit ~['+diff-to-response miss (cu)'] ~))
+      =.  cor  (emit (tell:log %error ~['+diff-to-response miss (cu)'] ~))
       cu-core
     =/  old-response-3=[whom:v3:cv response:writs:v3:cv]
       :-  whom
@@ -2677,7 +2677,7 @@
     =/  response=(unit response:writs:c)
       (diff-to-response diff pact.dm)
     ?~  response
-      =.  cor  (emit (tell:log %crit ~['+diff-to-response miss (di)'] ~))
+      =.  cor  (emit (tell:log %error ~['+diff-to-response miss (di)'] ~))
       di-core
     =/  old-response-3=[whom:v3:cv response:writs:v3:cv]
       :-  whom
@@ -2938,7 +2938,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
       =.  cor
-        (emit (fail:log %poke-ack [leaf+"failed to {(trip i.wire)}" u.p.sign] ~))
+        (emit (fail-remote:log ~[leaf+"failed to {(trip i.wire)}"] u.p.sign ~))
       di-core
     ::
         [%proxy *]

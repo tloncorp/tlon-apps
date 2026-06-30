@@ -76,9 +76,9 @@
 ++  l
   |_  [=bowl:gall =log-data:logs]
   ++  fail
-    |=  [desc=term =tang]
+    |=  [=echo:logs desc=term =tang]
     %-  link
-    (~(fail logs our.bowl /logs) desc tang log-data)
+    (~(fail logs our.bowl /logs) echo desc tang log-data)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
@@ -188,13 +188,13 @@
         %'POST'
       =*  log  ~(. l bowl 'flow'^s+'lure' ~)
       ?~  body.request
-        %-  %^  tell:log  %crit
+        %-  %^  tell:log  %error
               ~['POST request body not found']
             ~['event'^s+'Lure POST Fail']
         :_  this
         (give (not-found 'body not found'))
       ?.  =('ship=%7E' (end [3 8] q.u.body.request))
-        %-  %^  tell:log  %crit
+        %-  %^  tell:log  %error
               ~['ship not found in POST body']
             ~['event'^s+'Lure POST Fail']
         :_  this
@@ -207,12 +207,12 @@
       =*  log  ~(. l bowl 'flow'^s+'lure' 'lure-id'^s+token 'lure-joiner'^s+(scot %p joiner) ~)
       =;  [bite=(unit bite:reel) inviter=(unit ship)]
         ?~  bite
-          %-  %^  tell:log  %crit  ~[leaf+"invite token {<token>} not found"]
+          %-  %^  tell:log  %error  ~[leaf+"invite token {<token>} not found"]
               ~['event'^s+'Invite Token Missing']
           :_  this
           (give (not-found 'invite token not found'))
         ?~  inviter
-          %-  %^  tell:log  %crit  ~['inviter not found']
+          %-  %^  tell:log  %error  ~['inviter not found']
               ~['event'^s+'Inviter Not Found']
           :_  this
           (give (not-found 'inviter not found'))
@@ -398,7 +398,7 @@
     =*  token  i.t.wire
     =*  goof  p.p.sign-arvo
     =*  log  ~(. l bowl 'flow'^s+'lure' ~)
-    %-  %^  tell:log  %crit
+    %-  %^  tell:log  %error
         :*  'failed to update lure invite branch metadata'
             token
             mote.goof
@@ -411,6 +411,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:log term tang)
+  %-  (fail:log ~[(cat 3 dap.bowl ' failed')] term tang)
   `this
 --

@@ -21,9 +21,9 @@
 ++  l
   |_  [our=ship flow=(unit @t) details=(list (pair @t json))]
   ++  fail
-    |=  [desc=term trace=tang]
+    |=  [=echo:logs desc=term trace=tang]
     =/  =card
-      (~(fail logs our /logs) desc trace deez)
+      (~(fail logs our /logs) echo desc trace deez)
     (link card)
   ::
   ++  tell
@@ -172,7 +172,7 @@
             'lure-joiner'^s+joiner
         ==
       `this
-    %-  %^  tell:log  %crit
+    %-  %^  tell:log  %error
         u.p.sign
       :~  'event'^s+'DM Invite Fail'
           'flow'^s+'lure'
@@ -207,11 +207,11 @@
     =^  caz=(list card)  this
       =*  dm-event  'DM Invite Fail'
       ?~  inviter=(~(get by fields.metadata.bite) %'inviterUserId')
-        %-  %^  tell  %crit  dm-event
+        %-  %^  tell  %error  dm-event
             ~['inviter field missing in lure bite']
         `this
       ?.  =((slav %p u.inviter) our.bowl)
-        %-  %^  tell  %crit  dm-event
+        %-  %^  tell  %error  dm-event
             ~[leaf+"inviter {<u.inviter>} is foreign"]
         `this
       =/  wir=^wire  /dm/(scot %p joiner.bite)/[token.bite]
@@ -268,7 +268,7 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:log term tang)
+  %-  (fail:log ~[(cat 3 dap.bowl ' failed')] term tang)
   `this
 ::
 ++  on-leave

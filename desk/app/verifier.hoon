@@ -87,10 +87,14 @@
 ++  l
   |_  [our=@p for=(unit @p) kind=(unit @t)]
   ++  fail
-    ::TODO  maybe always slog the trace?
-    |=  [desc=term trace=tang]
+    |=  [=echo:logs desc=term trace=tang]
     %-  link
     (~(fail logs our /logs) desc trace deez)
+  ::
+  ++  fail-remote
+    |=  [=echo:logs trace=tang]
+    %-  link
+    (~(fail-remote logs our /logs) trace deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
@@ -876,7 +880,7 @@
       ::
       ~&  [dap.bowl %no-such-sig sig=`@uw`u.sig in=u.aid]
       %.  fof
-      %+  tell:l  %crit
+      %+  tell:l  %error
       ~['bad bookkeeping' 'failed to look up signature' (scot %uw u.sig)]
     ::
         [%lookup @ ~]
@@ -919,8 +923,7 @@
     =.  kind.log  `i.t.wire
     ?>  ?=([%behn %wake *] sign)
     ?^  error.sign
-      %-  (slog dap.bowl 'wake failed' u.error.sign)
-      %-  (fail:l %wake 'verifier wake failed' u.error.sign)
+      %-  (fail-remote:l 'verifier wake failed' u.error.sign)
       [~ this]
     =/  id=identifier  (need (wire-id t.wire))
     =/  start=@da      (slav %da i.t.t.t.wire)
@@ -1233,7 +1236,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:l term tang)
-  %-  (slog (rap 3 dap.bowl ' +on-fail: %' term ~) tang)
+  %-  (fail:l ~[(cat 3 dap.bowl ' failed')] term tang)
   [~ this]
 --

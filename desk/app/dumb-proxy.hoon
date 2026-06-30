@@ -31,10 +31,9 @@
 ++  l
   |_  [our=@p url=(unit @t)]
   ++  fail
-    ::TODO  maybe always slog the trace?
-    |=  [desc=term trace=tang]
+    |=  [=echo:logs desc=term trace=tang]
     %-  link
-    (~(fail logs our /logs) desc trace deez)
+    (~(fail logs our /logs) echo desc trace deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
@@ -126,7 +125,7 @@
       [%eyre %bind ~]
     ?>  ?=(%bound +<.sign)
     ?:  accepted.sign  [~ this]
-    %-  (tell:l %crit 'failed to eyre-bind' ~)
+    %-  (tell:l %error 'failed to eyre-bind' ~)
     %-  (slog dap.bowl 'failed to eyre-bind' ~)
     [~ this]
   ::
@@ -179,7 +178,7 @@
 ++  on-agent
   |=  [=wire =sign:agent:gall]
   ?:  =(/logs wire)  [~ this]
-  %-  (tell:l %crit 'unexpected on-agent' (spat wire) -.sign ~)
+  %-  (tell:l %error 'unexpected on-agent' (spat wire) -.sign ~)
   ~&  [dap.bowl %unexpected-on-agent wire=wire]
   [~ this]
 ::
@@ -191,7 +190,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:l term tang)
-  %-  (slog dap.bowl '+on-fail' term tang)
+  %-  (fail:l ~[(cat 3 dap.bowl ' failed')] term tang)
   [~ this]
 --

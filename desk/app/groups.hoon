@@ -1,4 +1,4 @@
-::  groups: agent for managing group membership, metadata and permissions
+::  groups: agent for ml:lanaging group membership, metadata and permissions
 ::
 ::  groups agent can act both as a group server and
 ::  as a subscriber to remote groups. unlike channels, this agent is
@@ -231,7 +231,7 @@
     ^-  (quip card _this)
     %-  (slog term tang)
     :_  this
-    [(fail:log term tang ~)]~
+    [(fail:log ~[(cat 3 dap.bowl ' failed')] term tang ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -268,10 +268,16 @@
 ++  l
   |_  flow=(unit @t)
   ++  fail
-    |=  [desc=term =tang]
+    |=  [=echo:logs desc=term =tang]
     ~>  %spin.['fail']
     =/  =card
-      (~(fail logs our.bowl /logs) desc tang deez)
+      (~(fail logs our.bowl /logs) echo desc tang deez)
+    (emit card)
+  ::
+  ++  fail-remote
+    |=  [=echo:logs =tang]
+    =/  =card
+      (~(fail-remote logs our.bowl /logs) echo tang deez)
     (emit card)
   ::
   ++  tell
@@ -1490,7 +1496,7 @@
   ::
       %watch-ack
     ?~  p.sign  cor
-    (fail:l %watch-ack 'failed channel preview request' u.p.sign)
+    (fail-remote:l ~['channel preview request failed'] u.p.sign)
   ::
       %fact
     ::  we use the same subscription path for client and agent subscriptions.
@@ -3274,32 +3280,40 @@
       =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to invite {<ship>}" u.p.sign]
+      =.  cor  
+        %+  fail-remote:l  
+          ~[leaf+"failed to invite {<ship>}"] 
+        u.p.sign
       se-core
     ::
         [%invite %send ship=@ %old ~]
       =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to invite {<ship>} (backcompat)" u.p.sign]
+      =.  cor  
+        %+  fail-remote:l
+          ~[leaf+"failed to invite {<ship>} (backcompat)"] 
+        u.p.sign
       se-core
     ::
         [%invite %revoke ship=@ ~]
       =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to revoke invite for {<ship>}" u.p.sign]
+      =.  cor
+        %+  fail-remote:l
+          ~[leaf+"failed to revoke invite for {<ship>}"]
+        u.p.sign
       se-core
     ::
         [%ask %reject ship=@ ~]
       =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
-      =.  cor  %+  ~(tell l ~)  %crit
-          [leaf+"failed to signal ask rejection to {<ship>}" u.p.sign]
+      =.  cor
+        %+  fail-remote:l
+          ~[leaf+"failed to signal ask rejection to {<ship>}"]
+        u.p.sign
       se-core
     ==
   --
@@ -3535,7 +3549,7 @@
     ~>  %spin.['go-restart-updates']
     ^+  go-core
     =.  cor  ?~  error  cor
-      (~(tell l ~) %crit 'fully restarting updates' u.error ~)
+      (~(tell l ~) %error 'fully restarting updates' u.error ~)
     =.  go-core   go-leave-subs
     ::  if this gets called on the group host, something is horribly wrong
     ::  and we should not mask over it by trying to clean it up: there's no
@@ -3751,7 +3765,7 @@
         [%wake ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack 'failed subscriber wake' u.p.sign)
+      =.  cor  (fail-remote:l ~['failed subscriber wake'] u.p.sign)
       go-core
     ::
       [%updates ~]  (go-take-update sign)
@@ -3761,7 +3775,7 @@
         [%command cmd=@t ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"group command {<cmd.i.t.wire>} failed" u.p.sign)
+      =.  cor  (fail-remote:l ~[leaf+"group command {<cmd.i.t.wire>} failed"] u.p.sign)
       go-core
     ::
         ::  invited a ship to the group
@@ -3770,7 +3784,7 @@
       =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>}" u.p.sign)
+      =.  cor  (fail-remote:l ~[leaf+"failed to invite {<ship>}"] u.p.sign)
       go-core
     ::
         ::  invited a ship to the group (backcompat)
@@ -3779,7 +3793,7 @@
       =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"failed to invite {<ship>} (backcompat)" u.p.sign)
+      =.  cor  (fail-remote:l ~[leaf+"failed to invite {<ship>} (backcompat)"] u.p.sign)
       go-core
         ::  revoked invitation
         ::
@@ -3787,7 +3801,7 @@
       =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail:l %poke-ack leaf+"failed to revoke invite for {<ship>}" u.p.sign)
+      =.  cor  (fail-remote:l ~[leaf+"failed to revoke invite for {<ship>}"] u.p.sign)
       go-core
     ::
         ::  requested a personal invite token for a ship
@@ -3799,7 +3813,7 @@
       ::
           %watch-ack
         ?~  p.sign  go-core
-        =.  cor  (fail:l %watch-ack 'failed invite token request' u.p.sign)
+        =.  cor  (fail-remote:l ~['failed invite token request'] u.p.sign)
         go-core
       ::
           %fact
@@ -3818,7 +3832,7 @@
       ?-    i.wire
         ::
             %join-channels
-          =.  cor  (fail:l %poke-ack 'failed to join channels' u.p.sign)
+          =.  cor  (fail-remote:l ~['failed to join channels'] u.p.sign)
           go-core
         ::
             %leave-channels
@@ -3843,7 +3857,7 @@
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
-        =.  cor  (fail:log 'group watch failed' u.p.sign)
+        =.  cor  (fail-remote:log ~['group watch failed'] u.p.sign)
         ::  set foreign error and leave the group if
         ::  it has not been initialized to allow re-joining.
         ::
@@ -3906,7 +3920,7 @@
     ?:  ?&(?=(%sub -.net) (lth time.update time.net))
       =+  delta=`@dr`(sub time.net time.update)
       =.  cor
-        %+  ~(tell l ~)  %crit
+        %+  ~(tell l ~)  %error
         :~  'update out of order'
             leaf+"client: {<time.net>}, host: {<time.update>}, delta: {<delta>}"
         ==
@@ -4935,7 +4949,7 @@
       ::      updates.
       fi-core
     ?^  p
-      =.  cor  (fail:log 'group join failed' u.p)
+      =.  cor  (fail-remote:log ~['group join failed'] u.p)
       =.  progress  `%error
       fi-core
     =.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
@@ -5148,7 +5162,7 @@
       ?-    -.sign
           %poke-ack
         ?^  p.sign
-          =.  cor  (fail:log 'group ask failed' u.p.sign)
+          =.  cor  (fail-remote:log ~['group ask failed'] u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
@@ -5163,7 +5177,7 @@
       ::
           %watch-ack
         ?~  p.sign  fi-core
-        =.  cor  (fail:log 'group ask watch' u.p.sign)
+        =.  cor  (fail-remote:log ~['group ask watch'] u.p.sign)
         =.  progress  `%error
         fi-core
       ::
@@ -5194,7 +5208,7 @@
         ?>  ?=([~ %preview] lok)
         ?~  p.sign  fi-core
         =.  lookup  `%error
-        =.  cor  (fail:log 'group preview watch' u.p.sign)
+        =.  cor  (fail-remote:log ~['group preview watch'] u.p.sign)
         fi-core
       ::
           %fact
@@ -5230,7 +5244,7 @@
       =*  log  ~(. l `'foreign-group-command')
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  fi-core
-      =.  cor  (fail:log 'foreign group command' u.p.sign)
+      =.  cor  (fail-remote:log ~['foreign group command failed'] u.p.sign)
       fi-core
     ==
   ::  +fi-take-index: receive ship index

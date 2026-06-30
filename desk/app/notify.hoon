@@ -172,9 +172,9 @@
 ++  log
   |_  our=@p
   ++  fail
-    |=  [desc=term trace=tang]
+    |=  [=echo:logs desc=term trace=tang]
     %-  link
-    (~(fail logs our /logs) desc trace ~)
+    (~(fail logs our /logs) echo desc trace ~)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
@@ -558,7 +558,7 @@
           `this
         =+  !<(=update:v9:av q.cage.sign)
         ?.  ?=(%read -.update)
-          %-  (tell:l %crit (crip "unexpected fact {<-.update>}") ~)
+          %-  (tell:l %error (crip "unexpected fact {<-.update>}") ~)
           `this
         ?^  unread.activity-summary.update
           `this
@@ -615,7 +615,7 @@
           `this
         =/  =tang
           ['notify watch-nack' >wire< u.p.sign]
-        ((tell:l %crit tang) ((slog tang) `this))
+        ((tell:l %error tang) ((slog tang) `this))
       ==
     ::
     ::  subscription from provider to client
@@ -644,7 +644,7 @@
           ~[(leave-path:pass [src.bowl %notify] /notify/(scot %p src.bowl)/[service])]
         =/  =tang
           ['notify watch-nack' >wire< u.p.sign]
-        %-  (tell:l %crit tang)
+        %-  (tell:l %error tang)
         %-  (slog tang)
         :_  this
         ::  attempt watching old path for compatibility with old clients
@@ -703,7 +703,7 @@
       =*  status  status-code.response-header.res
       ?:  =(200 status)  `this
       =;  =tang
-        %-  (tell:l %crit tang)
+        %-  (tell:l %error tang)
         ((slog tang) `this)
       :-  leaf/"Error sending notfication, status: {(scow %ud status)}"
       ?~  full-file.res  ~
@@ -723,7 +723,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    ((fail:l term tang) `this)
+    ((fail:l ~[(cat 3 dap.bowl ' failed')] term tang) `this)
   --
 |_  bowl=bowl:gall
 ::

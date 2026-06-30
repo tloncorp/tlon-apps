@@ -3,10 +3,21 @@
   |_  [our=ship =wire]
   ::
   ++  fail
-    |=  [desc=term trace=tang =log-data]
+    |=  [=echo desc=term trace=tang =log-data]
     ^-  card:agent:gall
     =/  event=$>(%fail log-event)
-      [%fail desc trace]
+      [%fail echo desc trace]
+    (pass event log-data)
+  ++  fail-remote
+    |=  [=echo trace=tang =log-data]
+    ^-  card:agent:gall
+    =^  desc=term  trace
+      ?^  trace
+        ?:  ?=(@t i.trace)  trace
+        ['unknown' trace]
+      [%empty ~]
+    =/  event=$>(%fail log-event)
+      [%fail echo desc trace]
     (pass event log-data)
   ::
   ++  tell
@@ -19,28 +30,33 @@
   ++  pass
     |=  [event=log-event data=log-data]
     ^-  card:agent:gall
-    [%pass wire %agent [our %logs] %poke log-action+!>(`a-log`[%log event data])]
+    [%pass wire %agent [our %logs] %poke log-action-1+!>(`a-log`[%log event data])]
   --
 |%
 ::
 ++  volume-val
   |=  =volume
+  ^-  @ud
   ?-  volume
-    %dbug  0
-    %info  1
-    %warn  2
-    %crit  3
+    %trace  0
+    %dbug   1
+    %info   2
+    %warn   3
+    %error  4
+    %fatal  5
   ==
 ::
-++  fail-event
-  |=  [=term =tang]
-  ^-  $>(%fail log-event)
-  [%fail term tang]
-::
-++  tell-event
-  |=  [vol=volume =echo]
-  ^-  $>(%tell log-event)
-  [%tell vol echo]
+++  volume-pri
+  |=  =volume
+  ^-  @ud
+  ?-  volume
+    %trace  0
+    %dbug   0
+    %info   1
+    %warn   2
+    %error  3
+    %fatal  3
+  ==
 ::
 ++  enjs
   =,  format
@@ -76,5 +92,23 @@
           volume/s+vol.e
       ==
     ==
+  --
+++  conv
+  |%
+  ++  v1
+    |%
+    ++  volume
+      |%
+      ++  v0
+        |=  =volume:^v0
+        ^-  volume:^v1
+        ?-  volume
+          %dbug  %dbug
+          %info  %info
+          %warn  %warn
+          %crit  %error
+        ==
+      --
+    --
   --
 --
