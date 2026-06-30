@@ -56,6 +56,7 @@ export type RootStackParamList = {
     focusTitle?: boolean;
     groupId?: string;
     noteId: number;
+    startInEdit?: boolean;
   };
   NotesFolder: {
     channelId: string;
