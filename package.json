@@ -67,6 +67,7 @@
   "pnpm": {
     "patchedDependencies": {
       "@types/testing-library__jest-dom": "patches/@types__testing-library__jest-dom@5.14.5.patch",
+      "@urbit/http-api": "patches/@urbit__http-api@3.2.0-dev.patch",
       "tailwind-rn": "patches/tailwind-rn@4.2.0.patch",
       "any-ascii": "patches/any-ascii@0.3.2.patch",
       "react-cosmos": "patches/react-cosmos@7.2.0.patch",
@@ -80,13 +81,10 @@
       "expo-share-intent": "patches/expo-share-intent@5.1.1.patch",
       "expo-image-picker": "patches/expo-image-picker@17.0.10.patch",
       "@gorhom/bottom-sheet": "patches/@gorhom__bottom-sheet@5.2.6.patch",
-      "@tamagui/web": "patches/@tamagui__web@2.0.0-rc.41.patch",
-      "@tamagui/sheet": "patches/@tamagui__sheet@2.0.0-rc.41.patch",
-      "@tamagui/static": "patches/@tamagui__static@2.0.0-rc.41.patch",
       "react-native-reanimated": "patches/react-native-reanimated@4.1.6.patch",
       "react-native-gesture-handler": "patches/react-native-gesture-handler@2.28.0.patch",
       "expo-image-manipulator": "patches/expo-image-manipulator@14.0.8.patch",
-      "@urbit/http-api": "patches/@urbit__http-api@3.2.0-dev.patch"
+      "@tamagui/web": "patches/@tamagui__web@2.4.0.patch"
     },
     "allowNonAppliedPatches": false,
     "overrides": {
