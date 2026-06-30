@@ -11,6 +11,8 @@ export interface PostCollectionContextValue {
   goToMediaViewer: (post: db.Post, imageUri?: string) => void;
   goToPost: (post: db.Post) => void;
   inspectContextLensPost?: (post: db.Post) => void;
+  openContextLensForPost?: (post: db.Post) => void;
+  contextLensSelectedPostId?: string | null;
   goToBotRun?: (params: { botShip: string; lensId: string }) => void;
   hasNewerPosts?: boolean;
   hasOlderPosts?: boolean;
