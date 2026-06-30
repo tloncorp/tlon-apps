@@ -49,10 +49,10 @@ Drop this patch once we either move to building React Native from source
 layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
 workaround upstream.
 
-## react-native@0.81.5
+## react-native@0.85.3
 
 Local patch:
-`patches/react-native@0.81.5.patch`
+`patches/react-native@0.85.3.patch`
 
 Why:
 An uncontrolled `TextInput` (no `value` prop, content driven by children) can
@@ -193,7 +193,7 @@ Remove this patch once `react-native-gesture-handler` ships a version of
 `ReanimatedSwipeable` that disables pointer events on the hidden action
 container, and we confirm the Android repro no longer needs the local fix.
 
-## expo-image-manipulator@14.0.8
+## expo-image-manipulator@56.0.19
 
 Why:
 Expo's iOS orientation transformer normalizes images by manually creating a
@@ -210,7 +210,7 @@ UIKit choose a supported backing context while still applying orientation and
 mirroring before the requested resize runs.
 
 Local patch:
-`patches/expo-image-manipulator@14.0.8.patch`
+`patches/expo-image-manipulator@56.0.19.patch`
 
 Upstream:
 - no matching Expo upstream fix found as of June 2026

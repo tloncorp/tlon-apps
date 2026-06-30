@@ -13,7 +13,7 @@ import {
   ZStack,
 } from '@tloncorp/ui';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from './mediaLibrary';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type {
   PlayingChangeEventPayload,
