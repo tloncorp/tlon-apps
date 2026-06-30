@@ -14,8 +14,6 @@ import {
 } from '@tloncorp/ui';
 import { PermissionStatus } from 'expo-modules-core';
 import * as FileSystem from 'expo-file-system/legacy';
-// Platform-split: native re-exports the expo-media-library Next API; web is a
-// no-op stub (only ever called on native — see the isWeb guard below).
 import { Asset, requestPermissionsAsync } from './mediaLibrary';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import type {

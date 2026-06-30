@@ -48,6 +48,7 @@ class MainApplication : Application(), ReactApplication {
 
     TalkNotificationManager.createNotificationChannel(this)
 
+    // Branch logging for debugging
     if (BuildConfig.DEBUG) {
       RNBranchModule.enableLogging()
     }
