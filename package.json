@@ -82,10 +82,10 @@
       "@gorhom/bottom-sheet@5.2.14": "patches/@gorhom__bottom-sheet@5.2.14.patch",
       "react-native@0.85.3": "patches/react-native@0.85.3.patch",
       "react-native-reanimated@4.3.1": "patches/react-native-reanimated@4.3.1.patch",
-      "expo-background-task@56.0.15": "patches/expo-background-task@56.0.15.patch",
-      "expo-image-manipulator@56.0.19": "patches/expo-image-manipulator@56.0.19.patch"
+      "expo-image-manipulator@56.0.19": "patches/expo-image-manipulator@56.0.19.patch",
+      "expo-background-task@56.0.19": "patches/expo-background-task@56.0.19.patch"
     },
-    "allowNonAppliedPatches": true,
+    "allowNonAppliedPatches": false,
     "overrides": {
       "typescript": "~5.9.2",
       "@10play/tentap-editor": "0.5.21",
