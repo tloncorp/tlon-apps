@@ -55,7 +55,10 @@ type CronRunRecord = {
   // A cron hook fired before a runId was assigned. Lets a runId-less failure
   // in the same session still be attributed best-effort.
   sawCronWithoutRunId: boolean;
-  lastJobId: string | null;
+  // Job id of the most-recent runId-less cron signal (null when that signal
+  // carried none). Reset on every runId-less hook so a runId-less failure is
+  // attributed to its own run's job id, never inheriting a previous run's.
+  runlessJobId: string | null;
   updatedAt: number;
 };
 
@@ -723,16 +726,12 @@ export function reportCronRun(params: {
   const record = cronRunsBySessionKey.get(sessionKey) ?? {
     runIds: new Map<string, string | null>(),
     sawCronWithoutRunId: false,
-    lastJobId: null,
+    runlessJobId: null,
     updatedAt: now,
   };
   record.updatedAt = now;
 
   const jobId = optionalString(params.jobId);
-  if (jobId) {
-    record.lastJobId = jobId;
-  }
-
   const runId = optionalString(params.runId);
   if (runId) {
     record.runIds.set(runId, jobId ?? record.runIds.get(runId) ?? null);
@@ -745,6 +744,10 @@ export function reportCronRun(params: {
     }
   } else {
     record.sawCronWithoutRunId = true;
+    // Record THIS signal's own job id (null when absent), overwriting any
+    // prior, so a runId-less failure is never tagged with an earlier cron
+    // run's job id.
+    record.runlessJobId = jobId;
   }
 
   cronRunsBySessionKey.set(sessionKey, record);
@@ -776,7 +779,7 @@ function lookupCronRun(
     // when a runId-less cron signal exists for the session, we can't prove this
     // run is the cron one, and mislabeling an interactive failure is worse than
     // missing one (these feed unattended-failure alerts). Use the run's own job
-    // id; never borrow another run's via lastJobId.
+    // id; never borrow another run's.
     return record.runIds.has(runId)
       ? { cronJobId: record.runIds.get(runId) ?? null }
       : null;
@@ -785,7 +788,9 @@ function lookupCronRun(
   // The failing event carries no runId: attribute only when a cron signal in
   // this session also lacked one (symmetric), so a runId-bearing interactive
   // failure can never reach this best-effort path.
-  return record.sawCronWithoutRunId ? { cronJobId: record.lastJobId } : null;
+  return record.sawCronWithoutRunId
+    ? { cronJobId: record.runlessJobId }
+    : null;
 }
 
 function cleanupHarnessDebugSnapshots(now = Date.now()): void {

@@ -1549,6 +1549,27 @@ describe('telemetry tool tracking', () => {
     expect(call.properties.cronJobId).toBe('job-7');
   });
 
+  it('does not bleed a previous cron run\'s job id into a later runId-less signal that omits one', () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+
+    // Earlier cron run in this session recorded a job id...
+    reportCronRun({ sessionKey: 'cron-session', runId: 'cron-1', jobId: 'job-a' });
+    // ...then a later runId-less cron signal for the same session omits one.
+    reportCronRun({ sessionKey: 'cron-session' });
+    reportHarnessError({
+      harnessEventType: 'harness.run.error',
+      errorScope: 'harness',
+      sessionKey: 'cron-session',
+      errorText: 'run failed',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.properties.isCron).toBe(true);
+    // The runId-less failure must not inherit 'job-a' from the earlier run.
+    expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
+  });
+
   it("does not bleed another cron run's job id into a matched run with no job id", () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);
