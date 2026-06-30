@@ -42,12 +42,33 @@ Hermes' `web_search` is the closest match for OpenClaw search, and `web_extract`
 
 Brave is search-only, so set an extraction backend when you want `web_extract`/page reads too. The dev entrypoint auto-pins `web.extract_backend` when it sees `FIRECRAWL_API_KEY`, `FIRECRAWL_API_URL`, `FIRECRAWL_GATEWAY_URL`, `TOOL_GATEWAY_DOMAIN`, `PARALLEL_API_KEY`, `TAVILY_API_KEY`, or `EXA_API_KEY`. You can override this with `HERMES_WEB_SEARCH_BACKEND`, `HERMES_WEB_EXTRACT_BACKEND`, or shared `HERMES_WEB_BACKEND`.
 
-By default the image builds Hermes from `NousResearch/hermes-agent` at `main`. Override these in `.env` when testing against a fork or pinned branch/tag:
+By default the image builds Hermes from `NousResearch/hermes-agent` at the pinned spike tag `v2026.6.19` (observed as commit `2bd1977d8fad185c9b4be47884f7e87f1add0ce3`). Override these in `.env` when testing against a fork or another pinned branch/tag/commit:
 
 ```bash
 HERMES_AGENT_REPO=https://github.com/NousResearch/hermes-agent.git
-HERMES_AGENT_REF=main
+HERMES_AGENT_REF=v2026.6.19
 ```
+
+## Fake-Model Spike
+
+The dev profile can be pointed at an OpenAI Chat Completions-compatible fake model without live model credentials:
+
+```bash
+HERMES_MODEL_PROVIDER=custom
+HERMES_MODEL=tlon-test-scripted
+HERMES_MODEL_BASE_URL=http://host.docker.internal:4000/v1
+HERMES_MODEL_API_KEY=no-key-required
+HERMES_MODEL_API_MODE=chat_completions
+```
+
+For the narrow Milestone 0 spike, copy `.env.example` to `.env`, fill the `TLON_*` owner/bot credentials, then run:
+
+```bash
+cd packages/hermes-tlon-adapter
+./dev/run-fake-model-spike.sh
+```
+
+The script starts the fake model on the host, registers a two-step script (`tlon` tool call, then final assistant text), and starts Hermes with the fake model endpoint. Send the printed `[tlon-test:...]` prompt from the owner DM to the bot. After Hermes replies, inspect the fake-model received calls at `http://127.0.0.1:4000/v1/_received?key=<key>` and confirm the owner-visible reply appeared in Tlon.
 
 ## Managed Prompt Profile
 
