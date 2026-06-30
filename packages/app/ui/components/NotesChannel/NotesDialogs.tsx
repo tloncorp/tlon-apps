@@ -8,7 +8,6 @@ import { YStack } from 'tamagui';
 import { TextInput } from '../Form';
 import {
   FolderDestinationSearch,
-  FolderPicker,
   MoveDestinationSheet,
   NotesDialog,
   useFolderDestinationSelection,
@@ -43,32 +42,28 @@ function FolderNameField({
 }
 
 export function AddFolderDialog({
-  folderRows,
   isCreating,
   name,
   onCreate,
   onNameChange,
   onOpenChange,
-  onParentChange,
   open,
-  parentFolderId,
+  targetFolderLabel,
 }: {
-  folderRows: FolderRow[];
   isCreating: boolean;
   name: string;
   onCreate: () => void;
   onNameChange: (name: string) => void;
   onOpenChange: (open: boolean) => void;
-  onParentChange: (folderId: number) => void;
   open: boolean;
-  parentFolderId: number | null;
+  targetFolderLabel: string;
 }) {
   return (
     <NotesDialog
       open={open}
       onOpenChange={onOpenChange}
       title="Add folder"
-      subtitle="Choose where this folder should live."
+      subtitle={`Create in ${targetFolderLabel}.`}
       testID="NotesAddFolderDialog"
       keyboardBehavior="interactive"
       confirmButton={
@@ -90,18 +85,6 @@ export function AddFolderDialog({
           onNameChange={onNameChange}
           onSubmit={onCreate}
         />
-
-        <YStack gap="$s">
-          <Text size="$label/s" color="$secondaryText">
-            Parent folder
-          </Text>
-          <FolderPicker
-            folderRows={folderRows}
-            onSelectFolder={onParentChange}
-            selectedFolderId={parentFolderId}
-            testID="NotesAddFolderParentPicker"
-          />
-        </YStack>
       </YStack>
     </NotesDialog>
   );
