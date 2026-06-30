@@ -4,17 +4,14 @@ import {
   StructuredChannelDescriptionPayload,
 } from '@tloncorp/api';
 import { TimeoutError } from '@tloncorp/api';
-import {
-  GroupChannelV7,
-  getChannelKindFromType,
-  getThirdPartyChannelAgent,
-} from '@tloncorp/api/urbit';
+import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
 
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
 
@@ -113,18 +110,6 @@ export async function createChannel({
   return newChannel;
 }
 
-interface NotesCreateResponse {
-  requestId: string;
-  body: {
-    type: string;
-    notebook?: {
-      host: string;
-      flagName: string;
-      notebook: { id: number; title: string };
-    };
-  };
-}
-
 async function createNotesChannel({
   groupId,
   title,
@@ -147,19 +132,21 @@ async function createNotesChannel({
   // roles — empty means group-wide readable. Dropping it would create every
   // notes channel open, defeating the group's can-read gate.
   const [groupHost, groupName] = groupId.split('/');
+  let createdNotebookFlag: api.NotesFlag | null = null;
   try {
-    const res = await api.requestJson<NotesCreateResponse>(
-      '/notes/~/v1/notebooks',
-      'POST',
-      { title, group: { host: groupHost, flagName: groupName }, readers }
-    );
-    const summary =
-      res?.body?.type === 'notebook' ? res.body.notebook ?? null : null;
-    if (!summary) {
-      throw new Error('Failed to create notes notebook');
-    }
+    const summary = await api.notesV1.createGroupNotebook({
+      title,
+      group: { host: groupHost, flagName: groupName },
+      readers,
+    });
 
+    createdNotebookFlag = { host: summary.host, name: summary.flagName };
     const channelId = `notes/${summary.host}/${summary.flagName}`;
+    const group = await db.getGroup({ id: groupId });
+    const sectionId =
+      group?.navSections?.[0]?.sectionId ??
+      group?.navSections?.[0]?.id ??
+      'default';
 
     logger.trackEvent(
       AnalyticsEvent.ActionCreateChannel,
@@ -183,8 +170,42 @@ async function createNotesChannel({
     };
 
     await db.insertChannels([newChannel]);
+    try {
+      await api.addChannelListingToGroup({
+        channelId,
+        groupId,
+        sectionId,
+        meta: {
+          title,
+          description: description ?? '',
+          image: '',
+          cover: '',
+        },
+        readers,
+        join: true,
+      });
+    } catch (e) {
+      await db.deleteChannels([channelId]);
+      logger.error('addChannelListingToGroup failed for notes channel', e);
+      throw new Error(`Failed to add notes channel to group: ${channelId}`);
+    }
+
+    syncNotesNotebook(createdNotebookFlag).catch((e) => {
+      logger.error('Failed to sync notes notebook after channel create', e);
+    });
+
     return newChannel;
   } catch (e) {
+    if (createdNotebookFlag) {
+      try {
+        await api.deleteNotesNotebookStrict(createdNotebookFlag);
+      } catch (rollbackError) {
+        logger.error(
+          'Failed to roll back notes notebook create',
+          rollbackError
+        );
+      }
+    }
     logger.error('Failed to add notes channel', e);
     throw new Error(`Failed to add notes channel to group`);
   }
@@ -260,9 +281,19 @@ export async function deleteChannel({
   }
 
   // For notes channels, also delete the underlying notebook on %notes so we
-  // don't leak orphans.
-  if (getThirdPartyChannelAgent(channelId) === 'notes') {
-    await api.deleteNotesNotebook(channelId);
+  // don't leak orphans. The agent rejects the delete if we're not the host,
+  // which is fine — the listing is already gone from the group either way.
+  if (channelId.startsWith('notes/')) {
+    const flag = api.parseNotesChannelId(channelId);
+    if (flag) {
+      const notebookFlag = api.formatNotesFlag(flag);
+      await db.deleteNotesNotebook(notebookFlag);
+      try {
+        await api.deleteNotesNotebookStrict(flag);
+      } catch (e) {
+        logger.error('Failed to delete notebook in %notes', e);
+      }
+    }
   }
 }
 
@@ -748,7 +779,7 @@ export async function leaveGroupChannel(channelId: string) {
   await db.updateChannel({ id: channelId, currentUserIsMember: false });
 
   try {
-    if (getThirdPartyChannelAgent(channelId) === 'notes') {
+    if (api.parseNotesChannelId(channelId)) {
       await api.leaveNotesChannel(channelId);
     } else {
       await api.leaveChannel(channelId);
@@ -784,7 +815,7 @@ export async function joinGroupChannel({
   });
 
   try {
-    if (getThirdPartyChannelAgent(channelId) === 'notes') {
+    if (api.parseNotesChannelId(channelId)) {
       await api.joinNotesChannel(channelId);
     } else {
       await api.joinChannel(channelId, groupId);

@@ -1,0 +1,266 @@
+import {
+  createNotebookFolder,
+  createNotebookNote,
+  useMutableCallback,
+} from '@tloncorp/shared';
+import * as db from '@tloncorp/shared/db';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ComponentProps, DragEvent } from 'react';
+import { YStack } from 'tamagui';
+
+import { errorMessage } from './NotesCommon';
+import {
+  buildNotesImportItems,
+  makeUniqueNoteTitle,
+  normalizeTitleKey,
+  readNotesImportSourcesFromDataTransfer,
+  selectNotesImportSources,
+} from './notesImport';
+import type { NotesImportSource } from './notesImport';
+
+export function useNotesImportController({
+  canDropImportNotes,
+  canEdit,
+  expandFolder,
+  folders,
+  notebookFlag,
+  notes,
+  rootFolderId,
+  selectedFolderId,
+  setError,
+}: {
+  canDropImportNotes: boolean;
+  canEdit: boolean;
+  expandFolder: (folderId: number) => void;
+  folders: db.NotesFolder[];
+  notebookFlag: string | null | undefined;
+  notes: db.NotesNote[];
+  rootFolderId: number | null;
+  selectedFolderId: number | null;
+  setError: (error: string | null) => void;
+}) {
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [isDragImportActive, setIsDragImportActive] = useState(false);
+  const [isImportingNotes, setIsImportingNotes] = useState(false);
+  const dragImportDepthRef = useRef(0);
+
+  const importNotesFromSources = useMutableCallback(
+    async (
+      sources: NotesImportSource[] | null,
+      targetRootFolderId: number,
+      importNotebookFlag: string
+    ) => {
+      if (!sources) {
+        return;
+      }
+
+      const importItems = buildNotesImportItems(sources);
+      if (importItems.length === 0) {
+        setImportNotice('No markdown or text files found.');
+        return;
+      }
+
+      const foldersByParentAndName = new Map<string, db.NotesFolder>();
+      folders.forEach((folder) => {
+        const key = folderCacheKey(folder.name, folder.parentFolderId);
+        foldersByParentAndName.set(key, folder);
+      });
+
+      const noteTitlesByFolder = new Map<number, Set<string>>();
+      notes.forEach((note) => {
+        const titles = noteTitlesByFolder.get(note.folderId) ?? new Set();
+        titles.add(normalizeTitleKey(note.title));
+        noteTitlesByFolder.set(note.folderId, titles);
+      });
+
+      const expandedFolderIds = new Set<number>([targetRootFolderId]);
+      const ensureFolderPath = async (segments: string[]) => {
+        let parentFolderId = targetRootFolderId;
+        for (const segment of segments) {
+          const key = folderCacheKey(segment, parentFolderId);
+          const existing = foldersByParentAndName.get(key);
+          if (existing) {
+            parentFolderId = existing.folderId;
+            expandedFolderIds.add(parentFolderId);
+            continue;
+          }
+
+          const folder = await createNotebookFolder({
+            notebookFlag: importNotebookFlag,
+            parentFolderId,
+            name: segment,
+          });
+          if (!folder) {
+            throw new Error(`Failed to create folder ${segment}`);
+          }
+
+          foldersByParentAndName.set(key, folder);
+          parentFolderId = folder.folderId;
+          expandedFolderIds.add(parentFolderId);
+        }
+        return parentFolderId;
+      };
+
+      let importedCount = 0;
+      let failedCount = 0;
+      for (const item of importItems) {
+        try {
+          const folderId = await ensureFolderPath(item.folderSegments);
+          const existingTitles = noteTitlesByFolder.get(folderId) ?? new Set();
+          noteTitlesByFolder.set(folderId, existingTitles);
+          const title = makeUniqueNoteTitle(item.title, existingTitles);
+          await createNotebookNote({
+            notebookFlag: importNotebookFlag,
+            folderId,
+            title,
+            body: item.body,
+          });
+          expandedFolderIds.add(folderId);
+          importedCount += 1;
+        } catch (e) {
+          console.error('Failed to import note', item.relativePath, e);
+          failedCount += 1;
+        }
+      }
+
+      expandedFolderIds.forEach(expandFolder);
+      if (importedCount === 0 && failedCount > 0) {
+        throw new Error(
+          `Failed to import ${formatCount(failedCount, 'note')}.`
+        );
+      }
+
+      setImportNotice(formatImportNotice(importedCount, failedCount));
+    }
+  );
+
+  const runImport = useMutableCallback(
+    async (readSources: () => Promise<NotesImportSource[] | null>) => {
+      const targetRootFolderId = selectedFolderId ?? rootFolderId;
+
+      if (
+        !notebookFlag ||
+        targetRootFolderId == null ||
+        !canEdit ||
+        isImportingNotes
+      ) {
+        return;
+      }
+
+      setError(null);
+      setImportNotice(null);
+      setIsImportingNotes(true);
+      try {
+        await importNotesFromSources(
+          await readSources(),
+          targetRootFolderId,
+          notebookFlag
+        );
+      } catch (e) {
+        setError(errorMessage(e, 'Failed to import notes'));
+      } finally {
+        setIsImportingNotes(false);
+      }
+    }
+  );
+
+  const importFiles = useMutableCallback(() => {
+    void runImport(() => selectNotesImportSources('files'));
+  });
+
+  const importFolder = useMutableCallback(() => {
+    void runImport(() => selectNotesImportSources('folder'));
+  });
+
+  const prepareImportDragEvent = useMutableCallback((event: DragEvent) => {
+    if (
+      !canDropImportNotes ||
+      !Array.from(event.dataTransfer.types ?? []).includes('Files')
+    ) {
+      return false;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  });
+
+  const handleImportDragEnter = useMutableCallback((event: DragEvent) => {
+    if (!prepareImportDragEvent(event)) return;
+    dragImportDepthRef.current += 1;
+    setIsDragImportActive(true);
+  });
+
+  const handleImportDragOver = useMutableCallback((event: DragEvent) => {
+    if (!prepareImportDragEvent(event)) return;
+    event.dataTransfer.dropEffect = isImportingNotes ? 'none' : 'copy';
+  });
+
+  const handleImportDragLeave = useMutableCallback((event: DragEvent) => {
+    if (!prepareImportDragEvent(event)) return;
+    dragImportDepthRef.current = Math.max(0, dragImportDepthRef.current - 1);
+    if (dragImportDepthRef.current === 0) {
+      setIsDragImportActive(false);
+    }
+  });
+
+  const handleImportDrop = useMutableCallback((event: DragEvent) => {
+    if (!prepareImportDragEvent(event)) return;
+    dragImportDepthRef.current = 0;
+    setIsDragImportActive(false);
+    void runImport(() =>
+      readNotesImportSourcesFromDataTransfer(event.dataTransfer)
+    );
+  });
+
+  const dropImportProps = useMemo(
+    () =>
+      canDropImportNotes
+        ? ({
+            onDragEnter: handleImportDragEnter,
+            onDragLeave: handleImportDragLeave,
+            onDragOver: handleImportDragOver,
+            onDrop: handleImportDrop,
+          } as unknown as ComponentProps<typeof YStack>)
+        : {},
+    [
+      canDropImportNotes,
+      handleImportDragEnter,
+      handleImportDragLeave,
+      handleImportDragOver,
+      handleImportDrop,
+    ]
+  );
+
+  useEffect(() => {
+    if (!canDropImportNotes) {
+      dragImportDepthRef.current = 0;
+      setIsDragImportActive(false);
+    }
+  }, [canDropImportNotes]);
+
+  return {
+    dropImportProps,
+    importFiles,
+    importFolder,
+    importNotice,
+    isDragImportActive,
+    isImportingNotes,
+  };
+}
+
+function folderCacheKey(name: string, parentFolderId?: number | null) {
+  return `${parentFolderId ?? 'root'}:${normalizeTitleKey(name)}`;
+}
+
+function formatImportNotice(importedCount: number, failedCount: number) {
+  return failedCount === 0
+    ? `Imported ${formatCount(importedCount, 'note')}.`
+    : `Imported ${formatCount(importedCount, 'note')}; ${formatCount(
+        failedCount,
+        'note'
+      )} failed.`;
+}
+
+function formatCount(count: number, label: string) {
+  return `${count} ${label}${count === 1 ? '' : 's'}`;
+}

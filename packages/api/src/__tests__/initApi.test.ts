@@ -1,12 +1,20 @@
-import { describe, expect, test } from 'vitest';
+import { beforeAll, describe, expect, test } from 'vitest';
 
 import { toInitData } from '../client/initApi';
+import { internalConfigureClient } from '../client/urbit';
 import type * as ub from '../urbit';
 import rawGroupsInit6 from './fixtures/groupsInit5.json';
 
 const groupsInit6 = rawGroupsInit6 as unknown as ub.GroupsInit6;
 
 describe('toInitData', () => {
+  beforeAll(() => {
+    internalConfigureClient({
+      shipName: 'solfer-magfed',
+      shipUrl: 'http://localhost',
+    });
+  });
+
   describe('v6 format support', () => {
     test('processes v6 init with foreigns', () => {
       const result = toInitData(groupsInit6);
@@ -58,6 +66,93 @@ describe('toInitData', () => {
       // Channel should have been processed
       const channel = result.channelPerms[0];
       expect(channel).toHaveProperty('channelId');
+    });
+
+    test('extracts joined notes channels from active group channels', () => {
+      const response = structuredClone(groupsInit6);
+      const group = response.groups['~test-ship/test-group'];
+      group['active-channels'] = [
+        ...(group['active-channels'] ?? []),
+        'notes/~test-ship/native-notes',
+      ];
+
+      const result = toInitData(response);
+
+      expect(result.joinedGroupChannels).toContain(
+        'notes/~test-ship/native-notes'
+      );
+    });
+
+    test('treats auto-joined notes listings as joined for old backends', () => {
+      const response = structuredClone(groupsInit6);
+      const group = response.groups['~test-ship/test-group'];
+      group['active-channels'] = [];
+      group.channels['notes/~test-ship/native-notes'] = {
+        added: 1692473215572,
+        meta: {
+          image: '',
+          title: 'Native notes',
+          cover: '',
+          description: '',
+        },
+        section: 'default',
+        readers: [],
+        join: true,
+      };
+
+      const result = toInitData(response);
+
+      expect(result.joinedGroupChannels).toContain(
+        'notes/~test-ship/native-notes'
+      );
+    });
+
+    test('does not treat non-notes listings as joined without active channel state', () => {
+      const response = structuredClone(groupsInit6);
+      const group = response.groups['~test-ship/test-group'];
+      group['active-channels'] = [];
+      group.channels['heap/~test-ship/announcements'] = {
+        added: 1692473215572,
+        meta: {
+          image: '',
+          title: 'Announcements',
+          cover: '',
+          description: '',
+        },
+        section: 'default',
+        readers: [],
+        join: true,
+      };
+
+      const result = toInitData(response);
+
+      expect(result.joinedGroupChannels).not.toContain(
+        'heap/~test-ship/announcements'
+      );
+    });
+
+    test('does not treat unreadable notes listings as joined', () => {
+      const response = structuredClone(groupsInit6);
+      const group = response.groups['~test-ship/test-group'];
+      group['active-channels'] = [];
+      group.channels['notes/~test-ship/private-notes'] = {
+        added: 1692473215572,
+        meta: {
+          image: '',
+          title: 'Private notes',
+          cover: '',
+          description: '',
+        },
+        section: 'default',
+        readers: ['not-my-role'],
+        join: true,
+      };
+
+      const result = toInitData(response);
+
+      expect(result.joinedGroupChannels).not.toContain(
+        'notes/~test-ship/private-notes'
+      );
     });
 
     test('filters valid invites from foreigns', () => {

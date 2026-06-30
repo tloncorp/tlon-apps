@@ -565,7 +565,8 @@ export function LeaveActionsSection({
     entityType === 'group'
       ? group?.currentUserIsHost
       : channel?.currentUserIsHost ?? false;
-  const canLeave = !isHost;
+  const canLeave =
+    !isHost && (entityType !== 'channel' || channel?.type !== 'notes');
   const canDelete = isHost || (entityType === 'channel' && currentUserIsAdmin);
 
   const chatTitle =
@@ -645,7 +646,9 @@ export function LeaveActionsSection({
   const deleteDescription =
     entityType === 'group'
       ? 'This action cannot be undone.'
-      : 'This action cannot be undone. All messages in this channel will be permanently deleted.';
+      : channel?.type === 'notes'
+        ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'
+        : 'This action cannot be undone. All messages in this channel will be permanently deleted.';
 
   return (
     <View paddingHorizontal={'$l'}>
