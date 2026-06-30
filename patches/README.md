@@ -49,45 +49,40 @@ Drop this patch once we either move to building React Native from source
 layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
 workaround upstream.
 
-## react-native@0.76.9
+## react-native@0.85.3
 
 Local patch:
-`patches/react-native@0.76.9.patch`
+`patches/react-native@0.85.3.patch`
 
 Why:
-On iOS Fabric, a single-line `TextInput` that sets custom `lineHeight` can
-poison later recycled inputs. In our onboarding flow, styling the bot-name
-field with `lineHeight: 30` caused later placeholders like "Paste your key
-here" and "Search models" to render misaligned until the app was restarted.
+An uncontrolled `TextInput` (no `value` prop, content driven by children) can
+measure to the wrong size when its text changes. On Fabric the shadow node
+measures from the cached native attributed string (`attributedStringBox`),
+which lags the React tree until the next native state update — so the input is
+laid out against stale text.
 
 What it does:
-In `Libraries/Text/TextInput/Singleline/RCTUITextField.mm`, this removes
-`NSParagraphStyleAttributeName` and `NSShadowAttributeName` from placeholder
-text attributes before building `attributedPlaceholder`.
-
-This stops single-line placeholders from inheriting paragraph-style and shadow
-attributes from the field's text styling. React Native stores iOS `lineHeight`
-in the paragraph style, so clearing that is the core part of the fix.
+In `ReactCommon/react/renderer/components/textinput/BaseTextInputShadowNode.h`,
+for inputs with no `text` prop it compares the current React-tree attributed
+string against the last state-synced one, and when they differ measures from
+the React-tree string (falling back to the placeholder when empty) instead of
+the possibly-stale native `attributedStringBox`.
 
 Upstream:
-- no exact upstream fix found for this placeholder/baseline bug on `0.76.x`
-- related issues:
-  `facebook/react-native#53050`
-  `facebook/react-native#37236`
-  `facebook/react-native#49933`
+- Upstream PR (open): `facebook/react-native#56291` — "Fix uncontrolled
+  multiline TextInput not resizing when children change". Same
+  `BaseTextInputShadowNode.h` change this patch carries.
 
 Validation:
 - Rebuild the iOS app so the native patch is compiled in.
-- In onboarding, keep the bot-name field on the risky style
-  (`fontSize: 24`, `lineHeight: 30`, `height: 72`).
-- Advance from bot name to API key and model search panes and confirm the
-  later placeholders no longer drift downward after the bot-name screen is
-  shown.
+- Exercise an uncontrolled `TextInput` whose content changes via children (no
+  `value` prop) and confirm it sizes to the new content rather than a stale
+  value.
 
 Removal:
-Remove this patch once we upgrade to a React Native version where the
-single-line placeholder path no longer picks up broken paragraph-style state,
-and we have verified the onboarding repro without the local patch.
+Remove once `facebook/react-native#56291` lands in a version we ship. Note:
+`BaseTextInputShadowNode` was refactored in 0.85, so this hunk must be
+re-ported when upgrading past 0.81 if the upstream fix hasn't shipped yet.
 
 ## @10play/tentap-editor@0.5.21
 
@@ -233,3 +228,43 @@ Removal:
 Remove this patch once `expo-image-manipulator` ships an equivalent orientation
 normalization fix, or once we replace upload resizing with a lower-level ImageIO
 thumbnail path.
+
+## @tamagui/web@2.4.0
+
+Why:
+tamagui removed its undocumented `unset` style value in 2.x (upstream
+`86d0cfe95` — `chore: remove undocumented unset style value`). We use `"unset"`
+in ~56 places to mean "no value here" (e.g. `backgroundColor="unset"`,
+`aspectRatio="unset"`). On web `unset` is a valid CSS keyword and still renders,
+but on native `propMapper` now passes it straight to the React Native style and
+RN throws on strict props — `aspectRatio` redboxes with "aspectRatio must
+either be a number, a ratio string or `auto`. You passed: unset".
+
+What it does:
+Patches the two native `propMapper` variants
+(`dist/{cjs,esm}/helpers/propMapper.native.js`) to drop a prop whose value is
+`"unset"` (`if (value === "unset") return;`). The prop then falls back to the
+property's initial value (transparent / auto / 0) and overrides styled-component
+defaults the same way the value did before. The web bundles are intentionally
+left unpatched, since `unset` is a valid CSS keyword there.
+
+Local patch:
+`patches/@tamagui__web@2.4.0.patch`
+
+Upstream:
+- removed deliberately in `tamagui/tamagui@86d0cfe95`; the configurable `unset`
+  feature is not coming back
+- native parity fix proposed upstream ("drop `unset` on native instead of
+  crashing"): `tamagui/tamagui#4053`
+
+Validation:
+- Rebuild the mobile app so the patched bundle is picked up
+- Open a post with an image, the Activity feed, and a content reference and
+  confirm there's no `aspectRatio ... You passed: unset` redbox
+- Confirm `node_modules/@tamagui/web/dist/esm/helpers/propMapper.native.js`
+  contains `if (value === "unset") return;`
+
+Removal:
+Remove this patch once either the upstream native fix lands in a tamagui version
+we use, or we migrate all `"unset"` style usages to explicit values
+(`transparent` / `undefined` / `auto`) so nothing relies on the dropped value.

@@ -824,6 +824,17 @@ export const useTelemetryEnabled = () => {
   });
 };
 
+export const useContextLensEnabled = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['contextLensEnabled', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.contextLensEnabled ?? false;
+    },
+  });
+};
+
 export const useTelemetrySettings = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({

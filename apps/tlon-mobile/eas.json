@@ -6,7 +6,7 @@
   },
   "build": {
     "base": {
-      "pnpm": "9.0.5",
+      "pnpm": "9.15.9",
       "node": "22.22.0",
       "env": {
         "EXPO_USE_PRECOMPILED_MODULES": "0"
