@@ -32,6 +32,7 @@ export enum AnalyticsEvent {
   AuthenticatedNodeStopped = 'Node Stopped While Logged In',
   Scry = 'Scry',
   ScryNoun = 'Scry Noun',
+  NotesRequest = 'Notes Request',
   Poke = 'Poke',
   NativeDbDebug = 'Native DB Debug',
   Thread = 'Thread',
