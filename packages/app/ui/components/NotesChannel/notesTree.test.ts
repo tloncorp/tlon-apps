@@ -6,7 +6,6 @@ import {
   buildFolderDestinationRows,
   buildFolderNoteCounts,
   buildFolderRows,
-  buildNotesTreeRows,
   filterNotesTreeData,
   getFolderPath,
   getNextNoteIdAfterDelete,
@@ -44,12 +43,12 @@ const archive = makeFolder(3, 'Archive', 1);
 const backlog = makeFolder(4, 'Backlog', 2);
 
 const rowsFor = (
+  folderId: number,
   folders: db.NotesFolder[],
-  notes: db.NotesNote[],
-  expandedIds: number[] = []
+  notes: db.NotesNote[]
 ) =>
-  buildNotesTreeRows({
-    expandedFolderIds: new Set(expandedIds),
+  buildFolderContentsRows({
+    folderId,
     folderNoteCounts: buildFolderNoteCounts(folders, notes),
     folders,
     notes,
@@ -57,54 +56,6 @@ const rowsFor = (
   });
 
 describe('notes tree helpers', () => {
-  test('omits the root folder and preserves nested folder/note ordering', () => {
-    const folders = [projects, root, backlog, archive];
-    const notes = [
-      makeNote(1, 1, 'Alpha'),
-      makeNote(2, 2, 'Beta'),
-      makeNote(3, 4, 'Gamma'),
-    ];
-
-    const rows = rowsFor(folders, notes, [2, 3, 4]);
-
-    expect(
-      rows.map((row) =>
-        row.type === 'folder'
-          ? `folder:${row.folder.name}:${row.depth}`
-          : `note:${row.note.title}:${row.depth}`
-      )
-    ).toEqual([
-      'folder:Archive:0',
-      'folder:Projects:0',
-      'folder:Backlog:1',
-      'note:Gamma:2',
-      'note:Beta:1',
-      'note:Alpha:0',
-    ]);
-    expect(
-      rows.some((row) => row.type === 'folder' && row.folder.folderId === 1)
-    ).toBe(false);
-  });
-
-  test('hides descendants of collapsed folders', () => {
-    const folders = [projects, root, backlog, archive];
-    const notes = [
-      makeNote(1, 1, 'Alpha'),
-      makeNote(2, 2, 'Beta'),
-      makeNote(3, 4, 'Gamma'),
-    ];
-
-    const rows = rowsFor(folders, notes);
-
-    expect(
-      rows.map((row) =>
-        row.type === 'folder'
-          ? `folder:${row.folder.name}:${row.depth}`
-          : `note:${row.note.title}:${row.depth}`
-      )
-    ).toEqual(['folder:Archive:0', 'folder:Projects:0', 'note:Alpha:0']);
-  });
-
   test('builds a folder path for note metadata', () => {
     expect(getFolderPath([root, projects, backlog], 4, 1)).toBe(
       'Root / Projects / Backlog'
@@ -225,24 +176,18 @@ describe('notes tree helpers', () => {
     expect(filtered.notes.map((note) => note.noteId)).toEqual([2]);
   });
 
-  test('renders orphaned and cyclic folders once without looping', () => {
+  test('builds folder rows for orphaned and cyclic folders without looping', () => {
     const cycleA = makeFolder(10, 'Cycle A', 11);
     const cycleB = makeFolder(11, 'Cycle B', 10);
     const orphan = makeFolder(12, 'Orphan', 999);
-    const folders = [root, cycleA, cycleB, orphan];
-    const notes = [
-      makeNote(1, 10, 'Cycle note'),
-      makeNote(2, 12, 'Orphan note'),
-    ];
+    const rows = buildFolderRows([root, cycleA, cycleB, orphan], 1, {
+      includeRoot: false,
+    });
 
-    const rows = rowsFor(folders, notes, [10, 11, 12]);
-    const renderedFolders = rows.flatMap((row) =>
-      row.type === 'folder' ? [row.folder.folderId] : []
-    );
+    const renderedFolders = rows.map((row) => row.folder.folderId);
 
     expect(renderedFolders.sort()).toEqual([10, 11, 12]);
     expect(new Set(renderedFolders).size).toBe(renderedFolders.length);
-    expect(rows.filter((row) => row.type === 'note')).toHaveLength(2);
   });
 
   test('selects the next visible note after deleting the selected note', () => {
@@ -250,7 +195,7 @@ describe('notes tree helpers', () => {
     const alpha = makeNote(1, 1, 'Alpha');
     const beta = makeNote(2, 1, 'Beta');
     const gamma = makeNote(3, 1, 'Gamma');
-    const rows = rowsFor(folders, [alpha, beta, gamma]);
+    const rows = rowsFor(1, folders, [alpha, beta, gamma]);
 
     expect(getNextNoteIdAfterDelete(rows, 1)).toBe(2);
     expect(getNextNoteIdAfterDelete(rows, 2)).toBe(1);
@@ -259,34 +204,20 @@ describe('notes tree helpers', () => {
 
   test('clears selection after deleting the only visible note', () => {
     const folders = [root];
-    const rows = rowsFor(folders, [makeNote(1, 1, 'Alpha')]);
+    const rows = rowsFor(1, folders, [makeNote(1, 1, 'Alpha')]);
 
     expect(getNextNoteIdAfterDelete(rows, 1)).toBeNull();
     expect(getNextNoteIdAfterDelete(rows, 2)).toBeNull();
   });
 
-  test('selects the nearest surviving note after deleting a folder', () => {
+  test('keeps a visible note selected after deleting a different folder', () => {
     const folders = [root, projects, backlog, archive];
     const alpha = makeNote(1, 1, 'Alpha');
     const beta = makeNote(2, 2, 'Beta');
     const gamma = makeNote(3, 4, 'Gamma');
     const omega = makeNote(4, 3, 'Omega');
-    const rows = rowsFor(folders, [alpha, beta, gamma, omega], [2, 3, 4]);
+    const rows = rowsFor(1, folders, [alpha, beta, gamma, omega]);
 
-    expect(
-      getNextNoteIdAfterFolderDelete({
-        rows,
-        deletedFolderIds: new Set([2, 4]),
-        selectedNoteId: 3,
-      })
-    ).toBe(1);
-    expect(
-      getNextNoteIdAfterFolderDelete({
-        rows,
-        deletedFolderIds: new Set([2, 4]),
-        selectedNoteId: 2,
-      })
-    ).toBe(1);
     expect(
       getNextNoteIdAfterFolderDelete({
         rows,
@@ -294,5 +225,22 @@ describe('notes tree helpers', () => {
         selectedNoteId: 1,
       })
     ).toBe(1);
+  });
+
+  test('clears a note selection that is not visible in the current folder', () => {
+    const folders = [root, projects, backlog, archive];
+    const alpha = makeNote(1, 1, 'Alpha');
+    const beta = makeNote(2, 2, 'Beta');
+    const gamma = makeNote(3, 4, 'Gamma');
+    const omega = makeNote(4, 3, 'Omega');
+    const rows = rowsFor(1, folders, [alpha, beta, gamma, omega]);
+
+    expect(
+      getNextNoteIdAfterFolderDelete({
+        rows,
+        deletedFolderIds: new Set([2]),
+        selectedNoteId: 2,
+      })
+    ).toBeNull();
   });
 });

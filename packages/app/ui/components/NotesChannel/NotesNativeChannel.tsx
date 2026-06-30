@@ -241,8 +241,6 @@ export function NotesNativeChannel({
     );
   });
 
-  const expandFolder = useMutableCallback((_folderId: number) => {});
-
   const runAction = useMutableCallback(
     async (fallback: string, action: () => Promise<void>) => {
       setError(null);
@@ -267,7 +265,6 @@ export function NotesNativeChannel({
     if (!targetFolderId) return;
     setIsCreatingNote(true);
     await runAction('Failed to create note', async () => {
-      expandFolder(targetFolderId);
       setSelectedFolderId(targetFolderId);
       const note = await createNotebookNote({
         notebookFlag,
@@ -299,7 +296,6 @@ export function NotesNativeChannel({
         parentFolderId,
         name: newFolderName.trim(),
       });
-      expandFolder(parentFolderId);
       setNewFolderName('');
       setNewFolderParentId(null);
       setAddFolderOpen(false);
@@ -346,7 +342,6 @@ export function NotesNativeChannel({
                 noteId: note.noteId,
                 folderId,
               });
-              expandFolder(folderId);
               setSelectedFolderId(folderId);
               setError(null);
               showToast({
@@ -519,8 +514,6 @@ export function NotesNativeChannel({
                 folder,
                 parentFolderId,
               });
-              expandFolder(parentFolderId);
-              expandFolder(folder.folderId);
               setSelectedFolderId(folder.folderId);
               setError(null);
               showToast({
