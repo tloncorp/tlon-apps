@@ -491,7 +491,12 @@ export function NotesNativeChannel({
             duration: 2000,
           });
         } catch (e) {
-          setError(errorMessage(e, 'Published note, but failed to copy link'));
+          const message = errorMessage(
+            e,
+            'Published note, but failed to copy link'
+          );
+          trackNotesActionError('copy published note link', e, message);
+          setError(message);
         }
       }
     } finally {
