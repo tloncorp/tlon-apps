@@ -11,7 +11,11 @@ import {
   makeNotesNotebook,
   testNotebookFlag as notebookFlag,
 } from '../test/notesFixtures';
-import { saveNotebookNote, syncNotesNotebook } from './notesActions';
+import {
+  createNotebookNote,
+  saveNotebookNote,
+  syncNotesNotebook,
+} from './notesActions';
 
 setupDatabaseTestSuite();
 
@@ -117,4 +121,38 @@ test('syncNotesNotebook preserves cached members when member sync fails', async 
   await expect(db.getNotesMembers({ notebookFlag })).resolves.toMatchObject([
     expect.objectContaining({ contactId: '~zod', role: 'editor' }),
   ]);
+});
+
+test('createNotebookNote uses a fresh baseline before finding the created note', async () => {
+  const cachedNote = makeNote('Cached note');
+  const staleRemoteNote = makeNotesNote(4, rootFolder.folderId, 'Stale remote');
+  const createdNote = makeNotesNote(5, rootFolder.folderId, 'Created note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [cachedNote],
+    members: [],
+  });
+
+  let created = false;
+  vi.spyOn(api.notesV1, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notesV1, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notesV1, 'listNotes').mockImplementation(async () => [
+    makeApiNotesNote(staleRemoteNote),
+    ...(created ? [makeApiNotesNote(createdNote)] : []),
+  ]);
+  vi.spyOn(api.notesV1, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notesV1, 'createNote').mockImplementation(async () => {
+    created = true;
+  });
+
+  const note = await createNotebookNote({
+    notebookFlag,
+    folderId: rootFolder.folderId,
+    title: createdNote.title,
+  });
+
+  expect(note?.noteId).toBe(createdNote.noteId);
 });
