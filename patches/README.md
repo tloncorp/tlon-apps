@@ -257,3 +257,43 @@ Removal:
 Remove this patch once `expo-image-manipulator` ships an equivalent orientation
 normalization fix, or once we replace upload resizing with a lower-level ImageIO
 thumbnail path.
+
+## @tamagui/web@2.4.0
+
+Why:
+tamagui removed its undocumented `unset` style value in 2.x (upstream
+`86d0cfe95` — `chore: remove undocumented unset style value`). We use `"unset"`
+in ~56 places to mean "no value here" (e.g. `backgroundColor="unset"`,
+`aspectRatio="unset"`). On web `unset` is a valid CSS keyword and still renders,
+but on native `propMapper` now passes it straight to the React Native style and
+RN throws on strict props — `aspectRatio` redboxes with "aspectRatio must
+either be a number, a ratio string or `auto`. You passed: unset".
+
+What it does:
+Patches the two native `propMapper` variants
+(`dist/{cjs,esm}/helpers/propMapper.native.js`) to drop a prop whose value is
+`"unset"` (`if (value === "unset") return;`). The prop then falls back to the
+property's initial value (transparent / auto / 0) and overrides styled-component
+defaults the same way the value did before. The web bundles are intentionally
+left unpatched, since `unset` is a valid CSS keyword there.
+
+Local patch:
+`patches/@tamagui__web@2.4.0.patch`
+
+Upstream:
+- removed deliberately in `tamagui/tamagui@86d0cfe95`; the configurable `unset`
+  feature is not coming back
+- native parity fix proposed upstream ("drop `unset` on native instead of
+  crashing"): `tamagui/tamagui#4053`
+
+Validation:
+- Rebuild the mobile app so the patched bundle is picked up
+- Open a post with an image, the Activity feed, and a content reference and
+  confirm there's no `aspectRatio ... You passed: unset` redbox
+- Confirm `node_modules/@tamagui/web/dist/esm/helpers/propMapper.native.js`
+  contains `if (value === "unset") return;`
+
+Removal:
+Remove this patch once either the upstream native fix lands in a tamagui version
+we use, or we migrate all `"unset"` style usages to explicit values
+(`transparent` / `undefined` / `auto`) so nothing relies on the dropped value.
