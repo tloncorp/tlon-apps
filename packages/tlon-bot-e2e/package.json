@@ -26,15 +26,34 @@
       "types": "./src/fake-model/server-core.d.mts",
       "import": "./src/fake-model/server-core.mjs"
     },
-    "./fake-model/server": "./src/fake-model/server.mjs"
+    "./fake-model/server": "./src/fake-model/server.mjs",
+    "./runtime": {
+      "types": "./src/runtime/index.ts",
+      "import": "./src/runtime/index.ts"
+    },
+    "./drivers": {
+      "types": "./src/drivers/index.ts",
+      "import": "./src/drivers/index.ts"
+    },
+    "./tlon": {
+      "types": "./src/tlon/index.ts",
+      "import": "./src/tlon/index.ts"
+    }
   },
   "scripts": {
     "test": "node scripts/test-unit.mjs",
     "test:unit": "node scripts/test-unit.mjs",
+    "test:e2e:hermes": "TLON_BOT_E2E_DRIVER=hermes tsx src/cli/run.ts",
+    "test:e2e": "pnpm test:e2e:hermes",
     "tsc": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tloncorp/api": "workspace:*",
+    "@urbit/aura": "^3.0.0"
   },
   "devDependencies": {
     "@types/node": "^25.4.0",
+    "tsx": "^4.20.6",
     "typescript": "~5.9.2",
     "vitest": "^4.0.0"
   }
