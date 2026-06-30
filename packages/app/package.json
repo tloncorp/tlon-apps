@@ -41,8 +41,6 @@
     "@simform_solutions/react-native-audio-waveform": "*",
     "react-native-device-info": "*",
     "react-native-email-link": "*",
-    "react-native-fetch-api": "*",
-    "react-native-polyfill-globals": "*",
     "react-native-safe-area-context": "*",
     "react-native-transformer-text-input": "^0.4.1",
     "tamagui": "~2.4.0",
