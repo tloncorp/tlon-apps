@@ -49,30 +49,6 @@ Drop this patch once we either move to building React Native from source
 layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
 workaround upstream.
 
-## react-native-screens@4.4.0
-
-Why:
-iOS native-stack can double-pop when two back-swipe gestures happen in quick
-succession, causing a brief `Channel -> GroupChannels -> ChatList ->
-GroupChannels -> ChatList` bounce.
-
-Local patch:
-`patches/react-native-screens@4.4.0.patch`
-
-Upstream:
-- issue: `software-mansion/react-native-screens#2559`
-- fix: `software-mansion/react-native-screens#3584`
-- enabled by default: `software-mansion/react-native-screens#3652`
-
-Validation:
-Rebuild the iOS app and verify that fast successive swipe-backs no longer cause
-the screen bounce.
-
-Removal:
-Remove this patch once we upgrade to a compatible `react-native-screens`
-version that already includes the upstream fix. `4.24.0+` has the behavior
-enabled by default.
-
 ## react-native@0.76.9
 
 Local patch:
@@ -222,7 +198,7 @@ Remove this patch once `react-native-gesture-handler` ships a version of
 `ReanimatedSwipeable` that disables pointer events on the hidden action
 container, and we confirm the Android repro no longer needs the local fix.
 
-## expo-image-manipulator@14.0.8
+## expo-image-manipulator@56.0.19
 
 Why:
 Expo's iOS orientation transformer normalizes images by manually creating a
@@ -239,7 +215,7 @@ UIKit choose a supported backing context while still applying orientation and
 mirroring before the requested resize runs.
 
 Local patch:
-`patches/expo-image-manipulator@14.0.8.patch`
+`patches/expo-image-manipulator@56.0.19.patch`
 
 Upstream:
 - no matching Expo upstream fix found as of June 2026
