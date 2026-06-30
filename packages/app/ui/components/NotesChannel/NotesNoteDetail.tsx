@@ -45,6 +45,48 @@ const SAVE_STATUS_SLOT_WIDTH = 88;
 
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
+const notePreviewModes = new Map<string, boolean>();
+
+function getNotePreviewModeKey(
+  notebookFlag: string | null | undefined,
+  noteId: number | null
+) {
+  if (!notebookFlag || noteId === null) return null;
+  return `${notebookFlag}/${noteId}`;
+}
+
+function getStoredNotePreviewMode(key: string | null) {
+  return key ? (notePreviewModes.get(key) ?? true) : true;
+}
+
+function useNotePreviewMode(
+  notebookFlag: string | null | undefined,
+  noteId: number | null
+) {
+  const key = useMemo(
+    () => getNotePreviewModeKey(notebookFlag, noteId),
+    [noteId, notebookFlag]
+  );
+  const [isPreviewing, setIsPreviewing] = useState(() =>
+    getStoredNotePreviewMode(key)
+  );
+
+  useEffect(() => {
+    setIsPreviewing(getStoredNotePreviewMode(key));
+  }, [key]);
+
+  const setPreviewMode = useCallback(
+    (nextPreviewing: boolean) => {
+      if (key) {
+        notePreviewModes.set(key, nextPreviewing);
+      }
+      setIsPreviewing(nextPreviewing);
+    },
+    [key]
+  );
+
+  return [isPreviewing, setPreviewMode] as const;
+}
 
 function estimateBodyInputHeight(body: string, inputWidth: number) {
   if (!inputWidth) return MIN_BODY_INPUT_HEIGHT;
@@ -115,7 +157,10 @@ export function NotesNoteDetail({
   const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
-  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isPreviewing, setPreviewMode] = useNotePreviewMode(
+    notebookFlag,
+    noteId
+  );
   const titleInputRef = useRef<ElementRef<typeof Input>>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
 
@@ -365,8 +410,8 @@ export function NotesNoteDetail({
   }, [draftBase, isDirty, notebookFlag]);
 
   const togglePreview = useCallback(() => {
-    setIsPreviewing((previewing) => !previewing);
-  }, []);
+    setPreviewMode(!isPreviewing);
+  }, [isPreviewing, setPreviewMode]);
 
   const focusBodyInput = useCallback(() => {
     bodyInputRef.current?.focus();
