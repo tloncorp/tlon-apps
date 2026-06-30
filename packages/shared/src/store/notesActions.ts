@@ -213,9 +213,9 @@ export const useNotesNotes = createNotebookQueryHook(
 );
 
 /**
- * Snapshots existing item ids, runs the create action, then syncs until an
- * item with an unseen id appears locally. Returns that item, or null if it
- * never showed up.
+ * Syncs before snapshotting existing item ids, runs the create action, then
+ * syncs until an item with an unseen id appears locally. Returns that item, or
+ * null if it never showed up.
  */
 async function createAndFindNewItem<T>({
   notebookFlag,
@@ -230,6 +230,7 @@ async function createAndFindNewItem<T>({
   create: () => Promise<unknown>;
   findFallback?: (items: T[]) => T | null | undefined;
 }): Promise<T | null> {
+  await syncNotesNotebook(notebookFlag);
   const beforeIds = new Set((await list()).map(getId));
   const isNew = (item: T) => !beforeIds.has(getId(item));
 
