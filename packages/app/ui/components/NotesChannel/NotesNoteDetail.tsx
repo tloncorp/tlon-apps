@@ -15,7 +15,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AppState, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import {
+  AppState,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
 import {
@@ -57,7 +61,7 @@ function getNotePreviewModeKey(
 }
 
 function getStoredNotePreviewMode(key: string | null) {
-  return key ? (notePreviewModes.get(key) ?? true) : true;
+  return key ? notePreviewModes.get(key) ?? true : true;
 }
 
 function useNotePreviewMode(
@@ -174,9 +178,9 @@ export function NotesNoteDetail({
   );
   const bodyDraftRef = useRef(bodyDraft);
   const pendingBodyDraftRef = useRef<string | null>(null);
-  const bodyDraftUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const bodyDraftUpdateTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
   const titleInputRef = useRef<ElementRef<typeof Input>>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
   const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
@@ -582,11 +586,7 @@ export function NotesNoteDetail({
   }
 
   const inlineActions =
-    headerActionsPlacement === 'inline' ? (
-      <>
-        {headerControls}
-      </>
-    ) : null;
+    headerActionsPlacement === 'inline' ? <>{headerControls}</> : null;
 
   return (
     <YStack flex={1} backgroundColor="$background">
