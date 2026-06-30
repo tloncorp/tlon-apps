@@ -62,19 +62,26 @@ function getStoredNotePreviewMode(key: string | null) {
 
 function useNotePreviewMode(
   notebookFlag: string | null | undefined,
-  noteId: number | null
+  noteId: number | null,
+  startInEdit = false
 ) {
   const key = useMemo(
     () => getNotePreviewModeKey(notebookFlag, noteId),
     [noteId, notebookFlag]
   );
   const [isPreviewing, setIsPreviewing] = useState(() =>
-    getStoredNotePreviewMode(key)
+    startInEdit ? false : getStoredNotePreviewMode(key)
   );
 
   useEffect(() => {
+    if (startInEdit && key && !notePreviewModes.has(key)) {
+      notePreviewModes.set(key, false);
+      setIsPreviewing(false);
+      return;
+    }
+
     setIsPreviewing(getStoredNotePreviewMode(key));
-  }, [key]);
+  }, [key, startInEdit]);
 
   const setPreviewMode = useCallback(
     (nextPreviewing: boolean) => {
@@ -140,6 +147,7 @@ export function NotesNoteDetail({
   noteId,
   notebookFlag,
   onTitleAutoFocused,
+  startInEdit = false,
   syncEnabled = true,
 }: {
   autoFocusTitle?: boolean;
@@ -147,6 +155,7 @@ export function NotesNoteDetail({
   noteId: number | null;
   notebookFlag: string | null | undefined;
   onTitleAutoFocused?: () => void;
+  startInEdit?: boolean;
   syncEnabled?: boolean;
 }) {
   // The note snapshot the drafts are based on. Dirtiness and the save's
@@ -160,7 +169,8 @@ export function NotesNoteDetail({
   const [error, setError] = useState<string | null>(null);
   const [isPreviewing, setPreviewMode] = useNotePreviewMode(
     notebookFlag,
-    noteId
+    noteId,
+    startInEdit
   );
   const bodyDraftRef = useRef(bodyDraft);
   const pendingBodyDraftRef = useRef<string | null>(null);

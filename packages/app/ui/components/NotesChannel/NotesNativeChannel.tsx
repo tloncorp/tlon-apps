@@ -112,6 +112,7 @@ export function NotesNativeChannel({
     run: runMoveFolder,
   } = useEntityDialog<db.NotesFolder>();
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
+  const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
 
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
@@ -167,9 +168,15 @@ export function NotesNativeChannel({
   }, [notes, selectedNoteId]);
 
   const openNote = useMutableCallback(
-    (note: db.NotesNote, options?: { focusTitle?: boolean }) => {
+    (
+      note: db.NotesNote,
+      options?: { focusTitle?: boolean; startInEdit?: boolean }
+    ) => {
       if (options?.focusTitle) {
         setFocusTitleNoteId(note.noteId);
+      }
+      if (options?.startInEdit) {
+        setStartEditNoteId(note.noteId);
       }
 
       if (useDesktopSplit) {
@@ -182,6 +189,7 @@ export function NotesNativeChannel({
         groupId: groupId ?? undefined,
         noteId: note.noteId,
         focusTitle: options?.focusTitle,
+        startInEdit: options?.startInEdit,
       });
     }
   );
@@ -234,7 +242,7 @@ export function NotesNativeChannel({
         title: '',
       });
       if (note) {
-        openNote(note, { focusTitle: true });
+        openNote(note, { focusTitle: true, startInEdit: true });
       }
     });
     setIsCreatingNote(false);
@@ -568,6 +576,7 @@ export function NotesNativeChannel({
           noteId={selectedNoteId}
           notebookFlag={notebookFlag}
           onTitleAutoFocused={handleTitleAutoFocused}
+          startInEdit={startEditNoteId === selectedNoteId}
         />
       )}
     </YStack>
