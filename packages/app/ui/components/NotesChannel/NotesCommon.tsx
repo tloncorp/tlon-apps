@@ -1,9 +1,7 @@
 import {
   markNotesNotebookOpened,
   useEnsureNotesNotebookJoined,
-  useNotesFolders,
-  useNotesNotebook,
-  useNotesNotes,
+  useNotesNotebookWithRelations,
   useSyncNotesNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -190,20 +188,23 @@ export function confirmNotesDestructiveAction({
 
 export type NotebookGate = 'unavailable' | 'loading' | 'unjoinable' | null;
 
-export function useNotebookData(notebookFlag: string | null | undefined) {
+export function useNotebookData(
+  notebookFlag: string | null | undefined,
+  options: { syncEnabled?: boolean } = {}
+) {
   const joinQuery = useEnsureNotesNotebookJoined({ notebookFlag });
   const joined = joinQuery.data !== false;
+  const syncEnabled = options.syncEnabled ?? true;
   const syncQuery = useSyncNotesNotebook({
     notebookFlag,
-    enabled: Boolean(notebookFlag) && joined && !joinQuery.isLoading,
+    enabled:
+      Boolean(notebookFlag) && joined && !joinQuery.isLoading && syncEnabled,
   });
-  const notebookQuery = useNotesNotebook(notebookFlag, joined);
-  const foldersQuery = useNotesFolders(notebookFlag, joined);
-  const notesQuery = useNotesNotes(notebookFlag, joined);
+  const notebookQuery = useNotesNotebookWithRelations(notebookFlag, joined);
 
   const notebook = notebookQuery.data ?? null;
-  const folders = foldersQuery.data ?? EMPTY_FOLDERS;
-  const notes = notesQuery.data ?? EMPTY_NOTES;
+  const folders = notebook?.folders ?? EMPTY_FOLDERS;
+  const notes = notebook?.notes ?? EMPTY_NOTES;
   const canEdit = notebook ? notebook.currentUserRole !== 'viewer' : false;
   const rootFolderId =
     notebook?.rootFolderId ??

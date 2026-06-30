@@ -22,7 +22,7 @@ export function NotesTreePane({
   onOpenNote,
   onRenameFolder,
   onRenameNote,
-  onToggleFolder,
+  onOpenFolder,
 }: {
   canEdit: boolean;
   isDeletingFolder: boolean;
@@ -39,7 +39,7 @@ export function NotesTreePane({
   onOpenNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onRenameNote: (note: db.NotesNote) => void;
-  onToggleFolder: (folderId: number, hasChildren: boolean) => void;
+  onOpenFolder: (folder: db.NotesFolder) => void;
 }) {
   if (treeRows.length === 0) {
     return (
@@ -71,7 +71,7 @@ export function NotesTreePane({
       onOpenNote={onOpenNote}
       onRenameFolder={onRenameFolder}
       onRenameNote={onRenameNote}
-      onToggleFolder={onToggleFolder}
+      onOpenFolder={onOpenFolder}
     />
   );
 
@@ -119,7 +119,7 @@ function NotesTreeRowsList({
   onOpenNote,
   onRenameFolder,
   onRenameNote,
-  onToggleFolder,
+  onOpenFolder,
 }: {
   canEdit: boolean;
   isDeletingFolder: boolean;
@@ -135,7 +135,7 @@ function NotesTreeRowsList({
   onOpenNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
   onRenameNote: (note: db.NotesNote) => void;
-  onToggleFolder: (folderId: number, hasChildren: boolean) => void;
+  onOpenFolder: (folder: db.NotesFolder) => void;
 }) {
   return (
     <YStack>
@@ -145,9 +145,7 @@ function NotesTreeRowsList({
             key={row.folder.id}
             canEdit={canEdit}
             depth={row.depth}
-            expanded={row.expanded}
             folder={row.folder}
-            hasChildren={row.hasChildren}
             isDeleting={isDeletingFolder}
             label={getFolderLabel(row.folder)}
             noteCount={row.noteCount}
@@ -156,7 +154,7 @@ function NotesTreeRowsList({
             onCreateFolder={onCreateFolderInFolder}
             onCreateNote={onCreateNoteInFolder}
             onMove={onMoveFolder}
-            onPress={() => onToggleFolder(row.folder.folderId, row.hasChildren)}
+            onPress={() => onOpenFolder(row.folder)}
             onRename={onRenameFolder}
           />
         ) : (

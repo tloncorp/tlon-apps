@@ -57,6 +57,12 @@ export type RootStackParamList = {
     groupId?: string;
     noteId: number;
   };
+  NotesFolder: {
+    channelId: string;
+    folderId: number;
+    folderTitle?: string;
+    groupId?: string;
+  };
   MediaViewer: {
     mediaType: 'image' | 'video';
     uri?: string;
@@ -182,6 +188,7 @@ export type ChannelStackParamList = {
   ChannelSearch: RootStackParamList['ChannelSearch'];
   Post: RootStackParamList['Post'];
   NotesDetail: RootStackParamList['NotesDetail'];
+  NotesFolder: RootStackParamList['NotesFolder'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -195,6 +202,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'ChannelSearch'
   | 'Post'
   | 'NotesDetail'
+  | 'NotesFolder'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'

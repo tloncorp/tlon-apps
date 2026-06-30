@@ -1,4 +1,9 @@
-import { NavigationProp, useNavigation } from '@react-navigation/native';
+import {
+  NavigationProp,
+  StackActions,
+  useIsFocused,
+  useNavigation,
+} from '@react-navigation/native';
 import {
   createNotebookFolder,
   createNotebookNote,
@@ -12,7 +17,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
 import { useIsWindowNarrow, useToast } from '@tloncorp/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
 
@@ -43,9 +48,9 @@ import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import {
   type FolderRow,
+  buildFolderContentsRows,
   buildFolderNoteCounts,
   buildFolderRows,
-  buildNotesTreeRows,
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
@@ -54,15 +59,18 @@ import {
 export function NotesNativeChannel({
   channelId,
   channelTitle,
+  folderId,
   groupId,
   notebookFlag,
 }: {
   channelId: string;
   channelTitle?: string;
+  folderId?: number | null;
   groupId?: string | null;
   notebookFlag: string | null | undefined;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const isFocused = useIsFocused();
   const isWindowNarrow = useIsWindowNarrow();
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
@@ -103,14 +111,12 @@ export function NotesNativeChannel({
     handleOpenChange: handleMoveFolderOpenChange,
     run: runMoveFolder,
   } = useEntityDialog<db.NotesFolder>();
-  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(
-    () => new Set()
-  );
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
-  const initializedFolderIdsRef = useRef<Set<number>>(new Set());
 
-  const { folders, notes, canEdit, rootFolderId, gate } =
-    useNotebookData(notebookFlag);
+  const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
+    notebookFlag,
+    { syncEnabled: isFocused }
+  );
 
   const parentFolderRows = useMemo(
     () => buildFolderRows(folders, rootFolderId, { includeRoot: true }),
@@ -121,16 +127,17 @@ export function NotesNativeChannel({
     () => buildFolderNoteCounts(folders, notes),
     [folders, notes]
   );
+  const activeFolderId = folderId ?? rootFolderId;
   const treeRows = useMemo(
     () =>
-      buildNotesTreeRows({
-        expandedFolderIds,
+      buildFolderContentsRows({
+        folderId: activeFolderId,
         folderNoteCounts,
         folders,
         notes,
         rootFolderId,
       }),
-    [expandedFolderIds, folderNoteCounts, folders, notes, rootFolderId]
+    [activeFolderId, folderNoteCounts, folders, notes, rootFolderId]
   );
   const selectNoteInPane = useMutableCallback((noteId: number | null) => {
     setSelectedNoteId(noteId);
@@ -159,28 +166,6 @@ export function NotesNativeChannel({
     }
   }, [notes, selectedNoteId]);
 
-  useEffect(() => {
-    setExpandedFolderIds((currentIds) => {
-      let nextIds = currentIds;
-      folders.forEach((folder) => {
-        if (initializedFolderIdsRef.current.has(folder.folderId)) {
-          return;
-        }
-
-        initializedFolderIdsRef.current.add(folder.folderId);
-        if (folder.folderId === rootFolderId) {
-          return;
-        }
-
-        if (nextIds === currentIds) {
-          nextIds = new Set(currentIds);
-        }
-        nextIds.add(folder.folderId);
-      });
-      return nextIds;
-    });
-  }, [folders, rootFolderId]);
-
   const openNote = useMutableCallback(
     (note: db.NotesNote, options?: { focusTitle?: boolean }) => {
       if (options?.focusTitle) {
@@ -205,16 +190,19 @@ export function NotesNativeChannel({
     setFocusTitleNoteId(null);
   });
 
-  const expandFolder = useMutableCallback((folderId: number) => {
-    setExpandedFolderIds((currentIds) => {
-      if (currentIds.has(folderId)) {
-        return currentIds;
-      }
-      const nextIds = new Set(currentIds);
-      nextIds.add(folderId);
-      return nextIds;
-    });
+  const openFolder = useMutableCallback((folder: db.NotesFolder) => {
+    setSelectedFolderId(folder.folderId);
+    navigation.dispatch(
+      StackActions.push('NotesFolder', {
+        channelId,
+        folderId: folder.folderId,
+        folderTitle: getFolderLabel(folder),
+        groupId: groupId ?? undefined,
+      })
+    );
   });
+
+  const expandFolder = useMutableCallback((_folderId: number) => {});
 
   const runAction = useMutableCallback(
     async (fallback: string, action: () => Promise<void>) => {
@@ -229,7 +217,8 @@ export function NotesNativeChannel({
 
   const handleCreateNote = useMutableCallback(async (folderId?: number) => {
     if (!notebookFlag || !rootFolderId || !canEdit || isCreatingNote) return;
-    const targetFolderId = folderId ?? selectedFolderId ?? rootFolderId;
+    const targetFolderId =
+      folderId ?? selectedFolderId ?? activeFolderId ?? rootFolderId;
     setIsCreatingNote(true);
     await runAction('Failed to create note', async () => {
       expandFolder(targetFolderId);
@@ -248,7 +237,9 @@ export function NotesNativeChannel({
 
   const openAddFolderDialog = useMutableCallback((parentFolderId?: number) => {
     setNewFolderName('');
-    setNewFolderParentId(parentFolderId ?? selectedFolderId ?? rootFolderId);
+    setNewFolderParentId(
+      parentFolderId ?? selectedFolderId ?? activeFolderId ?? rootFolderId
+    );
     setAddFolderOpen(true);
   });
 
@@ -282,7 +273,8 @@ export function NotesNativeChannel({
     if (open) {
       setNewFolderName('');
       setNewFolderParentId(
-        (currentParentId) => currentParentId ?? selectedFolderId ?? rootFolderId
+        (currentParentId) =>
+          currentParentId ?? selectedFolderId ?? activeFolderId ?? rootFolderId
       );
     }
   });
@@ -421,15 +413,6 @@ export function NotesNativeChannel({
             folder,
           });
           updateSelectionAfterFolderDelete(folderIds);
-          setExpandedFolderIds((currentIds) => {
-            if (![...folderIds].some((id) => currentIds.has(id))) {
-              return currentIds;
-            }
-
-            const nextIds = new Set(currentIds);
-            folderIds.forEach((folderId) => nextIds.delete(folderId));
-            return nextIds;
-          });
         }).finally(() => setIsDeletingFolder(false));
       },
     });
@@ -511,35 +494,6 @@ export function NotesNativeChannel({
     }),
   ];
 
-  const toggleFolder = useMutableCallback(
-    (folderId: number, hasChildren: boolean) => {
-      if (!hasChildren) {
-        setSelectedFolderId((currentFolderId) =>
-          currentFolderId === folderId ? null : folderId
-        );
-        return;
-      }
-
-      const isExpanded = expandedFolderIds.has(folderId);
-      setSelectedFolderId((currentFolderId) =>
-        currentFolderId === folderId
-          ? null
-          : isExpanded
-            ? currentFolderId
-            : folderId
-      );
-      setExpandedFolderIds((currentIds) => {
-        const nextIds = new Set(currentIds);
-        if (isExpanded) {
-          nextIds.delete(folderId);
-        } else {
-          nextIds.add(folderId);
-        }
-        return nextIds;
-      });
-    }
-  );
-
   const headerActions = useMemo(() => {
     if (!notebookFlag || gate === 'unjoinable') return null;
     return (
@@ -558,7 +512,7 @@ export function NotesNativeChannel({
       canEdit={canEdit}
       isDeletingFolder={isDeletingFolder}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
-      selectedFolderId={selectedFolderId}
+      selectedFolderId={null}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
       onDeleteFolder={handleDeleteFolder}
@@ -570,7 +524,7 @@ export function NotesNativeChannel({
       onCreateNoteInFolder={(folder) => void handleCreateNote(folder.folderId)}
       onRenameFolder={handleOpenRenameFolder}
       onRenameNote={handleRenameNote}
-      onToggleFolder={toggleFolder}
+      onOpenFolder={openFolder}
     />
   );
 

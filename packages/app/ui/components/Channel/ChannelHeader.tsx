@@ -117,6 +117,7 @@ export function ChannelHeader({
   hideIdentity = false,
   showSearchButton = false,
   showEditButton = false,
+  preferProvidedTitle = false,
   post,
 }: {
   title: string;
@@ -137,6 +138,7 @@ export function ChannelHeader({
   hideIdentity?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
+  preferProvidedTitle?: boolean;
   post?: db.Post;
 }) {
   const connectionStatus = useConnectionStatus();
@@ -177,8 +179,8 @@ export function ChannelHeader({
   }, [channel, currentUserId]);
 
   const titleText = useMemo(() => {
-    return chatTitle ?? title;
-  }, [chatTitle, title]);
+    return preferProvidedTitle ? title : chatTitle ?? title;
+  }, [chatTitle, preferProvidedTitle, title]);
 
   const subtitleText = useMemo(() => {
     if (connectionStatus !== 'Connected') {
