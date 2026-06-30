@@ -21,7 +21,13 @@ import {
   buildComposeProcessEnv,
   loadTlonBotE2eEnvFile,
 } from '../runtime/env.js';
-import { allocatePort, allocateRuntimeEndpoints } from '../runtime/ports.js';
+import {
+  type RuntimePortOverrides,
+  allocatePort,
+  allocateRuntimeEndpoints,
+  assertRequestedPortsAvailable,
+  requestedRuntimePorts,
+} from '../runtime/ports.js';
 import { waitForHttpOk, waitForShipLogin } from '../runtime/waiters.js';
 import { commonScenarios } from '../scenarios/shared/common.js';
 import {
@@ -85,19 +91,16 @@ async function runDriverRuntime(args: {
   partition?: ScenarioPartition;
   runTests(ctx: RuntimeContext): Promise<void>;
 }): Promise<void> {
-  const endpoints = await allocateRuntimeEndpoints({
-    fakeModel: parsePort(process.env.FAKE_MODEL_PORT),
-    zod: parsePort(process.env.ZOD_PORT),
-    ten: parsePort(process.env.TEN_PORT),
-    mug: parsePort(process.env.MUG_PORT),
+  const fixedPorts = fixedRuntimePortsForDriver(args.driver.name, process.env);
+  const endpointPorts: RuntimePortOverrides = {
+    ...fixedPorts,
     ...(args.driver.name === 'openclaw'
       ? {
-          gateway:
-            parsePort(process.env.OPENCLAW_GATEWAY_PORT) ??
-            (await allocatePort()),
+          gateway: fixedPorts.gateway ?? (await allocatePort()),
         }
       : {}),
-  });
+  };
+  const endpoints = await allocateRuntimeEndpoints(endpointPorts);
 
   const seed: RuntimeSeed = {
     driverName: args.driver.name,
@@ -127,6 +130,7 @@ async function runDriverRuntime(args: {
   try {
     await args.driver.beforeComposeBuild?.(ctx);
     await compose.down();
+    await assertRequestedPortsAvailable(requestedRuntimePorts(fixedPorts));
     await compose.build([ctx.services.bot]);
     await args.driver.beforeComposeUp?.(ctx, compose);
     await compose.up();
@@ -430,6 +434,21 @@ function logEndpointTable(ctx: RuntimeContext): void {
   if (ctx.endpoints.gateway) {
     console.log(`    gateway: host=${ctx.endpoints.gateway.hostBaseUrl}`);
   }
+}
+
+function fixedRuntimePortsForDriver(
+  driverName: BotDriver['name'],
+  env: NodeJS.ProcessEnv
+): RuntimePortOverrides {
+  return {
+    fakeModel: parsePort(env.FAKE_MODEL_PORT),
+    zod: parsePort(env.ZOD_PORT),
+    ten: parsePort(env.TEN_PORT),
+    mug: parsePort(env.MUG_PORT),
+    ...(driverName === 'openclaw'
+      ? { gateway: parsePort(env.OPENCLAW_GATEWAY_PORT) }
+      : {}),
+  };
 }
 
 function parsePort(value: string | undefined): number | undefined {

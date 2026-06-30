@@ -1,11 +1,21 @@
-import { describe, expect, test } from 'vitest';
+import net from 'node:net';
+import { afterEach, describe, expect, test } from 'vitest';
 
 import {
   FAKEZOD_ACCESS_CODES,
+  allocatePort,
   allocateRuntimeEndpoints,
+  assertRequestedPortsAvailable,
+  requestedRuntimePorts,
 } from './ports.js';
 
 describe('runtime endpoint allocation', () => {
+  const occupiedServers: net.Server[] = [];
+
+  afterEach(async () => {
+    await Promise.all(occupiedServers.splice(0).map(closeServer));
+  });
+
   test('preserves fakezod access codes and explicit host/container endpoints', async () => {
     const endpoints = await allocateRuntimeEndpoints({
       fakeModel: 4100,
@@ -45,4 +55,75 @@ describe('runtime endpoint allocation', () => {
       hostPort: 4104,
     });
   });
+
+  test('maps fixed runtime port overrides to env-var-labelled requests', () => {
+    expect(
+      requestedRuntimePorts({
+        fakeModel: 4100,
+        zod: 4101,
+        gateway: 4104,
+      })
+    ).toEqual([
+      { envVar: 'FAKE_MODEL_PORT', port: 4100 },
+      { envVar: 'ZOD_PORT', port: 4101 },
+      { envVar: 'OPENCLAW_GATEWAY_PORT', port: 4104 },
+    ]);
+  });
+
+  test('accepts requested fixed ports that are available', async () => {
+    const port = await allocatePort();
+
+    await expect(
+      assertRequestedPortsAvailable([{ envVar: 'TEN_PORT', port }])
+    ).resolves.toBeUndefined();
+  });
+
+  test('fails with the env var name when a requested fixed port is occupied', async () => {
+    const port = await occupyLocalhostPort();
+
+    await expect(
+      assertRequestedPortsAvailable([{ envVar: 'FAKE_MODEL_PORT', port }])
+    ).rejects.toThrow(`FAKE_MODEL_PORT=${port} is already in use`);
+  });
+
+  test('fails early when two fixed overrides request the same port', async () => {
+    await expect(
+      assertRequestedPortsAvailable([
+        { envVar: 'ZOD_PORT', port: 4101 },
+        { envVar: 'TEN_PORT', port: 4101 },
+      ])
+    ).rejects.toThrow('TEN_PORT=4101 conflicts with ZOD_PORT=4101');
+  });
+
+  async function occupyLocalhostPort(): Promise<number> {
+    const server = await new Promise<net.Server>((resolve, reject) => {
+      const nextServer = net.createServer();
+      nextServer.once('error', reject);
+      nextServer.listen(0, '127.0.0.1', () => {
+        nextServer.off('error', reject);
+        resolve(nextServer);
+      });
+    });
+
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      await closeServer(server);
+      throw new Error('failed to occupy TCP port');
+    }
+
+    occupiedServers.push(server);
+    return address.port;
+  }
+
+  async function closeServer(server: net.Server): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+  }
 });
