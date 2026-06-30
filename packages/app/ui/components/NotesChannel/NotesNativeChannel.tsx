@@ -11,7 +11,7 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { collectDescendantFolderIds } from '@tloncorp/shared/logic/notesTree';
-import { useIsWindowNarrow } from '@tloncorp/ui';
+import { useIsWindowNarrow, useToast } from '@tloncorp/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { YStack } from 'tamagui';
@@ -42,6 +42,7 @@ import {
 import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import {
+  type FolderRow,
   buildFolderNoteCounts,
   buildFolderRows,
   buildNotesTreeRows,
@@ -63,6 +64,7 @@ export function NotesNativeChannel({
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isWindowNarrow = useIsWindowNarrow();
+  const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
@@ -303,6 +305,13 @@ export function NotesNativeChannel({
           });
           expandFolder(folderId);
           setSelectedFolderId(folderId);
+          showToast({
+            message: `Moved note to ${getMoveDestinationLabel(
+              parentFolderRows,
+              folderId
+            )}`,
+            duration: 1500,
+          });
         })
       );
     }
@@ -333,6 +342,11 @@ export function NotesNativeChannel({
         });
       },
     });
+  });
+
+  const handleRenameNote = useMutableCallback((note: db.NotesNote) => {
+    if (!canEdit) return;
+    openNote(note, { focusTitle: true });
   });
 
   const handleOpenRenameFolder = useMutableCallback(
@@ -466,6 +480,13 @@ export function NotesNativeChannel({
           expandFolder(parentFolderId);
           expandFolder(movingFolder.folderId);
           setSelectedFolderId(movingFolder.folderId);
+          showToast({
+            message: `Moved folder to ${getMoveDestinationLabel(
+              parentFolderRows,
+              parentFolderId
+            )}`,
+            duration: 1500,
+          });
         })
       );
     }
@@ -548,6 +569,7 @@ export function NotesNativeChannel({
       onCreateFolderInFolder={(folder) => openAddFolderDialog(folder.folderId)}
       onCreateNoteInFolder={(folder) => void handleCreateNote(folder.folderId)}
       onRenameFolder={handleOpenRenameFolder}
+      onRenameNote={handleRenameNote}
       onToggleFolder={toggleFolder}
     />
   );
@@ -650,4 +672,17 @@ export function NotesNativeChannel({
 
 function formatCount(count: number, label: string) {
   return `${count} ${label}${count === 1 ? '' : 's'}`;
+}
+
+function getMoveDestinationLabel(folderRows: FolderRow[], folderId: number) {
+  const row = folderRows.find(
+    (candidate) => candidate.folder.folderId === folderId
+  );
+  if (!row) {
+    return 'folder';
+  }
+  if (row.folder.name === '/') {
+    return getFolderLabel(row.folder);
+  }
+  return row.path.replace(/^Root \/ /, '');
 }

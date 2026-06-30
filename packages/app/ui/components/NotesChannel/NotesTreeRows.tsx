@@ -1,10 +1,12 @@
 import * as db from '@tloncorp/shared/db';
 import { Icon, Pressable } from '@tloncorp/ui';
-import { useEffect, useRef, useState } from 'react';
+import type { IconType } from '@tloncorp/ui';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Platform } from 'react-native';
 import { TamaguiWebElement, XStack } from 'tamagui';
 
+import { useSheetCloseAfterAnimation } from '../../hooks/useSheetCloseAfterAnimation';
 import type { ActionGroup } from '../ActionSheet';
 import { createActionGroups } from '../ActionSheet';
 import { ListItem } from '../ListItem';
@@ -13,6 +15,7 @@ import { NotesActionMenu } from './NotesCommon';
 
 const TREE_ROW_HEIGHT = 44;
 const TREE_LEVEL_WIDTH = 24;
+const FOLDER_ROW_LEFT_PADDING = 5.5;
 
 export function FolderTreeRow({
   canEdit,
@@ -22,6 +25,7 @@ export function FolderTreeRow({
   hasChildren,
   isDeleting,
   label,
+  noteCount,
   onDelete,
   onCreateFolder,
   onCreateNote,
@@ -60,6 +64,9 @@ export function FolderTreeRow({
         action: () => onCreateFolder(folder),
         testID: 'NotesCreateFolderInFolderAction',
       },
+    ],
+    [
+      'neutral',
       {
         title: 'Rename folder',
         startIcon: 'EditList',
@@ -77,7 +84,7 @@ export function FolderTreeRow({
       'negative',
       {
         title: 'Delete folder',
-        startIcon: 'Close',
+        startIcon: 'Trash',
         action: () => onDelete(folder),
         disabled: isDeleting,
         testID: 'NotesDeleteFolderAction',
@@ -87,6 +94,11 @@ export function FolderTreeRow({
   const { actionsMenu, rowActionProps } = useRowActions({
     actionGroups,
     canEdit,
+    header: {
+      icon: 'Folder',
+      title: label,
+      subtitle: noteCount > 0 ? formatNoteCount(noteCount) : 'Folder',
+    },
   });
 
   return (
@@ -126,6 +138,7 @@ export function NoteRow({
   onDelete,
   onMove,
   onPress,
+  onRename,
 }: {
   canEdit: boolean;
   depth: number;
@@ -134,6 +147,7 @@ export function NoteRow({
   onDelete: () => void;
   onMove: () => void;
   onPress: () => void;
+  onRename: () => void;
 }) {
   const updatedAt = getNoteTimestampMs(note.updatedAt ?? note.createdAt);
   const bodyPreview = getNoteBodyPreview(note.bodyMd);
@@ -141,6 +155,12 @@ export function NoteRow({
   const actionGroups = createActionGroups(
     [
       'neutral',
+      {
+        title: 'Rename note',
+        startIcon: 'EditList',
+        action: onRename,
+        testID: `NotesRenameNoteAction-${note.noteId}`,
+      },
       {
         title: 'Move to folder',
         startIcon: 'Folder',
@@ -152,7 +172,7 @@ export function NoteRow({
       'negative',
       {
         title: 'Delete note',
-        startIcon: 'Close',
+        startIcon: 'Trash',
         action: onDelete,
         testID: `NotesDeleteNoteAction-${note.noteId}`,
       },
@@ -161,6 +181,11 @@ export function NoteRow({
   const { actionsMenu, rowActionProps } = useRowActions({
     actionGroups,
     canEdit,
+    header: {
+      icon: 'ChannelNote',
+      title: note.title || 'Untitled',
+      subtitle: bodyPreview || 'Note',
+    },
   });
 
   return (
@@ -203,17 +228,48 @@ export function NoteRow({
 function useRowActions({
   actionGroups,
   canEdit,
+  header,
 }: {
   actionGroups: ActionGroup[];
   canEdit: boolean;
+  header: {
+    icon: IconType;
+    subtitle?: string;
+    title: string;
+  };
 }) {
   const [open, setOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const { closeAfterAnimation, cancel: cancelPendingAction } =
+    useSheetCloseAfterAnimation();
   const openActions = () => {
     if (canEdit) {
+      cancelPendingAction();
       setOpen(true);
     }
   };
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        cancelPendingAction();
+      }
+      setOpen(nextOpen);
+    },
+    [cancelPendingAction]
+  );
+  const handleAction = useCallback(
+    (action?: () => void) => {
+      if (Platform.OS === 'web') {
+        setOpen(false);
+        action?.();
+        return;
+      }
+
+      setOpen(false);
+      closeAfterAnimation(() => action?.());
+    },
+    [closeAfterAnimation]
+  );
   const hoverProps =
     Platform.OS === 'web'
       ? {
@@ -239,8 +295,10 @@ function useRowActions({
       canEdit && (open || actionsTrigger) ? (
         <NotesActionMenu
           groups={actionGroups}
+          header={header}
           open={open}
-          onOpenChange={setOpen}
+          onAction={handleAction}
+          onOpenChange={handleOpenChange}
           trigger={actionsTrigger}
         />
       ) : null,
@@ -319,7 +377,7 @@ function TreeRowFrame({
               : '$secondaryBackground'
             : 'transparent'
         }
-        paddingLeft="$l"
+        paddingLeft={chatListStyle ? '$l' : FOLDER_ROW_LEFT_PADDING}
         paddingRight={chatListStyle ? '$l' : '$s'}
         paddingVertical={chatListStyle ? '$l' : '$xs'}
         gap={chatListStyle ? '$l' : '$s'}
@@ -402,4 +460,8 @@ function getNoteBodyPreview(bodyMd: string | null | undefined) {
     .trim();
 
   return preview || null;
+}
+
+function formatNoteCount(noteCount: number) {
+  return `${noteCount} ${noteCount === 1 ? 'note' : 'notes'}`;
 }
