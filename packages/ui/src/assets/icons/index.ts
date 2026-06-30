@@ -7,6 +7,7 @@ export { default as Attachment } from './Attachment.svg';
 export { default as Bang } from './Bang.svg';
 export { default as BlockQuote } from './BlockQuote.svg';
 export { default as Bold } from './Bold.svg';
+export { default as Bulletin } from './Bulletin.svg';
 export { default as BulletList } from './BulletList.svg';
 export { default as Camera } from './Camera.svg';
 export { default as Channel } from './Channel.svg';
