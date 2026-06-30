@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f4edcf93-dd02-4921-8bae-7cdf4d55bb83",
+  "id": "ad23bd50-df66-460c-9654-7daf2063f3fe",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1218,6 +1218,68 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "context_lens_runs": {
+      "name": "context_lens_runs",
+      "columns": {
+        "bot_ship": {
+          "name": "bot_ship",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "lens_id": {
+          "name": "lens_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "complete": {
+          "name": "complete",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "payload": {
+          "name": "payload",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "context_lens_runs_received_at_index": {
+          "name": "context_lens_runs_received_at_index",
+          "columns": [
+            "received_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "context_lens_runs_bot_ship_lens_id_pk": {
+          "columns": [
+            "bot_ship",
+            "lens_id"
+          ],
+          "name": "context_lens_runs_bot_ship_lens_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "group_flagged_posts": {
       "name": "group_flagged_posts",
       "columns": {
@@ -2243,12 +2305,13 @@
         }
       },
       "compositePrimaryKeys": {
-        "notes_members_notebook_flag_contact_id_pk": {
+        "notes_members_notebook_flag_contact_id_role_pk": {
           "columns": [
             "notebook_flag",
-            "contact_id"
+            "contact_id",
+            "role"
           ],
-          "name": "notes_members_notebook_flag_contact_id_pk"
+          "name": "notes_members_notebook_flag_contact_id_role_pk"
         }
       },
       "uniqueConstraints": {},
@@ -3257,6 +3320,13 @@
         },
         "mobile_app_promo_dismissed": {
           "name": "mobile_app_promo_dismissed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "context_lens_enabled": {
+          "name": "context_lens_enabled",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

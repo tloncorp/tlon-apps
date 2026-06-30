@@ -48,11 +48,15 @@ const draftStashKey = (notebookFlag: string, noteId: number) =>
 function estimateBodyInputHeight(body: string, inputWidth: number) {
   if (!inputWidth) return MIN_BODY_INPUT_HEIGHT;
 
-  const charsPerLine = Math.max(1, Math.floor(inputWidth / BODY_MONO_CHAR_WIDTH));
+  const charsPerLine = Math.max(
+    1,
+    Math.floor(inputWidth / BODY_MONO_CHAR_WIDTH)
+  );
   const visualLineCount = body
     .split('\n')
     .reduce(
-      (count, line) => count + Math.max(1, Math.ceil(line.length / charsPerLine)),
+      (count, line) =>
+        count + Math.max(1, Math.ceil(line.length / charsPerLine)),
       0
     );
 

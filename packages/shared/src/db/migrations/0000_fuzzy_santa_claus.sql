@@ -180,6 +180,16 @@ CREATE TABLE `contacts` (
 );
 --> statement-breakpoint
 CREATE INDEX `contacts_system_contact_id_index` ON `contacts` (`systemContactId`);--> statement-breakpoint
+CREATE TABLE `context_lens_runs` (
+	`bot_ship` text NOT NULL,
+	`lens_id` text NOT NULL,
+	`complete` integer DEFAULT false NOT NULL,
+	`received_at` integer NOT NULL,
+	`payload` text,
+	PRIMARY KEY(`bot_ship`, `lens_id`)
+);
+--> statement-breakpoint
+CREATE INDEX `context_lens_runs_received_at_index` ON `context_lens_runs` (`received_at`);--> statement-breakpoint
 CREATE TABLE `group_flagged_posts` (
 	`group_id` text NOT NULL,
 	`post_id` text NOT NULL,
@@ -328,7 +338,7 @@ CREATE TABLE `notes_members` (
 	`contact_id` text NOT NULL,
 	`role` text NOT NULL,
 	`synced_at` integer,
-	PRIMARY KEY(`notebook_flag`, `contact_id`),
+	PRIMARY KEY(`notebook_flag`, `contact_id`, `role`),
 	FOREIGN KEY (`notebook_flag`) REFERENCES `notes_notebooks`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
@@ -479,7 +489,8 @@ CREATE TABLE `settings` (
 	`completed_wayfinding_tutorial` integer,
 	`disable_tlon_infra_enhancement` integer,
 	`web_app_splash_dismissed` integer,
-	`mobile_app_promo_dismissed` integer
+	`mobile_app_promo_dismissed` integer,
+	`context_lens_enabled` integer
 );
 --> statement-breakpoint
 CREATE TABLE `system_contact_sent_invites` (

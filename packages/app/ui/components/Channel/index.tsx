@@ -690,6 +690,7 @@ export function Channel({
     toggleContextLens,
     clearSelectedContextLensMessage,
     inspectContextLensPost,
+    openContextLensForPost,
   } = useContextLensController({ channel });
 
   const backgroundColor = getVariableValue(useTheme().background);
@@ -818,6 +819,17 @@ export function Channel({
                                         contextLensAvailable && contextLensOpen
                                           ? inspectContextLensPost
                                           : undefined,
+                                      openContextLensForPost:
+                                        contextLensAvailable && !isNarrow
+                                          ? openContextLensForPost
+                                          : undefined,
+                                      contextLensSelectedPostId:
+                                        contextLensAvailable &&
+                                        contextLensOpen &&
+                                        !isNarrow
+                                          ? selectedContextLensMessage?.id ??
+                                            null
+                                          : null,
                                       goToBotRun:
                                         contextLensAvailable && isNarrow
                                           ? goToContextLensRun

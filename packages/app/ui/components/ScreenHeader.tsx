@@ -1,5 +1,5 @@
 import { useDebouncedValue } from '@tloncorp/shared';
-import { Icon, Pressable as TlonPressable, Text, View } from '@tloncorp/ui';
+import { Icon, Text, Pressable as TlonPressable, View } from '@tloncorp/ui';
 import {
   Children,
   PropsWithChildren,

@@ -648,7 +648,7 @@ export function LeaveActionsSection({
       ? 'This action cannot be undone.'
       : channel?.type === 'notes'
         ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'
-      : 'This action cannot be undone. All messages in this channel will be permanently deleted.';
+        : 'This action cannot be undone. All messages in this channel will be permanently deleted.';
 
   return (
     <View paddingHorizontal={'$l'}>

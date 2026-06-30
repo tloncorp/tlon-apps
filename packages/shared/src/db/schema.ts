@@ -78,6 +78,7 @@ export const settings = sqliteTable('settings', {
   disableTlonInfraEnhancement: boolean('disable_tlon_infra_enhancement'),
   webAppSplashDismissed: boolean('web_app_splash_dismissed'),
   mobileAppPromoDismissed: boolean('mobile_app_promo_dismissed'),
+  contextLensEnabled: boolean('context_lens_enabled'),
 });
 
 export const systemContacts = sqliteTable(
@@ -1231,7 +1232,7 @@ export const notesMembers = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({
-      columns: [table.notebookFlag, table.contactId],
+      columns: [table.notebookFlag, table.contactId, table.role],
     }),
     contactIdIndex: index('notes_members_contact_id_index').on(table.contactId),
   })

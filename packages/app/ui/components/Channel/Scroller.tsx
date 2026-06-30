@@ -101,6 +101,8 @@ const Scroller = forwardRef(
       listBottomComponent,
       highlightPostId,
       onGoToBotRun,
+      onOpenContextLens,
+      contextLensSelectedPostId,
     }: {
       anchor?: ScrollAnchor | null;
       showDividers?: boolean;
@@ -140,6 +142,8 @@ const Scroller = forwardRef(
       listBottomComponent?: React.ReactElement;
       highlightPostId?: string | null;
       onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
+      onOpenContextLens?: (post: db.Post) => void;
+      contextLensSelectedPostId?: string | null;
     },
     ref
   ) => {
@@ -181,9 +185,16 @@ const Scroller = forwardRef(
     const [viewBotRunPost, setViewBotRunPost] = useState<null | db.Post>(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
-    const handlePressBotRun = useCallback((post: db.Post) => {
-      setViewBotRunPost(post);
-    }, []);
+    const handlePressBotRun = useCallback(
+      (post: db.Post) => {
+        if (onOpenContextLens) {
+          onOpenContextLens(post);
+          return;
+        }
+        setViewBotRunPost(post);
+      },
+      [onOpenContextLens]
+    );
 
     const listRef = useRef<PostListMethods>(null);
 
@@ -284,7 +295,8 @@ const Scroller = forwardRef(
         const isFirstUnread = post.id === firstUnreadId;
         const isSelected =
           (anchor?.type === 'selected' && anchor.postId === post.id) ||
-          highlightPostId === post.id;
+          highlightPostId === post.id ||
+          contextLensSelectedPostId === post.id;
 
         return (
           <ScrollerItem
@@ -331,6 +343,7 @@ const Scroller = forwardRef(
         anchor?.type,
         anchor?.postId,
         highlightPostId,
+        contextLensSelectedPostId,
         firstUnreadId,
         inverted,
         renderItem,
@@ -583,8 +596,12 @@ const Scroller = forwardRef(
                 setActiveMessage(null);
               }}
               onViewBotRun={(post) => {
-                setViewBotRunPost(post);
                 setActiveMessage(null);
+                if (onOpenContextLens) {
+                  onOpenContextLens(post);
+                  return;
+                }
+                setViewBotRunPost(post);
               }}
               mode="immediate"
             />

@@ -37,23 +37,40 @@ function requireNotesNotebookFlag(flagInput: api.NotesFlag | string) {
 export async function syncNotesNotebook(flagInput: api.NotesFlag | string) {
   const { flag, parsed } = requireNotesNotebookFlag(flagInput);
 
-  const [notebook, folders, notes, members] = await Promise.all([
+  const [notebook, folders, notes, membersResult] = await Promise.all([
     api.notesV1.getNotebook(parsed),
     api.notesV1.listFolders(parsed),
     api.notesV1.listNotes(parsed),
-    api.notesV1.listMembers(parsed).catch((e) => {
-      logger.error('Failed to scry notes members', e);
-      return [] as api.NotesV1MemberRecord[];
-    }),
+    api.notesV1.listMembers(parsed).then(
+      (members) => ({ ok: true as const, members }),
+      (error) => ({ ok: false as const, error })
+    ),
   ]);
+  let members: api.NotesV1MemberRecord[] = [];
+  let dbMembers: db.NotesMember[] = [];
+  let currentUserRole: db.NotesRole | null | undefined;
+  if (membersResult.ok) {
+    members = membersResult.members;
+    dbMembers = members.flatMap((member) => toDbMembers(flag, member));
+  } else {
+    logger.error('Failed to scry notes members', membersResult.error);
+    const [existingNotebook, existingMembers] = await Promise.all([
+      db.getNotesNotebook({ notebookFlag: flag }),
+      db.getNotesMembers({ notebookFlag: flag }),
+    ]);
+    currentUserRole = existingNotebook
+      ? existingNotebook.currentUserRole ?? null
+      : undefined;
+    dbMembers = existingMembers;
+  }
 
   await db.saveNotesNotebookSnapshot({
-    notebook: toDbNotebook(notebook, members),
+    notebook: toDbNotebook(notebook, members, currentUserRole),
     folders: folders.map((folder) =>
       toDbFolder(flag, folder, notebook.notebook.id)
     ),
     notes: notes.map((note) => toDbNote(flag, note, notebook.notebook.id)),
-    members: members.flatMap((member) => toDbMembers(flag, member)),
+    members: dbMembers,
   });
 
   return db.getNotesNotebookWithRelations({ notebookFlag: flag });
@@ -237,9 +254,9 @@ export function noteIsPublished(
 }
 
 /**
- * Snapshots existing item ids, runs the create action, then syncs until an
- * item with an unseen id appears locally. Returns that item, or null if it
- * never showed up.
+ * Syncs before snapshotting existing item ids, runs the create action, then
+ * syncs until an item with an unseen id appears locally. Returns that item, or
+ * null if it never showed up.
  */
 async function createAndFindNewItem<T>({
   notebookFlag,
@@ -254,6 +271,7 @@ async function createAndFindNewItem<T>({
   create: () => Promise<unknown>;
   findFallback?: (items: T[]) => T | null | undefined;
 }): Promise<T | null> {
+  await syncNotesNotebook(notebookFlag);
   const beforeIds = new Set((await list()).map(getId));
   const isNew = (item: T) => !beforeIds.has(getId(item));
 
@@ -590,7 +608,8 @@ async function waitForNotesCondition(isReady: () => Promise<boolean>) {
 
 function toDbNotebook(
   summary: api.NotesV1NotebookDetailSummary,
-  members: api.NotesV1MemberRecord[]
+  members: api.NotesV1MemberRecord[],
+  preservedCurrentUserRole?: db.NotesRole | null
 ): db.NotesNotebook {
   const flag = api.formatNotesFlag({
     host: summary.host,
@@ -612,8 +631,10 @@ function toDbNotebook(
     updatedAt: summary.notebook.updatedAt ?? null,
     syncedAt: Date.now(),
     currentUserRole:
-      currentMember?.roles[0] ??
-      (summary.host === currentUserId ? ('owner' as const) : null),
+      preservedCurrentUserRole !== undefined
+        ? preservedCurrentUserRole
+        : currentMember?.roles[0] ??
+          (summary.host === currentUserId ? ('owner' as const) : null),
   };
 }
 
