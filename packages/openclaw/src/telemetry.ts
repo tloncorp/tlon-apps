@@ -2243,9 +2243,16 @@ export function reportHarnessError(event: TlonHarnessErrorReportInput): void {
     : null;
 
   const sessionKey = context?.sessionKey ?? optionalString(event.sessionKey);
-  const runId = optionalString(event.runId) ?? context?.runId ?? null;
+  // Cron correlation uses the diagnostic's OWN runId, kept separate from the
+  // emitted `runId` below. The emitted value falls back to a remembered
+  // interactive runId from a prior reply — but when a cron run reuses that
+  // session and both the cron hook and this diagnostic omit a runId, feeding
+  // that stale id into lookupCronRun would force the exact-match branch and
+  // miss the runId-less cron signal reportCronRun recorded for this run.
+  const eventRunId = optionalString(event.runId);
+  const runId = eventRunId ?? context?.runId ?? null;
   const cronAttribution = CRON_GATEWAY_ERROR_SCOPES.has(event.errorScope)
-    ? lookupCronRun(sessionKey, runId)
+    ? lookupCronRun(sessionKey, eventRunId)
     : null;
 
   // Harness errors are normally filtered to runs we remember from inbound Tlon

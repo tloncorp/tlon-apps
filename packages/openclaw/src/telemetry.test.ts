@@ -1525,6 +1525,30 @@ describe('telemetry tool tracking', () => {
     expect(Object.hasOwn(call.properties, 'cronJobId')).toBe(false);
   });
 
+  it('attributes a runId-less cron failure in a remembered session, ignoring the stale context runId', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    bindErrorReporter(telemetry);
+    // Session was remembered from a prior inbound reply (context.runId='run-1').
+    await rememberSessionForDiagnostics(telemetry);
+
+    // A cron run reuses that session; both the cron hook and the failing
+    // diagnostic omit a runId. The lookup must use the diagnostic's own
+    // (absent) runId and match the runId-less cron signal — not the stale
+    // interactive runId carried on the remembered context.
+    reportCronRun({ sessionKey: 'session-1', jobId: 'job-7' });
+    reportHarnessError({
+      harnessEventType: 'model.call.error',
+      errorScope: 'model',
+      sessionKey: 'session-1',
+      errorText: 'model unresponsive',
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Harness Error');
+    expect(call.properties.isCron).toBe(true);
+    expect(call.properties.cronJobId).toBe('job-7');
+  });
+
   it("does not bleed another cron run's job id into a matched run with no job id", () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);
