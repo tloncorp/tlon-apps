@@ -269,10 +269,15 @@ export function NotesNativeChannel({
     }
   );
 
+  const getCreateTargetFolderId = useMutableCallback(
+    (folderId?: number | null) =>
+      folderId ?? selectedFolderId ?? activeFolderId ?? rootFolderId
+  );
+
   const handleCreateNote = useMutableCallback(async (folderId?: number) => {
     if (!notebookFlag || !rootFolderId || !canEdit || isCreatingNote) return;
-    const targetFolderId =
-      folderId ?? selectedFolderId ?? activeFolderId ?? rootFolderId;
+    const targetFolderId = getCreateTargetFolderId(folderId);
+    if (!targetFolderId) return;
     setIsCreatingNote(true);
     await runAction('Failed to create note', async () => {
       expandFolder(targetFolderId);
@@ -291,9 +296,7 @@ export function NotesNativeChannel({
 
   const openAddFolderDialog = useMutableCallback((parentFolderId?: number) => {
     setNewFolderName('');
-    setNewFolderParentId(
-      parentFolderId ?? selectedFolderId ?? activeFolderId ?? rootFolderId
-    );
+    setNewFolderParentId(getCreateTargetFolderId(parentFolderId) ?? null);
     setAddFolderOpen(true);
   });
 
@@ -327,8 +330,7 @@ export function NotesNativeChannel({
     if (open) {
       setNewFolderName('');
       setNewFolderParentId(
-        (currentParentId) =>
-          currentParentId ?? selectedFolderId ?? activeFolderId ?? rootFolderId
+        (currentParentId) => getCreateTargetFolderId(currentParentId) ?? null
       );
     }
   });
@@ -769,15 +771,16 @@ export function NotesNativeChannel({
         modal
       />
       <AddFolderDialog
-        folderRows={parentFolderRows}
         isCreating={isCreatingFolder}
         name={newFolderName}
         onCreate={handleCreateFolder}
         onNameChange={setNewFolderName}
         onOpenChange={handleAddFolderOpenChange}
-        onParentChange={setNewFolderParentId}
         open={addFolderOpen}
-        parentFolderId={newFolderParentId ?? rootFolderId}
+        targetFolderLabel={getMoveDestinationLabel(
+          parentFolderRows,
+          newFolderParentId ?? activeFolderId ?? rootFolderId
+        )}
       />
       <MoveNoteSheet
         folderRows={parentFolderRows}
@@ -813,7 +816,14 @@ function formatCount(count: number, label: string) {
   return `${count} ${label}${count === 1 ? '' : 's'}`;
 }
 
-function getMoveDestinationLabel(folderRows: FolderRow[], folderId: number) {
+function getMoveDestinationLabel(
+  folderRows: FolderRow[],
+  folderId: number | null | undefined
+) {
+  if (folderId === null || folderId === undefined) {
+    return 'folder';
+  }
+
   const row = folderRows.find(
     (candidate) => candidate.folder.folderId === folderId
   );
