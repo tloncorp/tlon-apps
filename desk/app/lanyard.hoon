@@ -193,9 +193,9 @@
 ++  lo
   |_  [our=@p host=(unit @p) kind=(unit @t)]
   ++  fail
-    |=  [=echo:logs desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) echo desc trace deez)
+    (~(fail logs our /logs) vol echo tang deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
@@ -457,7 +457,7 @@
         ::
         %.  [~ this]
         ?~  p.sign  same
-        (tell:lo %info 'invite-url poke-nacked' u.p.sign)
+        (fail:lo %info ~['invite-url poke-nacked'] u.p.sign)
       ?~  p.sign
         ::  the command is being processed, we'll get updates as facts
         ::  on our subscription
@@ -469,7 +469,7 @@
       ::  resubscribe to get the full state again.
       ::TODO  and bubble action failure up to the client
       %-  (slog 'lanyard: poke-nacked' u.p.sign)
-      %-  (tell:lo %warn 'poke-nacked' u.p.sign)
+      %-  (fail:lo %warn ~['poke-nacked'] u.p.sign)
       ::
       :_  this
       =/  =dock  [host %verifier]
@@ -481,7 +481,7 @@
       ?~  p.sign  [~ this]
       ::TODO  track verifier connection status?
       ::      or say "should never happen" because of version negotiation?
-      %-  (tell:lo %warn 'verifier subscription nacked' u.p.sign)
+      %-  (fail:lo %warn ~['verifier subscription nacked'] u.p.sign)
       %-  (slog 'failed verifier sub' >host< u.p.sign)
       [~ this]
     ::
@@ -629,7 +629,7 @@
       [%contacts %set ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  [~ this]
-    %-  (tell:lo %error 'failed to update contacts' u.p.sign)
+    %-  (fail:lo %error ~['failed to update contacts'] u.p.sign)
     %-  (slog (cat 3 dap.bowl ': failed to update contacts') u.p.sign)
     [~ this]
   ==
@@ -764,6 +764,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:lo ~[(cat 3 dap.bowl ' failed')] term tang)
+  %-  (fail:lo %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang])
   [~ this]
 --

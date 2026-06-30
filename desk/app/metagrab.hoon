@@ -233,9 +233,9 @@
 ++  l
   |_  [our=@p url=(unit @t)]
   ++  fail
-    |=  [=echo:logs desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) echo desc trace deez)
+    (~(fail logs our /logs) vol echo tang deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
@@ -510,6 +510,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:l ~[(cat 3 dap.bowl ' failed')] term tang)
+  %-  (fail:l %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang])
   [~ this]
 --

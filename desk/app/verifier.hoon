@@ -87,14 +87,9 @@
 ++  l
   |_  [our=@p for=(unit @p) kind=(unit @t)]
   ++  fail
-    |=  [=echo:logs desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) desc trace deez)
-  ::
-  ++  fail-remote
-    |=  [=echo:logs trace=tang]
-    %-  link
-    (~(fail-remote logs our /logs) trace deez)
+    (~(fail logs our /logs) vol echo tang deez)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
@@ -923,7 +918,7 @@
     =.  kind.log  `i.t.wire
     ?>  ?=([%behn %wake *] sign)
     ?^  error.sign
-      %-  (fail-remote:l 'verifier wake failed' u.error.sign)
+      %-  (fail:l %error 'verifier wake failed' u.error.sign)
       [~ this]
     =/  id=identifier  (need (wire-id t.wire))
     =/  start=@da      (slav %da i.t.t.t.wire)
@@ -1236,6 +1231,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:l ~[(cat 3 dap.bowl ' failed')] term tang)
+  %-  (fail:l %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang])
   [~ this]
 --

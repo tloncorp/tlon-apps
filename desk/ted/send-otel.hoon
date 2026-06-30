@@ -66,7 +66,6 @@
   ==
 =/  severity-number=json
   =/  =volume:l
-    ?:  ?=(%fail -.event.log-item)  %error
     vol.event.log-item
   ?-  volume
     %trace  (numb 1)
@@ -79,7 +78,10 @@
 =/  exception=(list json)
   ?:  ?=(%tell -.event.log-item)  ~
   =/  message=@t
-    (cat 3 'crash in ' desc.event.log-item)
+    =/  lines=(list ^tape)
+      %-  zing
+      (turn echo.event.log-item (cury wash [0 80]))
+    (crip (zing (join "\0a" lines)))
   =/  stacktrace=@t
     =/  lines=(list ^tape)
       %-  zing

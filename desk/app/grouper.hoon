@@ -21,9 +21,9 @@
 ++  l
   |_  [our=ship flow=(unit @t) details=(list (pair @t json))]
   ++  fail
-    |=  [=echo:logs desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     =/  =card
-      (~(fail logs our /logs) echo desc trace deez)
+      (~(fail logs our /logs) vol echo tang deez)
     (link card)
   ::
   ++  tell
@@ -172,13 +172,7 @@
             'lure-joiner'^s+joiner
         ==
       `this
-    %-  %^  tell:log  %error
-        u.p.sign
-      :~  'event'^s+'DM Invite Fail'
-          'flow'^s+'lure'
-          'lure-id'^s+token
-          'lure-joiner'^s+joiner
-      ==
+    %-  (fail:log %error ~['DM invite failed'] u.p.sign)
     `this
   ::
       %watch-ack  `this
@@ -268,7 +262,7 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:log ~[(cat 3 dap.bowl ' failed')] term tang)
+  %-  (fail:log %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang])
   `this
 ::
 ++  on-leave

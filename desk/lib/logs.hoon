@@ -3,22 +3,10 @@
   |_  [our=ship =wire]
   ::
   ++  fail
-    |=  [=echo desc=term trace=tang =log-data]
+    |=  [vol=volume =echo =tang =log-data]
     ^-  card:agent:gall
     =/  event=$>(%fail log-event)
-      [%fail echo desc trace]
-    (pass event log-data)
-  ++  fail-remote
-    |=  [=echo trace=tang =log-data]
-    ^-  card:agent:gall
-    =^  desc=term  trace
-      ?^  trace
-        ?:  ?=(%leaf -.i.trace)
-          [(crip p.i.trace) t.trace]
-        ['unknown' trace]
-      [%empty ~]
-    =/  event=$>(%fail log-event)
-      [%fail echo desc trace]
+      [%fail vol echo tang]
     (pass event log-data)
   ::
   ++  tell
@@ -81,7 +69,8 @@
       =-  ?>(?=(%o -.-) -)
       %-  pairs:enjs
       :~  type/s+event-type
-          description/s+desc.e
+          message/(tang echo.e)
+          volume/s+vol.e
           stacktrace/(tang trace.e)
       ==
     ::

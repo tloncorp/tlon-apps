@@ -116,7 +116,7 @@
       ?:  ?=(~ vol)  cor
       =/  level=@ud
         ?-  -.event.a-log
-          %fail  (volume-val:l %error)
+          %fail  (volume-val:l vol.event.a-log)
           %tell  (volume-val:l vol.event.a-log)
         ==
       ?.  (gte level (volume-val:l u.vol))

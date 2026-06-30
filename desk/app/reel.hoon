@@ -96,14 +96,9 @@
 ++  l
   |_  [=bowl:gall =log-data:logs]
   ++  fail
-    |=  [=echo:logs desc=term =tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our.bowl /logs) echo desc tang log-data)
-  ::
-  ++  fail-remote
-    |=  [=echo:logs =tang]
-    %-  link
-    (~(fail-remote logs our.bowl /logs) echo tang log-data)
+    (~(fail logs our.bowl /logs) vol echo tang log-data)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
@@ -395,13 +390,13 @@
       [%update ?(%contact %profile) ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
-    %-  (fail-remote:log ~['profile update failed'] u.p.sign)
+    %-  (fail:log %error ~['profile update failed'] u.p.sign)
     `this
   ::
       [%update %group ~]
     ?>  ?=(%poke-ack -.sign)
     ?~  p.sign  `this
-    %-  (fail-remote:log ~['group meta update failed'] u.p.sign)
+    %-  (fail:log %error ~['group meta update failed'] u.p.sign)
     `this
   ::
       [%contacts ~]
@@ -413,7 +408,7 @@
     ::
         %watch-ack
       ?~  p.sign  `this
-      %-  (fail-remote:log ~['failed to subscribe to contacts'] u.p.sign)
+      %-  (fail:log %error ~['failed to subscribe to contacts'] u.p.sign)
       `this
     ::
         %fact
@@ -504,7 +499,7 @@
     ::
         %watch-ack
       ?~  p.sign  `this
-      %-  (fail-remote:log ~['failed to subscribe to groups'] u.p.sign)
+      %-  (fail:log %error ~['failed to subscribe to groups'] u.p.sign)
       `this
     ::
         %fact
@@ -668,6 +663,6 @@
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:log ~[(cat 3 dap.bowl ' failed')] term tang)
+  %-  (fail:log %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang])
   `this
 --

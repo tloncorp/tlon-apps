@@ -172,9 +172,9 @@
 ++  log
   |_  our=@p
   ++  fail
-    |=  [=echo:logs desc=term trace=tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our /logs) echo desc trace ~)
+    (~(fail logs our /logs) vol echo tang ~)
   ::
   ++  tell
     |=  [=volume:logs =echo:logs]
@@ -615,7 +615,7 @@
           `this
         =/  =tang
           ['notify watch-nack' >wire< u.p.sign]
-        ((tell:l %error tang) ((slog tang) `this))
+        ((fail:l %error ~['notify watch-nack' >wire<] u.p.sign) ((slog tang) `this))
       ==
     ::
     ::  subscription from provider to client
@@ -644,7 +644,7 @@
           ~[(leave-path:pass [src.bowl %notify] /notify/(scot %p src.bowl)/[service])]
         =/  =tang
           ['notify watch-nack' >wire< u.p.sign]
-        %-  (tell:l %error tang)
+        %-  (fail:l %error ~['notify watch-nack' >wire<] u.p.sign)
         %-  (slog tang)
         :_  this
         ::  attempt watching old path for compatibility with old clients
@@ -723,7 +723,7 @@
   ++  on-fail
     |=  [=term =tang]
     ^-  (quip card _this)
-    ((fail:l ~[(cat 3 dap.bowl ' failed')] term tang) `this)
+    ((fail:l %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang]) `this)
   --
 |_  bowl=bowl:gall
 ::

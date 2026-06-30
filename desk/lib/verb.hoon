@@ -142,7 +142,7 @@
   =*  data   data.a-log
   =/  vol=volume:logs
     ?-  -.event
-      %fail  %error
+      %fail  vol.event
       %tell  vol.event
     ==
   ::
@@ -152,7 +152,7 @@
   =/  =echo:logs
     ?-  -.event
         %fail
-      :-  leaf+"[{<our.bowl>}/{<dap.bowl>}] failed in {<desc.event>}" 
+      :-  leaf+"[{<our.bowl>}/{<dap.bowl>}] crashed"
       (weld echo.event trace.event)
     ::
         %tell  

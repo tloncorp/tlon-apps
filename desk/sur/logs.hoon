@@ -11,7 +11,7 @@
 ::  %tell: agent message
 ::
 +$  log-event
-  $%  [%fail =echo desc=term trace=tang]
+  $%  [%fail vol=volume =echo trace=tang]
       [%tell vol=volume =echo]
   ==
 ::  $log-item: event with timestamp

@@ -230,7 +230,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(fail:log ~[(cat 3 dap.bowl ' failed')] term tang ~)]~
+    [(fail:log %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang] ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -267,16 +267,10 @@
 ++  l
   |_  flow=(unit @t)
   ++  fail
-    |=  [=echo:logs desc=term =tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     ~>  %spin.['fail']
     =/  =card
-      (~(fail logs our.bowl /logs) echo desc tang deez)
-    (emit card)
-  ::
-  ++  fail-remote
-    |=  [=echo:logs =tang]
-    =/  =card
-      (~(fail-remote logs our.bowl /logs) echo tang deez)
+      (~(fail logs our.bowl /logs) vol echo tang deez)
     (emit card)
   ::
   ++  tell
@@ -1495,7 +1489,7 @@
   ::
       %watch-ack
     ?~  p.sign  cor
-    (fail-remote:l ~['channel preview request failed'] u.p.sign)
+    (fail:l %error ~['channel preview request failed'] u.p.sign)
   ::
       %fact
     ::  we use the same subscription path for client and agent subscriptions.
@@ -3280,7 +3274,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  
-        %+  fail-remote:l  
+        %^  fail:l  %error
           ~[leaf+"failed to invite {<ship>}"] 
         u.p.sign
       se-core
@@ -3290,7 +3284,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor  
-        %+  fail-remote:l
+        %^  fail:l  %error
           ~[leaf+"failed to invite {<ship>} (backcompat)"] 
         u.p.sign
       se-core
@@ -3300,7 +3294,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor
-        %+  fail-remote:l
+        %^  fail:l  %error
           ~[leaf+"failed to revoke invite for {<ship>}"]
         u.p.sign
       se-core
@@ -3310,7 +3304,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  se-core
       =.  cor
-        %+  fail-remote:l
+        %^  fail:l  %error
           ~[leaf+"failed to signal ask rejection to {<ship>}"]
         u.p.sign
       se-core
@@ -3764,7 +3758,7 @@
         [%wake ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail-remote:l ~['failed subscriber wake'] u.p.sign)
+      =.  cor  (fail:l %error ~['failed subscriber wake'] u.p.sign)
       go-core
     ::
       [%updates ~]  (go-take-update sign)
@@ -3774,7 +3768,7 @@
         [%command cmd=@t ~]
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail-remote:l ~[leaf+"group command {<cmd.i.t.wire>} failed"] u.p.sign)
+      =.  cor  (fail:l %error ~[leaf+"group command {<cmd.i.t.wire>} failed"] u.p.sign)
       go-core
     ::
         ::  invited a ship to the group
@@ -3783,7 +3777,7 @@
       =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail-remote:l ~[leaf+"failed to invite {<ship>}"] u.p.sign)
+      =.  cor  (fail:l %error ~[leaf+"failed to invite {<ship>}"] u.p.sign)
       go-core
     ::
         ::  invited a ship to the group (backcompat)
@@ -3792,7 +3786,7 @@
       =/  ship=@p  (slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail-remote:l ~[leaf+"failed to invite {<ship>} (backcompat)"] u.p.sign)
+      =.  cor  (fail:l %error ~[leaf+"failed to invite {<ship>} (backcompat)"] u.p.sign)
       go-core
         ::  revoked invitation
         ::
@@ -3800,7 +3794,7 @@
       =+  ship=(slav %p i.t.t.wire)
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  go-core
-      =.  cor  (fail-remote:l ~[leaf+"failed to revoke invite for {<ship>}"] u.p.sign)
+      =.  cor  (fail:l %error ~[leaf+"failed to revoke invite for {<ship>}"] u.p.sign)
       go-core
     ::
         ::  requested a personal invite token for a ship
@@ -3812,7 +3806,7 @@
       ::
           %watch-ack
         ?~  p.sign  go-core
-        =.  cor  (fail-remote:l ~['failed invite token request'] u.p.sign)
+        =.  cor  (fail:l %error ~['failed invite token request'] u.p.sign)
         go-core
       ::
           %fact
@@ -3831,7 +3825,7 @@
       ?-    i.wire
         ::
             %join-channels
-          =.  cor  (fail-remote:l ~['failed to join channels'] u.p.sign)
+          =.  cor  (fail:l %error ~['failed to join channels'] u.p.sign)
           go-core
         ::
             %leave-channels
@@ -3839,7 +3833,7 @@
           ::  because we proactively leave all channels when leaving the
           ::  group.
           ::
-          =.  cor  (tell:l %warn %poke-ack 'failed to leave channels' u.p.sign)
+          =.  cor  (fail:l %warn ~['failed to leave channels'] u.p.sign)
           go-core
       ==
     ==
@@ -3856,7 +3850,7 @@
       =?  cor  (~(has by foreigns) flag)
         fi-abet:(fi-watched:(fi-abed:fi-core flag) p.sign)
       ?^  p.sign
-        =.  cor  (fail-remote:log ~['group watch failed'] u.p.sign)
+        =.  cor  (fail:log %error ~['group watch failed'] u.p.sign)
         ::  set foreign error and leave the group if
         ::  it has not been initialized to allow re-joining.
         ::
@@ -4948,7 +4942,7 @@
       ::      updates.
       fi-core
     ?^  p
-      =.  cor  (fail-remote:log ~['group join failed'] u.p)
+      =.  cor  (fail:log %error ~['group join failed'] u.p)
       =.  progress  `%error
       fi-core
     =.  cor  (tell:log %dbug leaf+"group {<flag>} joined successfully" ~)
@@ -5131,7 +5125,7 @@
       ::  we aren't joining anymore, ignore
       ?.  &(?=(^ progress) =(%join u.progress))  fi-core
       ?^  p.sign
-        =.  cor  (fail-remote:log ~['group join with token failed'] u.p.sign)
+        =.  cor  (fail:log %error ~['group join with token failed'] u.p.sign)
         =.  progress  `%error
         fi-core
       =.  progress  `%watch
@@ -5161,7 +5155,7 @@
       ?-    -.sign
           %poke-ack
         ?^  p.sign
-          =.  cor  (fail-remote:log ~['group ask failed'] u.p.sign)
+          =.  cor  (fail:log %error ~['group ask failed'] u.p.sign)
           =.  progress  `%error
           fi-core
         fi-core
@@ -5176,7 +5170,7 @@
       ::
           %watch-ack
         ?~  p.sign  fi-core
-        =.  cor  (fail-remote:log ~['group ask watch'] u.p.sign)
+        =.  cor  (fail:log %error ~['group ask watch'] u.p.sign)
         =.  progress  `%error
         fi-core
       ::
@@ -5207,7 +5201,7 @@
         ?>  ?=([~ %preview] lok)
         ?~  p.sign  fi-core
         =.  lookup  `%error
-        =.  cor  (fail-remote:log ~['group preview watch'] u.p.sign)
+        =.  cor  (fail:log %error ~['group preview watch'] u.p.sign)
         fi-core
       ::
           %fact
@@ -5243,7 +5237,7 @@
       =*  log  ~(. l `'foreign-group-command')
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  fi-core
-      =.  cor  (fail-remote:log ~['foreign group command failed'] u.p.sign)
+      =.  cor  (fail:log %error ~['foreign group command failed'] u.p.sign)
       fi-core
     ==
   ::  +fi-take-index: receive ship index

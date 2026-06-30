@@ -114,7 +114,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(fail:log ~[(cat 3 dap.bowl ' failed')] term tang ~)]~
+    [(fail:log %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang] ~)]~
   --
 |_  [=bowl:gall cards=(list card)]
 +*  log   ~(. logs [our.bowl /logs])

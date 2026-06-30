@@ -76,9 +76,9 @@
 ++  l
   |_  [=bowl:gall =log-data:logs]
   ++  fail
-    |=  [=echo:logs desc=term =tang]
+    |=  [vol=volume:logs =echo:logs =tang]
     %-  link
-    (~(fail logs our.bowl /logs) echo desc tang log-data)
+    (~(fail logs our.bowl /logs) vol echo tang log-data)
   ::
   ++  tell
     |=  [vol=volume:logs =echo:logs =log-data:logs]
@@ -398,19 +398,13 @@
     =*  token  i.t.wire
     =*  goof  p.p.sign-arvo
     =*  log  ~(. l bowl 'flow'^s+'lure' ~)
-    %-  %^  tell:log  %error
-        :*  'failed to update lure invite branch metadata'
-            token
-            mote.goof
-            tang.goof
-        ==
-        ~
+    %-  (fail:log %error ~['failed to update lure invite branch metadata' token mote.goof] tang.goof)
     `this
   ==
 ::
 ++  on-fail
   |=  [=term =tang]
   ^-  (quip card _this)
-  %-  (fail:log ~[(cat 3 dap.bowl ' failed')] term tang)
+  %-  (fail:log %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang])
   `this
 --

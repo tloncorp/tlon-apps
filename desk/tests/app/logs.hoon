@@ -10,7 +10,7 @@
   ;<  *  bind:m  (jab-bowl |=(b=bowl b(sap /gall/test)))
   ;<  =bowl:gall  bind:m  get-bowl
   =/  fail=log-event:l
-    [%fail %test-fail leaf+"test stacktrace"]
+    [%fail %error ~[leaf+"test fail"] ~[leaf+"test stacktrace"]]
   ;<  caz=(list card)  bind:m
     (do-poke log-action+!>(`a-log:l`[%log fail ~]))
   =/  =log-item:l

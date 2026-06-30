@@ -305,7 +305,7 @@
     |=  [=term =tang]
     ^-  (quip card _this)
     :_  this
-    [(fail:log ~[(cat 3 dap.bowl ' failed')] term tang ~)]~
+    [(fail:log %error ~[(cat 3 dap.bowl ' failed')] [leaf+"{<term>}" tang] ~)]~
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
@@ -2938,7 +2938,7 @@
       ?>  ?=(%poke-ack -.sign)
       ?~  p.sign  di-core
       =.  cor
-        (emit (fail-remote:log ~[leaf+"failed to {(trip i.wire)}"] u.p.sign ~))
+        (emit (fail:log %error ~[leaf+"failed to {(trip i.wire)}"] u.p.sign ~))
       di-core
     ::
         [%proxy *]
