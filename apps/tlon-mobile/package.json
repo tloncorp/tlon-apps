@@ -5,7 +5,7 @@
   "expo": {
     "autolinking": {
       "ios": {
-        "buildFromSource": ["expo-background-task"]
+        "buildFromSource": ["expo-background-task", "expo-image-manipulator"]
       },
       "android": {
         "buildFromSource": ["expo-background-task"]

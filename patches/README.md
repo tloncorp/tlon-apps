@@ -9,7 +9,7 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
-## @gorhom/bottom-sheet@5.2.6
+## @gorhom/bottom-sheet@5.2.14
 
 Why:
 On the first open of a bottom sheet whose content is a `flex:1` ScrollView/View
@@ -34,7 +34,7 @@ from source, which we currently don't do; the writeup is in the closed
 draft PR linked below.
 
 Local patch:
-`patches/@gorhom__bottom-sheet@5.2.6.patch`
+`patches/@gorhom__bottom-sheet@5.2.14.patch`
 
 Background and reproduction details: PR #5790 (closed, kept for reference).
 
@@ -115,7 +115,7 @@ Remove this patch once we upgrade off the old `0.5.x` web bundle and confirm
 the replacement no longer vendors the legacy HTML link paste fallback or needs
 the local asset export stripping.
 
-## react-native-reanimated@4.1.6
+## react-native-reanimated@4.3.1
 
 Why:
 - Fixes production-only web crashes in Reanimated's JS web updater
@@ -137,7 +137,7 @@ Note: 4.x already fixed the older v3 `getInlinePropsUpdate` recursion bug
 needed.
 
 Local patch:
-`patches/react-native-reanimated@4.1.6.patch`
+`patches/react-native-reanimated@4.3.1.patch`
 
 Upstream:
 - repo: `software-mansion/react-native-reanimated`
@@ -159,7 +159,7 @@ Remove this patch once we upgrade to a Reanimated version that includes an
 upstream fix for the web JS updater path and confirm production web no longer
 needs the local guards or transform fallback.
 
-## react-native-gesture-handler@2.28.0
+## react-native-gesture-handler@2.31.2
 
 Why:
 On Android, `ReanimatedSwipeable` leaves both the left and right action
@@ -176,7 +176,7 @@ adds `pointerEvents: showLeftProgress.value === 0 ? 'none' : 'auto'` to
 the hidden side stops intercepting touches alongside its opacity going to 0.
 
 Local patch:
-`patches/react-native-gesture-handler@2.28.0.patch`
+`patches/react-native-gesture-handler@2.31.2.patch`
 
 Upstream:
 - no matching upstream fix found as of May 2026; `ReanimatedSwipeable` on
