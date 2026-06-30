@@ -49,30 +49,6 @@ Drop this patch once we either move to building React Native from source
 layout-engine level), or once `@gorhom/bottom-sheet` ships an equivalent
 workaround upstream.
 
-## react-native-screens@4.4.0
-
-Why:
-iOS native-stack can double-pop when two back-swipe gestures happen in quick
-succession, causing a brief `Channel -> GroupChannels -> ChatList ->
-GroupChannels -> ChatList` bounce.
-
-Local patch:
-`patches/react-native-screens@4.4.0.patch`
-
-Upstream:
-- issue: `software-mansion/react-native-screens#2559`
-- fix: `software-mansion/react-native-screens#3584`
-- enabled by default: `software-mansion/react-native-screens#3652`
-
-Validation:
-Rebuild the iOS app and verify that fast successive swipe-backs no longer cause
-the screen bounce.
-
-Removal:
-Remove this patch once we upgrade to a compatible `react-native-screens`
-version that already includes the upstream fix. `4.24.0+` has the behavior
-enabled by default.
-
 ## react-native@0.76.9
 
 Local patch:
