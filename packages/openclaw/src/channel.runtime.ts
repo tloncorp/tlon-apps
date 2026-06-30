@@ -78,6 +78,24 @@ async function getBotProfile(ship: string): Promise<BotProfile | undefined> {
   return undefined;
 }
 
+// Resolve the identity to author outbound content as. When a `moon` is
+// configured the plugin runs on the host (`account.ship`) but speaks as the
+// moon: author = the moon, with a bot-meta object so it's flagged as a bot
+// (display name/avatar resolve from the host's published profile). Without a
+// moon we keep the legacy behavior of acting as the connected ship itself.
+async function resolveOutboundIdentity(
+  account: ConfiguredTlonAccount
+): Promise<{ fromShip: string; botProfile?: BotProfile }> {
+  if (account.moon) {
+    return {
+      fromShip: normalizeShip(account.moon),
+      botProfile: { nickname: '', avatar: '' },
+    };
+  }
+  const fromShip = normalizeShip(account.ship);
+  return { fromShip, botProfile: await getBotProfile(fromShip) };
+}
+
 function resolveOutboundContext(params: {
   cfg: OpenClawConfig;
   accountId?: string | null;
@@ -161,10 +179,9 @@ export const tlonRuntimeOutbound: Pick<
         allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
       },
       async () => {
-        const fromShip = normalizeShip(account.ship);
+        const { fromShip, botProfile } = await resolveOutboundIdentity(account);
         const replyId = resolveReplyId(replyToId, threadId);
-        const botProfile = await getBotProfile(fromShip);
-        const stamp = resolveBackgroundLensStamp(cfg, fromShip);
+        const stamp = resolveBackgroundLensStamp(cfg, normalizeShip(account.ship));
         if (parsed.kind === 'dm') {
           const result = await sendDm({
             fromShip,
@@ -224,11 +241,10 @@ export const tlonRuntimeOutbound: Pick<
         const uploadedUrl = mediaUrl
           ? await uploadImageFromUrl(mediaUrl)
           : undefined;
-        const fromShip = normalizeShip(account.ship);
+        const { fromShip, botProfile } = await resolveOutboundIdentity(account);
         const story = buildMediaStory(text, uploadedUrl);
         const replyId = resolveReplyId(replyToId, threadId);
-        const botProfile = await getBotProfile(fromShip);
-        const stamp = resolveBackgroundLensStamp(cfg, fromShip);
+        const stamp = resolveBackgroundLensStamp(cfg, normalizeShip(account.ship));
         if (parsed.kind === 'dm') {
           const result = await sendDmWithStory({
             fromShip,

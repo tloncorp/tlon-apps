@@ -100,9 +100,21 @@ export const TlonNudgeActiveHoursSchema = z.object({
 export const TlonAccountSchema = z.object({
   name: z.string().optional(),
   enabled: z.boolean().optional(),
+  // Connection credentials are the HOST ship's: the plugin runs on the owner
+  // ship and authors as `moon` (its virtual identity). `ship`/`url`/`code`
+  // identify the host we connect to.
   ship: ShipSchema.optional(),
   url: z.string().optional(),
   code: z.string().optional(),
+  // The "virtual identity" (a moon of `ship`) the bot acts as. When set,
+  // outbound is authored as this moon and the host vouches for it; unset
+  // keeps the legacy behavior of acting as `ship` itself.
+  moon: ShipSchema.optional(),
+  // Display profile for the bot moon. Published to the host's contact profile
+  // (the `bots` convention field) on startup so peers resolve the bot's name
+  // and avatar without contacting the (non-running) moon.
+  moonNickname: z.string().optional(),
+  moonAvatar: z.string().optional(),
   network: TlonNetworkSchema.optional(),
   /** @deprecated Use `network.dangerouslyAllowPrivateNetwork`. Migrated by `openclaw doctor --fix`. */
   allowPrivateNetwork: z.boolean().optional(),

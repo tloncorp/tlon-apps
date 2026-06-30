@@ -46,26 +46,33 @@ const isMoonOf = (who: string, publisher: string): boolean => {
 // profile published by the moon's actual sponsor, so a ship can't spoof
 // profiles for moons it doesn't own. These let a non-running bot moon render by
 // name/avatar without us ever subscribing to it.
+// The `bots` convention field is a JSON map (moon-patp -> {nickname, avatar})
+// stored as text on a ship's profile. Decode it defensively.
+const readBotsField = (
+  profile: ub.ContactBookProfile | null | undefined
+): ub.BotProfilesField => {
+  const raw = profile?.bots?.value;
+  if (!raw) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const normalizeMoonId = (id: string): string =>
+  id.startsWith('~') ? id : `~${id}`;
+
 export const parseBotProfiles = (
   publisherId: string,
   profile: ub.ContactBookProfile
 ): db.Contact[] => {
-  const raw = profile.bots?.value;
-  if (!raw) {
-    return [];
-  }
-  let parsed: ub.BotProfilesField;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    logger.error('malformed bots field in contact profile', { publisherId });
-    return [];
-  }
-  if (!parsed || typeof parsed !== 'object') {
-    return [];
-  }
+  const parsed = readBotsField(profile);
   return Object.entries(parsed).flatMap(([rawId, p]): db.Contact[] => {
-    const botId = rawId.startsWith('~') ? rawId : `~${rawId}`;
+    const botId = normalizeMoonId(rawId);
     if (!isMoonOf(botId, publisherId)) {
       return [];
     }
@@ -89,6 +96,32 @@ export const parseBotProfiles = (
         isContactSuggestion: false,
       },
     ];
+  });
+};
+
+/**
+ * Register (or update) a bot moon in the current ship's published profile so
+ * peers can resolve the bot via the `bots` convention field (see
+ * parseBotProfiles). Reads the current profile first and merges, preserving
+ * sibling bots. Must be poked by the moon's host (the moon's sponsor).
+ */
+export const registerBotProfile = async (
+  moon: string,
+  profile: { nickname?: string | null; avatar?: string | null }
+) => {
+  const self = await scry<ub.ContactBookProfile>({
+    app: 'contacts',
+    path: '/v1/self',
+  });
+  const bots = readBotsField(self);
+  bots[normalizeMoonId(moon)] = {
+    nickname: profile.nickname ?? null,
+    avatar: profile.avatar ?? null,
+  };
+  return poke({
+    app: 'contacts',
+    mark: 'contact-action-1',
+    json: { self: { bots: { type: 'text', value: JSON.stringify(bots) } } },
   });
 };
 

@@ -1,5 +1,9 @@
 import type { Story } from '@tloncorp/api';
-import { configureGatewayStatus, gatewayStart } from '@tloncorp/api';
+import {
+  configureGatewayStatus,
+  gatewayStart,
+  registerBotProfile,
+} from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -393,7 +397,11 @@ export async function monitorTlonProvider(
   const accountUrl = account.url;
   const accountCode = account.code;
 
-  const botShipName = normalizeShip(account.ship);
+  // The host ship owns the connection (auth, pokes, scries). When a moon is
+  // configured the plugin runs on the host but the bot's *identity* is the
+  // moon — used for self-detection, @-mentions, and authorship.
+  const hostShipName = normalizeShip(account.ship);
+  const botShipName = account.moon ? normalizeShip(account.moon) : hostShipName;
   const tlonSkillVersion = await resolveTlonSkillVersion();
   let effectiveOwnerShip: string | null = account.ownerShip
     ? normalizeShip(account.ownerShip)
@@ -477,7 +485,7 @@ export async function monitorTlonProvider(
   try {
     cookie = await authenticateWithRetry();
     api = new UrbitSSEClient(account.url, cookie, {
-      ship: botShipName,
+      ship: hostShipName,
       ssrfPolicy,
       logger: {
         log: (message) => runtime.log?.(message),
@@ -497,7 +505,12 @@ export async function monitorTlonProvider(
   }
 
   // Configure @tloncorp/api's global client to use the SSE client's poke for all send operations
-  configureTlonApiWithPoke(api.poke.bind(api), botShipName, account.url);
+  configureTlonApiWithPoke(
+    api.poke.bind(api),
+    hostShipName,
+    account.url,
+    ({ app, path }) => api.scry(`/${app}${path}.json`)
+  );
 
   // Publish the SSE-bound poke + ship coords so other module contexts (e.g.
   // the gateway-status heartbeat) can configure their own @tloncorp/api
@@ -509,10 +522,30 @@ export async function monitorTlonProvider(
   // old monitor's abort fires, and we must not clobber the new params.
   const myApiClientParams = {
     poke: api.poke.bind(api),
-    shipName: botShipName,
+    shipName: hostShipName,
     shipUrl: accountUrl,
   };
   apiClientParamsSlot.set(myApiClientParams);
+
+  // When acting as a moon, publish its display profile into the host's own
+  // contact profile (the `bots` convention field) so peers resolve the bot's
+  // name/avatar without contacting the non-running moon. Idempotent: merges
+  // with any sibling bots already registered on the host.
+  if (account.moon) {
+    try {
+      await registerBotProfile(botShipName, {
+        nickname: account.moonNickname,
+        avatar: account.moonAvatar,
+      });
+      runtime.log?.(
+        `[tlon] Registered bot ${botShipName} on ${hostShipName}'s profile`
+      );
+    } catch (error: any) {
+      runtime.error?.(
+        `[tlon] Failed to register bot profile: ${error?.message ?? String(error)}`
+      );
+    }
+  }
 
   // gsManager is hoisted here (from its prior location at the
   // gateway-status activation block below) so cleanupGatewayStatus can
@@ -609,8 +642,11 @@ export async function monitorTlonProvider(
     let botAvatar: string | null = null;
 
     // Helper to get bot profile for outbound messages
+    // As a moon, always emit a bot-meta object (even if empty) so posts are
+    // flagged as a bot and the display resolves from the host's published bot
+    // profile; the moon @p alone would render as a plain ship.
     const getBotProfile = (): BotProfile | undefined =>
-      botNickname || botAvatar
+      account.moon || botNickname || botAvatar
         ? { nickname: botNickname || '', avatar: botAvatar || '' }
         : undefined;
 
@@ -782,8 +818,11 @@ export async function monitorTlonProvider(
           nickname?: { value?: string };
           avatar?: { value?: string };
         };
-        botNickname = profile.nickname?.value || null;
-        botAvatar = profile.avatar?.value || null;
+        // The self-profile belongs to the host. Only adopt it as the bot's
+        // display identity when acting as the host itself; as a moon, the
+        // bot's name/avatar come from the host's published bot profile.
+        botNickname = account.moon ? null : profile.nickname?.value || null;
+        botAvatar = account.moon ? null : profile.avatar?.value || null;
         if (botNickname) {
           runtime.log?.(`[tlon] Bot nickname: ${botNickname}`);
           nicknameCache.set(botShipName, sanitizeNickname(botNickname));
@@ -1947,7 +1986,7 @@ export async function monitorTlonProvider(
         }
         return (
           parsed.hostShip === effectiveOwnerShip ||
-          parsed.hostShip === botShipName
+          parsed.hostShip === hostShipName
         );
       },
       getOwnerListenGlobal() {
@@ -3478,7 +3517,7 @@ export async function monitorTlonProvider(
           isOwner(senderShip) &&
           parsedDispatchNest &&
           (parsedDispatchNest.hostShip === effectiveOwnerShip ||
-            parsedDispatchNest.hostShip === botShipName)
+            parsedDispatchNest.hostShip === hostShipName)
         ) {
           const args = rawText
             .trim()

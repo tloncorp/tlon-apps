@@ -1,11 +1,18 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
+
+vi.mock('../client/urbit', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../client/urbit')>();
+  return { ...actual, scry: vi.fn(), poke: vi.fn() };
+});
 
 import {
   directoryToClientProfiles,
   parseBotProfiles,
+  registerBotProfile,
   v0PeerToClientProfile,
   v0PeersToClientProfiles,
 } from '../client/contactsApi';
+import { poke, scry } from '../client/urbit';
 import type { ContactBookProfile, ContactFieldText } from '../urbit/contact';
 
 // ~doznec-sampel-palnet is a real moon sponsored by ~sampel-palnet.
@@ -14,6 +21,35 @@ const MOON = '~doznec-sampel-palnet';
 
 const withBots = (json: string): ContactBookProfile => ({
   bots: { type: 'text', value: json } as ContactFieldText,
+});
+
+test('registerBotProfile merges the moon into the host bots field, preserving siblings', async () => {
+  vi.mocked(scry).mockResolvedValue({
+    nickname: { type: 'text', value: 'Host' },
+    bots: {
+      type: 'text',
+      value: JSON.stringify({
+        '~marzod-sampel-palnet': { nickname: 'Sibling', avatar: null },
+      }),
+    },
+  } as ContactBookProfile);
+  vi.mocked(poke).mockResolvedValue(undefined as never);
+
+  await registerBotProfile(MOON, { nickname: 'Helper', avatar: 'http://x/a' });
+
+  expect(poke).toHaveBeenCalledTimes(1);
+  const arg = vi.mocked(poke).mock.calls[0][0] as {
+    app: string;
+    mark: string;
+    json: { self: { bots: { type: string; value: string } } };
+  };
+  expect(arg).toMatchObject({ app: 'contacts', mark: 'contact-action-1' });
+  expect(JSON.parse(arg.json.self.bots.value)).toEqual({
+    // sibling bot preserved
+    '~marzod-sampel-palnet': { nickname: 'Sibling', avatar: null },
+    // our moon added
+    [MOON]: { nickname: 'Helper', avatar: 'http://x/a' },
+  });
 });
 
 const inputContact: [string, any] = [
