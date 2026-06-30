@@ -17,6 +17,7 @@ import {
   selectNotesImportSources,
 } from './notesImport';
 import type { NotesImportSource } from './notesImport';
+import { trackNotesActionError } from './notesTelemetry';
 
 export function useNotesImportController({
   canDropImportNotes,
@@ -157,7 +158,11 @@ export function useNotesImportController({
           notebookFlag
         );
       } catch (e) {
-        setError(errorMessage(e, 'Failed to import notes'));
+        const message = errorMessage(e, 'Failed to import notes');
+        trackNotesActionError('import notes', e, message, {
+          targetRootFolderId,
+        });
+        setError(message);
       } finally {
         setIsImportingNotes(false);
       }
