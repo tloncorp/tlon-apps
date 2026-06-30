@@ -38,6 +38,8 @@ dump.sqlite3
 .gitattributes
 clurd
 .obsidian
+# From .serena/.gitignore
+/.serena/cache
 # From apps/tlon-desktop/.gitignore
 /apps/tlon-desktop/build/
 /apps/tlon-desktop/dist/
