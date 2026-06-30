@@ -54,6 +54,7 @@ import {
 import { NotesNoteDetail } from './NotesNoteDetail';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
+import { trackNotesActionError } from './notesTelemetry';
 import {
   type FolderRow,
   buildFolderContentsRows,
@@ -302,7 +303,9 @@ export function NotesNativeChannel({
       try {
         await action();
       } catch (e) {
-        setError(errorMessage(e, fallback));
+        const message = errorMessage(e, fallback);
+        trackNotesActionError(fallback, e, message);
+        setError(message);
       }
     }
   );
@@ -494,7 +497,12 @@ export function NotesNativeChannel({
             duration: 2000,
           });
         } catch (e) {
-          setError(errorMessage(e, 'Published note, but failed to copy link'));
+          const message = errorMessage(
+            e,
+            'Published note, but failed to copy link'
+          );
+          trackNotesActionError('copy published note link', e, message);
+          setError(message);
         }
       }
     } finally {
