@@ -2,8 +2,10 @@
 
 Private workspace package for shared Tlon bot E2E infrastructure.
 
-Milestone 2 adds the minimal shared Docker runtime for the Hermes smoke subset.
-OpenClaw scenario migration and the full shared scenario DSL remain later work.
+The shared runner starts a driver-specific Docker runtime for Hermes or
+OpenClaw, then runs common scenarios through the shared scenario DSL and
+`ScenarioActors` abstraction. Package-specific suites remain available for
+driver divergences.
 
 ## Local Env Files
 
@@ -49,18 +51,52 @@ PORT=4000 node packages/tlon-bot-e2e/src/fake-model/server.mjs
 
 OpenClaw's current container-visible server path remains `packages/openclaw/test/support/fake-model/server.mjs` for Milestone 1.
 
-## Hermes Smoke Runtime
+## Shared Common Runtime
 
-Run the Hermes-only shared smoke harness with:
+Run the baseline common scenarios with:
 
 ```bash
 pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes
+pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:openclaw
 ```
 
 The runner allocates host ports by default, renders a unique compose project
-name, scrubs ambient compose env, starts shared `ships` and `fake-model`
-services, and then starts the Hermes `hermes-tlon` service through the Hermes
-driver.
+name per capability partition, scrubs ambient compose env, starts shared
+`ships` and `fake-model` services, then starts the selected bot service through
+the driver.
+
+Current common baseline scenarios are:
+
+- owner DM text reply
+- owner DM `tlon` tool call followed by final assistant text
+- unauthorized third-party DM produces no fake-model call and no direct reply
+- allowlisted third-party DM receives a reply
+- owner DM still works when channel owner-listen is disabled
+
+Common scenarios default to the `baseline` partition. Future media, image, and
+storage scenarios should declare capabilities and run only through matching
+partitions:
+
+```bash
+TLON_BOT_E2E_SCENARIO_PARTITIONS=all pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes
+```
+
+## Package-Specific Suites
+
+Run driver-specific scenarios separately with:
+
+```bash
+pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:hermes:package
+pnpm --filter @tloncorp/tlon-bot-e2e test:e2e:openclaw:package
+```
+
+OpenClaw package-specific runs still execute package Vitest files one process at
+a time. Additional OpenClaw file paths can be passed after `--`.
+
+## Hermes Runtime Details
+
+The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`.
+It writes a fresh `$HERMES_HOME/config.yaml` with:
 
 The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`.
 It writes a fresh `$HERMES_HOME/config.yaml` with:
@@ -78,12 +114,6 @@ pairing and deterministic fakezod access codes. Startup logs include artifact
 URLs, cache hit/miss state, byte sizes, and checksum results. The rube archive
 checks use the MD5 ETags exposed by `bootstrap.urbit.org`; the Vere archive uses
 a checked SHA-256.
-
-Current M2 smoke scenarios are:
-
--   owner DM text reply
--   streamed `tlon` tool call followed by final assistant text
--   unauthorized DM sender produces no fake-model call and no direct reply
 
 ## Unit Tests
 

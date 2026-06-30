@@ -15,6 +15,11 @@ import {
 } from '../runtime/env.js';
 import { allocatePort, allocateRuntimeEndpoints } from '../runtime/ports.js';
 import { waitForHttpOk, waitForShipLogin } from '../runtime/waiters.js';
+import { commonScenarios } from '../scenarios/shared/common.js';
+import {
+  selectScenarioPartitions,
+  type ScenarioPartition,
+} from '../scenarios/shared/dsl.js';
 
 const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -27,15 +32,56 @@ async function main(): Promise<void> {
   const repoRoot = path.resolve(
     process.env.TLON_BOT_E2E_REPO_ROOT ?? path.join(packageDir, '../..')
   );
-  const runId = sanitizeRunId(
+  const baseRunId = sanitizeRunId(
     process.env.TLON_BOT_E2E_RUN_ID ?? `${Date.now().toString(36)}-${randomId()}`
   );
+  const suite = parseSuiteRequest(process.argv.slice(2));
+  const keepStack = flag(process.env.TLON_BOT_E2E_KEEP_STACK);
+
+  if (suite.kind === 'common' || suite.kind === 'all') {
+    const partitions = selectScenarioPartitions(commonScenarios, {
+      requested: process.env.TLON_BOT_E2E_SCENARIO_PARTITIONS,
+      driverName: driver.name,
+    });
+    for (const partition of partitions) {
+      await runDriverRuntime({
+        driver,
+        repoRoot,
+        runId: runIdWithSuffix(baseRunId, partition.key),
+        keepStack,
+        partition,
+        runTests: async (ctx) => runCommonScenarioPartition(ctx, partition),
+      });
+    }
+  }
+
+  if (suite.kind === 'package' || suite.kind === 'all') {
+    await runDriverRuntime({
+      driver,
+      repoRoot,
+      runId: runIdWithSuffix(baseRunId, 'package'),
+      keepStack,
+      runTests: async (ctx) => runPackageSpecificTests(ctx, suite.args),
+    });
+  }
+
+  console.log(`${driver.name} shared E2E completed (${suite.kind}).`);
+}
+
+async function runDriverRuntime(args: {
+  driver: BotDriver;
+  repoRoot: string;
+  runId: string;
+  keepStack: boolean;
+  partition?: ScenarioPartition;
+  runTests(ctx: RuntimeContext): Promise<void>;
+}): Promise<void> {
   const endpoints = await allocateRuntimeEndpoints({
     fakeModel: parsePort(process.env.FAKE_MODEL_PORT),
     zod: parsePort(process.env.ZOD_PORT),
     ten: parsePort(process.env.TEN_PORT),
     mug: parsePort(process.env.MUG_PORT),
-    ...(driver.name === 'openclaw'
+    ...(args.driver.name === 'openclaw'
       ? {
           gateway:
             parsePort(process.env.OPENCLAW_GATEWAY_PORT) ??
@@ -45,57 +91,64 @@ async function main(): Promise<void> {
   });
 
   const seed: RuntimeSeed = {
-    driverName: driver.name,
-    repoRoot,
-    runId,
+    driverName: args.driver.name,
+    repoRoot: args.repoRoot,
+    runId: args.runId,
     endpoints,
+    ...(args.partition
+      ? {
+          capabilityPartition: {
+            key: args.partition.key,
+            capabilities: args.partition.capabilities,
+          },
+        }
+      : {}),
   };
-  const ctx = createRuntimeContext(seed, driver.resolveRuntime(seed));
+  const ctx = createRuntimeContext(seed, args.driver.resolveRuntime(seed));
   const compose = createComposeHandle(ctx);
-  const keepStack = flag(process.env.TLON_BOT_E2E_KEEP_STACK);
 
   logEndpointTable(ctx);
+  if (args.partition) {
+    console.log(
+      `    scenario partition: ${args.partition.key} ` +
+        `capabilities=${JSON.stringify(args.partition.capabilities)}`
+    );
+  }
 
-  let failed = false;
   try {
-    await driver.beforeComposeBuild?.(ctx);
+    await args.driver.beforeComposeBuild?.(ctx);
     await compose.down();
     await compose.build([ctx.services.bot]);
-    await driver.beforeComposeUp?.(ctx, compose);
+    await args.driver.beforeComposeUp?.(ctx, compose);
     await compose.up();
     await waitForBaseServices(ctx);
-    await driver.waitReady(ctx, compose);
-    await driver.assertRuntimeConfig?.(ctx, compose);
-    await runDriverTests(ctx, process.argv.slice(2));
+    await args.driver.waitReady(ctx, compose);
+    await args.driver.assertRuntimeConfig?.(ctx, compose);
+    await args.runTests(ctx);
     if (flag(process.env.DUMP_LOGS)) {
-      const diagnostics = await driver.collectDiagnostics?.(ctx, compose);
+      const diagnostics = await args.driver.collectDiagnostics?.(ctx, compose);
       if (diagnostics) {
         console.error('\n==> Runtime diagnostics\n');
         console.error(diagnostics);
       }
     }
   } catch (error) {
-    failed = true;
-    console.error(error instanceof Error ? error.stack ?? error.message : error);
-    const diagnostics = await driver
+    const diagnostics = await args.driver
       .collectDiagnostics?.(ctx, compose)
       .catch((diagError) => `diagnostic collection failed: ${diagError}`);
     if (diagnostics) {
       console.error('\n==> Runtime diagnostics\n');
       console.error(diagnostics);
     }
-    process.exitCode = 1;
+    throw error;
   } finally {
-    if (!keepStack) {
+    if (!args.keepStack) {
       await compose.down();
-      await driver.afterComposeDown?.(ctx);
+      await args.driver.afterComposeDown?.(ctx);
     } else {
       console.error(
         `Keeping compose stack ${ctx.composeProjectName} because TLON_BOT_E2E_KEEP_STACK is set.`
       );
-    }
-    if (!failed) {
-      console.log(`${driver.name} shared E2E completed.`);
     }
   }
 }
@@ -144,7 +197,7 @@ async function waitForBaseServices(ctx: RuntimeContext) {
   }
 }
 
-async function runDriverTests(
+async function runPackageSpecificTests(
   ctx: RuntimeContext,
   rawArgs: string[]
 ): Promise<void> {
@@ -194,6 +247,48 @@ async function runHermesSmoke(ctx: RuntimeContext): Promise<void> {
   );
   if (result.exitCode !== 0) {
     throw new Error(`Hermes smoke vitest failed with exit ${result.exitCode}`);
+  }
+}
+
+async function runCommonScenarioPartition(
+  ctx: RuntimeContext,
+  partition: ScenarioPartition
+): Promise<void> {
+  const contextFile = await writeRuntimeContextFile(ctx);
+  const env = buildComposeProcessEnv({
+    projectName: ctx.composeProjectName,
+    explicitEnv: {
+      ...ctx.testEnv,
+      TLON_BOT_E2E_RUNTIME_CONTEXT_FILE: contextFile,
+      TLON_BOT_E2E_SCENARIO_PARTITION: partition.key,
+      TLON_BOT_E2E_SCENARIO_CAPABILITIES: JSON.stringify(
+        partition.capabilities
+      ),
+    },
+  });
+
+  console.log('');
+  console.log(
+    `==> Running common ${ctx.driverName} scenarios (${partition.key})...`
+  );
+  console.log('');
+
+  const result = await runCommand(
+    'pnpm',
+    [
+      'exec',
+      'vitest',
+      'run',
+      '--config',
+      'vitest.e2e.config.ts',
+      'src/scenarios/common.test.ts',
+    ],
+    { cwd: path.join(ctx.repoRoot, 'packages/tlon-bot-e2e'), env }
+  );
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Common scenario vitest failed with exit ${result.exitCode}`
+    );
   }
 }
 
@@ -321,6 +416,38 @@ function randomId(): string {
 
 function sanitizeRunId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 32);
+}
+
+type SuiteKind = 'common' | 'package' | 'all';
+
+interface SuiteRequest {
+  kind: SuiteKind;
+  args: string[];
+}
+
+function parseSuiteRequest(rawArgs: string[]): SuiteRequest {
+  const args = rawArgs[0] === '--' ? rawArgs.slice(1) : [...rawArgs];
+  let kind = parseSuiteKind(process.env.TLON_BOT_E2E_SUITE ?? 'common');
+  const first = args[0];
+  if (first === '--common' || first === '--package' || first === '--all') {
+    kind = parseSuiteKind(first.slice(2));
+    args.shift();
+    if (args[0] === '--') {
+      args.shift();
+    }
+  }
+  return { kind, args };
+}
+
+function parseSuiteKind(raw: string): SuiteKind {
+  if (raw === 'common' || raw === 'package' || raw === 'all') {
+    return raw;
+  }
+  throw new Error(`Unsupported TLON_BOT_E2E_SUITE: ${raw}`);
+}
+
+function runIdWithSuffix(baseRunId: string, suffix: string): string {
+  return sanitizeRunId(`${baseRunId}-${suffix}`);
 }
 
 function flag(value: string | undefined): boolean {

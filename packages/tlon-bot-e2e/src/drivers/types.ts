@@ -2,6 +2,17 @@ import type { FakeModelClient, Step } from '../fake-model/index.js';
 
 export type DriverName = 'hermes' | 'openclaw';
 
+export type RuntimeCapability =
+  | 'image_search'
+  | 'upload_storage'
+  | 'media_blob'
+  | 'external_credentials';
+
+export interface RuntimeCapabilityPartition {
+  key: string;
+  capabilities: readonly RuntimeCapability[];
+}
+
 export interface ShipEndpoint {
   ship: string;
   code: string;
@@ -34,6 +45,7 @@ export interface RuntimeSeed {
   repoRoot: string;
   runId: string;
   endpoints: RuntimeEndpoints;
+  capabilityPartition?: RuntimeCapabilityPartition;
 }
 
 export interface DriverServices {

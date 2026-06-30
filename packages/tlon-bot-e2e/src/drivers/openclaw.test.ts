@@ -61,6 +61,15 @@ describe('OpenClaw driver runtime spec', () => {
       TLON_DM_ALLOWLIST: '~ten',
       FAKE_MODEL_BASE_URL: 'http://fake-model:4000/v1',
       MODEL: 'custom-proxy/tlon-test-scripted',
+      OPENCLAW_TEST_TOOLS_ALLOW_JSON: JSON.stringify([
+        'web_fetch',
+        'web_search',
+        'image_search',
+        'read',
+        'cron',
+        'tlon',
+        'message',
+      ]),
       TLON_NUDGE_TICK_INTERVAL_MS: '5000',
     });
     expect(ctx.composeEnv.BRAVE_API_KEY).toBeUndefined();
@@ -106,6 +115,88 @@ describe('OpenClaw driver runtime spec', () => {
       TEST_STORAGE_REGION: 'auto',
       TEST_LIVE_TOOL_TRACE: '1',
       TEST_LIVE_TOOL_TRACE_CONTENTS: '1',
+    });
+  });
+
+  test('suppresses optional external inputs for baseline common partitions', async () => {
+    clearOptionalEnv();
+    setEnv('BRAVE_API_KEY', 'brave-test');
+    setEnv('TLONBOT_TOKEN', 'github-test');
+    setEnv('TEST_STORAGE_BUCKET', 'bucket-test');
+    setEnv('TEST_STORAGE_ENDPOINT', 'https://storage.example');
+
+    const seed = await createSeed(path.resolve('/repo'));
+    seed.capabilityPartition = { key: 'baseline', capabilities: [] };
+    const ctx = createRuntimeContext(seed, openclawDriver.resolveRuntime(seed));
+
+    expect(JSON.parse(ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON)).toEqual([
+      'tlon',
+      'message',
+    ]);
+    expect(ctx.composeEnv.BRAVE_API_KEY).toBeUndefined();
+    expect(ctx.composeEnv.TLONBOT_TOKEN).toBeUndefined();
+    expect(ctx.testEnv.TEST_STORAGE_BUCKET).toBeUndefined();
+    expect(ctx.testEnv.TEST_STORAGE_ENDPOINT).toBeUndefined();
+  });
+
+  test('adds capability tools only for matching common partitions', async () => {
+    clearOptionalEnv();
+    setEnv('BRAVE_API_KEY', 'brave-test');
+
+    const seed = await createSeed(path.resolve('/repo'));
+    seed.capabilityPartition = {
+      key: 'image_search',
+      capabilities: ['image_search'],
+    };
+    const ctx = createRuntimeContext(seed, openclawDriver.resolveRuntime(seed));
+
+    expect(JSON.parse(ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON)).toEqual([
+      'tlon',
+      'message',
+      'image_search',
+    ]);
+    expect(ctx.composeEnv.BRAVE_API_KEY).toBe('brave-test');
+  });
+
+  test('model adapter returns script objects with options and expectations', () => {
+    expect(
+      openclawDriver.model.sendMessage({
+        target: '~ten',
+        message: 'hello',
+      })
+    ).toMatchObject({
+      steps: [
+        {
+          kind: 'tool_call',
+          name: 'message',
+          args: { action: 'send', target: '~ten', message: 'hello' },
+        },
+        { kind: 'text', content: 'Done' },
+      ],
+      options: { allowExtraCalls: 1 },
+      expectations: {
+        advertisedTools: { exact: ['message', 'tlon'] },
+        expectedCallCount: 2,
+      },
+    });
+
+    expect(openclawDriver.model.readOrAdmin('version', 'done')).toMatchObject({
+      steps: [
+        { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
+        { kind: 'text', content: 'done' },
+      ],
+      options: { allowExtraCalls: 1 },
+      expectations: {
+        advertisedTools: { exact: ['message', 'tlon'] },
+        expectedCallCount: 2,
+      },
+    });
+
+    expect(openclawDriver.model.imageSearch('cats')).toMatchObject({
+      expectations: {
+        advertisedTools: { include: ['image_search'] },
+        expectedCallCount: 1,
+      },
     });
   });
 });

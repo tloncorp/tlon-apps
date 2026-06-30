@@ -5,6 +5,7 @@ import type {
   BotDriver,
   ComposeHandle,
   DriverRuntimeSpec,
+  RuntimeCapability,
   RuntimeContext,
   RuntimeSeed,
 } from './types.js';
@@ -30,6 +31,16 @@ const FORBIDDEN_CONTAINER_ENV = [
   'MCP_API_KEY',
   'MCP_CONFIG',
 ];
+const LEGACY_OPENCLAW_TOOLS = [
+  'web_fetch',
+  'web_search',
+  'image_search',
+  'read',
+  'cron',
+  'tlon',
+  'message',
+] as const;
+const BASELINE_OPENCLAW_TOOLS = ['tlon', 'message'] as const;
 
 export const openclawDriver: BotDriver = {
   name: 'openclaw',
@@ -86,6 +97,9 @@ export const openclawDriver: BotDriver = {
         TLON_DM_ALLOWLIST: seed.endpoints.ships.ten.ship,
         FAKE_MODEL_BASE_URL: seed.endpoints.fakeModel.containerOpenAiBaseUrl,
         MODEL: 'custom-proxy/tlon-test-scripted',
+        OPENCLAW_TEST_TOOLS_ALLOW_JSON: JSON.stringify(
+          openClawToolsForPartition(seed)
+        ),
         TLON_NUDGE_TICK_INTERVAL_MS: '5000',
         TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
         TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
@@ -96,7 +110,7 @@ export const openclawDriver: BotDriver = {
         ...(process.env.FAKE_SHIP_CACHE_DIR
           ? { FAKE_SHIP_CACHE_DIR: process.env.FAKE_SHIP_CACHE_DIR }
           : {}),
-        ...pickNonEmptyEnv(OPTIONAL_COMPOSE_ENV_KEYS),
+        ...pickOptionalEnvForPartition(seed, OPTIONAL_COMPOSE_ENV_KEYS),
       },
       testEnv: {
         TLON_BOT_E2E_DRIVER: 'openclaw',
@@ -115,7 +129,7 @@ export const openclawDriver: BotDriver = {
         TEST_LIVE_TOOL_TRACE: liveToolTrace ?? '0',
         TEST_LIVE_TOOL_TRACE_CONTENTS: liveToolTraceContents ?? '0',
         ...(localTlonbot ? { TEST_TLONBOT_MOUNTED: '1' } : {}),
-        ...pickNonEmptyEnv(OPTIONAL_TEST_ENV_KEYS),
+        ...pickOptionalEnvForPartition(seed, OPTIONAL_TEST_ENV_KEYS),
       },
     };
   },
@@ -145,7 +159,7 @@ export const openclawDriver: BotDriver = {
       return {
         steps: [{ kind: 'text', content: text }],
         expectations: {
-          advertisedTools: { include: ['message'] },
+          advertisedTools: { exact: ['message', 'tlon'] },
           expectedCallCount: 1,
         },
       };
@@ -165,8 +179,10 @@ export const openclawDriver: BotDriver = {
           },
           { kind: 'text', content: 'Done' },
         ],
+        options: { allowExtraCalls: 1 },
         expectations: {
-          advertisedTools: { include: ['message'] },
+          advertisedTools: { exact: ['message', 'tlon'] },
+          expectedCallCount: 2,
         },
       };
     },
@@ -177,8 +193,10 @@ export const openclawDriver: BotDriver = {
           { kind: 'tool_call', name: 'tlon', args: { command } },
           { kind: 'text', content: finalText },
         ],
+        options: { allowExtraCalls: 1 },
         expectations: {
-          advertisedTools: { include: ['tlon'] },
+          advertisedTools: { exact: ['message', 'tlon'] },
+          expectedCallCount: 2,
         },
       };
     },
@@ -188,6 +206,7 @@ export const openclawDriver: BotDriver = {
         steps: [{ kind: 'tool_call', name: 'image_search', args: { query } }],
         expectations: {
           advertisedTools: { include: ['image_search'] },
+          expectedCallCount: 1,
         },
       };
     },
@@ -276,6 +295,7 @@ async function assertOpenClawConfig(
         reengagement?: { enabled?: boolean };
       };
     };
+    tools?: { allow?: string[] };
   };
 
   const failures: string[] = [];
@@ -315,6 +335,11 @@ async function assertOpenClawConfig(
   expectConfig(
     channel?.reengagement?.enabled === true,
     'reengagement must be enabled for heartbeat coverage'
+  );
+  expectConfig(
+    JSON.stringify(config.tools?.allow ?? []) ===
+      ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON,
+    `tools.allow must match ${ctx.composeEnv.OPENCLAW_TEST_TOOLS_ALLOW_JSON}`
   );
 
   if (failures.length > 0) {
@@ -440,4 +465,60 @@ function pickNonEmptyEnv(keys: readonly string[]): Record<string, string> {
     }
   }
   return picked;
+}
+
+function pickOptionalEnvForPartition(
+  seed: RuntimeSeed,
+  keys: readonly string[]
+): Record<string, string> {
+  if (!seed.capabilityPartition) {
+    return pickNonEmptyEnv(keys);
+  }
+  const capabilities = new Set(seed.capabilityPartition.capabilities);
+  const allowedKeys = keys.filter((key) =>
+    optionalEnvAllowedForCapabilities(key, capabilities)
+  );
+  return pickNonEmptyEnv(allowedKeys);
+}
+
+function openClawToolsForPartition(seed: RuntimeSeed): string[] {
+  if (!seed.capabilityPartition) {
+    return [...LEGACY_OPENCLAW_TOOLS];
+  }
+  const tools = new Set<string>(BASELINE_OPENCLAW_TOOLS);
+  for (const capability of seed.capabilityPartition.capabilities) {
+    for (const tool of openClawToolsForCapability(capability)) {
+      tools.add(tool);
+    }
+  }
+  return [...tools];
+}
+
+function openClawToolsForCapability(
+  capability: RuntimeCapability
+): readonly string[] {
+  if (capability === 'image_search') {
+    return ['image_search'];
+  }
+  return [];
+}
+
+function optionalEnvAllowedForCapabilities(
+  key: string,
+  capabilities: ReadonlySet<RuntimeCapability>
+): boolean {
+  if (key === 'BRAVE_API_KEY') {
+    return capabilities.has('image_search');
+  }
+  if (key === 'TLONBOT_TOKEN') {
+    return (
+      capabilities.has('external_credentials') ||
+      capabilities.has('media_blob') ||
+      capabilities.has('upload_storage')
+    );
+  }
+  if (key.startsWith('TEST_STORAGE_')) {
+    return capabilities.has('upload_storage') || capabilities.has('media_blob');
+  }
+  return true;
 }

@@ -56,4 +56,36 @@ describe('Hermes driver runtime spec', () => {
       FAKE_MODEL_BASE_URL: 'http://127.0.0.1:4100',
     });
   });
+
+  test('model adapter returns script objects with baseline tool expectations', () => {
+    expect(hermesDriver.model.replyText('hello')).toMatchObject({
+      steps: [{ kind: 'text', content: 'hello' }],
+      expectations: {
+        advertisedTools: { exact: ['tlon'] },
+        expectedCallCount: 1,
+      },
+    });
+
+    expect(hermesDriver.model.readOrAdmin('version', 'done')).toMatchObject({
+      steps: [
+        { kind: 'tool_call', name: 'tlon', args: { command: 'version' } },
+        { kind: 'text', content: 'done' },
+      ],
+      expectations: {
+        advertisedTools: { exact: ['tlon'] },
+        expectedCallCount: 2,
+        streamedToolLoop: true,
+      },
+    });
+
+    expect(
+      hermesDriver.model.sendMessage({ target: '~ten', message: 'hello' })
+    ).toMatchObject({
+      options: { allowExtraCalls: 1 },
+      expectations: {
+        advertisedTools: { exact: ['tlon'] },
+        expectedCallCount: 1,
+      },
+    });
+  });
 });

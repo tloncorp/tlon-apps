@@ -123,8 +123,9 @@ export const hermesDriver: BotDriver = {
     replyText(text) {
       return {
         steps: [{ kind: 'text', content: text }],
+        options: { allowExtraCalls: 1 },
         expectations: {
-          advertisedTools: { include: ['tlon'], exclude: ['image_search'] },
+          advertisedTools: { exact: ['tlon'] },
           expectedCallCount: 1,
         },
       };
@@ -141,8 +142,10 @@ export const hermesDriver: BotDriver = {
             },
           },
         ],
+        options: { allowExtraCalls: 1 },
         expectations: {
-          advertisedTools: { include: ['tlon'], exclude: ['image_search'] },
+          advertisedTools: { exact: ['tlon'] },
+          expectedCallCount: 1,
         },
       };
     },
@@ -153,8 +156,9 @@ export const hermesDriver: BotDriver = {
           { kind: 'tool_call', name: 'tlon', args: { command } },
           { kind: 'text', content: finalText },
         ],
+        options: { allowExtraCalls: 1 },
         expectations: {
-          advertisedTools: { include: ['tlon'], exclude: ['image_search'] },
+          advertisedTools: { exact: ['tlon'] },
           expectedCallCount: 2,
           expectedCallSequence: [
             { kind: 'model_request' },
@@ -171,6 +175,7 @@ export const hermesDriver: BotDriver = {
         steps: [{ kind: 'tool_call', name: 'image_search', args: { query } }],
         expectations: {
           advertisedTools: { include: ['image_search'] },
+          expectedCallCount: 1,
         },
       };
     },
