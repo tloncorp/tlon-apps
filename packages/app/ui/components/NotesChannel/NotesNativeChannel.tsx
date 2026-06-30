@@ -336,7 +336,6 @@ export function NotesNativeChannel({
   } = useNotesImportController({
     canDropImportNotes,
     canEdit,
-    expandFolder,
     folders,
     notebookFlag,
     notes,
