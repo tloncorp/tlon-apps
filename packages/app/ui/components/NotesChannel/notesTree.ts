@@ -2,6 +2,12 @@ import { makePrettyShortDate } from '@tloncorp/api/lib/utils';
 import * as db from '@tloncorp/shared/db';
 
 export type FolderRow = { folder: db.NotesFolder; depth: number; path: string };
+export type FolderDestinationRow = {
+  folder: db.NotesFolder;
+  label: string;
+  displayPath: string;
+  isRoot: boolean;
+};
 export type NotesTreeRow =
   | {
       type: 'folder';
@@ -208,6 +214,27 @@ export function getFolderPath(
       (row) => row.folder.folderId === folderId
     )?.path ?? null
   );
+}
+
+export function buildFolderDestinationRows({
+  folderRows,
+  hiddenFolderIds,
+}: {
+  folderRows: FolderRow[];
+  hiddenFolderIds?: Set<number>;
+}): FolderDestinationRow[] {
+  return folderRows
+    .filter((row) => !hiddenFolderIds?.has(row.folder.folderId))
+    .map((row) => {
+      const label = getFolderLabel(row.folder);
+      const isRoot = row.folder.name === '/';
+      return {
+        folder: row.folder,
+        label,
+        displayPath: isRoot ? label : row.path.replace(/^Root \/ /, ''),
+        isRoot,
+      };
+    });
 }
 
 export function buildNotesTreeRows({

@@ -7,18 +7,30 @@ import {
   useSyncNotesNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, Icon, LoadingSpinner, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import {
+  Button,
+  Icon,
+  IconType,
+  LoadingSpinner,
+  Pressable,
+  Text,
+  useIsWindowNarrow,
+} from '@tloncorp/ui';
+import Fuse from 'fuse.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { Alert, Platform } from 'react-native';
-import { ScrollView, XStack, YStack } from 'tamagui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, XStack, YStack, getTokenValue } from 'tamagui';
 
 import type { ActionGroup } from '../ActionSheet';
 import { ActionSheet } from '../ActionSheet';
+import { TextInput } from '../Form';
+import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { ScreenHeader } from '../ScreenHeader';
-import type { FolderRow } from './notesTree';
-import { getFolderLabel } from './notesTree';
+import type { FolderDestinationRow, FolderRow } from './notesTree';
+import { buildFolderDestinationRows, getFolderLabel } from './notesTree';
 
 export function NotesOverflowMenu({
   groups,
@@ -59,15 +71,36 @@ export function NotesOverflowMenu({
 
 export function NotesActionMenu({
   groups,
+  header,
+  onAction,
   open,
   onOpenChange,
   trigger,
 }: {
   groups: ActionGroup[];
+  header?: {
+    icon: IconType;
+    subtitle?: string;
+    title: string;
+  };
+  onAction?: (action?: () => void) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   trigger: ReactNode;
 }) {
+  const isWindowNarrow = useIsWindowNarrow();
+  const handleAction = useCallback(
+    (action?: () => void) => {
+      if (onAction) {
+        onAction(action);
+      } else {
+        onOpenChange(false);
+        action?.();
+      }
+    },
+    [onAction, onOpenChange]
+  );
+
   return (
     <ActionSheet
       open={open}
@@ -77,11 +110,21 @@ export function NotesActionMenu({
       snapPointsMode="fit"
       trigger={trigger}
     >
+      {header && isWindowNarrow ? (
+        <ActionSheet.Header>
+          <ListItem.SystemIcon icon={header.icon} />
+          <ActionSheet.ActionContent>
+            <ListItem.Title>{header.title}</ListItem.Title>
+            {header.subtitle ? (
+              <ListItem.Subtitle $gtSm={{ maxWidth: '100%' }}>
+                {header.subtitle}
+              </ListItem.Subtitle>
+            ) : null}
+          </ActionSheet.ActionContent>
+        </ActionSheet.Header>
+      ) : null}
       <ActionSheet.Content>
-        <NotesActionGroupList
-          groups={groups}
-          onClose={() => onOpenChange(false)}
-        />
+        <NotesActionGroupList groups={groups} onAction={handleAction} />
       </ActionSheet.Content>
     </ActionSheet>
   );
@@ -89,10 +132,10 @@ export function NotesActionMenu({
 
 export function NotesActionGroupList({
   groups,
-  onClose,
+  onAction,
 }: {
   groups: ActionGroup[];
-  onClose: () => void;
+  onAction: (action?: () => void) => void;
 }) {
   return groups.map((group, index) => (
     <ActionSheet.ActionGroup key={index} accent={group.accent}>
@@ -102,8 +145,7 @@ export function NotesActionGroupList({
           action={{
             ...action,
             action: () => {
-              onClose();
-              action.action?.();
+              onAction(action.action);
             },
           }}
           testID={action.testID}
@@ -115,6 +157,7 @@ export function NotesActionGroupList({
 
 const EMPTY_FOLDERS: db.NotesFolder[] = [];
 const EMPTY_NOTES: db.NotesNote[] = [];
+const MOVE_DESTINATION_SHEET_SNAP_POINTS = [85];
 
 export function errorMessage(e: unknown, fallback: string) {
   return e instanceof Error ? e.message : fallback;
@@ -221,6 +264,7 @@ export function NotesDialog({
   subtitle,
   testID,
   title,
+  unmountOnClose = false,
 }: {
   cancelDisabled?: boolean;
   children: ReactNode;
@@ -231,6 +275,7 @@ export function NotesDialog({
   subtitle?: string;
   testID?: string;
   title: string;
+  unmountOnClose?: boolean;
 }) {
   const isWeb = Platform.OS === 'web';
   return (
@@ -242,6 +287,7 @@ export function NotesDialog({
       modal
       snapPointsMode="fit"
       keyboardBehavior={keyboardBehavior}
+      unmountOnClose={unmountOnClose}
       dialogContentProps={{ width: 420, maxWidth: '90%' }}
     >
       <ActionSheet.ScrollableContent>
@@ -333,29 +379,304 @@ export function MoveNoteSheet({
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
-  const disabledFolders = new Map<number, string>(
-    note ? [[note.folderId, 'Current']] : []
+  const hiddenFolderIds = useMemo(
+    () => new Set<number>(note ? [note.folderId] : []),
+    [note]
   );
+  const { selectedDestination, selectedFolderId, setSelectedFolderId } =
+    useFolderDestinationSelection({
+      folderRows,
+      hiddenFolderIds,
+      resetKey: open ? note?.id : null,
+    });
   const title = note?.title?.trim() || 'Untitled';
 
   return (
-    <NotesDialog
+    <MoveDestinationSheet
       open={open}
       onOpenChange={onOpenChange}
       title="Move note"
       subtitle={`Choose a new folder for ${title}.`}
       testID="NotesMoveNoteSheet"
-      cancelDisabled={isMoving}
+      isMoving={isMoving}
+      selectedDestination={selectedDestination}
+      onConfirm={onMove}
     >
-      <FolderPicker
-        disabledFolders={disabledFolders}
+      <FolderDestinationSearch
         folderRows={folderRows}
+        hiddenFolderIds={hiddenFolderIds}
         isLoading={isMoving}
-        onSelectFolder={onMove}
-        selectedFolderId={note?.folderId ?? null}
+        onSelectFolder={setSelectedFolderId}
+        resetKey={open ? note?.id : null}
+        selectedFolderId={selectedFolderId}
         testID="NotesMoveNoteFolderPicker"
       />
-    </NotesDialog>
+    </MoveDestinationSheet>
+  );
+}
+
+export function useFolderDestinationSelection({
+  folderRows,
+  hiddenFolderIds,
+  resetKey,
+}: {
+  folderRows: FolderRow[];
+  hiddenFolderIds?: Set<number>;
+  resetKey?: string | number | null;
+}) {
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const destinations = useMemo(
+    () => buildFolderDestinationRows({ folderRows, hiddenFolderIds }),
+    [folderRows, hiddenFolderIds]
+  );
+  const selectedDestination = useMemo(
+    () =>
+      destinations.find(
+        (destination) => destination.folder.folderId === selectedFolderId
+      ) ?? null,
+    [destinations, selectedFolderId]
+  );
+
+  useEffect(() => {
+    setSelectedFolderId(null);
+  }, [resetKey]);
+
+  useEffect(() => {
+    if (selectedFolderId !== null && selectedDestination === null) {
+      setSelectedFolderId(null);
+    }
+  }, [selectedDestination, selectedFolderId]);
+
+  return { selectedDestination, selectedFolderId, setSelectedFolderId };
+}
+
+export function MoveDestinationSheet({
+  children,
+  isMoving,
+  onConfirm,
+  onOpenChange,
+  open,
+  selectedDestination,
+  subtitle,
+  testID,
+  title,
+}: {
+  children: ReactNode;
+  isMoving: boolean;
+  onConfirm: (folderId: number) => void;
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+  selectedDestination: FolderDestinationRow | null;
+  subtitle: string;
+  testID: string;
+  title: string;
+}) {
+  const insets = useSafeAreaInsets();
+  const handleConfirm = useCallback(() => {
+    if (!selectedDestination || isMoving) return;
+    onConfirm(selectedDestination.folder.folderId);
+  }, [isMoving, onConfirm, selectedDestination]);
+
+  const renderFooter = useCallback(() => {
+    if (!selectedDestination) {
+      return null;
+    }
+
+    return (
+      <YStack
+        paddingBottom={insets.bottom + getTokenValue('$xl', 'size')}
+        paddingHorizontal="$xl"
+      >
+        <Button
+          preset="primary"
+          onPress={handleConfirm}
+          disabled={isMoving}
+          label={
+            isMoving
+              ? 'Moving...'
+              : `Move to ${selectedDestination.displayPath}`
+          }
+          centered
+        />
+      </YStack>
+    );
+  }, [handleConfirm, insets.bottom, isMoving, selectedDestination]);
+
+  return (
+    <ActionSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      snapPointsMode="percent"
+      snapPoints={MOVE_DESTINATION_SHEET_SNAP_POINTS}
+      keyboardBehavior="extend"
+      enableContentPanningGesture={false}
+      hasScrollableContent
+      footerComponent={renderFooter}
+      unmountOnClose
+    >
+      <ActionSheet.Content flex={1} paddingBottom="$s" testID={testID}>
+        <ActionSheet.SimpleHeader title={title} subtitle={subtitle} />
+        {children}
+      </ActionSheet.Content>
+    </ActionSheet>
+  );
+}
+
+export function FolderDestinationSearch({
+  folderRows,
+  hiddenFolderIds,
+  isLoading = false,
+  maxHeight = 520,
+  onSelectFolder,
+  resetKey,
+  selectedFolderId,
+  testID,
+}: {
+  folderRows: FolderRow[];
+  hiddenFolderIds?: Set<number>;
+  isLoading?: boolean;
+  maxHeight?: number;
+  onSelectFolder: (folderId: number) => void;
+  resetKey?: string | number | null;
+  selectedFolderId?: number | null;
+  testID?: string;
+}) {
+  const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    setQuery('');
+  }, [resetKey]);
+
+  const destinations = useMemo(
+    () => buildFolderDestinationRows({ folderRows, hiddenFolderIds }),
+    [folderRows, hiddenFolderIds]
+  );
+
+  const fuse = useMemo(
+    () =>
+      new Fuse(destinations, {
+        keys: ['displayPath', 'label'],
+        threshold: 0.4,
+      }),
+    [destinations]
+  );
+
+  const filteredDestinations = useMemo(() => {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
+      return destinations;
+    }
+    return fuse.search(trimmedQuery).map((result) => result.item);
+  }, [destinations, fuse, query]);
+
+  const handleClear = useCallback(() => {
+    setQuery('');
+  }, []);
+
+  const listPadding = useMemo(() => getTokenValue('$l', 'size'), []);
+  const contentContainerStyle = useMemo(
+    () => ({
+      padding: listPadding,
+      paddingBottom: selectedFolderId ? 100 : listPadding,
+    }),
+    [listPadding, selectedFolderId]
+  );
+
+  return (
+    <YStack testID={testID}>
+      <XStack paddingHorizontal="$xl">
+        <TextInput
+          frameStyle={{ width: '100%' }}
+          icon="Search"
+          placeholder="Search folders"
+          value={query}
+          onChangeText={setQuery}
+          spellCheck={false}
+          autoCorrect={false}
+          autoCapitalize="none"
+          autoFocus={Platform.OS === 'web'}
+          rightControls={
+            query !== '' ? (
+              <TextInput.InnerButton label="Clear" onPress={handleClear} />
+            ) : undefined
+          }
+        />
+      </XStack>
+      <ScrollView
+        maxHeight={maxHeight}
+        contentContainerStyle={contentContainerStyle}
+      >
+        <YStack gap="$xs">
+          {filteredDestinations.length > 0 ? (
+            filteredDestinations.map((destination) => (
+              <FolderDestinationSearchRow
+                key={destination.folder.id}
+                destination={destination}
+                disabled={isLoading}
+                selected={selectedFolderId === destination.folder.folderId}
+                onPress={() => onSelectFolder(destination.folder.folderId)}
+              />
+            ))
+          ) : (
+            <YStack padding="$l" alignItems="center">
+              <Text size="$label/m" color="$secondaryText">
+                {query.trim()
+                  ? 'No folders found'
+                  : 'No destinations available'}
+              </Text>
+            </YStack>
+          )}
+        </YStack>
+      </ScrollView>
+    </YStack>
+  );
+}
+
+function FolderDestinationSearchRow({
+  destination,
+  disabled,
+  onPress,
+  selected,
+}: {
+  destination: FolderDestinationRow;
+  disabled: boolean;
+  onPress: () => void;
+  selected: boolean;
+}) {
+  return (
+    <Pressable
+      borderRadius="$xl"
+      disabled={disabled}
+      hoverStyle={{ backgroundColor: '$secondaryBackground' }}
+      onPress={disabled ? undefined : onPress}
+    >
+      <ListItem
+        alignItems="center"
+        backgroundColor={
+          selected
+            ? '$positiveBackground'
+            : destination.isRoot
+              ? '$secondaryBackground'
+              : 'transparent'
+        }
+        borderColor={selected ? '$positiveBorder' : 'transparent'}
+        borderWidth="$2xs"
+        justifyContent="flex-start"
+        opacity={disabled ? 0.6 : 1}
+      >
+        <ListItem.SystemIcon
+          icon={destination.isRoot ? 'Home' : 'Folder'}
+          backgroundColor={destination.isRoot ? '$background' : undefined}
+          color={destination.isRoot ? '$primaryText' : '$tertiaryText'}
+        />
+        <ListItem.MainContent>
+          <ListItem.Title>{destination.displayPath}</ListItem.Title>
+          {destination.isRoot ? (
+            <ListItem.Subtitle>Top level</ListItem.Subtitle>
+          ) : null}
+        </ListItem.MainContent>
+      </ListItem>
+    </Pressable>
   );
 }
 
