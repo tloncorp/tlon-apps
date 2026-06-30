@@ -22,7 +22,6 @@ import { trackNotesActionError } from './notesTelemetry';
 export function useNotesImportController({
   canDropImportNotes,
   canEdit,
-  expandFolder,
   folders,
   notebookFlag,
   notes,
@@ -32,7 +31,6 @@ export function useNotesImportController({
 }: {
   canDropImportNotes: boolean;
   canEdit: boolean;
-  expandFolder: (folderId: number) => void;
   folders: db.NotesFolder[];
   notebookFlag: string | null | undefined;
   notes: db.NotesNote[];
@@ -74,7 +72,6 @@ export function useNotesImportController({
         noteTitlesByFolder.set(note.folderId, titles);
       });
 
-      const expandedFolderIds = new Set<number>([targetRootFolderId]);
       const ensureFolderPath = async (segments: string[]) => {
         let parentFolderId = targetRootFolderId;
         for (const segment of segments) {
@@ -82,7 +79,6 @@ export function useNotesImportController({
           const existing = foldersByParentAndName.get(key);
           if (existing) {
             parentFolderId = existing.folderId;
-            expandedFolderIds.add(parentFolderId);
             continue;
           }
 
@@ -97,7 +93,6 @@ export function useNotesImportController({
 
           foldersByParentAndName.set(key, folder);
           parentFolderId = folder.folderId;
-          expandedFolderIds.add(parentFolderId);
         }
         return parentFolderId;
       };
@@ -116,7 +111,6 @@ export function useNotesImportController({
             title,
             body: item.body,
           });
-          expandedFolderIds.add(folderId);
           importedCount += 1;
         } catch (e) {
           console.error('Failed to import note', item.relativePath, e);
@@ -124,7 +118,6 @@ export function useNotesImportController({
         }
       }
 
-      expandedFolderIds.forEach(expandFolder);
       if (importedCount === 0 && failedCount > 0) {
         throw new Error(
           `Failed to import ${formatCount(failedCount, 'note')}.`
