@@ -80,6 +80,7 @@ export { default as Sorter } from './Sorter.svg';
 export { default as Stop } from './Stop.svg';
 export { default as Strikethrough } from './Strikethrough.svg';
 export { default as TBlock } from './TBlock.svg';
+export { default as Trash } from './Trash.svg';
 export { default as Underline } from './Underline.svg';
 export { default as Undo } from './Undo.svg';
 export { default as VerifiedBadge } from './VerifiedBadge.svg';

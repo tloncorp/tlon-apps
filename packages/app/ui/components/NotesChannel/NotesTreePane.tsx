@@ -21,6 +21,7 @@ export function NotesTreePane({
   onMoveNote,
   onOpenNote,
   onRenameFolder,
+  onRenameNote,
   onToggleFolder,
 }: {
   canEdit: boolean;
@@ -37,6 +38,7 @@ export function NotesTreePane({
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
+  onRenameNote: (note: db.NotesNote) => void;
   onToggleFolder: (folderId: number, hasChildren: boolean) => void;
 }) {
   if (treeRows.length === 0) {
@@ -68,6 +70,7 @@ export function NotesTreePane({
       onMoveNote={onMoveNote}
       onOpenNote={onOpenNote}
       onRenameFolder={onRenameFolder}
+      onRenameNote={onRenameNote}
       onToggleFolder={onToggleFolder}
     />
   );
@@ -115,6 +118,7 @@ function NotesTreeRowsList({
   onMoveNote,
   onOpenNote,
   onRenameFolder,
+  onRenameNote,
   onToggleFolder,
 }: {
   canEdit: boolean;
@@ -130,6 +134,7 @@ function NotesTreeRowsList({
   onMoveNote: (note: db.NotesNote) => void;
   onOpenNote: (note: db.NotesNote) => void;
   onRenameFolder: (folder: db.NotesFolder) => void;
+  onRenameNote: (note: db.NotesNote) => void;
   onToggleFolder: (folderId: number, hasChildren: boolean) => void;
 }) {
   return (
@@ -164,6 +169,7 @@ function NotesTreeRowsList({
             onDelete={() => onDeleteNote(row.note)}
             onMove={() => onMoveNote(row.note)}
             onPress={() => onOpenNote(row.note)}
+            onRename={() => onRenameNote(row.note)}
           />
         )
       )}

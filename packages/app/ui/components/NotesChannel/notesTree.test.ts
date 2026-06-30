@@ -2,7 +2,9 @@ import * as db from '@tloncorp/shared/db';
 import { describe, expect, test } from 'vitest';
 
 import {
+  buildFolderDestinationRows,
   buildFolderNoteCounts,
+  buildFolderRows,
   buildNotesTreeRows,
   filterNotesTreeData,
   getFolderPath,
@@ -100,6 +102,22 @@ describe('notes tree helpers', () => {
       'Root / Projects / Backlog'
     );
     expect(getFolderPath([root, projects], 999, 1)).toBeNull();
+  });
+
+  test('builds flat move destinations with root distinguished and hidden folders omitted', () => {
+    const folderRows = buildFolderRows([projects, root, backlog, archive], 1, {
+      includeRoot: true,
+    });
+    const destinations = buildFolderDestinationRows({
+      folderRows,
+      hiddenFolderIds: new Set([2]),
+    });
+
+    expect(
+      destinations.map((row) =>
+        [row.isRoot ? 'root' : 'folder', row.displayPath].join(':')
+      )
+    ).toEqual(['root:Root', 'folder:Archive', 'folder:Projects / Backlog']);
   });
 
   test('searching a folder includes ancestors, descendants, and descendant notes', () => {
