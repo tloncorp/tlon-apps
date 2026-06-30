@@ -15,7 +15,7 @@ import {
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import Fuse from 'fuse.js';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 import { Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -327,24 +327,39 @@ export function NotesDialog({
 export function useEntityDialog<T>() {
   const [entity, setEntity] = useState<T | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const generationRef = useRef(0);
 
-  const open = useCallback((next: T) => setEntity(next), []);
-  const close = useCallback(() => setEntity(null), []);
+  const open = useCallback((next: T) => {
+    generationRef.current += 1;
+    setIsPending(false);
+    setEntity(next);
+  }, []);
+  const close = useCallback(() => {
+    generationRef.current += 1;
+    setIsPending(false);
+    setEntity(null);
+  }, []);
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      if (!nextOpen && !isPending) {
-        setEntity(null);
+      if (!nextOpen) {
+        close();
       }
     },
-    [isPending]
+    [close]
   );
   const run = useCallback(async (action: () => Promise<void>) => {
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
     setIsPending(true);
     try {
       await action();
-      setEntity(null);
+      if (generationRef.current === generation) {
+        setEntity(null);
+      }
     } finally {
-      setIsPending(false);
+      if (generationRef.current === generation) {
+        setIsPending(false);
+      }
     }
   }, []);
 

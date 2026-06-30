@@ -65,6 +65,36 @@ import {
 } from './notesTree';
 import { useNotesImportController } from './useNotesImportController';
 
+const MOVE_OPERATION_TIMEOUT_MS = 12000;
+const MOVE_OPERATION_TIMEOUT_MESSAGE =
+  'Move is taking longer than expected. It may still finish syncing, so check before moving it again.';
+
+function withMoveOperationTimeout(operation: Promise<void>): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(MOVE_OPERATION_TIMEOUT_MESSAGE));
+    }, MOVE_OPERATION_TIMEOUT_MS);
+
+    operation.then(
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        resolve();
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
+}
+
 type PublishingAction = 'publish' | 'unpublish' | null;
 
 export function NotesNativeChannel({
@@ -367,28 +397,36 @@ export function NotesNativeChannel({
     async (folderId: number) => {
       if (!notebookFlag || !movingNote || !canEdit || isMovingNote) return;
 
-      if (folderId === movingNote.folderId) {
-        closeMoveNoteDialog();
+      const note = movingNote;
+      const destinationLabel = getMoveDestinationLabel(
+        parentFolderRows,
+        folderId
+      );
+      closeMoveNoteDialog();
+
+      if (folderId === note.folderId) {
         return;
       }
 
       await runAction('Failed to move note', () =>
-        runMoveNote(async () => {
-          await moveNotebookNote({
-            notebookFlag,
-            noteId: movingNote.noteId,
-            folderId,
-          });
-          expandFolder(folderId);
-          setSelectedFolderId(folderId);
-          showToast({
-            message: `Moved note to ${getMoveDestinationLabel(
-              parentFolderRows,
-              folderId
-            )}`,
-            duration: 1500,
-          });
-        })
+        runMoveNote(() =>
+          withMoveOperationTimeout(
+            (async () => {
+              await moveNotebookNote({
+                notebookFlag,
+                noteId: note.noteId,
+                folderId,
+              });
+              expandFolder(folderId);
+              setSelectedFolderId(folderId);
+              setError(null);
+              showToast({
+                message: `Moved note to ${destinationLabel}`,
+                duration: 1500,
+              });
+            })()
+          )
+        )
       );
     }
   );
@@ -588,29 +626,37 @@ export function NotesNativeChannel({
         return;
       }
 
-      if (parentFolderId === movingFolder.parentFolderId) {
-        closeMoveFolderDialog();
+      const folder = movingFolder;
+      const destinationLabel = getMoveDestinationLabel(
+        parentFolderRows,
+        parentFolderId
+      );
+      closeMoveFolderDialog();
+
+      if (parentFolderId === folder.parentFolderId) {
         return;
       }
 
       await runAction('Failed to move folder', () =>
-        runMoveFolder(async () => {
-          await moveNotebookFolder({
-            notebookFlag,
-            folder: movingFolder,
-            parentFolderId,
-          });
-          expandFolder(parentFolderId);
-          expandFolder(movingFolder.folderId);
-          setSelectedFolderId(movingFolder.folderId);
-          showToast({
-            message: `Moved folder to ${getMoveDestinationLabel(
-              parentFolderRows,
-              parentFolderId
-            )}`,
-            duration: 1500,
-          });
-        })
+        runMoveFolder(() =>
+          withMoveOperationTimeout(
+            (async () => {
+              await moveNotebookFolder({
+                notebookFlag,
+                folder,
+                parentFolderId,
+              });
+              expandFolder(parentFolderId);
+              expandFolder(folder.folderId);
+              setSelectedFolderId(folder.folderId);
+              setError(null);
+              showToast({
+                message: `Moved folder to ${destinationLabel}`,
+                duration: 1500,
+              });
+            })()
+          )
+        )
       );
     }
   );
