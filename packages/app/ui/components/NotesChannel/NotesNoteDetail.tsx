@@ -10,11 +10,12 @@ import {
   type ElementRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { AppState } from 'react-native';
+import { AppState, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Input, ScrollView, TextArea, XStack, YStack } from 'tamagui';
 
 import {
@@ -161,8 +162,18 @@ export function NotesNoteDetail({
     notebookFlag,
     noteId
   );
+  const bodyDraftRef = useRef(bodyDraft);
+  const pendingBodyDraftRef = useRef<string | null>(null);
+  const bodyDraftUpdateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const titleInputRef = useRef<ElementRef<typeof Input>>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
+  const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
+  const scrollOffsetYRef = useRef(0);
+  const lastUserScrollOffsetYRef = useRef(0);
+  const userIsScrollingRef = useRef(false);
+  const pendingScrollRestoreYRef = useRef<number | null>(null);
 
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
@@ -172,6 +183,7 @@ export function NotesNoteDetail({
     noteId === null
       ? null
       : notes.find((note) => note.noteId === noteId) ?? null;
+  const selectedNoteRowId = selectedNote?.id ?? null;
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
@@ -208,6 +220,35 @@ export function NotesNoteDetail({
   const noteDate = selectedNote
     ? formatNoteDate(selectedNote.updatedAt ?? selectedNote.createdAt)
     : null;
+  useEffect(() => {
+    bodyDraftRef.current = bodyDraft;
+  }, [bodyDraft]);
+
+  useEffect(() => {
+    return () => {
+      if (bodyDraftUpdateTimeoutRef.current !== null) {
+        clearTimeout(bodyDraftUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const preserveScrollOffset = useCallback(() => {
+    if (isPreviewing) return;
+    pendingScrollRestoreYRef.current = Math.max(
+      scrollOffsetYRef.current,
+      lastUserScrollOffsetYRef.current
+    );
+  }, [isPreviewing]);
+
+  useLayoutEffect(() => {
+    const restoreY = pendingScrollRestoreYRef.current;
+    if (restoreY === null || isPreviewing) return;
+
+    pendingScrollRestoreYRef.current = null;
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({ y: restoreY, animated: false });
+    });
+  }, [bodyDraft, bodyInputHeight, draftBase, isPreviewing, saveState]);
 
   // Load drafts when the selection changes. While the same note stays
   // selected, adopt row updates only when the editor is clean: the synced
@@ -218,6 +259,9 @@ export function NotesNoteDetail({
   useEffect(() => {
     const sameNote = (selectedNote?.id ?? null) === (draftBase?.id ?? null);
     if (sameNote && (isDirty || selectedNote === draftBase)) return;
+    if (sameNote) {
+      preserveScrollOffset();
+    }
     setDraftBase(selectedNote ?? null);
     setTitleDraft(selectedNote?.title ?? '');
     setBodyDraft(selectedNote?.bodyMd ?? '');
@@ -225,16 +269,16 @@ export function NotesNoteDetail({
       setSaveState('idle');
       setError(null);
     }
-  }, [draftBase, isDirty, selectedNote]);
+  }, [draftBase, isDirty, preserveScrollOffset, selectedNote]);
 
   useEffect(() => {
-    if (!autoFocusTitle || !selectedNote || !canEdit) return;
+    if (!autoFocusTitle || !selectedNoteRowId || !canEdit) return;
     const timeout = setTimeout(() => {
       titleInputRef.current?.focus();
       onTitleAutoFocused?.();
     });
     return () => clearTimeout(timeout);
-  }, [autoFocusTitle, canEdit, onTitleAutoFocused, selectedNote?.id]);
+  }, [autoFocusTitle, canEdit, onTitleAutoFocused, selectedNoteRowId]);
 
   // All saves go through one chain so each rebases onto the revision the
   // previous save produced instead of racing the backend revision check.
@@ -265,6 +309,7 @@ export function NotesNoteDetail({
   const saveSelectedNote = useCallback(async () => {
     if (!notebookFlag || !draftBase || !canEdit) return false;
     if (!isDirty) return true;
+    preserveScrollOffset();
     setSaveState('saving');
     setError(null);
     try {
@@ -296,6 +341,7 @@ export function NotesNoteDetail({
     draftBase,
     isDirty,
     notebookFlag,
+    preserveScrollOffset,
     runSave,
     titleDraft,
   ]);
@@ -338,6 +384,7 @@ export function NotesNoteDetail({
       ctx.body !== ctx.base.bodyMd;
     if (!dirty) return;
     const { flag, base, title, body } = ctx;
+    preserveScrollOffset();
     runSave(flag, base, title, body)
       .then((updated) => {
         clearDraftStash(flag, base.noteId, { title, body });
@@ -349,11 +396,10 @@ export function NotesNoteDetail({
         setSaveState('saved');
       })
       .catch(() => {});
-  }, [runSave]);
+  }, [preserveScrollOffset, runSave]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
   // outlives the component.
-  const selectedNoteRowId = selectedNote?.id ?? null;
   useEffect(() => {
     return () => flushPendingSave();
   }, [flushPendingSave, selectedNoteRowId]);
@@ -417,6 +463,64 @@ export function NotesNoteDetail({
     bodyInputRef.current?.focus();
   }, []);
 
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextOffsetY = event.nativeEvent.contentOffset.y;
+      scrollOffsetYRef.current = nextOffsetY;
+      if (nextOffsetY > lastUserScrollOffsetYRef.current) {
+        lastUserScrollOffsetYRef.current = nextOffsetY;
+      }
+      if (userIsScrollingRef.current) {
+        lastUserScrollOffsetYRef.current = nextOffsetY;
+      }
+    },
+    []
+  );
+
+  const handleScrollBeginDrag = useCallback(() => {
+    userIsScrollingRef.current = true;
+  }, []);
+
+  const handleScrollEnd = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextOffsetY = event.nativeEvent.contentOffset.y;
+      scrollOffsetYRef.current = nextOffsetY;
+      lastUserScrollOffsetYRef.current = nextOffsetY;
+      userIsScrollingRef.current = false;
+    },
+    []
+  );
+
+  const handleBodyDraftChange = useCallback(
+    (nextBody: string) => {
+      if (
+        bodyDraftRef.current === nextBody ||
+        pendingBodyDraftRef.current === nextBody
+      ) {
+        return;
+      }
+      preserveScrollOffset();
+      pendingBodyDraftRef.current = nextBody;
+      if (bodyDraftUpdateTimeoutRef.current !== null) return;
+
+      bodyDraftUpdateTimeoutRef.current = setTimeout(() => {
+        bodyDraftUpdateTimeoutRef.current = null;
+        const pendingBody = pendingBodyDraftRef.current;
+        pendingBodyDraftRef.current = null;
+        if (pendingBody === null || bodyDraftRef.current === pendingBody) {
+          return;
+        }
+        bodyDraftRef.current = pendingBody;
+        setBodyDraft(pendingBody);
+      }, 0);
+    },
+    [preserveScrollOffset]
+  );
+
+  const handleBodyInputFocus = useCallback(() => {
+    preserveScrollOffset();
+  }, [preserveScrollOffset]);
+
   const handleBodyInputLayout = useCallback(
     (event: { nativeEvent: { layout: { width: number } } }) => {
       const nextWidth = event.nativeEvent.layout.width;
@@ -478,11 +582,18 @@ export function NotesNoteDetail({
     <YStack flex={1} backgroundColor="$background">
       {error ? <NotesBanner message={error} tone="negative" /> : null}
       <ScrollView
+        ref={scrollViewRef}
         flex={1}
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ flexGrow: 1 }}
+        onScroll={handleScroll}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEnd}
+        onMomentumScrollEnd={handleScrollEnd}
+        scrollEventThrottle={16}
+        testID="NotesDetailScrollView"
       >
         <YStack
           flexGrow={1}
@@ -607,7 +718,8 @@ export function NotesNoteDetail({
                   minHeight={MIN_BODY_INPUT_HEIGHT}
                   height={bodyInputHeight}
                   value={bodyDraft}
-                  onChangeText={setBodyDraft}
+                  onChangeText={handleBodyDraftChange}
+                  onFocus={handleBodyInputFocus}
                   onLayout={handleBodyInputLayout}
                   placeholder="Note body"
                   placeholderTextColor="$tertiaryText"
