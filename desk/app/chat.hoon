@@ -66,6 +66,7 @@
           [/clubs %chat-club-action ~]
           [/dm/$ %writ-response ~]
           [/dm/invited %ships ~]
+          [/vouched-dm %chat-dm-vouched-diff-2 ~]
           [/epic %epic ~]
           [/unreads %chat-unread-update ~]
         ::
@@ -1141,6 +1142,9 @@
 
       [%unreads ~]  ?>(from-self cor)
       [%dm %invited ~]  ?>(from-self cor)
+  ::  experimental: stream of incoming vouched (virtual-identity) dms, for the
+  ::  host's own clients/bot to read. local subscribers only.
+      [%vouched-dm ~]  ?>(from-self cor)
   ::
       [%dm ship=@ rest=*]
     =/  =ship  (slav %p ship.pole)
@@ -3167,7 +3171,10 @@
   ~>  %spin.['dv-take-diff']
   ^+  cor
   ?:  (vouches-for:utils our.bowl as)
-    ::  inbound to our bot .as from the human src.bowl
+    ::  inbound to our bot .as from the human src.bowl: store and stream it to
+    ::  the host's local subscribers (the bot). On inbound the writ's author is
+    ::  the human, so [as diff] carries who+content without a new mark.
+    =.  cor  (emit %give %fact ~[/vouched-dm] chat-dm-vouched-diff-2+[as diff])
     dv-abet:(dv-ingest:(dv-abed:dv-core as src.bowl) diff)
   ?:  (vouches-for:utils src.bowl as)
     ::  a reply from src's bot .as to us (the human)

@@ -36,6 +36,24 @@
   :~  %+  ex-poke  /vouched-dm/(scot %p moon)/(scot %p ~bus)
       [[owner dap] chat-dm-vouched-diff-2+!>(`vouched-diff:dm:c`[moon diff])]
   ==
+::  the host stores an inbound vouched dm and streams it to local subscribers
+++  test-vouched-dm-inbound
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  *  bind:m  (do-init dap agent)
+  ;<  *  bind:m  (set-scry-gate scries)
+  ::  we are the moon's host (sein), receiving from the human ~bus
+  ;<  *  bind:m  (jab-bowl |=(b=bowl b(our owner, src ~bus)))
+  ;<  bw=bowl  bind:m  get-bowl
+  =/  =diff:dm:c  (dm-message ~bus now.bw [%inline ~['hi bot']])
+  ;<  caz=(list card)  bind:m
+    (do-poke %chat-dm-vouched-diff-2 !>(`vouched-diff:dm:c`[moon diff]))
+  %+  ex-cards  caz
+  :~  %^    ex-fact
+        ~[/vouched-dm]
+      %chat-dm-vouched-diff-2
+    !>(`vouched-diff:dm:c`[moon diff])
+  ==
 ::  a vouched diff from a ship that does not sponsor the moon is rejected
 ++  test-vouched-dm-rejects-unvouched
   %-  eval-mare
