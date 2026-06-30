@@ -8,8 +8,7 @@ import { initializeNotifications } from '@tloncorp/app/lib/notifications';
 import { setStorage } from '@tloncorp/app/ui';
 import { addCustomEnabledLoggers, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-// With inlineRequires enabled, this must be imported first so createTamagui()
-// runs before the UI barrel reads design tokens at import time.
+// Runs createTamagui() before the UI barrel reads design tokens at import time.
 import '@tloncorp/ui/config';
 import { registerRootComponent } from 'expo';
 import 'expo-dev-client';
